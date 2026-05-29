@@ -2,8 +2,7 @@
 
 // Editing a reply to contain a <gno-form> is now accepted: the
 // write-time blacklist relaxation applies to edits too (EditReply shares
-// the validator). The body renders inside a <gno-foreign> sandbox. See
-// BOARD_FOREIGN.md.
+// the validator). The body renders inside a <gno-foreign> sandbox.
 package z_edit_reply_08_filetest
 
 import (

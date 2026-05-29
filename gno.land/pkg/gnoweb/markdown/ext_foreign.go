@@ -7,8 +7,6 @@
 // load-bearing `parser.Continue` (no HasChildren) invariant) and
 // rendered inside its own goldmark instance with structural
 // extensions selectively loaded.
-//
-// See FOREIGN.md for the full plan and threat model.
 package markdown
 
 import (
@@ -202,8 +200,8 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
 	}
-	// parser.NoChildren — load-bearing opacity invariant. See
-	// FOREIGN.md "Bulletproof requirement #5".
+	// parser.NoChildren — load-bearing opacity invariant: the body must
+	// stay opaque to every other block parser.
 	return node, parser.NoChildren
 }
 
@@ -248,7 +246,7 @@ func (*foreignParser) Continue(n ast.Node, reader text.Reader, pc parser.Context
 	// Non-tag line — body content. Collected verbatim including
 	// trailing newline. No other block parser sees this line
 	// because we return parser.Continue with NoChildren (opacity
-	// invariant — see FOREIGN.md "Bulletproof requirement #5").
+	// invariant).
 	fn.Body = append(fn.Body, line...)
 	reader.AdvanceToEOL()
 	return parser.Continue | parser.NoChildren
@@ -342,7 +340,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 
 	// Inner goldmark instance: built per-render (NOT a package-level
 	// singleton) so each foreign block gets isolated parser/renderer
-	// state. See FOREIGN.md §"Inner goldmark instance".
+	// state.
 	innerGM := buildInnerForeignMarkdown(r.imgValidator)
 	innerCtx := parser.NewContext()
 	// Pre-seed the depth counter so the cross-family cap stays
@@ -385,7 +383,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 //
 // Auto-heading-IDs are intentionally NOT enabled here (unlike the outer
 // instance): heading anchors inside an opaque sandbox are low-value and
-// would multiply the cross-block ID-collision noise (see FOREIGN.md).
+// would multiply cross-block ID collisions.
 func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdown {
 	m := goldmark.New(
 		goldmark.WithExtensions(

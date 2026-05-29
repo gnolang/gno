@@ -3,7 +3,7 @@
 // A reply may now contain Markdown block structure (here a blockquote).
 // The write-time blacklist used to reject it; now the reply body renders
 // inside a <gno-foreign> sandbox, so its structure is contained and
-// cannot hijack realm chrome. See BOARD_FOREIGN.md.
+// cannot hijack realm chrome.
 package z_create_reply_13_filetest
 
 import (

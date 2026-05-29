@@ -3,8 +3,8 @@
 // A thread large enough to exceed the foreign-block render budget
 // degrades gracefully: rendering stops before gnoweb's
 // MaxGnoForeignBlocksPerConvert (100) cap would blank comments, and a
-// "More replies — view full thread" notice is shown instead. See
-// BOARD_FOREIGN.md (Phase 2) / maxRenderedBodies.
+// "More replies — view full thread" notice is shown instead
+// (see maxRenderedBodies).
 package z_ui_thread_08_filetest
 
 import (

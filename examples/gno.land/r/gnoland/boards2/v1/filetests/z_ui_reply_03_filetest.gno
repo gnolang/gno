@@ -2,7 +2,7 @@
 
 // Render the "reply to a comment" form: the parent-comment preview is now
 // shown inside a labeled <gno-foreign> sandbox (was md.Blockquote, which
-// gave no sandboxing). See BOARD_FOREIGN.md.
+// gave no sandboxing).
 package z_ui_reply_03_filetest
 
 import (

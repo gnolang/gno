@@ -3,7 +3,7 @@
 // A reply may now contain a <gno-form>. The write-time blacklist used to
 // reject it; now the reply body renders inside a <gno-foreign> sandbox
 // whose inner renderer does not load forms (gnoweb safe-mode omits the
-// raw HTML at render). See BOARD_FOREIGN.md.
+// raw HTML at render).
 package z_create_reply_16_filetest
 
 import (

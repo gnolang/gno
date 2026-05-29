@@ -52,7 +52,7 @@ func indentBody(indent string, body string) string {
 // contained and cannot hijack realm chrome, so boards no longer needs
 // the write-time markdown blacklist. The opener survives the "> "
 // comment indentation at any depth (goldmark strips the "> " prefix
-// before the block parser runs). See BOARD_FOREIGN.md / maxRenderedBodies.
+// before the block parser runs).
 func indentForeignBody(indent, body string, budget *int) string {
 	*budget-- // one <gno-foreign> block
 	return indentBody(indent, foreign.Foreign(body))
