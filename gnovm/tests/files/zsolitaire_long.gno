@@ -117,4 +117,4 @@ func main() {
 }
 
 // Output:
-// 391865 moves tried
+// zzz391865 moves tried
