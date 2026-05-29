@@ -21,7 +21,7 @@ func ExampleNewChangelog() {
 	print(changelog.Latest().Render())
 
 	// Output:
-	// zzz-----------
+	// -----------
 	// # example
 	//
 	// -----------

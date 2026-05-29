@@ -117,5 +117,5 @@ func ExampleZSolitaire() {
 	fmt.Println(moves, "moves tried")
 
 	// Output:
-	// zzz391865 moves tried
+	// 391865 moves tried
 }
