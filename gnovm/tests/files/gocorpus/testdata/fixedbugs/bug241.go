@@ -1,0 +1,13 @@
+// errorcheck
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+const c = 3
+var x = c.String()	// ERROR "String"
+
+// GnoError:
+// line 10: c.String undefined (type untyped int has no field or method String)

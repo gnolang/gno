@@ -1,0 +1,20 @@
+// errorcheck
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "unsafe"
+
+type T struct { // ERROR "recursive type"
+	x int
+	p unsafe.Pointer
+
+	f T
+}
+
+// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoError:
+// line 9: unknown import path unsafe
