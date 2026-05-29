@@ -178,6 +178,11 @@ func ExampleRender() {
 }
 ```
 
+:::warning Reserved function name
+Your test file can have local helper functions, but `init()` is reserved for other types of tests.
+Use something like `initialize()` instead.
+:::
+
 ## Filetests
 
 Filetests are golden tests typically used to test realms. They execute a `main`
