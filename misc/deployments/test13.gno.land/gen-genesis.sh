@@ -217,18 +217,18 @@ CHECKSUMS_DATA=$(
   cat <<'EOF'
 # Phase 1 artifacts
 db510a244428bf22efb9a2b1e1c5c88bf4cb8d020714868066a389300475ab02  work/phase-1/airdrop_balances.txt.gz
-6da04bdc79bda9173644ec9106b06f64de21a744d548a1b3545119093dc6e726  work/phase-1/packages.gen.txt
-b52fd4672d596379da9040cb2533c037f2bdbe3533e60536880ff0f39eb886ec  work/phase-1/genesis_txs.jsonl
-f86c23d5a77c2e059324cb81f765db8faf32694609e7495915f3d407ca038b4a  work/phase-1/base-genesis.json
+b1e628ba3172ed2801360ef8270746c4d301350bf3023977e728ef10f65c739a  work/phase-1/packages.gen.txt
+11ee1bb4d93c11c29140e2dcc705b34213482196181c6eabef1f2bd0f5cc77c7  work/phase-1/genesis_txs.jsonl
+b2932463190d60bab2763cd5c8dadf010556da226f73426713cec1d79d344e67  work/phase-1/base-genesis.json
 197a642b82b6176ad8af2879bb8b29e781dd06ce499d3dc03ea3e4fbc5141460  work/phase-1/valoper-seed.jsonl
 
 # Phase 2 artifacts
 d0eb55f3c7221771956abbc2b8cd49fae08baebe571194143fff3f48c42a6df7  work/phase-2/txs.jsonl
 46bc04027359f61d90aef274c84e0b3ee25b78d49cc691842e16a7e0219ff584  work/phase-2/t1-rotation.jsonl
-64251ed9fc15c749c2d6f84c60130954b5da0ecdcd7886aed371e0f3cd24a667  work/phase-2/genesis.json
+2ea3bbe7dd874c5a8003446eb69aca668333a5cf71f50f1d6f2191c2a9dd3930  work/phase-2/genesis.json
 
 # Final artifact (moved to test13.gno.land/ root on phase-2 success)
-64251ed9fc15c749c2d6f84c60130954b5da0ecdcd7886aed371e0f3cd24a667  genesis.json
+2ea3bbe7dd874c5a8003446eb69aca668333a5cf71f50f1d6f2191c2a9dd3930  genesis.json
 EOF
 )
 
