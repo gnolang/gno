@@ -5,12 +5,15 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 
 	"github.com/rs/xid"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +25,37 @@ const (
 	notFound   = http.StatusNotFound
 	badRequest = http.StatusBadRequest
 )
+
+// Booting an in-memory node loads and runs every example package from genesis
+// — by far the dominant cost of this package's tests. The gnoweb tests only
+// query the node (read-only GETs), so a single node is shared across them all
+// instead of booting one per test. It is created lazily so mock-based tests
+// (handler/renderer) that never touch a node don't pay the boot cost, and
+// torn down in TestMain.
+var (
+	sharedNodeOnce sync.Once
+	sharedNode     *node.Node
+	sharedNodeAddr string
+)
+
+func sharedNodeRemote(t *testing.T) string {
+	t.Helper()
+	sharedNodeOnce.Do(func() {
+		rootdir := gnoenv.RootDir()
+		genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
+		sharedNode, sharedNodeAddr = integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	})
+	return sharedNodeAddr
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedNode != nil {
+		_ = sharedNode.Stop()
+	}
+	os.Exit(code)
+}
 
 func TestRoutes(t *testing.T) {
 	var (
@@ -87,13 +121,9 @@ func TestRoutes(t *testing.T) {
 		}
 	)
 
-	// Setup the logger and node
+	// Use the shared in-memory node (see TestMain).
 	logger := log.NewTestingLogger(t)
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-	defer node.Stop()
+	remoteAddr := sharedNodeRemote(t)
 
 	// Initialize the router with the current node's remote address
 	cfg := NewDefaultAppConfig()
@@ -119,11 +149,7 @@ func TestStaticMarkdownDevLinks(t *testing.T) {
 	t.Parallel()
 
 	logger := log.NewTestingLogger(t)
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-	t.Cleanup(func() { node.Stop() })
+	remoteAddr := sharedNodeRemote(t)
 
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
@@ -181,11 +207,7 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
-	defer node.Stop()
+	remoteAddr := sharedNodeRemote(t)
 
 	t.Run("enabled", func(t *testing.T) {
 		for _, route := range routes {
@@ -260,12 +282,8 @@ func TestHealthEndpoints(t *testing.T) {
 	})
 
 	t.Run("healthy", func(t *testing.T) {
-		// Setup node
-		rootdir := gnoenv.RootDir()
-		genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-		node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-		defer node.Stop()
+		// Use the shared in-memory node (see TestMain).
+		remoteAddr := sharedNodeRemote(t)
 
 		// Initialize the router with the current node's remote address
 		cfg := NewDefaultAppConfig()
