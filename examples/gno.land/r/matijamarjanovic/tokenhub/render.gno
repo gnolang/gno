@@ -61,22 +61,23 @@ import (
 	"gno.land/p/demo/tokens/grc1155"
 )
 
-// GRC20 token — must be constructed from a realm context (init or a
-// crossing function) because grc20.NewToken asserts cur.IsCurrent().
+// grc20.NewToken and grc721.NewBasicNFT must be constructed from a realm
+// context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
+	// GRC20 token
 	myToken, myLedger := grc20.NewToken(0, cur, "My Token", "MTK", 6)
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
-}
 
-// GRC721 NFT
-myNFT := grc721.NewBasicNFT("My NFT Collection", "MNFT")
-myNFT.Mint("g1your_address_here", "1")
-err := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
+	// GRC721 NFT
+	myNFT := grc721.NewBasicNFT(0, cur, "My NFT Collection", "MNFT")
+	myNFT.Mint("g1your_address_here", "1")
+	nftErr := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
 
-// GRC1155 multi-token
-myMultiToken := grc1155.NewBasicGRC1155Token("https://metadata.example.com/")
-myMultiToken.SafeMint("g1your_address_here", "123", 10)
-err := tokenhub.RegisterMultiToken(myMultiToken.Getter(), "123")`
+	// GRC1155 multi-token
+	myMultiToken := grc1155.NewBasicGRC1155Token("https://metadata.example.com/")
+	myMultiToken.SafeMint("g1your_address_here", "123", 10)
+	multiErr := tokenhub.RegisterMultiToken(myMultiToken.Getter(), "123")
+}`
 
 	out += md.LanguageCodeBlock("go", registerCode)
 
