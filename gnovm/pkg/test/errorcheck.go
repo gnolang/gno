@@ -319,23 +319,57 @@ func NeutralizeLine(source []byte, line int) (out []byte, wasPackage bool) {
 	return bytes.Join(lines, []byte("\n")), wasPackage
 }
 
+// internalNoise reports whether a Gno error segment is an internal
+// assertion rather than a real diagnostic — these surface when the
+// multi-pass's neutralization pushes Gno into an inconsistent state,
+// and should not be pinned in a golden if a real error for the same
+// line is available.
+func internalNoise(seg string) bool {
+	return strings.Contains(seg, "should not happen") ||
+		strings.Contains(seg, "panic:")
+}
+
 // errorForLine returns the cleaned message for the error keyed on
-// gnoLine, preferring a preprocess segment over a go/types one and
-// falling back to the first available segment. Used to record one
-// clean per-line entry in the `// GnoError:` golden block rather than
-// a whole joined multi-error string.
-func errorForLine(errSegs, tcSegs []string, gnoLine int) string {
+// gnoLine, choosing among the `; `-segments Gno reported for that line.
+// Selection priority:
+//  1. a marker-aligned segment (matches marker's regex) — when Gno
+//     reports several errors for one line, this picks the one the gc
+//     marker was about (e.g. go/types' precise "too many arguments"
+//     over a vaguer preprocess "not enough arguments");
+//  2. a non-internal-assertion ("should not happen") segment;
+//  3. any line-keyed segment;
+//  4. the first available segment (error without a position).
+//
+// Preprocess segments are considered before go/types within each tier.
+// marker may be nil (unmarked line) to skip tier 1.
+func errorForLine(errSegs, tcSegs []string, gnoLine int, marker *InlineError) string {
 	key := fmt.Sprintf(":%d:", gnoLine)
-	for _, group := range [][]string{errSegs, tcSegs} {
+	groups := [][]string{errSegs, tcSegs}
+
+	if marker != nil {
+		for _, group := range groups {
+			for _, seg := range group {
+				if strings.Contains(seg, key) && !internalNoise(seg) && MarkerMatches(*marker, seg) {
+					return CleanErrorMessage(seg)
+				}
+			}
+		}
+	}
+	for _, group := range groups {
+		for _, seg := range group {
+			if strings.Contains(seg, key) && !internalNoise(seg) {
+				return CleanErrorMessage(seg)
+			}
+		}
+	}
+	for _, group := range groups {
 		for _, seg := range group {
 			if strings.Contains(seg, key) {
 				return CleanErrorMessage(seg)
 			}
 		}
 	}
-	// No line-keyed segment (e.g. an error without a position): fall
-	// back to the first segment of whichever stream is non-empty.
-	for _, group := range [][]string{errSegs, tcSegs} {
+	for _, group := range groups {
 		if len(group) > 0 {
 			return CleanErrorMessage(group[0])
 		}

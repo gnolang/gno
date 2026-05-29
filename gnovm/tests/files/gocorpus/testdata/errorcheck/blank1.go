@@ -31,8 +31,7 @@ func main() {
       _ = v1 == v2 // ERROR "cannot be compared|non-comparable|cannot compare v1 == v2"
 }
 
-// GnoEarlyBail: after verifying the method-on-non-local-type marker (line 16), neutralizing that func signature orphans its body (`expected declaration, found println` at line 18), so markers past line 16 can't be reached.
-
+// GnoIncomplete: covered 2 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 10: invalid package name _
 // line 16: cannot define new methods on non-local type int

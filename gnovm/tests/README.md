@@ -35,7 +35,7 @@ directive bypasses each mode.
 | Mode | Trigger | Pass criterion |
 |---|---|---|
 | run | runnable (`package main` + `func main()`) | Gno's stdout == `go run`'s stdout |
-| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | strict multi-pass: every marker matches Gno's error on its line, pinned in a `// GnoError:` block (partial coverage needs `// GnoEarlyBail:`) |
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | golden snapshot: Gno's per-line errors pinned in a `// GnoError:` block (markers are gc provenance, not a gate) |
 | compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error |
 
 For non-`main` files (errorcheck, compile-only), a PKGPATH +
@@ -121,42 +121,51 @@ Escape hatches:
   directive: presence flips the verdict, stale blessings fail loudly,
   no pinned goldens.
 
-- **Errorcheck multi-pass + `// GnoError:` golden (strict by default).**
-  For files with inline `// ERROR "regex"` markers the harness
-  iterates the source: each pass runs Gno, finds the marker on the
-  line Gno errored at, verifies the marker's regex matches Gno's
-  error, then neutralizes that line and continues. This verifies
-  *every* marker, not just the first one Gno hits. Details:
+- **Errorcheck golden snapshot (`// GnoError:`).** For files with
+  inline `// ERROR "regex"` markers, the harness walks Gno's per-line
+  errors and pins them in a `// GnoError:` block at the bottom of the
+  file. The inline `// ERROR` markers are upstream (gc) **provenance**,
+  NOT a pass/fail gate — Gno's wording is allowed to differ from gc's
+  (the whole point of the migrated "known divergences"). What the test
+  verifies is that Gno's behavior hasn't *changed*: the golden must
+  match. Mechanics:
+    - Each pass runs Gno, records its clean per-line error, neutralizes
+      that line, and re-runs to surface the next error.
     - Gno joins multiple errors with `; ` and bundles a go/types pass;
-      markers are matched against each `; `-separated segment of both
-      streams, so `$`-anchored patterns still match.
+      the per-line message is extracted from the matching `; `-segment
+      (internal "should not happen" assertions are skipped in favor of
+      the real diagnostic).
     - A `package <x>` line is neutralized to `package main` (not
-      commented out) so iteration can continue past an
-      invalid-package-name test — the package clause is the file's one
-      global dependency.
+      commented out) so iteration continues past an invalid-package-name
+      test — the package clause is the file's one global dependency.
+    - On pass 1 an error on an *unmarked* line is Gno's genuine first
+      error (recorded, then stop — captures files where Gno bails before
+      the marked lines); on a later pass it's a neutralization artifact
+      (stop without recording).
 
   Verdict:
-  - **All markers verified** → the file must carry a `// GnoError:`
-    block (bottom of file) pinning Gno's actual per-line wording, and
-    it must match. No block → FAIL "run --update-golden-tests"; stale
-    block → FAIL diff (refresh under sync). The reader sees both
-    contracts: inline `// ERROR` = gc's expectation (regex,
-    upstream-verbatim); `// GnoError:` = Gno's actual wording.
-  - **Partial coverage** (Gno bails before reaching every marker —
-    an unmarked line, a neutralized line that orphans dependent code,
-    or a Gno internal error) → FAIL, *unless* the file declares
-    `// GnoEarlyBail: <reason>`. With it: the markers Gno DID reach
-    stay pinned in `// GnoError:` (regression on any of them still
-    fails); the directive excuses only the unreached ones. If Gno
-    later reaches all markers, the directive goes stale → FAIL.
-  - `// Unsupported:` is reserved for files the harness shouldn't run
-    at all (feature gaps: generics, channels, …), not for early-bails.
+  - Golden present and matches → PASS. No block → FAIL "run
+    `--update-golden-tests`"; stale block → FAIL diff (refresh under
+    sync). The block is the contract; a regression in Gno's per-line
+    behavior shifts it → FAIL.
+  - Gno doesn't reject the file at all (no error anywhere) → FAIL: a
+    leniency divergence (Gno more permissive than gc). Mark
+    `// Unsupported: <reason>` if intentional (e.g. Gno doesn't run
+    gc's liveness / stack-frame analysis), since there's no error to pin.
 
-  There is **no loose fallback** — a partial match is a failure, never
-  a silent pass, because skipping markers drops exactly the signal
-  this harness captures.
+  **Partial coverage (`// GnoIncomplete:`).** When Gno bails in the
+  declaration/preprocess phase before reaching every marker, the golden
+  covers only the markers it reached. Such files carry an auto-written
+  `// GnoIncomplete: covered N of M markers; …` tag (required whenever
+  coverage is partial — the harness fails without it and flags a stale
+  one when coverage later becomes complete). The file still passes on
+  its pinned golden; the tag makes it greppable as a candidate for a
+  future runnable variant (valid `package main` + declarations) that
+  would exercise the unreached markers.
 
-Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`.
+Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`. The
+208 migrated "known divergence" errorcheck files live at their upstream
+corpus paths under `gocorpus/testdata/` (`fixedbugs/`, `syntax/`, …).
 
 Notes:
 - Go-corpus directives (`// run`, `// errorcheck`, `// compile`, …)
@@ -164,6 +173,9 @@ Notes:
 - `go run` subprocess has a 30s timeout; `// GCCGO_ERROR` is ignored
   (mirroring gc); LINE/LINE+N substitution in marker patterns is NOT
   performed.
+- A trailing `// GnoError:` block is stripped from the source before
+  it reaches Gno (and trailing newlines normalized), so the golden
+  doesn't perturb EOF-positioned error line numbers.
 - Multi-file tests (`// *dir`) and gc-internal tests don't fit any
   mode — convert manually to a Gno filetest instead.
 
