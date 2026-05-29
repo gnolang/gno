@@ -153,6 +153,13 @@ var gRealmType = &DeclaredType{
 					Results: []FieldType{{Type: BoolType}},
 				},
 			}, {
+				// Seal marker: a dot-named method that user code cannot
+				// declare (Gno's parser rejects identifiers starting with
+				// `.`). Forces any concrete type that satisfies `realm`
+				// to be defined by the runtime — i.e., only `.grealm`.
+				Name: ".seal",
+				Type: &FuncType{Params: nil, Results: nil},
+			}, {
 				Name: "String",
 				Type: &FuncType{
 					Params: nil,
@@ -1426,6 +1433,11 @@ func makeUverseNode() {
 			path := sv.Fields[1].GetString()
 			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
 		},
+	)
+	// Seal marker; see gRealmType for rationale.
+	defNativePtrMethod(".grealm", ".seal",
+		nil, nil,
+		func(m *Machine) {},
 	)
 	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
 	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)

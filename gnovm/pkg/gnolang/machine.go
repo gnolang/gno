@@ -2327,25 +2327,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing. Layered borrow:
-	//   1. /r/-declared function/method → borrow to method's
-	//      declaring realm (any receiver shape, or top-level
-	//      function). Closes the .Title() class for /r/-declared
-	//      callables: attacker code runs with attacker's
-	//      authority, not victim's.
-	//   2. Otherwise (stdlib or /p/-declared) → if the receiver is
-	//      a real object in a foreign realm, borrow to receiver's
-	//      storage realm. Preserves the existing pattern where
-	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
-	//      mutate state living in another realm.
-	//   3. Otherwise, if fv is a closure (FuncLit-constructed, not
-	//      a top-level FuncDecl) → borrow to the realm whose
-	//      authority was active when the closure was minted.
-	//      Realizes "closure = capability": invoking a persisted
-	//      closure runs its body under the realm owning its
-	//      captures, so writes to captured HIVs are in-realm at
-	//      every NameExpr write site — no per-write gate needed
-	//      in isExternalRealm.
+	// Not cross nor crossing. Three borrow rules apply (the first
+	// applicable one fires):
+	//
+	//   #1. /r/-declared function/method/closure → borrow to the
+	//       callable's declaring realm (any receiver shape, or top-level
+	//       function). /r/attacker code runs with /r/attacker's
+	//       authority, not victim's.
+	//
+	//   #2. Otherwise (stdlib or /p/-declared) → if the receiver is a
+	//       real, foreign-stamped object, borrow to the receiver's
+	//       constructing realm (which is the same as its storage realm).
+	//
+	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
+	//       package, borrow to the realm context that was active when
+	//       the closure was constructed (and will be stored).
 	if IsRealmPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
 			m.setRealm(pv.GetRealm())
@@ -2364,7 +2360,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	}
-	// Rule 3: closure capture-realm borrow.
+	// borrow rule #3: closure capture-realm borrow.
 	//
 	// fv.GetObjectInfo().ID.PkgID is the realm whose currentRealmID
 	// was active at doOpFuncLit (closure construction) time. For
@@ -2374,7 +2370,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//
 	// IsClosure gates this: top-level FuncDecls also carry a stamped
 	// PkgID (= the declaring package), but they don't represent a
-	// closed-over capability — Rule 1 already handles the /r/-declared
+	// closed-over capability — borrow rule #1 already handles the /r/-declared
 	// case, and /p/-declared FuncDecls shouldn't shift the realm.
 	//
 	// The zero-PkgID check skips closures constructed in uverse/stdlib
@@ -2683,7 +2679,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	}
 	// HIVs are exempt from the external-realm gate at the NameExpr
 	// write path. Two paths reach here:
-	//   - Real HIV in foreign realm: PushFrameCall's Rule 3 already
+	//   - Real HIV in foreign realm: PushFrameCall's borrow rule #3 already
 	//     borrowed m.Realm to the closure's capture-realm, so by
 	//     the time we get here HIV.PkgID == m.Realm.ID. The check
 	//     would be a no-op anyway; skip to save the comparison.
