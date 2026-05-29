@@ -4,7 +4,7 @@ import "gno.land/p/nt/avl/v0"
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
-	*BasicNFT            // Embedded BasicNFT struct for basic NFT functionality
+	*BasicNFT
 	extensions *avl.Tree // AVL tree for storing metadata extensions
 }
 

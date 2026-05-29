@@ -16,8 +16,10 @@ var (
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
 
 	// NewBasicNFT realm binding
-	ErrSpoofedRealm = errors.New("rlm does not match the current crossing frame")
-	ErrNotRealm     = errors.New("rlm must be a realm (got EOA/origin)")
+	ErrSpoofedRealm  = errors.New("rlm does not match the current crossing frame")
+	ErrNotRealm      = errors.New("rlm must be a realm (got EOA/origin)")
+	ErrInvalidName   = errors.New("invalid token name (empty, too long, or contains control chars)")
+	ErrInvalidSymbol = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 
 	// ERC721Royalty
 	ErrInvalidRoyaltyPercentage     = errors.New("invalid royalty percentage")

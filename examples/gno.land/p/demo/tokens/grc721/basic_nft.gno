@@ -12,7 +12,7 @@ import (
 type BasicNFT struct {
 	name              string
 	symbol            string
-	origRealm         string   // owning realm's package path, captured at construction
+	origRealm         string   // owning realm's package path
 	owners            avl.Tree // tokenId -> OwnerAddress
 	balances          avl.Tree // OwnerAddress -> TokenCount
 	tokenApprovals    avl.Tree // TokenId -> ApprovedAddress
@@ -20,7 +20,6 @@ type BasicNFT struct {
 	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
 }
 
-// Returns new basic NFT bound to the calling realm (rlm.PkgPath() becomes origRealm).
 func NewBasicNFT(_ int, rlm realm, name, symbol string) *BasicNFT {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -28,6 +27,12 @@ func NewBasicNFT(_ int, rlm realm, name, symbol string) *BasicNFT {
 	pkgPath := rlm.PkgPath()
 	if pkgPath == "" {
 		panic(ErrNotRealm)
+	}
+	if !validName(name) {
+		panic(ErrInvalidName)
+	}
+	if !validSymbol(symbol) {
+		panic(ErrInvalidSymbol)
 	}
 
 	return &BasicNFT{

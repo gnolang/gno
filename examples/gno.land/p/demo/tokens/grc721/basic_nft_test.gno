@@ -1,6 +1,7 @@
 package grc721
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -12,15 +13,48 @@ var (
 	dummyNFTSymbol = "DNFT"
 )
 
-// newDummyNFT constructs a dummy NFT. The IIFE same-realm cross promotes
-// the test's EOA-origin cur into a /p/grc721 CodeRealm cur so NewBasicNFT's
-// IsCurrent + non-empty PkgPath checks pass.
+// The IIFE same-realm cross promotes the test's EOA-origin cur into a
+// /p/grc721 CodeRealm cur so NewBasicNFT's IsCurrent + non-empty PkgPath
+// checks pass.
 func newDummyNFT(_ int, rlm realm) *BasicNFT {
 	var nft *BasicNFT
 	func(cur realm) {
 		nft = NewBasicNFT(0, cur, dummyNFTName, dummyNFTSymbol)
 	}(cross(rlm))
 	return nft
+}
+
+func TestNewBasicNFTValidation(cur realm, t *testing.T) {
+	const (
+		nameErr   = "invalid token name"
+		symbolErr = "invalid token symbol"
+	)
+
+	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
+		NewBasicNFT(0, cur, "", "OK")
+	}, "empty name")
+	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
+		NewBasicNFT(0, cur, "Name", "")
+	}, "empty symbol")
+	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
+		NewBasicNFT(0, cur, strings.Repeat("a", MaxNameLen+1), "OK")
+	}, "name too long")
+	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
+		NewBasicNFT(0, cur, "Name", strings.Repeat("A", MaxSymbolLen+1))
+	}, "symbol too long")
+	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
+		NewBasicNFT(0, cur, "bad\x01name", "OK")
+	}, "name with control char")
+	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
+		NewBasicNFT(0, cur, "Name", "BA.D")
+	}, "symbol with dot")
+	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
+		NewBasicNFT(0, cur, "Name", "BA D")
+	}, "symbol with space")
+
+	uassert.NotAborts(t, cur, func(cur realm) {
+		NewBasicNFT(0, cur, strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen))
+	}, "boundary name+symbol should succeed")
 }
 
 func TestNewBasicNFT(cur realm, t *testing.T) {
