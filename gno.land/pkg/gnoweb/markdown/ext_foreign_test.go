@@ -130,6 +130,47 @@ func TestForeign_LinksRenderAsUntrusted(t *testing.T) {
 	}
 }
 
+// TestForeign_MentionKeepsUserChrome locks the mention carve-out: inside a
+// sandbox, a @mention is system-resolved (/u/<name>) so it keeps its
+// first-party user link/icon, while an author-written link to the SAME
+// destination is still marked untrusted. Guards against the marker check
+// regressing (which would either strip mention chrome or — worse — exempt
+// every link and silently undo the untrusted treatment).
+func TestForeign_MentionKeepsUserChrome(t *testing.T) {
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+
+	m := goldmark.New()
+	ExtForeign.Extend(m, nil)
+	ExtColumns.Extend(m)
+	ExtAlerts.Extend(m)
+	ExtLinks.Extend(m)
+	ExtMention.Extend(m)
+
+	src := "\n\n<gno-foreign>\nsee @alice and [x](/u/alice)\n</gno-foreign>\n\n"
+	var buf bytes.Buffer
+	if err := m.Convert([]byte(src), &buf, ctxOpts); err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+	got := buf.String()
+
+	// The mention keeps its user icon and carries no rel.
+	if !strings.Contains(got, `<a href="/u/alice">@alice<span class="link-user`) {
+		t.Errorf("foreign mention should keep its user link/icon; got:\n%s", got)
+	}
+	// The author-written link to the same destination is untrusted.
+	if !strings.Contains(got, `<a href="/u/alice" rel="noopener nofollow ugc">x</a>`) {
+		t.Errorf("foreign author-written /u/ link should be untrusted (ugc, no icon); got:\n%s", got)
+	}
+	// The internal mention marker must never leak into output.
+	if strings.Contains(got, "gno:mention") || strings.Contains(got, "data-gno-mention") {
+		t.Errorf("mention marker attribute leaked into output:\n%s", got)
+	}
+}
+
 func TestForeign_LiteralCloseInBody_DoesNotEscape(t *testing.T) {
 	// Outer parser depth-counts inner <gno-foreign>/</gno-foreign>
 	// pairs at byte level. A close inside a paired-up inner block

@@ -118,11 +118,20 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			rawDest []byte
 		)
 
+		// Per-node trust: ordinary links from a foreign sandbox are
+		// untrusted, but a mention is a system-resolved /u/<name>
+		// reference (not an author-chosen destination), so it keeps its
+		// first-party user chrome — see ext_mentions.go / mentionLinkAttr.
+		nodeUntrusted := untrusted
+
 		switch n := node.(type) {
 		case *ast.Link:
 			// Wrap the existing link node directly.
 			gnoLink = &GnoLink{Link: n}
 			rawDest = n.Destination
+			if _, isMention := n.Attribute(mentionLinkAttr); isMention {
+				nodeUntrusted = false
+			}
 
 		case *ast.AutoLink:
 			// Build a synthetic ast.Link so the existing renderGnoLink handles
@@ -144,7 +153,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		default:
 			return ast.WalkContinue, nil
 		}
-		gnoLink.Untrusted = untrusted
+		gnoLink.Untrusted = nodeUntrusted
 
 		// Replace the original node with the GnoLink wrapper.
 		parent, next := node.Parent(), node.NextSibling()

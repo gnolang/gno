@@ -434,8 +434,14 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // loads (Strikethrough, Table, Footnote, TaskList — see
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
-// extensions that exist today (foreign, columns, alert) and the link
-// extension. Image validator is wired through if non-nil.
+// extensions that exist today (foreign, columns, alert), the link
+// extension, and mentions. Image validator is wired through if non-nil.
+//
+// Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
+// built /u/<name> link (the author cannot choose the destination), so it
+// is NOT subject to the untrusted-link treatment and keeps its normal
+// user chrome inside the sandbox. Ordinary author-chosen foreign links
+// are still marked untrusted — see linkTransformer / mentionLinkAttr.
 //
 // The GFM four are content-only (no raw HTML, no scripting); safe mode
 // (no WithUnsafe) still strips raw HTML and unrecognized tags like
@@ -459,6 +465,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtColumns.Extend(m)
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
+	ExtMention.Extend(m) // @user / g1… mentions (system-resolved, keep chrome)
 	if imgValidator != nil {
 		ExtImageValidator.Extend(m, imgValidator)
 	}
