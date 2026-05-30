@@ -7,6 +7,17 @@
 // load-bearing `parser.Continue` (no HasChildren) invariant) and
 // rendered inside its own goldmark instance with structural
 // extensions selectively loaded.
+//
+// IMPORTANT — realms MUST emit this block via the
+// p/nt/markdown/foreign helper (foreign.Foreign / ForeignWithLabel),
+// never by hand-assembling the `<gno-foreign>`…`</gno-foreign>`
+// envelope. The body scan here is line-based and CommonMark-structure-
+// blind: it does not skip fenced/indented code or HTML blocks, so a
+// `</gno-foreign>` line inside body code would close the block early,
+// and a foreign opener emitted without a preceding blank line can be
+// absorbed into an adjacent block (e.g. a `<gno-columns>`). The helper
+// neutralizes every body sentinel and blank-line-frames the opener,
+// which is what makes the sandbox safe; hand-built envelopes do not.
 package markdown
 
 import (
