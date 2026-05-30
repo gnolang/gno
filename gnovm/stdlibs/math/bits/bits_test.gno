@@ -5,6 +5,7 @@
 package bits_test
 
 import (
+	"fmt"
 	"math/bits"
 	"testing"
 )
@@ -1330,4 +1331,351 @@ func init() {
 		}
 		tab[i].pop = n
 	}
+}
+
+// -----------------------------------------------------------------------------
+// Tests ported from upstream go1.25.9 example_test.go and example_math_test.go.
+//
+// Gno's test harness does not dispatch Example* funcs, so each upstream
+// ExampleX is rewritten as TestExampleX asserting formatted output matches
+// the upstream "// Output: ..." comment.
+//
+// TestUintSize is adapted: upstream uses unsafe.Sizeof; here we just check
+// that UintSize matches Gno's invariant of 64-bit uint.
+// -----------------------------------------------------------------------------
+
+func checkExample(t *testing.T, name, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s output mismatch\n got: %q\nwant: %q (got bytes: % x)",
+			name, got, want, []byte(got))
+	}
+}
+
+// TestUintSize: Gno is always 64-bit. Upstream uses unsafe.Sizeof(uint).
+func TestUintSize(t *testing.T) {
+	if bits.UintSize != 64 {
+		t.Fatalf("UintSize = %d; want 64 (Gno is always 64-bit)", bits.UintSize)
+	}
+}
+
+// --------------------------------------------------------------------
+// Examples (upstream example_test.go), rewritten as Test wrappers.
+// --------------------------------------------------------------------
+
+func TestExampleLeadingZeros8(t *testing.T) {
+	got := fmt.Sprintf("LeadingZeros8(%08b) = %d\n", 1, bits.LeadingZeros8(1))
+	checkExample(t, "LeadingZeros8", got, "LeadingZeros8(00000001) = 7\n")
+}
+
+func TestExampleLeadingZeros16(t *testing.T) {
+	got := fmt.Sprintf("LeadingZeros16(%016b) = %d\n", 1, bits.LeadingZeros16(1))
+	checkExample(t, "LeadingZeros16", got, "LeadingZeros16(0000000000000001) = 15\n")
+}
+
+func TestExampleLeadingZeros32(t *testing.T) {
+	got := fmt.Sprintf("LeadingZeros32(%032b) = %d\n", 1, bits.LeadingZeros32(1))
+	checkExample(t, "LeadingZeros32", got,
+		"LeadingZeros32(00000000000000000000000000000001) = 31\n")
+}
+
+func TestExampleLeadingZeros64(t *testing.T) {
+	got := fmt.Sprintf("LeadingZeros64(%064b) = %d\n", 1, bits.LeadingZeros64(1))
+	checkExample(t, "LeadingZeros64", got,
+		"LeadingZeros64(0000000000000000000000000000000000000000000000000000000000000001) = 63\n")
+}
+
+func TestExampleTrailingZeros8(t *testing.T) {
+	got := fmt.Sprintf("TrailingZeros8(%08b) = %d\n", 14, bits.TrailingZeros8(14))
+	checkExample(t, "TrailingZeros8", got, "TrailingZeros8(00001110) = 1\n")
+}
+
+func TestExampleTrailingZeros16(t *testing.T) {
+	got := fmt.Sprintf("TrailingZeros16(%016b) = %d\n", 14, bits.TrailingZeros16(14))
+	checkExample(t, "TrailingZeros16", got, "TrailingZeros16(0000000000001110) = 1\n")
+}
+
+func TestExampleTrailingZeros32(t *testing.T) {
+	got := fmt.Sprintf("TrailingZeros32(%032b) = %d\n", 14, bits.TrailingZeros32(14))
+	checkExample(t, "TrailingZeros32", got,
+		"TrailingZeros32(00000000000000000000000000001110) = 1\n")
+}
+
+func TestExampleTrailingZeros64(t *testing.T) {
+	got := fmt.Sprintf("TrailingZeros64(%064b) = %d\n", 14, bits.TrailingZeros64(14))
+	checkExample(t, "TrailingZeros64", got,
+		"TrailingZeros64(0000000000000000000000000000000000000000000000000000000000001110) = 1\n")
+}
+
+func TestExampleOnesCount(t *testing.T) {
+	got := fmt.Sprintf("OnesCount(%b) = %d\n", 14, bits.OnesCount(14))
+	checkExample(t, "OnesCount", got, "OnesCount(1110) = 3\n")
+}
+
+func TestExampleOnesCount8(t *testing.T) {
+	got := fmt.Sprintf("OnesCount8(%08b) = %d\n", 14, bits.OnesCount8(14))
+	checkExample(t, "OnesCount8", got, "OnesCount8(00001110) = 3\n")
+}
+
+func TestExampleOnesCount16(t *testing.T) {
+	got := fmt.Sprintf("OnesCount16(%016b) = %d\n", 14, bits.OnesCount16(14))
+	checkExample(t, "OnesCount16", got, "OnesCount16(0000000000001110) = 3\n")
+}
+
+func TestExampleOnesCount32(t *testing.T) {
+	got := fmt.Sprintf("OnesCount32(%032b) = %d\n", 14, bits.OnesCount32(14))
+	checkExample(t, "OnesCount32", got,
+		"OnesCount32(00000000000000000000000000001110) = 3\n")
+}
+
+func TestExampleOnesCount64(t *testing.T) {
+	got := fmt.Sprintf("OnesCount64(%064b) = %d\n", 14, bits.OnesCount64(14))
+	checkExample(t, "OnesCount64", got,
+		"OnesCount64(0000000000000000000000000000000000000000000000000000000000001110) = 3\n")
+}
+
+func TestExampleRotateLeft8(t *testing.T) {
+	got := fmt.Sprintf("%08b\n%08b\n%08b\n",
+		15, bits.RotateLeft8(15, 2), bits.RotateLeft8(15, -2))
+	checkExample(t, "RotateLeft8", got, "00001111\n00111100\n11000011\n")
+}
+
+func TestExampleRotateLeft16(t *testing.T) {
+	got := fmt.Sprintf("%016b\n%016b\n%016b\n",
+		15, bits.RotateLeft16(15, 2), bits.RotateLeft16(15, -2))
+	checkExample(t, "RotateLeft16", got,
+		"0000000000001111\n0000000000111100\n1100000000000011\n")
+}
+
+func TestExampleRotateLeft32(t *testing.T) {
+	got := fmt.Sprintf("%032b\n%032b\n%032b\n",
+		15, bits.RotateLeft32(15, 2), bits.RotateLeft32(15, -2))
+	checkExample(t, "RotateLeft32", got,
+		"00000000000000000000000000001111\n00000000000000000000000000111100\n11000000000000000000000000000011\n")
+}
+
+func TestExampleRotateLeft64(t *testing.T) {
+	got := fmt.Sprintf("%064b\n%064b\n%064b\n",
+		15, bits.RotateLeft64(15, 2), bits.RotateLeft64(15, -2))
+	want := "0000000000000000000000000000000000000000000000000000000000001111\n" +
+		"0000000000000000000000000000000000000000000000000000000000111100\n" +
+		"1100000000000000000000000000000000000000000000000000000000000011\n"
+	checkExample(t, "RotateLeft64", got, want)
+}
+
+func TestExampleReverse8(t *testing.T) {
+	got := fmt.Sprintf("%08b\n%08b\n", 19, bits.Reverse8(19))
+	checkExample(t, "Reverse8", got, "00010011\n11001000\n")
+}
+
+func TestExampleReverse16(t *testing.T) {
+	got := fmt.Sprintf("%016b\n%016b\n", 19, bits.Reverse16(19))
+	checkExample(t, "Reverse16", got, "0000000000010011\n1100100000000000\n")
+}
+
+func TestExampleReverse32(t *testing.T) {
+	got := fmt.Sprintf("%032b\n%032b\n", 19, bits.Reverse32(19))
+	checkExample(t, "Reverse32", got,
+		"00000000000000000000000000010011\n11001000000000000000000000000000\n")
+}
+
+func TestExampleReverse64(t *testing.T) {
+	got := fmt.Sprintf("%064b\n%064b\n", 19, bits.Reverse64(19))
+	want := "0000000000000000000000000000000000000000000000000000000000010011\n" +
+		"1100100000000000000000000000000000000000000000000000000000000000\n"
+	checkExample(t, "Reverse64", got, want)
+}
+
+func TestExampleReverseBytes16(t *testing.T) {
+	got := fmt.Sprintf("%016b\n%016b\n", 15, bits.ReverseBytes16(15))
+	checkExample(t, "ReverseBytes16", got, "0000000000001111\n0000111100000000\n")
+}
+
+func TestExampleReverseBytes32(t *testing.T) {
+	got := fmt.Sprintf("%032b\n%032b\n", 15, bits.ReverseBytes32(15))
+	checkExample(t, "ReverseBytes32", got,
+		"00000000000000000000000000001111\n00001111000000000000000000000000\n")
+}
+
+func TestExampleReverseBytes64(t *testing.T) {
+	got := fmt.Sprintf("%064b\n%064b\n", 15, bits.ReverseBytes64(15))
+	want := "0000000000000000000000000000000000000000000000000000000000001111\n" +
+		"0000111100000000000000000000000000000000000000000000000000000000\n"
+	checkExample(t, "ReverseBytes64", got, want)
+}
+
+func TestExampleLen8(t *testing.T) {
+	got := fmt.Sprintf("Len8(%08b) = %d\n", 8, bits.Len8(8))
+	checkExample(t, "Len8", got, "Len8(00001000) = 4\n")
+}
+
+func TestExampleLen16(t *testing.T) {
+	got := fmt.Sprintf("Len16(%016b) = %d\n", 8, bits.Len16(8))
+	checkExample(t, "Len16", got, "Len16(0000000000001000) = 4\n")
+}
+
+func TestExampleLen32(t *testing.T) {
+	got := fmt.Sprintf("Len32(%032b) = %d\n", 8, bits.Len32(8))
+	checkExample(t, "Len32", got,
+		"Len32(00000000000000000000000000001000) = 4\n")
+}
+
+func TestExampleLen64(t *testing.T) {
+	got := fmt.Sprintf("Len64(%064b) = %d\n", 8, bits.Len64(8))
+	checkExample(t, "Len64", got,
+		"Len64(0000000000000000000000000000000000000000000000000000000000001000) = 4\n")
+}
+
+// --------------------------------------------------------------------
+// Examples (upstream example_math_test.go), rewritten as Test wrappers.
+// --------------------------------------------------------------------
+
+func TestExampleAdd32(t *testing.T) {
+	// 1st number 33<<32 + 12; 2nd 21<<32 + 23; no carry.
+	n1 := []uint32{33, 12}
+	n2 := []uint32{21, 23}
+	d1, carry := bits.Add32(n1[1], n2[1], 0)
+	d0, _ := bits.Add32(n1[0], n2[0], carry)
+	nsum := []uint32{d0, d1}
+	got := fmt.Sprintf("%v + %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	// 1st 1<<32 + 2147483648; 2nd 1<<32 + 2147483648; carry expected.
+	n1 = []uint32{1, 0x80000000}
+	n2 = []uint32{1, 0x80000000}
+	d1, carry = bits.Add32(n1[1], n2[1], 0)
+	d0, _ = bits.Add32(n1[0], n2[0], carry)
+	nsum = []uint32{d0, d1}
+	got += fmt.Sprintf("%v + %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	want := "[33 12] + [21 23] = [54 35] (carry bit was 0)\n" +
+		"[1 2147483648] + [1 2147483648] = [3 0] (carry bit was 1)\n"
+	checkExample(t, "Add32", got, want)
+}
+
+func TestExampleAdd64(t *testing.T) {
+	n1 := []uint64{33, 12}
+	n2 := []uint64{21, 23}
+	d1, carry := bits.Add64(n1[1], n2[1], 0)
+	d0, _ := bits.Add64(n1[0], n2[0], carry)
+	nsum := []uint64{d0, d1}
+	got := fmt.Sprintf("%v + %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	n1 = []uint64{1, 0x8000000000000000}
+	n2 = []uint64{1, 0x8000000000000000}
+	d1, carry = bits.Add64(n1[1], n2[1], 0)
+	d0, _ = bits.Add64(n1[0], n2[0], carry)
+	nsum = []uint64{d0, d1}
+	got += fmt.Sprintf("%v + %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	want := "[33 12] + [21 23] = [54 35] (carry bit was 0)\n" +
+		"[1 9223372036854775808] + [1 9223372036854775808] = [3 0] (carry bit was 1)\n"
+	checkExample(t, "Add64", got, want)
+}
+
+func TestExampleSub32(t *testing.T) {
+	n1 := []uint32{33, 23}
+	n2 := []uint32{21, 12}
+	d1, carry := bits.Sub32(n1[1], n2[1], 0)
+	d0, _ := bits.Sub32(n1[0], n2[0], carry)
+	nsum := []uint32{d0, d1}
+	got := fmt.Sprintf("%v - %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	n1 = []uint32{3, 0x7fffffff}
+	n2 = []uint32{1, 0x80000000}
+	d1, carry = bits.Sub32(n1[1], n2[1], 0)
+	d0, _ = bits.Sub32(n1[0], n2[0], carry)
+	nsum = []uint32{d0, d1}
+	got += fmt.Sprintf("%v - %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	want := "[33 23] - [21 12] = [12 11] (carry bit was 0)\n" +
+		"[3 2147483647] - [1 2147483648] = [1 4294967295] (carry bit was 1)\n"
+	checkExample(t, "Sub32", got, want)
+}
+
+func TestExampleSub64(t *testing.T) {
+	n1 := []uint64{33, 23}
+	n2 := []uint64{21, 12}
+	d1, carry := bits.Sub64(n1[1], n2[1], 0)
+	d0, _ := bits.Sub64(n1[0], n2[0], carry)
+	nsum := []uint64{d0, d1}
+	got := fmt.Sprintf("%v - %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	n1 = []uint64{3, 0x7fffffffffffffff}
+	n2 = []uint64{1, 0x8000000000000000}
+	d1, carry = bits.Sub64(n1[1], n2[1], 0)
+	d0, _ = bits.Sub64(n1[0], n2[0], carry)
+	nsum = []uint64{d0, d1}
+	got += fmt.Sprintf("%v - %v = %v (carry bit was %v)\n", n1, n2, nsum, carry)
+
+	want := "[33 23] - [21 12] = [12 11] (carry bit was 0)\n" +
+		"[3 9223372036854775807] - [1 9223372036854775808] = [1 18446744073709551615] (carry bit was 1)\n"
+	checkExample(t, "Sub64", got, want)
+}
+
+func TestExampleMul32(t *testing.T) {
+	n1 := []uint32{0, 12}
+	n2 := []uint32{0, 12}
+	hi, lo := bits.Mul32(n1[1], n2[1])
+	nsum := []uint32{hi, lo}
+	got := fmt.Sprintf("%v * %v = %v\n", n1[1], n2[1], nsum)
+
+	n1 = []uint32{0, 0x80000000}
+	n2 = []uint32{0, 2}
+	hi, lo = bits.Mul32(n1[1], n2[1])
+	nsum = []uint32{hi, lo}
+	got += fmt.Sprintf("%v * %v = %v\n", n1[1], n2[1], nsum)
+
+	want := "12 * 12 = [0 144]\n2147483648 * 2 = [1 0]\n"
+	checkExample(t, "Mul32", got, want)
+}
+
+func TestExampleMul64(t *testing.T) {
+	n1 := []uint64{0, 12}
+	n2 := []uint64{0, 12}
+	hi, lo := bits.Mul64(n1[1], n2[1])
+	nsum := []uint64{hi, lo}
+	got := fmt.Sprintf("%v * %v = %v\n", n1[1], n2[1], nsum)
+
+	n1 = []uint64{0, 0x8000000000000000}
+	n2 = []uint64{0, 2}
+	hi, lo = bits.Mul64(n1[1], n2[1])
+	nsum = []uint64{hi, lo}
+	got += fmt.Sprintf("%v * %v = %v\n", n1[1], n2[1], nsum)
+
+	want := "12 * 12 = [0 144]\n9223372036854775808 * 2 = [1 0]\n"
+	checkExample(t, "Mul64", got, want)
+}
+
+func TestExampleDiv32(t *testing.T) {
+	n1 := []uint32{0, 6}
+	n2 := []uint32{0, 3}
+	quo, rem := bits.Div32(n1[0], n1[1], n2[1])
+	nsum := []uint32{quo, rem}
+	got := fmt.Sprintf("[%v %v] / %v = %v\n", n1[0], n1[1], n2[1], nsum)
+
+	n1 = []uint32{2, 0x80000000}
+	n2 = []uint32{0, 0x80000000}
+	quo, rem = bits.Div32(n1[0], n1[1], n2[1])
+	nsum = []uint32{quo, rem}
+	got += fmt.Sprintf("[%v %v] / %v = %v\n", n1[0], n1[1], n2[1], nsum)
+
+	want := "[0 6] / 3 = [2 0]\n[2 2147483648] / 2147483648 = [5 0]\n"
+	checkExample(t, "Div32", got, want)
+}
+
+func TestExampleDiv64(t *testing.T) {
+	n1 := []uint64{0, 6}
+	n2 := []uint64{0, 3}
+	quo, rem := bits.Div64(n1[0], n1[1], n2[1])
+	nsum := []uint64{quo, rem}
+	got := fmt.Sprintf("[%v %v] / %v = %v\n", n1[0], n1[1], n2[1], nsum)
+
+	n1 = []uint64{2, 0x8000000000000000}
+	n2 = []uint64{0, 0x8000000000000000}
+	quo, rem = bits.Div64(n1[0], n1[1], n2[1])
+	nsum = []uint64{quo, rem}
+	got += fmt.Sprintf("[%v %v] / %v = %v\n", n1[0], n1[1], n2[1], nsum)
+
+	want := "[0 6] / 3 = [2 0]\n[2 9223372036854775808] / 9223372036854775808 = [5 0]\n"
+	checkExample(t, "Div64", got, want)
 }
