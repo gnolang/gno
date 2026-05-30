@@ -14,7 +14,4 @@ func main() {
 	var _ = (unsafe.Pointer)(nil).foo  // ERROR "foo"
 }
 
-// GnoIncomplete: covered 0 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// KnownIssue:
-// line 9: unknown import path unsafe
+// Unsupported: unknown import path unsafe

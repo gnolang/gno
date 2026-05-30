@@ -377,6 +377,24 @@ func errorForLine(errSegs, tcSegs []string, gnoLine int, marker *InlineError) st
 	return ""
 }
 
+// reUnknownImport matches Gno's "unknown import path <path>" error,
+// capturing the import path.
+var reUnknownImport = regexp.MustCompile(`unknown import path ([^\s;]+)`)
+
+// UnsupportedImport returns the import path from an "unknown import
+// path <path>" error in errStr, or "" if none. Used to route
+// errorcheck files that fail on a Gno-unsupported stdlib import
+// (unsafe, syscall, net/http, …) to `// Unsupported:` rather than
+// `// KnownIssue:` — Gno can't process the file at all, so it's a
+// feature gap, not an over-strict bug.
+func UnsupportedImport(errStr string) string {
+	m := reUnknownImport.FindStringSubmatch(errStr)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
 // segHasLine reports whether any segment is keyed on gnoLine (i.e.
 // contains a `:<gnoLine>:` position).
 func segHasLine(segs []string, gnoLine int) bool {

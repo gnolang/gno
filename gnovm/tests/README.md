@@ -176,6 +176,11 @@ Escape hatches:
     a real leniency divergence. Mark `// Unsupported: <reason>` if
     intentional (e.g. Gno runs neither gc's liveness nor stack-frame
     analysis, and neither does go/types), since there's no error to pin.
+  - Gno bails on a stdlib import it lacks (`unsafe`, `syscall`,
+    `net/http`, …) → auto-routed to `// Unsupported: unknown import
+    path <pkg>` (skip): a feature gap, not an over-strict bug, and Gno
+    can't process the file at all. `--update-golden-tests` writes the
+    directive; thereafter the file is skipped pre-dispatch.
 
   **Partial coverage (`// GnoIncomplete:`).** When Gno bails in the
   declaration/preprocess phase before reaching every marker, the golden

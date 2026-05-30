@@ -15,7 +15,4 @@ func main() {
 	_ = unsafe.Pointer(x) - unsafe.Pointer(x) // ERROR "(operator|operation) - not defined on unsafe.Pointer|expected integer, floating, or complex type"
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// KnownIssue:
-// line 11: unknown import path unsafe
+// Unsupported: unknown import path unsafe

@@ -15,8 +15,4 @@ type T struct { // ERROR "recursive type"
 	f T
 }
 
-// GoTypeCheckError:
-// line 11: invalid recursive type: T refers to itself
-
-// KnownIssue:
-// line 9: unknown import path unsafe
+// Unsupported: unknown import path unsafe

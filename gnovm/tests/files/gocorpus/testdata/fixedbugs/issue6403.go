@@ -13,10 +13,4 @@ import "syscall"
 const A int = syscall.X // ERROR "undefined: syscall.X|undefined identifier .*syscall.X"
 const B int = voidpkg.X // ERROR "undefined: voidpkg|undefined name .*voidpkg"
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// GoTypeCheckError:
-// line 14: undefined: voidpkg
-
-// KnownIssue:
-// line 11: unknown import path syscall
+// Unsupported: unknown import path syscall

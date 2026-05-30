@@ -34,7 +34,4 @@ const N4 = unsafe.Offsetof(p.B.X)    // valid
 const N5 = unsafe.Offsetof(t.Method) // ERROR "method value"
 const N6 = unsafe.Offsetof(p.Method) // ERROR "method value"
 
-// GnoIncomplete: covered 0 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// KnownIssue:
-// line 13: unknown import path unsafe
+// Unsupported: unknown import path unsafe

@@ -274,6 +274,18 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			prependedLines, tgs, tcheck)
 		gas := m.GasMeter.GasConsumed()
 
+		// Unsupported-import gap: Gno bails because it lacks the stdlib
+		// package (unsafe, syscall, net/http, …). That's a feature gap,
+		// not an over-strict bug, and Gno can't process the file at all
+		// — route to `// Unsupported:` (skip) rather than `// KnownIssue:`.
+		if imp := UnsupportedImport(result.Error); imp != "" {
+			reason := "unknown import path " + imp
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, nil
+			}
+			return "", gas, &SkipError{Reason: reason}
+		}
+
 		if len(gnoErrLines) == 0 && len(goTCLines) == 0 {
 			return "", gas, fmt.Errorf(
 				"errorcheck: neither Gno nor the go/types guard rejected this file (gc does); "+
@@ -527,6 +539,15 @@ func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Dir
 	}
 	// Only the tag differs.
 	return "", fmt.Errorf("errorcheck: `// GnoIncomplete:` tag inconsistent with coverage; re-run with --update-golden-tests")
+}
+
+// writeUnsupportedDirective returns originalSource (golden region
+// stripped) with a trailing `// Unsupported: <reason>` directive, so a
+// file that fails on a Gno-unsupported import is skipped on future
+// runs (the directive is detected pre-dispatch) and self-documents why.
+func writeUnsupportedDirective(originalSource []byte, reason string) string {
+	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
+	return body + "\n\n// " + DirectiveUnsupported + ": " + reason + "\n"
 }
 
 // writeErrorcheckGolden returns the file content for an errorcheck

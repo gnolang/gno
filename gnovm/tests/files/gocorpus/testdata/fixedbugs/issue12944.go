@@ -12,8 +12,4 @@ const (
 	_ = unsafe.Sizeof([0]byte{}[0]) // ERROR "out of bounds"
 )
 
-// GoTypeCheckError:
-// line 12: invalid argument: index 0 out of bounds [0:0]
-
-// KnownIssue:
-// line 9: unknown import path unsafe
+// Unsupported: unknown import path unsafe
