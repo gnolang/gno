@@ -30,11 +30,14 @@ the user's gnokey keybase. Concretely, `ensureDevKey` in
    and return.
 2. If `cfg.home == ""`, log a warning and return (no keybase to write
    to; this only happens when `-home ""` is set explicitly).
-3. If `cfg.home` is set but the directory does not exist, log a warning
-   and return without writing. The default home (`gnoenv.HomeDir()`) is
-   pre-created by `gnoenv`, so this only fires when the user passed an
-   explicit `-home` to a path that does not exist — likely a typo. We
-   refuse to silently materialize an arbitrary path on disk.
+3. If `cfg.home` is set but the directory does not exist:
+   - If `cfg.home == gnoenv.HomeDir()` (the default), create it with
+     mode `0o700` so the auto-import fires on a fresh install. This
+     matches `gnokey add`'s behavior, which silently creates
+     `~/.config/gno/` on first use.
+   - Otherwise (user passed an explicit `-home <path>` that doesn't
+     exist — likely a typo), log a warning and return without writing.
+     We refuse to silently materialize an arbitrary path on disk.
 4. Open the keybase at `cfg.home` via `keys.NewKeyBaseFromDir`. This
    creates `cfg.home/data/` on disk if it does not exist (mode 0o700).
 5. Look up the name `dev`:
@@ -140,8 +143,9 @@ address.
 - **Arbitrary `-home <path>` is never silently created.** If the user
   passes a `-home` that does not point at an existing directory,
   gnodev logs a warning and falls back to in-memory tracking instead
-  of materializing the path. The default home (`gnoenv.HomeDir()`)
-  always exists, so the auto-import flow runs there.
+  of materializing the path. The default home (`gnoenv.HomeDir()`,
+  typically `~/.config/gno/`) is created on demand if missing, so the
+  auto-import flow works out of the box on a fresh install.
 - Side effects are bounded: at most one new keybase entry, named
   `dev`, pointing at the well-known public address. Existing entries
   are never overwritten.

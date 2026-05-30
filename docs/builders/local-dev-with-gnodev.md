@@ -132,7 +132,7 @@ On first run, `gnodev` writes the well-known deployer mnemonic into your
 local `gnokey` keybase under the name `dev`. The mnemonic is public and
 identical on every machine, so the key is a throwaway suitable only for
 local chains. From any terminal, `gnokey ... dev` then signs against the
-preloaded account with no further setup. Pass `-no-dev-key` to skip the
+preloaded account with no further setup. Pass `--no-dev-key` to skip the
 import; an existing keybase entry named `dev` is never overwritten.
 
 By opening the `gnoweb` listener address, [`http://localhost:8888`](http://127.0.0.1:8888),

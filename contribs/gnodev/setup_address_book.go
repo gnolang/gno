@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
@@ -87,11 +88,18 @@ func ensureDevKey(logger *slog.Logger, cfg *AppConfig) error {
 		return nil
 	}
 	if !osm.DirExists(cfg.home) {
-		// Avoid silently materializing an arbitrary -home that the user
-		// likely mistyped. setupAddressBook also surfaces this case as a
-		// warning when it tries to load the keybase below.
-		logger.Warn("dev key skipped: home directory does not exist", "path", cfg.home)
-		return nil
+		// Default home (~/.config/gno) doesn't exist on fresh installs;
+		// create it so the auto-import actually fires for first-time users,
+		// matching `gnokey add`'s behavior. A user-supplied -home that
+		// doesn't exist is likely a typo — refuse to materialize it.
+		if cfg.home != gnoenv.HomeDir() {
+			logger.Warn("dev key skipped: home directory does not exist", "path", cfg.home)
+			return nil
+		}
+		if err := osm.EnsureDir(cfg.home, 0o700); err != nil {
+			logger.Warn("dev key skipped: cannot create default home", "path", cfg.home, "err", err)
+			return nil
+		}
 	}
 
 	kb, err := keys.NewKeyBaseFromDir(cfg.home)

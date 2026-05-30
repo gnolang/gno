@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/assert"
@@ -126,6 +127,28 @@ func TestEnsureDevKey_HomeMissing(t *testing.T) {
 	assert.False(t, osm.DirExists(missing),
 		"ensureDevKey must not materialize a missing -home")
 	assert.Contains(t, buf.String(), "home directory does not exist")
+}
+
+func TestEnsureDevKey_DefaultHomeMissingIsCreated(t *testing.T) {
+	// Not parallel: mutates GNOHOME via t.Setenv.
+	fresh := filepath.Join(t.TempDir(), "fresh-install")
+	t.Setenv("GNOHOME", fresh)
+	require.Equal(t, fresh, gnoenv.HomeDir(),
+		"sanity: GNOHOME must drive gnoenv.HomeDir()")
+	require.False(t, osm.DirExists(fresh), "sanity: path must not exist yet")
+
+	logger, buf := newCaptureLogger()
+	cfg := &AppConfig{home: fresh}
+	require.NoError(t, ensureDevKey(logger, cfg))
+
+	assert.True(t, osm.DirExists(fresh),
+		"default home must be materialized on first run")
+	kb, err := keys.NewKeyBaseFromDir(fresh)
+	require.NoError(t, err)
+	info, err := kb.GetByName(DevKeyName)
+	require.NoError(t, err)
+	assert.Equal(t, defaultDeployerAddress, info.GetAddress())
+	assert.Contains(t, buf.String(), "dev key imported")
 }
 
 func TestSetupAddressBook_AutoImportPutsDevKeyInBook(t *testing.T) {
