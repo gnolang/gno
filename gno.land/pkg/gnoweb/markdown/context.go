@@ -29,6 +29,18 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	return ctx
 }
 
+// getGnoContext reconstructs the GnoContext set by NewGnoParserContext.
+// Used to carry the render context across the <gno-foreign> inner-
+// instance boundary so links/extensions inside a sandbox get the same
+// (URL-aware, dangerous-URL-guarded) treatment as top-level content.
+func getGnoContext(ctx parser.Context) GnoContext {
+	url, _ := getUrlFromContext(ctx)
+	chainId, _ := getChainIdFromContext(ctx)
+	remote, _ := getRemoteFromContext(ctx)
+	domain, _ := getDomainFromContext(ctx)
+	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain}
+}
+
 // getUrlFromContext retrieves the GnoURL from the parser context
 func getUrlFromContext(ctx parser.Context) (url *weburl.GnoURL, ok bool) {
 	if url, ok = ctx.Get(gUrlContextKey).(*weburl.GnoURL); url == nil {

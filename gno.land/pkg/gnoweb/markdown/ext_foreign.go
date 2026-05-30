@@ -62,6 +62,14 @@ type ForeignNode struct {
 	// does not carry parser.Context, so the value travels via this
 	// AST-node field.
 	DepthAtParse int
+	// GnoCtx is the render context (GnoURL, chain id, …) captured at
+	// parse time. The renderer rebuilds the inner instance's
+	// parser.Context from it so links inside the sandbox get the same
+	// URL-aware, dangerous-URL-guarded treatment as top-level content
+	// (an empty context makes the link transformer no-op, leaving
+	// autolinks like `<javascript:…>` unsanitized). Travels via the
+	// node for the same reason as DepthAtParse.
+	GnoCtx GnoContext
 	// Closed is true if the outer parser saw a matching close tag
 	// before EOF. False if the AST transformer had to synth-close
 	// the node. The renderer treats both the same way.
@@ -203,6 +211,7 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	node := &ForeignNode{
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
+		GnoCtx:       getGnoContext(pc),
 	}
 	// parser.NoChildren — load-bearing opacity invariant: the body must
 	// stay opaque to every other block parser.
@@ -346,7 +355,11 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// singleton) so each foreign block gets isolated parser/renderer
 	// state.
 	innerGM := buildInnerForeignMarkdown(r.imgValidator)
-	innerCtx := parser.NewContext()
+	// Rebuild the render context (GnoURL, chain id, …) so the inner
+	// instance's link transformer runs and applies dangerous-URL
+	// guards / rel attributes — without it, autolinks such as
+	// `<javascript:…>` render as live hrefs inside the sandbox.
+	innerCtx := NewGnoParserContext(n.GnoCtx)
 	// Pre-seed the depth counter so the cross-family cap stays
 	// global across the inner/outer boundary. gnoForeignBlockKey is
 	// intentionally NOT seeded — each Convert maintains its own
