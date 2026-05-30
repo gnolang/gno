@@ -6,11 +6,17 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
+	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
+
+// maxFlatIndentDepth caps the blockquote nesting in the flat comment view so
+// deep reply chains stay readable; comments deeper than this still render,
+// just at the capped indent.
+const maxFlatIndentDepth = 6
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
@@ -41,7 +47,80 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + md.Link(board.Name, makeBoardURI(board))))
 	budget := maxRenderedBodies()
+	if parseRealmPath(req.RawPath).Query.Get("flat") != "" {
+		res.Write(renderThreadFlat(thread, req.RawPath, &budget))
+		return
+	}
 	res.Write(renderPost(thread, req.RawPath, "", 5, &budget))
+}
+
+// renderThreadFlat renders every comment in the thread as a single flat,
+// depth-indented, paginated list backed by ThreadMeta.AllReplies (the index
+// that already holds every reply at every depth). Unlike the recursive
+// threaded view — which bounds work with the render budget and truncates a
+// large subtree — this view is reachable to the very last comment: each
+// comment renders one <gno-foreign> block (no recursion), so a fixed page
+// size (pageSizeFlat) plus the OP stays well under the budget regardless of
+// nesting, and the pager always advances. ?order=desc shows newest first, so
+// its page 1 is the latest comments.
+func renderThreadFlat(thread *boards.Post, path string, budget *int) string {
+	var b strings.Builder
+
+	// The OP for context (its body only; no replies — levels 0).
+	b.WriteString(renderPost(thread, "", "", 0, budget))
+
+	meta, ok := thread.Meta.(*ThreadMeta)
+	if !ok || meta.AllReplies.Size() == 0 {
+		return b.String()
+	}
+	all := meta.AllReplies
+	p := newClampedPager(path, all.Size(), pageSizeFlat)
+
+	b.WriteString("\n" + md.HorizontalRule())
+	b.WriteString(md.Link("← Threaded view", makeThreadURI(thread)) + " · All " +
+		strconv.Itoa(all.Size()) + " comments — sort by: ")
+
+	// sortToggleLink preserves flat=1, so the toggle stays in the flat view.
+	link, desc := sortToggleLink(path)
+	b.WriteString(link + "\n")
+
+	count := p.PageSize()
+	if desc {
+		count = -count // reverse iterate: newest first
+	}
+	all.Iterate(p.Offset(), count, func(reply *boards.Post) bool {
+		if *budget <= 0 {
+			// Unreachable while pageSizeFlat << maxRenderedBodies; a backstop
+			// in case a chain upgrade drops the native cap below one page.
+			return true
+		}
+		indent := flatIndent(thread, reply)
+		b.WriteString(indent + "\n" + renderPost(reply, "", indent, 0, budget))
+		return false
+	})
+
+	if p.HasPages() {
+		b.WriteString(md.HorizontalRule())
+		b.WriteString(pager.Picker(p))
+	}
+	return b.String()
+}
+
+// flatIndent returns the blockquote indent for a reply in the flat view,
+// derived from its depth below the thread root (depth 1 = a direct reply to
+// the thread), capped at maxFlatIndentDepth.
+func flatIndent(thread *boards.Post, reply *boards.Post) string {
+	depth := 1
+	pid := reply.ParentID
+	for pid != thread.ID && pid != 0 && depth < maxFlatIndentDepth {
+		parent, ok := getReply(thread, pid)
+		if !ok {
+			break
+		}
+		depth++
+		pid = parent.ParentID
+	}
+	return strings.Repeat("> ", depth)
 }
 
 func renderThreadSummary(thread *boards.Post) string {

@@ -19,6 +19,11 @@ import (
 const (
 	pageSizeDefault = 6
 	pageSizeReplies = 10
+	// pageSizeFlat is the page size of the flat "all comments" view (?flat=1).
+	// Each comment renders exactly one <gno-foreign> block (no recursion); with
+	// the OP (and any repost-source body) the per-page total stays well under
+	// maxRenderedBodies, so a flat page can't hit the render cap.
+	pageSizeFlat = 50
 )
 
 // maxRenderedBodies caps user bodies wrapped in <gno-foreign> per page
@@ -35,6 +40,24 @@ const (
 // MaxBlocksPerRender ever changes; recomputing per render re-reads it.
 func maxRenderedBodies() int {
 	return foreign.MaxBlocksPerRender() - 10
+}
+
+// sortToggleLink builds the asc/desc sort-toggle link for path. The label
+// names the DESTINATION order (what you get by clicking), not the order you're
+// currently viewing, and ?page= is reset since page N of one order is a
+// different slice in the other. It reports whether the CURRENT order is
+// descending, so callers can drive their own (signed-count or reverse-iterate)
+// pagination. Other query params (e.g. flat=1) are preserved.
+func sortToggleLink(path string) (link string, desc bool) {
+	r := parseRealmPath(path)
+	desc = r.Query.Get("order") == "desc"
+	r.Query.Del("page")
+	if desc {
+		r.Query.Set("order", "asc")
+		return md.Link("oldest first", r.String()), true
+	}
+	r.Query.Set("order", "desc")
+	return md.Link("newest first", r.String()), false
 }
 
 const menuManageBoard = "manageBoard"
@@ -131,17 +154,11 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("Sort by: ")
-	r := parseRealmPath(req.RawPath)
-	// Label names the destination order; toggling resets to page 1.
-	sortOrder := r.Query.Get("order")
-	r.Query.Del("page")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
+	if desc {
 		gListedBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
 		gListedBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 

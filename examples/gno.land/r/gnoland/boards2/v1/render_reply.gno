@@ -107,30 +107,19 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, b
 
 	b.WriteString("\n" + md.HorizontalRule() + "Sort by: ")
 
-	r := parseRealmPath(path)
-	sortOrder := r.Query.Get("order")
-	// The toggle link names the order you'll GET by clicking (the
-	// destination), not the order you're currently viewing. Toggling also
-	// resets to page 1 — page N of the old order is a different slice in
-	// the new order.
-	r.Query.Del("page")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		b.WriteString(md.Link("oldest first", r.String()) + "\n")
-	} else {
-		r.Query.Set("order", "desc")
-		b.WriteString(md.Link("newest first", r.String()) + "\n")
-	}
+	link, desc := sortToggleLink(path)
+	b.WriteString(link + "\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 
 	post.Replies.Iterate(p.Offset(), count, render)
 
 	if truncated {
-		b.WriteString(indent + "\n" + commentsIndent + "_Some replies not shown (thread too large to render in full)._\n")
+		b.WriteString(indent + "\n" + commentsIndent + "_Some replies not shown — " +
+			md.Link("view all comments", makeThreadFlatURI(post)) + "._\n")
 	}
 
 	if p.HasPages() {
@@ -157,7 +146,8 @@ func renderSubReplies(post *boards.Post, indent string, levels int, budget *int)
 	})
 
 	if truncated {
-		b.WriteString(indent + "\n" + commentsIndent + md.Link("More replies — view full thread", makeReplyURI(post)) + "\n")
+		b.WriteString(indent + "\n" + commentsIndent +
+			md.Link("More replies — view all comments", makeThreadFlatURI(post)) + "\n")
 	}
 	return b.String()
 }

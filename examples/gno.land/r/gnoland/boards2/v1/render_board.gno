@@ -52,20 +52,11 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("Sort by: ")
 
-	r := parseRealmPath(req.RawPath)
-	sortOrder := r.Query.Get("order")
-	// Label names the destination order; toggling resets to page 1.
-	r.Query.Del("page")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
-	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
-	}
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 

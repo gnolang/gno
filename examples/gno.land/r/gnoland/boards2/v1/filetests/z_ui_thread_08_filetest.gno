@@ -46,7 +46,7 @@ func main(cur realm) {
 	// Budget bounds the rendered foreign blocks under the per-render cap,
 	// and the truncation notice appears instead of silently dropping
 	// comments.
-	println(n > 0 && n < foreign.MaxBlocksPerRender() && strings.Contains(content, "More replies — view full thread"))
+	println(n > 0 && n < foreign.MaxBlocksPerRender() && strings.Contains(content, "More replies — view all comments"))
 }
 
 // Output:
