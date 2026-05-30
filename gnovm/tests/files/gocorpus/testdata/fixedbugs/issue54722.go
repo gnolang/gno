@@ -1,0 +1,18 @@
+// compile
+
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type G[T any] struct {
+	h H[G[T]]
+}
+
+type H[T any] struct{}
+
+var x G[int]
+
+// KnownIssue:
+// line 9: 2: name T not defined in fileset with files [issue54722.go]
