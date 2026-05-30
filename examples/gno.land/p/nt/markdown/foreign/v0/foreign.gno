@@ -168,45 +168,31 @@ func sanitizeLabel(s string) string {
 }
 
 // isForeignSentinelLine reports whether s (already trimmed via
-// trimSentinel) looks like a gno-foreign opener or closer that the
-// parser would recognize. Matches both bare forms (`<gno-foreign>`,
-// `</gno-foreign>`) and attribute-bearing forms (`<gno-foreign attr…>`,
-// `</gno-foreign attr…>`). Over-inclusive on purpose: even forms the
-// parser would reject (e.g., unknown attribute keys on the opener)
-// are mangled, since the only downside is that the user-visible
-// literal text shows verbatim instead of being raw-HTML-stripped.
+// trimSentinel) begins with the gno-foreign tag prefix and so must be
+// neutralized before it can reach the renderer-side parser.
 //
-// The tag-name match is case-INSENSITIVE. goldmark's html.Tokenizer
-// lowercases tag names before the renderer-side parser
-// (parseForeignLineTag in ext_foreign.go) compares them, so the parser
-// recognizes `<GNO-FOREIGN>`, `<Gno-Foreign>`, etc. as sentinels. This
-// escaper MUST mirror that case-folding — otherwise a case-variant
-// sentinel slips past here and reaches the (case-insensitive) parser,
-// where it either closes the outer block early (escaping the sandbox)
-// or opens a phantom inner block that consumes the helper's own close
-// (capturing trailing realm content).
+// Deliberately OVER-INCLUSIVE: it matches any line whose trimmed form
+// starts (case-INSENSITIVELY) with `<gno-foreign` or `</gno-foreign`,
+// regardless of what follows. This is a strict superset of every line
+// goldmark's html.Tokenizer can recognize as a <gno-foreign> opener or
+// closer, which is what makes it safe:
+//
+//   - The tokenizer lowercases tag names, so `<GNO-FOREIGN>` etc. are
+//     sentinels; the prefix match is case-folded to mirror that.
+//   - The tokenizer ends a tag name at ANY of several terminators
+//     (`>`, space, tab, form-feed, `/`). A precise check that
+//     enumerates terminators keeps missing variants — e.g.
+//     `</gno-foreign/>` and `</gno-foreign\f>` are both recognized as
+//     closers by the parser. Matching on the prefix alone cannot miss
+//     one: if a body line could be parsed as a sentinel, it starts with
+//     this prefix and is escaped here.
+//
+// The only cost is that an unrelated longer tag like `<gno-foreignx>`
+// (a different tag name, not a sentinel) is also escaped — rendered as
+// visible literal text instead of being raw-HTML-stripped — which is
+// harmless for foreign body bytes.
 func isForeignSentinelLine(s string) bool {
-	const (
-		openPrefix  = "<gno-foreign"
-		closePrefix = "</gno-foreign"
-	)
-	var rest string
-	switch {
-	case hasASCIIFoldPrefix(s, closePrefix):
-		rest = s[len(closePrefix):]
-	case hasASCIIFoldPrefix(s, openPrefix):
-		rest = s[len(openPrefix):]
-	default:
-		return false
-	}
-	if len(rest) == 0 {
-		return false // unterminated tag, parser wouldn't match either
-	}
-	// Tag name must end at '>' (bare form) or whitespace (attribute
-	// form). Anything else (e.g., `<gno-foreign-other>`) is a
-	// different tag — leave it alone.
-	c := rest[0]
-	return c == '>' || c == ' ' || c == '\t'
+	return hasASCIIFoldPrefix(s, "</gno-foreign") || hasASCIIFoldPrefix(s, "<gno-foreign")
 }
 
 // hasASCIIFoldPrefix reports whether s begins with prefix, comparing

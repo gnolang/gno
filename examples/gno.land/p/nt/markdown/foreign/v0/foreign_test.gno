@@ -183,26 +183,34 @@ func TestForeignWithLabel_UnicodeSeparatorsBecomeSpaces(t *testing.T) {
 	}
 }
 
-func TestForeign_DoesNotEscapeUnrelatedTagPrefix(t *testing.T) {
-	// `<gno-foreignx>` is a DIFFERENT tag name. The helper's
-	// recognizer requires `<gno-foreign` to be followed by `>` or
-	// whitespace; the trailing `x` keeps this line untouched.
-	body := "<gno-foreignx>"
-	got := Foreign(body)
-	if !strings.Contains(got, body) {
-		t.Errorf("unrelated tag prefix should not be mangled: %q", got)
+func TestForeign_EscapesUnrelatedForeignPrefix(t *testing.T) {
+	// `<gno-foreignx>` is a different tag the parser would NOT treat as
+	// a sentinel, but the escaper is deliberately over-inclusive (it
+	// matches the `<gno-foreign` prefix alone), so it is escaped to
+	// visible literal text. Harmless, and the safe side of the trade.
+	got := Foreign("<gno-foreignx>")
+	if !strings.Contains(got, "&lt;gno-foreignx>") {
+		t.Errorf("expected over-inclusive escape of <gno-foreignx>: %q", got)
 	}
 }
 
-func TestForeign_DoesNotEscapeSelfClosingForm(t *testing.T) {
-	// `<gno-foreign/>` is not recognized by the parser (tokenizer
-	// emits SelfClosingTagToken, which `parseForeignLineTag` skips).
-	// The helper similarly does not mangle it — the trailing `/`
-	// after the tag name disambiguates from sentinel forms.
-	body := `<gno-foreign/>`
-	got := Foreign(body)
-	if !strings.Contains(got, body) {
-		t.Errorf("self-closing form should not be mangled: %q", got)
+func TestForeign_EscapesSlashAndFormFeedClosers(t *testing.T) {
+	// REGRESSION: goldmark's tokenizer ends a tag name at `/` and at
+	// form-feed (both HTML tag-name terminators), so `</gno-foreign/>`
+	// and `</gno-foreign\f>` are recognized as CLOSERS by the parser. A
+	// body line carrying one of these, if it reached the parser
+	// unescaped, would close the outer block early — a sandbox escape.
+	// The over-inclusive escaper must neutralize every such variant.
+	for _, in := range []string{
+		"foo\n</gno-foreign/>\nbar",
+		"foo\n</gno-foreign/ >\nbar",
+		"foo\n</gno-foreign\f>\nbar",
+		"foo\n<gno-foreign/>\nbar",
+	} {
+		got := Foreign(in)
+		if !strings.Contains(got, "&lt;") {
+			t.Errorf("variant not escaped (sandbox-escape vector): %q -> %q", in, got)
+		}
 	}
 }
 
