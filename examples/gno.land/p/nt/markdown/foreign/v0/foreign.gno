@@ -49,8 +49,12 @@ import (
 //     content into the sandbox) or close the outer block early
 //     (escaping the sandbox entirely).
 //
-//     Realm authors who want genuine nested gno-foreign should
-//     compose Foreign calls explicitly: Foreign(Foreign(inner)).
+//     There is therefore NO nesting via the helper: Foreign(Foreign(x))
+//     escapes the inner call's own `<gno-foreign>`/`</gno-foreign>`
+//     lines, so the inner block renders as visible literal text inside
+//     one sandbox, not as a nested sandbox. This is intended — wrapping
+//     foreign-built markdown that itself contains gno-foreign sentinels
+//     must neutralize them, not honor them.
 //
 //  3. A leading and trailing blank line are emitted around the
 //     opener / closer. CommonMark §4.6 forbids Type-7 HTML blocks
