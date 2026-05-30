@@ -14,6 +14,7 @@ import (
 	"fmt"
 	htmlpkg "html"
 
+	chainmd "github.com/gnolang/gno/gnovm/stdlibs/chain/markdown"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -29,11 +30,14 @@ var KindGnoForeign = ast.NewNodeKind("GnoForeign")
 
 // MaxGnoForeignBlocksPerConvert caps the number of <gno-foreign> blocks
 // one Convert call will admit. Beyond this count, foreign openers fall
-// through to raw HTML (safe-mode strips them). Unlike the cross-family
-// nesting depth (nestdepth.go), this is a foreign-specific MONOTONIC
-// per-Convert total — never decremented — so it lives here, with the
-// foreign parser that maintains it, not in the shared depth helper.
-const MaxGnoForeignBlocksPerConvert = 100
+// through to raw HTML (safe-mode strips them). It is a foreign-specific
+// MONOTONIC per-Convert total — never decremented — distinct from the
+// cross-family nesting depth (nestdepth.go).
+//
+// Sourced from the chain/markdown native (the single source of truth)
+// so this enforcement and the realm-facing value realms read via
+// markdown.MaxForeignBlocksPerConvert() cannot drift apart.
+var MaxGnoForeignBlocksPerConvert = chainmd.MaxForeignBlocksPerConvert()
 
 // gnoForeignBlockKey stores the monotonic per-Convert count of
 // <gno-foreign> openers admitted so far, maintained directly via

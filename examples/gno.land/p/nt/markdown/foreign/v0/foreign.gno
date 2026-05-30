@@ -83,6 +83,17 @@ func ForeignWithLabel(label, body string) string {
 	return wrapForeign(label, body)
 }
 
+// MaxBlocksPerRender is gnoweb's per-render cap on the number of
+// <gno-foreign> blocks a single page render admits; beyond it, later
+// blocks fall through to raw HTML and are dropped. A realm emitting
+// many foreign blocks (e.g. one per comment) should keep its rendered
+// total under this. Re-exports chain/markdown.MaxForeignBlocksPerConvert
+// — the single source of truth the gnoweb renderer also reads — so
+// callers get the cap without importing chain/markdown directly.
+func MaxBlocksPerRender() int {
+	return markdown.MaxForeignBlocksPerConvert()
+}
+
 func wrapForeign(rawLabel, body string) string {
 	label := sanitizeLabel(rawLabel)
 

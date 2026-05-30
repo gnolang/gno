@@ -7,6 +7,18 @@ import (
 	"unicode/utf8"
 )
 
+// maxForeignBlocksPerConvert caps the number of <gno-foreign> blocks a
+// single markdown render admits (the gnoweb renderer drops openers
+// beyond it). Single source of truth: the gnoweb foreign renderer reads
+// it via MaxForeignBlocksPerConvert, and realms read the same value
+// from gno via the native of the same name.
+const maxForeignBlocksPerConvert = 100
+
+// MaxForeignBlocksPerConvert returns maxForeignBlocksPerConvert. It
+// backs the gno native of the same name (callable from realms) and is
+// also the Go accessor the gnoweb foreign renderer uses.
+func MaxForeignBlocksPerConvert() int { return maxForeignBlocksPerConvert }
+
 // ---------- StripBidiAndZeroWidth ----------
 
 func StripBidiAndZeroWidth(s string) string {

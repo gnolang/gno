@@ -12,19 +12,23 @@ import (
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/markdown/foreign/v0"
 	"gno.land/p/nt/mux/v0"
 )
 
 const (
 	pageSizeDefault = 6
 	pageSizeReplies = 10
-
-	// maxRenderedBodies caps user bodies wrapped in <gno-foreign> per
-	// page render, with margin under gnoweb's MaxGnoForeignBlocksPerConvert
-	// (100, beyond which blocks blank silently). On reaching it the tree
-	// stops descending and shows a truncation notice.
-	maxRenderedBodies = 90
 )
+
+// maxRenderedBodies caps user bodies wrapped in <gno-foreign> per page
+// render, kept a margin under gnoweb's per-render foreign-block cap
+// (foreign.MaxBlocksPerRender, sourced from chain/markdown so it can't
+// drift from the renderer). On reaching it the tree stops descending
+// and shows a truncation notice instead of letting the renderer blank
+// comments past the cap. The margin absorbs the OP, repost source
+// bodies, and chrome.
+var maxRenderedBodies = foreign.MaxBlocksPerRender() - 10
 
 const menuManageBoard = "manageBoard"
 
