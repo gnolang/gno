@@ -93,6 +93,14 @@ type ForeignNode struct {
 	// keeps nested-looking close tags inside the body from
 	// terminating the outer block prematurely.
 	framingDepth int
+	// stripped marks a block that was refused by the block-count or
+	// nesting-depth cap. Such a node still OPENS (so it collects its
+	// body opaquely and the opener never falls through to the outer
+	// raw-HTML block parser — which, under WithUnsafe, would render
+	// the unescaped body as live HTML), but it does NOT Push/Pop the
+	// depth counter and the renderer emits a "budget exceeded" comment
+	// instead of the inner render.
+	stripped bool
 }
 
 // Dump implements ast.Node.
@@ -205,13 +213,18 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	// bounds work-per-Convert, not currently-open foreigns.
 	blockCount, _ := pc.Get(gnoForeignBlockKey).(int)
 	if blockCount >= MaxGnoForeignBlocksPerConvert {
-		return nil, parser.NoChildren
+		// Refused, but still OPEN an opaque stripped node so the body
+		// is captured (not left to fall through to the outer raw-HTML
+		// parser). No Push, no count bump. See ForeignNode.stripped.
+		reader.AdvanceToEOL()
+		return &ForeignNode{stripped: true}, parser.NoChildren
 	}
 
 	// Cross-family nesting cap.
 	depthBefore := Get(pc)
 	if !Push(pc) {
-		return nil, parser.NoChildren
+		reader.AdvanceToEOL()
+		return &ForeignNode{stripped: true}, parser.NoChildren
 	}
 
 	pc.Set(gnoForeignBlockKey, blockCount+1)
@@ -277,12 +290,14 @@ func (*foreignParser) Continue(n ast.Node, reader text.Reader, pc parser.Context
 }
 
 func (*foreignParser) Close(n ast.Node, _ text.Reader, pc parser.Context) {
-	// Pop the depth counter unconditionally on Close — this fires
-	// only for successfully-opened nodes (Open returned non-nil),
-	// so every Close pairs with a prior Push. The AST transformer's
-	// synth-close path also calls Pop for nodes that never reached
-	// a Close because the outer parser hit EOF.
-	Pop(pc)
+	// Pop the depth counter on Close, but NOT for cap-refused stripped
+	// nodes — those never Push'd, so popping would underflow. Every
+	// non-stripped Close pairs with a prior successful Push. The AST
+	// transformer's synth-close path Pops for nodes that never reached
+	// a Close because the outer parser hit EOF (also skipping stripped).
+	if !n.(*ForeignNode).stripped {
+		Pop(pc)
+	}
 }
 
 // CanInterruptParagraph: false. Per CM §4.6, Type-7 HTML blocks
@@ -324,7 +339,9 @@ func (*foreignASTTransformer) Transform(doc *ast.Document, _ text.Reader, pc par
 			return ast.WalkContinue, nil
 		}
 		fn.Closed = true
-		Pop(pc)
+		if !fn.stripped {
+			Pop(pc)
+		}
 		return ast.WalkContinue, nil
 	})
 }
@@ -347,6 +364,15 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	n, ok := node.(*ForeignNode)
 	if !ok {
 		return ast.WalkContinue, nil
+	}
+
+	// Cap-refused block: its body was captured opaquely (so it never
+	// reached the outer raw-HTML parser); emit a marker and render
+	// nothing of it. Skips the inner instance entirely, preserving the
+	// per-Convert work bound.
+	if n.stripped {
+		fmt.Fprintln(w, "<!-- gno-foreign: render budget exceeded; content omitted -->")
+		return ast.WalkSkipChildren, nil
 	}
 
 	// An empty label renders no label strip and no aria-label — the box

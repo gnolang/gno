@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yuin/goldmark"
+	htmlrenderer "github.com/yuin/goldmark/renderer/html"
 )
 
 // buildTestMarkdownWithForeign returns a goldmark instance with the
@@ -134,6 +135,36 @@ func TestForeign_DepthCapAt5_FifthRefused(t *testing.T) {
 	openCount := strings.Count(got, `<div class="gno-foreign"`)
 	if openCount != 4 {
 		t.Errorf("expected 4 successfully-opened foreigns (cap=4), got %d in:\n%s", openCount, got)
+	}
+}
+
+func TestForeign_OverCapBodyNotLeakedToOuterHTML(t *testing.T) {
+	// REGRESSION: a cap-refused (101st) block must NOT let its opener
+	// fall through to the outer raw-HTML block parser — under an UNSAFE
+	// outer renderer (gnoweb -html) that would render the unescaped body
+	// as live HTML, escaping the sandbox. The refused block must instead
+	// be captured opaquely and rendered as a budget marker.
+	m := goldmark.New(goldmark.WithRendererOptions(htmlrenderer.WithUnsafe()))
+	ExtForeign.Extend(m, nil)
+	var b strings.Builder
+	for i := 0; i < MaxGnoForeignBlocksPerConvert; i++ {
+		b.WriteString("\n\n<gno-foreign>\nok\n</gno-foreign>\n")
+	}
+	// The (cap+1)th block carries a raw-HTML XSS payload in its body.
+	b.WriteString("\n\n<gno-foreign>\n<img src=x onerror=alert(1)>\n</gno-foreign>\n\n")
+	var buf bytes.Buffer
+	if err := m.Convert([]byte(b.String()), &buf); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if strings.Contains(got, "onerror") {
+		t.Errorf("over-cap body leaked as live raw HTML (sandbox escape):\n%s", got)
+	}
+	if !strings.Contains(got, "render budget exceeded") {
+		t.Errorf("expected budget-exceeded marker for the refused block:\n%s", got)
+	}
+	if n := strings.Count(got, `class="gno-foreign"`); n != MaxGnoForeignBlocksPerConvert {
+		t.Errorf("expected exactly %d rendered foreign divs, got %d", MaxGnoForeignBlocksPerConvert, n)
 	}
 }
 
