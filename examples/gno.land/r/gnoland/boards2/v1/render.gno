@@ -111,10 +111,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, gListedBoardsByID.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
+	p := newClampedPager(req.RawPath, gListedBoardsByID.Size(), pageSizeDefault)
 
 	render := func(_ string, v any) bool {
 		board := v.(*boards.Board)
@@ -135,13 +132,16 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("Sort by: ")
 	r := parseRealmPath(req.RawPath)
-	if r.Query.Get("order") == "desc" {
+	// Label names the destination order; toggling resets to page 1.
+	sortOrder := r.Query.Get("order")
+	r.Query.Del("page")
+	if sortOrder == "desc" {
 		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
+		res.Write(md.Link("oldest first", r.String()) + "\n\n")
 		gListedBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
+		res.Write(md.Link("newest first", r.String()) + "\n\n")
 		gListedBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
@@ -229,11 +229,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Create a pager with a small page size to reduce
 	// the number of username lookups per page.
-	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, perms.UsersCount(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"Member", "Role", "Actions"},
@@ -284,11 +280,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, requests.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, requests.Size(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"User", "Request Date", "Actions"},
@@ -340,11 +332,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, banned.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, banned.Size(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"User", "Banned Until", "Actions"},

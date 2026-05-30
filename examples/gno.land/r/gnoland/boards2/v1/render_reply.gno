@@ -53,11 +53,42 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(renderPostInner(reply))
 }
 
-func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, budget *int) string {
-	p, err := pager.New(path, post.Replies.Size(), pager.WithPageSize(pageSizeReplies))
-	if err != nil {
-		panic(err)
+// newClampedPager builds a pager, clamping an out-of-range, zero, negative,
+// or malformed ?page= to the last valid page instead of erroring. pager.New
+// rejects page==0, page>pageCount, and non-numeric pages with
+// ErrInvalidPageNumber, which the callers would otherwise surface as a panic
+// (aborting the whole render) or an error page in place of the list. A
+// NEGATIVE page is not rejected by pager.New (it only checks ==0 and
+// >pageCount), so it must be caught here too — otherwise it renders a broken
+// "page -N of M" picker with both arrows disabled. Triggers on a stale deep
+// link after deletions, or a hand-edited URL.
+func newClampedPager(path string, size, pageSize int) pager.Pager {
+	p, err := pager.New(path, size, pager.WithPageSize(pageSize))
+	if err == nil && p.Page() >= 1 {
+		return p
 	}
+	// Re-parse without ?page= to get a valid page-1 pager and read the real
+	// page count, then jump to the last page when there is more than one.
+	r := parseRealmPath(path)
+	r.Query.Del("page")
+	first, ferr := pager.New(r.String(), size, pager.WithPageSize(pageSize))
+	if ferr != nil {
+		// A page-less path is valid for every current route, so this is
+		// unreachable today; fall back to the original pager rather than
+		// asserting the invariant with a panic that would abort the render.
+		return p
+	}
+	if last := first.PageCount(); last > 1 {
+		r.Query.Set("page", strconv.Itoa(last))
+		if clamped, e := pager.New(r.String(), size, pager.WithPageSize(pageSize)); e == nil {
+			return clamped
+		}
+	}
+	return first
+}
+
+func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, budget *int) string {
+	p := newClampedPager(path, post.Replies.Size(), pageSizeReplies)
 
 	var (
 		b              strings.Builder
@@ -78,13 +109,17 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, b
 
 	r := parseRealmPath(path)
 	sortOrder := r.Query.Get("order")
+	// The toggle link names the order you'll GET by clicking (the
+	// destination), not the order you're currently viewing. Toggling also
+	// resets to page 1 — page N of the old order is a different slice in
+	// the new order.
+	r.Query.Del("page")
 	if sortOrder == "desc" {
 		r.Query.Set("order", "asc")
-		b.WriteString(md.Link("newest first", r.String()) + "\n")
-
+		b.WriteString(md.Link("oldest first", r.String()) + "\n")
 	} else {
 		r.Query.Set("order", "desc")
-		b.WriteString(md.Link("oldest first", r.String()) + "\n")
+		b.WriteString(md.Link("newest first", r.String()) + "\n")
 	}
 
 	count := p.PageSize()
