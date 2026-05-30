@@ -1,4 +1,4 @@
-# Getting started with Gno.land
+# Getting started
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
 **[Gno](./what-is-gnolang.md)**, a deterministic variant of Go. If you
