@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 	htmlrenderer "github.com/yuin/goldmark/renderer/html"
 )
 
@@ -55,6 +57,76 @@ func TestForeign_SimpleBody(t *testing.T) {
 	}
 	if !strings.Contains(got, "Hello world.") {
 		t.Errorf("body text missing in:\n%s", got)
+	}
+}
+
+// TestForeign_LinksRenderAsUntrusted locks the gno-foreign link policy:
+// links inside the sandbox render as user-generated content — they carry
+// rel="noopener nofollow ugc" regardless of type and drop the first-party
+// tx/internal trust icons — while a sibling top-level link is unchanged
+// (keeps its icon, carries no rel). The hrefs still resolve normally; only
+// the trust chrome is stripped. Requires a GnoURL context (else the link
+// transformer no-ops) and ExtLinks on the outer instance.
+func TestForeign_LinksRenderAsUntrusted(t *testing.T) {
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+
+	m := goldmark.New()
+	ExtForeign.Extend(m, nil)
+	ExtColumns.Extend(m)
+	ExtAlerts.Extend(m)
+	ExtLinks.Extend(m)
+
+	// Top-level internal link (control), then a sandbox with an internal,
+	// a help/tx, and an external link.
+	src := "[top](/r/foo/hello)\n\n" +
+		"<gno-foreign>\n" +
+		"[inner](/r/foo/hello) [help](/r/docs/hello$help) [ext](https://example.org/)\n" +
+		"</gno-foreign>\n\n"
+	var buf bytes.Buffer
+	if err := m.Convert([]byte(src), &buf, ctxOpts); err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+	got := buf.String()
+
+	idx := strings.Index(got, `<div class="gno-foreign__body">`)
+	if idx < 0 {
+		t.Fatalf("no foreign body div in:\n%s", got)
+	}
+	top, foreign := got[:idx], got[idx:]
+
+	// Control: top-level internal link keeps its icon and has no rel.
+	if !strings.Contains(top, "ico-internal-link") {
+		t.Errorf("top-level internal link should keep its icon; got:\n%s", top)
+	}
+	if strings.Contains(top, "rel=") {
+		t.Errorf("top-level internal link must carry no rel; got:\n%s", top)
+	}
+
+	// Sandbox: every link carries the ugc rel and resolves normally.
+	for _, want := range []string{
+		`<a href="/r/foo/hello" rel="noopener nofollow ugc">`,
+		`<a href="/r/docs/hello$help" rel="noopener nofollow ugc">`,
+		`<a href="https://example.org/" rel="noopener nofollow ugc">`,
+	} {
+		if !strings.Contains(foreign, want) {
+			t.Errorf("foreign link missing %q in:\n%s", want, foreign)
+		}
+	}
+
+	// Sandbox: first-party trust icons are suppressed; the external-link
+	// icon (a "leaves the page" safety hint, not a trust badge) is kept.
+	if strings.Contains(foreign, "ico-internal-link") {
+		t.Errorf("foreign internal link must not show the internal icon; got:\n%s", foreign)
+	}
+	if strings.Contains(foreign, "ico-tx-link") {
+		t.Errorf("foreign help link must not show the tx icon; got:\n%s", foreign)
+	}
+	if !strings.Contains(foreign, "ico-external-link") {
+		t.Errorf("foreign external link should keep the external icon; got:\n%s", foreign)
 	}
 }
 

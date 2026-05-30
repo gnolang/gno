@@ -397,6 +397,14 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// guards / rel attributes — without it, autolinks such as
 	// `<javascript:…>` render as live hrefs inside the sandbox.
 	innerCtx := NewGnoParserContext(n.GnoCtx)
+	// Flag the inner context as a foreign/untrusted origin so links
+	// inside the sandbox render as user-generated content (rel="ugc",
+	// no first-party tx/internal trust icons) and cannot borrow the
+	// host realm's link chrome. See markForeignOrigin / getLinkIcons.
+	// Unlike GnoCtx/DepthAtParse (parse-time state stashed on the node
+	// and rebuilt here), this is set directly on innerCtx because it is
+	// a constant for every inner instance — there is nothing to capture.
+	markForeignOrigin(innerCtx)
 	// Pre-seed the depth counter so the cross-family cap stays
 	// global across the inner/outer boundary. gnoForeignBlockKey is
 	// intentionally NOT seeded — each Convert maintains its own

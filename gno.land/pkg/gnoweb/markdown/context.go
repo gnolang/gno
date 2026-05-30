@@ -6,10 +6,11 @@ import (
 )
 
 var (
-	gUrlContextKey     = parser.NewContextKey()
-	gChainIdContextKey = parser.NewContextKey()
-	gRemoteContextKey  = parser.NewContextKey()
-	gDomainContextKey  = parser.NewContextKey()
+	gUrlContextKey           = parser.NewContextKey()
+	gChainIdContextKey       = parser.NewContextKey()
+	gRemoteContextKey        = parser.NewContextKey()
+	gDomainContextKey        = parser.NewContextKey()
+	gForeignOriginContextKey = parser.NewContextKey()
 )
 
 type GnoContext struct {
@@ -72,4 +73,25 @@ func getDomainFromContext(ctx parser.Context) (domain string, ok bool) {
 		return "", false
 	}
 	return
+}
+
+// markForeignOrigin flags ctx as the parser context of a <gno-foreign>
+// sandbox INNER instance. It is set only by the foreign renderer (see
+// ext_foreign.go renderForeign), never by NewGnoParserContext — the
+// public GnoContext carries no notion of trust, and a top-level page
+// must never be treated as foreign.
+//
+// Links parsed under a flagged context render as untrusted user-
+// generated content: rel="noopener nofollow ugc" and no first-party
+// tx/internal trust icons (see linkTransformer.Transform and
+// getLinkIcons), so sandboxed foreign markdown cannot wear the host
+// realm's link chrome.
+func markForeignOrigin(ctx parser.Context) {
+	ctx.Set(gForeignOriginContextKey, true)
+}
+
+// isForeignOrigin reports whether ctx was flagged by markForeignOrigin.
+func isForeignOrigin(ctx parser.Context) bool {
+	v, _ := ctx.Get(gForeignOriginContextKey).(bool)
+	return v
 }
