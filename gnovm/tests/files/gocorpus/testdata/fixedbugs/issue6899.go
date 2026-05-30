@@ -1,0 +1,21 @@
+// run
+
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "math"
+
+func main() {
+	println(math.Copysign(0, -1))
+}
+
+// GnoOutput:
+// -0
+
+// GoOutput:
+// -0.000000e+000
+
+// Divergence: TODO: <category>: explain why this divergence is acceptable

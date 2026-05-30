@@ -1,0 +1,24 @@
+// run
+
+// Copyright 2023 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main() {
+	m := "0"
+	for _, c := range "321" {
+		m = max(string(c), m)
+		println(m)
+	}
+}
+
+// GnoOutput:
+
+// GoOutput:
+// 3
+// 3
+// 3
+
+// Divergence: TODO: <category>: explain why this divergence is acceptable

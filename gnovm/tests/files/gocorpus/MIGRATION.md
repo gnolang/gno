@@ -10,10 +10,10 @@ do not edit by hand; re-run after `--update-golden-tests`.
 |---|--:|---|
 | **KnownIssue** | 75 | Gno over-strict — rejects code gc *and* go/types accept (real bug to fix) |
 | GnoIncomplete | 24 | Gno bailed before covering every marker (needs a runnable variant) |
-| Divergence | 2 | blessed Gno-vs-Go run-mode divergence |
-| Unsupported | 164 | feature gap (unsupported import / language feature); skipped |
-| Clean | 395 | verified, no outstanding issue |
-| **Total migrated** | 660 | |
+| Divergence | 40 | blessed Gno-vs-Go run-mode divergence |
+| Unsupported | 443 | feature gap (unsupported import / language feature); skipped |
+| Clean | 1022 | verified, no outstanding issue |
+| **Total migrated** | 1604 | |
 
 ## 🔴 KnownIssue — real Gno bugs (fix these first) (75)
 
@@ -124,28 +124,101 @@ Gno bailed in the declaration/preprocess phase before reaching every marker. A r
 - [`syntax/chan.go`](testdata/syntax/chan.go) — covered 2 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 - [`syntax/chan1.go`](testdata/syntax/chan1.go) — covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-## 🔵 Divergence — blessed run-mode divergences (2)
+## 🔵 Divergence — blessed run-mode divergences (40)
 
 Gno's output legitimately differs from Go's; pinned and blessed.
 
 - [`directive.go`](testdata/directive.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/bug348.go`](testdata/fixedbugs/bug348.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/bug352.go`](testdata/fixedbugs/bug352.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/bug409.go`](testdata/fixedbugs/bug409.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue21808.go`](testdata/fixedbugs/issue21808.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue21879.go`](testdata/fixedbugs/issue21879.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue27201.go`](testdata/fixedbugs/issue27201.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue35576.go`](testdata/fixedbugs/issue35576.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue43444.go`](testdata/fixedbugs/issue43444.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue4562.go`](testdata/fixedbugs/issue4562.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue5856.go`](testdata/fixedbugs/issue5856.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue59572.go`](testdata/fixedbugs/issue59572.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue64565.go`](testdata/fixedbugs/issue64565.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue6899.go`](testdata/fixedbugs/issue6899.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue71675.go`](testdata/fixedbugs/issue71675.go) — TODO: <category>: explain why this divergence is acceptable
+- [`fixedbugs/issue7690.go`](testdata/fixedbugs/issue7690.go) — TODO: <category>: explain why this divergence is acceptable
+- [`float_lit2.go`](testdata/float_lit2.go) — TODO: <category>: explain why this divergence is acceptable
+- [`ken/cplx0.go`](testdata/ken/cplx0.go) — TODO: <category>: explain why this divergence is acceptable
+- [`ken/string.go`](testdata/ken/string.go) — TODO: <category>: explain why this divergence is acceptable
+- [`print.go`](testdata/print.go) — TODO: <category>: explain why this divergence is acceptable
 - [`run/divergence_panic.go`](testdata/run/divergence_panic.go) — error-wording: same kind of out-of-range panic, different wording in the recovered value.
+- [`typeparam/dottype.go`](testdata/typeparam/dottype.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue47272.go`](testdata/typeparam/issue47272.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue47713.go`](testdata/typeparam/issue47713.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue48276a.go`](testdata/typeparam/issue48276a.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue48645a.go`](testdata/typeparam/issue48645a.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue50193.go`](testdata/typeparam/issue50193.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue50690a.go`](testdata/typeparam/issue50690a.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue50690b.go`](testdata/typeparam/issue50690b.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue50690c.go`](testdata/typeparam/issue50690c.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/issue51303.go`](testdata/typeparam/issue51303.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/shape1.go`](testdata/typeparam/shape1.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch1.go`](testdata/typeparam/typeswitch1.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch2.go`](testdata/typeparam/typeswitch2.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch3.go`](testdata/typeparam/typeswitch3.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch4.go`](testdata/typeparam/typeswitch4.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch5.go`](testdata/typeparam/typeswitch5.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch6.go`](testdata/typeparam/typeswitch6.go) — TODO: <category>: explain why this divergence is acceptable
+- [`typeparam/typeswitch7.go`](testdata/typeparam/typeswitch7.go) — TODO: <category>: explain why this divergence is acceptable
+- [`zerosize.go`](testdata/zerosize.go) — TODO: <category>: explain why this divergence is acceptable
 
-## ⚪ Unsupported — feature gaps (skipped) (164)
+## ⚪ Unsupported — feature gaps (skipped) (443)
 
 Gno can't process the file (unsupported import or language feature). Skipped via t.Skip.
 
+- [`235.go`](testdata/235.go) — channels not supported in Gno
+- [`append.go`](testdata/append.go) — unknown import path reflect
 - [`assign.go`](testdata/assign.go) — unknown import path sync
 - [`assign1.go`](testdata/assign1.go) — channels not supported in Gno
+- [`atomicload.go`](testdata/atomicload.go) — channels not supported in Gno
+- [`bigalg.go`](testdata/bigalg.go) — channels not supported in Gno
+- [`blank.go`](testdata/blank.go) — unknown import path unsafe
 - [`bounds.go`](testdata/bounds.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`chan/doubleselect.go`](testdata/chan/doubleselect.go) — channels not supported in Gno
+- [`chan/fifo.go`](testdata/chan/fifo.go) — channels not supported in Gno
+- [`chan/goroutines.go`](testdata/chan/goroutines.go) — channels not supported in Gno
+- [`chan/nonblock.go`](testdata/chan/nonblock.go) — channels not supported in Gno
 - [`chan/perm.go`](testdata/chan/perm.go) — channels not supported in Gno
+- [`chan/powser1.go`](testdata/chan/powser1.go) — channels not supported in Gno
+- [`chan/powser2.go`](testdata/chan/powser2.go) — channels not supported in Gno
+- [`chan/select.go`](testdata/chan/select.go) — channels not supported in Gno
+- [`chan/select2.go`](testdata/chan/select2.go) — channels not supported in Gno
+- [`chan/select3.go`](testdata/chan/select3.go) — channels not supported in Gno
+- [`chan/select4.go`](testdata/chan/select4.go) — channels not supported in Gno
+- [`chan/select6.go`](testdata/chan/select6.go) — channels not supported in Gno
+- [`chan/select7.go`](testdata/chan/select7.go) — channels not supported in Gno
+- [`chan/select8.go`](testdata/chan/select8.go) — channels not supported in Gno
+- [`chan/sendstmt.go`](testdata/chan/sendstmt.go) — channels not supported in Gno
+- [`chan/sieve1.go`](testdata/chan/sieve1.go) — channels not supported in Gno
+- [`chan/sieve2.go`](testdata/chan/sieve2.go) — channels not supported in Gno
+- [`chan/zerosize.go`](testdata/chan/zerosize.go) — channels not supported in Gno
+- [`chancap.go`](testdata/chancap.go) — channels not supported in Gno
+- [`chanlinear.go`](testdata/chanlinear.go) — channels not supported in Gno
+- [`closedchan.go`](testdata/closedchan.go) — channels not supported in Gno
+- [`closure.go`](testdata/closure.go) — channels not supported in Gno
+- [`closure7.go`](testdata/closure7.go) — channels not supported in Gno
+- [`cmp.go`](testdata/cmp.go) — channels not supported in Gno
 - [`cmp6.go`](testdata/cmp6.go) — channels not supported in Gno
+- [`complit.go`](testdata/complit.go) — channels not supported in Gno
 - [`const1.go`](testdata/const1.go) — unknown import path unsafe
 - [`const5.go`](testdata/const5.go) — channels not supported in Gno
+- [`const7.go`](testdata/const7.go) — unknown import path io/ioutil
+- [`const8.go`](testdata/const8.go) — builtin shadowing not supported in Gno
+- [`convert.go`](testdata/convert.go) — unknown import path reflect
 - [`convert3.go`](testdata/convert3.go) — channels not supported in Gno
 - [`convlit.go`](testdata/convlit.go) — unknown import path unsafe
+- [`convT2X.go`](testdata/convT2X.go) — channels not supported in Gno
 - [`ddd1.go`](testdata/ddd1.go) — channels not supported in Gno
 - [`defererrcheck.go`](testdata/defererrcheck.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`deferfin.go`](testdata/deferfin.go) — goroutines not supported in Gno
+- [`deferprint.go`](testdata/deferprint.go) — channels not supported in Gno
 - [`devirt.go`](testdata/devirt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`directive2.go`](testdata/directive2.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`embedfunc.go`](testdata/embedfunc.go) — unknown import path embed
@@ -169,255 +242,641 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`escape_struct_return.go`](testdata/escape_struct_return.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`escape_sync_atomic.go`](testdata/escape_sync_atomic.go) — unknown import path sync/atomic
 - [`escape_unsafe.go`](testdata/escape_unsafe.go) — unknown import path reflect
+- [`escape.go`](testdata/escape.go) — channels not supported in Gno
 - [`escape2.go`](testdata/escape2.go) — goroutines not supported in Gno
 - [`escape2n.go`](testdata/escape2n.go) — goroutines not supported in Gno
 - [`escape4.go`](testdata/escape4.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`escape5.go`](testdata/escape5.go) — unknown import path unsafe
+- [`finprofiled.go`](testdata/finprofiled.go) — unknown import path unsafe
+- [`fixedbugs/bug053.go`](testdata/fixedbugs/bug053.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/bug067.go`](testdata/fixedbugs/bug067.go) — channels not supported in Gno
+- [`fixedbugs/bug078.go`](testdata/fixedbugs/bug078.go) — channels not supported in Gno
+- [`fixedbugs/bug084.go`](testdata/fixedbugs/bug084.go) — channels not supported in Gno
+- [`fixedbugs/bug130.go`](testdata/fixedbugs/bug130.go) — channels not supported in Gno
+- [`fixedbugs/bug147.go`](testdata/fixedbugs/bug147.go) — channels not supported in Gno
+- [`fixedbugs/bug148.go`](testdata/fixedbugs/bug148.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/bug177.go`](testdata/fixedbugs/bug177.go) — unknown import path reflect
+- [`fixedbugs/bug196.go`](testdata/fixedbugs/bug196.go) — channels not supported in Gno
+- [`fixedbugs/bug206.go`](testdata/fixedbugs/bug206.go) — unknown import path go/ast
+- [`fixedbugs/bug225.go`](testdata/fixedbugs/bug225.go) — channels not supported in Gno
+- [`fixedbugs/bug230.go`](testdata/fixedbugs/bug230.go) — channels not supported in Gno
+- [`fixedbugs/bug234.go`](testdata/fixedbugs/bug234.go) — channels not supported in Gno
 - [`fixedbugs/bug238.go`](testdata/fixedbugs/bug238.go) — channels not supported in Gno
 - [`fixedbugs/bug240.go`](testdata/fixedbugs/bug240.go) — dot imports not supported in Gno
+- [`fixedbugs/bug242.go`](testdata/fixedbugs/bug242.go) — channels not supported in Gno
+- [`fixedbugs/bug243.go`](testdata/fixedbugs/bug243.go) — goroutines not supported in Gno
+- [`fixedbugs/bug246.go`](testdata/fixedbugs/bug246.go) — unknown import path unsafe
 - [`fixedbugs/bug249.go`](testdata/fixedbugs/bug249.go) — channels not supported in Gno
+- [`fixedbugs/bug257.go`](testdata/fixedbugs/bug257.go) — unknown import path crypto/md5
+- [`fixedbugs/bug273.go`](testdata/fixedbugs/bug273.go) — channels not supported in Gno
+- [`fixedbugs/bug279.go`](testdata/fixedbugs/bug279.go) — unknown import path unsafe
 - [`fixedbugs/bug284.go`](testdata/fixedbugs/bug284.go) — channels not supported in Gno
+- [`fixedbugs/bug285.go`](testdata/fixedbugs/bug285.go) — channels not supported in Gno
+- [`fixedbugs/bug292.go`](testdata/fixedbugs/bug292.go) — unknown import path unsafe
+- [`fixedbugs/bug295.go`](testdata/fixedbugs/bug295.go) — dot imports not supported in Gno
+- [`fixedbugs/bug312.go`](testdata/fixedbugs/bug312.go) — channels not supported in Gno
+- [`fixedbugs/bug320.go`](testdata/fixedbugs/bug320.go) — channels not supported in Gno
 - [`fixedbugs/bug325.go`](testdata/fixedbugs/bug325.go) — unknown import path unsafe
+- [`fixedbugs/bug328.go`](testdata/fixedbugs/bug328.go) — unknown import path unsafe
+- [`fixedbugs/bug339.go`](testdata/fixedbugs/bug339.go) — unknown import path unsafe
+- [`fixedbugs/bug347.go`](testdata/fixedbugs/bug347.go) — channels not supported in Gno
 - [`fixedbugs/bug358.go`](testdata/fixedbugs/bug358.go) — unknown import path net/http
+- [`fixedbugs/bug369.go`](testdata/fixedbugs/bug369.go) — unknown import path io/ioutil
 - [`fixedbugs/bug376.go`](testdata/fixedbugs/bug376.go) — unknown import path unsafe
 - [`fixedbugs/bug381.go`](testdata/fixedbugs/bug381.go) — unknown import path unsafe
 - [`fixedbugs/bug390.go`](testdata/fixedbugs/bug390.go) — unknown import path unsafe
+- [`fixedbugs/bug444.go`](testdata/fixedbugs/bug444.go) — unknown import path reflect
+- [`fixedbugs/bug461.go`](testdata/fixedbugs/bug461.go) — unknown import path reflect
+- [`fixedbugs/bug474.go`](testdata/fixedbugs/bug474.go) — unknown import path sync
+- [`fixedbugs/bug499.go`](testdata/fixedbugs/bug499.go) — channels not supported in Gno
+- [`fixedbugs/bug512.go`](testdata/fixedbugs/bug512.go) — goroutines not supported in Gno
+- [`fixedbugs/bug514.go`](testdata/fixedbugs/bug514.go) — unknown import path runtime/cgo
+- [`fixedbugs/bug517.go`](testdata/fixedbugs/bug517.go) — unknown import path unsafe
+- [`fixedbugs/gcc65755.go`](testdata/fixedbugs/gcc65755.go) — unknown import path reflect
+- [`fixedbugs/issue10332.go`](testdata/fixedbugs/issue10332.go) — unknown import path reflect
+- [`fixedbugs/issue10353.go`](testdata/fixedbugs/issue10353.go) — channels not supported in Gno
+- [`fixedbugs/issue10607.go`](testdata/fixedbugs/issue10607.go) — unknown import path os/exec
+- [`fixedbugs/issue11256.go`](testdata/fixedbugs/issue11256.go) — goroutines not supported in Gno
 - [`fixedbugs/issue11362.go`](testdata/fixedbugs/issue11362.go) — unknown import path unicode//utf8
+- [`fixedbugs/issue11771.go`](testdata/fixedbugs/issue11771.go) — unknown import path io/ioutil
 - [`fixedbugs/issue12006.go`](testdata/fixedbugs/issue12006.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue12588.go`](testdata/fixedbugs/issue12588.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue12944.go`](testdata/fixedbugs/issue12944.go) — unknown import path unsafe
+- [`fixedbugs/issue13160.go`](testdata/fixedbugs/issue13160.go) — channels not supported in Gno
+- [`fixedbugs/issue13169.go`](testdata/fixedbugs/issue13169.go) — channels not supported in Gno
+- [`fixedbugs/issue13268.go`](testdata/fixedbugs/issue13268.go) — unknown import path io/ioutil
 - [`fixedbugs/issue13485.go`](testdata/fixedbugs/issue13485.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue13799.go`](testdata/fixedbugs/issue13799.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue14636.go`](testdata/fixedbugs/issue14636.go) — unknown import path log
 - [`fixedbugs/issue14729.go`](testdata/fixedbugs/issue14729.go) — unknown import path unsafe
 - [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue15002.go`](testdata/fixedbugs/issue15002.go) — unknown import path syscall
+- [`fixedbugs/issue15281.go`](testdata/fixedbugs/issue15281.go) — channels not supported in Gno
+- [`fixedbugs/issue15329.go`](testdata/fixedbugs/issue15329.go) — unknown import path reflect
+- [`fixedbugs/issue15439.go`](testdata/fixedbugs/issue15439.go) — unknown import path reflect
+- [`fixedbugs/issue15528.go`](testdata/fixedbugs/issue15528.go) — channels not supported in Gno
+- [`fixedbugs/issue15550.go`](testdata/fixedbugs/issue15550.go) — unknown import path unsafe
 - [`fixedbugs/issue15747.go`](testdata/fixedbugs/issue15747.go) — Gno doesn't perform gc's liveness analysis; it accepts this file (gc rejects it), so there's no error to pin.
+- [`fixedbugs/issue16016.go`](testdata/fixedbugs/issue16016.go) — goroutines not supported in Gno
+- [`fixedbugs/issue16037_run.go`](testdata/fixedbugs/issue16037_run.go) — unknown import path html/template
 - [`fixedbugs/issue16241_64.go`](testdata/fixedbugs/issue16241_64.go) — unknown import path sync/atomic
 - [`fixedbugs/issue16241.go`](testdata/fixedbugs/issue16241.go) — unknown import path sync/atomic
+- [`fixedbugs/issue16331.go`](testdata/fixedbugs/issue16331.go) — channels not supported in Gno
+- [`fixedbugs/issue16870.go`](testdata/fixedbugs/issue16870.go) — channels not supported in Gno
+- [`fixedbugs/issue16948.go`](testdata/fixedbugs/issue16948.go) — unknown import path sync/atomic
+- [`fixedbugs/issue16985.go`](testdata/fixedbugs/issue16985.go) — unknown import path sync/atomic
 - [`fixedbugs/issue17318.go`](testdata/fixedbugs/issue17318.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue17381.go`](testdata/fixedbugs/issue17381.go) — unknown import path unsafe
+- [`fixedbugs/issue18636.go`](testdata/fixedbugs/issue18636.go) — channels not supported in Gno
+- [`fixedbugs/issue19078.go`](testdata/fixedbugs/issue19078.go) — unknown import path unsafe
+- [`fixedbugs/issue19113.go`](testdata/fixedbugs/issue19113.go) — unknown import path reflect
 - [`fixedbugs/issue19168.go`](testdata/fixedbugs/issue19168.go) — unknown import path reflect
+- [`fixedbugs/issue19182.go`](testdata/fixedbugs/issue19182.go) — goroutines not supported in Gno
+- [`fixedbugs/issue19201.go`](testdata/fixedbugs/issue19201.go) — channels not supported in Gno
+- [`fixedbugs/issue19658.go`](testdata/fixedbugs/issue19658.go) — unknown import path io/ioutil
 - [`fixedbugs/issue19743.go`](testdata/fixedbugs/issue19743.go) — unknown import path reflect
 - [`fixedbugs/issue20027.go`](testdata/fixedbugs/issue20027.go) — channels not supported in Gno
 - [`fixedbugs/issue20227.go`](testdata/fixedbugs/issue20227.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue20250.go`](testdata/fixedbugs/issue20250.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue20298.go`](testdata/fixedbugs/issue20298.go) — unknown import path crypto/x509
+- [`fixedbugs/issue21221.go`](testdata/fixedbugs/issue21221.go) — unknown import path unsafe
+- [`fixedbugs/issue21317.go`](testdata/fixedbugs/issue21317.go) — unknown import path io/ioutil
+- [`fixedbugs/issue21576.go`](testdata/fixedbugs/issue21576.go) — unknown import path context
 - [`fixedbugs/issue21709.go`](testdata/fixedbugs/issue21709.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue22083.go`](testdata/fixedbugs/issue22083.go) — unknown import path runtime/debug
 - [`fixedbugs/issue22200.go`](testdata/fixedbugs/issue22200.go) — Gno doesn't perform gc's "stack frame too large" analysis; it accepts this file (gc rejects it), so there's no error to pin.
 - [`fixedbugs/issue22200b.go`](testdata/fixedbugs/issue22200b.go) — Gno doesn't perform gc's "stack frame too large" analysis; it accepts this file (gc rejects it), so there's no error to pin.
 - [`fixedbugs/issue22351.go`](testdata/fixedbugs/issue22351.go) — unknown import path unsafe
+- [`fixedbugs/issue22605.go`](testdata/fixedbugs/issue22605.go) — unknown import path reflect
+- [`fixedbugs/issue22660.go`](testdata/fixedbugs/issue22660.go) — unknown import path io/ioutil
+- [`fixedbugs/issue22662b.go`](testdata/fixedbugs/issue22662b.go) — unknown import path io/ioutil
+- [`fixedbugs/issue22683.go`](testdata/fixedbugs/issue22683.go) — channels not supported in Gno
+- [`fixedbugs/issue22781.go`](testdata/fixedbugs/issue22781.go) — unknown import path runtime/debug
 - [`fixedbugs/issue22822.go`](testdata/fixedbugs/issue22822.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/issue22881.go`](testdata/fixedbugs/issue22881.go) — channels not supported in Gno
 - [`fixedbugs/issue23521.go`](testdata/fixedbugs/issue23521.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue24187.go`](testdata/fixedbugs/issue24187.go) — unknown import path unsafe
+- [`fixedbugs/issue24419.go`](testdata/fixedbugs/issue24419.go) — channels not supported in Gno
+- [`fixedbugs/issue24449.go`](testdata/fixedbugs/issue24449.go) — unknown import path sync/atomic
+- [`fixedbugs/issue24491a.go`](testdata/fixedbugs/issue24491a.go) — channels not supported in Gno
+- [`fixedbugs/issue24491b.go`](testdata/fixedbugs/issue24491b.go) — channels not supported in Gno
 - [`fixedbugs/issue25507.go`](testdata/fixedbugs/issue25507.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue25727.go`](testdata/fixedbugs/issue25727.go) — unknown import path net/http
+- [`fixedbugs/issue25897a.go`](testdata/fixedbugs/issue25897a.go) — goroutines not supported in Gno
+- [`fixedbugs/issue25897b.go`](testdata/fixedbugs/issue25897b.go) — channels not supported in Gno
 - [`fixedbugs/issue25958.go`](testdata/fixedbugs/issue25958.go) — channels not supported in Gno
+- [`fixedbugs/issue26335.go`](testdata/fixedbugs/issue26335.go) — unknown import path reflect
+- [`fixedbugs/issue26411.go`](testdata/fixedbugs/issue26411.go) — unknown import path io/ioutil
 - [`fixedbugs/issue27356.go`](testdata/fixedbugs/issue27356.go) — builtin shadowing not supported in Gno
 - [`fixedbugs/issue27557.go`](testdata/fixedbugs/issue27557.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue27695.go`](testdata/fixedbugs/issue27695.go) — goroutines not supported in Gno
+- [`fixedbugs/issue27695b.go`](testdata/fixedbugs/issue27695b.go) — unknown import path reflect
+- [`fixedbugs/issue27695c.go`](testdata/fixedbugs/issue27695c.go) — unknown import path reflect
 - [`fixedbugs/issue27732a.go`](testdata/fixedbugs/issue27732a.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue28079b.go`](testdata/fixedbugs/issue28079b.go) — unknown import path unsafe
 - [`fixedbugs/issue28079c.go`](testdata/fixedbugs/issue28079c.go) — unknown import path unsafe
+- [`fixedbugs/issue28748.go`](testdata/fixedbugs/issue28748.go) — unknown import path reflect
+- [`fixedbugs/issue29362.go`](testdata/fixedbugs/issue29362.go) — channels not supported in Gno
+- [`fixedbugs/issue29362b.go`](testdata/fixedbugs/issue29362b.go) — channels not supported in Gno
+- [`fixedbugs/issue30041.go`](testdata/fixedbugs/issue30041.go) — goroutines not supported in Gno
+- [`fixedbugs/issue30116.go`](testdata/fixedbugs/issue30116.go) — unknown import path text/tabwriter
+- [`fixedbugs/issue30116u.go`](testdata/fixedbugs/issue30116u.go) — unknown import path text/tabwriter
+- [`fixedbugs/issue30243.go`](testdata/fixedbugs/issue30243.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue30606.go`](testdata/fixedbugs/issue30606.go) — unknown import path reflect
+- [`fixedbugs/issue30606b.go`](testdata/fixedbugs/issue30606b.go) — unknown import path reflect
+- [`fixedbugs/issue30709.go`](testdata/fixedbugs/issue30709.go) — unknown import path unsafe
 - [`fixedbugs/issue30898.go`](testdata/fixedbugs/issue30898.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue30977.go`](testdata/fixedbugs/issue30977.go) — goroutines not supported in Gno
 - [`fixedbugs/issue31060.go`](testdata/fixedbugs/issue31060.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue31419.go`](testdata/fixedbugs/issue31419.go) — channels not supported in Gno
+- [`fixedbugs/issue31546.go`](testdata/fixedbugs/issue31546.go) — unknown import path reflect
 - [`fixedbugs/issue31573.go`](testdata/fixedbugs/issue31573.go) — goroutines not supported in Gno
 - [`fixedbugs/issue31747.go`](testdata/fixedbugs/issue31747.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue32187.go`](testdata/fixedbugs/issue32187.go) — unknown import path log
 - [`fixedbugs/issue32723.go`](testdata/fixedbugs/issue32723.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue33275_run.go`](testdata/fixedbugs/issue33275_run.go) — unknown import path os/exec
+- [`fixedbugs/issue33555.go`](testdata/fixedbugs/issue33555.go) — unknown import path io/ioutil
+- [`fixedbugs/issue33724.go`](testdata/fixedbugs/issue33724.go) — unknown import path runtime/debug
 - [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue34723.go`](testdata/fixedbugs/issue34723.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue35073b.go`](testdata/fixedbugs/issue35073b.go) — unknown import path reflect
 - [`fixedbugs/issue35518.go`](testdata/fixedbugs/issue35518.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue36437.go`](testdata/fixedbugs/issue36437.go) — unknown import path io/ioutil
+- [`fixedbugs/issue37716.go`](testdata/fixedbugs/issue37716.go) — unknown import path reflect
+- [`fixedbugs/issue38093.go`](testdata/fixedbugs/issue38093.go) — channels not supported in Gno
 - [`fixedbugs/issue39292.go`](testdata/fixedbugs/issue39292.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue39541.go`](testdata/fixedbugs/issue39541.go) — channels not supported in Gno
+- [`fixedbugs/issue40629.go`](testdata/fixedbugs/issue40629.go) — channels not supported in Gno
+- [`fixedbugs/issue4085b.go`](testdata/fixedbugs/issue4085b.go) — unknown import path unsafe
+- [`fixedbugs/issue40954.go`](testdata/fixedbugs/issue40954.go) — unknown import path runtime/cgo
+- [`fixedbugs/issue42032.go`](testdata/fixedbugs/issue42032.go) — unknown import path runtime/cgo
 - [`fixedbugs/issue42058a.go`](testdata/fixedbugs/issue42058a.go) — channels not supported in Gno
 - [`fixedbugs/issue42058b.go`](testdata/fixedbugs/issue42058b.go) — channels not supported in Gno
 - [`fixedbugs/issue42075.go`](testdata/fixedbugs/issue42075.go) — unknown import path unsafe
+- [`fixedbugs/issue42076.go`](testdata/fixedbugs/issue42076.go) — unknown import path reflect
+- [`fixedbugs/issue43111.go`](testdata/fixedbugs/issue43111.go) — channels not supported in Gno
+- [`fixedbugs/issue4313.go`](testdata/fixedbugs/issue4313.go) — channels not supported in Gno
 - [`fixedbugs/issue43167.go`](testdata/fixedbugs/issue43167.go) — dot imports not supported in Gno
+- [`fixedbugs/issue43292.go`](testdata/fixedbugs/issue43292.go) — channels not supported in Gno
+- [`fixedbugs/issue43942.go`](testdata/fixedbugs/issue43942.go) — unknown import path log
 - [`fixedbugs/issue4463.go`](testdata/fixedbugs/issue4463.go) — channels not supported in Gno
+- [`fixedbugs/issue44830.go`](testdata/fixedbugs/issue44830.go) — unknown import path reflect
+- [`fixedbugs/issue45045.go`](testdata/fixedbugs/issue45045.go) — channels not supported in Gno
+- [`fixedbugs/issue4585.go`](testdata/fixedbugs/issue4585.go) — unknown import path unsafe
 - [`fixedbugs/issue46525.go`](testdata/fixedbugs/issue46525.go) — unknown import path unsafe
 - [`fixedbugs/issue4654.go`](testdata/fixedbugs/issue4654.go) — goroutines not supported in Gno
+- [`fixedbugs/issue46725.go`](testdata/fixedbugs/issue46725.go) — channels not supported in Gno
+- [`fixedbugs/issue46903.go`](testdata/fixedbugs/issue46903.go) — unknown import path runtime/cgo
+- [`fixedbugs/issue48289.go`](testdata/fixedbugs/issue48289.go) — channels not supported in Gno
+- [`fixedbugs/issue48357.go`](testdata/fixedbugs/issue48357.go) — unknown import path reflect
+- [`fixedbugs/issue48536.go`](testdata/fixedbugs/issue48536.go) — unknown import path unsafe
 - [`fixedbugs/issue4909a.go`](testdata/fixedbugs/issue4909a.go) — unknown import path unsafe
+- [`fixedbugs/issue49110.go`](testdata/fixedbugs/issue49110.go) — unknown import path reflect
 - [`fixedbugs/issue49368.go`](testdata/fixedbugs/issue49368.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue49767.go`](testdata/fixedbugs/issue49767.go) — channels not supported in Gno
 - [`fixedbugs/issue49814.go`](testdata/fixedbugs/issue49814.go) — Gno rejects the 1<<50 array at runtime (makeslice: len out of range), not at compile time like gc; no compile-time error to pin.
 - [`fixedbugs/issue51531.go`](testdata/fixedbugs/issue51531.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue5172.go`](testdata/fixedbugs/issue5172.go) — goroutines not supported in Gno
+- [`fixedbugs/issue51733.go`](testdata/fixedbugs/issue51733.go) — unknown import path log
+- [`fixedbugs/issue52127.go`](testdata/fixedbugs/issue52127.go) — unknown import path os/exec
 - [`fixedbugs/issue52193.go`](testdata/fixedbugs/issue52193.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue52612.go`](testdata/fixedbugs/issue52612.go) — channels not supported in Gno
 - [`fixedbugs/issue52697.go`](testdata/fixedbugs/issue52697.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue52748.go`](testdata/fixedbugs/issue52748.go) — unknown import path unsafe
+- [`fixedbugs/issue52788.go`](testdata/fixedbugs/issue52788.go) — unknown import path reflect
+- [`fixedbugs/issue52788a.go`](testdata/fixedbugs/issue52788a.go) — unknown import path reflect
+- [`fixedbugs/issue53137.go`](testdata/fixedbugs/issue53137.go) — unknown import path unsafe
 - [`fixedbugs/issue54159.go`](testdata/fixedbugs/issue54159.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue54220.go`](testdata/fixedbugs/issue54220.go) — unknown import path sync/atomic
+- [`fixedbugs/issue54343.go`](testdata/fixedbugs/issue54343.go) — channels not supported in Gno
+- [`fixedbugs/issue54542.go`](testdata/fixedbugs/issue54542.go) — unknown import path os/exec
+- [`fixedbugs/issue5493.go`](testdata/fixedbugs/issue5493.go) — goroutines not supported in Gno
 - [`fixedbugs/issue5581.go`](testdata/fixedbugs/issue5581.go) — channels not supported in Gno
 - [`fixedbugs/issue56103.go`](testdata/fixedbugs/issue56103.go) — channels not supported in Gno
+- [`fixedbugs/issue56990.go`](testdata/fixedbugs/issue56990.go) — unknown import path path/filepath
+- [`fixedbugs/issue57184.go`](testdata/fixedbugs/issue57184.go) — unknown import path log
+- [`fixedbugs/issue57823.go`](testdata/fixedbugs/issue57823.go) — channels not supported in Gno
+- [`fixedbugs/issue58300.go`](testdata/fixedbugs/issue58300.go) — unknown import path reflect
+- [`fixedbugs/issue58300b.go`](testdata/fixedbugs/issue58300b.go) — unknown import path reflect
 - [`fixedbugs/issue59190.go`](testdata/fixedbugs/issue59190.go) — unknown import path unsafe
+- [`fixedbugs/issue59293.go`](testdata/fixedbugs/issue59293.go) — unknown import path unsafe
+- [`fixedbugs/issue59411.go`](testdata/fixedbugs/issue59411.go) — unknown import path reflect
+- [`fixedbugs/issue5963.go`](testdata/fixedbugs/issue5963.go) — channels not supported in Gno
+- [`fixedbugs/issue59680.go`](testdata/fixedbugs/issue59680.go) — channels not supported in Gno
+- [`fixedbugs/issue60601.go`](testdata/fixedbugs/issue60601.go) — unknown import path unsafe
+- [`fixedbugs/issue62203.go`](testdata/fixedbugs/issue62203.go) — unknown import path maps
+- [`fixedbugs/issue62360.go`](testdata/fixedbugs/issue62360.go) — unknown import path math/big
 - [`fixedbugs/issue63333.go`](testdata/fixedbugs/issue63333.go) — Gno doesn't implement gc's //go:nointerface directive check; it accepts this file (gc rejects it), so there's no error to pin.
 - [`fixedbugs/issue6403.go`](testdata/fixedbugs/issue6403.go) — unknown import path syscall
 - [`fixedbugs/issue6428.go`](testdata/fixedbugs/issue6428.go) — dot imports not supported in Gno
+- [`fixedbugs/issue65417.go`](testdata/fixedbugs/issue65417.go) — unknown import path unsafe
+- [`fixedbugs/issue67190.go`](testdata/fixedbugs/issue67190.go) — channels not supported in Gno
+- [`fixedbugs/issue6866.go`](testdata/fixedbugs/issue6866.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/issue69110.go`](testdata/fixedbugs/issue69110.go) — unknown import path maps
+- [`fixedbugs/issue69434.go`](testdata/fixedbugs/issue69434.go) — unknown import path iter
 - [`fixedbugs/issue6964.go`](testdata/fixedbugs/issue6964.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue70156.go`](testdata/fixedbugs/issue70156.go) — unknown import path reflect
+- [`fixedbugs/issue7044.go`](testdata/fixedbugs/issue7044.go) — unknown import path reflect
+- [`fixedbugs/issue7083.go`](testdata/fixedbugs/issue7083.go) — unknown import path runtime/debug
+- [`fixedbugs/issue71857.go`](testdata/fixedbugs/issue71857.go) — unknown import path sync/atomic
 - [`fixedbugs/issue7525.go`](testdata/fixedbugs/issue7525.go) — unknown import path unsafe
 - [`fixedbugs/issue7525d.go`](testdata/fixedbugs/issue7525d.go) — unknown import path unsafe
 - [`fixedbugs/issue7525e.go`](testdata/fixedbugs/issue7525e.go) — unknown import path unsafe
 - [`fixedbugs/issue7760.go`](testdata/fixedbugs/issue7760.go) — unknown import path unsafe
 - [`fixedbugs/issue7921.go`](testdata/fixedbugs/issue7921.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue8004.go`](testdata/fixedbugs/issue8004.go) — unknown import path reflect
+- [`fixedbugs/issue8011.go`](testdata/fixedbugs/issue8011.go) — channels not supported in Gno
+- [`fixedbugs/issue8039.go`](testdata/fixedbugs/issue8039.go) — channels not supported in Gno
+- [`fixedbugs/issue8158.go`](testdata/fixedbugs/issue8158.go) — channels not supported in Gno
+- [`fixedbugs/issue8336.go`](testdata/fixedbugs/issue8336.go) — channels not supported in Gno
+- [`fixedbugs/issue8347.go`](testdata/fixedbugs/issue8347.go) — channels not supported in Gno
+- [`fixedbugs/issue8606b.go`](testdata/fixedbugs/issue8606b.go) — unknown import path reflect
 - [`fixedbugs/issue9076.go`](testdata/fixedbugs/issue9076.go) — unknown import path unsafe
 - [`fixedbugs/issue9083.go`](testdata/fixedbugs/issue9083.go) — channels not supported in Gno
+- [`fixedbugs/issue9110.go`](testdata/fixedbugs/issue9110.go) — channels not supported in Gno
+- [`fixedbugs/issue9321.go`](testdata/fixedbugs/issue9321.go) — goroutines not supported in Gno
+- [`fixedbugs/issue9355.go`](testdata/fixedbugs/issue9355.go) — unknown import path io/ioutil
+- [`fixedbugs/issue9862_run.go`](testdata/fixedbugs/issue9862_run.go) — unknown import path os/exec
 - [`fixedbugs/notinheap.go`](testdata/fixedbugs/notinheap.go) — channels not supported in Gno
 - [`fixedbugs/notinheap2.go`](testdata/fixedbugs/notinheap2.go) — unknown import path runtime/cgo
 - [`fixedbugs/notinheap3.go`](testdata/fixedbugs/notinheap3.go) — unknown import path runtime/cgo
+- [`func5.go`](testdata/func5.go) — channels not supported in Gno
 - [`fuse.go`](testdata/fuse.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`gc2.go`](testdata/gc2.go) — channels not supported in Gno
+- [`gcgort.go`](testdata/gcgort.go) — goroutines not supported in Gno
+- [`goprint.go`](testdata/goprint.go) — goroutines not supported in Gno
 - [`goto.go`](testdata/goto.go) — channels not supported in Gno
 - [`import1.go`](testdata/import1.go) — dot imports not supported in Gno
+- [`init1.go`](testdata/init1.go) — channels not supported in Gno
+- [`initialize.go`](testdata/initialize.go) — channels not supported in Gno
 - [`inline_big.go`](testdata/inline_big.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`inline_endian.go`](testdata/inline_endian.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`inline_literal.go`](testdata/inline_literal.go) — unknown import path log
 - [`inline_math_bits_rotate.go`](testdata/inline_math_bits_rotate.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`inline_sync.go`](testdata/inline_sync.go) — unknown import path sync
 - [`inline_variadic.go`](testdata/inline_variadic.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`inline.go`](testdata/inline.go) — goroutines not supported in Gno
 - [`interface/assertinline.go`](testdata/interface/assertinline.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`interface/bigdata.go`](testdata/interface/bigdata.go) — builtin shadowing not supported in Gno
+- [`interface/convert.go`](testdata/interface/convert.go) — builtin shadowing not supported in Gno
+- [`interface/fake.go`](testdata/interface/fake.go) — unknown import path reflect
 - [`intrinsic_atomic.go`](testdata/intrinsic_atomic.go) — unknown import path sync/atomic
+- [`ken/chan.go`](testdata/ken/chan.go) — channels not supported in Gno
+- [`ken/chan1.go`](testdata/ken/chan1.go) — channels not supported in Gno
+- [`ken/cplx2.go`](testdata/ken/cplx2.go) — imaginary literals not supported in Gno
+- [`ken/cplx3.go`](testdata/ken/cplx3.go) — unknown import path unsafe
+- [`ken/cplx5.go`](testdata/ken/cplx5.go) — channels not supported in Gno
+- [`linkmain_run.go`](testdata/linkmain_run.go) — unknown import path io/ioutil
 - [`linkname3.go`](testdata/linkname3.go) — unknown import path unsafe
+- [`linkobj.go`](testdata/linkobj.go) — unknown import path io/ioutil
+- [`linkx_run.go`](testdata/linkx_run.go) — unknown import path os/exec
+- [`literal2.go`](testdata/literal2.go) — imaginary literals not supported in Gno
 - [`live_regabi.go`](testdata/live_regabi.go) — channels not supported in Gno
 - [`live_uintptrkeepalive.go`](testdata/live_uintptrkeepalive.go) — unknown import path syscall
 - [`live.go`](testdata/live.go) — channels not supported in Gno
 - [`live2.go`](testdata/live2.go) — gc liveness/codegen analysis (-live) — the markers aren't type errors, so neither Gno nor the go/types guard can test them (even once the bodyless-func rejection at line 14 is fixed).
 - [`loopbce.go`](testdata/loopbce.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`makechan.go`](testdata/makechan.go) — channels not supported in Gno
+- [`makeslice.go`](testdata/makeslice.go) — unknown import path unsafe
 - [`map1.go`](testdata/map1.go) — channels not supported in Gno
+- [`named.go`](testdata/named.go) — channels not supported in Gno
 - [`named1.go`](testdata/named1.go) — channels not supported in Gno
 - [`newinline.go`](testdata/newinline.go) — goroutines not supported in Gno
+- [`nil.go`](testdata/nil.go) — channels not supported in Gno
+- [`nilptr_aix.go`](testdata/nilptr_aix.go) — unknown import path unsafe
+- [`nilptr.go`](testdata/nilptr.go) — unknown import path unsafe
 - [`nilptr5_aix.go`](testdata/nilptr5_aix.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`nilptr5_wasm.go`](testdata/nilptr5_wasm.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`nilptr5.go`](testdata/nilptr5.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`noinit.go`](testdata/noinit.go) — channels not supported in Gno
+- [`nosplit.go`](testdata/nosplit.go) — unknown import path io/ioutil
 - [`nowritebarrier.go`](testdata/nowritebarrier.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`opt_branchlikely.go`](testdata/opt_branchlikely.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`phiopt.go`](testdata/phiopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`prove_constant_folding.go`](testdata/prove_constant_folding.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`prove_invert_loop_with_unused_iterators.go`](testdata/prove_invert_loop_with_unused_iterators.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`range.go`](testdata/range.go) — channels not supported in Gno
+- [`recover.go`](testdata/recover.go) — unknown import path reflect
+- [`recover4.go`](testdata/recover4.go) — unknown import path log
+- [`reflectmethod1.go`](testdata/reflectmethod1.go) — unknown import path reflect
+- [`reflectmethod2.go`](testdata/reflectmethod2.go) — unknown import path reflect
+- [`reflectmethod3.go`](testdata/reflectmethod3.go) — unknown import path reflect
+- [`reflectmethod4.go`](testdata/reflectmethod4.go) — unknown import path reflect
+- [`reflectmethod5.go`](testdata/reflectmethod5.go) — unknown import path reflect
+- [`reflectmethod6.go`](testdata/reflectmethod6.go) — unknown import path reflect
+- [`reflectmethod7.go`](testdata/reflectmethod7.go) — unknown import path reflect
+- [`rename.go`](testdata/rename.go) — builtin shadowing not supported in Gno
 - [`rename1.go`](testdata/rename1.go) — builtin shadowing not supported in Gno
+- [`reorder.go`](testdata/reorder.go) — channels not supported in Gno
+- [`reorder2.go`](testdata/reorder2.go) — channels not supported in Gno
 - [`return.go`](testdata/return.go) — channels not supported in Gno
 - [`run/235.go`](testdata/run/235.go) — goroutines not supported in Gno
 - [`run/unsupported_canary.go`](testdata/run/unsupported_canary.go) — channels not supported in Gno
+- [`shift3.go`](testdata/shift3.go) — imaginary literals not supported in Gno
+- [`sigchld.go`](testdata/sigchld.go) — unknown import path syscall
+- [`sizeof.go`](testdata/sizeof.go) — unknown import path unsafe
+- [`slicecap.go`](testdata/slicecap.go) — unknown import path unsafe
 - [`sliceopt.go`](testdata/sliceopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`stack.go`](testdata/stack.go) — channels not supported in Gno
+- [`strcopy.go`](testdata/strcopy.go) — unknown import path reflect
+- [`struct0.go`](testdata/struct0.go) — channels not supported in Gno
+- [`switch.go`](testdata/switch.go) — channels not supported in Gno
 - [`tailcall.go`](testdata/tailcall.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`tighten.go`](testdata/tighten.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`tinyfin.go`](testdata/tinyfin.go) — channels not supported in Gno
+- [`typeparam/append.go`](testdata/typeparam/append.go) — channels not supported in Gno
+- [`typeparam/boundmethod.go`](testdata/typeparam/boundmethod.go) — unknown import path reflect
+- [`typeparam/chans.go`](testdata/typeparam/chans.go) — channels not supported in Gno
+- [`typeparam/genembed2.go`](testdata/typeparam/genembed2.go) — unknown import path sync
+- [`typeparam/issue45722.go`](testdata/typeparam/issue45722.go) — unknown import path log
+- [`typeparam/issue47716.go`](testdata/typeparam/issue47716.go) — unknown import path unsafe
+- [`typeparam/issue47740b.go`](testdata/typeparam/issue47740b.go) — unknown import path reflect
+- [`typeparam/issue47901.go`](testdata/typeparam/issue47901.go) — channels not supported in Gno
+- [`typeparam/issue48013.go`](testdata/typeparam/issue48013.go) — unknown import path unsafe
+- [`typeparam/issue48042.go`](testdata/typeparam/issue48042.go) — unknown import path reflect
+- [`typeparam/issue48225.go`](testdata/typeparam/issue48225.go) — unknown import path reflect
+- [`typeparam/issue48253.go`](testdata/typeparam/issue48253.go) — unknown import path reflect
+- [`typeparam/issue48317.go`](testdata/typeparam/issue48317.go) — unknown import path encoding/json
+- [`typeparam/issue50109.go`](testdata/typeparam/issue50109.go) — channels not supported in Gno
 - [`typeparam/issue50317.go`](testdata/typeparam/issue50317.go) — generics not supported in Gno
+- [`typeparam/issue54456.go`](testdata/typeparam/issue54456.go) — unknown import path reflect
 - [`typeparam/issue54765.go`](testdata/typeparam/issue54765.go) — unknown import path runtime/cgo
+- [`typeparam/lockable.go`](testdata/typeparam/lockable.go) — unknown import path sync
+- [`typeparam/map.go`](testdata/typeparam/map.go) — unknown import path reflect
+- [`typeparam/mdempsky/18.go`](testdata/typeparam/mdempsky/18.go) — channels not supported in Gno
+- [`typeparam/nested.go`](testdata/typeparam/nested.go) — unknown import path reflect
+- [`typeparam/stringer.go`](testdata/typeparam/stringer.go) — unknown import path reflect
+- [`typeswitch.go`](testdata/typeswitch.go) — channels not supported in Gno
+- [`uintptrescapes3.go`](testdata/uintptrescapes3.go) — unknown import path unsafe
+- [`unsafe_slice_data.go`](testdata/unsafe_slice_data.go) — unknown import path reflect
+- [`unsafe_string_data.go`](testdata/unsafe_string_data.go) — unknown import path reflect
+- [`unsafe_string.go`](testdata/unsafe_string.go) — unknown import path unsafe
+- [`unsafebuiltins.go`](testdata/unsafebuiltins.go) — unknown import path unsafe
 - [`used.go`](testdata/used.go) — channels not supported in Gno
 - [`weak.go`](testdata/weak.go) — unknown import path weak
+- [`winbatch.go`](testdata/winbatch.go) — unknown import path io/ioutil
 - [`writebarrier.go`](testdata/writebarrier.go) — unknown import path unsafe
 
-## ✅ Clean — verified (395)
+## ✅ Clean — verified (1022)
 
 Gno's per-line behavior is pinned and matches; no outstanding issue.
 
 - [`alias.go`](testdata/alias.go)
+- [`alias1.go`](testdata/alias1.go)
+- [`align.go`](testdata/align.go)
 - [`append1.go`](testdata/append1.go)
+- [`armimm.go`](testdata/armimm.go)
+- [`bigmap.go`](testdata/bigmap.go)
 - [`blank1.go`](testdata/blank1.go)
 - [`cannotassign.go`](testdata/cannotassign.go)
+- [`char_lit.go`](testdata/char_lit.go)
 - [`char_lit1.go`](testdata/char_lit1.go)
+- [`clear.go`](testdata/clear.go)
+- [`closure1.go`](testdata/closure1.go)
+- [`closure2.go`](testdata/closure2.go)
+- [`closure4.go`](testdata/closure4.go)
 - [`compile/canary.go`](testdata/compile/canary.go)
 - [`compile/closure6.go`](testdata/compile/closure6.go)
 - [`compile/empty.go`](testdata/compile/empty.go)
 - [`compile/eof1.go`](testdata/compile/eof1.go)
+- [`compos.go`](testdata/compos.go)
+- [`const.go`](testdata/const.go)
+- [`const3.go`](testdata/const3.go)
+- [`const4.go`](testdata/const4.go)
 - [`const6.go`](testdata/const6.go)
 - [`convert1.go`](testdata/convert1.go)
+- [`convert4.go`](testdata/convert4.go)
+- [`copy.go`](testdata/copy.go)
 - [`copy1.go`](testdata/copy1.go)
+- [`ddd.go`](testdata/ddd.go)
+- [`decl.go`](testdata/decl.go)
 - [`declbad.go`](testdata/declbad.go)
+- [`defer.go`](testdata/defer.go)
+- [`defernil.go`](testdata/defernil.go)
+- [`divide.go`](testdata/divide.go)
+- [`dwarf/linedirectives.go`](testdata/dwarf/linedirectives.go)
+- [`env.go`](testdata/env.go)
 - [`errorcheck/append1.go`](testdata/errorcheck/append1.go)
 - [`errorcheck/blank1.go`](testdata/errorcheck/blank1.go)
 - [`errorcheck/canary.go`](testdata/errorcheck/canary.go)
 - [`errorcheck/cannotassign.go`](testdata/errorcheck/cannotassign.go)
+- [`escape3.go`](testdata/escape3.go)
+- [`fixedbugs/bug000.go`](testdata/fixedbugs/bug000.go)
+- [`fixedbugs/bug002.go`](testdata/fixedbugs/bug002.go)
+- [`fixedbugs/bug003.go`](testdata/fixedbugs/bug003.go)
+- [`fixedbugs/bug004.go`](testdata/fixedbugs/bug004.go)
+- [`fixedbugs/bug005.go`](testdata/fixedbugs/bug005.go)
+- [`fixedbugs/bug006.go`](testdata/fixedbugs/bug006.go)
+- [`fixedbugs/bug007.go`](testdata/fixedbugs/bug007.go)
+- [`fixedbugs/bug008.go`](testdata/fixedbugs/bug008.go)
+- [`fixedbugs/bug009.go`](testdata/fixedbugs/bug009.go)
+- [`fixedbugs/bug010.go`](testdata/fixedbugs/bug010.go)
+- [`fixedbugs/bug011.go`](testdata/fixedbugs/bug011.go)
+- [`fixedbugs/bug012.go`](testdata/fixedbugs/bug012.go)
+- [`fixedbugs/bug013.go`](testdata/fixedbugs/bug013.go)
 - [`fixedbugs/bug014.go`](testdata/fixedbugs/bug014.go)
 - [`fixedbugs/bug015.go`](testdata/fixedbugs/bug015.go)
 - [`fixedbugs/bug016.go`](testdata/fixedbugs/bug016.go)
+- [`fixedbugs/bug017.go`](testdata/fixedbugs/bug017.go)
+- [`fixedbugs/bug021.go`](testdata/fixedbugs/bug021.go)
 - [`fixedbugs/bug022.go`](testdata/fixedbugs/bug022.go)
+- [`fixedbugs/bug023.go`](testdata/fixedbugs/bug023.go)
+- [`fixedbugs/bug024.go`](testdata/fixedbugs/bug024.go)
+- [`fixedbugs/bug026.go`](testdata/fixedbugs/bug026.go)
+- [`fixedbugs/bug027.go`](testdata/fixedbugs/bug027.go)
+- [`fixedbugs/bug028.go`](testdata/fixedbugs/bug028.go)
 - [`fixedbugs/bug030.go`](testdata/fixedbugs/bug030.go)
+- [`fixedbugs/bug031.go`](testdata/fixedbugs/bug031.go)
 - [`fixedbugs/bug035.go`](testdata/fixedbugs/bug035.go)
 - [`fixedbugs/bug037.go`](testdata/fixedbugs/bug037.go)
 - [`fixedbugs/bug039.go`](testdata/fixedbugs/bug039.go)
 - [`fixedbugs/bug040.go`](testdata/fixedbugs/bug040.go)
+- [`fixedbugs/bug045.go`](testdata/fixedbugs/bug045.go)
 - [`fixedbugs/bug046.go`](testdata/fixedbugs/bug046.go)
+- [`fixedbugs/bug047.go`](testdata/fixedbugs/bug047.go)
+- [`fixedbugs/bug048.go`](testdata/fixedbugs/bug048.go)
 - [`fixedbugs/bug049.go`](testdata/fixedbugs/bug049.go)
 - [`fixedbugs/bug050.go`](testdata/fixedbugs/bug050.go)
 - [`fixedbugs/bug051.go`](testdata/fixedbugs/bug051.go)
+- [`fixedbugs/bug052.go`](testdata/fixedbugs/bug052.go)
+- [`fixedbugs/bug054.go`](testdata/fixedbugs/bug054.go)
+- [`fixedbugs/bug055.go`](testdata/fixedbugs/bug055.go)
+- [`fixedbugs/bug056.go`](testdata/fixedbugs/bug056.go)
+- [`fixedbugs/bug058.go`](testdata/fixedbugs/bug058.go)
+- [`fixedbugs/bug059.go`](testdata/fixedbugs/bug059.go)
+- [`fixedbugs/bug060.go`](testdata/fixedbugs/bug060.go)
+- [`fixedbugs/bug061.go`](testdata/fixedbugs/bug061.go)
 - [`fixedbugs/bug062.go`](testdata/fixedbugs/bug062.go)
+- [`fixedbugs/bug065.go`](testdata/fixedbugs/bug065.go)
 - [`fixedbugs/bug068.go`](testdata/fixedbugs/bug068.go)
+- [`fixedbugs/bug070.go`](testdata/fixedbugs/bug070.go)
 - [`fixedbugs/bug072.go`](testdata/fixedbugs/bug072.go)
 - [`fixedbugs/bug074.go`](testdata/fixedbugs/bug074.go)
+- [`fixedbugs/bug075.go`](testdata/fixedbugs/bug075.go)
 - [`fixedbugs/bug081.go`](testdata/fixedbugs/bug081.go)
+- [`fixedbugs/bug082.go`](testdata/fixedbugs/bug082.go)
 - [`fixedbugs/bug085.go`](testdata/fixedbugs/bug085.go)
 - [`fixedbugs/bug090.go`](testdata/fixedbugs/bug090.go)
 - [`fixedbugs/bug091.go`](testdata/fixedbugs/bug091.go)
+- [`fixedbugs/bug092.go`](testdata/fixedbugs/bug092.go)
+- [`fixedbugs/bug093.go`](testdata/fixedbugs/bug093.go)
+- [`fixedbugs/bug097.go`](testdata/fixedbugs/bug097.go)
+- [`fixedbugs/bug099.go`](testdata/fixedbugs/bug099.go)
+- [`fixedbugs/bug101.go`](testdata/fixedbugs/bug101.go)
+- [`fixedbugs/bug102.go`](testdata/fixedbugs/bug102.go)
 - [`fixedbugs/bug103.go`](testdata/fixedbugs/bug103.go)
 - [`fixedbugs/bug104.go`](testdata/fixedbugs/bug104.go)
 - [`fixedbugs/bug108.go`](testdata/fixedbugs/bug108.go)
+- [`fixedbugs/bug111.go`](testdata/fixedbugs/bug111.go)
+- [`fixedbugs/bug113.go`](testdata/fixedbugs/bug113.go)
+- [`fixedbugs/bug114.go`](testdata/fixedbugs/bug114.go)
+- [`fixedbugs/bug116.go`](testdata/fixedbugs/bug116.go)
 - [`fixedbugs/bug117.go`](testdata/fixedbugs/bug117.go)
+- [`fixedbugs/bug119.go`](testdata/fixedbugs/bug119.go)
+- [`fixedbugs/bug120.go`](testdata/fixedbugs/bug120.go)
 - [`fixedbugs/bug121.go`](testdata/fixedbugs/bug121.go)
 - [`fixedbugs/bug122.go`](testdata/fixedbugs/bug122.go)
 - [`fixedbugs/bug123.go`](testdata/fixedbugs/bug123.go)
 - [`fixedbugs/bug126.go`](testdata/fixedbugs/bug126.go)
 - [`fixedbugs/bug127.go`](testdata/fixedbugs/bug127.go)
+- [`fixedbugs/bug128.go`](testdata/fixedbugs/bug128.go)
 - [`fixedbugs/bug131.go`](testdata/fixedbugs/bug131.go)
 - [`fixedbugs/bug132.go`](testdata/fixedbugs/bug132.go)
 - [`fixedbugs/bug13343.go`](testdata/fixedbugs/bug13343.go)
 - [`fixedbugs/bug136.go`](testdata/fixedbugs/bug136.go)
+- [`fixedbugs/bug141.go`](testdata/fixedbugs/bug141.go)
+- [`fixedbugs/bug142.go`](testdata/fixedbugs/bug142.go)
 - [`fixedbugs/bug146.go`](testdata/fixedbugs/bug146.go)
+- [`fixedbugs/bug1515.go`](testdata/fixedbugs/bug1515.go)
+- [`fixedbugs/bug152.go`](testdata/fixedbugs/bug152.go)
+- [`fixedbugs/bug154.go`](testdata/fixedbugs/bug154.go)
+- [`fixedbugs/bug159.go`](testdata/fixedbugs/bug159.go)
 - [`fixedbugs/bug163.go`](testdata/fixedbugs/bug163.go)
 - [`fixedbugs/bug165.go`](testdata/fixedbugs/bug165.go)
+- [`fixedbugs/bug168.go`](testdata/fixedbugs/bug168.go)
 - [`fixedbugs/bug169.go`](testdata/fixedbugs/bug169.go)
 - [`fixedbugs/bug170.go`](testdata/fixedbugs/bug170.go)
 - [`fixedbugs/bug171.go`](testdata/fixedbugs/bug171.go)
 - [`fixedbugs/bug172.go`](testdata/fixedbugs/bug172.go)
 - [`fixedbugs/bug175.go`](testdata/fixedbugs/bug175.go)
 - [`fixedbugs/bug176.go`](testdata/fixedbugs/bug176.go)
+- [`fixedbugs/bug178.go`](testdata/fixedbugs/bug178.go)
 - [`fixedbugs/bug179.go`](testdata/fixedbugs/bug179.go)
+- [`fixedbugs/bug180.go`](testdata/fixedbugs/bug180.go)
 - [`fixedbugs/bug181.go`](testdata/fixedbugs/bug181.go)
 - [`fixedbugs/bug182.go`](testdata/fixedbugs/bug182.go)
 - [`fixedbugs/bug183.go`](testdata/fixedbugs/bug183.go)
+- [`fixedbugs/bug184.go`](testdata/fixedbugs/bug184.go)
+- [`fixedbugs/bug185.go`](testdata/fixedbugs/bug185.go)
 - [`fixedbugs/bug186.go`](testdata/fixedbugs/bug186.go)
+- [`fixedbugs/bug187.go`](testdata/fixedbugs/bug187.go)
 - [`fixedbugs/bug188.go`](testdata/fixedbugs/bug188.go)
 - [`fixedbugs/bug189.go`](testdata/fixedbugs/bug189.go)
 - [`fixedbugs/bug192.go`](testdata/fixedbugs/bug192.go)
 - [`fixedbugs/bug193.go`](testdata/fixedbugs/bug193.go)
+- [`fixedbugs/bug194.go`](testdata/fixedbugs/bug194.go)
+- [`fixedbugs/bug19403.go`](testdata/fixedbugs/bug19403.go)
 - [`fixedbugs/bug197.go`](testdata/fixedbugs/bug197.go)
 - [`fixedbugs/bug198.go`](testdata/fixedbugs/bug198.go)
+- [`fixedbugs/bug199.go`](testdata/fixedbugs/bug199.go)
+- [`fixedbugs/bug201.go`](testdata/fixedbugs/bug201.go)
+- [`fixedbugs/bug202.go`](testdata/fixedbugs/bug202.go)
+- [`fixedbugs/bug203.go`](testdata/fixedbugs/bug203.go)
+- [`fixedbugs/bug204.go`](testdata/fixedbugs/bug204.go)
 - [`fixedbugs/bug205.go`](testdata/fixedbugs/bug205.go)
+- [`fixedbugs/bug207.go`](testdata/fixedbugs/bug207.go)
 - [`fixedbugs/bug208.go`](testdata/fixedbugs/bug208.go)
 - [`fixedbugs/bug209.go`](testdata/fixedbugs/bug209.go)
 - [`fixedbugs/bug212.go`](testdata/fixedbugs/bug212.go)
 - [`fixedbugs/bug213.go`](testdata/fixedbugs/bug213.go)
 - [`fixedbugs/bug215.go`](testdata/fixedbugs/bug215.go)
 - [`fixedbugs/bug217.go`](testdata/fixedbugs/bug217.go)
+- [`fixedbugs/bug221.go`](testdata/fixedbugs/bug221.go)
 - [`fixedbugs/bug223.go`](testdata/fixedbugs/bug223.go)
 - [`fixedbugs/bug224.go`](testdata/fixedbugs/bug224.go)
+- [`fixedbugs/bug227.go`](testdata/fixedbugs/bug227.go)
 - [`fixedbugs/bug228.go`](testdata/fixedbugs/bug228.go)
 - [`fixedbugs/bug229.go`](testdata/fixedbugs/bug229.go)
 - [`fixedbugs/bug231.go`](testdata/fixedbugs/bug231.go)
+- [`fixedbugs/bug236.go`](testdata/fixedbugs/bug236.go)
+- [`fixedbugs/bug237.go`](testdata/fixedbugs/bug237.go)
 - [`fixedbugs/bug241.go`](testdata/fixedbugs/bug241.go)
+- [`fixedbugs/bug244.go`](testdata/fixedbugs/bug244.go)
+- [`fixedbugs/bug247.go`](testdata/fixedbugs/bug247.go)
 - [`fixedbugs/bug251.go`](testdata/fixedbugs/bug251.go)
 - [`fixedbugs/bug252.go`](testdata/fixedbugs/bug252.go)
+- [`fixedbugs/bug253.go`](testdata/fixedbugs/bug253.go)
+- [`fixedbugs/bug254.go`](testdata/fixedbugs/bug254.go)
 - [`fixedbugs/bug256.go`](testdata/fixedbugs/bug256.go)
+- [`fixedbugs/bug258.go`](testdata/fixedbugs/bug258.go)
+- [`fixedbugs/bug259.go`](testdata/fixedbugs/bug259.go)
+- [`fixedbugs/bug260.go`](testdata/fixedbugs/bug260.go)
+- [`fixedbugs/bug261.go`](testdata/fixedbugs/bug261.go)
+- [`fixedbugs/bug262.go`](testdata/fixedbugs/bug262.go)
+- [`fixedbugs/bug263.go`](testdata/fixedbugs/bug263.go)
+- [`fixedbugs/bug264.go`](testdata/fixedbugs/bug264.go)
+- [`fixedbugs/bug265.go`](testdata/fixedbugs/bug265.go)
+- [`fixedbugs/bug266.go`](testdata/fixedbugs/bug266.go)
+- [`fixedbugs/bug269.go`](testdata/fixedbugs/bug269.go)
+- [`fixedbugs/bug271.go`](testdata/fixedbugs/bug271.go)
+- [`fixedbugs/bug272.go`](testdata/fixedbugs/bug272.go)
+- [`fixedbugs/bug276.go`](testdata/fixedbugs/bug276.go)
 - [`fixedbugs/bug278.go`](testdata/fixedbugs/bug278.go)
 - [`fixedbugs/bug280.go`](testdata/fixedbugs/bug280.go)
+- [`fixedbugs/bug281.go`](testdata/fixedbugs/bug281.go)
+- [`fixedbugs/bug286.go`](testdata/fixedbugs/bug286.go)
 - [`fixedbugs/bug287.go`](testdata/fixedbugs/bug287.go)
 - [`fixedbugs/bug289.go`](testdata/fixedbugs/bug289.go)
+- [`fixedbugs/bug290.go`](testdata/fixedbugs/bug290.go)
+- [`fixedbugs/bug291.go`](testdata/fixedbugs/bug291.go)
+- [`fixedbugs/bug293.go`](testdata/fixedbugs/bug293.go)
+- [`fixedbugs/bug294.go`](testdata/fixedbugs/bug294.go)
+- [`fixedbugs/bug296.go`](testdata/fixedbugs/bug296.go)
 - [`fixedbugs/bug297.go`](testdata/fixedbugs/bug297.go)
 - [`fixedbugs/bug298.go`](testdata/fixedbugs/bug298.go)
 - [`fixedbugs/bug299.go`](testdata/fixedbugs/bug299.go)
 - [`fixedbugs/bug300.go`](testdata/fixedbugs/bug300.go)
+- [`fixedbugs/bug303.go`](testdata/fixedbugs/bug303.go)
+- [`fixedbugs/bug311.go`](testdata/fixedbugs/bug311.go)
+- [`fixedbugs/bug314.go`](testdata/fixedbugs/bug314.go)
+- [`fixedbugs/bug317.go`](testdata/fixedbugs/bug317.go)
 - [`fixedbugs/bug318.go`](testdata/fixedbugs/bug318.go)
+- [`fixedbugs/bug321.go`](testdata/fixedbugs/bug321.go)
 - [`fixedbugs/bug323.go`](testdata/fixedbugs/bug323.go)
 - [`fixedbugs/bug326.go`](testdata/fixedbugs/bug326.go)
+- [`fixedbugs/bug327.go`](testdata/fixedbugs/bug327.go)
+- [`fixedbugs/bug329.go`](testdata/fixedbugs/bug329.go)
 - [`fixedbugs/bug330.go`](testdata/fixedbugs/bug330.go)
+- [`fixedbugs/bug331.go`](testdata/fixedbugs/bug331.go)
 - [`fixedbugs/bug332.go`](testdata/fixedbugs/bug332.go)
+- [`fixedbugs/bug333.go`](testdata/fixedbugs/bug333.go)
+- [`fixedbugs/bug336.go`](testdata/fixedbugs/bug336.go)
 - [`fixedbugs/bug337.go`](testdata/fixedbugs/bug337.go)
 - [`fixedbugs/bug340.go`](testdata/fixedbugs/bug340.go)
+- [`fixedbugs/bug341.go`](testdata/fixedbugs/bug341.go)
 - [`fixedbugs/bug342.go`](testdata/fixedbugs/bug342.go)
+- [`fixedbugs/bug343.go`](testdata/fixedbugs/bug343.go)
 - [`fixedbugs/bug344.go`](testdata/fixedbugs/bug344.go)
+- [`fixedbugs/bug346.go`](testdata/fixedbugs/bug346.go)
 - [`fixedbugs/bug349.go`](testdata/fixedbugs/bug349.go)
 - [`fixedbugs/bug350.go`](testdata/fixedbugs/bug350.go)
 - [`fixedbugs/bug351.go`](testdata/fixedbugs/bug351.go)
 - [`fixedbugs/bug353.go`](testdata/fixedbugs/bug353.go)
+- [`fixedbugs/bug355.go`](testdata/fixedbugs/bug355.go)
+- [`fixedbugs/bug356.go`](testdata/fixedbugs/bug356.go)
 - [`fixedbugs/bug357.go`](testdata/fixedbugs/bug357.go)
 - [`fixedbugs/bug362.go`](testdata/fixedbugs/bug362.go)
 - [`fixedbugs/bug363.go`](testdata/fixedbugs/bug363.go)
+- [`fixedbugs/bug364.go`](testdata/fixedbugs/bug364.go)
+- [`fixedbugs/bug366.go`](testdata/fixedbugs/bug366.go)
+- [`fixedbugs/bug368.go`](testdata/fixedbugs/bug368.go)
+- [`fixedbugs/bug370.go`](testdata/fixedbugs/bug370.go)
 - [`fixedbugs/bug371.go`](testdata/fixedbugs/bug371.go)
+- [`fixedbugs/bug372.go`](testdata/fixedbugs/bug372.go)
 - [`fixedbugs/bug373.go`](testdata/fixedbugs/bug373.go)
 - [`fixedbugs/bug374.go`](testdata/fixedbugs/bug374.go)
+- [`fixedbugs/bug375.go`](testdata/fixedbugs/bug375.go)
+- [`fixedbugs/bug378.go`](testdata/fixedbugs/bug378.go)
 - [`fixedbugs/bug379.go`](testdata/fixedbugs/bug379.go)
 - [`fixedbugs/bug383.go`](testdata/fixedbugs/bug383.go)
 - [`fixedbugs/bug384.go`](testdata/fixedbugs/bug384.go)
@@ -425,23 +884,75 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug388a.go`](testdata/fixedbugs/bug388a.go)
 - [`fixedbugs/bug389.go`](testdata/fixedbugs/bug389.go)
 - [`fixedbugs/bug394.go`](testdata/fixedbugs/bug394.go)
+- [`fixedbugs/bug401.go`](testdata/fixedbugs/bug401.go)
+- [`fixedbugs/bug402.go`](testdata/fixedbugs/bug402.go)
+- [`fixedbugs/bug405.go`](testdata/fixedbugs/bug405.go)
+- [`fixedbugs/bug406.go`](testdata/fixedbugs/bug406.go)
 - [`fixedbugs/bug412.go`](testdata/fixedbugs/bug412.go)
 - [`fixedbugs/bug413.go`](testdata/fixedbugs/bug413.go)
 - [`fixedbugs/bug416.go`](testdata/fixedbugs/bug416.go)
 - [`fixedbugs/bug421.go`](testdata/fixedbugs/bug421.go)
+- [`fixedbugs/bug423.go`](testdata/fixedbugs/bug423.go)
+- [`fixedbugs/bug428.go`](testdata/fixedbugs/bug428.go)
+- [`fixedbugs/bug433.go`](testdata/fixedbugs/bug433.go)
+- [`fixedbugs/bug434.go`](testdata/fixedbugs/bug434.go)
 - [`fixedbugs/bug435.go`](testdata/fixedbugs/bug435.go)
+- [`fixedbugs/bug436.go`](testdata/fixedbugs/bug436.go)
+- [`fixedbugs/bug440_32.go`](testdata/fixedbugs/bug440_32.go)
+- [`fixedbugs/bug440_64.go`](testdata/fixedbugs/bug440_64.go)
+- [`fixedbugs/bug441.go`](testdata/fixedbugs/bug441.go)
+- [`fixedbugs/bug442.go`](testdata/fixedbugs/bug442.go)
+- [`fixedbugs/bug446.go`](testdata/fixedbugs/bug446.go)
+- [`fixedbugs/bug450.go`](testdata/fixedbugs/bug450.go)
 - [`fixedbugs/bug451.go`](testdata/fixedbugs/bug451.go)
+- [`fixedbugs/bug452.go`](testdata/fixedbugs/bug452.go)
+- [`fixedbugs/bug453.go`](testdata/fixedbugs/bug453.go)
+- [`fixedbugs/bug454.go`](testdata/fixedbugs/bug454.go)
+- [`fixedbugs/bug455.go`](testdata/fixedbugs/bug455.go)
+- [`fixedbugs/bug456.go`](testdata/fixedbugs/bug456.go)
+- [`fixedbugs/bug457.go`](testdata/fixedbugs/bug457.go)
 - [`fixedbugs/bug459.go`](testdata/fixedbugs/bug459.go)
 - [`fixedbugs/bug463.go`](testdata/fixedbugs/bug463.go)
 - [`fixedbugs/bug464.go`](testdata/fixedbugs/bug464.go)
+- [`fixedbugs/bug470.go`](testdata/fixedbugs/bug470.go)
+- [`fixedbugs/bug473.go`](testdata/fixedbugs/bug473.go)
+- [`fixedbugs/bug483.go`](testdata/fixedbugs/bug483.go)
+- [`fixedbugs/bug484.go`](testdata/fixedbugs/bug484.go)
+- [`fixedbugs/bug485.go`](testdata/fixedbugs/bug485.go)
 - [`fixedbugs/bug487.go`](testdata/fixedbugs/bug487.go)
+- [`fixedbugs/bug491.go`](testdata/fixedbugs/bug491.go)
+- [`fixedbugs/bug494.go`](testdata/fixedbugs/bug494.go)
+- [`fixedbugs/bug497.go`](testdata/fixedbugs/bug497.go)
+- [`fixedbugs/bug498.go`](testdata/fixedbugs/bug498.go)
+- [`fixedbugs/bug500.go`](testdata/fixedbugs/bug500.go)
+- [`fixedbugs/bug501.go`](testdata/fixedbugs/bug501.go)
 - [`fixedbugs/bug518.go`](testdata/fixedbugs/bug518.go)
+- [`fixedbugs/gcc61258.go`](testdata/fixedbugs/gcc61258.go)
+- [`fixedbugs/issue10135.go`](testdata/fixedbugs/issue10135.go)
+- [`fixedbugs/issue10253.go`](testdata/fixedbugs/issue10253.go)
+- [`fixedbugs/issue10320.go`](testdata/fixedbugs/issue10320.go)
+- [`fixedbugs/issue10486.go`](testdata/fixedbugs/issue10486.go)
+- [`fixedbugs/issue10925.go`](testdata/fixedbugs/issue10925.go)
+- [`fixedbugs/issue11286.go`](testdata/fixedbugs/issue11286.go)
 - [`fixedbugs/issue11326.go`](testdata/fixedbugs/issue11326.go)
+- [`fixedbugs/issue11326b.go`](testdata/fixedbugs/issue11326b.go)
 - [`fixedbugs/issue11359.go`](testdata/fixedbugs/issue11359.go)
 - [`fixedbugs/issue11361.go`](testdata/fixedbugs/issue11361.go)
+- [`fixedbugs/issue11369.go`](testdata/fixedbugs/issue11369.go)
 - [`fixedbugs/issue11371.go`](testdata/fixedbugs/issue11371.go)
 - [`fixedbugs/issue11590.go`](testdata/fixedbugs/issue11590.go)
 - [`fixedbugs/issue11610a.go`](testdata/fixedbugs/issue11610a.go)
+- [`fixedbugs/issue11945.go`](testdata/fixedbugs/issue11945.go)
+- [`fixedbugs/issue11987.go`](testdata/fixedbugs/issue11987.go)
+- [`fixedbugs/issue12108.go`](testdata/fixedbugs/issue12108.go)
+- [`fixedbugs/issue12133.go`](testdata/fixedbugs/issue12133.go)
+- [`fixedbugs/issue12226.go`](testdata/fixedbugs/issue12226.go)
+- [`fixedbugs/issue12411.go`](testdata/fixedbugs/issue12411.go)
+- [`fixedbugs/issue12577.go`](testdata/fixedbugs/issue12577.go)
+- [`fixedbugs/issue12621.go`](testdata/fixedbugs/issue12621.go)
+- [`fixedbugs/issue1304.go`](testdata/fixedbugs/issue1304.go)
+- [`fixedbugs/issue13162.go`](testdata/fixedbugs/issue13162.go)
+- [`fixedbugs/issue13171.go`](testdata/fixedbugs/issue13171.go)
 - [`fixedbugs/issue13248.go`](testdata/fixedbugs/issue13248.go)
 - [`fixedbugs/issue13266.go`](testdata/fixedbugs/issue13266.go)
 - [`fixedbugs/issue13273.go`](testdata/fixedbugs/issue13273.go)
@@ -451,6 +962,7 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue13480.go`](testdata/fixedbugs/issue13480.go)
 - [`fixedbugs/issue13539.go`](testdata/fixedbugs/issue13539.go)
 - [`fixedbugs/issue13559.go`](testdata/fixedbugs/issue13559.go)
+- [`fixedbugs/issue13684.go`](testdata/fixedbugs/issue13684.go)
 - [`fixedbugs/issue13779.go`](testdata/fixedbugs/issue13779.go)
 - [`fixedbugs/issue13821b.go`](testdata/fixedbugs/issue13821b.go)
 - [`fixedbugs/issue14010.go`](testdata/fixedbugs/issue14010.go)
@@ -458,129 +970,331 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue14321.go`](testdata/fixedbugs/issue14321.go)
 - [`fixedbugs/issue14520.go`](testdata/fixedbugs/issue14520.go)
 - [`fixedbugs/issue14520a.go`](testdata/fixedbugs/issue14520a.go)
+- [`fixedbugs/issue14553.go`](testdata/fixedbugs/issue14553.go)
+- [`fixedbugs/issue14591.go`](testdata/fixedbugs/issue14591.go)
+- [`fixedbugs/issue14646.go`](testdata/fixedbugs/issue14646.go)
+- [`fixedbugs/issue14651.go`](testdata/fixedbugs/issue14651.go)
+- [`fixedbugs/issue14725.go`](testdata/fixedbugs/issue14725.go)
 - [`fixedbugs/issue14988.go`](testdata/fixedbugs/issue14988.go)
+- [`fixedbugs/issue15039.go`](testdata/fixedbugs/issue15039.go)
+- [`fixedbugs/issue15042.go`](testdata/fixedbugs/issue15042.go)
 - [`fixedbugs/issue15055.go`](testdata/fixedbugs/issue15055.go)
+- [`fixedbugs/issue15175.go`](testdata/fixedbugs/issue15175.go)
+- [`fixedbugs/issue15252.go`](testdata/fixedbugs/issue15252.go)
+- [`fixedbugs/issue15277.go`](testdata/fixedbugs/issue15277.go)
+- [`fixedbugs/issue15303.go`](testdata/fixedbugs/issue15303.go)
 - [`fixedbugs/issue15311.go`](testdata/fixedbugs/issue15311.go)
 - [`fixedbugs/issue15722.go`](testdata/fixedbugs/issue15722.go)
+- [`fixedbugs/issue15902.go`](testdata/fixedbugs/issue15902.go)
+- [`fixedbugs/issue15975.go`](testdata/fixedbugs/issue15975.go)
+- [`fixedbugs/issue15992.go`](testdata/fixedbugs/issue15992.go)
+- [`fixedbugs/issue16095.go`](testdata/fixedbugs/issue16095.go)
+- [`fixedbugs/issue16130.go`](testdata/fixedbugs/issue16130.go)
+- [`fixedbugs/issue16249.go`](testdata/fixedbugs/issue16249.go)
 - [`fixedbugs/issue16369.go`](testdata/fixedbugs/issue16369.go)
 - [`fixedbugs/issue16428.go`](testdata/fixedbugs/issue16428.go)
 - [`fixedbugs/issue16439.go`](testdata/fixedbugs/issue16439.go)
+- [`fixedbugs/issue16515.go`](testdata/fixedbugs/issue16515.go)
+- [`fixedbugs/issue16760.go`](testdata/fixedbugs/issue16760.go)
 - [`fixedbugs/issue16949.go`](testdata/fixedbugs/issue16949.go)
 - [`fixedbugs/issue17038.go`](testdata/fixedbugs/issue17038.go)
+- [`fixedbugs/issue17039.go`](testdata/fixedbugs/issue17039.go)
 - [`fixedbugs/issue17328.go`](testdata/fixedbugs/issue17328.go)
 - [`fixedbugs/issue17588.go`](testdata/fixedbugs/issue17588.go)
 - [`fixedbugs/issue17631.go`](testdata/fixedbugs/issue17631.go)
+- [`fixedbugs/issue17640.go`](testdata/fixedbugs/issue17640.go)
 - [`fixedbugs/issue17645.go`](testdata/fixedbugs/issue17645.go)
+- [`fixedbugs/issue17752.go`](testdata/fixedbugs/issue17752.go)
 - [`fixedbugs/issue17758.go`](testdata/fixedbugs/issue17758.go)
 - [`fixedbugs/issue18092.go`](testdata/fixedbugs/issue18092.go)
+- [`fixedbugs/issue18149.go`](testdata/fixedbugs/issue18149.go)
 - [`fixedbugs/issue18392.go`](testdata/fixedbugs/issue18392.go)
+- [`fixedbugs/issue18410.go`](testdata/fixedbugs/issue18410.go)
 - [`fixedbugs/issue18459.go`](testdata/fixedbugs/issue18459.go)
+- [`fixedbugs/issue18595.go`](testdata/fixedbugs/issue18595.go)
 - [`fixedbugs/issue18655.go`](testdata/fixedbugs/issue18655.go)
+- [`fixedbugs/issue18661.go`](testdata/fixedbugs/issue18661.go)
+- [`fixedbugs/issue18725.go`](testdata/fixedbugs/issue18725.go)
+- [`fixedbugs/issue18808.go`](testdata/fixedbugs/issue18808.go)
 - [`fixedbugs/issue18882.go`](testdata/fixedbugs/issue18882.go)
+- [`fixedbugs/issue18906.go`](testdata/fixedbugs/issue18906.go)
+- [`fixedbugs/issue18994.go`](testdata/fixedbugs/issue18994.go)
 - [`fixedbugs/issue19012.go`](testdata/fixedbugs/issue19012.go)
+- [`fixedbugs/issue19040.go`](testdata/fixedbugs/issue19040.go)
 - [`fixedbugs/issue19056.go`](testdata/fixedbugs/issue19056.go)
+- [`fixedbugs/issue19246.go`](testdata/fixedbugs/issue19246.go)
+- [`fixedbugs/issue19275.go`](testdata/fixedbugs/issue19275.go)
 - [`fixedbugs/issue19323.go`](testdata/fixedbugs/issue19323.go)
+- [`fixedbugs/issue19359.go`](testdata/fixedbugs/issue19359.go)
 - [`fixedbugs/issue19482.go`](testdata/fixedbugs/issue19482.go)
 - [`fixedbugs/issue19610.go`](testdata/fixedbugs/issue19610.go)
 - [`fixedbugs/issue19667.go`](testdata/fixedbugs/issue19667.go)
+- [`fixedbugs/issue19710.go`](testdata/fixedbugs/issue19710.go)
+- [`fixedbugs/issue19799.go`](testdata/fixedbugs/issue19799.go)
 - [`fixedbugs/issue19880.go`](testdata/fixedbugs/issue19880.go)
+- [`fixedbugs/issue19911.go`](testdata/fixedbugs/issue19911.go)
 - [`fixedbugs/issue19947.go`](testdata/fixedbugs/issue19947.go)
 - [`fixedbugs/issue19977.go`](testdata/fixedbugs/issue19977.go)
+- [`fixedbugs/issue20029.go`](testdata/fixedbugs/issue20029.go)
 - [`fixedbugs/issue20232.go`](testdata/fixedbugs/issue20232.go)
 - [`fixedbugs/issue20233.go`](testdata/fixedbugs/issue20233.go)
 - [`fixedbugs/issue20245.go`](testdata/fixedbugs/issue20245.go)
 - [`fixedbugs/issue20415.go`](testdata/fixedbugs/issue20415.go)
+- [`fixedbugs/issue20530.go`](testdata/fixedbugs/issue20530.go)
 - [`fixedbugs/issue20749.go`](testdata/fixedbugs/issue20749.go)
 - [`fixedbugs/issue20789.go`](testdata/fixedbugs/issue20789.go)
+- [`fixedbugs/issue20811.go`](testdata/fixedbugs/issue20811.go)
 - [`fixedbugs/issue20812.go`](testdata/fixedbugs/issue20812.go)
 - [`fixedbugs/issue20813.go`](testdata/fixedbugs/issue20813.go)
+- [`fixedbugs/issue21048.go`](testdata/fixedbugs/issue21048.go)
 - [`fixedbugs/issue21256.go`](testdata/fixedbugs/issue21256.go)
 - [`fixedbugs/issue21273.go`](testdata/fixedbugs/issue21273.go)
+- [`fixedbugs/issue21687.go`](testdata/fixedbugs/issue21687.go)
 - [`fixedbugs/issue21770.go`](testdata/fixedbugs/issue21770.go)
 - [`fixedbugs/issue21882.go`](testdata/fixedbugs/issue21882.go)
+- [`fixedbugs/issue21887.go`](testdata/fixedbugs/issue21887.go)
 - [`fixedbugs/issue21934.go`](testdata/fixedbugs/issue21934.go)
+- [`fixedbugs/issue21963.go`](testdata/fixedbugs/issue21963.go)
 - [`fixedbugs/issue21979.go`](testdata/fixedbugs/issue21979.go)
 - [`fixedbugs/issue21988.go`](testdata/fixedbugs/issue21988.go)
 - [`fixedbugs/issue22063.go`](testdata/fixedbugs/issue22063.go)
 - [`fixedbugs/issue22164.go`](testdata/fixedbugs/issue22164.go)
+- [`fixedbugs/issue22326.go`](testdata/fixedbugs/issue22326.go)
 - [`fixedbugs/issue22389.go`](testdata/fixedbugs/issue22389.go)
+- [`fixedbugs/issue22662.go`](testdata/fixedbugs/issue22662.go)
 - [`fixedbugs/issue22794.go`](testdata/fixedbugs/issue22794.go)
 - [`fixedbugs/issue22904.go`](testdata/fixedbugs/issue22904.go)
 - [`fixedbugs/issue22921.go`](testdata/fixedbugs/issue22921.go)
+- [`fixedbugs/issue23017.go`](testdata/fixedbugs/issue23017.go)
 - [`fixedbugs/issue23093.go`](testdata/fixedbugs/issue23093.go)
 - [`fixedbugs/issue23094.go`](testdata/fixedbugs/issue23094.go)
 - [`fixedbugs/issue23116.go`](testdata/fixedbugs/issue23116.go)
+- [`fixedbugs/issue23188.go`](testdata/fixedbugs/issue23188.go)
+- [`fixedbugs/issue23305.go`](testdata/fixedbugs/issue23305.go)
+- [`fixedbugs/issue23489.go`](testdata/fixedbugs/issue23489.go)
+- [`fixedbugs/issue23522.go`](testdata/fixedbugs/issue23522.go)
+- [`fixedbugs/issue23536.go`](testdata/fixedbugs/issue23536.go)
+- [`fixedbugs/issue23545.go`](testdata/fixedbugs/issue23545.go)
+- [`fixedbugs/issue23546.go`](testdata/fixedbugs/issue23546.go)
 - [`fixedbugs/issue23586.go`](testdata/fixedbugs/issue23586.go)
 - [`fixedbugs/issue23587.go`](testdata/fixedbugs/issue23587.go)
 - [`fixedbugs/issue23609.go`](testdata/fixedbugs/issue23609.go)
 - [`fixedbugs/issue23664.go`](testdata/fixedbugs/issue23664.go)
+- [`fixedbugs/issue23719.go`](testdata/fixedbugs/issue23719.go)
 - [`fixedbugs/issue23732.go`](testdata/fixedbugs/issue23732.go)
+- [`fixedbugs/issue23734.go`](testdata/fixedbugs/issue23734.go)
+- [`fixedbugs/issue23812.go`](testdata/fixedbugs/issue23812.go)
+- [`fixedbugs/issue23814.go`](testdata/fixedbugs/issue23814.go)
+- [`fixedbugs/issue23837.go`](testdata/fixedbugs/issue23837.go)
 - [`fixedbugs/issue24159.go`](testdata/fixedbugs/issue24159.go)
 - [`fixedbugs/issue24470.go`](testdata/fixedbugs/issue24470.go)
+- [`fixedbugs/issue24488.go`](testdata/fixedbugs/issue24488.go)
+- [`fixedbugs/issue24503.go`](testdata/fixedbugs/issue24503.go)
+- [`fixedbugs/issue24547.go`](testdata/fixedbugs/issue24547.go)
 - [`fixedbugs/issue24755.go`](testdata/fixedbugs/issue24755.go)
+- [`fixedbugs/issue24763.go`](testdata/fixedbugs/issue24763.go)
+- [`fixedbugs/issue24799.go`](testdata/fixedbugs/issue24799.go)
+- [`fixedbugs/issue24817.go`](testdata/fixedbugs/issue24817.go)
+- [`fixedbugs/issue24937.go`](testdata/fixedbugs/issue24937.go)
+- [`fixedbugs/issue25322.go`](testdata/fixedbugs/issue25322.go)
+- [`fixedbugs/issue25776.go`](testdata/fixedbugs/issue25776.go)
+- [`fixedbugs/issue26094.go`](testdata/fixedbugs/issue26094.go)
+- [`fixedbugs/issue26097.go`](testdata/fixedbugs/issue26097.go)
+- [`fixedbugs/issue26116.go`](testdata/fixedbugs/issue26116.go)
+- [`fixedbugs/issue2615.go`](testdata/fixedbugs/issue2615.go)
+- [`fixedbugs/issue26153.go`](testdata/fixedbugs/issue26153.go)
+- [`fixedbugs/issue26248.go`](testdata/fixedbugs/issue26248.go)
+- [`fixedbugs/issue26407.go`](testdata/fixedbugs/issue26407.go)
 - [`fixedbugs/issue26416.go`](testdata/fixedbugs/issue26416.go)
+- [`fixedbugs/issue26438.go`](testdata/fixedbugs/issue26438.go)
+- [`fixedbugs/issue26495.go`](testdata/fixedbugs/issue26495.go)
+- [`fixedbugs/issue27278.go`](testdata/fixedbugs/issue27278.go)
+- [`fixedbugs/issue27289.go`](testdata/fixedbugs/issue27289.go)
+- [`fixedbugs/issue27518a.go`](testdata/fixedbugs/issue27518a.go)
+- [`fixedbugs/issue27518b.go`](testdata/fixedbugs/issue27518b.go)
 - [`fixedbugs/issue27595.go`](testdata/fixedbugs/issue27595.go)
+- [`fixedbugs/issue27718.go`](testdata/fixedbugs/issue27718.go)
+- [`fixedbugs/issue27829.go`](testdata/fixedbugs/issue27829.go)
 - [`fixedbugs/issue27938.go`](testdata/fixedbugs/issue27938.go)
+- [`fixedbugs/issue27961.go`](testdata/fixedbugs/issue27961.go)
 - [`fixedbugs/issue28058.go`](testdata/fixedbugs/issue28058.go)
 - [`fixedbugs/issue28268.go`](testdata/fixedbugs/issue28268.go)
+- [`fixedbugs/issue28390.go`](testdata/fixedbugs/issue28390.go)
+- [`fixedbugs/issue28797.go`](testdata/fixedbugs/issue28797.go)
 - [`fixedbugs/issue28926.go`](testdata/fixedbugs/issue28926.go)
+- [`fixedbugs/issue29013a.go`](testdata/fixedbugs/issue29013a.go)
+- [`fixedbugs/issue29013b.go`](testdata/fixedbugs/issue29013b.go)
+- [`fixedbugs/issue29190.go`](testdata/fixedbugs/issue29190.go)
+- [`fixedbugs/issue29264.go`](testdata/fixedbugs/issue29264.go)
+- [`fixedbugs/issue29304.go`](testdata/fixedbugs/issue29304.go)
+- [`fixedbugs/issue29312.go`](testdata/fixedbugs/issue29312.go)
+- [`fixedbugs/issue29402.go`](testdata/fixedbugs/issue29402.go)
+- [`fixedbugs/issue29504.go`](testdata/fixedbugs/issue29504.go)
+- [`fixedbugs/issue29735.go`](testdata/fixedbugs/issue29735.go)
 - [`fixedbugs/issue29855.go`](testdata/fixedbugs/issue29855.go)
 - [`fixedbugs/issue29870b.go`](testdata/fixedbugs/issue29870b.go)
+- [`fixedbugs/issue29943.go`](testdata/fixedbugs/issue29943.go)
 - [`fixedbugs/issue30085.go`](testdata/fixedbugs/issue30085.go)
 - [`fixedbugs/issue30087.go`](testdata/fixedbugs/issue30087.go)
+- [`fixedbugs/issue30476.go`](testdata/fixedbugs/issue30476.go)
+- [`fixedbugs/issue30566a.go`](testdata/fixedbugs/issue30566a.go)
+- [`fixedbugs/issue30566b.go`](testdata/fixedbugs/issue30566b.go)
 - [`fixedbugs/issue30722.go`](testdata/fixedbugs/issue30722.go)
+- [`fixedbugs/issue30956.go`](testdata/fixedbugs/issue30956.go)
 - [`fixedbugs/issue31412b.go`](testdata/fixedbugs/issue31412b.go)
+- [`fixedbugs/issue31782.go`](testdata/fixedbugs/issue31782.go)
+- [`fixedbugs/issue31987.go`](testdata/fixedbugs/issue31987.go)
+- [`fixedbugs/issue32175.go`](testdata/fixedbugs/issue32175.go)
+- [`fixedbugs/issue32288.go`](testdata/fixedbugs/issue32288.go)
+- [`fixedbugs/issue32477.go`](testdata/fixedbugs/issue32477.go)
+- [`fixedbugs/issue32560.go`](testdata/fixedbugs/issue32560.go)
+- [`fixedbugs/issue33062.go`](testdata/fixedbugs/issue33062.go)
 - [`fixedbugs/issue33308.go`](testdata/fixedbugs/issue33308.go)
+- [`fixedbugs/issue34123.go`](testdata/fixedbugs/issue34123.go)
+- [`fixedbugs/issue34395.go`](testdata/fixedbugs/issue34395.go)
 - [`fixedbugs/issue35291.go`](testdata/fixedbugs/issue35291.go)
 - [`fixedbugs/issue3705.go`](testdata/fixedbugs/issue3705.go)
+- [`fixedbugs/issue37753.go`](testdata/fixedbugs/issue37753.go)
 - [`fixedbugs/issue3783.go`](testdata/fixedbugs/issue3783.go)
+- [`fixedbugs/issue37975.go`](testdata/fixedbugs/issue37975.go)
+- [`fixedbugs/issue38496.go`](testdata/fixedbugs/issue38496.go)
 - [`fixedbugs/issue38745.go`](testdata/fixedbugs/issue38745.go)
+- [`fixedbugs/issue39505b.go`](testdata/fixedbugs/issue39505b.go)
+- [`fixedbugs/issue39651.go`](testdata/fixedbugs/issue39651.go)
+- [`fixedbugs/issue40152.go`](testdata/fixedbugs/issue40152.go)
+- [`fixedbugs/issue40367.go`](testdata/fixedbugs/issue40367.go)
+- [`fixedbugs/issue4066.go`](testdata/fixedbugs/issue4066.go)
 - [`fixedbugs/issue4085a.go`](testdata/fixedbugs/issue4085a.go)
 - [`fixedbugs/issue4097.go`](testdata/fixedbugs/issue4097.go)
+- [`fixedbugs/issue41239.go`](testdata/fixedbugs/issue41239.go)
 - [`fixedbugs/issue41247.go`](testdata/fixedbugs/issue41247.go)
 - [`fixedbugs/issue41440.go`](testdata/fixedbugs/issue41440.go)
 - [`fixedbugs/issue41500.go`](testdata/fixedbugs/issue41500.go)
 - [`fixedbugs/issue41575.go`](testdata/fixedbugs/issue41575.go)
+- [`fixedbugs/issue4167.go`](testdata/fixedbugs/issue4167.go)
+- [`fixedbugs/issue41780.go`](testdata/fixedbugs/issue41780.go)
+- [`fixedbugs/issue41872.go`](testdata/fixedbugs/issue41872.go)
 - [`fixedbugs/issue4215.go`](testdata/fixedbugs/issue4215.go)
 - [`fixedbugs/issue4232.go`](testdata/fixedbugs/issue4232.go)
 - [`fixedbugs/issue4251.go`](testdata/fixedbugs/issue4251.go)
+- [`fixedbugs/issue42703.go`](testdata/fixedbugs/issue42703.go)
 - [`fixedbugs/issue4283.go`](testdata/fixedbugs/issue4283.go)
+- [`fixedbugs/issue42876.go`](testdata/fixedbugs/issue42876.go)
+- [`fixedbugs/issue4316.go`](testdata/fixedbugs/issue4316.go)
+- [`fixedbugs/issue43480.go`](testdata/fixedbugs/issue43480.go)
+- [`fixedbugs/issue4353.go`](testdata/fixedbugs/issue4353.go)
+- [`fixedbugs/issue43570.go`](testdata/fixedbugs/issue43570.go)
+- [`fixedbugs/issue43619.go`](testdata/fixedbugs/issue43619.go)
 - [`fixedbugs/issue4365.go`](testdata/fixedbugs/issue4365.go)
 - [`fixedbugs/issue43762.go`](testdata/fixedbugs/issue43762.go)
+- [`fixedbugs/issue43835.go`](testdata/fixedbugs/issue43835.go)
+- [`fixedbugs/issue43908.go`](testdata/fixedbugs/issue43908.go)
+- [`fixedbugs/issue4396a.go`](testdata/fixedbugs/issue4396a.go)
+- [`fixedbugs/issue4396b.go`](testdata/fixedbugs/issue4396b.go)
 - [`fixedbugs/issue4405.go`](testdata/fixedbugs/issue4405.go)
 - [`fixedbugs/issue44266.go`](testdata/fixedbugs/issue44266.go)
 - [`fixedbugs/issue4429.go`](testdata/fixedbugs/issue4429.go)
+- [`fixedbugs/issue4448.go`](testdata/fixedbugs/issue4448.go)
 - [`fixedbugs/issue4452.go`](testdata/fixedbugs/issue4452.go)
 - [`fixedbugs/issue4458.go`](testdata/fixedbugs/issue4458.go)
 - [`fixedbugs/issue4468.go`](testdata/fixedbugs/issue4468.go)
 - [`fixedbugs/issue4470.go`](testdata/fixedbugs/issue4470.go)
+- [`fixedbugs/issue44823.go`](testdata/fixedbugs/issue44823.go)
+- [`fixedbugs/issue4495.go`](testdata/fixedbugs/issue4495.go)
+- [`fixedbugs/issue45175.go`](testdata/fixedbugs/issue45175.go)
 - [`fixedbugs/issue4517a.go`](testdata/fixedbugs/issue4517a.go)
 - [`fixedbugs/issue4517b.go`](testdata/fixedbugs/issue4517b.go)
 - [`fixedbugs/issue4517c.go`](testdata/fixedbugs/issue4517c.go)
 - [`fixedbugs/issue4517d.go`](testdata/fixedbugs/issue4517d.go)
+- [`fixedbugs/issue4518.go`](testdata/fixedbugs/issue4518.go)
+- [`fixedbugs/issue45242.go`](testdata/fixedbugs/issue45242.go)
 - [`fixedbugs/issue4545.go`](testdata/fixedbugs/issue4545.go)
+- [`fixedbugs/issue45851.go`](testdata/fixedbugs/issue45851.go)
 - [`fixedbugs/issue45913.go`](testdata/fixedbugs/issue45913.go)
 - [`fixedbugs/issue4610.go`](testdata/fixedbugs/issue4610.go)
+- [`fixedbugs/issue4618.go`](testdata/fixedbugs/issue4618.go)
+- [`fixedbugs/issue4620.go`](testdata/fixedbugs/issue4620.go)
+- [`fixedbugs/issue46304.go`](testdata/fixedbugs/issue46304.go)
 - [`fixedbugs/issue4663.go`](testdata/fixedbugs/issue4663.go)
+- [`fixedbugs/issue4667.go`](testdata/fixedbugs/issue4667.go)
 - [`fixedbugs/issue46749.go`](testdata/fixedbugs/issue46749.go)
 - [`fixedbugs/issue46957.go`](testdata/fixedbugs/issue46957.go)
+- [`fixedbugs/issue4748.go`](testdata/fixedbugs/issue4748.go)
+- [`fixedbugs/issue4752.go`](testdata/fixedbugs/issue4752.go)
 - [`fixedbugs/issue4776.go`](testdata/fixedbugs/issue4776.go)
+- [`fixedbugs/issue47771.go`](testdata/fixedbugs/issue47771.go)
+- [`fixedbugs/issue4785.go`](testdata/fixedbugs/issue4785.go)
 - [`fixedbugs/issue48230.go`](testdata/fixedbugs/issue48230.go)
 - [`fixedbugs/issue48301.go`](testdata/fixedbugs/issue48301.go)
 - [`fixedbugs/issue4847.go`](testdata/fixedbugs/issue4847.go)
+- [`fixedbugs/issue48473.go`](testdata/fixedbugs/issue48473.go)
+- [`fixedbugs/issue48476.go`](testdata/fixedbugs/issue48476.go)
 - [`fixedbugs/issue48784.go`](testdata/fixedbugs/issue48784.go)
+- [`fixedbugs/issue48898.go`](testdata/fixedbugs/issue48898.go)
+- [`fixedbugs/issue49100.go`](testdata/fixedbugs/issue49100.go)
+- [`fixedbugs/issue49100b.go`](testdata/fixedbugs/issue49100b.go)
+- [`fixedbugs/issue49145.go`](testdata/fixedbugs/issue49145.go)
+- [`fixedbugs/issue49512.go`](testdata/fixedbugs/issue49512.go)
+- [`fixedbugs/issue49665.go`](testdata/fixedbugs/issue49665.go)
+- [`fixedbugs/issue50190.go`](testdata/fixedbugs/issue50190.go)
+- [`fixedbugs/issue5056.go`](testdata/fixedbugs/issue5056.go)
+- [`fixedbugs/issue50671.go`](testdata/fixedbugs/issue50671.go)
+- [`fixedbugs/issue50672.go`](testdata/fixedbugs/issue50672.go)
+- [`fixedbugs/issue50854.go`](testdata/fixedbugs/issue50854.go)
 - [`fixedbugs/issue5089.go`](testdata/fixedbugs/issue5089.go)
+- [`fixedbugs/issue51101.go`](testdata/fixedbugs/issue51101.go)
+- [`fixedbugs/issue51401.go`](testdata/fixedbugs/issue51401.go)
+- [`fixedbugs/issue51913.go`](testdata/fixedbugs/issue51913.go)
+- [`fixedbugs/issue52072.go`](testdata/fixedbugs/issue52072.go)
+- [`fixedbugs/issue52438.go`](testdata/fixedbugs/issue52438.go)
+- [`fixedbugs/issue5244.go`](testdata/fixedbugs/issue5244.go)
+- [`fixedbugs/issue52953.go`](testdata/fixedbugs/issue52953.go)
+- [`fixedbugs/issue53309.go`](testdata/fixedbugs/issue53309.go)
+- [`fixedbugs/issue53600.go`](testdata/fixedbugs/issue53600.go)
+- [`fixedbugs/issue53619.go`](testdata/fixedbugs/issue53619.go)
+- [`fixedbugs/issue53635.go`](testdata/fixedbugs/issue53635.go)
+- [`fixedbugs/issue53653.go`](testdata/fixedbugs/issue53653.go)
+- [`fixedbugs/issue53702.go`](testdata/fixedbugs/issue53702.go)
+- [`fixedbugs/issue5373.go`](testdata/fixedbugs/issue5373.go)
 - [`fixedbugs/issue54280.go`](testdata/fixedbugs/issue54280.go)
+- [`fixedbugs/issue54348.go`](testdata/fixedbugs/issue54348.go)
+- [`fixedbugs/issue54467.go`](testdata/fixedbugs/issue54467.go)
+- [`fixedbugs/issue54632.go`](testdata/fixedbugs/issue54632.go)
+- [`fixedbugs/issue54959.go`](testdata/fixedbugs/issue54959.go)
+- [`fixedbugs/issue55122.go`](testdata/fixedbugs/issue55122.go)
+- [`fixedbugs/issue55122b.go`](testdata/fixedbugs/issue55122b.go)
+- [`fixedbugs/issue5515.go`](testdata/fixedbugs/issue5515.go)
+- [`fixedbugs/issue5607.go`](testdata/fixedbugs/issue5607.go)
 - [`fixedbugs/issue5609.go`](testdata/fixedbugs/issue5609.go)
 - [`fixedbugs/issue56220.go`](testdata/fixedbugs/issue56220.go)
 - [`fixedbugs/issue5698.go`](testdata/fixedbugs/issue5698.go)
+- [`fixedbugs/issue5704.go`](testdata/fixedbugs/issue5704.go)
+- [`fixedbugs/issue57309.go`](testdata/fixedbugs/issue57309.go)
+- [`fixedbugs/issue5753.go`](testdata/fixedbugs/issue5753.go)
+- [`fixedbugs/issue5793.go`](testdata/fixedbugs/issue5793.go)
+- [`fixedbugs/issue5809.go`](testdata/fixedbugs/issue5809.go)
+- [`fixedbugs/issue5820.go`](testdata/fixedbugs/issue5820.go)
+- [`fixedbugs/issue58671.go`](testdata/fixedbugs/issue58671.go)
+- [`fixedbugs/issue59338.go`](testdata/fixedbugs/issue59338.go)
+- [`fixedbugs/issue59367.go`](testdata/fixedbugs/issue59367.go)
+- [`fixedbugs/issue59404part2.go`](testdata/fixedbugs/issue59404part2.go)
 - [`fixedbugs/issue6004.go`](testdata/fixedbugs/issue6004.go)
+- [`fixedbugs/issue6055.go`](testdata/fixedbugs/issue6055.go)
+- [`fixedbugs/issue6269.go`](testdata/fixedbugs/issue6269.go)
 - [`fixedbugs/issue63489a.go`](testdata/fixedbugs/issue63489a.go)
 - [`fixedbugs/issue63489b.go`](testdata/fixedbugs/issue63489b.go)
+- [`fixedbugs/issue63657.go`](testdata/fixedbugs/issue63657.go)
 - [`fixedbugs/issue6405.go`](testdata/fixedbugs/issue6405.go)
 - [`fixedbugs/issue6406.go`](testdata/fixedbugs/issue6406.go)
+- [`fixedbugs/issue64715.go`](testdata/fixedbugs/issue64715.go)
 - [`fixedbugs/issue6500.go`](testdata/fixedbugs/issue6500.go)
 - [`fixedbugs/issue6572.go`](testdata/fixedbugs/issue6572.go)
+- [`fixedbugs/issue65962.go`](testdata/fixedbugs/issue65962.go)
+- [`fixedbugs/issue66066.go`](testdata/fixedbugs/issue66066.go)
+- [`fixedbugs/issue66066b.go`](testdata/fixedbugs/issue66066b.go)
+- [`fixedbugs/issue66261.go`](testdata/fixedbugs/issue66261.go)
+- [`fixedbugs/issue66575.go`](testdata/fixedbugs/issue66575.go)
+- [`fixedbugs/issue66585.go`](testdata/fixedbugs/issue66585.go)
 - [`fixedbugs/issue6671.go`](testdata/fixedbugs/issue6671.go)
 - [`fixedbugs/issue6703a.go`](testdata/fixedbugs/issue6703a.go)
 - [`fixedbugs/issue6703b.go`](testdata/fixedbugs/issue6703b.go)
@@ -608,57 +1322,166 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue6703x.go`](testdata/fixedbugs/issue6703x.go)
 - [`fixedbugs/issue6703y.go`](testdata/fixedbugs/issue6703y.go)
 - [`fixedbugs/issue6703z.go`](testdata/fixedbugs/issue6703z.go)
+- [`fixedbugs/issue67160.go`](testdata/fixedbugs/issue67160.go)
+- [`fixedbugs/issue67255.go`](testdata/fixedbugs/issue67255.go)
 - [`fixedbugs/issue6750.go`](testdata/fixedbugs/issue6750.go)
 - [`fixedbugs/issue6772.go`](testdata/fixedbugs/issue6772.go)
+- [`fixedbugs/issue68227.go`](testdata/fixedbugs/issue68227.go)
+- [`fixedbugs/issue68322.go`](testdata/fixedbugs/issue68322.go)
+- [`fixedbugs/issue68809.go`](testdata/fixedbugs/issue68809.go)
+- [`fixedbugs/issue68816.go`](testdata/fixedbugs/issue68816.go)
 - [`fixedbugs/issue6889.go`](testdata/fixedbugs/issue6889.go)
+- [`fixedbugs/issue6902.go`](testdata/fixedbugs/issue6902.go)
+- [`fixedbugs/issue69507.go`](testdata/fixedbugs/issue69507.go)
 - [`fixedbugs/issue6977.go`](testdata/fixedbugs/issue6977.go)
+- [`fixedbugs/issue70481.go`](testdata/fixedbugs/issue70481.go)
+- [`fixedbugs/issue7050.go`](testdata/fixedbugs/issue7050.go)
 - [`fixedbugs/issue7129.go`](testdata/fixedbugs/issue7129.go)
 - [`fixedbugs/issue7150.go`](testdata/fixedbugs/issue7150.go)
 - [`fixedbugs/issue7153.go`](testdata/fixedbugs/issue7153.go)
+- [`fixedbugs/issue71932.go`](testdata/fixedbugs/issue71932.go)
+- [`fixedbugs/issue72063.go`](testdata/fixedbugs/issue72063.go)
 - [`fixedbugs/issue7214.go`](testdata/fixedbugs/issue7214.go)
 - [`fixedbugs/issue7223.go`](testdata/fixedbugs/issue7223.go)
 - [`fixedbugs/issue7310.go`](testdata/fixedbugs/issue7310.go)
+- [`fixedbugs/issue7419.go`](testdata/fixedbugs/issue7419.go)
 - [`fixedbugs/issue7525b.go`](testdata/fixedbugs/issue7525b.go)
 - [`fixedbugs/issue7525c.go`](testdata/fixedbugs/issue7525c.go)
 - [`fixedbugs/issue7538a.go`](testdata/fixedbugs/issue7538a.go)
+- [`fixedbugs/issue7550.go`](testdata/fixedbugs/issue7550.go)
+- [`fixedbugs/issue7740.go`](testdata/fixedbugs/issue7740.go)
+- [`fixedbugs/issue7863.go`](testdata/fixedbugs/issue7863.go)
+- [`fixedbugs/issue7944.go`](testdata/fixedbugs/issue7944.go)
+- [`fixedbugs/issue7995.go`](testdata/fixedbugs/issue7995.go)
+- [`fixedbugs/issue8036.go`](testdata/fixedbugs/issue8036.go)
+- [`fixedbugs/issue8047.go`](testdata/fixedbugs/issue8047.go)
+- [`fixedbugs/issue8047b.go`](testdata/fixedbugs/issue8047b.go)
+- [`fixedbugs/issue8048.go`](testdata/fixedbugs/issue8048.go)
+- [`fixedbugs/issue8132.go`](testdata/fixedbugs/issue8132.go)
+- [`fixedbugs/issue8139.go`](testdata/fixedbugs/issue8139.go)
+- [`fixedbugs/issue8155.go`](testdata/fixedbugs/issue8155.go)
 - [`fixedbugs/issue8183.go`](testdata/fixedbugs/issue8183.go)
 - [`fixedbugs/issue8311.go`](testdata/fixedbugs/issue8311.go)
+- [`fixedbugs/issue8325.go`](testdata/fixedbugs/issue8325.go)
 - [`fixedbugs/issue8438.go`](testdata/fixedbugs/issue8438.go)
 - [`fixedbugs/issue8440.go`](testdata/fixedbugs/issue8440.go)
 - [`fixedbugs/issue8501.go`](testdata/fixedbugs/issue8501.go)
 - [`fixedbugs/issue8507.go`](testdata/fixedbugs/issue8507.go)
+- [`fixedbugs/issue8606.go`](testdata/fixedbugs/issue8606.go)
+- [`fixedbugs/issue8613.go`](testdata/fixedbugs/issue8613.go)
+- [`fixedbugs/issue8620.go`](testdata/fixedbugs/issue8620.go)
 - [`fixedbugs/issue8745.go`](testdata/fixedbugs/issue8745.go)
+- [`fixedbugs/issue8947.go`](testdata/fixedbugs/issue8947.go)
+- [`fixedbugs/issue8961.go`](testdata/fixedbugs/issue8961.go)
+- [`fixedbugs/issue9006.go`](testdata/fixedbugs/issue9006.go)
 - [`fixedbugs/issue9017.go`](testdata/fixedbugs/issue9017.go)
 - [`fixedbugs/issue9036.go`](testdata/fixedbugs/issue9036.go)
 - [`fixedbugs/issue9370.go`](testdata/fixedbugs/issue9370.go)
 - [`fixedbugs/issue9432.go`](testdata/fixedbugs/issue9432.go)
 - [`fixedbugs/issue9521.go`](testdata/fixedbugs/issue9521.go)
+- [`fixedbugs/issue9604.go`](testdata/fixedbugs/issue9604.go)
 - [`fixedbugs/issue9634.go`](testdata/fixedbugs/issue9634.go)
+- [`fixedbugs/issue9691.go`](testdata/fixedbugs/issue9691.go)
+- [`fixedbugs/issue9738.go`](testdata/fixedbugs/issue9738.go)
+- [`float_lit.go`](testdata/float_lit.go)
 - [`float_lit3.go`](testdata/float_lit3.go)
+- [`floatcmp.go`](testdata/floatcmp.go)
+- [`for.go`](testdata/for.go)
+- [`func.go`](testdata/func.go)
 - [`func1.go`](testdata/func1.go)
 - [`func3.go`](testdata/func3.go)
 - [`func4.go`](testdata/func4.go)
+- [`func6.go`](testdata/func6.go)
+- [`func7.go`](testdata/func7.go)
+- [`func8.go`](testdata/func8.go)
 - [`funcdup.go`](testdata/funcdup.go)
 - [`funcdup2.go`](testdata/funcdup2.go)
+- [`gc.go`](testdata/gc.go)
+- [`gc1.go`](testdata/gc1.go)
+- [`gcstring.go`](testdata/gcstring.go)
 - [`gno/optin_canary.gno`](testdata/gno/optin_canary.gno)
+- [`heapsampling.go`](testdata/heapsampling.go)
+- [`helloworld.go`](testdata/helloworld.go)
+- [`if.go`](testdata/if.go)
 - [`import5.go`](testdata/import5.go)
 - [`import6.go`](testdata/import6.go)
+- [`indirect.go`](testdata/indirect.go)
 - [`indirect1.go`](testdata/indirect1.go)
 - [`init.go`](testdata/init.go)
+- [`initcomma.go`](testdata/initcomma.go)
 - [`initexp.go`](testdata/initexp.go)
 - [`initializerr.go`](testdata/initializerr.go)
+- [`int_lit.go`](testdata/int_lit.go)
+- [`intcvt.go`](testdata/intcvt.go)
+- [`interface/convert1.go`](testdata/interface/convert1.go)
+- [`interface/convert2.go`](testdata/interface/convert2.go)
+- [`interface/embed.go`](testdata/interface/embed.go)
 - [`interface/embed2.go`](testdata/interface/embed2.go)
 - [`interface/explicit.go`](testdata/interface/explicit.go)
+- [`interface/fail.go`](testdata/interface/fail.go)
+- [`interface/noeq.go`](testdata/interface/noeq.go)
 - [`interface/pointer.go`](testdata/interface/pointer.go)
+- [`interface/receiver.go`](testdata/interface/receiver.go)
 - [`interface/receiver1.go`](testdata/interface/receiver1.go)
+- [`interface/returntype.go`](testdata/interface/returntype.go)
+- [`interface/struct.go`](testdata/interface/struct.go)
+- [`iota.go`](testdata/iota.go)
+- [`ken/array.go`](testdata/ken/array.go)
+- [`ken/complit.go`](testdata/ken/complit.go)
+- [`ken/convert.go`](testdata/ken/convert.go)
+- [`ken/cplx1.go`](testdata/ken/cplx1.go)
+- [`ken/cplx4.go`](testdata/ken/cplx4.go)
+- [`ken/divconst.go`](testdata/ken/divconst.go)
+- [`ken/embed.go`](testdata/ken/embed.go)
+- [`ken/for.go`](testdata/ken/for.go)
+- [`ken/interbasic.go`](testdata/ken/interbasic.go)
+- [`ken/interfun.go`](testdata/ken/interfun.go)
+- [`ken/intervar.go`](testdata/ken/intervar.go)
+- [`ken/label.go`](testdata/ken/label.go)
+- [`ken/litfun.go`](testdata/ken/litfun.go)
+- [`ken/mfunc.go`](testdata/ken/mfunc.go)
+- [`ken/modconst.go`](testdata/ken/modconst.go)
+- [`ken/ptrfun.go`](testdata/ken/ptrfun.go)
+- [`ken/ptrvar.go`](testdata/ken/ptrvar.go)
+- [`ken/range.go`](testdata/ken/range.go)
+- [`ken/rob1.go`](testdata/ken/rob1.go)
+- [`ken/rob2.go`](testdata/ken/rob2.go)
+- [`ken/robfor.go`](testdata/ken/robfor.go)
+- [`ken/robfunc.go`](testdata/ken/robfunc.go)
+- [`ken/shift.go`](testdata/ken/shift.go)
+- [`ken/simparray.go`](testdata/ken/simparray.go)
+- [`ken/simpbool.go`](testdata/ken/simpbool.go)
+- [`ken/simpconv.go`](testdata/ken/simpconv.go)
+- [`ken/simpfun.go`](testdata/ken/simpfun.go)
+- [`ken/simpswitch.go`](testdata/ken/simpswitch.go)
+- [`ken/simpvar.go`](testdata/ken/simpvar.go)
+- [`ken/slicearray.go`](testdata/ken/slicearray.go)
+- [`ken/sliceslice.go`](testdata/ken/sliceslice.go)
+- [`ken/strvar.go`](testdata/ken/strvar.go)
 - [`label.go`](testdata/label.go)
 - [`label1.go`](testdata/label1.go)
+- [`literal.go`](testdata/literal.go)
 - [`makemap.go`](testdata/makemap.go)
 - [`makenew.go`](testdata/makenew.go)
+- [`mallocfin.go`](testdata/mallocfin.go)
+- [`map.go`](testdata/map.go)
+- [`mapclear.go`](testdata/mapclear.go)
+- [`maplinear.go`](testdata/maplinear.go)
+- [`method.go`](testdata/method.go)
 - [`method1.go`](testdata/method1.go)
 - [`method2.go`](testdata/method2.go)
+- [`method3.go`](testdata/method3.go)
+- [`method5.go`](testdata/method5.go)
 - [`method6.go`](testdata/method6.go)
+- [`method7.go`](testdata/method7.go)
+- [`nilptr2.go`](testdata/nilptr2.go)
+- [`peano.go`](testdata/peano.go)
+- [`printbig.go`](testdata/printbig.go)
 - [`range2.go`](testdata/range2.go)
+- [`range3.go`](testdata/range3.go)
+- [`recover1.go`](testdata/recover1.go)
+- [`recover2.go`](testdata/recover2.go)
+- [`recover3.go`](testdata/recover3.go)
 - [`recover5.go`](testdata/recover5.go)
 - [`run/alias1.go`](testdata/run/alias1.go)
 - [`run/canary.go`](testdata/run/canary.go)
@@ -666,7 +1489,13 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`run/compos.go`](testdata/run/compos.go)
 - [`run/defer.go`](testdata/run/defer.go)
 - [`runtime.go`](testdata/runtime.go)
+- [`simassign.go`](testdata/simassign.go)
 - [`slice3err.go`](testdata/slice3err.go)
+- [`stackobj.go`](testdata/stackobj.go)
+- [`stackobj2.go`](testdata/stackobj2.go)
+- [`stackobj3.go`](testdata/stackobj3.go)
+- [`string_lit.go`](testdata/string_lit.go)
+- [`stringrange.go`](testdata/stringrange.go)
 - [`switch2.go`](testdata/switch2.go)
 - [`switch3.go`](testdata/switch3.go)
 - [`switch4.go`](testdata/switch4.go)
@@ -689,13 +1518,128 @@ Gno's per-line behavior is pinned and matches; no outstanding issue.
 - [`syntax/typesw.go`](testdata/syntax/typesw.go)
 - [`syntax/vareq.go`](testdata/syntax/vareq.go)
 - [`syntax/vareq1.go`](testdata/syntax/vareq1.go)
+- [`turing.go`](testdata/turing.go)
 - [`typecheck.go`](testdata/typecheck.go)
 - [`typecheckloop.go`](testdata/typecheckloop.go)
+- [`typeparam/absdiff.go`](testdata/typeparam/absdiff.go)
+- [`typeparam/absdiff2.go`](testdata/typeparam/absdiff2.go)
+- [`typeparam/absdiff3.go`](testdata/typeparam/absdiff3.go)
+- [`typeparam/adder.go`](testdata/typeparam/adder.go)
+- [`typeparam/combine.go`](testdata/typeparam/combine.go)
+- [`typeparam/cons.go`](testdata/typeparam/cons.go)
+- [`typeparam/devirtualize1.go`](testdata/typeparam/devirtualize1.go)
+- [`typeparam/devirtualize2.go`](testdata/typeparam/devirtualize2.go)
+- [`typeparam/dictionaryCapture.go`](testdata/typeparam/dictionaryCapture.go)
+- [`typeparam/double.go`](testdata/typeparam/double.go)
+- [`typeparam/eface.go`](testdata/typeparam/eface.go)
+- [`typeparam/equal.go`](testdata/typeparam/equal.go)
+- [`typeparam/fact.go`](testdata/typeparam/fact.go)
+- [`typeparam/genembed.go`](testdata/typeparam/genembed.go)
+- [`typeparam/graph.go`](testdata/typeparam/graph.go)
+- [`typeparam/ifaceconv.go`](testdata/typeparam/ifaceconv.go)
+- [`typeparam/index.go`](testdata/typeparam/index.go)
+- [`typeparam/index2.go`](testdata/typeparam/index2.go)
+- [`typeparam/interfacearg.go`](testdata/typeparam/interfacearg.go)
+- [`typeparam/issue23536.go`](testdata/typeparam/issue23536.go)
+- [`typeparam/issue376214.go`](testdata/typeparam/issue376214.go)
+- [`typeparam/issue42758.go`](testdata/typeparam/issue42758.go)
+- [`typeparam/issue44688.go`](testdata/typeparam/issue44688.go)
+- [`typeparam/issue45817.go`](testdata/typeparam/issue45817.go)
+- [`typeparam/issue46472.go`](testdata/typeparam/issue46472.go)
+- [`typeparam/issue46591.go`](testdata/typeparam/issue46591.go)
+- [`typeparam/issue47258.go`](testdata/typeparam/issue47258.go)
+- [`typeparam/issue47514.go`](testdata/typeparam/issue47514.go)
+- [`typeparam/issue47514b.go`](testdata/typeparam/issue47514b.go)
+- [`typeparam/issue47676.go`](testdata/typeparam/issue47676.go)
+- [`typeparam/issue47684.go`](testdata/typeparam/issue47684.go)
+- [`typeparam/issue47684b.go`](testdata/typeparam/issue47684b.go)
+- [`typeparam/issue47684c.go`](testdata/typeparam/issue47684c.go)
+- [`typeparam/issue47708.go`](testdata/typeparam/issue47708.go)
+- [`typeparam/issue47723.go`](testdata/typeparam/issue47723.go)
+- [`typeparam/issue47740.go`](testdata/typeparam/issue47740.go)
+- [`typeparam/issue47775b.go`](testdata/typeparam/issue47775b.go)
+- [`typeparam/issue47877.go`](testdata/typeparam/issue47877.go)
+- [`typeparam/issue47925.go`](testdata/typeparam/issue47925.go)
+- [`typeparam/issue47925b.go`](testdata/typeparam/issue47925b.go)
+- [`typeparam/issue47925c.go`](testdata/typeparam/issue47925c.go)
+- [`typeparam/issue47925d.go`](testdata/typeparam/issue47925d.go)
+- [`typeparam/issue48016.go`](testdata/typeparam/issue48016.go)
+- [`typeparam/issue48030.go`](testdata/typeparam/issue48030.go)
+- [`typeparam/issue48047.go`](testdata/typeparam/issue48047.go)
+- [`typeparam/issue48049.go`](testdata/typeparam/issue48049.go)
+- [`typeparam/issue48137.go`](testdata/typeparam/issue48137.go)
+- [`typeparam/issue48276b.go`](testdata/typeparam/issue48276b.go)
+- [`typeparam/issue48318.go`](testdata/typeparam/issue48318.go)
+- [`typeparam/issue48344.go`](testdata/typeparam/issue48344.go)
+- [`typeparam/issue48424.go`](testdata/typeparam/issue48424.go)
+- [`typeparam/issue48453.go`](testdata/typeparam/issue48453.go)
+- [`typeparam/issue48598.go`](testdata/typeparam/issue48598.go)
+- [`typeparam/issue48602.go`](testdata/typeparam/issue48602.go)
+- [`typeparam/issue48617.go`](testdata/typeparam/issue48617.go)
+- [`typeparam/issue48645b.go`](testdata/typeparam/issue48645b.go)
+- [`typeparam/issue48838.go`](testdata/typeparam/issue48838.go)
+- [`typeparam/issue49049.go`](testdata/typeparam/issue49049.go)
+- [`typeparam/issue49295.go`](testdata/typeparam/issue49295.go)
+- [`typeparam/issue49309.go`](testdata/typeparam/issue49309.go)
+- [`typeparam/issue49421.go`](testdata/typeparam/issue49421.go)
+- [`typeparam/issue49547.go`](testdata/typeparam/issue49547.go)
+- [`typeparam/issue49659b.go`](testdata/typeparam/issue49659b.go)
+- [`typeparam/issue50002.go`](testdata/typeparam/issue50002.go)
+- [`typeparam/issue50109b.go`](testdata/typeparam/issue50109b.go)
+- [`typeparam/issue50264.go`](testdata/typeparam/issue50264.go)
+- [`typeparam/issue50417.go`](testdata/typeparam/issue50417.go)
+- [`typeparam/issue50417b.go`](testdata/typeparam/issue50417b.go)
+- [`typeparam/issue50419.go`](testdata/typeparam/issue50419.go)
+- [`typeparam/issue50642.go`](testdata/typeparam/issue50642.go)
+- [`typeparam/issue50833.go`](testdata/typeparam/issue50833.go)
 - [`typeparam/issue51232.go`](testdata/typeparam/issue51232.go)
 - [`typeparam/issue51233.go`](testdata/typeparam/issue51233.go)
+- [`typeparam/issue51236.go`](testdata/typeparam/issue51236.go)
+- [`typeparam/issue51521.go`](testdata/typeparam/issue51521.go)
+- [`typeparam/issue51522a.go`](testdata/typeparam/issue51522a.go)
+- [`typeparam/issue51522b.go`](testdata/typeparam/issue51522b.go)
+- [`typeparam/issue51700.go`](testdata/typeparam/issue51700.go)
+- [`typeparam/issue52026.go`](testdata/typeparam/issue52026.go)
+- [`typeparam/issue52228.go`](testdata/typeparam/issue52228.go)
+- [`typeparam/issue53087.go`](testdata/typeparam/issue53087.go)
+- [`typeparam/issue53419.go`](testdata/typeparam/issue53419.go)
+- [`typeparam/issue53477.go`](testdata/typeparam/issue53477.go)
+- [`typeparam/issue54135.go`](testdata/typeparam/issue54135.go)
+- [`typeparam/issue54225.go`](testdata/typeparam/issue54225.go)
+- [`typeparam/issue54535.go`](testdata/typeparam/issue54535.go)
+- [`typeparam/issue54537.go`](testdata/typeparam/issue54537.go)
+- [`typeparam/issue58513.go`](testdata/typeparam/issue58513.go)
+- [`typeparam/list.go`](testdata/typeparam/list.go)
+- [`typeparam/list2.go`](testdata/typeparam/list2.go)
+- [`typeparam/maps.go`](testdata/typeparam/maps.go)
+- [`typeparam/mdempsky/13.go`](testdata/typeparam/mdempsky/13.go)
+- [`typeparam/mdempsky/14.go`](testdata/typeparam/mdempsky/14.go)
+- [`typeparam/mdempsky/16.go`](testdata/typeparam/mdempsky/16.go)
+- [`typeparam/mdempsky/17.go`](testdata/typeparam/mdempsky/17.go)
+- [`typeparam/mdempsky/19.go`](testdata/typeparam/mdempsky/19.go)
+- [`typeparam/mdempsky/20.go`](testdata/typeparam/mdempsky/20.go)
+- [`typeparam/mdempsky/21.go`](testdata/typeparam/mdempsky/21.go)
+- [`typeparam/metrics.go`](testdata/typeparam/metrics.go)
+- [`typeparam/min.go`](testdata/typeparam/min.go)
+- [`typeparam/ordered.go`](testdata/typeparam/ordered.go)
+- [`typeparam/orderedmap.go`](testdata/typeparam/orderedmap.go)
+- [`typeparam/pair.go`](testdata/typeparam/pair.go)
+- [`typeparam/sets.go`](testdata/typeparam/sets.go)
+- [`typeparam/settable.go`](testdata/typeparam/settable.go)
+- [`typeparam/slices.go`](testdata/typeparam/slices.go)
+- [`typeparam/smallest.go`](testdata/typeparam/smallest.go)
+- [`typeparam/stringable.go`](testdata/typeparam/stringable.go)
+- [`typeparam/struct.go`](testdata/typeparam/struct.go)
+- [`typeparam/subdict.go`](testdata/typeparam/subdict.go)
+- [`typeparam/sum.go`](testdata/typeparam/sum.go)
 - [`typeparam/tparam1.go`](testdata/typeparam/tparam1.go)
+- [`typeparam/value.go`](testdata/typeparam/value.go)
+- [`typeswitch1.go`](testdata/typeswitch1.go)
 - [`typeswitch2b.go`](testdata/typeswitch2b.go)
 - [`typeswitch3.go`](testdata/typeswitch3.go)
 - [`uintptrkeepalive.go`](testdata/uintptrkeepalive.go)
 - [`undef.go`](testdata/undef.go)
+- [`utf.go`](testdata/utf.go)
 - [`varerr.go`](testdata/varerr.go)
+- [`varinit.go`](testdata/varinit.go)
+- [`zerodivide.go`](testdata/zerodivide.go)
