@@ -377,6 +377,42 @@ func errorForLine(errSegs, tcSegs []string, gnoLine int, marker *InlineError) st
 	return ""
 }
 
+// featureGapErrors maps Gno error-message fragments to a short
+// feature-gap reason. Matched against Gno's ACTUAL preprocess error
+// (not the source text) so it can't false-positive on the word "go"
+// in a comment or a "chan" in a string — these are the messages Gno
+// emits when it hits a Go feature it doesn't implement. Ported from
+// gno-go-conformance's internal/classify feature-gap cases.
+var featureGapErrors = []struct {
+	fragment string
+	reason   string
+}{
+	{"channels are not permitted", "channels not supported in Gno"},
+	{"goroutines are not permitted", "goroutines not supported in Gno"},
+	{"imaginaries are not supported", "imaginary literals not supported in Gno"},
+	{"dot imports not allowed", "dot imports not supported in Gno"},
+	{"builtin identifiers cannot be shadowed", "builtin shadowing not supported in Gno"},
+	{"type parameter", "generics not supported in Gno"},
+	{"unknown Go type", "unsupported Go type in Gno"},
+}
+
+// UnsupportedFeatureError returns a feature-gap reason if errStr is one
+// of Gno's "feature not implemented" messages (channels, goroutines,
+// generics, …), or "" otherwise. Also recognizes "unknown import path
+// <pkg>" — a stdlib the Gno test context lacks. Used to route such
+// files to `// Unsupported:` instead of `// KnownIssue:`.
+func UnsupportedFeatureError(errStr string) string {
+	if imp := UnsupportedImport(errStr); imp != "" {
+		return "unknown import path " + imp
+	}
+	for _, g := range featureGapErrors {
+		if strings.Contains(errStr, g.fragment) {
+			return g.reason
+		}
+	}
+	return ""
+}
+
 // reUnknownImport matches Gno's "unknown import path <path>" error,
 // capturing the import path.
 var reUnknownImport = regexp.MustCompile(`unknown import path ([^\s;]+)`)

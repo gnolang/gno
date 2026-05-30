@@ -246,6 +246,23 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// RUN THE FILETEST /////////////////////////////////////
 	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
+	// Feature gap: a .go corpus file whose Gno error is a "feature not
+	// implemented" message (channels, goroutines, generics, imaginary
+	// literals, dot imports, …) or an unsupported stdlib import — Gno
+	// can't process it at all, so route to `// Unsupported:` (skip)
+	// rather than letting it fail or land in KnownIssue. Detected from
+	// Gno's ACTUAL error, so prose like "go to" in a comment can't trip
+	// it. Auto-written under sync; thereafter skipped pre-dispatch.
+	if isGoFile {
+		if reason := UnsupportedFeatureError(result.Error); reason != "" {
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason),
+					m.GasMeter.GasConsumed(), nil
+			}
+			return "", m.GasMeter.GasConsumed(), &SkipError{Reason: reason}
+		}
+	}
+
 	// updated tells whether the directives have been mutated and the
 	// regenerated filetest should be returned (only true under
 	// opts.Sync). Declared here so the errorcheck short-circuit below
@@ -273,18 +290,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			result, source, fname, pkgPath, errorcheckMarkers,
 			prependedLines, tgs, tcheck)
 		gas := m.GasMeter.GasConsumed()
-
-		// Unsupported-import gap: Gno bails because it lacks the stdlib
-		// package (unsafe, syscall, net/http, …). That's a feature gap,
-		// not an over-strict bug, and Gno can't process the file at all
-		// — route to `// Unsupported:` (skip) rather than `// KnownIssue:`.
-		if imp := UnsupportedImport(result.Error); imp != "" {
-			reason := "unknown import path " + imp
-			if opts.Sync {
-				return writeUnsupportedDirective(originalSource, reason), gas, nil
-			}
-			return "", gas, &SkipError{Reason: reason}
-		}
 
 		if len(gnoErrLines) == 0 && len(goTCLines) == 0 {
 			return "", gas, fmt.Errorf(
