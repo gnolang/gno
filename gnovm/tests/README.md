@@ -197,9 +197,21 @@ Escape hatches:
   future runnable variant (valid `package main` + declarations) that
   would exercise the unreached markers.
 
+  **Manual `// Unsupported:` override.** A hand-added `// Unsupported:`
+  directive takes precedence over all of the above — it's checked
+  pre-dispatch, so the file is skipped before any golden/KnownIssue
+  logic runs, and it survives `--update-golden-tests` (the early skip
+  never rewrites the file). Use it when a file's markers are
+  fundamentally untestable even if Gno's own errors were fixed — e.g.
+  gc liveness/codegen (`-live`) tests, whose markers aren't type errors
+  so neither Gno nor the go/types guard can check them. (Replace any
+  auto-written blocks with the directive when overriding.)
+
 Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`. The
 208 migrated "known divergence" errorcheck files live at their upstream
-corpus paths under `gocorpus/testdata/` (`fixedbugs/`, `syntax/`, …).
+corpus paths under `gocorpus/testdata/` (`fixedbugs/`, `syntax/`, …). A
+per-file ledger bucketed by priority is in `gocorpus/MIGRATION.md`
+(regenerate with `gocorpus/gen_ledger.sh`).
 
 Notes:
 - Go-corpus directives (`// run`, `// errorcheck`, `// compile`, …)

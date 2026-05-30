@@ -8,14 +8,14 @@ do not edit by hand; re-run after `--update-golden-tests`.
 
 | Bucket | Count | Meaning |
 |---|--:|---|
-| **KnownIssue** | 27 | Gno over-strict — rejects code gc *and* go/types accept (real bug to fix) |
+| **KnownIssue** | 26 | Gno over-strict — rejects code gc *and* go/types accept (real bug to fix) |
 | GnoIncomplete | 7 | Gno bailed before covering every marker (needs a runnable variant) |
 | Divergence | 1 | blessed Gno-vs-Go run-mode divergence |
-| Unsupported | 25 | feature gap (unsupported import / language feature); skipped |
+| Unsupported | 26 | feature gap (unsupported import / language feature); skipped |
 | Clean | 166 | verified, no outstanding issue |
 | **Total migrated** | 226 | |
 
-## 🔴 KnownIssue — real Gno bugs (fix these first) (27)
+## 🔴 KnownIssue — real Gno bugs (fix these first) (26)
 
 Gno rejects code that both gc (markers) and the go/types guard accept. Each note is Gno's over-strict error.
 
@@ -44,7 +44,6 @@ Gno rejects code that both gc (markers) and the go/types guard accept. Each note
 - [`fixedbugs/issue6402.go`](testdata/fixedbugs/issue6402.go) — line 11: 2: name uintptr not defined in fileset with files [issue6402.go]
 - [`fixedbugs/issue7675.go`](testdata/fixedbugs/issue7675.go) — line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`initloop.go`](testdata/initloop.go) — line 13: invalid recursive value: x -> a -> b -> c -> a
-- [`live2.go`](testdata/live2.go) — line 14: function printnl does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`switch7.go`](testdata/switch7.go) — line 16: 3: duplicate type int in type switch
 
 ## 🟠 GnoIncomplete — partial coverage (7)
@@ -65,7 +64,7 @@ Gno's output legitimately differs from Go's; pinned and blessed.
 
 - [`run/divergence_panic.go`](testdata/run/divergence_panic.go) — error-wording: same kind of out-of-range panic, different wording in the recovered value.
 
-## ⚪ Unsupported — feature gaps (skipped) (25)
+## ⚪ Unsupported — feature gaps (skipped) (26)
 
 Gno can't process the file (unsupported import or language feature). Skipped via t.Skip.
 
@@ -92,6 +91,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue7525d.go`](testdata/fixedbugs/issue7525d.go) — unknown import path unsafe
 - [`fixedbugs/issue7525e.go`](testdata/fixedbugs/issue7525e.go) — unknown import path unsafe
 - [`fixedbugs/issue7760.go`](testdata/fixedbugs/issue7760.go) — unknown import path unsafe
+- [`live2.go`](testdata/live2.go) — gc liveness/codegen analysis (-live) — the markers aren't type errors, so neither Gno nor the go/types guard can test them (even once the bodyless-func rejection at line 14 is fixed).
 - [`run/235.go`](testdata/run/235.go) — goroutines not supported in Gno
 - [`run/unsupported_canary.go`](testdata/run/unsupported_canary.go) — channels not supported in Gno
 

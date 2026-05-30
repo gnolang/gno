@@ -40,7 +40,4 @@ func good40() {
 	useT40(t)
 }
 
-// GnoIncomplete: covered 0 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// KnownIssue:
-// line 14: function printnl does not have a body but is not natively defined (did you build after pulling from the repository?)
+// Unsupported: gc liveness/codegen analysis (-live) — the markers aren't type errors, so neither Gno nor the go/types guard can test them (even once the bodyless-func rejection at line 14 is fixed).
