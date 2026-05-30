@@ -94,12 +94,27 @@ func ParseInlineErrors(source []byte) []InlineError {
 		if idx < 0 {
 			continue
 		}
-		// Skip doc-comment lines: an `// ERROR "..."` inside narrative
-		// prose is not a real marker. Detect by checking that the
-		// content before the marker is non-empty after stripping
-		// leading whitespace — a real marker is preceded by code.
-		if strings.HasPrefix(strings.TrimLeft(text, " \t"), "//") {
-			continue
+		// Distinguish a real marker from an `// ERROR "..."` mentioned
+		// in narrative prose. Markers come in two valid shapes:
+		//   - trailing a line of code:  `_ = x // ERROR "..."`
+		//   - on its own comment line:  `// ERROR "..."` (used with
+		//     //line remapping, e.g. fixedbugs/bug305.go)
+		// A prose mention (e.g. a doc comment that says "a `// ERROR
+		// \"regex\"` marker …") has other text before the marker on a
+		// comment line. So: if the line is a pure comment, accept it
+		// only when the marker is the FIRST token after `//`.
+		trimmed := strings.TrimLeft(text, " \t")
+		if strings.HasPrefix(trimmed, "//") {
+			isMarkerStart := false
+			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+				if strings.HasPrefix(trimmed, p) {
+					isMarkerStart = true
+					break
+				}
+			}
+			if !isMarkerStart {
+				continue
+			}
 		}
 		patterns := extractQuotedStrings(text[idx:])
 		out = append(out, InlineError{Line: lineNo, Patterns: patterns})

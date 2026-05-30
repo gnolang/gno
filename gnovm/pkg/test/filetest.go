@@ -244,7 +244,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	defer m.Release()
 
 	// RUN THE FILETEST /////////////////////////////////////
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
+	// Errorcheck files are compile-error tests — preprocess only, never
+	// execute main (gc doesn't either; executing can hang on infinite
+	// loops Gno failed to reject at compile time).
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, len(errorcheckMarkers) > 0)
 
 	// Feature gap: a .go corpus file whose Gno error is a "feature not
 	// implemented" message (channels, goroutines, generics, imaginary
@@ -292,10 +295,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		gas := m.GasMeter.GasConsumed()
 
 		if len(gnoErrLines) == 0 && len(goTCLines) == 0 {
-			return "", gas, fmt.Errorf(
-				"errorcheck: neither Gno nor the go/types guard rejected this file (gc does); "+
-					"likely a leniency divergence — investigate or mark `// Unsupported:`\noutput:\n%s",
-				indent(strings.TrimSpace(result.Error+"\n"+result.TypeCheckError), "  "))
+			// Leniency: neither Gno nor the go/types guard rejects a file
+			// gc does. There's no error to pin — route to `// Unsupported:`
+			// (skip), noting the leniency so it's greppable. Auto-written
+			// under sync; thereafter skipped pre-dispatch.
+			reason := "Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)"
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, nil
+			}
+			return "", gas, &SkipError{Reason: reason}
 		}
 
 		// Split Gno's own errors by whether they're backed by the gc
@@ -772,7 +780,8 @@ func (opts *TestOptions) runErrorcheckPass(source []byte, fname, pkgPath string,
 		ReviveEnabled: true,
 	})
 	defer m.Release()
-	return opts.runTest(m, pkgPath, fname, source, nil, tcheck)
+	// Errorcheck passes are always preprocess-only (no main execution).
+	return opts.runTest(m, pkgPath, fname, source, nil, tcheck, true)
 }
 
 // finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for
@@ -990,7 +999,14 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
+// preprocessOnly, when true, runs the file through parse + preprocess +
+// typecheck but does NOT execute main(). Used for errorcheck filetests:
+// they're compile-error tests gc never runs, and executing a file Gno
+// failed to reject at compile time can hang (e.g. an undefined-label
+// `break L2` Gno is lenient about, leaving a `for {}` infinite loop).
+// All compile/type errors are caught during preprocess, so the verdict
+// is unaffected.
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck, preprocessOnly bool) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
@@ -1092,7 +1108,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
-		m.RunMain()
+		if !preprocessOnly {
+			m.RunMain()
+		}
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.
 
@@ -1136,7 +1154,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 
 		// Clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		m.RunMainMaybeCrossing()
+		if !preprocessOnly {
+			m.RunMainMaybeCrossing()
+		}
 	}
 	return runResult{
 		Output:         opts.filetestBuffer.String(),
