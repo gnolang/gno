@@ -1860,6 +1860,22 @@ func negateClass(r []rune) []rune {
 	return r
 }
 
+// inCharClass reports whether r is in the class.
+// It assumes the class has been cleaned by cleanClass.
+func inCharClass(r rune, class []rune) bool {
+	_, ok := sort.Find(len(class)/2, func(i int) int {
+		lo, hi := class[2*i], class[2*i+1]
+		if r > hi {
+			return +1
+		}
+		if r < lo {
+			return -1
+		}
+		return 0
+	})
+	return ok
+}
+
 // ranges implements sort.Interface on a []rune.
 // The choice of receiver type definition is strange
 // but avoids an allocation since we already have
