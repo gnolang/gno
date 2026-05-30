@@ -317,7 +317,7 @@ func TestMaxBlocksPerRender(t *testing.T) {
 	// Surfaces gnoweb's per-render foreign-block cap to realms via the
 	// chain/markdown native. Pin the contract value; bump here if the
 	// renderer cap changes.
-	if got := MaxBlocksPerRender(); got != 100 {
-		t.Errorf("MaxBlocksPerRender() = %d, want 100", got)
+	if got := MaxBlocksPerRender(); got != 256 {
+		t.Errorf("MaxBlocksPerRender() = %d, want 256", got)
 	}
 }

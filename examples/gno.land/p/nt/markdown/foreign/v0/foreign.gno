@@ -63,7 +63,7 @@ import (
 //     preceding paragraph instead of opening a sandbox.
 //
 // The renderer caps cross-family nesting at 4 levels and per-Convert
-// foreign blocks at 100. Beyond those caps, the opener falls through
+// foreign blocks at 256. Beyond those caps, the opener falls through
 // to raw HTML and is stripped by the renderer's safe mode.
 func Foreign(body string) string {
 	return wrapForeign("", body)
