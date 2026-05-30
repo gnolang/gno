@@ -428,6 +428,29 @@ func UnsupportedFeatureError(errStr string) string {
 	return ""
 }
 
+// nondeterministicMarkers are substrings whose presence in a run-mode
+// program's output means it can't have a stable golden: runtime panic
+// dumps (addresses, signals, goroutine traces) and the harness temp
+// path that `go run` echoes for tests probing their own file/line.
+var nondeterministicMarkers = []string{
+	"signal SIGSEGV", "signal SIGABRT", "signal SIGBUS",
+	"pc=0x", "[signal ", "goroutine 1 [running]",
+	"gno-filetest-go-", // harness temp dir leaked into output
+}
+
+// NondeterministicOutput reports whether out contains a marker that
+// makes it non-reproducible (panic addresses, goroutine dumps, the
+// harness temp path). Such run-mode files are routed to
+// `// Unsupported:` since neither side's output can be pinned.
+func NondeterministicOutput(out string) string {
+	for _, m := range nondeterministicMarkers {
+		if strings.Contains(out, m) {
+			return "non-deterministic runtime output (" + m + ")"
+		}
+	}
+	return ""
+}
+
 // reUnknownImport matches Gno's "unknown import path <path>" error,
 // capturing the import path.
 var reUnknownImport = regexp.MustCompile(`unknown import path ([^\s;]+)`)

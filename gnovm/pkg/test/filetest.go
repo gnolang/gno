@@ -257,7 +257,19 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Gno's ACTUAL error, so prose like "go to" in a comment can't trip
 	// it. Auto-written under sync; thereafter skipped pre-dispatch.
 	if isGoFile {
-		if reason := UnsupportedFeatureError(result.Error); reason != "" {
+		reason := UnsupportedFeatureError(result.Error)
+		// Run-mode programs whose output is non-reproducible (panic
+		// addresses, goroutine dumps, or the harness temp path the
+		// program prints when probing its own file/line) can't have a
+		// stable golden either — route them to `// Unsupported:` too.
+		if reason == "" && isGoRunMode {
+			if r := NondeterministicOutput(goStdout); r != "" {
+				reason = r
+			} else if r := NondeterministicOutput(result.Output); r != "" {
+				reason = r
+			}
+		}
+		if reason != "" {
 			if opts.Sync {
 				return writeUnsupportedDirective(originalSource, reason),
 					m.GasMeter.GasConsumed(), nil
