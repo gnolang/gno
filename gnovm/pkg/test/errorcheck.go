@@ -469,6 +469,51 @@ func UnsupportedImport(errStr string) string {
 	return m[1]
 }
 
+// CorpusDirective returns the gc test directive word on source's first
+// line ("compile", "run", "errorcheck", …) with any flags stripped, or
+// "" if the first line isn't a recognized directive. Used to route a
+// `// compile` file to compile-mode regardless of whether it happens to
+// be runnable (gc compiles but never runs it).
+func CorpusDirective(source []byte) string {
+	first := source
+	if nl := bytes.IndexByte(source, '\n'); nl >= 0 {
+		first = source[:nl]
+	}
+	s := strings.TrimSpace(string(first))
+	if !strings.HasPrefix(s, "//") {
+		return ""
+	}
+	s = strings.TrimSpace(s[2:])
+	if i := strings.IndexAny(s, " \t"); i >= 0 {
+		s = s[:i]
+	}
+	switch s {
+	case "compile", "run", "errorcheck", "build",
+		"compiledir", "rundir", "errorcheckdir", "runoutput", "errorcheckoutput", "asmcheck":
+		return s
+	}
+	return ""
+}
+
+// PerLineErrors maps source line → cleaned message for each `; `-segment
+// in errStr that carries a position, adjusting Gno's line numbers by
+// prependedLines (the PKGPATH-rescue offset). Used by compile-mode to
+// pin Gno / go/types errors per line.
+func PerLineErrors(errStr string, prependedLines int) map[int]string {
+	out := make(map[int]string)
+	for _, seg := range gnoErrSegments(errStr) {
+		gnoLine := ExtractErrorLine(seg)
+		if gnoLine == 0 || internalNoise(seg) {
+			continue
+		}
+		src := gnoLine - prependedLines
+		if _, ok := out[src]; !ok {
+			out[src] = CleanErrorMessage(seg)
+		}
+	}
+	return out
+}
+
 // segHasLine reports whether any segment is keyed on gnoLine (i.e.
 // contains a `:<gnoLine>:` position).
 func segHasLine(segs []string, gnoLine int) bool {

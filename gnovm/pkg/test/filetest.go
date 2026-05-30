@@ -156,12 +156,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		return nil
 	}
+	compileMode := false
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			errorcheckMarkers = ParseInlineErrors(source)
+			if err := prependRescue(); err != nil {
+				return "", 0, err
+			}
+		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
+			// `// compile`: gc compiles but never runs it. Preprocess
+			// only (regardless of whether it's runnable) and check that
+			// Gno + go/types accept it. Takes precedence over run-mode.
+			compileMode = true
 			if err := prependRescue(); err != nil {
 				return "", 0, err
 			}
@@ -244,10 +253,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	defer m.Release()
 
 	// RUN THE FILETEST /////////////////////////////////////
-	// Errorcheck files are compile-error tests — preprocess only, never
-	// execute main (gc doesn't either; executing can hang on infinite
-	// loops Gno failed to reject at compile time).
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, len(errorcheckMarkers) > 0)
+	// Errorcheck and compile files are not executed (gc doesn't run
+	// them; executing can hang on infinite loops Gno fails to reject) —
+	// preprocess only.
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, len(errorcheckMarkers) > 0 || compileMode)
 
 	// Feature gap: a .go corpus file whose Gno error is a "feature not
 	// implemented" message (channels, goroutines, generics, imaginary
@@ -276,6 +285,30 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), &SkipError{Reason: reason}
 		}
+	}
+
+	// Compile-mode short-circuit. gc compiles `// compile` files with no
+	// errors expected, so any error is a divergence:
+	//   - Gno preprocess error → `// KnownIssue:` (Gno rejects code gc
+	//     compiles — over-strict; feature gaps were already routed to
+	//     Unsupported above).
+	//   - go/types error → `// GoTypeCheckError:` (the guard rejects code
+	//     gc compiles — production-shielded, since gno.land's deploy gate
+	//     runs go/types ahead of preprocess anyway).
+	//   - both clean → PASS (Gno compiles it like gc), no golden.
+	if compileMode {
+		gas := m.GasMeter.GasConsumed()
+		gnoErr := PerLineErrors(result.Error, prependedLines)
+		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
+		if len(gnoErr) == 0 && len(goTC) == 0 {
+			return "", gas, nil // compiles cleanly
+		}
+		sections := []goldenSection{
+			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTC)},
+			{name: DirectiveKnownIssue, block: FormatGnoErrorBlock(gnoErr)},
+		}
+		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, "", sections)
+		return newContent, gas, err
 	}
 
 	// updated tells whether the directives have been mutated and the
