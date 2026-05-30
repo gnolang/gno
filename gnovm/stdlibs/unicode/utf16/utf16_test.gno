@@ -218,3 +218,33 @@ func BenchmarkEncodeRune(b *testing.B) {
 		}
 	}
 }
+
+// Validate the constants redefined from unicode.
+func TestConstants(t *testing.T) {
+	if maxRune != unicode.MaxRune {
+		t.Errorf("utf16.maxRune is wrong: %x should be %x", maxRune, unicode.MaxRune)
+	}
+	if replacementChar != unicode.ReplacementChar {
+		t.Errorf("utf16.replacementChar is wrong: %x should be %x", replacementChar, unicode.ReplacementChar)
+	}
+}
+
+func TestRuneLen(t *testing.T) {
+	for _, tt := range []struct {
+		r      rune
+		length int
+	}{
+		{0, 1},
+		{surr1 - 1, 1},
+		{surr3, 1},
+		{surrSelf - 1, 1},
+		{surrSelf, 2},
+		{maxRune, 2},
+		{maxRune + 1, -1},
+		{-1, -1},
+	} {
+		if length := RuneLen(tt.r); length != tt.length {
+			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, length, tt.length)
+		}
+	}
+}
