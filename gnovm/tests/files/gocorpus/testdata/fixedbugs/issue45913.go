@@ -1,0 +1,23 @@
+// errorcheck
+
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+)
+
+func f(s1, s2 string) { fmt.Printf("%s %s", s1, s2) }
+
+func main() {
+	f([2]string{"a", "b"}...) // ERROR "invalid use of .*[.][.][.]|cannot use [.][.][.] in call to non-variadic"
+}
+
+// GnoError:
+// line 16: wrong argument count in call to f<VPBlock(3,0)>
+
+// GoTypeCheckError:
+// line 16: cannot use ... in call to non-variadic f

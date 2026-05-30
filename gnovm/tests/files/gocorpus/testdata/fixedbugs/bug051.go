@@ -1,0 +1,21 @@
+// errorcheck
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func f() int {
+	return 0;
+}
+
+func main() {
+	const n = f();	// ERROR "const"
+}
+
+// GnoError:
+// line 14: f<VPBlock(3,0)>() (value of type int) is not constant
+
+// GoTypeCheckError:
+// line 14: f() (value of type int) is not constant

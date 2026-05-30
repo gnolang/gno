@@ -1,0 +1,17 @@
+// errorcheck -d=panic
+
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 20245: panic while formatting an error message
+
+package p
+
+var e = interface{ I1 } // ERROR "undefined: I1"
+
+// GnoError:
+// line 11: name I1 not defined in fileset with files [issue20245.go]
+
+// GoTypeCheckError:
+// line 11: undefined: I1

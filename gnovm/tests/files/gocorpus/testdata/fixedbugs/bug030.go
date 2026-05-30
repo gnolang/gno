@@ -1,0 +1,19 @@
+// errorcheck
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main() {
+	var x int;
+	x := 0; // ERROR "declar|:="
+	_ = x;
+}
+
+// GnoError:
+// line 11: no new variables on left side of :=
+
+// GoTypeCheckError:
+// line 11: no new variables on left side of :=

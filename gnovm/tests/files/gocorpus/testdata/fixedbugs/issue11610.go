@@ -1,0 +1,24 @@
+// errorcheck
+
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test an internal compiler error on ? symbol in declaration
+// following an empty import.
+
+package a
+var?      // ERROR "invalid character U\+003F '\?'|invalid character 0x3f in input file"
+
+var x int // ERROR "unexpected keyword var|expected identifier|expected type"
+
+func main() {
+}
+
+// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
+// GnoError:
+// line 11: illegal character U+003F '?' (and 1 more errors)
+
+// GoTypeCheckError:
+// line 11: illegal character U+003F '?' (and 1 more errors)
