@@ -28,7 +28,14 @@ const (
 // and shows a truncation notice instead of letting the renderer blank
 // comments past the cap. The margin absorbs the OP, repost source
 // bodies, and chrome.
-var maxRenderedBodies = foreign.MaxBlocksPerRender() - 10
+//
+// Computed lazily (a func, not a package-level var) so it tracks the
+// native cap across chain upgrades: a var initializer runs once at
+// realm-init and persists, freezing a stale value if the underlying
+// MaxBlocksPerRender ever changes; recomputing per render re-reads it.
+func maxRenderedBodies() int {
+	return foreign.MaxBlocksPerRender() - 10
+}
 
 const menuManageBoard = "manageBoard"
 

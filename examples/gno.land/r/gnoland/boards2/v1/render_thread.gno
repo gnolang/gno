@@ -40,7 +40,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + md.Link(board.Name, makeBoardURI(board))))
-	budget := maxRenderedBodies
+	budget := maxRenderedBodies()
 	res.Write(renderPost(thread, req.RawPath, "", 5, &budget))
 }
 

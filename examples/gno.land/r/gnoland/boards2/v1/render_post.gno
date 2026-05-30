@@ -170,7 +170,7 @@ func renderPostInner(post *boards.Post) string {
 		s         string
 		threadID  = post.ThreadID
 		thread, _ = getThread(post.Board, threadID)
-		budget    = maxRenderedBodies
+		budget    = maxRenderedBodies()
 	)
 
 	// Fully render parent if it's not a repost.
