@@ -68,9 +68,9 @@ transaction. Create the file like this:
 package minisocial
 
 import (
-	"chain/runtime" // Special Gno package providing access to the caller
-	"errors"        // For handling errors
-	"time"          // For handling time
+	"chain/runtime/unsafe" // Stack-walking primitives (see unsafe.PreviousRealm docs)
+	"errors"               // For handling errors
+	"time"                 // For handling time
 )
 
 var posts []*Post
@@ -87,7 +87,7 @@ func CreatePost(_ realm, text string) error {
 	// Append the new post to the list
 	posts = append(posts, &Post{
 		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author's address comes from the previous realm, the one that called this function
+		author:    unsafe.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
 		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 
@@ -100,10 +100,10 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import `chain/runtime`,
-which provides access to the function caller, and use `runtime.PreviousRealm().Address()`.
+- To get the caller of `CreatePost`, we need to import `chain/runtime/unsafe`,
+which provides access to the function caller, and use `unsafe.PreviousRealm().Address()`.
 Check out the [realm concept page](../resources/realms.md) and the
-[`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
+[`chain/runtime/unsafe` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.
 
@@ -259,7 +259,7 @@ import (
 	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
@@ -267,9 +267,10 @@ func TestCreatePostSingle(t *testing.T) {
 
 	text1 := "Hello World!"
 
-	// To call a crossing function, we specify the `cross` keyword
-	// This matches the first argument of type realm in the function itself
-	err := CreatePost(cross, text1)
+	// To call a crossing function, we pass cross(cur) as the first
+	// argument; cross(rlm) validates rlm is the current realm and
+	// flows through to the callee's `cur realm` parameter.
+	err := CreatePost(cross(cur), text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -288,7 +289,7 @@ We can add the following test showcasing how TDT works in Gno:
 
 [embedmd]:# (../_assets/minisocial/posts_test-1.gno go /func TestCreatePostMultiple/ $)
 ```go
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -305,10 +306,9 @@ func TestCreatePostMultiple(t *testing.T) {
 		authorAddr := testutils.TestAddress(p.author)
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
-		// Create the post
-		// To call a crossing function, we specify the `cross` keyword
-		// This matches the first argument of type realm in the function itself
-		err := CreatePost(cross, p.text)
+		// Create the post via cross(cur) so the realm capability flows
+		// to CreatePost's `cur realm` parameter.
+		err := CreatePost(cross(cur), p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}

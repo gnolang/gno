@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_00_filetest
+
+package z_create_reply_00_filetest
 
 import (
 	"strings"
@@ -20,16 +22,16 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	rid := boards2.CreateReply(cross, bid, tid, 0, comment)
+	rid := boards2.CreateReply(cross(cur), bid, tid, 0, comment)
 
 	// Ensure that returned ID is right
 	println(rid == 2)

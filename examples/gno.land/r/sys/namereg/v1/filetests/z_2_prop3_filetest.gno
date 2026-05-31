@@ -1,8 +1,10 @@
-package main
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_2_prop3_filetest
+
+package z_2_prop3_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -19,32 +21,29 @@ import (
 //     Register with the new amount and watching it succeed (registration
 //     under the old default of 0 ugnot would now panic with the new
 //     price in the error message).
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
-func init() {
+func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(c)
+	daov3init.InitWithUsers(cross(cur), c)
 
 	// Propose raising the price from 0 to 20 GNOT.
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeNewRegisterPrice(20_000_000)
-	dao.MustCreateProposal(cross, pr)
+	pr := users.ProposeNewRegisterPrice(cross(cur), 20_000_000)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	// Vote and execute.
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 
 	// New price should be active. Register a user with the new amount;
 	// registration with the old default (0 ugnot) would panic.
@@ -52,7 +51,7 @@ func main() {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
 	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 20_000_000}})
-	users.Register(cross, "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 
 	data, _ := susers.ResolveName("nym-alice123")
 	println("registered alice at:", data.Addr())

@@ -214,18 +214,49 @@ be sent and received. It changes only on explicit cross-calls
 
 \textbf{Realm-storage-context} determines where new and modified objects
 are persisted during realm-transaction finalization. It changes on
-explicit cross-calls \emph{and} on implicit borrow-crosses (calling a
-non-crossing method on a real object residing in a different realm). The
-realm-storage-context is not directly accessible at runtime and has no
-associated address.
+explicit cross-calls \emph{and} on two kinds of implicit borrow:
+
+\begin{itemize}
+\item \textbf{Declaring-realm borrow} (any
+\passthrough{\lstinline!/r/!}-declared callable): when a function,
+method, or closure declared in \passthrough{\lstinline!/r/X!} is invoked
+from a different realm-storage-context, the storage-context
+soft-switches to \passthrough{\lstinline!/r/X!} for the call duration.
+Applies uniformly to top-level functions, methods on any receiver shape
+(real, unreal, primitive), and closures whose construction site was
+\passthrough{\lstinline!/r/X!}.
+\item \textbf{Storage-realm borrow} (stdlib and
+\passthrough{\lstinline!/p/!} methods on foreign receivers): when a
+non-\passthrough{\lstinline!/r/!}-declared method is called on a defined
+receiver whose authoring realm differs from the current
+realm-storage-context, the storage-context soft-switches to the
+receiver's authoring realm. The authoring realm is the receiver's
+\passthrough{\lstinline!PkgID!}, stamped at allocation time --- so the
+borrow applies uniformly to real (persisted) and unreal (allocated)
+receivers.
+\end{itemize}
+
+Every object's storage authority is stamped at \emph{allocation time}
+as the \passthrough{\lstinline!ObjectInfo.ID.PkgID!} field, unifying
+storage with authority: the realm that allocated an object is the
+realm that holds storage authority over it, and storage rent
+attribution follows the same field. Constructing a value of a foreign
+\passthrough{\lstinline!/r/!}-declared type from outside the declaring
+realm (composite literals, \passthrough{\lstinline!new()!},
+\passthrough{\lstinline!make()!}) is rejected at runtime --- authority
+cannot be forged, so all construction must flow through the declaring
+realm's constructor functions (which the declaring-realm borrow
+activates).
+
+The realm-storage-context is not directly accessible at runtime and has
+no associated address.
 
 After an explicit cross-call, both contexts refer to the same realm.
-They diverge when calling a non-crossing method of a real object
-residing in a different realm --- the realm-storage-context shifts to
-the receiver's realm while the realm-context stays the same.
+They diverge under either implicit borrow --- the realm-storage-context
+shifts while the realm-context stays the same.
 
 {\small
-\begin{longtable}{|p{4.2cm}|c|c|c|c|}
+\begin{longtable}{|p{5.5cm}|c|c|c|c|}
 \hline
 \textbf{Call type} & \textbf{Realm-ctx?} & \textbf{Storage-ctx?} & \textbf{Boundary?} & \textbf{Finalizes?} \\
 \hline
@@ -238,15 +269,17 @@ the receiver's realm while the realm-context stays the same.
 \hline
 \lstinline!fn(cross,...)! to diff.\ realm & Yes & Yes & Yes & Yes \\
 \hline
-\lstinline!fn(nil,...)! (non-crossing) & No & No & No & No \\
+\lstinline!fn(cur,...)! same-realm crossing-fn non-crossing call & No & No & No & No \\
 \hline
-Non-crossing method, real recv.\ in same realm & No & No & No & No \\
+Non-crossing method in own (caller's) realm & No & No & No & No \\
 \hline
-Non-crossing method, real recv.\ in diff.\ realm & No & Yes & Yes & Yes \\
+Non-crossing \passthrough{\lstinline!/r/!}-declared callable in foreign realm & No & Yes (declaring) & Yes & Yes \\
 \hline
-Non-crossing method, unreal recv. & No & No & No & No \\
+Stdlib or \passthrough{\lstinline!/p/!} method, defined recv.\ in diff.\ realm & No & Yes (storage) & Yes & Yes \\
 \hline
-Non-crossing function & No & No & No & No \\
+Stdlib or \passthrough{\lstinline!/p/!} method, primitive recv. & No & No & No & No \\
+\hline
+Stdlib or \passthrough{\lstinline!/p/!} top-level function & No & No & No & No \\
 \hline
 \end{longtable}
 }
@@ -488,15 +521,28 @@ more complete multi-user operating system than traditional operating
 systems.)
 
 Besides explicit realm crossing via the
-\passthrough{\lstinline!fn(cross, ...)!} Gno syntax, implicit realm
-crossing occurs when calling a method of a receiver object stored in an
-external realm. Implicitly crossing into (borrowing) a receiver object's
-storage realm allows the method to directly modify the receiver as well
-as all other objects directly reachable from the receiver stored in the
-same realm as the receiver. Unlike explicit crosses, implicit crosses do
-not shift or otherwise affect the current realm context;
-\passthrough{\lstinline!runtime.CurrentRealm()!} does not change unless
-a method is called like
+\passthrough{\lstinline!fn(cross, ...)!} Gno syntax, implicit
+realm-storage-context changes (``borrows'') occur in two scenarios:
+
+\begin{itemize}
+\item Calling any function, method, or closure declared in a
+\passthrough{\lstinline!/r/!} realm from a different
+realm-storage-context borrows to the callable's \emph{declaring} realm.
+This applies to top-level functions, methods on any receiver shape, and
+closures whose construction site was the declaring realm. The body runs
+with the declaring realm's authority and can only mutate objects owned
+by that realm.
+\item Calling a stdlib or \passthrough{\lstinline!/p/!} method on a real
+receiver whose storage realm differs from the current
+realm-storage-context borrows to the \emph{receiver's storage} realm.
+This lets generic library methods (\passthrough{\lstinline!bptree.Set!},
+the GRC20 Teller methods, etc.) mutate state living in the caller's
+realm.
+\end{itemize}
+
+Unlike explicit crosses, neither implicit borrow affects the current
+realm-context; \passthrough{\lstinline!runtime.CurrentRealm()!} does not
+change unless a method is called like
 \passthrough{\lstinline!receiver.Method(cross, args...)!}.
 
 Realms hold objects in residence and they also have a Gno address to
@@ -530,9 +576,9 @@ func main(cur realm) {
 }
 \end{lstlisting}
 
-When a crossing-function or crossing-method is called with
-\passthrough{\lstinline!nil!} as the first argument instead of
-\passthrough{\lstinline!cross!} it is called a non-crossing-call; and no
+When a crossing-function or crossing-method is called with the in-scope
+\passthrough{\lstinline!cur!} as the first argument instead of
+\passthrough{\lstinline!cross(cur)!} it is called a non-crossing-call; and no
 realm-context nor realm-storage-context change takes place.
 
 \begin{lstlisting}[language=Go]
@@ -542,8 +588,8 @@ import "gno.land/r/alice/extrealm"
 func MyMakeBread(cur realm, ingredients ...any) { ... }
 
 func main(cur realm) {
-    MyMakeBread(nil, "flour", "water") // ok -- non-crossing.
-    extrealm.MakeBread(nil, "flour", "water") // invalid -- external realm function
+    MyMakeBread(cur, "flour", "water") // ok -- non-crossing.
+    extrealm.MakeBread(cur, "flour", "water") // invalid -- external realm function
 }
 \end{lstlisting}
 
@@ -740,7 +786,7 @@ For which call types create boundaries, see the
 Every crossing-call creates a realm boundary even when there is no
 resulting change in realm-context or realm-storage-context. A
 non-crossing-call of a crossing-function or crossing-method
-(\passthrough{\lstinline!fn(nil, ...)!}) never creates a realm boundary.
+(\passthrough{\lstinline!fn(cur, ...)!}) never creates a realm boundary.
 
 \subsection{Realm-Transaction
 Finalization}\label{realm-transaction-finalization}

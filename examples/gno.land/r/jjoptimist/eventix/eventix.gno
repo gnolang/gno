@@ -2,8 +2,7 @@ package eventix
 
 import (
 	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 	"time"
 
@@ -15,11 +14,22 @@ import (
 )
 
 type Event struct {
-	name         string
-	description  string
-	date         time.Time
-	maxTickets   int
-	price        uint64
+	name        string
+	description string
+	date        time.Time
+	maxTickets  int
+	price       uint64
+	// SECURITY XXX: paymentToken is `any` and accepted from the event
+	// creator. We only check the dynamic type (*grc20.Token or "ugnot"),
+	// not the token's identity. An attacker can deploy their own grc20
+	// token (the *grc20.Token type is canonical, so the type check passes)
+	// where they hold an unlimited "balance" on every address. Buyers
+	// then pay for tickets in worthless counterfeit tokens; the eventix
+	// realm thinks it got paid and mints real NFT tickets. Free tickets
+	// for the attacker.
+	// Fix: restrict paymentToken to tokens registered in r/demo/defi/grc20reg
+	// (or a hardcoded allowlist of trusted token pkgPaths). Reject any
+	// *grc20.Token that doesn't come from a known good source.
 	paymentToken any
 	ticketsSold  int
 }
@@ -27,8 +37,12 @@ type Event struct {
 var (
 	events              = avl.NewTree()
 	eventCounter uint64 = 0
-	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
+	tickets      *grc721.BasicNFT
 )
+
+func init(cur realm) {
+	tickets = grc721.NewBasicNFT(0, cur, "Event Ticket", "EVTIX")
+}
 
 func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
 	// validate inputs
@@ -70,8 +84,8 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 	return newID
 }
 
-func BuyTicket(_ realm, eventId uint64) {
-	if !runtime.PreviousRealm().IsUserCall() {
+func BuyTicket(cur realm, eventId uint64) {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
 	event, exists := getEvent(eventId)
@@ -83,18 +97,18 @@ func BuyTicket(_ realm, eventId uint64) {
 		panic("Event is sold out")
 	}
 
-	buyer := runtime.PreviousRealm().Address()
+	buyer := cur.Previous().Address()
 
 	switch pt := event.paymentToken.(type) {
 	case string:
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
-		if banker.OriginSend().AmountOf("ugnot") != int64(event.price) {
+		if unsafe.OriginSend().AmountOf("ugnot") != int64(event.price) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(runtime.CurrentRealm().Address(), int64(event.price)); err != nil {
+		if err := pt.CallerTeller().Transfer(0, cur, cur.Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:

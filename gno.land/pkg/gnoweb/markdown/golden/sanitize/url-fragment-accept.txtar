@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: URL
+// CONTEXT: [jump](%s)
+-- input.md --
+#section-anchor
+-- output.md --
+#section-anchor
+-- output.html --
+<p><a href="#section-anchor">jump</a></p>

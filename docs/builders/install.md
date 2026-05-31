@@ -51,7 +51,7 @@ Scripts used by the one-line installer:
 
 Building from source requires:
 
-- **Go** — version **1.24+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
+- **Go** — version **1.25+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
 - **Git**
 - **Make**
 
@@ -128,7 +128,7 @@ persist it. If you installed to a custom `--dir`, add that directory instead.
 `command -v gno`; fix by reordering `PATH` or running `hash -r`.
 
 **Go version too old** — `make install` fails on missing language features.
-Requires Go **1.24+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
+Requires Go **1.25+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
 
 **GitHub API rate limit during one-line install** — anonymous requests are
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:

@@ -7,12 +7,6 @@ Gno.land is a smart contract platform built on a novel interpretation of Go
 decentralized applications with a minimalist approach and excellent developer
 experience.
 
-New here? Start with **[Getting started](builders/getting-started.md)** — the
-shortest path from zero to a working local chain and your first on-chain
-transaction (install included). Already comfortable with Go and just want
-the commands? See **[Quick Start](builders/quickstart.md)**. Need Docker, a
-source build, or a specific version? See **[Installation](builders/install.md)**.
-
 ## Use Gno.land
 
 Start exploring and using Gno.land. Setup essential tools, interact with the
@@ -33,6 +27,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [What is Gno](builders/what-is-gno.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Installation](builders/install.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
 - [Getting started](builders/getting-started.md) - Build, run, and deploy your first realm — the full path from zero to a live on-chain package.
+- [Quick Start](builders/quickstart.md) - Commands-only path for readers who already know Go and want to skip the narrative.
 - [Editor Setup](builders/editor-setup.md) - Configure your editor with LSP support, autocompletion, and formatting for `.gno` files.
 - [Tutorial: `minisocial` dApp](builders/tutorial-minisocial.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
 - [RPC clients](builders/rpc-clients.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.

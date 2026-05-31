@@ -1,7 +1,7 @@
 package btree_dao
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 	"time"
@@ -31,10 +31,14 @@ func (rd *RegistrationDetails) Less(than btree.Record) bool {
 }
 
 var (
-	dao     = grc721.NewBasicNFT("BTree DAO", "BTDAO")
+	dao     *grc721.BasicNFT
 	tokenID = 0
 	members = btree.New()
 )
+
+func init(cur realm) {
+	dao = grc721.NewBasicNFT(0, cur, "BTree DAO", "BTDAO")
+}
 
 // PlantTree allows a user to plant their B-Tree in the DAO forest.
 // It mints an NFT to the user and registers their tree in the DAO.
@@ -57,7 +61,7 @@ func PlantSeed(_ realm, message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := runtime.OriginCaller()
+	userAddress := unsafe.OriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails

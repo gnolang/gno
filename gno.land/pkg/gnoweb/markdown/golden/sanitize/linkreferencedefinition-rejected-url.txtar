@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: LinkReferenceDefinition
+// ARGS: "javascript:alert(1)", ""
+// URL fails the allowlist (javascript: scheme), so the entire LRD is
+// suppressed — sanitize must never emit a half-built reference with
+// the realm-provided label pointing nowhere.
+-- input.md --
+trusted-label
+-- output.md --
+

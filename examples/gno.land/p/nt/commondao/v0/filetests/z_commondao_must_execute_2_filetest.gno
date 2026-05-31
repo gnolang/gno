@@ -5,8 +5,8 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-func main() {
-	commondao.MustExecute(nil)
+func main(cur realm) {
+	commondao.MustExecute(nil, cur)
 }
 
 // Error:
