@@ -583,11 +583,12 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	if pv.Realm == nil {
 		if pv.IsRealm() {
 			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
-		} else if IsPPackagePath(pv.PkgPath) {
-			// /p/ packages carry a frozen, immutable realm so borrow
-			// rule #2 lands m.Realm on it (not nil). It is not persisted
-			// (IsRealm()==false), so recreate it deterministically — the
-			// realm ID is derived from the pkgpath.
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
 			pv.Realm = NewRealm(pv.PkgPath)
 		}
 	}
