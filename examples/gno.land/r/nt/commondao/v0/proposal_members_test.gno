@@ -213,7 +213,7 @@ func TestMembersPropDefinitionExecute(cur realm, t *testing.T) {
 			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
 			fn := p.Executor()
 
-			err := fn(cross(cur))
+			err := fn(cur.PkgPath())
 
 			if tc.errMsg != "" {
 				uassert.ErrorContains(t, err, tc.errMsg, "expect error")
