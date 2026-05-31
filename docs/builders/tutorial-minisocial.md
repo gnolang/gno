@@ -21,7 +21,7 @@ gno mod init gno.land/r/example/minisocial
 touch types.gno posts.gno render.gno
 ```
 
-Swap `example` for your own namespace if you plan to deploy this realm — see
+Swap `example` for your own namespace if you plan to deploy this realm. See
 [Namespaces](./getting-started.md#4-before-you-deploy).
 
 While all code can be stored in a single file, separating types, business
@@ -342,7 +342,7 @@ ok      .       0.87s
 ## Conclusion
 
 You've built a multi-file realm with persistent state, markdown rendering,
-and unit tests — congratulations!
+and unit tests. Congratulations!
 
 Full code of this app can be found on the Staging network, at
 [staging.gno.land/r/docs/minisocial](https://staging.gno.land/r/docs/minisocial).

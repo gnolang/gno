@@ -26,7 +26,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 
 - [What is Gno](builders/what-is-gno.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Installation](builders/install.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
-- [Getting started](builders/getting-started.md) - Build, run, and deploy your first realm — the full path from zero to a live on-chain package.
+- [Getting started](builders/getting-started.md) - Build, run, and deploy your first realm, the full path from zero to a live on-chain package.
 - [Quick Start](builders/quickstart.md) - Commands-only path for readers who already know Go and want to skip the narrative.
 - [Editor Setup](builders/editor-setup.md) - Configure your editor with LSP support, autocompletion, and formatting for `.gno` files.
 - [Tutorial: `minisocial` dApp](builders/tutorial-minisocial.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
@@ -51,7 +51,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
 - [Gno Memory Model](resources/gno-memory-model.md) - A peek under the hood of the Gno Virtual Machine.
-- [Comparison of ways to communicate with Gno.land](resources/comparison-of-ways-to-interact-with-gnoland.md) - An overview of the various methods to interact with Gno.land (mainly for developers writing applications).
+- [Comparison of ways to communicate with Gno.land](resources/comparison-of-ways-to-interact-with-gnoland.md) - An overview of the various methods to interact with Gno.land, mainly for developers writing applications.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.
 - [GnoConnect Specification](resources/gnoconnect.md) - Standard for connecting wallets, clients, and SDKs to Gno blockchains.

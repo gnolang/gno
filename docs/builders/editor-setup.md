@@ -1,6 +1,6 @@
 # Editor Setup
 
-This guide helps you configure your editor for working with `.gno` files —
+This guide helps you configure your editor for working with `.gno` files:
 autocompletion, go-to-definition, diagnostics, and formatting.
 
 ## Language server
@@ -14,7 +14,7 @@ Install the [Gno toolchain](install.md) first, then follow the
 [gnopls README](https://github.com/gnoverse/gnopls#readme) for editor-specific
 setup.
 
-- **VS Code** — install the [Gno for VS Code](https://marketplace.visualstudio.com/items?itemName=Gnoverse.gnolang)
+- **VS Code**: install the [Gno for VS Code](https://marketplace.visualstudio.com/items?itemName=Gnoverse.gnolang)
   extension; it bundles `gnopls`, so you can skip the manual install.
 
 ## Verify your setup
@@ -22,14 +22,14 @@ setup.
 `gnopls version` only proves the binary runs. To confirm your editor is
 actually talking to it, open any `.gno` file and check:
 
-- **Completion** — start typing `pri`; `println` should appear in the
+- **Completion**: start typing `pri`; `println` should appear in the
   suggestion list.
-- **Hover** — hover a symbol like `println`; you should see its signature
+- **Hover**: hover a symbol like `println`; you should see its signature
   and docs.
-- **Diagnostics** — break something on purpose (e.g. a typo in an import
+- **Diagnostics**: break something on purpose (e.g. a typo in an import
   path); the editor should underline it within a second or two.
 
-If none of that happens, the editor isn't connected to `gnopls` — check
+If none of that happens, the editor isn't connected to `gnopls`. Check
 the language server logs in your editor.
 
 ## Next steps
@@ -37,7 +37,7 @@ the language server logs in your editor.
 ### Format on save
 
 `gno fmt` is wired through gnopls, but format-on-save isn't automatic.
-Enable it in your editor's settings — for example, VS Code's
+Enable it in your editor's settings, for example VS Code's
 `editor.formatOnSave`, or Neovim's `BufWritePre` autocmd.
 
 ### Hot reload with gnodev
@@ -48,6 +48,6 @@ Enable it in your editor's settings — for example, VS Code's
 
 ## Contributing
 
-`gnopls` is under active development and tracks `gopls` with some lag —
-if something doesn't work as expected, please open an issue or PR on the
+`gnopls` is under active development and tracks `gopls` with some lag.
+If something doesn't work as expected, please open an issue or PR on the
 [gnopls repository](https://github.com/gnoverse/gnopls).

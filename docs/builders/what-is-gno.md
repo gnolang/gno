@@ -1,7 +1,7 @@
 # What is Gno?
 
 > New to Gno.land? Start with [Getting started](./getting-started.md) to go
-> from zero to a working local chain in about 10 minutes — or jump to the
+> from zero to a working local chain in about 10 minutes, or jump to the
 > [Quick Start](./quickstart.md) if you just want the commands.
 
 [Gno](https://github.com/gnolang/gno) is an interpretation of the widely-used Go
@@ -30,7 +30,7 @@ into a database (unlike programming applications with the Cosmos SDK).
 The composable nature of Go/Gno allows for type-checked interactions between
 contracts, making Gno.land safer and more powerful, as well as operationally
 cheaper and faster. Smart contracts on Gno.land are light, simple, more focused,
-and easily interoperable—a network of interconnected contracts rather than
+and easily interoperable, a network of interconnected contracts rather than
 siloed monoliths that limit interactions with other contracts.
 
 ## Gno Inherits Go’s Built-in Security Features

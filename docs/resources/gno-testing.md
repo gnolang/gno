@@ -1,12 +1,12 @@
 # Running & Testing Gno code
 
 `gno test` runs `_test.gno` files for a Gno package; `gno run` evaluates
-expressions against package code. Both use a mocked GnoVM environment — no
+expressions against package code. Both use a mocked GnoVM environment: no
 real chain, state changes are in-memory only.
 
 ## Prerequisites
 
-`gno` installed — see [Installation](../builders/install.md). Examples below
+`gno` installed. See [Installation](../builders/install.md). Examples below
 use the `Counter` realm from
 [Getting started](../builders/getting-started.md), with `counter.gno` and
 `counter_test.gno` in the package directory.
@@ -29,7 +29,7 @@ $ gno test . -v
 ok      .       0.81s
 ```
 
-Other flags cover test timeouts and performance checks — see `gno test --help`.
+Other flags cover test timeouts and performance checks. See `gno test --help`.
 
 ## `gno run`
 

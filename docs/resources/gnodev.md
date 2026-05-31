@@ -32,7 +32,7 @@ help menu (see [Interactive controls](#interactive-controls)).
 ### Automatic deployment
 
 `gnodev` deploys the working directory's package to the built-in node
-automatically — no `addpkg` step. It also deploys every package and
+automatically, with no `addpkg` step. It also deploys every package and
 realm in the monorepo's [`examples/`](https://github.com/gnolang/gno/tree/master/examples)
 folder so they're importable.
 
@@ -131,8 +131,8 @@ Run `gnodev --help` for the full flag list.
 
 ## See also
 
-- [Getting started](../builders/getting-started.md) — first-realm walkthrough
-- [Editor setup](../builders/editor-setup.md) — LSP integration with `gnopls`
+- [Getting started](../builders/getting-started.md): first-realm walkthrough
+- [Editor setup](../builders/editor-setup.md): LSP integration with `gnopls`
 
 [^1]: `devtest` corresponds to address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`.
-Its mnemonic is **publicly known** — never use it for real funds.
+Its mnemonic is **publicly known**. Never use it for real funds.

@@ -52,11 +52,11 @@ For more details on ephemeral packages and the `maketx run` command, see [Intera
 
 Not every package type can import every other. The rules:
 
-- **Pure packages (`/p/`)** can be imported by anything — realms, other pure packages, and ephemeral packages.
+- **Pure packages (`/p/`)** can be imported by anything: realms, other pure packages, and ephemeral packages.
 - **Realms (`/r/`)** can be imported by other realms and by ephemeral packages, but **not by pure packages** (importing state into a stateless library is forbidden).
-- **Ephemeral packages (`/e/`)** **cannot be imported by anything** — they exist only during their own execution.
+- **Ephemeral packages (`/e/`)** **cannot be imported by anything**. They exist only during their own execution.
 
-Importing a realm gives access to its exported functions and interacts with that realm's persistent state. Importing a pure package gives access to its exported functions only — no state persistence.
+Importing a realm gives access to its exported functions and interacts with that realm's persistent state. Importing a pure package gives access to its exported functions only, with no state persistence.
 
 ## Package Path Structure
 

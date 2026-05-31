@@ -1,6 +1,6 @@
 # Contributor guide
 
-In Gno.land, contributors are critical to everything—helping to build the
+In Gno.land, contributors are critical to everything, helping to build the
 project and shape the ecosystem. Becoming a Gnome isn't just about coding or
 submitting contributions; it's about joining a collaborative community where you
 can hone your skills, share your ideas, innovate and make an impact in ways that
@@ -25,7 +25,7 @@ equally important.
 
 Commitment makes a real difference in the goal of standing out as a Gnome.
 Following through on tasks and being reliable keeps the momentum going. Quality
-matters too as we are aiming for the highest standard for Gno.land—thoughtful,
+matters too as we are aiming for the highest standard for Gno.land. Thoughtful,
 useful, and well-documented work is much easier to integrate and makes a stronger
 impact in the ecosystem. Sticking to contributor
 [submission guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md)
@@ -39,7 +39,7 @@ to establish your identity, a [Hackerspace journey](https://github.com/gnolang/h
 to document your work, as well as a [Game of Realms](https://github.com/gnolang/game-of-realms) profile.
 
 From there, you can start building your profile, starting with a
-Home realm — your personal realm which can serve as your on-chain profile,
+Home realm, your personal realm which can serve as your on-chain profile,
 to document work, share updates, and use as a workspace. It doesn't have to be fancy;
 it just needs to represent you. Check out some of the existing Home realm examples
 in the [Hall of Realms](https://staging.gno.land/r/leon/hor).
@@ -52,8 +52,8 @@ collaborating with others will help build your presence and connections.
 ## Finding Your Own Way to Contribute
 
 Not everyone's contributions look the same, and that's a good thing. If your
-work isn't purely code-based—like research, conceptual development, or even
-sketches—find creative ways to share it. Summaries, diagrams, or even photos
+work isn't purely code-based, like research, conceptual development, or even
+sketches, find creative ways to share it. Summaries, diagrams, or even photos
 of notebooks can make your work more accessible to the community. If you prefer
 asynchronous communication or face language barriers, don't let that stop you -
 there are many ways to stay involved and illustrate your contributions.

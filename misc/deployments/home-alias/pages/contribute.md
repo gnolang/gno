@@ -38,7 +38,7 @@ If you are interested in contributing to Gno.land, you can jump in on our
 Two reasons prompted this pause:
 
 - **Focus on Mainnet.** The team is fully focused on the Gno.land Beta
-  Mainnet launch — the highest priority — as well as the critical post-beta
+  Mainnet launch, the highest priority, as well as the critical post-beta
   work required to deliver a complete Mainnet.
 - **Decline in submission quality.** The bounty program was created to
   encourage innovative, creative, and technical contributions that

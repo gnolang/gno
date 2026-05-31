@@ -2,7 +2,7 @@
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
 **Gno**, a deterministic variant of Go. If you know Go, you can write
-Gno — minus what doesn't fit on-chain: no goroutines, no `os`/`net`
+Gno, minus what doesn't fit on-chain: no goroutines, no `os`/`net`
 stdlibs, and `gno.land/...` imports only. See
 [What is Gno.land?](./what-is-gno.md) for the full picture and
 [Go vs Gno compatibility](../resources/go-gno-compatibility.md) for
@@ -50,7 +50,7 @@ For autocompletion, diagnostics, and formatting in your editor, see
 
 The fastest way to learn Gno is to run a chain on your own machine.
 `gnodev` boots a single-node devnet with hot reload, a built-in
-gnoweb UI, and a keybase whose accounts are pre-funded — no faucet,
+gnoweb UI, and a keybase whose accounts are pre-funded, with no faucet,
 no genesis file, no peers to configure.
 
 You'll write a small realm, run it through the local toolchain
@@ -65,13 +65,13 @@ gno mod init gno.land/r/myname/myrealm
 
 This writes a `gnomod.toml` in the current directory, declaring the
 package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
-`gno.land/p/…` for pure packages (stateless — note that pure packages cannot
-import realms; see [import rules](../resources/gno-packages.md#import-rules)).
+`gno.land/p/…` for pure packages (stateless). Note that pure packages cannot
+import realms; see [import rules](../resources/gno-packages.md#import-rules).
 
 ### Write Gno code
 
 Then, add `.gno` files next to the freshly created `gnomod.toml`. We'll
-build a counter — a realm that stores a number and exposes a function to
+build a counter, a realm that stores a number and exposes a function to
 increment it:
 
 ```gno
@@ -91,13 +91,13 @@ func Render(path string) string {
 }
 ```
 
-- **`var count int`** — top-level variables are automatically persisted
+- **`var count int`**: top-level variables are automatically persisted
   to chain state after each transaction.
-- **`Increment`** — the `_ realm` parameter makes the function
+- **`Increment`**: the `_ realm` parameter makes the function
   [crossing function](../resources/gno-interrealm.md), which is required for
   any function that modifies realm state. Callers pass `cross` as the
   first argument.
-- **`Render`** — gnoweb calls this to display your realm in the
+- **`Render`**: gnoweb calls this to display your realm in the
   browser. The signature must be `func Render(path string) string`.
 
 Add a test file alongside it, `myrealm_test.gno`:
@@ -138,7 +138,7 @@ gno test ./...    # run _test.gno files
 A **key** is a private/public keypair managed locally by `gnokey`.
 The private side signs your transactions; the public side derives the
 `g1…` address that identifies you on chain. You'll need one to do
-anything that writes state — a deploy, a function call, a transfer.
+anything that writes state: a deploy, a function call, a transfer.
 
 Create one:
 
@@ -146,8 +146,8 @@ Create one:
 gnokey add alice
 ```
 
-It prompts for an encryption password and prints a 24-word mnemonic
-— store it somewhere safe to recover the key later. List your keys
+It prompts for an encryption password and prints a 24-word mnemonic.
+Store it somewhere safe to recover the key later. List your keys
 to see the derived `g1...` address:
 
 ```sh
@@ -180,11 +180,11 @@ package path, and serves gnoweb in the foreground:
 gnodev .
 ```
 
-Open http://localhost:8888 — gnoweb shows your realm under its
+Open http://localhost:8888. gnoweb shows your realm under its
 package path. Click into it to see the `Render` output ("Count: 0"),
 browse exported functions and source code, and view prefunded account
 balances. Every key in your local `gnokey` keybase is auto-funded at
-startup, so `alice` already has GNOT to spend — no faucet needed.
+startup, so `alice` already has GNOT to spend, no faucet needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass
 additional directories on the command line to load several packages
@@ -212,10 +212,10 @@ gnokey maketx call \
   alice
 ```
 
-`-pkgpath` is the realm's on-chain path — the same one you passed to
+`-pkgpath` is the realm's on-chain path, the same one you passed to
 `gno mod init`. `-gas-wanted` is the maximum units the transaction
 may consume; `-gas-fee` is the price per unit (in `ugnot`, the
-smallest GNOT denomination). Together they cap what you'll pay — see
+smallest GNOT denomination). Together they cap what you'll pay. See
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
 The signer at the end is the `alice` key you just created. You'll
@@ -243,11 +243,11 @@ For more options, see
 ## Deploy to a shared network
 
 Publish your package to a live testnet. Two things change compared
-to `gnodev`: keys aren't auto-funded — you'll need test `ugnot` from
-a faucet — and each deploy is one explicit `addpkg` transaction
+to `gnodev`: keys aren't auto-funded, so you'll need test `ugnot` from
+a faucet, and each deploy is one explicit `addpkg` transaction
 instead of hot-reload on file save.
 
-Pick a target network now and use it consistently — the faucet's
+Pick a target network now and use it consistently. The faucet's
 network dropdown and every `gnokey` command's `-remote` and
 `-chainid` flags must match:
 
@@ -257,15 +257,15 @@ network dropdown and every `gnokey` command's `-remote` and
 | Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
 | Testnet    | `testN`    | `https://`​`rpc.<testN>.testnets.gno.land:443`         |
 
-Replace `testN` with the current testnet chainid — see
+Replace `testN` with the current testnet chainid. See
 [Networks](../resources/gnoland-networks.md) for the live list,
 including mainnet status.
 
-Examples below use **staging** because it resets on a short cadence —
+Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
 use the current **testnet** instead; staging wipes regularly and your
 realm will disappear with it. **Betanet** (`gnoland1`) is the production
-network — there's no open faucet; funds can be granted case-by-case via a
+network. There's no open faucet; funds can be granted case-by-case via a
 manually reviewed interest form.
 
 ### 1. Get test tokens
@@ -295,7 +295,7 @@ Two things to know before publishing your first package:
 
 **Namespaces.** Anyone can deploy under their address-based namespace
 (`gno.land/r/<your-g1-addr>/…`). Username-based namespaces like
-`gno.land/r/alice/…` aren't supported yet — see
+`gno.land/r/alice/…` aren't supported yet. See
 [Users and Teams](../resources/users-and-teams.md).
 
 **CLA.** Some networks require contributors to acknowledge and sign a
@@ -338,8 +338,8 @@ The package is now live and browsable at
 (or `https://<testN>.testnets.gno.land/r/...` on the current testnet).
 
 Two optional flags are worth knowing about:
-- `-send <amount>ugnot` — transfer GNOT to the realm with the deploy.
-- `-max-deposit <amount>ugnot` — cap the [storage deposit](../resources/storage-deposit.md)
+- `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
+- `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
@@ -383,23 +383,23 @@ gnokey query vm/qrender \
   -remote https://rpc.staging.gno.land:443
 ```
 
-This returns the `Render` output ("Count: 1") — a free, read-only
+This returns the `Render` output ("Count: 1"), a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
 reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
-1. [r/docs](https://staging.gno.land/r/docs) — on-chain tour
-2. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
-3. [Example: the `minisocial` dApp](./tutorial-minisocial.md) — end-to-end with deploy
-4. [Gas fees](../resources/gas-fees.md) — pricing, estimation, and the "out of gas" fix
-5. [Storage deposit](../resources/storage-deposit.md) — how on-chain storage is paid for, and how to cap it with `-max-deposit`
+1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
+2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
+3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
+4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix
+5. [Storage deposit](../resources/storage-deposit.md): how on-chain storage is paid for, and how to cap it with `-max-deposit`
 
 ## Getting help
 
-- **[Discord](https://discord.gg/vb4KVPFUKE)** — community chat.
-- **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)** — long-form
+- **[Discord](https://discord.gg/vb4KVPFUKE)**: community chat.
+- **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)**: long-form
   questions and proposals, on-chain.
-- **[GitHub issues](https://github.com/gnolang/gno/issues)** — bugs,
+- **[GitHub issues](https://github.com/gnolang/gno/issues)**: bugs,
   feature requests, roadmap.
-- **[@_gnoland on X](https://twitter.com/_gnoland)** — announcements.
+- **[@_gnoland on X](https://twitter.com/_gnoland)**: announcements.
