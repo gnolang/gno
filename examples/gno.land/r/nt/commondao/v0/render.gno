@@ -149,45 +149,49 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 	)
 
 	if o.AllowTextProposals {
-		cols = append(cols, md.Paragraph(textProposalLink(daoID))+
-			md.Paragraph(
-				"This type of proposal is also known as text proposal which can be used for example "+
-					"to get consensus on initiatives without actually making any change on-chain.",
-			),
+		cols = append(
+			cols, md.Paragraph(textProposalLink(daoID))+
+				md.Paragraph(
+					"This type of proposal is also known as text proposal which can be used for example "+
+						"to get consensus on initiatives without actually making any change on-chain.",
+				),
 		)
 	}
 
 	if o.AllowSubDAOProposals {
-		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
-			md.Paragraph(
-				"This type of proposal is used to create SubDAOs, "+
-					"which are used to create tree based DAOs.",
-			),
+		cols = append(
+			cols, md.Paragraph(newSubDAOLink(daoID))+
+				md.Paragraph(
+					"This type of proposal is used to create SubDAOs, "+
+						"which are used to create tree based DAOs.",
+				),
 		)
 	}
 
 	if o.AllowDissolutionProposals {
-		cols = append(cols, md.Paragraph(dissolveSubDAOLink(daoID))+
-			md.Paragraph(
-				"This type of proposal can be used to dissolve DAOs and SubDAOs.",
-			)+
-			md.Paragraph(
-				"Dissolving a DAO can't be undone, once the dissolution proposal passes "+
-					"and is executed DAO will be readonly.",
-			),
+		cols = append(
+			cols, md.Paragraph(dissolveSubDAOLink(daoID))+
+				md.Paragraph(
+					"This type of proposal can be used to dissolve DAOs and SubDAOs.",
+				)+
+				md.Paragraph(
+					"Dissolving a DAO can't be undone, once the dissolution proposal passes "+
+						"and is executed DAO will be readonly.",
+				),
 		)
 	}
 
 	if o.AllowMembersUpdate {
-		cols = append(cols, md.Paragraph(updateMembersLink(daoID))+
-			md.Paragraph(
-				"This type of proposal can be used to add new members to this DAO "+
-					"and also to remove existing ones.",
-			)+
-			md.Paragraph(
-				"A single proposal allows new members to be added and any number of existing ones "+
-					"removed within the same proposal.",
-			),
+		cols = append(
+			cols, md.Paragraph(updateMembersLink(daoID))+
+				md.Paragraph(
+					"This type of proposal can be used to add new members to this DAO "+
+						"and also to remove existing ones.",
+				)+
+				md.Paragraph(
+					"A single proposal allows new members to be added and any number of existing ones "+
+						"removed within the same proposal.",
+				),
 		)
 	}
 
@@ -341,12 +345,11 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
-	def := p.Definition()
 	record := p.VotingRecord()
 	o := getOptions(dao.ID())
 
 	// Render title
-	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), md.EscapeText(def.Title()), proposalURL(dao.ID(), p.ID())))
+	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), md.EscapeText(p.Title()), proposalURL(dao.ID(), p.ID())))
 
 	// Render details
 	res.Write(ufmt.Sprintf("Created by %s  \n", userLink(p.Creator())))
@@ -386,10 +389,8 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 		)
 	}
 
-	def := p.Definition()
-
 	// Render header
-	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + md.EscapeText(def.Title())))
+	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + md.EscapeText(p.Title())))
 
 	// Render main menu
 	items := []string{goToDAOLink(dao.ID())}
@@ -412,12 +413,16 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		ctx := commondao.MustNewVotingContext(record, dao.Members())
-		passes, _ := def.Tally(ctx)
-		if passes {
+		status, err := dao.Tally(p.ID(), true)
+		if status == commondao.StatusPassed {
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		} else {
 			res.Write(md.BulletItem("Expected Outcome: **fail** ☒"))
+		}
+
+		if err != nil {
+			msg := strings.ReplaceAll(err.Error(), "\n", " ")
+			res.Write(md.BulletItem("Error: " + md.EscapeText(msg)))
 		}
 	}
 
@@ -428,7 +433,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.BulletItem(statusItem))
 
 	// Render proposal body
-	if body := def.Body(); body != "" {
+	if body := p.Body(); body != "" {
 		res.Write(md.H2("Description"))
 		res.Write(md.Paragraph(body))
 	}

@@ -57,7 +57,7 @@ func TestMembersPropDefinitionTally(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name: "no quorum",
+			name: "fail with no quorum",
 			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -69,7 +69,7 @@ func TestMembersPropDefinitionTally(cur realm, t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 		{
 			name: "succeed with two members",
@@ -213,7 +213,7 @@ func TestMembersPropDefinitionExecute(cur realm, t *testing.T) {
 			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
 			fn := p.Executor()
 
-			err := fn(cross(cur))
+			err := fn(cur.PkgPath())
 
 			if tc.errMsg != "" {
 				uassert.ErrorContains(t, err, tc.errMsg, "expect error")

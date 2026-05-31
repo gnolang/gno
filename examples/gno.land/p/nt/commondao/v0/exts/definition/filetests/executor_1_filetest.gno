@@ -1,10 +1,16 @@
 // PKGPATH: gno.land/r/definition/test
 package test
 
-import "gno.land/p/nt/commondao/v0/exts/definition"
+import (
+	"errors"
 
-func executor(realm) error {
-	return nil
+	"gno.land/p/nt/commondao/v0/exts/definition"
+)
+
+var wantErr = errors.New("test error")
+
+func executor(string) error {
+	return wantErr
 }
 
 func main(cur realm) {
@@ -13,10 +19,10 @@ func main(cur realm) {
 	fn := def.Executor()
 
 	// Act
-	err := fn(cross(cur))
+	err := fn(cur.PkgPath())
 
 	// Assert
-	println(err == nil)
+	println(err == wantErr)
 }
 
 // Output:

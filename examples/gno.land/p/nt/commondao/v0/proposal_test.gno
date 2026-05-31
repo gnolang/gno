@@ -1,7 +1,6 @@
 package commondao_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -10,12 +9,6 @@ import (
 
 	"gno.land/p/nt/commondao/v0"
 )
-
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
 
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
@@ -58,11 +51,13 @@ func TestProposalNew(t *testing.T) {
 
 			urequire.NoError(t, err, "unexpected error")
 			uassert.Equal(t, p.ID(), id)
-			uassert.NotEqual(t, p.Definition(), nil)
+			uassert.NotEmpty(t, p.Title())
+			uassert.NotEmpty(t, p.Body())
 			uassert.True(t, p.Status() == commondao.StatusActive)
 			uassert.Equal(t, p.Creator(), tc.creator)
 			uassert.False(t, p.CreatedAt().IsZero())
-			uassert.NotEqual(t, p.VotingRecord(), nil)
+			urequire.NotEqual(t, p.VotingRecord(), nil)
+			uassert.True(t, p.VotingRecord().IsSealed())
 			uassert.Empty(t, p.StatusReason())
 			uassert.True(t, p.VotingDeadline() == p.CreatedAt().Add(tc.definition.VotingPeriod()))
 		})
@@ -122,20 +117,16 @@ func TestProposalVoteChoices(t *testing.T) {
 
 func TestIsQuorumReached(t *testing.T) {
 	cases := []struct {
-		name    string
-		quorum  float64
-		members []address
-		votes   []commondao.Vote
-		fail    bool
+		name        string
+		quorum      float64
+		memberCount int
+		votes       []commondao.Vote
+		fail        bool
 	}{
 		{
-			name:   "one third",
-			quorum: commondao.QuorumOneThird,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "one third",
+			quorum:      commondao.QuorumOneThird,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -144,24 +135,15 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "one third no quorum",
-			quorum: commondao.QuorumOneThird,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
-			fail: true,
+			name:        "one third no quorum",
+			quorum:      commondao.QuorumOneThird,
+			memberCount: 3,
+			fail:        true,
 		},
 		{
-			name:   "simple majority",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "simple majority",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -178,14 +160,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "simple majority no quorum",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "simple majority no quorum",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -195,13 +172,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "two thirds",
-			quorum: commondao.QuorumTwoThirds,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "two thirds",
+			quorum:      commondao.QuorumTwoThirds,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -214,13 +187,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "two thirds no quorum",
-			quorum: commondao.QuorumTwoThirds,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "two thirds no quorum",
+			quorum:      commondao.QuorumTwoThirds,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -230,14 +199,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "three fourths",
-			quorum: commondao.QuorumThreeFourths,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "three fourths",
+			quorum:      commondao.QuorumThreeFourths,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -254,14 +218,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "three fourths no quorum",
-			quorum: commondao.QuorumThreeFourths,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "three fourths no quorum",
+			quorum:      commondao.QuorumThreeFourths,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -271,12 +230,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "full",
-			quorum: commondao.QuorumFull,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "full",
+			quorum:      commondao.QuorumFull,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -289,12 +245,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "full no quorum",
-			quorum: commondao.QuorumFull,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "full no quorum",
+			quorum:      commondao.QuorumFull,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -304,12 +257,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "no quorum with empty vote",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "no quorum with empty vote",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -319,12 +269,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "no quorum with abstention",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "no quorum with abstention",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -342,18 +289,12 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			members := commondao.NewMemberStorage()
-			storage := commondao.MustNewReadonlyMemberStorage(members)
-			for _, m := range tc.members {
-				members.Add(m)
-			}
-
 			var record commondao.VotingRecord
 			for _, v := range tc.votes {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), *storage)
+			success := commondao.IsQuorumReached(tc.quorum, tc.memberCount, record)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -364,96 +305,24 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
-func TestProposalTally(t *testing.T) {
-	errTest := errors.New("test")
-	creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	cases := []struct {
-		name   string
-		setup  func() *commondao.Proposal
-		status commondao.ProposalStatus
-		err    error
-	}{
-		{
-			name: "passed",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
-				return p
-			},
-			status: commondao.StatusPassed,
-		},
-		{
-			name: "rejected",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: false})
-				return p
-			},
-			status: commondao.StatusRejected,
-		},
-		{
-			name: "proposal is not active",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
-				p.Tally(commondao.NewMemberStorage())
-				return p
-			},
-			err: commondao.ErrStatusIsNotActive,
-		},
-		{
-			name: "tally error",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyErr: errTest})
-				return p
-			},
-			err: errTest,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			p := tc.setup()
-			members := commondao.NewMemberStorage()
-
-			err := p.Tally(members)
-
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
-
-			urequire.NoError(t, err)
-			urequire.Equal(t, string(tc.status), string(p.Status()))
-		})
-	}
-}
-
-func TestMustValidate(cur realm, t *testing.T) {
-	uassert.NotPanics(t, cur, func() {
-		commondao.MustValidate(testPropDef{})
-	}, "expect validation to succeed")
-
-	uassert.PanicsWithMessage(t, cur, "validable proposal definition is nil", func() {
-		commondao.MustValidate(nil)
-	}, "expect validation to panic with nil definition")
-
-	uassert.PanicsWithMessage(t, cur, "boom!", func() {
-		commondao.MustValidate(testPropDef{validationErr: errors.New("boom!")})
-	}, "expect validation to panic")
-}
-
 // Executable non crossing proposal definition for unit tests
 type testPropDef struct {
 	votingPeriod            time.Duration
 	tallyResult             bool
 	validationErr, tallyErr error
 	voteChoices             []commondao.VoteChoice
+	tallyPanic              any
 }
 
-func (testPropDef) Title() string                 { return "" }
-func (testPropDef) Body() string                  { return "" }
+func (testPropDef) Title() string                 { return "Title" }
+func (testPropDef) Body() string                  { return "Body" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
 func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
+	if d.tallyPanic != nil {
+		panic(d.tallyPanic)
+	}
 	return d.tallyResult, d.tallyErr
 }
 

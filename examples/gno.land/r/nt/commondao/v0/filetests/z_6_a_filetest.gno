@@ -29,7 +29,7 @@ func (propDef) Validate() error                        { return nil }
 func (propDef) Tally(pdao.VotingContext) (bool, error) { return true, nil }
 
 func (propDef) Executor() pdao.ExecFunc {
-	return func(realm) error {
+	return func(string) error {
 		executed = true
 		return nil
 	}

@@ -3,7 +3,7 @@
 Definition package is an extension of `gno.land/p/nt/commondao/v0` that provides
 an alternative approach to define custom proposal types.
 
-## Definition
+### Definition
 
 The `Definition` type is an implementation that allows creating custom proposal
 definitions using callback functions and definition options.
@@ -37,57 +37,75 @@ configures the following proposal options:
 - Pre-execution and render validation
 - Execution behavior
 
-Example usage:
+### Security
 
+When creating proposal definitions ensure that any
+externally-supplied function comes from a trusted source. Never accept callback
+functions from an arbitrary external input, these callback are a trust
+extensions of the DAO using them, treat them like inlining the code into the DAO.
+
+### Example usage
+
+[embedmd]:# (filetests/readme_filetest.gno go)
 ```go
-import (
-  "chain/runtime"
-  "errors"
-  "time"
+// PKGPATH: gno.land/r/test/readme
+package readme
 
-  "gno.land/p/nt/commondao/v0"
-  "gno.land/p/nt/commondao/v0/exts/definition"
+import (
+	"errors"
+	"time"
+
+	"gno.land/p/nt/commondao/v0"
+	"gno.land/p/nt/commondao/v0/exts/definition"
 )
 
 var dao = commondao.New()
 
 // CreateMemberProposal creates a new example proposal to add a DAO member.
-func CreateMemberProposal(member address) uint64 {
-  if !member.IsValid() {
-    panic("invalid member address")
-  }
+func CreateMemberProposal(cur realm, member address) uint64 {
+	if !member.IsValid() {
+		panic("invalid member address")
+	}
 
-  // Define a function to validate that member doesn't exist within the DAO
-  validate := func() error {
-    if dao.Members().Has(member) {
-      return errors.New("member already exists within the DAO")
-    }
-    return nil
-  }
+	// Define a function to validate that member doesn't exist within the DAO
+	validate := func() error {
+		if dao.Members().Has(member) {
+			return errors.New("member already exists within the DAO")
+		}
+		return nil
+	}
 
-  // Define a custom tally function that approves proposals without votes
-  tally := func(commondao.VotingContext) (bool, error) {
-    return true, nil
-  }
+	// Define a custom tally function that approves proposals without votes
+	tally := func(commondao.VotingContext) (bool, error) {
+		return true, nil
+	}
 
-  // Define an executor to add the new member to the DAO
-  executor := func(realm) error {
-    dao.Members().Add(member)
-    return nil
-  }
+	// Define an executor to add the new member to the DAO
+	executor := func(pkgPath string) error {
+		dao.Members().Add(member)
+		return nil
+	}
 
-  // Create a custom proposal definition for an example proposal type
-  def := definition.MustNew(
-    "Example Proposal",
-    "This is a simple proposal example",
-    definition.WithVotingPeriod(time.Hour * 24 * 2), // 2 days
-    definition.WithTally(tally),
-    definition.WithValidation(validate),
-    definition.WithExecutor(executor),
-  )
+	// Create a custom proposal definition for an example proposal type
+	def := definition.MustNew(
+		"Example Proposal",
+		"This is a simple proposal example",
+		definition.WithVotingPeriod(time.Hour*24*2), // 2 days
+		definition.WithTally(tally),
+		definition.WithValidation(validate),
+		definition.WithExecutor(executor),
+	)
 
-  // Create a new proposal
-  p := dao.MustPropose(runtime.PreviousRealm().Address(), def)
-  return p.ID()
+	// Create a new proposal
+	p := dao.MustPropose(cur.Previous().Address(), def)
+	return p.ID()
 }
+
+func main(cur realm) {
+	proposalID := CreateMemberProposal(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	println(proposalID)
+}
+
+// Output:
+// 1
 ```

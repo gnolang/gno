@@ -344,10 +344,20 @@ func TestCommonDAOExecute(cur realm, t *testing.T) {
 			name: "success",
 			setup: func() *commondao.CommonDAO {
 				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{tallyResult: true}) // Non crossing definition
+				dao.Propose(member, testPropDef{tallyResult: true})
 				return dao
 			},
 			status:     commondao.StatusExecuted,
+			proposalID: 1,
+		},
+		{
+			name: "rejected",
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
+				dao.Propose(member, testPropDef{tallyResult: false})
+				return dao
+			},
+			status:     commondao.StatusRejected,
 			proposalID: 1,
 		},
 		{
@@ -355,17 +365,6 @@ func TestCommonDAOExecute(cur realm, t *testing.T) {
 			setup:      func() *commondao.CommonDAO { return commondao.New() },
 			proposalID: 1,
 			err:        commondao.ErrProposalNotFound,
-		},
-		{
-			name: "execution not allowed",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
-				p.Tally(dao.Members())
-				return dao
-			},
-			proposalID: 1,
-			err:        commondao.ErrExecutionNotAllowed,
 		},
 		{
 			name: "voting deadline not met",
