@@ -32,10 +32,15 @@ func main(cur realm) {
 	thread := boards2.Render("test-board/1")          // threaded view
 	reroot := boards2.Render("test-board/1/2")         // re-root at the comment, page 1
 	reroot2 := boards2.Render("test-board/1/2?page=2") // re-root, page 2
+	threadDesc := boards2.Render("test-board/1?order=desc")
 
 	ok := strings.Contains(thread, "View all 12 replies") && // breadth cap inline + link
 		strings.Contains(reroot, "page 1 of 2") && // re-root paginates the children
-		strings.Contains(reroot2, "page 2 of 2") // and advances to the tail
+		strings.Contains(reroot2, "page 2 of 2") && // and advances to the tail
+		// In a desc thread the "View all" link carries the order so the
+		// re-root opens newest-first too; in the default (asc) view it doesn't.
+		strings.Contains(threadDesc, "/r/gnoland/boards2/v1:test-board/1/2?order=desc") &&
+		!strings.Contains(thread, "test-board/1/2?order=desc")
 	println(ok)
 }
 

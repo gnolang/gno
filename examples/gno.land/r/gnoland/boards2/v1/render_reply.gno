@@ -162,8 +162,14 @@ func renderSubReplies(post *boards.Post, indent string, levels int, budget *int,
 		// Budget exhausted: the whole-thread flat view is the reachable backstop.
 		notice("More replies — view all comments", makeThreadFlatURI(post))
 	case post.Replies.Size() > pageSizeReplies:
-		// Breadth cap hit: re-root at this comment to page the rest.
-		notice("View all "+strconv.Itoa(post.Replies.Size())+" replies", makeReplyURI(post))
+		// Breadth cap hit: re-root at this comment to page the rest, carrying
+		// the page's sort order so the re-root opens the same way (its first
+		// page then matches the newest-first children shown inline here).
+		uri := makeReplyURI(post)
+		if desc {
+			uri += "?order=desc"
+		}
+		notice("View all "+strconv.Itoa(post.Replies.Size())+" replies", uri)
 	}
 	return b.String()
 }
