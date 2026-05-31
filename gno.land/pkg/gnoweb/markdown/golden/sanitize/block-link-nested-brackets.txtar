@@ -3,6 +3,9 @@
 -- input.md --
 [foo [bar] baz](url)
 -- output.md --
+
+
 [foo [bar] baz](url)
+
 -- output.html --
 <p><a href="url">foo [bar] baz</a></p>

@@ -14,7 +14,9 @@ func main() {
 // This document demonstrates the features of the [gno\.land/p/moul/md](https://gno.land/p/moul/md) package, showing both the source code and the rendered result for each feature.
 //
 //
+//
 // > **Note:** The md package provides helper functions to generate markdown programmatically, making it easier to create dynamic documentation and content.
+//
 //
 // ## Text Formatting
 //
@@ -224,16 +226,20 @@ func main() {
 // ```
 //
 // Result:
+//
 // > This is an important note.
+//
 //
 // ```go
 // md.Blockquote("Multi-line quotes\nare also supported\nwith proper formatting.")
 // ```
 //
 // Result:
+//
 // > Multi-line quotes
 // > are also supported
 // > with proper formatting.
+//
 //
 // ## Advanced Features
 //
@@ -381,7 +387,9 @@ func main() {
 //
 // <gno-columns-sep>
 // ### Bio
+//
 // > Passionate Gno developer building the future of smart contracts. Love working with blockchain technology and contributing to open source.
+//
 //
 // <gno-columns-sep>
 //

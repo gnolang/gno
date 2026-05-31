@@ -4,8 +4,11 @@
 a
 b
 -- output.md --
+
+
 a
 b
+
 -- output.html --
 <p>a
 b</p>

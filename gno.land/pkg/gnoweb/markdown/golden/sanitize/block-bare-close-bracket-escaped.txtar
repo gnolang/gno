@@ -3,6 +3,9 @@
 -- input.md --
 text]more
 -- output.md --
+
+
 text\]more
+
 -- output.html --
 <p>text]more</p>

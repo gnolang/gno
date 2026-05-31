@@ -5,9 +5,12 @@
 
 paragraph after
 -- output.md --
+
+
 \---
 
 paragraph after
+
 -- output.html --
 <p>---</p>
 <p>paragraph after</p>
