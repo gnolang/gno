@@ -1,8 +1,8 @@
 # Running & Testing Gno code
 
 The `gno` binary runs and tests Gno code locally: `gno test` for unit tests,
-much like `go test`; `gno run` for evaluating one-off expressions; and filetests
-for golden tests of realms.
+`gno run` for evaluating one-off expressions, and filetests for golden tests of
+realms.
 
 All of them run against a mocked GnoVM, so there is no real chain and any state
 changes stay in memory for that one command. Imports resolve from your local
@@ -18,7 +18,8 @@ build on the counter realm from
 
 ## `gno test`
 
-From inside the package directory:
+`gno test` runs a package's `_test.gno` files, much like `go test`. From inside
+the package directory:
 
 ```
 $ gno test .
@@ -40,7 +41,7 @@ Other flags cover test timeouts and performance checks. See `gno test --help`.
 
 `gno run` evaluates an expression against your package code, a quick way to
 check a function during development without deploying. It works with pure
-packages and plain, non-crossing functions; to exercise realm functions that
+packages and plain, non-crossing functions. To exercise realm functions that
 take a `realm` argument, use `gno test` or a filetest instead.
 
 It's a program runner, not a REPL, so return values aren't printed
@@ -51,7 +52,7 @@ $ gno run -expr "println(Add(2, 3))" .
 5
 ```
 
-Pass `-debug` to start the GnoVM debugger; see this
+Pass `-debug` to start the GnoVM debugger. See this
 [blog post](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
 ## Filetests
