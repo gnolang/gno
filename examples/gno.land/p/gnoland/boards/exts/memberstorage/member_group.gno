@@ -22,7 +22,7 @@ type MemberGroup interface {
 }
 
 // IsCanonical checks whether a member group is the canonical one, created
-// using the New() function defined within this package.
+// using the NewMemberGroup() function defined within this package.
 //
 // Use this function at any public entry point that accepts a MemberGroup
 // from an external caller before invoking any of its methods.

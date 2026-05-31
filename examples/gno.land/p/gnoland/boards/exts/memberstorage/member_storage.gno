@@ -14,8 +14,6 @@ type (
 		Size() int
 
 		// Has checks if an ungrouped member exists in the storage.
-		// Grouped members are not checked; use ExistsInMemberStorage to
-		// check across grouped and ungrouped members.
 		Has(address) bool
 
 		// Add adds a member to the storage.
@@ -33,8 +31,6 @@ type (
 		Grouping() MemberGrouping
 
 		// IterateByOffset iterates ungrouped members starting at the given offset.
-		// Grouped members are not iterated; use IterateMemberStorage to walk
-		// both grouped and ungrouped members.
 		// The callback can return true to stop iteration.
 		IterateByOffset(offset, count int, fn MemberIterFn) (stopped bool)
 	}
@@ -70,12 +66,15 @@ type memberStorage struct {
 }
 
 // Size returns the number of ungrouped members in the storage.
+// Grouped members are not counted, use `GetTotalMemberStorageSize()` to count
+// both grouped and ungrouped members.
 func (s memberStorage) Size() int {
 	return s.members.Size()
 }
 
 // Has checks if a member exists in the base underlying storage.
-// Grouped members are not checked.
+// Grouped members are not checked, use `ExistsInMemberStorage()` to
+// check across grouped and ungrouped members.
 func (s memberStorage) Has(member address) bool {
 	return s.members.Has(member)
 }
@@ -99,8 +98,8 @@ func (s memberStorage) Grouping() MemberGrouping {
 
 // IterateByOffset iterates ungrouped members starting at the given offset.
 // The callback can return true to stop iteration.
-// To iterate across both grouped and ungrouped members use the
-// IterateMemberStorage helper.
+// Grouped members are not iterated, use `IterateMemberStorage()` to walk
+// both grouped and ungrouped members.
 func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	if offset < 0 {
 		offset = 0
@@ -117,7 +116,7 @@ func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool 
 // GetTotalMemberStorageSize returns the total number of member occurrences
 // in the storage, counting grouped and ungrouped members. The same address
 // appearing in multiple groups (or in both grouped and ungrouped) is counted
-// once per occurrence; results are not deduplicated.
+// once per occurrence, results are not deduplicated.
 func GetTotalMemberStorageSize(s MemberStorage) int {
 	// TODO: Support deduplication, for example through a UniqueMemberIterator interface
 
@@ -151,16 +150,17 @@ func ExistsInMemberStorage(s MemberStorage, member address) bool {
 	})
 }
 
-// IterateMemberStorage iterates members starting at the given offset across
-// the entire storage. Ungrouped members are iterated first, followed by the
-// members of each group in group iteration order. Members that appear in
-// multiple groups (or in both grouped and ungrouped) are visited once per
-// occurrence. A negative offset is treated as 0. The callback can return true
-// to stop iteration.
+// IterateMemberStorage iterates members starting at the given offset across the entire
+// storage. Ungrouped members are iterated first, followed by the members of each group
+// in group iteration order. Members that appear in multiple groups (or in both grouped
+// and ungrouped) are visited once per occurrence.
+// A negative offset is treated as 0.
+// The callback can return true to stop iteration.
 func IterateMemberStorage(s MemberStorage, offset, count int, fn MemberIterFn) bool {
 	if count <= 0 {
 		return false
 	}
+
 	if offset < 0 {
 		offset = 0
 	}
