@@ -15,7 +15,13 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-func renderPost(post *boards.Post, path, indent string, levels int, budget *int) string {
+// renderPost renders a post and (unless it's a leaf or capped) its replies.
+// desc is the page's sort order, forwarded so a comment's nested inline
+// children (renderSubReplies) match the order of the view they appear in. It
+// is unused for the top-level/re-root call (path != "" routes to
+// renderTopLevelReplies, which derives the order from the path); those
+// callers pass false.
+func renderPost(post *boards.Post, path, indent string, levels int, budget *int, desc bool) string {
 	var b strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
@@ -39,7 +45,12 @@ func renderPost(post *boards.Post, path, indent string, levels int, budget *int)
 		return b.String()
 	}
 
-	// XXX: This triggers for reply views
+	// In practice this only fires for the re-rooted view's context-parent,
+	// which renderPostInner renders with an explicit levels==0. The thread
+	// recursion does levels-1 in BOTH renderPost and renderTopLevelReplies/
+	// renderSubReplies, so levels drops by 2 per nesting level and skips 0 —
+	// i.e. levels does NOT bound depth in the thread view; the render budget
+	// and the per-node breadth cap (renderSubReplies) are the real bounds.
 	if levels == 0 {
 		b.WriteString(indent + "\n")
 		return b.String()
@@ -48,7 +59,7 @@ func renderPost(post *boards.Post, path, indent string, levels int, budget *int)
 	if path != "" {
 		b.WriteString(renderTopLevelReplies(post, path, indent, levels-1, budget))
 	} else {
-		b.WriteString(renderSubReplies(post, indent, levels-1, budget))
+		b.WriteString(renderSubReplies(post, indent, levels-1, budget, desc))
 	}
 	return b.String()
 }
@@ -154,9 +165,10 @@ func renderPostContent(post *boards.Post, indent string, levels int, budget *int
 		case boards.IsThread(post):
 			actions = append(actions, md.Link("Show all Replies", makeThreadURI(post)))
 		case post.Replies.Size() > 0:
-			// Depth limit reached with replies still below: re-root here
-			// (Reddit/HN "continue this thread") so the subtree stays
-			// drillable, instead of bouncing to the thread root.
+			// Reached at levels==0 — in practice the re-rooted view's
+			// context-parent (see renderPost). It still has replies below, so
+			// re-root here (Reddit/HN "continue this thread") to keep the
+			// subtree drillable instead of bouncing to the thread root.
 			actions = append(actions, md.Link("Continue this thread →", makeReplyURI(post)))
 		}
 	}
@@ -186,13 +198,14 @@ func renderPostInner(post *boards.Post, path string) string {
 			parent, _ = getReply(thread, parentID)
 		}
 
-		s += renderPost(parent, "", "", 0, &budget) + "\n"
+		s += renderPost(parent, "", "", 0, &budget, false) + "\n"
 	}
 
 	// Pass the reply's own path so renderPost routes to renderTopLevelReplies
 	// and paginates this comment's direct replies (the re-root has its own
 	// ?page= — no collision with the thread view, which is a different path).
-	s += renderPost(post, path, "> ", 5, &budget)
+	// desc=false: order is derived from path by renderTopLevelReplies.
+	s += renderPost(post, path, "> ", 5, &budget, false)
 	return s
 }
 

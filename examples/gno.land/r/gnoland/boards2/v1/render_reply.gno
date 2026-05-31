@@ -89,6 +89,7 @@ func newClampedPager(path string, size, pageSize int) pager.Pager {
 
 func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, budget *int) string {
 	p := newClampedPager(path, post.Replies.Size(), pageSizeReplies)
+	link, desc := sortToggleLink(path)
 
 	var (
 		b              strings.Builder
@@ -101,14 +102,12 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, b
 			truncated = true
 			return true // stop: render budget exhausted (see maxRenderedBodies)
 		}
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget))
+		// Forward the page order so this reply's nested children match it.
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget, desc))
 		return false
 	}
 
-	b.WriteString("\n" + md.HorizontalRule() + "Sort by: ")
-
-	link, desc := sortToggleLink(path)
-	b.WriteString(link + "\n")
+	b.WriteString("\n" + md.HorizontalRule() + "Sort by: " + link + "\n")
 
 	count := p.PageSize()
 	if desc {
@@ -129,7 +128,7 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, b
 	return b.String()
 }
 
-func renderSubReplies(post *boards.Post, indent string, levels int, budget *int) string {
+func renderSubReplies(post *boards.Post, indent string, levels int, budget *int, desc bool) string {
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
@@ -140,13 +139,18 @@ func renderSubReplies(post *boards.Post, indent string, levels int, budget *int)
 	// its own pager (it would collide with the page's ?page=), so instead of
 	// dumping every child here a comment with more links to its own re-rooted
 	// view, which paginates them. Keeps every view bounded to <=pageSizeReplies
-	// children per post.
-	post.Replies.Iterate(0, pageSizeReplies, func(reply *boards.Post) bool {
+	// children per post. count's sign follows the page order so the inline
+	// children match the view they appear in (desc → the newest ones).
+	count := pageSizeReplies
+	if desc {
+		count = -count
+	}
+	post.Replies.Iterate(0, count, func(reply *boards.Post) bool {
 		if *budget <= 0 {
 			truncated = true
 			return true // stop: render budget exhausted (see maxRenderedBodies)
 		}
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget))
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget, desc))
 		return false
 	})
 

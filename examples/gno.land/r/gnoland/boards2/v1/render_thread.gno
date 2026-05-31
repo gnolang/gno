@@ -51,7 +51,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(renderThreadFlat(thread, req.RawPath, &budget))
 		return
 	}
-	res.Write(renderPost(thread, req.RawPath, "", 5, &budget))
+	res.Write(renderPost(thread, req.RawPath, "", 5, &budget, false))
 }
 
 // renderThreadFlat renders every comment in the thread as a single flat,
@@ -67,7 +67,7 @@ func renderThreadFlat(thread *boards.Post, path string, budget *int) string {
 	var b strings.Builder
 
 	// The OP for context (its body only; no replies — levels 0).
-	b.WriteString(renderPost(thread, "", "", 0, budget))
+	b.WriteString(renderPost(thread, "", "", 0, budget, false))
 
 	meta, ok := thread.Meta.(*ThreadMeta)
 	if !ok || meta.AllReplies.Size() == 0 {
@@ -95,7 +95,7 @@ func renderThreadFlat(thread *boards.Post, path string, budget *int) string {
 			return true
 		}
 		indent := flatIndent(thread, reply)
-		b.WriteString(indent + "\n" + renderPost(reply, "", indent, 0, budget))
+		b.WriteString(indent + "\n" + renderPost(reply, "", indent, 0, budget, false))
 		return false
 	})
 
