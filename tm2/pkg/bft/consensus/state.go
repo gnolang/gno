@@ -1748,14 +1748,63 @@ func (cs *ConsensusState) voteTime() time.Time {
 	return minVoteTime
 }
 
+func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address crypto.Address) *types.Vote {
+	var voteSet *types.VoteSet
+	switch type_ {
+	case types.PrevoteType:
+		voteSet = cs.Votes.Prevotes(cs.Round)
+	case types.PrecommitType:
+		voteSet = cs.Votes.Precommits(cs.Round)
+	default:
+		panic(fmt.Sprintf("Unexpected vote type %X", type_))
+	}
+
+	return voteSet.GetByAddress(address)
+}
+
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) {
-	address := cs.privValidator.PubKey().Address()
-
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(address) {
+	if cs.privValidator == nil {
 		return
 	}
+
+	address := cs.privValidator.PubKey().Address()
+	if !cs.Validators.HasAddress(address) {
+		return
+	}
+
+	// Avoid re-signing a vote we've already signed for this round; see ADR tm2/adr/pr5348_consensus_avoid_resign.md.
+	blockID := types.BlockID{Hash: hash, PartsHeader: header}
+	if existing := cs.existingSignedVote(type_, address); existing != nil {
+		if existing.BlockID.Equals(blockID) {
+			cs.Logger.Info(
+				"Reusing known self vote from vote set",
+				"height", existing.Height,
+				"round", existing.Round,
+				"type", existing.Type,
+				"validator address", existing.ValidatorAddress,
+				"validator index", existing.ValidatorIndex,
+			)
+			return
+		}
+
+		logFn := cs.Logger.Error
+		if cs.replayMode {
+			logFn = cs.Logger.Warn
+		}
+		logFn(
+			"Refusing to sign conflicting self vote",
+			"height", cs.Height,
+			"round", cs.Round,
+			"type", type_,
+			"validator address", address,
+			"existing block ID", existing.BlockID,
+			"new block ID", blockID,
+		)
+		return
+	}
+
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})

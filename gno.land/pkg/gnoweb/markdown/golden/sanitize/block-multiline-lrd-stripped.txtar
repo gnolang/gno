@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[lab
+el]: https://attacker.example.com
+
+body of paragraph
+-- output.md --
+
+
+body of paragraph
+
+-- output.html --
+<p>body of paragraph</p>
