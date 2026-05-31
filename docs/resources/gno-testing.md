@@ -1,15 +1,20 @@
 # Running & Testing Gno code
 
-`gno test` runs `_test.gno` files for a Gno package; `gno run` evaluates
-expressions against package code. Both use a mocked GnoVM environment: no
-real chain, state changes are in-memory only.
+The `gno` binary runs and tests Gno code locally: `gno test` for unit tests,
+much like `go test`; `gno run` for evaluating one-off expressions; and filetests
+for golden tests of realms.
+
+All of them run against a mocked GnoVM, so there is no real chain and any state
+changes stay in memory for that one command. Imports resolve from your local
+gno installation rather than a chain, so tests see the same standard library and
+examples packages you have on disk.
 
 ## Prerequisites
 
-`gno` installed. See [Installation](../builders/install.md). Examples below
-use the `Counter` realm from
-[Getting started](../builders/getting-started.md), with `counter.gno` and
-`counter_test.gno` in the package directory.
+`gno` installed. See [Installation](../builders/install.md). The examples below
+build on the counter realm from
+[Getting started](../builders/getting-started.md): the `myrealm` package, with
+`myrealm.gno` and `myrealm_test.gno` in the package directory.
 
 ## `gno test`
 
@@ -33,13 +38,17 @@ Other flags cover test timeouts and performance checks. See `gno test --help`.
 
 ## `gno run`
 
-`gno run` evaluates an expression against package code. It's a program
-runner, not a REPL, so return values aren't printed automatically. Wrap
-in `println()`:
+`gno run` evaluates an expression against your package code, a quick way to
+check a function during development without deploying. It works with pure
+packages and plain, non-crossing functions; to exercise realm functions that
+take a `realm` argument, use `gno test` or a filetest instead.
+
+It's a program runner, not a REPL, so return values aren't printed
+automatically. Wrap the expression in `println()`:
 
 ```
-$ gno run -expr "println(Increment(42))"
-42
+$ gno run -expr "println(Add(2, 3))" .
+5
 ```
 
 Pass `-debug` to start the GnoVM debugger; see this
