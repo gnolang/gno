@@ -33,7 +33,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [RPC clients](builders/rpc-clients.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
 - [Contributor guide](builders/contributor-guide.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
 
-## Reference
+## References
 
 Learn about core concepts found in Gno.land & Gno.
 

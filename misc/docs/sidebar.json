@@ -30,7 +30,7 @@
       },
       {
         "type": "category",
-        "label": "Reference",
+        "label": "References",
         "items": [
           "resources/effective-gno",
           "resources/gno-packages",
