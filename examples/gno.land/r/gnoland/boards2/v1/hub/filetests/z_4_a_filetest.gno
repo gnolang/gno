@@ -35,6 +35,6 @@ func main(cur realm) {
 }
 
 // Output:
+// g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj readonly(slice[("admin" gno.land/p/gnoland/boards.Role)])
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 readonly(slice[("owner" gno.land/p/gnoland/boards.Role)])
 // g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh readonly(slice[("owner" gno.land/p/gnoland/boards.Role)])
-// g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj readonly(slice[("admin" gno.land/p/gnoland/boards.Role)])
