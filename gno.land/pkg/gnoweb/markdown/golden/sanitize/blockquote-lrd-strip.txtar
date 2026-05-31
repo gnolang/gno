@@ -5,8 +5,9 @@
 
 resolves [click][evil]
 -- output.md --
-> 
+
 > resolves \[click\]\[evil\]
+
 -- output.html --
 <blockquote>
 <p>resolves [click][evil]</p>

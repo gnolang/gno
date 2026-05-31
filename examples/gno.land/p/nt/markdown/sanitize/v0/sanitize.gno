@@ -13,13 +13,14 @@
 //
 // # Wrap once
 //
-// The escapers and safe-emit builders in this package (InlineText, Block,
-// LinkTitle, TableCell, HTMLEscape, InlineCode, CodeBlock,
-// LanguageCodeBlock, Blockquote, FootnoteDefinition,
-// LinkReferenceDefinition) are NOT idempotent — applying them twice
-// re-escapes the bytes the first pass added (`\*` becomes `\\\*`, `&amp;`
-// becomes `&amp;amp;`, a fenced block gets re-fenced). Wrap each
-// user-derived string with at most one sanitize.* call.
+// Most escapers and safe-emit builders in this package are NOT
+// idempotent — applying them twice re-escapes bytes the first pass
+// added (`\*` becomes `\\\*`, `&amp;` becomes `&amp;amp;`, a fenced
+// block gets re-fenced). Wrap each user-derived string with at most
+// one sanitize.* call. Block and BlockRich are exceptions —
+// idempotent by design — but the at-most-once rule is still the
+// safest default. See the "Idempotence classes" enumeration below
+// for the full breakdown.
 //
 // Some markdown-builder packages (e.g. p/moul/md) sanitize the args of
 // specific helpers internally — see each builder's package doc for the
@@ -39,7 +40,10 @@
 //	![alt](src)                                InlineText (alt)
 //	> [!NOTE] one-line title                   InlineText
 //	multi-paragraph post body                  Block
+//	multi-paragraph post body w/ rich block    BlockRich
+//	  structure (headings, lists, tables, etc.)
 //	multi-line blockquote (`> ` prefixed)      Blockquote
+//	multi-line blockquote w/ rich block body   BlockquoteRich
 //	[text](url "title")                        LinkTitle (title)
 //	| cell |                                   TableCell
 //	<gno-card caption="X">                     HTMLEscape
@@ -68,12 +72,15 @@
 //	  StripBidiAndZeroWidth, NormalizeBreaks
 //	  UserName, BechString, FootnoteLabel, LanguageName, NestedPrefix
 //	  URL, ImageURL              (accept→identity; reject→"")
+//	  Block                      (bracket walker treats \[/\] as ordinary;
+//	                              line-leader escapes don't re-fire on
+//	                              already-escaped `\#` etc.)
+//	  BlockRich                  (TrimLeft/TrimRight + "\n\n" wrap is stable)
 //
 //	NOT idempotent — never wrap an already-sanitized string:
 //	  InlineText, LinkTitle, TableCell   (re-escape backslashes)
 //	  HTMLEscape                         (re-escapes `&` → `&amp;`)
-//	  Block                              (re-strips LRDs, may double-escape line leaders)
-//	  Blockquote                         (re-prefixes `> `, escapes its own prefixes)
+//	  Blockquote, BlockquoteRich         (re-prefixes `> `, nesting the quote each pass)
 //	  InlineCode, CodeBlock,
 //	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
 //	  FootnoteDefinition,
@@ -117,6 +124,22 @@
 //	                                              inside the URL, corrupting the host/path
 //	sanitize.Blockquote(sanitize.Blockquote(s))   double-wrap — outer would escape the
 //	                                              inner `> ` prefixes
+//	sanitize.Block(sanitize.BlockRich(s))         double-sanitize — strict Block re-escapes
+//	                                              the markers BlockRich preserved (headings,
+//	                                              lists, tables); BlockRich's rich structure
+//	                                              renders as literal text after Block escapes
+//	                                              its line-leaders
+//	sanitize.BlockRich(sanitize.Block(s))         pointless double-sanitize — Block already
+//	                                              escaped every line-leader to `\#`/`\>`/etc.;
+//	                                              BlockRich preserves the backslash escapes
+//	                                              as visible artifacts in user prose
+//	sanitize.Blockquote(sanitize.BlockRich(s))    double-sanitize — Blockquote's Block step
+//	                                              re-escapes the markers BlockRich preserved
+//	sanitize.BlockRich(sanitize.Blockquote(s))    nonsense — Blockquote already line-prefixed
+//	                                              with `> `; BlockRich expects raw user content
+//	sanitize.BlockquoteRich(sanitize.BlockRich(s)) double-wrap — Rich + Rich nests twice
+//	sanitize.BlockRich(sanitize.TableCell(s))     wrong slot — use TableCell for cell content,
+//	                                              BlockRich for multi-paragraph block content
 //	sanitize.TableCell(multiParagraphProse)       newlines fold to space silently; use a
 //	                                              non-table layout for multi-paragraph text
 //
@@ -135,10 +158,27 @@
 //   - markdown-structure injection: user content opening a heading,
 //     blockquote, list, code fence, link-reference def, setext underline,
 //     gnoweb extension delimiter, or GFM table row at document level.
-//     (Line-leading `|` is backslash-escaped for defense-in-depth — gnoweb
-//     does not load the GFM Table extension today, but Block is meant to
-//     be a portable defensive primitive that protects any downstream
-//     goldmark consumer.)
+//     Strict Block escapes the line-leading `|` of any GFM table row so
+//     user content cannot inject `<table>`-shaped structure; permissive
+//     BlockRich preserves table rows so authors can compose `<table>`
+//     elements (gnoweb loads extension.Table per render_config.go).
+//   - HTML block type 1-5 absorption: CommonMark §4.6 HTML block types 1
+//     (`<script>`, `<pre>`, `<style>`, `<textarea>`), 2 (`<!--`), 3
+//     (`<?`), 4 (`<!UPPER`), and 5 (`<![CDATA[`) do NOT close on a blank
+//     line — they only close on a type-specific token (`</tag>`, `-->`,
+//     `?>`, `>`, `]]>`) or EOF. Without a defense, user content opening
+//     any of these would swallow realm chrome appended afterward. Both
+//     Block and BlockRich line-escape the openers (prepend `\`) so the
+//     block never opens; this defense is unconditional in both modes.
+//     Types 6 and 7 close on a blank line, so BlockRich's `\n\n`
+//     paragraph envelope already bounds them and no escape is needed.
+//   - realm-discipline boundary (caller's responsibility, not enforced):
+//     callers should emit realm chrome at flush-left column 0 around
+//     `BlockRich(user)`. Indented chrome (4+ leading spaces, list-item
+//     continuations, footnote-definition body, or an unclosed Type 1
+//     HTML tag in realm chrome before the call) can extend across blank
+//     lines into user content or vice versa. The sanitizer cannot
+//     defend against malformed realm chrome — only against user input.
 //   - footnote / link-reference namespace pollution: user content
 //     containing `[^name]` or `[text][label]` syntax that would otherwise
 //     resolve against realm-defined footnote definitions or link
@@ -316,6 +356,18 @@ func InlineText(s string) string {
 // link-reference definitions, setext underlines, gnoweb extension
 // delimiters, GFM table rows).
 //
+// Output shape: every non-empty result begins AND ends with "\n\n" —
+// CM §4.8 blank lines on both sides — so user content is guaranteed
+// to occupy its own paragraph(s), isolated from any realm chrome that
+// precedes OR follows it. This bounds CM §4.6 HTML block types 6 and
+// 7 (`<div>`, `<table>`, `<form>`, arbitrary `<foo>` tags) which
+// close on a blank line and are NOT escaped in any mode, and it
+// defeats first-line setext promotion (`===`/`---`) that strict-mode
+// escapes miss when the previous line is blank in the user input but
+// non-blank in the concatenated realm output. Empty input (or input
+// that strips entirely, e.g. a lone LRD) returns "" — no envelope is
+// emitted.
+//
 // Use for any multi-paragraph user-supplied prose that the realm
 // concatenates into its rendered output:
 //   - post bodies, comments, replies
@@ -327,6 +379,10 @@ func InlineText(s string) string {
 //
 //	User attempt                                          | Block's response
 //	------------------------------------------------------|----------------------------------------------------
+//	  --- preserved verbatim ---                          |
+//	[text](url) inline link, ![alt](src) image            | preserved verbatim
+//	------------------------------------------------------|----------------------------------------------------
+//	  --- escaped / stripped / folded ---                 |
 //	# heading at line-start                               | escaped → literal `# heading`
 //	> quoted at line-start                                | escaped → literal `>`
 //	- item, * item, + item, 1. item at line-start         | escaped
@@ -335,13 +391,15 @@ func InlineText(s string) string {
 //	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
 //	  line-start                                          |
 //	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
+//	<!--, <script>, <pre>, <style>, <textarea>, <?…?>,    | escaped (\<…) → literal text;
+//	  <!DOCTYPE…>, <![CDATA[…]]> at line-start            |   blocks goldmark from opening a
+//	  (CM §4.6 HTML block types 1-5)                      |   blank-line-NON-terminating HTML block
 //	[text][realm-label] ref-link USE                      | both bracket pairs escaped → \[text\]\[realm-label\]
 //	[^name] footnote-ref                                  | both brackets escaped → \[^name\]
 //	[label] bare shortcut-ref                             | both brackets escaped → \[label\]
 //	[label]: url link-reference definition                | whole region stripped (incl. multi-line label
 //	  (incl. [lab\nel]: url multi-line)                   |   `[lab\nel]: url` and any title continuation)
 //	[label\]: url (backslash-escaped `]`)                 | NOT stripped; brackets escaped → paragraph text
-//	[text](url) inline link, ![alt](src) image            | preserved verbatim
 //	code fence opened without close                       | autoclosed at end of input
 //	NUL byte (\x00)                                       | replaced with U+FFFD
 //	U+2028 / U+2029 / U+0085 (NEL)                        | folded to `\n`
@@ -379,7 +437,36 @@ func Block(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
 	s = replaceNULWithFFFD(s)
-	return markdown.EscapeBlockHazards(s)
+	s = markdown.EscapeBlockHazards(s)
+	// Symmetric "\n\n" envelope — same pattern BlockRich uses for the
+	// same reasons (see BlockRich docstring "Cross-paragraph safety").
+	// Strict mode escapes most line-leading hazards (setext, GFM table
+	// row, CM §4.6 HTML types 1-5, list/heading/HR markers), but two
+	// hazards remain that only a blank-line break can close:
+	//
+	//   - CM §4.6 HTML block types 6 and 7 (`<div>`, `<table>`,
+	//     `<form>`, arbitrary `<foo>` tags) are NOT escaped in any mode
+	//     — they close on a blank line per CM. Without a trailing
+	//     "\n\n", a `<div>` at the end of user content extends into
+	//     appended realm chrome.
+	//
+	//   - First-line setext: strict mode's setext escape only fires
+	//     when the previous line is non-blank IN THE USER'S INPUT.
+	//     A user whose first line is `===` slips past, and concatenated
+	//     after `chrome\n` would promote chrome to H1. The leading
+	//     "\n\n" forces a paragraph break so chrome cannot be merged.
+	//
+	// TrimLeft/TrimRight + fixed wrap is idempotent: Block(Block(s)) is
+	// byte-identical to Block(s). Empty post-escape result short-
+	// circuits to "" so realm concatenation doesn't leak stray blank
+	// lines for trivially empty inputs (e.g. lone LRD that strips
+	// entirely).
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return ""
+	}
+	return "\n\n" + s + "\n\n"
 }
 
 // BlockRich is the permissive counterpart of Block. Both are safe
@@ -391,39 +478,70 @@ func Block(s string) string {
 //   - BlockRich PRESERVES all of those, so user content can compose
 //     headings, lists, quotes, horizontal rules, and setext-styled
 //     headings. Realm-binding defenses stay on (extension delimiters
-//     `<gno-…>`, GFM table-row openers, the bracket walker for
-//     link / LRD / ref / footnote / shortcut, fence autoclose,
-//     NUL / bidi / Unicode-separator folding).
+//     `<gno-…>`, the bracket walker for link / LRD / ref /
+//     footnote / shortcut, fence autoclose, NUL / bidi /
+//     Unicode-separator folding). GFM table-row openers are
+//     PRESERVED (see "Tables" below).
 //
-// Cross-boundary setext safety has two layers:
+// Cross-paragraph safety: BlockRich's output begins with "\n\n"
+// AND ends with "\n\n" — CM §4.8 blank lines on both sides — so
+// user content is guaranteed to occupy its own paragraph(s),
+// isolated from anything the realm emits before OR after. Symmetric
+// isolation closes four distinct attacks:
 //
-//   - First-line qualifying-setext escape: if the first non-blank
-//     line of user input matches the CM §4.3 setext-underline
-//     pattern (run of `=` or `-` with 0-3 leading spaces and only
-//     trailing whitespace), BlockRich inserts `\` before the first
-//     `=`/`-`. The escape defeats setext detection (first char no
-//     longer matches `=`/`-`), defeats thematic-break detection for
-//     `---`, and renders harmlessly per CM §2.4 (literal `===` or
-//     `---` in paragraph text).
-//   - Leading "\n" on the output: BlockRich's return value always
-//     begins with `\n`. When the realm concatenates
-//     `chrome + BlockRich(user)`, user content is guaranteed to
-//     start on a new line — preventing realm chrome and the user's
-//     first line from merging into a single paragraph that a deeper
-//     `===`/`---` in user content could then promote to a heading.
+//   - Cross-paragraph setext promotion (backward). User content
+//     `body\n===\nmore` concatenated after realm chrome (no
+//     trailing `\n`) would, without paragraph isolation, place
+//     "chrome\nbody" in one paragraph; the `===` setext underline
+//     would then promote that merged paragraph to H1, hijacking
+//     realm chrome. The leading "\n\n" forces a paragraph break.
 //
-// Together these close both the first-line setext attack
-// (`===\nbody` at start of user input) and the deeper-setext attack
-// (`# title\n===\nbody` where the realm has no trailing newline and
-// concatenates directly). Setext underlines deeper in user content,
-// preceded by user-authored text, are untouched — they correctly
-// promote user-owned lines as the user intended.
+//   - Cross-paragraph GFM table promotion (backward). User content
+//     beginning with `|---|---|` (a table delimiter row) would,
+//     without a blank-line break, retroactively turn the preceding
+//     realm line into a `<thead>`. Paragraph isolation prevents
+//     the table-detection scan from crossing the boundary.
+//
+//   - Cross-paragraph GFM table promotion (forward). Realm chrome
+//     appended immediately after BlockRich(user) that begins with
+//     `|---|` would, without a trailing blank line, extend user's
+//     last line into a table header and pull realm chrome into the
+//     body row. The trailing "\n\n" prevents the merge.
+//
+//   - Lazy paragraph continuation (forward). Paragraph-shaped realm
+//     chrome appended immediately after BlockRich(user) would, via
+//     CM §5.2, merge into user's trailing paragraph and inherit any
+//     block-level decoration it carries.
+//
+// First-line qualifying-setext escape (the
+// `neuterLeadingSetextIfQualifying` pre-pass) remains in place as
+// belt-and-suspenders: if the first non-blank line of user input
+// matches the CM §4.3 setext-underline pattern (run of `=` or `-`
+// with 0-3 leading spaces and only trailing whitespace), BlockRich
+// inserts `\` before the first `=`/`-`. This is redundant given
+// paragraph isolation but harmless and inexpensive.
+//
+// # Tables
+//
+// BlockRich preserves line-leading `|` so user content can
+// compose GFM tables:
+//
+//	| Header A | Header B |
+//	|----------|----------|
+//	| cell a   | cell b   |
+//
+// renders as a real `<table>` element. Strict Block continues to
+// escape line-leading `|` (each row becomes literal `\| a | b |`
+// text). When the realm authors the table itself and inserts user
+// content into a specific cell, use TableCell — NOT BlockRich —
+// to sanitize that cell value.
 //
 // What attacker input produces what (full table, same rows as Block
 // except where marked CHANGED):
 //
 //	User attempt                                  | BlockRich response
 //	----------------------------------------------|--------------------------------------------------
+//	  --- preserved (compose freely) ---          |
 //	# heading at line-start                       | preserved [CHANGED from Block]
 //	> quoted at line-start                        | preserved [CHANGED]
 //	- item, * item, + item, 1. item               | preserved [CHANGED]
@@ -431,14 +549,20 @@ func Block(s string) string {
 //	=== or --- setext underline                   | preserved when preceded by user text;
 //	                                              | escaped (\===/\---) if the first non-blank
 //	                                              | line of input [CHANGED]
+//	| a | b | GFM table row (line-leading |)      | preserved → renders as <table> when followed by
+//	                                              | a delimiter row [CHANGED]
+//	[text](url), ![alt](src)                      | preserved verbatim [SAME]
+//	----------------------------------------------|--------------------------------------------------
+//	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
-//	| a | b | GFM table row (line-leading |)      | escaped → literal `| a | b |` [SAME]
+//	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — Types 1-5 don't close
+//	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   on blank lines, so `\n\n` envelope
+//	  at line-start (CM §4.6 HTML block types 1-5)|   doesn't isolate them; explicit escape
 //	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]
 //	[label]: url link-reference definition        | whole region stripped [SAME]
 //	[label\]: url (escaped `]`)                   | not stripped; brackets escaped [SAME]
-//	[text](url), ![alt](src)                      | preserved verbatim [SAME]
 //	code fence opened without close               | autoclosed at end of input [SAME]
 //	NUL byte (\x00)                               | replaced with U+FFFD [SAME]
 //	U+2028 / U+2029 / U+0085 (NEL)                | folded to `\n` [SAME]
@@ -459,16 +583,33 @@ func Block(s string) string {
 // render at their literal level.
 //
 // Idempotent: BlockRich(BlockRich(s)) is byte-identical to
-// BlockRich(s). The leading-"\n" prepend only fires if the
-// processed output doesn't already begin with "\n"; the qualifying-
-// setext escape is stable (a line beginning with `\` no longer
-// matches the setext pattern); and the bracket walker treats
-// already-escaped `\[`/`\]` as ordinary bytes. Still, wrap each
-// user-supplied string exactly once — chained sanitization adds
-// no value and burns gas.
+// BlockRich(s). The TrimLeft-then-"\n\n"-prepend pattern strips
+// any leading newlines and reapplies exactly two, so the leading
+// shape is stable across passes; the qualifying-setext escape is
+// stable (a line beginning with `\` no longer matches the setext
+// pattern); and the bracket walker treats already-escaped
+// `\[`/`\]` as ordinary bytes. Empty input (or input that strips
+// to empty, e.g. a lone link-reference definition) returns "" —
+// realm concatenation doesn't get a stray blank line.
+// Still, wrap each user-supplied string exactly once — chained
+// sanitization adds no value and burns gas.
 //
-// PREVIEW: no realm in the current tree calls BlockRich. The API may
-// be revised once a real caller informs concrete needs.
+// Realm-discipline boundary: BlockRich defends user input against
+// every cross-paragraph attack listed above, but it CANNOT defend
+// against malformed REALM chrome. Specifically, callers should emit
+// realm chrome at flush-left column 0 around `BlockRich(user)`. If
+// the realm chrome BEFORE the call contains an unclosed CM §4.6
+// Type 1 HTML tag (`<script>`, `<pre>`, `<style>`, `<textarea>`),
+// the `\n\n` envelope does NOT close it (Type 1 closes only on the
+// matching close tag), and user-controlled `</tag>` content can
+// then prematurely terminate it. Indented chrome (4+ leading
+// spaces, list-item continuations, footnote-definition body) can
+// likewise extend across the envelope into user content. Keep
+// chrome flush-left and Type 1 tags closed within the chrome.
+//
+// PREVIEW: BlockquoteRich is currently the only in-tree caller of
+// BlockRich; the API and the `"\n\n"` output shape may evolve once
+// direct callers emerge.
 func BlockRich(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
@@ -483,31 +624,51 @@ func BlockRich(s string) string {
 	s = foldSeparatorsToNewline(s)
 	s = neuterLeadingSetextIfQualifying(s)
 	s = markdown.EscapeBlockHazardsRich(s)
-	// Ensure the output starts with "\n" so user content always begins
-	// on a new line when the realm concatenates
-	// `chrome + BlockRich(user)` without its own separator. Two
-	// attacks this closes:
-	//   1. Realm without trailing `\n` + user content whose deeper
-	//      lines form a setext underline (e.g. `# title\n===\nbody`)
-	//      would otherwise merge realm chrome and user line 1 into a
-	//      single paragraph, then the user's deeper `===` would
-	//      promote the merged line to a heading. With a leading
-	//      `\n`, user content always starts a new line — its ATX
-	//      heading parses cleanly as the user's heading, and a deeper
-	//      setext can only promote user-authored text.
-	//   2. Combined with neuterLeadingSetextIfQualifying above, the
-	//      first-line setext attack is also closed regardless of
-	//      whether realm chrome ended with `\n`.
-	// The check `!HasPrefix(s, "\n")` keeps BlockRich idempotent: if
-	// the native already produced output starting with `\n` (because
-	// the input itself started with a blank line, or because this is
-	// the second pass on already-BlockRich'd content), no extra `\n`
-	// is added. So BlockRich(BlockRich(s)) is byte-identical to
-	// BlockRich(s).
-	if !strings.HasPrefix(s, "\n") {
-		s = "\n" + s
+	// Ensure the output BOTH starts AND ends with "\n\n" — CM §4.8
+	// blank lines on each side — so user content is GUARANTEED to
+	// occupy its own paragraph(s), isolated from anything the realm
+	// emits before OR after. Symmetric isolation closes four attacks:
+	//
+	//  Backward (closed by leading "\n\n"):
+	//   1. Deeper-setext: user content `body\n===\nmore` concatenated
+	//      after realm chrome (no trailing `\n`) would otherwise place
+	//      "chrome\nbody" in one paragraph; the `===` setext underline
+	//      would then promote that merged paragraph to H1, hijacking
+	//      realm chrome.
+	//   2. GFM table-row promotion: user content beginning with
+	//      `|---|---|` (a table delimiter row) would, without a blank-
+	//      line break, retroactively promote the preceding realm line
+	//      into a `<thead>` cell.
+	//
+	//  Forward (closed by trailing "\n\n"):
+	//   3. GFM table-row promotion in reverse: realm appending its own
+	//      chrome immediately after BlockRich(user), where chrome
+	//      starts with `|---|`, would extend user's last line into a
+	//      table header and pull realm chrome into the body row.
+	//   4. Lazy paragraph continuation: realm appending paragraph-
+	//      shaped chrome immediately after BlockRich(user) would, via
+	//      CM §5.2 lazy-continuation, merge into user's trailing
+	//      paragraph and inherit any block-level decoration it carries.
+	//
+	// `neuterLeadingSetextIfQualifying` above is now belt-and-
+	// suspenders for the first-line setext case: even if the blank-
+	// line guarantee were somehow defeated by an exotic CM consumer,
+	// the first-line escape still blocks the simplest setext shape.
+	//
+	// Empty post-escape result short-circuits to "" so realm
+	// concatenation doesn't leak stray blank lines for trivially empty
+	// inputs (e.g. a lone link-reference definition that strips
+	// entirely).
+	//
+	// Idempotency: TrimLeft and TrimRight strip ALL leading/trailing
+	// "\n"s, then the wrap adds exactly two on each side. Stable
+	// across passes.
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return ""
 	}
-	return s
+	return "\n\n" + s + "\n\n"
 }
 
 // foldSeparatorsToNewline replaces U+0085 NEL (0xC2 0x85),
@@ -605,14 +766,27 @@ func neuterLeadingSetextIfQualifying(s string) string {
 // The content is first cleaned by Block (bidi-strip, line-ending
 // normalize, NUL→U+FFFD, bracket walker for link/image/LRD spans,
 // block-marker escape, code-fence auto-close at EOF, Unicode-separator
-// fold), then every resulting line — including blank lines — is
-// prefixed with "> ". The
-// user content can still use inline emphasis, code spans, and nested
-// fenced code blocks inside the quote; what it cannot do is open new
-// top-level structure (heading, list, blockquote, GFM table row, etc.)
-// or escape the quote.
+// fold). Block's "\n\n" cross-paragraph envelope is then stripped —
+// the `> ` marker creates the container boundary, so the envelope
+// would only line-prefix to empty `> ` lines top and bottom — and
+// every remaining line is prefixed with "> ". The user content can
+// still use inline emphasis, code spans, and nested fenced code blocks
+// inside the quote; what it cannot do is open new top-level structure
+// (heading, list, blockquote, GFM table row, etc.) or escape the
+// quote.
 //
-// Empty input returns "".
+// Output shape — every non-empty result begins with "\n" and ends
+// with "\n\n" (same shape as BlockquoteRich):
+//
+//   - Leading "\n" guarantees a clean blockquote opener even when the
+//     realm concatenates `chrome + Blockquote(user)` without its own
+//     newline separator.
+//   - Trailing "\n\n" (blank line) cleanly ends the blockquote so a
+//     realm appending `Blockquote(user) + chrome` cannot pull chrome
+//     bytes into the quote via CommonMark §5.2 lazy continuation.
+//
+// Empty input (or input that strips entirely, e.g. a lone LRD)
+// returns "" — no blockquote is emitted.
 //
 // Composition gotcha: Block's EOF code-fence auto-close (added when
 // user content opens a ``` ``` ``` fence without closing it) becomes a
@@ -621,11 +795,6 @@ func neuterLeadingSetextIfQualifying(s string) string {
 // output is structurally safe — but the markdown source looks unusual
 // to a human reviewer. If aesthetic output matters, ensure user
 // content closes its own fences.
-//
-// Trailing newlines in input become quoted blank lines (`> \n`) rather
-// than terminating the quote early — `Blockquote("foo\n\n")` emits
-// `"> foo\n> \n"`. Use `strings.TrimRight(s, "\n")` before passing if
-// you want the quote to end exactly at the last content line.
 //
 // Not idempotent (see package doc): wraps with `> ` per line, so
 // calling twice double-wraps and the outer call's Block step escapes
@@ -637,21 +806,153 @@ func neuterLeadingSetextIfQualifying(s string) string {
 //   - BlockRich(Blockquote(s)) doesn't make sense: Blockquote already
 //     line-prefixed with `> `; BlockRich expects raw user content.
 //
-// If you want a blockquote whose body can contain headings, lists, or
-// other block-level structure, line-prefix `BlockRich(s)` with `> `
-// yourself (or wait for a `BlockquoteRich` helper to be added).
+// For a quoted body that can contain headings, lists, nested quotes,
+// or thematic breaks, use BlockquoteRich.
 func Blockquote(text string) string {
 	text = Block(text)
+	// Block wraps its output with "\n\n" on each side for cross-
+	// paragraph isolation. Inside a blockquote both wraps are redundant
+	// — the `> ` marker creates the container boundary — and they
+	// would line-prefix to two useless `> ` empty quoted lines top and
+	// bottom. Strip ALL leading and trailing "\n"s so the body starts
+	// and ends clean; this helper re-wraps with `\n` + body + `\n\n`
+	// below (same shape as BlockquoteRich).
+	text = strings.TrimLeft(text, "\n")
 	if text == "" {
 		return ""
 	}
-	text = strings.TrimSuffix(text, "\n")
+	text = strings.TrimRight(text, "\n")
+	if text == "" {
+		return ""
+	}
 	var sb strings.Builder
+	sb.WriteByte('\n')
 	for _, line := range strings.Split(text, "\n") {
 		sb.WriteString("> ")
 		sb.WriteString(line)
 		sb.WriteByte('\n')
 	}
+	sb.WriteByte('\n')
+	return sb.String()
+}
+
+// BlockquoteRich is the permissive counterpart of Blockquote. Both
+// wrap user content as a CommonMark blockquote (each line prefixed
+// with `> `), but they differ in what block-level structure inside
+// the quote survives:
+//
+//   - Blockquote escapes line-leading block markers, so the quoted
+//     body is paragraph-shaped — `# x` inside a Blockquote stays a
+//     literal `#`.
+//   - BlockquoteRich PRESERVES line-leading block markers, so the
+//     quoted body can compose ATX headings, lists, thematic breaks,
+//     nested blockquotes (`> > nested`), and other block-level
+//     structure. Realm-binding defenses stay on (extension delimiters,
+//     GFM table-row openers, bracket walker, fence autoclose,
+//     NUL / bidi / Unicode-separator folding).
+//
+// Output shape — every non-empty result begins with "\n" and ends
+// with "\n\n":
+//
+//   - Leading "\n" guarantees a clean blockquote opener even when the
+//     realm concatenates `chrome + BlockquoteRich(user)` without its
+//     own newline separator. Without the leading "\n", chrome ending
+//     mid-line followed by "> quoted" would render `>` as literal
+//     paragraph text instead of opening a blockquote.
+//   - Trailing "\n\n" (blank line) cleanly ends the blockquote so a
+//     realm appending `BlockquoteRich(user) + chrome` cannot pull
+//     chrome bytes into the quote via CommonMark §5.2 lazy
+//     continuation. Without the trailing blank line, paragraph chrome
+//     immediately after BlockquoteRich would render inside the quote.
+//   - BlockRich's own leading "\n\n" (paragraph-isolation blank line)
+//     is stripped before line-prefixing — otherwise the output would
+//     carry one or two redundant empty `> ` quoted lines at the top.
+//     A single "\n" is then re-prepended at the BlockquoteRich
+//     boundary so `chrome + BlockquoteRich(user)` still lands the
+//     first `>` at column 0.
+//   - The cross-boundary setext defense BlockRich provides is
+//     redundant inside a blockquote: a setext underline inside `> `
+//     content can only promote a line in the same blockquote, never
+//     reach realm bytes (different CM container). BlockRich still
+//     applies it, harmlessly.
+//
+// What attacker input produces what (rows that differ from
+// Blockquote are marked CHANGED):
+//
+//	User attempt                                  | BlockquoteRich response
+//	----------------------------------------------|------------------------------------------------
+//	  --- preserved inside `> ` quote ---         |
+//	# heading                                     | preserved as `> # heading` [CHANGED]
+//	> nested quote                                | preserved as `> > nested quote` [CHANGED]
+//	- item, * item, + item, 1. item               | preserved as `> - item` etc. [CHANGED]
+//	---, ***, ___ thematic break                  | preserved [CHANGED]
+//	=== or --- setext underline                   | preserved when preceded by user text;
+//	                                              | escaped (\===/\---) if first non-blank
+//	                                              | line of input [CHANGED]
+//	| a | b | GFM table row (line-leading |)      | preserved → renders as <table> inside the
+//	                                              | blockquote when followed by a delimiter row [CHANGED]
+//	[text](url), ![alt](src)                      | preserved verbatim [SAME]
+//	----------------------------------------------|------------------------------------------------
+//	  --- escaped / stripped / folded ---         |
+//	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
+//	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
+//	  at line-start                               |   they would swallow chrome past the `> ` quote
+//	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
+//	[^name] footnote-ref                          | both brackets escaped [SAME]
+//	[label] bare shortcut-ref                     | both brackets escaped [SAME]
+//	[label]: url link-reference definition        | whole region stripped [SAME]
+//	code fence opened without close               | autoclosed at end of input [SAME]
+//	NUL byte (\x00)                               | replaced with U+FFFD [SAME]
+//	U+2028 / U+2029 / U+0085 (NEL)                | folded to `\n` [SAME]
+//	bidi/zero-width controls                      | stripped [SAME]
+//
+// Use BlockquoteRich when the realm wants to render user content as
+// a quotation that itself reads like authored markdown — the visual
+// CSS containment of `<blockquote>` already demotes inner headings
+// relative to realm chrome, so the "inner headings need a sandbox"
+// caveat that applies to BlockRich at top level does not apply here.
+//
+// Not idempotent: like Blockquote, calling twice double-wraps —
+// `BlockquoteRich(BlockquoteRich(s))` produces `> > content`,
+// nesting the quote a level deeper each pass.
+//
+// Empty input (or input that reduces to nothing after BlockRich,
+// e.g. a lone link-reference definition) returns "" — no blockquote
+// is emitted and neither the leading "\n" nor the trailing "\n\n"
+// shape applies.
+func BlockquoteRich(text string) string {
+	text = BlockRich(text)
+	// BlockRich wraps user content with "\n\n" on each side for
+	// cross-paragraph isolation. Inside a blockquote both wraps are
+	// redundant — the `> ` marker creates the container boundary —
+	// and they would line-prefix to two useless `> ` empty quoted
+	// lines top and bottom. Strip ALL leading and trailing "\n"s so
+	// the body starts and ends clean; this helper re-wraps with `\n`
+	// + body + `\n\n` below.
+	text = strings.TrimLeft(text, "\n")
+	if text == "" {
+		return ""
+	}
+	// Strip ALL trailing newlines so the loop produces exactly one
+	// `> line` per content line, then append `\n\n` at the end so the
+	// blockquote terminates cleanly (see "Output shape" above).
+	text = strings.TrimRight(text, "\n")
+	if text == "" {
+		return ""
+	}
+	var sb strings.Builder
+	// Leading "\n" so `chrome + BlockquoteRich(user)` cannot land the
+	// first `>` mid-line.
+	sb.WriteByte('\n')
+	for _, line := range strings.Split(text, "\n") {
+		sb.WriteString("> ")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	// Trailing blank line so `BlockquoteRich(user) + chrome` cannot
+	// pull chrome into the quote via lazy continuation.
+	sb.WriteByte('\n')
 	return sb.String()
 }
 
@@ -1239,7 +1540,11 @@ func FootnoteDefinition(name, text string) string {
 	if label == "" {
 		return ""
 	}
-	body := strings.TrimRight(Block(text), "\n")
+	// Block now wraps with "\n\n" on both sides for cross-paragraph
+	// isolation; inside a footnote-definition's 4-space-indented body
+	// the wrap would line-prefix to blank padding lines, so strip ALL
+	// leading and trailing "\n"s before continuation-indenting.
+	body := strings.Trim(Block(text), "\n")
 	if body == "" {
 		return ""
 	}
