@@ -318,6 +318,18 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if po == nil || !po.GetIsReal() {
 		return // do nothing.
 	}
+	// /p/-immutability gate. With /p/ packages now carrying their own
+	// (frozen) realm, a /p/-stamped receiver borrows m.Realm to that /p/
+	// realm rather than nil. Reject post-init mutation of its real state:
+	// the active authority is an immutable (/p/) realm and we're in
+	// StageRun. Stdlib is exempt (stdlib dispatch legitimately reaches
+	// here); init-time writes are StageAdd, also exempt.
+	if m != nil && m.Stage == StageRun &&
+		rlm.ID.IsImmutablePkg() && !rlm.ID.IsStdlibPkg() {
+		panic(fmt.Sprintf(
+			"cannot mutate %s: package is immutable post-init",
+			rlm.Path))
+	}
 	if po.GetObjectID().PkgID != rlm.ID {
 		// Invariant violation: all mutation paths must have a pre-mutation
 		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
