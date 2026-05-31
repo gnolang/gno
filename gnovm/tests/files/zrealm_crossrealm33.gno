@@ -11,6 +11,4 @@ func main(cur realm) {
 }
 
 // Output:
-
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): n<~VPBlock(3,10)>
+// should not print

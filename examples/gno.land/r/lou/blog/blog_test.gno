@@ -7,12 +7,13 @@ import (
 	"gno.land/p/lou/blog"
 )
 
-func clearState(t *testing.T) {
+func clearState(_ int, rlm realm, t *testing.T) {
 	t.Helper()
 	var err error
 
 	admin = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 	myBlog, err = blog.NewBlog(
+		0, rlm,
 		"Lou's Blog",
 		admin,
 		blog.WithUserResolver(myResolver),
@@ -24,15 +25,15 @@ func clearState(t *testing.T) {
 }
 
 func TestPackage(cur realm, t *testing.T) {
-	clearState(t)
+	clearState(0, cur, t)
 
 	testing.SetOriginCaller(admin)
 	testing.SetRealm(testing.NewUserRealm(admin))
 
 	{
 		println("Creating posts and rendering previews...")
-		CreatePost(cross, "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "lou", "tag1 tag2")
-		CreatePost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "lou", "tag1 tag3")
+		CreatePost(cross(cur), "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "lou", "tag1 tag2")
+		CreatePost(cross(cur), "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "lou", "tag1 tag3")
 		got := Render("")
 		expected := `# Lou's Blog
 
@@ -57,7 +58,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 ## [title1](/r/lou/blog:posts/slug1)
 
 
@@ -75,7 +76,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 </gno-columns>`
 		assertMDEquals(t, got, expected)
 	}
@@ -98,7 +99,7 @@ body2
 
 **Publisher:** [g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs](/u/g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs)
 
-**Tags:** [#tag1](/r/lou/blog:tags/tag1), [#tag3](/r/lou/blog:tags/tag3)
+**Tags:** [\#tag1](/r/lou/blog:tags/tag1), [\#tag3](/r/lou/blog:tags/tag3)
 
 
 ❤️ 0
@@ -233,11 +234,11 @@ just now
 
 	{
 		println("Adding comments on a post...")
-		AddCommentToPostBySlug(cross, "slug1", "comment1")
-		AddCommentToPostBySlug(cross, "slug2", "comment2")
-		AddCommentToPostBySlug(cross, "slug1", "comment3")
-		AddCommentToPostBySlug(cross, "slug2", "comment4")
-		AddCommentToPostBySlug(cross, "slug1", "comment5")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment1")
+		AddCommentToPostBySlug(cross(cur), "slug2", "comment2")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment3")
+		AddCommentToPostBySlug(cross(cur), "slug2", "comment4")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment5")
 		got := Render("posts/slug2")
 		expected := `# title2
 
@@ -256,7 +257,7 @@ body2
 
 **Publisher:** [g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs](/u/g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs)
 
-**Tags:** [#tag1](/r/lou/blog:tags/tag1), [#tag3](/r/lou/blog:tags/tag3)
+**Tags:** [\#tag1](/r/lou/blog:tags/tag1), [\#tag3](/r/lou/blog:tags/tag3)
 
 
 ❤️ 0

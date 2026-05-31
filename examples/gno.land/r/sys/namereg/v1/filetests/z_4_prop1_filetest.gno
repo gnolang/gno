@@ -1,9 +1,11 @@
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_4_prop1_filetest
+
 // Test updating a name via GovDAO when there's a canonical collision bypassing it
-package main
+package z_4_prop1_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -16,42 +18,41 @@ import (
 var (
 	proposalID dao.ProposalID
 	username           = "vitalik"
-	caller     address = runtime.OriginCaller()
+	caller     address = unsafe.OriginCaller()
 )
 
-func init() {
+func init(cur realm) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	// Also register a username for bob bypassing the "nym-" prefix check.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
-	susers.RegisterUser(cross, "vital1k", bob)
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.RegisterUser(cross(cur), "vital1k", bob)
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(caller)
+	daov3init.InitWithUsers(cross(cur), caller)
 
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	users.Register(cross, "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 
 	// Proposal to change alice's username to one that canonically colides with bob's
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(testing.NewUserRealm(caller))
-	proposalID = dao.MustCreateProposal(cross, users.ProposeNewName(alice, username))
+	proposalID = dao.MustCreateProposal(
+		cross(cur),
+		users.ProposeNewName(cross(cur), alice, username),
+	)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginCaller(caller)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: proposalID,
-	})
-
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, proposalID))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 
 	// Make sure the new username is assigned to Alice
 	data, isCurrent := susers.ResolveName(username)

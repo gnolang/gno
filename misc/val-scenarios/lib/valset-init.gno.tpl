@@ -17,14 +17,15 @@ import (
 // genesisDeployerAddr is derived from the deployer mnemonic used by generate_genesis.
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
-func main() {
-	ms := memberstore.Get()
+func main(cur realm) {
+	ms := memberstore.Get(0, cur)
 
 	// 1. Make deployer sole T1 member so proposals pass immediately.
-	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, memberstore.NewMember(0)))
 
 	// 2. Register the test validator set.
-	govExec(valr.NewPropRequest(
+	r := valr.NewPropRequest(
+		cross(cur),
 		func() []validators.Validator {
 			return []validators.Validator{
 				// GEN:VALSET
@@ -32,16 +33,13 @@ func main() {
 		},
 		"Add initial test validator set",
 		"",
-	))
+	)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.ExecuteProposal(cross(cur), pid)
 
 	// 3. Remove deployer — leaves an empty, unlocked DAO for test use.
 	ms.RemoveMember(genesisDeployerAddr)
-}
-
-func govExec(r dao.ProposalRequest) {
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
 }
 
 func must(err error) {

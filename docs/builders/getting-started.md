@@ -43,6 +43,9 @@ gno version && gnokey version && gnodev --help
 `export PATH="$PATH:$HOME/.gno/bin"`.
 :::
 
+For autocompletion, diagnostics, and formatting in your editor, see
+[Editor Setup](./editor-setup.md).
+
 ## Run locally with gnodev
 
 The fastest way to learn Gno is to run a chain on your own machine.
@@ -104,8 +107,8 @@ package myrealm
 
 import "testing"
 
-func TestIncrement(t *testing.T) {
-	val := Increment(cross)
+func TestIncrement(cur realm, t *testing.T) {
+	val := Increment(cross(cur))
 	if val != 1 {
 		t.Fatalf("expected 1, got %d", val)
 	}

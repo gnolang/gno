@@ -1,7 +1,7 @@
 package blog
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/lou/blog"
@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags string) {
+func CreatePost(cur realm, slug, title, body, publicationDate, authors, tags string) {
 	authorsField := strings.Split(authors, " ")
 	tagsField := strings.Split(tags, " ")
 
@@ -18,7 +18,7 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
@@ -27,12 +27,12 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 	}
 	actionLinks := md.Link("Like", txlink.Call("LikePostBySlug", "slug", post.Slug()))
 	post.SetPreviewFooter(actionLinks + "\n\n")
-	if err := myBlog.AddPost(post); err != nil {
+	if err := myBlog.AddPost(0, cur, post); err != nil {
 		panic(err)
 	}
 }
 
-func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags string) {
+func UpdatePost(cur realm, id, slug, title, body, publicationDate, authors, tags string) {
 	var err error
 	var post *blog.Post
 	authorsField := strings.Split(authors, " ")
@@ -47,19 +47,19 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
 	if err != nil {
 		panic(err)
 	}
-	if err := myBlog.UpdatePostById(id, post); err != nil {
+	if err := myBlog.UpdatePostById(0, cur, id, post); err != nil {
 		panic(err)
 	}
 }
 
-func UpdatePostBySlug(_ realm, slug, title, body, publicationDate, authors, tags string) {
+func UpdatePostBySlug(cur realm, slug, title, body, publicationDate, authors, tags string) {
 	var err error
 	var post *blog.Post
 	authorsField := strings.Split(authors, " ")
@@ -74,38 +74,38 @@ func UpdatePostBySlug(_ realm, slug, title, body, publicationDate, authors, tags
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
 	if err != nil {
 		panic(err)
 	}
-	if err := myBlog.UpdatePostBySlug(slug, post); err != nil {
+	if err := myBlog.UpdatePostBySlug(0, cur, slug, post); err != nil {
 		panic(err)
 	}
 }
 
-func DeletePost(_ realm, slug string) {
-	if err := myBlog.DeletePostBySlug(slug); err != nil {
+func DeletePost(cur realm, slug string) {
+	if err := myBlog.DeletePostBySlug(0, cur, slug); err != nil {
 		panic(err)
 	}
 }
 
-func ToggleLikePostBySlug(_ realm, slug string) {
-	if err := myBlog.LikePostBySlug(slug); err != nil {
+func ToggleLikePostBySlug(cur realm, slug string) {
+	if err := myBlog.LikePostBySlug(0, cur, slug); err != nil {
 		panic(err)
 	}
 }
 
-func AddCommentToPostBySlug(_ realm, slug, comment string) {
+func AddCommentToPostBySlug(cur realm, slug, comment string) {
 	var err error
 	post, err := myBlog.GetPostBySlug(slug)
 	if err != nil {
 		panic(err)
 	}
 
-	comm, err := blog.NewComment(runtime.PreviousRealm().Address().String(), comment)
+	comm, err := blog.NewComment(cur.Previous().Address().String(), comment)
 	if err != nil {
 		panic(err)
 	}

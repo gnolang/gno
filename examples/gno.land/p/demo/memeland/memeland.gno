@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"chain/runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,26 +30,31 @@ type Memeland struct {
 	MemeCounter seqid.ID
 }
 
-func NewMemeland() *Memeland {
+func NewMemeland(owner address) *Memeland {
 	return &Memeland{
-		Ownable: ownable.New(),
+		Ownable: ownable.NewWithAddress(owner),
 		Posts:   make([]*Post, 0),
 	}
 }
 
-// PostMeme - Adds a new post
-func (m *Memeland) PostMeme(data string, timestamp int64) string {
+// PostMeme adds a new post. rlm must be the caller's own captured cur
+// (asserted via rlm.IsCurrent()); the post's Author is set to
+// rlm.Previous().Address(), so an external realm cannot forge a post
+// attributed to a different address.
+func (m *Memeland) PostMeme(_ int, rlm realm, data string, timestamp int64) string {
 	if data == "" || timestamp <= 0 {
 		panic("timestamp or data cannot be empty")
 	}
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
+	}
 
-	// Generate ID
 	id := m.MemeCounter.Next().String()
 
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        runtime.CurrentRealm().Address(),
+		Author:        rlm.Previous().Address(),
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -59,19 +63,23 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	return id
 }
 
-func (m *Memeland) Upvote(id string) string {
+// Upvote records an upvote on a post. rlm must be the caller's own
+// captured cur; the voter is rlm.Previous().Address(). Closes the
+// vote-stuffing forgery: an external realm cannot upvote-as-victim.
+func (m *Memeland) Upvote(_ int, rlm realm, id string) string {
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
+	}
 	post := m.getPost(id)
 	if post == nil {
 		panic("post with specified ID does not exist")
 	}
 
-	caller := runtime.CurrentRealm().Address().String()
-
-	if _, exists := post.UpvoteTracker.Get(caller); exists {
+	voterKey := rlm.Previous().Address().String()
+	if _, exists := post.UpvoteTracker.Get(voterKey); exists {
 		panic("user has already upvoted this post")
 	}
-
-	post.UpvoteTracker.Set(caller, struct{}{})
+	post.UpvoteTracker.Set(voterKey, struct{}{})
 
 	return "upvote successful"
 }
@@ -154,13 +162,18 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	return PostsToJSONString(filteredPosts[startIndex:endIndex])
 }
 
-// RemovePost allows the owner to remove a post with a specific ID
-func (m *Memeland) RemovePost(id string) string {
+// RemovePost allows the owner to remove a post with a specific ID. rlm
+// must be the caller's own captured cur; rlm.Previous().Address() must
+// equal the owner.
+func (m *Memeland) RemovePost(_ int, rlm realm, id string) string {
 	if id == "" {
 		panic("id cannot be empty")
 	}
 
-	if !m.Owned() {
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
+	}
+	if !m.OwnedBy(rlm.Previous().Address()) {
 		panic(ownable.ErrUnauthorized)
 	}
 

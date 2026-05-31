@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_1_c
+package z_1_c
 
 // SEND: 200000000ugnot
 
@@ -13,8 +13,8 @@ import (
 
 var gid groups.GroupID
 
-func main() {
-	gid = groups.CreateGroup(cross, "test_group")
+func main(cur realm) {
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
 	// add member via anon user
@@ -22,7 +22,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.AddMember(cross, gid, test2.String(), 42, "metadata3")
+	groups.AddMember(cross(cur), gid, test2.String(), 42, "metadata3")
 }
 
 // Error:

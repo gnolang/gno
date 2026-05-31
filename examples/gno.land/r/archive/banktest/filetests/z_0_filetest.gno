@@ -11,7 +11,7 @@ import (
 	"gno.land/r/archive/banktest"
 )
 
-func main() {
+func main(cur realm) {
 	// set up main address and banktest addr.
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
@@ -19,7 +19,7 @@ func main() {
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	mainbal := banker_.GetCoins(mainaddr)
 	println("main before:", mainbal)
 
@@ -27,7 +27,7 @@ func main() {
 	banker_.SendCoins(mainaddr, banktestAddr, chain.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100_000_000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
-	res := banktest.Deposit(cross, "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
+	res := banktest.Deposit(cross(cur), "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -35,7 +35,7 @@ func main() {
 	println("main after:", mainbal)
 
 	// simulate a Render(). banker should have given back all coins.
-	res = banktest.Render("")
+	res = banktest.Render(cross(cur), "")
 	println(res)
 }
 

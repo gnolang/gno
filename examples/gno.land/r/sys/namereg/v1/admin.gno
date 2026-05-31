@@ -2,7 +2,6 @@ package namereg
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -21,21 +20,21 @@ var paused = false // XXX: replace with p/moul/authz
 func setPaused(cur realm, newPausedValue bool) {
 	paused = newPausedValue
 	if paused {
-		chain.Emit("NameRegistrationPaused", "by", runtime.PreviousRealm().PkgPath())
+		chain.Emit("NameRegistrationPaused", "by", cur.Previous().PkgPath())
 	} else {
-		chain.Emit("NameRegistrationUnpaused", "by", runtime.PreviousRealm().PkgPath())
+		chain.Emit("NameRegistrationUnpaused", "by", cur.Previous().PkgPath())
 	}
 }
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
 	// UpdateName must be called from this realm.
 	// If the canonical name exists it's re-mapped to the new name.
-	return userData.UpdateNameIgnoreCanonical(newName)
+	return userData.UpdateNameIgnoreCanonical(0, cur, newName)
 }
 
 func deleteUserdata(cur realm, userData *susers.UserData) error {
 	// Delete must be called from this realm.
-	return userData.Delete()
+	return userData.Delete(0, cur)
 }
 
 func setRegisterPrice(cur realm, newPrice int64) {
@@ -43,7 +42,7 @@ func setRegisterPrice(cur realm, newPrice int64) {
 	chain.Emit(
 		"NameRegistrationPriceChanged",
 		"price", strconv.FormatInt(newPrice, 10),
-		"by", runtime.PreviousRealm().PkgPath(),
+		"by", cur.Previous().PkgPath(),
 	)
 }
 
@@ -51,7 +50,7 @@ func setRegisterPrice(cur realm, newPrice int64) {
 // Public API
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
-func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
+func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 	if paused == newPausedValue {
 		panic("paused value is already " + strconv.FormatBool(newPausedValue))
 	}
@@ -61,8 +60,8 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
-	filter := govimpl.FilterByTier{Tier: memberstore.T1}
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	filter := govimpl.NewFilterByTier(memberstore.T1)
 
 	if newPausedValue {
 		return dao.NewProposalRequestWithFilter("User Registry V1: Pause", "", e, filter)
@@ -86,7 +85,7 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // The new name overrides any canonical name collision, so if a prior canonical
 // entry exists when the new name is applied it's silently overwritten, mapping
 // the canonical name to the new name.
-func ProposeNewName(addr address, newName string) dao.ProposalRequest {
+func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
@@ -104,7 +103,7 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	// Use user's address in the title because username could change before
 	// the proposal is executed, which could be misleading when voting.
@@ -126,7 +125,7 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
-func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
+func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
@@ -136,7 +135,7 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 		return deleteUserdata(cur, userData)
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	desc := ufmt.Sprintf(
 		"After deletion [%s](/r/sys/namereg/v1:%s) WILL NOT be able to register a new name.",
@@ -159,7 +158,7 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 // Rejects prices below MinRegisterPrice (currently 0) at proposal-creation
 // time. (audit finding #14: original code only rejected negative values,
 // which would have been arithmetically nonsensical.)
-func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
+func ProposeNewRegisterPrice(cur realm, newPrice int64) dao.ProposalRequest {
 	if newPrice < MinRegisterPrice {
 		panic(ufmt.Sprintf("price below floor: %d ugnot < %d ugnot (MinRegisterPrice)",
 			newPrice, MinRegisterPrice))
@@ -170,7 +169,7 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Update registration price to `%d`", newPrice),

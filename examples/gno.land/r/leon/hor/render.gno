@@ -173,8 +173,8 @@ package myrealm
 
 import "gno.land/r/leon/hor"
 
-func init() {
-	hor.Register(cross, "My Gnome App", "This is my submission to the Hall of Realms.")
+func init(cur realm) {
+	hor.Register(cross(cur), "My Gnome App", "This is my submission to the Hall of Realms.")
 }
 ...
 """

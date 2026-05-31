@@ -37,7 +37,7 @@ var preRegisteredUsers = []struct {
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
 }
 
-func init() {
+func init(cur realm) {
 	// Add pre-registered users via the bypass path (genesis posture).
 	// Names are curated but the underlying validation implementation could
 	// potentially fail if changed and the list of curated names is not updated
@@ -45,7 +45,7 @@ func init() {
 	// pre-registered names are effectibly registered, otherwise there's a chance
 	// that an error could be silently ignored.
 	for _, res := range preRegisteredUsers {
-		err := susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
+		err := susers.RegisterUserIgnoreCanonical(cross(cur), res.Name, res.Address)
 		if err == nil {
 			continue
 		}

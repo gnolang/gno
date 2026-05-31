@@ -74,3 +74,16 @@ type ExecContexter interface {
 func GetContext(m *gno.Machine) ExecContext {
 	return m.Context.(ExecContexter).GetExecContext()
 }
+
+// Wire the per-tx OriginCaller into gnolang so it can build the per-tx
+// origin realm value (the EOA-shaped value at the chain root used by
+// captured `cur.Previous()`). This must match what runtime.PreviousRealm()
+// surfaces in the same context — (OriginCaller, "") at the EOA boundary.
+func init() {
+	gno.OriginCallerExtractor = func(ctx any) string {
+		if ec, ok := ctx.(ExecContexter); ok {
+			return string(ec.GetExecContext().OriginCaller)
+		}
+		return ""
+	}
+}
