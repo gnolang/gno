@@ -31,10 +31,14 @@ func (rd *RegistrationDetails) Less(than btree.Record) bool {
 }
 
 var (
-	dao     = grc721.NewBasicNFT("BTree DAO", "BTDAO")
+	dao     *grc721.BasicNFT
 	tokenID = 0
 	members = btree.New()
 )
+
+func init(cur realm) {
+	dao = grc721.NewBasicNFT(0, cur, "BTree DAO", "BTDAO")
+}
 
 // PlantTree allows a user to plant their B-Tree in the DAO forest.
 // It mints an NFT to the user and registers their tree in the DAO.

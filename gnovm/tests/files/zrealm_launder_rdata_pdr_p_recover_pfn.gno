@@ -7,11 +7,11 @@ package launderrh_pdr_p_recover_pfn
 //
 // Trace:
 //  1. main → m.Realm = attacker
-//  2. inner.RecoverApply(EvilWrite) → Rule 2 receiver-borrow on
+//  2. inner.RecoverApply(EvilWrite) → borrow rule #2 receiver-borrow on
 //     *launderpkg.Immutable (victim-stamped) → m.Realm = victim
 //  3. RecoverApply schedules defer { recover() } in /p/-frame
 //  4. RecoverApply calls EvilWrite(i): EvilWrite is top-level /p/
-//     fn → no Rule 1 (not /r/), no Rule 2 (no receiver) → m.Realm
+//     fn → no borrow rule #1 (not /r/), no borrow rule #2 (no receiver) → m.Realm
 //     STAYS victim
 //  5. EvilWrite body: i.Field = ... → writes /r/-victim data under
 //     m.Realm = victim → readonly check passes → WRITE SUCCEEDS
