@@ -302,6 +302,20 @@ func (m *Machine) setRealm(r *Realm) {
 	}
 }
 
+// assertBorrowedRealm panics (debug builds only) when a borrow rule is about
+// to set m.Realm to nil for a package that MUST carry a realm — /r/, /p/, or
+// stdlib (IsRealmPath || isImmutableLibraryPath). That would silently put the
+// machine in "single-user mode" (IsReadonly/isExternalRealm short-circuit on
+// nil m.Realm) and reopen the nil-realm cross-realm write hole. _test overlays
+// and uverse legitimately have no realm and are excluded (neither predicate
+// matches them).
+func assertBorrowedRealm(pkgPath string, r *Realm) {
+	if debugAssert && r == nil &&
+		(IsRealmPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
+		panic("borrow rule set m.Realm=nil for realm-bearing package: " + pkgPath)
+	}
+}
+
 //----------------------------------------
 // top level Run* methods.
 
@@ -2291,7 +2305,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.setRealm(pv.GetRealm())
+		r := pv.GetRealm()
+		assertBorrowedRealm(pv.PkgPath, r)
+		m.setRealm(r)
 		return
 	}
 
@@ -2347,7 +2363,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// by the readonly gate against the caller's realm.
 	if IsRealmPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
-			m.setRealm(pv.GetRealm())
+			r := pv.GetRealm()
+			assertBorrowedRealm(pv.PkgPath, r)
+			m.setRealm(r)
 		}
 		return
 	}
@@ -2359,7 +2377,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				m.setRealm(objpv.GetRealm())
+				r := objpv.GetRealm()
+				assertBorrowedRealm(objpv.PkgPath, r)
+				m.setRealm(r)
 			}
 		}
 	}
@@ -2389,7 +2409,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			pkgOID := ObjectIDFromPkgID(pid)
 			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
 				if objpv, ok := pobj.(*PackageValue); ok {
-					m.setRealm(objpv.GetRealm())
+					r := objpv.GetRealm()
+					assertBorrowedRealm(objpv.PkgPath, r)
+					m.setRealm(r)
 				}
 			}
 		}
