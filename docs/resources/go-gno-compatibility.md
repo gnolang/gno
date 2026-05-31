@@ -274,9 +274,11 @@ Legend:
   but [all functions up to Go 1.17 exist](https://pkg.go.dev/builtin@go1.17),
   except for those relating to complex (real or imag) or channel types.
 [^2]: `crypto/cipher` provides the interfaces (`AEAD`, `Block`, `BlockMode`,
-  `Stream`, `StreamReader`, `StreamWriter`) but none of the mode constructors
-  (`NewCBCEncrypter`/`Decrypter`, `NewCTR`, `NewCFBEncrypter`/`Decrypter`,
-  `NewOFB`, `NewGCM` and friends). Practically unusable until a backing block
+  `Stream`) plus the `StreamReader`/`StreamWriter` structs, but none of the mode
+  constructors (`NewCBCEncrypter`/`Decrypter`, `NewCTR`,
+  `NewCFBEncrypter`/`Decrypter`, `NewOFB`, `NewGCM` and friends). The two structs
+  are stubs: they lack the `Read`/`Write` methods that satisfy
+  `io.Reader`/`io.Writer` in Go. Practically unusable until a backing block
   cipher (`crypto/aes` is `todo`) lands together with these constructors.
 [^3]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
@@ -286,10 +288,13 @@ Legend:
   pending.
 [^5]: `crypto/sha256` is currently only implemented for `Sum256`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^6]: `crypto/subtle` currently ships `XORBytes` only. The constant-time
-  comparison primitives (`ConstantTimeCompare`, `ConstantTimeEq`,
-  `ConstantTimeSelect`, `ConstantTimeByteEq`, `ConstantTimeCopy`,
-  `ConstantTimeLessOrEq`) are not yet implemented.
+[^6]: `crypto/subtle` ships `XORBytes` and `XORBytesUnsafe`. Note `XORBytes`
+  deviates from Go: it allocates and returns the result (`XORBytes(x, y []byte)
+  []byte`) instead of writing into `dst`. `XORBytesUnsafe` keeps Go's
+  `XORBytesUnsafe(dst, x, y []byte) int` signature. The constant-time comparison
+  primitives (`ConstantTimeCompare`, `ConstantTimeEq`, `ConstantTimeSelect`,
+  `ConstantTimeByteEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`) are not yet
+  implemented.
 [^7]: `encoding/binary` only ships the varint family (`Varint`, `Uvarint`,
   `PutVarint`, `PutUvarint`, `AppendVarint`, `AppendUvarint`, `ReadVarint`,
   `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
@@ -309,10 +314,11 @@ Legend:
   Its functionality has been moved to packages `os` and `io`. The functions
   which have been moved in `io` are implemented in that package.
 [^12]: `math/rand` in Gno ports over Go's `math/rand/v2`. The v1 names
-  (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`,
-  global `Source` interface) are not available — use the v2 equivalents
-  (`Int32`, `Int32N`, `Int64`, `Int64N`, `IntN`, and the v2 constructors
-  `New`, `NewPCG`, `NewChaCha8`).
+  (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`)
+  are not available — use the v2 equivalents (`Int32`, `Int32N`, `Int64`,
+  `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The v1 `Source`
+  interface shape (`Int63`/`Seed`) is replaced by the v2 `Source`, a single
+  `Uint64() uint64` method.
 [^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
   `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. You'll need to write
   a bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`.
@@ -320,22 +326,26 @@ Legend:
   `complex128`.
 [^15]: `time.Now` returns the block time rather than the system time, for
   determinism. Anything that pauses or schedules execution is not implemented:
-  `Sleep`, `After`, `AfterFunc`, `Tick`, `NewTicker`, `NewTimer`, and the
+  `Sleep`, the top-level `After(d Duration) <-chan Time` (the `Time.After(u Time)
+  bool` method does exist), `AfterFunc`, `Tick`, `NewTicker`, `NewTimer`, and the
   associated `Ticker`/`Timer` types.
 
 ## Gno-only standard libraries
 
 The packages below are part of the Gno stdlib but have no Go counterpart.
 
-| package          | purpose                                                                   |
-|------------------|---------------------------------------------------------------------------|
-| `chain`          | Core chain types: `Address`, `Coin`, `Coins`, `Emit`/`Event`, helpers.    |
-| `chain/banker`   | Realm coin management (mint, burn, transfer, balance queries).            |
-| `chain/params`   | Chain-parameter accessors.                                                |
-| `chain/runtime`  | Runtime context accessors (`PreviousRealm`, current realm, height, …).    |
-| `sys/params`     | System-parameter setters (`SetSysParam{Bool,Bytes,Int64,String,...}`).    |
-| `crypto/bech32`  | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).   |
-| `crypto/chacha20`| ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                     |
+| package                  | purpose                                                                                         |
+|--------------------------|-------------------------------------------------------------------------------------------------|
+| `chain`                  | Core chain types: `Address`, `Coin`, `Coins`, `Emit`, helpers.                                  |
+| `chain/banker`           | Realm coin management (mint, burn, transfer, balance queries).                                  |
+| `chain/params`           | Realm-local parameter setters (`SetString`, `SetBool`, `SetInt64`, …, `UpdateParamStrings`).    |
+| `chain/runtime`          | Runtime context accessors (`PreviousRealm`, current realm, height, …).                          |
+| `crypto/bech32`          | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).                         |
+| `crypto/chacha20`        | ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                                           |
+| `crypto/chacha20/chacha` | Low-level ChaCha20 primitives (`NewCipher`, `XORKeyStream`, `HChaCha20`).                       |
+| `crypto/chacha20/rand`   | ChaCha20-backed RNG (`New`, `Read`, `Bytes`, `Entropy256`, …).                                  |
+| `math/overflow`          | Overflow-checked integer arithmetic (`Add`, `Sub`, `Mul`, `Div`, …).                            |
+| `sys/params`             | System-parameter setters and getters (`SetSysParam*`, `GetSysParam*`, `UpdateSysParamStrings`). |
 
 ## Tooling (`gno` binary)
 
