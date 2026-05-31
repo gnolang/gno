@@ -431,19 +431,22 @@ func DeleteReply(cur realm, boardID, threadID, replyID boards.ID) {
 			reply.Body = "⚠ This comment has been deleted"
 			reply.UpdatedAt = time.Now()
 		} else {
-			// Remove reply from the thread
+			// Remove reply from the flat thread index.
 			meta := thread.Meta.(*ThreadMeta)
 			reply, removed := meta.AllReplies.Remove(replyID)
 			if !removed {
 				panic("reply not found")
 			}
 
-			// Remove reply from reply's parent
-			if reply.ParentID != thread.ID {
-				parent, found := meta.AllReplies.Get(reply.ParentID)
-				if found {
-					parent.Replies.Remove(replyID)
-				}
+			// Remove reply from its parent's direct-children list too. A
+			// direct thread reply's parent is the thread itself; a nested
+			// reply's parent is another reply (resolved via the flat index).
+			// Missing the thread-parent case left a ghost in thread.Replies
+			// (rendered in the threaded view, with a stale reply count).
+			if reply.ParentID == thread.ID {
+				thread.Replies.Remove(replyID)
+			} else if parent, found := meta.AllReplies.Get(reply.ParentID); found {
+				parent.Replies.Remove(replyID)
 			}
 		}
 
