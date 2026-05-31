@@ -3,12 +3,12 @@ package daodemo
 import "testing"
 
 func TestInit(t *testing.T) {
-	membersCount := daoPrivate.Members.MembersCount()
+	membersCount := DAO.Private().Members.MembersCount()
 	if membersCount != 4 {
 		t.Fatalf("Expected 4 members, got %d", membersCount)
 	}
 
-	roles := daoPrivate.Members.GetRoles()
+	roles := DAO.Private().Members.GetRoles()
 	expectedRoles := []string{"admin", "public-relationships", "finance-officer"}
 	if len(roles) != len(expectedRoles) {
 		t.Fatalf("Expected %d roles, got %d", len(expectedRoles), len(roles))

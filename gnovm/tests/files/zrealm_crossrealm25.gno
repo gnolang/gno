@@ -13,7 +13,7 @@ func main(cur realm) {
 	println("s := &Struct{A: 100}")
 	s := &Struct{A: 100}
 	println("crossrealm_b.SetObject(cross, &s.A)")
-	crossrealm_b.SetObject(cross, &s.A)
+	crossrealm_b.SetObject(cross(cur), &s.A)
 	println("s.A = 123")
 	s.A = 123
 	println(s)
@@ -23,6 +23,5 @@ func main(cur realm) {
 // s := &Struct{A: 100}
 // crossrealm_b.SetObject(cross, &s.A)
 // s.A = 123
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct)
 
-// Error:
-// cannot directly modify readonly tainted object (w/o method): s<~VPBlock(1,1)>.A

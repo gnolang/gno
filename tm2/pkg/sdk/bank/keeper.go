@@ -83,6 +83,13 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if !bank.canSendCoins(ctx, in.Address, in.Coins) {
 			return std.RestrictedTransferError{}
 		}
+		// Per-input session spend check: each Input.Address is a tx
+		// signer (per MsgMultiSend.GetSigners), so if any input belongs
+		// to a session's master, the input amount counts against that
+		// session's SpendLimit. No-op for non-session signers.
+		if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, in.Address, in.Coins); err != nil {
+			return err
+		}
 		_, err := bank.SubtractCoins(ctx, in.Address, in.Coins)
 		if err != nil {
 			return err
@@ -137,10 +144,23 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 
 // SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	// If amt is zero do nothing.
+	if amt.IsZero() {
+		return nil
+	}
+
 	// read restricted boolean value from param.IsRestrictedTransfer()
 	// canSendCoins is true until they have agreed to the waiver
 	if !bank.canSendCoins(ctx, fromAddr, amt) {
 		return std.RestrictedTransferError{}
+	}
+
+	// If the tx is session-signed and fromAddr is the session's master,
+	// deduct from the session's SpendLimit. No-op otherwise.
+	// SendCoinsUnrestricted deliberately bypasses this (gas collection,
+	// storage deposit refunds).
+	if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, fromAddr, amt); err != nil {
+		return err
 	}
 
 	return bank.sendCoins(ctx, fromAddr, toAddr, amt)

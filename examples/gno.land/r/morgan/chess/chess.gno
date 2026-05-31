@@ -2,7 +2,6 @@
 package chess
 
 import (
-	"chain/runtime"
 	"errors"
 	"time"
 
@@ -126,13 +125,13 @@ func (g GameState) IsFinished() bool {
 // parallel games OR by introducing a "request" system, so that a game is not
 // immediately considered "open" when calling NewGame.
 func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	if seconds >= 0 && increment < 0 {
 		panic("negative increment invalid")
 	}
 
-	opponent := parsePlayer(opponentRaw)
-	caller := runtime.PreviousRealm().Address()
+	opponent := parsePlayer(0, cur, opponentRaw)
+	caller := cur.Previous().Address()
 	assertUserNotInLobby(caller)
 
 	return newGame(caller, opponent, seconds, increment).json()
@@ -250,13 +249,13 @@ func getGame(id string, wantOpen bool) *Game {
 // must be specified.
 // Castling is specified by indicating the king's movement.
 func MakeMove(cur realm, gameID, from, to string, promote chess.Piece) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 
 	// determine if this is a black move
 	isBlack := len(g.Position.Moves)%2 == 1
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if (isBlack && g.Black != caller) ||
 		(!isBlack && g.White != caller) {
 		// either not a player involved; or not the caller's turn.
@@ -385,21 +384,24 @@ func ClaimTimeout(cur realm, gameID string) string {
 }
 
 func Abort(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := abort(g)
+	err := abort(0, cur, g)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func abort(g *Game) error {
+func abort(_ int, rlm realm, g *Game) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
 	if len(g.Position.Moves) >= 2 {
 		return errors.New("game can no longer be aborted; if you wish to quit, resign")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := rlm.Previous().Address()
 	if caller != g.White && caller != g.Black {
 		return errors.New("you are not involved in this game")
 	}
@@ -412,20 +414,23 @@ func abort(g *Game) error {
 }
 
 func Resign(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := resign(g)
+	err := resign(0, cur, g)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func resign(g *Game) error {
-	if len(g.Position.Moves) < 2 {
-		return abort(g)
+func resign(_ int, rlm realm, g *Game) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
 	}
-	caller := runtime.PreviousRealm().Address()
+	if len(g.Position.Moves) < 2 {
+		return abort(0, rlm, g)
+	}
+	caller := rlm.Previous().Address()
 	switch caller {
 	case g.Black:
 		g.State = GameStateResigned
@@ -445,9 +450,9 @@ func resign(g *Game) error {
 // DrawOffer creates a draw offer in the current game, if one doesn't already
 // exist.
 func DrawOffer(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -462,9 +467,9 @@ func DrawOffer(cur realm, gameID string) string {
 
 // DrawRefuse refuse a draw offer in the given game.
 func DrawRefuse(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -485,10 +490,10 @@ func DrawRefuse(cur realm, gameID string) string {
 // - Insufficient material (§9.4)
 // Note: stalemate happens as a consequence of a Move, and thus is handled in that function.
 func Draw(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if caller != g.Black && caller != g.White {
 		panic("you are not involved in this game")
 	}
@@ -530,9 +535,20 @@ func checkErr(err error) {
 	}
 }
 
-// Replacement for OriginCall using std.PreviousRealm().
-func assertOriginCall() {
-	if !runtime.PreviousRealm().IsUser() {
+// assertOriginCall is a user-call guard — it accepts EOA maketx-call AND
+// maketx-run ephemeral realms. Despite the name, this is NOT equivalent to
+// runtime.AssertOriginCall() (which is strictly direct MsgCall only).
+//
+// WARNING: do not reuse this helper from any function that reads
+// unsafe.OriginSend() to verify payment. IsUser() lets a maketx-run script
+// consume the origin-send envelope before calling us, bypassing the check.
+// For payment paths, use IsUserCall() (EOA only) — see
+// docs/resources/effective-gno.md#verifying-inbound-coin-payments.
+func assertOriginCall(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
+	if !rlm.Previous().IsUser() {
 		panic("invalid non-origin call")
 	}
 }

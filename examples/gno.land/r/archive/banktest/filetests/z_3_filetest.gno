@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-func main() {
+func main(cur realm) {
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	send := chain.Coins{{"ugnot", 123}}
 	banker_.SendCoins(banktestAddr, mainaddr, send)
 }
