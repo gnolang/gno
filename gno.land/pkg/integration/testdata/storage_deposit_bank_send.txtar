@@ -86,13 +86,13 @@ package foo
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var record Foo
 
-func init() {
-	NewFoo(cross, "hello")
+func init(cur realm) {
+	NewFoo(cross(cur), "hello")
 }
 
 type Foo struct {
@@ -122,13 +122,13 @@ func StorageDepositAddress(cur realm) string {
 }
 
 func RealmSend(cur realm, to address, amt int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	banker_.SendCoins(unsafe.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 
 func OriginSend(cur realm, to address, amt int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	banker_.SendCoins(unsafe.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 -- run/realm_send.gno --
 package main
@@ -136,6 +136,6 @@ package main
 import (
  "gno.land/r/foo"
 )
-func main() {
-	foo.RealmSend(cross,"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
+func main(cur realm) {
+	foo.RealmSend(cross(cur),"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
 }

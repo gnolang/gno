@@ -28,7 +28,7 @@ Other directories: `examples/` (sample realms/packages), `contribs/` (tools: gno
 - **Packages** (`p/`) are stateless libraries.
 - Import paths: `gno.land/p/...` or `gno.land/r/...` — **never** `github.com/...`.
 - Module config: `gnomod.toml` (not `go.mod`).
-- `cross` keyword for cross-realm calls.
+- `cross(rlm)` form for cross-realm calls.
 - `realm` type for realm-aware functions.
 
 ---
@@ -58,7 +58,7 @@ make fmt                        # Format all code
 - Import paths: `gno.land/{p,r}/...` only.
 - No OS/network access.
 - Before writing Gno code, read the relevant docs in `docs/resources/`:
-  - `gno-interrealm.md` — cross-realm calls, `cross`/`realm` semantics
+  - `gno-interrealm.md` — cross-realm calls, `cross(rlm)`/`realm` semantics
   - `effective-gno.md` — idiomatic Gno patterns
   - `go-gno-compatibility.md` — what works and what doesn't vs Go
   - `gno-testing.md` — testing patterns for `.gno` files

@@ -8,36 +8,30 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func Init() {
+func Init(cur realm) {
 	assertIsDevChain()
 
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	memberstore.Get().DeleteAll()
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	memberstore.Get(0, cur).DeleteAll()
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
-func InitWithUsers(addrs ...address) {
+func InitWithUsers(cur realm, addrs ...address) {
 	assertIsDevChain()
 
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	memberstore.Get().DeleteAll()
-	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get(0, cur).DeleteAll()
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
 	for _, a := range addrs {
 		if !a.IsValid() {
 			panic("invalid address: " + a.String())
 		}
-		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
+		memberstore.Get(0, cur).SetMember(memberstore.T1, a, memberstore.NewMember(3))
 	}
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 func assertIsDevChain() {
