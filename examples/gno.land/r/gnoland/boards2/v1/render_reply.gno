@@ -121,7 +121,10 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, b
 			md.Link("view all comments", makeThreadFlatURI(post)) + "._\n")
 	}
 
-	if p.HasPages() {
+	// Suppress the page picker when the budget truncated this page: later
+	// replies in the page were skipped, so the offset-based "next page" would
+	// jump past them. The flat link above is the complete, reachable view.
+	if !truncated && p.HasPages() {
 		b.WriteString(md.HorizontalRule())
 		b.WriteString(pager.Picker(p))
 	}
