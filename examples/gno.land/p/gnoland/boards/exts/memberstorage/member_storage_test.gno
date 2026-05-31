@@ -134,7 +134,7 @@ func TestMemberStorageHas(t *testing.T) {
 	}
 }
 
-func TestGetTotalMemberStorageSize(t *testing.T) {
+func TestGetTotalSize(t *testing.T) {
 	cases := []struct {
 		name  string
 		setup func() memberstorage.MemberStorage
@@ -220,7 +220,7 @@ func TestGetTotalMemberStorageSize(t *testing.T) {
 			storage := tc.setup()
 
 			// Act
-			got := memberstorage.GetTotalMemberStorageSize(storage)
+			got := memberstorage.GetTotalSize(storage)
 
 			// Assert
 			uassert.Equal(t, tc.want, got)
@@ -316,7 +316,7 @@ func TestMemberStorageRemove(t *testing.T) {
 	}
 }
 
-func TestExistsInMemberStorage(t *testing.T) {
+func TestHasMember(t *testing.T) {
 	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	cases := []struct {
 		name  string
@@ -376,7 +376,7 @@ func TestExistsInMemberStorage(t *testing.T) {
 			storage := tc.setup()
 
 			// Act
-			got := memberstorage.ExistsInMemberStorage(storage, member)
+			got := memberstorage.HasMember(storage, member)
 
 			// Assert
 			uassert.Equal(t, tc.want, got)
@@ -384,7 +384,7 @@ func TestExistsInMemberStorage(t *testing.T) {
 	}
 }
 
-func TestIterateMemberStorage(t *testing.T) {
+func TestIterate(t *testing.T) {
 	// Sorted address order: u1 < u2 < a1 < a2 < b1.
 	var (
 		u1 address = "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt"
@@ -593,7 +593,7 @@ func TestIterateMemberStorage(t *testing.T) {
 			}
 
 			// Act
-			stopped := memberstorage.IterateMemberStorage(storage, tc.offset, tc.count, fn)
+			stopped := memberstorage.Iterate(storage, tc.offset, tc.count, fn)
 
 			// Assert
 			uassert.Equal(t, tc.wantStopped, stopped, "expect stopped to match")

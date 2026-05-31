@@ -201,17 +201,17 @@ func (ps *Permissions) RemoveUser(user address) bool {
 
 // HasUser checks if a user exists.
 func (ps Permissions) HasUser(user address) bool {
-	return memberstorage.ExistsInMemberStorage(ps.members, user)
+	return memberstorage.HasMember(ps.members, user)
 }
 
 // UsersCount returns the total number of users the permissioner contains.
 func (ps Permissions) UsersCount() int {
-	return memberstorage.GetTotalMemberStorageSize(ps.members)
+	return memberstorage.GetTotalSize(ps.members)
 }
 
 // IterateUsers iterates permissions' users.
 func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) bool {
-	return memberstorage.IterateMemberStorage(ps.members, start, count, func(addr address) bool {
+	return memberstorage.Iterate(ps.members, start, count, func(addr address) bool {
 		user := boards.User{Address: addr}
 		groups := memberstorage.GetMemberGroups(ps.members, addr)
 		if groups != nil {
