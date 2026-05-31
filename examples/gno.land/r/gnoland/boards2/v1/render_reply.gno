@@ -50,7 +50,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	// Call render even for hidden replies to display children.
 	// Original comment content will be hidden under the hood.
 	// See: #3480
-	res.Write(renderPostInner(reply))
+	res.Write(renderPostInner(reply, req.RawPath))
 }
 
 // newClampedPager builds a pager, clamping an out-of-range, zero, negative,
@@ -136,7 +136,12 @@ func renderSubReplies(post *boards.Post, indent string, levels int, budget *int)
 		truncated      bool
 	)
 
-	post.Replies.Iterate(0, post.Replies.Size(), func(reply *boards.Post) bool {
+	// Cap inline children at pageSizeReplies. A nested reply list can't have
+	// its own pager (it would collide with the page's ?page=), so instead of
+	// dumping every child here a comment with more links to its own re-rooted
+	// view, which paginates them. Keeps every view bounded to <=pageSizeReplies
+	// children per post.
+	post.Replies.Iterate(0, pageSizeReplies, func(reply *boards.Post) bool {
 		if *budget <= 0 {
 			truncated = true
 			return true // stop: render budget exhausted (see maxRenderedBodies)
@@ -145,9 +150,16 @@ func renderSubReplies(post *boards.Post, indent string, levels int, budget *int)
 		return false
 	})
 
-	if truncated {
-		b.WriteString(indent + "\n" + commentsIndent +
-			md.Link("More replies — view all comments", makeThreadFlatURI(post)) + "\n")
+	notice := func(text, uri string) {
+		b.WriteString(indent + "\n" + commentsIndent + md.Link(text, uri) + "\n")
+	}
+	switch {
+	case truncated:
+		// Budget exhausted: the whole-thread flat view is the reachable backstop.
+		notice("More replies — view all comments", makeThreadFlatURI(post))
+	case post.Replies.Size() > pageSizeReplies:
+		// Breadth cap hit: re-root at this comment to page the rest.
+		notice("View all "+strconv.Itoa(post.Replies.Size())+" replies", makeReplyURI(post))
 	}
 	return b.String()
 }

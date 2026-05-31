@@ -43,10 +43,11 @@ func init(cur realm) {
 func main(cur realm) {
 	content := boards2.Render("test-board/1")
 	n := strings.Count(content, "<gno-foreign>")
-	// Budget bounds the rendered foreign blocks under the per-render cap,
-	// and the truncation notice appears instead of silently dropping
-	// comments.
-	println(n > 0 && n < foreign.MaxBlocksPerRender() && strings.Contains(content, "More replies — view all comments"))
+	// The top comment's many sub-replies are capped inline at pageSizeReplies
+	// (so n stays well under the foreign-block budget); the rest are reachable
+	// via the comment's paginated re-rooted view ("View all N replies").
+	capped := n > 0 && n < foreign.MaxBlocksPerRender()/4
+	println(capped && strings.Contains(content, "View all 256 replies"))
 }
 
 // Output:

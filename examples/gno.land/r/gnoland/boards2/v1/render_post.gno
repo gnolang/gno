@@ -150,10 +150,14 @@ func renderPostContent(post *boards.Post, indent string, levels int, budget *int
 	}
 
 	if levels == 0 {
-		if boards.IsThread(post) {
+		switch {
+		case boards.IsThread(post):
 			actions = append(actions, md.Link("Show all Replies", makeThreadURI(post)))
-		} else {
-			actions = append(actions, md.Link("View Thread", makeThreadURI(post)))
+		case post.Replies.Size() > 0:
+			// Depth limit reached with replies still below: re-root here
+			// (Reddit/HN "continue this thread") so the subtree stays
+			// drillable, instead of bouncing to the thread root.
+			actions = append(actions, md.Link("Continue this thread →", makeReplyURI(post)))
 		}
 	}
 
@@ -161,7 +165,7 @@ func renderPostContent(post *boards.Post, indent string, levels int, budget *int
 	return b.String()
 }
 
-func renderPostInner(post *boards.Post) string {
+func renderPostInner(post *boards.Post, path string) string {
 	if boards.IsThread(post) {
 		return ""
 	}
@@ -185,7 +189,10 @@ func renderPostInner(post *boards.Post) string {
 		s += renderPost(parent, "", "", 0, &budget) + "\n"
 	}
 
-	s += renderPost(post, "", "> ", 5, &budget)
+	// Pass the reply's own path so renderPost routes to renderTopLevelReplies
+	// and paginates this comment's direct replies (the re-root has its own
+	// ?page= — no collision with the thread view, which is a different path).
+	s += renderPost(post, path, "> ", 5, &budget)
 	return s
 }
 
