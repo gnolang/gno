@@ -36,17 +36,13 @@ assert_chain_halted val1 30 4
 start_validator val4
 start_validator val5
 
-# BUG: once block sync works correctly for reset validators, the chain should
-# resume and val4/val5 should catch up and actively produce new blocks. On
-# unpatched master, the reset validators cannot complete block sync and rejoin
-# consensus, so the chain remains halted. When fixed, replace the assertion
-# below with:
-#   assert_chain_advances val1 120 2
-#   sync_target="$(node_height val1)"
-#   wait_for_height val4 "$sync_target" 120
-#   wait_for_height val5 "$sync_target" 120
-#   assert_chain_advances val4 60 2
-#   assert_chain_advances val5 60 2
-assert_chain_halted val1 30
+# After reset validators restart they complete block sync and rejoin consensus;
+# the chain resumes and val4/val5 catch up to the tip.
+assert_chain_advances val1 120 2
+sync_target="$(node_height val1)"
+wait_for_height val4 "$sync_target" 120
+wait_for_height val5 "$sync_target" 120
+assert_chain_advances val4 60 2
+assert_chain_advances val5 60 2
 
 print_cluster_status

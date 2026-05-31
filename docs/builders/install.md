@@ -4,6 +4,8 @@ This page covers how to install the Gno toolchain: `gnokey` (key & transaction C
 `gno` (language tooling), `gnodev` (local development node with hot reload),
 `gnobro` (package browser), and `gnoweb` (realm explorer). 
 
+For IDE / LSP support, see [Editor setup](./editor-setup.md).
+
 ## One-line installer
 
 Install precompiled `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb`
@@ -49,7 +51,7 @@ Scripts used by the one-line installer:
 
 Building from source requires:
 
-- **Go** — version **1.24+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
+- **Go** — version **1.25+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
 - **Git**
 - **Make**
 
@@ -126,7 +128,7 @@ persist it. If you installed to a custom `--dir`, add that directory instead.
 `command -v gno`; fix by reordering `PATH` or running `hash -r`.
 
 **Go version too old** — `make install` fails on missing language features.
-Requires Go **1.24+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
+Requires Go **1.25+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
 
 **GitHub API rate limit during one-line install** — anonymous requests are
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:
@@ -137,6 +139,7 @@ GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/ma
 
 ## Next steps
 
+- [Editor setup](./editor-setup.md) — configure your editor with LSP support for `.gno` files
 - [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — learn how to write Gno packages
 - [Running a local dev node](./local-dev-with-gnodev.md) — spin up a local environment with `gnodev`
 - [Deploy packages](./deploy-packages.md) — publish to a network

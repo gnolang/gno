@@ -127,7 +127,7 @@ func (EvilAnyMutator) Run(x any) {
 
 // EvilWrite is a top-level /p/-declared function value matching
 // `func(*launderpkg.Immutable)`. Top-level /p/ functions trigger
-// neither Rule 1 (not /r/-declared) nor Rule 2 (no receiver), so
+// neither borrow rule #1 (not /r/-declared) nor borrow rule #2 (no receiver), so
 // when EvilWrite is invoked as a callback from inside a
 // borrowed-to-victim /p/-method body (e.g. Immutable.Apply, or any
 // avl.Tree.Iterate-style hook), it inherits the victim's m.Realm
