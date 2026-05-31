@@ -96,7 +96,7 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p subDAOPropDefinition) execute(realm) error {
+func (p subDAOPropDefinition) execute(string) error {
 	subDAO := createSubDAO(p.parent, p.name, nil)
 
 	if p.members != nil {
@@ -160,7 +160,7 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p dissolvePropDefinition) execute(realm) error {
+func (p dissolvePropDefinition) execute(string) error {
 	p.dao.SetDeleted(true)
 	return nil
 }

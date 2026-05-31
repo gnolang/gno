@@ -119,7 +119,7 @@ func (p membersUpdatePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p membersUpdatePropDefinition) execute(realm) error {
+func (p membersUpdatePropDefinition) execute(string) error {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
