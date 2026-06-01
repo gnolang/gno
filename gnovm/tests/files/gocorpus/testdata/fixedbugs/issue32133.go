@@ -42,7 +42,7 @@ func _() {
 //line :13:1
 	`
 
-// GnoIncomplete: covered 0 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 7 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 9: string literal not terminated (and 7 more errors)

@@ -48,3 +48,13 @@ func f(t *T, i, j uint) {
 	// as at the GC call, q is an invalid pointer
 	// (it points past the end of t's allocation).
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: invalid memory address or nil pointer dereference
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

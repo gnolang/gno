@@ -26,7 +26,7 @@ type I6 interface {
 	I5 // GCCGO_ERROR "interface"
 }
 
-// GnoIncomplete: covered 3 of 5 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 3 of 5 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 14: 2: invalid recursive type: S -> S

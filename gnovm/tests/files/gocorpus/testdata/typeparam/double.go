@@ -73,3 +73,12 @@ func main() {
 
 // TypeCheckError:
 // main/double.go:11:2: could not import reflect (unknown import path "reflect")
+
+// GnoOutput:
+
+// GnoError:
+// double.go:45:9: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

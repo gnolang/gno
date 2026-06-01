@@ -38,9 +38,12 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/typeswitch7.go:11:23-24: name T not declared
+
 // GoOutput:
 // other
 // barT
 // myfloat
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

@@ -15,3 +15,7 @@ func main() {
 		panic("big (over 2**63-1) math.Trunc is incorrect")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -27,3 +27,12 @@ func main() {
 	}
 }
 
+// GnoOutput:
+
+// GnoError:
+// main/issue4495.go:21:11-14: unknown *DeclaredType method named m
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

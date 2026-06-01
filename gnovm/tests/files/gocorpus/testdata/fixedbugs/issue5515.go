@@ -32,3 +32,7 @@ type Interface interface {
 func sort(data Interface) {
         data.Swap(0, 4)
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -38,3 +38,12 @@ func main() {
 		panic(msg)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue72063.go:14:50: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

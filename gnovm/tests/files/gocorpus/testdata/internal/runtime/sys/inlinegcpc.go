@@ -28,7 +28,7 @@ func csp() uintptr { // ERROR "can inline csp"
 	return sp() + 4
 }
 
-// GnoIncomplete: covered 0 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 2 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 12: name uintptr not defined in fileset with files [inlinegcpc.go]

@@ -78,3 +78,13 @@ func main() {
 
 // TypeCheckError:
 // main/mallocfin.go:55:10: undefined: runtime.GOMAXPROCS; main/mallocfin.go:60:11: undefined: runtime.SetFinalizer; main/mallocfin.go:61:11: undefined: runtime.SetFinalizer; main/mallocfin.go:62:11: undefined: runtime.SetFinalizer; main/mallocfin.go:63:11: undefined: runtime.SetFinalizer; main/mallocfin.go:67:11: undefined: runtime.Gosched; main/mallocfin.go:68:8: undefined: time.Sleep
+
+// GnoOutput:
+
+// GnoError:
+// main/mallocfin.go:55:2-20: name GOMAXPROCS not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

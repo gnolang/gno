@@ -64,3 +64,7 @@ func main() {
 		j++
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

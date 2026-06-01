@@ -315,3 +315,13 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
 
 // TypeCheckError:
 // main/heapsampling.go:164:41: undefined: runtime.MemProfileRecord; main/heapsampling.go:224:39: undefined: runtime.MemProfileRecord; main/heapsampling.go:261:37: undefined: runtime.MemProfileRecord; main/heapsampling.go:31:10: undefined: runtime.MemProfileRate; main/heapsampling.go:84:11: undefined: runtime.Gosched; main/heapsampling.go:138:11: undefined: runtime.Gosched; main/heapsampling.go:237:18: undefined: runtime.MemProfileRecord; main/heapsampling.go:238:19: undefined: runtime.MemProfile; main/heapsampling.go:243:22: undefined: runtime.MemProfileRecord; main/heapsampling.go:244:19: undefined: runtime.MemProfile; main/heapsampling.go:271:21: undefined: runtime.CallersFrames; main/heapsampling.go:291:79: undefined: runtime.MemProfileRate
+
+// GnoOutput:
+
+// GnoError:
+// main/heapsampling.go:164:33-57: name MemProfileRecord not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

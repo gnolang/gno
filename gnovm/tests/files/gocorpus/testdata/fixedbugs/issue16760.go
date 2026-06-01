@@ -40,3 +40,13 @@ func usestack(n int) {
 	}
 	usestack(n - 1)
 }
+
+// GnoOutput:
+
+// GnoError:
+// interface method call on undefined value
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

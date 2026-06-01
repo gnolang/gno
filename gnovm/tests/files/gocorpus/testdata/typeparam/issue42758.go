@@ -17,3 +17,12 @@ func F[T, U int]() interface{} {
 func main() {
 	F[int, int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue42758.go:18:2: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

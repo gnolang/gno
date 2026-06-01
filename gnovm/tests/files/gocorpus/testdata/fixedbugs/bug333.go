@@ -17,3 +17,7 @@ func main() {
 /*
 bug333.go:14: cannot use ts (type Ts) as type string in function argument
 */
+
+// GnoOutput:
+
+// GoOutput:

@@ -129,3 +129,7 @@ type M2 struct {
 	x int
 	M
 }
+
+// GnoOutput:
+
+// GoOutput:

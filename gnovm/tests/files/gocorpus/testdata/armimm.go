@@ -177,3 +177,7 @@ func test64() {
 		panic(fmt.Sprintf("bic64(%x) = %x, want %x", a, got, want))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

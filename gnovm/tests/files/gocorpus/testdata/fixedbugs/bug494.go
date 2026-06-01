@@ -49,3 +49,7 @@ func main() {
 		panic(c)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

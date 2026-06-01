@@ -43,3 +43,12 @@ type ApplicativeFunctor2[H, HT, A1, A2, R any] struct {
 func Applicative2[A1, A2, R any](fn Func2[A1, A2, R]) ApplicativeFunctor2[Nil, Nil, A1, A2, R] {
 	return ApplicativeFunctor2[Nil, Nil, A1, A2, R]{Some(Nil{})}
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue50264.go:43:37: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

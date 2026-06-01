@@ -76,3 +76,13 @@ func big(x int) {
 		big(x - 1)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug484.go:62:1-63:2: name uintptr not defined in fileset with files [bug484.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

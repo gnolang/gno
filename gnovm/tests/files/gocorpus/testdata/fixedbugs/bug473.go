@@ -67,3 +67,7 @@ func main() {
 	expect("V13", V13, 7)
 	expect("V14", V14, 8)
 }
+
+// GnoOutput:
+
+// GoOutput:

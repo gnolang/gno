@@ -51,7 +51,10 @@ func (s StructWithPrinter) PrintFn() func(string) {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue50690c.go:13:6-15:2: name T not defined in fileset with files [issue50690c.go]
+
 // GoOutput:
 // Hello, world.
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

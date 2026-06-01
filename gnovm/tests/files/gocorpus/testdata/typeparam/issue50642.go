@@ -61,3 +61,12 @@ func main() {
 	}
 
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue50642.go:19:10: channel receive is not permitted
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

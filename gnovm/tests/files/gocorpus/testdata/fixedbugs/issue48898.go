@@ -38,3 +38,9 @@ func main() {
 		}()
 	}()
 }
+
+// GnoOutput:
+// 1234
+
+// GoOutput:
+// 1234

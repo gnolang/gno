@@ -34,3 +34,12 @@ func main() {
 
 // TypeCheckError:
 // main/issue48318.go:10:2: could not import encoding/xml (unknown import path "encoding/xml")
+
+// GnoOutput:
+
+// GnoError:
+// issue48318.go:20:10: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

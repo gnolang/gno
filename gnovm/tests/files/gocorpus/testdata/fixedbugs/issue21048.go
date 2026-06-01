@@ -70,3 +70,7 @@ func main() {
 	loads()
 	stores()
 }
+
+// GnoOutput:
+
+// GoOutput:

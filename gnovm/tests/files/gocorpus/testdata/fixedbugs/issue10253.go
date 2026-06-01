@@ -24,3 +24,7 @@ func eq() bool {
 type str struct {
 	text string
 }
+
+// GnoOutput:
+
+// GoOutput:

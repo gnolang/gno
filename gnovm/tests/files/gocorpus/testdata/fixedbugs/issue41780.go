@@ -37,3 +37,7 @@ func main() {
 		println("FAILURE (though not the one this test was written to catch)")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -34,3 +34,7 @@ func L() int               { checkorder(10); return 0 }
 func main() {
 	_ = F() + G(A() && B() && I(E()+H(J(), C() && D(), K()))) + L()
 }
+
+// GnoOutput:
+
+// GoOutput:

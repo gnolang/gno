@@ -37,3 +37,7 @@ func main() {
 		panic(`s.Error() != "ok"`)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

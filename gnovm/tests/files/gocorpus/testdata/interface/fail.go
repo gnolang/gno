@@ -37,3 +37,7 @@ func shouldPanic(f func()) {
 	}()
 	f()
 }
+
+// GnoOutput:
+
+// GoOutput:

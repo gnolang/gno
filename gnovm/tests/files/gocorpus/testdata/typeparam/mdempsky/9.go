@@ -10,5 +10,4 @@ func f[V any]() []V { return []V{0: *new(V)} }
 
 func g() { f[int]() }
 
-// KnownIssue:
-// line 9: name V not defined in fileset with files [9.go]
+// Unsupported: generics not supported in Gno

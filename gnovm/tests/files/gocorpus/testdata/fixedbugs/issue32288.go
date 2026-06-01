@@ -46,3 +46,13 @@ func junk() uintptr {
 	}
 	return a[12]
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue32288.go:9:6-12:2: name uintptr not defined in fileset with files [issue32288.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

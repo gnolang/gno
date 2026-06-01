@@ -26,3 +26,12 @@ func F[T I](x T) I {
 func main() {
 	F(&S{}).(interface{ M2() }).M2()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/devirtualize2.go:22:1-24:2: name T not defined in fileset with files [devirtualize2.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

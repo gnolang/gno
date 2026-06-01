@@ -17,3 +17,12 @@ func f[G any]() int {
 func main() {
 	f[int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47684.go:18:2-8: unexpected index base kind for type func() int
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

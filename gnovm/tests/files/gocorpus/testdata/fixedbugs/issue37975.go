@@ -52,3 +52,14 @@ func shouldPanic(str string, f func()) {
 
 	f()
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: makeslice: cap out of range
+// 	string doesn't implement interface {Error func() string} (missing method Error)
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

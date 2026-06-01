@@ -23,3 +23,7 @@ func main() {
 		println("BUG:", s)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

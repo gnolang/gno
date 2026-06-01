@@ -22,3 +22,7 @@ func main() {
 	e = rw
 	rw = rw
 }
+
+// GnoOutput:
+
+// GoOutput:

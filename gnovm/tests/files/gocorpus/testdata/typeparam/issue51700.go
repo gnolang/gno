@@ -24,3 +24,12 @@ func (S) m3() {}
 func main() {
 	f(S{})
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue51700.go:9:1-18:2: name B not defined in fileset with files [issue51700.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

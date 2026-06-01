@@ -18,5 +18,4 @@ func NewFreeListG[T any](size int) *FreeListG[T] {
 
 var bf = NewFreeListG[*int](1024)
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue57778.go]
+// Unsupported: generics not supported in Gno

@@ -18,3 +18,7 @@ func main() {
 	m := map[[8]string]int{}
 	g(m)
 }
+
+// GnoOutput:
+
+// GoOutput:

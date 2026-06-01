@@ -23,3 +23,9 @@ var n = uint16(65535)
 func main() {
 	println(f(n, boolInt32(int64(n^n) > 1)))
 }
+
+// GnoOutput:
+// 65535
+
+// GoOutput:
+// 65535

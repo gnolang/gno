@@ -20,5 +20,4 @@ func main() {
 	_ = Set[int]{42: {}}
 }
 
-// KnownIssue:
-// line 9: name T not defined in fileset with files [issue54911.go]
+// Unsupported: generics not supported in Gno

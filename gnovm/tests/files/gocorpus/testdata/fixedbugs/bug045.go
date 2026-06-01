@@ -19,3 +19,7 @@ func main() {
 /*
 bug045.go:13: fatal error: goc: exit 1
 */
+
+// GnoOutput:
+
+// GoOutput:

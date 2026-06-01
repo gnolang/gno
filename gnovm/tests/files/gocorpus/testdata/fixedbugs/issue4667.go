@@ -38,3 +38,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue4667.go:27:16: undefined: testing.AllocsPerRun; main/issue4667.go:28:16: undefined: testing.AllocsPerRun; main/issue4667.go:31:6: undefined: os.Exit; main/issue4667.go:35:6: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/issue4667.go:27:8-28: name AllocsPerRun not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

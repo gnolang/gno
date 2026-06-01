@@ -34,3 +34,7 @@ func Panic() (int, int) {
 }
 
 func main() {}
+
+// GnoOutput:
+
+// GoOutput:

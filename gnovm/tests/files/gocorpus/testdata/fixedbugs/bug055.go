@@ -25,3 +25,7 @@ func main() {
 	var k = func(a int) int { return a + 1 }(3)
 	_, _ = j, k
 }
+
+// GnoOutput:
+
+// GoOutput:

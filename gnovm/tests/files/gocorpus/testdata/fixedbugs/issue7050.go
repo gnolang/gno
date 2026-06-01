@@ -17,3 +17,7 @@ func main() {
 		fmt.Printf("BUG: os.Stdout.Write(nil) = %v\n", err)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

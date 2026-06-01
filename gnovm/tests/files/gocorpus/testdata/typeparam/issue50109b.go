@@ -27,3 +27,12 @@ type S2[T any] struct {
 type S3[T any] struct {
 	x int
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue50109b.go:19:6-21:2: name T not defined in fileset with files [issue50109b.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

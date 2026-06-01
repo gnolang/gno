@@ -275,3 +275,7 @@ func F(arg int) {
 		panic("argument was changed")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

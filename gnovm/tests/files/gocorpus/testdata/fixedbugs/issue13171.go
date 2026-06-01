@@ -32,3 +32,7 @@ func main() {
 		panic(fmt.Sprintf("want 10, got %f", got))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

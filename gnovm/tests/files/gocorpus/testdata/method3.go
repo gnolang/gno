@@ -33,3 +33,13 @@ func main() {
 		panic("fail")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/method3.go:31:5-17: cannot use *main.T as []int
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -18,5 +18,4 @@ func g[String string]() {
 var _ = f[int, uint]
 var _ = g[string]
 
-// KnownIssue:
-// line 18: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

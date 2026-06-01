@@ -635,3 +635,13 @@ func xtest() {
 
 // TypeCheckError:
 // main/modconst.go:19:19: undefined: rand.Intn (but have IntN); main/modconst.go:116:18: undefined: rand.Intn (but have IntN); main/modconst.go:174:19: undefined: rand.Intn (but have IntN); main/modconst.go:268:18: undefined: rand.Intn (but have IntN); main/modconst.go:326:19: undefined: rand.Intn (but have IntN); main/modconst.go:422:18: undefined: rand.Intn (but have IntN); main/modconst.go:480:19: undefined: rand.Intn (but have IntN); main/modconst.go:570:18: undefined: rand.Intn (but have IntN)
+
+// GnoOutput:
+
+// GnoError:
+// main/modconst.go:19:14-23: name Intn not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

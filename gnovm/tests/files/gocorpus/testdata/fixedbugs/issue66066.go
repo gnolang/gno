@@ -39,3 +39,7 @@ func testMul() {
 		fmt.Printf("testMul: got %x want %x\n", got, want)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

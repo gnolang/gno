@@ -62,3 +62,7 @@ func main() {
 
 	p()
 }
+
+// GnoOutput:
+
+// GoOutput:

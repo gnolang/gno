@@ -25,5 +25,4 @@ func G[E any](s []E, f func(E) bool) int {
 	return -1
 }
 
-// KnownIssue:
-// line 13: 2: name S not defined in fileset with files [issue59378.go]
+// Unsupported: generics not supported in Gno

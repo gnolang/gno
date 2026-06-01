@@ -34,3 +34,7 @@ func grow(x [1000]int) {
 		grow(x)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

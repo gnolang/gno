@@ -19,3 +19,12 @@ func main() {
 	var m map[*string]int
 	CopyMap(m)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48453.go:10:1-16:2: name M not defined in fileset with files [issue48453.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

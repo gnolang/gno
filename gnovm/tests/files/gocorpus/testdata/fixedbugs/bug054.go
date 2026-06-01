@@ -39,3 +39,7 @@ func main() {
 		panic("bad name")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

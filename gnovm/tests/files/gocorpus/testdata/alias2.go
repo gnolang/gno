@@ -103,17 +103,4 @@ func (B1) m() {} // ERROR "invalid receiver type"
 
 // TODO(gri) expand
 
-// GnoIncomplete: covered 11 of 14 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// GoTypeCheckError:
-// line 39: method T0.m1 already declared at gno.land/p/filetest/p/alias2.go:39:11
-// line 40: method T0.m1 already declared at gno.land/p/filetest/p/alias2.go:39:11
-// line 41: method T0.m1 already declared at gno.land/p/filetest/p/alias2.go:39:11
-// line 49: cannot use T0{} (value of struct type T0) as N0 value in variable declaration
-// line 50: cannot use A0{} (value of struct type A0) as N0 value in variable declaration
-// line 85: cannot use T0{} (value of struct type T0) as N0 value in variable declaration
-// line 86: cannot use A0{} (value of struct type A0) as N0 value in variable declaration
-// line 88: undefined: Value
-// line 95: cannot define new methods on non-local type A1
-// line 96: invalid receiver type A2
-// line 102: invalid receiver type B1
+// Unsupported: unknown import path reflect

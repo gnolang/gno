@@ -17,3 +17,7 @@ func main() {
   	type X Header
   	var _ interface{} = X{}
 }
+
+// GnoOutput:
+
+// GoOutput:

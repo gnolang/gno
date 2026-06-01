@@ -48,3 +48,13 @@ func setup() {
 
 // TypeCheckError:
 // main/gcstring.go:28:7: undefined: time.Sleep; main/gcstring.go:31:7: undefined: time.Sleep; main/gcstring.go:41:11: undefined: runtime.SetFinalizer
+
+// GnoOutput:
+
+// GnoError:
+// main/gcstring.go:28:2-12: name Sleep not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

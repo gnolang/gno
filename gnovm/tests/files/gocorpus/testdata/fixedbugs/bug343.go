@@ -31,3 +31,7 @@ typecheck [1008592b0]
 .   INDREG a(1) l(15) x(24) tc(2) runtime.ret G0 string
 bug343.go:15: internal compiler error: typecheck INDREG
 */
+
+// GnoOutput:
+
+// GoOutput:

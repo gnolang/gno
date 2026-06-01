@@ -52,3 +52,7 @@ func (t *test_t) Test() test_i {
 func (t *test_t) Result() bool {
 	return true
 }
+
+// GnoOutput:
+
+// GoOutput:

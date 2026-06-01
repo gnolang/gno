@@ -21,3 +21,7 @@ func main() {
 
 	_, _ = t, m0
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -51,3 +51,7 @@ func bar() {
 		fmt.Println(s)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -228,3 +228,13 @@ func main() {
 		panic("fail")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/ddd.go:222:10-18: unknown *DeclaredType method named Sum
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

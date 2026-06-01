@@ -19,3 +19,7 @@ func splitContractIndex(ce uint64) (index uint32, offset uint64) {
 	h := uint32(ce)
 	return h >> 5, ce + 1
 }
+
+// GnoOutput:
+
+// GoOutput:

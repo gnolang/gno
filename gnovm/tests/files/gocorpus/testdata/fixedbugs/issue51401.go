@@ -45,3 +45,13 @@ func listFuncs(outer Outer) []func() error {
 
 // TypeCheckError:
 // main/issue51401.go:30:10: undefined: runtime.Callers
+
+// GnoOutput:
+
+// GnoError:
+// main/issue51401.go:29:18-25: name uintptr not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

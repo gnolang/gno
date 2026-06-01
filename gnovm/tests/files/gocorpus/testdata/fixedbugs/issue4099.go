@@ -27,7 +27,7 @@ func G() {
 	F2(buf2[:])
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 18: function F1 does not have a body but is not natively defined (did you build after pulling from the repository?)

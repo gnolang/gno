@@ -22,3 +22,9 @@ func main() {
 	o := one{i: two{i: 42}.i}
 	println(o.i.(int))
 }
+
+// GnoOutput:
+// 42
+
+// GoOutput:
+// 42

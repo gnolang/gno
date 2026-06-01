@@ -34,3 +34,7 @@ func main() {
 		panic("incorrect value")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

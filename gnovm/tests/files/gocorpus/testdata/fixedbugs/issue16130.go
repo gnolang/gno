@@ -44,3 +44,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue16130.go:29:24: undefined: runtime.Error
+
+// GnoOutput:
+
+// GnoError:
+// main/issue16130.go:29:16-29: name Error not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

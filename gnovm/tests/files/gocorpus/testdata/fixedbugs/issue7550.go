@@ -25,3 +25,13 @@ func f() {
 func main() {
 	shouldPanic(f)
 }
+
+// GnoOutput:
+
+// GnoError:
+// multiplication overflow
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -23,3 +23,12 @@ func Foo[R any]() {
 func main() {
 	Foo[int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48602.go:9:6-11:2: name T not defined in fileset with files [issue48602.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

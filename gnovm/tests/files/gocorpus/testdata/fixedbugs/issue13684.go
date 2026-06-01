@@ -15,3 +15,7 @@ func main() {
 	goto labelname
 labelname:
 }
+
+// GnoOutput:
+
+// GoOutput:

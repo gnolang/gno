@@ -29,3 +29,11 @@ func initv1() string {
 func main() {
 	// do nothing
 }
+
+// GnoOutput:
+// initv0
+// initv1
+
+// GoOutput:
+// initv0
+// initv1

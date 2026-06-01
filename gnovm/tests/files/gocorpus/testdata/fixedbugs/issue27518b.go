@@ -73,3 +73,13 @@ func g(p *StackObj) (v *HeapObj) {
 
 // TypeCheckError:
 // main/issue27518b.go:48:10: undefined: runtime.SetFinalizer
+
+// GnoOutput:
+
+// GnoError:
+// main/issue27518b.go:48:2-22: name SetFinalizer not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -30,5 +30,4 @@ func main() {
 	_ = v1.Diff(v2)
 }
 
-// KnownIssue:
-// line 14: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

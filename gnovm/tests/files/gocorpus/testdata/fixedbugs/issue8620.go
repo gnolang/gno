@@ -28,3 +28,7 @@ func main() {
 	test(b[1:], b[:])
 	test(b[:], b[2:])
 }
+
+// GnoOutput:
+
+// GoOutput:

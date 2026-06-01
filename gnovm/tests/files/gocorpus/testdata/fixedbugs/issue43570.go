@@ -38,3 +38,7 @@ func main() {
 }
 
 var sink []byte
+
+// GnoOutput:
+
+// GoOutput:

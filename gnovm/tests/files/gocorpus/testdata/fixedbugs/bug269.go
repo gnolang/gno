@@ -16,3 +16,7 @@ func main() {
 	_ = i.(func()bool)
 	_ = i.(func()(bool))
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -30,3 +30,12 @@ func main() {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47258.go:13:6-15:2: name complex64 not defined in fileset with files [issue47258.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

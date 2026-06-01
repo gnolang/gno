@@ -34,3 +34,7 @@ panic on line 83 PC=0x14d6
 	mainstart(0x1, 0x7fff5fbff830, 0x0, ...)
 uetli:~/Source/go1/test/bugs gri$
 */
+
+// GnoOutput:
+
+// GoOutput:

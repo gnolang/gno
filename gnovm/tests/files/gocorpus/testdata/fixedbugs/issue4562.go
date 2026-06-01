@@ -67,6 +67,6 @@ func expectError(expectLine int) {
 // 	/tmp/claude-501/gno-filetest-go-2917163442/main.go:22 +0x3c
 // exit status 2
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
 
 // Unsupported: non-deterministic runtime output (signal SIGSEGV)

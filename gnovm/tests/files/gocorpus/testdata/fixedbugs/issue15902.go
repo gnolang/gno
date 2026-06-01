@@ -25,3 +25,7 @@ var t T
 func main() {
 	f(&t)
 }
+
+// GnoOutput:
+
+// GoOutput:

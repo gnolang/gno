@@ -21,3 +21,12 @@ func main() {
 	c[*S]()
 	d[PS]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue50833.go:17:1-42: name P not defined in fileset with files [issue50833.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

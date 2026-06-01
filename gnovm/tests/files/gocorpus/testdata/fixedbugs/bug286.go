@@ -88,3 +88,7 @@ mainstart+0xf /home/gri/go1/src/pkg/runtime/amd64/asm.s:60
 goexit /home/gri/go1/src/pkg/runtime/proc.c:145
 	goexit()
 */
+
+// GnoOutput:
+
+// GoOutput:

@@ -89,3 +89,7 @@ func main() {
 	msa := make(map[interface{}][]string)
 	appendStr(msa, "abc") // used to throw
 }
+
+// GnoOutput:
+
+// GoOutput:

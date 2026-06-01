@@ -39,3 +39,7 @@ func main() {
 	}
 	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
 }
+
+// GnoOutput:
+
+// GoOutput:

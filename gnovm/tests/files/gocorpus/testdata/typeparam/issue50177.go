@@ -100,5 +100,4 @@ func caller3(val int) {
 	}
 }
 
-// KnownIssue:
-// line 11: name T not defined in fileset with files [issue50177.go]
+// Unsupported: generics not supported in Gno

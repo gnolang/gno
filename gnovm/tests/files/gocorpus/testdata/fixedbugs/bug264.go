@@ -42,3 +42,7 @@ func main() {
 		panic("balCount != 1")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

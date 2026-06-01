@@ -83,3 +83,13 @@ func main() {
 	check(1.5, "default 1.5")
 	check(nil, "nil <nil>")
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/typeswitch1.go:40:29-31: name xx not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

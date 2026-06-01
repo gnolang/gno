@@ -24,3 +24,7 @@ func main() {
 func f1(v1 uint) uint {
 	return v1 >> ((1 >> v1) + (1 >> v1))
 }
+
+// GnoOutput:
+
+// GoOutput:

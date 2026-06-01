@@ -100,6 +100,9 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue71675.go:9:2-14:3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+
 // GoOutput:
 // f recover:called
 // F first
@@ -115,4 +118,5 @@ func main() {
 // I
 // i returned
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -43,3 +43,13 @@ func main() {
 	}
 	_ = imag(i.cplx())
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug401.go:21:6-23:2: name complex128 not defined in fileset with files [bug401.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

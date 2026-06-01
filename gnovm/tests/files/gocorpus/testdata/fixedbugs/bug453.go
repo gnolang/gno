@@ -37,3 +37,7 @@ func main() {
 		panic("x != 7.0")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

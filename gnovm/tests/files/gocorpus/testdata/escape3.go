@@ -34,3 +34,7 @@ func check1(pass int) T1 {
 	v[0].Y = pass
 	return v[0]
 }
+
+// GnoOutput:
+
+// GoOutput:

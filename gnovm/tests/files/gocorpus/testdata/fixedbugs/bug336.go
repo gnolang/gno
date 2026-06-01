@@ -84,3 +84,13 @@ func main() {
 	t19s := &[10]T19{}
 	_ = T18(t19s)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug336.go:9:6-11:2: should not happen
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

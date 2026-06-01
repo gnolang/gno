@@ -26,5 +26,4 @@ func (pp *PathParams[T]) IsNil() bool {
 	return pp.t == nil // this must succeed
 }
 
-// KnownIssue:
-// line 18: checker for ILLEGAL does not exist
+// Unsupported: generics not supported in Gno

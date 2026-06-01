@@ -23,3 +23,7 @@ main.go.c:25: warning: excess elements in struct initializer
 main.go.c:25: warning: (near initialization for ‘slit’)
 main.go.c:36: error: syntax error at end of input
 */
+
+// GnoOutput:
+
+// GoOutput:

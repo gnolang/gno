@@ -328,7 +328,7 @@ func _() {
 	_ = (*P)(s) // ERROR "cannot convert"
 }
 
-// GnoIncomplete: covered 31 of 48 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 31 of 48 markers (Gno preprocess: 31, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 25: cannot use main[main/convert2.go:18:1-32:2].T as main[main/convert2.go:18:1-32:2].S without explicit conversion

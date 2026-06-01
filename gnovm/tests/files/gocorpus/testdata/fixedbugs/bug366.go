@@ -35,3 +35,7 @@ func main() {
        y := x[1:3]
        five(int64(y[1] / (y[1] / y[0])))
 }
+
+// GnoOutput:
+
+// GoOutput:

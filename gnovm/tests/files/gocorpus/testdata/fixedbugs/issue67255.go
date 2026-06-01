@@ -31,3 +31,13 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue67255.go:27:2-32:3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

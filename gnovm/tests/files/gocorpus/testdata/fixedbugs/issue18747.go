@@ -27,7 +27,7 @@ func _ () {
 	{}
 }
 
-// GnoIncomplete: covered 5 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 5 of 6 markers (Gno preprocess: 5, go/types guard: 5); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 10: missing condition in if statement (and 5 more errors)

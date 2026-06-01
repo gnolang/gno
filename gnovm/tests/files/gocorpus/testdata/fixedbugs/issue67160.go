@@ -30,3 +30,7 @@ func main() {
 	var a U
 	_ = f(&a, &a)
 }
+
+// GnoOutput:
+
+// GoOutput:

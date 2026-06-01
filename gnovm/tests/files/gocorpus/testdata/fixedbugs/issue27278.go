@@ -61,3 +61,7 @@ func poison() {
 }
 
 var g [10]int
+
+// GnoOutput:
+
+// GoOutput:

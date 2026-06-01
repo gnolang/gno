@@ -23,3 +23,13 @@ func main() {
 		panic("huge != bad")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue15039.go:21:15-29: bigint overflows target kind
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

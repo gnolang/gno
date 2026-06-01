@@ -16,3 +16,7 @@ func main() {
 uetli:~/Source/go1/test/bugs gri$ 6g bug061.go
 Bus error
 */
+
+// GnoOutput:
+
+// GoOutput:

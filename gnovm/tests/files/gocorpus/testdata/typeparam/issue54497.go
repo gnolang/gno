@@ -18,7 +18,4 @@ func foo(x uint) bool { // ERROR "can inline foo"
 	return isAligned(x, 64) // ERROR "inlining call to isAligned\[go\.shape\.uint\]"
 }
 
-// GnoIncomplete: covered 0 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
-// KnownIssue:
-// line 11: checker for ILLEGAL does not exist
+// Unsupported: generics not supported in Gno

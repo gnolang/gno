@@ -18,3 +18,7 @@ func main() {
 	// this doesn't:
 	x[i] = c/d;	// BUG segmentation fault
 }
+
+// GnoOutput:
+
+// GoOutput:

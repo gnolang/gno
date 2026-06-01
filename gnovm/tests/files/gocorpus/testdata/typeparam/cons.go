@@ -98,3 +98,12 @@ func main() {
 			cs1.Head, cs2.Head, ok))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// cons.go:32:4: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

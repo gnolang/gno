@@ -19,3 +19,7 @@ func main() {
 		panic("y not int or not 2")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

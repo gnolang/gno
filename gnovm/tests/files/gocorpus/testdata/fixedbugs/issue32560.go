@@ -49,3 +49,7 @@ func main() {
 	b()
 	c()
 }
+
+// GnoOutput:
+
+// GoOutput:

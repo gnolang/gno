@@ -53,3 +53,7 @@ func main() {
 		println("BUG index var: ", q.X, q.Y)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

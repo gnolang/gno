@@ -33,3 +33,7 @@ type T4 [2]int
 type T5 map[int]int
 
 const f = 0
+
+// GnoOutput:
+
+// GoOutput:

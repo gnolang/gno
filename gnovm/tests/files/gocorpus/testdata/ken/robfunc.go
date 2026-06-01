@@ -94,3 +94,7 @@ func main() {
 	r10 := t.m10(1, 3.0)
 	assertequal(r10, 10, "10")
 }
+
+// GnoOutput:
+
+// GoOutput:

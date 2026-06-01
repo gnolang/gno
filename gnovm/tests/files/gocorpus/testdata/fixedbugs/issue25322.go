@@ -21,3 +21,9 @@ func Foo(v float32) {
 func main() {
 	Foo(2.0)
 }
+
+// GnoOutput:
+// 40000000
+
+// GoOutput:
+// 40000000

@@ -66,3 +66,7 @@ func equalTerminal(x Value, y Value, flags Flag) bool {
 	foo = fmt.Sprintf("EQclosed %s %s %d\n", x.(*Vertex).name, y.(*Vertex).name, flags)
 	return true
 }
+
+// GnoOutput:
+
+// GoOutput:

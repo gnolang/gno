@@ -50,3 +50,12 @@ func main() {
 		panic(fmt.Sprintf("got %v, want %v", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/genembed.go:13:6-15:2: name T not defined in fileset with files [genembed.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -23,3 +23,7 @@ func main() {
 		panic("not allocating & composite literals")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

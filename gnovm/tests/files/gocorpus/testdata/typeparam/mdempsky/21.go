@@ -24,3 +24,12 @@ type I[T any] interface{ M() }
 type X int
 
 func (X) M() {}
+
+// GnoOutput:
+
+// GnoError:
+// main/21.go:14:2-8: unexpected index base kind for type func()
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

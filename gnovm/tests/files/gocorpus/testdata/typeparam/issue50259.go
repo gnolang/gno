@@ -12,5 +12,4 @@ type T[_ any] struct{}
 type A T[B]
 type B = T[A]
 
-// KnownIssue:
-// line 12: unexpected type declaration type *gnolang.IndexExpr
+// Unsupported: generics not supported in Gno

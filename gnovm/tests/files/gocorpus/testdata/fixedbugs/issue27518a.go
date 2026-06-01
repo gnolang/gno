@@ -46,3 +46,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue27518a.go:31:10: undefined: runtime.KeepAlive
+
+// GnoOutput:
+
+// GnoError:
+// main/issue27518a.go:31:2-19: name KeepAlive not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

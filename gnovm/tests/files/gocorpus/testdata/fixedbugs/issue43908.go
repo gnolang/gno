@@ -19,3 +19,13 @@ func main() {
 		panic(fmt.Sprintf("%g != %g\n", ulp1, ulp2))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue43908.go:14:7-40: name imag not defined in fileset with files [issue43908.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

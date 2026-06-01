@@ -25,3 +25,12 @@ type lesser[T any] interface {
 func bar[T lesser[T]](a, b T) {
 	a.less(b)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49421.go:20:6-23:2: name T not defined in fileset with files [issue49421.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

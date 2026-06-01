@@ -28,3 +28,7 @@ func main() {
 		panic("wrong answer")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

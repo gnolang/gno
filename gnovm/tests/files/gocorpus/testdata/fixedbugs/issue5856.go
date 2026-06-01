@@ -46,6 +46,6 @@ func g() {
 // BUG: defer called from /tmp/claude-501/gno-filetest-go-3656518913/main.go:28, want issue5856.go:28
 // exit status 1
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
 
 // Unsupported: non-deterministic runtime output (gno-filetest-go-)

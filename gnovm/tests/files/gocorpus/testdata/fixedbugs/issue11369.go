@@ -25,3 +25,7 @@ func main() {
 		panic("expected 5")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -36,7 +36,7 @@ func test(b *testing.B) { // ERROR "leaking param: b"
 	}
 }
 
-// GnoIncomplete: covered 3 of 8 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 3 of 8 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 22: missing field Loop in *testing.B

@@ -18,3 +18,7 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

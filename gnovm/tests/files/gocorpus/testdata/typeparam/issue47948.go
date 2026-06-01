@@ -17,5 +17,4 @@ func main() {
 	F[int]()
 }
 
-// KnownIssue:
-// line 17: unexpected index base kind for type func()
+// Unsupported: generics not supported in Gno

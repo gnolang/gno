@@ -21,5 +21,4 @@ type Inner[_ any] int
 
 func (Inner[_]) M() {}
 
-// KnownIssue:
-// line 14: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

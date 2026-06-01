@@ -27,3 +27,7 @@ func check(b bool) {
 		panic("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

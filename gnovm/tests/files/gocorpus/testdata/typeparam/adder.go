@@ -27,3 +27,12 @@ func main() {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/adder.go:14:2-13: operator | not defined on: TypeKind
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

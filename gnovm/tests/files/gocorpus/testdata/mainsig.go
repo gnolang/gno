@@ -12,7 +12,7 @@ func main() int { return 1 } // ERROR "func main must have no arguments and no r
 func init(int)  {}           // ERROR "func init must have no arguments and no return values"
 func init() int { return 1 } // ERROR "func init must have no arguments and no return values"
 
-// GnoIncomplete: covered 2 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 2 of 4 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 10: main redeclared in this block

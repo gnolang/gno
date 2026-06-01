@@ -17,3 +17,13 @@ func main() {
 		panic("FAILED")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue29304.go:16:5-16: unknown *DeclaredType method named Error
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

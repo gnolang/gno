@@ -16,3 +16,7 @@ func main() {
 		panic("loop didn't run")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

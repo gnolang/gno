@@ -29,3 +29,12 @@ func f[T any]() {
 		panic("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue53635.go:10:2-8: unexpected index base kind for type func()
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

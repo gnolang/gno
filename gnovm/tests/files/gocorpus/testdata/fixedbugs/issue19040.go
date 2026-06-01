@@ -34,3 +34,14 @@ func main() {
 	}()
 	i.F()
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: nil pointer dereference
+// 	string doesn't implement interface {Error func() string} (missing method Error)
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

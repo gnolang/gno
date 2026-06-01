@@ -13,3 +13,7 @@ type X struct { x []X }
 func main() {
 	type Y struct { x []Y }	// used to get invalid recursive type
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -181,3 +181,7 @@ func ge_f3() {
 		panic("bad")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -24,3 +24,7 @@ bug12.go:6: overflow converting constant to <uint64>UINT64
 bug12.go:7: overflow converting constant to <uint64>UINT64
 bug12.go:8: overflow converting constant to <uint64>UINT64
 */
+
+// GnoOutput:
+
+// GoOutput:

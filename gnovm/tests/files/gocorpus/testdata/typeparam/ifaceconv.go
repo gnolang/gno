@@ -81,3 +81,12 @@ func main() {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/ifaceconv.go:17:1-20:2: name T not defined in fileset with files [ifaceconv.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

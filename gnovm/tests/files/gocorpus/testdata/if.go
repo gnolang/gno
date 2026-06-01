@@ -91,3 +91,7 @@ func main() {
 	_ = t
 	assertequal(count, -1, "if else false var outside")
 }
+
+// GnoOutput:
+
+// GoOutput:

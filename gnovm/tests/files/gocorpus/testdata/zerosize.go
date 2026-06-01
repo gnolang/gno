@@ -35,6 +35,10 @@ func main() {
 // GnoOutput:
 // p= &(array[] [0]int)  q= &(array[] [0]int)  p==q =  false
 
+// GnoError:
+// FAIL
+
 // GoOutput:
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

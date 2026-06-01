@@ -171,3 +171,13 @@ func main() {
 		}
 	})
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/maplinear.go:138:12-21: name complex64 not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

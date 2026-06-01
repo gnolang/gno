@@ -17,3 +17,12 @@ func main() {
 		return 3, "3"
 	})
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47514b.go:9:1-13:2: name T not defined in fileset with files [issue47514b.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

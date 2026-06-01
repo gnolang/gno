@@ -88,3 +88,13 @@ func main() {
 	testint4()
 	testint5()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/range3.go:14:2-20:3: range iteration requires map, string, array, slice, or pointer to array; got IntKind
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -58,3 +58,7 @@ func bug() {
 		fmt.Println("BUG")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

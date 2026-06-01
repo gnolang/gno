@@ -43,3 +43,7 @@ func h() (_ bool, _ int) {
 	var p *int
 	return true, *p
 }
+
+// GnoOutput:
+
+// GoOutput:

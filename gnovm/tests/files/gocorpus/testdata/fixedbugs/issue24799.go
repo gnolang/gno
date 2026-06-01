@@ -56,3 +56,7 @@ func test(l Level) {
 func main() {
         test(LevelMetadata)
 }
+
+// GnoOutput:
+
+// GoOutput:

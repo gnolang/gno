@@ -28,3 +28,12 @@ func catch() {
 	}
 	fmt.Println("FAIL", err)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue51521.go:16:1-42: name P not defined in fileset with files [issue51521.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

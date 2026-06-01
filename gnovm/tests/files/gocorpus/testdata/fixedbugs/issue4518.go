@@ -63,3 +63,7 @@ func main() {
 	check(bogus1(42))
 	check(bogus2())
 }
+
+// GnoOutput:
+
+// GoOutput:

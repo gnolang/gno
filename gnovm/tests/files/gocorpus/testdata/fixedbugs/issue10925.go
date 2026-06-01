@@ -21,3 +21,7 @@ func main() {
 		fmt.Println("Expected [[one] [two] [three]], got", got)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

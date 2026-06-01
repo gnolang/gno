@@ -25,7 +25,7 @@ func m() {
 func main() {
 }
 
-// GnoIncomplete: covered 2 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 2 of 3 markers (Gno preprocess: 0, go/types guard: 2); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // GoTypeCheckError:
 // line 18: (I) (type) is not an expression

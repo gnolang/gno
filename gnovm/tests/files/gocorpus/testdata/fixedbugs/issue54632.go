@@ -29,3 +29,7 @@ func bug2(fn func()) {
 
 func pass() {}
 func fail() { panic("FAIL") }
+
+// GnoOutput:
+
+// GoOutput:

@@ -32,3 +32,7 @@ func shr2(n int64, m int) int64 {
 
 	return n >> uint(m)
 }
+
+// GnoOutput:
+
+// GoOutput:

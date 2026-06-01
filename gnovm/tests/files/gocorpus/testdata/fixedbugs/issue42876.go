@@ -16,3 +16,7 @@ func main() {
 		panic("fail 2") // Fails here
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

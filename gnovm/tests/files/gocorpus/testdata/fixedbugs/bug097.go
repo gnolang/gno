@@ -51,3 +51,7 @@ It is a "construction" of an array after all. If I pass the address
 of the array to some function, it may store it globally. Same applies
 to struct literals.
 */
+
+// GnoOutput:
+
+// GoOutput:

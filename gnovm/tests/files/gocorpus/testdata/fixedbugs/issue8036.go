@@ -43,3 +43,13 @@ func main() {
 	G() // leave non-pointers where F's return values go
 	F()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue8036.go:19:6-19: name uintptr not defined in fileset with files [issue8036.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -56,3 +56,13 @@ func grow() {
 
 //go:noinline
 func use(_ []uintptr) { }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue26407.go:58:1-26: name uintptr not defined in fileset with files [issue26407.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

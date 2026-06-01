@@ -18,4 +18,4 @@ func main() {
 // GoOutput:
 // -0.000000e+000
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable

@@ -19,3 +19,13 @@ func main() {
 
 // TypeCheckError:
 // main/bug370.go:15:10: undefined: runtime.GOMAXPROCS; main/bug370.go:17:10: undefined: runtime.GOMAXPROCS
+
+// GnoOutput:
+
+// GnoError:
+// main/bug370.go:15:2-20: name GOMAXPROCS not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

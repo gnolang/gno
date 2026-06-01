@@ -42,11 +42,4 @@ func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
 
 // TODO(gri) expand this
 
-// GnoError:
-// line 24: T redeclared in this block
-// 	previous declaration at tparam1.go:25:4 (and 1 more errors)
-// line 29: T redeclared in this block
-// 	previous declaration at tparam1.go:30:8
-
-// GoTypeCheckError:
-// line 24: T redeclared in this block
+// Unsupported: generics not supported in Gno

@@ -62,3 +62,12 @@ func main() {
 	F[byte, S](S{}, true)
 	F[byte, S](I[byte](S{}), true)
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue50002.go:58:2: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

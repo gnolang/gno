@@ -44,3 +44,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue34123.go:30:16: undefined: runtime.Callers; main/issue34123.go:31:21: undefined: runtime.CallersFrames
+
+// GnoOutput:
+
+// GnoError:
+// main/issue34123.go:29:7-22: name uintptr not defined in fileset with files [issue34123.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

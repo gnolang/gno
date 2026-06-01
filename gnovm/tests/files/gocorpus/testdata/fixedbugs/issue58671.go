@@ -17,3 +17,12 @@ var (
 )
 
 func main() {}
+
+// GnoOutput:
+
+// GnoError:
+// main/issue58671.go:9:1-50: name P not defined in fileset with files [issue58671.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

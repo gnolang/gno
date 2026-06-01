@@ -27,3 +27,7 @@ func main() {
 }
 
 var sink float64
+
+// GnoOutput:
+
+// GoOutput:

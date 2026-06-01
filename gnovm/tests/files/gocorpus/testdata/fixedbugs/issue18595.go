@@ -51,3 +51,7 @@ func test2() {
 		panic("interfaces not equal")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

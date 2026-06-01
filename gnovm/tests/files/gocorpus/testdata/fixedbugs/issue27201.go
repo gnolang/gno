@@ -57,6 +57,6 @@ func checkstack() {
 // 	/tmp/claude-501/gno-filetest-go-4285626519/main.go:15 +0x20
 // exit status 2
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
 
 // Unsupported: non-deterministic runtime output (signal SIGSEGV)

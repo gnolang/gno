@@ -53,7 +53,10 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue47713.go:31:6-34:2: name T not defined in fileset with files [issue47713.go]
+
 // GoOutput:
 // Sent asdf
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

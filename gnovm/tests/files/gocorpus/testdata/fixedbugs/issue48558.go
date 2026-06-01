@@ -84,7 +84,7 @@ func _() {
 	_, _, _ = f3(), 3   // ERROR "assignment mismatch: 3 variables but 2 values|multiple-value f3\(\) .*in single-value context"
 }
 
-// GnoIncomplete: covered 6 of 27 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 6 of 27 markers (Gno preprocess: 0, go/types guard: 6); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // GoTypeCheckError:
 // line 11: assignment mismatch: 1 variable but 2 values

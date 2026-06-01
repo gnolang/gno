@@ -101,3 +101,12 @@ func main() {
 		panic(fmt.Sprintf("got %f, want %f", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/list.go:13:6-18:2: name uintptr not defined in fileset with files [list.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

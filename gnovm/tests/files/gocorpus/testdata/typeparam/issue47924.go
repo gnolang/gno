@@ -14,5 +14,4 @@ func (c Cache[K]) foo(x interface{}, f func(K) bool) {
 
 var _ Cache[int]
 
-// KnownIssue:
-// line 11: 2: name K not defined in fileset with files [issue47924.go]
+// Unsupported: generics not supported in Gno

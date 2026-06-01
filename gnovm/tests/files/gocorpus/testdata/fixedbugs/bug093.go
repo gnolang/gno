@@ -61,3 +61,7 @@ cs      0x27
 fs      0x10
 gs      0x48
 */
+
+// GnoOutput:
+
+// GoOutput:

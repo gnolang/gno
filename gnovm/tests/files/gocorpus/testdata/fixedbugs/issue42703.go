@@ -17,3 +17,7 @@ func main() {
 
 func f() func() { ok[0] = true; return g }
 func g()        { ok[1] = true }
+
+// GnoOutput:
+
+// GoOutput:

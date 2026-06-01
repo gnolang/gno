@@ -17,8 +17,4 @@ func main() {
 	f[[]int](nil)
 }
 
-// GoTypeCheckError:
-// line 9: instantiation cycle:
-
-// KnownIssue:
-// line 13: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

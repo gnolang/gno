@@ -30,3 +30,13 @@ func main() {
 		panic(b)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// 9223372036854775808
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

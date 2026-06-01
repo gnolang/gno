@@ -44,3 +44,13 @@ func main() {
 	v.Struct(f1(nil, 0, 0)) // ok
 	v.Complex(f(nil, 0, 0)) // used to fail
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug329.go:14:6-16:2: name complex128 not defined in fileset with files [bug329.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

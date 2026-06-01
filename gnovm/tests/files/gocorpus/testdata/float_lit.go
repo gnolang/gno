@@ -201,3 +201,7 @@ func main() {
 		panic("float_lit")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

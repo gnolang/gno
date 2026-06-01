@@ -20,3 +20,12 @@ func F[T ~bool](x string) {
 func G[T any](t T) *T {
 	return &t
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue54537.go:20:1-22:2: name T not defined in fileset with files [issue54537.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

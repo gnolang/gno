@@ -123,7 +123,7 @@ func _() {
 	}
 }
 
-// GnoIncomplete: covered 12 of 24 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 12 of 24 markers (Gno preprocess: 0, go/types guard: 12); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // GoTypeCheckError:
 // line 40: p.Mv undefined (type P3 has no field or method Mv)

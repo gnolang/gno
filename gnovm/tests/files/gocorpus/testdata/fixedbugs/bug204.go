@@ -22,3 +22,7 @@ func main() {
 		nchar++
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -28,3 +28,12 @@ func main() {
 	token, err := Read[Token](r)
 	_, _ = token, err
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49295.go:16:1-24:2: name T not defined in fileset with files [issue49295.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

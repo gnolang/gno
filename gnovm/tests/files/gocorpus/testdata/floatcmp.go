@@ -91,3 +91,7 @@ func main() {
 		panic("floatcmp failed")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

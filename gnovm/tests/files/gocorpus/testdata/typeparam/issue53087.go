@@ -54,3 +54,12 @@ func main() {
 		panic(fmt.Sprintf("got %T want *main.S", it))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue53087.go:27:10: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -40,3 +40,12 @@ func main() {
 		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/smallest.go:13:6-18:2: name uintptr not defined in fileset with files [smallest.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

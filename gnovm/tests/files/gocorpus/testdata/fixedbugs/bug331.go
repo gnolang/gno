@@ -34,3 +34,7 @@ bug331.go:12: cannot use 0 (type float64) as type os.Error in assignment:
 	float64 does not implement os.Error (missing String method)
 bug331.go:12: error in shape across RETURN
 */
+
+// GnoOutput:
+
+// GoOutput:

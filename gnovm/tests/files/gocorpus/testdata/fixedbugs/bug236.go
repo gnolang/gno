@@ -51,3 +51,7 @@ func main() {
 		panic("BUG: bug236f")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

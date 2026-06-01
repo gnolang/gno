@@ -44,3 +44,13 @@ func main() {
 		panic(got)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue24547.go:38:12-20: missing field String in struct{deep main[main/issue24547.go:26:1-46:2].deep; Buffer *bytes.Buffer}
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

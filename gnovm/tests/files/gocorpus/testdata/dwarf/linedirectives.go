@@ -81,3 +81,7 @@ func main() {
 }
 //line foo/bar.y:293
 //line foo/bar.y:295
+
+// GnoOutput:
+
+// GoOutput:

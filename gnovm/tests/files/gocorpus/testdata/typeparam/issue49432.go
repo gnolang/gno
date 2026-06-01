@@ -21,5 +21,4 @@ func main() {
 	c.Init()
 }
 
-// KnownIssue:
-// line 13: name T not defined in fileset with files [issue49432.go]
+// Unsupported: generics not supported in Gno

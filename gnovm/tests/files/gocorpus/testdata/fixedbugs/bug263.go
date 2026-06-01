@@ -14,3 +14,7 @@ func main() {
 		panic("BUG: " + data[0])
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

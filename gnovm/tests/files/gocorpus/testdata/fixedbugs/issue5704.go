@@ -44,3 +44,7 @@ func main() {
 	checkRunes(myrunes(""), `myrunes("")`)
 	checkRunes(myrunes(mystring("")), `myrunes(mystring(""))`)
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -287,3 +287,12 @@ func (r *_Receiver[Elem]) finalize() {
 
 // TypeCheckError:
 // main/orderedmap.go:12:2: could not import context (unknown import path "context"); main/orderedmap.go:237:10: undefined: runtime.SetFinalizer
+
+// GnoOutput:
+
+// GnoError:
+// orderedmap.go:26:11: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

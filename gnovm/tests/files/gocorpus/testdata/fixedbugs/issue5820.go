@@ -16,3 +16,7 @@ func main() {
 		panic("array[1] != nil")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -227,3 +227,7 @@ func main() {
 		panic("literal failed")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

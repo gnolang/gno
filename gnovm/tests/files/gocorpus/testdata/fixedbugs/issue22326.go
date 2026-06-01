@@ -23,3 +23,9 @@ func f(s string, rest ...int) int {
 func main() {
 	println()
 }
+
+// GnoOutput:
+// abc_d
+
+// GoOutput:
+// abc_d

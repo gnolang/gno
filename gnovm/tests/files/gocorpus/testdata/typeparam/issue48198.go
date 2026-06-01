@@ -21,5 +21,4 @@ var(
 	_ = Foo[map[rune]byte]{}
 )
 
-// KnownIssue:
-// line 11: 2: name T not defined in fileset with files [issue48198.go]
+// Unsupported: generics not supported in Gno

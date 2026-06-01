@@ -14,5 +14,4 @@ func (this *empty[T]) Next() (empty T, _ error) {
 
 var _ = &empty[string]{}
 
-// KnownIssue:
-// line 11: 2: name T not defined in fileset with files [issue51765.go]
+// Unsupported: generics not supported in Gno

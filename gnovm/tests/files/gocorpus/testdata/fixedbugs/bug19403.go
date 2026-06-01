@@ -132,3 +132,7 @@ func main() {
 	}
 	count -= 1
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -25,3 +25,7 @@ func f() int {
 	}
 	return 0
 }
+
+// GnoOutput:
+
+// GoOutput:

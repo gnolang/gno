@@ -248,7 +248,7 @@ func _() {
 	_, _, _ = x, y, z
 }
 
-// GnoIncomplete: covered 62 of 105 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 62 of 105 markers (Gno preprocess: 58, go/types guard: 62); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 20: operator << not defined on: Float64Kind

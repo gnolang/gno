@@ -25,3 +25,7 @@ func main() {
 /*
 bug11.go:16: fatal error: walktype: switch 1 unknown op CALLMETH l(16) <int32>INT32
 */
+
+// GnoOutput:
+
+// GoOutput:

@@ -25,3 +25,7 @@ func g(b byte) bool {
 	x = append(x, b)
 	return false
 }
+
+// GnoOutput:
+
+// GoOutput:

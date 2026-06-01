@@ -35,6 +35,9 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue50193.go:13:6-15:2: name complex64 not defined in fileset with files [issue50193.go]
+
 // GoOutput:
 // (0+0i)
 // (3.14+0i)
@@ -43,4 +46,4 @@ func main() {
 // (3.14+0i)
 // (0-1i)
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

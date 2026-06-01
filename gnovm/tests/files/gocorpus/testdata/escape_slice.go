@@ -180,7 +180,7 @@ func setupTestData() {
 		}...)
 }
 
-// GnoIncomplete: covered 0 of 30 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 30 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 105: cannot convert x<VPBlock(1,0)> (of type []int) to type *[1]int

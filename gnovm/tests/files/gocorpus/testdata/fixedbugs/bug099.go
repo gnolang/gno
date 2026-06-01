@@ -35,3 +35,6 @@ func main() {
 	Use(NewI(0));
 }
 
+// GnoOutput:
+
+// GoOutput:

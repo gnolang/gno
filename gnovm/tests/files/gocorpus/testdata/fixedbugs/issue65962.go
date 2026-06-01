@@ -46,3 +46,12 @@ func test2() {
 	ld[B]() // add <B,I> itab to binary
 	_ = any(B(false)).(I)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue65962.go:23:17-18: name T not declared
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

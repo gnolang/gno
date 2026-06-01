@@ -37,3 +37,13 @@ var gf func(int) (int, int, int, int)
 
 // TypeCheckError:
 // main/bug346.go:19:7: undefined: os.Exit; main/bug346.go:31:7: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/bug346.go:19:4-11: name Exit not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

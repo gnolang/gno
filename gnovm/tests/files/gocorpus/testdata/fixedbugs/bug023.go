@@ -28,3 +28,7 @@ func main() {
 /*
 bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
 */
+
+// GnoOutput:
+
+// GoOutput:

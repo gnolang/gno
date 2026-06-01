@@ -55,5 +55,4 @@ type _ interface {
 	T3[bool]
 }
 
-// KnownIssue:
-// line 18: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

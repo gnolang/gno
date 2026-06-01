@@ -81,3 +81,13 @@ func newInt(n int64) *int64 {
 }
 
 var escape *int64
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: invalid memory address or nil pointer dereference
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

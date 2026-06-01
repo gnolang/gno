@@ -59,3 +59,13 @@ func main() {
 		panic(0)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/cplx4.go:27:1-30:2: name complex128 not defined in fileset with files [cplx4.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

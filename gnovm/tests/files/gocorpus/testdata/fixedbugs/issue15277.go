@@ -42,3 +42,13 @@ func inuse() int64 {
 
 // TypeCheckError:
 // main/issue15277.go:19:10: undefined: runtime.KeepAlive; main/issue15277.go:28:10: undefined: runtime.KeepAlive; main/issue15277.go:38:9: runtime.MemStats (value of type func() string) is not a type; main/issue15277.go:39:10: undefined: runtime.ReadMemStats
+
+// GnoOutput:
+
+// GnoError:
+// main/issue15277.go:19:2-19: name KeepAlive not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

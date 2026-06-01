@@ -78,3 +78,7 @@ func f64(p *uint8, b []byte) {
 //go:noinline
 func nop() {
 }
+
+// GnoOutput:
+
+// GoOutput:

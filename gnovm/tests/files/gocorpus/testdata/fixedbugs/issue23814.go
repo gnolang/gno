@@ -59,3 +59,13 @@ func main() {
 	_ = []myRune("♫♬")          // []myRune{0x266b, 0x266c}
 	_ = []myRune(myString("🌐")) // []myRune{0x1f310}
 }
+
+// GnoOutput:
+
+// GnoError:
+// interface conversion: gnolang.Value is nil, not *gnolang.SliceValue
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

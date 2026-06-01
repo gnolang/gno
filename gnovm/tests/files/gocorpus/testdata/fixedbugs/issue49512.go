@@ -52,3 +52,7 @@ func main() {
 		panic("missed method call")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

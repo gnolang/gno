@@ -20,3 +20,12 @@ func main() {
 		panic(len(m))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue46591.go:12:2-18: unexpected index base kind for type type{}
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

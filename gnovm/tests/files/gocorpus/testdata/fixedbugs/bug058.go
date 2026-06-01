@@ -21,3 +21,7 @@ bug058.go:9: illegal types for operand: INDEX
 	(MAP[<string>*STRING]*<Box>{})
 	(<string>*STRING)
 */
+
+// GnoOutput:
+
+// GoOutput:

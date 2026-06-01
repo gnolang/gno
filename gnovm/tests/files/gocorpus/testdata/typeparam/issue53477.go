@@ -32,3 +32,12 @@ func f[T MNer[T]](t T) {
 		panic("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue53477.go:16:6-34: name T not defined in fileset with files [issue53477.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

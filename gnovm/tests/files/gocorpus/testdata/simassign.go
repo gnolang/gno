@@ -77,3 +77,7 @@ func main() {
 		panic("bad swap")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

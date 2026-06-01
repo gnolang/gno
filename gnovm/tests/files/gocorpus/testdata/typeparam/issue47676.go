@@ -21,3 +21,12 @@ func diff[T any](previous []T, uniqueKey func(T) string) func() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47676.go:16:1-23:2: name T not defined in fileset with files [issue47676.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

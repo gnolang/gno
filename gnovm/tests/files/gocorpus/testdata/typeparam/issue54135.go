@@ -30,3 +30,12 @@ func check[T comparable](p Bar[T]) {
 func main() {
 	check[int](Foo{})
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue54135.go:21:1-28:2: name T not defined in fileset with files [issue54135.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

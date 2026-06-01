@@ -10,5 +10,4 @@ func Foo[T any, U interface{ *T }](x T) {
 	var _ U = &x
 }
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue50147.go]
+// Unsupported: generics not supported in Gno

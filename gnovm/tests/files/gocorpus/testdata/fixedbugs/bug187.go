@@ -23,3 +23,13 @@ func main() {
 
 // TypeCheckError:
 // main/bug187.go:18:7: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/bug187.go:18:4-11: name Exit not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

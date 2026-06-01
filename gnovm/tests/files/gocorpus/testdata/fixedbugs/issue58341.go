@@ -29,5 +29,4 @@ func f[T comparable](map[T]T, T) {}
 
 var _ = S[int]{}
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue58341.go]
+// Unsupported: generics not supported in Gno

@@ -317,3 +317,13 @@ func main() {
 		panic("fail")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/embed.go:105:5-8: missing field a in *main.Subp
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

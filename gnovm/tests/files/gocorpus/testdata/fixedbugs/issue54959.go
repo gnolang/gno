@@ -14,3 +14,7 @@ func main() {
 
 	func() { i++ }()
 }
+
+// GnoOutput:
+
+// GoOutput:

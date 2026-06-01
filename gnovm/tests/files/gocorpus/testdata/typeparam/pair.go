@@ -37,3 +37,12 @@ func main() {
 
 // TypeCheckError:
 // main/pair.go:11:2: could not import unsafe (unknown import path "unsafe")
+
+// GnoOutput:
+
+// GnoError:
+// pair.go:20:7: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

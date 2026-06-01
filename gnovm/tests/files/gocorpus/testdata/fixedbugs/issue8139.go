@@ -48,3 +48,7 @@ func main() {
 		fmt.Printf("BUG: x=%#x y=%#x, want 0x11223344 for both\n", x, y)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

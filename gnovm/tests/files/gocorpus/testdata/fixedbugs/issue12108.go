@@ -35,3 +35,13 @@ func main() {
 	var s Super
 	f(&s)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue12108.go:26:6-28:2: name uintptr not defined in fileset with files [issue12108.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

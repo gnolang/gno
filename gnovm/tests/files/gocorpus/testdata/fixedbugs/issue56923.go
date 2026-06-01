@@ -26,5 +26,4 @@ func Equal(a, b []byte) bool {
 
 var Bytes Eq[[]byte] = New(Equal)
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue56923.go]
+// Unsupported: generics not supported in Gno

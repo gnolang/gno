@@ -22,5 +22,4 @@ func g() {
 	f(&a[int]{})
 }
 
-// KnownIssue:
-// line 15: name T not defined in fileset with files [issue49538.go]
+// Unsupported: generics not supported in Gno

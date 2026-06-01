@@ -85,3 +85,7 @@ func nocrash() {
 }
 
 func main() { nocrash() }
+
+// GnoOutput:
+
+// GoOutput:

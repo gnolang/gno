@@ -24,3 +24,7 @@ func main() {
 		panic(fmt.Sprintf("F=%.1000g, want %.1000g", F, F32))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

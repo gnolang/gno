@@ -15,3 +15,7 @@ func main() {
 		println("BUG: s =", s);
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

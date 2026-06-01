@@ -26,3 +26,12 @@ func z(interface{}) {
 func main() {
 	New[int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47775b.go:12:1-13:2: name T not defined in fileset with files [issue47775b.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

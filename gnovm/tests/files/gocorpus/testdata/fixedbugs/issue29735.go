@@ -34,3 +34,13 @@ var sink int
 
 // TypeCheckError:
 // main/issue29735.go:18:10: undefined: runtime.Callers; main/issue29735.go:21:16: undefined: runtime.FuncForPC
+
+// GnoOutput:
+
+// GnoError:
+// main/issue29735.go:17:6-22: name uintptr not defined in fileset with files [issue29735.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

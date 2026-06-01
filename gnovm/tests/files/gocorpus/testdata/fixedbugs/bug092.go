@@ -18,3 +18,7 @@ Illegal instruction
 
 gri: array size matters, possibly related to stack overflow check?
 */
+
+// GnoOutput:
+
+// GoOutput:

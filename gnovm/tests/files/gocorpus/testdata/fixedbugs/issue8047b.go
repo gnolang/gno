@@ -24,3 +24,7 @@ func f() {
 	defer g()
 	panic(1)
 }
+
+// GnoOutput:
+
+// GoOutput:

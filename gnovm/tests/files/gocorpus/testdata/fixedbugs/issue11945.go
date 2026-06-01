@@ -73,3 +73,13 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue11945.go:13:2-13: name real not defined in fileset with files [issue11945.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

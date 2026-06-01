@@ -108,3 +108,13 @@ func bug() {
 		bugged = true
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug491.go:39:14-21: name complex not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

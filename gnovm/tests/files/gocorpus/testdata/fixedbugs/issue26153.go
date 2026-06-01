@@ -27,3 +27,7 @@ func mangle(ps *string) {
 	}
 	*ps = hello
 }
+
+// GnoOutput:
+
+// GoOutput:

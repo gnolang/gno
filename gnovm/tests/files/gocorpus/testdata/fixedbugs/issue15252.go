@@ -30,3 +30,13 @@ func main() {
 	f(t)
 	panic("index didn't panic")
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: index out of range [4294967297] with length 2
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

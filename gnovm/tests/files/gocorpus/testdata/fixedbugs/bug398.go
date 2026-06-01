@@ -43,7 +43,7 @@ func f() bool {
        return v1 == v2
 }
 
-// GnoIncomplete: covered 1 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 4 markers (Gno preprocess: 1, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 14: 2: invalid recursive type: I1 -> I1

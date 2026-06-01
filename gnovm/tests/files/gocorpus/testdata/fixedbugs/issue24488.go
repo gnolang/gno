@@ -39,3 +39,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue24488.go:27:15: undefined: runtime.Stack
+
+// GnoOutput:
+
+// GnoError:
+// main/issue24488.go:27:7-20: name Stack not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

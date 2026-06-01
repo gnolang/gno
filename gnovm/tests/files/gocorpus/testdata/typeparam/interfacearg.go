@@ -44,3 +44,12 @@ func main() {
 	F()
 	F2()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/interfacearg.go:11:6-13:2: name T not defined in fileset with files [interfacearg.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

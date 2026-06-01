@@ -35,3 +35,7 @@ func main() {
 		println("BUG", a)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

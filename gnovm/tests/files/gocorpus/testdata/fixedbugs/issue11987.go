@@ -21,3 +21,7 @@ func main() {
 		fmt.Printf("BUG: v>>32 == 0 evaluated as %q\n", s)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

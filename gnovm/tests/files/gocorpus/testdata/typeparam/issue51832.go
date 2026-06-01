@@ -24,5 +24,4 @@ func main() {
 	dog[int]()
 }
 
-// KnownIssue:
-// line 15: name T not defined in fileset with files [issue51832.go]
+// Unsupported: generics not supported in Gno

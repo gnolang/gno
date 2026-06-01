@@ -48,3 +48,7 @@ func main() {
 		panic("length != len(arr)")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

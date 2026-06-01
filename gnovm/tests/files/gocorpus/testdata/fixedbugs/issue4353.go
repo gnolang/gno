@@ -17,3 +17,13 @@ func main() {
 	defer func() { recover() }()
 	_ = paib[i64]
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: index out of range [100023] with length 100000
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

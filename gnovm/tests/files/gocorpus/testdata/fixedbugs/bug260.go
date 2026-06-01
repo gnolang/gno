@@ -66,3 +66,13 @@ func main() {
 
 // TypeCheckError:
 // main/bug260.go:28:19: undefined: os.Args; main/bug260.go:64:5: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/bug260.go:28:16-23: name Args not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

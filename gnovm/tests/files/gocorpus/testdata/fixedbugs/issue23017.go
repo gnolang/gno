@@ -111,3 +111,13 @@ func check(want, got int) {
 		panic(fmt.Sprintf("wanted %d, but got %d", want, got))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// wanted 1, but got 0
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

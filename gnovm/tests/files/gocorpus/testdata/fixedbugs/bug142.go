@@ -29,3 +29,7 @@ sys·Goexit /Users/rsc/goX/src/runtime/proc.c:124
 	sys·Goexit()
 ; 
 */
+
+// GnoOutput:
+
+// GoOutput:

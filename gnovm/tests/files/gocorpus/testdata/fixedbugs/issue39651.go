@@ -24,3 +24,7 @@ func main() {
 		panic("comparison incorrect")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

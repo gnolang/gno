@@ -27,3 +27,7 @@ func main() {
 /*
 bug028.go:7: unreachable statements in a switch
 */
+
+// GnoOutput:
+
+// GoOutput:

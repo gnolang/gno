@@ -606,3 +606,12 @@ func main() {
 	TestInsertAfterUnknownMark()
 	TestTransform()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/list2.go:18:6-31:2: name T not defined in fileset with files [list2.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

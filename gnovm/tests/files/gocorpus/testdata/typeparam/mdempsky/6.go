@@ -10,5 +10,4 @@ type I[T any] interface{ M() T }
 
 var _ = I[int].M
 
-// KnownIssue:
-// line 9: name T not defined in fileset with files [6.go]
+// Unsupported: generics not supported in Gno

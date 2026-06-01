@@ -86,3 +86,7 @@ func check(desc string, have, want int64, a, b, c, d, e, f, g, h byte) {
 		println(desc, "check", have, want, a, b, c, d, e, f, g, h)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

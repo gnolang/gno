@@ -21,3 +21,7 @@ func main() {
 		I(&S{}).M()
 	}()
 }
+
+// GnoOutput:
+
+// GoOutput:

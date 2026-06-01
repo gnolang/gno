@@ -26,5 +26,4 @@ func f[T any]() {
 	s.Work()
 }
 
-// KnownIssue:
-// line 17: 2: name T not defined in fileset with files [issue48056.go]
+// Unsupported: generics not supported in Gno

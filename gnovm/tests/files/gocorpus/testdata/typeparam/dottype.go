@@ -87,6 +87,9 @@ func shouldpanic(x func()) {
 
 // GnoOutput:
 
+// GnoError:
+// main/dottype.go:9:1-11:2: name T not defined in fileset with files [dottype.go]
+
 // GoOutput:
 // 3
 // 3 true
@@ -99,4 +102,4 @@ func shouldpanic(x func()) {
 // 0
 // 0 true
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

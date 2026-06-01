@@ -41,8 +41,12 @@ func (c call) name() string {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue21879.go:32:8-21: name Frame not declared
+
 // GoOutput:
 // main.main
 // main.main
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

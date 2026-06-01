@@ -61,3 +61,12 @@ func main() {
 
 // TypeCheckError:
 // main/issue58513.go:55:13: undefined: runtime.Caller
+
+// GnoOutput:
+
+// GnoError:
+// main/issue58513.go:28:1-30:2: name _ not defined in fileset with files [issue58513.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

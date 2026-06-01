@@ -14,5 +14,4 @@ type H[T any] struct{}
 
 var x G[int]
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue54722.go]
+// Unsupported: generics not supported in Gno

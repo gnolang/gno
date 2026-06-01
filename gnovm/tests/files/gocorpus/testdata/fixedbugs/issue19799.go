@@ -72,3 +72,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue19799.go:22:17: undefined: runtime.Callers; main/issue19799.go:24:22: undefined: runtime.CallersFrames; main/issue19799.go:29:9: undefined: os.Exit; main/issue19799.go:49:17: undefined: runtime.Callers; main/issue19799.go:51:22: undefined: runtime.CallersFrames; main/issue19799.go:56:9: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/issue19799.go:21:18-25: name uintptr not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

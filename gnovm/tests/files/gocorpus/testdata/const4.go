@@ -80,3 +80,13 @@ func main() {
 		panic("fail")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// const4.go:28:11: channel receive is not permitted
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

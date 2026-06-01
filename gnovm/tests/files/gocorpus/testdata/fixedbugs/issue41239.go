@@ -17,3 +17,7 @@ func main() {
 		panic(fmt.Sprintf("different capacity on append: %d vs %d", x, y))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

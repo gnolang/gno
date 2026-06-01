@@ -15,3 +15,7 @@ func main() {
 	x, ok = t.m[0];  //bug075.go:11: bad shape across assignment - cr=1 cl=2
 	_, _ = x, ok;
 }
+
+// GnoOutput:
+
+// GoOutput:

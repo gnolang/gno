@@ -65,3 +65,13 @@ func main() {
 		panic("got " + got + ", want " + want)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/method7.go:35:2-5: unknown *DeclaredType method named m
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -136,3 +136,7 @@ func main() {
 	//	print("testpdfault\n");	testpdfault();
 	//	print("testfdfault\n");	testfdfault();
 }
+
+// GnoOutput:
+
+// GoOutput:

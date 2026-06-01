@@ -30,3 +30,12 @@ func main() {
 	_ = g(z)
 	_ = string(z)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue23536.go:16:1-18:2: name T not defined in fileset with files [issue23536.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

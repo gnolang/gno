@@ -258,3 +258,12 @@ func main() {
 	TestFilter()
 	TestTransformValues()
 }
+
+// GnoOutput:
+
+// GnoError:
+// maps.go:163:6: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

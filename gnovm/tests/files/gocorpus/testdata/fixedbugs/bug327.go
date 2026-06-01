@@ -22,3 +22,7 @@ func main() {
 	z := b(x)
 	_ = z
 }
+
+// GnoOutput:
+
+// GoOutput:

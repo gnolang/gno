@@ -25,3 +25,7 @@ func main() {
 		panic("x != [4]byte{'1','2','3','4'}")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

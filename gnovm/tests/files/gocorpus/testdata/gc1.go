@@ -14,3 +14,7 @@ func main() {
 		_ = x
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

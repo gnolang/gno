@@ -12,8 +12,4 @@ type X int
 
 func (X) M() T[X] { return 0 }
 
-// GoTypeCheckError:
-// line 9: invalid recursive type: T refers to itself
-
-// KnownIssue:
-// line 13: unexpected index base kind for type type{}
+// Unsupported: generics not supported in Gno

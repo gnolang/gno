@@ -31,3 +31,7 @@ func main() {
 		x = next
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

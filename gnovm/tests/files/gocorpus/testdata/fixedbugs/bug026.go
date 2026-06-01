@@ -24,3 +24,7 @@ func main() {
 /*
 check: main_sigs_I: not defined
 */
+
+// GnoOutput:
+
+// GoOutput:

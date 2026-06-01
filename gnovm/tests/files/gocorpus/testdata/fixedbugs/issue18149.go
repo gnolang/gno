@@ -34,3 +34,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue18149.go:19:25: undefined: runtime.Caller
+
+// GnoOutput:
+
+// GnoError:
+// main/issue18149.go:19:17-31: name Caller not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

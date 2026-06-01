@@ -41,3 +41,12 @@ func main() {
 		panic(fmt.Sprintf("get() == %d, want %d", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/subdict.go:17:6-18: name comparable not defined in fileset with files [subdict.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

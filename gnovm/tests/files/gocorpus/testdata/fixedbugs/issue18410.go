@@ -38,3 +38,7 @@ func test() {
 func main() {
 	test()
 }
+
+// GnoOutput:
+
+// GoOutput:

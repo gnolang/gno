@@ -50,5 +50,4 @@ func main() {
 	fmt.Println(VarMin(seq...))
 }
 
-// KnownIssue:
-// line 12: checker for ILLEGAL does not exist
+// Unsupported: generics not supported in Gno

@@ -22,3 +22,7 @@ func callclo(q, r int) int {
 func main() {
 	callclo(1, 2)
 }
+
+// GnoOutput:
+
+// GoOutput:

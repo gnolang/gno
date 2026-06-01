@@ -17,3 +17,7 @@ func main() {
 		panic(a)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

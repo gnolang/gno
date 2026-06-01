@@ -39,3 +39,7 @@ func main() {
 	case1()
 	case2()
 }
+
+// GnoOutput:
+
+// GoOutput:

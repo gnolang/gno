@@ -25,3 +25,19 @@ loop:
 		}
 	}
 }
+
+// GnoOutput:
+// g
+// o
+// l
+// a
+// n
+// g
+
+// GoOutput:
+// g
+// o
+// l
+// a
+// n
+// g

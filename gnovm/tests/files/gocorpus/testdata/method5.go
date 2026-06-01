@@ -295,3 +295,13 @@ func main() {
 		panic("nothing set f")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/method5.go:25:6-20: name uintptr not defined in fileset with files [method5.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

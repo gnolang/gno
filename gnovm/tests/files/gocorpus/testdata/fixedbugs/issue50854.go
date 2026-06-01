@@ -36,3 +36,7 @@ func main() {
 	check(h(1, -1<<62, 1<<63-1))
 	check(k(1, 31, 1<<31-1))
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -27,3 +27,7 @@ _ = prog;
 }
 
 /* Segmentation fault */
+
+// GnoOutput:
+
+// GoOutput:

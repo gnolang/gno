@@ -58,3 +58,13 @@ func g(s *StkObj) {
 
 // TypeCheckError:
 // main/stackobj.go:45:10: undefined: runtime.SetFinalizer; main/stackobj.go:55:10: undefined: runtime.KeepAlive
+
+// GnoOutput:
+
+// GnoError:
+// main/stackobj.go:45:2-22: name SetFinalizer not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

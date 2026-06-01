@@ -40,3 +40,7 @@ func main() {
 		panic("bad comparison")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

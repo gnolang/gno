@@ -48,3 +48,12 @@ func main() {
 		panic("oops")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue52026.go:21:6-23:2: name T not defined in fileset with files [issue52026.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

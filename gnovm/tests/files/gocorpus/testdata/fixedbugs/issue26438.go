@@ -24,3 +24,7 @@ func main() {
 		panic("impossible")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

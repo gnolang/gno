@@ -56,3 +56,7 @@ func main() {
 	}
 	_, _ = x, e
 }
+
+// GnoOutput:
+
+// GoOutput:

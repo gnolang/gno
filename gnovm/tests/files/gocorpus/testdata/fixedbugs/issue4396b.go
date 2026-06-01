@@ -27,3 +27,7 @@ func main() {
 	var u, v *T2 = &s.V, &t.V
 	u.B = v.B
 }
+
+// GnoOutput:
+
+// GoOutput:

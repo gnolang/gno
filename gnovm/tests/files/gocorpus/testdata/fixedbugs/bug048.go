@@ -11,3 +11,7 @@ func main() {
 	m1 := M{7 : 8};
 	_ = m1;
 }
+
+// GnoOutput:
+
+// GoOutput:

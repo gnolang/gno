@@ -148,3 +148,13 @@ func shouldPanic(f func()) {
 
 // TypeCheckError:
 // main/issue29504.go:2124:16: undefined: runtime.Callers; main/issue29504.go:2125:19: undefined: runtime.CallersFrames
+
+// GnoOutput:
+
+// GnoError:
+// main/issue29504.go:2123:7-22: name uintptr not defined in fileset with files [issue29504.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -25,3 +25,7 @@ var s = struct {
 func main() {
 	s.g[0] = 1
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -31,3 +31,12 @@ func (mr fooer2[T]) Foo(p T) {
 func Gooer2[T any]() Fooer[T] {
 	return fooer2[T]{}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48049.go:13:6-15:2: name T not defined in fileset with files [issue48049.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -32,3 +32,7 @@ func main() {
 	f()
 	g()
 }
+
+// GnoOutput:
+
+// GoOutput:

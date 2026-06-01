@@ -18,3 +18,7 @@ func main() {
         jump()
         jump()
 }
+
+// GnoOutput:
+
+// GoOutput:

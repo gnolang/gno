@@ -45,3 +45,13 @@ func main() {
 	checkClearSlice()
 	checkClearMap()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/clear.go:13:2-7: name clear not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

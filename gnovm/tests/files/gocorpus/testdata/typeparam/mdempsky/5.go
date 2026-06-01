@@ -14,5 +14,4 @@ func x() {
 	X[interface{}](0).F(0)
 }
 
-// KnownIssue:
-// line 11: name T not defined in fileset with files [5.go]
+// Unsupported: generics not supported in Gno

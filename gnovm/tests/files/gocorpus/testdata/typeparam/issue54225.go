@@ -31,3 +31,12 @@ func (Node[V]) contentLen() int {
 type TextValue struct{}
 
 func (TextValue) Len() int { return 0 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue54225.go:26:1-29:2: name V not defined in fileset with files [issue54225.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

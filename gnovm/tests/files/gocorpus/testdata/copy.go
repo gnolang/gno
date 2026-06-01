@@ -352,3 +352,13 @@ func main() {
 
 // TypeCheckError:
 // main/copy.go:128:5: undefined: os.Exit; main/copy.go:135:6: undefined: os.Exit; main/copy.go:169:5: undefined: os.Exit; main/copy.go:176:6: undefined: os.Exit; main/copy.go:210:5: undefined: os.Exit; main/copy.go:217:6: undefined: os.Exit; main/copy.go:251:5: undefined: os.Exit; main/copy.go:258:6: undefined: os.Exit; main/copy.go:292:5: undefined: os.Exit; main/copy.go:299:6: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/copy.go:128:2-9: name Exit not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

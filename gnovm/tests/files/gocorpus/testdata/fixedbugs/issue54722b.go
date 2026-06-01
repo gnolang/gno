@@ -29,5 +29,4 @@ var y value[*Column]
 
 type Column struct{ column int }
 
-// KnownIssue:
-// line 9: 2: name V not defined in fileset with files [issue54722b.go]
+// Unsupported: generics not supported in Gno

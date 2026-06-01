@@ -68,3 +68,13 @@ func main() {
 		panic(fmt.Sprintf("length was changed, want 1 got %d", n))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue29312.go:64:497-517: type [][][][][][][][]*(typeval{main.pwn}) nesting depth 9 exceeds max 8
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

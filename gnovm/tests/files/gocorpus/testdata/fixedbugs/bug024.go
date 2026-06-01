@@ -19,3 +19,7 @@ bug.go:5: unknown escape sequence: '
 bug.go:6: unknown escape sequence: \
 bug.go:8: unknown escape sequence: "
 */
+
+// GnoOutput:
+
+// GoOutput:

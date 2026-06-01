@@ -104,3 +104,13 @@ func shouldPanic(name string, f func()) {
 	}()
 	f()
 }
+
+// GnoOutput:
+
+// GnoError:
+// comparing main[main/issue8606.go:13:1-97:2].A{[]uint8{0x1}, 1} and main[main/issue8606.go:13:1-97:2].A{[]uint8{0x1}, 2} did not panic
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

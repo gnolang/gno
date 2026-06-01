@@ -47,3 +47,13 @@ func main() {
 	F4() // set X to package T
 	F2() // check that X is not F2's T
 }
+
+// GnoOutput:
+
+// GnoError:
+// undefined
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

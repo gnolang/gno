@@ -142,3 +142,13 @@ func test7() {
 
 // TypeCheckError:
 // main/recover1.go:25:10: undefined: runtime.Breakpoint
+
+// GnoOutput:
+
+// GnoError:
+// main/recover1.go:25:2-20: name Breakpoint not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

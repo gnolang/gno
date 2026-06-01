@@ -23,3 +23,7 @@ func main() {
 	z = x[n-1]
 	println("BUG2")
 }
+
+// GnoOutput:
+
+// GoOutput:

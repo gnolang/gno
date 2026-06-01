@@ -278,3 +278,12 @@ func main() {
 	TestIterate()
 	TestFilter()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/sets.go:33:6-35:2: name Elem not defined in fileset with files [sets.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

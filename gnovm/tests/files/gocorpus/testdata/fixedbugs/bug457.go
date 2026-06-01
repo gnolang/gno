@@ -13,3 +13,7 @@ func main() {
 	var x []struct{}
 	x = append(x, struct{}{})
 }
+
+// GnoOutput:
+
+// GoOutput:

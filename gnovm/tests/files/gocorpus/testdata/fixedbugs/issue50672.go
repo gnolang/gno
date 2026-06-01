@@ -103,3 +103,12 @@ func f4() {
 
 	f().f(g())
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue50672.go:88:1-27: name T not defined in fileset with files [issue50672.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

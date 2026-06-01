@@ -18,3 +18,7 @@ func main() {
 		panic("unequal")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

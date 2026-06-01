@@ -28,7 +28,7 @@ func main() {
 	bar(1969)
 }
 
-// GnoIncomplete: covered 1 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 3 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 12: missing parameter name (and 2 more errors)

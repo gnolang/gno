@@ -55,3 +55,7 @@ func main() {
 		panic(fmt.Sprintf("f3(false) returned %d, wanted 1", x))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

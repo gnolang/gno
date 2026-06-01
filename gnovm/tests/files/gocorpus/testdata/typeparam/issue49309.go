@@ -24,3 +24,12 @@ func test2(a interface{}) {
 func main() {
 	genfunc(myfunc)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49309.go:9:1-13:2: name T not defined in fileset with files [issue49309.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

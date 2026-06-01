@@ -111,3 +111,12 @@ func zero[T any]() (_ T) { return }
 
 // TypeCheckError:
 // main/17.go:14:2: could not import reflect (unknown import path "reflect")
+
+// GnoOutput:
+
+// GnoError:
+// 17.go:22:23: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

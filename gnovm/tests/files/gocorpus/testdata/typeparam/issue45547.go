@@ -19,5 +19,4 @@ func g() {
 // Multi-value assignment outside a function.
 var _, _ = f[int]()
 
-// KnownIssue:
-// line 9: name T not defined in fileset with files [issue45547.go]
+// Unsupported: generics not supported in Gno

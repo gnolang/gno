@@ -56,8 +56,11 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// issue47272.go:35:9: invalid operation: more than one index
+
 // GoOutput:
 // Some(1) None
 // Ok(1) Err(test)
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

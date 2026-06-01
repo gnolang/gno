@@ -23,3 +23,12 @@ func main() {
 	type Bar func() Bar
 	Foo[Bar]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48137.go:9:6-11:2: name T not defined in fileset with files [issue48137.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

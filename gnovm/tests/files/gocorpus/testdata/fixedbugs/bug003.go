@@ -12,3 +12,7 @@ func main() {
 /*
 bug003.go:6: fatal error: walkswitch: not case EMPTY
 */
+
+// GnoOutput:
+
+// GoOutput:

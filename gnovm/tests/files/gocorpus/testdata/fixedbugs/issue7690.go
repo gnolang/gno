@@ -53,7 +53,11 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue7690.go:24:2-15: name Stack not declared
+
 // GoOutput:
 // BUG: cannot find main.main in first trace
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

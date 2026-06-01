@@ -1723,7 +1723,7 @@ func useSlice(a []int) {
 func main() {
 }
 
-// GnoIncomplete: covered 2 of 239 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 2 of 239 markers (Gno preprocess: 2, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 1674: name min not declared

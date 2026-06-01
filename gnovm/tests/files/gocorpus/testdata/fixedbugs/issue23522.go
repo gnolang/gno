@@ -44,3 +44,7 @@ func main() {
 		panic("different")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

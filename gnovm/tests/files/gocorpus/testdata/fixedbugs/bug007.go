@@ -22,3 +22,7 @@ main.go.c:14: error: redefinition of typedef ‘_T_2’
 main.go.c:13: error: previous declaration of ‘_T_2’ was here
 main.go.c:16: error: redefinition of ‘struct _T_2’
 */
+
+// GnoOutput:
+
+// GoOutput:

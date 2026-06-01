@@ -21,3 +21,7 @@ func main() {
 	if fmt.Sprint("xxx", t) != "yyy" { 
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

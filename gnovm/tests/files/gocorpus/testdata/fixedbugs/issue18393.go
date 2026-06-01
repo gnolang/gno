@@ -23,7 +23,7 @@ var x     // error on line 24, not 30
 
 // ERROR "syntax error: unexpected newline, expecting type|expected type"
 
-// GnoIncomplete: covered 0 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 2 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 19: import path must be a string (and 1 more errors)

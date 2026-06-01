@@ -52,3 +52,7 @@ func main() {
 		panic("int (or int32) != rune")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

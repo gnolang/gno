@@ -25,3 +25,9 @@ func main() {
 	// divergence we don't want the canary to surface.
 	fmt.Println("canary: .go filetest accepted")
 }
+
+// GnoOutput:
+// canary: .go filetest accepted
+
+// GoOutput:
+// canary: .go filetest accepted

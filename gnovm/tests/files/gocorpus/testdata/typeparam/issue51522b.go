@@ -60,3 +60,12 @@ func main() {
 	f[int](0)
 	g[myint](myint(0))
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue51522b.go:36:6-39:2: name comparable not defined in fileset with files [issue51522b.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

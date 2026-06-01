@@ -35,3 +35,12 @@ func F[T any]() (res string) {
 
 // TypeCheckError:
 // main/16.go:30:28: undefined: runtime.Error
+
+// GnoOutput:
+
+// GnoError:
+// main/16.go:21:13-17: unexpected index base kind for type func() string
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

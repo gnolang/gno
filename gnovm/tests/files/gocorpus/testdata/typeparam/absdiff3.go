@@ -96,3 +96,12 @@ func main() {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/absdiff3.go:17:6-19:2: name uintptr not defined in fileset with files [absdiff3.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

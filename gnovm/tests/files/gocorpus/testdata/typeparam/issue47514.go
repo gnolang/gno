@@ -18,3 +18,12 @@ func Do[T any]() {
 func main() {
 	Do[int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47514.go:19:2-9: unexpected index base kind for type func()
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

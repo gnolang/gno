@@ -18,3 +18,12 @@ func foo[T any](d T) {
 func main() {
 	foo("x")
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue46472.go:9:1-17:2: name T not defined in fileset with files [issue46472.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

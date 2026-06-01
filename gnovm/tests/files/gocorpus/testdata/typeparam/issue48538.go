@@ -59,5 +59,4 @@ func g3[T S]() T {
 	}
 }
 
-// KnownIssue:
-// line 12: checker for ILLEGAL does not exist
+// Unsupported: generics not supported in Gno

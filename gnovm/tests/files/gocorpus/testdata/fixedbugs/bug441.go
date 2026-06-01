@@ -34,3 +34,7 @@ func side() int {
 	did++
 	return 1
 }
+
+// GnoOutput:
+
+// GoOutput:

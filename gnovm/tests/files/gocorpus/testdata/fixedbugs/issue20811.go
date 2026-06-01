@@ -21,3 +21,6 @@ func g() int64 {
 	return 4398046511104
 }
 
+// GnoOutput:
+
+// GoOutput:

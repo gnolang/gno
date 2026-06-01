@@ -65,3 +65,12 @@ func main() {
 		println("test 8 failed")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/eface.go:15:1-17:2: name T not defined in fileset with files [eface.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

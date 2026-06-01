@@ -37,3 +37,7 @@ func main() {
 		panic("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

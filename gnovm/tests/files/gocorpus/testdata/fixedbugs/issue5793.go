@@ -34,3 +34,13 @@ func main() {
 		panic(b)
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue5793.go:25:10-17: name complex not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

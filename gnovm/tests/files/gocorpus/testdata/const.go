@@ -211,3 +211,13 @@ func main() {
 
 // TypeCheckError:
 // main/const.go:96:8: undefined: os.Getenv
+
+// GnoOutput:
+
+// GnoError:
+// main/const.go:96:5-14: name Getenv not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

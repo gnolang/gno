@@ -52,3 +52,12 @@ type (
 	_[M map[K]V, K comparable, V any] struct{}
 	_[_ interface{} | int]            struct{}
 )
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48424.go:12:1-14:2: name T not defined in fileset with files [issue48424.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

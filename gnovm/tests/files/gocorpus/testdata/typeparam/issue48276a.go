@@ -20,7 +20,10 @@ func IsZero[T comparable](val T) bool {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue48276a.go:15:1-19:2: name T not defined in fileset with files [issue48276a.go]
+
 // GoOutput:
 // 0:0
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

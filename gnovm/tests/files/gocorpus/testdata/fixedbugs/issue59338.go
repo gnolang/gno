@@ -35,3 +35,12 @@ func g2[P, Q any](x P) Q { var q Q; return q }
 
 func g3(f1 func(int) int, x int) int       { return f1(x) }
 func g4(f2 func(int) string, x int) string { return f2(x) }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue59338.go:33:1-38: name P not defined in fileset with files [issue59338.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -38,3 +38,12 @@ func main() {
 	i.M()
 	I.M(x)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/14.go:28:6-23: unexpected type declaration type *gnolang.IndexExpr
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -18,5 +18,4 @@ func main() {
 	F[int]()
 }
 
-// KnownIssue:
-// line 12: 2: name T not defined in fileset with files [issue53254.go]
+// Unsupported: generics not supported in Gno

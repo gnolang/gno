@@ -38,3 +38,7 @@ broke
 		panic(r)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

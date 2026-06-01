@@ -26,7 +26,7 @@ func f() {
 	}
 }
 
-// GnoIncomplete: covered 2 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 2 of 6 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 10: expected ';', found ')' (and 8 more errors)

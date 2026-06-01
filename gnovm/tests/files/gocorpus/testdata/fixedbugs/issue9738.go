@@ -18,3 +18,7 @@ func F() (x int) {
 func main() {
 	F()
 }
+
+// GnoOutput:
+
+// GoOutput:

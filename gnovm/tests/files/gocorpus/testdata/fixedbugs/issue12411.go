@@ -23,3 +23,7 @@ func f(x int) int {
 	// and the % code generation smashed it.
 	return ((2 * x) % 3) % (2 % ((x << 2) ^ (x % 3)))
 }
+
+// GnoOutput:
+
+// GoOutput:

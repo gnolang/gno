@@ -131,3 +131,13 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/closure2.go:16:8-18:4: expected type expr but got *gnolang.BlockStmt
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

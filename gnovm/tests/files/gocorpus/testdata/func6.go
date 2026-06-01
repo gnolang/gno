@@ -14,3 +14,6 @@ func main() {
 	if (func() bool { return true }()) {}
 }
 
+// GnoOutput:
+
+// GoOutput:

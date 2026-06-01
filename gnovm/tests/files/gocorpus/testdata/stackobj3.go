@@ -94,3 +94,13 @@ func main() {
 
 // TypeCheckError:
 // main/stackobj3.go:65:10: undefined: runtime.SetFinalizer; main/stackobj3.go:80:10: undefined: runtime.SetFinalizer
+
+// GnoOutput:
+
+// GnoError:
+// main/stackobj3.go:65:2-22: name SetFinalizer not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

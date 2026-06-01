@@ -97,3 +97,7 @@ func main() {
 	ta.ScaleTri(1, ta)
 	ta.ScaleTry(1, ta)
 }
+
+// GnoOutput:
+
+// GoOutput:

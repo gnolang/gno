@@ -31,3 +31,12 @@ type Foo[T1 any, T2 any] struct {
 func (f *Foo[_, _]) String() string {
 	return fmt.Sprintf("%v %v", f.valueA, f.valueB)
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue50419.go:17:10: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

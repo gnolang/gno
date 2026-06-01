@@ -30,5 +30,4 @@ func init() {
 	F[int]()
 }
 
-// KnownIssue:
-// line 17: name min not declared
+// Unsupported: generics not supported in Gno

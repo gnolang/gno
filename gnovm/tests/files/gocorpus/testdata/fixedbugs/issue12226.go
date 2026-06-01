@@ -13,3 +13,7 @@ func main() {
 		fmt.Println("BUG: \"foo\" and \"b\" appear to have the same first byte")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

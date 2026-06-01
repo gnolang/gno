@@ -26,3 +26,12 @@ func main() {
 	_ = &y.val[3]
 	y.F()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49659b.go:11:6-13:2: name T not defined in fileset with files [issue49659b.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

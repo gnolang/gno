@@ -36,3 +36,13 @@ func main() {
 		fmt.Printf("bad s[1], want 0x41 got %x\n", s[1])
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: invalid memory address or nil pointer dereference
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

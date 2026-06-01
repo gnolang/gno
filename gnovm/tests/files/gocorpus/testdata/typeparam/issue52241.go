@@ -21,5 +21,4 @@ func main() {
 	TestInOrderIntTree()
 }
 
-// KnownIssue:
-// line 12: 2: name T not defined in fileset with files [issue52241.go]
+// Unsupported: generics not supported in Gno

@@ -15,7 +15,7 @@ var x int // ERROR "unexpected keyword var|expected identifier|expected type"
 func main() {
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 11: illegal character U+003F '?' (and 1 more errors)

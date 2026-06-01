@@ -32,3 +32,13 @@ func main() {
 
 // TypeCheckError:
 // main/env.go:18:11: undefined: os.Getenv; main/env.go:19:13: undefined: runtime.GOOS; main/env.go:20:11: undefined: os.Getenv; main/env.go:24:6: undefined: os.Exit; main/env.go:26:12: undefined: os.Getenv; main/env.go:29:6: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/env.go:18:8-17: name Getenv not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

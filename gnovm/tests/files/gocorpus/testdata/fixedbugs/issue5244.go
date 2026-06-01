@@ -16,3 +16,7 @@ var _ = f() + g()
 var g = func() int { return 2 }
 
 func main() {}
+
+// GnoOutput:
+
+// GoOutput:

@@ -18,3 +18,7 @@ func main() {
 /*
 Segmentation fault
 */
+
+// GnoOutput:
+
+// GoOutput:

@@ -29,3 +29,12 @@ func (fooA[T]) Set(T) {}
 type fooB[T any] struct{}
 
 func (fooB[T]) Set(T) {}
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48838.go:21:6-23:2: name T not defined in fileset with files [issue48838.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

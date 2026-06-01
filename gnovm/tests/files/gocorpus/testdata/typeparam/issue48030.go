@@ -24,3 +24,12 @@ func main() {
 	// Full inference of type args
 	Seq2(5, "abc")
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48030.go:9:6-30: name T not defined in fileset with files [issue48030.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

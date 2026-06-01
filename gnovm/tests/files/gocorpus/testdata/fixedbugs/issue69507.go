@@ -131,3 +131,12 @@ func Keys[Map ~map[K]V, K comparable, V any](m Map) Seq[K] {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue69507.go:100:6-41: name V not defined in fileset with files [issue69507.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

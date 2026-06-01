@@ -17,7 +17,7 @@ func main() {
 	println("hi﻿ there") // and here	// ERROR "BOM"
 }
 
-// GnoIncomplete: covered 1 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 3 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 14: illegal byte order mark (and 4 more errors)

@@ -26,3 +26,12 @@ func Foo[T, R any]() {
 func main() {
 	Foo[int, int]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue48598.go:27:2: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -100,3 +100,7 @@ func main() {
 	testSub32()
 	testNeg32()
 }
+
+// GnoOutput:
+
+// GoOutput:

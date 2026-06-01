@@ -29,3 +29,13 @@ func main() {
 		panic("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// FAIL
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

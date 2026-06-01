@@ -11,3 +11,9 @@ package main
 func main() {
 	print("hello, world\n")
 }
+
+// GnoOutput:
+// hello, world
+
+// GoOutput:
+// hello, world

@@ -19,5 +19,4 @@ func main() {
 	T[int8, int16, int32](0).m(3)
 }
 
-// KnownIssue:
-// line 11: invalid operation: more than one index
+// Unsupported: generics not supported in Gno

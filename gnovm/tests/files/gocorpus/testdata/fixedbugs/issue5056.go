@@ -32,3 +32,7 @@ func main() {
 		panic("bar == foobar")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

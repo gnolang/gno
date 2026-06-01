@@ -36,3 +36,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue7740.go:22:17: undefined: runtime.Compiler
+
+// GnoOutput:
+
+// GnoError:
+// main/issue7740.go:22:9-25: name Compiler not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

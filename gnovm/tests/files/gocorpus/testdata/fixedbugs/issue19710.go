@@ -23,3 +23,7 @@ func f() map[int]bool {
 	}
 	return m
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -137,3 +137,13 @@ func main() {
   		}
   	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bigmap.go:41:8-17: expected type expr but got *gnolang.BlockStmt
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

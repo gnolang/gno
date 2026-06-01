@@ -121,3 +121,12 @@ func main() {
 	// Set on a nil value.
 	fromStrings3[*SettableInt]([]string{"1"})
 }
+
+// GnoOutput:
+
+// GnoError:
+// settable.go:91:7: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

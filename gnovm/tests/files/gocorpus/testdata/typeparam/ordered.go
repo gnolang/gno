@@ -93,3 +93,12 @@ func main() {
 		panic("failure")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/ordered.go:15:6-20:2: name uintptr not defined in fileset with files [ordered.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

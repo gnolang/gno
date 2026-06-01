@@ -45,3 +45,7 @@ func main() {
 		panic("wrong x,y order")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -11,3 +11,7 @@ func main() {
 	s2 := "ho";
 	s1 += s2;
 }
+
+// GnoOutput:
+
+// GoOutput:

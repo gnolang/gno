@@ -20,5 +20,4 @@ func f[A C]() A {
 	}
 }
 
-// KnownIssue:
-// line 12: 2: unexpected field type map[int]string
+// Unsupported: generics not supported in Gno

@@ -51,10 +51,13 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/shape1.go:15:1-17:2: name T not defined in fileset with files [shape1.go]
+
 // GoOutput:
 // 25
 // 10
 // 6
 // 4
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

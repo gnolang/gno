@@ -48,3 +48,12 @@ func main() {
 		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/min.go:14:2-6: checker for ILLEGAL does not exist
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

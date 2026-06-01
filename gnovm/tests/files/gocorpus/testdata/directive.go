@@ -61,7 +61,11 @@ func f() {
 
 // GnoOutput:
 
+// GnoError:
+// main:0:0: name main not declared
+
 // GoOutput:
 // go: go.mod file not found in current directory or any parent directory; see 'go help modules'
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

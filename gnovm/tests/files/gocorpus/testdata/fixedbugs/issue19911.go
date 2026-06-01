@@ -32,3 +32,7 @@ func check(want, gotfull string) {
 		panic("want " + want + " got " + got + " from " + gotfull)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

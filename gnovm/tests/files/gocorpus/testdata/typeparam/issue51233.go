@@ -27,11 +27,4 @@ func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "not enough type arguments 
 	return c.makeFn()
 }
 
-// GnoError:
-// line 26: invalid operation: more than one index
-
-// GoTypeCheckError:
-// line 16: not enough type arguments for type Fn: have 1, want 2
-// line 19: not enough type arguments for type Fn: have 1, want 2
-// line 23: not enough type arguments for type FFn: have 1, want 2
-// line 26: not enough type arguments for type Fn: have 1, want 2
+// Unsupported: generics not supported in Gno

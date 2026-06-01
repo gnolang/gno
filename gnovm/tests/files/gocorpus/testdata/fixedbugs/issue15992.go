@@ -36,3 +36,15 @@ func main() {
 	delete(h(m))
 	fmt.Println(len(m))
 }
+
+// GnoOutput:
+// 3 [97 98 99]
+// 3 [97 98 99]
+// 1
+// 0
+
+// GoOutput:
+// 3 [97 98 99]
+// 3 [97 98 99]
+// 1
+// 0

@@ -21,3 +21,7 @@ func main() {
 	a = c / b
 	a = 3
 }
+
+// GnoOutput:
+
+// GoOutput:

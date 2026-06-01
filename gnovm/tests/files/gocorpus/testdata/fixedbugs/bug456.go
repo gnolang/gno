@@ -24,3 +24,7 @@ func main() {
 		panic("x != 1")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

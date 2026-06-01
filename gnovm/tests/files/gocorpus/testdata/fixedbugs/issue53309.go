@@ -40,3 +40,12 @@ func main() {
 	tr := &taskResult{&taskDefinition{}}
 	use[string](Value[string](tr))
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue53309.go:32:1-37:2: name T not defined in fileset with files [issue53309.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

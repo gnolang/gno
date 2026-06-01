@@ -64,3 +64,7 @@ func main() {
 	test64(y2)
 	test64(y3)
 }
+
+// GnoOutput:
+
+// GoOutput:

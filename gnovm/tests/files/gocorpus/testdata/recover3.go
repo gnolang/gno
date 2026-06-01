@@ -84,3 +84,13 @@ type m interface {
 
 // TypeCheckError:
 // main/recover3.go:34:26: undefined: runtime.Error
+
+// GnoOutput:
+
+// GnoError:
+// main/recover3.go:34:18-31: name Error not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

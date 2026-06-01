@@ -20,3 +20,7 @@ func f() [2]interface{} {
 
 //go:noinline
 func use(bool) {}
+
+// GnoOutput:
+
+// GoOutput:

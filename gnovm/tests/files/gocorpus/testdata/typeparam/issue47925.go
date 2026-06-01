@@ -18,3 +18,12 @@ func (s stuff[T]) run() interface{} {
 func main() {
 	stuff[int]{}.run()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47925.go:9:6-46: name T not defined in fileset with files [issue47925.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

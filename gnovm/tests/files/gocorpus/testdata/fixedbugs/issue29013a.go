@@ -22,3 +22,7 @@ func main() {
 		panic("bad")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

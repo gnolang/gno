@@ -229,3 +229,12 @@ func TestShortestPath() {
 func main() {
 	TestShortestPath()
 }
+
+// GnoOutput:
+
+// GnoError:
+// graph.go:52:69: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

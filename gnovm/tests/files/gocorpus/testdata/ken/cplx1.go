@@ -97,3 +97,13 @@ func booltest(a complex64, r bool) {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/cplx1.go:53:1-99:2: name complex64 not defined in fileset with files [cplx1.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -35,3 +35,7 @@ func main() {
 		panic("bad4")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

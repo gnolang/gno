@@ -105,3 +105,13 @@ func test3f() {
 	}
 	println(*x)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue8048.go:96:5-18: name uintptr not defined in fileset with files [issue8048.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

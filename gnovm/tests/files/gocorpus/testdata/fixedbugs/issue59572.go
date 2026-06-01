@@ -31,9 +31,13 @@ var list = []func(){
 
 // GnoOutput:
 
+// GnoError:
+// runtime error: invalid memory address or nil pointer dereference
+
 // GoOutput:
 // 1
 // 2
 // 3
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

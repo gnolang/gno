@@ -20,3 +20,12 @@ func explodes(b []byte) {}
 func main() {
 
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue51236.go:9:8-11:2: unexpected field type []uint8
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

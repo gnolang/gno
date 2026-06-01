@@ -11,8 +11,4 @@ func g() {
 	f(0) // ERROR "in call to f, cannot infer S \(declared at issue68292.go:9:8\)"
 }
 
-// GoTypeCheckError:
-// line 11: in call to f, cannot infer S (declared at main/issue68292.go:9:8)
-
-// KnownIssue:
-// line 9: name T not defined in fileset with files [issue68292.go]
+// Unsupported: generics not supported in Gno

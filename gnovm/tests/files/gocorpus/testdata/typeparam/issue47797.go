@@ -21,5 +21,4 @@ func foo() {
         b.Bat()
 }
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue47797.go]
+// Unsupported: generics not supported in Gno

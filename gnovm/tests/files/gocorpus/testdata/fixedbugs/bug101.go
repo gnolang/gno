@@ -13,3 +13,7 @@ func main() {
 	// print(a[0], " ", a[1], " ", a[2], "\n")
 	if a[0] != 1 || a[1] != 2 || a[2] != 3 { panic("array contents") }
 }
+
+// GnoOutput:
+
+// GoOutput:

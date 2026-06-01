@@ -29,5 +29,4 @@ func main() {
 	})
 }
 
-// KnownIssue:
-// line 15: name Input not defined in fileset with files [issue51909.go]
+// Unsupported: generics not supported in Gno

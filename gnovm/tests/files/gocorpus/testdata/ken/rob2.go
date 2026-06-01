@@ -278,3 +278,7 @@ func OpenFile() {
 	peekc = -1 // BUG
 	NextToken()
 }
+
+// GnoOutput:
+
+// GoOutput:

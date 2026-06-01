@@ -305,3 +305,13 @@ func promotion() {
 	c.f() // makes a copy
 	c.g()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/method.go:51:5-17: cannot use *main.S as string
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

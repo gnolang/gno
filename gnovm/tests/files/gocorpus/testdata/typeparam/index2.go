@@ -65,3 +65,12 @@ func main() {
 	test(Index3(v), int64(18))
 	test(Index4(v), int64(18))
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/index2.go:14:1-17:2: name T not defined in fileset with files [index2.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

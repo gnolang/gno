@@ -64,3 +64,7 @@ func f3(a1 bool, a2 uint, a3 int64) uint8 {
 	v1 = ((v1 << 0) | v1>>0) + v1 // uint8
 	return v1 >> 0
 }
+
+// GnoOutput:
+
+// GoOutput:

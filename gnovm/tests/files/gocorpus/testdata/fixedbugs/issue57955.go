@@ -42,5 +42,4 @@ func Decode[T any](b []byte) (T, int) {
 	}
 }
 
-// KnownIssue:
-// line 29: 2: name T not defined in fileset with files [issue57955.go]
+// Unsupported: generics not supported in Gno

@@ -26,3 +26,7 @@ func main() {
 		panic("expected either 'equal' or 'unequal'")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

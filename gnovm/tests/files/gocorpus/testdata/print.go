@@ -55,6 +55,9 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/print.go:26:10-17: name uintptr not declared
+
 // GoOutput:
 // (0x0,0x0)
 // (0x0,0x0)
@@ -91,4 +94,5 @@ func main() {
 // (0x0,0x0)
 // (0x0,0x0)
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

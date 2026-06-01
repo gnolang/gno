@@ -37,3 +37,11 @@ func consume(x int, a interface{}) {
 func main() {
 	consume(proxy())
 }
+
+// GnoOutput:
+// 1
+// {2 3 map[3:3]}
+
+// GoOutput:
+// 1
+// {2 3 map[3:3]}

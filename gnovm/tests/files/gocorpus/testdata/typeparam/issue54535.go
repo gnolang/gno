@@ -35,3 +35,12 @@ func f[T any]() {
 	_ = x.a.b
 	_ = x.c.d
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue54535.go:34:8: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

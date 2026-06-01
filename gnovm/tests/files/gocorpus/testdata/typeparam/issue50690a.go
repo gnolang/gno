@@ -76,7 +76,10 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// issue50690a.go:48:9: invalid operation: more than one index
+
 // GoOutput:
 // fake has a sum of 6
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

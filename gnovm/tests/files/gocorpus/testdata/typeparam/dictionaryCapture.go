@@ -201,3 +201,12 @@ func recur2[T Integer](n T) T {
 	}
 	return sum + recur1(n-1)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/dictionaryCapture.go:59:6-61:2: name T not defined in fileset with files [dictionaryCapture.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

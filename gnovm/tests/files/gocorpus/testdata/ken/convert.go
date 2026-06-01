@@ -430,3 +430,7 @@ func main() {
 		if v != w { println(i, v, w, f, t) }
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

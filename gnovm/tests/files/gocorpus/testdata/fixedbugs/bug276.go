@@ -21,3 +21,7 @@ func main() {
 		panic(0)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -18,3 +18,12 @@ func main() {
 		panic("got " + string(buf))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue376214.go:9:1-11:2: name S not defined in fileset with files [issue376214.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

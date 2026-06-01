@@ -63,3 +63,12 @@ func main() {
 		panic(fmt.Sprintf("got %v, %v, wanted {3, y}, true", got, ok))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// combine.go:35:35: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

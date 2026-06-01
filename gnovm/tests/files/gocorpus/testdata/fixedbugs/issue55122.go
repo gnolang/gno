@@ -40,3 +40,7 @@ func g(x interface{}) {
 }
 
 var sink []byte
+
+// GnoOutput:
+
+// GoOutput:

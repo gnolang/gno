@@ -24,3 +24,7 @@ func main() {
 		panic("bad convert 2")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

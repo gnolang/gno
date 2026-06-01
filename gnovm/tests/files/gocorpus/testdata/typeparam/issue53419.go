@@ -26,3 +26,12 @@ func main() {
 	b.m()
 	f(b)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue53419.go:20:1-22:2: name T not defined in fileset with files [issue53419.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

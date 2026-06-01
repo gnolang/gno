@@ -67,3 +67,12 @@ func assert(b bool) {
 		panic("assertion failed")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/equal.go:26:6-29:2: name comparable not defined in fileset with files [equal.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

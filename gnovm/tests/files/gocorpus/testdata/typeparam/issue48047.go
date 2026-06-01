@@ -28,3 +28,12 @@ func main() {
 	}
 	a.Work("")
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue48047.go:9:6-11:2: name T not defined in fileset with files [issue48047.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

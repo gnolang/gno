@@ -16,3 +16,11 @@ var _ = &x == &y // assert x and y have identical types
 func main() {
 	fmt.Printf("%T\n%T\n", &x, &y)
 }
+
+// GnoOutput:
+// *interface {}
+// *interface {}
+
+// GoOutput:
+// *interface {}
+// *interface {}

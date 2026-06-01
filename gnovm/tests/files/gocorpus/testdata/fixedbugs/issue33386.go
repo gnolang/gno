@@ -28,7 +28,7 @@ func _() {
 	_ = []int{1, 2, 3 + } // ERROR "expected expression|expected operand"
 }
 
-// GnoIncomplete: covered 1 of 5 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 5 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 16: expected operand, found '}' (and 5 more errors)

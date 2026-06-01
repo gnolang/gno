@@ -18,3 +18,7 @@ func main() {
 	var m [2]*int
 	_ = *m[1] // need a nil check, but not a bounds check
 }
+
+// GnoOutput:
+
+// GoOutput:

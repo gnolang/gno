@@ -46,3 +46,13 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue11326b.go:17:13-24: invalid decimal constant: 1e646456992
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

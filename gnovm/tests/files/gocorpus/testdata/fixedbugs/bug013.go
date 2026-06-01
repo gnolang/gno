@@ -18,3 +18,7 @@ bug13.go:5: newline in string
 bug13.go:5: missing '
 bug13.go:6: newline in string
 */
+
+// GnoOutput:
+
+// GoOutput:

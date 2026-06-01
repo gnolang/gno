@@ -46,3 +46,13 @@ func main() {
 	poison()
 	bad(false)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue8155.go:15:1-32:2: name uintptr not defined in fileset with files [issue8155.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

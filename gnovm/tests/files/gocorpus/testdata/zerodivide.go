@@ -247,3 +247,13 @@ func main() {
 
 // TypeCheckError:
 // main/zerodivide.go:172:23: undefined: runtime.Error
+
+// GnoOutput:
+
+// GnoError:
+// main/zerodivide.go:9:1-246:2: name uintptr not defined in fileset with files [zerodivide.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

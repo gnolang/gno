@@ -70,3 +70,7 @@ func main() {
 	main2()
 	main1()
 }
+
+// GnoOutput:
+
+// GoOutput:

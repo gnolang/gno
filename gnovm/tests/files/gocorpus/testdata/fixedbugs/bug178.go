@@ -31,3 +31,7 @@ L2:
 		}
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -35,3 +35,7 @@ func foo() (val int) {
 func foo1() {
 	panic(terr{})
 }
+
+// GnoOutput:
+
+// GoOutput:

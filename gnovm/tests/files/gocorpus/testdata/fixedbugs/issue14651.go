@@ -69,3 +69,7 @@ func test64(a, b float64) {
 		panic(fmt.Sprintf("%016x != %016x\n", abits, bbits))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

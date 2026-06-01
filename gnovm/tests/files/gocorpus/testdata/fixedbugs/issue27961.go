@@ -33,3 +33,7 @@ func (v Vec2) C() Vec2 {
 func (v Vec2) D() float64 {
 	return math.Sqrt(v[0])
 }
+
+// GnoOutput:
+
+// GoOutput:

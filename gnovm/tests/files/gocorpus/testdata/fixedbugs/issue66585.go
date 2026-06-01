@@ -23,3 +23,7 @@ func main() {
 		panic("unexpected b value")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

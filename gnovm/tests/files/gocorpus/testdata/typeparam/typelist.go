@@ -135,5 +135,4 @@ func f6x() {
 	var _ string = x
 }
 
-// KnownIssue:
-// line 48: send statements are not permitted
+// Unsupported: generics not supported in Gno

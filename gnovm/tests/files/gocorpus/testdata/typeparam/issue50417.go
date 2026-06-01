@@ -144,3 +144,7 @@ func f8[P Int4](p P) {
 
 var _ = f8[*Sf]
 */
+
+// GnoOutput:
+
+// GoOutput:

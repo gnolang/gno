@@ -197,3 +197,12 @@ func _Keys[K comparable, V any](m map[K]V) []K {
 
 // TypeCheckError:
 // main/metrics.go:14:2: could not import sync (unknown import path "sync")
+
+// GnoOutput:
+
+// GnoError:
+// metrics.go:53:9: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

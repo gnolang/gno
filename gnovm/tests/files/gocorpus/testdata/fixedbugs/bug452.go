@@ -36,3 +36,7 @@ func main() {
 		panic("bar")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

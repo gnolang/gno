@@ -31,3 +31,13 @@ func use(*T) {}
 
 // TypeCheckError:
 // main/issue30476.go:15:10: undefined: runtime.SetFinalizer; main/issue30476.go:21:10: undefined: runtime.KeepAlive
+
+// GnoOutput:
+
+// GnoError:
+// main/issue30476.go:15:2-22: name SetFinalizer not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

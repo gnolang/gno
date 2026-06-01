@@ -132,3 +132,13 @@ func main() {
 
 // TypeCheckError:
 // main/peano.go:122:13: undefined: runtime.GOARCH
+
+// GnoOutput:
+
+// GnoError:
+// main/peano.go:122:5-19: name GOARCH not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

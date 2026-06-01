@@ -16,9 +16,13 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/issue64565.go:12:7-10: name max not declared
+
 // GoOutput:
 // 3
 // 3
 // 3
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

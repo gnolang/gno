@@ -19,3 +19,13 @@ func main() {
 		println("BUG")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: nil pointer dereference
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

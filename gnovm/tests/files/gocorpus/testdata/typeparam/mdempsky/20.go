@@ -36,3 +36,12 @@ type E2[_ any] struct{}
 
 func (E1) M() int     { return 0 }
 func (*E2[_]) N() int { return 1 }
+
+// GnoOutput:
+
+// GnoError:
+// main/20.go:29:6-32:2: name X not defined in fileset with files [20.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

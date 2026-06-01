@@ -16,7 +16,7 @@ func main() {
 
 var _ = c <- v // ERROR "unexpected <-|send statement used as value"
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?) (and 1 more errors)

@@ -20,3 +20,12 @@ func main() {
 
 type F[T any] struct {
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49547.go:15:27-33: unexpected index base type type{} (*gnolang.TypeType base *gnolang.TypeType)
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

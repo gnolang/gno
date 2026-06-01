@@ -20,3 +20,7 @@ panic: runtime error: floating point error
 
 [signal 0x8 code=0x6 addr=0x8048c64 pc=0x8048c64]
 */
+
+// GnoOutput:
+
+// GoOutput:

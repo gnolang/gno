@@ -33,5 +33,4 @@ type AddrImpl struct{}
 
 var _ = NewRange[AddrImpl]()
 
-// KnownIssue:
-// line 9: name A not defined in fileset with files [issue66663.go]
+// Unsupported: generics not supported in Gno

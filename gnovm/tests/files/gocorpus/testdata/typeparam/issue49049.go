@@ -25,3 +25,12 @@ func test[T any]() {
 func main() {
 	test[string]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue49049.go:21:6-19: name T not defined in fileset with files [issue49049.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

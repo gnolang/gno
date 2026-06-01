@@ -30,3 +30,9 @@ func main() {
 		}{42},
 	})
 }
+
+// GnoOutput:
+// {42}
+
+// GoOutput:
+// {42}

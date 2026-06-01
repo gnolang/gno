@@ -31,3 +31,7 @@ func main() {
 		panic("r0 and r1 should be the same");
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -56,3 +56,7 @@ func main() {
 	assertequal(sum, 1+3+5+7+9, "continue");
 
 }
+
+// GnoOutput:
+
+// GoOutput:

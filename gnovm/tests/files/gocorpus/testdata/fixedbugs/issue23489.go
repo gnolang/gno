@@ -18,3 +18,7 @@ func main() {
 	var p P
 	p.Foo()
 }
+
+// GnoOutput:
+
+// GoOutput:

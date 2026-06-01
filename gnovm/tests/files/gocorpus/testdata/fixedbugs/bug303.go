@@ -35,3 +35,7 @@ func main() {
 	br := strings.NewReader("abcd")
 	readStr(br, make([]byte, 256))
 }
+
+// GnoOutput:
+
+// GoOutput:

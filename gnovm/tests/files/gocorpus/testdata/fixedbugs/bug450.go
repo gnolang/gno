@@ -26,3 +26,7 @@ func foo() {
 func main() {
 	foo()
 }
+
+// GnoOutput:
+
+// GoOutput:

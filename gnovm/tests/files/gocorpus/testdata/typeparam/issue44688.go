@@ -147,3 +147,12 @@ func main() {
 	test2()
 	test3()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue44688.go:11:6-13:2: name T not defined in fileset with files [issue44688.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

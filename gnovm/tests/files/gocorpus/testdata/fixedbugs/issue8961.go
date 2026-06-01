@@ -18,3 +18,7 @@ func main() {
 		panic("composite literal not filled in")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

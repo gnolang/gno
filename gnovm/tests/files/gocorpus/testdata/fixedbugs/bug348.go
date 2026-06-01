@@ -62,6 +62,6 @@ func main() {
 // 	/tmp/claude-501/gno-filetest-go-2717917391/main.go:45 +0x38
 // exit status 2
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
 
 // Unsupported: non-deterministic runtime output (signal SIGSEGV)

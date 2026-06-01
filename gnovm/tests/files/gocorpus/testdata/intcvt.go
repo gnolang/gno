@@ -179,3 +179,7 @@ func main() {
 	//	chku64(uint64(f32), 0)
 	//	chku64(uint64(f64), 0)
 }
+
+// GnoOutput:
+
+// GoOutput:

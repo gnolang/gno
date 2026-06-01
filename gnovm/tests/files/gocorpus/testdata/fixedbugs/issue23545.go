@@ -29,3 +29,7 @@ type OutputID [Size]interface{}
 func Get() OutputID {
 	return dummyID(1234)
 }
+
+// GnoOutput:
+
+// GoOutput:

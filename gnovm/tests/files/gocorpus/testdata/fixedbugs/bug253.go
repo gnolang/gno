@@ -27,3 +27,13 @@ func main() {
 		panic("fail")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/bug253.go:26:5-9: missing field i in main.S4
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

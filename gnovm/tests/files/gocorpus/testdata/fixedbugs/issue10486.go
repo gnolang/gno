@@ -32,3 +32,13 @@ func main() {
 
 // TypeCheckError:
 // main/issue10486.go:21:12: undefined: runtime.Callers
+
+// GnoOutput:
+
+// GnoError:
+// main/issue10486.go:20:8-24: name uintptr not defined in fileset with files [issue10486.go]
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

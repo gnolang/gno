@@ -20,3 +20,7 @@ func main() {
 		panic(fmt.Errorf("wanted \"string value\", got \"%s\"", s[7].Value))
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

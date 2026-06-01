@@ -33,3 +33,13 @@ func shouldPanic(f func()) {
 func main() {
 	shouldPanic(nilInterfaceDeferCall)
 }
+
+// GnoOutput:
+
+// GnoError:
+// interface method call on undefined value
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

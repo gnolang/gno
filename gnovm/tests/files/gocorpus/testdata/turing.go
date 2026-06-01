@@ -57,3 +57,7 @@ func main() {
 		pc++
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

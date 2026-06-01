@@ -21,3 +21,12 @@ func (m Map[K, V]) Get(key K) V {
 func main() {
         _ = NewMap[int, struct{}]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue47877.go:13:36: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

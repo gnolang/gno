@@ -19,3 +19,7 @@ func splitContractIndex(ce uint32) (index, n, offset int) {
 	h := uint16(ce)
 	return int(h >> 5), int(h & (1<<5 - 1)), int(ce>>16) & (1<<14 - 1)
 }
+
+// GnoOutput:
+
+// GoOutput:

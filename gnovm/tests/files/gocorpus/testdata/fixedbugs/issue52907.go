@@ -25,5 +25,4 @@ func main() {
 	g(0)
 }
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue52907.go]
+// Unsupported: generics not supported in Gno

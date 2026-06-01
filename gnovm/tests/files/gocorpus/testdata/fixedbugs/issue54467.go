@@ -24,3 +24,13 @@ func main() {
 		}
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue54467.go:19:27-47: cannot convert y<VPBlock(1,1)>[(const (2 int)):(const (34 int))] (of type []uint8) to type *[32]uint8
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

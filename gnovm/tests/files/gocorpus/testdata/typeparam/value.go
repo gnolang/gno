@@ -73,3 +73,12 @@ func main() {
 		panic(fmt.Sprintf("get() == %d, want %d", got, want))
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/value.go:11:6-13:2: name T not defined in fileset with files [value.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

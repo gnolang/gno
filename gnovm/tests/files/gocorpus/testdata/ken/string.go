@@ -119,4 +119,4 @@ func main() {
 // GoOutput:
 // abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence: TODO: <category>: explain why this divergence is acceptable

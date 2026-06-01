@@ -17,5 +17,4 @@ func main() {
 	use[int](Value[int](1))
 }
 
-// KnownIssue:
-// line 12: 2: name T not defined in fileset with files [issue53762.go]
+// Unsupported: generics not supported in Gno

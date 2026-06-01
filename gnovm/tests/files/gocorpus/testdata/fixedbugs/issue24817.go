@@ -65,3 +65,13 @@ func want(b bool, have bool, msg string) {
 
 // TypeCheckError:
 // main/issue24817.go:54:6: undefined: os.Exit
+
+// GnoOutput:
+
+// GnoError:
+// main/issue24817.go:54:3-10: name Exit not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

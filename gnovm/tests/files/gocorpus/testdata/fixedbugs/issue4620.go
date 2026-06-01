@@ -19,3 +19,7 @@ func main() {
 		panic("m[i] != 2")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

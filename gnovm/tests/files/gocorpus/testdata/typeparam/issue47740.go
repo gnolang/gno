@@ -38,3 +38,12 @@ func main() {
 	// fmt.Printf("%v\n", e0)
 	// fmt.Printf("%v\n", e1)
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue47740.go:11:6-13:2: name Ty not defined in fileset with files [issue47740.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

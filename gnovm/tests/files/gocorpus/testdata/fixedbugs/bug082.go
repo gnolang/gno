@@ -19,3 +19,7 @@ func main() {
 uetli:~/Source/go/test/bugs gri$ 6g bug082.go
 bug082.go:7: fatal error: optoas: no entry COM-<int32>INT32
 */
+
+// GnoOutput:
+
+// GoOutput:

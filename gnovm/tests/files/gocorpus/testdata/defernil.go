@@ -31,3 +31,7 @@ func f() {
 	defer nilf()
 	x = 1
 }
+
+// GnoOutput:
+
+// GoOutput:

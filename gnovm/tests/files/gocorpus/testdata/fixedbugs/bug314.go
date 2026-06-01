@@ -29,3 +29,7 @@ func main() {
 		panic("wrong method called")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

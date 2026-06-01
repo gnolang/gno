@@ -20,3 +20,13 @@ func main() {
 	var z []MyRune
 	_ = string(z)
 }
+
+// GnoOutput:
+
+// GnoError:
+// interface conversion: gnolang.Value is nil, not *gnolang.SliceValue
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

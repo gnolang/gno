@@ -30,5 +30,4 @@ func (x X) m() {
 	type U []int
 }
 
-// KnownIssue:
-// line 17: 2: name T not defined in fileset with files [issue47631.go]
+// Unsupported: generics not supported in Gno

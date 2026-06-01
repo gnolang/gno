@@ -189,7 +189,7 @@ func f5(m map[string]struct{}) bool {
 	return ok
 }
 
-// GnoIncomplete: covered 0 of 51 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 0 of 51 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // KnownIssue:
 // line 80: function fx10k does not have a body but is not natively defined (did you build after pulling from the repository?)

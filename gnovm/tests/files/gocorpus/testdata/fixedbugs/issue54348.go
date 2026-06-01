@@ -20,3 +20,12 @@ type T[X any] struct{ E }
 type E struct{}
 
 func (h E) M() {}
+
+// GnoOutput:
+
+// GnoError:
+// main/issue54348.go:10:4-10: unexpected index base kind for type type{}
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

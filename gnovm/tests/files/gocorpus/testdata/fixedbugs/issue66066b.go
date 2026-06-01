@@ -56,3 +56,7 @@ func main() {
 		println("bad g8", got)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

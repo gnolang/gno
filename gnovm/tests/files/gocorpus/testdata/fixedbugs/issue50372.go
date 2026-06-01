@@ -28,7 +28,7 @@ func _(s chan int) {
         for i, j, k, l = range s {} // ERROR "range over .* permits only one iteration variable"
 }
 
-// GnoIncomplete: covered 4 of 5 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 4 of 5 markers (Gno preprocess: 4, go/types guard: 4); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 16: expected at most 2 expressions (and 3 more errors)

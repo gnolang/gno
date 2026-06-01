@@ -82,3 +82,12 @@ func main() {
 	// First type arg here is Abs[MyInt], an interface type.
 	G[Abs[MyInt],MyInt](intMi)
 }
+
+// GnoOutput:
+
+// GnoError:
+// 13.go:78:2: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

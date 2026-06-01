@@ -51,3 +51,7 @@ func main() {
 	f1()
 	f2()
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -66,10 +66,13 @@ outer:
 
 // GnoOutput:
 
+// GnoError:
+// issue51303.go:27:7: invalid operation: more than one index
+
 // GoOutput:
 // xe [1]
 // ye [2 3]
 // x [[1]]
 // SetEq [1] [2 3]
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// Unsupported: generics not supported in Gno

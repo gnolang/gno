@@ -23,3 +23,7 @@ func main() {
 		_ = v
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

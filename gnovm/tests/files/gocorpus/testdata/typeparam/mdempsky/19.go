@@ -30,3 +30,12 @@ type X int
 func (X) A() { panic("FAIL") }
 func (X) B() {}
 func (X) C() { panic("FAIL") }
+
+// GnoOutput:
+
+// GnoError:
+// main/19.go:18:1-22:2: name T not defined in fileset with files [19.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

@@ -23,7 +23,7 @@ func _() {
 	return 1 // ERROR "too many (arguments to return|return values)\n\thave \(number\)\n\twant \(\)"
 }
 
-// GnoIncomplete: covered 1 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 4 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 10: expected 2 return values

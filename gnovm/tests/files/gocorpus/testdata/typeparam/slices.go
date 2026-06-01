@@ -316,3 +316,12 @@ func main() {
 	TestAppend()
 	TestCopy()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/slices.go:17:6-22:2: name uintptr not defined in fileset with files [slices.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

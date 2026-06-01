@@ -38,3 +38,13 @@ func shouldPanic(f func()) {
 	}()
 	f()
 }
+
+// GnoOutput:
+
+// GnoError:
+// function should panic
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

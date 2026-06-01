@@ -20,7 +20,7 @@ func _() {
 	}
 }
 
-// GnoIncomplete: covered 2 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 2 of 3 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
 
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)

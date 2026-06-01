@@ -18,5 +18,4 @@ type IntType[t any] int
 func (n IntType[t]) Foo(BarType[t]) {}
 func (n IntType[_]) String()    {}
 
-// KnownIssue:
-// line 9: 2: name t not defined in fileset with files [issue47710.go]
+// Unsupported: generics not supported in Gno

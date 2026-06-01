@@ -18,3 +18,7 @@ func main() {
 /*
 bug0.go:8: case statement out of place
 */
+
+// GnoOutput:
+
+// GoOutput:

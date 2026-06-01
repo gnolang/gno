@@ -20,3 +20,7 @@ bug056.go:8: illegal types for operand: AS
 	(<int32>INT32)
 	(<int32>INT32)
 */
+
+// GnoOutput:
+
+// GoOutput:

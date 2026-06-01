@@ -106,3 +106,13 @@ func init() {
 		panic("zs0 should not be nil")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/convert4.go:85:8-24: cannot convert ss<VPBlock(2,2)> (of type []string) to type *[5]string
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

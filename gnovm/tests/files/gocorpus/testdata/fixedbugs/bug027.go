@@ -82,3 +82,7 @@ bug027.go:50: illegal types for operand
 bug027.go:50: illegal types for operand
 	(<Element>I{}) CONV (<I>{})
 */
+
+// GnoOutput:
+
+// GoOutput:

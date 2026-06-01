@@ -53,3 +53,7 @@ func main() {
 	_ = x31
 	_ = x32
 }
+
+// GnoOutput:
+
+// GoOutput:

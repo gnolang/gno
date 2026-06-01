@@ -35,5 +35,4 @@ func main() {
 	NewSet[Addr](Addr{0, 0, nil})
 }
 
-// KnownIssue:
-// line 24: name T not defined in fileset with files [issue51840.go]
+// Unsupported: generics not supported in Gno

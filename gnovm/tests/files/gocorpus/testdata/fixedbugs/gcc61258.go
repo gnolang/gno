@@ -11,3 +11,7 @@ package main
 func main() {
 	delete(make(map[[0]bool]int), [0]bool{})
 }
+
+// GnoOutput:
+
+// GoOutput:

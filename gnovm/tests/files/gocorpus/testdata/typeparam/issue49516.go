@@ -25,5 +25,4 @@ func f() {
 	pushN((*Q[int]).Push, 100)
 }
 
-// KnownIssue:
-// line 9: 2: name T not defined in fileset with files [issue49516.go]
+// Unsupported: generics not supported in Gno

@@ -36,3 +36,7 @@ func wantPanic(test string, fn func()) {
 func divby(v int) {
 	_ = 1 / v
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -74,3 +74,7 @@ func main() {
 	}
 	assertequal(i, 4, " incorrect index value after array range clear")
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -24,3 +24,7 @@ func main() {
 		panic("wanted true, got false")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

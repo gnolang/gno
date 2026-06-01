@@ -120,3 +120,7 @@ func main() {
 	assert(cbit == 4, "cbit")
 	assert(cmask == 3, "cmask")
 }
+
+// GnoOutput:
+
+// GoOutput:

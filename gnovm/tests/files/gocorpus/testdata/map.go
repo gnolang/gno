@@ -682,3 +682,13 @@ func testnan() {
 		panic("wrong number of nan range iters")
 	}
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/map.go:83:10-11: name i not declared
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

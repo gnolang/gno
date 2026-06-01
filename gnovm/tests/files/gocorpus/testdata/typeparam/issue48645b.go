@@ -79,3 +79,12 @@ func main() {
 		return append(acc, e)
 	})
 }
+
+// GnoOutput:
+
+// GnoError:
+// issue48645b.go:35:9: invalid operation: more than one index
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

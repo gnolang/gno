@@ -26,3 +26,7 @@ func main() {
 		println(tt.m(), "!= \"ff\"")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

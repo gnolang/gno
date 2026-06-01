@@ -27,3 +27,13 @@ func main() {
 	defer ((func())(nil))()
 	stackit(1000)
 }
+
+// GnoOutput:
+
+// GnoError:
+// interface conversion: gnolang.Value is nil, not *gnolang.FuncValue
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

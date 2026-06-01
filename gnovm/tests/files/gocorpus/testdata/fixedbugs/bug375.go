@@ -17,3 +17,7 @@ func main() {
 		println("FAIL")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

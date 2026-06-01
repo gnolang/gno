@@ -31,10 +31,14 @@ func main() {
 
 // GnoOutput:
 
+// GnoError:
+// main/cplx0.go:18:1-42: name complex128 not defined in fileset with files [cplx0.go]
+
 // GoOutput:
 // (+5.000000e+000+6.000000e+000i)
 // (+5.000000e+000+6.000000e+000i)
 // (+5.000000e+000+6.000000e+000i)
 // (+5.000000e+000+6.000000e+000i)
 
-// Divergence: TODO: <category>: explain why this divergence is acceptable
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

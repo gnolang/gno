@@ -32,3 +32,7 @@ loop:
 gogoloop:
 	goto loop
 }
+
+// GnoOutput:
+
+// GoOutput:

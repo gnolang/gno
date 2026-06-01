@@ -83,3 +83,14 @@ func test7() {
 	var x, y int
 	println(x / y)
 }
+
+// GnoOutput:
+
+// GnoError:
+// runtime error: slice index out of bounds: 123 (len=10)
+// 	string doesn't implement interface {Error func() string} (missing method Error)
+
+// GoOutput:
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno errors where Go runs clean)

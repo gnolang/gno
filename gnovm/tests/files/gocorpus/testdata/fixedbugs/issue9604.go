@@ -27,3 +27,7 @@ func main() {
 		panic("0x7000+0x9000 != 0")
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

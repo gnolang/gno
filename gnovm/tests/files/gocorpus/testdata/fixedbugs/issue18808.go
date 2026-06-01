@@ -61,3 +61,7 @@ func main() {
 	lt(lim+1)
 	lte(lim+1)
 }
+
+// GnoOutput:
+
+// GoOutput:

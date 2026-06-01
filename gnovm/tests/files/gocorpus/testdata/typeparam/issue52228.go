@@ -28,3 +28,12 @@ type holder struct{}
 func main() {
 	X[holder]()
 }
+
+// GnoOutput:
+
+// GnoError:
+// main/issue52228.go:13:1-24:2: name T not defined in fileset with files [issue52228.go]
+
+// GoOutput:
+
+// Unsupported: generics not supported in Gno

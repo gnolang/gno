@@ -19,7 +19,7 @@ const (
 	_ = '
 	_ = '
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoStaticIncomplete: covered 1 of 4 markers (Gno preprocess: 0, go/types guard: 1); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
 // GoTypeCheckError:
 // line 15: illegal rune literal (and 4 more errors)
