@@ -820,6 +820,13 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 }
 
 func assertIndexTypeIsInt(kt Type) {
+	// kt is nil when the range key is the blank identifier `_` — no
+	// lvalue is bound, so nothing to type-check. Mirrors the existing
+	// `kt != nil` guard in the string-range branch of
+	// (*RangeStmt).AssertCompatible.
+	if kt == nil {
+		return
+	}
 	if kt.Kind() != IntKind {
 		panic(fmt.Sprintf("index type should be int, but got %v", kt))
 	}
