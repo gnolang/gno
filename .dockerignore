@@ -7,9 +7,16 @@ misc/*
 !misc/autocounterd/
 !misc/val-scenarios/
 tests/docker-integration/
-docs/
+# docs/ is intentionally NOT excluded: gnoweb embeds the docs/ folder via
+# the github.com/gnolang/gno/docs Go package, so the image needs the .md
+# files and assets at build time. The whitepaper artifacts are large and
+# unused at runtime, so we drop them individually below.
+docs/gnoland-whitepaper.*
 .github/
 *.md
+# Re-include docs/ Markdown after the `*.md` blanket exclusion above.
+!docs/**/*.md
+!docs/*.md
 
 # Copied from .gitignore
 

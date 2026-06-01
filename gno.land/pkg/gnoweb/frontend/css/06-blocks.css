@@ -2571,3 +2571,60 @@ main.dev-mode .b-toc a {
 		overflow-x: auto;
 	}
 }
+
+/* ===== DOCS SIDEBAR ===== */
+/* Section navigation for the /docs subtree. Inherits .b-sidebar positioning
+   (right-rail aside) and adds layered list styling so categories and items
+   read as a hierarchy. */
+.b-docs-sidebar {
+	font-size: var(--g-font-size-200);
+}
+
+.b-docs-nav {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.b-docs-nav-section {
+	margin-block-end: var(--g-space-6);
+}
+
+.b-docs-nav-section > h3 {
+	margin-block-end: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--g-color-700, currentColor);
+}
+
+.b-docs-nav-section > ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-inline-start: 1px solid var(--g-color-300, rgba(0, 0, 0, 0.1));
+}
+
+.b-docs-nav-item {
+	margin: 0;
+}
+
+.b-docs-nav-item > a {
+	display: block;
+	padding: var(--g-space-1) var(--g-space-3);
+	color: inherit;
+	text-decoration: none;
+	border-inline-start: 2px solid transparent;
+	margin-inline-start: -1px;
+	line-height: 1.4;
+}
+
+.b-docs-nav-item > a:hover {
+	color: var(--g-color-link, currentColor);
+}
+
+.b-docs-nav-item.is-active > a {
+	border-inline-start-color: currentColor;
+	font-weight: 600;
+}
