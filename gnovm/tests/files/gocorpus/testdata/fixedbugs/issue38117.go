@@ -16,8 +16,4 @@ const (
 	_ = int8(complex128(1000)) // ERROR "overflow|cannot convert"
 )
 
-// GoTypeCheckError:
-// line 16: cannot convert complex128(1000) (constant 1000 of type complex128) to type int8
-
-// KnownIssue:
-// line 13: name complex64 not defined in fileset with files [issue38117.go]
+// Unsupported: complex numbers not supported in Gno

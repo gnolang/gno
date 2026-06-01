@@ -156,5 +156,4 @@ func shouldPanic(f func()) {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Unsupported: uintptr type not supported in Gno

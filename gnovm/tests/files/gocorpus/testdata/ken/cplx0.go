@@ -40,5 +40,4 @@ func main() {
 // (+5.000000e+000+6.000000e+000i)
 // (+5.000000e+000+6.000000e+000i)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Unsupported: complex numbers not supported in Gno

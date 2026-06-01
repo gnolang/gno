@@ -12,5 +12,4 @@ func main() {
 	clear(V)
 }
 
-// KnownIssue:
-// line 12: name clear not declared
+// Unsupported: clear builtin not supported in Gno

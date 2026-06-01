@@ -323,5 +323,4 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Unsupported: unsupported stdlib symbol in Gno: MemProfileRecord

@@ -20,7 +20,4 @@ func f() { // GC_ERROR "stack frame too large"
 	runtime.KeepAlive(x)
 }
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
-// KnownIssue:
-// line 20: name KeepAlive not declared
+// Unsupported: unsupported stdlib symbol in Gno: KeepAlive

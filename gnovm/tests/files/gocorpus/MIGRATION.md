@@ -8,176 +8,95 @@ do not edit by hand; re-run after `--update-golden-tests`.
 
 | Bucket | Count | Meaning |
 |---|--:|---|
-| 🔥 **Urgent KnownIssue** | 152 | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |
-| 🟠 **Deferred KnownIssue** | 119 | static over-strict — Gno rejects code gc *and* go/types accept (caught at deploy; no inconsistent state); defer |
+| 🔥 **Urgent KnownIssue** | 72 | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |
+| 🟠 **Deferred KnownIssue** | 95 | static over-strict — Gno rejects code gc *and* go/types accept (caught at deploy; no inconsistent state); defer |
 | 🔵 KnownDivergence | 13 | accepted run-mode difference (not a bug) |
 | 🟡 GnoStaticIncomplete | 23 | partial errorcheck marker coverage (static caveat) |
-| ⚪ Unsupported | 699 | feature gap (unsupported import / language feature); skipped |
-| ✅ Clean | 1062 | verified, no outstanding issue |
+| ⚪ Unsupported | 806 | feature gap (unsupported import / language feature); skipped |
+| ✅ Clean | 1059 | verified, no outstanding issue |
 | **Total migrated** | 2068 | |
 
-## 🔥 Urgent KnownIssue — runtime divergence (fix now) (152)
+## 🔥 Urgent KnownIssue — runtime divergence (fix now) (72)
 
 Gno's run-mode result differs from Go's — a wrong value, or a panic where Go succeeds (e.g. bug446: init-order panic). Unlike static rejects (caught at deploy), these ship and break in production, so they're the must-fix subset. Read each file's pinned // GnoOutput:/// GnoError: vs // GoOutput: to identify the bug. Many files share a root cause; sub-triage (engine panic vs semantic bug vs misrouted feature-gap) is done by reading the behavior.
 
 - [`bigmap.go`](testdata/bigmap.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`char_lit.go`](testdata/char_lit.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`clear.go`](testdata/clear.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`closure2.go`](testdata/closure2.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`closure4.go`](testdata/closure4.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`const.go`](testdata/const.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`const4.go`](testdata/const4.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`convert4.go`](testdata/convert4.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`copy.go`](testdata/copy.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`ddd.go`](testdata/ddd.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`directive.go`](testdata/directive.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`env.go`](testdata/env.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug006.go`](testdata/fixedbugs/bug006.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug059.go`](testdata/fixedbugs/bug059.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug060.go`](testdata/fixedbugs/bug060.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug120.go`](testdata/fixedbugs/bug120.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug141.go`](testdata/fixedbugs/bug141.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug159.go`](testdata/fixedbugs/bug159.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug187.go`](testdata/fixedbugs/bug187.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug253.go`](testdata/fixedbugs/bug253.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug260.go`](testdata/fixedbugs/bug260.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug265.go`](testdata/fixedbugs/bug265.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug329.go`](testdata/fixedbugs/bug329.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug336.go`](testdata/fixedbugs/bug336.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug346.go`](testdata/fixedbugs/bug346.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug370.go`](testdata/fixedbugs/bug370.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug401.go`](testdata/fixedbugs/bug401.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug406.go`](testdata/fixedbugs/bug406.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug434.go`](testdata/fixedbugs/bug434.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug446.go`](testdata/fixedbugs/bug446.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug454.go`](testdata/fixedbugs/bug454.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug483.go`](testdata/fixedbugs/bug483.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug484.go`](testdata/fixedbugs/bug484.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug485.go`](testdata/fixedbugs/bug485.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/bug491.go`](testdata/fixedbugs/bug491.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug498.go`](testdata/fixedbugs/bug498.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/bug500.go`](testdata/fixedbugs/bug500.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue10486.go`](testdata/fixedbugs/issue10486.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue11286.go`](testdata/fixedbugs/issue11286.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue11326b.go`](testdata/fixedbugs/issue11326b.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue11945.go`](testdata/fixedbugs/issue11945.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue12108.go`](testdata/fixedbugs/issue12108.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue12621.go`](testdata/fixedbugs/issue12621.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue13162.go`](testdata/fixedbugs/issue13162.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue14591.go`](testdata/fixedbugs/issue14591.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue14646.go`](testdata/fixedbugs/issue14646.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue15039.go`](testdata/fixedbugs/issue15039.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue15252.go`](testdata/fixedbugs/issue15252.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue15277.go`](testdata/fixedbugs/issue15277.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue15303.go`](testdata/fixedbugs/issue15303.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue15975.go`](testdata/fixedbugs/issue15975.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue16095.go`](testdata/fixedbugs/issue16095.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue16130.go`](testdata/fixedbugs/issue16130.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue16515.go`](testdata/fixedbugs/issue16515.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue16760.go`](testdata/fixedbugs/issue16760.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue18149.go`](testdata/fixedbugs/issue18149.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue18661.go`](testdata/fixedbugs/issue18661.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue18725.go`](testdata/fixedbugs/issue18725.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue19040.go`](testdata/fixedbugs/issue19040.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue19246.go`](testdata/fixedbugs/issue19246.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue19799.go`](testdata/fixedbugs/issue19799.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue20029.go`](testdata/fixedbugs/issue20029.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue21879.go`](testdata/fixedbugs/issue21879.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue21963.go`](testdata/fixedbugs/issue21963.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue22662.go`](testdata/fixedbugs/issue22662.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue23017.go`](testdata/fixedbugs/issue23017.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue23536.go`](testdata/fixedbugs/issue23536.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue23814.go`](testdata/fixedbugs/issue23814.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue23837.go`](testdata/fixedbugs/issue23837.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue24488.go`](testdata/fixedbugs/issue24488.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue24547.go`](testdata/fixedbugs/issue24547.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue24817.go`](testdata/fixedbugs/issue24817.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue26094.go`](testdata/fixedbugs/issue26094.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue2615.go`](testdata/fixedbugs/issue2615.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue26407.go`](testdata/fixedbugs/issue26407.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue27518a.go`](testdata/fixedbugs/issue27518a.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue27518b.go`](testdata/fixedbugs/issue27518b.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue29190.go`](testdata/fixedbugs/issue29190.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue29264.go`](testdata/fixedbugs/issue29264.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue29304.go`](testdata/fixedbugs/issue29304.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue29312.go`](testdata/fixedbugs/issue29312.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue29504.go`](testdata/fixedbugs/issue29504.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue29735.go`](testdata/fixedbugs/issue29735.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue30476.go`](testdata/fixedbugs/issue30476.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue32288.go`](testdata/fixedbugs/issue32288.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue32477.go`](testdata/fixedbugs/issue32477.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue34123.go`](testdata/fixedbugs/issue34123.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue37975.go`](testdata/fixedbugs/issue37975.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue4353.go`](testdata/fixedbugs/issue4353.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue43908.go`](testdata/fixedbugs/issue43908.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue4495.go`](testdata/fixedbugs/issue4495.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue4618.go`](testdata/fixedbugs/issue4618.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue4667.go`](testdata/fixedbugs/issue4667.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue50190.go`](testdata/fixedbugs/issue50190.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue51401.go`](testdata/fixedbugs/issue51401.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue52072.go`](testdata/fixedbugs/issue52072.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue5373.go`](testdata/fixedbugs/issue5373.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue54467.go`](testdata/fixedbugs/issue54467.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue5793.go`](testdata/fixedbugs/issue5793.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue59572.go`](testdata/fixedbugs/issue59572.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue6055.go`](testdata/fixedbugs/issue6055.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue64565.go`](testdata/fixedbugs/issue64565.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue67255.go`](testdata/fixedbugs/issue67255.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue6902.go`](testdata/fixedbugs/issue6902.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue71675.go`](testdata/fixedbugs/issue71675.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue71932.go`](testdata/fixedbugs/issue71932.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue7419.go`](testdata/fixedbugs/issue7419.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue7550.go`](testdata/fixedbugs/issue7550.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue7690.go`](testdata/fixedbugs/issue7690.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue7740.go`](testdata/fixedbugs/issue7740.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue7944.go`](testdata/fixedbugs/issue7944.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue8036.go`](testdata/fixedbugs/issue8036.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue8047.go`](testdata/fixedbugs/issue8047.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue8048.go`](testdata/fixedbugs/issue8048.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue8132.go`](testdata/fixedbugs/issue8132.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`fixedbugs/issue8155.go`](testdata/fixedbugs/issue8155.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`fixedbugs/issue8606.go`](testdata/fixedbugs/issue8606.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`gc.go`](testdata/gc.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`gcstring.go`](testdata/gcstring.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`heapsampling.go`](testdata/heapsampling.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`int_lit.go`](testdata/int_lit.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`interface/embed.go`](testdata/interface/embed.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`interface/noeq.go`](testdata/interface/noeq.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`interface/struct.go`](testdata/interface/struct.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`ken/cplx0.go`](testdata/ken/cplx0.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`ken/cplx1.go`](testdata/ken/cplx1.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`ken/cplx4.go`](testdata/ken/cplx4.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`ken/divconst.go`](testdata/ken/divconst.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`ken/embed.go`](testdata/ken/embed.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`ken/modconst.go`](testdata/ken/modconst.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`mallocfin.go`](testdata/mallocfin.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`map.go`](testdata/map.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`mapclear.go`](testdata/mapclear.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`maplinear.go`](testdata/maplinear.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`method.go`](testdata/method.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`method3.go`](testdata/method3.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`method5.go`](testdata/method5.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`method7.go`](testdata/method7.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`peano.go`](testdata/peano.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`print.go`](testdata/print.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`range3.go`](testdata/range3.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`recover1.go`](testdata/recover1.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`recover2.go`](testdata/recover2.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`recover3.go`](testdata/recover3.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`stackobj.go`](testdata/stackobj.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`stackobj2.go`](testdata/stackobj2.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`stackobj3.go`](testdata/stackobj3.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`string_lit.go`](testdata/string_lit.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`stringrange.go`](testdata/stringrange.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`typeswitch1.go`](testdata/typeswitch1.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
-- [`zerodivide.go`](testdata/zerodivide.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 - [`zerosize.go`](testdata/zerosize.go) — TODO: explain the Gno bug (Gno errors where Go runs clean)
 
-## 🟠 Deferred KnownIssue — static over-strictness (119)
+## 🟠 Deferred KnownIssue — static over-strictness (95)
 
 Gno's preprocess rejects code that both gc (markers) and the go/types guard accept. Only over-rejects otherwise-valid packages (they can't deploy/call) — no inconsistent state — so deferred. Each note is Gno's over-strict error.
 
-- [`cmplx.go`](testdata/cmplx.go) — line 15: name complex64 not defined in fileset with files [cmplx.go]
 - [`complit1.go`](testdata/complit1.go) — line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`const2.go`](testdata/const2.go) — line 25: invalid decimal constant: 1e+500000000
 - [`convlit1.go`](testdata/convlit1.go) — line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
@@ -193,25 +112,16 @@ Gno's preprocess rejects code that both gc (markers) and the go/types guard acce
 - [`fixedbugs/bug250.go`](testdata/fixedbugs/bug250.go) — line 9: 2: invalid recursive type: I1 -> I2 -> I1
 - [`fixedbugs/bug255.go`](testdata/fixedbugs/bug255.go) — line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/bug274.go`](testdata/fixedbugs/bug274.go) — line 24: expected statement, found 'case'
-- [`fixedbugs/bug275.go`](testdata/fixedbugs/bug275.go) — line 12: name complex64 not defined in fileset with files [bug275.go]
 - [`fixedbugs/bug305.go`](testdata/fixedbugs/bug305.go) — line 23: cannot use untyped string as IntKind
-- [`fixedbugs/bug307.go`](testdata/fixedbugs/bug307.go) — line 14: name complex not declared
-- [`fixedbugs/bug315.go`](testdata/fixedbugs/bug315.go) — line 12: name complex not declared
-- [`fixedbugs/bug316.go`](testdata/fixedbugs/bug316.go) — line 12: name complex not defined in fileset with files [bug316.go]
-- [`fixedbugs/bug334.go`](testdata/fixedbugs/bug334.go) — line 12: name complex64 not defined in fileset with files [bug334.go]
 - [`fixedbugs/bug365.go`](testdata/fixedbugs/bug365.go) — line 14: 2: name foo not defined in fileset with files [bug365.go]
 - [`fixedbugs/bug397.go`](testdata/fixedbugs/bug397.go) — line 10: 2: cannot use untyped Bigint as StringKind
 - [`fixedbugs/bug403.go`](testdata/fixedbugs/bug403.go) — line 19: name a not declared
 - [`fixedbugs/bug418.go`](testdata/fixedbugs/bug418.go) — line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/bug462.go`](testdata/fixedbugs/bug462.go) — line 11: name Open not declared
-- [`fixedbugs/bug515.go`](testdata/fixedbugs/bug515.go) — line 16: 2: name uintptr not defined in fileset with files [bug515.go]
 - [`fixedbugs/bug516.go`](testdata/fixedbugs/bug516.go) — line 12: cannot convert b<VPBlock(1,0)>[i<VPBlock(1,1)> * (const (2 int)):] (of type []uint8) to type *[1]uint8
 - [`fixedbugs/issue10975.go`](testdata/fixedbugs/issue10975.go) — line 17: struct{} does not implement main.I (missing method int)
-- [`fixedbugs/issue11674.go`](testdata/fixedbugs/issue11674.go) — line 12: name complex64 not defined in fileset with files [issue11674.go]
 - [`fixedbugs/issue11699.go`](testdata/fixedbugs/issue11699.go) — line 11: function ._0 does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue11737.go`](testdata/fixedbugs/issue11737.go) — line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-- [`fixedbugs/issue12525.go`](testdata/fixedbugs/issue12525.go) — line 18: name complex128 not defined in fileset with files [issue12525.go]
-- [`fixedbugs/issue13263.go`](testdata/fixedbugs/issue13263.go) — line 12: name uintptr not defined in fileset with files [issue13263.go]
 - [`fixedbugs/issue13274.go`](testdata/fixedbugs/issue13274.go) — line 13: expected '(', found main
 - [`fixedbugs/issue13337.go`](testdata/fixedbugs/issue13337.go) — line 23: type <anonymous struct> embed depth 9 exceeds max 8
 - [`fixedbugs/issue13415.go`](testdata/fixedbugs/issue13415.go) — line 13: select statements are not permitted
@@ -221,17 +131,13 @@ Gno's preprocess rejects code that both gc (markers) and the go/types guard acce
 - [`fixedbugs/issue15611.go`](testdata/fixedbugs/issue15611.go) — line 10: rune literal not terminated (and 4 more errors)
 - [`fixedbugs/issue15898.go`](testdata/fixedbugs/issue15898.go) — line 10: 3: duplicate type nil in type switch
 - [`fixedbugs/issue17596.go`](testdata/fixedbugs/issue17596.go) — line 13: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-- [`fixedbugs/issue17710.go`](testdata/fixedbugs/issue17710.go) — line 12: name KeepAlive not declared
 - [`fixedbugs/issue18231.go`](testdata/fixedbugs/issue18231.go) — line 16: 2: types cannot be elided in composite literals for struct types
 - [`fixedbugs/issue18331.go`](testdata/fixedbugs/issue18331.go) — line 10: function foo does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue18393.go`](testdata/fixedbugs/issue18393.go) — line 19: import path must be a string (and 1 more errors)
 - [`fixedbugs/issue18640.go`](testdata/fixedbugs/issue18640.go) — line 10: invalid recursive type: a -> b -> a
 - [`fixedbugs/issue19699b.go`](testdata/fixedbugs/issue19699b.go) — line 9: 2: [function "f" does not terminate]
 - [`fixedbugs/issue20185.go`](testdata/fixedbugs/issue20185.go) — line 15: name t not declared
-- [`fixedbugs/issue20529.go`](testdata/fixedbugs/issue20529.go) — line 20: name KeepAlive not declared
-- [`fixedbugs/issue20602.go`](testdata/fixedbugs/issue20602.go) — line 12: name complex128 not defined in fileset with files [issue20602.go]
 - [`fixedbugs/issue20780.go`](testdata/fixedbugs/issue20780.go) — line 24: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-- [`fixedbugs/issue22458.go`](testdata/fixedbugs/issue22458.go) — line 25: name KeepAlive not declared
 - [`fixedbugs/issue23823.go`](testdata/fixedbugs/issue23823.go) — line 9: 2: invalid recursive type: I1 -> I2 -> I1
 - [`fixedbugs/issue24339.go`](testdata/fixedbugs/issue24339.go) — line 19: struct type struct{} has no field foo
 - [`fixedbugs/issue26616.go`](testdata/fixedbugs/issue26616.go) — line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
@@ -242,13 +148,9 @@ Gno's preprocess rejects code that both gc (markers) and the go/types guard acce
 - [`fixedbugs/issue31010.go`](testdata/fixedbugs/issue31010.go) — line 14: function a does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue32133.go`](testdata/fixedbugs/issue32133.go) — line 9: string literal not terminated (and 7 more errors)
 - [`fixedbugs/issue33460.go`](testdata/fixedbugs/issue33460.go) — line 31: 2: duplicate key ("a" string) in map literal
-- [`fixedbugs/issue38117.go`](testdata/fixedbugs/issue38117.go) — line 13: name complex64 not defined in fileset with files [issue38117.go]
 - [`fixedbugs/issue38125.go`](testdata/fixedbugs/issue38125.go) — line 20: unexpected selector expression type value struct{I gno.land/p/filetest/p.I}
-- [`fixedbugs/issue38916.go`](testdata/fixedbugs/issue38916.go) — line 9: 2: name complex128 not defined in fileset with files [issue38916.go]
 - [`fixedbugs/issue3925.go`](testdata/fixedbugs/issue3925.go) — line 18: 2: cannot use untyped Bigint as StringKind
 - [`fixedbugs/issue4099.go`](testdata/fixedbugs/issue4099.go) — line 18: function F1 does not have a body but is not natively defined (did you build after pulling from the repository?)
-- [`fixedbugs/issue41736.go`](testdata/fixedbugs/issue41736.go) — line 17: 2: name complex128 not defined in fileset with files [issue41736.go]
-- [`fixedbugs/issue4264.go`](testdata/fixedbugs/issue4264.go) — line 14: name complex128 not defined in fileset with files [issue4264.go]
 - [`fixedbugs/issue43428.go`](testdata/fixedbugs/issue43428.go) — line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
 - [`fixedbugs/issue4359.go`](testdata/fixedbugs/issue4359.go) — line 12: 2: name T1 not defined in fileset with files [issue4359.go]
 - [`fixedbugs/issue43677.go`](testdata/fixedbugs/issue43677.go) — line 12: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
@@ -260,24 +162,19 @@ Gno's preprocess rejects code that both gc (markers) and the go/types guard acce
 - [`fixedbugs/issue46556.go`](testdata/fixedbugs/issue46556.go) — line 13: 2: unexpected field type interface {}
 - [`fixedbugs/issue46720.go`](testdata/fixedbugs/issue46720.go) — line 11: cannot convert nonce<VPBlock(1,0)> (of type []uint8) to type *[24]uint8
 - [`fixedbugs/issue46907.go`](testdata/fixedbugs/issue46907.go) — line 10: cannot convert b<VPBlock(1,0)>[:(const (32 int))] (of type []uint8) to type *[32]uint8
-- [`fixedbugs/issue4813.go`](testdata/fixedbugs/issue4813.go) — line 19: name complex not defined in fileset with files [issue4813.go]
 - [`fixedbugs/issue48471.go`](testdata/fixedbugs/issue48471.go) — line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue48558.go`](testdata/fixedbugs/issue48558.go) — line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue48835.go`](testdata/fixedbugs/issue48835.go) — line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue49003.go`](testdata/fixedbugs/issue49003.go) — line 9: 2: [function "f" does not terminate]
 - [`fixedbugs/issue49005a.go`](testdata/fixedbugs/issue49005a.go) — line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue49005b.go`](testdata/fixedbugs/issue49005b.go) — line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
-- [`fixedbugs/issue49282.go`](testdata/fixedbugs/issue49282.go) — line 10: 2: name uintptr not defined in fileset with files [issue49282.go]
 - [`fixedbugs/issue52535.go`](testdata/fixedbugs/issue52535.go) — line 14: want bool type got interface {}
 - [`fixedbugs/issue53454.go`](testdata/fixedbugs/issue53454.go) — line 89: function Test does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue5358.go`](testdata/fixedbugs/issue5358.go) — line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue58345.go`](testdata/fixedbugs/issue58345.go) — line 10: operator | not defined on: TypeKind
 - [`fixedbugs/issue59169.go`](testdata/fixedbugs/issue59169.go) — line 12: cannot convert *(p<VPBlock(1,0)>)[(const (1 int)):] (of type []uint8) to type *[1]uint8
 - [`fixedbugs/issue60982.go`](testdata/fixedbugs/issue60982.go) — line 13: name max not declared
-- [`fixedbugs/issue61127.go`](testdata/fixedbugs/issue61127.go) — line 12: name clear not declared
-- [`fixedbugs/issue6247.go`](testdata/fixedbugs/issue6247.go) — line 16: name complex128 not declared
 - [`fixedbugs/issue63462.go`](testdata/fixedbugs/issue63462.go) — line 10: 3: cannot convert b.loopvar<VPBlock(1,0)> (of type <untyped> bool) to type bool
-- [`fixedbugs/issue6402.go`](testdata/fixedbugs/issue6402.go) — line 11: 2: name uintptr not defined in fileset with files [issue6402.go]
 - [`fixedbugs/issue67141.go`](testdata/fixedbugs/issue67141.go) — line 12: 0: range iteration requires map, string, array, slice, or pointer to array
 - [`fixedbugs/issue7675.go`](testdata/fixedbugs/issue7675.go) — line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue7746.go`](testdata/fixedbugs/issue7746.go) — line 40: multiplication overflow
@@ -286,7 +183,6 @@ Gno's preprocess rejects code that both gc (markers) and the go/types guard acce
 - [`fixedbugs/issue8836.go`](testdata/fixedbugs/issue8836.go) — line 13: function foobar does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`func2.go`](testdata/func2.go) — line 16: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`initloop.go`](testdata/initloop.go) — line 13: invalid recursive value: x -> a -> b -> c -> a
-- [`internal/runtime/sys/inlinegcpc.go`](testdata/internal/runtime/sys/inlinegcpc.go) — line 12: name uintptr not defined in fileset with files [inlinegcpc.go]
 - [`nilcheck.go`](testdata/nilcheck.go) — line 80: function fx10k does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`nilptr3.go`](testdata/nilptr3.go) — line 90: function fx10k does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`reflectmethod8.go`](testdata/reflectmethod8.go) — line 24: unknown *DeclaredType method named MethodByName
@@ -343,7 +239,7 @@ Fewer than all gc markers covered (Gno preprocess OR go/types guard). Static-onl
 - [`syntax/chan.go`](testdata/syntax/chan.go) — covered 2 of 3 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
 - [`syntax/chan1.go`](testdata/syntax/chan1.go) — covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
 
-## ⚪ Unsupported — feature gaps (skipped) (699)
+## ⚪ Unsupported — feature gaps (skipped) (806)
 
 Gno can't process the file (unsupported import or language feature). Skipped via t.Skip.
 
@@ -376,13 +272,18 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`chan/zerosize.go`](testdata/chan/zerosize.go) — channels not supported in Gno
 - [`chancap.go`](testdata/chancap.go) — channels not supported in Gno
 - [`chanlinear.go`](testdata/chanlinear.go) — channels not supported in Gno
+- [`char_lit.go`](testdata/char_lit.go) — unsupported stdlib symbol in Gno: Exit
+- [`clear.go`](testdata/clear.go) — clear builtin not supported in Gno
 - [`closedchan.go`](testdata/closedchan.go) — channels not supported in Gno
 - [`closure.go`](testdata/closure.go) — channels not supported in Gno
 - [`closure7.go`](testdata/closure7.go) — channels not supported in Gno
 - [`cmp.go`](testdata/cmp.go) — channels not supported in Gno
 - [`cmp6.go`](testdata/cmp6.go) — channels not supported in Gno
+- [`cmplx.go`](testdata/cmplx.go) — complex numbers not supported in Gno
 - [`complit.go`](testdata/complit.go) — channels not supported in Gno
+- [`const.go`](testdata/const.go) — unsupported stdlib symbol in Gno: Getenv
 - [`const1.go`](testdata/const1.go) — unknown import path unsafe
+- [`const4.go`](testdata/const4.go) — channels not supported in Gno
 - [`const5.go`](testdata/const5.go) — channels not supported in Gno
 - [`const7.go`](testdata/const7.go) — unknown import path io/ioutil
 - [`const8.go`](testdata/const8.go) — builtin shadowing not supported in Gno
@@ -390,6 +291,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`convert3.go`](testdata/convert3.go) — channels not supported in Gno
 - [`convlit.go`](testdata/convlit.go) — unknown import path unsafe
 - [`convT2X.go`](testdata/convT2X.go) — channels not supported in Gno
+- [`copy.go`](testdata/copy.go) — unsupported stdlib symbol in Gno: Exit
 - [`ddd1.go`](testdata/ddd1.go) — channels not supported in Gno
 - [`defererrcheck.go`](testdata/defererrcheck.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`deferfin.go`](testdata/deferfin.go) — goroutines not supported in Gno
@@ -398,6 +300,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`directive2.go`](testdata/directive2.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`embedfunc.go`](testdata/embedfunc.go) — unknown import path embed
 - [`embedvers.go`](testdata/embedvers.go) — unknown import path embed
+- [`env.go`](testdata/env.go) — unsupported stdlib symbol in Gno: Getenv
 - [`errorcheck/issue51531.go`](testdata/errorcheck/issue51531.go) — generics not supported in Gno
 - [`escape_array.go`](testdata/escape_array.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`escape_closure.go`](testdata/escape_closure.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
@@ -423,17 +326,24 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`escape4.go`](testdata/escape4.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`escape5.go`](testdata/escape5.go) — unknown import path unsafe
 - [`finprofiled.go`](testdata/finprofiled.go) — unknown import path unsafe
+- [`fixedbugs/bug006.go`](testdata/fixedbugs/bug006.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug053.go`](testdata/fixedbugs/bug053.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/bug059.go`](testdata/fixedbugs/bug059.go) — unsupported stdlib symbol in Gno: Exit
+- [`fixedbugs/bug060.go`](testdata/fixedbugs/bug060.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug067.go`](testdata/fixedbugs/bug067.go) — channels not supported in Gno
 - [`fixedbugs/bug069.go`](testdata/fixedbugs/bug069.go) — channels not supported in Gno
 - [`fixedbugs/bug071.go`](testdata/fixedbugs/bug071.go) — channels not supported in Gno
 - [`fixedbugs/bug078.go`](testdata/fixedbugs/bug078.go) — channels not supported in Gno
 - [`fixedbugs/bug084.go`](testdata/fixedbugs/bug084.go) — channels not supported in Gno
 - [`fixedbugs/bug118.go`](testdata/fixedbugs/bug118.go) — channels not supported in Gno
+- [`fixedbugs/bug120.go`](testdata/fixedbugs/bug120.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug130.go`](testdata/fixedbugs/bug130.go) — channels not supported in Gno
+- [`fixedbugs/bug141.go`](testdata/fixedbugs/bug141.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug147.go`](testdata/fixedbugs/bug147.go) — channels not supported in Gno
 - [`fixedbugs/bug148.go`](testdata/fixedbugs/bug148.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/bug159.go`](testdata/fixedbugs/bug159.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug177.go`](testdata/fixedbugs/bug177.go) — unknown import path reflect
+- [`fixedbugs/bug187.go`](testdata/fixedbugs/bug187.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug190.go`](testdata/fixedbugs/bug190.go) — channels not supported in Gno
 - [`fixedbugs/bug196.go`](testdata/fixedbugs/bug196.go) — channels not supported in Gno
 - [`fixedbugs/bug206.go`](testdata/fixedbugs/bug206.go) — unknown import path go/ast
@@ -449,37 +359,51 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/bug246.go`](testdata/fixedbugs/bug246.go) — unknown import path unsafe
 - [`fixedbugs/bug249.go`](testdata/fixedbugs/bug249.go) — channels not supported in Gno
 - [`fixedbugs/bug257.go`](testdata/fixedbugs/bug257.go) — unknown import path crypto/md5
+- [`fixedbugs/bug260.go`](testdata/fixedbugs/bug260.go) — unsupported stdlib symbol in Gno: Args
+- [`fixedbugs/bug265.go`](testdata/fixedbugs/bug265.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug273.go`](testdata/fixedbugs/bug273.go) — channels not supported in Gno
+- [`fixedbugs/bug275.go`](testdata/fixedbugs/bug275.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug277.go`](testdata/fixedbugs/bug277.go) — channels not supported in Gno
 - [`fixedbugs/bug279.go`](testdata/fixedbugs/bug279.go) — unknown import path unsafe
 - [`fixedbugs/bug284.go`](testdata/fixedbugs/bug284.go) — channels not supported in Gno
 - [`fixedbugs/bug285.go`](testdata/fixedbugs/bug285.go) — channels not supported in Gno
 - [`fixedbugs/bug292.go`](testdata/fixedbugs/bug292.go) — unknown import path unsafe
 - [`fixedbugs/bug295.go`](testdata/fixedbugs/bug295.go) — dot imports not supported in Gno
+- [`fixedbugs/bug307.go`](testdata/fixedbugs/bug307.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug309.go`](testdata/fixedbugs/bug309.go) — channels not supported in Gno
 - [`fixedbugs/bug312.go`](testdata/fixedbugs/bug312.go) — channels not supported in Gno
+- [`fixedbugs/bug315.go`](testdata/fixedbugs/bug315.go) — complex numbers not supported in Gno
+- [`fixedbugs/bug316.go`](testdata/fixedbugs/bug316.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug319.go`](testdata/fixedbugs/bug319.go) — unknown import path unsafe
 - [`fixedbugs/bug320.go`](testdata/fixedbugs/bug320.go) — channels not supported in Gno
 - [`fixedbugs/bug325.go`](testdata/fixedbugs/bug325.go) — unknown import path unsafe
 - [`fixedbugs/bug328.go`](testdata/fixedbugs/bug328.go) — unknown import path unsafe
+- [`fixedbugs/bug329.go`](testdata/fixedbugs/bug329.go) — complex numbers not supported in Gno
+- [`fixedbugs/bug334.go`](testdata/fixedbugs/bug334.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug338.go`](testdata/fixedbugs/bug338.go) — unknown import path unsafe
 - [`fixedbugs/bug339.go`](testdata/fixedbugs/bug339.go) — unknown import path unsafe
+- [`fixedbugs/bug346.go`](testdata/fixedbugs/bug346.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/bug347.go`](testdata/fixedbugs/bug347.go) — channels not supported in Gno
 - [`fixedbugs/bug358.go`](testdata/fixedbugs/bug358.go) — unknown import path net/http
 - [`fixedbugs/bug369.go`](testdata/fixedbugs/bug369.go) — unknown import path io/ioutil
+- [`fixedbugs/bug370.go`](testdata/fixedbugs/bug370.go) — unsupported stdlib symbol in Gno: GOMAXPROCS
 - [`fixedbugs/bug376.go`](testdata/fixedbugs/bug376.go) — unknown import path unsafe
 - [`fixedbugs/bug381.go`](testdata/fixedbugs/bug381.go) — unknown import path unsafe
 - [`fixedbugs/bug387.go`](testdata/fixedbugs/bug387.go) — unknown import path path/filepath
 - [`fixedbugs/bug390.go`](testdata/fixedbugs/bug390.go) — unknown import path unsafe
+- [`fixedbugs/bug401.go`](testdata/fixedbugs/bug401.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug417.go`](testdata/fixedbugs/bug417.go) — channels not supported in Gno
 - [`fixedbugs/bug444.go`](testdata/fixedbugs/bug444.go) — unknown import path reflect
 - [`fixedbugs/bug458.go`](testdata/fixedbugs/bug458.go) — unknown import path unsafe
 - [`fixedbugs/bug461.go`](testdata/fixedbugs/bug461.go) — unknown import path reflect
 - [`fixedbugs/bug471.go`](testdata/fixedbugs/bug471.go) — channels not supported in Gno
 - [`fixedbugs/bug474.go`](testdata/fixedbugs/bug474.go) — unknown import path sync
+- [`fixedbugs/bug484.go`](testdata/fixedbugs/bug484.go) — uintptr type not supported in Gno
+- [`fixedbugs/bug491.go`](testdata/fixedbugs/bug491.go) — complex numbers not supported in Gno
 - [`fixedbugs/bug499.go`](testdata/fixedbugs/bug499.go) — channels not supported in Gno
 - [`fixedbugs/bug512.go`](testdata/fixedbugs/bug512.go) — goroutines not supported in Gno
 - [`fixedbugs/bug514.go`](testdata/fixedbugs/bug514.go) — unknown import path runtime/cgo
+- [`fixedbugs/bug515.go`](testdata/fixedbugs/bug515.go) — uintptr type not supported in Gno
 - [`fixedbugs/bug517.go`](testdata/fixedbugs/bug517.go) — unknown import path unsafe
 - [`fixedbugs/gcc61248.go`](testdata/fixedbugs/gcc61248.go) — goroutines not supported in Gno
 - [`fixedbugs/gcc61253.go`](testdata/fixedbugs/gcc61253.go) — channels not supported in Gno
@@ -489,23 +413,33 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue10284.go`](testdata/fixedbugs/issue10284.go) — unknown import path unsafe
 - [`fixedbugs/issue10332.go`](testdata/fixedbugs/issue10332.go) — unknown import path reflect
 - [`fixedbugs/issue10353.go`](testdata/fixedbugs/issue10353.go) — channels not supported in Gno
+- [`fixedbugs/issue10486.go`](testdata/fixedbugs/issue10486.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue10607.go`](testdata/fixedbugs/issue10607.go) — unknown import path os/exec
 - [`fixedbugs/issue11256.go`](testdata/fixedbugs/issue11256.go) — goroutines not supported in Gno
 - [`fixedbugs/issue11362.go`](testdata/fixedbugs/issue11362.go) — unknown import path unicode//utf8
+- [`fixedbugs/issue11674.go`](testdata/fixedbugs/issue11674.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue11771.go`](testdata/fixedbugs/issue11771.go) — unknown import path io/ioutil
+- [`fixedbugs/issue11945.go`](testdata/fixedbugs/issue11945.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue12006.go`](testdata/fixedbugs/issue12006.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue12108.go`](testdata/fixedbugs/issue12108.go) — uintptr type not supported in Gno
+- [`fixedbugs/issue12525.go`](testdata/fixedbugs/issue12525.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue12588.go`](testdata/fixedbugs/issue12588.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue12944.go`](testdata/fixedbugs/issue12944.go) — unknown import path unsafe
 - [`fixedbugs/issue13160.go`](testdata/fixedbugs/issue13160.go) — channels not supported in Gno
+- [`fixedbugs/issue13162.go`](testdata/fixedbugs/issue13162.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue13169.go`](testdata/fixedbugs/issue13169.go) — channels not supported in Gno
+- [`fixedbugs/issue13263.go`](testdata/fixedbugs/issue13263.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue13268.go`](testdata/fixedbugs/issue13268.go) — unknown import path io/ioutil
 - [`fixedbugs/issue13485.go`](testdata/fixedbugs/issue13485.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue13799.go`](testdata/fixedbugs/issue13799.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue14636.go`](testdata/fixedbugs/issue14636.go) — unknown import path log
+- [`fixedbugs/issue14646.go`](testdata/fixedbugs/issue14646.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue14729.go`](testdata/fixedbugs/issue14729.go) — unknown import path unsafe
 - [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue15002.go`](testdata/fixedbugs/issue15002.go) — unknown import path syscall
+- [`fixedbugs/issue15277.go`](testdata/fixedbugs/issue15277.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue15281.go`](testdata/fixedbugs/issue15281.go) — channels not supported in Gno
+- [`fixedbugs/issue15303.go`](testdata/fixedbugs/issue15303.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue15329.go`](testdata/fixedbugs/issue15329.go) — unknown import path reflect
 - [`fixedbugs/issue15439.go`](testdata/fixedbugs/issue15439.go) — unknown import path reflect
 - [`fixedbugs/issue15528.go`](testdata/fixedbugs/issue15528.go) — channels not supported in Gno
@@ -520,35 +454,47 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue16870.go`](testdata/fixedbugs/issue16870.go) — channels not supported in Gno
 - [`fixedbugs/issue16948.go`](testdata/fixedbugs/issue16948.go) — unknown import path sync/atomic
 - [`fixedbugs/issue16985.go`](testdata/fixedbugs/issue16985.go) — unknown import path sync/atomic
+- [`fixedbugs/issue17038.go`](testdata/fixedbugs/issue17038.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue17270.go`](testdata/fixedbugs/issue17270.go) — unknown import path unsafe
 - [`fixedbugs/issue17318.go`](testdata/fixedbugs/issue17318.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue17381.go`](testdata/fixedbugs/issue17381.go) — unknown import path unsafe
+- [`fixedbugs/issue17710.go`](testdata/fixedbugs/issue17710.go) — unsupported stdlib symbol in Gno: KeepAlive
+- [`fixedbugs/issue18149.go`](testdata/fixedbugs/issue18149.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue18636.go`](testdata/fixedbugs/issue18636.go) — channels not supported in Gno
+- [`fixedbugs/issue18661.go`](testdata/fixedbugs/issue18661.go) — unsupported stdlib symbol in Gno: Exit
+- [`fixedbugs/issue18725.go`](testdata/fixedbugs/issue18725.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue19078.go`](testdata/fixedbugs/issue19078.go) — unknown import path unsafe
 - [`fixedbugs/issue19113.go`](testdata/fixedbugs/issue19113.go) — unknown import path reflect
 - [`fixedbugs/issue19168.go`](testdata/fixedbugs/issue19168.go) — unknown import path reflect
 - [`fixedbugs/issue19182.go`](testdata/fixedbugs/issue19182.go) — goroutines not supported in Gno
 - [`fixedbugs/issue19201.go`](testdata/fixedbugs/issue19201.go) — channels not supported in Gno
+- [`fixedbugs/issue19246.go`](testdata/fixedbugs/issue19246.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue19658.go`](testdata/fixedbugs/issue19658.go) — unknown import path io/ioutil
 - [`fixedbugs/issue19743.go`](testdata/fixedbugs/issue19743.go) — unknown import path reflect
+- [`fixedbugs/issue19799.go`](testdata/fixedbugs/issue19799.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue20027.go`](testdata/fixedbugs/issue20027.go) — channels not supported in Gno
 - [`fixedbugs/issue20227.go`](testdata/fixedbugs/issue20227.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue20250.go`](testdata/fixedbugs/issue20250.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue20298.go`](testdata/fixedbugs/issue20298.go) — unknown import path crypto/x509
 - [`fixedbugs/issue20335.go`](testdata/fixedbugs/issue20335.go) — unknown import path sync/atomic
+- [`fixedbugs/issue20529.go`](testdata/fixedbugs/issue20529.go) — unsupported stdlib symbol in Gno: KeepAlive
+- [`fixedbugs/issue20602.go`](testdata/fixedbugs/issue20602.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue20923.go`](testdata/fixedbugs/issue20923.go) — channels not supported in Gno
 - [`fixedbugs/issue21221.go`](testdata/fixedbugs/issue21221.go) — unknown import path unsafe
 - [`fixedbugs/issue21317.go`](testdata/fixedbugs/issue21317.go) — unknown import path io/ioutil
 - [`fixedbugs/issue21576.go`](testdata/fixedbugs/issue21576.go) — unknown import path context
 - [`fixedbugs/issue21709.go`](testdata/fixedbugs/issue21709.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue21879.go`](testdata/fixedbugs/issue21879.go) — unsupported stdlib symbol in Gno: Frame
 - [`fixedbugs/issue22076.go`](testdata/fixedbugs/issue22076.go) — dot imports not supported in Gno
 - [`fixedbugs/issue22083.go`](testdata/fixedbugs/issue22083.go) — unknown import path runtime/debug
 - [`fixedbugs/issue22200.go`](testdata/fixedbugs/issue22200.go) — Gno doesn't perform gc's "stack frame too large" analysis; it accepts this file (gc rejects it), so there's no error to pin.
 - [`fixedbugs/issue22200b.go`](testdata/fixedbugs/issue22200b.go) — Gno doesn't perform gc's "stack frame too large" analysis; it accepts this file (gc rejects it), so there's no error to pin.
 - [`fixedbugs/issue22344.go`](testdata/fixedbugs/issue22344.go) — unknown import path unsafe
 - [`fixedbugs/issue22351.go`](testdata/fixedbugs/issue22351.go) — unknown import path unsafe
+- [`fixedbugs/issue22458.go`](testdata/fixedbugs/issue22458.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue22605.go`](testdata/fixedbugs/issue22605.go) — unknown import path reflect
 - [`fixedbugs/issue22660.go`](testdata/fixedbugs/issue22660.go) — unknown import path io/ioutil
+- [`fixedbugs/issue22662.go`](testdata/fixedbugs/issue22662.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue22662b.go`](testdata/fixedbugs/issue22662b.go) — unknown import path io/ioutil
 - [`fixedbugs/issue22683.go`](testdata/fixedbugs/issue22683.go) — channels not supported in Gno
 - [`fixedbugs/issue22781.go`](testdata/fixedbugs/issue22781.go) — unknown import path runtime/debug
@@ -558,9 +504,11 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue24187.go`](testdata/fixedbugs/issue24187.go) — unknown import path unsafe
 - [`fixedbugs/issue24419.go`](testdata/fixedbugs/issue24419.go) — channels not supported in Gno
 - [`fixedbugs/issue24449.go`](testdata/fixedbugs/issue24449.go) — unknown import path sync/atomic
+- [`fixedbugs/issue24488.go`](testdata/fixedbugs/issue24488.go) — unsupported stdlib symbol in Gno: Stack
 - [`fixedbugs/issue24491a.go`](testdata/fixedbugs/issue24491a.go) — channels not supported in Gno
 - [`fixedbugs/issue24491b.go`](testdata/fixedbugs/issue24491b.go) — channels not supported in Gno
 - [`fixedbugs/issue24760.go`](testdata/fixedbugs/issue24760.go) — unknown import path unsafe
+- [`fixedbugs/issue24817.go`](testdata/fixedbugs/issue24817.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue25507.go`](testdata/fixedbugs/issue25507.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue25727.go`](testdata/fixedbugs/issue25727.go) — unknown import path net/http
 - [`fixedbugs/issue25897a.go`](testdata/fixedbugs/issue25897a.go) — goroutines not supported in Gno
@@ -568,8 +516,11 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue25958.go`](testdata/fixedbugs/issue25958.go) — channels not supported in Gno
 - [`fixedbugs/issue26105.go`](testdata/fixedbugs/issue26105.go) — channels not supported in Gno
 - [`fixedbugs/issue26335.go`](testdata/fixedbugs/issue26335.go) — unknown import path reflect
+- [`fixedbugs/issue26407.go`](testdata/fixedbugs/issue26407.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue26411.go`](testdata/fixedbugs/issue26411.go) — unknown import path io/ioutil
 - [`fixedbugs/issue27356.go`](testdata/fixedbugs/issue27356.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/issue27518a.go`](testdata/fixedbugs/issue27518a.go) — unsupported stdlib symbol in Gno: KeepAlive
+- [`fixedbugs/issue27518b.go`](testdata/fixedbugs/issue27518b.go) — unsupported stdlib symbol in Gno: SetFinalizer
 - [`fixedbugs/issue27557.go`](testdata/fixedbugs/issue27557.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue27695.go`](testdata/fixedbugs/issue27695.go) — goroutines not supported in Gno
 - [`fixedbugs/issue27695b.go`](testdata/fixedbugs/issue27695b.go) — unknown import path reflect
@@ -583,12 +534,15 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue28748.go`](testdata/fixedbugs/issue28748.go) — unknown import path reflect
 - [`fixedbugs/issue29362.go`](testdata/fixedbugs/issue29362.go) — channels not supported in Gno
 - [`fixedbugs/issue29362b.go`](testdata/fixedbugs/issue29362b.go) — channels not supported in Gno
+- [`fixedbugs/issue29504.go`](testdata/fixedbugs/issue29504.go) — uintptr type not supported in Gno
+- [`fixedbugs/issue29735.go`](testdata/fixedbugs/issue29735.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue29870.go`](testdata/fixedbugs/issue29870.go) — unknown import path log
 - [`fixedbugs/issue30041.go`](testdata/fixedbugs/issue30041.go) — goroutines not supported in Gno
 - [`fixedbugs/issue30061.go`](testdata/fixedbugs/issue30061.go) — unknown import path unsafe
 - [`fixedbugs/issue30116.go`](testdata/fixedbugs/issue30116.go) — unknown import path text/tabwriter
 - [`fixedbugs/issue30116u.go`](testdata/fixedbugs/issue30116u.go) — unknown import path text/tabwriter
 - [`fixedbugs/issue30243.go`](testdata/fixedbugs/issue30243.go) — imaginary literals not supported in Gno
+- [`fixedbugs/issue30476.go`](testdata/fixedbugs/issue30476.go) — unsupported stdlib symbol in Gno: SetFinalizer
 - [`fixedbugs/issue30606.go`](testdata/fixedbugs/issue30606.go) — unknown import path reflect
 - [`fixedbugs/issue30606b.go`](testdata/fixedbugs/issue30606b.go) — unknown import path reflect
 - [`fixedbugs/issue30709.go`](testdata/fixedbugs/issue30709.go) — unknown import path unsafe
@@ -600,12 +554,15 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue31573.go`](testdata/fixedbugs/issue31573.go) — goroutines not supported in Gno
 - [`fixedbugs/issue31747.go`](testdata/fixedbugs/issue31747.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue32187.go`](testdata/fixedbugs/issue32187.go) — unknown import path log
+- [`fixedbugs/issue32288.go`](testdata/fixedbugs/issue32288.go) — uintptr type not supported in Gno
+- [`fixedbugs/issue32477.go`](testdata/fixedbugs/issue32477.go) — unsupported stdlib symbol in Gno: SetFinalizer
 - [`fixedbugs/issue32723.go`](testdata/fixedbugs/issue32723.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue32959.go`](testdata/fixedbugs/issue32959.go) — unknown import path unsafe
 - [`fixedbugs/issue33275_run.go`](testdata/fixedbugs/issue33275_run.go) — unknown import path os/exec
 - [`fixedbugs/issue33355.go`](testdata/fixedbugs/issue33355.go) — unknown import path sync
 - [`fixedbugs/issue33555.go`](testdata/fixedbugs/issue33555.go) — unknown import path io/ioutil
 - [`fixedbugs/issue33724.go`](testdata/fixedbugs/issue33724.go) — unknown import path runtime/debug
+- [`fixedbugs/issue34123.go`](testdata/fixedbugs/issue34123.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue34723.go`](testdata/fixedbugs/issue34723.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue35073b.go`](testdata/fixedbugs/issue35073b.go) — unknown import path reflect
@@ -613,6 +570,8 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue36437.go`](testdata/fixedbugs/issue36437.go) — unknown import path io/ioutil
 - [`fixedbugs/issue37716.go`](testdata/fixedbugs/issue37716.go) — unknown import path reflect
 - [`fixedbugs/issue38093.go`](testdata/fixedbugs/issue38093.go) — channels not supported in Gno
+- [`fixedbugs/issue38117.go`](testdata/fixedbugs/issue38117.go) — complex numbers not supported in Gno
+- [`fixedbugs/issue38916.go`](testdata/fixedbugs/issue38916.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue39292.go`](testdata/fixedbugs/issue39292.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue39505.go`](testdata/fixedbugs/issue39505.go) — channels not supported in Gno
 - [`fixedbugs/issue39541.go`](testdata/fixedbugs/issue39541.go) — channels not supported in Gno
@@ -620,17 +579,20 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue4085b.go`](testdata/fixedbugs/issue4085b.go) — unknown import path unsafe
 - [`fixedbugs/issue40954.go`](testdata/fixedbugs/issue40954.go) — unknown import path runtime/cgo
 - [`fixedbugs/issue4162.go`](testdata/fixedbugs/issue4162.go) — channels not supported in Gno
+- [`fixedbugs/issue41736.go`](testdata/fixedbugs/issue41736.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue42032.go`](testdata/fixedbugs/issue42032.go) — unknown import path runtime/cgo
 - [`fixedbugs/issue42058a.go`](testdata/fixedbugs/issue42058a.go) — channels not supported in Gno
 - [`fixedbugs/issue42058b.go`](testdata/fixedbugs/issue42058b.go) — channels not supported in Gno
 - [`fixedbugs/issue42075.go`](testdata/fixedbugs/issue42075.go) — unknown import path unsafe
 - [`fixedbugs/issue42076.go`](testdata/fixedbugs/issue42076.go) — unknown import path reflect
+- [`fixedbugs/issue4264.go`](testdata/fixedbugs/issue4264.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue43099.go`](testdata/fixedbugs/issue43099.go) — channels not supported in Gno
 - [`fixedbugs/issue43111.go`](testdata/fixedbugs/issue43111.go) — channels not supported in Gno
 - [`fixedbugs/issue4313.go`](testdata/fixedbugs/issue4313.go) — channels not supported in Gno
 - [`fixedbugs/issue43167.go`](testdata/fixedbugs/issue43167.go) — dot imports not supported in Gno
 - [`fixedbugs/issue4323.go`](testdata/fixedbugs/issue4323.go) — channels not supported in Gno
 - [`fixedbugs/issue43292.go`](testdata/fixedbugs/issue43292.go) — channels not supported in Gno
+- [`fixedbugs/issue43908.go`](testdata/fixedbugs/issue43908.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue43942.go`](testdata/fixedbugs/issue43942.go) — unknown import path log
 - [`fixedbugs/issue4463.go`](testdata/fixedbugs/issue4463.go) — channels not supported in Gno
 - [`fixedbugs/issue44830.go`](testdata/fixedbugs/issue44830.go) — unknown import path reflect
@@ -638,10 +600,13 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue4529.go`](testdata/fixedbugs/issue4529.go) — channels not supported in Gno
 - [`fixedbugs/issue4585.go`](testdata/fixedbugs/issue4585.go) — unknown import path unsafe
 - [`fixedbugs/issue4614.go`](testdata/fixedbugs/issue4614.go) — unknown import path unsafe
+- [`fixedbugs/issue4618.go`](testdata/fixedbugs/issue4618.go) — unsupported stdlib symbol in Gno: AllocsPerRun
 - [`fixedbugs/issue46525.go`](testdata/fixedbugs/issue46525.go) — unknown import path unsafe
 - [`fixedbugs/issue4654.go`](testdata/fixedbugs/issue4654.go) — goroutines not supported in Gno
+- [`fixedbugs/issue4667.go`](testdata/fixedbugs/issue4667.go) — unsupported stdlib symbol in Gno: AllocsPerRun
 - [`fixedbugs/issue46725.go`](testdata/fixedbugs/issue46725.go) — channels not supported in Gno
 - [`fixedbugs/issue46903.go`](testdata/fixedbugs/issue46903.go) — unknown import path runtime/cgo
+- [`fixedbugs/issue4813.go`](testdata/fixedbugs/issue4813.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue48289.go`](testdata/fixedbugs/issue48289.go) — channels not supported in Gno
 - [`fixedbugs/issue48357.go`](testdata/fixedbugs/issue48357.go) — unknown import path reflect
 - [`fixedbugs/issue48536.go`](testdata/fixedbugs/issue48536.go) — unknown import path unsafe
@@ -649,10 +614,12 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue4909a.go`](testdata/fixedbugs/issue4909a.go) — unknown import path unsafe
 - [`fixedbugs/issue49110.go`](testdata/fixedbugs/issue49110.go) — unknown import path reflect
 - [`fixedbugs/issue49240.go`](testdata/fixedbugs/issue49240.go) — goroutines not supported in Gno
+- [`fixedbugs/issue49282.go`](testdata/fixedbugs/issue49282.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue49368.go`](testdata/fixedbugs/issue49368.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue49767.go`](testdata/fixedbugs/issue49767.go) — channels not supported in Gno
 - [`fixedbugs/issue49814.go`](testdata/fixedbugs/issue49814.go) — Gno rejects the 1<<50 array at runtime (makeslice: len out of range), not at compile time like gc; no compile-time error to pin.
 - [`fixedbugs/issue50672.go`](testdata/fixedbugs/issue50672.go) — generics not supported in Gno
+- [`fixedbugs/issue51401.go`](testdata/fixedbugs/issue51401.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue51531.go`](testdata/fixedbugs/issue51531.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue5172.go`](testdata/fixedbugs/issue5172.go) — goroutines not supported in Gno
 - [`fixedbugs/issue51733.go`](testdata/fixedbugs/issue51733.go) — unknown import path log
@@ -669,6 +636,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue53309.go`](testdata/fixedbugs/issue53309.go) — generics not supported in Gno
 - [`fixedbugs/issue53439.go`](testdata/fixedbugs/issue53439.go) — unknown import path unsafe
 - [`fixedbugs/issue53635.go`](testdata/fixedbugs/issue53635.go) — generics not supported in Gno
+- [`fixedbugs/issue5373.go`](testdata/fixedbugs/issue5373.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue54159.go`](testdata/fixedbugs/issue54159.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue54220.go`](testdata/fixedbugs/issue54220.go) — unknown import path sync/atomic
 - [`fixedbugs/issue54307.go`](testdata/fixedbugs/issue54307.go) — generics not supported in Gno
@@ -689,6 +657,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue57184.go`](testdata/fixedbugs/issue57184.go) — unknown import path log
 - [`fixedbugs/issue57778.go`](testdata/fixedbugs/issue57778.go) — generics not supported in Gno
 - [`fixedbugs/issue57823.go`](testdata/fixedbugs/issue57823.go) — channels not supported in Gno
+- [`fixedbugs/issue5793.go`](testdata/fixedbugs/issue5793.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue57955.go`](testdata/fixedbugs/issue57955.go) — generics not supported in Gno
 - [`fixedbugs/issue58300.go`](testdata/fixedbugs/issue58300.go) — unknown import path reflect
 - [`fixedbugs/issue58300b.go`](testdata/fixedbugs/issue58300b.go) — unknown import path reflect
@@ -703,11 +672,14 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue59680.go`](testdata/fixedbugs/issue59680.go) — channels not supported in Gno
 - [`fixedbugs/issue60601.go`](testdata/fixedbugs/issue60601.go) — unknown import path unsafe
 - [`fixedbugs/issue60990.go`](testdata/fixedbugs/issue60990.go) — generics not supported in Gno
+- [`fixedbugs/issue61127.go`](testdata/fixedbugs/issue61127.go) — clear builtin not supported in Gno
 - [`fixedbugs/issue61187.go`](testdata/fixedbugs/issue61187.go) — unknown import path reflect
 - [`fixedbugs/issue62203.go`](testdata/fixedbugs/issue62203.go) — unknown import path maps
 - [`fixedbugs/issue62360.go`](testdata/fixedbugs/issue62360.go) — unknown import path math/big
+- [`fixedbugs/issue6247.go`](testdata/fixedbugs/issue6247.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue62515.go`](testdata/fixedbugs/issue62515.go) — channels not supported in Gno
 - [`fixedbugs/issue63333.go`](testdata/fixedbugs/issue63333.go) — Gno doesn't implement gc's //go:nointerface directive check; it accepts this file (gc rejects it), so there's no error to pin.
+- [`fixedbugs/issue6402.go`](testdata/fixedbugs/issue6402.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue6403.go`](testdata/fixedbugs/issue6403.go) — unknown import path syscall
 - [`fixedbugs/issue6428.go`](testdata/fixedbugs/issue6428.go) — dot imports not supported in Gno
 - [`fixedbugs/issue65362.go`](testdata/fixedbugs/issue65362.go) — generics not supported in Gno
@@ -719,6 +691,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue68292.go`](testdata/fixedbugs/issue68292.go) — generics not supported in Gno
 - [`fixedbugs/issue6847.go`](testdata/fixedbugs/issue6847.go) — channels not supported in Gno
 - [`fixedbugs/issue6866.go`](testdata/fixedbugs/issue6866.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/issue6902.go`](testdata/fixedbugs/issue6902.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue69110.go`](testdata/fixedbugs/issue69110.go) — unknown import path maps
 - [`fixedbugs/issue69434.go`](testdata/fixedbugs/issue69434.go) — unknown import path iter
 - [`fixedbugs/issue69507.go`](testdata/fixedbugs/issue69507.go) — generics not supported in Gno
@@ -732,6 +705,8 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue7525.go`](testdata/fixedbugs/issue7525.go) — unknown import path unsafe
 - [`fixedbugs/issue7525d.go`](testdata/fixedbugs/issue7525d.go) — unknown import path unsafe
 - [`fixedbugs/issue7525e.go`](testdata/fixedbugs/issue7525e.go) — unknown import path unsafe
+- [`fixedbugs/issue7690.go`](testdata/fixedbugs/issue7690.go) — unsupported stdlib symbol in Gno: Stack
+- [`fixedbugs/issue7740.go`](testdata/fixedbugs/issue7740.go) — unsupported stdlib symbol in Gno: Compiler
 - [`fixedbugs/issue7760.go`](testdata/fixedbugs/issue7760.go) — unknown import path unsafe
 - [`fixedbugs/issue7921.go`](testdata/fixedbugs/issue7921.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue7997.go`](testdata/fixedbugs/issue7997.go) — channels not supported in Gno
@@ -739,12 +714,16 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue8004.go`](testdata/fixedbugs/issue8004.go) — unknown import path reflect
 - [`fixedbugs/issue8011.go`](testdata/fixedbugs/issue8011.go) — channels not supported in Gno
 - [`fixedbugs/issue8017.go`](testdata/fixedbugs/issue8017.go) — channels not supported in Gno
+- [`fixedbugs/issue8036.go`](testdata/fixedbugs/issue8036.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue8039.go`](testdata/fixedbugs/issue8039.go) — channels not supported in Gno
+- [`fixedbugs/issue8048.go`](testdata/fixedbugs/issue8048.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue8074.go`](testdata/fixedbugs/issue8074.go) — goroutines not supported in Gno
 - [`fixedbugs/issue8154.go`](testdata/fixedbugs/issue8154.go) — channels not supported in Gno
+- [`fixedbugs/issue8155.go`](testdata/fixedbugs/issue8155.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue8158.go`](testdata/fixedbugs/issue8158.go) — channels not supported in Gno
 - [`fixedbugs/issue8336.go`](testdata/fixedbugs/issue8336.go) — channels not supported in Gno
 - [`fixedbugs/issue8347.go`](testdata/fixedbugs/issue8347.go) — channels not supported in Gno
+- [`fixedbugs/issue8501.go`](testdata/fixedbugs/issue8501.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue8606b.go`](testdata/fixedbugs/issue8606b.go) — unknown import path reflect
 - [`fixedbugs/issue8761.go`](testdata/fixedbugs/issue8761.go) — channels not supported in Gno
 - [`fixedbugs/issue9076.go`](testdata/fixedbugs/issue9076.go) — unknown import path unsafe
@@ -760,8 +739,10 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fuse.go`](testdata/fuse.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`gc2.go`](testdata/gc2.go) — channels not supported in Gno
 - [`gcgort.go`](testdata/gcgort.go) — goroutines not supported in Gno
+- [`gcstring.go`](testdata/gcstring.go) — unsupported stdlib symbol in Gno: Sleep
 - [`goprint.go`](testdata/goprint.go) — goroutines not supported in Gno
 - [`goto.go`](testdata/goto.go) — channels not supported in Gno
+- [`heapsampling.go`](testdata/heapsampling.go) — unsupported stdlib symbol in Gno: MemProfileRecord
 - [`import.go`](testdata/import.go) — dot imports not supported in Gno
 - [`import1.go`](testdata/import1.go) — dot imports not supported in Gno
 - [`init1.go`](testdata/init1.go) — channels not supported in Gno
@@ -773,16 +754,25 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`inline_sync.go`](testdata/inline_sync.go) — unknown import path sync
 - [`inline_variadic.go`](testdata/inline_variadic.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`inline.go`](testdata/inline.go) — goroutines not supported in Gno
+- [`int_lit.go`](testdata/int_lit.go) — unsupported stdlib symbol in Gno: Exit
 - [`interface/assertinline.go`](testdata/interface/assertinline.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`interface/bigdata.go`](testdata/interface/bigdata.go) — builtin shadowing not supported in Gno
 - [`interface/convert.go`](testdata/interface/convert.go) — builtin shadowing not supported in Gno
+- [`interface/embed.go`](testdata/interface/embed.go) — unsupported stdlib symbol in Gno: Exit
 - [`interface/fake.go`](testdata/interface/fake.go) — unknown import path reflect
+- [`interface/struct.go`](testdata/interface/struct.go) — unsupported stdlib symbol in Gno: Exit
+- [`internal/runtime/sys/inlinegcpc.go`](testdata/internal/runtime/sys/inlinegcpc.go) — uintptr type not supported in Gno
 - [`intrinsic_atomic.go`](testdata/intrinsic_atomic.go) — unknown import path sync/atomic
 - [`ken/chan.go`](testdata/ken/chan.go) — channels not supported in Gno
 - [`ken/chan1.go`](testdata/ken/chan1.go) — channels not supported in Gno
+- [`ken/cplx0.go`](testdata/ken/cplx0.go) — complex numbers not supported in Gno
+- [`ken/cplx1.go`](testdata/ken/cplx1.go) — complex numbers not supported in Gno
 - [`ken/cplx2.go`](testdata/ken/cplx2.go) — imaginary literals not supported in Gno
 - [`ken/cplx3.go`](testdata/ken/cplx3.go) — unknown import path unsafe
+- [`ken/cplx4.go`](testdata/ken/cplx4.go) — complex numbers not supported in Gno
 - [`ken/cplx5.go`](testdata/ken/cplx5.go) — channels not supported in Gno
+- [`ken/divconst.go`](testdata/ken/divconst.go) — unsupported stdlib symbol in Gno: Intn
+- [`ken/modconst.go`](testdata/ken/modconst.go) — unsupported stdlib symbol in Gno: Intn
 - [`linkmain_run.go`](testdata/linkmain_run.go) — unknown import path io/ioutil
 - [`linkname3.go`](testdata/linkname3.go) — unknown import path unsafe
 - [`linkobj.go`](testdata/linkobj.go) — unknown import path io/ioutil
@@ -795,7 +785,11 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`loopbce.go`](testdata/loopbce.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`makechan.go`](testdata/makechan.go) — channels not supported in Gno
 - [`makeslice.go`](testdata/makeslice.go) — unknown import path unsafe
+- [`mallocfin.go`](testdata/mallocfin.go) — unsupported stdlib symbol in Gno: GOMAXPROCS
 - [`map1.go`](testdata/map1.go) — channels not supported in Gno
+- [`mapclear.go`](testdata/mapclear.go) — unsupported stdlib symbol in Gno: Exit
+- [`maplinear.go`](testdata/maplinear.go) — complex numbers not supported in Gno
+- [`method5.go`](testdata/method5.go) — uintptr type not supported in Gno
 - [`named.go`](testdata/named.go) — channels not supported in Gno
 - [`named1.go`](testdata/named1.go) — channels not supported in Gno
 - [`newinline.go`](testdata/newinline.go) — goroutines not supported in Gno
@@ -810,11 +804,14 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`nowritebarrier.go`](testdata/nowritebarrier.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`opt_branchlikely.go`](testdata/opt_branchlikely.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`parentype.go`](testdata/parentype.go) — channels not supported in Gno
+- [`peano.go`](testdata/peano.go) — unsupported stdlib symbol in Gno: GOARCH
 - [`phiopt.go`](testdata/phiopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`print.go`](testdata/print.go) — uintptr type not supported in Gno
 - [`prove_constant_folding.go`](testdata/prove_constant_folding.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`prove_invert_loop_with_unused_iterators.go`](testdata/prove_invert_loop_with_unused_iterators.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`range.go`](testdata/range.go) — channels not supported in Gno
 - [`recover.go`](testdata/recover.go) — unknown import path reflect
+- [`recover1.go`](testdata/recover1.go) — unsupported stdlib symbol in Gno: Breakpoint
 - [`recover4.go`](testdata/recover4.go) — unknown import path log
 - [`reflectmethod1.go`](testdata/reflectmethod1.go) — unknown import path reflect
 - [`reflectmethod2.go`](testdata/reflectmethod2.go) — unknown import path reflect
@@ -836,7 +833,11 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`slicecap.go`](testdata/slicecap.go) — unknown import path unsafe
 - [`sliceopt.go`](testdata/sliceopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`stack.go`](testdata/stack.go) — channels not supported in Gno
+- [`stackobj.go`](testdata/stackobj.go) — unsupported stdlib symbol in Gno: SetFinalizer
+- [`stackobj3.go`](testdata/stackobj3.go) — unsupported stdlib symbol in Gno: SetFinalizer
 - [`strcopy.go`](testdata/strcopy.go) — unknown import path reflect
+- [`string_lit.go`](testdata/string_lit.go) — unsupported stdlib symbol in Gno: Exit
+- [`stringrange.go`](testdata/stringrange.go) — unsupported stdlib symbol in Gno: Exit
 - [`struct0.go`](testdata/struct0.go) — channels not supported in Gno
 - [`switch.go`](testdata/switch.go) — channels not supported in Gno
 - [`tailcall.go`](testdata/tailcall.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
@@ -1038,6 +1039,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`typeparam/value.go`](testdata/typeparam/value.go) — generics not supported in Gno
 - [`typeswitch.go`](testdata/typeswitch.go) — channels not supported in Gno
 - [`uintptrescapes3.go`](testdata/uintptrescapes3.go) — unknown import path unsafe
+- [`uintptrkeepalive.go`](testdata/uintptrkeepalive.go) — uintptr type not supported in Gno
 - [`unsafe_slice_data.go`](testdata/unsafe_slice_data.go) — unknown import path reflect
 - [`unsafe_string_data.go`](testdata/unsafe_string_data.go) — unknown import path reflect
 - [`unsafe_string.go`](testdata/unsafe_string.go) — unknown import path unsafe
@@ -1046,8 +1048,9 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`weak.go`](testdata/weak.go) — unknown import path weak
 - [`winbatch.go`](testdata/winbatch.go) — unknown import path io/ioutil
 - [`writebarrier.go`](testdata/writebarrier.go) — unknown import path unsafe
+- [`zerodivide.go`](testdata/zerodivide.go) — uintptr type not supported in Gno
 
-## ✅ Clean — verified (1062)
+## ✅ Clean — verified (1059)
 
 Gno's behavior is pinned and matches; no outstanding issue.
 
@@ -1499,7 +1502,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue16804.go`](testdata/fixedbugs/issue16804.go)
 - [`fixedbugs/issue16949.go`](testdata/fixedbugs/issue16949.go)
 - [`fixedbugs/issue17005.go`](testdata/fixedbugs/issue17005.go)
-- [`fixedbugs/issue17038.go`](testdata/fixedbugs/issue17038.go)
 - [`fixedbugs/issue17039.go`](testdata/fixedbugs/issue17039.go)
 - [`fixedbugs/issue17111.go`](testdata/fixedbugs/issue17111.go)
 - [`fixedbugs/issue17194.go`](testdata/fixedbugs/issue17194.go)
@@ -1971,7 +1973,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue8325.go`](testdata/fixedbugs/issue8325.go)
 - [`fixedbugs/issue8438.go`](testdata/fixedbugs/issue8438.go)
 - [`fixedbugs/issue8440.go`](testdata/fixedbugs/issue8440.go)
-- [`fixedbugs/issue8501.go`](testdata/fixedbugs/issue8501.go)
 - [`fixedbugs/issue8507.go`](testdata/fixedbugs/issue8507.go)
 - [`fixedbugs/issue8613.go`](testdata/fixedbugs/issue8613.go)
 - [`fixedbugs/issue8620.go`](testdata/fixedbugs/issue8620.go)
@@ -2108,7 +2109,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`typeparam/issue50417b.go`](testdata/typeparam/issue50417b.go)
 - [`typeswitch2b.go`](testdata/typeswitch2b.go)
 - [`typeswitch3.go`](testdata/typeswitch3.go)
-- [`uintptrkeepalive.go`](testdata/uintptrkeepalive.go)
 - [`undef.go`](testdata/undef.go)
 - [`utf.go`](testdata/utf.go)
 - [`varerr.go`](testdata/varerr.go)

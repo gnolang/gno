@@ -16,5 +16,4 @@ const (
 
 func main() {}
 
-// KnownIssue:
-// line 12: name complex not defined in fileset with files [bug316.go]
+// Unsupported: complex numbers not supported in Gno

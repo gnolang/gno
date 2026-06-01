@@ -18,8 +18,4 @@ func main() {
 	println(z/0)
 }
 
-// GoTypeCheckError:
-// line 16: invalid operation: division by zero
-
-// KnownIssue:
-// line 14: name complex128 not defined in fileset with files [issue4264.go]
+// Unsupported: complex numbers not supported in Gno

@@ -444,11 +444,47 @@ var featureGapErrors = []struct {
 	{"unknown Go type", "unsupported Go type in Gno"},
 }
 
+// langGapErrors maps a precise regex over Gno's error to a feature-gap
+// reason, for language features Gno simply lacks (no complex numbers, no
+// uintptr type, no `clear` builtin, no channel ops). These surface as
+// "name X not declared/defined" or "... is not permitted", which a bare
+// substring would over-match (e.g. a user type "complexThing"), so the
+// patterns are anchored to the exact builtin/keyword. 100%-certain gaps
+// only — anything ambiguous stays a // KnownIssue:.
+var langGapErrors = []struct {
+	re     *regexp.Regexp
+	reason string
+}{
+	{regexp.MustCompile(`name complex(64|128)? not (declared|defined)`), "complex numbers not supported in Gno"},
+	{regexp.MustCompile(`name (imag|real) not (declared|defined)`), "complex numbers not supported in Gno"},
+	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
+	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
+	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
+}
+
+// reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
+// known exported stdlib symbol Gno's test context doesn't provide
+// (os/runtime/debug/rand/time/testing). In RUN mode `go run` already
+// succeeded, so the name is a real Go symbol — a capitalized stdlib one
+// is a Gno stdlib gap (route to // Unsupported:), whereas a lowercase
+// user name (`xx`, `i`, `main`) would be a Gno scoping BUG and is
+// deliberately NOT listed here (stays a // KnownIssue:). The symbol is
+// captured so the reason is greppable per-feature: when Gno later adds
+// it, grep that reason, drop the directive, and re-sync to recover the
+// file. The list is explicit (not "any capitalized name") so an
+// unrecognized symbol still surfaces as a bug rather than being hidden.
+var reStdlibSymbolGap = regexp.MustCompile(`name (Exit|Getenv|Args|Environ|Hostname|` +
+	`Caller|Callers|SetFinalizer|KeepAlive|GC|GOMAXPROCS|GOARCH|GOOS|NumCPU|NumGoroutine|` +
+	`Gosched|Goexit|Stack|ReadMemStats|MemProfileRecord|MemProfileRate|MemStats|Frame|Frames|` +
+	`Compiler|Breakpoint|Version|Intn|Int31|Int31n|Int63|Int63n|Float64|Float32|Seed|Perm|Shuffle|` +
+	`Sleep|Tick|AllocsPerRun|Caller) not (declared|defined)`)
+
 // UnsupportedFeatureError returns a feature-gap reason if errStr is one
 // of Gno's "feature not implemented" messages (channels, goroutines,
-// generics, …), or "" otherwise. Also recognizes "unknown import path
-// <pkg>" — a stdlib the Gno test context lacks. Used to route such
-// files to `// Unsupported:` instead of `// KnownIssue:`.
+// generics, complex, uintptr, …), or "" otherwise. Also recognizes
+// "unknown import path <pkg>" — a stdlib the Gno test context lacks.
+// Used to route such files to `// Unsupported:` instead of
+// `// KnownIssue:`.
 func UnsupportedFeatureError(errStr string) string {
 	if imp := UnsupportedImport(errStr); imp != "" {
 		return "unknown import path " + imp
@@ -457,6 +493,14 @@ func UnsupportedFeatureError(errStr string) string {
 		if strings.Contains(errStr, g.fragment) {
 			return g.reason
 		}
+	}
+	for _, g := range langGapErrors {
+		if g.re.MatchString(errStr) {
+			return g.reason
+		}
+	}
+	if m := reStdlibSymbolGap.FindStringSubmatch(errStr); m != nil {
+		return "unsupported stdlib symbol in Gno: " + m[1]
 	}
 	return ""
 }

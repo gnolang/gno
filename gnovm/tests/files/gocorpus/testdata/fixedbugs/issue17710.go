@@ -12,8 +12,4 @@ func f(x interface{}) {
 	runtime.KeepAlive(x)
 }
 
-// GoTypeCheckError:
-// line 12: undefined: runtime.KeepAlive
-
-// KnownIssue:
-// line 12: name KeepAlive not declared
+// Unsupported: unsupported stdlib symbol in Gno: KeepAlive

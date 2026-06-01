@@ -66,5 +66,4 @@ func g(s *StkObj) {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Unsupported: unsupported stdlib symbol in Gno: SetFinalizer

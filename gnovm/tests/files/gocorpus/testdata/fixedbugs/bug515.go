@@ -22,5 +22,4 @@ type S2 struct {
 
 var V any = S2{}
 
-// KnownIssue:
-// line 16: 2: name uintptr not defined in fileset with files [bug515.go]
+// Unsupported: uintptr type not supported in Gno

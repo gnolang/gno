@@ -25,8 +25,4 @@ func main() {
         runtime.KeepAlive(head)
 }
 
-// GoTypeCheckError:
-// line 25: undefined: runtime.KeepAlive
-
-// KnownIssue:
-// line 25: name KeepAlive not declared
+// Unsupported: unsupported stdlib symbol in Gno: KeepAlive

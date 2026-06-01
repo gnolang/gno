@@ -16,5 +16,4 @@ func F() {
 	p["hello"] = v.(complex128) * v.(complex128)
 }
 
-// KnownIssue:
-// line 16: name complex128 not declared
+// Unsupported: complex numbers not supported in Gno

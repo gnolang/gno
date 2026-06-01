@@ -12,8 +12,4 @@ func f() uintptr {
 	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot use nil"
 }
 
-// GoTypeCheckError:
-// line 12: cannot use nil as uintptr value in return statement
-
-// KnownIssue:
-// line 11: 2: name uintptr not defined in fileset with files [issue6402.go]
+// Unsupported: uintptr type not supported in Gno

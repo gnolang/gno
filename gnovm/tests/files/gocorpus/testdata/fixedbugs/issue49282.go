@@ -43,5 +43,4 @@ func h() {
 	f(d)
 }
 
-// KnownIssue:
-// line 10: 2: name uintptr not defined in fileset with files [issue49282.go]
+// Unsupported: uintptr type not supported in Gno

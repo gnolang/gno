@@ -14,5 +14,4 @@ func main() {
 	_ = complex(1/f, 0)
 }
 
-// KnownIssue:
-// line 14: name complex not declared
+// Unsupported: complex numbers not supported in Gno

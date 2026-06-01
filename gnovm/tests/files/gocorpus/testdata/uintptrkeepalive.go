@@ -10,5 +10,4 @@ package p
 func missingNosplit(uintptr) { // ERROR "go:uintptrkeepalive requires go:nosplit"
 }
 
-// GnoError:
-// line 10: 2: name uintptr not defined in fileset with files [uintptrkeepalive.go]
+// Unsupported: uintptr type not supported in Gno

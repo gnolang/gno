@@ -17,5 +17,4 @@ func main() {
 bug315.go:13: internal compiler error: optoas: no entry DIV-complex
 */
 
-// KnownIssue:
-// line 12: name complex not declared
+// Unsupported: complex numbers not supported in Gno

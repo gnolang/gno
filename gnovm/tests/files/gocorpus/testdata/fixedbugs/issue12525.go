@@ -25,9 +25,4 @@ func main() {
 	s-- // ERROR "invalid operation: s-- \(non-numeric type string\)"
 }
 
-// GoTypeCheckError:
-// line 22: invalid operation: b++ (non-numeric type bool)
-// line 25: invalid operation: s-- (non-numeric type string)
-
-// KnownIssue:
-// line 18: name complex128 not defined in fileset with files [issue12525.go]
+// Unsupported: complex numbers not supported in Gno

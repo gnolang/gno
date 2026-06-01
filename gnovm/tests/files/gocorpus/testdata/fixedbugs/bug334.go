@@ -30,5 +30,4 @@ bug334.go:22: c64.Foo undefined (type cplx128 has no field or method Foo)
 bug334.go:23: c128.Foo undefined (type cplx64 has no field or method Foo)
 */
 
-// KnownIssue:
-// line 12: name complex64 not defined in fileset with files [bug334.go]
+// Unsupported: complex numbers not supported in Gno

@@ -13,5 +13,4 @@ func f(b bool, c complex128) func(complex128) complex128 {
 	}
 }
 
-// KnownIssue:
-// line 9: 2: name complex128 not defined in fileset with files [issue38916.go]
+// Unsupported: complex numbers not supported in Gno

@@ -39,16 +39,4 @@ var _ = y / (1e-1000 + 1e-50i)
 var _ = y / (1e-50 + 1e-1000i)
 var _ = y / (1e-1000 + 1e-1000i) // GC_ERROR "division by zero"
 
-// GoTypeCheckError:
-// line 16: invalid operation: division by zero
-// line 17: invalid operation: division by zero
-// line 19: invalid operation: division by zero
-// line 20: invalid operation: division by zero
-// line 27: invalid operation: division by zero
-// line 28: invalid operation: division by zero
-// line 31: invalid operation: division by zero
-// line 33: invalid operation: division by zero
-// line 40: invalid operation: division by zero
-
-// KnownIssue:
-// line 12: name complex64 not defined in fileset with files [issue11674.go]
+// Unsupported: complex numbers not supported in Gno

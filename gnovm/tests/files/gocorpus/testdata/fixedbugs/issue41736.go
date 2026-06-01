@@ -104,5 +104,4 @@ func G(x []T) []T {
 	return y
 }
 
-// KnownIssue:
-// line 17: 2: name complex128 not defined in fileset with files [issue41736.go]
+// Unsupported: complex numbers not supported in Gno

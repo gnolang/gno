@@ -14,5 +14,4 @@ var (
 	b = uint64(y)
 )
 
-// KnownIssue:
-// line 12: name uintptr not defined in fileset with files [issue13263.go]
+// Unsupported: uintptr type not supported in Gno

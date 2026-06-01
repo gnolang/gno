@@ -19,5 +19,4 @@ func main() {
 
 // bug275.go:17: internal compiler error: subnode not addable
 
-// KnownIssue:
-// line 12: name complex64 not defined in fileset with files [bug275.go]
+// Unsupported: complex numbers not supported in Gno

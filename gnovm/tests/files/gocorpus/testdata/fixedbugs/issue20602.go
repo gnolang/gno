@@ -13,9 +13,4 @@ var p = &[1]complex128{0}
 var _ = real(p)  // ERROR "type \*\[1\]complex128|argument must have complex type"
 var _ = imag(p)	 // ERROR "type \*\[1\]complex128|argument must have complex type"
 
-// GoTypeCheckError:
-// line 13: invalid argument: argument has type *[1]complex128, expected complex type
-// line 14: invalid argument: argument has type *[1]complex128, expected complex type
-
-// KnownIssue:
-// line 12: name complex128 not defined in fileset with files [issue20602.go]
+// Unsupported: complex numbers not supported in Gno
