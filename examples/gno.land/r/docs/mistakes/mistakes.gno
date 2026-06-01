@@ -115,5 +115,44 @@ func SetAdmin(_ realm, newAdmin address) {
     admin = newAdmin
 }
 ` + "```" + `
+
+---
+
+## 5. Returning References to Internal State
+
+Returning a pointer, slice, map, or interface value gives the caller a live
+reference to your realm's data. The read-only taint stops an external realm from
+writing to a returned field directly, but it does not stop a mutating method on
+the value, and same-realm code is not tainted at all. Either path skips the
+checks your setters enforce.
+
+` + "```go" + `
+// RISKY
+type Config struct {
+    admin address
+}
+
+// SetAdmin has no checks; any caller holding a *Config can call it.
+func (c *Config) SetAdmin(a address) { c.admin = a }
+
+var config Config
+
+// Returns a live pointer, so a caller can call SetAdmin directly
+func GetConfig() *Config {
+    return &config
+}
+` + "```" + `
+
+Return a copy, or expose only read methods, when the caller should not change
+stored state:
+
+` + "```go" + `
+// SAFE
+var admins []address
+
+func Admins() []address {
+    return append([]address(nil), admins...)
+}
+` + "```" + `
 `
 }

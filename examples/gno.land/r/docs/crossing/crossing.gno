@@ -101,12 +101,14 @@ own isolated instance of the package's data.
 ## Crossing in [Tests](https://docs.gno.land/resources/gno-stdlibs/#testing)
 
 ` + "```go" + `
+import "gno.land/p/nt/testutils/v0"
+
 func TestWithCaller(t *testing.T) {
-    // Simulate PreviousRealm()
-    testing.SetRealm(testing.NewRealm("gno.land/r/caller"))
-    
-    // Simulate OriginCaller()
-    testing.SetOriginCaller(testing.TestAddress("user1"))
+    // Simulate PreviousRealm() being another realm
+    testing.SetRealm(testing.NewCodeRealm("gno.land/r/caller"))
+
+    // Simulate OriginCaller() being an end user
+    testing.SetOriginCaller(testutils.TestAddress("user1"))
 }
 ` + "```" + `
 

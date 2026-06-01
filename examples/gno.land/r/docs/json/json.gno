@@ -51,8 +51,8 @@ func CreateArrayJSON(_ realm, items ...string) string {
 	return lastCreatedJSON
 }
 
-// ParseJSON parses a JSON string and returns its formatted representation
-func ParseJSON(data string) (string, error) {
+// PrettyPrintJSON parses a JSON string and returns formatted output
+func PrettyPrintJSON(data string) (string, error) {
 	node, err := json.Unmarshal([]byte(data))
 	if err != nil {
 		return "", err

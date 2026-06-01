@@ -45,16 +45,18 @@ TDD is writing tests BEFORE writing code.
 
 ## Quick Example
 
-First, write the test:
+First, write the test. A function that changes realm state takes a cur realm
+parameter, so the test takes one too and calls it across the realm boundary
+with cross(cur):
 
 ` + "```go" + `
 import "testing"
 
 // calculator_test.gno
-func TestAdd(t *testing.T) {
-    result := Add(nil, 2, 3)
+func TestAdd(cur realm, t *testing.T) {
+    result := Add(cross(cur), 2, 3)
     if result != 5 {
-        t.Errorf("Add(nil, 2, 3) = %d; want 5", result)
+        t.Errorf("Add(2, 3) = %d; want 5", result)
     }
 }
 ` + "```" + `
@@ -73,7 +75,7 @@ func Add(_ realm, a, b int64) int64 {
 Test multiple cases efficiently:
 
 ` + "```go" + `
-func TestAdd(t *testing.T) {
+func TestAdd(cur realm, t *testing.T) {
     tests := []struct {
         a, b, want int64
     }{
@@ -81,11 +83,11 @@ func TestAdd(t *testing.T) {
         {-2, -3, -5},
         {0, 5, 5},
     }
-    
+
     for _, tt := range tests {
-        got := Add(nil, tt.a, tt.b)
+        got := Add(cross(cur), tt.a, tt.b)
         if got != tt.want {
-            t.Errorf("Add(nil, %d, %d) = %d; want %d", 
+            t.Errorf("Add(%d, %d) = %d; want %d",
                 tt.a, tt.b, got, tt.want)
         }
     }
@@ -94,25 +96,30 @@ func TestAdd(t *testing.T) {
 
 ## Testing Panics
 
+A panic that crosses a realm boundary aborts the program, so it can't be caught
+with recover. Use the revive builtin to assert that a cross-call panics:
+
 ` + "```go" + `
-func TestDivideByZero(t *testing.T) {
-    defer func() {
-        if r := recover(); r == nil {
-            t.Error("expected panic")
-        }
-    }()
-    Divide(nil, 10, 0)
+func TestDivideByZero(cur realm, t *testing.T) {
+    rec := revive(func() {
+        Divide(cross(cur), 10, 0)
+    })
+    if rec == nil {
+        t.Error("expected panic")
+    }
 }
 ` + "```" + `
 
 ## Testing with Addresses
 
 ` + "```go" + `
-func TestWithCaller(t *testing.T) {
-    addr := testing.TestAddress("user1")
+import "gno.land/p/nt/testutils/v0"
+
+func TestWithCaller(cur realm, t *testing.T) {
+    addr := testutils.TestAddress("user1")
     testing.SetOriginCaller(addr)
-    
-    result := SomeFunctionThatChecksCaller(nil)
+
+    result := SomeFunctionThatChecksCaller(cross(cur))
     // Assert...
 }
 ` + "```" + `
@@ -120,10 +127,10 @@ func TestWithCaller(t *testing.T) {
 ## Testing with Coins
 
 ` + "```go" + `
-func TestWithCoins(t *testing.T) {
+func TestWithCoins(cur realm, t *testing.T) {
     testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 1000)})
-    
-    result := SomePayableFunction(nil)
+
+    result := SomePayableFunction(cross(cur))
     // Assert...
 }
 ` + "```" + `

@@ -2,6 +2,7 @@ package factory
 
 import (
 	"chain/runtime/unsafe"
+	"errors"
 	"strconv"
 )
 
@@ -18,7 +19,7 @@ const (
 type Token interface {
 	GetInfo() string
 	GetType() string
-	Transfer(to address, amount uint64) string
+	Transfer(to address, amount uint64) error
 }
 
 // FungibleToken implements divisible tokens (like coins)
@@ -36,12 +37,12 @@ func (f *FungibleToken) GetType() string {
 	return "Fungible"
 }
 
-func (f *FungibleToken) Transfer(to address, amount uint64) string {
+func (f *FungibleToken) Transfer(to address, amount uint64) error {
 	if amount > f.amount {
-		return "Insufficient balance"
+		return errors.New("insufficient balance")
 	}
 	f.amount -= amount
-	return "Transferred " + strconv.FormatUint(amount, 10) + " " + f.name + " to " + to.String()
+	return nil
 }
 
 // NonFungibleToken implements unique tokens (like NFTs)
@@ -58,12 +59,12 @@ func (n *NonFungibleToken) GetType() string {
 	return "Non-Fungible"
 }
 
-func (n *NonFungibleToken) Transfer(to address, amount uint64) string {
+func (n *NonFungibleToken) Transfer(to address, amount uint64) error {
 	if amount != 1 {
-		return "NFTs can only be transferred as a whole (amount must be 1)"
+		return errors.New("NFTs can only be transferred as a whole (amount must be 1)")
 	}
 	n.owner = to
-	return "Transferred NFT " + n.name + " to " + to.String()
+	return nil
 }
 
 // SoulBoundToken implements non-transferable tokens
@@ -80,8 +81,8 @@ func (s *SoulBoundToken) GetType() string {
 	return "SoulBound"
 }
 
-func (s *SoulBoundToken) Transfer(to address, amount uint64) string {
-	return "SoulBound tokens cannot be transferred"
+func (s *SoulBoundToken) Transfer(to address, amount uint64) error {
+	return errors.New("soulbound tokens cannot be transferred")
 }
 
 // CreateToken is the factory function that creates different token types
@@ -138,7 +139,7 @@ Creates different types of objects that share a common interface.
 // Common interface
 type Token interface {
     GetInfo() string
-    Transfer(to address, amount uint64) string
+    Transfer(to address, amount uint64) error
 }
 
 // Concrete types
@@ -160,7 +161,9 @@ func CreateToken(tokenType int, name string) Token {
 
 // Work with interface, not concrete types
 token := CreateToken(Fungible, "USDC")
-token.Transfer(recipientAddr, 100)  // Transfer 100 tokens
+if err := token.Transfer(recipientAddr, 100); err != nil {
+    panic(err)
+}
 ` + "```" + `
 
 ## Live Demo
