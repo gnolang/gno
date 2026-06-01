@@ -17,7 +17,9 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -40,6 +42,9 @@ type transpileOptions struct {
 	transpiled map[string]struct{}
 	// skipped packages (gno mod marks them as ignore)
 	skipped []string
+	// resolver maps Gno import paths to their on-disk location relative
+	// to cfg.rootDir.
+	resolver transpiler.ImportResolver
 }
 
 func newTranspileOptions(cfg *transpileCfg, io commands.IO) *transpileOptions {
@@ -47,6 +52,7 @@ func newTranspileOptions(cfg *transpileCfg, io commands.IO) *transpileOptions {
 		cfg:        cfg,
 		io:         io,
 		transpiled: map[string]struct{}{},
+		resolver:   transpiler.DefaultResolver(cfg.rootDir),
 	}
 }
 
@@ -140,6 +146,10 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	opts := newTranspileOptions(cfg, io)
+
+	if r := buildTranspileResolver(cfg.rootDir, io); r != nil {
+		opts.resolver = r
+	}
 	var errlist scanner.ErrorList
 	for _, path := range paths {
 		st, err := os.Stat(path)
@@ -251,7 +261,7 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	targetFilename, tags := transpiler.TranspiledFilenameAndTags(srcPath)
 
 	// preprocess.
-	transpileRes, err := transpiler.Transpile(string(source), tags, srcPath)
+	transpileRes, err := transpiler.TranspileWithResolver(string(source), tags, srcPath, opts.resolver)
 	if err != nil {
 		return fmt.Errorf("transpile: %w", err)
 	}
@@ -317,6 +327,43 @@ func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs 
 		}
 	}
 	return
+}
+
+// buildTranspileResolver returns an [transpiler.ImportResolver] indexing
+// every package reachable from the current workspace. Returns nil if
+// packages.Load errors (e.g. cwd is not in a workspace).
+func buildTranspileResolver(rootDir string, io commands.IO) transpiler.ImportResolver {
+	loadConf := packages.LoadConfig{
+		Fetcher:    testPackageFetcher,
+		AllowEmpty: true,
+		Out:        io.Err(),
+	}
+	pkgs, err := packages.Load(loadConf, "./...")
+	if err != nil {
+		return nil
+	}
+
+	dirs := make(map[string]string, len(pkgs))
+	for _, p := range pkgs {
+		if p.ImportPath == "" {
+			continue
+		}
+		rel, err := filepath.Rel(rootDir, p.Dir)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		dirs[p.ImportPath] = filepath.ToSlash(rel)
+	}
+
+	return func(importPath string) (string, bool) {
+		if rel, ok := dirs[importPath]; ok {
+			return rel, true
+		}
+		if gno.IsStdlib(importPath) {
+			return "gnovm/stdlibs/" + importPath, true
+		}
+		return "", false
+	}
 }
 
 // buildTranspiledPackage tries to run `go build` against the transpiled .go files.
