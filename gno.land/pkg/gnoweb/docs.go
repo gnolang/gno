@@ -81,7 +81,11 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Rewrite relative .md links to /docs/... clean URLs before rendering.
+	// Transform Docusaurus-style :::kind admonitions into the GitHub
+	// `> [!KIND]` blockquote syntax already handled by markdown/ext_alert.go,
+	// then rewrite relative .md links to clean /docs/... URLs. Both passes
+	// are pure text transforms and commute (line-prefix vs inline link).
+	src = transformAdmonitions(src)
 	src = rewriteDocsLinks(src, resolvedRel)
 
 	// Theme cookie (mirrors HTTPHandler.Get to avoid FOUC).
@@ -291,4 +295,123 @@ func shouldSkipLink(target string) bool {
 		return true
 	}
 	return false
+}
+
+// admonitionOpenRE matches a Docusaurus-style admonition opener:
+//
+//	:::info               -> kind=info,    title=""
+//	:::tip Try this       -> kind=tip,     title="Try this"
+//	:::warning Heads up!  -> kind=warning, title="Heads up!"
+//
+// Submatch 1 is the kind, submatch 2 is the (optional) inline title.
+var admonitionOpenRE = regexp.MustCompile(`^:::(\w+)(?:\s+(.*))?$`)
+
+// transformAdmonitions rewrites Docusaurus-style admonitions
+//
+//	:::kind [title]
+//	body line 1
+//	body line 2
+//	:::
+//
+// into the GitHub-style alert blockquote already understood by
+// markdown/ext_alert.go:
+//
+//	> [!KIND] title
+//	> body line 1
+//	> body line 2
+//
+// Lines inside fenced code blocks (``` or ~~~) are passed through
+// unchanged, so ::: sequences in code samples are preserved verbatim.
+// Unterminated admonitions are flushed at EOF.
+func transformAdmonitions(src []byte) []byte {
+	lines := strings.Split(string(src), "\n")
+	var out strings.Builder
+	out.Grow(len(src))
+
+	var (
+		inFence   bool
+		fenceChar byte
+		inAlert   bool
+	)
+
+	flushClose := func() {
+		// nothing structurally to write; the blockquote ends on the first
+		// non-`> ` line, which is what we emit after the closing ":::".
+	}
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Track fenced code blocks so we don't mistake "::: " inside code
+		// samples for admonitions.
+		if !inAlert && (strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")) {
+			ch := trimmed[0]
+			if !inFence {
+				inFence, fenceChar = true, ch
+			} else if ch == fenceChar {
+				inFence = false
+			}
+			out.WriteString(line)
+			if i < len(lines)-1 {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		if inFence {
+			out.WriteString(line)
+			if i < len(lines)-1 {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+
+		if !inAlert {
+			if m := admonitionOpenRE.FindStringSubmatch(trimmed); m != nil {
+				kind := strings.ToUpper(m[1])
+				title := strings.TrimSpace(m[2])
+				out.WriteString("> [!")
+				out.WriteString(kind)
+				out.WriteByte(']')
+				if title != "" {
+					out.WriteByte(' ')
+					out.WriteString(title)
+				}
+				if i < len(lines)-1 {
+					out.WriteByte('\n')
+				}
+				inAlert = true
+				continue
+			}
+			out.WriteString(line)
+			if i < len(lines)-1 {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+
+		// Inside an admonition.
+		if trimmed == ":::" {
+			flushClose()
+			inAlert = false
+			// Do not emit anything for the closer; the blockquote ends here.
+			// Preserve the blank-line cadence so following content is parsed
+			// as a separate block.
+			if i < len(lines)-1 {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		// Prefix with "> " (or just ">" for blank lines).
+		if trimmed == "" {
+			out.WriteByte('>')
+		} else {
+			out.WriteString("> ")
+			out.WriteString(line)
+		}
+		if i < len(lines)-1 {
+			out.WriteByte('\n')
+		}
+	}
+
+	return []byte(out.String())
 }

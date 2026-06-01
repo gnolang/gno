@@ -69,6 +69,15 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			wantStatus:  http.StatusNotFound,
 			wantSnippet: "",
 		},
+		{
+			// getting-started.md uses :::tip and :::warning admonitions;
+			// confirm the transform reaches the renderer and produces the
+			// gno-alert-* markup emitted by markdown/ext_alert.go.
+			name:        "admonitions render as gno-alert elements",
+			route:       "/docs/builders/getting-started",
+			wantStatus:  http.StatusOK,
+			wantSnippet: "gno-alert-tip",
+		},
 	}
 
 	for _, tc := range cases {
@@ -153,6 +162,60 @@ func TestRewriteDocsLinks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := string(rewriteDocsLinks([]byte(tc.in), tc.currentRel))
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTransformAdmonitions(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "simple info",
+			in:   ":::info\nhello\nworld\n:::\n",
+			want: "> [!INFO]\n> hello\n> world\n\n",
+		},
+		{
+			name: "tip with inline title",
+			in:   ":::tip Try this\nbody\n:::\n",
+			want: "> [!TIP] Try this\n> body\n\n",
+		},
+		{
+			name: "warning with multi-word title",
+			in:   ":::warning Safeguard your mnemonic phrase!\nbody\n:::\n",
+			want: "> [!WARNING] Safeguard your mnemonic phrase!\n> body\n\n",
+		},
+		{
+			name: "blank line inside body preserved",
+			in:   ":::info\nfirst\n\nsecond\n:::\n",
+			want: "> [!INFO]\n> first\n>\n> second\n\n",
+		},
+		{
+			name: "passthrough when no admonitions",
+			in:   "# Title\nbody\n",
+			want: "# Title\nbody\n",
+		},
+		{
+			name: "code fence with ::: inside is untouched",
+			in:   "```\n:::info\nstill code\n:::\n```\n",
+			want: "```\n:::info\nstill code\n:::\n```\n",
+		},
+		{
+			name: "admonition before and after a code fence",
+			in:   ":::tip\nbefore\n:::\n```\nx\n```\n:::warning\nafter\n:::\n",
+			want: "> [!TIP]\n> before\n\n```\nx\n```\n> [!WARNING]\n> after\n\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := string(transformAdmonitions([]byte(tc.in)))
 			assert.Equal(t, tc.want, got)
 		})
 	}
