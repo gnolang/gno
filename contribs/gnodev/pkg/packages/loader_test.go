@@ -317,6 +317,50 @@ func TestLoader_LoadAll_SkipsIgnoredExtraRootPkgs(t *testing.T) {
 		"ignore=true extra-root pkg must be filtered out before deploy")
 }
 
+// TestLoader_ExcludeDirs_SkipsSubtree verifies Config.ExcludeDirs causes
+// scanRoot to skip the named directories: packages under an excluded path
+// must not appear via Resolve (FS walk) or LoadAll (eager root traversal).
+// gnodev uses this to honor -without-quarantined-examples by passing
+// $GNOROOT/examples/quarantined as an excluded dir.
+func TestLoader_ExcludeDirs_SkipsSubtree(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "live", "foo"), "gno.land/p/live/foo",
+		"package foo\n")
+	skipDir := filepath.Join(extra, "skipme")
+	writePkg(t, filepath.Join(skipDir, "bar"), "gno.land/p/skipme/bar",
+		"package bar\n")
+
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(ws)
+
+	l := New(Config{
+		Workspace:    ws,
+		ExtraRoots:   []string{extra},
+		ExcludeDirs:  []string{skipDir},
+		Fetcher:      pkgdownload.NewInMemoryFetcher(),
+		Logger:       testLogger(),
+	})
+
+	// Live package is reachable.
+	got, err := l.Resolve("gno.land/p/live/foo")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(extra, "live", "foo"), got.Dir)
+
+	// Excluded package is not reachable via FS; with the empty fetcher,
+	// Resolve falls through to ErrPackageNotFound.
+	_, err = l.Resolve("gno.land/p/skipme/bar")
+	assert.ErrorIs(t, err, ErrPackageNotFound)
+
+	// LoadAll over the same root must omit the excluded subtree.
+	pkgs, err := l.LoadAll()
+	require.NoError(t, err)
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/p/live/foo")
+	assert.NotContains(t, paths, "gno.land/p/skipme/bar",
+		"ExcludeDirs must skip the subtree during LoadAll's root scan")
+}
+
 // TestLoader_LoadAll_LogsProgress verifies LoadAll emits progress per root
 // so the user knows it isn't hung.
 func TestLoader_LoadAll_LogsProgress(t *testing.T) {

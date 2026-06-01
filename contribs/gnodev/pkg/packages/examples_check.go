@@ -27,7 +27,7 @@ func CheckMissingExampleImports(l *Loader, workspace string) []string {
 	if workspace == "" {
 		return nil
 	}
-	pkgIdx := scanRoot(workspace, l.cfg.Logger)
+	pkgIdx := scanRoot(workspace, nil, l.cfg.Logger)
 	seen := map[string]struct{}{}
 	for _, dir := range pkgIdx {
 		for _, imp := range importsInDir(dir) {

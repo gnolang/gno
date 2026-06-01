@@ -32,9 +32,10 @@ type AppConfig struct {
 	webHome             string
 
 	// Loader
-	noExamples      bool
-	extraRoots      []string
-	remoteOverrides map[string]string
+	noExamples                 bool
+	withoutQuarantinedExamples bool
+	extraRoots                 []string
+	remoteOverrides            map[string]string
 
 	// Node Configuration
 	logFormat           string
@@ -123,6 +124,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"no-examples",
 		defaultCfg.noExamples,
 		"skip loading $GNOROOT/examples entirely",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"skip loading $GNOROOT/examples/quarantined while keeping the rest of examples",
 	)
 
 	fs.Var(

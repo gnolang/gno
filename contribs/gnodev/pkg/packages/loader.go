@@ -208,16 +208,23 @@ func (l *Loader) ensureRootIndexLocked(root string) map[string]string {
 	if idx, ok := l.rootIdx[root]; ok {
 		return idx
 	}
-	idx := scanRoot(root, l.cfg.Logger)
+	idx := scanRoot(root, l.cfg.ExcludeDirs, l.cfg.Logger)
 	l.rootIdx[root] = idx
 	return idx
 }
 
 // scanRoot walks a root looking for gnomod.toml files and returns a
 // module-path → dir map. Skips common noise dirs (dotfiles, node_modules,
-// _build) to avoid descending into VCS/build trees. Errors from the walker
-// or from ParseDir are logged at debug and do not abort the scan.
-func scanRoot(root string, logger *slog.Logger) map[string]string {
+// _build) to avoid descending into VCS/build trees, plus any directory
+// whose absolute path matches an entry in excludeDirs. Errors from the
+// walker or from ParseDir are logged at debug and do not abort the scan.
+func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string]string {
+	excluded := make(map[string]struct{}, len(excludeDirs))
+	for _, d := range excludeDirs {
+		if abs, err := filepath.Abs(d); err == nil {
+			excluded[filepath.Clean(abs)] = struct{}{}
+		}
+	}
 	out := map[string]string{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -229,6 +236,9 @@ func scanRoot(root string, logger *slog.Logger) map[string]string {
 			}
 			name := d.Name()
 			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "_build" {
+				return fs.SkipDir
+			}
+			if _, skip := excluded[filepath.Clean(p)]; skip {
 				return fs.SkipDir
 			}
 			return nil

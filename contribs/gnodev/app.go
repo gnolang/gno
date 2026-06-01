@@ -197,11 +197,18 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
 	}
 
+	gnoRoot := gnoenv.RootDir()
+	var excludeDirs []string
+	if ds.cfg.withoutQuarantinedExamples {
+		excludeDirs = append(excludeDirs, filepath.Join(gnoRoot, "examples", "quarantined"))
+	}
+
 	loaderCfg := packages.Config{
 		Workspace:       ws,
 		Examples:        !ds.cfg.noExamples,
 		ExtraRoots:      extraRoots,
-		GnoRoot:         gnoenv.RootDir(),
+		ExcludeDirs:     excludeDirs,
+		GnoRoot:         gnoRoot,
 		RemoteOverrides: ds.cfg.remoteOverrides,
 		Logger:          loaderLogger,
 	}
