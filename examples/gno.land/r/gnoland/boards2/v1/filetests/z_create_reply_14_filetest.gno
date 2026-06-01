@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_14_filetest
+
 // Open board: Test creating a new reply as a non member user
-package main
+package z_create_reply_14_filetest
 
 // SEND: 1000000ugnot
 
@@ -24,20 +26,20 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, true)
-	tid = boards2.CreateThread(cross, bid, "Title", "Body")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to add replies
-	boards2.CreateReply(cross, bid, tid, 0, comment)
+	boards2.CreateReply(cross(cur), bid, tid, 0, comment)
 
 	// Render content must contain the reply
 	content := boards2.Render("test123/1")

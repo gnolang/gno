@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_change_member_role_04_filetest
+
+package z_change_member_role_04_filetest
 
 import (
 	"testing"
@@ -15,15 +17,15 @@ const (
 	newRole         = boards2.RoleOwner
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.InviteMember(cross, bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross(cur), bid, member, boards2.RoleAdmin)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross, bid, member, newRole) // Owner can promote other members to Owner
+	boards2.ChangeMemberRole(cross(cur), bid, member, newRole) // Owner can promote other members to Owner
 
 	// Ensure that new role has been changed to owner
 	println(boards2.HasMemberRole(bid, member, newRole))

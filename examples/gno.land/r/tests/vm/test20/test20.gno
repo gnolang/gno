@@ -13,8 +13,12 @@ import (
 	"gno.land/r/demo/defi/grc20reg"
 )
 
-var Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4)
+var (
+	Token         *grc20.Token
+	PrivateLedger *grc20.PrivateLedger
+)
 
-func init() {
-	grc20reg.Register(cross, Token, "")
+func init(cur realm) {
+	Token, PrivateLedger = grc20.NewToken(0, cur, "Test20", "TST", 4)
+	grc20reg.Register(cross(cur), Token, "")
 }

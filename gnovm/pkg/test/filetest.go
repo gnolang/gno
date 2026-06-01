@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -62,6 +63,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
 		return "", 0, fmt.Errorf("could not parse MAXALLOC directive: %w", err)
+	}
+	// Force a non-nil allocator so interrealm v2 Phase 2 PkgID stamping
+	// fires under filetests the same way it does in production. MAXALLOC
+	// directive remains the override for tests that want a specific cap.
+	if maxAlloc == 0 {
+		maxAlloc = math.MaxInt64
 	}
 
 	var opslog io.Writer
@@ -457,6 +464,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
+		// Set OriginCaller BEFORE running package init so package-level
+		// var initializers that read runtime.OriginCaller() (e.g. `var c
+		// = runtime.OriginCaller()` at package scope) see the proper
+		// DefaultCaller, matching the package-main path's ordering above.
+		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
+
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
 
@@ -467,7 +480,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
-		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 
 		// Clear store.opslog from init function(s).

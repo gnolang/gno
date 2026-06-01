@@ -789,6 +789,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint32(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -799,6 +801,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -811,6 +815,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
 		} else if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
