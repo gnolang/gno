@@ -153,6 +153,13 @@ var gRealmType = &DeclaredType{
 					Results: []FieldType{{Type: BoolType}},
 				},
 			}, {
+				// Seal marker: a dot-named method that user code cannot
+				// declare (Gno's parser rejects identifiers starting with
+				// `.`). Forces any concrete type that satisfies `realm`
+				// to be defined by the runtime — i.e., only `.grealm`.
+				Name: ".seal",
+				Type: &FuncType{Params: nil, Results: nil},
+			}, {
 				Name: "String",
 				Type: &FuncType{
 					Params: nil,
@@ -897,7 +904,7 @@ func makeUverseNode() {
 				// TODO: consider an optimization if dstv.Data != nil.
 				for i := range minl {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
+					srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
 					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 				}
 				res0 := TypedValue{
@@ -977,12 +984,12 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot delete from readonly tainted map"))
 				}
 
-				val, ok := mv.GetValueForKey(m.Store, &itv)
+				val, ok := mv.GetValueForKey(m, m.Store, &itv)
 				if !ok {
 					return
 				}
 				// delete
-				mv.DeleteForKey(m.Store, &itv)
+				mv.DeleteForKey(m, m.Store, &itv)
 
 				// mark key as deleted
 				keyObj := itv.GetFirstObject(m.Store)
@@ -1040,7 +1047,7 @@ func makeUverseNode() {
 				et := bt.Elem()
 				switch vargsl {
 				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if li < 0 {
 						m.Panic(typedString("runtime error: makeslice: len out of range"))
@@ -1072,9 +1079,9 @@ func makeUverseNode() {
 						return
 					}
 				case 2:
-					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
-					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
+					cv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 1).Deref()
 					ci := int(cv.ConvertGetInt())
 
 					if li < 0 {
@@ -1137,7 +1144,7 @@ func makeUverseNode() {
 					})
 					return
 				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
 						T: tt,
@@ -1427,6 +1434,11 @@ func makeUverseNode() {
 			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
 		},
 	)
+	// Seal marker; see gRealmType for rationale.
+	defNativePtrMethod(".grealm", ".seal",
+		nil, nil,
+		func(m *Machine) {},
+	)
 	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
 	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)
 	def("cross1", undefined)  // legacy sentinel form for migration; lowers to the same WithCross=true / .origin-shaped AST as compiler-synthesized .origin. Migrate cross1 → cross(rlm) as the in-scope realm becomes clear.
@@ -1582,7 +1594,7 @@ func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 			return bNewline
 		}
 	case 1:
-		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+		ev := xv.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 		res := ev.Sprint(m)
 		if newline {
 			res += "\n"
@@ -1595,7 +1607,7 @@ func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
-			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+			ev := xv.TV.GetPointerAtIndexInt(m, m.Store, i).Deref()
 			res := ev.Sprint(m)
 			buf.WriteString(res)
 		}
