@@ -78,6 +78,24 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantSnippet: "gno-alert-tip",
 		},
+		{
+			name:        "sidebar section heading present",
+			route:       "/docs",
+			wantStatus:  http.StatusOK,
+			wantSnippet: ">Build on Gno.land<",
+		},
+		{
+			name:        "sidebar item points at clean URL",
+			route:       "/docs",
+			wantStatus:  http.StatusOK,
+			wantSnippet: `href="/docs/builders/getting-started"`,
+		},
+		{
+			name:        "current page item marked active",
+			route:       "/docs/builders/getting-started",
+			wantStatus:  http.StatusOK,
+			wantSnippet: "b-docs-nav-item is-active",
+		},
 	}
 
 	for _, tc := range cases {

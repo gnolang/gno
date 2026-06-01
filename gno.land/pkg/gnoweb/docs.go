@@ -134,20 +134,19 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var content bytes.Buffer
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
+	if _, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
 		Domain:  h.Static.Domain,
-	})
-	if err != nil {
+	}); err != nil {
 		h.Logger.Error("docs render failed", "path", r.URL.Path, "error", err)
 		h.renderError(w, r, http.StatusInternalServerError, "render error")
 		return
 	}
 
-	indexData.BodyView = components.RealmView(components.RealmData{
-		TocItems:         &components.RealmTOCData{Items: toc.Items},
+	indexData.BodyView = components.DocsView(components.DocsData{
 		ComponentContent: components.NewReaderComponent(&content),
+		Sections:         buildSidebar(resolvedRel),
 	})
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -295,6 +294,43 @@ func shouldSkipLink(target string) bool {
 		return true
 	}
 	return false
+}
+
+// buildSidebar adapts the docs package's parsed nav into the component's
+// view model: internal item hrefs are turned into clean /docs/<path> URLs
+// and the item matching the currently rendered page is flagged Active.
+// currentRel is the embed-relative path of the current document, e.g.
+// "builders/getting-started.md".
+func buildSidebar(currentRel string) []components.DocsSidebarSection {
+	parsed := docs.Sidebar()
+	out := make([]components.DocsSidebarSection, 0, len(parsed))
+	for _, sec := range parsed {
+		viewSec := components.DocsSidebarSection{
+			Title: sec.Title,
+			Items: make([]components.DocsSidebarItem, 0, len(sec.Items)),
+		}
+		for _, it := range sec.Items {
+			var href string
+			active := false
+			if it.External {
+				href = it.Href
+			} else {
+				// it.Href is "builders/getting-started.md"; emit the
+				// clean URL the handler serves.
+				clean := strings.TrimSuffix(it.Href, ".md")
+				href = DocsURLPrefix + "/" + clean
+				active = it.Href == currentRel
+			}
+			viewSec.Items = append(viewSec.Items, components.DocsSidebarItem{
+				Title:    it.Title,
+				Href:     href,
+				External: it.External,
+				Active:   active,
+			})
+		}
+		out = append(out, viewSec)
+	}
+	return out
 }
 
 // admonitionOpenRE matches a Docusaurus-style admonition opener:
