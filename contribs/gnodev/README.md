@@ -132,6 +132,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=false 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 
@@ -177,6 +178,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=true 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 
