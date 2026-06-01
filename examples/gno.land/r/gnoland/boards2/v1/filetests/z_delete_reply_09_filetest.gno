@@ -26,9 +26,9 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
 	tid = boards2.CreateThread(cross(cur), bid, "Foo", "OP body")
-	boards2.CreateReply(cross(cur), bid, tid, 0, "reply-A")   // #2, direct, leaf
+	boards2.CreateReply(cross(cur), bid, tid, 0, "reply-A")      // #2, direct, leaf
 	rb = boards2.CreateReply(cross(cur), bid, tid, 0, "reply-B") // #3, direct, leaf
-	boards2.CreateReply(cross(cur), bid, tid, 0, "reply-C")   // #4, direct, leaf
+	boards2.CreateReply(cross(cur), bid, tid, 0, "reply-C")      // #4, direct, leaf
 }
 
 func main(cur realm) {

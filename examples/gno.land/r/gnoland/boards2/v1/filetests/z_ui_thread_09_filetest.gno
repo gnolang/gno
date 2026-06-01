@@ -36,7 +36,7 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	p1 := boards2.Render("test-board/1?flat=1")             // oldest first, page 1
+	p1 := boards2.Render("test-board/1?flat=1")              // oldest first, page 1
 	desc := boards2.Render("test-board/1?flat=1&order=desc") // newest first, page 1
 	p2 := boards2.Render("test-board/1?flat=1&page=2")       // oldest first, page 2
 

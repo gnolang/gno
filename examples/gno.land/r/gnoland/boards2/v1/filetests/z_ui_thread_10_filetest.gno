@@ -29,7 +29,7 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	thread := boards2.Render("test-board/1")          // threaded view
+	thread := boards2.Render("test-board/1")           // threaded view
 	reroot := boards2.Render("test-board/1/2")         // re-root at the comment, page 1
 	reroot2 := boards2.Render("test-board/1/2?page=2") // re-root, page 2
 	threadDesc := boards2.Render("test-board/1?order=desc")
