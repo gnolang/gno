@@ -32,15 +32,39 @@ The `testdata/` segment hides `.go` files from `go list` / `go build`
 The harness picks a mode from file content; an explicit native
 directive bypasses each mode.
 
-| Mode | Trigger | Pass criterion |
+| Mode | Trigger | What's pinned |
 |---|---|---|
-| run | runnable (`package main` + `func main()`) | Gno's stdout == `go run`'s stdout |
-| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | golden snapshot: per-line errors pinned in `// GnoError:` (Gno's own) + `// GoTypeCheckError:` (go/types guard); markers are gc provenance, not a gate |
+| run | runnable (`package main` + `func main()`) | both sides always: `// GnoOutput:` / `// GnoError:` (Gno's run) + `// GoOutput:` (`go run`). Pass iff they match; a difference needs a verdict (below) |
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | golden snapshot: per-line errors in `// GnoError:` (Gno's own) + `// GoTypeCheckError:` (go/types guard); markers are gc provenance, not a gate |
 | compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error |
 
 For non-`main` files (errorcheck, compile-only), a PKGPATH +
 synthetic-`main` rescue is applied so they reach Gno preprocess
 instead of bouncing on the realm-naming check.
+
+### Tag taxonomy
+
+Two kinds of trailing `//` tags. **Facts** are raw observations, one per
+origin: `// GnoOutput:` / `// GnoError:` (Gno runtime / preprocess),
+`// GoOutput:` (`go run`, stdout+stderr combined), `// GoTypeCheckError:`
+(the go/types guard gno.land runs ahead of preprocess). **Verdicts** are
+the judgment derived from the facts — each file gets one:
+
+| Verdict | Meaning |
+|---|---|
+| `// KnownIssue:` | a Gno **bug** — Gno disagrees with gc + go/types + Go, and it matters. The thing to fix. |
+| `// KnownDivergence:` | a run-mode difference that's **accepted** / benign (formatting, map order, error wording) — not a bug. |
+| `// Unsupported:` | Gno **can't process** it (feature gap) → `t.Skip`. |
+| none = Clean | Gno matches everyone. |
+
+Plus one caveat (not a verdict): `// GnoStaticIncomplete:` — errorcheck
+marker coverage is partial (static-only; these files never run).
+
+The goal is the `// KnownIssue:` set; the facts exist to *yield* it.
+Urgency is **derived** by `gocorpus/gen_ledger.sh`, never stored: a
+run-mode KnownIssue is a runtime divergence (ships past deploy, breaks in
+production → 🔥 urgent); a static KnownIssue is preprocess over-strictness
+(caught at deploy, can't ship → 🟠 deferred).
 
 Escape hatches:
 
@@ -50,76 +74,74 @@ Escape hatches:
   there's no cross-file skiplist. Example:
   `gocorpus/testdata/run/unsupported_canary.go`.
 
-- For **blessed Gno-vs-Go divergences in run mode**, a triple of
-  pinned-golden directives records both sides + the blessing.
-  Placed at the bottom of the file (matching the `.gno` `// Output:`
-  convention), with blank-line separators between each entry:
+- **Run mode pins BOTH sides, always.** Every run file carries its
+  Gno-side and Go-side facts at the bottom (blank-line separated,
+  matching the `.gno` `// Output:` convention), so a reviewer can judge
+  bug-vs-expected from the file alone:
 
   ```
-  // GnoOutput:        # .gno files reuse the existing // Output:
-  // <Gno's output>    # instead of // GnoOutput:.
+  // GnoOutput:          # Gno's stdout (always, even empty)
+  // <Gno's stdout>
 
-  // GoOutput:
-  // <`go run`'s output>
+  // GnoError:           # Gno's panic/error — ONLY when it errors
+  // <Gno's panic>
 
-  // Divergence: <free-text reason>
+  // GoOutput:           # `go run`'s stdout+stderr (always, even empty)
+  // <Go's output>
   ```
 
-  The harness verifies all three: the pinned outputs must match
-  current actuals, the outputs must actually differ (otherwise the
-  divergence is stale and the test FAILS with "remove the divergence
-  triple"). The directive itself is a boolean — its presence blesses
-  the diff visible in `// GnoOutput:` / `// GoOutput:`. The reason
-  text isn't parsed; it exists for the future reader. Example:
-  `gocorpus/testdata/run/divergence_panic.go`.
+  Gno's panic lands in `// GnoError:`, not `// GnoOutput:`; it's folded
+  into the comparison to mirror Go's combined stream — otherwise a Gno
+  panic with no stdout would compare equal to a clean Go run (both empty)
+  and silently pass a real bug. Example where it diverges:
+  `gocorpus/testdata/fixedbugs/bug446.go` (Gno panics where Go exits 0).
 
-  **Recommended reason shape** (advisory, not enforced by the
-  harness — `// Divergence: <free text>` works too):
+  **A difference needs a verdict.** If the Gno and Go sides differ, the
+  file must carry exactly one:
 
-  ```
-  // Divergence: <category>: <one-line explanation>
-  ```
+  - `// KnownDivergence: <category>: <reason>` — the difference is
+    **accepted** (benign). Its presence blesses the diff; the reason is
+    for the reader.
+  - `// KnownIssue: <reason>` — the difference is a **Gno bug** (a wrong
+    result, or a panic where Go succeeds).
 
-  The seven categories below cover the divergences that have shown
-  up so far. They name the *kind* of difference, which helps
-  maintainers triage:
+  The harness verifies the facts match current actuals and that a verdict
+  is present iff the sides differ (a stale verdict on a now-matching file
+  FAILS). `--update-golden-tests` auto-writes a `TODO:` default — a
+  one-sided Gno error defaults to `// KnownIssue:` (a bug signal), other
+  diffs to `// KnownDivergence:` — which the contributor then refines or
+  reclassifies. A human's tag choice + reason is preserved across re-sync.
+
+  **Recommended `KnownDivergence` category** (advisory):
+  `// KnownDivergence: <category>: <explanation>`.
 
   | Category | Meaning |
   |---|---|
-  | `error-wording` | Same kind of error or panic, different message text. |
-  | `error-early-bail` | Multi-error file: Gno's preprocessor bails on a different error first, so the set of errors differs. |
+  | `error-wording` | Same kind of error/panic, different message text. |
+  | `error-early-bail` | Multi-error file: Gno's preprocessor bails on a different error first. |
   | `stdlib-formatting` | Same logic, formatted output differs (e.g. `%v` for floats). |
   | `stdlib-symbol-missing` | Gno doesn't expose this stdlib symbol yet. |
   | `stdlib-behavior` | Same symbol, different observable behavior. |
   | `resource-budget` | Exceeds Gno's default alloc/gas budget. |
-  | `determinism` | Output depends on map order, GC timing, or scheduling — non-comparable. |
+  | `determinism` | Output depends on map order, GC timing, or scheduling. |
 
-  Use `unclassified` when none fit. The list is gno's own — feel
-  free to add a new category if a recurring pattern appears.
+  Use `unclassified` when none fit; add a category if a pattern recurs.
 
-  **Output comparison.** Go's stdout and stderr are combined for the
-  comparison (Gno has a single output stream). This keeps the
-  comparison on the same footing as `go test`'s default and avoids
-  flagging artifacts like Go's builtin `println` (writes to stderr)
-  as divergences when both runtimes emit the same text.
+  **Output comparison.** Go's stdout and stderr are combined (Gno has a
+  single output stream), so artifacts like Go's builtin `println`
+  (stderr) aren't flagged when both runtimes emit the same text.
 
-  **Workflow.** Copy a corpus file verbatim → run it → if Gno
-  matches Go, done. If diverges, re-run with `--update-golden-tests`
-  and the harness auto-appends the triple (with a `TODO:`
-  placeholder reason the contributor refines).
-
-- **`.gno` opt-in.** The same triple works for runnable `.gno`
-  filetests (anywhere under `tests/files/`): the harness invokes the
-  Go toolchain and compares **only when** at least one of
-  `// GoOutput:` / `// GoError:` / `// Divergence:` is present.
-  Without these, `.gno` files keep their pure-Gno behavior — the
-  existing 1600+ files are untouched. Example:
+- **`.gno` opt-in.** Runnable `.gno` filetests (anywhere under
+  `tests/files/`) opt into the Go comparison by carrying at least one of
+  `// GoOutput:` / `// GoError:` / `// KnownDivergence:`; the harness then
+  pins `// GoOutput:` too. Without these they keep pure-Gno behavior — the
+  existing 1600+ files are untouched. Gno's golden stays the existing
+  `// Output:` (not `// GnoOutput:`). Example:
   `gocorpus/testdata/gno/optin_canary.gno`.
 
-  *Not yet implemented for compile-only mode.* That mode still uses
-  the legacy single-line `// Divergence: <reason>` verdict-inversion
-  directive: presence flips the verdict, stale blessings fail loudly,
-  no pinned goldens.
+  *Not implemented for compile-only mode*, which uses the legacy
+  single-line `// KnownDivergence: <reason>` verdict-inversion directive
+  (presence flips the verdict; no pinned goldens).
 
 - **Errorcheck golden snapshot.** For files with inline `// ERROR
   "regex"` markers, the harness walks the per-line errors and pins them
@@ -143,13 +165,16 @@ Escape hatches:
 
   A third block, `// KnownIssue:`, pins the over-strict Gno errors —
   lines Gno rejects that **neither** a gc marker **nor** the go/types
-  guard backs (Gno rejects code both accept; a Gno bug to fix). Kept
-  out of `// GnoError:` so legitimate behavior isn't conflated with
-  bugs. The file still passes (the go/types guard's coverage is the
-  contract); when Gno is fixed and stops erroring there, the block goes
-  stale → re-sync removes it. Example: `const2.go` (Gno wrongly rejects
-  the literal `1e+500000000` while go/types correctly flags only the
-  overflow on use).
+  guard backs (Gno rejects code both accept; a Gno bug to fix). This is
+  the same `// KnownIssue:` verdict as run mode, in its static shape (a
+  per-line block instead of a free-text reason); the ledger buckets it as
+  🟠 deferred (over-rejection is caught at deploy — no inconsistent
+  state). Kept out of `// GnoError:` so legitimate behavior isn't
+  conflated with bugs. The file still passes (the go/types guard's
+  coverage is the contract); when Gno is fixed and stops erroring there,
+  the block goes stale → re-sync removes it. Example: `const2.go` (Gno
+  wrongly rejects the literal `1e+500000000` while go/types correctly
+  flags only the overflow on use).
 
   The inline `// ERROR` markers are upstream (gc) **provenance**, NOT a
   pass/fail gate — wording may differ (the whole point of the migrated
@@ -185,17 +210,32 @@ Escape hatches:
     text, so prose like "go to" in a comment can't trip it).
     `--update-golden-tests` writes the directive; thereafter the file is
     skipped pre-dispatch. (Mirrors gno-go-conformance's compat/classify
-    feature-gap triage.)
+    feature-gap triage.) The go/types guard's own import failure
+    (`could not import reflect (unknown import path "reflect")`) is
+    treated the same way: Gno's preprocess can stay *lenient* about a
+    missing stdlib (it may surface an unrelated error first, or none
+    line-mappable), so a guard import-failure for a normal package path
+    also routes to `// Unsupported:`. Invalid-import-path syntax tests
+    (`import "/foo"`, control chars) are excluded — those keep their
+    errorcheck golden (e.g. `import6.go`).
 
-  **Partial coverage (`// GnoIncomplete:`).** When Gno bails in the
-  declaration/preprocess phase before reaching every marker, the golden
-  covers only the markers it reached. Such files carry an auto-written
-  `// GnoIncomplete: covered N of M markers; …` tag (required whenever
-  coverage is partial — the harness fails without it and flags a stale
-  one when coverage later becomes complete). The file still passes on
-  its pinned golden; the tag makes it greppable as a candidate for a
-  future runnable variant (valid `package main` + declarations) that
-  would exercise the unreached markers.
+  **Partial coverage (`// GnoStaticIncomplete:`).** Static-only —
+  errorcheck files are preprocess-only, never run, so there's no runtime
+  dimension. When fewer than all markers are covered (a marker counts if
+  Gno's own preprocess **or** the go/types guard caught it), the golden
+  covers only the reached markers. Such files carry an auto-written tag of
+  the form `// GnoStaticIncomplete: covered N of M markers (Gno
+  preprocess: X, go/types guard: Y); …` (required whenever coverage is
+  partial — the harness
+  fails without it, and flags a stale one when coverage later becomes
+  complete or the per-checker split changes). The two per-checker counts
+  make Gno's **leniency** explicit: `Gno preprocess: 0` means Gno itself
+  flags none of the markers and the coverage is carried entirely by the
+  guard (the note reads "lenient"); `Gno preprocess: X` with X<M means
+  Gno bailed before reaching the rest. The file still passes on its
+  pinned golden; the tag makes it greppable as a candidate for a future
+  runnable variant (valid `package main` + declarations) that would
+  exercise the unreached markers.
 
   **Manual `// Unsupported:` override.** A hand-added `// Unsupported:`
   directive takes precedence over all of the above — it's checked
@@ -208,10 +248,11 @@ Escape hatches:
   auto-written blocks with the directive when overriding.)
 
 Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`. The
-208 migrated "known divergence" errorcheck files live at their upstream
-corpus paths under `gocorpus/testdata/` (`fixedbugs/`, `syntax/`, …). A
-per-file ledger bucketed by priority is in `gocorpus/MIGRATION.md`
-(regenerate with `gocorpus/gen_ledger.sh`).
+~2000 migrated corpus files live at their upstream paths under
+`gocorpus/testdata/` (`fixedbugs/`, `syntax/`, `typeparam/`, …). A
+per-file ledger, bucketed by verdict with urgency derived (🔥 urgent
+runtime KnownIssues first), is in `gocorpus/MIGRATION.md` (regenerate
+with `gocorpus/gen_ledger.sh`).
 
 Notes:
 - Go-corpus directives (`// run`, `// errorcheck`, `// compile`, …)

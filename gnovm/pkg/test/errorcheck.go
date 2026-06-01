@@ -4,11 +4,44 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+// UsesGenerics reports whether source declares any type parameters
+// (generic func or type). Gno has no generics, so such files are a
+// feature gap — but Gno's failure surfaces in varied ways (preprocess
+// "type parameter", or a downstream runtime "name T not declared"), so
+// message matching is unreliable. Parsing the Go AST is exact. Returns
+// false if source doesn't parse (e.g. a deliberately malformed
+// errorcheck file) — then other detectors decide.
+func UsesGenerics(source []byte) bool {
+	f, err := parser.ParseFile(token.NewFileSet(), "", source, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, decl := range f.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if d.Type.TypeParams != nil && len(d.Type.TypeParams.List) > 0 {
+				return true
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				if ts, ok := spec.(*ast.TypeSpec); ok &&
+					ts.TypeParams != nil && len(ts.TypeParams.List) > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
 
 // Errorcheck-style support for .go filetests under tests/files/gocorpus/testdata/.
 //
@@ -451,9 +484,12 @@ func NondeterministicOutput(out string) string {
 	return ""
 }
 
-// reUnknownImport matches Gno's "unknown import path <path>" error,
-// capturing the import path.
-var reUnknownImport = regexp.MustCompile(`unknown import path ([^\s;]+)`)
+// reUnknownImport matches an "unknown import path <path>" error,
+// capturing the import path. Handles both Gno's own preprocess form
+// (`unknown import path reflect`) and the go/types guard's form
+// (`could not import reflect (unknown import path "reflect")`), so the
+// optional quote and trailing `)` are excluded from the capture.
+var reUnknownImport = regexp.MustCompile(`unknown import path "?([^\s;")]+)`)
 
 // UnsupportedImport returns the import path from an "unknown import
 // path <path>" error in errStr, or "" if none. Used to route
@@ -467,6 +503,25 @@ func UnsupportedImport(errStr string) string {
 		return ""
 	}
 	return m[1]
+}
+
+// looksLikePackagePath reports whether imp is a normal Go import path
+// (a missing stdlib like "reflect" or "encoding/xml") rather than an
+// invalid-import-path syntax test case ("/foo", "c:/foo", empty,
+// control chars). The go/types guard emits "unknown import path" for
+// both; only the former is a genuine missing-package feature gap worth
+// routing to `// Unsupported:`. The latter is a real errorcheck case
+// (e.g. import6.go) whose golden must be kept.
+func looksLikePackagePath(imp string) bool {
+	if imp == "" || strings.HasPrefix(imp, "/") || strings.HasPrefix(imp, ".") {
+		return false
+	}
+	for _, r := range imp {
+		if r < 0x20 || r == '\\' || r == ':' || r == '"' || r == ' ' {
+			return false
+		}
+	}
+	return true
 }
 
 // CorpusDirective returns the gc test directive word on source's first
