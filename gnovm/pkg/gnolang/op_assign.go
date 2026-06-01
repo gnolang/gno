@@ -22,13 +22,20 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Assign each value evaluated for Lhs.
-	// NOTE: PopValues() returns a slice in
-	// forward order, not the usual reverse.
+	// Go spec: operands and RHS are evaluated first, then assignments happen
+	// left-to-right. PopAsPointer for L_i may panic (nil-deref, OOB, nil-map),
+	// so alternate push-operands/resolve/assign in LHS order — a mid-statement
+	// panic then leaves earlier assignments intact.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
+	frames := make([][]TypedValue, len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		// Pop lhs value and desired type.
+		frames[i] = m.PopValues(numStackValuesForPointer(s.Lhs[i]))
+	}
+	for i := range s.Lhs {
+		for _, tv := range frames[i] {
+			m.PushValue(tv)
+		}
 		lv := m.PopAsPointer(s.Lhs[i])
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")

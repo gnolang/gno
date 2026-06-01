@@ -2613,6 +2613,22 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+// numStackValuesForPointer reports how many TypedValues PushForPointer
+// pushes onto the value stack for the given LHS expression. Must stay in
+// sync with PushForPointer and PopAsPointer2.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panic("illegal LHS expr type")
+	}
+}
+
 // Pop a pointer (for writing only).
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
