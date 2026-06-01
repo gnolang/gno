@@ -54,6 +54,7 @@ type Config struct {
     Workspace       string                     // "" if none (detected from CWD)
     Examples        bool                       // include $GNOROOT/examples in the lazy set
     ExtraRoots      []string                   // user-supplied additional roots
+    ExcludeDirs     []string                   // absolute paths the FS scanner must SkipDir
     GnoRoot         string
     RemoteOverrides map[string]string          // domain → RPC URL (ignored when Fetcher set)
     Fetcher         pkgdownload.PackageFetcher // override the default rpcpkgfetcher (tests)
@@ -120,9 +121,10 @@ Every `*Package` carries a `Kind`:
 ### Root scan caching
 
 `Resolve`'s FS walk scans each root (`ExtraRoots` + `$GNOROOT/examples` if
-enabled) at most once per `Loader` lifetime. Results are cached in a
-per-loader `root → (importPath → dir)` map. Invalidation is coarse: a
-new `Loader` is constructed on gnodev restart. Mid-session, the file
+enabled) at most once per `Loader` lifetime. Any directory whose absolute
+path appears in `Config.ExcludeDirs` is skipped via `fs.SkipDir`. Results
+are cached in a per-loader `root → (importPath → dir)` map. Invalidation
+is coarse: a new `Loader` is constructed on gnodev restart. Mid-session, the file
 watcher's reload already picks up newly added packages via
 `gnovm.Load` — the root cache only serves `Resolve` miss lookups.
 
@@ -141,6 +143,7 @@ fails at use time. Acceptable for a dev tool.
 | `-resolver <name>=<loc>` | `-extra-root <dir>` (repeatable) |
 | `-lazy-loader` | `-no-examples` |
 |  | `-remote-override <domain>=<rpc>` (repeatable) |
+|  | `-without-quarantined-examples` (skip `$GNOROOT/examples/quarantined`) |
 
 `-remote-override` closes the migration gap left by removing
 `-resolver remote=<rpc>`: it populates `Config.RemoteOverrides`, which
@@ -167,9 +170,12 @@ loader flags (`-no-examples`, `-extra-root`, `-remote-override`).
 | Any | `-extra-root <dir>` (nonexistent) | Warning logged; invalid root skipped |
 | Any | `-extra-root <dir>` (valid) | `<dir>` added to the lazy set |
 | Any | `-remote-override gno.land=<rpc>` | Cross-workspace fetches for the given domain go to `<rpc>` instead of the default |
+| Any | `-without-quarantined-examples` | `$GNOROOT/examples/quarantined` is skipped during root scans and eager load; the rest of `examples/` is still indexed. Default `true` in `gnodev staging`. |
 
-`gnodev staging` continues to eager-load everything (workspace + examples +
-extra roots) and does not start the proxy. Internally it calls
+`gnodev staging` eager-loads the workspace, every `-extra-root`, and
+`$GNOROOT/examples` (skipping `examples/quarantined/` by default — staging
+deploys go to genesis, quarantined realms are excluded from the test-13
+genesis safe-list). It does not start the proxy. Internally it calls
 `loader.LoadAll()`.
 
 ### Error model
@@ -317,7 +323,8 @@ real capability.
   refinements (`-remote-override` flag, discovery-mode banner,
   `-no-examples` import-graph diagnostic, `LookupFS` FS-only lookup,
   `KindUnknown` zero value, rootIdx Reload preservation, guessPath
-  basename sanitization, staging progress logging)
+  basename sanitization, staging progress logging,
+  `-without-quarantined-examples` via `Config.ExcludeDirs`)
 - `gnovm/pkg/packages/` — native loader
 - `contribs/gnodev/pkg/packages/` — gnodev's loader package
 - `contribs/gnodev/pkg/proxy/path_interceptor.go` — lazy proxy
