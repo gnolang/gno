@@ -29,7 +29,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -198,7 +198,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -255,7 +255,7 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 

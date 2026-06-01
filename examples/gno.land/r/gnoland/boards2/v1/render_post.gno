@@ -141,6 +141,15 @@ func renderPostContent(post *boards.Post, indent string, levels int, budget *int
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
+	// A reply doesn't carry the thread's frozen flag (FreezeThread sets
+	// Readonly on the thread post only), so check the enclosing thread too —
+	// otherwise a frozen thread's replies show Reply/Edit/Delete links that
+	// the backend rejects. Mirrors the IsReadonly helper (board || thread).
+	if !isReadonly && !boards.IsThread(post) {
+		if t, ok := getThread(post.Board, post.ThreadID); ok {
+			isReadonly = t.Readonly
+		}
+	}
 	if !isReadonly {
 		replyLabel := "Reply"
 		if boards.IsThread(post) {
@@ -247,7 +256,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -264,7 +273,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 
@@ -369,7 +378,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -388,7 +397,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 
@@ -451,7 +460,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -468,7 +477,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 

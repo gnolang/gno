@@ -24,14 +24,14 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
 	rawID = req.GetVar("reply")
 	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
+		res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -188,14 +188,14 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
 	rawID = req.GetVar("reply")
 	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
+		res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 		return
 	}
 
