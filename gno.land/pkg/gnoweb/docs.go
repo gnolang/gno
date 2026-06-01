@@ -20,6 +20,12 @@ import (
 // /docs/builders/getting-started -> builders/getting-started.md.
 const DocsURLPrefix = "/docs"
 
+// DocsGitHubBaseURL is the base URL used to resolve link targets that
+// escape the docs/ tree (e.g. ../../examples/... or ../../gnovm/...). These
+// are intentional cross-repo references in the source docs; we rewrite
+// them to GitHub blob URLs so they remain clickable from gnoweb.
+const DocsGitHubBaseURL = "https://github.com/gnolang/gno/blob/master/"
+
 // docsLinkRE captures Markdown links and images: [label](target) and ![alt](src).
 // Submatches: 1 = "!" or "", 2 = label/alt, 3 = target.
 var docsLinkRE = regexp.MustCompile(`(!?)\[([^\]]*)\]\(([^)\s]+)\)`)
@@ -245,19 +251,26 @@ func rewriteDocsLinks(src []byte, currentRel string) []byte {
 		}
 
 		resolved := path.Clean(path.Join(base, target))
-		// .md becomes clean URL; assets keep their extension.
-		if strings.HasSuffix(resolved, ".md") {
-			resolved = strings.TrimSuffix(resolved, ".md")
-		}
 
 		var b bytes.Buffer
 		b.Write(bang)
 		b.WriteByte('[')
 		b.Write(label)
 		b.WriteString("](")
-		b.WriteString(DocsURLPrefix)
-		b.WriteByte('/')
-		b.WriteString(resolved)
+		if strings.HasPrefix(resolved, "..") {
+			// Escapes the docs/ tree; resolve against the repo root on
+			// GitHub so cross-repo references stay clickable.
+			b.WriteString(DocsGitHubBaseURL)
+			b.WriteString(strings.TrimPrefix(resolved, "../"))
+		} else {
+			// .md becomes clean URL; assets keep their extension.
+			if strings.HasSuffix(resolved, ".md") {
+				resolved = strings.TrimSuffix(resolved, ".md")
+			}
+			b.WriteString(DocsURLPrefix)
+			b.WriteByte('/')
+			b.WriteString(resolved)
+		}
 		b.WriteString(anchor)
 		b.WriteByte(')')
 		return b.Bytes()

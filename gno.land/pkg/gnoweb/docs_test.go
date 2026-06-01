@@ -135,6 +135,18 @@ func TestRewriteDocsLinks(t *testing.T) {
 			in:         `![logo](images/logo.png)`,
 			want:       `![logo](/docs/images/logo.png)`,
 		},
+		{
+			name:       "cross-repo link escapes to GitHub",
+			currentRel: "resources/gno-data-structures.md",
+			in:         `[avl](../../examples/gno.land/p/nt/avl/v0/README.md)`,
+			want:       `[avl](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/avl/v0/README.md)`,
+		},
+		{
+			name:       "cross-repo link with anchor",
+			currentRel: "resources/gno-interrealm.md",
+			in:         `[adr](../../gnovm/adr/interrealm_v2.md#summary)`,
+			want:       `[adr](https://github.com/gnolang/gno/blob/master/gnovm/adr/interrealm_v2.md#summary)`,
+		},
 	}
 
 	for _, tc := range cases {
