@@ -333,15 +333,15 @@ func TestURL(t *testing.T) {
 		{"https://example.com/x", "https://example.com/x"},
 		{"http://example.com", "http://example.com"},
 		{"mailto:a@b.com", "mailto:a@b.com"},
-		{"mailto:a@b.com?body=phish", ""},                  // prefill phishing rejected
-		{"mailto:a@b.com?BODY=phish", ""},                  // RFC 6068 §2: hfname case-insensitive
-		{"mailto:a@b.com?Body=phish", ""},                  // mixed case
-		{"mailto:a@b.com?subject=hi&body=phish", ""},       // body as second param
-		{"mailto:a@b.com?subject=hi&BODY=phish", ""},       // mixed case second param
+		{"mailto:a@b.com?body=phish", ""},                                // prefill phishing rejected
+		{"mailto:a@b.com?BODY=phish", ""},                                // RFC 6068 §2: hfname case-insensitive
+		{"mailto:a@b.com?Body=phish", ""},                                // mixed case
+		{"mailto:a@b.com?subject=hi&body=phish", ""},                     // body as second param
+		{"mailto:a@b.com?subject=hi&BODY=phish", ""},                     // mixed case second param
 		{"mailto:a@b.com?subject=hello", "mailto:a@b.com?subject=hello"}, // subject still allowed
-		{"//evil.com", ""}, // protocol-relative rejected
-		{"javascript:alert(1)", ""},       // bad scheme
-		{"/r/foo", "/r/foo"},              // relative
+		{"//evil.com", ""},                                               // protocol-relative rejected
+		{"javascript:alert(1)", ""},                                      // bad scheme
+		{"/r/foo", "/r/foo"},                                             // relative
 		{"./local", "./local"},
 		{"#section", "#section"}, // fragment-only
 		{"", ""},
