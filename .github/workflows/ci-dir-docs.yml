@@ -1,0 +1,32 @@
+# Tests the docs/ Go package (the embed + sidebar parser + content
+# invariants) consumed by gnoweb. Path-filtered so we only run on docs
+# changes or this workflow itself. The gnoweb tests still cover the
+# end-to-end render path via ci-dir-gnoland.yml.
+name: ci / docs
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - docs/**
+      - .github/workflows/ci-dir-docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: Test docs package
+        run: go test -v -timeout 5m ./docs/...
