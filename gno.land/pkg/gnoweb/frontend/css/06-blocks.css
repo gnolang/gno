@@ -2603,7 +2603,7 @@ main.dev-mode .b-toc a {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	border-inline-start: 1px solid var(--g-color-300, rgba(0,0,0,0.1));
+	border-inline-start: 1px solid var(--g-color-300, rgba(0, 0, 0, 0.1));
 }
 
 .b-docs-nav-item {

@@ -267,9 +267,7 @@ func rewriteDocsLinks(src []byte, currentRel string) []byte {
 			b.WriteString(strings.TrimPrefix(resolved, "../"))
 		} else {
 			// .md becomes clean URL; assets keep their extension.
-			if strings.HasSuffix(resolved, ".md") {
-				resolved = strings.TrimSuffix(resolved, ".md")
-			}
+			resolved = strings.TrimSuffix(resolved, ".md")
 			b.WriteString(DocsURLPrefix)
 			b.WriteByte('/')
 			b.WriteString(resolved)
