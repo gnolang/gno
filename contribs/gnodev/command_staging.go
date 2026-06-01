@@ -27,7 +27,7 @@ var defaultStagingOptions = AppConfig{
 	interactive:         false,
 	unsafeAPI:           false,
 	staging:             true,
-	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
