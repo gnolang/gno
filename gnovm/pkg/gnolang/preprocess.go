@@ -5491,14 +5491,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
+					// t may be an unsealed *DeclaredType during
+					// mutual type-decl recursion (e.g.
+					// `type T1 struct{Next *T2}; type T2 T1`);
+					// TRANS_LEAVE seals it later via declareWith.
 					t = tv.GetType()
-					if dt, ok := t.(*DeclaredType); ok {
-						if !dt.sealed {
-							// predefineRecursively should have
-							// already preprocessed dependent types!
-							panic("should not happen")
-						}
-					}
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
