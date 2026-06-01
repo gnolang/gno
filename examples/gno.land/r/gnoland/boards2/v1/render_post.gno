@@ -406,7 +406,10 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	flags.Iterate(0, flags.Size(), func(f boards.Flag) bool {
-		table.Append([]string{userLink(f.User), f.Reason})
+		// f.Reason is user-supplied (only trimmed at write); escape it so a
+		// flag reason can't inject markdown (links/images) or HTML into the
+		// reasons table. md.EscapeText leaves '|' for mdtable to escape.
+		table.Append([]string{userLink(f.User), md.EscapeText(f.Reason)})
 		return false
 	})
 
