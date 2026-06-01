@@ -2571,3 +2571,120 @@ main.dev-mode .b-toc a {
 		overflow-x: auto;
 	}
 }
+
+/* ===== OMNISEARCH DROPDOWN ===== */
+.b-omnisearch {
+	position: absolute;
+	inset-inline: 0;
+	top: calc(100% - var(--g-space-px));
+	z-index: var(--g-z-max);
+	max-height: 70vh;
+	overflow-y: auto;
+	padding: var(--g-space-1);
+	font-size: var(--g-font-size-100);
+	background-color: var(--s-color-bg-surface-secondary);
+	border: var(--s-border);
+	border-block-start: none;
+	border-radius: 0 0 var(--s-rounded) var(--s-rounded);
+
+	&[hidden] {
+		display: none;
+	}
+
+	.b-omnisearch-section + .b-omnisearch-section {
+		margin-block-start: var(--g-space-1);
+		padding-block-start: var(--g-space-1);
+		border-block-start: var(--s-border);
+	}
+
+	.b-omnisearch-label {
+		display: block;
+		padding: var(--g-space-1) var(--g-space-2);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		text-transform: uppercase;
+		color: var(--s-color-text-tertiary);
+	}
+
+	.b-omnisearch-empty {
+		padding: var(--g-space-2);
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-100);
+	}
+
+	.b-omnisearch-item {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
+		width: 100%;
+		text-align: start;
+		padding: var(--g-space-1-5) var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		color: var(--s-color-text-secondary);
+		cursor: pointer;
+
+		& mark {
+			background-color: transparent;
+			color: var(--s-color-text-primary);
+			font-weight: var(--g-font-semibold);
+		}
+
+		&:hover,
+		&[aria-selected="true"] {
+			background-color: var(--s-color-bg-base);
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	.b-omnisearch-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+	}
+
+	.b-omnisearch-tag {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: var(--g-space-4);
+		height: var(--g-space-4);
+		padding-inline: var(--g-space-1);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-bold);
+		text-transform: uppercase;
+		background-color: var(--s-color-bg-surface-tertiary);
+		color: var(--s-color-text-secondary);
+
+		&[data-type="r"] {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+		}
+
+		&[data-type="u"] {
+			background-color: var(--s-color-bg-surface-quaternary);
+			color: var(--s-color-text-base);
+		}
+
+		&[data-type="p"] {
+			background-color: var(--s-color-bg-info-default);
+			color: var(--s-color-text-base);
+		}
+	}
+}
+
+/* When the omnisearch dropdown is open, square the bar's bottom corners so the
+   bar and the results read as one continuous surface extending downward. */
+.b-main-navigation:has(> .b-omnisearch:not([hidden])) > .inner {
+	border-end-start-radius: 0;
+	border-end-end-radius: 0;
+}
+
+/* Transient highlight wrapped around an in-page match */
+.b-omnisearch-hl {
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+	border-radius: var(--s-rounded-sm);
+}
