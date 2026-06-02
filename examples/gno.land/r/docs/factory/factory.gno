@@ -1,7 +1,6 @@
 package factory
 
 import (
-	"chain/runtime/unsafe"
 	"errors"
 	"strconv"
 )
@@ -105,24 +104,24 @@ var (
 )
 
 // CreateFungibleToken creates a fungible token
-func CreateFungibleToken(_ realm, name string) string {
-	caller := unsafe.PreviousRealm().Address()
+func CreateFungibleToken(cur realm, name string) string {
+	caller := cur.Previous().Address()
 	token := CreateToken(Fungible, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()
 }
 
 // CreateNFT creates a non-fungible token
-func CreateNFT(_ realm, name string) string {
-	caller := unsafe.PreviousRealm().Address()
+func CreateNFT(cur realm, name string) string {
+	caller := cur.Previous().Address()
 	token := CreateToken(NonFungible, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()
 }
 
 // CreateSoulBound creates a soul-bound token
-func CreateSoulBound(_ realm, name string) string {
-	caller := unsafe.PreviousRealm().Address()
+func CreateSoulBound(cur realm, name string) string {
+	caller := cur.Previous().Address()
 	token := CreateToken(SoulBound, name, caller)
 	lastToken = token
 	return "Created: " + token.GetInfo()

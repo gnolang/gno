@@ -16,8 +16,8 @@ var deposits avl.Tree // address -> int64
 
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
-func Deposit(_ realm) {
-	caller := unsafe.PreviousRealm().Address()
+func Deposit(cur realm) {
+	caller := cur.Previous().Address()
 	sent := unsafe.OriginSend()
 
 	// Check if any coins were sent
@@ -40,7 +40,7 @@ func Deposit(_ realm) {
 // Withdraw sends coins back to the caller
 // This is equivalent to Solidity's transfer() or call{value: x}()
 func Withdraw(cur realm, amount int64) {
-	caller := unsafe.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	// Get current balance
 	currentBalance := int64(0)
@@ -64,7 +64,7 @@ func Withdraw(cur realm, amount int64) {
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 
 	// Get the realm's address
-	realmAddr := unsafe.CurrentRealm().Address()
+	realmAddr := cur.Address()
 
 	// Send coins from realm to caller
 	bnk.SendCoins(realmAddr, caller, chain.Coins{chain.NewCoin("ugnot", amount)})
@@ -118,8 +118,8 @@ import "chain/runtime/unsafe"
 
 var deposits map[address]int64
 
-func Deposit(_ realm) {
-    caller := unsafe.PreviousRealm().Address()
+func Deposit(cur realm) {
+    caller := cur.Previous().Address()
     sent := unsafe.OriginSend()
     
     // Unlike Solidity's single msg.value, Gno supports multiple coin types
@@ -157,7 +157,7 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
-    caller := unsafe.PreviousRealm().Address()
+    caller := cur.Previous().Address()
 
     // Update state BEFORE sending (prevents reentrancy)
     deposits[caller] -= amount
@@ -166,7 +166,7 @@ func Withdraw(cur realm, amount int64) {
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
     
     // Send coins
-    realmAddr := unsafe.CurrentRealm().Address()
+    realmAddr := cur.Address()
     bnk.SendCoins(realmAddr, caller, chain.Coins{chain.NewCoin("ugnot", amount)})
 }
 ` + "```" + `

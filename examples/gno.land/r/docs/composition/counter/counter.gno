@@ -1,7 +1,6 @@
 package counter
 
 import (
-	"chain/runtime/unsafe"
 	"strconv"
 )
 
@@ -11,26 +10,26 @@ var count int64
 const allowedCaller = "gno.land/r/docs/composition"
 
 // Increment increases the counter by 1 (restricted to composition realm)
-func Increment(_ realm) {
-	assertAuthorized()
+func Increment(cur realm) {
+	assertAuthorized(cur)
 	count++
 }
 
 // Decrement decreases the counter by 1 (restricted to composition realm)
-func Decrement(_ realm) {
-	assertAuthorized()
+func Decrement(cur realm) {
+	assertAuthorized(cur)
 	count--
 }
 
 // Reset sets the counter back to zero (restricted to composition realm)
-func Reset(_ realm) {
-	assertAuthorized()
+func Reset(cur realm) {
+	assertAuthorized(cur)
 	count = 0
 }
 
 // assertAuthorized ensures only the composition realm can modify state
-func assertAuthorized() {
-	caller := unsafe.PreviousRealm()
+func assertAuthorized(cur realm) {
+	caller := cur.Previous()
 	if caller.PkgPath() != allowedCaller {
 		panic("unauthorized: only " + allowedCaller + " can modify counter")
 	}

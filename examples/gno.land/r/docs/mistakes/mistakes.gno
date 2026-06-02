@@ -38,8 +38,8 @@ Returning an error doesn't revert state changes:
 // WRONG
 var balances map[address]int64
 
-func Transfer(_ realm, to address, amount int64) error {
-    from := unsafe.PreviousRealm().Address()
+func Transfer(cur realm, to address, amount int64) error {
+    from := cur.Previous().Address()
     balances[from] -= amount
     if balances[from] < 0 {
         return errors.New("insufficient balance")  // State NOT reverted!
@@ -55,8 +55,8 @@ Check conditions first, or use panic to revert:
 // CORRECT
 var balances map[address]int64
 
-func Transfer(_ realm, to address, amount int64) {
-    from := unsafe.PreviousRealm().Address()
+func Transfer(cur realm, to address, amount int64) {
+    from := cur.Previous().Address()
     if balances[from] < amount {
         panic("insufficient balance")  // Reverts all changes
     }
@@ -87,8 +87,8 @@ Use [` + "`PreviousRealm().Address()`" + `](/r/docs/crossing) for permission che
 // SAFE
 var balances map[address]int64
 
-func Withdraw(_ realm, amount int64) {
-    caller := unsafe.PreviousRealm().Address()  // Returns immediate caller
+func Withdraw(cur realm, amount int64) {
+    caller := cur.Previous().Address()  // Returns immediate caller
     balances[caller] -= amount
 }
 ` + "```" + `

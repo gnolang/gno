@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/avl/v0"
@@ -25,7 +24,7 @@ const (
 )
 
 // Register adds a new service to the registry
-func Register(_ realm, name, description, endpoint string) {
+func Register(cur realm, name, description, endpoint string) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		panic("name cannot be empty")
@@ -40,7 +39,7 @@ func Register(_ realm, name, description, endpoint string) {
 		panic("endpoint too long")
 	}
 
-	caller := unsafe.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
 	if services.Has(key) {
@@ -59,7 +58,7 @@ func Register(_ realm, name, description, endpoint string) {
 }
 
 // Update updates an existing service (owner only)
-func Update(_ realm, name, description, endpoint string) {
+func Update(cur realm, name, description, endpoint string) {
 	if len(description) > maxDescriptionLength {
 		panic("description too long")
 	}
@@ -67,7 +66,7 @@ func Update(_ realm, name, description, endpoint string) {
 		panic("endpoint too long")
 	}
 
-	caller := unsafe.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
 	val, ok := services.Get(key)
@@ -82,8 +81,8 @@ func Update(_ realm, name, description, endpoint string) {
 }
 
 // Deactivate marks a service as inactive (owner only)
-func Deactivate(_ realm, name string) {
-	caller := unsafe.PreviousRealm().Address()
+func Deactivate(cur realm, name string) {
+	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
 	val, ok := services.Get(key)
@@ -97,8 +96,8 @@ func Deactivate(_ realm, name string) {
 }
 
 // Delete removes a service permanently (owner only)
-func Delete(_ realm, name string) {
-	caller := unsafe.PreviousRealm().Address()
+func Delete(cur realm, name string) {
+	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
 	if !services.Has(key) {
@@ -161,8 +160,6 @@ Common use cases include mapping data, token discovery and realm showcasing.
 package registry
 
 import (
-    "chain/runtime/unsafe"
-    
     "gno.land/p/nt/avl/v0"
 )
 
@@ -176,8 +173,8 @@ var (
     entries        avl.Tree // key (owner:name) -> *Entry
 )
 
-func Register(_ realm, name, data string) {
-    caller := unsafe.PreviousRealm().Address()
+func Register(cur realm, name, data string) {
+    caller := cur.Previous().Address()
     key := caller.String() + ":" + name
     
     if entries.Has(key) {

@@ -9,25 +9,25 @@ import (
 var owner address
 
 func init() {
-	// In this case there's no crossing, init function has no "realm" argument.
+	// init function has no "realm" argument, there's no crossing.
 	// Function is called automatically only once on deployment, so "owner" is
 	// initialized to the address of the realm being deployed.
 	owner = unsafe.CurrentRealm().Address()
 }
 
-// PublicFunction can be called by anyone
-func PublicFunction(_ realm) string {
-	caller := unsafe.PreviousRealm().Address()
+// Both functions below are exported, so any realm can call them.
+// What differs is the realm parameter, which decides whether the call crosses.
+
+// PublicFunction has a realm parameter, so the call crosses into this realm.
+// cur.Previous() is the idiomatic way to read the caller in a crossing function.
+func PublicFunction(cur realm) string {
+	caller := cur.Previous().Address()
 	return "Called by: " + caller.String()
 }
 
-// InternalHelper is a helper function (no realm parameter)
-// It can still be called from other realms but is typically
-// used internally within this realm
+// InternalHelper has no realm parameter, so the call does not cross. It runs
+// in the caller's context, like a pure package helper.
 func InternalHelper() string {
-	// In this case there's no crossing, InternalHelper function has no "realm" argument.
-	// Caller is initialized to the address of the caller and NOT to the address
-	// of the "gno.land/r/docs/crossing" realm, because there is no crossing.
 	caller := unsafe.CurrentRealm().Address()
 	return "I'm a helper function called by: " + caller.String()
 }
@@ -40,26 +40,42 @@ func GetOwner() address {
 func Render(_ string) string {
 	return `# Crossing in Gno
 
-Crossing is the mechanism by which Gno tracks realm boundaries, determining which realm's state is currently being modified.
+Crossing is how Gno tracks which realm is acting at any moment. Every realm is a
+smart contract with its own storage, and a realm can only write to its own. When
+one realm calls into another, the acting realm switches to the one being called.
+Gno follows that switch so each change is saved to the realm that owns it.
 
 ## What is Crossing?
 
-Every realm in Gno has its own isolated state. When Realm A wants to execute
-a function in Realm B's scope, execution "crosses" into Realm B. The Gno
-runtime tracks this call chain so each realm knows:
+When Realm A calls a function that lives in Realm B, execution "crosses" from A
+into B, and B becomes the realm that is acting. Inside that function, changes
+are saved to B's storage. Once it returns, the acting realm goes back to A.
+
+Gno follows this chain of calls, so at any point the code can ask:
 
 - **Who started the transaction?** → ` + "`unsafe.OriginCaller()`" + `
 - **Who called me?** → ` + "`unsafe.PreviousRealm()`" + `
 - **Where am I?** → ` + "`unsafe.CurrentRealm()`" + `
 - **Whose state is being modified?** → Always the current realm's state
 
-To define a function as crossing, you must include a ` + "`_ realm`" + ` parameter:
+To let other realms cross into a function, give it a ` + "`cur realm`" + ` parameter.
+` + "`cur`" + ` is a handle to this realm's own context while the function runs:
 
 ` + "```go" + `
-func ModifyState(_ realm, newValue string) {
+func ModifyState(cur realm, newValue string) {
     state = newValue  // Modifies THIS realm's state
 }
 ` + "```" + `
+
+The parameter alone does not cross. The caller crosses by marking the call with
+` + "`cross`" + `, passing its own ` + "`cur`" + `:
+
+` + "```go" + `
+other.ModifyState(cross(cur), "hello")  // crosses into the "other" realm
+` + "```" + `
+
+Calling another realm's function without ` + "`cross`" + ` is rejected. The plain
+` + "`fn(cur, ...)`" + ` form is only for calls within the same realm, where nothing crosses.
 
 ## The Call Chain
 
