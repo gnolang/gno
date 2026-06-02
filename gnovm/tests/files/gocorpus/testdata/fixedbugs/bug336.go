@@ -93,4 +93,11 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Engine panic root cause FIXED on branch `fix/decltype_mutual` (off master):
+// preprocess.go's TypeDecl-resolution wrongly panicked on an unsealed
+// *DeclaredType during mutual recursion; minimal repro pinned at
+// gnovm/tests/files/decltype_mutual.gno. After that lands, this file
+// still won't go Clean because T10/T11 (lines 26-36) nest >8 deep and
+// hit MaxTypeDepth=8 (same class as fixedbugs/issue29312.go).
+// TODO: trim T10/T11 (or split into a shallower variant) to fit the cap,
+// or — if the cap is later raised — re-sync this file to Clean.
