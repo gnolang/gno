@@ -65,7 +65,7 @@ func Transfer(cur realm, to address, amount int64) {
 
 ---
 
-## 3. OriginCaller vs PreviousRealm
+## 3. OriginCaller vs cur.Previous()
 
 Using [` + "`OriginCaller`" + `](/r/docs/crossing) for authorization enables middleman attacks:
 
@@ -79,7 +79,7 @@ func Withdraw(_ realm, amount int64) {
 }
 ` + "```" + `
 
-Use [` + "`PreviousRealm().Address()`" + `](/r/docs/crossing) for permission checks:
+Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks:
 
 ` + "```go" + `
 // SAFE

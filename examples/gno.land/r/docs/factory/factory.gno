@@ -140,11 +140,12 @@ Creates different types of objects that share a common interface.
 // Common interface
 type Token interface {
     GetInfo() string
+    GetType() string
     Transfer(to address, amount uint64) error
 }
 
 // Concrete types
-type FungibleToken struct { name string, amount uint64 }
+type FungibleToken struct { name string; amount uint64 }
 type NonFungibleToken struct { name string }
 type SoulBoundToken struct { name string }
 
@@ -157,6 +158,8 @@ func CreateToken(tokenType int, name string) Token {
         return &NonFungibleToken{name: name}
     case SoulBound:
         return &SoulBoundToken{name: name}
+    default:
+        panic("unknown token type")
     }
 }
 

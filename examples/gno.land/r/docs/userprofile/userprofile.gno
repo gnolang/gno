@@ -65,8 +65,8 @@ avatar := profile.GetStringField(addr, profile.Avatar, "")
 bio := profile.GetStringField(addr, profile.Bio, "")
 
 // Set profile fields (for current user)
-profile.SetStringField(profile.DisplayName, "Alice")
-profile.SetStringField(profile.Bio, "Gno developer")
+profile.SetStringField(cross, profile.DisplayName, "Alice")
+profile.SetStringField(cross, profile.Bio, "Gno developer")
 ` + "```" + `
 
 ## Combined Usage Pattern
@@ -110,7 +110,6 @@ Try looking up at test user:
 ### See also:
 - [/r/sys/users](/r/sys/users) - User registry
 - [/r/demo/profile](/r/demo/profile) - Profile data
-- [Resolving Users](/r/docs/resolveusers) - Basic user resolution
 `
 }
 

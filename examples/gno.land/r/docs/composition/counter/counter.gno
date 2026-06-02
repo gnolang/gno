@@ -37,11 +37,6 @@ func assertAuthorized(cur realm) {
 	}
 }
 
-// GetCount returns the current count
-func GetCount() int64 {
-	return count
-}
-
 // GetCountStr returns the current count as a string
 func GetCountStr() string {
 	return strconv.FormatInt(count, 10)

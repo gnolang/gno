@@ -32,11 +32,6 @@ func assertAuthorized(cur realm) {
 	}
 }
 
-// GetLogs returns all log entries
-func GetLogs() []string {
-	return logs
-}
-
 // RenderLog returns a markdown snippet showing the log entries
 func RenderLog() string {
 	if len(logs) == 0 {

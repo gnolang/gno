@@ -132,8 +132,9 @@ func GetAllServices() []*Service {
 
 func Render(path string) string {
 	if path != "" {
-		// Path format: "address:name"
-		parts := strings.Split(path, ":")
+		// Path format: "address:name". Split on the first colon only, since a
+		// bech32 address never contains one but a name might.
+		parts := strings.SplitN(path, ":", 2)
 		if len(parts) != 2 {
 			return "# Invalid Path\n\nPath should be in format `address:name`."
 		}
@@ -244,7 +245,7 @@ their username and address, and anyone can look them up.
 Token realms register themselves so other contracts can discover available tokens.
 
 - [r/leon/hor](/r/leon/hor) - Hall of Realms. Realms register themselves by
-calling ^hor.Register()^ from their init function to be showcased in the exhibition.
+calling ` + "`hor.Register()`" + ` from their init function to be showcased in the exhibition.
 
 [View source code](/r/docs/registry$source)
 `

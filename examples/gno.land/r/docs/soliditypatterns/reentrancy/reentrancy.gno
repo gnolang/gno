@@ -5,9 +5,9 @@ package reentrancy
 func Render(_ string) string {
 	return `# Reentrancy in Gno
 
-In Solidity, sending ETH automatically triggers the recipient's ` + "`receive()`" + ` or ` + "`fallback()`" + ` 
-function. An attacker can exploit this to call back into the original contract before state 
-updates complete—the infamous DAO hack exploited this vulnerability for a $60M loss.
+In Solidity, sending ETH automatically triggers the recipient's ` + "`receive()`" + ` or ` + "`fallback()`" + `
+function. An attacker can exploit this to call back into the original contract before state
+updates complete. The infamous DAO hack used this to drain $60M.
 
 ## The Solidity Problem
 

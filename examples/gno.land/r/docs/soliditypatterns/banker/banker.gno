@@ -22,12 +22,11 @@ func Deposit(cur realm) {
 	caller := cur.Previous().Address()
 	sent := unsafe.OriginSend()
 
-	// Check if any coins were sent
-	if sent.AmountOf("ugnot") <= 0 {
+	// Check that coins were sent
+	amount := sent.AmountOf("ugnot")
+	if amount <= 0 {
 		panic("must send some ugnot")
 	}
-
-	amount := sent.AmountOf("ugnot")
 
 	// Get current balance
 	currentBalance := int64(0)
@@ -102,6 +101,7 @@ func Render(_ string) string {
 In Solidity, you send ETH using ` + "`transfer()`" + `, ` + "`send()`" + `, or ` + "`call{value: x}()`" + `.
 In Gno, you use the **Banker** to send coins.
 
+` + RenderDemo() + `
 ## Solidity vs Gno Comparison
 
 ### Solidity: Receiving ETH

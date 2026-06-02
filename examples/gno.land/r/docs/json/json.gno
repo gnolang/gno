@@ -31,7 +31,7 @@ func CreateArrayJSON(_ realm, items ...string) string {
 func encode(node *json.Node) string {
 	out, err := json.Marshal(node)
 	if err != nil {
-		panic("failed to marshal JSON: " + err.Error())
+		panic(err)
 	}
 	lastCreatedJSON = string(out)
 	return lastCreatedJSON
@@ -90,12 +90,12 @@ active := node.MustKey("active").MustBool() // true
 ## Node Types
 
 The package supports these JSON types:
-- ` + "`json.ObjectType`" + ` - JSON objects ` + "`{}`" + `
-- ` + "`json.ArrayType`" + ` - JSON arrays ` + "`[]`" + `
-- ` + "`json.StringType`" + ` - Strings
-- ` + "`json.NumberType`" + ` - Numbers (integers and floats)
-- ` + "`json.BoolType`" + ` - Booleans (true/false)
-- ` + "`json.NullType`" + ` - Null values
+- ` + "`json.Object`" + ` - JSON objects ` + "`{}`" + `
+- ` + "`json.Array`" + ` - JSON arrays ` + "`[]`" + `
+- ` + "`json.String`" + ` - Strings
+- ` + "`json.Number`" + ` - Numbers (integers and floats)
+- ` + "`json.Boolean`" + ` - Booleans (true/false)
+- ` + "`json.Null`" + ` - Null values
 
 ## Live Demo
 
@@ -117,5 +117,6 @@ func renderDemo() string {
 		out += "```json\n" + lastCreatedJSON + "\n```\n\n"
 	}
 	out += "[Create Sample User JSON](/r/docs/json$help&func=CreateUserJSON)\n"
+	out += "[Create Sample Array JSON](/r/docs/json$help&func=CreateArrayJSON)\n"
 	return out
 }

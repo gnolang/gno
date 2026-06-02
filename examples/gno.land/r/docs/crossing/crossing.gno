@@ -135,6 +135,6 @@ func TestWithCaller(t *testing.T) {
 ---
 
 ### See also:
-- [Common Mistakes](/r/docs/mistakes) - OriginCaller vs PreviousRealm
+- [Common Mistakes](/r/docs/mistakes) - OriginCaller vs cur.Previous()
 `
 }
