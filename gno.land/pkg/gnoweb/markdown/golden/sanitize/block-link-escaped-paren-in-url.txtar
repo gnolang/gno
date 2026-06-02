@@ -3,6 +3,9 @@
 -- input.md --
 [text](/url\)more)
 -- output.md --
+
+
 [text](/url\)more)
+
 -- output.html --
 <p><a href="/url)more">text</a></p>

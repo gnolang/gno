@@ -7,10 +7,12 @@ my section title
 body paragraph
 -- output.md --
 
+
 my section title
 ===
 
 body paragraph
+
 -- output.html --
 <h1>my section title</h1>
 <p>body paragraph</p>
