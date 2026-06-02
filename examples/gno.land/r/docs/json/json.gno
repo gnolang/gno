@@ -33,7 +33,7 @@ func encode(node *json.Node) string {
 	if err != nil {
 		panic(err)
 	}
-	lastCreatedJSON = string(out)
+	lastCreatedJSON = string(out) // global, shown by the live demo
 	return lastCreatedJSON
 }
 
