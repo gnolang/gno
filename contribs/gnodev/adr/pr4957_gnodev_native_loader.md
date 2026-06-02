@@ -54,7 +54,7 @@ type Config struct {
     Workspace       string                     // "" if none (detected from CWD)
     Examples        bool                       // include $GNOROOT/examples in the lazy set
     ExtraRoots      []string                   // user-supplied additional roots
-    ExcludeDirs     []string                   // absolute paths the FS scanner must SkipDir
+    ExcludeDirs     []string                   // dir paths the FS scanner must SkipDir (matched against walker output)
     GnoRoot         string
     RemoteOverrides map[string]string          // domain → RPC URL (ignored when Fetcher set)
     Fetcher         pkgdownload.PackageFetcher // override the default rpcpkgfetcher (tests)
@@ -121,10 +121,11 @@ Every `*Package` carries a `Kind`:
 ### Root scan caching
 
 `Resolve`'s FS walk scans each root (`ExtraRoots` + `$GNOROOT/examples` if
-enabled) at most once per `Loader` lifetime. Any directory whose absolute
-path appears in `Config.ExcludeDirs` is skipped via `fs.SkipDir`. Results
-are cached in a per-loader `root → (importPath → dir)` map. Invalidation
-is coarse: a new `Loader` is constructed on gnodev restart. Mid-session, the file
+enabled) at most once per `Loader` lifetime. Any directory whose path
+(as emitted by `filepath.WalkDir`) matches an entry in
+`Config.ExcludeDirs` is skipped via `fs.SkipDir`. Results are cached in
+a per-loader `root → (importPath → dir)` map. Invalidation is coarse:
+a new `Loader` is constructed on gnodev restart. Mid-session, the file
 watcher's reload already picks up newly added packages via
 `gnovm.Load` — the root cache only serves `Resolve` miss lookups.
 

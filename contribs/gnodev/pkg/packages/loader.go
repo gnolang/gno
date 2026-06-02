@@ -221,9 +221,10 @@ func (l *Loader) ensureRootIndexLocked(root string) map[string]string {
 func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string]string {
 	excluded := make(map[string]struct{}, len(excludeDirs))
 	for _, d := range excludeDirs {
-		if abs, err := filepath.Abs(d); err == nil {
-			excluded[filepath.Clean(abs)] = struct{}{}
+		if d == "" {
+			continue
 		}
+		excluded[filepath.Clean(d)] = struct{}{}
 	}
 	out := map[string]string{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -238,7 +239,7 @@ func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string
 			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "_build" {
 				return fs.SkipDir
 			}
-			if _, skip := excluded[filepath.Clean(p)]; skip {
+			if _, skip := excluded[p]; skip {
 				return fs.SkipDir
 			}
 			return nil

@@ -19,10 +19,12 @@ type Config struct {
 	// Each must be an existing directory; invalid entries are skipped with a warning.
 	ExtraRoots []string
 
-	// ExcludeDirs is a set of absolute directory paths that scanRoot must
-	// skip during its FS walk. Used by gnodev to honor the
-	// -without-quarantined-examples flag without baking "quarantined"
-	// semantics into the loader.
+	// ExcludeDirs is a set of directory paths to skip during scanRoot's
+	// FS walk. Each entry, after filepath.Clean, is compared exactly
+	// against directory paths emitted by the walker. The walker emits
+	// paths in the form of the walked root (absolute when the root is
+	// absolute), so entries should match that form. Empty entries are
+	// ignored; entries that don't match any walked directory are no-ops.
 	ExcludeDirs []string
 
 	// GnoRoot is the installed gno root; defaults to gnoenv.RootDir().

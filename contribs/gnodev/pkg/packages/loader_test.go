@@ -334,25 +334,32 @@ func TestLoader_ExcludeDirs_SkipsSubtree(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
 	t.Chdir(ws)
 
-	l := New(Config{
-		Workspace:    ws,
-		ExtraRoots:   []string{extra},
-		ExcludeDirs:  []string{skipDir},
-		Fetcher:      pkgdownload.NewInMemoryFetcher(),
-		Logger:       testLogger(),
-	})
+	baseCfg := Config{
+		Workspace:  ws,
+		ExtraRoots: []string{extra},
+		Fetcher:    pkgdownload.NewInMemoryFetcher(),
+		Logger:     testLogger(),
+	}
 
-	// Live package is reachable.
+	// Control: without ExcludeDirs the skipme/bar package resolves via FS.
+	// Establishes that ErrPackageNotFound below is caused by the exclude,
+	// not by an unrelated fetcher/index gap.
+	ctrl := New(baseCfg)
+	ctrlBar, err := ctrl.Resolve("gno.land/p/skipme/bar")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(skipDir, "bar"), ctrlBar.Dir)
+
+	excludedCfg := baseCfg
+	excludedCfg.ExcludeDirs = []string{skipDir}
+	l := New(excludedCfg)
+
 	got, err := l.Resolve("gno.land/p/live/foo")
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(extra, "live", "foo"), got.Dir)
 
-	// Excluded package is not reachable via FS; with the empty fetcher,
-	// Resolve falls through to ErrPackageNotFound.
 	_, err = l.Resolve("gno.land/p/skipme/bar")
 	assert.ErrorIs(t, err, ErrPackageNotFound)
 
-	// LoadAll over the same root must omit the excluded subtree.
 	pkgs, err := l.LoadAll()
 	require.NoError(t, err)
 	paths := pathsOf(pkgs)
