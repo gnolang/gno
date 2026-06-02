@@ -1,3 +1,5 @@
+// Package userprofile shows how to integrate /r/sys/users with /r/demo/profile.
+// It reads a user's profile.
 package userprofile
 
 import (

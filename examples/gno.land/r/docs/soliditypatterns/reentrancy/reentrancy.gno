@@ -1,3 +1,5 @@
+// Package reentrancy explains why Gno is not exposed to Solidity-style reentrancy.
+// It shows how to keep transfers safe.
 package reentrancy
 
 func Render(_ string) string {

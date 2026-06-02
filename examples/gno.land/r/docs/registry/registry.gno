@@ -1,3 +1,6 @@
+// Package registry is a service registry.
+// Callers register, update, and remove named entries stored in an avl tree.
+// Each entry is owned by the address that created it.
 package registry
 
 import (

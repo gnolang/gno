@@ -1,3 +1,5 @@
+// Package logger is a sub-component of /r/docs/composition.
+// It holds an append-only log that only the composition realm can change.
 package logger
 
 import (

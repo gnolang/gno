@@ -1,3 +1,5 @@
+// Package banker recreates Solidity's payable/withdraw pattern in Gno.
+// It accepts deposits and lets callers withdraw their balance through the chain banker.
 package banker
 
 import (

@@ -1,7 +1,5 @@
+// Package mistakes shows common mistakes in Gno development and how to avoid them.
 package mistakes
-
-// This package demonstrates common mistakes in Gno development
-// and how to avoid them.
 
 func Render(_ string) string {
 	return `# Common Mistakes in Gno

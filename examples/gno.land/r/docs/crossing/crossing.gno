@@ -1,10 +1,10 @@
+// Package crossing explains Gno's crossing mechanism.
+// Crossing tracks which realm is acting, and cross-calls move it from one realm to another.
 package crossing
 
 import (
 	"chain/runtime/unsafe"
 )
-
-// This realm demonstrates the crossing mechanism in Gno
 
 var owner address
 

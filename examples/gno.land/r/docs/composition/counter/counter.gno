@@ -1,3 +1,5 @@
+// Package counter is a sub-component of /r/docs/composition.
+// It holds a counter that only the composition realm can change.
 package counter
 
 import (

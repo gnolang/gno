@@ -1,7 +1,7 @@
+// Package tdd demonstrates test-driven development with a small calculator.
 package tdd
 
 // Calculator provides simple arithmetic operations
-// This is designed to demonstrate TDD principles
 
 var lastResult int64
 

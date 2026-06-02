@@ -1,3 +1,5 @@
+// Package factory demonstrates the factory pattern.
+// It creates different token types (fungible, non-fungible, soulbound) behind a single Token interface.
 package factory
 
 import (

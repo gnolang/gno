@@ -1,112 +1,40 @@
+// Package json shows how to build and read JSON in Gno.
+// It uses the /p/onbloc/json package.
 package json
 
 import (
 	"gno.land/p/onbloc/json"
 )
 
-// User represents a simple user structure
-type User struct {
-	Name  string
-	Email string
-	Age   int
-}
-
-// lastCreatedJSON stores the most recently created JSON for demo
+// lastCreatedJSON stores the most recently created JSON for the live demo.
 var lastCreatedJSON string
 
-// CreateUserJSON creates a JSON object from user data
+// CreateUserJSON builds a JSON object from user data.
 func CreateUserJSON(_ realm, name, email string, age int) string {
-	user := User{Name: name, Email: email, Age: age}
-
-	// Build JSON from the struct fields using the node builder pattern
-	node := json.ObjectNode("", map[string]*json.Node{
-		"name":  json.StringNode("name", user.Name),
-		"email": json.StringNode("email", user.Email),
-		"age":   json.NumberNode("age", float64(user.Age)),
-	})
-
-	encoded, err := json.Marshal(node)
-	if err != nil {
-		panic("failed to marshal JSON: " + err.Error())
-	}
-
-	lastCreatedJSON = string(encoded)
-	return lastCreatedJSON
+	return encode(json.ObjectNode("", map[string]*json.Node{
+		"name":  json.StringNode("name", name),
+		"email": json.StringNode("email", email),
+		"age":   json.NumberNode("age", float64(age)),
+	}))
 }
 
-// CreateArrayJSON creates a JSON array
+// CreateArrayJSON builds a JSON array from the given items.
 func CreateArrayJSON(_ realm, items ...string) string {
 	nodes := make([]*json.Node, len(items))
 	for i, item := range items {
 		nodes[i] = json.StringNode("", item)
 	}
+	return encode(json.ArrayNode("", nodes))
+}
 
-	node := json.ArrayNode("", nodes)
-	encoded, err := json.Marshal(node)
+// encode marshals the node, records it for the demo, and returns the JSON.
+func encode(node *json.Node) string {
+	out, err := json.Marshal(node)
 	if err != nil {
 		panic("failed to marshal JSON: " + err.Error())
 	}
-
-	lastCreatedJSON = string(encoded)
+	lastCreatedJSON = string(out)
 	return lastCreatedJSON
-}
-
-// PrettyPrintJSON parses a JSON string and returns formatted output
-func PrettyPrintJSON(data string) (string, error) {
-	node, err := json.Unmarshal([]byte(data))
-	if err != nil {
-		return "", err
-	}
-
-	// Pretty print the parsed JSON
-	return prettyPrint(node, 0), nil
-}
-
-func prettyPrint(node *json.Node, indent int) string {
-	prefix := ""
-	for i := 0; i < indent; i++ {
-		prefix += "  "
-	}
-
-	switch node.Type() {
-	case json.Object:
-		result := "{\n"
-		obj := node.MustObject()
-		first := true
-		for key, val := range obj {
-			if !first {
-				result += ",\n"
-			}
-			first = false
-			result += prefix + "  \"" + key + "\": " + prettyPrint(val, indent+1)
-		}
-		result += "\n" + prefix + "}"
-		return result
-	case json.Array:
-		result := "[\n"
-		arr := node.MustArray()
-		for i, val := range arr {
-			if i > 0 {
-				result += ",\n"
-			}
-			result += prefix + "  " + prettyPrint(val, indent+1)
-		}
-		result += "\n" + prefix + "]"
-		return result
-	case json.String:
-		return "\"" + node.MustString() + "\""
-	case json.Number:
-		return node.String()
-	case json.Boolean:
-		if node.MustBool() {
-			return "true"
-		}
-		return "false"
-	case json.Null:
-		return "null"
-	default:
-		return node.String()
-	}
 }
 
 func Render(_ string) string {

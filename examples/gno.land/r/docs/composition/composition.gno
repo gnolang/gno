@@ -1,3 +1,6 @@
+// Package composition shows how to build a realm from smaller component realms.
+// It calls into the counter and logger sub-realms.
+// Each sub-realm restricts writes to this composition realm.
 package composition
 
 import (
