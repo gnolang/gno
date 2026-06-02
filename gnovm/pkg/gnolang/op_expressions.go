@@ -11,7 +11,7 @@ func (m *Machine) doOpIndex1() {
 	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -39,7 +39,7 @@ func (m *Machine) doOpIndex2() {
 	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -80,7 +80,7 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
@@ -109,7 +109,7 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	// XXX fix this in precompile instead.
@@ -171,7 +171,7 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			ro := m.IsReadonly(xv)
+			ro := m.isReadonlyForCopy(xv)
 			pvtv := (*pv.TV).WithReadonly(ro)
 			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
 				// When a pointer was converted to a different
