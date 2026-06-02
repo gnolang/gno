@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+see [r-help] for details
+-- output.md --
+see \[r-help\] for details
+-- output.html --
+<p>see [r-help] for details</p>

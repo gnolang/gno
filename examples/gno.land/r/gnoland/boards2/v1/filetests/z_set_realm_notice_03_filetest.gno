@@ -19,7 +19,7 @@ func main(cur realm) {
 }
 
 // Output:
-// > [!INFO] Notice
+// > \[!INFO\] Notice
 // > This is a test realm message
 // # Boards
 // [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)

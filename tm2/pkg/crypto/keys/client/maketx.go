@@ -24,7 +24,9 @@ type MakeTxCfg struct {
 	Broadcast bool
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
-	ChainID  string
+	// Only used with SimulateOnly
+	GasFeeMargin uint64
+	ChainID      string
 	// Master, when set, signs the tx as a session account on behalf of this master key
 	// (name or bech32). The chain enforces which msg types a session may sign.
 	Master string
@@ -106,6 +108,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		- test: attempts simulating the transaction, and if successful performs broadcasting (default)
 		- skip: avoids performing transaction simulation
 		- only: avoids broadcasting transaction (ie. dry run)`,
+	)
+
+	fs.Uint64Var(
+		&c.GasFeeMargin,
+		"gas-fee-margin",
+		5,
+		"percent to increase the simulated gas fee (only useful with -simulate only)",
 	)
 
 	fs.StringVar(
@@ -264,6 +273,7 @@ func SignAndBroadcastHandler(
 
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
+		GasFeeMargin: cfg.GasFeeMargin,
 	}
 
 	return BroadcastHandler(bopts)

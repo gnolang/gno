@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: Blockquote
+// CONTEXT: %s\nrealm paragraph after
+-- input.md --
+first
+
+second
+-- output.md --
+> first
+> 
+> second
+-- output.html --
+<blockquote>
+<p>first</p>
+<p>second</p>
+</blockquote>
+<p>realm paragraph after</p>

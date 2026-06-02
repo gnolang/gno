@@ -10,7 +10,7 @@ package launderrh_mv_tamper_punned_mv
 //    stores it in /r/-attacker state.
 // 4. Attacker invokes the stored mv from /r/-attacker context.
 //    PushFrameCall for Tamper.Set sees recv stamped /r/-victim (the
-//    underlying pointer alias is unchanged by the type pun) → Rule 2
+//    underlying pointer alias is unchanged by the type pun) → borrow rule #2
 //    → m.Realm = /r/-victim during Set body → write commits.
 //
 // Empirical outcome: BLOCKED at the Convert call site (the readonly
