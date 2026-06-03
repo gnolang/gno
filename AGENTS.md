@@ -49,6 +49,23 @@ make fmt                        # Format all code
 | Filetests: `_filetest.gno` | Integration: `.txtar` in `gno.land/pkg/integration/testdata/` |
 | VM file tests: `gnovm/tests/files/` with `// Output:` | Standard Go test runner |
 
+### Filetest version matching
+
+VM filetests (`gnovm/tests/files/`) assert exact TypeCheckError messages that
+depend on the Go toolchain version. Always match CI's Go version:
+
+```bash
+# Preferred — reads toolchain from go.mod automatically:
+make -C gnovm _test.filetest
+
+# Or if running go test directly:
+export GOTOOLCHAIN=$(sed -n 's/^toolchain //p' go.mod)
+go test ./gnovm/pkg/gnolang/files_test.go -test.short -run 'TestFiles$/' -v -p 1 -timeout=30m
+```
+
+Skipping `GOTOOLCHAIN` causes spurious filetest diffs when your local Go
+version differs from the `toolchain` directive in `go.mod`.
+
 ---
 
 ## Conventions
