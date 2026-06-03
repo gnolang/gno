@@ -45,10 +45,10 @@ part of the mainnet UX effort tracked in #5463.
    `gno doc` CLI consumers. Existing `TestJSONDocumentation` fixture
    updated with expected file/line values.
 
-4. **Metadata derivation is pure.** Helpers live in
-   `components/overview_meta.go` and operate on `[]string`,
-   `*doc.JSONDocumentation`, `map[string][]byte`. They are unit-tested
-   without RPC mocks.
+4. **Metadata derivation is pure.** Helpers are split by concern across
+   `components/overview_{build,symbols,imports,license,files}.go` and
+   operate on `[]string`, `*doc.JSONDocumentation`, `map[string][]byte`.
+   They are unit-tested without RPC mocks.
 
 5. **Doc string rendering reuses PR #5562's pipeline** via a minimal
    `DocRenderer` interface (`RenderDocumentation(io.Writer, []byte)` +
@@ -140,14 +140,19 @@ part of the mainnet UX effort tracked in #5463.
 - `gnovm/pkg/doc/pkg.go` — add `extractPosition` helper
 - `gnovm/pkg/doc/json_doc_test.go` — fixture with expected file/line
 - `gno.land/pkg/gnoweb/components/view_overview.go` — data types + factory
-- `gno.land/pkg/gnoweb/components/overview_meta.go` — pure helpers
-- `gno.land/pkg/gnoweb/components/view_overview_test.go` — factory test
-- `gno.land/pkg/gnoweb/components/overview_meta_test.go` — helper tests
+- `gno.land/pkg/gnoweb/components/overview_build.go` — orchestration, stats, quality, TOC
+- `gno.land/pkg/gnoweb/components/overview_symbols.go` — funcs / types / values
+- `gno.land/pkg/gnoweb/components/overview_imports.go` — import parsing
+- `gno.land/pkg/gnoweb/components/overview_license.go` — license detection
+- `gno.land/pkg/gnoweb/components/overview_files.go` — file classification
+- `gno.land/pkg/gnoweb/components/{view_overview,overview_*}_test.go` — unit tests
 - `gno.land/pkg/gnoweb/components/views/overview.html` — template
-- `gno.land/pkg/gnoweb/components/ui/icons.html` — `ico-shield` added
+- `gno.land/pkg/gnoweb/components/ui/icons.html` — `ico-shield`, `ico-search`, `ico-kind-*` sprites
 - `gno.land/pkg/gnoweb/components/layout_index.go` — dev-mode switch
-- `gno.land/pkg/gnoweb/components/template.go` — `values` funcmap helper
+- `gno.land/pkg/gnoweb/frontend/js/controller-search.ts` — symbol filter
+- `gno.land/pkg/gnoweb/frontend/js/controller-observer.ts` — scroll-spy section nav
 - `gno.land/pkg/gnoweb/handler_http.go` — `GetOverviewView`, routing
+- `examples/gno.land/p/demo/showcase/` — demo package exercising the overview
 - `gno.land/pkg/gnoweb/handler_http_test.go` — overview tests
 - `gno.land/pkg/gnoweb/app_test.go` — 3 routing cases in `TestRoutes`
 - `gno.land/pkg/gnoweb/frontend/css/06-blocks.css` — new blocks
@@ -166,7 +171,6 @@ follow-up work.
 | `docparser/` package | Would duplicate Goldmark and re-introduce a regex-based markdown pipeline with ReDoS surface. PR #5562 already delivers the doc-context rendering path. |
 | `vm/qmeta` endpoint (Creator / Height / Draft / Private metadata) | VM-layer work, out of scope for a gnoweb-only change. Backlogged as prerequisite for metadata-rich badges. |
 | Interactive playground | Significant UX surface; separate RFC needed. |
-| Section-nav search bar | Shipped in #4542 but deferred here to focus on the landing-page core. |
 | Transaction history section | Non-essential for the first release; separate feature. |
 
 ## Security
@@ -191,7 +195,7 @@ follow-up work.
 
 ## Testing
 
-- **Unit tests** (`components/overview_meta_test.go`,
+- **Unit tests** (`components/overview_*_test.go`,
   `components/view_overview_test.go`) cover every pure helper with
   table-driven cases and `t.Parallel()`: license detection (8 cases),
   imports (5), stats, quality, synopsis, file links, subpackages, TOC,
@@ -207,7 +211,7 @@ follow-up work.
   fixture extended with 23 expected `File`/`Line` assertions across
   values, funcs, and types.
 - **Coverage** on `gno.land/pkg/gnoweb/components/`: above 88 % after
-  the new tests (every helper in `overview_meta.go` exercised).
+  the new tests (every overview helper exercised).
 
 ### Follow-up work
 
@@ -222,6 +226,5 @@ Candidate refinements that build on this decision, ordered by priority:
 3. `vm/qmeta` endpoint to expose Creator, Block Height, Draft and
    Private flags; prerequisite for the richer sidebar badges #4542
    originally proposed.
-4. Section-nav search input (pkg.go.dev `Jump to` affordance).
-5. CUBE CSS migration of `views/user.html` (large rewrite, separate
+4. CUBE CSS migration of `views/user.html` (large rewrite, separate
    PR).
