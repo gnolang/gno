@@ -250,7 +250,11 @@ func BuildOverview(in OverviewInput) OverviewData {
 		return v, ok
 	})
 	quality := deriveQuality(in.Files, in.Doc)
-	imports := parseImports(filterNonTestSources(in.Sources), in.Domain)
+	var importPaths []string
+	if in.Doc != nil {
+		importPaths = in.Doc.Imports
+	}
+	imports := buildImports(importPaths, in.Domain)
 	funcs, types := buildSymbols(in.Doc, in.DocRenderer, in.URL.Path)
 	values := buildValues(in.Doc, in.DocRenderer, in.URL.Path)
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)
@@ -306,19 +310,4 @@ func BuildOverview(in OverviewInput) OverviewData {
 		SymbolsTruncated: symbolsTruncated,
 		ComponentTOC:     NewTemplateComponent("ui/toc_realm", &RealmTOCData{Items: toc}),
 	}
-}
-
-// filterNonTestSources returns the subset of sources used for import parsing.
-func filterNonTestSources(sources map[string][]byte) map[string][]byte {
-	if len(sources) == 0 {
-		return nil
-	}
-	out := make(map[string][]byte, len(sources))
-	for name, body := range sources {
-		c := ClassifyFile(name)
-		if c.IsGno && !c.IsTest {
-			out[name] = body
-		}
-	}
-	return out
 }

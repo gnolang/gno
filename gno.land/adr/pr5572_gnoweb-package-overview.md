@@ -30,20 +30,22 @@ part of the mainnet UX effort tracked in #5463.
    `Render()` is defined, otherwise `DirectoryView`.
 
 2. **Overview content** is derived from existing RPCs only. `vm/qfile`
-   supplies the file list and contents used for license detection and
-   import parsing. `vm/qdoc` supplies package doc, exported
-   functions/types/constants/variables, and `BUG(...)` comments.
-   `vm/qpaths` supplies subpackage children. No new VM endpoint is
-   introduced.
+   supplies the file list plus the gnomod.toml and LICENSE bodies used
+   for metadata and license detection. `vm/qdoc` supplies package doc,
+   exported functions/types/constants/variables, imports, and `BUG(...)`
+   comments. `vm/qpaths` supplies subpackage children. No new VM endpoint
+   is introduced.
 
-3. **`vm/qdoc` now carries source positions**. `gnovm/pkg/doc` adds
-   `File` and `Line` to `JSONValueDecl`, `JSONFunc`, `JSONType` (both
-   with `json:",omitempty"`), populated via a single new
-   `(pkg *pkgData).extractPosition(ast.Node)` helper. This unlocks deep
-   links from every overview symbol to its exact declaration site in
-   `SourceView`, and is additive / backward-compatible with existing
-   `gno doc` CLI consumers. Existing `TestJSONDocumentation` fixture
-   updated with expected file/line values.
+3. **`vm/qdoc` now carries source positions and imports**. `gnovm/pkg/doc`
+   adds `File`/`Line` to `JSONValueDecl`, `JSONFunc`, `JSONType` and an
+   `Imports []string` to `JSONDocumentation` (all `json:",omitempty"`).
+   Positions come from a single new `(*pkgData).extractPosition(ast.Node)`
+   helper; imports from `(*pkgData).imports()`, which reuses the
+   `gnovm/pkg/packages` path-extraction idiom on the already-parsed AST
+   (no second parse) and returns a deduplicated, sorted, non-test set.
+   This unlocks per-symbol deep links and lets the overview render the
+   import list without fetching and re-parsing source files. Additive /
+   backward-compatible with existing `gno doc` CLI consumers.
 
 4. **Metadata derivation is pure.** Helpers are split by concern across
    `components/overview_{build,symbols,imports,license,files}.go` and
@@ -60,9 +62,11 @@ part of the mainnet UX effort tracked in #5463.
    reintroduced.
 
 7. **Parallel data fetching**. `GetOverviewView` runs `ListFiles`,
-   `Doc`, README rendering, and `ListPaths` concurrently via
-   `errgroup`. Per-file source fetching for import parsing is bounded
-   to 4 concurrent RPCs and 10 .gno files (plus `gnomod.toml`).
+   `Doc`, README rendering, and `ListPaths` concurrently via `errgroup`,
+   then fetches only the two metadata files it still needs (`gnomod.toml`
+   and `LICENSE`) — imports now come from `vm/qdoc`. An overview request
+   is bounded to a small, constant set of RPCs instead of growing with
+   the package's source-file count.
 
 8. **CUBE CSS extension**. `06-blocks.css` adds block-level styles for
    the overview page, following the existing `b-*` naming convention
@@ -118,8 +122,8 @@ part of the mainnet UX effort tracked in #5463.
   (`TestHTTPHandler_GetSourceView_NoFiles`,
   `TestHTTPHandler_GetSourceView_FilePreference`). One case in
   `TestHTTPHandler_Get` updated to explicitly request `&file=gno.mod`.
-- **JSON wire schema for `vm/qdoc` gains two optional fields**
-  (`file`, `line`). New-client ↔ new-server and new-client ↔ old-server
+- **JSON wire schema for `vm/qdoc` gains optional fields** (`file`,
+  `line`, `imports`). New-client ↔ new-server and new-client ↔ old-server
   are both safe (the fields are `omitempty` and unknown-on-the-wire when
   absent). Old-client ↔ new-server may fail to decode if the consumer's
   JSON deserializer is strict about unknown fields. In this monorepo the
@@ -136,9 +140,9 @@ part of the mainnet UX effort tracked in #5463.
 
 ## Scope in
 
-- `gnovm/pkg/doc/json_doc.go` — add `File`/`Line` to JSON types, populate
-- `gnovm/pkg/doc/pkg.go` — add `extractPosition` helper
-- `gnovm/pkg/doc/json_doc_test.go` — fixture with expected file/line
+- `gnovm/pkg/doc/json_doc.go` — add `File`/`Line`/`Imports` to JSON types, populate
+- `gnovm/pkg/doc/pkg.go` — add `extractPosition` + `imports` helpers
+- `gnovm/pkg/doc/json_doc_test.go` — fixture + imports test
 - `gno.land/pkg/gnoweb/components/view_overview.go` — data types + factory
 - `gno.land/pkg/gnoweb/components/overview_build.go` — orchestration, stats, quality, TOC
 - `gno.land/pkg/gnoweb/components/overview_symbols.go` — funcs / types / values

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -320,4 +321,21 @@ func TestJSONDocumentation(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())
+}
+
+func TestJSONDocumentation_Imports(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\nimport (\n\t\"strings\"\n\t\"gno.land/p/demo/avl\"\n)\n"},
+			{Name: "b.gno", Body: "package foo\nimport \"strings\"\n"},      // duplicate import path
+			{Name: "a_test.gno", Body: "package foo\nimport \"testing\"\n"}, // test-only, excluded
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gno.land/p/demo/avl", "strings"}, jdoc.Imports)
 }

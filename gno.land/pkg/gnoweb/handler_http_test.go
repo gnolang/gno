@@ -1378,6 +1378,7 @@ func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
 		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
 			return &doc.JSONDocumentation{
 				PackageDoc: "Package foo does things.",
+				Imports:    []string{"gno.land/p/demo/avl", "strings"},
 				Funcs: []*doc.JSONFunc{
 					{Name: "Hello", Signature: "func Hello() string", File: "foo.gno", Line: 10},
 					{Name: "internal"}, // filtered by export check
@@ -1389,8 +1390,6 @@ func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
 		},
 		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
 			switch filename {
-			case "foo.gno":
-				return []byte("package foo\nimport \"strings\"\n"), gnoweb.FileMeta{}, nil
 			case "README.md":
 				return []byte("# Foo\n"), gnoweb.FileMeta{}, nil
 			case "LICENSE":
@@ -1421,6 +1420,7 @@ func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
 	assert.NotContains(t, body, ">internal<", "unexported func should not appear as a symbol")
 	assert.Contains(t, body, "Config", "type should be rendered")
 	assert.Contains(t, body, "foo.gno", "file link should appear")
+	assert.Contains(t, body, "gno.land/p/demo/avl", "qdoc import should be rendered")
 }
 
 // TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure verifies the overview still

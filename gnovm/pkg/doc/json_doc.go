@@ -17,9 +17,10 @@ import (
 // as JSON with printable string fields
 type JSONDocumentation struct {
 	PackagePath string   `json:"package_path"`
-	PackageLine string   `json:"package_line"` // package io // import "io"
-	PackageDoc  string   `json:"package_doc"`  // markdown of top-level package documentation
-	Bugs        []string `json:"bugs"`         // From comments with "BUG(who): Details"
+	PackageLine string   `json:"package_line"`      // package io // import "io"
+	PackageDoc  string   `json:"package_doc"`       // markdown of top-level package documentation
+	Imports     []string `json:"imports,omitempty"` // sorted, deduplicated non-test import paths
+	Bugs        []string `json:"bugs"`              // From comments with "BUG(who): Details"
 
 	// These match each of the sections in a pkg.go.dev package documentation
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
@@ -122,6 +123,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		PackagePath: d.pkgData.dir.dir,
 		PackageLine: fmt.Sprintf("package %s // import %q", pkg.Name, pkg.ImportPath),
 		PackageDoc:  string(pkg.Markdown(pkg.Doc)),
+		Imports:     d.pkgData.imports(),
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},

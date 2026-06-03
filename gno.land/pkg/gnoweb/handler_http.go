@@ -831,9 +831,9 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		if files, err = h.Client.ListFiles(gctx, pkgPath); err != nil {
 			return err
 		}
-		// Download the import-source bodies as soon as the file list is known so
-		// they fetch in parallel with the Doc/README/paths queries below.
-		sources = h.fetchSourcesForImports(gctx, pkgPath, files)
+		// Fetch gnomod.toml + LICENSE as soon as the file list is known so they
+		// download in parallel with the Doc/README/paths queries below.
+		sources = h.fetchMetaFiles(gctx, pkgPath, files)
 		return nil
 	})
 	g.Go(func() error {
@@ -882,18 +882,16 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	return http.StatusOK, components.OverviewView(data)
 }
 
-// fetchSourcesForImports downloads up to 10 .gno non-test files plus gnomod.toml
-// with at most 4 concurrent RPCs. Per-file errors are silent (best-effort).
-func (h *HTTPHandler) fetchSourcesForImports(ctx context.Context, pkgPath string, files []string) map[string][]byte {
-	const maxParallel = 4
-	const maxFiles = 10
-
-	targets := filterImportSources(files, maxFiles)
+// fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.
+// deriveInfo needs gnomod.toml; deriveLicense needs the LICENSE body to
+// identify the license kind. Imports are supplied by vm/qdoc, so no .gno
+// source is fetched here. Per-file errors are silent (best-effort).
+func (h *HTTPHandler) fetchMetaFiles(ctx context.Context, pkgPath string, files []string) map[string][]byte {
+	targets := filterMetaFiles(files)
 	if len(targets) == 0 {
 		return nil
 	}
 
-	sem := make(chan struct{}, maxParallel)
 	var mu sync.Mutex
 	results := make(map[string][]byte, len(targets))
 
@@ -902,8 +900,6 @@ func (h *HTTPHandler) fetchSourcesForImports(ctx context.Context, pkgPath string
 		wg.Add(1)
 		go func(file string) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
 			content, _, err := h.Client.File(ctx, pkgPath, file)
 			if err != nil {
 				return
@@ -917,24 +913,13 @@ func (h *HTTPHandler) fetchSourcesForImports(ctx context.Context, pkgPath string
 	return results
 }
 
-// filterImportSources returns the first maxFiles non-test .gno files plus
-// gnomod.toml and any LICENSE file. The LICENSE body is needed by
-// components.deriveLicense to identify the license kind.
-func filterImportSources(files []string, maxFiles int) []string {
-	out := make([]string, 0, maxFiles+2)
-	gnoCount := 0
+// filterMetaFiles returns the metadata files the overview fetches: gnomod.toml
+// and any LICENSE file.
+func filterMetaFiles(files []string) []string {
+	out := make([]string, 0, 2)
 	for _, f := range files {
-		c := components.ClassifyFile(f)
-		if f == "gnomod.toml" || c.IsLicense {
+		if f == "gnomod.toml" || components.ClassifyFile(f).IsLicense {
 			out = append(out, f)
-			continue
-		}
-		if gnoCount >= maxFiles {
-			continue
-		}
-		if c.IsGno && !c.IsTest {
-			out = append(out, f)
-			gnoCount++
 		}
 	}
 	return out

@@ -241,23 +241,6 @@ func TestClassifyFile(t *testing.T) {
 	}
 }
 
-func TestFilterNonTestSources(t *testing.T) {
-	t.Parallel()
-	sources := map[string][]byte{
-		"foo.gno":          []byte("package foo"),
-		"foo_test.gno":     []byte("package foo"),
-		"bar_filetest.gno": []byte("package foo"),
-		"README.md":        []byte("# readme"),
-		"gnomod.toml":      []byte("module = \"x\""),
-	}
-	got := filterNonTestSources(sources)
-	require.Len(t, got, 1, "only non-test .gno files are kept for import parsing")
-	_, ok := got["foo.gno"]
-	require.True(t, ok)
-	require.Nil(t, filterNonTestSources(nil), "nil input → nil output")
-	require.Nil(t, filterNonTestSources(map[string][]byte{}), "empty input → nil output")
-}
-
 func TestBuildOverview_BoundsSymbols(t *testing.T) {
 	t.Parallel()
 	u, err := weburl.Parse("/r/demo/foo")
