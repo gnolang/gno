@@ -1,5 +1,5 @@
-import { CodeEditor, isDarkMode } from "./code-editor.js";
-import { BaseController, makeCopyIcon } from "./controller.js";
+import { CodeEditor, isDarkMode } from "../../../frontend/js/code-editor.js";
+import { BaseController, makeCopyIcon } from "../../../frontend/js/controller.js";
 
 interface PlaygroundFile {
 	name: string;
@@ -35,8 +35,9 @@ export class PlaygroundController extends BaseController {
 		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
 		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
-		if (!this.editorEl || !this.outputEl || !this.tabsEl || !initialCodeEl)
+		if (!this.editorEl || !this.outputEl || !this.tabsEl || !initialCodeEl) {
 			return;
+		}
 
 		this.editorEl.addEventListener("focusin", () =>
 			this._scrollActiveTabIntoView(),
@@ -170,7 +171,9 @@ export class PlaygroundController extends BaseController {
 	): void {
 		const row = document.createElement("div");
 		row.className = "b-playground-output-item";
-		if (isError) row.classList.add("u-color-danger");
+		if (isError) {
+			row.classList.add("u-color-danger");
+		}
 
 		const pre = document.createElement("pre");
 		pre.className = "b-playground-output-item-text";
@@ -210,8 +213,9 @@ export class PlaygroundController extends BaseController {
 	}
 
 	private renderTabs(): void {
-		while (this.tabsEl.firstChild)
+		while (this.tabsEl.firstChild) {
 			this.tabsEl.removeChild(this.tabsEl.firstChild);
+		}
 
 		this.files.forEach((f, i) => {
 			const btn = document.createElement("button");
@@ -227,7 +231,9 @@ export class PlaygroundController extends BaseController {
 
 	public switchTab(event: Event & { params?: Record<string, unknown> }): void {
 		const fileName = event.params?.file as string;
-		if (fileName) this._switchToFile(fileName);
+		if (fileName) {
+			this._switchToFile(fileName);
+		}
 	}
 
 	public addFile(): void {

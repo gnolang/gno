@@ -171,11 +171,6 @@ func (gnoURL GnoURL) IsPlayground() bool {
 	return gnoURL.Path == "/_/play"
 }
 
-// IsPackageFork checks if the URL represents a package fork.
-func (gnoURL GnoURL) IsPackageFork() bool {
-	return gnoURL.WebQuery.Has("fork")
-}
-
 // rePkgPath matches and validates a path.
 var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 

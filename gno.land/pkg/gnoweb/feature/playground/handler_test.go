@@ -1,8 +1,11 @@
-package gnoweb
+package playground
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,17 +17,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// stubClient is a minimal ClientAdapter for handler tests — every method
+// returns canned data so the API path can be exercised without importing
+// the gnoweb package (which would create a test-time cycle).
+type stubClient struct {
+	evalResult []byte
+	evalErr    error
+	docResult  *doc.JSONDocumentation
+	docErr     error
+	files      []string
+	fileBodies map[string][]byte
+}
+
+func (s *stubClient) ListFiles(context.Context, string) ([]string, error) {
+	return s.files, nil
+}
+
+func (s *stubClient) File(_ context.Context, _, filename string) ([]byte, error) {
+	body, ok := s.fileBodies[filename]
+	if !ok {
+		return nil, errors.New("file not found")
+	}
+	return body, nil
+}
+
+func (s *stubClient) Doc(context.Context, string) (*doc.JSONDocumentation, error) {
+	return s.docResult, s.docErr
+}
+
+func (s *stubClient) Eval(context.Context, string) ([]byte, error) {
+	return s.evalResult, s.evalErr
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 // TestHandlerPlaygroundEval tests the POST /_/api/eval handler directly.
 func TestHandlerPlaygroundEval(t *testing.T) {
 	t.Parallel()
 
-	logger := slog.New(slog.NewTextHandler(io_discard{}, nil))
-	cli := NewMockClient(&MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"mock.gno": `package mock`},
+	h := New(Deps{
+		Client:  &stubClient{evalResult: []byte("mock eval")},
+		Logger:  discardLogger(),
+		Domain:  "gno.land",
+		Remote:  "http://localhost:26657",
+		ChainId: "test",
 	})
-	handler := handlerPlaygroundEval(logger, cli, "gno.land", "http://localhost:26657")
 
 	cases := []struct {
 		name       string
@@ -69,6 +108,7 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 		},
 	}
 
+	handler := h.EvalHandler()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -98,17 +138,18 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 func TestHandlerPlaygroundFuncs(t *testing.T) {
 	t.Parallel()
 
-	logger := slog.New(slog.NewTextHandler(io_discard{}, nil))
-	cli := NewMockClient(&MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"mock.gno": `package mock`},
-		Functions: []*doc.JSONFunc{
-			{Name: "Hello", Signature: "Hello() string"},
-			{Name: "method", Type: "MyType", Signature: "method()"},
+	h := New(Deps{
+		Client: &stubClient{
+			docResult: &doc.JSONDocumentation{
+				Funcs: []*doc.JSONFunc{
+					{Name: "Hello", Signature: "Hello() string"},
+					{Name: "method", Type: "MyType", Signature: "method()"},
+				},
+			},
 		},
+		Logger: discardLogger(),
+		Domain: "gno.land",
 	})
-	handler := handlerPlaygroundFuncs(logger, cli)
 
 	cases := []struct {
 		name       string
@@ -153,6 +194,7 @@ func TestHandlerPlaygroundFuncs(t *testing.T) {
 		},
 	}
 
+	handler := h.FuncsHandler()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -168,26 +210,21 @@ func TestHandlerPlaygroundFuncs(t *testing.T) {
 	}
 }
 
-// TestRateLimiter tests that the per-IP rate limiter enforces burst limits.
+// TestRateLimiter tests that the per-IP rate limiter enforces burst
+// limits. Uses a custom (burst=2, refill=10s) bucket so the test does
+// not race the production +1/3s refill rate.
 func TestRateLimiter(t *testing.T) {
 	t.Parallel()
 
-	logger := slog.New(slog.NewTextHandler(io_discard{}, nil))
-	cli := NewMockClient(&MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"mock.gno": `package mock`},
-	})
-
-	// Burst of 2, refill every 10 seconds (won't refill during test).
-	rl := newRateLimiter(2, 10*time.Second)
-	h := &playgroundAPIHandler{
-		logger:  logger,
-		client:  cli,
-		domain:  "gno.land",
-		limiter: rl,
+	h := &Handler{
+		deps: Deps{
+			Client: &stubClient{evalResult: []byte("ok")},
+			Logger: discardLogger(),
+			Domain: "gno.land",
+		},
+		limiter: newRateLimiter(2, 10*time.Second),
 	}
-	handler := http.HandlerFunc(h.serveEval)
+	handler := h.EvalHandler()
 
 	body := `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
 	ip := "192.0.2.1:1234"
@@ -211,8 +248,3 @@ func TestRateLimiter(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code, "third request should be rate-limited")
 	assert.Contains(t, rr.Body.String(), "rate limit")
 }
-
-// io_discard is an io.Writer that discards all output, used for test loggers.
-type io_discard struct{}
-
-func (io_discard) Write(p []byte) (int, error) { return len(p), nil }
