@@ -657,14 +657,6 @@ func allocStringSize(n int64) int64 {
 	return overflow.Addp(allocString, overflow.Mulp(allocStringByte, n))
 }
 
-// allocStringData is the heap cost of a string's backing byte array only
-// (heap-allocation overhead + content bytes), WITHOUT the 16-byte header.
-// Use it when the header is already accounted for elsewhere, e.g. an inline
-// string field whose header is part of the owning struct's sizeof.
-func allocStringData(n int64) int64 {
-	return overflow.Addp(_allocHeap, overflow.Mulp(allocStringByte, n))
-}
-
 // fileBlockEntrySize returns the incremental memory cost of adding one file
 // block entry. The fname is referenced from the FNames []string backing slot
 // (a 16-byte header, included in allocStringSize) and from the fBlocksMap key
@@ -681,12 +673,12 @@ func fileBlockEntrySize(fname string) int64 {
 // Used both during allocation (creation/store-loading) and GC recounting
 // to ensure consistency.
 func packageValueSize(pkgName Name, pkgPath string, fnames []string) int64 {
-	// allocPackage (_allocHeap + sizeof(PackageValue)) already includes the
-	// inline PkgName/PkgPath string headers, so only their backing bytes are
-	// added here; allocStringSize would double-count the 16-byte headers.
+	// PkgName/PkgPath headers are already in sizeof(PackageValue); add only each
+	// string's backing array (_allocHeap + bytes), not allocString, which would
+	// re-add the 16-byte header.
 	ss := int64(allocPackage)
-	ss = overflow.Addp(ss, allocStringData(int64(len(pkgName))))
-	ss = overflow.Addp(ss, allocStringData(int64(len(pkgPath))))
+	ss = overflow.Addp(ss, overflow.Addp(_allocHeap, overflow.Mulp(allocStringByte, int64(len(pkgName)))))
+	ss = overflow.Addp(ss, overflow.Addp(_allocHeap, overflow.Mulp(allocStringByte, int64(len(pkgPath)))))
 	for _, fname := range fnames {
 		ss = overflow.Addp(ss, fileBlockEntrySize(fname))
 	}

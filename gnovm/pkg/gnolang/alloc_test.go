@@ -113,8 +113,8 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				PkgPath: "gno.land/p/test",
 			},
 			expected: allocPackage +
-				allocString + int64(len("test")) + // PkgName
-				allocString + int64(len("gno.land/p/test")), // PkgPath
+				(_allocHeap + allocStringByte*int64(len("test"))) + // PkgName backing bytes (header in allocPackage)
+				(_allocHeap + allocStringByte*int64(len("gno.land/p/test"))), // PkgPath backing bytes
 		},
 		{
 			name: "package with FNames",
@@ -124,8 +124,8 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				FNames:  []string{"file1.gno", "file2.gno"},
 			},
 			expected: allocPackage +
-				allocString + int64(len("demo")) +
-				allocString + int64(len("gno.land/r/demo")) +
+				(_allocHeap + allocStringByte*int64(len("demo"))) +
+				(_allocHeap + allocStringByte*int64(len("gno.land/r/demo"))) +
 				fileBlockEntrySize("file1.gno") + // FNames[0]
 				fileBlockEntrySize("file2.gno"), // FNames[1]
 		},
@@ -142,8 +142,8 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 			// fBlocksMap is derived from FNames; with no FNames,
 			// the map entries are not counted.
 			expected: allocPackage +
-				allocString + int64(len("demo")) +
-				allocString + int64(len("gno.land/r/demo")),
+				(_allocHeap + allocStringByte*int64(len("demo"))) +
+				(_allocHeap + allocStringByte*int64(len("gno.land/r/demo"))),
 		},
 		{
 			name: "package with all fields",
@@ -158,8 +158,8 @@ func TestPackageValueGetShallowSize(t *testing.T) {
 				},
 			},
 			expected: allocPackage +
-				allocString + int64(len("demo")) +
-				allocString + int64(len("gno.land/r/demo")) +
+				(_allocHeap + allocStringByte*int64(len("demo"))) +
+				(_allocHeap + allocStringByte*int64(len("gno.land/r/demo"))) +
 				fileBlockEntrySize("file1.gno") + // FNames[0] (includes FBlocks + fBlocksMap)
 				fileBlockEntrySize("file2.gno"), // FNames[1] (includes FBlocks + fBlocksMap)
 		},

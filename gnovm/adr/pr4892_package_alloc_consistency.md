@@ -31,9 +31,9 @@ truth for computing a `PackageValue`'s shallow memory cost. It accounts for:
 
 - `allocPackage` (`_allocHeap` + `unsafe.Sizeof(PackageValue{})`), which already
   includes the inline `PkgName`/`PkgPath` string **headers**
-- `PkgName`/`PkgPath` **backing bytes only** (`allocStringData` = heap overhead +
-  content); the 16-byte headers are deliberately not re-counted here because they
-  are already part of the struct sizeof above (re-adding `allocString` would
+- `PkgName`/`PkgPath` **backing bytes only** (`_allocHeap` heap overhead +
+  content bytes); the 16-byte headers are deliberately not re-counted here because
+  they are already part of the struct sizeof above (adding `allocString` would
   double-count them)
 - per `FNames` filename (`fileBlockEntrySize`): the filename's `FNames` slot header
   + backing bytes (`allocStringSize`), the `FBlocks` interface slot (16), and the
