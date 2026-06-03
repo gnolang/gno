@@ -1072,7 +1072,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
-		cp = tv // preserve N_Readonly
+		cp = tv // start from the header (T, N); V is replaced below
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:

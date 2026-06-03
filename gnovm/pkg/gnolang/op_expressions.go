@@ -739,7 +739,35 @@ func (m *Machine) doOpConvert() {
 	// BEGIN conversion checks — protect against inter-realm
 	// conversion exploits.
 	//
-	// Refuse conversion to a foreign /r/-declared type — the
+	// Case 1. Refuse conversion of a value whose underlying object is
+	// stored in an external realm. Without this, an attacker can
+	// declare a parallel /p/-type with the same struct layout as a
+	// /p/-typed victim field plus extra mutator methods, then convert
+	// the victim's pointer to the parallel type and invoke the new
+	// mutator — borrow rule 2 routes m.Realm to victim's realm for
+	// the duration of the /p/-method, so the write would succeed under
+	// victim authority. Blocking the conversion here (m.IsReadonly is
+	// the cross-realm ownership check) stops the launder before any
+	// method dispatch. See zrealm_launder_g_typepun.gno.
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+			xvdt.PkgPath == m.Realm.Path {
+			// Except allow conversion when xv.T is m.Realm's own
+			// declared type — the converting realm already has
+			// write authority over its own values.
+		} else {
+			sliceType, ok := baseOf(xv.T).(*SliceType)
+			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
+			if isBytesArray && t.Kind() == StringKind {
+				// Allow conversion from []byte to string
+				// As it does not modify the value stored in the slice.
+			} else {
+				panic("illegal conversion of readonly or externally stored value")
+			}
+		}
+	}
+
+	// Case 2. Refuse conversion to a foreign /r/-declared type — the
 	// converting realm cannot forge values of types it doesn't
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
