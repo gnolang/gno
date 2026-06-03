@@ -19,10 +19,9 @@ import (
 )
 
 const (
-	defaultGroupCheckDuration = 5000 * time.Millisecond
-	defaultHeadSizeLimit      = 10 * 1024 * 1024       // 10MB
-	defaultTotalSizeLimit     = 1 * 1024 * 1024 * 1024 // 1GB
-	maxFilesToRemove          = 4                      // needs to be greater than 1
+	defaultHeadSizeLimit  = 10 * 1024 * 1024       // 10MB
+	defaultTotalSizeLimit = 1 * 1024 * 1024 * 1024 // 1GB
+	maxFilesToRemove      = 4                      // needs to be greater than 1
 
 	// minDiskSpaceLimit is the minimum available disk space (in bytes)
 	// before the Group halts writes (16 MB).
