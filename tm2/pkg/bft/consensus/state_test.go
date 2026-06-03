@@ -17,6 +17,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
+type countingPrivValidator struct {
+	types.PrivValidator
+	signVoteCalls int
+}
+
+func (pv *countingPrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	pv.signVoteCalls++
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
 /*
 
 ProposeSuite
@@ -205,6 +215,82 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 
 	// if we're a validator, enterPropose should not timeout
 	ensureNoNewTimeout(timeoutCh, cs.config.TimeoutPropose.Nanoseconds())
+}
+
+func TestStateSignAddVoteReusesExistingSelfVote(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	wrapped := &countingPrivValidator{PrivValidator: cs.privValidator}
+	cs.SetPrivValidator(wrapped)
+
+	height, round := cs.Height, cs.Round
+	address := wrapped.PubKey().Address()
+	valIndex, _ := cs.Validators.GetByAddress(address)
+	blockID := types.BlockID{
+		Hash:        []byte("existing-self-prevote"),
+		PartsHeader: types.PartSetHeader{Total: 1, Hash: []byte("parts")},
+	}
+	vote := &types.Vote{
+		ValidatorAddress: address,
+		ValidatorIndex:   valIndex,
+		Height:           height,
+		Round:            round,
+		Timestamp:        time.Now(),
+		Type:             types.PrevoteType,
+		BlockID:          blockID,
+	}
+	require.NoError(t, wrapped.SignVote(config.ChainID(), vote))
+	wrapped.signVoteCalls = 0
+
+	added, err := cs.Votes.AddVote(vote, "peer")
+	require.True(t, added)
+	require.NoError(t, err)
+
+	cs.signAddVote(types.PrevoteType, blockID.Hash, blockID.PartsHeader)
+
+	assert.Zero(t, wrapped.signVoteCalls)
+	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
+}
+
+func TestStateSignAddVoteRefusesConflictingSelfVote(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	wrapped := &countingPrivValidator{PrivValidator: cs.privValidator}
+	cs.SetPrivValidator(wrapped)
+
+	height, round := cs.Height, cs.Round
+	address := wrapped.PubKey().Address()
+	valIndex, _ := cs.Validators.GetByAddress(address)
+	existingBlockID := types.BlockID{
+		Hash:        []byte("existing-self-prevote"),
+		PartsHeader: types.PartSetHeader{Total: 1, Hash: []byte("parts-a")},
+	}
+	vote := &types.Vote{
+		ValidatorAddress: address,
+		ValidatorIndex:   valIndex,
+		Height:           height,
+		Round:            round,
+		Timestamp:        time.Now(),
+		Type:             types.PrevoteType,
+		BlockID:          existingBlockID,
+	}
+	require.NoError(t, wrapped.SignVote(config.ChainID(), vote))
+	wrapped.signVoteCalls = 0
+
+	added, err := cs.Votes.AddVote(vote, "peer")
+	require.True(t, added)
+	require.NoError(t, err)
+
+	cs.signAddVote(
+		types.PrevoteType,
+		[]byte("new-self-prevote"),
+		types.PartSetHeader{Total: 1, Hash: []byte("parts-b")},
+	)
+
+	assert.Zero(t, wrapped.signVoteCalls)
+	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
 }
 
 func TestStateBadProposal(t *testing.T) {

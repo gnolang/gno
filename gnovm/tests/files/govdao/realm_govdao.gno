@@ -22,7 +22,7 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	// UpdateRequest is declared in /r/gov/dao; the construction-time
 	// check forbids allocating it from /r/govdao directly. Use the
-	// dao-side constructor, which runs under Rule-1 borrow to /r/gov/dao.
+	// dao-side constructor, which runs under borrow rule #1 to /r/gov/dao.
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, nil))
 }
 

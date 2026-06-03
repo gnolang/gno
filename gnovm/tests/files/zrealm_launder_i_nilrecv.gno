@@ -7,7 +7,7 @@ package launderi
 // (GetFirstObject returns nil via the ownership.go default branch),
 // Attack I exploits POINTER-RECEIVER methods called on a nil pointer
 // (PointerValue with Base==nil → GetBase returns nil →
-// GetFirstObject returns nil). Same Rule-2 anchor gap, different
+// GetFirstObject returns nil). Same borrow rule #2 anchor gap, different
 // shape: EvilNilRecv has a pointer-receiver method whose body does
 // not dereference the receiver, so calling
 // `(*EvilNilRecv)(nil).Run(imm)` from inside a borrowed-to-victim

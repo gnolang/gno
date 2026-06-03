@@ -49,7 +49,10 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "77eeee7c455c8c8e99c4d27825ab52912125a2fb22ce20f8110b49e5b07277fd"
+// Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
+// to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
+// PR is the test13 chain-upgrade vehicle, so the shift is intentional.
+const expectedCrossrealm38Hash = "e37075fb6a103445adc4d83ecb95e1bd3ba839a709eac873db2f95d56f9010ac"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
