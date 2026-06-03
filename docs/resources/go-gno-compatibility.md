@@ -127,11 +127,11 @@ Legend:
 | crypto/ed25519                              | `part`[^3] |
 | crypto/elliptic                             | `tbd`    |
 | crypto/hmac                                 | `todo`   |
-| crypto/md5                                  | `test`[^4] |
+| crypto/md5                                  | `tbd`[^4]  |
 | crypto/rand                                 | `nondet` |
 | crypto/rc4                                  | `tbd`    |
 | crypto/rsa                                  | `tbd`    |
-| crypto/sha1                                 | `test`[^4] |
+| crypto/sha1                                 | `tbd`[^4]  |
 | crypto/sha256                               | `part`[^5] |
 | crypto/sha512                               | `tbd`    |
 | crypto/subtle                               | `part`[^6] |
@@ -152,10 +152,10 @@ Legend:
 | encoding                                    | `full`   |
 | encoding/ascii85                            | `todo`   |
 | encoding/asn1                               | `todo`   |
-| encoding/base32                             | `todo`   |
+| encoding/base32                             | `full`   |
 | encoding/base64                             | `full`   |
 | encoding/binary                             | `part`[^7] |
-| encoding/csv                                | `todo`   |
+| encoding/csv                                | `full`   |
 | encoding/gob                                | `tbd`    |
 | encoding/hex                                | `full`   |
 | encoding/json                               | `todo`   |
@@ -276,23 +276,24 @@ Legend:
 [^2]: `crypto/cipher` provides the interfaces (`AEAD`, `Block`, `BlockMode`,
   `Stream`) plus the `StreamReader`/`StreamWriter` structs, but none of the mode
   constructors (`NewCBCEncrypter`/`Decrypter`, `NewCTR`,
-  `NewCFBEncrypter`/`Decrypter`, `NewOFB`, `NewGCM` and friends). The two structs
+  `NewCFBEncrypter`/`Decrypter`, `NewOFB`, `NewGCM`). The two structs
   are stubs: they lack the `Read`/`Write` methods that satisfy
   `io.Reader`/`io.Writer` in Go. Practically unusable until a backing block
   cipher (`crypto/aes` is `todo`) lands together with these constructors.
 [^3]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^4]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
-  algorithms, widely considered unsafe for cryptographic hashing. Decision on
-  whether to include these as part of the official standard libraries is still
-  pending.
+[^4]: `crypto/sha1` and `crypto/md5` are "deprecated" hashing algorithms, widely
+  considered unsafe for cryptographic hashing. They are not currently available;
+  the decision on whether to include them as official standard libraries is
+  still pending.
 [^5]: `crypto/sha256` is currently only implemented for `Sum256`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^6]: `crypto/subtle` ships `XORBytes` and `XORBytesUnsafe`. Note `XORBytes`
-  deviates from Go: it allocates and returns the result (`XORBytes(x, y []byte)
-  []byte`) instead of writing into `dst`. `XORBytesUnsafe` keeps Go's
-  `XORBytesUnsafe(dst, x, y []byte) int` signature. The constant-time comparison
-  primitives (`ConstantTimeCompare`, `ConstantTimeEq`, `ConstantTimeSelect`,
+[^6]: `crypto/subtle` ships `XORBytes` and `XORBytesUnsafe`, neither matching
+  Go's API. Go has a single `XORBytes(dst, x, y []byte) int` that writes into
+  `dst`. Gno's `XORBytes(x, y []byte) []byte` allocates and returns the result
+  instead, while the Gno-only `XORBytesUnsafe(dst, x, y []byte) int` keeps the
+  write-into-`dst` behaviour. The constant-time comparison primitives
+  (`ConstantTimeCompare`, `ConstantTimeEq`, `ConstantTimeSelect`,
   `ConstantTimeByteEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`) are not yet
   implemented.
 [^7]: `encoding/binary` only ships the varint family (`Varint`, `Uvarint`,
@@ -336,14 +337,21 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 
 | package                  | purpose                                                                                         |
 |--------------------------|-------------------------------------------------------------------------------------------------|
-| `chain`                  | Core chain types: `Address`, `Coin`, `Coins`, `Emit`, helpers.                                  |
+| `chain`                  | Core chain types and helpers: `Coin`, `Coins`, `Emit`, `PackageAddress`, `PubKeyAddress`.       |
 | `chain/banker`           | Realm coin management (mint, burn, transfer, balance queries).                                  |
+| `chain/markdown`         | Markdown escaping/sanitizing (`EscapeInline`, `CodeFence`, `StripBidiAndZeroWidth`, …).         |
 | `chain/params`           | Realm-local parameter setters (`SetString`, `SetBool`, `SetInt64`, …, `UpdateParamStrings`).    |
 | `chain/runtime`          | Runtime context accessors (`PreviousRealm`, current realm, height, …).                          |
 | `crypto/bech32`          | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).                         |
+| `crypto/bn254`           | BN254 pairing-friendly curve ops (`G1Add`, `G1Mul`, `PairingCheck`).                            |
 | `crypto/chacha20`        | ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                                           |
 | `crypto/chacha20/chacha` | Low-level ChaCha20 primitives (`NewCipher`, `XORKeyStream`, `HChaCha20`).                       |
 | `crypto/chacha20/rand`   | ChaCha20-backed RNG (`New`, `Read`, `Bytes`, `Entropy256`, …).                                  |
+| `crypto/cometbls`        | CometBLS Groth16 light-header verification via a native binding (`VerifyZKP`).                  |
+| `crypto/cometblszk`      | Pure-Gno CometBLS Groth16 verifier on `bn254`/`keccak256`/`modexp` (`VerifyZKP`).               |
+| `crypto/keccak256`       | Keccak-256 hashing (`Sum256`).                                                                  |
+| `crypto/merkle`          | Merkle tree hashing and proofs (`HashFromByteSlices`, `LeafHash`, `VerifySimpleProof`).         |
+| `crypto/modexp`          | Big-integer modular exponentiation (`ModExp`).                                                  |
 | `math/overflow`          | Overflow-checked integer arithmetic (`Add`, `Sub`, `Mul`, `Div`, …).                            |
 | `sys/params`             | System-parameter setters and getters (`SetSysParam*`, `GetSysParam*`, `UpdateSysParamStrings`). |
 
