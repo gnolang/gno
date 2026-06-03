@@ -29,11 +29,16 @@ return the same amount that was originally allocated.
 Introduced `packageValueSize(pkgName, pkgPath, fnames)` as the single source of
 truth for computing a `PackageValue`'s shallow memory cost. It accounts for:
 
-- `allocPackage` (struct base + pointer + header)
-- `PkgName` and `PkgPath` string content (via `allocString + allocStringByte * len`)
-- `FNames` entries (string header + content per filename)
-- `FBlocks` entries (`_allocValue` per interface slot)
-- `fBlocksMap` entries (`_allocName + _allocPointer` per entry, derived 1:1 from `FNames`)
+- `allocPackage` (`_allocHeap` + `unsafe.Sizeof(PackageValue{})`), which already
+  includes the inline `PkgName`/`PkgPath` string **headers**
+- `PkgName`/`PkgPath` **backing bytes only** (`allocStringData` = heap overhead +
+  content); the 16-byte headers are deliberately not re-counted here because they
+  are already part of the struct sizeof above (re-adding `allocString` would
+  double-count them)
+- per `FNames` filename (`fileBlockEntrySize`): the filename's `FNames` slot header
+  + backing bytes (`allocStringSize`), the `FBlocks` interface slot (16), and the
+  `fBlocksMap` key header (16) + value `*Block` pointer (8). These headers live in
+  the slice backing arrays / map buckets, not in the struct, so they are counted.
 
 Both `GetShallowSize()` and the allocation paths call this function, guaranteeing consistency.
 
