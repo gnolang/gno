@@ -71,6 +71,42 @@ Additional builtin types:
 | `bigint` | Based on `math/big.Int`                                                                    |
 | `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
 
+### Pointer equality for zero-sized types
+
+**Gno behavior.** `==` on pointers is pure identity: equal iff both denote the
+same slot (same `Base` + `Index`), uniformly for every element type.
+
+**Divergence.** gc-Go folds several zero-sized cases that Gno does not — heap
+allocations route through `runtime.zerobase`, and offset arithmetic collapses
+`&arr[i]` / `&s.f` when the element or field is zero-sized. For zero-sized `T`:
+
+```go
+//                                           Gno   / gc-Go
+new(T) == new(T)                          // false / unspecified*  (true when both escape → runtime.zerobase)
+var x, y T; _ = &x == &y                  // false / unspecified*  (true when escaped)
+var a [10]T; _ = &a[0] == &a[1]           // false / true          (offset arithmetic)
+var s struct{ a, b T }; _ = &s.a == &s.b  // false / true          (offset arithmetic)
+```
+
+`*` gc-Go's result for distinct zero-size allocations is escape-analysis
+dependent: `false` when the compiler keeps them distinct (e.g. the literal
+`new(T) == new(T)` above folds to `false`), `true` when both escape to the heap
+and fold to `runtime.zerobase`. The spec leaves it unspecified. Gno is always
+`false`.
+
+Same-identity cases agree:
+
+```go
+//                                           Gno   / gc-Go
+var x T; _ = &x == &x                     // true  / true  (same variable)
+var a [10]T; _ = &a[3] == &a[3]           // true  / true  (same element)
+p := &x; q := p; _ = p == q               // true  / true  (same pointer)
+```
+
+**Rationale.** The Go spec leaves zero-sized pointer equality unspecified
+("Pointers to distinct zero-size variables may or may not be equal" — [Go spec,
+Comparison operators](https://go.dev/ref/spec#Comparison_operators)). Uniform
+identity is the simplest spec-compliant rule.
 
 ## Stdlibs
 
