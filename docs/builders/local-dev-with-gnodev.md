@@ -11,6 +11,8 @@ Once installed, verify that `gnodev` is available:
 gnodev --help
 ```
 
+For editor configuration and LSP support, see the [Editor Setup](editor-setup.md) guide.
+
 ## Overview
 
 In this tutorial, you will learn how to run up a local development node with

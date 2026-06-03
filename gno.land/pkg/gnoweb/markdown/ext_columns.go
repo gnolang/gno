@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	KindGnoColumn       = ast.NewNodeKind("GnoColumn")
-	GnoColumnsShorthand = []byte("|||") // shorthand for column separator
+	KindGnoColumn = ast.NewNodeKind("GnoColumn")
 )
 
 // GnoColumnTag represents the type of tag in a column block.
@@ -103,12 +102,9 @@ type columnsContext struct {
 // parseLineTag identifies the tag type based on the line content.
 // It returns a ColumnTag and a slice of comments if applicable.
 func parseLineTag(line []byte) GnoColumnTag {
-	// Check for shorthand ||| separator
-	if bytes.Equal(line, GnoColumnsShorthand) {
-		return GnoColumnTagSep
-	}
-
-	// Parse the line into HTML tokens
+	// Parse the line into HTML tokens.
+	// (The bare-`|||` shorthand was removed; `<gno-columns-sep>` and
+	// `<gno-columns-sep/>` are the only separator syntaxes now.)
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
 	if err != nil || len(toks) != 1 {
 		return GnoColumnTagUndefined // Return early if error or no tokens
@@ -139,7 +135,7 @@ type columnsParser struct{}
 
 // Trigger returns the trigger characters for the parser.
 func (*columnsParser) Trigger() []byte {
-	return []byte{'<', '|'}
+	return []byte{'<'}
 }
 
 // Open creates a column node based on the line tag.
@@ -187,12 +183,6 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
-			if bytes.Equal(line, GnoColumnsShorthand) {
-				// We return nil to let the parser continue here as we
-				// are not in a column context.
-				return nil, parser.NoChildren
-			}
-
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
