@@ -41,8 +41,8 @@ This document defines:
    (the two borrow rules).
 3. The captured realm value (`cur realm`) and its runtime invariants.
 4. The object model: how storage is attributed (`Storage = Authority`).
-5. Write guards: readonly taint, conversion checks, construction-time
-   check.
+5. Write guards: the storage-ownership (PkgID) check, conversion
+   guards, and the construction-time check.
 6. Panic and recover semantics across realm boundaries.
 
 ## 2. Realm-Context and Realm-Storage-Context
@@ -448,60 +448,12 @@ the entry side:
 Finalization does not occur for non-crossing calls within the same
 storage-context (which don't cross a boundary).
 
-## 8. Readonly Taint
-
-Values accessed from a foreign realm-storage via dot-selector or
-index-expression are tainted with `N_Readonly`. The taint is
-sticky: it propagates through field access, indexing, slicing,
-value copies, interface boxing/unboxing, and conversion. Any
-mutation attempt against a tainted target panics with
-`cannot directly modify readonly tainted object`.
-
-### 8.1 What gets tainted
-
-- `externalrealm.Foo` — direct package-level read.
-- `externalobject.FieldA` — field access on a foreign-stored object.
-- `externalobject.FieldA.FieldB[0]` — nested access; the taint
-  persists for the entire reference chain regardless of where each
-  intermediate object resides.
-- A local copy of a foreign value (`b := foreign.Slice[0]`) — the
-  copy carries the bit. Empirically verified in
-  `zrealm_launder_rdata_iface.gno` probe 5; this is
-  Go-semantics-divergent but conservative-safe.
-
-### 8.2 What is *not* tainted
-
-- Values returned from a foreign function/method — the return value
-  is fresh and carries no taint (function bodies operate inside the
-  borrowed realm, so newly-constructed values may legitimately be
-  attacker-mutable).
-- Primitive values copied out (an `int` extracted from a foreign
-  struct is just an int — there's no underlying object to taint).
-
-### 8.3 Write paths that check readonly
-
-Every mutation site routes through `PopAsPointer2` (machine.go) or
-the relevant uverse builtin, each of which calls `m.IsReadonly(tv)`
-before the write:
-
-- `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `++`, `--`
-- `*p = v`
-- `s[i] = v`, `m[k] = v`
-- `append(s, v)` (checks the destination slice)
-- `copy(dst, src)` (checks `dst`)
-- `delete(m, k)` (checks the map)
-- Range-loop bindings `for i, v := range x { /* writes */ }`
-
-The audit in `gno-security-guide.md` §2.3 and the agent
-investigation referenced there confirm no write path bypasses the
-check.
-
-## 9. Conversion Guards (`doOpConvert`)
+## 8. Conversion Guards (`doOpConvert`)
 
 The VM's conversion operator (`op_expressions.go doOpConvert`)
 enforces two cross-realm invariants:
 
-### 9.1 Case 1 — Refuse foreign-readonly source
+### 8.1 Case 1 — Refuse foreign-readonly source
 
 ```go
 if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
@@ -523,7 +475,7 @@ succeed under victim authority. Case 1 blocks the conversion at the
 source.
 
 The carve-out for `xv.T.PkgPath == m.Realm.Path` allows legitimate
-conversion of m.Realm's own (foreign-tainted) declared types.
+conversion of m.Realm's own declared types.
 
 **Implementation note**: Case 1 panics with raw Go `panic(...)`
 rather than `m.Panic(...)`, which means it is **not catchable by
@@ -534,7 +486,7 @@ realm code cannot recover from conversion panics. See
 `zrealm_launder_rdata_conv_iface_box.gno` for tests confirming the
 recoverability difference.
 
-### 9.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
+### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
 ```go
 if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
@@ -549,7 +501,7 @@ declare. Combined with the construction-time check (§3.2), this
 ensures every real instance of a `/r/`-declared type traces back to
 its home realm's allocator.
 
-## 10. Panic and Cross-Realm Boundary
+## 9. Panic and Cross-Realm Boundary
 
 `panic()` behaves like Go within a single realm-context. When an
 unrecovered panic crosses a realm boundary on its unwind path, the
@@ -568,7 +520,7 @@ they fire across a realm boundary — there is no half-mutated state
 to clean up, and the attacker cannot recover-and-retry under a
 different guise.
 
-### 10.1 `revive(fn)` — boundary-aware recover
+### 9.1 `revive(fn)` — boundary-aware recover
 
 `revive(fn)` is a Gno builtin that executes `fn` and returns the
 exception (if any) that crossed a realm boundary during finalization
@@ -577,7 +529,7 @@ future release `revive(fn)` will also wrap `fn` in transactional
 (cache-wrapped) memory so any mutations are discarded on abort —
 effectively giving Gno software transactional memory.
 
-## 11. Method Values
+## 10. Method Values
 
 A bound method value `mv := recv.M` is a function value that
 remembers its receiver. When invoked later (`mv()`), `PushFrameCall`
@@ -604,9 +556,9 @@ Realm authors should treat bound method values of `/p/`-types over
 their internal state as **publishing the underlying method to any
 holder** — equivalent to returning a setter closure.
 
-## 12. Guidelines
+## 11. Guidelines
 
-### 12.1 What `/p/` packages may and may not do
+### 11.1 What `/p/` packages may and may not do
 
 - May not import `/r/` or `/e/` packages.
 - May not declare crossing functions (`cur realm` parameters
@@ -616,7 +568,7 @@ holder** — equivalent to returning a setter closure.
 - After deployment, `/p/`'s persisted realm is frozen — no state
   changes survive across transactions.
 
-### 12.2 What `/r/` packages should expose
+### 11.2 What `/r/` packages should expose
 
 - Public functions intended for `MsgCall` use must be crossing
   functions (`func F(cur realm, ...)`). Non-crossing functions
@@ -627,7 +579,7 @@ holder** — equivalent to returning a setter closure.
   on data and should work uniformly regardless of where the data
   resides.
 
-### 12.3 Public API checklist
+### 11.3 Public API checklist
 
 For every exported function or method in your `/r/` realm:
 
@@ -647,9 +599,9 @@ For every exported function or method in your `/r/` realm:
 See `gno-security-guide.md` §8 for the full checklist and worked
 examples.
 
-## 13. Message Types
+## 12. Message Types
 
-### 13.1 MsgCall
+### 12.1 MsgCall
 
 `MsgCall` invokes a single exported crossing function on a target
 realm:
@@ -667,7 +619,7 @@ crossing functions of `/r/` packages can be invoked directly. This
 prevents accidental "non-crossing" calls that would inherit the
 caller's realm-context.
 
-### 13.2 MsgRun
+### 12.2 MsgRun
 
 `MsgRun` deploys an ephemeral `/e/g1user/run` package and invokes
 its `main()`. Inside `main`, the user is both the previous-realm
@@ -691,7 +643,7 @@ The ephemeral realm's address is derived from the user's address
 (via the special `e/<user>/<...>` pattern in `chain.PackageAddress`),
 so coins sent to the ephemeral realm flow back to the user.
 
-### 13.3 MsgAddPackage
+### 12.3 MsgAddPackage
 
 A new realm's `init()` and global-variable declarations run with:
 
@@ -707,7 +659,7 @@ package-level variable during init.
 The same flow applies to `/p/` package init, except after init
 completes the `/p/`'s realm is frozen.
 
-## 14. Implementation References
+## 13. Implementation References
 
 - Borrow rules: `gnovm/pkg/gnolang/machine.go` PushFrameCall
 - `setRealm` tripwire: `gnovm/pkg/gnolang/machine.go` setRealm
