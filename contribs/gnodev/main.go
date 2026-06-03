@@ -62,5 +62,6 @@ For more information and flags usage description, use 'gnodev local -h'.`,
 
 	if err := cmd.Run(context.Background()); err != nil {
 		stdio.ErrPrintfln(err.Error())
+		os.Exit(1)
 	}
 }
