@@ -973,43 +973,6 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"`
 }
 
-// Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
-// readonly. This happens when subvalues are retrieved from an externally
-// stored realm value, such as external realm package vars, or slices or
-// pointers to.
-// NOTE: most of the code except copy methods do not consider N_Readonly.
-// Instead the op functions should with m.IsReadonly() and tv.SetReadonly() and
-// tv.WithReadonly().
-var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
-
-// Returns true if mutable .V is readonly "wrapped".
-func (tv *TypedValue) IsReadonly() bool {
-	return tv.N == N_Readonly && tv.V != nil
-}
-
-// Sets tv.N to N_Readonly if ro and tv is not already immutable.  If ro is
-// false does nothing. See also Type.IsImmutable().
-func (tv *TypedValue) SetReadonly(ro bool) {
-	if tv.V == nil {
-		return // do nothing
-	}
-	if tv.T.IsImmutable() {
-		return // do nothing
-	}
-	if ro {
-		tv.N = N_Readonly
-		return
-	} else {
-		return // preserve prior tv.N
-	}
-}
-
-// Convenience, makes readonly if ro is true.
-func (tv TypedValue) WithReadonly(ro bool) TypedValue {
-	tv.SetReadonly(ro)
-	return tv
-}
-
 func (tv *TypedValue) IsImmutable() bool {
 	return tv.T == nil || tv.T.IsImmutable()
 }
@@ -1095,17 +1058,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		// N_Readonly is not preserved across deep copy. cv.Copy
-		// produces a fresh, independent heap value; the sticky bit
-		// marks "this TV observes external state", which no longer
-		// applies once we hold private data. The cross-realm-write
-		// defense is enforced at the pointer-deref check
-		// (PopAsPointer2 → IsReadonly), independent of this path —
-		// see gh #5736.
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		// See ArrayValue case above.
 	default:
 		cp = tv
 	}

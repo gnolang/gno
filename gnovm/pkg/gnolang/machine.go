@@ -2632,10 +2632,9 @@ func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns false if m.Realm is nil (single user mode, nothing is readonly).
-// Otherwise returns true iff:
+// Returns false if m.Realm is nil (single user mode). Otherwise returns
+// true iff:
 //   - tv is a ref to (external) package path, or
-//   - tv is N_Readonly, or
 //   - tv is a real object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	//  m.Realm is nil → single user mode, nothing is readonly
