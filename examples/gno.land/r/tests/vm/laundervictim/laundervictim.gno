@@ -20,12 +20,18 @@ var (
 	// method in /p/launderpkg. Victim exposes a pointer to it,
 	// intending "callers can read but not write."
 	gImm *launderpkg.Immutable
+	// gBuf is a victim-owned byte buffer (real, /r/laundervictim-stamped
+	// after init). Used to probe whether a stdlib method (e.g.
+	// base64.Encode) can be tricked into writing the victim's own buffer
+	// when an attacker passes it as an out-parameter.
+	gBuf []byte
 )
 
 func init() {
 	gVal = launderpkg.Object{Field: "original-val"}
 	gPtr = &launderpkg.Object{Field: "original-ptr"}
 	gImm = &launderpkg.Immutable{Field: "original-imm"}
+	gBuf = []byte("original-buffer!")
 }
 
 // GetVal returns g by VALUE (caller gets a copy).
@@ -44,11 +50,16 @@ func GetValAddr() *launderpkg.Object { return &gVal }
 // but not write.
 func GetImm() *launderpkg.Immutable { return gImm }
 
-// ReadVal / ReadPtr / ReadImm report the current field values for
+// GetBuf returns the victim's own byte buffer. The returned slice
+// aliases the victim's persisted backing array (/r/laundervictim-stamped).
+func GetBuf() []byte { return gBuf }
+
+// ReadVal / ReadPtr / ReadImm / ReadBuf report the current values for
 // after-attack verification.
 func ReadVal() string { return gVal.Field }
 func ReadPtr() string { return gPtr.Field }
 func ReadImm() string { return gImm.Field }
+func ReadBuf() string { return string(gBuf) }
 
 // Exploiter is the interface the victim accepts. The attacker
 // supplies an implementation; the victim invokes Something(g)

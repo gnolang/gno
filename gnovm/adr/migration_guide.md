@@ -254,7 +254,7 @@ different `/r/` realm. The same applies to `new(/r/foo.T)` and
 `make([]/r/foo.T, ...)`.
 
 **Mitigation:** call the type's home-realm constructor function (which
-runs under Rule-1 declaring-realm borrow, allocating in the home
+runs under borrow rule #1 declaring-realm borrow, allocating in the home
 realm), not a literal. See `gov/dao/v3`'s `NewVoteRequest` /
 `NewUpdateRequest` pattern.
 
@@ -265,7 +265,7 @@ This was the root cause of three call-site fixes during the
 
 ## 9. Removed: dead `crossingFn` shim
 
-A pattern from before Rule-1 covered closures uniformly:
+A pattern from before borrow rule #1 covered closures uniformly:
 
 ```go
 func crossingFn(fn func()) func() {
@@ -276,7 +276,7 @@ func crossingFn(fn func()) func() {
 ```
 
 This added a useless realm boundary (with extra finalization) around
-every callback dispatch. Under current borrow rules, Rule 1 already
+every callback dispatch. Under current borrow rules, borrow rule #1 already
 shifts `m.Realm` to the closure's declaring realm — no extra cross
 needed. The shim is pure dead weight; removing it saves one finalize
 per call.
@@ -437,7 +437,7 @@ through the same code path).
 
 The closed attack: `(&pkg.PInitData).PMethod()` — a `/r/`-realm caller
 takes the address of a `/p/`-package-init global, invokes a
-`/p/`-method on it. The borrow rule at `PushFrameCall` Layer 2 shifts
+`/p/`-method on it. The borrow rule at `PushFrameCall` borrow rule #2 shifts
 `m.Realm` to the receiver's package realm. For `/p/` packages
 (`pv.Realm == nil` — `/p/` packages have no `*Realm`), the shift
 sets `m.Realm = nil`.

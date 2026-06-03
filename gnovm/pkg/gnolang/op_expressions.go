@@ -11,7 +11,7 @@ func (m *Machine) doOpIndex1() {
 	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -39,7 +39,7 @@ func (m *Machine) doOpIndex2() {
 	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -80,7 +80,7 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
@@ -109,7 +109,7 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
-	ro := m.IsReadonly(xv)
+	ro := m.isReadonlyForCopy(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	// XXX fix this in precompile instead.
@@ -171,7 +171,7 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			ro := m.IsReadonly(xv)
+			ro := m.isReadonlyForCopy(xv)
 			pvtv := (*pv.TV).WithReadonly(ro)
 			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
 				// When a pointer was converted to a different
@@ -726,8 +726,8 @@ func (m *Machine) doOpFuncLit() {
 	}
 	// Closures belong to wherever they were evaluated
 	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own.
-	m.Alloc.stampPkgID(&fv.ObjectInfo)
+	// declaring-realm semantics on its own — pass nil.
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
@@ -768,7 +768,14 @@ func (m *Machine) doOpConvert() {
 			// declared type — the converting realm already has
 			// write authority over its own values.
 		} else {
-			panic("illegal conversion of readonly or externally stored value")
+			sliceType, ok := baseOf(xv.T).(*SliceType)
+			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
+			if isBytesArray && t.Kind() == StringKind {
+				// Allow conversion from []byte to string
+				// As it does not modify the value stored in the slice.
+			} else {
+				panic("illegal conversion of readonly or externally stored value")
+			}
 		}
 	}
 
