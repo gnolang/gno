@@ -3,10 +3,10 @@ loadpkg gno.land/p/demo/peter $WORK/peter
 loadpkg gno.land/r/demo/main $WORK/main
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecGood -gas-fee 370001ugnot -gas-wanted 3_700_000 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecPreviouslyGood -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot directly modify readonly tainted object'
 
-! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecBad -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecBad -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stderr 'cannot directly modify readonly tainted object'
 
 -- alice/alice.gno --
@@ -46,14 +46,29 @@ import (
 	"gno.land/p/demo/peter"
 )
 
-func ExecGood(cur realm) []int {
-	alice.SetClosure(cross, peter.F(alice.GetAllowedList()))
-	alice.ExecuteClosure(cross)
+// Rule of the closure-capability model (PushFrameCall Rule 3): a
+// closure carries the authority of the realm that created it, not
+// the realm that stores or runs it later.
+//
+// Here, peter.F is called from /r/demo/main, so the closure it
+// returns belongs to /r/demo/main. Even though /r/demo/alice stores
+// the closure and then runs it, the closure still cannot write
+// alice's state. Both ExecPreviouslyGood and ExecBad fail with the
+// same readonly-taint error — alice's consent does not raise the
+// closure's authority.
+//
+// The legitimate pattern: alice itself creates the closure (e.g. by
+// returning it from an /r/demo/alice-declared crossing function).
+// Then alice is the creator, and writes to alice's state succeed.
+
+func ExecPreviouslyGood(cur realm) []int {
+	alice.SetClosure(cross(cur), peter.F(alice.GetAllowedList()))
+	alice.ExecuteClosure(cross(cur))
 	return alice.AllowedList
 }
 
 func ExecBad(cur realm) []int {
-	alice.SetClosure(cross, peter.F(alice.AllowedList))
-	alice.ExecuteClosure(cross)
+	alice.SetClosure(cross(cur), peter.F(alice.AllowedList))
+	alice.ExecuteClosure(cross(cur))
 	return alice.AllowedList
 }

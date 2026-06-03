@@ -1,6 +1,8 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_00_filetest
+
 // Render default realm view.
 // Default realm view must render the list of listed boards.
-package main
+package z_ui_home_00_filetest
 
 import (
 	"testing"
@@ -10,17 +12,17 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create board "AAA" with a single thread
-	boardID := boards2.CreateBoard(cross, "AAA", true, false)
-	boards2.CreateThread(cross, boardID, "Foo", "Bar")
+	boardID := boards2.CreateBoard(cross(cur), "AAA", true, false)
+	boards2.CreateThread(cross(cur), boardID, "Foo", "Bar")
 
 	// Create 2 more boards
-	boards2.CreateBoard(cross, "BBB", true, false)
-	boards2.CreateBoard(cross, "CCC", true, false)
-	boards2.CreateBoard(cross, "DDD", false, false) // <-- Unlisted board
+	boards2.CreateBoard(cross(cur), "BBB", true, false)
+	boards2.CreateBoard(cross(cur), "CCC", true, false)
+	boards2.CreateBoard(cross(cur), "DDD", false, false) // <-- Unlisted board
 }
 
 func main() {

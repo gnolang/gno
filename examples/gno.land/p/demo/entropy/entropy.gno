@@ -12,6 +12,7 @@ package entropy
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"math"
 	"time"
 )
@@ -57,9 +58,9 @@ func (i *Instance) addEntropy() {
 
 	// handle callers
 	{
-		currentRealm := runtime.CurrentRealm().Address().String()
+		currentRealm := unsafe.CurrentRealm().Address().String()
 		i.djb2String(currentRealm)
-		originCaller := runtime.OriginCaller().String()
+		originCaller := unsafe.OriginCaller().String()
 		i.djb2String(originCaller)
 	}
 

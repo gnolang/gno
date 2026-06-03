@@ -34,8 +34,12 @@ var (
 	//  - sub.domain.tld/c/letter
 	//  - sub.domain.tld/d/works
 	//  - sub.domain.tld/r/realm
-	//  - sub.domain.tld/r/_realm/_path
-	//  - sub.domain.tld/p/package/_path123/etc
+	//  - sub.domain.tld/r/realm/sub-path
+	//  - sub.domain.tld/p/package/path123/etc
+	//
+	// Note: each path segment must START with [a-z] (no leading separator)
+	// and END with [a-z0-9] (no trailing separator); single hyphens or
+	// underscores are allowed between alphanumerics but never consecutive.
 	//
 	// Further validation should be done with LETTER to determine the type of pkgPath:
 	//  - /r/ for realm paths
@@ -52,8 +56,8 @@ var (
 	//  - math
 	//  - math/fourier123
 	//  - justnodots
-	//  - _nodots123
-	//  - _nodots123/_subpath1/_subpath2
+	//  - nodots123
+	//  - nodots123/subpath1/subpath2
 	Re_gnoStdPkgPath = r.N("PKGPATH",
 		Re_name, r.S(r.E(`/`), Re_name)) // no dots, just name(s) with `/` delimiter.
 
@@ -62,8 +66,8 @@ var (
 	Re_domain = r.N("DOMAIN", // all lowercase
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
-	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
-	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
+	Re_name    = r.G(r.C(`a-z`), r.S(r.C(`a-z0-9`)), r.S(r.C(`_-`), r.P(r.C(`a-z0-9`)))) // start with letter; alphanumeric body; separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing
+	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                                // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()
@@ -137,6 +141,16 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for PkgID classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
@@ -153,6 +167,25 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
+// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
+// package — one whose purpose is to host VM-test fixtures, exploit
+// probes, and other test-only support code. Test-namespace packages
+// are allowed to use the `cross` keyword and may be imported only
+// from other test-namespace packages or from test files
+// (_test.gno / _filetest.gno).
+//
+// The set is currently hand-listed (rather than a single prefix like
+// gno.land/p/testing/) so the migration can be staged: rules can be
+// enforced now without moving the packages. A future cleanup will
+// collapse the list as packages move under a single namespace.
+func IsTestPkgPath(pkgPath string) bool {
+	return pkgPath == "gno.land/p/demo/tests" ||
+		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
+		pkgPath == "gno.land/r/tests/vm" ||
+		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
 }
 
 //----------------------------------------

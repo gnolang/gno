@@ -1,14 +1,12 @@
-package main
+// PKGPATH: gno.land/r/test
+package test
 
 import (
-	"testing"
-
 	"gno.land/p/lou/blog"
 )
 
-func main() {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	_, err := blog.NewBlog("My Blog", address("he"))
+func main(cur realm) {
+	_, err := blog.NewBlog(0, cur, "My Blog", address("he"))
 	if err != nil {
 		println("error:", err.Error())
 	}

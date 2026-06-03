@@ -38,12 +38,12 @@ func init() {
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
-func main() {
+func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definition has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
 	// Should be able to execute before voting deadline because deadline check is disabled
-	err := dao.Execute(proposal.ID())
+	err := dao.Execute(proposal.ID(), cur)
 	if err != nil {
 		panic(err)
 	}

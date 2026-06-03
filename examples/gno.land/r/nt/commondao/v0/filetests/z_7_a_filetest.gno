@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_7_a_filetest
+
+package z_7_a_filetest
 
 import (
 	"testing"
@@ -16,10 +18,10 @@ const (
 
 var parentID uint64
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
@@ -27,15 +29,15 @@ func init() {
 
 	// Create the root DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(true))
+	parentDAO := commondao.New(cross(cur), "Parent DAO", commondao.AllowChildren(true))
 	parentID = parentDAO.ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
-	dao := commondao.NewSubDAO(cross, name, parentID)
+	dao := commondao.NewSubDAO(cross(cur), name, parentID)
 	if dao == nil {
 		panic("expected subDAO to be created")
 	}
@@ -44,7 +46,7 @@ func main() {
 	println(dao.Parent().ID() == parentID)
 
 	// Check that SubDAO is added as a child to the parent DAO
-	if v := dao.Parent().Children().Get(0); v != nil {
+	if v, ok := dao.Parent().Children().Get(0); ok && v != nil {
 		if subDAO, ok := v.(*pcommondao.CommonDAO); ok {
 			println(subDAO.ID() == dao.ID())
 		}
