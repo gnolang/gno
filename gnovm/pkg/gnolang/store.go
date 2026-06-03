@@ -580,9 +580,17 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
 	}
 	// Re-derive denormalized PkgID cache (pv.PkgID is marked
 	// json:"-" so amino skipped it on load).
