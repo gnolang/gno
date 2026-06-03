@@ -820,6 +820,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 
 	var (
 		files    []string
+		sources  map[string][]byte
 		jdoc     *doc.JSONDocumentation
 		readme   components.Component
 		subpaths []string
@@ -827,8 +828,13 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
-		files, err = h.Client.ListFiles(gctx, pkgPath)
-		return err
+		if files, err = h.Client.ListFiles(gctx, pkgPath); err != nil {
+			return err
+		}
+		// Download the import-source bodies as soon as the file list is known so
+		// they fetch in parallel with the Doc/README/paths queries below.
+		sources = h.fetchSourcesForImports(gctx, pkgPath, files)
+		return nil
 	})
 	g.Go(func() error {
 		d, err := h.Client.Doc(gctx, pkgPath)
@@ -862,8 +868,6 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	if err := g.Wait(); err != nil {
 		return GetClientErrorStatusPage(gnourl, err)
 	}
-
-	sources := h.fetchSourcesForImports(ctx, pkgPath, files)
 
 	data := components.BuildOverview(components.OverviewInput{
 		URL:         gnourl,
@@ -920,16 +924,15 @@ func filterImportSources(files []string, maxFiles int) []string {
 	out := make([]string, 0, maxFiles+2)
 	gnoCount := 0
 	for _, f := range files {
-		if f == "gnomod.toml" || components.ReLicenseFileName.MatchString(f) {
+		c := components.ClassifyFile(f)
+		if f == "gnomod.toml" || c.IsLicense {
 			out = append(out, f)
 			continue
 		}
 		if gnoCount >= maxFiles {
 			continue
 		}
-		if strings.HasSuffix(f, ".gno") &&
-			!strings.HasSuffix(f, "_test.gno") &&
-			!strings.HasSuffix(f, "_filetest.gno") {
+		if c.IsGno && !c.IsTest {
 			out = append(out, f)
 			gnoCount++
 		}

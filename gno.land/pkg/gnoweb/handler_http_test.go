@@ -1509,7 +1509,7 @@ func TestRouting_SourceDispatch(t *testing.T) {
 		url        string
 		wantInBody string
 	}{
-		{"/r/demo/foo$source", "Overview"},
+		{"/r/demo/foo$source", "Package Index"},
 		{"/r/demo/foo$source&file=foo.gno", "package foo"},
 	}
 	for _, tc := range tests {

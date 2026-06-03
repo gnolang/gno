@@ -1,6 +1,11 @@
 package components
 
-import "io"
+import (
+	"io"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
+)
 
 const OverviewViewType ViewType = "overview-view"
 
@@ -26,6 +31,10 @@ type PackageInfo struct {
 	PackageType string // "realm" | "pure"
 	License     License
 	GnoVersion  string
+	Creator     string // gnomod [addpkg] creator address (on-chain deploys)
+	Height      int    // gnomod [addpkg] deploy block height
+	Draft       bool   // gnomod draft = not production-ready
+	Private     bool   // gnomod private
 }
 
 // PackageStats aggregates numeric counters derived from files and qdoc.
@@ -44,17 +53,15 @@ type PackageStats struct {
 
 // PackageQuality exposes boolean presence flags used to render ✓/✗ indicators.
 type PackageQuality struct {
-	HasReadme      bool
-	HasTests       bool
-	HasLicense     bool
-	HasPkgDoc      bool
-	SourceVerified bool // always true in gno; static statement
+	HasReadme  bool
+	HasTests   bool
+	HasLicense bool
+	HasPkgDoc  bool
 }
 
 // FuncEntry is the view-owned representation of a function or method.
 type FuncEntry struct {
 	Name               string
-	Signature          string
 	SignatureComponent Component
 	Doc                Component
 	Receiver           string
@@ -68,21 +75,12 @@ type FuncEntry struct {
 // TypeEntry is the view-owned representation of a type declaration.
 type TypeEntry struct {
 	Name               string
-	Signature          string
 	SignatureComponent Component
 	Doc                Component
 	Kind               string
-	Fields             []FieldEntry
 	Methods            []FuncEntry
 	AnchorID           string
 	SourceURL          string
-}
-
-// FieldEntry is a struct field or interface method parameter.
-type FieldEntry struct {
-	Name string
-	Type string
-	Doc  Component
 }
 
 // ValueGroup is a const/var declaration group preserving source order.
@@ -118,6 +116,18 @@ type SubpackageLink struct {
 	Synopsis string
 }
 
+// OverviewInput aggregates the data required to build an OverviewData.
+type OverviewInput struct {
+	URL         *weburl.GnoURL
+	Files       []string
+	Doc         *doc.JSONDocumentation
+	Sources     map[string][]byte
+	Subpaths    []string
+	Readme      Component
+	Domain      string
+	DocRenderer DocRenderer
+}
+
 // OverviewData is the full payload passed to the overview template.
 type OverviewData struct {
 	PkgPath    string
@@ -132,11 +142,16 @@ type OverviewData struct {
 
 	Funcs       []FuncEntry
 	Types       []TypeEntry
-	Values      []ValueGroup
+	Consts      []ValueGroup
+	Vars        []ValueGroup
 	Imports     []ImportLink
 	Files       []FileLink
 	Subpackages []SubpackageLink
 	Bugs        []string
+
+	// SymbolsTruncated is set when funcs/types/values were capped at
+	// maxOverviewSymbols; the template then shows a "view full source" notice.
+	SymbolsTruncated bool
 
 	ComponentTOC Component
 }

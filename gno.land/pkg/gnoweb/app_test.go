@@ -45,7 +45,7 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog/", ok, "admin.gno"},
 			{"/r/gnoland/blog/admin.gno", ok, ">func<"},
 			// Overview view: $source with no file should render the package overview.
-			{"/r/gnoland/blog$source", ok, "Overview"},
+			{"/r/gnoland/blog$source", ok, "Package Index"},
 			{"/r/gnoland/blog$source", ok, "Source Files"},
 			// Source view: $source with a file should still render the classic code view.
 			{"/r/gnoland/blog$source&file=admin.gno", ok, "b-source-code"},

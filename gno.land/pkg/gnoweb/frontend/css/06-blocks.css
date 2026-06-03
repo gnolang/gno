@@ -1915,7 +1915,8 @@ main.dev-mode .b-toc a {
 
 /* ===== TAG COMPONENT ===== */
 .b-tag,
-.b-tag--secondary {
+.b-tag--secondary,
+.b-tag--tertiary {
 	display: flex;
 	align-items: center;
 	gap: var(--g-space-2);
@@ -1930,6 +1931,13 @@ main.dev-mode .b-toc a {
 .b-tag--secondary {
 	border-color: transparent;
 	background-color: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
+}
+
+/* BORROWED FROM #5649 — DELETE ON MERGE (count-pill variant used by the overview bar). */
+.b-tag--tertiary {
+	border-color: transparent;
+	background-color: var(--s-color-bg-surface-secondary);
 	color: var(--s-color-text-primary);
 }
 
@@ -2544,9 +2552,9 @@ main.dev-mode .b-toc a {
    ========================================================================== */
 .doc-example {
 	margin-block: var(--g-space-3);
-	border: var(--s-border);
+	border: var(--s-divider);
 	border-radius: var(--s-rounded-sm);
-	background: var(--s-color-bg-surface-primary);
+	background: var(--s-color-bg-base);
 	overflow: hidden;
 
 	& > summary {
@@ -2572,6 +2580,14 @@ main.dev-mode .b-toc a {
 	}
 }
 
+/* Code in doc comments (examples, snippets) is chroma-highlighted; drop chroma's
+   own background so the surrounding surface shows — no stray code-editor blue.
+   Descendant selector so it catches the chroma <pre> wherever it nests (plain
+   doc code or inside a <details class="doc-example">). */
+.c-doc-view .chroma-chroma {
+	background-color: transparent;
+}
+
 /* ===== PACKAGE OVERVIEW ===== */
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
@@ -2585,11 +2601,28 @@ main.dev-mode > section:has(.c-overview-view) {
 		text-align: start;
 	}
 
+	/* Sidebar section headings a notch larger (16px) for presence — deliberate
+	   override of #5649's 14px .b-state-meta-heading, scoped to the overview so it
+	   persists past merge and doesn't touch #5649's state page. */
+	:is(.b-state-meta dt.section, .b-state-meta-heading) {
+		font-size: var(--g-font-size-200);
+	}
+
 	@media (--lg) {
 		.b-sidebar {
 			grid-row: 1 / span 99;
-			align-self: start;
-			height: auto; /* default rule forces height:100%, overriding here */
+			/* Stretch to the full content height (default align-self: stretch) so the
+			   sticky inner (.b-sidebar > div) has room to stick while scrolling, like
+			   the action/state pages. height:auto (not the shared height:100%) lets the
+			   stretch account for the top margin instead of overflowing the track. */
+			height: auto;
+			/* Align the sidebar top with .b-content-header, which is pushed down
+			   by its own margin-block-start (else the sidebar reads glued to the top). */
+			margin-block-start: var(--g-space-10);
+		}
+		.b-sidebar .inner {
+			/* keep the sticky sidebar's bottom reachable below the header (#5649). */
+			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
 		}
 		.b-content-header {
 			justify-content: flex-start;
@@ -2599,131 +2632,248 @@ main.dev-mode > section:has(.c-overview-view) {
 }
 
 /* --- Sidebar: unified card (meta + quality + TOC) --- */
-.b-pkg-meta {
-	display: block;
-	font-size: var(--g-font-size-100);
 
-	.b-pkg-meta__title {
-		margin-block: 0 var(--g-space-3);
-		font-size: var(--g-font-size-300);
-		font-weight: var(--g-font-semibold);
-		color: var(--s-color-text-primary);
+/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
+   The overview sidebar reuses #5649's .b-state-meta verbatim (same markup +
+   classes), so it merges cleanly: at merge, delete this block and the sidebar
+   falls through to #5649's shared rule. (#5649's copy-button reset is omitted —
+   the overview meta has no copy buttons; #5649 supplies it at merge.) */
+.b-state-meta {
+	margin: 0 0 var(--g-space-6) 0;
+	font-size: var(--g-font-size-90);
+	display: flex;
+	flex-direction: column;
+
+	dt.section {
+		&:first-child {
+			margin-block-start: 0;
+		}
 	}
 
-	.b-pkg-meta__subtitle {
-		margin-block: var(--g-space-4) var(--g-space-2);
-		padding-block-start: var(--g-space-3);
-		border-block-start: var(--s-border-secondary);
-		font-size: var(--g-font-size-200);
+	.row {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: var(--g-space-3);
+		padding-block: var(--g-space-1);
+		min-width: 0;
+	}
+
+	dt.label {
+		color: var(--s-color-text-tertiary);
 		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		flex-shrink: 0;
+	}
+
+	dd.value {
+		margin: 0;
+		color: var(--s-color-text-primary);
+		line-height: 1.4;
+		min-width: 0;
+		text-align: end;
+		overflow-wrap: anywhere;
+	}
+
+	.row.mono dd.value {
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-90);
 		color: var(--s-color-text-secondary);
 	}
 
-	dl {
-		display: grid;
-		grid-template-columns: max-content 1fr;
-		gap: var(--g-space-1) var(--g-space-3);
-		margin-block: 0;
-	}
+	dd.value a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
 
-	dt {
-		color: var(--s-color-text-secondary);
-		font-weight: var(--g-font-semibold);
-	}
-
-	dd {
-		color: var(--s-color-text-primary);
-		word-break: break-word;
-		margin-inline-start: 0;
+		&:hover {
+			text-decoration: underline;
+		}
 	}
 }
 
-.b-pkg-quality {
-	display: block;
-	margin-block-start: var(--g-space-4);
-	padding-block-start: var(--g-space-3);
-	border-block-start: var(--s-border-secondary);
+.b-state-meta dt.section,
+.b-state-meta-heading {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
 	font-size: var(--g-font-size-100);
+	margin-block: var(--g-space-4) var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-divider);
+}
+/* ===== END BORROWED FROM #5649 ===== */
+
+.b-pkg-metadata {
+	display: block;
 
 	& > ul {
 		list-style: none;
 		padding-inline-start: 0;
 		margin-block: 0;
 		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1);
+		flex-wrap: wrap;
+		gap: var(--g-space-2);
 	}
 
-	li .c-icon {
-		inline-size: 1em;
-		block-size: 1em;
+	a.b-tag--tertiary:hover {
+		color: var(--s-color-text-link);
 	}
 }
 
 .b-pkg-toc {
 	margin-block-start: var(--g-space-2);
 	font-size: var(--g-font-size-100);
+
+	/* Kind glyph prefixing each symbol — mirrors #5649's .b-state-decl
+	   .kind-glyph (borrowed ico-kind-* set). Scoped to .b-pkg-toc so it never
+	   touches #5649's state page; unify into a shared rule at merge. */
+	.kind-glyph {
+		display: inline-block;
+		inline-size: 1em;
+		block-size: 1em;
+		margin-inline-end: 0.4em;
+		color: var(--s-color-text-tertiary);
+		vertical-align: middle;
+
+		.c-icon {
+			display: block;
+			inline-size: 100%;
+			block-size: 100%;
+		}
+	}
 }
 
-/* --- Section nav: sticky horizontal bar with count pills.
- * Lives INSIDE md-renderer now (not as a grid row sibling), so no grid-column needed.
- */
-.b-pkg-nav {
-	position: sticky;
-	inset-block-start: var(--g-space-14);
-	z-index: var(--g-z-10);
-	background: var(--s-color-bg-base-dev, var(--s-color-bg-base));
+/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
+   The overview's sticky bar reuses #5649's .b-page-subheader chrome verbatim,
+   scoped to .b-page-subheader so it never touches the packages-list page. #5649
+   adds .b-page-subheader/.state-search and un-nests .packages-tabs to top-level;
+   at merge, delete this block and the bar falls through to those shared rules.
+   Behaviour stays "ours": section ANCHORS (jump-to-section), not #5649's radios. */
+.b-page-subheader {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--g-space-3);
+	align-self: start;
+	margin-block-end: var(--g-space-6);
+
+	@media (--md) {
+		position: sticky;
+		top: var(--g-space-14);
+		z-index: var(--g-z-1);
+		background-color: var(--s-color-bg-base-dev, var(--s-color-bg-base));
+		padding-block: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+}
+
+.b-page-subheader .packages-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	grid-column: span 4 / span 4;
+	gap: var(--g-space-4);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-200);
+	width: auto;
 	border-block-end: var(--s-border);
-	margin-block-end: var(--g-space-4);
-	padding-block-start: var(--g-space-2);
+	padding-block-end: var(--g-space-2);
 
-	& > ul {
-		list-style: none;
-		padding-inline-start: 0;
-		margin-block: 0;
-		display: flex;
-		gap: var(--g-space-4);
-		row-gap: var(--g-space-1);
-		flex-wrap: wrap;
+	@media (--md) {
+		grid-column: span 2 / span 2;
 		font-size: var(--g-font-size-100);
-		line-height: 1.2;
+		width: 100%;
+		border-block-end: none;
+		padding-block-end: 0;
 	}
 
-	.b-pkg-nav__link {
-		display: inline-flex;
-		align-items: center;
+	@media (--xl) {
+		gap: var(--g-space-6);
+	}
+
+	/* #5649 styles radio <label>s; we use anchors — same chrome. */
+	:is(label, a) {
+		position: relative;
+		display: flex;
 		gap: var(--g-space-1);
-		color: var(--s-color-text-secondary);
-		text-decoration: none;
-		font-weight: var(--g-font-semibold);
-		padding-block-end: var(--g-space-2);
-		border-block-end: 2px solid transparent;
-	}
-
-	.b-pkg-nav__link:hover {
-		color: var(--s-color-text-primary);
-		border-block-end-color: var(--s-color-bg-brand-default);
-	}
-
-	.count {
-		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		min-inline-size: 1.25em;
-		padding-inline: var(--g-space-1);
-		border-radius: var(--s-rounded-full);
-		font-size: var(--g-font-size-50);
-		font-weight: var(--g-font-normal);
-		color: var(--s-color-text-secondary);
-		background: var(--s-color-bg-surface-secondary);
+		cursor: pointer;
+		color: inherit;
+		text-decoration: none;
+
+		&:hover {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+		}
 	}
+}
+
+.b-page-subheader .state-search {
+	grid-column: span 4 / span 4;
+	width: 100%;
+
+	@media (--md) {
+		grid-column: span 2 / span 2;
+		justify-self: end;
+		max-width: var(--g-space-80);
+	}
+}
+
+/* Active tab: high-contrast text (white/black per theme), not the tertiary gray
+   of the inactive tabs. */
+.b-page-subheader .packages-tabs a[aria-current] {
+	color: var(--s-color-text-primary);
+}
+
+/* Active-section underline (#5649's checked-tab ::after). The agnostic observer
+   controller sets aria-current on the in-view section's link as you scroll. */
+.b-page-subheader .packages-tabs a[aria-current]::after {
+	content: "";
+	position: absolute;
+	bottom: calc(var(--g-space-1) * -2);
+	left: 0;
+	width: 100%;
+	height: var(--g-space-1);
+	background-color: var(--s-color-bg-brand-default);
+	border-top-left-radius: var(--s-rounded-sm);
+	border-top-right-radius: var(--s-rounded-sm);
+}
+/* ===== END BORROWED FROM #5649 ===== */
+
+/* The overview bar carries more section tabs than #5649's (~7 vs ~3) and its
+   search is capped narrow — so give the tabs 3/4 of the bar instead of half,
+   keeping them on one line. Overview-scoped and outside the corral so it
+   survives when the borrowed bar rules are reconciled at merge. */
+@media (--md) {
+	.c-overview-view .b-page-subheader .packages-tabs {
+		grid-column: span 3 / span 3;
+	}
+
+	.c-overview-view .b-page-subheader .state-search {
+		grid-column: span 1 / span 1;
+	}
+}
+
+/* Anchor jumps clear the sticky subheader. Mirrors #5649's
+   `.b-state-explorer [id]` rule (one rule for EVERY anchor target — sections,
+   symbol cards, and rendered README/doc headings — instead of a hand-picked
+   few), scoped to the overview view. */
+.c-overview-view [id] {
+	/* Taller than #5649's g-space-24: the overview bar carries more tabs + the
+	   search field, so the sticky chrome is ~taller than the state explorer's. */
+	scroll-margin-block-start: var(--g-space-32);
 }
 
 /* --- Section wrapper --- */
 .b-pkg-section {
 	display: block;
 	margin-block-end: var(--g-space-10);
-	scroll-margin-block-start: var(--g-space-24);
 }
 
 .b-pkg-section__header {
@@ -2734,7 +2884,7 @@ main.dev-mode > section:has(.c-overview-view) {
 	flex-wrap: wrap;
 	margin-block: 0 var(--g-space-4);
 	padding-block-end: var(--g-space-2);
-	border-block-end: var(--s-border);
+	border-block-end: var(--s-divider-strong);
 	font-size: var(--g-font-size-500);
 	font-weight: var(--g-font-semibold);
 	color: var(--s-color-text-primary);
@@ -2758,15 +2908,11 @@ main.dev-mode > section:has(.c-overview-view) {
 		background: var(--s-color-bg-surface-secondary);
 	}
 
-	.b-pkg-section__source-link {
+	/* The header is a large/bold heading; the "View source" action reuses
+	   .b-inline-btn but resets to a normal-size action like the file view. */
+	.b-inline-btn {
 		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-normal);
-		color: var(--s-color-text-secondary);
-		text-decoration: none;
-	}
-
-	.b-pkg-section__source-link:hover {
-		color: var(--s-color-text-link);
 	}
 }
 
@@ -2778,7 +2924,6 @@ main.dev-mode > section:has(.c-overview-view) {
 .b-pkg-symbol {
 	display: block;
 	margin-block-end: var(--g-space-6);
-	scroll-margin-block-start: var(--g-space-24);
 }
 
 .b-pkg-symbol__header {
@@ -2798,9 +2943,9 @@ main.dev-mode > section:has(.c-overview-view) {
 	font-weight: var(--g-font-semibold);
 
 	.prefix {
+		/* sans (inherits the title's font + semibold): mono has no bold weight
+		   loaded, so a mono prefix can't render bold like the name. */
 		color: var(--s-color-text-secondary);
-		font-family: var(--g-font-family-mono, ui-monospace, monospace);
-		font-weight: var(--g-font-normal);
 	}
 
 	a {
@@ -2811,29 +2956,35 @@ main.dev-mode > section:has(.c-overview-view) {
 	a:hover {
 		text-decoration: underline;
 	}
-
-	.anchor {
-		opacity: 0;
-		color: var(--s-color-text-secondary);
-		transition: opacity 0.1s ease-in-out;
-	}
-
-	.anchor:hover {
-		color: var(--s-color-text-link);
-	}
-
-	.anchor .c-icon {
-		inline-size: 0.9em;
-		block-size: 0.9em;
-	}
 }
 
-.b-pkg-symbol:hover .b-pkg-symbol__title .anchor {
+/* Permalink anchor — rendered after the card's tags (ui/pkg_anchor), revealed on
+   card hover. Kept out of the title so the hidden anchor never opens a gap
+   between the name and the tags. */
+.b-pkg-symbol__header .anchor {
+	opacity: 0;
+	color: var(--s-color-text-secondary);
+	text-decoration: none;
+	transition: opacity 0.1s ease-in-out;
+}
+
+.b-pkg-symbol__header .anchor:hover {
+	color: var(--s-color-text-link);
+}
+
+.b-pkg-symbol__header .anchor .c-icon {
+	inline-size: 0.9em;
+	block-size: 0.9em;
+}
+
+.b-pkg-symbol:hover .anchor {
 	opacity: 1;
 }
 
 .b-pkg-symbol__action {
 	margin-inline-start: auto;
+	/* match the action page's button size (its function header runs at font-size-100). */
+	font-size: var(--g-font-size-100);
 }
 
 .b-pkg-symbol__doc {
@@ -2843,8 +2994,11 @@ main.dev-mode > section:has(.c-overview-view) {
 
 .b-pkg-symbol__methods {
 	margin-block-start: var(--g-space-4);
-	padding-inline-start: var(--g-space-4);
-	border-inline-start: var(--s-border-secondary);
+	padding-inline-start: var(--g-space-6);
+	/* Visible nested rule that adapts to light/dark — mirrors #5649's nested-body
+	   left border. The faint --s-divider (1px, 8% ink) was barely visible on dark. */
+	border-inline-start: 2px solid
+		color-mix(in srgb, currentColor 14%, transparent);
 }
 
 .b-pkg-symbol__methods .b-pkg-symbol {
@@ -2852,40 +3006,45 @@ main.dev-mode > section:has(.c-overview-view) {
 }
 
 /* --- Code block with toolbar (copy button) --- */
-.b-pkg-code-block {
-	display: block;
-	margin-block-start: var(--g-space-2);
-	border: var(--s-border);
-	border-radius: var(--s-rounded-sm);
-	background: var(--s-color-bg-surface-primary);
-	overflow: hidden;
-}
-
-.b-pkg-code-block__toolbar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--g-space-2);
-	padding-inline: var(--g-space-3);
-	padding-block: var(--g-space-1);
-	border-block-end: var(--s-border-secondary);
-	font-size: var(--g-font-size-50);
-	color: var(--s-color-text-secondary);
-	background: var(--s-color-bg-surface-primary);
-
-	.language {
-		font-family: var(--g-font-family-mono, ui-monospace, monospace);
-	}
-}
-
-.b-pkg-code-block__pre {
-	margin: 0;
-	padding: var(--g-space-3);
-	font-size: var(--g-font-size-100);
-	font-family: var(--g-font-family-mono, ui-monospace, monospace);
-	overflow-x: auto;
+/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
+   Signature/code blocks reuse the state explorer's .source/.code chroma frame
+   verbatim (scoped to the overview) so the <pre> box and highlighting read
+   identically. Chroma emits its own <pre class="chroma-chroma"> (class prefix
+   "chroma-"); .code is the visible box and the inner pre stays transparent. At
+   merge, fold into #5649's shared .source rule. */
+.c-overview-view .source {
+	position: relative;
+	margin-block: var(--g-space-2);
+	font-size: var(--g-font-size-90);
 	line-height: 1.5;
-	background: var(--s-color-bg-base);
+	tab-size: 4;
+
+	.code {
+		margin: 0;
+		padding: var(--g-space-5) var(--g-space-4);
+		overflow-x: auto;
+		background-color: var(--s-color-bg-base);
+		border: var(--s-divider);
+		border-radius: var(--s-rounded-sm);
+
+		pre {
+			margin: 0;
+			font-family: var(--g-font-family-mono);
+		}
+
+		.chroma-chroma {
+			background-color: transparent;
+		}
+	}
+
+	/* Buttons reuse .b-inline-btn (like the file view); the wrapper composes
+	   .c-inline (flex row + gap) and only adds the absolute corner positioning. */
+	& > .srcactions {
+		position: absolute;
+		top: var(--g-space-2);
+		right: var(--g-space-3);
+		z-index: var(--g-z-1);
+	}
 }
 
 /* --- List (imports / files / subpackages) --- */
@@ -2933,11 +3092,6 @@ main.dev-mode > section:has(.c-overview-view) {
 	gap: var(--g-space-1-5);
 }
 
-.b-pkg-list__description {
-	color: var(--s-color-text-secondary);
-	font-size: var(--g-font-size-100);
-}
-
 /* --- Tag variants --- */
 .b-tag--kind,
 .b-tag--type {
@@ -2948,4 +3102,28 @@ main.dev-mode > section:has(.c-overview-view) {
 .b-tag--crossing {
 	color: var(--s-color-text-link);
 	background: var(--s-color-bg-brand-weak);
+}
+
+/* Status pair: draft (caution) vs published (success); visibility uses the
+   neutral b-tag--secondary for public/private. */
+.b-tag--draft {
+	color: var(--s-color-text-caution);
+	background: var(--s-color-bg-caution-weak);
+	border-color: transparent;
+}
+
+.b-tag--published {
+	color: var(--s-color-text-success);
+	background: var(--s-color-bg-success-weak);
+	border-color: transparent;
+}
+
+/* Truncation notice (shown when symbol lists were capped). */
+.b-pkg-notice {
+	margin-block: 0 var(--g-space-6);
+	padding: var(--g-space-2) var(--g-space-3);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-secondary);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
 }

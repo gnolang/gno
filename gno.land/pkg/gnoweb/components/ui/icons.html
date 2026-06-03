@@ -241,5 +241,44 @@
     <path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z" stroke-linejoin="round"/>
     <path d="m9 12 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
   </symbol>
+  {{/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
+       Kind glyphs for the package-index symbols (16x16, 1.3 stroke, currentColor
+       so they inherit the parent's text color). #5649 adds the full ico-kind-*
+       set; the overview only uses these. At merge, delete this block — #5649's
+       identically-named symbols take over. */}}
+  <symbol id="ico-kind-func" viewBox="0 0 16 16">
+    <title>Function</title>
+    <path d="M5 2 C 3 2, 3 6, 3 8 C 3 10, 3 14, 5 14 M11 2 C 13 2, 13 6, 13 8 C 13 10, 13 14, 11 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-type" viewBox="0 0 16 16">
+    <title>Type</title>
+    <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <path d="M5 5 L11 5 M8 5 L8 11" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-struct" viewBox="0 0 16 16">
+    <title>Struct</title>
+    <rect x="2" y="2" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="9" y="2" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="2" y="9" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="9" y="9" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+  </symbol>
+  <symbol id="ico-kind-interface" viewBox="0 0 16 16">
+    <title>Interface</title>
+    <path d="M5 5 C 5 3 7 2 8 2 C 10 2 11 3 11 5 C 11 7 8 7 8 9.5" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+    <circle cx="8" cy="13" r="0.8" fill="currentColor" />
+  </symbol>
+  <symbol id="ico-kind-slice" viewBox="0 0 16 16">
+    <title>Slice</title>
+    <path d="M5 2 L2 2 L2 14 L5 14 M11 2 L14 2 L14 14 L11 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
+  <symbol id="ico-kind-map" viewBox="0 0 16 16">
+    <title>Map</title>
+    <path d="M2 4 L5 4 M8 4 L14 4 M2 8 L5 8 M8 8 L14 8 M2 12 L5 12 M8 12 L14 12" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-pointer" viewBox="0 0 16 16">
+    <title>Pointer</title>
+    <circle cx="3" cy="8" r="1.3" fill="currentColor" />
+    <path d="M5 8 L13 8 M10 5 L13 8 L10 11" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
 </svg>
 {{ end }}
