@@ -84,7 +84,7 @@ test:
 	set -o pipefail; $(MAKE) test.inner 2>&1 | tee "$$log"; status=$$?; \
 	if [ $$status -ne 0 ]; then \
 		echo; echo "==== Failing tests ===="; \
-		grep -E '^(--- FAIL|FAIL\t|panic:)' "$$log" || true; \
+		grep -E '^(--- FAIL|[[:space:]]+--- FAIL|FAIL[[:space:]]|panic:|[[:space:]]+FAIL: testdata/)' "$$log" || true; \
 	fi; \
 	rm -f "$$log"; exit $$status
 
@@ -97,3 +97,4 @@ _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey
 _test.pkgs:;         go test $(GOTEST_FLAGS) ./pkg/...
 _test.pkgs.sync:;    UPDATE_SCRIPTS=true go test $(GOTEST_FLAGS) ./pkg/...
+_test.pkgs.gas:;     ./pkg/integration/update_gas_wanted.sh

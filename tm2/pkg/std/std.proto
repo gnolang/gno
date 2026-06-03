@@ -15,6 +15,16 @@ message BaseAccount {
 	uint64 sequence = 5;
 }
 
+message BaseSessionAccount {
+	BaseAccount base_account = 1 [json_name = "BaseAccount"];
+	string master_address = 2;
+	sint64 expires_at = 3;
+	string spend_limit = 4;
+	sint64 spend_period = 5;
+	string spend_used = 6;
+	sint64 spend_reset = 7;
+}
+
 message Coin {
 	string value = 1;
 }
@@ -39,6 +49,7 @@ message Fee {
 message Signature {
 	google.protobuf.Any pub_key = 1;
 	bytes signature = 2;
+	string session_addr = 3;
 }
 
 message MemFile {
@@ -109,4 +120,16 @@ message GasOverflowError {
 }
 
 message RestrictedTransferError {
+}
+
+message SessionExpiredError {
+}
+
+message SessionNotFoundError {
+}
+
+message SessionLimitError {
+}
+
+message SessionNotAllowedError {
 }

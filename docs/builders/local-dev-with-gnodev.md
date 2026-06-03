@@ -3,12 +3,15 @@
 
 ## Installation
 
-To install `gnodev`, simply clone the monorepo, and run `make install`:
+See the [Installation](./install.md) page for prerequisites and install methods.
 
+Once installed, verify that `gnodev` is available:
+
+```sh
+gnodev --help
 ```
-git clone git@github.com:gnolang/gno.git
-cd gno && make install
-```
+
+For editor configuration and LSP support, see the [Editor Setup](editor-setup.md) guide.
 
 ## Overview
 

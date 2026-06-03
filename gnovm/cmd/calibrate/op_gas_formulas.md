@@ -3,7 +3,6 @@
 Each opcode's CPU gas cost follows one of these patterns:
 - **flat**: single constant, no parameters
 - **base + slope * N**: linear in one dimension
-- **base + slope * N²**: quadratic in one dimension
 - **base + slope * N1 * N2**: product of two operand sizes
 - **base + slopeP * P + slopeC * C**: sum of two independent dimensions
 
@@ -78,7 +77,6 @@ Alloc gas is charged separately by the allocator and is not included here.
 | OpTypeAssert1/2 (interface) | base + slope * N | N = method count |
 | **Call** | | |
 | OpPrecall | flat | — |
-| OpEnterCrossing | base + slope * N² | N = call stack depth (O(n²) frame walk — linear once PeekCallFrame is cursor-based) |
 | OpCall | base + slopeP * P + slopeC * C | P = params, C = captures |
 | OpCallNativeBody | flat | — |
 | OpReturn/ReturnAfterCopy/FromBlock/ToBlock | flat | — |
