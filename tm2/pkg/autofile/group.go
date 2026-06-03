@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,10 +27,10 @@ const (
 	// minDiskSpaceLimit is the minimum available disk space (in bytes)
 	// before the Group halts writes (16 MB).
 	minDiskSpaceLimit = 16 * 1024 * 1024
-	// diskSpaceWarningThreshold is the multiplier applied to minDiskSpaceLimit
+	// diskSpaceWarningMultiplier is the multiplier applied to minDiskSpaceLimit
 	// to determine when to start emitting warnings. When available space drops
-	// below minDiskSpaceLimit * diskSpaceWarningThreshold, warnings are logged.
-	diskSpaceWarningThreshold = 4
+	// below minDiskSpaceLimit * diskSpaceWarningMultiplier, warnings are logged.
+	diskSpaceWarningMultiplier = 4
 	// diskSpaceCheckInterval is the number of write operations between
 	// consecutive disk space checks. This avoids calling statfs on every write.
 	diskSpaceCheckInterval = 100
@@ -42,7 +43,12 @@ var ErrDiskSpaceUnavailable = errors.New("disk space unavailable")
 // diskSpaceUnsupported is a sentinel value returned by availableDiskSpace
 // on platforms where querying disk space is not supported (e.g. wasm).
 // When this value is returned, disk space checks are skipped.
-const diskSpaceUnsupported = ^uint64(0)
+const diskSpaceUnsupported = uint64(math.MaxUint64)
+
+// availableDiskSpaceFn is the function used to query available disk space.
+// It is a package-level variable so tests can stub it without performing real
+// syscalls. Production code uses availableDiskSpace.
+var availableDiskSpaceFn = availableDiskSpace
 
 /*
 You can open a Group to keep restrictions on an AutoFile, like
@@ -85,6 +91,7 @@ type Group struct {
 	totalSizeLimit       int64
 	writesSinceLastCheck int  // write counter for throttling disk space checks
 	halted               bool // set to true when disk space is unavailable
+	warnedLowSpace       bool // true while we have already warned about low space
 	info                 GroupInfo
 
 	// TODO: When we start deleting files, we need to start tracking GroupReaders
@@ -249,11 +256,7 @@ func (g *Group) writeBytes(p []byte) (int, error) {
 
 	nn, err := g.headBuf.Write(p)
 	if err != nil {
-		if isErrNoSpace(err) {
-			g.halt()
-			return nn, fmt.Errorf("%w: %w", ErrDiskSpaceUnavailable, err)
-		}
-		return nn, err
+		return nn, g.handleIOErr(err)
 	}
 
 	// Update limits
@@ -262,7 +265,9 @@ func (g *Group) writeBytes(p []byte) (int, error) {
 
 	// Maybe rotate
 	if 0 < g.headSizeLimit && g.headSizeLimit <= g.info.HeadSize {
-		g.rotateFile()
+		if err := g.rotateFile(); err != nil {
+			return nn, err
+		}
 	}
 	return nn, nil
 }
@@ -282,6 +287,21 @@ func (g *Group) FlushAndSync() error {
 	err := g.headBuf.Flush()
 	if err == nil {
 		err = g.Head.Sync()
+	}
+	if err != nil {
+		return g.handleIOErr(err)
+	}
+	return nil
+}
+
+// handleIOErr inspects an I/O error from a buffered write, flush, or sync. If it
+// is an out-of-space error (ENOSPC), the group is halted and the error is
+// wrapped in ErrDiskSpaceUnavailable. Other errors are returned unchanged.
+// CONTRACT: caller must hold g.mtx.
+func (g *Group) handleIOErr(err error) error {
+	if isErrNoSpace(err) {
+		g.halt()
+		return fmt.Errorf("%w: %w", ErrDiskSpaceUnavailable, err)
 	}
 	return err
 }
@@ -303,7 +323,7 @@ func (g *Group) ensureDiskSpace() error {
 	}
 	g.writesSinceLastCheck = 0
 
-	avail, err := availableDiskSpace(g.Dir)
+	avail, err := availableDiskSpaceFn(g.Dir)
 	if err != nil {
 		// If we cannot determine available space (e.g. unsupported platform),
 		// log a warning but allow writes to continue.
@@ -335,16 +355,31 @@ func (g *Group) ensureDiskSpace() error {
 		)
 	}
 
-	warningThreshold := limit * diskSpaceWarningThreshold
+	warningThreshold := limit * diskSpaceWarningMultiplier
 	if avail < warningThreshold {
-		g.Logger.Warn(
-			"disk space is running low",
-			"available", avail,
-			"warning_threshold", warningThreshold,
-			"halt_threshold", limit,
-		)
+		if !g.warnedLowSpace {
+			g.warnedLowSpace = true
+			g.Logger.Warn(
+				"disk space is running low",
+				"available", avail,
+				"warning_threshold", warningThreshold,
+				"halt_threshold", limit,
+				"time", time.Now(),
+			)
+		}
+	} else {
+		g.warnedLowSpace = false
 	}
 	return nil
+}
+
+// Halted reports whether the group is currently halted because disk space is
+// unavailable. It is a read-only getter intended for surfacing halt state in a
+// status endpoint or metric; recovery is automatic once space is freed.
+func (g *Group) Halted() bool {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	return g.halted
 }
 
 // halt marks the group as halted. Once halted, all subsequent writes will be
@@ -401,17 +436,30 @@ func (g *Group) ensureTotalSizeLimit() {
 func (g *Group) RotateFile() {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
-	g.rotateFile()
+	if err := g.rotateFile(); err != nil {
+		panic(err)
+	}
 }
 
-func (g *Group) rotateFile() {
+// rotateFile flushes and rotates the head file. On ENOSPC it halts the group and
+// returns a wrapped ErrDiskSpaceUnavailable instead of panicking, so a disk that
+// fills during rotation results in a clean halt rather than a process crash.
+// Other I/O errors still panic, preserving prior behavior.
+// CONTRACT: caller must hold g.mtx.
+func (g *Group) rotateFile() error {
 	headPath := g.Head.Path
 
 	if err := g.headBuf.Flush(); err != nil {
+		if isErrNoSpace(err) {
+			return g.handleIOErr(err)
+		}
 		panic(err)
 	}
 
 	if err := g.Head.Sync(); err != nil {
+		if isErrNoSpace(err) {
+			return g.handleIOErr(err)
+		}
 		panic(err)
 	}
 
@@ -428,6 +476,7 @@ func (g *Group) rotateFile() {
 	g.info.MaxIndex++
 
 	g.ensureTotalSizeLimit()
+	return nil
 }
 
 // NewReader returns a new group reader.

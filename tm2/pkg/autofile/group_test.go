@@ -1,6 +1,7 @@
 package autofile
 
 import (
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -10,6 +11,15 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
+
+// stubDiskSpace replaces availableDiskSpaceFn with one returning the values from
+// the supplied function and restores the original when the test completes.
+func stubDiskSpace(t *testing.T, fn func(string) (uint64, error)) {
+	t.Helper()
+	orig := availableDiskSpaceFn
+	availableDiskSpaceFn = fn
+	t.Cleanup(func() { availableDiskSpaceFn = orig })
+}
 
 func createTestGroupWithOptions(t *testing.T, opts ...func(*Group)) *Group {
 	t.Helper()
@@ -262,4 +272,55 @@ func TestWriteCountThrottling(t *testing.T) {
 	// (resetting to 0) and increments to 1.
 	assert.Equal(t, 1, counter,
 		"counter should reflect writes since last check")
+}
+
+func TestHaltOnLowDiskSpace(t *testing.T) {
+	// Not parallel: mutates the package-level availableDiskSpaceFn.
+	stubDiskSpace(t, func(string) (uint64, error) {
+		return 1, nil // below minDiskSpaceLimit
+	})
+
+	g := createTestGroupWithOptions(t)
+	defer g.Close()
+
+	// Force a check on the very next write.
+	g.mtx.Lock()
+	g.writesSinceLastCheck = diskSpaceCheckInterval - 1
+	g.mtx.Unlock()
+
+	_, err := g.Write([]byte("data"))
+	require.Error(t, err, "write should be rejected when disk space is low")
+	assert.True(t, errors.Is(err, ErrDiskSpaceUnavailable),
+		"error should wrap ErrDiskSpaceUnavailable")
+	assert.True(t, g.Halted(), "group should be halted")
+
+	// While halted, every write re-checks and is rejected.
+	_, err = g.Write([]byte("data"))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrDiskSpaceUnavailable))
+}
+
+func TestAutoRecoveryAfterSpaceFreed(t *testing.T) {
+	// Not parallel: mutates the package-level availableDiskSpaceFn.
+	var avail uint64 = 1 // start below the limit
+	stubDiskSpace(t, func(string) (uint64, error) {
+		return avail, nil
+	})
+
+	g := createTestGroupWithOptions(t)
+	defer g.Close()
+
+	g.mtx.Lock()
+	g.writesSinceLastCheck = diskSpaceCheckInterval - 1
+	g.mtx.Unlock()
+
+	_, err := g.Write([]byte("data"))
+	require.Error(t, err)
+	require.True(t, g.Halted())
+
+	// Free space well above the limit; the next write re-checks and resumes.
+	avail = minDiskSpaceLimit * 8
+	_, err = g.Write([]byte("data"))
+	require.NoError(t, err, "write should succeed after space is freed")
+	assert.False(t, g.Halted(), "group should have auto-resumed")
 }
