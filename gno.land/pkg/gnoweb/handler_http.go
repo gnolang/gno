@@ -101,6 +101,8 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		// The same URL can return HTML or markdown depending on Accept.
+		w.Header().Set("Vary", "Accept")
 		h.Get(w, r)
 	case http.MethodPost:
 		h.Post(w, r)
@@ -176,8 +178,22 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
+	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
+
+	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+
+	// The realm and static-markdown paths return a markdown view; serve its
+	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
+	if bodyView.Type == components.MarkdownViewType {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.WriteHeader(status)
+		if err := bodyView.Render(w); err != nil {
+			h.Logger.Error("failed to render markdown view", "error", err)
+		}
+		return
+	}
+
+	indexData.BodyView = bodyView
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -239,7 +255,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
-func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	ctx := r.Context()
 
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
@@ -267,9 +283,9 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+		return h.GetMarkdownView(gnourl, aliasTarget.Value, wantMarkdown)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -277,7 +293,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string, wantMarkdown bool) (int, *components.View) {
+	if wantMarkdown {
+		return http.StatusOK, components.MarkdownView([]byte(mdContent))
+	}
+
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
@@ -298,7 +318,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -320,11 +340,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(ctx, gnourl, indexData)
+	return h.GetRealmView(ctx, gnourl, indexData, wantMarkdown)
 }
 
 // GetRealmView renders a realm page or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// First fecth the realm
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
@@ -338,6 +358,11 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// Serve raw markdown verbatim, skipping the goldmark HTML render.
+	if wantMarkdown {
+		return http.StatusOK, components.MarkdownView(raw)
 	}
 
 	var content bytes.Buffer
