@@ -27,10 +27,10 @@ gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
 stdout '500000 int'
 
 gnokey query vm/qstorage --data gno.land/r/test/storage
-stdout 'storage: 503697, deposit: 50369700'
+stdout 'storage: 503690, deposit: 50369000'
 
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999782'
+stdout '"coins": "9999817'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -39,10 +39,10 @@ stdout '100ugnot'
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_price.gno
 stdout OK!
 
-gnokey maketx run -gas-fee 95000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 2000000ugnot -gas-wanted 22000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx run -gas-fee 20000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 2000000ugnot -gas-wanted 22000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 gnokey query params/vm:p:storage_price
@@ -57,13 +57,15 @@ stdout 'STORAGE REFUND: 50031600ugnot'
 gnokey query vm/qeval --data "gno.land/r/test/storage.DataLen()"
 stdout '0 int'
 
-## Storage should be back to base package level (not 500K+)
+## Storage should be back to base package level (not 500K+).
+## deposit == storage*100 (the original lock price), confirming the realm was
+## NOT re-priced to the new 1000ugnot rate on release.
 gnokey query vm/qstorage --data gno.land/r/test/storage
-stdout 'storage: 3381, deposit: 338100'
+stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999827'
+stdout '"coins": "9999854'
 
 -- loader/load_govdao.gno --
 package load_govdao
@@ -74,17 +76,14 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 -- run/propose_price.gno --
 package main
@@ -94,34 +93,9 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
-	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "1000ugnot")
-	dao.MustCreateProposal(cross, prop)
-}
-
--- run/vote_proposal.gno --
-package main
-
-import (
-	"gno.land/r/gov/dao"
-)
-
-func main() {
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
-}
-
--- run/exec_proposal.gno --
-package main
-
-import (
-	"gno.land/r/gov/dao"
-)
-
-func main() {
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+func main(cur realm) {
+	prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "storage_price", "1000ugnot")
+	dao.MustCreateProposal(cross(cur), prop)
 }
 
 -- storage/gnomod.toml --

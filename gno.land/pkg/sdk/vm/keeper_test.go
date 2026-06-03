@@ -1565,24 +1565,27 @@ func TestStorageDepositPriceIncrease(t *testing.T) {
 	require.True(t, depositFinal < depositAfterAlloc, "deposit should decrease after free")
 	require.True(t, refund > 0, "user should receive proportional refund")
 
-	// Refund should approximate deposit charged for data (not base package).
-	depositForData := int64(depositAfterAlloc - baseDeposit)
-	diff := refund - depositForData
-	if diff < 0 {
-		diff = -diff
-	}
-	// The diff comes from ~5 bytes of variable reference overhead.
-	require.True(t, diff < 1000, "refund should match data deposit within rounding tolerance")
+	// Core of the fix: freed bytes are refunded at the price they were LOCKED
+	// at (100), not the current price (1000). Pricing the unlock at the current
+	// price would refund 10x, drain the deposit, and panic — the original bug.
+	// Since every lock happened at price 100, deposit == storage*100 throughout
+	// and the proportional refund is exactly released*100 with no rounding.
+	released := int64(storageAfterAlloc - storageFinal)
+	require.Equal(t, released*100, refund,
+		"refund must price freed bytes at the lock-time price, not the current price")
 
-	// Remaining deposit should be close to the base package deposit recorded after addpkg.
+	// Conservation: the realm's deposit drops by exactly the refund, and the
+	// per-realm deposit address holds exactly the realm's remaining deposit.
+	require.Equal(t, int64(depositAfterAlloc)-refund, int64(depositFinal),
+		"deposit must decrease by exactly the refund")
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
-	remaining := depositAddr.AmountOf(ugnot.Denom)
-	baseDiff := remaining - int64(baseDeposit)
-	if baseDiff < 0 {
-		baseDiff = -baseDiff
-	}
-	require.True(t, baseDiff < 1000,
-		"remaining deposit should approximate base package deposit")
+	require.Equal(t, int64(depositFinal), depositAddr.AmountOf(ugnot.Denom),
+		"deposit address must hold exactly the realm's remaining deposit")
+
+	// The proportional refund preserves the deposit/storage ratio, so the
+	// retained storage is still valued at the original lock price.
+	require.Equal(t, int64(storageFinal)*100, int64(depositFinal),
+		"residual deposit must value retained storage at the lock price")
 }
 
 // TestStorageDepositPriceDecrease verifies that decreasing StoragePrice via
@@ -1625,7 +1628,7 @@ func TestStorageDepositPriceDecrease(t *testing.T) {
 
 	info, err = env.vmk.QueryStorage(ctx, pkgPath)
 	require.NoError(t, err)
-	_, depositAfterAlloc := parseStorageInfo(t, info)
+	storageAfterAlloc, depositAfterAlloc := parseStorageInfo(t, info)
 
 	// Step 3: Decrease StoragePrice to 100 ugnot/byte (10x decrease).
 	params.StoragePrice = "100ugnot"
@@ -1639,28 +1642,35 @@ func TestStorageDepositPriceDecrease(t *testing.T) {
 	_, err = env.vmk.Call(ctx, freeMsg)
 	require.NoError(t, err, "Free should succeed after price decrease")
 
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageFinal, depositFinal := parseStorageInfo(t, info)
 	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
 	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
 	require.True(t, refund > 0, "user should receive proportional refund")
 
-	// Refund should approximate deposit charged for data (not base package).
-	depositForData := int64(depositAfterAlloc - baseDeposit)
-	diff := refund - depositForData
-	if diff < 0 {
-		diff = -diff
-	}
-	// The diff comes from ~5 bytes of variable reference overhead.
-	require.True(t, diff < 10000, "refund should match data deposit within rounding tolerance")
+	// The fix: freed bytes are refunded at the price they were LOCKED at (1000),
+	// not the current price (100). Pricing the unlock at the current price would
+	// orphan 90% of the deposit in the deposit address forever — the original bug.
+	// Since every lock happened at price 1000, deposit == storage*1000 throughout
+	// and the proportional refund is exactly released*1000 with no rounding.
+	released := int64(storageAfterAlloc - storageFinal)
+	require.Equal(t, released*1000, refund,
+		"refund must price freed bytes at the lock-time price, not the current price")
 
-	// Remaining deposit should be close to the base package deposit recorded after addpkg.
+	// Conservation: the realm's deposit drops by exactly the refund, and the
+	// per-realm deposit address holds exactly the realm's remaining deposit
+	// (no funds orphaned).
+	require.Equal(t, int64(depositAfterAlloc)-refund, int64(depositFinal),
+		"deposit must decrease by exactly the refund")
 	depositAddr := env.bankk.GetCoins(ctx, depAddr)
-	remaining := depositAddr.AmountOf(ugnot.Denom)
-	baseDiff := remaining - int64(baseDeposit)
-	if baseDiff < 0 {
-		baseDiff = -baseDiff
-	}
-	require.True(t, baseDiff < 10000,
-		"remaining deposit should approximate base package deposit")
+	require.Equal(t, int64(depositFinal), depositAddr.AmountOf(ugnot.Denom),
+		"deposit address must hold exactly the realm's remaining deposit")
+
+	// The proportional refund preserves the deposit/storage ratio, so the
+	// retained storage is still valued at the original lock price.
+	require.Equal(t, int64(storageFinal)*1000, int64(depositFinal),
+		"residual deposit must value retained storage at the lock price")
 }
 
 // parseStorageInfo parses the "storage: X, deposit: Y" string from QueryStorage
