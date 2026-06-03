@@ -30,13 +30,13 @@ func makeCreateRepostURI(p *boards.Post) string {
 
 func makeDeletePostURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
+		return RealmLink.Call(
 			"DeleteThread",
 			"boardID", p.Board.ID.String(),
 			"threadID", p.ThreadID.String(),
 		)
 	}
-	return gRealmLink.Call(
+	return RealmLink.Call(
 		"DeleteReply",
 		"boardID", p.Board.ID.String(),
 		"threadID", p.ThreadID.String(),

@@ -124,14 +124,19 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushOp(OpEval)
 			}
 			// copy heap item defines in init to new heap items.
+			m.incrCPU(OpCPUSlopeForLoopHeap * int64(bs.NumInit))
 			for i := 0; i < bs.NumInit; i++ {
 				hiv, ok := last.Values[i].V.(*HeapItemValue)
 				if !ok {
 					continue
 				}
-				last.Values[i].V = &HeapItemValue{
+				// For-loop init re-allocates the heap slot in the
+				// current realm. HIV is a wrapper; pass nil.
+				newHIV := &HeapItemValue{
 					Value: hiv.Value,
 				}
+				m.Alloc.stampPkgID(&newHIV.ObjectInfo, nil)
+				last.Values[i].V = newHIV
 			}
 			// run post if exists.
 			bs.NextBodyIndex = -1
@@ -161,20 +166,27 @@ func (m *Machine) doOpExec(op Op) {
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
 				if xv.V == nil {
-					m.pushPanic(typedString("nil pointer dereference"))
-					return
+					// In Go, `for range nilPtr` and `for i := range nilPtr`
+					// work fine (length is known from the type), but
+					// `for i, v := range nilPtr` panics because accessing
+					// values requires dereferencing the nil pointer.
+					// We defer that panic to the value-assignment phase below.
+					ll = baseOf(xv.T.Elem()).(*ArrayType).Len
+				} else {
+					dv = xv.V.(PointerValue).TV
+					*xv = *dv
+					ll = dv.GetLength()
 				}
-				dv = xv.V.(PointerValue).TV
-				*xv = *dv
 			} else {
 				dv = xv
 				*xv = xv.Copy(m.Alloc)
+				ll = dv.GetLength()
 			}
-			ll = dv.GetLength()
 			if ll == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
+			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
@@ -188,7 +200,7 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -198,12 +210,18 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
+				// In Go, `for i, v := range nilPtrToArray` panics because
+				// reading `v` requires dereferencing the nil pointer.
+				if op == OpRangeIterArrayPtr && xv.V == nil {
+					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					return
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
+				ev := xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -284,7 +302,7 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -297,7 +315,7 @@ func (m *Machine) doOpExec(op Op) {
 				ev := typedRune(bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -380,7 +398,7 @@ func (m *Machine) doOpExec(op Op) {
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -393,7 +411,7 @@ func (m *Machine) doOpExec(op Op) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -830,6 +848,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
+	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -959,7 +978,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m.Store, cv, tv)
+	match := isEql(m, cv, tv)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

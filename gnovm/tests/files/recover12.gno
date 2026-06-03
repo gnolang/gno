@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: slice index out of bounds: 3 (len=3)
+// recover: runtime error: slice index out of bounds: 3 (len=3)

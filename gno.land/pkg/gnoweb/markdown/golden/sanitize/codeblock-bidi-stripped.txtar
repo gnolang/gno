@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: CodeBlock
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+rm -rf /\u202Etmp
+-- output.md --
+```
+rm -rf /tmp
+```
+-- output.html --
+<pre><code>rm -rf /tmp
+</code></pre>

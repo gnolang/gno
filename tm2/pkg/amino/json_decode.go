@@ -14,7 +14,7 @@ import (
 // cdc.decodeReflectJSON
 
 // CONTRACT: rv.CanAddr() is true.
-func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
+func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions, anyDepth int) (err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -29,8 +29,9 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		}()
 	}
 
-	// Special case for null for either interface, pointer, slice
-	// NOTE: This doesn't match the binary implementation completely.
+	// JSON null means "use default value" for all types (proto3 JSON spec).
+	// For nullable types (pointer, slice, map, interface), default is nil/zero.
+	// For scalar types (string, int, bool), default is the zero value.
 	if nullBytes(bz) {
 		rv.Set(defaultValue(rv.Type()))
 		return
@@ -53,7 +54,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		// First, decode repr instance from bytes.
 		rrv := reflect.New(info.ReprType.Type).Elem()
 		rinfo := info.ReprType
-		err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts)
+		err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts, anyDepth)
 		if err != nil {
 			return
 		}
@@ -72,16 +73,16 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	// Complex
 
 	case reflect.Interface:
-		err = cdc.decodeReflectJSONInterface(bz, info, rv, fopts)
+		err = cdc.decodeReflectJSONInterface(bz, info, rv, fopts, anyDepth+1)
 
 	case reflect.Array:
-		err = cdc.decodeReflectJSONArray(bz, info, rv, fopts)
+		err = cdc.decodeReflectJSONArray(bz, info, rv, fopts, anyDepth)
 
 	case reflect.Slice:
-		err = cdc.decodeReflectJSONSlice(bz, info, rv, fopts)
+		err = cdc.decodeReflectJSONSlice(bz, info, rv, fopts, anyDepth)
 
 	case reflect.Struct:
-		err = cdc.decodeReflectJSONStruct(bz, info, rv, fopts)
+		err = cdc.decodeReflectJSONStruct(bz, info, rv, fopts, anyDepth)
 
 	// ----------------------------------------
 	// Signed, Unsigned
@@ -144,8 +145,11 @@ func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) 
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions,
+	fopts FieldOptions, anyDepth int,
 ) (err error) {
+	if anyDepth > maxAnyDepth {
+		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
+	}
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -201,7 +205,7 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	crv, irvSet := constructConcreteType(cinfo)
 
 	// Decode into the concrete type.
-	err = cdc.decodeReflectJSON(bz, cinfo, crv, fopts)
+	err = cdc.decodeReflectJSON(bz, cinfo, crv, fopts, anyDepth)
 	if err != nil {
 		// Verify that the decoded concrete type is assignable to the target interface.
 		// This prevents panics when a registered type doesn't implement the target interface.
@@ -227,7 +231,7 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 }
 
 // CONTRACT: rv.CanAddr() is true.
-func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
+func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions, anyDepth int) (err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -275,7 +279,7 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 		for i := range length {
 			erv := rv.Index(i)
 			ebz := rawSlice[i]
-			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)
+			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts, anyDepth)
 			if err != nil {
 				return
 			}
@@ -285,7 +289,7 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 }
 
 // CONTRACT: rv.CanAddr() is true.
-func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
+func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions, anyDepth int) (err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -348,7 +352,7 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		for i := range length {
 			erv := srv.Index(i)
 			ebz := rawSlice[i]
-			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)
+			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts, anyDepth)
 			if err != nil {
 				return
 			}
@@ -361,7 +365,7 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 }
 
 // CONTRACT: rv.CanAddr() is true.
-func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
+func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.Value, fopts FieldOptions, anyDepth int) (err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -375,8 +379,9 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 	// Map all the fields(keys) to their blobs/bytes.
 	// NOTE: In decodeReflectBinaryStruct, we don't need to do this,
 	// since fields are encoded in order.
-	rawMap := make(map[string]json.RawMessage)
-	err = json.Unmarshal(bz, &rawMap)
+	// We use a token-based decoder instead of json.Unmarshal to detect
+	// duplicate keys (matching the binary decoder's monotonic field check).
+	rawMap, err := unmarshalJSONObjectNoDuplicates(bz)
 	if err != nil {
 		return
 	}
@@ -407,9 +412,20 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 		}
 
 		// Decode into field rv.
-		err = cdc.decodeReflectJSON(valueBytes, finfo, frv, fopts)
+		err = cdc.decodeReflectJSON(valueBytes, finfo, frv, field.FieldOptions, anyDepth)
 		if err != nil {
 			return
+		}
+	}
+
+	// Reject unknown keys — collect known JSON names and check for extras.
+	known := make(map[string]bool, len(info.Fields))
+	for _, field := range info.Fields {
+		known[field.JSONName] = true
+	}
+	for key := range rawMap {
+		if !known[key] {
+			return fmt.Errorf("unknown JSON field %q for type %v", key, info.Type)
 		}
 	}
 
@@ -419,26 +435,27 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 // ----------------------------------------
 // Misc.
 
-type anyWrapper struct {
-	TypeURL string          `json:"@type"`
-	Value   json.RawMessage `json:"value"`
-}
-
 func extractJSONTypeURL(bz []byte) (typeURL string, value json.RawMessage, err error) {
-	anyw := new(anyWrapper)
-	err = json.Unmarshal(bz, anyw)
+	// Decode with duplicate-key detection.
+	rawMap, err := unmarshalJSONObjectNoDuplicates(bz)
 	if err != nil {
 		err = fmt.Errorf("cannot parse Any JSON wrapper: %w", err)
 		return
 	}
 
 	// Get typeURL.
-	if anyw.TypeURL == "" {
+	if typeBytes, ok := rawMap["@type"]; ok {
+		if err = json.Unmarshal(typeBytes, &typeURL); err != nil {
+			return
+		}
+	}
+	if typeURL == "" {
 		err = errors.New("JSON encoding of interfaces require non-empty @type field")
 		return
 	}
-	typeURL = anyw.TypeURL
-	value = anyw.Value
+	// NOTE: amino's JSON Any format inlines concrete-type fields alongside
+	// @type (not wrapped in a "value" field), so extra keys are expected.
+	value = rawMap["value"]
 	return
 }
 
@@ -478,6 +495,45 @@ func deriveJSONObject(bz []byte, typeURL string) (res []byte, err error) {
 	str = str[2+len(typeURL):]
 	str = strings.TrimLeft(str, ",")
 	return []byte("{" + str), nil
+}
+
+// unmarshalJSONObjectNoDuplicates decodes a JSON object into a map,
+// rejecting duplicate keys. Go's encoding/json silently accepts duplicates
+// (last-wins), but amino's binary decoder rejects duplicate fields via its
+// monotonic field-number check, so JSON should match.
+func unmarshalJSONObjectNoDuplicates(bz []byte) (map[string]json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(bz))
+	t, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if d, ok := t.(json.Delim); !ok || d != '{' {
+		return nil, fmt.Errorf("expected '{', got %v", t)
+	}
+	result := make(map[string]json.RawMessage)
+	for dec.More() {
+		t, err = dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := t.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string key, got %T", t)
+		}
+		if _, exists := result[key]; exists {
+			return nil, fmt.Errorf("duplicate JSON key %q", key)
+		}
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return nil, err
+		}
+		result[key] = raw
+	}
+	// Consume closing '}'.
+	if _, err := dec.Token(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func nullBytes(b []byte) bool {

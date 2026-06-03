@@ -22,7 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
@@ -264,9 +264,18 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		cfg.Application,
 		evsw,
 		logger,
+		cfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
+	// Apply halt height from config to the application
+	if cfg.BaseConfig.HaltHeight > 0 {
+		if baseApp, ok := cfg.LocalApp.(*sdk.BaseApp); ok {
+			baseApp.SetHaltHeight(uint64(cfg.BaseConfig.HaltHeight))
+			logger.Info("Halt height configured", "height", cfg.BaseConfig.HaltHeight)
+		}
 	}
 
 	// Create a default node, with the given setup
@@ -274,7 +283,12 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if c.earlyStart {
 		opts = append(opts, node.WithEarlyStart())
 	}
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
+	// Stream the genesis file through an on-disk cache so peak memory stays
+	// bounded on multi-hundred-MB genesis files. The cache lives next to the
+	// chain DB so its lifetime tracks the node data directory.
+	genesisCacheRoot := filepath.Join(cfg.DBDir(), "genesis-cache")
+	genesisProvider := gnoland.StreamingGenesisProvider(genesisPath, genesisCacheRoot, logger)
+	gnoNode, err := node.DefaultNewNodeWithGenesisProvider(cfg, genesisProvider, evsw, logger, opts...)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}

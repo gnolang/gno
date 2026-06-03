@@ -88,6 +88,11 @@ func (rawRenderer) RenderSource(w io.Writer, name string, src []byte) error {
 	return err
 }
 
+func (rawRenderer) RenderDocumentation(w io.Writer, src []byte) error {
+	_, err := w.Write(src)
+	return err
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()
@@ -363,6 +368,30 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	// GetClientErrorStatusPage by default should return 500
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
+func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
+	t.Parallel()
+
+	realmWithRender := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/demo/withrender",
+		Files:  map[string]string{"render.gno": `package withrender`},
+		Functions: []*doc.JSONFunc{{
+			Name:    "Render",
+			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+			Results: []*doc.JSONField{{Type: "string"}},
+		}},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/withrender", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Source")
+	assert.Contains(t, rr.Body.String(), "Action")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
@@ -1257,6 +1286,117 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newRealRendererHelpHandler builds an HTTPHandler with a real HTMLRenderer
+// and a stubClient whose Doc() returns jdoc. Other client methods are not
+// stubbed as the $help endpoint only exercises the Doc() path.
+func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnoweb.HTTPHandler {
+	t.Helper()
+
+	client := &stubClient{
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return jdoc, nil
+		},
+	}
+
+	renderer := gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		gnoweb.NewDefaultRenderConfig(),
+		client,
+	)
+
+	h, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		&gnoweb.HTTPHandlerConfig{
+			ClientAdapter: client,
+			Renderer:      renderer,
+			Aliases:       map[string]gnoweb.AliasTarget{},
+			Meta:          gnoweb.StaticMetadata{Domain: "gno.land"},
+		},
+	)
+	require.NoError(t, err)
+	return h
+}
+
+func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		PackageDoc: "Package **foo** does things.",
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+	require.Contains(t, body, "<strong>foo</strong>", "bold markdown must render as <strong>")
+	require.NotContains(t, body, "**foo**", "literal markdown syntax must not leak")
+}
+
+func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Hello", Signature: "func Hello() string",
+			Doc: "Hello **greets** a user.",
+		}},
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "<strong>greets</strong>")
+}
+
+func TestGetHelpView_HTMLInjectionInDocStripped(t *testing.T) {
+	t.Parallel()
+
+	// Doc markdown containing raw HTML must be stripped by Goldmark safe mode
+	// before reaching the rendered page.
+	jdoc := &doc.JSONDocumentation{
+		PackageDoc: `<script>alert('xss')</script>`,
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	require.NotContains(t, body, "<script>", "raw <script> tag must never survive")
+	require.NotContains(t, body, "alert('xss')", "script payload must not leak either")
+}
+
+func TestGetHelpView_BackslashEscapingIssueFixed(t *testing.T) {
+	t.Parallel()
+
+	// Regression test for #4417: vm/qdoc markdown with backslash-escaped
+	// backticks/underscores must render as literal text, not leak the
+	// backslashes into the page.
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Register", Signature: "func Register()",
+			Doc: "special char is \\`\\_\\`",
+		}},
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	// Backslashes must be absent and the literal characters present.
+	require.NotContains(t, body, "\\`\\_\\`")
+	require.Contains(t, body, "`_`")
 }
 
 func TestHTTPHandler_ThemeCookie(t *testing.T) {
