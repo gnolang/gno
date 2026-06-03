@@ -82,6 +82,12 @@ func (dw *DelimitedWriter) WriteMsg(msg proto.Message) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("upstream/protoio: marshal: %w", err)
 	}
+	// Bound the body before computing the framed size. Mirrors the reader's
+	// maxMsgSize cap: the peer refuses anything larger than its own cap, and
+	// bounding here keeps n+len(body) well clear of int overflow.
+	if len(body) > MaxRemoteSignerMsgSize {
+		return 0, fmt.Errorf("upstream/protoio: message length %d exceeds cap %d", len(body), MaxRemoteSignerMsgSize)
+	}
 	var prefix [binary.MaxVarintLen64]byte
 	n := binary.PutUvarint(prefix[:], uint64(len(body)))
 	out := make([]byte, n+len(body))
