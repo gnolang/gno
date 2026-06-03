@@ -370,6 +370,17 @@ func (alloc *Allocator) AllocateMap(items int64) {
 	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
+// mapHintFits reports whether preallocating a map with items entries has an
+// allocation-size cost that fits in int64 (i.e. AllocateMap won't overflow).
+func mapHintFits(items int64) bool {
+	bytes, ok := overflow.Mul(allocMapItem, items)
+	if !ok {
+		return false
+	}
+	_, ok = overflow.Add(allocMap, bytes)
+	return ok
+}
+
 func (alloc *Allocator) AllocateMapItem() {
 	alloc.Allocate(allocMapItem)
 }
@@ -596,6 +607,13 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 }
 
 func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
+	// Mirror Go's makemap: the map size is an advisory hint. A negative
+	// hint, or one large enough to overflow the allocation-size math, is
+	// treated as 0 (no preallocation) rather than panicking, so
+	// make(map[K]V, n) never aborts on a bogus hint.
+	if size < 0 || !mapHintFits(int64(size)) {
+		size = 0
+	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
