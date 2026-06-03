@@ -370,16 +370,9 @@ func (alloc *Allocator) AllocateMap(items int64) {
 	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
-// mapHintFits reports whether preallocating a map with items entries has an
-// allocation-size cost that fits in int64 (i.e. AllocateMap won't overflow).
-func mapHintFits(items int64) bool {
-	bytes, ok := overflow.Mul(allocMapItem, items)
-	if !ok {
-		return false
-	}
-	_, ok = overflow.Add(allocMap, bytes)
-	return ok
-}
+// maxMapHint is the largest map preallocation hint whose allocation-size
+// cost (allocMap + allocMapItem*hint) still fits in int64.
+const maxMapHint = (math.MaxInt64 - allocMap) / allocMapItem
 
 func (alloc *Allocator) AllocateMapItem() {
 	alloc.Allocate(allocMapItem)
@@ -611,7 +604,18 @@ func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
 	// hint, or one large enough to overflow the allocation-size math, is
 	// treated as 0 (no preallocation) rather than panicking, so
 	// make(map[K]V, n) never aborts on a bogus hint.
-	if size < 0 || !mapHintFits(int64(size)) {
+	//
+	// Note we deliberately do NOT also clamp against the allocator's
+	// maxBytes budget the way Go clamps against maxAlloc (heap arena).
+	// Trade-off:
+	//   - Silent clamp would hide where the user's mistake is; the tx
+	//     would later panic at some random insert after burning gas.
+	//   - A clean "allocation limit exceeded" panic at the make() line
+	//     points straight at the bogus hint with minimal gas burned.
+	// The Go spec only requires "approximately n elements" (no upper
+	// bound), so either is conformant; we pick the diagnostic-friendly
+	// one because Gno gas is real money.
+	if size < 0 || int64(size) > maxMapHint {
 		size = 0
 	}
 	alloc.AllocateMap(int64(size))
