@@ -245,8 +245,8 @@ to /r/myRealm's block.
 ```go
     // PKGPATH: gno.land/r/myRealm
     var x foreignRealm.MyStruct     <-- ObjectInfo.PkgID = /r/foreignRealm
-    x = foreignRealm.GlobalMyStruct <-- OK (tags x with N_Readonly taint)
-    x.Field = "..."                 <-- write fail, readonly taint
+    x = foreignRealm.GlobalMyStruct <-- OK (whole-slot replace)
+    x.Field = "..."                 <-- write fail, /r/myRealm != /r/foreignRealm
     x = *foreignRealm.NewMyStruct() <-- OK (whole-slot replace)
     x.Field = "..."                 <-- write fail, /r/myRealm != /r/foreignRealm
     x.Modify()                      <-- write fail, /r/myRealm != /r/foreignRealm
