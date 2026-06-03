@@ -5,8 +5,8 @@
 # The first example should be reported as a panic failure.
 stderr 'panic: first example panics'
 
-# The second example should still run and pass.
-# This assertion will FAIL with the current implementation.
+# The second example should still run and pass: RunExampleTest recovers the
+# panic, so the example loop continues to the next example.
 stderr '--- PASS: ExampleSecond .+'
 
 -- two_examples.gno --

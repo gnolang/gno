@@ -670,15 +670,14 @@ func (opts *TestOptions) runTestFiles(
 
 	examples := loadExampleTestFuncs(files)
 	filter := splitRegexp(opts.RunFlag)
-	for _, fd := range examples {
+	// runExample runs a single example and reports whether it passed. It is a
+	// closure (rather than an inlined loop body) so that its `defer revert()`
+	// fires when the example finishes — restoring the output writer on every
+	// path, including a Go-level panic and the failfast early return below —
+	// instead of accumulating one deferred revert per example until runTestFiles
+	// itself returns.
+	runExample := func(fd *gno.FuncDecl) (passed bool) {
 		fname := string(fd.Name)
-		if !shouldRun(filter, fname) {
-			continue
-		}
-		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
-			// Don't run examples with no output.
-			continue
-		}
 
 		// Reset and start capturing stdout.
 		opts.filetestBuffer.Reset()
@@ -719,33 +718,39 @@ func (opts *TestOptions) runTestFiles(
 			gno.Nx(fname),
 		))
 		timeSpent := time.Since(startedAt)
-		ok := true
 		panicked := eval[0].GetBool()
 		if panicked {
-			ok = false
 			// Already printed the panic message and stacktrace
-			dstr := fmtDuration(timeSpent)
-			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", fname, dstr)
-		} else {
-			if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
-			}
-
-			stdout := opts.filetestBuffer.String()
-			expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
-			unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
-
-			ok = opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", fname, fmtDuration(timeSpent))
+			return false
 		}
-		if !ok {
-			err := fmt.Errorf("failed: %q", fname)
-			errs = multierr.Append(errs, err)
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
+
+		stdout := opts.filetestBuffer.String()
+		expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
+		unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
+
+		return opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
+	}
+
+	for _, fd := range examples {
+		fname := string(fd.Name)
+		if !shouldRun(filter, fname) {
+			continue
+		}
+		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			// Don't run examples with no output.
+			continue
+		}
+
+		if !runExample(fd) {
+			errs = multierr.Append(errs, fmt.Errorf("failed: %q", fname))
 			if opts.FailfastFlag {
 				return errs
 			}
 		}
-
-		revert()
 	}
 
 	return errs
