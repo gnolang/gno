@@ -317,6 +317,46 @@ func TestLoader_LoadAll_SkipsIgnoredExtraRootPkgs(t *testing.T) {
 		"ignore=true extra-root pkg must be filtered out before deploy")
 }
 
+// TestLoader_Reload_EagerLoadsExtraRootDeps verifies that Reload eagerly
+// materializes packages in -extra-root directories so cross-package
+// dependencies within an extra-root resolve at startup, not only via the
+// lazy proxy. Without this, a realm in an extra-root that imports a
+// sibling pure-package in the same extra-root fails to compile on first
+// query because the dep was never deployed to the chain.
+func TestLoader_Reload_EagerLoadsExtraRootDeps(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "lib"), "gno.land/p/eager/lib",
+		"package lib\n\nfunc Greet() string { return \"hi\" }\n")
+	writePkg(t, filepath.Join(extra, "realm"), "gno.land/r/eager/realm",
+		"package realm\n\nimport \"gno.land/p/eager/lib\"\n\nfunc Render(_ string) string { return lib.Greet() }\n")
+
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(ws)
+
+	l := New(Config{
+		Workspace:  ws,
+		ExtraRoots: []string{extra},
+		Fetcher:    pkgdownload.NewInMemoryFetcher(),
+		Logger:     testLogger(),
+	})
+
+	pkgs, err := l.Reload()
+	require.NoError(t, err)
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/p/eager/lib",
+		"extra-root pure-package must be eagerly loaded by Reload")
+	assert.Contains(t, paths, "gno.land/r/eager/realm",
+		"extra-root realm must be eagerly loaded by Reload")
+
+	pos := map[string]int{}
+	for i, p := range pkgs {
+		pos[p.ImportPath] = i
+	}
+	assert.Less(t, pos["gno.land/p/eager/lib"], pos["gno.land/r/eager/realm"],
+		"dep (lib) must sort before its dependent (realm); got %v", paths)
+}
+
 // TestLoader_ExcludeDirs_SkipsSubtree verifies Config.ExcludeDirs causes
 // scanRoot to skip the named directories: packages under an excluded path
 // must not appear via Resolve (FS walk) or LoadAll (eager root traversal).
@@ -368,8 +408,8 @@ func TestLoader_ExcludeDirs_SkipsSubtree(t *testing.T) {
 		"ExcludeDirs must skip the subtree during LoadAll's root scan")
 }
 
-// TestLoader_LoadAll_LogsProgress verifies LoadAll emits progress per root
-// so the user knows it isn't hung.
+// TestLoader_LoadAll_LogsProgress verifies LoadAll emits per-root progress
+// events; users opt into seeing them with -v (Debug level).
 func TestLoader_LoadAll_LogsProgress(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
@@ -381,7 +421,7 @@ func TestLoader_LoadAll_LogsProgress(t *testing.T) {
 	t.Chdir(root)
 
 	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	l := New(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: logger})
 	_, err := l.LoadAll()

@@ -272,44 +272,31 @@ func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string
 	return out
 }
 
-// Reload re-runs gnovm.Load for the workspace and re-Resolves each tracked
-// path. Tracked paths discovered via ExtraRoots or the fetcher live outside
-// the workspace, so they are re-resolved individually and merged with the
-// workspace result.
+// Reload re-runs the eager load for the workspace and every -extra-root,
+// then re-Resolves each tracked path. Tracked paths discovered via the
+// RPC fetcher live outside any FS root, so they are re-resolved
+// individually and merged with the eager result. ExcludeDirs is honored
+// via scanRoot.
 //
 // Note: deletion of an extra-root directory mid-session is not detected;
 // Resolve will return the stale dir from the cached rootIdx until gnodev
 // restarts.
 func (l *Loader) Reload() ([]*Package, error) {
 	l.mu.RLock()
-	wsPattern := ""
-	if l.cfg.Workspace != "" {
-		wsPattern = l.cfg.Workspace + "/..."
-	}
 	trackedPaths := make([]string, 0, len(l.tracked))
 	for p := range l.tracked {
 		trackedPaths = append(trackedPaths, p)
 	}
 	l.mu.RUnlock()
 
-	var out []*Package
-	seen := map[string]struct{}{}
-	appendUnique := func(pkgs ...*Package) {
-		for _, p := range pkgs {
-			if _, dup := seen[p.ImportPath]; dup {
-				continue
-			}
-			seen[p.ImportPath] = struct{}{}
-			out = append(out, p)
-		}
+	out, err := l.loadEager(l.cfg.ExtraRoots)
+	if err != nil {
+		return nil, err
 	}
 
-	if wsPattern != "" {
-		pkgs, err := l.loadWithPatterns(wsPattern)
-		if err != nil {
-			return nil, err
-		}
-		appendUnique(pkgs...)
+	seen := make(map[string]struct{}, len(out))
+	for _, p := range out {
+		seen[p.ImportPath] = struct{}{}
 	}
 
 	// Drop tracked paths from the index so Resolve re-derives them from
@@ -327,7 +314,11 @@ func (l *Loader) Reload() ([]*Package, error) {
 			l.cfg.Logger.Warn("reload tracked path failed", "path", p, "err", err)
 			continue
 		}
-		appendUnique(pkg)
+		if _, dup := seen[pkg.ImportPath]; dup {
+			continue
+		}
+		seen[pkg.ImportPath] = struct{}{}
+		out = append(out, pkg)
 	}
 
 	return out, nil
@@ -348,6 +339,17 @@ func (l *Loader) LoadWorkspace() ([]*Package, error) {
 // topologically sorted: dependencies precede dependents across all roots so
 // genesis deploy can apply packages in order.
 func (l *Loader) LoadAll() ([]*Package, error) {
+	return l.loadEager(l.lookupRoots())
+}
+
+// loadEager runs gnovm.Load against the workspace pattern (implicit:
+// l.cfg.Workspace) and walks each root in roots (explicit: callers choose
+// what to walk) via loadExtraRootVm, merging the results into a single
+// topologically-sorted package list. Used by LoadAll (roots =
+// lookupRoots(), includes $GNOROOT/examples) and Reload (roots =
+// cfg.ExtraRoots, examples stay lazy via the proxy). Per-step progress is
+// logged at Debug; users see it with -v.
+func (l *Loader) loadEager(roots []string) ([]*Package, error) {
 	var unified vmpackages.PkgList
 	seen := map[string]struct{}{}
 	appendUnique := func(pl vmpackages.PkgList) {
@@ -361,20 +363,19 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 	}
 
 	if l.cfg.Workspace != "" {
-		l.cfg.Logger.Info("loading workspace", "workspace", l.cfg.Workspace)
+		l.cfg.Logger.Debug("loading workspace", "workspace", l.cfg.Workspace)
 		ws, err := l.loadWithPatternsVm(l.cfg.Workspace + "/...")
 		if err != nil {
 			return nil, err
 		}
-		l.cfg.Logger.Info("loaded workspace", "packages", len(ws))
+		l.cfg.Logger.Debug("loaded workspace", "packages", len(ws))
 		appendUnique(ws)
 	}
 
-	extraRoots := l.lookupRoots()
-	for i, root := range extraRoots {
-		l.cfg.Logger.Info("loading root", "root", root, "n", i+1, "of", len(extraRoots))
+	for i, root := range roots {
+		l.cfg.Logger.Debug("loading root", "root", root, "n", i+1, "of", len(roots))
 		rp := l.loadExtraRootVm(root)
-		l.cfg.Logger.Info("loaded root", "root", root, "packages", len(rp))
+		l.cfg.Logger.Debug("loaded root", "root", root, "packages", len(rp))
 		appendUnique(rp)
 	}
 
