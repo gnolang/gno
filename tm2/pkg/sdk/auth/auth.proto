@@ -1,0 +1,44 @@
+syntax = "proto3";
+package auth;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/sdk/auth/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
+import "google/protobuf/any.proto";
+
+// messages
+message GenesisState {
+	Params params = 1;
+}
+
+message Params {
+	sint64 max_memo_bytes = 1;
+	sint64 tx_sig_limit = 2;
+	sint64 tx_size_cost_per_byte = 3;
+	sint64 sig_verify_cost_ed25519 = 4;
+	sint64 sig_verify_cost_secp256k1 = 5;
+	sint64 gas_prices_change_compressor = 6 [json_name = "gas_price_change_compressor"];
+	sint64 target_gas_ratio = 7;
+	std.GasPrice initial_gas_price = 8 [json_name = "initial_gasprice"];
+	repeated string unrestricted_addrs = 9;
+	string fee_collector = 10;
+}
+
+message m_create_session {
+	string creator = 1;
+	google.protobuf.Any session_key = 2;
+	sint64 expires_at = 3;
+	repeated string allow_paths = 4;
+	string spend_limit = 5;
+	sint64 spend_period = 6;
+}
+
+message m_revoke_session {
+	string creator = 1;
+	google.protobuf.Any session_key = 2;
+}
+
+message m_revoke_all_sessions {
+	string creator = 1;
+}

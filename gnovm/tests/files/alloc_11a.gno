@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// should not happen, allocation limit exceeded while gc.
+// allocation limit exceeded

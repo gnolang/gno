@@ -9,6 +9,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "misc/genproto/**"
+      - "misc/genproto2/**"
       - "docs/**"
       - ".github/workflows/ci-codegen-verify.yml"
   pull_request:
@@ -17,6 +18,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "misc/genproto/**"
+      - "misc/genproto2/**"
       - "docs/**"
       - ".github/workflows/ci-codegen-verify.yml"
   workflow_dispatch:
@@ -50,6 +52,19 @@ jobs:
       - run: |
           make -C misc/genproto
           git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
+
+  genproto2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - run: |
+          make -C misc/genproto2
+          git diff --text --exit-code || (echo "Some pb3_gen.go files are not updated, please run 'make -C misc/genproto2'." && exit 1)
 
   docs:
     runs-on: ubuntu-latest

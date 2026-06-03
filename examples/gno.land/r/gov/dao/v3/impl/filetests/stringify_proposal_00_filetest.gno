@@ -18,33 +18,28 @@ func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
 		t, _ := memberstore.GetTier(memberstore.T1)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	default:
 		panic("unsupported tier: " + tier)
 	}
 }
 
-func init() {
+func init(cur realm) {
 	// Load members for testing
-	mstore := memberstore.Get()
+	mstore := memberstore.Get(0, cur)
 	mstore.DeleteAll()
 	mstore.SetTier(memberstore.T1)
 	mstore.SetMember(memberstore.T1, testUser, memberByTier(memberstore.T1))
 
 	// Set up the DAO implementation using proper constructor
 	govDAO := impl.NewGovDAO()
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
 }
 
-func main() {
+func main(cur realm) {
 	// Create an executor in a specific realm to test creation realm tracking
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
-	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor description")
+	executor := dao.NewSimpleExecutor(0, cur, func(realm) error { return nil }, "Test executor description")
 
 	// Create a proposal request
 	proposalRequest := dao.NewProposalRequest(
@@ -56,10 +51,10 @@ func main() {
 	// Switch to user realm to create the proposal
 	testing.SetOriginCaller(testUser)
 	testing.SetRealm(testing.NewUserRealm(testUser))
-	pid := dao.MustCreateProposal(cross, proposalRequest)
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// Get the proposal and test the core functionality
-	prop := dao.MustGetProposal(cross, pid)
+	prop := dao.MustGetProposal(pid)
 
 	// Test that executor string is captured correctly
 	println("Executor string:", prop.ExecutorString())

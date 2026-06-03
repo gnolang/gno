@@ -2,8 +2,11 @@ package tests
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
 
 // ----------------------------------------
@@ -298,6 +301,9 @@ func (am *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
 	if err != nil {
 		return err
 	}
+	if i < math.MinInt32 || i > math.MaxInt32 {
+		return fmt.Errorf("value %d overflows int32", i)
+	}
 	*am = AminoMarshalerInt5(i)
 	return nil
 }
@@ -349,6 +355,155 @@ func (re ReprElem7) MarshalAmino() (uint8, error) {
 
 func (re *ReprElem7) UnmarshalAmino(u uint8) error {
 	re.A = int8(u)
+	return nil
+}
+
+// ----------------------------------------
+// SimpleAddress: [20]byte with string repr (mimics crypto.Address).
+// Exercises AminoMarshaler elements inside slices/arrays/pointer-slices.
+
+type SimpleAddress [20]byte
+
+func (a SimpleAddress) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%x", a[:]), nil
+}
+
+func (a *SimpleAddress) UnmarshalAmino(repr string) error {
+	if len(repr) != 40 {
+		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
+	}
+	for i := 0; i < 20; i++ {
+		var b byte
+		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
+			return err
+		}
+		a[i] = b
+	}
+	return nil
+}
+
+// HostRepr: AminoMarshaler with []byte repr. Exercises primitiveValueSizeExpr
+// ByteSlice path in the list-element size calculation.
+
+type HostRepr struct {
+	IP string
+}
+
+func (hr HostRepr) MarshalAmino() ([]byte, error) {
+	return []byte(hr.IP), nil
+}
+
+func (hr *HostRepr) UnmarshalAmino(repr []byte) error {
+	hr.IP = string(repr)
+	return nil
+}
+
+// CounterRepr: AminoMarshaler with uint8 repr. Exercises the packed list
+// branch for AminoMarshaler elements. Non-lossy: underlying type is also uint8.
+
+type CounterRepr uint8
+
+func (c CounterRepr) MarshalAmino() (uint8, error) {
+	return uint8(c), nil
+}
+
+func (c *CounterRepr) UnmarshalAmino(repr uint8) error {
+	*c = CounterRepr(repr)
+	return nil
+}
+
+// ContainerWithAminoLists: various list shapes of AminoMarshaler elements.
+
+type ContainerWithAminoLists struct {
+	Addrs    []SimpleAddress  // slice, string repr
+	TopAddrs [3]SimpleAddress // array, string repr
+}
+
+// CrossPkgPointerSlice: []*AminoMarshaler where the element type lives in
+// a different package and has a packed (non-ByteLength) repr. Without the
+// gen_marshal.go:442 fix, generated code emits `new(SmallCount)` (bare name)
+// which fails to compile in the tests package.
+
+type CrossPkgPointerSlice struct {
+	Counts []*crosspkg.SmallCount
+}
+
+// FixedStringArrayStruct: a struct with a `[4]string` field — a fixed-size
+// array of ByteLength-typed elements (decoded as unpacked-list entries).
+// Exercises the unpacked-list-array short-input rejection rule: the
+// generator must reject wire input that provides fewer than N entries,
+// matching reflect (binary_decode.go:625-644).
+type FixedStringArrayStruct struct {
+	Names [4]string
+}
+
+// ByteArraySliceStruct: a struct with a `[][8]byte` field. Each element is
+// a fixed-size 8-byte array, decoded as a list element via
+// writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises the byte-array
+// element length check: the generator must enforce that the decoded
+// payload length matches the array length, mirroring reflect
+// (binary_decode.go:551-555).
+type ByteArraySliceStruct struct {
+	Items [][8]byte
+}
+
+// StructWithStringRepr is a Go struct whose MarshalAmino returns a string.
+// Used to exercise the "struct-pointer needs nil_elements" rule for list
+// elements whose Go kind is Struct but repr kind is String (Typ3ByteLength,
+// so unpacked list encoding is used). The generator must key off
+// `einfo.Type.Kind() == Struct` (Go kind), not the repr kind — matching
+// reflect at binary_encode.go:399.
+type StructWithStringRepr struct {
+	Name string
+}
+
+func (s StructWithStringRepr) MarshalAmino() (string, error) { return s.Name, nil }
+func (s *StructWithStringRepr) UnmarshalAmino(r string) error {
+	s.Name = r
+	return nil
+}
+
+// StructPtrSliceWithStringRepr exercises the list-element nil_elements
+// rule for `[]*X` where X is a Go struct with non-struct (string) repr.
+// If `ertIsStruct` were keyed off `einfo.ReprType.Type.Kind()` (string,
+// false), the generator would silently encode nil entries as 0x00
+// sentinels. Correct behavior: key off `einfo.Type.Kind() == Struct`
+// (Go kind, true) and reject nil entries without a `nil_elements` tag —
+// matching reflect.
+type StructPtrSliceWithStringRepr struct {
+	Items []*StructWithStringRepr // no nil_elements tag
+}
+
+// StructUint8ReprSliceStruct: exercises the unpacked-list packed-branch
+// bare-byte (beOptionByte) emission for AminoMarshaler-struct elements
+// whose repr is uint8. Reflect detects this via beOptionByte at
+// binary_encode.go:165 and emits EncodeByte (1 byte). Without the
+// generator's bare-byte handling at this site, writePrimitiveEncode
+// would emit `PrependUvarint(buf, offset, uint64(elem))` against a
+// struct-typed accessor — a Go compile error AND a wire divergence
+// (uvarint of byte ≥128 is 2 bytes; reflect emits 1 bare byte).
+//
+// Mirror of AminoMarshalerStruct7 (top-level repr-bytes) but at the
+// struct-field position, where writeUnpackedListMarshal handles the
+// list rather than writePackedSliceReprMarshal.
+type StructUint8ReprSliceStruct struct {
+	Vals []ReprElem7
+}
+
+// CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
+// in a different package. Without the gen_unmarshal.go:72 fix, generated
+// code declares `var repr Inner` (bare name) which fails to compile.
+
+type CrossPkgBoxedRepr struct {
+	Val int64
+}
+
+func (c CrossPkgBoxedRepr) MarshalAmino() (crosspkg.Inner, error) {
+	return crosspkg.Inner{N: c.Val}, nil
+}
+
+func (c *CrossPkgBoxedRepr) UnmarshalAmino(r crosspkg.Inner) error {
+	c.Val = r.N
 	return nil
 }
 
@@ -428,6 +583,38 @@ var StructTypes = []any{
 	(*AminoMarshalerInt5)(nil),
 	(*AminoMarshalerStruct6)(nil),
 	(*AminoMarshalerStruct7)(nil),
+	// GnoVM-inspired condensed types (no genproto pbbindings,
+	// but tested by genproto2 via PBMessager2).
+	(*FuzzStructInfo)(nil),
+	(*FuzzBlock)(nil),
+	(*FuzzDeepNest)(nil),
+	(*FuzzPtrNest)(nil),
+	(*FuzzUnsafeFloat)(nil),
+	(*FuzzFixedInt)(nil),
+	(*FuzzContainsAminoMarshaler)(nil),
+	// AminoMarshaler list element types (slice/array of AminoMarshaler with
+	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
+	(*ContainerWithAminoLists)(nil),
+	(*StructPtrSliceWithStringRepr)(nil),
+	(*ByteArraySliceStruct)(nil),
+	(*FixedStringArrayStruct)(nil),
+	(*StructUint8ReprSliceStruct)(nil),
+	// Cross-package AminoMarshaler: verifies generated code uses qualified
+	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
+	// excluded from property fuzz because random nil elements in a
+	// pointer-slice without nil_elements tag yield lossy null-vs-zero JSON
+	// roundtrips; it is covered by an explicit TestCrossPkgPointerSliceRoundtrip.
+	(*CrossPkgBoxedRepr)(nil),
+	// Interface-heavy benchmark type.
+	(*InterfaceHeavy)(nil),
+}
+
+// AminoTagTypes are struct types that use amino-specific encoding tags
+// (write_empty, nil_elements) with no proto3 equivalent. These need a
+// tailored test that skips the proto.Marshal byte comparison.
+var AminoTagTypes = []any{
+	(*FuzzWriteEmpty)(nil),
+	(*FuzzNilElements)(nil),
 }
 
 // ----------------------------------------
@@ -488,6 +675,14 @@ type Concrete1 struct{}
 
 func (Concrete1) AssertInterface1() {}
 func (Concrete1) AssertInterface2() {}
+
+// ConcreteRecursive implements Interface1 and has an Interface1 field,
+// allowing unbounded nesting for depth-limit testing.
+type ConcreteRecursive struct {
+	Inner Interface1
+}
+
+func (ConcreteRecursive) AssertInterface1() {}
 
 type Concrete2 struct{}
 

@@ -26,7 +26,7 @@ return the same amount that was originally allocated.
 
 ### Shared size function
 
-Introduced `packageValueSize(pkgName, pkgPath, fnames, fblocksLen)` as the single source of
+Introduced `packageValueSize(pkgName, pkgPath, fnames)` as the single source of
 truth for computing a `PackageValue`'s shallow memory cost. It accounts for:
 
 - `allocPackage` (struct base + pointer + header)
@@ -44,15 +44,14 @@ Both `GetShallowSize()` and the allocation paths call this function, guaranteein
 - `AddFileBlock()` takes an `*Allocator` parameter and charges the incremental cost of
   adding one file block (string for filename + interface entry + map entry).
 
-### Overflow protection removed from GetShallowSize
+### Overflow protection retained in GetShallowSize
 
-`overflow.Addp`/`overflow.Mulp` calls were removed from `GetShallowSize()`. These were
-unnecessary because:
-
-- During store loading, the sizes were already validated by `Allocate()`.
-- During GC recounting, sizes cannot exceed what was previously allocated.
-- The shared `packageValueSize` function uses simple arithmetic, which is safe for the
-  bounded values involved.
+`overflow.Addp`/`overflow.Mulp` are kept in `packageValueSize`, `fileBlockEntrySize`, and the
+`GetShallowSize()` implementations as a defense-in-depth measure. While `Allocate()` already
+performs an overflow-checked addition against `maxBytes`, the size computation itself happens
+before that check, so wrapping the arithmetic here guarantees a deterministic panic on overflow
+rather than a silent wrap that could mis-report a size. The cost is negligible for the bounded
+values involved.
 
 ### fBlocksMap sizing based on FNames
 
@@ -83,4 +82,18 @@ is nil but `FNames` is populated).
 - Allocation and GC recounting are now consistent for `PackageValue`.
 - Gas costs increased slightly due to the additional allocations (string content for
   `PkgName`/`PkgPath` and per-file-block charges), reflected in updated test golden values.
-- `AddFileBlock()` signature changed to include `*Allocator` (nil-safe, no-ops when nil).
+- `AddFileBlock()` signature changed to include `*Allocator` and charges the incremental
+  file-block cost; the lint path passes `fallbackAllocator` so nothing is charged there.
+
+## Known asymmetry (lint path)
+
+`PreprocessFiles()` (`machine.go`) is the lint/import-only path: the resulting `PackageValue`
+is never persisted and runs without a transaction. It passes `fallbackAllocator` to
+`AddFileBlock()`, so the per-file-block cost is not charged to the machine's allocator there.
+`fallbackAllocator` has no gas meter and a `MaxInt64` budget, so it neither charges gas nor
+throttles; it is master's vehicle for a valid-but-non-charging allocator, used here because
+master's `Allocate` is not nil-safe (the original PR relied on a nil `*Allocator` no-op, which
+master removed). Because no later `GetShallowSize()`/recount path observes the uncharged bytes
+for this throwaway value, the "single source of truth, no asymmetry" invariant still holds for
+every path that can persist or GC a `PackageValue`; the lint path is the one narrow, intentional
+exception.

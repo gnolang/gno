@@ -2,7 +2,7 @@
 package main
 
 func main() {
-	alloc(12499879) // 12499879 is the threshold to reach the allocation limit
+	alloc(12499872) // 12499872 is the threshold to reach the allocation limit
 }
 
 func alloc(n int) {
@@ -11,7 +11,4 @@ func alloc(n int) {
 }
 
 // Gas:
-// 7111
-
-// Error:
-// allocation limit exceeded
+// 70970781
