@@ -1,0 +1,54 @@
+# Reproduce the cross-realm alias round-trip enabled by #5747.
+#
+# The attacker reads a victim-owned array by value. The array copy is fresh, but
+# its element is a slice header that still aliases the victim's backing array.
+# Passing that retained alias back into a victim-declared helper must not let
+# the caller mutate victim.Global.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/victim -pkgpath gno.land/r/test/issue5747/victim -gas-fee 500001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/attacker -pkgpath gno.land/r/test/issue5747/attacker -gas-fee 500001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qrender --data "gno.land/r/test/issue5747/victim:"
+stdout 'safe'
+
+! gnokey maketx call -pkgpath gno.land/r/test/issue5747/attacker -func Attack -gas-fee 500001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stderr 'cannot copy to readonly tainted slice'
+
+gnokey query vm/qrender --data "gno.land/r/test/issue5747/victim:"
+stdout 'safe'
+
+-- victim/gnomod.toml --
+module = "gno.land/r/test/issue5747/victim"
+gno = "0.9"
+
+-- victim/victim.gno --
+package victim
+
+var Global = [1][]byte{[]byte("safe")}
+
+func Copy(dst []byte, src string) {
+	copy(dst, []byte(src))
+}
+
+func Render(path string) string {
+	return string(Global[0])
+}
+
+-- attacker/gnomod.toml --
+module = "gno.land/r/test/issue5747/attacker"
+gno = "0.9"
+
+-- attacker/attacker.gno --
+package attacker
+
+import "gno.land/r/test/issue5747/victim"
+
+func Attack(cur realm) {
+	x := victim.Global
+	victim.Copy(x[0], "pwn!")
+}

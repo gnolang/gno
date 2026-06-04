@@ -2658,12 +2658,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// The "tainted" wording in the message is historical; the failure is the
-// cross-realm ownership check (tvoid.PkgID != m.Realm.ID) — the target is
-// owned by a realm different from the one currently executing. Going
-// through a method or crossing function re-enters via PushFrameCall, whose
-// implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
-// the target's owner.
+// "tainted" here is loose: failures can come from the sticky N_Readonly bit
+// or from the contextual ownership check (tvoid.PkgID != m.Realm.ID). Either
+// way, going through a method or crossing function re-enters via PushFrameCall,
+// whose implicit borrow-realm switch (or hard cross-call) lines m.Realm up
+// with the target's owner.
 func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
@@ -2672,6 +2671,7 @@ func readonlyAccessPanic(x Expr) string {
 // (PopAsPointer2, uverse append/copy/delete, map assign). Returns false if
 // m.Realm is nil (single user mode). Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
 //   - tv is a real object residing in external realm
 //
 // One own-package write exemption: STDLIB code may write its own
@@ -2681,10 +2681,26 @@ func readonlyAccessPanic(x Expr) string {
 // so without this a stdlib package mutating its own global would wrongly
 // panic. Keyed on m.Package (the executing code), so an attacker can't
 // trigger it; and NOT granted to /p/ — a /p/ package writing its own
-// immutable global must still be blocked.
+// immutable global must still be blocked. (isReadonlyForCopy is the
+// read-taint variant, which grants the own-package exemption to all pkgs.)
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	var ownPkgID PkgID
 	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() {
+		ownPkgID = m.Package.PkgID
+	}
+	return m.isReadonly(tv, ownPkgID)
+}
+
+// isReadonlyForCopy is the read-taint variant used by value-read ops
+// (index/selector/slice/deref). A package may freely read and copy its
+// OWN package-level data regardless of m.Realm — e.g. stdlib or a /p/
+// library reading its own immutable tables while running under a caller's
+// realm (those top-level callables don't borrow, so m.Realm is the caller's,
+// not the library's). Writes through the copy/alias remain guarded by the
+// strict IsReadonly at PopAsPointer2/builtins.
+func (m *Machine) isReadonlyForCopy(tv *TypedValue) bool {
+	var ownPkgID PkgID
+	if m.Package != nil {
 		ownPkgID = m.Package.PkgID
 	}
 	return m.isReadonly(tv, ownPkgID)
@@ -2703,6 +2719,7 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 			return true // external package
 		}
 	}
+	//  - tv is N_Readonly, or
 	//  - tv is a real object residing in external realm (unless it is the
 	//    executing package's own data, stamped ownPkgID).
 	return tv.IsReadonlyBy(m.Realm.ID, ownPkgID)

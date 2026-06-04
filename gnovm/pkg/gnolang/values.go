@@ -973,6 +973,36 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"`
 }
 
+// Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type.
+// This happens when subvalues are retrieved from externally stored realm
+// values, such as external realm package vars, or slices or pointers to.
+var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
+
+// Returns true if mutable .V is readonly "wrapped".
+func (tv *TypedValue) IsReadonly() bool {
+	return tv.N == N_Readonly && tv.V != nil
+}
+
+// Sets tv.N to N_Readonly if ro and tv is not already immutable. If ro is
+// false, this preserves any existing marker.
+func (tv *TypedValue) SetReadonly(ro bool) {
+	if tv.V == nil {
+		return
+	}
+	if tv.T.IsImmutable() {
+		return
+	}
+	if ro {
+		tv.N = N_Readonly
+	}
+}
+
+// Convenience, makes readonly if ro is true.
+func (tv TypedValue) WithReadonly(ro bool) TypedValue {
+	tv.SetReadonly(ro)
+	return tv
+}
+
 func (tv *TypedValue) IsImmutable() bool {
 	return tv.T == nil || tv.T.IsImmutable()
 }
@@ -1058,13 +1088,41 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
+		if !isDeepCopyAliasFree(tv.T) {
+			cp.N = tv.N
+		}
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
+		if !isDeepCopyAliasFree(tv.T) {
+			cp.N = tv.N
+		}
 	default:
 		cp = tv
 	}
 	return
+}
+
+// isDeepCopyAliasFree reports whether a value copy of t can retain no aliases
+// into the source object graph. It is intentionally conservative: only
+// primitives, arrays of alias-free values, and structs whose fields are all
+// alias-free are treated as safe to detach from readonly provenance.
+func isDeepCopyAliasFree(t Type) bool {
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		return true
+	case *ArrayType:
+		return isDeepCopyAliasFree(ct.Elt)
+	case *StructType:
+		for _, field := range ct.Fields {
+			if !isDeepCopyAliasFree(field.Type) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // unrefCopy makes a copy of the underlying value in the case of reference values.

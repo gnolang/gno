@@ -438,8 +438,8 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// IsReadonlyBy returns true if tv is a real object owned by a realm
-// other than rid (i.e., residing in an external realm).
+// IsReadonlyBy returns true if tv is readonly-tainted or is a real object
+// owned by a realm other than rid (i.e., residing in an external realm).
 //
 // ownPkgID is the executing package's PkgID (m.Package.PkgID). An object
 // stamped with it is the executing package's own package-level data, which
@@ -459,6 +459,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // This function controls heavily the behaviour of
 // [Machine.IsReadonly], and thus cross-realm write authority.
 func (tv *TypedValue) IsReadonlyBy(rid, ownPkgID PkgID) bool {
+	if tv.IsReadonly() {
+		return true
+	}
 	var tvoid ObjectID
 	switch cv := tv.V.(type) {
 	case PointerValue:

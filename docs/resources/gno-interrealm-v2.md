@@ -41,8 +41,8 @@ This document defines:
    (the two borrow rules).
 3. The captured realm value (`cur realm`) and its runtime invariants.
 4. The object model: how storage is attributed (`Storage = Authority`).
-5. Write guards: the storage-ownership (PkgID) check, conversion
-   guards, and the construction-time check.
+5. Write guards: readonly provenance, the storage-ownership (PkgID)
+   check, conversion guards, and the construction-time check.
 6. Panic and recover semantics across realm boundaries.
 
 ## 2. Realm-Context and Realm-Storage-Context
@@ -181,6 +181,20 @@ post-deployment even though the language permits the syntax of a
 mutation. Combined with borrow rule #2 (borrowing `m.Realm` to the
 receiver's stamp on `/p/`-method dispatch), it closes the
 `/p/`-attacker-via-interface class.
+
+### 3.4 Readonly Provenance
+
+Values read from foreign realm storage via selector, index, slice,
+deref, or address-of carry readonly provenance. Mutation sites check
+that provenance in addition to the target object's PkgID ownership.
+
+Array and struct value copies are special. `ArrayValue.Copy` and
+`StructValue.Copy` still use type-driven PkgID stamping (§3.2), so
+transitively value-only `/p/` types such as `uint256.Uint` become
+writable local copies. However, copies that may retain references
+keep readonly provenance. For example, `[1][]byte` is not
+transitively value-only: the copied array wrapper is fresh, but the
+slice header can still alias foreign backing storage.
 
 ## 4. Borrow Rules
 

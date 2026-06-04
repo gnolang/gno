@@ -11,6 +11,7 @@ func (m *Machine) doOpIndex1() {
 	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -30,6 +31,7 @@ func (m *Machine) doOpIndex1() {
 		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
+	xv.SetReadonly(ro)
 }
 
 // NOTE: keep in sync with doOpIndex1.
@@ -37,6 +39,7 @@ func (m *Machine) doOpIndex2() {
 	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
+	ro := m.isReadonlyForCopy(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -57,6 +60,7 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
@@ -76,12 +80,14 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
+	ro := m.isReadonlyForCopy(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSlice() {
@@ -103,6 +109,7 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	ro := m.isReadonlyForCopy(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	// XXX fix this in precompile instead.
@@ -114,6 +121,9 @@ func (m *Machine) doOpSlice() {
 			return
 		}
 		*xv = xv.V.(PointerValue).Deref()
+		if !ro {
+			ro = xv.IsReadonly()
+		}
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -122,10 +132,10 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	}
 }
 
@@ -160,7 +170,8 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			pvtv := *pv.TV
+			ro := m.isReadonlyForCopy(xv)
+			pvtv := (*pv.TV).WithReadonly(ro)
 			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
 				// When a pointer was converted to a different
 				// declared pointer type, the dereferenced value
@@ -196,7 +207,7 @@ func (m *Machine) doOpStar() {
 // TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	xv, _ := m.PopAsPointer2(rx.X)
+	xv, ro := m.PopAsPointer2(rx.X)
 	elt, ok := rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
 	if !ok {
 		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
@@ -205,7 +216,7 @@ func (m *Machine) doOpRef() {
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}.WithReadonly(ro))
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.

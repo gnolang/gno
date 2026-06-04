@@ -5,9 +5,8 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-// With the readonly taint removed, assign and delete succeed: the map's
-// ObjectID belongs to the current realm, so the ownership check permits
-// the writes. (Pre-removal the sticky taint blocked them.)
+// Verify that assign and delete on a readonly-tainted map both panic,
+// even when the map's ObjectID belongs to the current realm.
 var m map[string]int
 
 func init() {
@@ -45,6 +44,8 @@ func main(cur realm) {
 }
 
 // Output:
-// admin exists: false
+// assign panic: cannot directly modify readonly tainted object (use a method or crossing function): rm<~VPBlock(1,0)>[(const ("attacker" string))]
+// delete panic: cannot delete from readonly tainted map
+// admin exists: true
 // user1: 500
 // len: 2
