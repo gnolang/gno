@@ -1078,7 +1078,7 @@ func makeUverseNode() {
 					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(nil, li)
@@ -1113,13 +1113,13 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if ci < 0 {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 					if ci < li {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 
 					if et.Kind() == Uint8Kind {

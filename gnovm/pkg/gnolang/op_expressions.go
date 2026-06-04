@@ -110,7 +110,7 @@ func (m *Machine) doOpSlice() {
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		if xv.V == nil {
-			m.pushPanic(typedString("runtime error: nil pointer dereference"))
+			m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 			return
 		}
 		*xv = xv.V.(PointerValue).Deref()
@@ -149,7 +149,7 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		if xv.V == nil {
-			m.pushPanic(typedString("runtime error: nil pointer dereference"))
+			m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 			return
 		}
 

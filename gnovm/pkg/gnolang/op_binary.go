@@ -933,7 +933,7 @@ func mulAssign(lv, rv *TypedValue) {
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("runtime error: division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1032,7 +1032,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("runtime error: division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.

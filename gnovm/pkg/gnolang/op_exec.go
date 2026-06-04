@@ -213,7 +213,7 @@ func (m *Machine) doOpExec(op Op) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
-					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
 				iv := TypedValue{T: IntType}
