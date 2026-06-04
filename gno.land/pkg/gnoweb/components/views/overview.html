@@ -101,9 +101,9 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
   </div>
   <div class="state-search b-input" role="search">
     <input type="search" placeholder="Filter symbols"
-           data-controller="search"
-           data-search-items-value=".b-pkg-symbol"
-           data-action="input->search#filter"
+           data-controller="filter"
+           data-filter-items-value=".b-pkg-symbol"
+           data-action="input->filter#filter"
            aria-label="Filter symbols">
     <svg class="c-icon" aria-hidden="true"><use href="#ico-search"></use></svg>
   </div>

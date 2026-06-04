@@ -1,12 +1,12 @@
 import { BaseController, debounce } from "./controller.js";
 
 // Agnostic substring filter primitive. Mount on an `<input>`:
-//   data-controller="search"
-//   data-search-items-value="<CSS selector>"   (required)
-//   data-search-attribute-value="<attr>"       (default: data-name)
-//   data-action="input->search#filter"
+//   data-controller="filter"
+//   data-filter-items-value="<CSS selector>"   (required)
+//   data-filter-attribute-value="<attr>"       (default: data-name)
+//   data-action="input->filter#filter"
 // Toggles `u-hidden` on non-matching items; no events emitted.
-export class SearchController extends BaseController {
+export class FilterController extends BaseController {
 	private declare items: HTMLElement[];
 	private declare attribute: string;
 
@@ -16,7 +16,7 @@ export class SearchController extends BaseController {
 
 		const itemsSelector = this.getValue("items");
 		if (!itemsSelector) {
-			console.warn("[search] missing required data-search-items-value");
+			console.warn("[filter] missing required data-filter-items-value");
 			return;
 		}
 		const customAttr = this.getValue("attribute");
@@ -28,7 +28,7 @@ export class SearchController extends BaseController {
 			);
 		} catch (err) {
 			console.warn(
-				`[search] invalid data-search-items-value "${itemsSelector}":`,
+				`[filter] invalid data-filter-items-value "${itemsSelector}":`,
 				err,
 			);
 		}
