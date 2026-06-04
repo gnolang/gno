@@ -50,6 +50,12 @@ func main(cur realm) {
 // ## Test Thread
 //
 // **[g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj](/u/g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj)** · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Test body
+// </gno-foreign>
+//
+//
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test123/1/flag) • [Repost](/r/gnoland/boards2/v1:test123/1/repost) • [Comment](/r/gnoland/boards2/v1:test123/1/reply) • [Edit](/r/gnoland/boards2/v1:test123/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)

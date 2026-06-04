@@ -158,6 +158,25 @@ func IsStdlib(pkgPath string) bool {
 	return match != nil
 }
 
+// isImmutableLibraryPath reports whether pkgPath is a /p/ or stdlib library
+// package that should carry a frozen, immutable realm. That realm is a
+// runtime borrow target for the cross-realm write gate, so a /p/- or
+// stdlib-stamped receiver's method runs with m.Realm set (not nil).
+//
+// External _test overlays are excluded: they are transient test
+// scaffolding, never deployed, and granting one a realm makes a stdlib's
+// own self-tests (e.g. strconv_test) execute under a foreign realm, which
+// breaks legitimate same-package reads/writes of the stdlib's own state.
+// /p/ and /r/ _test overlays already self-exclude (IsPPackagePath /
+// IsRealmPath reject the _test suffix); only stdlib's dot-free _test
+// names slip through IsStdlib, so guard against the suffix here.
+func isImmutableLibraryPath(pkgPath string) bool {
+	if strings.HasSuffix(pkgPath, "_test") {
+		return false
+	}
+	return IsPPackagePath(pkgPath) || IsStdlib(pkgPath)
+}
+
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
 // It must be of the form <domain>/<letter>/<user>(/<repo>).
 func IsUserlib(pkgPath string) bool {
