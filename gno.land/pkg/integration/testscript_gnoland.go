@@ -33,6 +33,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
@@ -411,6 +412,14 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 			nodesManager.Delete(sid)
 
+		case "wait-for-new-block":
+			node, exists := nodesManager.Get(sid)
+			if !exists {
+				err = fmt.Errorf("node not started, cannot wait for new block")
+				break
+			}
+			err = waitForNewBlock(ts, node.Address(), defaultPK)
+
 		default:
 			err = fmt.Errorf("not supported command: %q", cmd)
 			// XXX: support gnoland other commands
@@ -610,7 +619,7 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		}
 
 		if !strings.HasPrefix(dir, workDir) {
-			dir = filepath.Join(examplesDir, dir)
+			dir = ResolveExamplePath(examplesDir, dir)
 		}
 
 		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
@@ -698,7 +707,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
 		}
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret gnoland.GnoAccount
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
 		}
@@ -712,6 +721,75 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
 	}
 
+	return nil
+}
+
+// waitForNewBlock submits a 1ugnot self-transfer from the default account
+// and returns after the containing block is committed. BroadcastTxCommit
+// returns the height of the block that included the tx — strictly greater
+// than the height at submission, since CheckTx happens after submission.
+// Used by txtar tests that need to burn a deterministic number of blocks
+// (e.g. throttle-window tests) without relying on auto-empty-block timing.
+//
+// Built directly against the RPC client (rather than gnoclient) because
+// gnoclient imports this package in its tests, which would create a cycle.
+func waitForNewBlock(ts *testscript.TestScript, remote string, defaultPK crypto.PrivKey) error {
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return fmt.Errorf("create rpc client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	addr := defaultPK.PubKey().Address()
+	qres, err := cli.ABCIQuery(ctx, "auth/accounts/"+addr.String(), []byte{})
+	if err != nil {
+		return fmt.Errorf("query account: %w", err)
+	}
+	if qres.Response.Error != nil {
+		return fmt.Errorf("query account: %w", qres.Response.Error)
+	}
+	var acct gnoland.GnoAccount
+	if err := amino.UnmarshalJSON(qres.Response.Data, &acct); err != nil {
+		return fmt.Errorf("unmarshal account: %w", err)
+	}
+
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: addr,
+			ToAddress:   addr,
+			Amount:      std.Coins{std.NewCoin(ugnot.Denom, 1)},
+		}},
+		Fee: std.NewFee(890_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+	}
+	signBytes, err := tx.GetSignBytes("tendermint_test", acct.BaseAccount.GetAccountNumber(), acct.BaseAccount.GetSequence())
+	if err != nil {
+		return fmt.Errorf("get sign bytes: %w", err)
+	}
+	sig, err := defaultPK.Sign(signBytes)
+	if err != nil {
+		return fmt.Errorf("sign: %w", err)
+	}
+	tx.Signatures = []std.Signature{{PubKey: defaultPK.PubKey(), Signature: sig}}
+
+	txBytes, err := amino.Marshal(tx)
+	if err != nil {
+		return fmt.Errorf("marshal tx: %w", err)
+	}
+
+	bres, err := cli.BroadcastTxCommit(ctx, txBytes)
+	if err != nil {
+		return fmt.Errorf("broadcast: %w", err)
+	}
+	if bres.CheckTx.IsErr() {
+		return fmt.Errorf("check tx failed: %s", bres.CheckTx.Log)
+	}
+	if bres.DeliverTx.IsErr() {
+		return fmt.Errorf("deliver tx failed: %s", bres.DeliverTx.Log)
+	}
+
+	fmt.Fprintf(ts.Stdout(), "new block at height %d\n", bres.Height)
 	return nil
 }
 

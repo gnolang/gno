@@ -2,7 +2,7 @@
 package test
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 	"time"
 
@@ -26,7 +26,7 @@ func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, n
 
 func (testPropDef) Executor() commondao.ExecFunc {
 	return func(realm) error {
-		executorPath = runtime.PreviousRealm().PkgPath()
+		executorPath = unsafe.PreviousRealm().PkgPath()
 		return nil
 	}
 }
@@ -36,11 +36,11 @@ func init() {
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
-func main() {
+func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definition has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
-	err := dao.Execute(proposal.ID())
+	err := dao.Execute(proposal.ID(), cur)
 
 	println(err == nil)
 	println(string(proposal.Status()))

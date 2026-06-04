@@ -44,7 +44,7 @@ type PeerConn interface {
 
 // PeerSet has a (immutable) subset of the methods of PeerSet.
 type PeerSet interface {
-	Add(peer PeerConn)
+	Add(peer PeerConn) error
 	Remove(key types.ID) bool
 	Has(key types.ID) bool
 	Get(key types.ID) PeerConn

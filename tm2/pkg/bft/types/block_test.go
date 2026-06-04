@@ -62,12 +62,131 @@ func TestBlockValidateBasic(t *testing.T) {
 			t.Parallel()
 
 			block := MakeBlock(h, txs, commit)
+			block.Header.LastBlockID = lastID
 			block.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
 			err = block.ValidateBasic()
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})
 	}
+}
+
+// TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight tests that
+// ValidateBasic rejects blocks that try to bypass LastCommit validation.
+//
+// An attacker could try to skip commit validation by:
+// 1. Zeroing LastBlockID and setting nil LastCommit (mimics genesis)
+// 2. Setting a real LastBlockID but nil LastCommit
+// 3. Zeroing LastBlockID but keeping precommits in LastCommit
+//
+// Case 1 is indistinguishable from a legitimate genesis block in a stateless
+// check, it's caught by the stateful ValidateBlock instead.
+// Cases 2 and 3 must be caught by ValidateBasic.
+func TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-zero LastBlockID with nil LastCommit", func(t *testing.T) {
+		t.Parallel()
+
+		block := MakeBlock(50, []Tx{Tx("tx1")}, nil)
+		// Set a real LastBlockID, this is NOT a genesis block.
+		block.Header.LastBlockID = makeBlockIDRandom()
+
+		err := block.ValidateBasic()
+		require.Error(t, err, "should reject block with real LastBlockID but nil LastCommit")
+		assert.Contains(t, err.Error(), "nil LastCommit")
+	})
+
+	// NOTE: the previously tested "zero LastBlockID with non-empty
+	// LastCommit" case is no longer rejected by Block.ValidateBasic
+	// (the stateless function lost its genesis-detection heuristic).
+	// Stateful state.ValidateBlock catches it via the
+	// block.Height == state.InitialHeight check combined with the
+	// LastBlockID equality check against state.LastBlockID.
+}
+
+func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
+	t.Parallel()
+
+	height := int64(7)
+	lastBlockID := makeBlockIDRandom()
+	voteSet, valSet, privVals := randVoteSet(height-1, 0, PrecommitType, 4, 1)
+
+	for i := range 3 {
+		vote := &Vote{
+			ValidatorAddress: privVals[i].PubKey().Address(),
+			ValidatorIndex:   i,
+			Height:           height - 1,
+			Round:            0,
+			Type:             PrecommitType,
+			BlockID:          lastBlockID,
+			Timestamp:        tmtime.Now(),
+		}
+
+		signed, err := signAddVote(privVals[i], vote, voteSet)
+		require.NoError(t, err)
+		require.True(t, signed)
+	}
+
+	commit := voteSet.MakeCommit()
+	require.Len(t, commit.Precommits, 4)
+	require.Nil(t, commit.Precommits[3])
+
+	chainID := voteSet.ChainID()
+	// Sanity: the freshly-constructed commit itself verifies.
+	require.NoError(t, valSet.VerifyCommit(chainID, lastBlockID, height-1, commit))
+
+	block := MakeBlock(height, nil, commit)
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Run the roundtrip through both the genproto2 fast path (MarshalBinary2)
+	// and the reflect path (MarshalReflect). Both must preserve the nil slot
+	// at Precommits[3] *and* leave every non-nil signature byte intact:
+	// ValidateBasic is structural, VerifyCommit is the cryptographic check.
+	assertRoundTrip := func(t *testing.T, bz []byte, unmarshal func([]byte, *Block) error) {
+		t.Helper()
+		var decoded Block
+		require.NoError(t, unmarshal(bz, &decoded))
+		require.NotNil(t, decoded.LastCommit)
+		require.Len(t, decoded.LastCommit.Precommits, 4)
+		require.Nil(t, decoded.LastCommit.Precommits[3])
+		require.NoError(t, decoded.ValidateBasic())
+		require.NoError(t, valSet.VerifyCommit(chainID, lastBlockID, height-1, decoded.LastCommit))
+	}
+
+	t.Run("Binary2", func(t *testing.T) {
+		t.Parallel()
+		bz, err := cdc.MarshalBinary2(block)
+		require.NoError(t, err)
+		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
+			return blk.UnmarshalBinary2(cdc, b, 0)
+		})
+	})
+
+	t.Run("Reflect", func(t *testing.T) {
+		t.Parallel()
+		bz, err := cdc.MarshalReflect(block)
+		require.NoError(t, err)
+		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
+			return cdc.UnmarshalReflect(b, blk)
+		})
+	})
+
+	// Cross-encoder parity on the full Block: the two codec paths must
+	// produce byte-identical output. If they diverge, nodes encoding with
+	// one path and decoding with the other will disagree on the canonical
+	// bytes, a consensus-wedging risk distinct from the roundtrip fidelity
+	// checked above.
+	t.Run("Binary2 and Reflect byte-identical", func(t *testing.T) {
+		t.Parallel()
+		bzBinary2, err := cdc.MarshalBinary2(block)
+		require.NoError(t, err)
+		bzReflect, err := cdc.MarshalReflect(block)
+		require.NoError(t, err)
+		require.Equal(t, bzBinary2, bzReflect, "MarshalBinary2 and MarshalReflect must produce identical bytes")
+	})
 }
 
 func TestBlockHash(t *testing.T) {

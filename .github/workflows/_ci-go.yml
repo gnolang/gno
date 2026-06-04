@@ -11,6 +11,9 @@ on:
       tests-ts-seq:
         required: false
         type: boolean
+      tests-ts-inmemory:
+        required: false
+        type: boolean
       go-version:
         description: "Go version to use; defaults to the version in go.mod"
         required: false
@@ -41,7 +44,7 @@ jobs:
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
-          version: v2.3 # sync with misc/devdeps
+          version: v2.11.4 # sync with misc/devdeps
 
   build:
     name: build
@@ -88,6 +91,7 @@ jobs:
         working-directory: ${{ inputs.modulepath }}
         env:
           SEQ_TS: ${{ inputs.tests-ts-seq }}
+          INMEMORY_TS: ${{ inputs.tests-ts-inmemory }}
           TXTARCOVERDIR: /tmp/txtarcoverdir
           GOCOVERDIR: /tmp/gocoverdir
           COVERDIR: /tmp/coverdir

@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// makeslice: cap out of range
+// runtime error: makeslice: cap out of range

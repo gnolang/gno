@@ -272,3 +272,62 @@ func TestClearFlag(t *testing.T) {
 	account.clearFlag(flagTokenLockWhitelisted)
 	assert.False(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be cleared")
 }
+
+func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+	masterAddr := crypto.AddressFromPreimage([]byte("master"))
+
+	original := &GnoSessionAccount{
+		BaseSessionAccount: std.BaseSessionAccount{
+			BaseAccount: std.BaseAccount{
+				Address:       addr,
+				PubKey:        pubKey,
+				AccountNumber: 99,
+				Sequence:      3,
+			},
+			MasterAddress: masterAddr,
+			ExpiresAt:     1700000000,
+			SpendLimit:    std.Coins{std.NewCoin("ugnot", 5000)},
+			SpendPeriod:   86400,
+			SpendUsed:     std.Coins{std.NewCoin("ugnot", 100)},
+			SpendReset:    1699990000,
+		},
+		AllowPaths: []string{
+			"gno.land/r/demo/boards",
+			"gno.land/r/demo/chat",
+		},
+	}
+
+	// Marshal
+	bz, err := amino.MarshalAny(original)
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	// Unmarshal
+	var got interface{}
+	err = amino.UnmarshalAny(bz, &got)
+	require.NoError(t, err)
+
+	result, ok := got.(*GnoSessionAccount)
+	require.True(t, ok, "expected *GnoSessionAccount, got %T", got)
+
+	// Verify embedded BaseSessionAccount fields
+	assert.Equal(t, original.Address, result.Address)
+	assert.Nil(t, result.GetCoins())
+	assert.True(t, original.PubKey.Equals(result.PubKey))
+	assert.Equal(t, original.AccountNumber, result.AccountNumber)
+	assert.Equal(t, original.Sequence, result.Sequence)
+	assert.Equal(t, original.MasterAddress, result.MasterAddress)
+	assert.Equal(t, original.ExpiresAt, result.ExpiresAt)
+	assert.True(t, original.SpendLimit.IsEqual(result.SpendLimit))
+	assert.Equal(t, original.SpendPeriod, result.SpendPeriod)
+	assert.True(t, original.SpendUsed.IsEqual(result.SpendUsed))
+	assert.Equal(t, original.SpendReset, result.SpendReset)
+
+	// Verify AllowPaths round-trips correctly
+	assert.Equal(t, original.AllowPaths, result.AllowPaths)
+}

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_is_banned_01_filetest
+
+package z_is_banned_01_filetest
 
 import (
 	"testing"
@@ -15,10 +17,10 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	boards2.Ban(cross, bid, user, boards2.BanDay, "Reason")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	boards2.Ban(cross(cur), bid, user, boards2.BanDay, "Reason")
 }
 
 func main() {
