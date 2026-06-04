@@ -2101,22 +2101,33 @@ func (tv *TypedValue) GetType() Type {
 	return tv.V.(TypeValue).Type
 }
 
+// GetFunc returns the *FuncValue, or nil for a typed-nil func variable
+// (e.g. `var f func()`). Panics if tv.V holds an unexpected type — most
+// notably *BoundMethodValue, which callers must reach via GetUnboundFunc.
 func (tv *TypedValue) GetFunc() *FuncValue {
-	fv, ok := tv.V.(*FuncValue)
-	if !ok {
+	switch fv := tv.V.(type) {
+	case nil:
 		return nil
+	case *FuncValue:
+		return fv
+	default:
+		panic(fmt.Sprintf("expected *FuncValue or nil but got %T", tv.V))
 	}
-	return fv
 }
 
+// GetUnboundFunc returns the underlying *FuncValue for both plain funcs
+// and bound methods (stripping the receiver), or nil for a typed-nil
+// func/method variable. Panics on any other type.
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	switch fv := tv.V.(type) {
+	case nil:
+		return nil
 	case *FuncValue:
 		return fv
 	case *BoundMethodValue:
 		return fv.Func
 	default:
-		panic(fmt.Sprintf("expected function or bound method but got %T", tv.V))
+		panic(fmt.Sprintf("expected func/method or nil but got %T", tv.V))
 	}
 }
 

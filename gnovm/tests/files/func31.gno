@@ -5,6 +5,7 @@
 // Issue 8047.  Stack copier shouldn't crash if there
 // is a nil defer.
 package main
+
 func stackit(n int) {
 	if n == 0 {
 		return
@@ -15,13 +16,14 @@ func main() {
 	defer func() {
 		// catch & ignore panic from nil defer below
 		err := recover()
-		println("err: ", err)
 		if err == nil {
 			panic("defer of nil func didn't panic")
 		}
+		println("recovered: ", err)
 	}()
 	defer ((func())(nil))()
 	stackit(1000)
 }
+
 // Output:
-// err:  defer called a nil function
+// recovered:  runtime error: defer called a nil function

@@ -558,7 +558,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.pushPanic(typedString("defer called a nil function"))
+		m.pushPanic(typedString("runtime error: defer called a nil function"))
 		return
 	}
 

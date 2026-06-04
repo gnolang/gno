@@ -2064,11 +2064,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`); fall
+									// through, runtime will panic with
+									// "call of nil function".
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
