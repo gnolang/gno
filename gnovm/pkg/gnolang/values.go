@@ -292,10 +292,10 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	if ii < 0 {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+	}
 	if av.Data == nil {
-		if ii < 0 {
-			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
-		}
 		if ii >= len(av.List) {
 			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
 		}
@@ -305,9 +305,6 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Base:  av,
 			Index: ii,
 		}
-	}
-	if ii < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
 	}
 	if ii >= len(av.Data) {
 		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
