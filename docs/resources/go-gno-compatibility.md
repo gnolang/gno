@@ -64,12 +64,14 @@ rune := rune('a')
 
 Note: for determinism, converting a `string` to `[]byte` or `[]rune` produces a slice with `cap == len`.
 
-Additional builtin types:
+## Builtin types with no Go equivalent
 
-| type     | comment                                                                                    |
-|----------|--------------------------------------------------------------------------------------------|
-| `bigint` | Based on `math/big.Int`                                                                    |
-| `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
+Predeclared types that exist only in Gno; Go has no counterpart.
+
+| type      | comment                                                         |
+|-----------|-----------------------------------------------------------------|
+| `address` | Account/realm address, with `String()` and `IsValid()` methods. |
+| `realm`   | Type of the `cur realm` receiver in crossing functions.         |
 
 
 ## Stdlibs
