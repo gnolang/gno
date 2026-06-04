@@ -151,6 +151,15 @@ Two practical consequences:
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
 
+3. **Copies are type-driven, not source-propagated.**
+   `{Array,Struct}Value.Copy` stamps the copy from the *declared type*
+   (`getDeclaredPkgID`), mirroring the allocation rule: a `/r/`-declared
+   type keeps its declared `/r/` owner, while a `/p/`-declared (or
+   unnamed) value's copy takes the copying realm's PkgID. So an in-place
+   value-copy of a `/p/`-typed value (e.g. `*z = *x` in `uint256.Set`)
+   belongs to the realm doing the copy, not the source's realm — this is
+   the #5736 / #5747 fix. See `gnovm/pkg/gnolang/values.go`.
+
 ### 3.3 /p/-Immutability
 
 `/p/` packages and the stdlib have no persisted `Realm` of their own.
