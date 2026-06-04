@@ -697,6 +697,24 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"chain/markdown",
+		"MaxForeignBlocksPerConvert",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := libs_chain_markdown.MaxForeignBlocksPerConvert()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"chain/params",
 		"SetString",
 		[]gno.FieldTypeExpr{
