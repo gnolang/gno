@@ -57,7 +57,7 @@ func (s *Service) ExecuteRestore(ctx context.Context, watch bool) error {
 			}
 
 			// Send the transaction
-			if sendErr := s.client.SendTransaction(tx); sendErr != nil {
+			if sendErr := s.client.SendTransaction(ctx, tx); sendErr != nil {
 				// Invalid transaction sends are only logged,
 				// and do not stop the restore process
 				s.logger.Error(

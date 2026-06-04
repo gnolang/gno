@@ -608,7 +608,7 @@ func debugLineInfo(m *Machine) {
 
 func isMemPackage(st Store, pkgPath string) bool {
 	ds, ok := st.(*defaultStore)
-	return ok && ds.iavlStore.Has([]byte(backendPackagePathKey(pkgPath)))
+	return ok && ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath)))
 }
 
 func fileContent(st Store, pkgPath, name string) (string, error) {
@@ -731,7 +731,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}
@@ -753,10 +753,26 @@ func debugLookup(m *Machine, name string) (tv TypedValue, err error) {
 		// Adjust block to the frameLevel set by 'up' or 'down' command.
 		block = m.Debugger.blocks[len(m.Debugger.blocks)-m.Debugger.frameLevel]
 	}
-	// In case of failure, GetPathForName() or GetPointerTo() will panic (recovered above).
-	vp := block.GetSource(m.Store).GetPathForName(m.Store, Name(name))
+	// In case of failure, GetPointerTo() will panic (recovered above).
+	source := block.GetSource(m.Store)
+	vp, ok := tryGetPathForName(source, m.Store, Name(name))
+	if !ok {
+		// For-loop defined variables are renamed with a ".loopvar" suffix
+		// during preprocessing, retry with it.
+		vp, ok = tryGetPathForName(source, m.Store, Name(name+".loopvar"))
+	}
+	if !ok {
+		return tv, fmt.Errorf("name %s not declared", name)
+	}
 	tv = block.GetPointerTo(m.Store, vp).Deref()
 	return tv, err
+}
+
+// tryGetPathForName is like BlockNode.GetPathForName but returns ok=false
+// instead of panicking when name is not declared.
+func tryGetPathForName(bn BlockNode, store Store, n Name) (vp ValuePath, ok bool) {
+	defer func() { _ = recover() }()
+	return bn.GetPathForName(store, n), true
 }
 
 // ---------------------------------------

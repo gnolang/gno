@@ -28,20 +28,23 @@ type AppConfig struct {
 	webHome             string
 
 	// Resolver
-	resolvers varResolver
+	resolvers                  varResolver
+	withoutQuarantinedExamples bool
 
 	// Node Configuration
-	logFormat   string
-	lazyLoader  bool
-	verbose     bool
-	noWatch     bool
-	noReplay    bool
-	maxGas      int64
-	chainId     string
-	chainDomain string
-	unsafeAPI   bool
-	interactive bool
-	paths       string
+	logFormat           string
+	lazyLoader          bool
+	verbose             bool
+	noWatch             bool
+	noReplay            bool
+	maxGas              int64
+	chainId             string
+	chainDomain         string
+	unsafeAPI           bool
+	interactive         bool
+	paths               string
+	emptyBlocks         bool
+	emptyBlocksInterval int64
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -114,6 +117,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.resolvers,
 		"resolver",
 		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"exclude examples/quarantined/ from the default resolver chain",
 	)
 
 	fs.StringVar(
@@ -218,6 +228,20 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"paths",
 		defaultCfg.paths,
 		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+	)
+
+	fs.BoolVar(
+		&c.emptyBlocks,
+		"empty-blocks",
+		defaultCfg.emptyBlocks,
+		"enable creation of empty blocks (default: ~1s interval)",
+	)
+
+	fs.Int64Var(
+		&c.emptyBlocksInterval,
+		"empty-blocks-interval",
+		defaultCfg.emptyBlocksInterval,
+		"set the interval for creating empty blocks (in seconds)",
 	)
 
 	fs.BoolVar(

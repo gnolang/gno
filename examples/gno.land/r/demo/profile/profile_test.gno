@@ -1,11 +1,10 @@
 package profile
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 // Global addresses for test users
@@ -20,21 +19,21 @@ var (
 	user2   = testutils.TestAddress("user2")
 )
 
-func TestStringFields(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+func TestStringFields(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	// Get before setting
 	name := GetStringField(alice, DisplayName, "anon")
 	uassert.Equal(t, "anon", name)
 
 	// Set new key
-	updated := SetStringField(cross, DisplayName, "Alice foo")
+	updated := SetStringField(cross(cur), DisplayName, "Alice foo")
 	uassert.Equal(t, updated, false)
-	updated = SetStringField(cross, Homepage, "https://example.com")
+	updated = SetStringField(cross(cur), Homepage, "https://example.com")
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetStringField(cross, DisplayName, "Alice foo")
+	updated = SetStringField(cross(cur), DisplayName, "Alice foo")
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -47,19 +46,19 @@ func TestStringFields(t *testing.T) {
 	uassert.Equal(t, "42", bio)
 }
 
-func TestIntFields(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(bob))
+func TestIntFields(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(bob))
 
 	// Get before setting
 	age := GetIntField(bob, Age, 25)
 	uassert.Equal(t, 25, age)
 
 	// Set new key
-	updated := SetIntField(cross, Age, 30)
+	updated := SetIntField(cross(cur), Age, 30)
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetIntField(cross, Age, 30)
+	updated = SetIntField(cross(cur), Age, 30)
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -67,19 +66,19 @@ func TestIntFields(t *testing.T) {
 	uassert.Equal(t, 30, age)
 }
 
-func TestBoolFields(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(charlie))
+func TestBoolFields(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(charlie))
 
 	// Get before setting
 	hiring := GetBoolField(charlie, AvailableForHiring, false)
 	uassert.Equal(t, false, hiring)
 
 	// Set
-	updated := SetBoolField(cross, AvailableForHiring, true)
+	updated := SetBoolField(cross(cur), AvailableForHiring, true)
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetBoolField(cross, AvailableForHiring, true)
+	updated = SetBoolField(cross(cur), AvailableForHiring, true)
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -87,54 +86,54 @@ func TestBoolFields(t *testing.T) {
 	uassert.Equal(t, true, hiring)
 }
 
-func TestMultipleProfiles(t *testing.T) {
+func TestMultipleProfiles(cur realm, t *testing.T) {
 	// Set profile for user1
-	testing.SetRealm(std.NewUserRealm(user1))
-	updated := SetStringField(cross, DisplayName, "User One")
+	testing.SetRealm(testing.NewUserRealm(user1))
+	updated := SetStringField(cross(cur), DisplayName, "User One")
 	uassert.Equal(t, updated, false)
 
 	// Set profile for user2
-	testing.SetRealm(std.NewUserRealm(user2))
-	updated = SetStringField(cross, DisplayName, "User Two")
+	testing.SetRealm(testing.NewUserRealm(user2))
+	updated = SetStringField(cross(cur), DisplayName, "User Two")
 	uassert.Equal(t, updated, false)
 
 	// Get profiles
-	testing.SetRealm(std.NewUserRealm(user1)) // Switch back to user1
+	testing.SetRealm(testing.NewUserRealm(user1)) // Switch back to user1
 	name1 := GetStringField(user1, DisplayName, "anon")
-	testing.SetRealm(std.NewUserRealm(user2)) // Switch back to user2
+	testing.SetRealm(testing.NewUserRealm(user2)) // Switch back to user2
 	name2 := GetStringField(user2, DisplayName, "anon")
 
 	uassert.Equal(t, "User One", name1)
 	uassert.Equal(t, "User Two", name2)
 }
 
-func TestArbitraryStringField(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(user1))
+func TestArbitraryStringField(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(user1))
 
 	// Set arbitrary string field
-	updated := SetStringField(cross, "MyEmail", "my@email.com")
+	updated := SetStringField(cross(cur), "MyEmail", "my@email.com")
 	uassert.Equal(t, updated, false)
 
 	val := GetStringField(user1, "MyEmail", "")
 	uassert.Equal(t, val, "my@email.com")
 }
 
-func TestArbitraryIntField(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(user1))
+func TestArbitraryIntField(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(user1))
 
 	// Set arbitrary int field
-	updated := SetIntField(cross, "MyIncome", 100_000)
+	updated := SetIntField(cross(cur), "MyIncome", 100_000)
 	uassert.Equal(t, updated, false)
 
 	val := GetIntField(user1, "MyIncome", 0)
 	uassert.Equal(t, val, 100_000)
 }
 
-func TestArbitraryBoolField(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(user1))
+func TestArbitraryBoolField(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(user1))
 
 	// Set arbitrary bool field
-	updated := SetBoolField(cross, "IsWinner", true)
+	updated := SetBoolField(cross(cur), "IsWinner", true)
 	uassert.Equal(t, updated, false)
 
 	val := GetBoolField(user1, "IsWinner", false)

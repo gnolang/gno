@@ -1,15 +1,16 @@
 package testing
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"time"
 )
 
 type Context struct {
-	CurrentRealm std.Realm
-	OriginCaller std.Address
-	OriginSend   std.Coins
-	OriginSpend  std.Coins
+	CurrentRealm runtime.Realm
+	OriginCaller address
+	OriginSend   chain.Coins
+	OriginSpend  chain.Coins
 	ChainID      string
 	Height       int64
 	Time         time.Time

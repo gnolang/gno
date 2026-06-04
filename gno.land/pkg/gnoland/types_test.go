@@ -141,7 +141,7 @@ func TestGnoAccountRestriction(t *testing.T) {
 	toAccount := acck.NewAccountWithAddress(ctx, toAddress)
 
 	// Default account is not unrestricted
-	assert.False(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	assert.False(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Unrestricted
 	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
@@ -160,13 +160,13 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.Equal(t, "restricted token transfer error", err.Error())
 
 	// Set unrestrict Account
-	fromAccount.(*GnoAccount).SetUnrestricted()
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	fromAccount.(*GnoAccount).SetTokenLockWhitelisted(true)
+	assert.True(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Persisted unrestricted state
 	acck.SetAccount(ctx, fromAccount)
 	fromAccount = acck.GetAccount(ctx, fromAddress)
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	assert.True(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Restricted
 	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"}) // XXX unnecessary?
@@ -253,8 +253,8 @@ func TestSetFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Test setting a valid flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set")
+	account.setFlag(flagTokenLockWhitelisted)
+	assert.True(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be set")
 
 	// Test setting an invalid flag
 	assert.Panics(t, func() {
@@ -266,9 +266,68 @@ func TestClearFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Set and then clear the flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set before clearing")
+	account.setFlag(flagTokenLockWhitelisted)
+	assert.True(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be set before clearing")
 
-	account.clearFlag(flagUnrestricted)
-	assert.False(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be cleared")
+	account.clearFlag(flagTokenLockWhitelisted)
+	assert.False(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be cleared")
+}
+
+func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+	masterAddr := crypto.AddressFromPreimage([]byte("master"))
+
+	original := &GnoSessionAccount{
+		BaseSessionAccount: std.BaseSessionAccount{
+			BaseAccount: std.BaseAccount{
+				Address:       addr,
+				PubKey:        pubKey,
+				AccountNumber: 99,
+				Sequence:      3,
+			},
+			MasterAddress: masterAddr,
+			ExpiresAt:     1700000000,
+			SpendLimit:    std.Coins{std.NewCoin("ugnot", 5000)},
+			SpendPeriod:   86400,
+			SpendUsed:     std.Coins{std.NewCoin("ugnot", 100)},
+			SpendReset:    1699990000,
+		},
+		AllowPaths: []string{
+			"gno.land/r/demo/boards",
+			"gno.land/r/demo/chat",
+		},
+	}
+
+	// Marshal
+	bz, err := amino.MarshalAny(original)
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	// Unmarshal
+	var got interface{}
+	err = amino.UnmarshalAny(bz, &got)
+	require.NoError(t, err)
+
+	result, ok := got.(*GnoSessionAccount)
+	require.True(t, ok, "expected *GnoSessionAccount, got %T", got)
+
+	// Verify embedded BaseSessionAccount fields
+	assert.Equal(t, original.Address, result.Address)
+	assert.Nil(t, result.GetCoins())
+	assert.True(t, original.PubKey.Equals(result.PubKey))
+	assert.Equal(t, original.AccountNumber, result.AccountNumber)
+	assert.Equal(t, original.Sequence, result.Sequence)
+	assert.Equal(t, original.MasterAddress, result.MasterAddress)
+	assert.Equal(t, original.ExpiresAt, result.ExpiresAt)
+	assert.True(t, original.SpendLimit.IsEqual(result.SpendLimit))
+	assert.Equal(t, original.SpendPeriod, result.SpendPeriod)
+	assert.True(t, original.SpendUsed.IsEqual(result.SpendUsed))
+	assert.Equal(t, original.SpendReset, result.SpendReset)
+
+	// Verify AllowPaths round-trips correctly
+	assert.Equal(t, original.AllowPaths, result.AllowPaths)
 }

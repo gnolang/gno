@@ -1,6 +1,7 @@
 package components
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -8,6 +9,8 @@ const (
 	SourceViewType ViewType = "source-view"
 	ReadmeFileName string   = "README.md"
 )
+
+var ReLicenseFileName *regexp.Regexp = regexp.MustCompile(`(?i)^licen[cs]e(.md|.txt)?$`)
 
 // SourceData holds data for rendering a source code view.
 type SourceData struct {
@@ -32,14 +35,15 @@ func (d SourceData) WrappedSource() Component {
 // ArticleClasses returns the CSS classes based on file type.
 func (d SourceData) ArticleClasses() string {
 	if d.FileName == ReadmeFileName {
-		return "realm-view bg-light px-4 pt-6 pb-4 rounded lg:col-span-7"
+		return "c-readme-view"
 	}
-	return "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900"
+	return "c-source-view"
 }
 
 type SourceTocData struct {
 	Icon         string
 	ReadmeFile   SourceTocItem
+	LicenseFile  SourceTocItem
 	GnoFiles     []SourceTocItem
 	GnoTestFiles []SourceTocItem
 	TomlFiles    []SourceTocItem
@@ -88,6 +92,10 @@ func SourceView(data SourceData) *View {
 
 		case strings.HasSuffix(file, ".toml"):
 			tocData.TomlFiles = append(tocData.TomlFiles, item)
+		}
+
+		if ReLicenseFileName.MatchString(file) {
+			tocData.LicenseFile = item
 		}
 	}
 

@@ -1,13 +1,15 @@
 package main
 
-import "std"
+import (
+	"chain/runtime/unsafe"
+)
 
 func main() {
 	defer func() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	std.CurrentRealm()
+	unsafe.CurrentRealm()
 }
 
 // Output:

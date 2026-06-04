@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -34,7 +35,11 @@ func NewMockClient(pkgs ...*MockPackage) *MockClient {
 }
 
 // Realm fetches the content of a realm from a given path and returns the data, or an error if not found or not declared.
-func (m *MockClient) Realm(path, args string) ([]byte, error) {
+func (m *MockClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPackageNotFound
@@ -53,7 +58,11 @@ func (m *MockClient) Realm(path, args string) ([]byte, error) {
 }
 
 // File fetches the source file from a given package path and filename, returning its content and metadata.
-func (m *MockClient) File(pkgPath, fileName string) ([]byte, FileMeta, error) {
+func (m *MockClient) File(ctx context.Context, pkgPath, fileName string) ([]byte, FileMeta, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, FileMeta{}, fmt.Errorf("context error: %w", err)
+	}
+
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
 		return nil, FileMeta{}, ErrClientPackageNotFound
@@ -73,7 +82,11 @@ func (m *MockClient) File(pkgPath, fileName string) ([]byte, FileMeta, error) {
 }
 
 // ListFiles lists all source files available in a specified package path.
-func (m *MockClient) ListFiles(path string) ([]string, error) {
+func (m *MockClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPackageNotFound
@@ -87,7 +100,7 @@ func (m *MockClient) ListFiles(path string) ([]string, error) {
 }
 
 // ListPaths lists all package paths that match the specified prefix, up to the given limit.
-func (m *MockClient) ListPaths(prefix string, limit int) ([]string, error) {
+func (m *MockClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
 	var shouldKeep func(s string) bool
 	if strings.HasPrefix(prefix, "@") {
 		name := prefix[1:]
@@ -113,7 +126,11 @@ func (m *MockClient) ListPaths(prefix string, limit int) ([]string, error) {
 }
 
 // Doc retrieves the JSON documentation for a specified package path.
-func (m *MockClient) Doc(path string) (*doc.JSONDocumentation, error) {
+func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPackageNotFound

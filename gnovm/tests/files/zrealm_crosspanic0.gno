@@ -4,7 +4,7 @@ package crossrealm
 // This tests that panics that cross realm boundaries abort the transaction.
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type StructA struct {
@@ -23,10 +23,10 @@ func (sb *StructB) Panic() {
 	panic("success: this panic should surface")
 }
 
-func init() {
+func init(cur realm) {
 	// save StructB{} in crossrealm_b.
 	sb := &StructB{}
-	crossrealm_b.SetObject(cross, sb)
+	crossrealm_b.SetObject(cross(cur), sb)
 }
 
 func main() {
@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// success: this panic should surface
+// fail: the transaction should have been aborted; this defer should not even be called

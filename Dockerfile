@@ -1,8 +1,9 @@
-# build gno
-FROM        golang:1.23-alpine AS build-gno
+# setup gnocore basics
+FROM        golang:1.25-alpine AS setup-gnocore
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot
+RUN         apk add --no-cache git
 RUN         go env -w GOMODCACHE=/root/.cache/go-build
 # Mod files
 COPY        go.mod go.sum ./
@@ -10,35 +11,42 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go mod download -x
 COPY        . ./
+# Compute build version from git and write to a file for use in build stages
+RUN         { git describe --tags --exact-match 2>/dev/null \
+            || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)"; \
+            } > /gnoroot/build_version
+
+# build gnocore
+FROM        setup-gnocore AS build-gnocore
 # Gnoland
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -ldflags "-w -s" -o ./build/gnoland ./gno.land/cmd/gnoland
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -ldflags "-w -s" -o ./build/gnokey ./gno.land/cmd/gnokey
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -ldflags "-w -s" -o ./build/gnoweb ./gno.land/cmd/gnoweb
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -ldflags "-w -s" -o ./build/gno ./gnovm/cmd/gno
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
-FROM        build-gno AS build-gnofaucet
+FROM        setup-gnocore AS build-gnofaucet
 WORKDIR     /gnoroot/contribs/gnofaucet
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=faucet-buildcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet \
             --mount=type=cache,target=/root/.cache/go-build,id=faucet-buildcache \
-            go build -ldflags "-w -s" -o /gnoroot/build/gnofaucet .
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnofaucet .
 
 # Gnodev build
-FROM        build-gno AS build-gnodev
+FROM        setup-gnocore AS build-gnodev
 WORKDIR     /gnoroot/contribs/gnodev
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
@@ -46,31 +54,39 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
             go build \
-            -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
+            -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
             -o /gnoroot/build/gnodev .
 
 # Gnobro build
-FROM        build-gno AS build-gnobro
+FROM        setup-gnocore AS build-gnobro
 WORKDIR     /gnoroot/contribs/gnobro
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnobro-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnobro-buildcache \
             go build \
-            -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
+            -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
             -o /gnoroot/build/gnobro .
 
 # Gnocontribs
 ## Gnogenesis
-FROM        build-gno AS build-contribs
+FROM        setup-gnocore AS build-contribs
 WORKDIR     /gnoroot/contribs/gnogenesis
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
-            go build -ldflags "-w -s" -o /gnoroot/build/gnogenesis .
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnogenesis .
+## GnoKMS
+WORKDIR     /gnoroot/contribs/gnokms
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+            go mod download -x
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+            go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/gnokms .
 
 # Misc build
-FROM        build-gno AS build-misc
+FROM        setup-gnocore AS build-misc
 ## Staging
 WORKDIR     /gnoroot/misc/loop
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
@@ -78,7 +94,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
-            go build -ldflags "-w -s" -o /gnoroot/build/portalloopd ./cmd
+            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o /gnoroot/build/portalloopd ./cmd
 
 # Base image
 FROM        alpine:3 AS base
@@ -89,27 +105,27 @@ RUN         apk add --no-cache ca-certificates
 # Gnoland image
 ## ghcr.io/gnolang/gno/gnoland
 FROM        base AS gnoland
-COPY        --from=build-gno /gnoroot/build/gnoland                         /usr/bin/gnoland
-COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
-COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY        --from=build-gnocore /gnoroot/build/gnoland                         /usr/bin/gnoland
+COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE      26656 26657
 ENTRYPOINT  ["/usr/bin/gnoland"]
 
 # Gnokey image
 ## ghcr.io/gnolang/gno/gnokey
 FROM        base AS gnokey
-COPY        --from=build-gno /gnoroot/build/gnokey   /usr/bin/gnokey
+COPY        --from=build-gnocore /gnoroot/build/gnokey   /usr/bin/gnokey
 # gofmt is required by `gnokey maketx addpkg`
-COPY        --from=build-gno /usr/local/go/bin/gofmt /usr/bin/gofmt
+COPY        --from=build-gnocore /usr/local/go/bin/gofmt /usr/bin/gofmt
 ENTRYPOINT  ["/usr/bin/gnokey"]
 
 # Gnoweb image
 ## ghcr.io/gnolang/gno/gnoweb
 FROM        base AS gnoweb
-COPY        --from=build-gno /gnoroot/build/gnoweb /usr/bin/gnoweb
+COPY        --from=build-gnocore /gnoroot/build/gnoweb /usr/bin/gnoweb
 EXPOSE      8888
 ENTRYPOINT  ["/usr/bin/gnoweb"]
 
@@ -124,31 +140,32 @@ ENTRYPOINT  ["/usr/bin/gnofaucet"]
 ## ghcr.io/gnolang/gno/gnodev
 FROM        base AS gnodev
 COPY        --from=build-gnodev /gnoroot/build/gnodev                       /usr/bin/gnodev
-COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
-COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gnoweb port exposed by default
 EXPOSE     8888
 ENTRYPOINT  ["/usr/bin/gnodev"]
 
 # Gno
 FROM        base AS gno
-COPY        --from=build-gno /gnoroot/build/gno           /usr/bin/gno
-COPY        --from=build-gno /gnoroot/examples            /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs       /gnoroot/gnovm/stdlibs
-COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs
+COPY        --from=build-gnocore /gnoroot/build/gno           /usr/bin/gno
+COPY        --from=build-gnocore /gnoroot/examples            /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs       /gnoroot/gnovm/stdlibs
+COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs
 ENTRYPOINT  ["/usr/bin/gno"]
 
-# Gno Contribs [ Gnobro, Gnogenesis ]
+# Gno Contribs [ Gnobro, Gnogenesis, GnoKMS ]
 ## ghcr.io/gnolang/gnocontribs
 FROM        base AS gnocontribs
-COPY        --from=build-gnobro /gnoroot/build/gnobro                       /usr/bin/gnobro
-COPY        --from=build-contribs /gnoroot/build/gnogenesis                 /usr/bin/gnogenesis
-COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY        --from=build-gnobro /gnoroot/build/gnobro                           /usr/bin/gnobro
+COPY        --from=build-contribs /gnoroot/build/gnogenesis                     /usr/bin/gnogenesis
+COPY        --from=build-contribs /gnoroot/build/gnokms                          /usr/bin/gnokms
+COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE     22
 ENTRYPOINT [ "/bin/sh", "-c" ]
 
@@ -163,11 +180,11 @@ CMD         ["serve"]
 
 # all, contains everything.
 FROM        base AS all
-COPY        --from=build-gno /gnoroot/build/*                               /usr/bin/
-COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
-COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
-COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY        --from=build-gnocore /gnoroot/build/*                               /usr/bin/
+COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gofmt is required by `gnokey maketx addpkg`
-COPY        --from=build-gno /usr/local/go/bin/gofmt                        /usr/bin
+COPY        --from=build-gnocore /usr/local/go/bin/gofmt                        /usr/bin

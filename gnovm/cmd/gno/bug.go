@@ -11,8 +11,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/version"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 // NOTE: keep in sync with .github/ISSUE_TEMPLATE/BUG-REPORT.md
@@ -69,7 +69,7 @@ func newBugCmd(io commands.IO) *commands.Command {
 The new issue body is prefilled for you with the following information:
 
 - Gno version (the output of "gno version")
-- Go version (example: go1.23.4)
+- Go version (example: go1.24.4)
 - OS and CPU architecture (example: linux/amd64)
 - Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
 

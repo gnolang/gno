@@ -1,15 +1,16 @@
 package subtests
 
 import (
-	"std"
+	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
-func GetCurrentRealm() std.Realm {
-	return std.CurrentRealm()
+func GetCurrentRealm() runtime.Realm {
+	return unsafe.CurrentRealm()
 }
 
-func GetPreviousRealm() std.Realm {
-	return std.PreviousRealm()
+func GetPreviousRealm() runtime.Realm {
+	return unsafe.PreviousRealm()
 }
 
 func Exec(fn func()) {

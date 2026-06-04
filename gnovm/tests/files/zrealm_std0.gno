@@ -2,11 +2,11 @@
 package std
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 )
 
 func main(cur realm) {
-	caller := std.OriginCaller()
+	caller := unsafe.OriginCaller()
 	println(caller)
 }
 

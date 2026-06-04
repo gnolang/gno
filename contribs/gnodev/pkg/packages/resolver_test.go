@@ -253,7 +253,10 @@ func TestResolver_ResolveRemote(t *testing.T) {
 		pkg, err := remoteResolver.Resolve(token.NewFileSet(), mempkg.Path)
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
-		assert.Equal(t, mempkg, pkg.MemPackage)
+		// The files will be slightly different, because addpkg adds information
+		// to the gnomod.toml about the creator.
+		assert.Equal(t, mempkg.Name, pkg.MemPackage.Name)
+		assert.Equal(t, mempkg.Path, pkg.MemPackage.Path)
 	})
 
 	t.Run("invalid package", func(t *testing.T) {

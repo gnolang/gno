@@ -24,6 +24,10 @@ chain and its dApps.
 Get started with Gno development. Learn how to work with Gno tools, use
 Gno-specific features, connect to Gno apps with clients, and more.
 
+- [Getting started](builders/getting-started.md) - Shortest path from zero to a working local chain and your first on-chain transaction. Install included.
+- [Quick Start](builders/quickstart.md) - Commands-only path for readers who already know Go and want to skip the narrative.
+- [Installation](builders/install.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
+- [Editor Setup](builders/editor-setup.md) - Configure your editor with LSP support, autocompletion, and formatting for `.gno` files.
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
 - [Installing `gno` and developing locally with `gnodev`](builders/local-dev-with-gnodev.md) - Setup a local development environment with a built-in node, hot-reload features, and testing capabilities.
@@ -38,6 +42,7 @@ Learn about core concepts found in Gno.land & Gno.
 
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the Gno.land ecosystem.
+- [Data Structures](resources/gno-data-structures.md) - Learn about arrays, slices, maps, structs, pointers, and when to use AVL trees for efficient storage.
 - [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
@@ -47,7 +52,8 @@ Learn about core concepts found in Gno.land & Gno.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
-- [Gno Memory Model](resources/gno-memory-model.md) - A peak under the hood of the Gno Virtual Machine.
+- [Gno Memory Model](resources/gno-memory-model.md) - A peek under the hood of the Gno Virtual Machine.
+- [Comparison of ways to communicate with Gno.land](resources/comparison-of-ways-to-interact-with-gnoland.md) - An overview of the various methods to interact with Gno.land (mainly for developers writing applications).
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.
 - [GnoConnect Specification](resources/gnoconnect.md) - Standard for connecting wallets, clients, and SDKs to Gno blockchains.

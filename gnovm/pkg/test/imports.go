@@ -42,9 +42,6 @@ type StoreOptions struct {
 	// gno.mod to not be auto-generated when importing from the test store.
 	DoNotGenerateGnoMod bool
 
-	// When fixing code from an earler gno version. Not supported for stdlibs.
-	FixFrom string
-
 	// Preloaded packages
 	Packages packages.PkgList
 
@@ -136,28 +133,14 @@ func StoreWithOptions(
 			if err != nil {
 				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
-			if mod == nil || mod.GetGno() == gno.GnoVerMissing {
-				// In order to translate into a newer Gno version with
-				// the preprocessor make a slight modifications to the
-				// AST. This needs to happen even for imports, because
-				// the preprocessor requires imports also preprocessed.
-				// This is because the linter uses pkg/test/imports.go.
-				gofset, _, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(mpkg)
-				if errs != nil {
-					panic(fmt.Errorf("test store parsing: %w", errs))
-				}
-				allgofs := append(gofs, _gofs...)
-				allgofs = append(allgofs, tgofs...)
-				errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
-				if errs != nil {
-					panic(fmt.Errorf("test store preparing AST: %w", errs))
-				}
+			if mod == nil {
+				panic(fmt.Errorf("cannot parse %q: missing gnomod.toml", mpkg.Path))
 			}
 			m.Store.AddMemPackage(mpkg, mptype)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
-				gno.ParseMemPackageAsType(mpkg, mptype),
-				save, false, opts.FixFrom)
+				m.ParseMemPackageAsType(mpkg, mptype),
+				save, false)
 		} else {
 			return m.RunMemPackage(mpkg, save)
 		}
@@ -290,13 +273,11 @@ func loadStdlib(
 		// Normal stdlib path.
 		stdlibLocation(rootDir, pkgPath),
 	}
-	var mPkgType gno.MemPackageType
+	mPkgType := gno.MPStdlibProd
 	if testing {
 		// Override path. Definitions here override the previous if duplicate.
 		dirs = append(dirs, testStdlibLocation(rootDir, pkgPath))
 		mPkgType = gno.MPStdlibTest
-	} else {
-		mPkgType = gno.MPStdlibProd
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {
@@ -330,7 +311,7 @@ func loadStdlib(
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackageAsType(mpkg, mPkgType), true, true, "")
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true)
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)

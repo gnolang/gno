@@ -1,21 +1,21 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-import "gno.land/r/demo/tests/crossrealm"
+import "gno.land/r/tests/vm/crossrealm"
 
 // crossrealm_test -> crossrealm -> crossrealm_test -> crossrealm
-func main() {
-	f := func() {
+func main(cur realm) {
+	f := func(_ int, rlm realm) {
 		func(cur realm) {
-			crossrealm.PrintRealms(cross)
-		}(cross)
+			crossrealm.PrintRealms(cross(cur))
+		}(cross(rlm))
 	}
 
-	crossrealm.SetClosure(cross, f)
+	crossrealm.SetClosure3(cross(cur), f)
 
-	crossrealm.ExecuteClosure(cross)
+	crossrealm.ExecuteClosure3(cross(cur))
 }
 
 // Output:
-// current realm: CodeRealm{ g1m6pzw9ex0xk3hamzch0wtad4e696gjyju0z2tz, gno.land/r/demo/tests/crossrealm }
+// current realm: CodeRealm{ g1kscyved3wru62zz4dpgncy7cs5wju8kcydzssk, gno.land/r/tests/vm/crossrealm }
 // previous realm: CodeRealm{ g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan, gno.land/r/crossrealm }

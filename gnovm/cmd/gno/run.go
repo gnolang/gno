@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -87,6 +86,101 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+func packageNameFromFiles(args []string) (string, error) {
+	var (
+		firstPkgName string
+		firstPkgFile string
+		foundAny     bool
+	)
+
+	for _, arg := range args {
+		s, err := os.Stat(arg)
+		if err != nil {
+			return "", err
+		}
+
+		// ---- Directory case ----
+		if s.IsDir() {
+			files, err := os.ReadDir(arg)
+			if err != nil {
+				return "", err
+			}
+
+			dirFoundAny := false
+
+			for _, f := range files {
+				n := f.Name()
+				if !isGnoFile(f) ||
+					strings.HasSuffix(n, "_test.gno") ||
+					strings.HasSuffix(n, "_filetest.gno") {
+					continue
+				}
+
+				fullPath := filepath.Join(arg, n)
+				firstPkgName, firstPkgFile, err = updatePackageInfo(fullPath, firstPkgName, firstPkgFile)
+				if err != nil {
+					return "", err
+				}
+				foundAny = true
+				dirFoundAny = true
+			}
+
+			// when directory has only test files
+			if !dirFoundAny {
+				return "", fmt.Errorf("gno: no non-test Gno files in %s", arg)
+			}
+
+			continue
+		}
+
+		// ---- File case ----
+		n := filepath.Base(arg)
+		if strings.HasSuffix(n, "_test.gno") || strings.HasSuffix(n, "_filetest.gno") {
+			return "", fmt.Errorf("gno run: cannot run test files (%s), use gno test instead", n)
+		}
+
+		firstPkgName, firstPkgFile, err = updatePackageInfo(arg, firstPkgName, firstPkgFile)
+		if err != nil {
+			return "", err
+		}
+		foundAny = true
+	}
+
+	if !foundAny {
+		return "", fmt.Errorf("no valid gno file found")
+	}
+
+	return firstPkgName, nil
+}
+
+// updatePackageInfo parses the package name of a given .gno file
+// and compares it with the first known package. It returns updated values
+// for firstPkgName and firstPkgFile, or an error if a mismatch is found.
+func updatePackageInfo(
+	path string,
+	firstPkgName, firstPkgFile string,
+) (string, string, error) {
+	pkgName, err := gno.ParseFilePackageName(path)
+	if err != nil {
+		return firstPkgName, firstPkgFile, err
+	}
+
+	if firstPkgName == "" {
+		// First valid file sets the base package
+		return pkgName, path, nil
+	}
+
+	if pkgName != firstPkgName {
+		return firstPkgName, firstPkgFile, fmt.Errorf(
+			"found mismatched packages %s (%s) and %s (%s)",
+			firstPkgName, filepath.Base(firstPkgFile),
+			pkgName, filepath.Base(path),
+		)
+	}
+
+	return firstPkgName, firstPkgFile, nil
+}
+
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
@@ -108,29 +202,24 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		args = []string{"."}
 	}
 
-	// read files
-	files, err := parseFiles(args, stderr)
+	var send std.Coins
+	pkgPath, err := packageNameFromFiles(args)
 	if err != nil {
 		return err
 	}
 
-	if len(files) == 0 {
-		return errors.New("no files to run")
-	}
-
-	var send std.Coins
-	pkgPath := string(files[0].PkgName)
 	if cfg.pkgPath != "" {
 		// Run in realm mode.
 		pkgPath = cfg.pkgPath
 		ctx := test.Context("", pkgPath, send)
 		m := gno.NewMachineWithOptions(gno.MachineOptions{
-			PkgPath: pkgPath,
-			Output:  output,
-			Input:   stdin,
-			Store:   testStore.BeginTransaction(nil, nil, nil),
-			Context: ctx,
-			Debug:   cfg.debug || cfg.debugAddr != "",
+			PkgPath:       pkgPath,
+			Output:        output,
+			Input:         stdin,
+			Store:         testStore.BeginTransaction(nil, nil, nil, nil),
+			MaxAllocBytes: maxAllocRun,
+			Context:       ctx,
+			Debug:         cfg.debug || cfg.debugAddr != "",
 		})
 
 		defer m.Release()
@@ -161,11 +250,21 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 			}
 		}
 
+		// read files
+		files, err := parseFiles(m, args, stderr)
+		if err != nil {
+			return err
+		}
+
+		if len(files) == 0 {
+			return errors.New("no files to run")
+		}
+
 		// run files
 		m.RunFiles(files...)
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2) // XXX should it set the realm?
-		m.Context.(*teststd.TestExecContext).OriginCaller = test.DefaultCaller
+		ctx.OriginCaller = test.DefaultCaller
 		m.RunMainMaybeCrossing()
 		return nil
 	}
@@ -184,6 +283,16 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	defer m.Release()
 
+	// read files
+	files, err := parseFiles(m, args, stderr)
+	if err != nil {
+		return err
+	}
+
+	if len(files) == 0 {
+		return errors.New("no files to run")
+	}
+
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
 		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
@@ -196,7 +305,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
 	for _, fpath := range fpaths {
@@ -205,7 +314,7 @@ func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(subFns, stderr)
+			subFiles, err := parseFiles(m, subFns, stderr)
 			if err != nil {
 				return nil, err
 			}
@@ -219,7 +328,7 @@ func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 
 		dir, fname := filepath.Split(fpath)
 		didPanic = catchPanic(dir, fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fpath))
+			files = append(files, m.MustReadFile(fpath))
 		})
 	}
 
@@ -247,7 +356,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 }
 
 func runExpr(m *gno.Machine, expr string) (err error) {
-	ex, err := gno.ParseExpr(expr)
+	ex, err := m.ParseExpr(expr)
 	if err != nil {
 		return fmt.Errorf("could not parse expression: %w", err)
 	}

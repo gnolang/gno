@@ -1,74 +1,92 @@
 // Package nestedpkg provides helpers for package-path based access control.
 // It is useful for upgrade patterns relying on namespaces.
+//
+// SECURITY: every exported helper takes `rlm realm` and reads both
+// `rlm.PkgPath()` and `rlm.Previous().PkgPath()` to make an
+// authorization decision. To close Class-2 designation forgery (a
+// hostile realm stashes a captured realm value and passes it back to
+// spoof identity), every helper gates on `rlm.IsCurrent()` first. The
+// Is* predicates return false on stale rlm (fail-closed); the Assert*
+// helpers panic. See docs/resources/gno-security.md.
 package nestedpkg
 
-// To test this from a realm and have std.CurrentRealm/PreviousRealm work correctly,
-// this file is tested from gno.land/r/demo/tests/nestedpkg_test.gno
-// XXX: move test to ths directory once we support testing a package and
-// specifying values for both PreviousRealm and CurrentRealm.
-
-import (
-	"std"
-	"strings"
-)
+import "strings"
 
 // IsCallerSubPath checks if the caller realm is located in a subfolder of the current realm.
-func IsCallerSubPath() bool {
+func IsCallerSubPath(_ int, rlm realm) bool {
+	if !rlm.IsCurrent() {
+		return false
+	}
 	var (
-		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	return strings.HasPrefix(prev, cur)
+	return strings.HasPrefix(prevPath, curPath)
 }
 
 // AssertCallerIsSubPath panics if IsCallerSubPath returns false.
-func AssertCallerIsSubPath() {
+func AssertCallerIsSubPath(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	var (
-		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	if !strings.HasPrefix(prev, cur) {
-		panic("call restricted to nested packages. current realm is " + cur + ", previous realm is " + prev)
+	if !strings.HasPrefix(prevPath, curPath) {
+		panic("call restricted to nested packages. current realm is " + curPath + ", previous realm is " + prevPath)
 	}
 }
 
 // IsCallerParentPath checks if the caller realm is located in a parent location of the current realm.
-func IsCallerParentPath() bool {
+func IsCallerParentPath(_ int, rlm realm) bool {
+	if !rlm.IsCurrent() {
+		return false
+	}
 	var (
-		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	return strings.HasPrefix(cur, prev)
+	return strings.HasPrefix(curPath, prevPath)
 }
 
 // AssertCallerIsParentPath panics if IsCallerParentPath returns false.
-func AssertCallerIsParentPath() {
+func AssertCallerIsParentPath(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	var (
-		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	if !strings.HasPrefix(cur, prev) {
-		panic("call restricted to parent packages. current realm is " + cur + ", previous realm is " + prev)
+	if !strings.HasPrefix(curPath, prevPath) {
+		panic("call restricted to parent packages. current realm is " + curPath + ", previous realm is " + prevPath)
 	}
 }
 
 // IsSameNamespace checks if the caller realm and the current realm are in the same namespace.
-func IsSameNamespace() bool {
+func IsSameNamespace(_ int, rlm realm) bool {
+	if !rlm.IsCurrent() {
+		return false
+	}
 	var (
-		cur  = nsFromPath(std.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(std.PreviousRealm().PkgPath()) + "/"
+		curNs  = nsFromPath(rlm.PkgPath()) + "/"
+		prevNs = nsFromPath(rlm.Previous().PkgPath()) + "/"
 	)
-	return cur == prev
+	return curNs == prevNs
 }
 
 // AssertIsSameNamespace panics if IsSameNamespace returns false.
-func AssertIsSameNamespace() {
+func AssertIsSameNamespace(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	var (
-		cur  = nsFromPath(std.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(std.PreviousRealm().PkgPath()) + "/"
+		curNs  = nsFromPath(rlm.PkgPath()) + "/"
+		prevNs = nsFromPath(rlm.Previous().PkgPath()) + "/"
 	)
-	if cur != prev {
-		panic("call restricted to packages from the same namespace. current realm is " + cur + ", previous realm is " + prev)
+	if curNs != prevNs {
+		panic("call restricted to packages from the same namespace. current realm is " + curNs + ", previous realm is " + prevNs)
 	}
 }
 

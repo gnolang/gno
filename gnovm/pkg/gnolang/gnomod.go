@@ -1,8 +1,10 @@
 package gnolang
 
 import (
+	"cmp"
 	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -24,7 +26,6 @@ var gnomodTemplateOnce = sync.OnceValue(func() *template.Template {
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
 func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
-func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
 	var bld strings.Builder
@@ -42,7 +43,6 @@ const (
 	GnoVerLatest  = `0.9` // current version
 	GnoVerTesting = `0.9` // version of our tests
 	GnoVerDefault = `0.9` // auto generated gnomod.toml
-	GnoVerMissing = `0.0` // missing gnomod.toml, !autoGnoMod XXX
 )
 
 // ========================================
@@ -65,12 +65,37 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		// error parsing gnomod.toml.
 		err = fmt.Errorf("%s/gnomod.toml: parse error: %w", mpkg.Path, err)
 	} else if mod.Gno == "" {
-		// gnomod.toml was never specified; set missing.
-		mod.SetGno(GnoVerMissing)
+		// gnomod.toml exists but has no gno version; default to latest.
+		mod.SetGno(GnoVerLatest)
 	} else if mod.Gno == GnoVerLatest {
 		// current version, nothing to do.
 	} else {
-		panic("unsupported gno version " + mod.Gno)
+		panic("unsupported gno version " + mod.Gno + " in package " + mpkg.Path)
 	}
 	return
+}
+
+func CompareVersions(a, b string) (int, bool) {
+	amaj, amin, aok := cutAndConvert(a, ".")
+	bmaj, bmin, bok := cutAndConvert(b, ".")
+	if !aok || !bok {
+		return 0, false
+	}
+	if c := cmp.Compare(amaj, bmaj); c != 0 {
+		return c, true
+	}
+	return cmp.Compare(amin, bmin), true
+}
+
+func cutAndConvert(s, sep string) (int, int, bool) {
+	x, y, ok := strings.Cut(s, sep)
+	if !ok {
+		return 0, 0, false
+	}
+	cx, errx := strconv.Atoi(x)
+	cy, erry := strconv.Atoi(y)
+	if errx != nil || erry != nil {
+		return 0, 0, false
+	}
+	return cx, cy, true
 }

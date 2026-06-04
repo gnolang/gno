@@ -66,7 +66,6 @@ func addRandomKeyToKeybase(
 type testCmdKeyOptsBase struct {
 	kbHome  string
 	keyName string
-	unsafe  bool
 }
 
 type testExportKeyOpts struct {
@@ -90,7 +89,6 @@ func exportKey(
 		},
 		NameOrBech32: exportOpts.keyName,
 		OutputPath:   exportOpts.outputPath,
-		Unsafe:       exportOpts.unsafe,
 	}
 
 	cmdIO := commands.NewTestIO()
@@ -138,12 +136,10 @@ func TestExport_ExportKey(t *testing.T) {
 		},
 		{
 			"unencrypted key export",
-			testCmdKeyOptsBase{
-				unsafe: true,
-			},
+			testCmdKeyOptsBase{},
 			strings.NewReader(
 				fmt.Sprintf(
-					"%s\n",
+					"%s\n\n",
 					password, // decrypt
 				),
 			),
@@ -181,7 +177,6 @@ func TestExport_ExportKey(t *testing.T) {
 						testCmdKeyOptsBase: testCmdKeyOptsBase{
 							kbHome:  kbHome,
 							keyName: info.GetName(),
-							unsafe:  testCase.baseOpts.unsafe,
 						},
 						outputPath: outputFile.Name(),
 					},
@@ -204,6 +199,8 @@ func TestExport_ExportKey(t *testing.T) {
 }
 
 func TestExport_ExportKeyWithEmptyName(t *testing.T) {
+	t.Parallel()
+
 	// Generate a temporary key-base directory
 	_, kbHome := newTestKeybase(t)
 	err := exportKey(

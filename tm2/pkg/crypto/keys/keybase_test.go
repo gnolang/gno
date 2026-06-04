@@ -12,6 +12,78 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 )
 
+const testMnemonic = `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+
+func TestRename(t *testing.T) {
+	t.Parallel()
+
+	t.Run("successful rename", func(t *testing.T) {
+		t.Parallel()
+
+		cstore := NewInMemory()
+
+		info, err := cstore.CreateAccount("original", testMnemonic, "", "password", 0, 0)
+		require.NoError(t, err)
+
+		err = cstore.Rename("original", "renamed")
+		require.NoError(t, err)
+
+		// New name should exist with same address
+		got, err := cstore.GetByName("renamed")
+		require.NoError(t, err)
+		assert.Equal(t, info.GetAddress(), got.GetAddress())
+
+		// Old name should not exist
+		_, err = cstore.GetByName("original")
+		require.Error(t, err)
+	})
+
+	t.Run("rename non-existent key", func(t *testing.T) {
+		t.Parallel()
+
+		cstore := NewInMemory()
+
+		err := cstore.Rename("non-existent", "new-name")
+		require.Error(t, err)
+	})
+
+	t.Run("rename to existing name", func(t *testing.T) {
+		t.Parallel()
+
+		cstore := NewInMemory()
+
+		_, err := cstore.CreateAccount("key1", testMnemonic, "", "password", 0, 0)
+		require.NoError(t, err)
+
+		_, err = cstore.CreateAccount("key2", testMnemonic, "", "password", 0, 1)
+		require.NoError(t, err)
+
+		err = cstore.Rename("key1", "key2")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("rename offline key", func(t *testing.T) {
+		t.Parallel()
+
+		cstore := NewInMemory()
+
+		key := ed25519.GenPrivKey()
+		info, err := cstore.CreateOffline("offline-key", key.PubKey())
+		require.NoError(t, err)
+
+		err = cstore.Rename("offline-key", "renamed-offline")
+		require.NoError(t, err)
+
+		got, err := cstore.GetByName("renamed-offline")
+		require.NoError(t, err)
+		assert.Equal(t, info.GetAddress(), got.GetAddress())
+
+		_, err = cstore.GetByName("offline-key")
+		require.Error(t, err)
+	})
+}
+
 func TestCreateAccountInvalidMnemonic(t *testing.T) {
 	t.Parallel()
 

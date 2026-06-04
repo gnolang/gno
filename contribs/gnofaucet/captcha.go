@@ -11,8 +11,9 @@ import (
 )
 
 type captchaCfg struct {
-	rootCfg       *serveCfg
-	captchaSecret string
+	rootCfg        *serveCfg
+	captchaSecret  string
+	captchaSitekey string
 }
 
 var errCaptchaMissing = fmt.Errorf("captcha secret is required")
@@ -22,7 +23,14 @@ func (c *captchaCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.captchaSecret,
 		"captcha-secret",
 		"",
-		"recaptcha secret key (if empty, captcha are disabled)",
+		"hcaptcha secret key (required)",
+	)
+
+	fs.StringVar(
+		&c.captchaSitekey,
+		"captcha-sitekey",
+		"",
+		"hcaptcha site key; when set, tokens issued for other site keys are rejected",
 	)
 }
 
@@ -49,23 +57,28 @@ func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 		return errCaptchaMissing
 	}
 
+	logger, err := cfg.rootCfg.newLogger(io)
+	if err != nil {
+		return err
+	}
+
 	// Start the IP throttler
-	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	st := newIPThrottler(cfg.rootCfg.rateLimitInterval, cfg.rootCfg.rateLimitCleanTimeout)
 	st.start(ctx)
 
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
-		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
+		ipMiddleware(logger, cfg.rootCfg.trustedProxyCount, st),
 	}
 
 	rpcMiddlewares := []faucet.Middleware{
-		captchaMiddleware(cfg.captchaSecret),
+		captchaMiddleware(cfg.captchaSecret, cfg.captchaSitekey, logger),
 	}
 
 	return serveFaucet(
 		ctx,
 		cfg.rootCfg,
-		io,
+		logger,
 		faucet.WithHTTPMiddlewares(httpMiddlewares),
 		faucet.WithMiddlewares(rpcMiddlewares),
 	)

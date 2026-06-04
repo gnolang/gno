@@ -45,6 +45,26 @@ func PackageDirLocation(s string) string {
 	}
 }
 
+// ImportResolver maps a Gno import path to its location relative to the
+// gno repo root. ok=false means the import is unresolvable.
+type ImportResolver func(importPath string) (relPath string, ok bool)
+
+// DefaultResolver returns "examples/<path>" for non-stdlibs and
+// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it also
+// checks the resolved path exists on disk.
+func DefaultResolver(rootDir string) ImportResolver {
+	return func(importPath string) (string, bool) {
+		rel := PackageDirLocation(importPath)
+		if rootDir == "" {
+			return rel, true
+		}
+		if _, err := os.Stat(filepath.Join(rootDir, rel)); err != nil {
+			return "", false
+		}
+		return rel, true
+	}
+}
+
 // Result is returned by Transpile, returning the file's imports and output
 // out the transpilation.
 type Result struct {
@@ -73,10 +93,17 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 	return
 }
 
-// Transpile performs transpilation on the given source code. tags can be used
-// to specify build tags; and filename helps generate useful error messages and
-// discriminate between test and normal source files.
+// Transpile performs transpilation on the given source code. tags can be
+// used to specify build tags; filename helps generate useful error messages
+// and discriminate between test and normal source files. Equivalent to
+// [TranspileWithResolver] with a nil resolver.
 func Transpile(source, tags, filename string) (*Result, error) {
+	return TranspileWithResolver(source, tags, filename, nil)
+}
+
+// TranspileWithResolver is like [Transpile] but uses the supplied resolver
+// for import lookups. A nil resolver falls back to [DefaultResolver].
+func TranspileWithResolver(source, tags, filename string, resolver ImportResolver) (*Result, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, source,
 		// SkipObjectResolution -- unused here.
@@ -87,8 +114,9 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	}
 
 	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
+	rootDir := gnoenv.RootDir()
 	ctx := &transpileCtx{
-		rootDir: gnoenv.RootDir(),
+		rootDir: rootDir,
 	}
 	stdlibPrefix := filepath.Join(ctx.rootDir, "gnovm", "stdlibs")
 	if isTestFile {
@@ -99,10 +127,18 @@ func Transpile(source, tags, filename string) (*Result, error) {
 		// enable as such "package checking" also on test files.
 		ctx.rootDir = ""
 	}
-	if strings.HasPrefix(filename, stdlibPrefix) {
+	if resolver == nil {
+		resolver = DefaultResolver(ctx.rootDir)
+	}
+	ctx.importResolver = resolver
+	absFilename, err := filepath.Abs(filename)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
+	}
+	if strings.HasPrefix(absFilename, stdlibPrefix) {
 		// this is a standard library. Mark it in the options so the native
 		// bindings resolve correctly.
-		path := strings.TrimPrefix(filename, stdlibPrefix)
+		path := strings.TrimPrefix(absFilename, stdlibPrefix)
 		path = filepath.ToSlash(filepath.Dir(path))
 		path = strings.TrimLeft(path, "/")
 
@@ -140,9 +176,8 @@ func Transpile(source, tags, filename string) (*Result, error) {
 }
 
 type transpileCtx struct {
-	// If rootDir is given, we will check that the directory of the import path
-	// exists (using rootDir/packageDirLocation()).
-	rootDir string
+	rootDir        string
+	importResolver ImportResolver
 	// This should be set if we're working with a file from a standard library.
 	// This allows us to easily check if a function has a native binding, and as
 	// such modify its call expressions appropriately.
@@ -166,15 +201,10 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				continue
 			}
 
-			if ctx.rootDir != "" {
-				dirPath := filepath.Join(ctx.rootDir, PackageDirLocation(importPath))
-				if _, err := os.Stat(dirPath); err != nil {
-					if !os.IsNotExist(err) {
-						return nil, err
-					}
-					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
-					continue
-				}
+			rel, ok := ctx.importResolver(importPath)
+			if !ok {
+				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
+				continue
 			}
 
 			// Create mapping
@@ -187,8 +217,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				}
 			}
 
-			transp := TranspileImportPath(importPath)
-			importSpec.Path.Value = strconv.Quote(transp)
+			importSpec.Path.Value = strconv.Quote(ImportPrefix + "/" + rel)
 		}
 	}
 
@@ -220,9 +249,15 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 					}
 				}
 			case *ast.Ident:
+				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
+					// Could be an expression like `hello.cross1`, so ignore.
+					return true
+				}
 				switch node.Name {
-				case "cross":
-					// it's a realm; we don't have much to add aside from this, for now.
+				case "cross1":
+					// legacy sentinel; at runtime this stack slot must be
+					// undefined so installCrossingCur takes the
+					// callingCurOrOrigin path.
 					node.Name = "nil"
 				}
 			case *ast.CallExpr:
@@ -250,9 +285,38 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
 					node.X = ct
 				}
-			case *ast.SliceExpr:
-				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
-					node.X = ct
+			case *ast.ArrayType:
+				if ct := convertBuiltinType(node.Elt, fset, f); ct != nil {
+					node.Elt = ct
+				}
+			case *ast.Ellipsis:
+				if ct := convertBuiltinType(node.Elt, fset, f); ct != nil {
+					node.Elt = ct
+				}
+			case *ast.MapType:
+				if ct := convertBuiltinType(node.Key, fset, f); ct != nil {
+					node.Key = ct
+				}
+				if ct := convertBuiltinType(node.Value, fset, f); ct != nil {
+					node.Value = ct
+				}
+			case *ast.TypeAssertExpr:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
+				}
+			case *ast.TypeSwitchStmt:
+				for _, node := range node.Body.List {
+					if cc, isCaseClause := node.(*ast.CaseClause); isCaseClause {
+						for idx, t := range cc.List {
+							if ct := convertBuiltinType(t, fset, f); ct != nil {
+								cc.List[idx] = ct
+							}
+						}
+					}
+				}
+			case *ast.ValueSpec:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
 				}
 			case *ast.CallExpr:
 				id, ok := node.Fun.(*ast.Ident)
@@ -357,6 +421,14 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		}
 
 	case *ast.Ident:
+		// cross(rlm) is a gno-level sentinel for explicit cross-realm
+		// dispatch; the preprocessor handles its actual lowering. For
+		// the gno-to-go transpile build, treat it as a pass-through
+		// identity so the resulting Go code compiles.
+		if fe.Name == "cross" && len(ce.Args) == 1 {
+			c.Replace(ce.Args[0])
+			return true
+		}
 		// Is this a native binding?
 		// Note: this is only useful within packages like `std` and `math`.
 		// The logic here is not robust to be generic. It does not account for locally

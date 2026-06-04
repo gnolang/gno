@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {
@@ -12,8 +12,8 @@ type Struct struct {
 func main(cur realm) {
 	a := 1
 	s := &Struct{A: 100}
-	crossrealm_b.SetClosure(cross, func() {})
-	crossrealm_b.SetObject(cross, &a)
+	crossrealm_b.SetClosure(cross(cur), func() {})
+	crossrealm_b.SetObject(cross(cur), &a)
 	//cross(crossrealm_b.SetObject)(&s.A)
 	//cross(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123

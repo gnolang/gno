@@ -5,11 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -19,13 +16,13 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
-	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
@@ -58,8 +55,9 @@ type startCfg struct {
 	dataDir                    string
 	lazyInit                   bool
 
-	logLevel  string
-	logFormat string
+	logLevel   string
+	logFormat  string
+	earlyStart bool
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -150,7 +148,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.logLevel,
 		"log-level",
 		zapcore.DebugLevel.String(),
-		"log level for the gnoland node,",
+		"log level for the gnoland node (debug, info, warn, error)",
 	)
 
 	fs.StringVar(
@@ -165,6 +163,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"lazy",
 		false,
 		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
+	)
+
+	fs.BoolVar(
+		&c.earlyStart,
+		"x-early-start",
+		false,
+		"[experimental] start RPC and P2P before genesis time, deferring only consensus",
 	)
 }
 
@@ -213,22 +218,33 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			return errMissingGenesis
 		}
 
-		// Load existing or generate a new private validator key
-		fileKey, err := signer.LoadOrMakeFileKey(cfg.Consensus.PrivValidator.LocalSignerPath())
+		// Get the node key for signer init
+		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
 		if err != nil {
-			return fmt.Errorf("unable to instantiate validator key: %w", err)
+			return fmt.Errorf("unable to load or make node key, %w", err)
+		}
+
+		// Init the signer based on the config
+		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
+		if err != nil {
+			return fmt.Errorf("unable to instantiate signer based on config: %w", err)
 		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, fileKey.PrivKey); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
+
+		// Close the signer
+		signer.Close()
 	}
 
 	// Initialize telemetry
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
+
+	defer telemetry.Shutdown()
 
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
@@ -248,13 +264,31 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		cfg.Application,
 		evsw,
 		logger,
+		cfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
 
+	// Apply halt height from config to the application
+	if cfg.BaseConfig.HaltHeight > 0 {
+		if baseApp, ok := cfg.LocalApp.(*sdk.BaseApp); ok {
+			baseApp.SetHaltHeight(uint64(cfg.BaseConfig.HaltHeight))
+			logger.Info("Halt height configured", "height", cfg.BaseConfig.HaltHeight)
+		}
+	}
+
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	opts := []node.Option{}
+	if c.earlyStart {
+		opts = append(opts, node.WithEarlyStart())
+	}
+	// Stream the genesis file through an on-disk cache so peak memory stays
+	// bounded on multi-hundred-MB genesis files. The cache lives next to the
+	// chain DB so its lifetime tracks the node data directory.
+	genesisCacheRoot := filepath.Join(cfg.DBDir(), "genesis-cache")
+	genesisProvider := gnoland.StreamingGenesisProvider(genesisPath, genesisCacheRoot, logger)
+	gnoNode, err := node.DefaultNewNodeWithGenesisProvider(cfg, genesisProvider, evsw, logger, opts...)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
@@ -264,17 +298,8 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
 	}
 
-	// Set up the wait context
-	nodeCtx, _ := signal.NotifyContext(
-		ctx,
-		os.Interrupt,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
 	// Wait for the exit signal
-	<-nodeCtx.Done()
+	<-ctx.Done()
 
 	if !gnoNode.IsRunning() {
 		return nil
@@ -344,12 +369,12 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
 	genesisPath string,
-	privateKey crypto.PrivKey,
+	signer gnoland.GenesisSigner,
 ) error {
 	// Check if the genesis.json is present
 	if osm.FileExists(genesisPath) {
@@ -357,7 +382,7 @@ func lazyInitGenesis(
 	}
 
 	// Generate the new genesis.json file
-	if err := generateGenesisFile(genesisPath, privateKey, c); err != nil {
+	if err := generateGenesisFile(genesisPath, signer, c); err != nil {
 		return fmt.Errorf("unable to generate genesis file, %w", err)
 	}
 
@@ -366,9 +391,9 @@ func lazyInitGenesis(
 	return nil
 }
 
-func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
+func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *startCfg) error {
 	var (
-		pubKey = privKey.PubKey()
+		pubKey = signer.PubKey()
 		// There is an active constraint for gno.land transactions:
 		//
 		// All transaction messages' (MsgSend, MsgAddPkg...) "author" field,
@@ -429,7 +454,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Sign genesis transactions, with the default key (test1)
-	if err = gnoland.SignGenesisTxs(genesisTxs, privKey, c.chainID); err != nil {
+	if err = gnoland.SignGenesisTxs(genesisTxs, signer, c.chainID); err != nil {
 		return fmt.Errorf("unable to sign genesis txs: %w", err)
 	}
 

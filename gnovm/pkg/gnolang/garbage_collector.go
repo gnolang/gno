@@ -1,18 +1,43 @@
 package gnolang
 
 import (
+	"math/bits"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-// Represents the "time unit" cost for
-// a single garbage collection visit.
-// It's similar to "CPU cycles" and is
-// calculated based on a rough benchmarking
-// results.
-// TODO: more accurate benchmark.
-const VisitCpuFactor = 8
+// gcVisitGasTable[k] = gas per GC visit when log2(visitCount) == k.
+// 1 gas = 1 nanosecond on reference hardware.
+// Per-visit cost increases with heap size due to CPU cache effects:
+// small heaps fit in L2/L3 (~29ns/visit), large heaps hit DRAM (~700ns/visit).
+//
+// Calibrated from BenchmarkGCVisit on DigitalOcean Dedicated (2-core),
+// Intel Xeon Platinum 8168 @ 2.70GHz.
+//
+// See gnovm/pkg/gnolang/bench_gc_test.go for benchmarks.
+var gcVisitGasTable = [25]int64{
+	29, 29, 29, 29, 29, 29, 29, // 2^0 - 2^6:   1-64 visits       (~29ns, L1/L2)
+	40, 40, 40, // 2^7 - 2^9:   128-512 visits     (~40ns, L2/L3)
+	91, 91, 91, // 2^10 - 2^12: 1K-4K visits       (~91ns, L3)
+	160, 160, 160, 197, // 2^13 - 2^16: 8K-64K visits      (~160-197ns, L3/DRAM)
+	290, 290, 380, // 2^17 - 2^19: 128K-512K visits   (~290-380ns, DRAM)
+	380, 380, 520, // 2^20 - 2^22: 1M-4M visits       (~380-520ns, DRAM)
+	700, 700, // 2^23 - 2^24: 8M-16M visits      (~700ns, DRAM+TLB)
+}
+
+// gcVisitGas returns total gas for a GC traversal of visitCount objects.
+// Uses a per-visit cost that scales with heap size (cache effects).
+func gcVisitGas(visitCount int64) int64 {
+	if visitCount <= 0 {
+		return 0
+	}
+	k := bits.Len64(uint64(visitCount)) - 1
+	if k >= len(gcVisitGasTable) {
+		k = len(gcVisitGasTable) - 1
+	}
+	return overflow.Mulp(visitCount, gcVisitGasTable[k])
+}
 
 // Visit visits all reachable associated values.
 // It is used primarily for GC.
@@ -33,12 +58,13 @@ type Visitor func(v Value) (stop bool)
 //	impl, whether it re-uses the same Type or not.
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
+// XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// times objects are visited for gc
 	var visitCount int64
 
 	defer func() {
-		gasCPU := overflow.Mulp(visitCount*VisitCpuFactor, GasFactorCPU)
+		gasCPU := gcVisitGas(visitCount)
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
@@ -85,6 +111,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		return -1, false
 	}
 
+	// Visit staging package.
+	// Stating package is partially loaded package.
+	// it's more efficient to vist it than to
+	// iterate over the whole cache.
+	if tpv := m.Store.GetStagingPackage(); tpv != nil {
+		stop = vis(tpv)
+		if stop {
+			return -1, false
+		}
+	}
+
 	// Visit exceptions
 	if m.Exception != nil {
 		e := m.Exception
@@ -124,15 +161,11 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		}
 
 		if oo, isObject := v.(Object); isObject {
-			defer func() {
-				// Finally bump cycle for object.
-				oo.SetLastGCCycle(gcCycle)
-			}()
-
 			// Return if already measured.
 			if debug {
 				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			}
+
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
@@ -142,15 +175,22 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
-		alloc.Allocate(size)
 
-		// Stop if alloc max exceeded.
+		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
 		// now to handle potential edge cases.
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
-		if maxBytes < curBytes {
+		if maxBytes < curBytes+size {
 			return true
+		}
+
+		alloc.Recount(size)
+
+		// bump before visiting associated,
+		// this avoids infinite recursion.
+		if oo, isObject := v.(Object); isObject {
+			oo.SetLastGCCycle(gcCycle)
 		}
 
 		// Invoke the traverser on v.
@@ -188,6 +228,9 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	if fv.PkgPath == ".uverse" {
+		return
+	}
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -200,8 +243,18 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Skip visiting the parent to avoid redundancy
-	// and prevent a potential cycle.
+	// Visit parent.
+	switch v := fv.Parent.(type) {
+	case nil:
+		return
+	case *Block:
+		if v != nil {
+			stop = vis(v)
+		}
+	case RefValue:
+		stop = vis(v)
+	}
+
 	return
 }
 
@@ -221,14 +274,18 @@ func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
-	// bmv.Func cannot be a closure, it must be a method.
-	// So we do not visit it (for garbage collection).
-
 	// Visit receiver.
 	v := bmv.Receiver.V
 	if v != nil {
 		stop = vis(v)
 	}
+
+	// Visit func
+	fv := bmv.Func
+	if fv != nil {
+		stop = vis(fv)
+	}
+
 	return
 }
 
@@ -259,6 +316,10 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+	if pv.PkgPath == ".uverse" {
+		return false
+	}
+
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -287,6 +348,13 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+	// skip .uverse
+	if pn, ok := b.Source.(*PackageNode); ok {
+		if pn.PkgPath == ".uverse" {
+			return
+		}
+	}
+
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
@@ -363,7 +431,7 @@ func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis receiver
 	if fr.Receiver.IsDefined() {
-		alloc.Allocate(allocTypedValue) // alloc shallowly
+		alloc.Recount(allocTypedValue) // reclaim shallowly
 
 		if v := fr.Receiver.V; v != nil {
 			stop = vis(v)
@@ -392,7 +460,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			alloc.Allocate(allocTypedValue)
+			alloc.Recount(allocTypedValue)
 
 			if arg.V != nil {
 				stop = vis(arg.V)
@@ -423,7 +491,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 func (e *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
-	alloc.Allocate(allocTypedValue)
+	alloc.Recount(allocTypedValue)
 	if v := e.Value.V; v != nil {
 		stop = vis(v)
 	}

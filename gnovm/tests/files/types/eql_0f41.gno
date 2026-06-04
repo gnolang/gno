@@ -32,7 +32,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f41.gno:27:5-20: main.animal does not implement .uverse.error (missing method Error)
+// main/eql_0f41.gno:27:5-20: invalid operation: (mismatched types main.animal and .uverse.error)
 
 // TypeCheckError:
 // main/eql_0f41.gno:27:14: invalid operation: get() == errCmp (mismatched types animal and error)

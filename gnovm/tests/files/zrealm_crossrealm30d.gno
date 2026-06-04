@@ -6,7 +6,7 @@ package crossrealm
 // Unlike a,b,c, this file saves sb locally, but crosses into it(self).
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type StructA struct {
@@ -28,14 +28,14 @@ func init() {
 	sb = &StructB{}
 }
 
-func main() {
+func main(cur realm) {
 	sa := &StructA{}
-	sb.Set(cross, sa) // attach sa now.
+	sb.Set(cross(cur), sa) // attach sa now.
 
 	// If sa was attached to sb (this realm),
 	// it would not attach to crossrealm_b below,
 	// so we wouldn't be able to mutate it directly.
-	crossrealm_b.SetObject(cross, sb)
+	crossrealm_b.SetObject(cross(cur), sb)
 	sa.A = 1 // should succeed
 	if sa.A != 1 {
 		panic("expected sa.A to be 1")

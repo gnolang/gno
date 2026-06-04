@@ -34,7 +34,15 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./gno.land/...
+	go run ../gnovm/cmd/gno test -v ./... 2>&1 | tee /dev/stderr | grep -E '^(FAIL|--- FAIL)|\(type: \*[a-zA-Z._]*[Ee]rror' > /tmp/gno-test-failures; \
+	if [ -s /tmp/gno-test-failures ]; then \
+		echo ""; \
+		echo "========================================"; \
+		echo "FAILED TESTS / BUILD ERRORS:"; \
+		echo "========================================"; \
+		cat /tmp/gno-test-failures; \
+		exit 1; \
+	fi
 
 .PHONY: test.fast
 test.fast:
@@ -42,7 +50,7 @@ test.fast:
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno lint -v .
+	go run ../gnovm/cmd/gno lint -v ./...
 
 .PHONY: fix
 fix:
@@ -69,3 +77,7 @@ tidy:
 generate:
 	go generate ./...
 	$(MAKE) fmt
+
+.PHONY: embed_markdown
+embed_markdown:
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`

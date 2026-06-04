@@ -33,7 +33,9 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	require.NoError(t, err)
 
 	// Create parser context with the test URL
-	ctxOpts := parser.WithContext(NewGnoParserContext(gnourl))
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{
+		GnoURL: gnourl,
+	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
 		return !strings.HasPrefix(uri, "https://") // disallow https
@@ -62,6 +64,10 @@ func TestGnoExtension(t *testing.T) {
 	gold := NewGoldentTests(testGoldmarkOutput)
 	gold.Update = *update
 	gold.Recurse = true
+	// The sanitize subdir uses a 3-section txtar layout with `// MARKDOWNFUNC`
+	// directives, exercised by TestSanitizeIntegration (sanitize_integration_test.go).
+	// It does not fit this runner's simple input.md → output.html shape.
+	gold.SkipDirs = []string{"sanitize"}
 	gold.Run(t, testdataDir)
 }
 

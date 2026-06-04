@@ -1,15 +1,15 @@
 package main
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func inner() {
-	realm1 := std.CurrentRealm()
+	realm1 := unsafe.CurrentRealm()
 	println(realm1)
-	realm2 := std.PreviousRealm()
+	realm2 := unsafe.PreviousRealm()
 	println(realm2)
 }
 

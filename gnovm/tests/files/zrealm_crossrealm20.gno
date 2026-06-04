@@ -2,9 +2,9 @@
 package crossrealm
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct {
@@ -13,24 +13,24 @@ type fooer struct {
 
 func (f *fooer) Foo(cur realm) {
 	f.s = "Foo"
-	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
 }
 
 func (f *fooer) Bar() {
 	f.s = "Bar"
-	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
 }
 
 var f *fooer
 
-func init() {
+func init(cur realm) {
 	f = &fooer{s: "A"}
 	fg := func() crossrealm.Fooer { return f }
-	crossrealm.SetFooerGetter(cross, fg)
+	crossrealm.SetFooerGetter(cross(cur), fg)
 	f.s = "B"
-	crossrealm.CallFooerGetterFooCross(cross)
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "C"
-	crossrealm.CallFooerGetterFooCross(cross)
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "D"
 	crossrealm.CallFooerGetterBar()
 }

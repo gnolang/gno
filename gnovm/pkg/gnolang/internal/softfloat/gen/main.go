@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -24,9 +24,17 @@ func main() {
 	fmt.Println("Files processed successfully.")
 }
 
+var goroot = sync.OnceValue[string](func() string {
+	res, err := exec.Command("go", "env", "GOROOT").CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(string(res))
+})
+
 func processSoftFloat64File() {
 	// Read source file
-	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64.go", runtime.GOROOT()))
+	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64.go", goroot()))
 	if err != nil {
 		log.Fatal("Error reading source file:", err)
 	}
@@ -53,7 +61,7 @@ func processSoftFloat64File() {
 
 func processSoftFloat64TestFile() {
 	// Read source test file
-	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64_test.go", runtime.GOROOT()))
+	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64_test.go", goroot()))
 	if err != nil {
 		log.Fatal("Error reading source test file:", err)
 	}
@@ -84,6 +92,12 @@ func processSoftFloat64TestFile() {
 }
 
 func gitRoot() (string, error) {
+	// Try git rev-parse --show-toplevel first; this correctly handles git worktrees.
+	if out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// Fall back to walking up parent directories looking for a .git entry.
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err

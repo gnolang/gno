@@ -23,11 +23,15 @@ const (
 
 type seenValues struct {
 	values []Value
-	nc     int // nested counter, to limit recursivity
 }
 
-func (sv *seenValues) Put(v Value) {
+func (sv *seenValues) Put(v Value) bool {
+	if len(sv.values) >= nestedLimit {
+		return false
+	}
+
 	sv.values = append(sv.values, v)
+	return true
 }
 
 func (sv *seenValues) IndexOf(v Value) int {
@@ -55,7 +59,6 @@ func (sv *seenValues) Pop() {
 func newSeenValues() *seenValues {
 	return &seenValues{
 		values: make([]Value, 0, defaultSeenValuesSize),
-		nc:     nestedLimit,
 	}
 }
 
@@ -84,11 +87,10 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
-	seen.nc--
-	if seen.nc < 0 {
+	if !seen.Put(av) {
 		return "..."
 	}
-	seen.Put(av)
+
 	defer seen.Pop()
 
 	ss := make([]string, len(av.List))
@@ -124,7 +126,9 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
 
-	seen.Put(sv)
+	if !seen.Put(sv) {
+		return "..."
+	}
 	defer seen.Pop()
 
 	vbase := sv.Base.(*ArrayValue)
@@ -150,7 +154,9 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
-	seen.Put(pv)
+	if !seen.Put(pv) {
+		return "..."
+	}
 	defer seen.Pop()
 
 	// Handle nil TV's, avoiding a nil pointer deref below.
@@ -170,7 +176,9 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
-	seen.Put(sv)
+	if !seen.Put(sv) {
+		return "..."
+	}
 	defer seen.Pop()
 
 	ss := make([]string, len(sv.Fields))
@@ -223,7 +231,9 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
-	seen.Put(mv)
+	if !seen.Put(mv) {
+		return "..."
+	}
 	defer seen.Pop()
 
 	ss := make([]string, 0, mv.GetLength())
@@ -296,6 +306,11 @@ func (hiv *HeapItemValue) String() string {
 
 // ----------------------------------------
 // *TypedValue.Sprint
+
+// ImplError returns true if the TypedValue's type implements the error interface.
+func (tv *TypedValue) ImplError() bool {
+	return IsImplementedBy(gErrorType, tv.T)
+}
 
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
@@ -381,11 +396,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "typed-nil"
 		}
-		roPre, roPost := "", ""
-		if tv.IsReadonly() {
-			roPre, roPost = "readonly(", ")"
-		}
-		return roPre + tv.V.(PointerValue).ProtectedString(seen) + roPost
+		return tv.V.(PointerValue).ProtectedString(seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -418,17 +429,12 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
-		// Value may be N_Readonly
-		roPre, roPost := "", ""
-		if tv.IsReadonly() {
-			roPre, roPost = "readonly(", ")"
-		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return roPre + ps.ProtectedString(seen) + roPost
+			return ps.ProtectedString(seen)
 		} else if s, ok := tv.V.(fmt.Stringer); ok {
 			// *NativeType
-			return roPre + s.String() + roPost
+			return s.String()
 		}
 
 		if debug {

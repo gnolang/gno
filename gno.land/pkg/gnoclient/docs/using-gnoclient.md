@@ -224,7 +224,7 @@ import (
 ```
 
 ```go
-pkgpath := "gno.land/r/demo/wugnot"
+pkgpath := "gno.land/r/gnoland/wugnot"
 msg := vm.MsgCall{
     Caller:  addr,                                                    // address of the caller (signer)
     PkgPath: pkgpath,                                                 // wrapped ugnot realm path
@@ -336,7 +336,7 @@ func main() {
 		Memo:           "This is a cool how-to guide!", // transaction memo
 	}
 
-	pkgpath := "gno.land/r/demo/wugnot"
+	pkgpath := "gno.land/r/gnoland/wugnot"
 	msg := vm.MsgCall{
 		Caller:  address,                                                 // address of the caller (signer)
 		PkgPath: pkgpath,                                                 // wrapped ugnot realm path

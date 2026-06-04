@@ -1,13 +1,13 @@
 package main
 
-import "std"
+import "chain/params"
 
 func main() {
-	std.SetParamString("foo.string", "hello")
-	std.SetParamInt64("bar.int64", -12345)
-	std.SetParamUint64("baz.uint64", 12345)
-	std.SetParamBool("oof.bool", true)
-	std.SetParamBytes("rab.bytes", []byte("world"))
+	params.SetString("foo.string", "hello")
+	params.SetInt64("bar.int64", -12345)
+	params.SetUint64("baz.uint64", 12345)
+	params.SetBool("oof.bool", true)
+	params.SetBytes("rab.bytes", []byte("world"))
 	println("done")
 }
 

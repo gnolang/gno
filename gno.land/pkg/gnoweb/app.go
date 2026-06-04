@@ -1,12 +1,14 @@
 package gnoweb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -23,7 +25,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
 	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
 	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/gnoland/events", GnowebPath},
+	"/events":     {"/r/devrels/events", GnowebPath},
 	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
 	"/docs":       {"/u/docs", GnowebPath},
 }
@@ -36,6 +38,8 @@ type AppConfig struct {
 	Analytics bool
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
+	// NodeRequestTimeout define how much time a request to the remote node should live before timeout.
+	NodeRequestTimeout time.Duration
 	// RemoteHelp is the remote of the gno.land node, as used in the help page.
 	RemoteHelp string
 	// AssetsPath is the base path to the gnoweb assets.
@@ -48,6 +52,8 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+	// Banner, if set, displays a site-wide banner above the header.
+	Banner components.BannerData
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -60,12 +66,13 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:   localRemote, // local first
-		RemoteHelp:   localRemote,
-		AssetsPath:   "/public/",
-		Domain:       "gno.land",
-		Aliases:      DefaultAliases,
-		RenderConfig: NewDefaultRenderConfig(),
+		NodeRemote:         localRemote, // local first
+		RemoteHelp:         localRemote, // local first
+		NodeRequestTimeout: time.Minute,
+		AssetsPath:         "/public/",
+		Domain:             "gno.land",
+		Aliases:            DefaultAliases,
+		RenderConfig:       NewDefaultRenderConfig(),
 	}
 }
 
@@ -74,14 +81,16 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
-	// Initialize RPC Client
-	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote)
+	// Initialize RPC Client.
+	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
+		client.WithRequestTimeout(cfg.NodeRequestTimeout),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
 	if cfg.ChainID == "" {
-		cfg.ChainID, err = getChainID(rpcclient)
+		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
 			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
 			return nil, errors.New("no chain-id configured")
@@ -93,6 +102,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Setup StaticMetadata
 	chromaStylePath := path.Join(assetsBase, "_chroma", "style.css")
+
+	// Build time for cache busting
+	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
+
 	staticMeta := StaticMetadata{
 		Domain:     cfg.Domain,
 		AssetsPath: assetsBase,
@@ -100,6 +113,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		RemoteHelp: cfg.RemoteHelp,
 		ChainId:    cfg.ChainID,
 		Analytics:  cfg.Analytics,
+		BuildTime:  buildTime,
+		Banner:     cfg.Banner,
 	}
 
 	// Configure Markdown renderer
@@ -109,7 +124,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
 		))
 	}
-	renderer := NewHTMLRenderer(logger, rcfg)
+	renderer := NewHTMLRenderer(logger, rcfg, adpcli)
 
 	// Configure HTTPHandler
 	if cfg.Aliases == nil {
@@ -164,6 +179,12 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))
+
+	// Handle liveness check - service itself is up and running
+	mux.Handle("/liveness", handlerLivenessJSON(logger))
+
+	// Handle readiness check - service can communicate with RPC node and serve clients
+	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
 	return mux, nil
 }

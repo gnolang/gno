@@ -10,6 +10,7 @@ type MemIterator struct {
 	keys  []string
 	start []byte
 	end   []byte
+	err   error
 }
 
 var _ db.Iterator = (*MemIterator)(nil)
@@ -51,13 +52,22 @@ func (itr *MemIterator) Key() []byte {
 func (itr *MemIterator) Value() []byte {
 	itr.assertIsValid()
 	key := []byte(itr.keys[itr.cur])
-	return itr.db.Get(key)
+	v, err := itr.db.Get(key)
+	if err != nil {
+		itr.err = err
+	}
+	return v
+}
+
+func (itr *MemIterator) Error() error {
+	return itr.err
 }
 
 // Implements Iterator.
-func (itr *MemIterator) Close() {
+func (itr *MemIterator) Close() error {
 	itr.keys = nil
 	itr.db = nil
+	return nil
 }
 
 func (itr *MemIterator) assertIsValid() {

@@ -4,9 +4,7 @@ import (
 	"context"
 	"flag"
 	"path"
-	"path/filepath"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -16,20 +14,23 @@ type StagingAppConfig struct {
 }
 
 var defaultStagingOptions = AppConfig{
-	chainId:             "dev",
-	chainDomain:         DefaultDomain,
-	logFormat:           "json",
-	maxGas:              10_000_000_000,
-	webHome:             ":none:",
-	webListenerAddr:     "127.0.0.1:8888",
-	nodeRPCListenerAddr: "127.0.0.1:26657",
-	deployKey:           defaultDeployerAddress.String(),
-	home:                gnoenv.HomeDir(),
-	root:                gnoenv.RootDir(),
-	interactive:         false,
-	unsafeAPI:           false,
-	lazyLoader:          false,
-	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	chainId:                    "dev",
+	chainDomain:                DefaultDomain,
+	logFormat:                  "json",
+	maxGas:                     10_000_000_000,
+	webHome:                    ":none:",
+	webListenerAddr:            "127.0.0.1:8888",
+	nodeRPCListenerAddr:        "127.0.0.1:26657",
+	deployKey:                  defaultDeployerAddress.String(),
+	home:                       gnoenv.HomeDir(),
+	root:                       gnoenv.RootDir(),
+	interactive:                false,
+	unsafeAPI:                  false,
+	lazyLoader:                 false,
+	withoutQuarantinedExamples: true,
+	paths:                      path.Join(DefaultDomain, "/**"), // Load every package under the main domain
+	emptyBlocks:                false,
+	emptyBlocksInterval:        1,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -74,8 +75,7 @@ func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error 
 			return err
 		}
 
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
+		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, defaultBaseResolvers(gnoroot, cfg.AppConfig.withoutQuarantinedExamples)...)
 	}
 
 	return runApp(&cfg.AppConfig, io, args...)

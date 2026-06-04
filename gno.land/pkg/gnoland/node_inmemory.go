@@ -21,12 +21,12 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator           bft.PrivValidator // identity of the validator
-	Genesis                 *bft.GenesisDoc
-	TMConfig                *tmcfg.Config
-	DB                      db.DB     // will be initialized if nil
-	VMOutput                io.Writer // optional
-	SkipGenesisVerification bool
+	PrivValidator              bft.PrivValidator // identity of the validator
+	Genesis                    *bft.GenesisDoc
+	TMConfig                   *tmcfg.Config
+	DB                         db.DB     // will be initialized if nil
+	VMOutput                   io.Writer // optional
+	SkipGenesisSigVerification bool
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -54,10 +54,10 @@ func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 
 func defaultBlockParams() *abci.BlockParams {
 	return &abci.BlockParams{
-		MaxTxBytes:   1_000_000,     // 1MB,
-		MaxDataBytes: 2_000_000,     // 2MB,
-		MaxGas:       3_000_000_000, // 3B gas
-		TimeIotaMS:   100,           // 100ms
+		MaxTxBytes:   1_000_000,      // 1MB,
+		MaxDataBytes: 2_000_000,      // 2MB,
+		MaxGas:       30_000_000_000, // 30B gas (calibrated for LMDB 59K per read)
+		TimeIotaMS:   100,            // 100ms
 	}
 }
 
@@ -107,12 +107,12 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                  logger,
-		DB:                      cfg.DB,
-		EventSwitch:             evsw,
-		InitChainerConfig:       cfg.InitChainerConfig,
-		VMOutput:                cfg.VMOutput,
-		SkipGenesisVerification: cfg.SkipGenesisVerification,
+		Logger:                     logger,
+		DB:                         cfg.DB,
+		EventSwitch:                evsw,
+		InitChainerConfig:          cfg.InitChainerConfig,
+		VMOutput:                   cfg.VMOutput,
+		SkipGenesisSigVerification: cfg.SkipGenesisSigVerification,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)

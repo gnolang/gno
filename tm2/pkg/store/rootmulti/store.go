@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
-	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 
@@ -32,6 +31,13 @@ type multiStore struct {
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
 	keysByName   map[string]types.StoreKey
+
+	// initialVersion, when > 0 and lastCommitID.Version == 0, is the version
+	// the next Commit() will produce. Set once via SetInitialVersion (called
+	// from BaseApp.InitChain when GenesisDoc.InitialHeight > 1) and consumed
+	// on the first Commit; not persisted (after the first commit,
+	// lastCommitID.Version is the source of truth).
+	initialVersion int64
 }
 
 var (
@@ -59,11 +65,6 @@ func (ms *multiStore) SetStoreOptions(opts types.StoreOptions) {
 	for _, store := range ms.stores {
 		store.SetStoreOptions(opts)
 	}
-}
-
-// SetLazyLoad sets if the store should be loaded lazily or not
-func (ms *multiStore) SetLazyLoad(lazyLoad bool) {
-	ms.storeOpts.LazyLoad = lazyLoad
 }
 
 // Implements CommitMultiStore.
@@ -112,9 +113,14 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			if err != nil {
 				return errors.New("failed to load Store version %d: %v", ver, err)
 			}
-			if !store.LastCommitID().IsZero() {
-				return errors.New("failed to load Store: non-empty CommitID for zero state")
-			}
+			// NOTE(tb): tm2/iavl used to return empty hash for empty tree, but this
+			// is no longer the case for cosmos/iavl, since this change:
+			// https://github.com/cosmos/iavl/pull/304
+			// For that reason, the following check is commented as no longer
+			// relevant.
+			// if !store.LastCommitID().IsZero() {
+			// return errors.New("failed to load Store: non-empty CommitID for zero state")
+			// }
 			newStores[key] = store
 		}
 		ms.stores = newStores
@@ -174,8 +180,15 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) Commit() types.CommitID {
-	// Commit stores.
-	version := ms.lastCommitID.Version + 1
+	// Commit stores. For hardfork chains (InitialHeight > 1), the first commit
+	// must land at the chain's InitialHeight so multistore version equals
+	// real chain height. Subsequent commits auto-increment.
+	var version int64
+	if ms.lastCommitID.Version == 0 && ms.initialVersion > 0 {
+		version = ms.initialVersion
+	} else {
+		version = ms.lastCommitID.Version + 1
+	}
 	commitInfo := commitStores(version, ms.stores)
 
 	// Need to update atomically.
@@ -192,6 +205,27 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	ms.lastCommitID = commitID
 	return commitID
+}
+
+// SetInitialVersion records the version the next Commit() should produce
+// when the multistore is empty, and propagates it to substores that
+// implement types.InitialVersionSetter (e.g. iavl). Stores that don't
+// merkleize (e.g. dbadapter) are silently skipped.
+//
+// Must be called AFTER LoadLatestVersion (or LoadVersion) has populated
+// ms.stores. BaseApp.InitChain is the canonical caller, which runs after
+// LoadLatestVersion as part of normal startup. Implements
+// types.InitialVersionSetter.
+func (ms *multiStore) SetInitialVersion(v int64) {
+	if len(ms.stores) == 0 {
+		panic("rootmulti: SetInitialVersion called before LoadLatestVersion")
+	}
+	ms.initialVersion = v
+	for _, store := range ms.stores {
+		if setter, ok := store.(types.InitialVersionSetter); ok {
+			setter.SetInitialVersion(v)
+		}
+	}
 }
 
 // ----------------------------------------
@@ -292,7 +326,8 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	if !req.Prove {
 		return res
-	} else if res.Proof == nil || len(res.Proof.Ops) == 0 {
+	}
+	if res.Proof == nil || len(res.Proof.Ops) == 0 {
 		res.Error = serrors.ErrInternal("proof is unexpectedly empty; ensure height has not been pruned")
 		return
 	}
@@ -303,11 +338,14 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return
 	}
 
-	// Restore origin path and append proof op.
-	res.Proof.Ops = append(res.Proof.Ops, NewMultiStoreProofOp(
-		[]byte(storeName),
-		NewMultiStoreProof(commitInfo.StoreInfos),
-	).ProofOp())
+	proofOp, errMsg := types.ProofOpFromMap(commitInfo.toMap(), storeName)
+	if errMsg != nil {
+		res.Error = serrors.ErrInternal(errMsg.Error())
+		return
+	}
+
+	// Append proof op.
+	res.Proof.Ops = append(res.Proof.Ops, proofOp)
 
 	// TODO: handle in another TM v0.26 update PR
 	// res.Proof = buildMultiStoreProof(res.Proof, storeName, commitInfo.StoreInfos)
@@ -381,15 +419,18 @@ type commitInfo struct {
 	StoreInfos []storeInfo
 }
 
+func (ci commitInfo) toMap() map[string][]byte {
+	m := make(map[string][]byte, len(ci.StoreInfos))
+	for _, storeInfo := range ci.StoreInfos {
+		m[storeInfo.Name] = storeInfo.GetHash()
+	}
+	return m
+}
+
 // Hash returns the simple merkle root hash of the stores sorted by name.
 func (ci commitInfo) Hash() []byte {
 	// TODO: cache to ci.hash []byte
-	m := make(map[string][]byte, len(ci.StoreInfos))
-	for _, storeInfo := range ci.StoreInfos {
-		m[storeInfo.Name] = storeInfo.Hash()
-	}
-
-	return merkle.SimpleHashFromMap(m)
+	return merkle.SimpleHashFromMap(ci.toMap())
 }
 
 func (ci commitInfo) CommitID() types.CommitID {
@@ -416,20 +457,12 @@ type storeCore struct {
 	// ... maybe add more state
 }
 
-// Implements merkle.Hasher.
-func (si storeInfo) Hash() []byte {
-	// Doesn't write Name, since merkle.SimpleHashFromMap() will
-	// include them via the keys.
-	bz := si.Core.CommitID.Hash
-	hasher := tmhash.New()
-
-	_, err := hasher.Write(bz)
-	if err != nil {
-		// TODO: Handle with #870
-		panic(err)
-	}
-
-	return hasher.Sum(nil)
+func (si storeInfo) GetHash() []byte {
+	// NOTE(tb): ics23 compatibility: return the commit hash and not the hash
+	// of the commit hash.
+	// See similar change in SDK https://github.com/cosmos/cosmos-sdk/pull/6323
+	// Problem: this causes app hash mismatch when upgrading from an existing store.
+	return si.Core.CommitID.Hash
 }
 
 // ----------------------------------------
@@ -437,13 +470,15 @@ func (si storeInfo) Hash() []byte {
 
 func getLatestVersion(db dbm.DB) int64 {
 	var latest int64
-	latestBytes := db.Get([]byte(latestVersionKey))
+	latestBytes, err := db.Get([]byte(latestVersionKey))
+	if err != nil {
+		panic(err)
+	}
 	if latestBytes == nil {
 		return 0
 	}
 
-	err := amino.UnmarshalSized(latestBytes, &latest)
-	if err != nil {
+	if err := amino.UnmarshalSized(latestBytes, &latest); err != nil {
 		panic(err)
 	}
 
@@ -464,7 +499,7 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 		// Commit
 		commitID := store.Commit()
 		/* Print all items.
-		itr := store.Iterator(nil, nil)
+		itr := store.Iterator(nil, nil, nil)
 		for ; itr.Valid(); itr.Next() {
 			k, v := itr.Key(), itr.Value()
 			fmt.Println("STORE ENTRY",
@@ -492,15 +527,17 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
-	cInfoBytes := db.Get([]byte(cInfoKey))
+	cInfoBytes, err := db.Get([]byte(cInfoKey))
+	if err != nil {
+		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
+	}
 	if cInfoBytes == nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")
 	}
 
 	var cInfo commitInfo
 
-	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
-	if err != nil {
+	if err := amino.UnmarshalSized(cInfoBytes, &cInfo); err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}
 

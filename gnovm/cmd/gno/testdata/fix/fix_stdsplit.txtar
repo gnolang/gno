@@ -1,0 +1,24 @@
+# sample stdsplit execution of `gno fix`
+
+gno fix -fix stdsplit main.gno
+cmp main.gno main.gno.golden
+cmp stdout empty
+cmp stderr empty
+
+-- main.gno --
+package main
+
+import "std"
+
+func main() {
+	addr := std.Coin{}
+}
+-- main.gno.golden --
+package main
+
+import "chain"
+
+func main() {
+	addr := chain.Coin{}
+}
+-- empty --

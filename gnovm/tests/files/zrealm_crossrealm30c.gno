@@ -8,7 +8,7 @@ package crossrealm
 // `return` calls doOpReturnFromBlock.
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type StructA struct {
@@ -29,10 +29,10 @@ func (sb *StructB) Set(sa *StructA) (r struct{}) { // <-- the named result names
 	return struct{}{}
 }
 
-func init() {
+func init(cur realm) {
 	// save StructB{} in crossrealm_b.
 	sb := &StructB{}
-	crossrealm_b.SetObject(cross, sb)
+	crossrealm_b.SetObject(cross(cur), sb)
 }
 
 func main() {
@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): sa<VPBlock(1,1)>.A
+// sa.A should not be mutable; it should be attached to crossrealm_b.

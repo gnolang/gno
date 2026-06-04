@@ -18,7 +18,7 @@ SUBCOMMANDS
   clean    remove generated and cached data
   doc      show documentation for package or symbol
   env      print gno environment information
-  fix      runs the fixer for the specified packages
+  fix      update and fix old gno source files
   fmt      gnofmt (reformat) package sources
   list     lists the named packages
   lint     runs the linter for the specified packages
@@ -28,6 +28,9 @@ SUBCOMMANDS
   test     test packages
   tool     run specified gno tool
   version  display installed gno version
+
+FLAGS
+  -C ...  change to directory before running command
 
 ```
 
@@ -39,7 +42,7 @@ Or
 
     > git clone git@github.com:gnolang/gno.git
     > cd ./gno
-    > make install_gno
+    > make install.gno
 
 ## Getting started
 

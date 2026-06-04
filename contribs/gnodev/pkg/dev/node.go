@@ -152,7 +152,6 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	devnode := &Node{
 		loader:            cfg.Loader,
 		config:            cfg,
-		client:            client.NewLocal(),
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,
@@ -169,6 +168,13 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	}
 
 	return devnode, nil
+}
+
+func (n *Node) Paths() []string {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.paths
 }
 
 func (n *Node) Close() error {
@@ -228,24 +234,24 @@ func (n *Node) HasPackageLoaded(path string) bool {
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any.
-func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
+func (n *Node) GetBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
-	return n.getBlockTransactions(blockNum)
+	return n.getBlockTransactions(ctx, blockNum)
 }
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any.
-func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
+func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
-	b, err := n.client.Block(&int64BlockNum)
+	b, err := n.client.Block(ctx, &int64BlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
 	}
 	txs := b.Block.Data.Txs
 
-	bres, err := n.client.BlockResults(&int64BlockNum)
+	bres, err := n.client.BlockResults(ctx, &int64BlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
 	}
@@ -373,7 +379,7 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 	}
 
 	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := n.client.BroadcastTxCommit(aminoTx)
+	res, err := n.client.BroadcastTxCommit(context.Background(), aminoTx)
 	if err != nil {
 		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
 	}
@@ -407,7 +413,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 		default:
 		}
 
-		txs, txErr := n.getBlockTransactions(blocnum)
+		txs, txErr := n.getBlockTransactions(ctx, blocnum)
 		if txErr != nil {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
@@ -575,7 +581,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 	// Genesis verification is always false with Gnodev
-	nodeConfig.SkipGenesisVerification = true
+	nodeConfig.SkipGenesisSigVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
@@ -597,7 +603,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// XXX: Redirect the node log somewhere else
 	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
 	if nodeErr != nil {
-		return fmt.Errorf("unable to create a new node: %w", err)
+		return fmt.Errorf("unable to create a new node: %w", nodeErr)
 	}
 
 	node.EventSwitch().AddListener("dev-emitter", n.handleEventTX)
@@ -610,6 +616,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	select {
 	case <-node.Ready(): // Ok
 		n.Node = node
+		n.client = client.NewLocal(node.RPCEnvironment())
 	case <-ctx.Done():
 		return ctx.Err()
 	}

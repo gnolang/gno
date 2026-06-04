@@ -22,7 +22,7 @@ Stay updated and connected with the Gno.land community:
 
 - [Twitter/X](https://twitter.com/_gnoland) - Latest announcements and updates
 - [GitHub](https://github.com/gnolang) - Repositories for all Gno.land projects
-- [Forum](https://gno.land/r/demo/boards/) - Long-form discussions and proposals
+- [Forum](https://gno.land/r/gnoland/boards2/v1) - Long-form discussions and proposals
 
 ## Tools
 
@@ -30,6 +30,7 @@ Power up your Gno.land journey with these tools:
 
 - [Gno Studio](https://gno.studio/) - Web IDE for Gno development
   - [Gno Studio Connect](https://gno.studio/connect) - Interact with any Gno.land app with a web wallet
+- [Editor Setup](../builders/editor-setup.md) - Configure your editor with LSP support
 - [Gno Playground](https://play.gno.land/) - Try Gno code in your browser
 - [Faucet Hub](https://faucet.gno.land/) - Get testnet tokens
 

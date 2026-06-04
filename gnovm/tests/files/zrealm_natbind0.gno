@@ -1,14 +1,12 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 var node any
 
 func init() {
-	node = std.ChainHeight
+	node = runtime.ChainHeight
 }
 
 func main(cur realm) {
@@ -17,7 +15,7 @@ func main(cur realm) {
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.ChainID
+	node = runtime.ChainID
 	g := node.(func() string)
 	println(g())
 }
@@ -28,8 +26,8 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
-//     @@ -17,7 +17,7 @@
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](-2)=
+//     @@ -17,15 +17,15 @@
 //                          "Tag": "",
 //                          "Type": {
 //                              "@type": "/gno.PrimitiveType",
@@ -38,37 +36,23 @@ func main(cur realm) {
 //                          }
 //                      }
 //                  ]
-//     @@ -25,7 +25,7 @@
+//              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//                  "Escaped": true,
-//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:44"
-//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:41"
+//     -            "Hash": "34cd2ba539cb8490b2304a329a3f44edd89d0425",
+//     -            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:10"
+//     +            "Hash": "979adacee58d2714ae2a70c8d2e6b38d715321dc",
+//     +            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:7"
 //              }
 //          }
 //      }
-// u[a7f5397443359ea76c50be82c77f1f893a060925:41](7)=
-//     @@ -8,10 +8,11 @@
-//          "NativePkg": "std",
-//          "ObjectInfo": {
-//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:41",
-//     +        "IsEscaped": true,
-//              "LastObjectSize": "429",
-//     -        "ModTime": "0",
-//     +        "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
-//     -        "RefCount": "1"
-//     +        "RefCount": "2"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
-// u[a7f5397443359ea76c50be82c77f1f893a060925:44](0)=
-//     @@ -12,7 +12,7 @@
-//              "LastObjectSize": "445",
-//              "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
-//     -        "RefCount": "2"
-//     +        "RefCount": "1"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "aa1778bedd085a52f08a1834556286316a3f97cf",
+//     +                "Hash": "d1bc5077a7e598bcefa531b2e3d30812765544be",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

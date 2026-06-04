@@ -18,6 +18,7 @@ import (
 	_ "mvdan.cc/gofumpt"
 
 	// protoc, genproto
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 
 	// gen docs
@@ -28,4 +29,7 @@ import (
 
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
+
+	// required to generate mocks (see `make mocks`)
+	_ "github.com/golang/mock/mockgen"
 )

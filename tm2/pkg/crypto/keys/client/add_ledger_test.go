@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -71,8 +72,11 @@ func TestAdd_Ledger(t *testing.T) {
 		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFn()
 
+		mockOut := bytes.NewBufferString("")
+
 		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader("test1234\ntest1234\n"))
+		io.SetOut(commands.WriteNopCloser(mockOut))
 
 		// Create the command
 		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
@@ -96,10 +100,16 @@ func TestAdd_Ledger(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, original)
 
+		mockOut.Reset()
 		io.SetIn(strings.NewReader("y\ntest1234\ntest1234\n"))
 
 		cmd = NewRootCmdWithBaseConfig(io, baseOptions)
 		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Verify the output contains diff-style collision info
+		output := mockOut.String()
+		assert.Contains(t, output, "Key collision detected:")
+		assert.Contains(t, output, original.GetAddress().String())
 
 		newKey, err := kb.GetByName(keyName)
 		require.NoError(t, err)

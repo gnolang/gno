@@ -33,10 +33,10 @@ func main() {
 -- hello_test.gno --
 package main
 
-import "std"
+import "chain/runtime"
 
 func hello() {
-	std.ChainID()
+	runtime.ChainID()
 }
 
 -- main.gno.gen.go.golden --
@@ -58,8 +58,8 @@ func main() {
 //line hello_test.gno:1:1
 package main
 
-import "github.com/gnolang/gno/gnovm/stdlibs/std"
+import "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime"
 
 func hello() {
-	std.ChainID(nil)
+	runtime.ChainID(nil)
 }

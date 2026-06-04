@@ -9,7 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	testing "testing/base"
+	"testing"
 )
 
 type encDecTest struct {

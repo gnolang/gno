@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/crossrealm_e"
+gno = "0.9"

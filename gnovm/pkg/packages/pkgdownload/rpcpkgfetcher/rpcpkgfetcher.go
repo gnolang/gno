@@ -3,6 +3,7 @@
 package rpcpkgfetcher
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -77,7 +78,7 @@ func qfile(c client.Client, pkgPath string) ([]byte, error) {
 	path := "vm/qfile"
 	data := []byte(pkgPath)
 
-	qres, err := c.ABCIQuery(path, data)
+	qres, err := c.ABCIQuery(context.Background(), path, data)
 	if err != nil {
 		return nil, fmt.Errorf("query qfile: %w", err)
 	}

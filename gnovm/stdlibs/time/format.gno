@@ -509,32 +509,7 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // representation, use t.MarshalText, t.MarshalBinary, or t.Format
 // with an explicit format string.
 func (t Time) String() string {
-	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
-
-	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
-	if t.wall&hasMonotonic != 0 {
-		m2 := uint64(t.ext)
-		sign := byte('+')
-		if t.ext < 0 {
-			sign = '-'
-			m2 = -m2
-		}
-		m1, m2 := m2/1e9, m2%1e9
-		m0, m1 := m1/1e9, m1%1e9
-		buf := make([]byte, 0, 24)
-		buf = append(buf, " m="...)
-		buf = append(buf, sign)
-		wid := 0
-		if m0 != 0 {
-			buf = appendInt(buf, int(m0), 0)
-			wid = 9
-		}
-		buf = appendInt(buf, int(m1), wid)
-		buf = append(buf, '.')
-		buf = appendInt(buf, int(m2), 9)
-		s += string(buf)
-	}
-	return s
+	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 }
 
 // GoString implements fmt.GoStringer and formats t to be printed in Go source

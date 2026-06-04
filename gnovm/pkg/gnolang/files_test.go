@@ -106,7 +106,7 @@ func TestFiles(t *testing.T) {
 				t.Parallel()
 				opts = newOpts()
 			}
-			changed, err := opts.RunFiletest(path, content, opts.TestStore)
+			changed, _, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
 				t.Fatal(err.Error())
 			}

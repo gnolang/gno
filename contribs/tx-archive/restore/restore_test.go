@@ -31,7 +31,7 @@ func TestRestore_ExecuteRestore(t *testing.T) {
 		sentTxs = make([]*std.Tx, 0)
 
 		mockClient = &mockClient{
-			sendTransactionFn: func(tx *std.Tx) error {
+			sendTransactionFn: func(_ context.Context, tx *std.Tx) error {
 				sentTxs = append(sentTxs, tx)
 
 				return nil
@@ -85,7 +85,7 @@ func TestRestore_ExecuteRestore_Watch(t *testing.T) {
 		sentTxs = make([]*std.Tx, 0)
 
 		mockClient = &mockClient{
-			sendTransactionFn: func(tx *std.Tx) error {
+			sendTransactionFn: func(_ context.Context, tx *std.Tx) error {
 				sentTxs = append(sentTxs, tx)
 
 				return nil

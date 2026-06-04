@@ -122,7 +122,7 @@ func TestRPCClient_Status(t *testing.T) {
 		verifyFn = func(t *testing.T, params map[string]any) {
 			t.Helper()
 
-			assert.Len(t, params, 0)
+			assert.Len(t, params, 1)
 		}
 
 		mockClient = generateMockRequestClient(
@@ -137,7 +137,7 @@ func TestRPCClient_Status(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the status
-	status, err := c.Status()
+	status, err := c.Status(context.Background(), nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedStatus, status)
@@ -171,7 +171,7 @@ func TestRPCClient_ABCIInfo(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the info
-	info, err := c.ABCIInfo()
+	info, err := c.ABCIInfo(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedInfo, info)
@@ -212,7 +212,7 @@ func TestRPCClient_ABCIQuery(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the query
-	query, err := c.ABCIQuery(path, data)
+	query, err := c.ABCIQuery(context.Background(), path, data)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedQuery, query)
@@ -246,7 +246,7 @@ func TestRPCClient_BroadcastTxCommit(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the broadcast
-	txCommit, err := c.BroadcastTxCommit(tx)
+	txCommit, err := c.BroadcastTxCommit(context.Background(), tx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedTxCommit, txCommit)
@@ -280,7 +280,7 @@ func TestRPCClient_BroadcastTxAsync(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the broadcast
-	txAsync, err := c.BroadcastTxAsync(tx)
+	txAsync, err := c.BroadcastTxAsync(context.Background(), tx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedTxBroadcast, txAsync)
@@ -314,7 +314,7 @@ func TestRPCClient_BroadcastTxSync(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the broadcast
-	txSync, err := c.BroadcastTxSync(tx)
+	txSync, err := c.BroadcastTxSync(context.Background(), tx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedTxBroadcast, txSync)
@@ -348,7 +348,7 @@ func TestRPCClient_UnconfirmedTxs(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.UnconfirmedTxs(limit)
+	result, err := c.UnconfirmedTxs(context.Background(), limit)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -380,7 +380,7 @@ func TestRPCClient_NumUnconfirmedTxs(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.NumUnconfirmedTxs()
+	result, err := c.NumUnconfirmedTxs(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -412,7 +412,7 @@ func TestRPCClient_NetInfo(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.NetInfo()
+	result, err := c.NetInfo(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -446,7 +446,7 @@ func TestRPCClient_DumpConsensusState(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.DumpConsensusState()
+	result, err := c.DumpConsensusState(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -480,7 +480,7 @@ func TestRPCClient_ConsensusState(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.ConsensusState()
+	result, err := c.ConsensusState(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -514,7 +514,7 @@ func TestRPCClient_ConsensusParams(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.ConsensusParams(&blockHeight)
+	result, err := c.ConsensusParams(context.Background(), &blockHeight)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -544,7 +544,7 @@ func TestRPCClient_Health(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Health()
+	result, err := c.Health(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -580,7 +580,7 @@ func TestRPCClient_BlockchainInfo(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.BlockchainInfo(minHeight, maxHeight)
+	result, err := c.BlockchainInfo(context.Background(), minHeight, maxHeight)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -614,7 +614,7 @@ func TestRPCClient_Genesis(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Genesis()
+	result, err := c.Genesis(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -652,7 +652,7 @@ func TestRPCClient_Block(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Block(&height)
+	result, err := c.Block(context.Background(), &height)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -686,7 +686,7 @@ func TestRPCClient_BlockResults(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.BlockResults(&height)
+	result, err := c.BlockResults(context.Background(), &height)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -720,7 +720,7 @@ func TestRPCClient_Commit(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Commit(&height)
+	result, err := c.Commit(context.Background(), &height)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -755,7 +755,7 @@ func TestRPCClient_Tx(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Tx(hash)
+	result, err := c.Tx(context.Background(), hash)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
@@ -789,7 +789,7 @@ func TestRPCClient_Validators(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the result
-	result, err := c.Validators(&height)
+	result, err := c.Validators(context.Background(), &height)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)

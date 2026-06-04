@@ -3,7 +3,7 @@ package expect
 import (
 	"strconv"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewFloatChecker creates a new checker of float64 values.

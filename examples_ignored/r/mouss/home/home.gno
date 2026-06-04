@@ -28,7 +28,7 @@ type Profile struct {
 type Recipe struct {
 	Name         string
 	Origin       string
-	Author       std.Address
+	Author       address
 	Ingredients  string
 	Instructions string
 	Tips         string
@@ -38,7 +38,7 @@ const (
 	realmURL = "/r/mouss/home"
 	rec      = realmURL + ":recipe/"
 	gnoArt   = `
-        -==++.                                                                  
+        -==++.
 	     *@@@@=                                     @-                          -@
 	    #@@@@@:       -==-.-- :-::===:   .-++-.     @-   .===:.- .-.-==-   .===:=@
        #@@@@@@@:    -@@%**%@@ #@@#*#@@- *@@**@@*    @-  +%=::-*@ +@=-:-@* +%=::-*@
@@ -46,8 +46,8 @@ const (
       -:       -    *@%:..+@@ *@+   #@=-@@:  :@@=   @- .@=    =@ +@    *%.@=    =@
       --:==+=-:=.    =%@%#*@@ *@+   #@+ =%@%%@%= #* %#=.:%*===*@ +%    +% -%*===*@
       -++++=++++.    =-:::*@#  .     .    .::.   ..  ::   .::  .  .         .::  .
-       .-=+++=:     .*###%#=                                                      
-	      ::                                                                      
+       .-=+++=:     .*###%#=
+	      ::
 `
 )
 
@@ -143,7 +143,6 @@ func Follow() error {
 		return nil
 	}
 	return ufmt.Errorf("you are already following")
-
 }
 
 // Unfollow allows a user to unfollow my home page.

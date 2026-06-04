@@ -74,6 +74,9 @@ func unarmorBytes(armorStr, blockType string) (bz []byte, err error) {
 
 // Encrypt and armor the private key.
 func EncryptArmorPrivKey(privKey crypto.PrivKey, passphrase string) string {
+	if passphrase == "" {
+		return ArmorPrivateKey(privKey)
+	}
 	saltBytes, encBytes := encryptPrivKey(privKey, passphrase)
 	header := map[string]string{
 		"kdf":  "bcrypt",
@@ -106,6 +109,10 @@ func UnarmorDecryptPrivKey(armorStr string, passphrase string) (crypto.PrivKey, 
 	}
 	if blockType != blockTypePrivKey {
 		return privKey, fmt.Errorf("unrecognized armor type: %v", blockType)
+	}
+	// Same as UnarmorPrivateKey
+	if len(header) == 0 && passphrase == "" {
+		return crypto.PrivKeyFromBytes(encBytes)
 	}
 	if header["kdf"] != "bcrypt" {
 		return privKey, fmt.Errorf("unrecognized KDF type: %v", header["KDF"])

@@ -14,7 +14,7 @@ import (
 const (
 	// persist validators every valSetCheckpointInterval blocks to avoid
 	// LoadValidators taking too much time.
-	// https://github.com/tendermint/classic/pull/3438
+	// https://github.com/tendermint/tendermint/pull/3438
 	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators)
 	valSetCheckpointInterval = 100000
 )
@@ -80,18 +80,20 @@ func LoadState(db dbm.DB) State {
 }
 
 func loadState(db dbm.DB, key []byte) (state State) {
-	buf := db.Get(key)
+	buf, err := db.Get(key)
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return state
 	}
 
-	err := amino.Unmarshal(buf, &state)
+	err = amino.Unmarshal(buf, &state)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return state
 }
@@ -104,17 +106,31 @@ func SaveState(db dbm.DB, state State) {
 
 func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
-	// If first block, save validators for block 1.
-	if nextHeight == 1 {
+	// Defensive guard: a state with LastBlockHeight in the open interval
+	// (0, InitialHeight-1) is invalid for hardfork chains. nextHeight==1 is
+	// the legitimate fresh state pre-fix-a (LoadStateFromDBOrGenesisDoc
+	// saves the genesis state before the handshaker hoists
+	// LastBlockHeight to InitialHeight-1).
+	if nextHeight > 1 && nextHeight < state.InitialHeight {
+		panic(fmt.Sprintf("saveState: nextHeight %d in invalid range (1, state.InitialHeight=%d)", nextHeight, state.InitialHeight))
+	}
+	// If first block (standard genesis at InitialHeight==1 or hardfork at
+	// InitialHeight>1), save the full validator set and consensus params at
+	// nextHeight. This is needed so that LoadValidators/LoadConsensusParams
+	// can find the data when processing the first real block.
+	if nextHeight == state.InitialHeight {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
-		lastHeightVoteChanged := int64(1)
-		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
+		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)
+		// Save full consensus params (not just a reference) by setting
+		// changeHeight == nextHeight.
+		saveConsensusParamsInfo(db, nextHeight, nextHeight, state.ConsensusParams)
+	} else {
+		// Save next consensus params (may be just a reference if unchanged).
+		saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	}
 	// Save next validators.
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
-	// Save next consensus params.
-	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.SetSync(key, state.Bytes())
 }
 
@@ -160,19 +176,21 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 // This is useful for recovering from crashes where we called app.Commit and before we called
 // s.Save(). It can also be used to produce Merkle proofs of the result of txs.
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
-	buf := db.Get(CalcABCIResponsesKey(height))
+	buf, err := db.Get(CalcABCIResponsesKey(height))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting abci response: %w", err)
+	}
 	if buf == nil {
 		return nil, NoABCIResponsesForHeightError{height}
 	}
 
 	abciResponses := new(ABCIResponses)
-	err := amino.Unmarshal(buf, abciResponses)
+	err = amino.Unmarshal(buf, abciResponses)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return abciResponses, nil
 }
@@ -198,7 +216,10 @@ func (t *TxResultIndex) Bytes() []byte {
 // LoadTxResultIndex loads the tx result associated with the given
 // tx hash from the database, if any
 func LoadTxResultIndex(db dbm.DB, txHash []byte) (*TxResultIndex, error) {
-	buf := db.Get(CalcTxResultKey(txHash))
+	buf, err := db.Get(CalcTxResultKey(txHash))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting tx result: %w", err)
+	}
 	if buf == nil {
 		return nil, NoTxResultForHashError{txHash}
 	}
@@ -244,7 +265,7 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 			// release and just panic. Old chains might panic otherwise if they
 			// haven't saved validators at intermediate (%valSetCheckpointInterval)
 			// height yet.
-			// https://github.com/tendermint/classic/issues/3543
+			// https://github.com/tendermint/tendermint/issues/3543
 			valInfo2 = loadValidatorsInfo(db, valInfo.LastHeightChanged)
 			lastStoredHeight = valInfo.LastHeightChanged
 			if valInfo2 == nil || valInfo2.ValidatorSet == nil {
@@ -270,19 +291,21 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
 func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
-	buf := db.Get(calcValidatorsKey(height))
+	buf, err := db.Get(calcValidatorsKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return nil
 	}
 
 	v := new(ValidatorsInfo)
-	err := amino.Unmarshal(buf, v)
+	err = amino.Unmarshal(buf, v)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return v
 }
@@ -347,19 +370,21 @@ func LoadConsensusParams(db dbm.DB, height int64) (abci.ConsensusParams, error) 
 }
 
 func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
-	buf := db.Get(calcConsensusParamsKey(height))
+	buf, err := db.Get(calcConsensusParamsKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return nil
 	}
 
 	paramsInfo := new(ConsensusParamsInfo)
-	err := amino.Unmarshal(buf, paramsInfo)
+	err = amino.Unmarshal(buf, paramsInfo)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return paramsInfo
 }
