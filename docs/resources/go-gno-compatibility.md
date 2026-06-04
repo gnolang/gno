@@ -341,7 +341,8 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 | `chain/banker`           | Realm coin management (mint, burn, transfer, balance queries).                                  |
 | `chain/markdown`         | Markdown escaping/sanitizing (`EscapeInline`, `CodeFence`, `StripBidiAndZeroWidth`, …).         |
 | `chain/params`           | Realm-local parameter setters (`SetString`, `SetBool`, `SetInt64`, …, `UpdateParamStrings`).    |
-| `chain/runtime`          | Runtime context accessors (`PreviousRealm`, current realm, height, …).                          |
+| `chain/runtime`          | Chain context and the `Realm` type (`ChainHeight`, `AssertOriginCall`, `IsUserCall`, …).        |
+| `chain/runtime/unsafe`   | Caller/origin primitives (`PreviousRealm`, `CurrentRealm`, `OriginCaller`, `OriginSend`).       |
 | `crypto/bech32`          | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).                         |
 | `crypto/bn254`           | BN254 pairing-friendly curve ops (`G1Add`, `G1Mul`, `PairingCheck`).                            |
 | `crypto/chacha20`        | ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                                           |
