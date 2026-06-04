@@ -845,7 +845,6 @@ func (m *Machine) doOpIfCond() {
 	}
 }
 
-
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
