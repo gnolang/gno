@@ -600,23 +600,13 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 }
 
 func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
-	// The map size is an advisory hint. Negative is silently clamped to
-	// 0 (matches Go's makemap). Two layered bounds on positive hints:
-	//
-	//   1. maxMapHint (~1.15e17) — pre-empted here with an explicit
-	//      "size out of range" panic. Without it, AllocateMap's
-	//      `overflow.Mulp` would panic first with the internal
-	//      "multiplication overflow" message; we panic with the
-	//      language-level idiom instead.
-	//
-	//   2. alloc.maxBytes — caught downstream by Allocate as
-	//      "allocation limit exceeded"; covers hints that pass bound 1
-	//      but still exceed the per-tx allocation budget.
-	if size < 0 {
+	// Mirror Go's makemap: the hint is advisory. Negative or large
+	// enough to overflow the allocator size math is silently treated
+	// as 0. The realistic over-budget range is still caught at
+	// insertion time by AllocateMapItem → Allocate ("allocation limit
+	// exceeded").
+	if size < 0 || int64(size) > maxMapHint {
 		size = 0
-	}
-	if int64(size) > maxMapHint {
-		panic("runtime error: makemap: size out of range")
 	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
