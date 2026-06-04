@@ -79,10 +79,7 @@ UI - Run (maketx run) scratchpad
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="run-dry-run-cmd" class="btn-copy"
           aria-label="Copy Command">
-          <svg class="c-icon">
-            <use href="#ico-copy" data-copy-target="icon"></use>
-            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
-          </svg>
+          {{ template "ui/copy" }}
         </button>
         <pre><code><span class="u-font-mono" data-copy-target="run-dry-run-cmd" data-run-target="dryRunCmd"></span></code></pre>
       </div>
@@ -98,10 +95,7 @@ UI - Run (maketx run) scratchpad
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="run-execute-cmd" class="btn-copy"
           aria-label="Copy Command">
-          <svg class="c-icon">
-            <use href="#ico-copy" data-copy-target="icon"></use>
-            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
-          </svg>
+          {{ template "ui/copy" }}
         </button>
         <pre><code><span class="u-font-mono" data-copy-target="run-execute-cmd" data-run-target="executeCmd"></span></code></pre>
       </div>

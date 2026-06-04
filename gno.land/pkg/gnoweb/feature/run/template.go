@@ -3,6 +3,8 @@ package run
 import (
 	"embed"
 	"html/template"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 //go:embed templates/*.html
@@ -16,6 +18,11 @@ func mustParse(name string, paths ...string) *template.Template {
 	t, err := template.New(name).ParseFS(templateFS, paths...)
 	if err != nil {
 		panic("run: parse " + paths[0] + ": " + err.Error())
+	}
+
+	// Reuse component UI partials
+	if t, err = t.ParseFS(components.TemplatesFS(), "ui/btn_copy.html"); err != nil {
+		panic("run: parse shared partials: " + err.Error())
 	}
 	return t
 }
