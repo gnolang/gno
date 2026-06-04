@@ -74,25 +74,29 @@ Additional builtin types:
 ### Pointer equality for zero-sized types
 
 **Gno behavior.** `==` on pointers is pure identity: equal iff both denote the
-same slot (same `Base` + `Index`), uniformly for every element type.
+same slot (same `Base` + `Index`), uniformly for every element type. `new(T)`
+and `&CompositeLit{}` each mint a fresh `*HeapItemValue` (`Base` = that heap
+item, `Index` = 0), so two such pointers always differ in `Base` — unlike
+gc-Go, where a zero-sized allocation that escapes to the heap is folded onto
+the single shared `runtime.zerobase` address (non-escaping ones stay distinct;
+see the divergence note below).
 
-**Divergence.** gc-Go folds several zero-sized cases that Gno does not — heap
-allocations route through `runtime.zerobase`, and offset arithmetic collapses
-`&arr[i]` / `&s.f` when the element or field is zero-sized. For zero-sized `T`:
+**Divergence.** For zero-sized `T`, Gno is always `false`; gc-Go varies:
 
 ```go
 //                                           Gno   / gc-Go
-new(T) == new(T)                          // false / unspecified*  (true when both escape → runtime.zerobase)
-var x, y T; _ = &x == &y                  // false / unspecified*  (true when escaped)
-var a [10]T; _ = &a[0] == &a[1]           // false / true          (offset arithmetic)
-var s struct{ a, b T }; _ = &s.a == &s.b  // false / true          (offset arithmetic)
+new(T) == new(T)                          // false / unspecified*  (true only when both escape → runtime.zerobase)
+var x, y T; _ = &x == &y                  // false / unspecified*  (true only when escaped)
+var a [10]T; _ = &a[0] == &a[1]           // false / true          (offset arithmetic, address-identical)
+var s struct{ a, b T }; _ = &s.a == &s.b  // false / true          (offset arithmetic, address-identical)
 ```
 
-`*` gc-Go's result for distinct zero-size allocations is escape-analysis
-dependent: `false` when the compiler keeps them distinct (e.g. the literal
-`new(T) == new(T)` above folds to `false`), `true` when both escape to the heap
-and fold to `runtime.zerobase`. The spec leaves it unspecified. Gno is always
-`false`.
+`*` In gc-Go these two rows depend on escape analysis: `false` when the compiler
+keeps the allocations distinct (as the literals above do), `true` only when both
+escape to the heap and fold to `runtime.zerobase`. The offset-arithmetic rows
+reach `true` by a separate route — `&a[i]` / `&s.f` collapses to the base
+address when the element is zero-sized — with no escape analysis involved, so
+they are `true` unconditionally.
 
 Same-identity cases agree:
 

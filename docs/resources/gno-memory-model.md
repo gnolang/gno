@@ -220,8 +220,10 @@ define statement by replacing the existing heap item object with a new one.
 ## Pointer equality
 
 Pointer `==` is `PointerValue` identity (same `.Base` + `.Index`, as defined
-above). `new(T)` and `&CompositeLit{}` each mint a fresh heap item, uniformly
-for all element types — including zero-sized ones. For the user-visible
+above). `new(T)` and `&CompositeLit{}` each mint a fresh `*HeapItemValue` and
+return a pointer to it (`.Base` = that heap item, `.Index` = 0), so two such
+pointers always differ in `.Base` and compare unequal — uniformly for all
+element types, including zero-sized ones. For the user-visible
 divergence from gc-Go (`runtime.zerobase` folding, offset arithmetic on
 zero-sized fields), see [Go/Gno compatibility § Pointer equality for
 zero-sized types](go-gno-compatibility.md#pointer-equality-for-zero-sized-types).
