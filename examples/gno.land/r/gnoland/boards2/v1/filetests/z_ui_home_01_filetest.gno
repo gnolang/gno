@@ -28,7 +28,7 @@ func main() {
 // [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
-// Sort by: [newest first](/r/gnoland/boards2/v1:?order=asc)
+// Sort by: [oldest first](/r/gnoland/boards2/v1:?order=asc)
 //
 // ###### [CCC](/r/gnoland/boards2/v1:CCC)
 // Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #3
