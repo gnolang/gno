@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/issue5736_bar"
+gno = "0.9"
