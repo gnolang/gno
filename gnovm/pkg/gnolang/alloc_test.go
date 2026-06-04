@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"unsafe"
@@ -49,65 +50,50 @@ func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
 	}
 }
 
-// TestNewMapHintBoundary pins the maxMapHint pivot: a hint exactly at the
-// constant must NOT clamp (allocator charges the full preallocation cost),
-// while pivot+1 must clamp to 0 (allocator charges just the map header).
-// Each side uses its own MaxInt64-budget allocator because the pivot side
-// consumes nearly the entire budget.
+// TestNewMapHintBoundary pins the maxMapHint pivot: hints ≤ maxMapHint
+// (incl. negative → silent 0) charge the full preallocation cost; hints
+// > maxMapHint panic with "makemap: size out of range".
 func TestNewMapHintBoundary(t *testing.T) {
 	t.Parallel()
 
 	mt := &MapType{Key: IntType, Value: IntType}
 
-	// pivot - 1: no clamp.
-	{
-		alloc := NewAllocator(math.MaxInt64)
-		alloc.NewMap(mt, maxMapHint-1)
-		_, bytes := alloc.Status()
-		want := int64(allocMap + allocMapItem*(maxMapHint-1))
-		if bytes != want {
-			t.Errorf("pivot-1: bytes=%d, want=%d (not clamped)", bytes, want)
-		}
+	okCases := []struct {
+		name string
+		size int
+		want int64
+	}{
+		{"pivot-1", maxMapHint - 1, int64(allocMap + allocMapItem*(maxMapHint-1))},
+		{"pivot", maxMapHint, int64(allocMap + allocMapItem*maxMapHint)},
+		{"neg", -1, allocMap},
+	}
+	for _, tc := range okCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := NewAllocator(math.MaxInt64)
+			alloc.NewMap(mt, tc.size)
+			if _, b := alloc.Status(); b != tc.want {
+				t.Errorf("bytes=%d, want=%d", b, tc.want)
+			}
+		})
 	}
 
-	// pivot: no clamp (boundary inclusive).
-	{
-		alloc := NewAllocator(math.MaxInt64)
-		alloc.NewMap(mt, maxMapHint)
-		_, bytes := alloc.Status()
-		want := int64(allocMap + allocMapItem*maxMapHint)
-		if bytes != want {
-			t.Errorf("pivot: bytes=%d, want=%d (not clamped)", bytes, want)
-		}
-	}
-
-	// pivot + 1: clamped to 0, charges only allocMap.
-	{
-		alloc := NewAllocator(math.MaxInt64)
-		alloc.NewMap(mt, maxMapHint+1)
-		_, bytes := alloc.Status()
-		if bytes != allocMap {
-			t.Errorf("pivot+1: bytes=%d, want=%d (clamped to 0)", bytes, allocMap)
-		}
-	}
-
-	// math.MaxInt: clamped (sanity, matches make19.gno).
-	{
-		alloc := NewAllocator(math.MaxInt64)
-		alloc.NewMap(mt, math.MaxInt)
-		_, bytes := alloc.Status()
-		if bytes != allocMap {
-			t.Errorf("MaxInt: bytes=%d, want=%d (clamped to 0)", bytes, allocMap)
-		}
-	}
-
-	// Negative: clamped to 0.
-	{
-		alloc := NewAllocator(math.MaxInt64)
-		alloc.NewMap(mt, -1)
-		_, bytes := alloc.Status()
-		if bytes != allocMap {
-			t.Errorf("neg: bytes=%d, want=%d (clamped to 0)", bytes, allocMap)
-		}
+	const panicMsg = "runtime error: makemap: size out of range"
+	for _, tc := range []struct {
+		name string
+		size int
+	}{
+		{"pivot+1", maxMapHint + 1},
+		{"MaxInt", math.MaxInt},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic %q, got none", panicMsg)
+				} else if got := fmt.Sprint(r); got != panicMsg {
+					t.Errorf("panic = %q, want %q", got, panicMsg)
+				}
+			}()
+			NewAllocator(math.MaxInt64).NewMap(mt, tc.size)
+		})
 	}
 }

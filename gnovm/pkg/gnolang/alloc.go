@@ -600,23 +600,23 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 }
 
 func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
-	// Mirror Go's makemap: the map size is an advisory hint. A negative
-	// hint, or one large enough to overflow the allocation-size math, is
-	// treated as 0 (no preallocation) rather than panicking, so
-	// make(map[K]V, n) never aborts on a bogus hint.
+	// The map size is an advisory hint. Negative is silently clamped to
+	// 0 (matches Go's makemap). Two layered bounds on positive hints:
 	//
-	// Note we deliberately do NOT also clamp against the allocator's
-	// maxBytes budget the way Go clamps against maxAlloc (heap arena).
-	// Trade-off:
-	//   - Silent clamp would hide where the user's mistake is; the tx
-	//     would later panic at some random insert after burning gas.
-	//   - A clean "allocation limit exceeded" panic at the make() line
-	//     points straight at the bogus hint with minimal gas burned.
-	// The Go spec only requires "approximately n elements" (no upper
-	// bound), so either is conformant; we pick the diagnostic-friendly
-	// one because Gno gas is real money.
-	if size < 0 || int64(size) > maxMapHint {
+	//   1. maxMapHint (~1.15e17) — pre-empted here with an explicit
+	//      "size out of range" panic. Without it, AllocateMap's
+	//      `overflow.Mulp` would panic first with the internal
+	//      "multiplication overflow" message; we panic with the
+	//      language-level idiom instead.
+	//
+	//   2. alloc.maxBytes — caught downstream by Allocate as
+	//      "allocation limit exceeded"; covers hints that pass bound 1
+	//      but still exceed the per-tx allocation budget.
+	if size < 0 {
 		size = 0
+	}
+	if int64(size) > maxMapHint {
+		panic("runtime error: makemap: size out of range")
 	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
