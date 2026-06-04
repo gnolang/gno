@@ -49,7 +49,16 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "daa554529ce43b80c3dedd658de8fe787e0a057e60aa01c897364dd80f9dfc65"
+// Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
+// to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
+// PR is the test13 chain-upgrade vehicle, so the shift is intentional.
+// Hash bumped 2026-06-01: this branch's foreign-markdown work changes the genesis
+// package set (notably the chain/markdown stdlib), which shifts the iavlStore Merkle
+// root — same class of change as the crypto-stdlib bump above. Verified this is NOT
+// the merged nil-realm write-gate fix (#5758): crossrealm38 still produces e37075fb
+// on a clean origin/master. Behavior is unchanged (the zrealm_crossrealm38.gno
+// filetest passes); only the genesis encoding shifted.
+const expectedCrossrealm38Hash = "0fbdbf8ff64fd5b851a030229304d95c9196c80a449c47da89ed76ff1f3c0bb4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

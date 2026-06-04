@@ -138,6 +138,55 @@ NATIVE_SPECS = [
     # ---- time ----
     ("time", "now", None, "Flat",
      r"BenchmarkNative_Time_Now-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/markdown (pure CPU, per-byte slope on input string) ----
+    # All 8 natives slope on the first parameter (s/content), kind LenString.
+    # MatchCharsetN slope is fit over bounded sizes only (production callers
+    # cap maxLen ≤ 64); the bench includes larger sizes for fit robustness
+    # but the runtime should still enforce a maxLen guard before charging.
+    ("chain/markdown", "StripBidiAndZeroWidth", 0, "LenString",
+     r"BenchmarkNative_Markdown_StripBidiAndZeroWidth_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "NormalizeBreaks", 0, "LenString",
+     r"BenchmarkNative_Markdown_NormalizeBreaks_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeInline", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeInline_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeTitle", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeTitle_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "PercentEncodeURL", 0, "LenString",
+     r"BenchmarkNative_Markdown_PercentEncodeURL_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "MatchCharsetN", 0, "LenString",
+     r"BenchmarkNative_Markdown_MatchCharsetN_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "CodeFence", 0, "LenString",
+     r"BenchmarkNative_Markdown_CodeFence_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeBlockHazards", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeBlockHazards_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- IBC crypto stdlibs ----
+    ("crypto/keccak256", "sum256", 0, "LenBytes",
+     r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/modexp", "modExp", 2, "LenBytes",
+     r"BenchmarkNative_ModExp_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "g1Add", None, "Flat",
+     r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "g1Mul", None, "Flat",
+     r"BenchmarkNative_BN254_G1Mul-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "pairingCheck", 0, "LenBytes",
+     # Bench name encodes pair count; the harness sets b.SetBytes(192*pairs),
+     # so the captured group is pair count and we convert below in parse_bench.
+     r"BenchmarkNative_BN254_PairingCheck_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/cometbls", "verifyZKP", None, "Flat",
+     r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "leafHash", 0, "LenBytes",
+     r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "innerHash", None, "Flat",
+     r"BenchmarkNative_Merkle_InnerHash-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
+     # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
+     # + 6 payload), plus 4 for the outer count header.
+     r"BenchmarkNative_Merkle_HashFromByteSlices_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
+     # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
+     r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 

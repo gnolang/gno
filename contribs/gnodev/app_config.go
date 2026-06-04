@@ -30,7 +30,8 @@ type AppConfig struct {
 	webAnalyticsHostname string
 
 	// Resolver
-	resolvers varResolver
+	resolvers                  varResolver
+	withoutQuarantinedExamples bool
 
 	// Node Configuration
 	logFormat           string
@@ -132,6 +133,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.resolvers,
 		"resolver",
 		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"exclude examples/quarantined/ from the default resolver chain",
 	)
 
 	fs.StringVar(
