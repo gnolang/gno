@@ -316,13 +316,14 @@ Legend:
   which have been moved in `io` are implemented in that package.
 [^12]: `math/rand` in Gno ports over Go's `math/rand/v2`. The v1 names
   (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`)
-  are not available — use the v2 equivalents (`Int32`, `Int32N`, `Int64`,
-  `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The v1 `Source`
-  interface shape (`Int63`/`Seed`) is replaced by the v2 `Source`, a single
-  `Uint64() uint64` method.
+  are not available. Use the v2 equivalents (`Int32`, `Int32N`, `Int64`,
+  `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The `Source`
+  interface also changed: where v1 defined it with two methods (`Int63` and
+  `Seed`), v2 defines it with a single `Uint64() uint64`.
 [^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
-  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. You'll need to write
-  a bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`.
+  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. Implement
+  `sort.Interface` and call `sort.Sort` instead, which takes a bit of
+  boilerplate.
 [^14]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
 [^15]: `time.Now` returns the block time rather than the system time, for
@@ -339,7 +340,7 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 |--------------------------|-------------------------------------------------------------------------------------------------|
 | `chain`                  | Core chain types and helpers: `Coin`, `Coins`, `Emit`, `PackageAddress`, `PubKeyAddress`.       |
 | `chain/banker`           | Realm coin management (mint, burn, transfer, balance queries).                                  |
-| `chain/markdown`         | Markdown escaping/sanitizing (`EscapeInline`, `CodeFence`, `StripBidiAndZeroWidth`, …).         |
+| `chain/markdown`         | Markdown escaping/sanitizing and the gno-foreign block sandbox (`MaxForeignBlocksPerConvert`).  |
 | `chain/params`           | Realm-local parameter setters (`SetString`, `SetBool`, `SetInt64`, …, `UpdateParamStrings`).    |
 | `chain/runtime`          | Chain context and the `Realm` type (`ChainHeight`, `AssertOriginCall`, `IsUserCall`, …).        |
 | `chain/runtime/unsafe`   | Caller/origin primitives (`PreviousRealm`, `CurrentRealm`, `OriginCaller`, `OriginSend`).       |
