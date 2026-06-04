@@ -80,6 +80,8 @@ func main() {
 	check(uint64(1), "unsigned64 1")
 	check(1.5, "default 1.5")
 	check(nil, "nil <nil>")
+	fmt.Println("ok")
 }
 
 // Output:
+// ok
