@@ -34,7 +34,7 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./gno.land/... 2>&1 | tee /dev/stderr | grep -E '^(FAIL|--- FAIL)|\(type: \*[a-zA-Z._]*[Ee]rror' > /tmp/gno-test-failures; \
+	go run ../gnovm/cmd/gno test -v ./... 2>&1 | tee /dev/stderr | grep -E '^(FAIL|--- FAIL)|\(type: \*[a-zA-Z._]*[Ee]rror' > /tmp/gno-test-failures; \
 	if [ -s /tmp/gno-test-failures ]; then \
 		echo ""; \
 		echo "========================================"; \

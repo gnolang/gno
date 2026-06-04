@@ -169,6 +169,11 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
+		// Cross-family nesting cap (shared with gno-foreign, gno-alert).
+		// On refusal, fall through to raw HTML so safe-mode strips it.
+		if !Push(pc) {
+			return nil, parser.NoChildren
+		}
 
 		cctx.IsOpen = true
 		cctx.OpenTag = node
@@ -180,6 +185,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		}
 
 		cctx.IsOpen = false
+		Pop(pc)
 
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
@@ -225,10 +231,13 @@ func (a *columnsASTTransformer) Transform(doc *ast.Document, reader text.Reader,
 		return
 	}
 
-	// Check for unclosed tags.
+	// Check for unclosed tags. Pop matches the Push from the
+	// orphaned GnoColumnTagOpen, keeping the cross-family depth
+	// counter balanced.
 	if cctx.IsOpen {
 		nodeCol := NewColumn(cctx, GnoColumnTagClose)
 		doc.InsertAfter(doc, doc.LastChild(), nodeCol)
+		Pop(pc)
 	}
 }
 
