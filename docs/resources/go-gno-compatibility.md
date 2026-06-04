@@ -66,7 +66,7 @@ Note: for determinism, converting a `string` to `[]byte` or `[]rune` produces a 
 
 ## Builtin types with no Go equivalent
 
-Predeclared types that exist only in Gno; Go has no counterpart.
+Predeclared types that exist only in Gno, with no Go counterpart.
 
 | type      | comment                                                         |
 |-----------|-----------------------------------------------------------------|
