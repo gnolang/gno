@@ -13,6 +13,12 @@ func makeThreadURI(p *boards.Post) string {
 	return makeBoardURI(p.Board) + "/" + p.ThreadID.String()
 }
 
+// makeThreadFlatURI links to the thread's flat "all comments" view. Works for
+// a thread or any reply within it (makeThreadURI resolves to the thread).
+func makeThreadFlatURI(p *boards.Post) string {
+	return makeThreadURI(p) + "?flat=1"
+}
+
 func makeReplyURI(p *boards.Post) string {
 	return makeBoardURI(p.Board) + "/" + p.ThreadID.String() + "/" + p.ID.String()
 }

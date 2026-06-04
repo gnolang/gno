@@ -31,8 +31,10 @@
 #   Construction-time:  composite literals, new(), make() of foreign
 #     /r/-declared types panic at the call site.
 #
-#   Readonly taint:  values read from foreign-realm state carry
-#     N_Readonly; later writes panic, surviving conversions.
+#   Cross-realm write gate:  writes to an object owned by a realm
+#     other than m.Realm panic ("readonly tainted object"). The
+#     N_Readonly provenance taint has been removed; protection now
+#     rests on this storage-ownership check alone.
 #
 #   Copy semantics:  Copy preserves source PkgID when the source
 #     carries realm authority; when the source PkgID is
@@ -283,16 +285,17 @@ stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/
 ## Readonly taint
 ## ============================================================
 
-## READONLY_RoundTripFails: caller reads owned.GlobalSlice (carries
-## N_Readonly from the dot-selector read), passes back through
-## owned.MutateSlice. Even with borrow rule #1 active, the taint
-## survives and the indexed write panics.
+## READONLY_RoundTripSucceeds: caller reads owned.GlobalSlice and
+## passes it back through owned.MutateSlice. With the readonly taint
+## removed, borrow rule #1 puts m.Realm at /r/owned for the duration
+## of MutateSlice, and the indexed write to owned's own slice commits
+## under owned's authority — the round-trip now succeeds.
 ##
-##   func READONLY_RoundTripFails(cur realm) {
+##   func READONLY_RoundTripSucceeds(cur realm) {
 ##       owned.MutateSlice(owned.GlobalSlice)
 ##   }
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
+gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripSucceeds -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
 
 
 ## ============================================================
@@ -650,9 +653,9 @@ func CONSTRUCT_NewFails(cur realm) {
 	_ = new(owned.Resource)
 }
 
-// ----- Readonly taint -----
+// ----- Readonly taint removed: foreign-slice round-trip now succeeds -----
 
-func READONLY_RoundTripFails(cur realm) {
+func READONLY_RoundTripSucceeds(cur realm) {
 	owned.MutateSlice(owned.GlobalSlice)
 }
 
