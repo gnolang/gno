@@ -2,7 +2,8 @@
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-// Check that calling a method on a nil interface causes a proper panic.
+// Check that taking a method value from a nil interface (selector without
+// call) produces a proper panic, not just method invocation.
 package main
 
 type I interface {
@@ -18,7 +19,8 @@ func main() {
 		println(err)
 	}()
 	var i I
-	i.M()
+	f := i.M
+	_ = f
 }
 
 // Output:
