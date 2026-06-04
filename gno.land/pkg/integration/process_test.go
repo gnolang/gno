@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 		os.Exit(m.Run())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
 	defer cancel()
 
 	if err := RunMain(ctx, os.Stdin, os.Stdout, os.Stderr); err != nil {
@@ -59,7 +59,7 @@ func TestNodeProcess(t *testing.T) {
 	}()
 
 	start := time.Now()
-	node := runTestingNodeProcess(t, ctx, ProcessConfig{
+	node, err := runTestingNodeProcess(ctx, ProcessConfig{
 		Stderr: &stdio, Stdout: &stdio,
 		Node: &ProcessNodeConfig{
 			Verbose:      true,
@@ -70,6 +70,7 @@ func TestNodeProcess(t *testing.T) {
 			Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
 		},
 	})
+	require.NoError(t, err)
 	t.Logf("time to start the node: %v", time.Since(start).String())
 
 	// Create a new HTTP client to interact with the integration node

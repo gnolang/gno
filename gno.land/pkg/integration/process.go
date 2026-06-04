@@ -24,7 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	"github.com/stretchr/testify/require"
 )
 
 const gracefulShutdown = time.Second * 5
@@ -331,9 +330,11 @@ func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) err
 	return err
 }
 
-func runTestingNodeProcess(t TestingTS, ctx context.Context, pcfg ProcessConfig) NodeProcess {
+func runTestingNodeProcess(ctx context.Context, pcfg ProcessConfig) (NodeProcess, error) {
 	bin, err := os.Executable()
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 	args := []string{
 		"-test.run=^$",
 		"-run-node-process",
@@ -343,10 +344,7 @@ func runTestingNodeProcess(t TestingTS, ctx context.Context, pcfg ProcessConfig)
 		args = append(args, "-test.gocoverdir="+pcfg.CoverDir)
 	}
 
-	node, err := RunNodeProcess(ctx, pcfg, bin, args...)
-	require.NoError(t, err)
-
-	return node
+	return RunNodeProcess(ctx, pcfg, bin, args...)
 }
 
 // initDatabase initializes the database based on the provided directory configuration.
