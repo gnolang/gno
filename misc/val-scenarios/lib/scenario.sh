@@ -765,13 +765,36 @@ _resolve_control_port() {
   NODE_CONTROL_PORT[$node]="$host_port"
 }
 
+# compose_up_one SERVICE — bring up a single compose service, tolerating Docker's
+# transient ephemeral host-port allocation race. The allocator can pick a host
+# port that is still briefly held (TIME_WAIT, or not yet released by a
+# just-stopped container), making "compose up" fail with "address already in
+# use". Each retry removes the just-created container so Docker picks a fresh
+# port. Any non-port-race failure aborts immediately so genuine errors surface.
+compose_up_one() {
+  local service="${1:?service required}"
+  local attempt out
+  for attempt in 1 2 3; do
+    compose rm -fs "$service" >/dev/null 2>&1 || true
+    if out="$(compose up -d "$service" 2>&1)"; then
+      return 0
+    fi
+    if printf '%s' "$out" | grep -q "address already in use" && [ "$attempt" -lt 3 ]; then
+      log "port bind race starting ${service} on attempt ${attempt}; retrying"
+      sleep 1
+      continue
+    fi
+    printf '%s\n' "$out" >&2
+    die "failed to start ${service}"
+  done
+}
+
 start_node() {
   local node="${1:?node required}"
   # Remove any stopped container so Docker allocates a fresh ephemeral host
   # port rather than reusing the previous binding, which can conflict when
   # multiple nodes are restarted in sequence.
-  compose rm -f "$node" >/dev/null 2>&1 || true
-  compose up -d "$node" >/dev/null
+  compose_up_one "$node"
   _resolve_rpc_port "$node"
   _capture_node_logs "$node"
   wait_for_rpc "$node" 120
@@ -795,7 +818,7 @@ start_all_nodes() {
     local signer_service
     for node in "${SCENARIO_SIGNERS[@]}"; do
       signer_service="${NODE_SIGNER_SERVICE[$node]}"
-      compose up -d "$signer_service" >/dev/null
+      compose_up_one "$signer_service"
       _resolve_control_port "$node"
       wait_for_control "$node" 120
       _capture_node_logs "$signer_service"
@@ -1282,7 +1305,7 @@ rotate_sentry_ip() {
   fi
 
   docker run -d --rm --entrypoint sh --name "$bumper" --network "$(docker_network_name)" "$IMAGE_NAME" -c 'sleep 300' >/dev/null
-  compose up -d "$sentry" >/dev/null
+  compose_up_one "$sentry"
   _resolve_rpc_port "$sentry"
   wait_for_rpc "$sentry" 120
   new_ip="$(node_ip "$sentry" || true)"
@@ -1291,7 +1314,7 @@ rotate_sentry_ip() {
     compose stop "$sentry" >/dev/null
     compose rm -f "$sentry" >/dev/null
     docker run -d --rm --entrypoint sh --name "$bumper2" --network "$(docker_network_name)" "$IMAGE_NAME" -c 'sleep 300' >/dev/null
-    compose up -d "$sentry" >/dev/null
+    compose_up_one "$sentry"
     _resolve_rpc_port "$sentry"
     wait_for_rpc "$sentry" 120
     new_ip="$(node_ip "$sentry" || true)"
