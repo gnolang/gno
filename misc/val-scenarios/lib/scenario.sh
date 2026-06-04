@@ -10,6 +10,28 @@ SCENARIO_SELF="${BASH_SOURCE[0]}"
 SCENARIO_LIB_DIR="$(cd "$(dirname "${SCENARIO_SELF}")" && pwd)"
 REPO_ROOT="$(cd "${SCENARIO_LIB_DIR}/../../.." && pwd)"
 
+# RUNTIME selects how nodes and one-shot CLI commands are executed:
+#   docker (default) — every binary runs in a container; nodes address each
+#     other by docker-compose service name on fixed ports 26656/26657.
+#   local            — the four binaries (gnoland, gnokey, gnogenesis,
+#     valsignerd) run directly from BIN_DIR; nodes bind 127.0.0.1 on
+#     deterministic per-node ports and are supervised as background processes.
+# Build the local binaries with `make build-binaries`.
+RUNTIME="${RUNTIME:-docker}"
+BIN_DIR="${BIN_DIR:-${SCENARIO_LIB_DIR}/../bin}"
+# Local-runtime binaries, produced by `make build-binaries` into BIN_DIR.
+GNOLAND_BIN="${BIN_DIR}/gnoland"
+GNOKEY_BIN="${BIN_DIR}/gnokey"
+GNOGENESIS_BIN="${BIN_DIR}/gnogenesis"
+VALSIGNERD_BIN="${BIN_DIR}/valsignerd"
+# Base host ports for the local runtime. Each node n (0-indexed) binds
+# RPC=base+n, P2P=p2p_base+n, remote-signer=rs_base+n, control=ctrl_base+n.
+# Override the bases to run multiple local scenarios concurrently.
+LOCAL_RPC_PORT_BASE="${LOCAL_RPC_PORT_BASE:-26700}"
+LOCAL_P2P_PORT_BASE="${LOCAL_P2P_PORT_BASE:-26800}"
+LOCAL_RS_PORT_BASE="${LOCAL_RS_PORT_BASE:-26900}"
+LOCAL_CONTROL_PORT_BASE="${LOCAL_CONTROL_PORT_BASE:-28080}"
+
 IMAGE_NAME="${IMAGE_NAME:-gno-val-scenario-core:local}"
 GNOKEY_IMAGE="${GNOKEY_IMAGE:-${IMAGE_NAME}}"
 GNOGENESIS_IMAGE="${GNOGENESIS_IMAGE:-gnogenesis:local}"
@@ -51,6 +73,12 @@ declare -A NODE_CONTROLLABLE_SIGNER=()
 declare -A NODE_SIGNER_SERVICE=()
 declare -A NODE_CONTROL_PORT=()
 declare -A NODE_LOG_PID=()
+# Local-runtime state. Ports are base+index, keyed off NODE_COUNTER at register.
+declare -A NODE_P2P_PORT=()   # local host P2P port
+declare -A NODE_RS_PORT=()    # local host remote-signer port (controllable signers)
+declare -A NODE_PID=()        # local gnoland process pid
+declare -A NODE_SIGNER_PID=() # local valsignerd process pid
+NODE_COUNTER=0
 
 SCENARIO_NAME=""
 PROJECT_NAME=""
@@ -92,7 +120,9 @@ slugify() {
 require_tools() {
   local missing=()
   local tool
-  for tool in docker jq curl; do
+  local -a tools=(jq curl)
+  [ "$RUNTIME" = "docker" ] && tools+=(docker)
+  for tool in "${tools[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing+=("$tool")
     fi
@@ -134,6 +164,11 @@ scenario_init() {
   NODE_SIGNER_SERVICE=()
   NODE_CONTROL_PORT=()
   NODE_LOG_PID=()
+  NODE_P2P_PORT=()
+  NODE_RS_PORT=()
+  NODE_PID=()
+  NODE_SIGNER_PID=()
+  NODE_COUNTER=0
 }
 
 register_node() {
@@ -150,9 +185,20 @@ register_node() {
   NODE_ROLE[$name]="$role"
   NODE_SERVICE[$name]="$name"
   NODE_MONIKER[$name]="$name"
-  NODE_RPC_PORT[$name]="$rpc_port"
   NODE_PEX[$name]="$pex"
   NODE_SENTRY[$name]="$sentry"
+  if [ "$RUNTIME" = "local" ]; then
+    # The docker --rpc-port hint is irrelevant locally; assign deterministic
+    # per-node host ports (all keyed off the same index) so nodes can address
+    # each other on 127.0.0.1. RS/control are only used by controllable signers.
+    NODE_RPC_PORT[$name]="$((LOCAL_RPC_PORT_BASE + NODE_COUNTER))"
+    NODE_P2P_PORT[$name]="$((LOCAL_P2P_PORT_BASE + NODE_COUNTER))"
+    NODE_RS_PORT[$name]="$((LOCAL_RS_PORT_BASE + NODE_COUNTER))"
+    NODE_CONTROL_PORT[$name]="$((LOCAL_CONTROL_PORT_BASE + NODE_COUNTER))"
+  else
+    NODE_RPC_PORT[$name]="$rpc_port"
+  fi
+  NODE_COUNTER=$((NODE_COUNTER + 1))
 
   case "$role" in
     validator)
@@ -215,7 +261,9 @@ gen_validator() {
   NODE_CONTROLLABLE_SIGNER[$name]="$controllable_signer"
   if [ "$controllable_signer" = "true" ]; then
     NODE_SIGNER_SERVICE[$name]="${name}-signer"
-    NODE_CONTROL_PORT[$name]=""
+    # Local control/RS ports are assigned in register_node; docker resolves the
+    # control port from the ephemeral host mapping after start.
+    [ "$RUNTIME" = "local" ] || NODE_CONTROL_PORT[$name]=""
     SCENARIO_SIGNERS+=("$name")
   fi
 }
@@ -246,7 +294,17 @@ gen_sentry() {
   register_node "$name" sentry "$rpc_port" "$pex" ""
 }
 
-ensure_image_exists() {
+ensure_runtime_ready() {
+  if [ "$RUNTIME" = "local" ]; then
+    local -a needed=("$GNOLAND_BIN" "$GNOKEY_BIN" "$GNOGENESIS_BIN")
+    [ "${#SCENARIO_SIGNERS[@]}" -gt 0 ] && needed+=("$VALSIGNERD_BIN")
+    local bin
+    for bin in "${needed[@]}"; do
+      [ -x "$bin" ] || die "binary not found or not executable: ${bin}; run \`make build-binaries\` first"
+    done
+    return 0
+  fi
+
   local image_id
   image_id="$(docker images -q "$IMAGE_NAME" 2>/dev/null)"
   if [ -z "$image_id" ]; then
@@ -272,8 +330,75 @@ compose() {
   docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
 }
 
-run_in_image() {
-  docker run --rm --entrypoint /usr/bin/gnoland "$@"
+# ---------------------------------------------------------------------------
+# Runtime path accessors and command runners.
+#
+# In docker the binaries see container paths (/data, /work, /gnoroot, /keys)
+# bound from host dirs; in local mode every "container path" is just the host
+# path. The dpath_* helpers return the path a binary should be handed, and the
+# run_* helpers execute the binary (in a container, or directly).
+# ---------------------------------------------------------------------------
+
+dpath_data() { # data dir for a node as seen by the binary
+  if [ "$RUNTIME" = "local" ]; then printf '%s' "${NODE_DATA_DIR[$1]}"; else printf '/data'; fi
+}
+dpath_work() { # scenario work dir as seen by the binary
+  if [ "$RUNTIME" = "local" ]; then printf '%s' "$SCENARIO_DIR"; else printf '/work'; fi
+}
+dpath_gnoroot() { # GNO_ROOT as seen by the binary
+  if [ "$RUNTIME" = "local" ]; then printf '%s' "$GNO_ROOT"; else printf '/gnoroot'; fi
+}
+# dmount HOSTPATH CONTPATH — path a binary should use for a bound dir: the host
+# path locally, the container path in docker.
+dmount() {
+  if [ "$RUNTIME" = "local" ]; then printf '%s' "$1"; else printf '%s' "$2"; fi
+}
+dpath_keys() { # a host keys home as seen by the binary (bound at /keys in docker)
+  dmount "$1" /keys
+}
+
+# run_gnoland_node NODE ARGS... — one-shot gnoland for a node's data dir.
+run_gnoland_node() {
+  local node="${1:?node required}"; shift
+  if [ "$RUNTIME" = "local" ]; then
+    "$GNOLAND_BIN" "$@"
+  else
+    docker run --rm --entrypoint /usr/bin/gnoland \
+      -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" "$@"
+  fi
+}
+
+# run_gnogenesis [-v HOST:CONT]... ARGS... — gnogenesis with work+gnoroot bound.
+# Extra -v binds (docker only) may precede the subcommand; they are dropped
+# locally since paths are already host paths.
+run_gnogenesis() {
+  local -a binds=()
+  while [ "$#" -gt 0 ] && [ "$1" = "-v" ]; do
+    binds+=("-v" "$2"); shift 2
+  done
+  if [ "$RUNTIME" = "local" ]; then
+    "$GNOGENESIS_BIN" "$@"
+  else
+    docker run --rm --entrypoint /usr/bin/gnogenesis \
+      -v "${SCENARIO_DIR}:/work" -v "${GNO_ROOT}:/gnoroot:ro" \
+      "${binds[@]}" "$GNOGENESIS_IMAGE" "$@"
+  fi
+}
+
+# run_gnokey [-v HOST:CONT]... ARGS... — gnokey, reading stdin. Work dir is
+# bound in docker; extra -v binds (e.g. a keys home or pkg dir) may precede the
+# subcommand.
+run_gnokey() {
+  local -a binds=()
+  while [ "$#" -gt 0 ] && [ "$1" = "-v" ]; do
+    binds+=("-v" "$2"); shift 2
+  done
+  if [ "$RUNTIME" = "local" ]; then
+    "$GNOKEY_BIN" "$@"
+  else
+    docker run -i --rm --entrypoint /usr/bin/gnokey \
+      -v "${SCENARIO_DIR}:/work" "${binds[@]}" "$GNOKEY_IMAGE" "$@"
+  fi
 }
 
 init_node_dirs() {
@@ -283,38 +408,21 @@ init_node_dirs() {
     NODE_DATA_DIR[$node]="$node_dir"
     mkdir -p "$node_dir"
 
-    run_in_image -v "${node_dir}:/data" "$IMAGE_NAME" secrets init --data-dir /data/secrets >/dev/null
-    run_in_image -v "${node_dir}:/data" "$IMAGE_NAME" config init --config-path /data/config/config.toml >/dev/null
+    local data
+    data="$(dpath_data "$node")"
+    run_gnoland_node "$node" secrets init --data-dir "${data}/secrets" >/dev/null
+    run_gnoland_node "$node" config init --config-path "${data}/config/config.toml" >/dev/null
   done
 }
 
 collect_node_ids() {
-  local node
+  local node secrets
   for node in "${SCENARIO_NODES[@]}"; do
-    NODE_ID[$node]="$(run_in_image -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" secrets get node_id.id --data-dir /data/secrets --raw | tr -d '\r\n')"
-    NODE_ADDRESS[$node]="$(run_in_image -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" secrets get validator_key.address --data-dir /data/secrets --raw | tr -d '\r\n')"
-    NODE_PUBKEY[$node]="$(run_in_image -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" secrets get validator_key.pub_key --data-dir /data/secrets --raw | tr -d '\r\n')"
+    secrets="$(dpath_data "$node")/secrets"
+    NODE_ID[$node]="$(run_gnoland_node "$node" secrets get node_id.id --data-dir "$secrets" --raw | tr -d '\r\n')"
+    NODE_ADDRESS[$node]="$(run_gnoland_node "$node" secrets get validator_key.address --data-dir "$secrets" --raw | tr -d '\r\n')"
+    NODE_PUBKEY[$node]="$(run_gnoland_node "$node" secrets get validator_key.pub_key --data-dir "$secrets" --raw | tr -d '\r\n')"
   done
-}
-
-# _gnogenesis runs a gnogenesis command with the scenario genesis and GNO_ROOT mounted.
-# Callers must include --genesis-path /work/genesis.json after the subcommand name.
-_gnogenesis() {
-  docker run --rm \
-    --entrypoint /usr/bin/gnogenesis \
-    -v "${SCENARIO_DIR}:/work" \
-    -v "${GNO_ROOT}:/gnoroot:ro" \
-    "$GNOGENESIS_IMAGE" \
-    "$@"
-}
-
-# _gnokey_deployer runs a gnokey command with the genesis deployer key home mounted.
-_gnokey_deployer() {
-  docker run -i --rm \
-    --entrypoint /usr/bin/gnokey \
-    -v "${SCENARIO_DIR}:/work" \
-    "$GNOKEY_IMAGE" \
-    "$@"
 }
 
 generate_genesis() {
@@ -329,38 +437,30 @@ generate_genesis() {
 
   mkdir -p "$genesis_work" "$gnokey_home"
 
+  # Paths as the binaries see them (host paths locally, container paths in docker).
+  local work gnoroot keys genesis
+  work="$(dpath_work)"
+  gnoroot="$(dpath_gnoroot)"
+  keys="$(dpath_keys "$gnokey_home")"
+  genesis="${work}/genesis.json"
+
   log "creating genesis deployer key"
   printf '%s\n\n' "$deployer_mnemonic" | \
-    docker run -i --rm \
-      --entrypoint /usr/bin/gnokey \
-      -v "${gnokey_home}:/keys" \
-      "$GNOKEY_IMAGE" \
-      add --recover "$deployer_name" --home /keys --insecure-password-stdin >/dev/null
+    run_gnokey -v "${gnokey_home}:/keys" \
+      add --recover "$deployer_name" --home "$keys" --insecure-password-stdin >/dev/null
 
   log "generating empty genesis"
-  docker run --rm \
-    --entrypoint /usr/bin/gnogenesis \
-    -v "${genesis_work}:/work" \
-    "$GNOGENESIS_IMAGE" \
-    generate \
-      --chain-id "$CHAIN_ID" \
-      --genesis-time "$(date +%s)" \
-      --output-path /work/genesis.json >/dev/null
-
-  # Copy genesis to the scenario work dir where _gnogenesis mounts it
-  cp "${genesis_work}/genesis.json" "${SCENARIO_DIR}/genesis.json"
+  run_gnogenesis generate \
+    --chain-id "$CHAIN_ID" \
+    --genesis-time "$(date +%s)" \
+    --output-path "$genesis" >/dev/null
 
   log "adding packages from GNO_ROOT"
   printf '\n' | \
-    docker run -i --rm \
-      --entrypoint /usr/bin/gnogenesis \
-      -v "${SCENARIO_DIR}:/work" \
-      -v "${GNO_ROOT}:/gnoroot:ro" \
-      -v "${gnokey_home}:/keys" \
-      "$GNOGENESIS_IMAGE" \
-      txs add packages /gnoroot/examples \
-        --genesis-path /work/genesis.json \
-        --gno-home /keys \
+    run_gnogenesis -v "${gnokey_home}:/keys" \
+      txs add packages "${gnoroot}/examples" \
+        --genesis-path "$genesis" \
+        --gno-home "$keys" \
         --key-name "$deployer_name" \
         --insecure-password-stdin >/dev/null
 
@@ -379,35 +479,35 @@ generate_genesis() {
   local setup_tx="${genesis_work}/valset-init-tx.json"
   local setup_tx_jsonl="${genesis_work}/valset-init-tx.jsonl"
 
-  printf '\n' | _gnokey_deployer \
+  printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
     maketx run \
       --gas-wanted 100000000 \
       --gas-fee 1ugnot \
       --chainid "$CHAIN_ID" \
       --broadcast=false \
-      --home /work/genesis-work/gnokey-home \
+      --home "$keys" \
       --insecure-password-stdin \
       "$deployer_name" \
-      /work/genesis-work/valset-init.gno > "$setup_tx"
+      "${work}/genesis-work/valset-init.gno" > "$setup_tx"
 
-  printf '\n' | _gnokey_deployer \
+  printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
     sign \
-      --tx-path /work/genesis-work/valset-init-tx.json \
+      --tx-path "${work}/genesis-work/valset-init-tx.json" \
       --chainid "$CHAIN_ID" \
       --account-number 0 \
       --account-sequence 0 \
-      --home /work/genesis-work/gnokey-home \
+      --home "$keys" \
       --insecure-password-stdin \
       "$deployer_name" >/dev/null
 
   jq -c '{tx: .}' < "$setup_tx" > "$setup_tx_jsonl"
 
-  _gnogenesis txs add sheets --genesis-path /work/genesis.json /work/genesis-work/valset-init-tx.jsonl >/dev/null
+  run_gnogenesis txs add sheets --genesis-path "$genesis" "${work}/genesis-work/valset-init-tx.jsonl" >/dev/null
 
   log "adding ${#SCENARIO_GENESIS_VALIDATORS[@]} validators to consensus layer"
   for node in "${SCENARIO_GENESIS_VALIDATORS[@]}"; do
-    _gnogenesis validator add \
-      --genesis-path /work/genesis.json \
+    run_gnogenesis validator add \
+      --genesis-path "$genesis" \
       --name "$node" \
       --address "${NODE_ADDRESS[$node]}" \
       --pub-key "${NODE_PUBKEY[$node]}" \
@@ -415,7 +515,7 @@ generate_genesis() {
   done
 
   log "adding test1 balance"
-  _gnogenesis balances add --genesis-path /work/genesis.json --single "${TX_ADDRESS}=${TX_BALANCE}" >/dev/null
+  run_gnogenesis balances add --genesis-path "$genesis" --single "${TX_ADDRESS}=${TX_BALANCE}" >/dev/null
 
   local genesis_file="${SCENARIO_DIR}/genesis.json"
   for node in "${SCENARIO_NODES[@]}"; do
@@ -425,7 +525,11 @@ generate_genesis() {
 
 format_peer_entry() {
   local node="${1:?node required}"
-  printf '%s@%s:26656' "${NODE_ID[$node]}" "${NODE_SERVICE[$node]}"
+  if [ "$RUNTIME" = "local" ]; then
+    printf '%s@127.0.0.1:%s' "${NODE_ID[$node]}" "${NODE_P2P_PORT[$node]}"
+  else
+    printf '%s@%s:26656' "${NODE_ID[$node]}" "${NODE_SERVICE[$node]}"
+  fi
 }
 
 persistent_peer_targets() {
@@ -493,9 +597,9 @@ set_config_value() {
   local key="${2:?config key required}"
   local value="${3:?config value required}"
 
-  run_in_image -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" \
+  run_gnoland_node "$node" \
     config set \
-      --config-path /data/config/config.toml \
+      --config-path "$(dpath_data "$node")/config/config.toml" \
       "$key" "$value" >/dev/null
 }
 
@@ -511,23 +615,45 @@ private_peer_ids_for_sentry() {
   join_by ',' "${ids[@]}"
 }
 
+# apply_peer_config NODE — (re)write a node's persistent_peers/seeds from the
+# current peer graph. Shared by initial configuration and local port rotation.
+apply_peer_config() {
+  local node="${1:?node required}"
+  local peers
+  peers="$(persistent_peers_for_node "$node")"
+  if [ -n "$peers" ]; then
+    set_config_value "$node" p2p.persistent_peers "$peers"
+    set_config_value "$node" p2p.seeds "$peers"
+  fi
+}
+
 configure_nodes() {
   local node
   for node in "${SCENARIO_NODES[@]}"; do
-    local peers
-    peers="$(persistent_peers_for_node "$node")"
+    # Docker binds 0.0.0.0 on fixed ports inside each container's own netns;
+    # locally every node shares 127.0.0.1 so each needs a distinct port.
+    local rpc_laddr p2p_laddr rs_addr
+    if [ "$RUNTIME" = "local" ]; then
+      rpc_laddr="tcp://127.0.0.1:${NODE_RPC_PORT[$node]}"
+      p2p_laddr="tcp://127.0.0.1:${NODE_P2P_PORT[$node]}"
+    else
+      rpc_laddr="tcp://0.0.0.0:26657"
+      p2p_laddr="tcp://0.0.0.0:26656"
+    fi
 
     set_config_value "$node" moniker "${NODE_MONIKER[$node]}"
-    set_config_value "$node" rpc.laddr "tcp://0.0.0.0:26657"
-    set_config_value "$node" p2p.laddr "tcp://0.0.0.0:26656"
+    set_config_value "$node" rpc.laddr "$rpc_laddr"
+    set_config_value "$node" p2p.laddr "$p2p_laddr"
     set_config_value "$node" p2p.pex "${NODE_PEX[$node]}"
-    if [ -n "$peers" ]; then
-      set_config_value "$node" p2p.persistent_peers "$peers"
-      set_config_value "$node" p2p.seeds "$peers"
-    fi
+    apply_peer_config "$node"
     set_config_value "$node" consensus.timeout_commit "$TIMEOUT_COMMIT"
     if [ "${NODE_CONTROLLABLE_SIGNER[$node]:-false}" = "true" ]; then
-      set_config_value "$node" consensus.priv_validator.remote_signer.server_address "tcp://${NODE_SIGNER_SERVICE[$node]}:26659"
+      if [ "$RUNTIME" = "local" ]; then
+        rs_addr="tcp://127.0.0.1:${NODE_RS_PORT[$node]}"
+      else
+        rs_addr="tcp://${NODE_SIGNER_SERVICE[$node]}:26659"
+      fi
+      set_config_value "$node" consensus.priv_validator.remote_signer.server_address "$rs_addr"
       set_config_value "$node" consensus.priv_validator.remote_signer.request_timeout "$REMOTE_SIGNER_REQUEST_TIMEOUT"
     fi
 
@@ -612,13 +738,13 @@ create_tx_key() {
   fi
 
   printf '%s\n%s\n%s\n' "$TX_MNEMONIC" "$TX_PASSWORD" "$TX_PASSWORD" | \
-    docker run -i --rm --entrypoint /usr/bin/gnokey -v "${KEY_HOME}:/keys" "$GNOKEY_IMAGE" \
-      add "$TX_KEY_NAME" --home /keys --recover --quiet --insecure-password-stdin >/dev/null
+    run_gnokey -v "${KEY_HOME}:/keys" \
+      add "$TX_KEY_NAME" --home "$(dpath_keys "$KEY_HOME")" --recover --quiet --insecure-password-stdin >/dev/null
 }
 
 prepare_network() {
   require_tools
-  ensure_image_exists
+  ensure_runtime_ready
 
   [ "${#SCENARIO_NODES[@]}" -gt 0 ] || die "no nodes declared"
 
@@ -629,7 +755,7 @@ prepare_network() {
   collect_node_ids
   generate_genesis
   configure_nodes
-  write_compose_file
+  [ "$RUNTIME" = "docker" ] && write_compose_file
   create_tx_key
 
   log "prepared network in ${SCENARIO_DIR}"
@@ -724,6 +850,8 @@ wait_for_control() {
 
 _capture_node_logs() {
   local node="${1:?node required}"
+  # Local processes already redirect their own stdout/stderr to the log file.
+  [ "$RUNTIME" = "local" ] && return 0
   # Kill any existing log-follower for this service so there is always exactly
   # one writer per log file (prevents stale followers after container restarts).
   if [ -n "${NODE_LOG_PID[$node]:-}" ]; then
@@ -750,6 +878,8 @@ _capture_node_logs() {
 
 _resolve_rpc_port() {
   local node="${1:?node required}"
+  # Local nodes bind a known deterministic port; nothing to resolve.
+  [ "$RUNTIME" = "local" ] && return 0
   local host_port
   host_port="$(compose port "${NODE_SERVICE[$node]}" 26657 2>/dev/null | grep -oE '[0-9]+$')"
   [ -n "$host_port" ] || die "could not resolve host RPC port for ${node}"
@@ -759,10 +889,60 @@ _resolve_rpc_port() {
 _resolve_control_port() {
   local node="${1:?node required}"
   [ "${NODE_CONTROLLABLE_SIGNER[$node]:-false}" = "true" ] || return 0
+  [ "$RUNTIME" = "local" ] && return 0
   local host_port
   host_port="$(compose port "${NODE_SIGNER_SERVICE[$node]}" 8080 2>/dev/null | grep -oE '[0-9]+$')"
   [ -n "$host_port" ] || die "could not resolve host control port for ${node}"
   NODE_CONTROL_PORT[$node]="$host_port"
+}
+
+# ---------------------------------------------------------------------------
+# Local process supervision. Nodes and signers run as background processes
+# whose pids are tracked in NODE_PID / NODE_SIGNER_PID.
+# ---------------------------------------------------------------------------
+
+_local_start_node() {
+  local node="${1:?node required}"
+  local data="${NODE_DATA_DIR[$node]}"
+  mkdir -p "${SCENARIO_DIR}/logs"
+  "$GNOLAND_BIN" start \
+    -skip-genesis-sig-verification \
+    -data-dir "$data" \
+    -genesis "${data}/genesis.json" \
+    -chainid "$CHAIN_ID" \
+    -gnoroot-dir "$GNO_ROOT" \
+    -log-level "$LOG_LEVEL" \
+    >> "${SCENARIO_DIR}/logs/${node}.log" 2>&1 &
+  NODE_PID[$node]="$!"
+  disown "${NODE_PID[$node]}" 2>/dev/null || true
+}
+
+_local_start_signer() {
+  local node="${1:?node required}"
+  local signer_service="${NODE_SIGNER_SERVICE[$node]}"
+  mkdir -p "${SCENARIO_DIR}/logs"
+  "$VALSIGNERD_BIN" \
+    --key-file "${NODE_DATA_DIR[$node]}/secrets/priv_validator_key.json" \
+    --listen-addr "127.0.0.1:${NODE_CONTROL_PORT[$node]}" \
+    --remote-signer-addr "tcp://127.0.0.1:${NODE_RS_PORT[$node]}" \
+    >> "${SCENARIO_DIR}/logs/${signer_service}.log" 2>&1 &
+  NODE_SIGNER_PID[$node]="$!"
+  disown "${NODE_SIGNER_PID[$node]}" 2>/dev/null || true
+}
+
+# _local_kill_pid PID [GRACE_TENTHS] — SIGTERM then SIGKILL after a grace window.
+_local_kill_pid() {
+  local pid="${1:-}"
+  local grace="${2:-50}"
+  [ -n "$pid" ] || return 0
+  kill -0 "$pid" 2>/dev/null || return 0
+  kill "$pid" 2>/dev/null || true
+  local i=0
+  while (( i++ < grace )); do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
 }
 
 # compose_up_one SERVICE — bring up a single compose service, tolerating Docker's
@@ -791,12 +971,16 @@ compose_up_one() {
 
 start_node() {
   local node="${1:?node required}"
-  # Remove any stopped container so Docker allocates a fresh ephemeral host
-  # port rather than reusing the previous binding, which can conflict when
-  # multiple nodes are restarted in sequence.
-  compose_up_one "$node"
-  _resolve_rpc_port "$node"
-  _capture_node_logs "$node"
+  if [ "$RUNTIME" = "local" ]; then
+    _local_start_node "$node"
+  else
+    # Remove any stopped container so Docker allocates a fresh ephemeral host
+    # port rather than reusing the previous binding, which can conflict when
+    # multiple nodes are restarted in sequence.
+    compose_up_one "$node"
+    _resolve_rpc_port "$node"
+    _capture_node_logs "$node"
+  fi
   wait_for_rpc "$node" 120
   log "started ${node}"
 }
@@ -818,12 +1002,31 @@ start_all_nodes() {
     local signer_service
     for node in "${SCENARIO_SIGNERS[@]}"; do
       signer_service="${NODE_SIGNER_SERVICE[$node]}"
-      compose_up_one "$signer_service"
-      _resolve_control_port "$node"
+      if [ "$RUNTIME" = "local" ]; then
+        _local_start_signer "$node"
+      else
+        compose_up_one "$signer_service"
+        _resolve_control_port "$node"
+        _capture_node_logs "$signer_service"
+      fi
       wait_for_control "$node" 120
-      _capture_node_logs "$signer_service"
       log "started ${signer_service}"
     done
+  fi
+
+  if [ "$RUNTIME" = "local" ]; then
+    # Start sentries first (P2P gateway ready), then validators. start_node
+    # dispatches to the local backend and waits for RPC; a node's RPC comes up
+    # independently of quorum, so per-node waits do not deadlock.
+    for node in "${SCENARIO_SENTRIES[@]+"${SCENARIO_SENTRIES[@]}"}"; do
+      start_node "$node"
+    done
+    for node in "${SCENARIO_VALIDATORS[@]+"${SCENARIO_VALIDATORS[@]}"}"; do
+      start_node "$node"
+    done
+    write_inventory
+    log "started ${#SCENARIO_NODES[@]} node(s)"
+    return 0
   fi
 
   # Start sentries first and wait for them before launching validators so
@@ -871,7 +1074,12 @@ start_all_nodes() {
 
 stop_node() {
   local node="${1:?node required}"
-  compose stop "$node" >/dev/null
+  if [ "$RUNTIME" = "local" ]; then
+    _local_kill_pid "${NODE_PID[$node]:-}"
+    NODE_PID[$node]=""
+  else
+    compose stop "$node" >/dev/null
+  fi
   log "stopped ${node}"
 }
 
@@ -886,14 +1094,21 @@ stop_sentry() {
 reset_node() {
   local node="${1:?node required}"
   stop_node "$node" || true
-  # All files under the node data dir are owned by root (created inside the
-  # container), so perform the reset from inside a container to avoid host
-  # permission errors.
-  docker run --rm --entrypoint sh \
-    -v "${NODE_DATA_DIR[$node]}:/data" \
-    -v "${SCENARIO_DIR}/genesis.json:/genesis.json:ro" \
-    "$IMAGE_NAME" \
-    -c 'rm -rf /data/db /data/wal && printf '"'"'{"height":"0","round":"0","step":0}\n'"'"' > /data/secrets/priv_validator_state.json && cp /genesis.json /data/genesis.json'
+  local data="${NODE_DATA_DIR[$node]}"
+  if [ "$RUNTIME" = "local" ]; then
+    rm -rf "${data}/db" "${data}/wal"
+    printf '{"height":"0","round":"0","step":0}\n' > "${data}/secrets/priv_validator_state.json"
+    cp "${SCENARIO_DIR}/genesis.json" "${data}/genesis.json"
+  else
+    # All files under the node data dir are owned by root (created inside the
+    # container), so perform the reset from inside a container to avoid host
+    # permission errors.
+    docker run --rm --entrypoint sh \
+      -v "${data}:/data" \
+      -v "${SCENARIO_DIR}/genesis.json:/genesis.json:ro" \
+      "$IMAGE_NAME" \
+      -c 'rm -rf /data/db /data/wal && printf '"'"'{"height":"0","round":"0","step":0}\n'"'"' > /data/secrets/priv_validator_state.json && cp /genesis.json /data/genesis.json'
+  fi
   log "reset ${node}"
 }
 
@@ -907,9 +1122,14 @@ safe_reset_node() {
   # Remove only db and wal; preserve priv_validator_state.json so the node
   # cannot sign a block at a height/round/step it already committed (no double
   # signing). genesis.json is left untouched as well.
-  docker run --rm --entrypoint sh \
-    -v "${NODE_DATA_DIR[$node]}:/data" "$IMAGE_NAME" \
-    -c 'rm -rf /data/db /data/wal'
+  local data="${NODE_DATA_DIR[$node]}"
+  if [ "$RUNTIME" = "local" ]; then
+    rm -rf "${data}/db" "${data}/wal"
+  else
+    docker run --rm --entrypoint sh \
+      -v "${data}:/data" "$IMAGE_NAME" \
+      -c 'rm -rf /data/db /data/wal'
+  fi
   log "safe-reset ${node}"
 }
 
@@ -1080,6 +1300,16 @@ docker_network_name() {
   printf '%s' "$NETWORK_NAME"
 }
 
+# node_remote NODE — the --remote address gnokey should dial for a node's RPC.
+node_remote() {
+  local node="${1:?node required}"
+  if [ "$RUNTIME" = "local" ]; then
+    printf '127.0.0.1:%s' "${NODE_RPC_PORT[$node]}"
+  else
+    printf '%s:26657' "${NODE_SERVICE[$node]}"
+  fi
+}
+
 gnokey_tx_with_password() {
   # Consume leading -v <bind> docker volume flags before the gnokey subcommand.
   local -a extra_docker_args=()
@@ -1087,14 +1317,18 @@ gnokey_tx_with_password() {
     extra_docker_args+=("-v" "$2")
     shift 2
   done
-  printf '%s\n' "$TX_PASSWORD" | \
-    docker run -i --rm \
-      --entrypoint /usr/bin/gnokey \
-      --network "$(docker_network_name)" \
-      -v "${KEY_HOME}:/keys" \
-      "${extra_docker_args[@]}" \
-      "$GNOKEY_IMAGE" \
-      "$@"
+  if [ "$RUNTIME" = "local" ]; then
+    printf '%s\n' "$TX_PASSWORD" | "$GNOKEY_BIN" "$@"
+  else
+    printf '%s\n' "$TX_PASSWORD" | \
+      docker run -i --rm \
+        --entrypoint /usr/bin/gnokey \
+        --network "$(docker_network_name)" \
+        -v "${KEY_HOME}:/keys" \
+        "${extra_docker_args[@]}" \
+        "$GNOKEY_IMAGE" \
+        "$@"
+  fi
 }
 
 add_pkg() {
@@ -1109,14 +1343,14 @@ add_pkg() {
 
   local -a cmd=(
     maketx addpkg
-    --pkgdir /pkg
+    --pkgdir "$(dmount "$abs_pkgdir" /pkg)"
     --pkgpath "$pkgpath"
     --gas-fee "$TX_GAS_FEE"
     --gas-wanted "$gas_wanted"
     --broadcast=true
     --chainid "$CHAIN_ID"
-    --remote "${NODE_SERVICE[$target_node]}:26657"
-    --home /keys
+    --remote "$(node_remote "$target_node")"
+    --home "$(dpath_keys "$KEY_HOME")"
     --insecure-password-stdin
   )
 
@@ -1162,8 +1396,8 @@ call_realm() {
     --gas-wanted "$TX_GAS_WANTED_CALL"
     --broadcast=true
     --chainid "$CHAIN_ID"
-    --remote "${NODE_SERVICE[$target_node]}:26657"
-    --home /keys
+    --remote "$(node_remote "$target_node")"
+    --home "$(dpath_keys "$KEY_HOME")"
     --insecure-password-stdin
   )
 
@@ -1195,8 +1429,8 @@ run_script() {
       --gas-wanted "$gas_wanted"
       --broadcast=true
       --chainid "$CHAIN_ID"
-      --remote "${NODE_SERVICE[$target_node]}:26657"
-      --home /keys
+      --remote "$(node_remote "$target_node")"
+      --home "$(dpath_keys "$KEY_HOME")"
       --insecure-password-stdin
   )
 
@@ -1204,7 +1438,7 @@ run_script() {
     cmd+=(--simulate "$simulate_mode")
   fi
 
-  cmd+=("$TX_KEY_NAME" "/script/${script_name}")
+  cmd+=("$TX_KEY_NAME" "$(dmount "$abs_script" "/script/${script_name}")")
 
   gnokey_tx_with_password \
     -v "${script_dir}:/script:ro" \
@@ -1240,8 +1474,8 @@ send_coins() {
       --gas-wanted "$TX_GAS_WANTED_SEND" \
       --broadcast=true \
       --chainid "$CHAIN_ID" \
-      --remote "${NODE_SERVICE[$target_node]}:26657" \
-      --home /keys \
+      --remote "$(node_remote "$target_node")" \
+      --home "$(dpath_keys "$KEY_HOME")" \
       --insecure-password-stdin \
       "$TX_KEY_NAME"
 }
@@ -1263,8 +1497,12 @@ query_render() {
   local target_node="${1:?target node required}"
   local expr="${2:?render expression required}"
 
-  docker run --rm --entrypoint /usr/bin/gnokey --network "$(docker_network_name)" "$GNOKEY_IMAGE" \
-    query vm/qrender --data "$expr" --remote "${NODE_SERVICE[$target_node]}:26657"
+  if [ "$RUNTIME" = "local" ]; then
+    "$GNOKEY_BIN" query vm/qrender --data "$expr" --remote "$(node_remote "$target_node")"
+  else
+    docker run --rm --entrypoint /usr/bin/gnokey --network "$(docker_network_name)" "$GNOKEY_IMAGE" \
+      query vm/qrender --data "$expr" --remote "$(node_remote "$target_node")"
+  fi
 }
 
 container_id_for_node() {
@@ -1273,10 +1511,59 @@ container_id_for_node() {
 
 node_ip() {
   local node="${1:?node required}"
+  if [ "$RUNTIME" = "local" ]; then
+    # No container IPs locally; the P2P port stands in as the node's "address".
+    printf '%s' "${NODE_P2P_PORT[$node]:-}"
+    return 0
+  fi
   local container_id
   container_id="$(container_id_for_node "$node")"
   [ -n "$container_id" ] || return 1
   docker inspect "$container_id" | jq -r --arg network "$(docker_network_name)" '.[0].NetworkSettings.Networks[$network].IPAddress // empty'
+}
+
+# Local emulation of a sentry IP rotation. There are no container IPs on
+# 127.0.0.1, so we stand in by moving the sentry to a new P2P port. Unlike the
+# docker scenario (where validators keep dialing a stable DNS name), peers
+# address host:port directly, so the nodes that dial this sentry are
+# reconfigured and restarted to learn the new port. This exercises sentry
+# recreation + reconnection recovery, not the DNS-stable / IP-changed property.
+_local_rotate_sentry_ip() {
+  local sentry="${1:?sentry name required}"
+  local while_down="${2:-}"
+
+  local old_port="${NODE_P2P_PORT[$sentry]}"
+  stop_node "$sentry"
+
+  if [ -n "$while_down" ]; then
+    "$while_down"
+  fi
+
+  local new_port="$((old_port + 1000))"
+  NODE_P2P_PORT[$sentry]="$new_port"
+  set_config_value "$sentry" p2p.laddr "tcp://127.0.0.1:${new_port}"
+
+  # Find and restart the nodes that dial this sentry so they pick up its new port.
+  local node target
+  local -a affected=()
+  for node in "${SCENARIO_NODES[@]}"; do
+    [ "$node" = "$sentry" ] && continue
+    while IFS= read -r target; do
+      [ "$target" = "$sentry" ] && { affected+=("$node"); break; }
+    done < <(persistent_peer_targets "$node")
+  done
+
+  for node in "${affected[@]+"${affected[@]}"}"; do
+    stop_node "$node"
+    apply_peer_config "$node"
+  done
+
+  start_node "$sentry"
+  for node in "${affected[@]+"${affected[@]}"}"; do
+    start_node "$node"
+  done
+
+  log "sentry ${sentry} P2P port ${old_port} -> ${new_port} (local emulation)"
 }
 
 rotate_sentry_ip() {
@@ -1286,6 +1573,11 @@ rotate_sentry_ip() {
   # assertions that require the sentry to be down.
   local while_down="${2:-}"
   [ "${NODE_ROLE[$sentry]:-}" = "sentry" ] || die "${sentry} is not a sentry"
+
+  if [ "$RUNTIME" = "local" ]; then
+    _local_rotate_sentry_ip "$sentry" "$while_down"
+    return 0
+  fi
 
   local old_ip
   local new_ip
@@ -1347,6 +1639,19 @@ print_cluster_status() {
 }
 
 scenario_finish() {
+  if [ "$RUNTIME" = "local" ]; then
+    if [ "${KEEP_UP:-0}" = "1" ]; then
+      log "leaving processes running because KEEP_UP=1"
+      return 0
+    fi
+    local node
+    for node in "${SCENARIO_NODES[@]+"${SCENARIO_NODES[@]}"}"; do
+      _local_kill_pid "${NODE_PID[$node]:-}"
+      _local_kill_pid "${NODE_SIGNER_PID[$node]:-}"
+    done
+    return 0
+  fi
+
   local sentry
   for sentry in "${SCENARIO_SENTRIES[@]+"${SCENARIO_SENTRIES[@]}"}"; do
     docker rm -f "${PROJECT_NAME}-${sentry}-bump-1" "${PROJECT_NAME}-${sentry}-bump-2" >/dev/null 2>&1 || true

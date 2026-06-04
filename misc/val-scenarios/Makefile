@@ -2,6 +2,10 @@ WORK_ROOT         ?= /tmp/gno-val-tests
 NODE              ?=
 LOCAL_GNO_ROOT    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
 
+# Output dir for the local-runtime binaries (RUNTIME=local). Must match the
+# BIN_DIR default in lib/scenario.sh (<this dir>/bin).
+BIN_DIR           ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/bin)
+
 # Remote fork support: set GH_USER to build images from a GitHub fork.
 # GH_REPO defaults to "gno" and GH_BRANCH defaults to "master".
 # e.g. make build-images GH_USER=gnolang
@@ -70,7 +74,7 @@ SCENARIO_TARGETS := $(foreach s,$(SCENARIO_SCRIPTS),scenario-$(call scenario_num
 CI_SCENARIO_TARGETS := $(foreach s,$(CI_SCENARIO_SCRIPTS),scenario-$(call scenario_num,$(s)))
 LOCAL_ONLY_SCENARIO_TARGETS := $(foreach s,$(LOCAL_ONLY_SCENARIO_SCRIPTS),scenario-$(call scenario_num,$(s)))
 
-.PHONY: test test-ci ci test-local local-only test-all test-basics basics test-advanced advanced build-core-image build-gnoland-image build-gnokey-image build-gnogenesis-image build-valsigner-image build-images fetch-remote clone-gno clean status
+.PHONY: test test-ci ci test-local local-only test-all test-basics basics test-advanced advanced build-core-image build-gnoland-image build-gnokey-image build-gnogenesis-image build-valsigner-image build-images build-binaries fetch-remote clone-gno clean status
 
 # Run the CI scenarios in order, stopping on the first failure.
 test: test-ci
@@ -115,6 +119,14 @@ build-valsigner-image: $(_FETCH_PREREQ)
 	docker build -t $(VALSIGNER_IMAGE) -f $(VALSIGNER_GNO_ROOT)/misc/val-scenarios/Dockerfile --target valsignerd $(VALSIGNER_GNO_ROOT)
 
 build-images: build-core-image build-gnogenesis-image build-valsigner-image
+
+# Build the four binaries for the local runtime (RUNTIME=local). gnoland,
+# gnokey and valsignerd live in the root module; gnogenesis is its own module.
+build-binaries:
+	@mkdir -p $(BIN_DIR)
+	cd $(LOCAL_GNO_ROOT) && go build -o $(BIN_DIR)/ ./gno.land/cmd/gnoland ./gno.land/cmd/gnokey ./misc/val-scenarios/cmd/valsignerd
+	cd $(LOCAL_GNO_ROOT)/contribs/gnogenesis && go build -o $(BIN_DIR)/gnogenesis .
+	@echo "[+] built gnoland, gnokey, gnogenesis, valsignerd into $(BIN_DIR)"
 
 clean:
 	rm -rf $(WORK_ROOT)
