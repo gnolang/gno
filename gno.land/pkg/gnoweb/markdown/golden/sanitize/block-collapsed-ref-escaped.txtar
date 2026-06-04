@@ -3,6 +3,9 @@
 -- input.md --
 see [foo][] later
 -- output.md --
+
+
 see \[foo\]\[\] later
+
 -- output.html --
 <p>see [foo][] later</p>
