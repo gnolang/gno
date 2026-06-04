@@ -1,1 +1,1 @@
-(()=>{(()=>{const t=document.currentScript;t instanceof HTMLScriptElement&&(window.sa_metadata={page_type:t.dataset.pageType??"",chain_id:t.dataset.chainId??""})})();})();
+(()=>{(()=>{const a=document.currentScript;if(!(a instanceof HTMLScriptElement))return;window.sa_metadata={schema_version:"1",page_type:a.dataset.pageType??"",chain_id:a.dataset.chainId??""};const t=a.dataset.saPath??"";window.gnoSaPath=()=>t})();})();

@@ -182,6 +182,7 @@ func IndexLayout(data IndexData) Component {
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
 
 	data.FooterData.Analytics.PageType = ClassifyPageType(data.Mode, data.BodyView.Type)
+	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)
 	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
 	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
 	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime

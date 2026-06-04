@@ -16,6 +16,10 @@ declare global {
 	interface Window {
 		sa_event?: (name: string, meta?: Record<string, string | boolean>) => void;
 		sa_metadata?: Record<string, string>;
+		// Path-overwriter read by latest.js via data-path-overwriter. Returns the
+		// server-built pageview path that latest.js records in place of the raw
+		// location.pathname.
+		gnoSaPath?: () => string;
 	}
 }
 

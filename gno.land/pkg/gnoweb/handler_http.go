@@ -47,6 +47,9 @@ func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
 		AssetsPath: s.AssetsPath,
 		BuildTime:  s.BuildTime,
 		Hostname:   s.AnalyticsHostname,
+		// Path is left empty: redirect targets are server-controlled constants,
+		// and the client path-overwriter falls back to SA's default path for an
+		// empty data-sa-path.
 	}
 }
 

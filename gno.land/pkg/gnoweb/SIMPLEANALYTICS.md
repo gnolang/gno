@@ -10,7 +10,7 @@ We never collect:
 
 - Wallet addresses, public keys, or transaction signatures
 - Function arguments or return values
-- Form input values (address inputs, parameter inputs, search queries) as event payload. Note: the help-page URL pattern `…$help&func=…&arg1=…` reflects typed param values in its query string and is captured by SA as part of the standard pageview URL until we strip it client-side.
+- Form input values (address inputs, parameter inputs, search queries) as event payload. gno encodes typed parameter values directly in the URL pathname (`…$help&func=…&amount=…`), which SA's querystring stripping does not cover; a path-overwriter reports a sanitized path instead (see [Path sanitization](#path-sanitization)).
 - Cookies, persistent visitor IDs, fingerprinting data
 - IP addresses beyond what SA's defaults handle (hashed, daily-rotated, never stored raw)
 - Anything that distinguishes a person across sessions
@@ -22,16 +22,40 @@ All metadata is derived from public, server-side context (URL pattern, layout mo
 ## Pageview metadata
 
 Set on every pageview via `window.sa_metadata`. A synchronous classic
-`<script src="sa-bootstrap.js" data-page-type="…" data-chain-id="…">` loads
-before SA's async `latest.js`, reads its own `data-*` attributes, and
-assigns `window.sa_metadata`. This keeps the bootstrap CSP-safe (no inline
-script) and deterministic (classic scripts block parsing, so SA's async
-scripts cannot start loading until the metadata is set).
+`<script src="sa-bootstrap.js" data-page-type="…" data-chain-id="…" data-sa-path="…">`
+loads before SA's async `latest.js`, reads its own `data-*` attributes, assigns
+`window.sa_metadata`, and registers the `window.gnoSaPath` path-overwriter (see
+[Path sanitization](#path-sanitization)). This keeps the bootstrap CSP-safe (no
+inline script) and deterministic (classic scripts block parsing, so SA's async
+scripts cannot start loading until the metadata and overwriter are set).
 
 | Key | Source | Cardinality |
 |---|---|---|
+| `schema_version` | constant in `sa-bootstrap.ts` | 1 (bump on incompatible taxonomy / metadata change) |
 | `page_type` | `components.ClassifyPageType(mode, view)` | 11: home, user, pure, realm, source, help, directory, status, redirect, explorer, other |
 | `chain_id` | `cfg.ChainID` (env constant) | low (one per deployment) |
+
+## Path sanitization
+
+SA records the page URL with every pageview and event. gno encodes render
+arguments and function-call parameters directly in the pathname (for example
+`/r/demo/foo:render/path$help&func=Transfer&amount=100`), so SA's default
+querystring stripping does not remove them.
+
+`components.analyticsPath` builds a privacy-preserving path from the parsed
+`GnoURL`; the server renders it as `data-sa-path` on the sa-bootstrap script.
+`sa-bootstrap.ts` exposes it as `window.gnoSaPath`, which `latest.js` calls via
+`data-path-overwriter="gnoSaPath"` and records in place of `location.pathname`.
+The real browser URL is never modified.
+
+| Component | Treatment |
+|---|---|
+| Route path (`/r/…`, `/p/…`, `/u/{address}`) | kept |
+| Render path (the `:args` segment) | kept |
+| Mode flags (`help`, `source`, `download`) | kept |
+| `func` (exported function name), `file` (source file) | kept |
+| Every other web-query value (function arguments, `.send`) | masked to `redacted` |
+| Standard query string (`?…`) | dropped |
 
 ## Custom events
 
@@ -122,19 +146,30 @@ Two layers fire in parallel.
 6. **Document the event in this file** under the appropriate section.
 7. **If the event needs a server-side data attribute** (e.g. `data-outbound`), extend the relevant struct and template in `components/`.
 
+## Roadmap — signals not yet captured
+
+Tracked for #5467; not yet instrumented. Listed here so the indexer / dashboard
+work has concrete inputs:
+
+- **qeval latency** — time from action submit to qeval result, to measure preview responsiveness.
+- **submit failures** — failed action submissions (validation / RPC errors), distinct from `submit_action`, which fires on the submit attempt.
+
+Extend this list as #5467 requirements firm up; bump `schema_version` when new signals change the metadata or event shape incompatibly.
+
 ## Third-party posture
 
 - `sa.gno.services` proxies to SimpleAnalytics. SA respects `Navigator.doNotTrack` by default: DNT users are not tracked.
 - IPs are SHA-256 hashed and daily-rotated; never stored raw. No cookies, no fingerprinting.
 - The `<noscript>` pixel uses `referrerpolicy="no-referrer"` so JS-disabled users don't leak the page URL via Referer.
 - `auto-events.js` records the destination URL of every outbound click and download as event payload: SA-side behavior, not gnoweb instrumentation.
+- The SA scripts (`latest.js`, `auto-events.js`) load under a strict CSP (`script-src 'self' https://sa.gno.services`, no `unsafe-inline`; see `SecureHeadersMiddleware`). Subresource Integrity is not applied: they are rolling, non-versioned scripts, so a pinned hash would break on every SA release. The script trust boundary is the gno-operated `sa.gno.services` proxy.
 
 ## Files
 
 - `frontend/js/analytics.ts` — event delegation source of truth
 - `public/js/analytics.js` — esbuild output, embedded via `go:embed`
-- `components/analytics.go` — `AnalyticsData`, `ClassifyPageType`
+- `components/analytics.go` — `AnalyticsData`, `ClassifyPageType`, `analyticsPath`
 - `components/layouts/analytics.html` — script wiring (sa-bootstrap + SA scripts + analytics.js)
-- `frontend/js/sa-bootstrap.ts` — classic IIFE that reads `data-*` attrs and sets `window.sa_metadata`
+- `frontend/js/sa-bootstrap.ts` — classic IIFE that reads `data-*` attrs, sets `window.sa_metadata`, and registers the `window.gnoSaPath` path-overwriter
 - `components/layout_footer.go` + `layouts/footer.html` — footer outbound tagging
 - `components/layout_header.go` + `layouts/header.html` — header outbound tagging

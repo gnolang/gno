@@ -2,9 +2,11 @@ package gnoweb
 
 import (
 	"fmt"
+	"html"
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/rs/xid"
@@ -263,6 +265,31 @@ func TestAnalytics(t *testing.T) {
 				assert.Contains(t, body, want, "route %q should emit %s", route, want)
 			})
 		}
+	})
+
+	t.Run("path_overwriter_sanitizes_args", func(t *testing.T) {
+		// The SimpleAnalytics path-overwriter reports a sanitized path so
+		// user-supplied function arguments in the URL never reach SA.
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		cfg.Analytics = true
+		logger := log.NewTestingLogger(t)
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		request := httptest.NewRequest(http.MethodGet, "/r/gnoland/blog$help&func=Render&body=topsecret", nil)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		body := response.Body.String()
+		assert.Contains(t, body, `data-path-overwriter="gnoSaPath"`, "latest.js must register the path-overwriter")
+
+		m := regexp.MustCompile(`data-sa-path="([^"]*)"`).FindStringSubmatch(body)
+		require.NotNil(t, m, "data-sa-path attribute must be present")
+		saPath := html.UnescapeString(m[1])
+		assert.Contains(t, saPath, "func=Render", "exported func name should be preserved")
+		assert.Contains(t, saPath, "body=redacted", "user argument value should be masked")
+		assert.NotContains(t, saPath, "topsecret", "raw user argument value must not leak to analytics")
 	})
 }
 
