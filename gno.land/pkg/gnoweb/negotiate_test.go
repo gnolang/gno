@@ -22,6 +22,7 @@ func TestNegotiatesMarkdown(t *testing.T) {
 		{"markdown negative q", "text/markdown;q=-1", false},
 		{"html then markdown", "text/html, text/markdown", true},
 		{"browser accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", false},
+		{"claude-code webfetch accept", "text/markdown, text/html, */*", true},
 		{"wildcard only", "*/*", false},
 		{"text wildcard", "text/*", false},
 		{"json", "application/json", false},
