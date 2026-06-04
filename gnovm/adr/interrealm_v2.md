@@ -185,9 +185,12 @@ under the source's /r/ realm. In other words, all /r/realmA.Objects live in
 /p/ packages themselves are immutable (no realm state, library semantics), but
 /p/-declared types used as values acquire a /r/ stamp (on ObjectInfo.PkgID) at
 construction and are then mutable by that /r/ — see borrow rules #2 and #3. In
-v1 there was no such construction-time ObjectInfo.PkgID stamping. In v2 once
-ObjectInfo.PkgID is stamped with a /r/ realm, even copies retain that source /r/
-realm.
+v1 there was no such construction-time ObjectInfo.PkgID stamping. In v2 the
+construction stamp is the constructing realm's PkgID, and copies are stamped
+type-driven (stampPkgID's split rule, #5706/#5747): a /r/-declared type keeps
+its declared /r/ owner across copies, but a /p/-declared value's copy takes the
+copying realm's PkgID — it does NOT retain the source /r/. That is what makes
+cross-realm in-place /p/ arithmetic work (#5736).
 
   - Borrow rule #3: if fv is a closure (FuncLit) declared in a /p/ package,
     borrow to the realm context that was active when the closure was
