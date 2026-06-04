@@ -10,39 +10,35 @@ import (
 // ClientAdapter is the subset of the gnoweb chain-client interface that
 // the playground feature consumes. Declared locally so feature/playground
 // does not import the gnoweb package. The signatures match the
-// corresponding methods on gnoweb.ClientAdapter so a *gnoweb.MockClient
-// or *gnoweb.rpcClient satisfies this contract through a thin adapter
-// wired in at construction time.
+// corresponding methods on gnoweb.ClientAdapter.
 type ClientAdapter interface {
-	// ListFiles is used by the fork view to enumerate package sources.
+	// ListFiles lists all source files available in a specified package path.
 	ListFiles(ctx context.Context, path string) ([]string, error)
 
-	// File is used by the fork view to read each source file.
+	// File fetche the source file from a given package path and filename.
 	File(ctx context.Context, path, filename string) ([]byte, error)
 
-	// Doc is used by the funcs API to enumerate exported functions.
+	// Doc retrieves the JSON doc suitable for printing from a
+	// specified package path.
 	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 
-	// Eval is used by the eval API to run an expression against a
-	// realm via vm/qeval.
+	// Eval evaluates a Gno expression via vm/qeval query.
+	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
 	Eval(ctx context.Context, data string) ([]byte, error)
 }
 
 // Deps gathers the dependencies the playground Handler needs.
 type Deps struct {
 	Client ClientAdapter
-
-	// Logger falls back to slog.Default().
 	Logger *slog.Logger
 
 	// Domain is the chain domain (e.g. "gno.land").
 	Domain string
 
-	// Remote is the RPC endpoint surfaced to the playground UI so it
-	// can show the user which node it is talking to.
+	// Remote is the RPC endpoint.
 	Remote string
 
-	// ChainId is the active chain id surfaced to the playground UI.
+	// ChainId is the active chain ID.
 	ChainId string
 }
 

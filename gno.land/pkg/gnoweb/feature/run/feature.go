@@ -4,18 +4,16 @@ import "log/slog"
 
 // Deps gathers the dependencies the run Handler needs.
 type Deps struct {
-	// Logger falls back to slog.Default().
 	Logger *slog.Logger
 
 	// Domain is the chain domain (e.g. "gno.land"), used to build the
 	// fully-qualified package import path stamped on the rendered page.
 	Domain string
 
-	// Remote is the RPC endpoint surfaced to the run UI so the CLI
-	// command builder can default it.
+	// Remote is the RPC endpoint.
 	Remote string
 
-	// ChainId is the active chain id surfaced to the run UI.
+	// ChainId is the active chain ID.
 	ChainId string
 }
 

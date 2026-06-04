@@ -25,9 +25,11 @@ func Render(path string) string {
 `
 
 func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
+	// If available, read initial source code from a query argument
 	initial := u.Query.Get("code")
 	if initial != "" {
 		if decoded, err := base64.StdEncoding.DecodeString(initial); err == nil {
+			// Decompress code when given as DEFLATE compressed data format (RFC 1951)
 			if u.Query.Has("z") {
 				zr := flate.NewReader(bytes.NewReader(decoded))
 				if plain, err := io.ReadAll(zr); err == nil {
@@ -54,12 +56,12 @@ func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
 
 func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *components.View) {
 	pkgPath := u.Path
-
 	files, err := h.deps.Client.ListFiles(ctx, pkgPath)
 	if err != nil {
 		h.deps.Logger.Warn("unable to list files for fork", "path", pkgPath, "error", err)
-		// Render the playground with default code rather than a hard
-		// error — the user can still write code from scratch.
+
+		// Render the playground with default code rather than a hard error,
+		// so user can still write code from scratch.
 		return http.StatusOK, NewPageView(PlaygroundData{
 			InitialCode: defaultCode,
 			ForkFrom:    path.Join(h.deps.Domain, pkgPath),
@@ -234,5 +236,5 @@ func (h *Handler) serveFuncs(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
+	_ = json.NewEncoder(w).Encode(v)
 }

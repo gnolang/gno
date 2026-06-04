@@ -9,10 +9,10 @@ type PlaygroundData struct {
 	// is rendered as a fork. Empty for a fresh playground.
 	ForkFrom string
 
-	// Remote is the RPC endpoint surfaced to the UI.
+	// Remote is the RPC endpoint.
 	Remote string
 
-	// ChainId is the current chain ID surfaced to the UI.
+	// ChainId is the current chain ID.
 	ChainId string
 
 	// Domain is the chain domain.
