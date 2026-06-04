@@ -38,6 +38,12 @@ func main() {
 // ## Foo
 //
 // **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Body
+// </gno-foreign>
+//
+//
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost)
