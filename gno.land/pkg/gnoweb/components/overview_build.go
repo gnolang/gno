@@ -178,9 +178,8 @@ func buildOverviewTOC(quality PackageQuality, funcs []FuncEntry, types []TypeEnt
 	return toc
 }
 
-// typeKindIcon maps a doc type Kind (json_doc.go: struct|interface|array|slice|
-// map|channel|func|pointer|ident) to a kind-glyph sprite id borrowed from #5649.
-// Unknown/empty kinds (ident, channel) fall back to the generic type box.
+// typeKindIcon maps a doc type Kind (struct, interface, map, func, ...) to a
+// kind-glyph sprite id. Unknown or empty kinds fall back to the generic type box.
 func typeKindIcon(kind string) string {
 	switch kind {
 	case "struct":

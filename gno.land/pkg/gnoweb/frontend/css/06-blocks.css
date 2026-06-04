@@ -1934,7 +1934,7 @@ main.dev-mode .b-toc a {
 	color: var(--s-color-text-primary);
 }
 
-/* BORROWED FROM #5649 — DELETE ON MERGE (count-pill variant used by the overview bar). */
+/* BORROWED FROM #5649 (DELETE ON MERGE): count-pill variant for the overview bar. */
 .b-tag--tertiary {
 	border-color: transparent;
 	background-color: var(--s-color-bg-surface-secondary);
@@ -2634,9 +2634,8 @@ main.dev-mode > section:has(.c-overview-view) {
 		text-align: start;
 	}
 
-	/* Sidebar section headings a notch larger (16px) for presence — deliberate
-	   override of #5649's 14px .b-state-meta-heading, scoped to the overview so it
-	   persists past merge and doesn't touch #5649's state page. */
+	/* Sidebar section headings a notch larger (16px) for presence. Scoped to the
+	   overview so it persists past merge. */
 	:is(.b-state-meta dt.section, .b-state-meta-heading) {
 		font-size: var(--g-font-size-200);
 	}
@@ -2654,7 +2653,7 @@ main.dev-mode > section:has(.c-overview-view) {
 			margin-block-start: var(--g-space-10);
 		}
 		.b-sidebar .inner {
-			/* keep the sticky sidebar's bottom reachable below the header (#5649). */
+			/* keep the sticky sidebar's bottom reachable below the header */
 			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
 		}
 		.b-content-header {
@@ -2666,11 +2665,9 @@ main.dev-mode > section:has(.c-overview-view) {
 
 /* --- Sidebar: unified card (meta + quality + TOC) --- */
 
-/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
-   The overview sidebar reuses #5649's .b-state-meta verbatim (same markup +
-   classes), so it merges cleanly: at merge, delete this block and the sidebar
-   falls through to #5649's shared rule. (#5649's copy-button reset is omitted —
-   the overview meta has no copy buttons; #5649 supplies it at merge.) */
+/* BORROWED FROM #5649 (DELETE ON MERGE): the sidebar reuses #5649's
+   .b-state-meta verbatim, so at merge delete this block and it falls through to
+   #5649's shared rule. */
 .b-state-meta {
 	margin: 0 0 var(--g-space-6) 0;
 	font-size: var(--g-font-size-90);
@@ -2736,7 +2733,7 @@ main.dev-mode > section:has(.c-overview-view) {
 	padding-block-end: var(--g-space-1);
 	border-block-end: var(--s-divider);
 }
-/* ===== END BORROWED FROM #5649 ===== */
+/* END BORROWED FROM #5649 */
 
 .b-pkg-metadata {
 	display: block;
@@ -2759,9 +2756,8 @@ main.dev-mode > section:has(.c-overview-view) {
 	margin-block-start: var(--g-space-2);
 	font-size: var(--g-font-size-100);
 
-	/* Kind glyph prefixing each symbol — mirrors #5649's .b-state-decl
-	   .kind-glyph (borrowed ico-kind-* set). Scoped to .b-pkg-toc so it never
-	   touches #5649's state page; unify into a shared rule at merge. */
+	/* Kind glyph prefixing each symbol. Scoped to .b-pkg-toc; fold into the
+	   shared rule at #5649 merge. */
 	.kind-glyph {
 		display: inline-block;
 		inline-size: 1em;
@@ -2778,12 +2774,10 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 }
 
-/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
-   The overview's sticky bar reuses #5649's .b-page-subheader chrome verbatim,
-   scoped to .b-page-subheader so it never touches the packages-list page. #5649
-   adds .b-page-subheader/.state-search and un-nests .packages-tabs to top-level;
-   at merge, delete this block and the bar falls through to those shared rules.
-   Behaviour stays "ours": section ANCHORS (jump-to-section), not #5649's radios. */
+/* BORROWED FROM #5649 (DELETE ON MERGE): the sticky bar reuses #5649's
+   .b-page-subheader chrome verbatim. At merge, delete this block and the bar
+   falls through to #5649's shared rules. Behaviour stays ours: section anchors,
+   not radios. */
 .b-page-subheader {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
@@ -2825,7 +2819,7 @@ main.dev-mode > section:has(.c-overview-view) {
 		gap: var(--g-space-6);
 	}
 
-	/* #5649 styles radio <label>s; we use anchors — same chrome. */
+	/* Same chrome for label and anchor tabs. */
 	:is(label, a) {
 		position: relative;
 		display: flex;
@@ -2864,8 +2858,8 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-primary);
 }
 
-/* Active-section underline (#5649's checked-tab ::after). The agnostic observer
-   controller sets aria-current on the in-view section's link as you scroll. */
+/* Active-section underline. The agnostic observer controller sets aria-current
+   on the in-view section's link as you scroll. */
 .b-page-subheader .packages-tabs a[aria-current]::after {
 	content: "";
 	position: absolute;
@@ -2877,12 +2871,11 @@ main.dev-mode > section:has(.c-overview-view) {
 	border-top-left-radius: var(--s-rounded-sm);
 	border-top-right-radius: var(--s-rounded-sm);
 }
-/* ===== END BORROWED FROM #5649 ===== */
+/* END BORROWED FROM #5649 */
 
-/* The overview bar carries more section tabs than #5649's (~7 vs ~3) and its
-   search is capped narrow — so give the tabs 3/4 of the bar instead of half,
-   keeping them on one line. Overview-scoped and outside the corral so it
-   survives when the borrowed bar rules are reconciled at merge. */
+/* The overview bar carries ~7 section tabs with a narrow search, so give the
+   tabs 3/4 of the bar (not half) to keep them on one line. Outside the corral
+   so it survives the #5649 merge. */
 @media (--md) {
 	.c-overview-view .b-page-subheader .packages-tabs {
 		grid-column: span 3 / span 3;
@@ -2893,13 +2886,11 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 }
 
-/* Anchor jumps clear the sticky subheader. Mirrors #5649's
-   `.b-state-explorer [id]` rule (one rule for EVERY anchor target — sections,
-   symbol cards, and rendered README/doc headings — instead of a hand-picked
-   few), scoped to the overview view. */
+/* Anchor jumps clear the sticky subheader: one rule for EVERY anchor target
+   (sections, symbol cards, rendered headings), scoped to the overview view. */
 .c-overview-view [id] {
-	/* Taller than #5649's g-space-24: the overview bar carries more tabs + the
-	   search field, so the sticky chrome is ~taller than the state explorer's. */
+	/* The overview bar (tabs + search field) makes the sticky chrome tall, so
+	   anchors need extra clearance. */
 	scroll-margin-block-start: var(--g-space-32);
 }
 
@@ -3028,8 +3019,8 @@ main.dev-mode > section:has(.c-overview-view) {
 .b-pkg-symbol__methods {
 	margin-block-start: var(--g-space-4);
 	padding-inline-start: var(--g-space-6);
-	/* Visible nested rule that adapts to light/dark — mirrors #5649's nested-body
-	   left border. The faint --s-divider (1px, 8% ink) was barely visible on dark. */
+	/* Visible nested-body left border that adapts to light/dark (the faint
+	   --s-divider was barely visible on dark). */
 	border-inline-start: 2px solid
 		color-mix(in srgb, currentColor 14%, transparent);
 }
@@ -3039,12 +3030,10 @@ main.dev-mode > section:has(.c-overview-view) {
 }
 
 /* --- Code block with toolbar (copy button) --- */
-/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
-   Signature/code blocks reuse the state explorer's .source/.code chroma frame
-   verbatim (scoped to the overview) so the <pre> box and highlighting read
-   identically. Chroma emits its own <pre class="chroma-chroma"> (class prefix
-   "chroma-"); .code is the visible box and the inner pre stays transparent. At
-   merge, fold into #5649's shared .source rule. */
+/* BORROWED FROM #5649 (DELETE ON MERGE): code blocks reuse the .source/.code
+   chroma frame verbatim. Chroma emits <pre class="chroma-chroma">; .code is the
+   visible box, the inner pre stays transparent. At merge, fold into #5649's
+   shared .source rule. */
 .c-overview-view .source {
 	position: relative;
 	margin-block: var(--g-space-2);

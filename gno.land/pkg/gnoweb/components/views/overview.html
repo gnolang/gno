@@ -282,8 +282,8 @@ UI - Overview body
 
 {{/* ===================================================================================
 UI - Code block wrapper (used by func/type/value templates).
-Reuses #5649's .source/.code chroma frame so the <pre> box and highlighting
-match the state explorer. Accepts: Component (rendered code), SourceURL (optional).
+Uses the shared .source/.code chroma frame for the <pre> box and highlighting.
+Accepts: Component (rendered code), SourceURL (optional).
 =================================================================================== */}}
 {{ define "ui/pkg_code_block" }}
 <div class="source">

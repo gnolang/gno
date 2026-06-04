@@ -54,23 +54,18 @@
 	--g-transition-transform: transform var(--g-transition-duration)
 		var(--g-transition-timing);
 
-	/* ===== BORROWED FROM #5649 (state-explorer PR) — DELETE ON MERGE =====
-	   #5649 adds these tokens (--g-transition-fast here; --s-divider* in
-	   02-tools.css). Duplicated so the overview PR is self-contained. When #5649
-	   merges, delete this block — every usage falls through to its definitions
-	   (same names). Note: --g-transition-fast is already referenced but undefined
-	   on this branch (06-blocks.css:313,2006), so this also fixes that. */
+	/* BORROWED FROM #5649 (DELETE ON MERGE): tokens #5649 defines, duplicated so
+	   this PR is self-contained. Also supplies --g-transition-fast, referenced
+	   but undefined on this branch. */
 	--g-transition-fast: var(--g-transition-duration) var(--g-transition-timing);
 	--s-divider-weak: 1px solid color-mix(in srgb, currentColor 6%, transparent);
 	--s-divider: 1px solid color-mix(in srgb, currentColor 8%, transparent);
 	--s-divider-strong: 1px solid
 		color-mix(in srgb, currentColor 14%, transparent);
-	/* #5649's .b-state-meta references these finer sizes but never defines them
-	   (a latent gap — keys fall back to inherited). Supply them so the reused
-	   sidebar renders with the intended small labels. */
+	/* finer sizes the reused .b-state-meta references but never defines */
 	--g-font-size-80: calc(12 / var(--g-px-base) * 1rem); /* 12px */
 	--g-font-size-90: calc(13 / var(--g-px-base) * 1rem); /* 13px */
-	/* ===== END BORROWED FROM #5649 ===== */
+	/* END BORROWED FROM #5649 */
 
 	/* Animation durations */
 	--g-duration-75: 75ms;
