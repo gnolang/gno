@@ -58,7 +58,7 @@ func TestBuildSymbols_PureHasNoActionLink(t *testing.T) {
 	jdoc := &doc.JSONDocumentation{
 		Funcs: []*doc.JSONFunc{{Name: "Hello"}},
 	}
-	funcs, _ := buildSymbols(jdoc, noopRenderer{}, "/p/demo/showcase")
+	funcs, _ := buildSymbols(jdoc, noopRenderer{}, "/p/demo/foo")
 	require.Len(t, funcs, 1)
 	require.Empty(t, funcs[0].ActionURL, "pure packages (/p/) expose no actions")
 }
