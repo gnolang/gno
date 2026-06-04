@@ -160,10 +160,11 @@ func (gnoURL GnoURL) IsFile() bool {
 	return gnoURL.File != ""
 }
 
-// IsDir checks if the URL path represents a directory.
+// IsDir checks if the URL explicitly requests a directory view.
+//
+// `$dir` is the canonical selector.
 func (gnoURL GnoURL) IsDir() bool {
-	return !gnoURL.IsFile() &&
-		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
+	return !gnoURL.IsFile() && gnoURL.WebQuery.Has("dir")
 }
 
 // rePkgPath matches and validates a path.

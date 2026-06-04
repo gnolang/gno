@@ -135,11 +135,12 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path", Status: http.StatusOK, Contain: "[example.com]/r/mock/path"},
 
 		// Source page
-		{Path: "/r/mock/path/", Status: http.StatusOK, Contain: "Directory"},
+		{Path: "/r/mock/path$dir", Status: http.StatusOK, Contain: "Directory"},
 		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Contain: "one more time"},
 		{Path: "/r/mock/path/LicEnse", Status: http.StatusOK, Contain: "my super license"},
 		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Contain: "one more time"},
 		{Path: "/r/mock/path$source", Status: http.StatusOK, Contain: "module"}, // `gno.mod` by default
+		{Path: "/r/mock/path$bogus", Status: http.StatusOK, Contain: "[example.com]/r/mock/path"},
 		{Path: "/r/mock/path/license", Status: http.StatusNotFound},
 
 		// Help page
@@ -184,6 +185,48 @@ func TestHTTPHandler_Get(t *testing.T) {
 			for _, contain := range tc.Contains {
 				assert.Containsf(t, rr.Body.String(), contain, "rendered body should contain: %q", contain)
 			}
+		})
+	}
+}
+
+func TestHTTPHandler_Get_CanonicalizesTrailingSlashPaths(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "one more time" }`,
+			"gno.mod":    `module example.com/r/mock/path`,
+		},
+		Functions: []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}}},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	tests := []struct {
+		path     string
+		location string
+	}{
+		{path: "/r/mock/path/", location: "/r/mock/path"},
+		{path: "/r/mock/path/$source&file=render.gno", location: "/r/mock/path$source&file=render.gno"},
+		{path: "/r/mock/path/$dir", location: "/r/mock/path$dir"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(strings.TrimPrefix(tc.path, "/"), func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusFound, rr.Code)
+			assert.Equal(t, tc.location, rr.Header().Get("Location"))
 		})
 	}
 }
@@ -310,7 +353,7 @@ func TestHTTPHandler_DirectoryViewExplorerMode(t *testing.T) {
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(http.MethodGet, "/r/mock/explorer/", nil)
+	req, err := http.NewRequest(http.MethodGet, "/r/mock/explorer$dir", nil)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -342,13 +385,13 @@ func TestHTTPHandler_DirectoryViewPurePackage(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/p/pkg/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/p/pkg", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "only.gno")
-	assert.Contains(t, rr.Body.String(), "/p/pkg/")
+	assert.Contains(t, rr.Body.String(), "/p/pkg")
 }
 
 // TestHTTPHandler_DirectoryViewErrorTotal covers the case where neither Sources nor QueryPaths return anything:
@@ -361,7 +404,7 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/y/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/r/y$dir", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -478,7 +521,7 @@ func TestHTTPHandler_DirectoryViewNoFiles(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/empty/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/r/empty$dir", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 

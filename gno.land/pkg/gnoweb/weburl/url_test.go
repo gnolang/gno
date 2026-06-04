@@ -68,6 +68,19 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			Name:  "directory webquery",
+			Input: "https://gno.land/r/demo/foo$dir",
+			Expected: &GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"dir": []string{""},
+				},
+				Query:  url.Values{},
+				Domain: "gno.land",
+			},
+		},
+
+		{
 			Name:  "path args + webquery",
 			Input: "https://gno.land/r/demo/foo:example$tz=Europe/Paris",
 			Expected: &GnoURL{
@@ -297,6 +310,64 @@ func TestIsValidPath(t *testing.T) {
 		t.Run(tc.Path, func(t *testing.T) {
 			gnoURL := GnoURL{Path: tc.Path}
 			assert.Equal(t, tc.Valid, gnoURL.IsValidPath())
+		})
+	}
+}
+
+func TestIsDir(t *testing.T) {
+	testCases := []struct {
+		name     string
+		gnoURL   GnoURL
+		expected bool
+	}{
+		{
+			name: "explicit dir selector",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"dir": []string{""},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "trailing slash path",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo/",
+			},
+			expected: false,
+		},
+		{
+			name: "trailing slash with other webquery",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo/",
+				WebQuery: url.Values{
+					"help": []string{""},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "file path",
+			gnoURL: GnoURL{
+				Path:     "/r/demo/foo",
+				File:     "render.gno",
+				WebQuery: url.Values{"dir": []string{""}},
+			},
+			expected: false,
+		},
+		{
+			name: "plain render path",
+			gnoURL: GnoURL{
+				Path: "/r/demo/foo",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.gnoURL.IsDir())
 		})
 	}
 }

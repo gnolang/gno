@@ -158,6 +158,11 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(gnourl.Path) > 3 && strings.HasSuffix(gnourl.Path, "/") && !gnourl.IsFile() {
+		http.Redirect(w, r, canonicalPathURL(r), http.StatusFound)
+		return
+	}
+
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
@@ -184,6 +189,31 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("failed to render index component", "error", err)
 	}
+}
+
+func canonicalPathURL(r *http.Request) string {
+	rawPath := r.URL.EscapedPath()
+	prefix, suffix, found := strings.Cut(rawPath, ":")
+	if !found {
+		prefix, suffix, _ = strings.Cut(rawPath, "$")
+	}
+
+	prefix = strings.TrimSuffix(prefix, "/")
+
+	canonical := prefix
+	if suffix != "" {
+		if found {
+			canonical += ":" + suffix
+		} else {
+			canonical += "$" + suffix
+		}
+	}
+
+	if r.URL.RawQuery != "" {
+		canonical += "?" + r.URL.RawQuery
+	}
+
+	return canonical
 }
 
 // Post processes a POST HTTP request.
@@ -309,7 +339,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetSourceView(ctx, gnourl)
 	}
 
-	// Handle Source page
+	// Handle Directory page
 	if gnourl.IsDir() || gnourl.IsPure() {
 		return h.GetDirectoryView(ctx, gnourl, indexData)
 	}
@@ -325,8 +355,10 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 
 // GetRealmView renders a realm page or returns an error/status if not available.
 func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
+
 	// First fecth the realm
-	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
+	raw, err := h.Client.Realm(ctx, pkgPath, gnourl.EncodeArgs())
 	switch {
 	case err == nil: // ok
 	case errors.Is(err, ErrClientRenderNotDeclared):
@@ -464,7 +496,9 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 }
 
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
+
+	jdoc, err := h.Client.Doc(ctx, pkgPath)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
@@ -527,7 +561,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
-	realmName := path.Base(gnourl.Path)
+	realmName := path.Base(pkgPath)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
@@ -535,7 +569,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   path.Join(h.Static.Domain, pkgPath),
 		Remote:    h.Static.RemoteHelp,
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
@@ -564,7 +598,7 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 }
 
 func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	pkgPath := gnourl.Path
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 
 	files, err := h.Client.ListFiles(ctx, pkgPath)
 	if err != nil {
@@ -638,13 +672,13 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
 	return http.StatusOK, components.SourceView(components.SourceData{
-		PkgPath:      gnourl.Path,
+		PkgPath:      pkgPath,
 		Files:        files,
 		FileName:     fileName,
 		FileCounter:  len(files),
 		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
-		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileDownload: pkgPath + "$download&file=" + fileName,
 		FileSource:   fileSource,
 	})
 }
@@ -714,7 +748,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 
 // ServeSourceDownload handles downloading a source file as plain text.
 func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
-	pkgPath := gnourl.Path
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 
 	var fileName string
 	if gnourl.IsFile() { // check path file from path first

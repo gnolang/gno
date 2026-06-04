@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -309,6 +310,14 @@ func TestDirectoryView(t *testing.T) {
 	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestDirectoryView_ExplorerLinksUseDirSelector(t *testing.T) {
+	view := DirectoryView("/r/root", []string{"/r/demo/foo"}, 1, DirLinkTypeFile, ViewModeExplorer)
+
+	var buf bytes.Buffer
+	assert.NoError(t, view.Render(&buf))
+	assert.Contains(t, buf.String(), `href="/r/demo/foo$dir"`)
 }
 
 func TestDirLinkType_LinkPrefix(t *testing.T) {

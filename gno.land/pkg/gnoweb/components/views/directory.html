@@ -12,7 +12,7 @@
     {{ range .FilesLinks }}
     <li>
       <div>
-        <a href="{{ .Link }}{{ if $.Mode.IsExplorer }}/{{ end }}">
+        <a href="{{ .Link }}{{ if $.Mode.IsExplorer }}$dir{{ end }}">
           <span class="c-with-icon">
             <svg class="c-icon">
               <use href="#ico-file"></use>
