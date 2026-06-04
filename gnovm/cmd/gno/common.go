@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/types"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
@@ -96,27 +94,6 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 		}
 	}
 	return
-}
-
-func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
-	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
-	if err != nil {
-		return "", fmt.Errorf("error parsing directives: %w", err)
-	}
-	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
-}
-
-// hasErrorDirective reports whether the filetest body declares an
-// // Error: directive. Used by lint to decide whether to swallow a
-// preprocess panic (the directive is the filetest author asserting the
-// error is expected; exact-message verification belongs to `gno test`,
-// not lint).
-func hasErrorDirective(body string) (bool, error) {
-	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
-	if err != nil {
-		return false, fmt.Errorf("error parsing directives: %w", err)
-	}
-	return dirs.First(test.DirectiveError) != nil, nil
 }
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {

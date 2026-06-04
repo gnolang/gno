@@ -9,6 +9,7 @@ import (
 	"go/types"
 	goio "io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -260,7 +261,12 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tcmode = gno.TCLatestRelaxed
 			}
 			tcFset := token.NewFileSet()
-			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			// Exclude _filetest.gno files declaring `// TypeCheckError:` from
+			// the package-level type check — those intentionally fail to
+			// type-check, and `gno test` matches the actual error against
+			// the directive.
+			tcMpkg := excludeExpectedTypeCheckErrors(mpkg)
+			tcPkg, errs := lintTypeCheck(io, dir, tcMpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -323,30 +329,43 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
-					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
-					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
-					if err != nil {
-						io.ErrPrintln(err)
-						hasError = true
-						continue
-					}
-					// A filetest may assert a preprocess-time failure
-					// via // Error:; in that case, swallow any panic
-					// here. Exact-message verification is `gno test`'s
-					// job — lint just needs to not flag the expected
-					// failure as a lint error.
-					expectsErr, derr := hasErrorDirective(mfile.Body)
+					dirs, derr := test.ParseDirectives(strings.NewReader(mfile.Body))
 					if derr != nil {
 						io.ErrPrintln(derr)
 						hasError = true
 						continue
 					}
+					filetestPath := dirs.FirstDefault(
+						test.DirectivePkgPath,
+						fmt.Sprintf("%s_filetest%d", mpkg.Path, i),
+					)
+					expectsErr := dirs.First(test.DirectiveError) != nil ||
+						dirs.First(test.DirectiveTypeCheckError) != nil
 					pkgName := string(fset.Files[0].PkgName)
+					// Isolate per filetest so a panic on one (e.g. a sealing-
+					// violation regression test) doesn't skip siblings, and so
+					// expected-failure filetests don't fail the whole lint run.
 					func() {
-						if expectsErr {
-							defer func() { _ = recover() }()
+						if os.Getenv("DEBUG_PANIC") != "1" {
+							defer func() {
+								r := recover()
+								if r == nil {
+									return
+								}
+								if expectsErr {
+									// Filetest declared an expected error directive;
+									// `gno test` validates the actual failure.
+									return
+								}
+								if err, ok := r.(error); ok {
+									printError(io.Err(), dir, filetestPath, err)
+									hasError = true
+								} else {
+									panic(r)
+								}
+							}()
 						}
-						pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
+						pn, _ := tm.PreprocessFiles(pkgName, filetestPath, fset, false, false)
 						ppkg.AddFileTest(pn, fset)
 					}()
 				}
@@ -386,6 +405,32 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+// excludeExpectedTypeCheckErrors returns a shallow copy of mpkg with any
+// _filetest.gno files declaring `// TypeCheckError:` removed. Those filetests
+// are designed to fail type-checking; `gno test` matches the actual error
+// against the directive, so lint should not propagate it.
+func excludeExpectedTypeCheckErrors(mpkg *std.MemPackage) *std.MemPackage {
+	files := make([]*std.MemFile, 0, len(mpkg.Files))
+	for _, f := range mpkg.Files {
+		if strings.HasSuffix(f.Name, "_filetest.gno") {
+			dirs, err := test.ParseDirectives(strings.NewReader(f.Body))
+			if err == nil && dirs.First(test.DirectiveTypeCheckError) != nil {
+				continue
+			}
+		}
+		files = append(files, f)
+	}
+	if len(files) == len(mpkg.Files) {
+		return mpkg
+	}
+	return &std.MemPackage{
+		Type:  mpkg.Type,
+		Name:  mpkg.Name,
+		Path:  mpkg.Path,
+		Files: files,
+	}
 }
 
 // Wrapper around TypeCheckMemPackage() to io.ErrPrintln(gnoIssue{}).

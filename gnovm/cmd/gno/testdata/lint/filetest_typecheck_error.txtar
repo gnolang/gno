@@ -1,0 +1,31 @@
+# lint should not flag _filetest.gno files that declare `// TypeCheckError:` —
+# gno test validates the directive against the actual error.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- good.gno --
+package good
+
+func Hello() string { return "hi" }
+
+-- z_typecheck_err_filetest.gno --
+// PKGPATH: gno.land/r/test/typecheckdemo
+package typecheckdemo
+
+func main() {
+	var x int = "hello"
+	_ = x
+}
+
+// TypeCheckError:
+// cannot use "hello" (untyped string constant) as int value in variable declaration
+
+-- gnomod.toml --
+module = "gno.land/p/test/good"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
