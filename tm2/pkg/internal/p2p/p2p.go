@@ -48,7 +48,7 @@ func MakeConnectedPeers(
 
 	// Initialize collections for switches, transports, and addresses.
 	var (
-		sws   = make([]*p2p.MultiplexSwitch, 0, cfg.Count)
+		sws   = make([]*p2p.MultiplexSwitch, cfg.Count)
 		ts    = make([]*p2p.MultiplexTransport, 0, cfg.Count)
 		addrs = make([]*p2pTypes.NetAddress, 0, cfg.Count)
 	)
@@ -120,15 +120,19 @@ func MakeConnectedPeers(
 		require.NoError(t, multiplexSwitch.Start())
 
 		// Save it
-		sws = append(sws, multiplexSwitch)
+		sws[switchIndex] = multiplexSwitch
 
 		if cfg.Count == 1 {
 			// No peers to dial, switch is alone
 			return nil
 		}
 
-		// Async dial the other peers
-		multiplexSwitch.DialPeers(addrs...)
+		// Async dial the peers with a higher index, so each pair connects in
+		// a single direction. If both ends of a pair dial each other
+		// concurrently, each side can register its own outbound connection and
+		// then reject the other side's inbound as a duplicate, tearing down
+		// both connections and leaving the pair permanently disconnected
+		multiplexSwitch.DialPeers(addrs[switchIndex+1:]...)
 
 		// Set up an exit timer
 		timer := time.NewTimer(1 * time.Minute)
