@@ -1,8 +1,6 @@
 package components
 
-import (
-	"bytes"
-)
+import "bytes"
 
 // MarkdownViewType marks a View whose content is raw markdown, to be served
 // verbatim as text/markdown without the HTML page layout.

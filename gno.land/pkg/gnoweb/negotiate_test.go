@@ -20,6 +20,7 @@ func TestNegotiatesMarkdown(t *testing.T) {
 		{"markdown q zero", "text/markdown;q=0", false},
 		{"markdown q zero point zero", "text/markdown;q=0.0", false},
 		{"markdown negative q", "text/markdown;q=-1", false},
+		{"markdown malformed q", "text/markdown;q=abc", true},
 		{"html then markdown", "text/html, text/markdown", true},
 		{"browser accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", false},
 		{"claude-code webfetch accept", "text/markdown, text/html, */*", true},
