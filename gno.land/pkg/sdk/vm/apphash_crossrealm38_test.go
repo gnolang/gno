@@ -24,9 +24,8 @@ package vm
 // What this test does NOT prove:
 //   - That two different code versions (buggy vs fixed) produce DIFFERENT
 //     apphashes for the same input. Proving that requires a version-gated
-//     runtime switch on getOwner, which doesn't exist in this tree yet.
-//     See the ADR note in the PR description; that work belongs with the
-//     chain-upgrade gating effort, not here.
+//     runtime switch on getOwner, which belongs with the chain-upgrade
+//     gating effort, not here.
 
 import (
 	"fmt"
@@ -50,7 +49,16 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "71ceb2a2fdb652e741a4f85cc4d045a5dc6139aeb0ddae523bc5f2ca868708fc"
+// Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
+// to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
+// PR is the test13 chain-upgrade vehicle, so the shift is intentional.
+// Hash bumped 2026-06-01: this branch's foreign-markdown work changes the genesis
+// package set (notably the chain/markdown stdlib), which shifts the iavlStore Merkle
+// root — same class of change as the crypto-stdlib bump above. Verified this is NOT
+// the merged nil-realm write-gate fix (#5758): crossrealm38 still produces e37075fb
+// on a clean origin/master. Behavior is unchanged (the zrealm_crossrealm38.gno
+// filetest passes); only the genesis encoding shifted.
+const expectedCrossrealm38Hash = "0fbdbf8ff64fd5b851a030229304d95c9196c80a449c47da89ed76ff1f3c0bb4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
@@ -80,12 +88,12 @@ package crossrealm38impl
 
 import "gno.land/r/tests/vm/crossrealm_f"
 
-func init() {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
+func init(cur realm) {
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func AddC(cur realm) {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "c", Value: 3})
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("c", 3))
 }
 `},
 	}

@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+para
+# FAKE
+-- output.md --
+
+
+para
+\# FAKE
+
+-- output.html --
+<p>para
+# FAKE</p>
