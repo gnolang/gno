@@ -368,6 +368,130 @@ func (ft FieldType) TypeID() TypeID {
 	return typeid(s)
 }
 
+func identicalTypes(at, bt Type) bool {
+	return typeIDForIdentity(at, false) == typeIDForIdentity(bt, false)
+}
+
+func identicalTypesIgnoreTags(at, bt Type) bool {
+	return typeIDForIdentity(at, true) == typeIDForIdentity(bt, true)
+}
+
+func typeIDForIdentity(t Type, ignoreTags bool) TypeID {
+	switch ct := t.(type) {
+	case nil:
+		return typeid("<nil>")
+	case PrimitiveType, *DeclaredType, *PackageType, *TypeType, blockType, heapItemType, RefType:
+		return ct.TypeID()
+	case *ArrayType:
+		return typeidf("[%d]%s", ct.Len, typeIDForIdentity(ct.Elt, ignoreTags))
+	case *SliceType:
+		return typeidf("[]%s", typeIDForIdentity(ct.Elt, ignoreTags))
+	case *PointerType:
+		return typeidf("*%s", typeIDForIdentity(ct.Elt, ignoreTags))
+	case *StructType:
+		return typeidf(
+			"struct{%s}",
+			fieldListTypeIDForIdentity(ct.Fields, ct.PkgPath, true, ignoreTags),
+		)
+	case *InterfaceType:
+		if debug {
+			if ct.Generic != "" {
+				panic("generic type has no TypeID")
+			}
+		}
+		methods := make(FieldTypeList, len(ct.Methods))
+		copy(methods, ct.Methods)
+		sort.Sort(methods)
+		return typeidf(
+			"interface{%s}",
+			fieldListTypeIDForIdentity(methods, ct.PkgPath, true, ignoreTags),
+		)
+	case *ChanType:
+		switch ct.Dir {
+		case SEND | RECV:
+			return typeidf("chan{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
+		case SEND:
+			return typeidf("<-chan{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
+		case RECV:
+			return typeidf("chan<-{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
+		default:
+			panic("should not happen")
+		}
+	case *FuncType:
+		return typeidf(
+			"func(%s)(%s)",
+			funcFieldListTypeIDForIdentity(ct.Params, true, ignoreTags),
+			funcFieldListTypeIDForIdentity(ct.Results, false, ignoreTags),
+		)
+	case *MapType:
+		return typeidf(
+			"map[%s]%s",
+			typeIDForIdentity(ct.Key, ignoreTags),
+			typeIDForIdentity(ct.Value, ignoreTags),
+		)
+	case *tupleType:
+		return typeidf("(%s)", fieldListTypeIDForIdentity(typesToFields(ct.Elts), "", false, ignoreTags))
+	default:
+		return ct.TypeID()
+	}
+}
+
+func typesToFields(types []Type) []FieldType {
+	fields := make([]FieldType, len(types))
+	for i, t := range types {
+		fields[i] = FieldType{Type: t}
+	}
+	return fields
+}
+
+func funcFieldListTypeIDForIdentity(l []FieldType, params bool, ignoreTags bool) TypeID {
+	ll := len(l)
+	s := ""
+	for i, ft := range l {
+		if params && i == ll-1 {
+			if st, ok := ft.Type.(*SliceType); ok && st.Vrd {
+				s += "..." + typeIDForIdentity(st.Elt, ignoreTags).String()
+			} else {
+				s += typeIDForIdentity(ft.Type, ignoreTags).String()
+			}
+		} else {
+			s += typeIDForIdentity(ft.Type, ignoreTags).String()
+		}
+		if i != ll-1 {
+			s += ";"
+		}
+	}
+	return typeid(s)
+}
+
+func fieldListTypeIDForIdentity(l []FieldType, pkgPath string, includeNames bool, ignoreTags bool) TypeID {
+	ll := len(l)
+	s := ""
+	for i, ft := range l {
+		if includeNames {
+			if ft.Embedded {
+				s += "(embedded) "
+			}
+			s += fieldNameForIdentity(pkgPath, ft.Name) + " "
+		}
+		s += typeIDForIdentity(ft.Type, ignoreTags).String()
+		if includeNames && !ignoreTags && ft.Tag != "" {
+			s += " " + strconv.Quote(string(ft.Tag))
+		}
+		if i != ll-1 {
+			s += ";"
+		}
+	}
+	return typeid(s)
+}
+
+func fieldNameForIdentity(pkgPath string, name Name) string {
+	if name == "" || isUpper(string(name)) {
+		return string(name)
+	}
+	return pkgPath + "." + string(name)
+}
+
 func (ft FieldType) String() string {
 	tag := ""
 	if ft.Tag != "" {
@@ -1079,9 +1203,7 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 				return fmt.Errorf("method %s has pointer receiver", im.Name) // not addressable.
 			}
 			// check for func type equality.
-			dmtid := mt.TypeID()
-			imtid := im.Type.TypeID()
-			if dmtid != imtid {
+			if !identicalTypes(mt, im.Type) {
 				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		} else {
@@ -2091,14 +2213,14 @@ func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 		// filled in prior to PreprocessAllFilesAndSaveBlocks,
 		// there is no need to re-set it.
 		// Keep this or move this check outside.
-		if fv.Type.TypeID() == ofv.Type.TypeID() &&
+		if identicalTypes(fv.Type, ofv.Type) &&
 			fv.Source.GetLocation() == ofv.Source.GetLocation() {
 			return true
 		}
 
 		// Special case: allow defining a native body.
 		// Name and index unchanged → methodIndex stays valid.
-		if fv.Type.TypeID() == ofv.Type.TypeID() &&
+		if identicalTypes(fv.Type, ofv.Type) &&
 			!ofv.IsNative() && fv.IsNative() {
 			dt.Methods[i] = TypedValue{
 				T: fv.Type, // keep old type.
@@ -2550,7 +2672,7 @@ func debugAssertSameTypes(lt, rt Type) {
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-	} else if lt.TypeID() == rt.TypeID() {
+	} else if identicalTypes(lt, rt) {
 		// non-nil types are identical.
 	} else {
 		debug.Errorf(
@@ -2578,7 +2700,7 @@ func debugAssertEqualityTypes(lt, rt Type) {
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
 		// lt implements rt (and rt is nil interface).
-	} else if lt.TypeID() == rt.TypeID() {
+	} else if identicalTypes(lt, rt) {
 		// non-nil types are identical.
 	} else {
 		debug.Errorf(
