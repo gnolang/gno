@@ -23,9 +23,25 @@ type Handler struct {
 }
 
 // New returns a Run handler.
+// If empty Domain defaults to "gno.land" and Logger defaults the
+// standard Go library's logger.
+// It panics if Remote or ChainId are not specified.
 func New(deps Deps) *Handler {
+	if deps.Remote == "" {
+		panic("run.New: Remote RPC endpoint is required")
+	}
+
+	if deps.ChainId == "" {
+		panic("run.New: Chain ID is required")
+	}
+
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
+
+	if deps.Domain == "" {
+		deps.Domain = "gno.land"
+	}
+
 	return &Handler{deps: deps}
 }
