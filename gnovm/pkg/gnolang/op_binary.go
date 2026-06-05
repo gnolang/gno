@@ -88,7 +88,7 @@ func (m *Machine) doOpEql() {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
 	// set result in lv.
-	res := isEql(m, lv, rv, isInterfaceCmp(bx), nil)
+	res := isEql(m, lv, rv, ifaceCmpDynType(bx, lv))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -105,17 +105,21 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv, isInterfaceCmp(bx), nil)
+	res := !isEql(m, lv, rv, ifaceCmpDynType(bx, lv))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
-// isInterfaceCmp reports whether either operand of bx has a static interface
-// type. When true, Go's runtime semantics require panicking on any
-// uncomparable dynamic type even if both values are nil-wrapped.
-func isInterfaceCmp(bx *BinaryExpr) bool {
-	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
+// ifaceCmpDynType returns the dynamic type carried by the interface header
+// when either operand of bx has a static interface type — and nil otherwise.
+// A non-nil result means the comparison must follow Go's runtime semantics:
+// any uncomparable dynamic type at any depth panics, naming this type.
+func ifaceCmpDynType(bx *BinaryExpr, lv *TypedValue) Type {
+	if hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right) {
+		return lv.T
+	}
+	return nil
 }
 
 func hasInterfaceStaticType(x Expr) bool {
@@ -439,21 +443,15 @@ func (m *Machine) doOpBandn() {
 // ----------------------------------------
 // logic functions
 
-// isEql reports whether lv and rv are equal. viaInterface is true when the
-// comparison originates from operands of static interface type, in which case
-// encountering an uncomparable dynamic type (map/slice/func) at any depth
-// must panic — matching Go's runtime semantics.
-//
-// dynType carries the dynamic type held by the interface header at the
-// moment viaInterface first became true; on panic, Go names that type
-// (not the deeper leaf reached during recursion). Pass nil at the entry
-// point; the first frame with viaInterface=true captures lv.T.
+// isEql reports whether lv and rv are equal. dynType is non-nil when the
+// comparison originates from operands of static interface type, directly or
+// via a struct field / array element whose declared type is an interface; it
+// holds the dynamic type carried by the interface header at the level the
+// unwrap happened. Encountering an uncomparable dynamic type (map/slice/func)
+// at any depth then panics with dynType named, matching Go's runtime.
 //
 // TODO: can be much faster.
-func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool, dynType Type) bool {
-	if viaInterface && dynType == nil {
-		dynType = lv.T
-	}
+func isEql(m *Machine, lv, rv *TypedValue, dynType Type) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -530,14 +528,28 @@ func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool, dynType Type) bool
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
-		// Elements whose declared type is an interface must be compared
-		// with interface semantics, so an uncomparable dynamic type panics.
-		elemViaInterface := viaInterface || baseOf(et).Kind() == InterfaceKind
+		// Via interface: a zero-length array of an uncomparable element
+		// type would skip the loop body and return true, but Go panics on
+		// the type itself. Cover that case explicitly.
+		if dynType != nil && !isComparable(et) {
+			m.Panic(typedString(fmt.Sprintf(
+				"runtime error: comparing uncomparable type %s",
+				dynType.String(),
+			)))
+		}
+		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
 			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			if !isEql(m, &li, &ri, elemViaInterface, dynType) {
+			// Re-capture at every interface boundary: Go re-enters its
+			// interface-equality machinery at each iface element, so the
+			// panic message names the *inner* dynamic type, not the outer.
+			elemDyn := dynType
+			if elemIsIface {
+				elemDyn = li.T
+			}
+			if !isEql(m, &li, &ri, elemDyn) {
 				return false
 			}
 		}
@@ -559,10 +571,14 @@ func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool, dynType Type) bool
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
-			// Fields whose declared type is an interface must be compared
-			// with interface semantics, even when the parent comparison is not.
-			fieldViaInterface := viaInterface || baseOf(lt.Fields[i].Type).Kind() == InterfaceKind
-			if !isEql(m, &lf, &rf, fieldViaInterface, dynType) {
+			// Re-capture at every interface boundary: when this field's
+			// declared type is interface, the dynamic type held here is
+			// the type Go names on panic, not the outer carrier.
+			fieldDyn := dynType
+			if baseOf(lt.Fields[i].Type).Kind() == InterfaceKind {
+				fieldDyn = lf.T
+			}
+			if !isEql(m, &lf, &rf, fieldDyn) {
 				return false
 			}
 		}
@@ -580,11 +596,11 @@ func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool, dynType Type) bool
 	case MapKind, SliceKind, FuncKind:
 		// Uncomparable kinds. Direct comparisons are caught at preprocess
 		// time; the only way we reach here is `m == nil` (one side nil) or
-		// a comparison whose static operands are interface-typed — in the
+		// a comparison whose static operands are interface-typed. In the
 		// latter case Go's runtime panics regardless of nil-ness, naming
-		// the dynamic type carried by the interface header (captured in
-		// dynType at entry), not the inner leaf reached by recursion.
-		if viaInterface {
+		// the dynamic type carried by the interface header — captured in
+		// dynType — not the inner leaf reached by recursion.
+		if dynType != nil {
 			m.Panic(typedString(fmt.Sprintf(
 				"runtime error: comparing uncomparable type %s",
 				dynType.String(),
