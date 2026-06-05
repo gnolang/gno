@@ -1238,8 +1238,10 @@ func (vm *VMKeeper) QueryLatestVersion(ctx sdk.Context, basePath string) (*Lates
 	latest := -1
 
 	for p := range store.FindPathsByPrefix(prefix) {
-		_, v, ok := gno.ParseVersionSuffix(p)
-		if !ok {
+		base, v, ok := gno.ParseVersionSuffix(p)
+		if !ok || base != basePath {
+			// Skip paths whose version suffix belongs to a deeper
+			// nested package (e.g. basePath/v1/sub/v3), not to basePath.
 			continue
 		}
 		deployed[v] = struct{}{}

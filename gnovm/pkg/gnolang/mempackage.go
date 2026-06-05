@@ -1201,6 +1201,11 @@ func ParseVersionSuffix(pkgPath string) (basePath string, version int, ok bool) 
 			return "", 0, false
 		}
 	}
+	// Reject zero-padded versions (e.g. /v01) so they do not collide with
+	// their canonical form (/v1), matching Go's module-path constraint.
+	if len(digits) > 1 && digits[0] == '0' {
+		return "", 0, false
+	}
 	v, err := strconv.Atoi(digits)
 	if err != nil {
 		// Overflow or other parse error.

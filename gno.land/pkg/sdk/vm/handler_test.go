@@ -581,4 +581,38 @@ func TestVmHandlerQuery_LatestVersion(t *testing.T) {
 		assert.False(t, res.IsOK(), "should have an error")
 		assert.Contains(t, res.Error.Error(), "no versions found")
 	})
+
+	t.Run("nested_sibling_versions", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		addr := crypto.AddressFromPreimage([]byte("addr1"))
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+
+		// Deploy avl/v0, avl/v1 and a deeper nested package avl/v1/sub/v3.
+		// The nested /v3 must not be counted as a version of avl.
+		deploys := map[string]string{
+			"gno.land/p/demo/avl/v0":        "avl",
+			"gno.land/p/demo/avl/v1":        "avl",
+			"gno.land/p/demo/avl/v1/sub/v3": "sub",
+		}
+		for pkgPath, pkgName := range deploys {
+			msg := NewMsgAddPackage(addr, pkgPath, makeFiles(pkgPath, pkgName))
+			err := env.vmk.AddPackage(ctx, msg)
+			assert.NoError(t, err)
+		}
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		req := abci.RequestQuery{
+			Path: "vm/qlatestversion",
+			Data: []byte("gno.land/p/demo/avl"),
+		}
+		res := env.vmh.Query(env.ctx, req)
+		assert.True(t, res.IsOK(), "should not have error: %v", res.Error)
+		assert.Contains(t, string(res.Data), `"latest":"v1"`)
+		assert.Contains(t, string(res.Data), `"missing":0`)
+		assert.NotContains(t, string(res.Data), `first_missing`)
+	})
 }

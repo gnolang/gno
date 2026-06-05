@@ -95,6 +95,14 @@ func TestEvalVersionGap(t *testing.T) {
 			result:     &vm.LatestVersionResult{Latest: "v1"},
 			wantStderr: "versiontest/v3",
 		},
+		{
+			name:       "backwards_deploy_warns",
+			basePath:   "gno.land/p/demo/avl",
+			version:    3,
+			result:     &vm.LatestVersionResult{Latest: "v5"},
+			wantErr:    "",
+			wantStderr: "going backwards",
+		},
 	}
 
 	for _, tt := range tests {

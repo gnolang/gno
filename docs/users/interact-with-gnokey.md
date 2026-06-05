@@ -1466,6 +1466,13 @@ Sample Output (v0, v1, v3 deployed — v2 is missing):
 - `first_missing` — the first version gap, if any (omitted when `missing` is 0)
 - `missing` — total count of missing versions between v0 and latest
 
+`gnokey maketx addpkg` uses this query to soft-check version gaps when deploying a
+`/vN` package. If a predecessor version is missing it prints a warning to stderr,
+and if the gap from the latest on-chain version exceeds 5 it blocks the deploy
+unless `--force` is passed. The check is best-effort: network errors, unreachable
+remotes, and nodes that do not support the query are ignored silently so offline
+or older-node usage is unaffected.
+
 ## Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:

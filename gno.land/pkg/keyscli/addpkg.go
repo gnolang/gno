@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -80,7 +81,7 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.Force,
 		"force",
 		false,
-		"force deployment even if there is a large version gap (> 5)",
+		fmt.Sprintf("force deployment even if the version gap exceeds %d", maxVersionGap),
 	)
 }
 
@@ -173,6 +174,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 // maxVersionGap is the maximum allowed version gap before --force is required.
 const maxVersionGap = 5
 
+// versionQueryTimeout bounds the soft version-gap query so a slow remote
+// cannot stall the deploy.
+const versionQueryTimeout = 3 * time.Second
+
 // checkVersionGap queries the chain for version information and emits
 // warnings or errors when deploying a versioned package with gaps.
 // Network/RPC errors are silently ignored so offline usage is unaffected.
@@ -192,18 +197,29 @@ func checkVersionGap(cfg *MakeAddPkgCfg, io commands.IO) error {
 		return nil // silently skip on connection errors
 	}
 
-	qres, err := cli.ABCIQuery(context.Background(), "vm/qlatestversion", []byte(basePath))
+	// Keep the soft-check soft: a slow or unresponsive remote must not hang
+	// the CLI before the deploy is even attempted.
+	ctx, cancel := context.WithTimeout(context.Background(), versionQueryTimeout)
+	defer cancel()
+
+	qres, err := cli.ABCIQuery(ctx, "vm/qlatestversion", []byte(basePath))
 	if err != nil {
 		return nil // silently skip on network errors
 	}
 
 	if qres.Response.Error != nil {
-		return evalVersionGap(basePath, version, nil, cfg.Force, io)
+		// A response error is ambiguous: it covers both the keeper's
+		// "no versions found" state and an "unknown query endpoint" reply
+		// from a node built before this query existed. Skip silently so we
+		// never block a deploy against an older node that simply doesn't
+		// speak this query.
+		return nil
 	}
 
 	var result vm.LatestVersionResult
 	if err := json.Unmarshal(qres.Response.Data, &result); err != nil {
-		return nil // silently skip on parse errors
+		io.ErrPrintfln("Warning: could not parse version info, skipping gap check (%v)", err)
+		return nil
 	}
 
 	return evalVersionGap(basePath, version, &result, cfg.Force, io)
@@ -227,13 +243,20 @@ func evalVersionGap(basePath string, version int, result *vm.LatestVersionResult
 		var err error
 		latestVersion, err = strconv.Atoi(latestStr)
 		if err != nil {
-			return nil // silently skip on parse errors
+			io.ErrPrintfln("Warning: could not parse latest version %q, skipping gap check (%v)", result.Latest, err)
+			return nil
 		}
 	} else {
 		latestVersion = -1
 	}
 
 	gap := version - latestVersion
+	if gap < 0 {
+		// Deploying older than latest: the chain will reject the duplicate,
+		// but flag the likely typo so the user gets a CLI-side hint.
+		io.ErrPrintfln("Warning: deploying %s/v%d but latest on-chain is %s — going backwards.", shortName, version, result.Latest)
+		return nil
+	}
 	if gap <= 1 {
 		return nil // sequential — nothing to warn about
 	}

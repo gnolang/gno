@@ -386,6 +386,16 @@ func TestParseVersionSuffix(t *testing.T) {
 			wantOk:  false,
 		},
 		{
+			name:    "zero_padded",
+			pkgPath: "gno.land/p/demo/avl/v01",
+			wantOk:  false,
+		},
+		{
+			name:    "zero_padded_zero",
+			pkgPath: "gno.land/p/demo/avl/v00",
+			wantOk:  false,
+		},
+		{
 			name:    "no_slash",
 			pkgPath: "v2",
 			wantOk:  false,
