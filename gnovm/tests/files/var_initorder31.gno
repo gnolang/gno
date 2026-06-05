@@ -1,5 +1,3 @@
-// run
-
 package main
 
 // Regression: codaInitOrderDeps must unwrap *PointerType at the type

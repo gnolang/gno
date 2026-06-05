@@ -1,5 +1,3 @@
-// run
-
 package main
 
 // Regression: codaInitOrderDeps must descend into closure bodies so that

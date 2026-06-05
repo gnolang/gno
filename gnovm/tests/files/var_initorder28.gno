@@ -1,5 +1,3 @@
-// run
-
 package main
 
 // Regression: codaInitOrderDeps must track method expressions on
