@@ -4,7 +4,7 @@
 
 - After changing gas constants or allocation/GC logic, always run these before declaring done:
   - `go test ./gno.land/pkg/sdk/vm/ -run Gas`
-  - `go test ./gno.land/pkg/integration/ -run txtar`
+  - `go test ./gno.land/pkg/integration/ -run TestTestdata` (the txtar testdata suite)
   - `go test ./gnovm/pkg/gnolang/ -run Files -test.short`
 - Always run `/simplify` before presenting completed work on non-trivial changes.
 

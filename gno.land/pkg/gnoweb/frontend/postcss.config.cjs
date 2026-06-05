@@ -47,6 +47,7 @@ module.exports = (ctx) => {
 					],
 					deep: [/c-realm-view\b/, /c-readme-view\b/],
 				},
+				dynamicAttributes: ["data-type"],
 				variables: true,
 				defaultExtractor: (content) => content.match(/[\w-:/%.]+(?<!:)/g) || [],
 			}),
