@@ -595,7 +595,7 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		}
 
 		if !strings.HasPrefix(dir, workDir) {
-			dir = filepath.Join(examplesDir, dir)
+			dir = ResolveExamplePath(examplesDir, dir)
 		}
 
 		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {

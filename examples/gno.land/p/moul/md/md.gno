@@ -192,12 +192,14 @@ func Nested(content, prefix string) string {
 }
 
 // Blockquote returns the text as a CommonMark blockquote.
-// Example: Blockquote("foo\nbar") => "> foo\n> bar\n"
+// Example: Blockquote("foo\nbar") => "\n> foo\n> bar\n\n"
 //
 // Delegates to sanitize.Blockquote, which cleans the content (bidi-strip,
 // CR/CRLF/U+2028/U+2029/NEL line-ending normalize, LRD strip, ref-link
-// escape, block-marker escape, fence auto-close) before line-prefixing
-// each line with "> ". Callers do NOT need to pre-wrap the input.
+// escape, block-marker escape, fence auto-close), line-prefixes each
+// line with "> ", and wraps with "\n" / "\n\n" so the quote opens
+// cleanly and cannot pull appended chrome into the quote via CM §5.2
+// lazy continuation. Callers do NOT need to pre-wrap the input.
 func Blockquote(text string) string {
 	return sanitize.Blockquote(text)
 }
