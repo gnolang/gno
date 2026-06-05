@@ -116,6 +116,26 @@ func (w *boundedBuilder) writeByte(c byte) {
 	w.b.WriteByte(c)
 }
 
+// Write implements io.Writer so values can be formatted straight into the
+// builder with fmt.Fprintf, avoiding the intermediate string a fmt.Sprintf
+// would allocate. It honors the same cap as writeString and always reports
+// len(p) bytes consumed so fmt never treats truncation as a short write.
+func (w *boundedBuilder) Write(p []byte) (int, error) {
+	if w.truncated {
+		return len(p), nil
+	}
+	if w.b.Len()+len(p) > printOutputLimit {
+		if avail := printOutputLimit - w.b.Len(); avail > 0 {
+			w.b.Write(p[:avail])
+		}
+		w.b.WriteString(truncatedSuffix)
+		w.truncated = true
+		return len(p), nil
+	}
+	w.b.Write(p)
+	return len(p), nil
+}
+
 // done reports whether the output limit has been reached. Renderers use it to
 // stop iterating once no further output can be produced.
 func (w *boundedBuilder) done() bool {
@@ -160,13 +180,43 @@ func (av *ArrayValue) String() string {
 	return w.String()
 }
 
+// writeArrayContents renders the body shared by ArrayValue and SliceValue: the
+// element list "<kind>[a,b,...]", or for byte-backed values the hex preview
+// "<kind>[0x..]". It renders the window base[offset:offset+length] — length
+// counts elements for List-backed values and bytes for Data-backed ones. Only
+// the "array"/"slice" kind prefix differs between the two; tests rely on that.
+func writeArrayContents(w *boundedBuilder, seen *seenValues, kind string, base *ArrayValue, offset, length int) {
+	if base.Data == nil {
+		if length > printLimit {
+			fmt.Fprintf(w, "%s[...(%d elements)]", kind, length)
+			return
+		}
+		w.writeString(kind)
+		w.writeByte('[')
+		for i := 0; i < length; i++ {
+			if w.writeSep(i) {
+				break
+			}
+			base.List[offset+i].writeWrapped(w, seen)
+		}
+		w.writeByte(']')
+		return
+	}
+	data := base.Data[offset : offset+length]
+	if length > printLimit {
+		fmt.Fprintf(w, "%s[0x%X...(%d)]", kind, data[:printLimit], length)
+		return
+	}
+	fmt.Fprintf(w, "%s[0x%X]", kind, data)
+}
+
 // writeBare renders the array's "array[...]" form into w.
 func (av *ArrayValue) writeBare(w *boundedBuilder, seen *seenValues) {
 	if w.done() {
 		return
 	}
 	if i := seen.IndexOf(av); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 	if !seen.Put(av) {
@@ -175,29 +225,11 @@ func (av *ArrayValue) writeBare(w *boundedBuilder, seen *seenValues) {
 	}
 	defer seen.Pop()
 
-	if av.Data == nil {
-		if len(av.List) > printLimit {
-			w.writeString(fmt.Sprintf("array[...(%d elements)]", len(av.List)))
-			return
-		}
-		w.writeString("array[")
-		for i := range av.List {
-			if w.writeSep(i) {
-				break
-			}
-			av.List[i].writeWrapped(w, seen)
-		}
-		// NOTE: we may want to unify the representation,
-		// but for now tests expect this to be different.
-		// This may be helpful for testing implementation behavior.
-		w.writeByte(']')
-		return
+	length := len(av.List)
+	if av.Data != nil {
+		length = len(av.Data)
 	}
-	if len(av.Data) > printLimit {
-		w.writeString(fmt.Sprintf("array[0x%X...(%d)]", av.Data[:printLimit], len(av.Data)))
-		return
-	}
-	w.writeString(fmt.Sprintf("array[0x%X]", av.Data))
+	writeArrayContents(w, seen, "array", av, 0, length)
 }
 
 func (sv *SliceValue) String() string {
@@ -216,11 +248,11 @@ func (sv *SliceValue) writeBare(w *boundedBuilder, seen *seenValues) {
 		return
 	}
 	if i := seen.IndexOf(sv); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 	if ref, ok := sv.Base.(RefValue); ok {
-		w.writeString(fmt.Sprintf("slice[%v]", ref))
+		fmt.Fprintf(w, "slice[%v]", ref)
 		return
 	}
 	if !seen.Put(sv) {
@@ -229,27 +261,7 @@ func (sv *SliceValue) writeBare(w *boundedBuilder, seen *seenValues) {
 	}
 	defer seen.Pop()
 
-	vbase := sv.Base.(*ArrayValue)
-	if vbase.Data == nil {
-		if sv.Length > printLimit {
-			w.writeString(fmt.Sprintf("slice[...(%d elements)]", sv.Length))
-			return
-		}
-		w.writeString("slice[")
-		for i := 0; i < sv.Length; i++ {
-			if w.writeSep(i) {
-				break
-			}
-			vbase.List[sv.Offset+i].writeWrapped(w, seen)
-		}
-		w.writeByte(']')
-		return
-	}
-	if sv.Length > printLimit {
-		w.writeString(fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+printLimit], sv.Length))
-		return
-	}
-	w.writeString(fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length]))
+	writeArrayContents(w, seen, "slice", sv.Base.(*ArrayValue), sv.Offset, sv.Length)
 }
 
 func (pv PointerValue) String() string {
@@ -264,7 +276,7 @@ func (pv PointerValue) writePointer(w *boundedBuilder, seen *seenValues) {
 		return
 	}
 	if i := seen.IndexOf(pv); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 	if !seen.Put(pv) {
@@ -294,7 +306,7 @@ func (sv *StructValue) writeBare(w *boundedBuilder, seen *seenValues) {
 		return
 	}
 	if i := seen.IndexOf(sv); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 	if !seen.Put(sv) {
@@ -359,7 +371,7 @@ func (mv *MapValue) writeBare(w *boundedBuilder, seen *seenValues) {
 		return
 	}
 	if i := seen.IndexOf(mv); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 	if !seen.Put(mv) {
@@ -369,7 +381,7 @@ func (mv *MapValue) writeBare(w *boundedBuilder, seen *seenValues) {
 	defer seen.Pop()
 
 	if mv.GetLength() > printLimit {
-		w.writeString(fmt.Sprintf("map{...(%d entries)}", mv.GetLength()))
+		fmt.Fprintf(w, "map{...(%d entries)}", mv.GetLength())
 		return
 	}
 	w.writeString("map{")
@@ -491,35 +503,35 @@ func (tv *TypedValue) writeWrapped(w *boundedBuilder, seen *seenValues) {
 	if tv.V == nil {
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
-			w.writeString(fmt.Sprintf("%t", tv.GetBool()))
+			fmt.Fprintf(w, "%t", tv.GetBool())
 		case StringType, UntypedStringType:
 			w.writeString(tv.GetString())
 		case IntType:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt()))
+			fmt.Fprintf(w, "%d", tv.GetInt())
 		case Int8Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt8()))
+			fmt.Fprintf(w, "%d", tv.GetInt8())
 		case Int16Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt16()))
+			fmt.Fprintf(w, "%d", tv.GetInt16())
 		case Int32Type, UntypedRuneType:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt32()))
+			fmt.Fprintf(w, "%d", tv.GetInt32())
 		case Int64Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt64()))
+			fmt.Fprintf(w, "%d", tv.GetInt64())
 		case UintType:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint()))
+			fmt.Fprintf(w, "%d", tv.GetUint())
 		case Uint8Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint8()))
+			fmt.Fprintf(w, "%d", tv.GetUint8())
 		case DataByteType:
-			w.writeString(fmt.Sprintf("%d", tv.GetDataByte()))
+			fmt.Fprintf(w, "%d", tv.GetDataByte())
 		case Uint16Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint16()))
+			fmt.Fprintf(w, "%d", tv.GetUint16())
 		case Uint32Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint32()))
+			fmt.Fprintf(w, "%d", tv.GetUint32())
 		case Uint64Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint64()))
+			fmt.Fprintf(w, "%d", tv.GetUint64())
 		case Float32Type:
-			w.writeString(fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32())))
+			fmt.Fprintf(w, "%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			w.writeString(fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64())))
+			fmt.Fprintf(w, "%v", math.Float64frombits(tv.GetFloat64()))
 		// Complex types that require recursion protection.
 		default:
 			w.writeString(nilStr)
@@ -545,7 +557,7 @@ func (tv *TypedValue) writeSprint(w *boundedBuilder, seen *seenValues, considerD
 		return
 	}
 	if i := seen.IndexOf(tv.V); i != -1 {
-		w.writeString(fmt.Sprintf("ref@%d", i))
+		fmt.Fprintf(w, "ref@%d", i)
 		return
 	}
 
@@ -569,35 +581,35 @@ func (tv *TypedValue) writeSprint(w *boundedBuilder, seen *seenValues, considerD
 	case PrimitiveType:
 		switch bt {
 		case UntypedBoolType, BoolType:
-			w.writeString(fmt.Sprintf("%t", tv.GetBool()))
+			fmt.Fprintf(w, "%t", tv.GetBool())
 		case UntypedStringType, StringType:
 			w.writeString(tv.GetString())
 		case IntType:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt()))
+			fmt.Fprintf(w, "%d", tv.GetInt())
 		case Int8Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt8()))
+			fmt.Fprintf(w, "%d", tv.GetInt8())
 		case Int16Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt16()))
+			fmt.Fprintf(w, "%d", tv.GetInt16())
 		case UntypedRuneType, Int32Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt32()))
+			fmt.Fprintf(w, "%d", tv.GetInt32())
 		case Int64Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetInt64()))
+			fmt.Fprintf(w, "%d", tv.GetInt64())
 		case UintType:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint()))
+			fmt.Fprintf(w, "%d", tv.GetUint())
 		case Uint8Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint8()))
+			fmt.Fprintf(w, "%d", tv.GetUint8())
 		case DataByteType:
-			w.writeString(fmt.Sprintf("%d", tv.GetDataByte()))
+			fmt.Fprintf(w, "%d", tv.GetDataByte())
 		case Uint16Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint16()))
+			fmt.Fprintf(w, "%d", tv.GetUint16())
 		case Uint32Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint32()))
+			fmt.Fprintf(w, "%d", tv.GetUint32())
 		case Uint64Type:
-			w.writeString(fmt.Sprintf("%d", tv.GetUint64()))
+			fmt.Fprintf(w, "%d", tv.GetUint64())
 		case Float32Type:
-			w.writeString(fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32())))
+			fmt.Fprintf(w, "%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			w.writeString(fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64())))
+			fmt.Fprintf(w, "%v", math.Float64frombits(tv.GetFloat64()))
 		case UntypedBigintType:
 			w.writeString(tv.V.(BigintValue).V.String())
 		case UntypedBigdecType:
