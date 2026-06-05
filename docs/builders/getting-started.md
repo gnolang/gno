@@ -1,7 +1,7 @@
 # Getting started
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
-**[Gno](./what-is-gnolang.md)**, a deterministic variant of Go. If you
+**[Gno](./what-is-gno.md)**, a deterministic variant of Go. If you
 know Go, you can write Gno minus what doesn't fit on-chain: no
 goroutines, no `os`, no networking, and only standard-library or
 `gno.land/...` imports. See
@@ -79,7 +79,7 @@ gno = "0.9"
 The `gno` line is the language version it targets. Use `gno.land/r/…`
 for realms (stateful) or `gno.land/p/…` for pure packages (stateless).
 Note that pure packages cannot import realms; see
-[import rules](./anatomy-of-a-gno-package.md#import-rules).
+[import rules](../resources/gno-packages.md#import-rules).
 
 ### 2. Write Gno code
 
@@ -407,7 +407,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
 2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
-3. [Example: the `minisocial` dApp](./example-minisocial-dapp.md): end-to-end with deploy
+3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix
 5. [Storage deposit](../resources/storage-deposit.md): how on-chain storage is paid for, and how to cap it with `-max-deposit`
 
