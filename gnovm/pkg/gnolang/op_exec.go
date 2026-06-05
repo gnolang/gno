@@ -983,7 +983,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
 	ss := m.PeekStmt1().(*SwitchStmt)
 	viaInterface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
-	match := isEql(m, cv, tv, viaInterface)
+	match := isEql(m, cv, tv, viaInterface, nil)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
