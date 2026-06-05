@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_flag_thread_00_filetest
+
+package z_flag_thread_00_filetest
 
 import (
 	"testing"
@@ -9,7 +11,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	moderator address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -18,22 +20,22 @@ var (
 	pid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
+	boards2.InviteMember(cross(cur), bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread as a moderator
-	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	pid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Flag thread as owner
-	boards2.FlagThread(cross, bid, pid, "Reason")
+	boards2.FlagThread(cross(cur), bid, pid, "Reason")
 
 	// Ensure thread is not listed
 	println(boards2.Render("test-board"))
@@ -41,7 +43,7 @@ func main() {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › test-board
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:test-board/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---

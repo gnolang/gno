@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_invite_member_00_filetest
+
+package z_invite_member_00_filetest
 
 import (
 	"testing"
@@ -9,16 +11,16 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	bid           = boards.ID(0)                               // Operate on realm DAO instead of individual boards
 	role          = boards2.RoleOwner
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross, bid, user, role)
+	boards2.InviteMember(cross(cur), bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(bid, user, role))

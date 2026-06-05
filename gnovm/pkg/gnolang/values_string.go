@@ -458,6 +458,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint / String
 
+// ImplError returns true if the TypedValue's type implements the error interface.
+func (tv *TypedValue) ImplError() bool {
+	return IsImplementedBy(gErrorType, tv.T)
+}
+
 // Sprint is for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
@@ -622,14 +627,7 @@ func (tv *TypedValue) writeSprint(w *boundedBuilder, seen *seenValues, considerD
 			w.writeString("typed-nil")
 			return
 		}
-		ro := tv.IsReadonly()
-		if ro {
-			w.writeString("readonly(")
-		}
 		tv.V.(PointerValue).writePointer(w, seen)
-		if ro {
-			w.writeByte(')')
-		}
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -662,11 +660,6 @@ func (tv *TypedValue) writeSprint(w *boundedBuilder, seen *seenValues, considerD
 			w.writeString("(" + nilStr + " " + tv.T.String() + ")")
 			return
 		}
-		// Value may be N_Readonly
-		ro := tv.IsReadonly()
-		if ro {
-			w.writeString("readonly(")
-		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		switch cv := tv.V.(type) {
 		case *ArrayValue:
@@ -688,9 +681,6 @@ func (tv *TypedValue) writeSprint(w *boundedBuilder, seen *seenValues, considerD
 			} else {
 				panic("should not happen")
 			}
-		}
-		if ro {
-			w.writeByte(')')
 		}
 	}
 }

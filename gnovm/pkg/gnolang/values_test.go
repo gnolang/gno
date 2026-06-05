@@ -363,11 +363,12 @@ func TestComputeMapKey(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.valX, func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			x := m.MustParseExpr(tc.valX)
 			vals := m.Eval(x)
 			require.Len(t, vals, 1)
-			mk, isNaN := vals[0].ComputeMapKey(nil, false)
+			mk, isNaN := vals[0].ComputeMapKey(nil, store, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
 		})
@@ -383,13 +384,14 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 	for _, pair := range pairs {
 		t.Run(pair[0]+" vs "+pair[1], func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			v1 := m.Eval(m.MustParseExpr(pair[0]))
 			v2 := m.Eval(m.MustParseExpr(pair[1]))
 			require.Len(t, v1, 1)
 			require.Len(t, v2, 1)
-			mk1, nan1 := v1[0].ComputeMapKey(nil, false)
-			mk2, nan2 := v2[0].ComputeMapKey(nil, false)
+			mk1, nan1 := v1[0].ComputeMapKey(nil, store, false)
+			mk2, nan2 := v2[0].ComputeMapKey(nil, store, false)
 			require.False(t, nan1)
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)
@@ -406,13 +408,14 @@ func makeTypedInt(n int) TypedValue {
 
 // makeTestMap creates a MapValue with n entries for testing ProtectedString.
 func makeTestMap(n int) *MapValue {
+	alloc := NewAllocator(math.MaxInt64)
 	mv := &MapValue{}
 	mv.MakeMap(n)
 	for i := 0; i < n; i++ {
 		key := makeTypedInt(i)
-		item := mv.List.Append(nilAllocator, key)
+		item := mv.List.Append(alloc, key)
 		item.Value = makeTypedInt(i * 10)
-		mk, _ := key.ComputeMapKey(nil, false)
+		mk, _ := key.ComputeMapKey(nil, nil, false)
 		mv.vmap[mk] = item
 	}
 	return mv

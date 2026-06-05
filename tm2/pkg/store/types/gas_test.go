@@ -73,3 +73,44 @@ func TestAddUint64Overflow(t *testing.T) {
 		)
 	}
 }
+
+// TestWillIterator asserts that WillIterator charges ReadCostFlat
+// (modelling the seek as one Get-equivalent tree walk).
+func TestWillIterator(t *testing.T) {
+	t.Parallel()
+	meter := NewGasMeter(1 << 62)
+	cfg := DefaultGasConfig()
+	gctx := &GasContext{Meter: meter, Config: cfg}
+
+	gctx.WillIterator()
+	require.Equal(t, cfg.ReadCostFlat, meter.GasConsumed())
+
+	// nil gctx is safe and a no-op.
+	var nilCtx *GasContext
+	require.NotPanics(t, func() { nilCtx.WillIterator() })
+}
+
+// TestWillIterNext asserts the per-step formula:
+// IterNextCostFlat + ReadCostPerByte * len(value).
+func TestWillIterNext(t *testing.T) {
+	t.Parallel()
+	meter := NewGasMeter(1 << 62)
+	cfg := DefaultGasConfig()
+	gctx := &GasContext{Meter: meter, Config: cfg}
+
+	val := []byte("hello world") // 11 bytes
+	gctx.WillIterNext(val)
+
+	want := cfg.IterNextCostFlat + 11*cfg.ReadCostPerByte
+	require.Equal(t, want, meter.GasConsumed())
+
+	// Empty value charges only the flat.
+	meter2 := NewGasMeter(1 << 62)
+	gctx2 := &GasContext{Meter: meter2, Config: cfg}
+	gctx2.WillIterNext(nil)
+	require.Equal(t, cfg.IterNextCostFlat, meter2.GasConsumed())
+
+	// nil gctx is safe.
+	var nilCtx *GasContext
+	require.NotPanics(t, func() { nilCtx.WillIterNext(val) })
+}

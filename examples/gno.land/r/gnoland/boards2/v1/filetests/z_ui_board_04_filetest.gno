@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_04_filetest
+
 // Render default board view when there are no threads.
-package main
+package z_ui_board_04_filetest
 
 import (
 	"testing"
@@ -8,14 +10,14 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	boardName         = "TestBoard"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross(cur), boardName, false, false)
 }
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---

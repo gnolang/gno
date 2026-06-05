@@ -3,20 +3,26 @@ package authorizable
 import (
 	"testing"
 
+	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	alice   = testutils.TestAddress("alice")
 	bob     = testutils.TestAddress("bob")
 	charlie = testutils.TestAddress("charlie")
 )
 
-func TestNewAuthorizable(t *testing.T) {
+func TestNew(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	a := NewAuthorizable()
+	a := New(ownable.NewWithAddress(alice))
 	got := a.Owner()
 
 	if alice != got {
@@ -24,83 +30,78 @@ func TestNewAuthorizable(t *testing.T) {
 	}
 }
 
-func TestNewAuthorizableWithAddress(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
-
-	got := a.Owner()
-
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
-}
-
-func TestOnAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+func TestOnAuthList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	if err := a.OnAuthList(); err == ErrNotInAuthList {
+	// After SetRealm, cur is the test-frame HIV with addr=alice;
+	// OnAuthList reports on rlm.Address() (i.e. cur.Address()).
+	if err := a.OnAuthList(0, cur); err == ErrNotInAuthList {
 		t.Fatalf("expected alice to be on the list")
 	}
 }
 
-func TestNotOnAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+func TestNotOnAuthList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(bob))
 
-	if err := a.OnAuthList(); err == nil {
+	if err := a.OnAuthList(0, cur); err == nil {
 		t.Fatalf("expected bob to not be on the list")
 	}
 }
 
-func TestAddToAuthList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
-	testing.SetRealm(testing.NewUserRealm(alice))
+func TestAddToAuthList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
 
-	if err := a.AddToAuthList(bob); err != nil {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	var err error
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross(cur))
+	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-
-	if err := a.AddToAuthList(bob); err == nil {
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross(cur))
+	if err == nil {
 		t.Fatalf("Expected AddToAuth to error while bob called it, but it didn't")
 	}
 }
 
-func TestDeleteFromList(t *testing.T) {
-	a := NewAuthorizableWithAddress(alice)
+func TestDeleteFromList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
+
 	testing.SetRealm(testing.NewUserRealm(alice))
-
-	if err := a.AddToAuthList(bob); err != nil {
+	var err error
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross(cur))
+	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if err := a.AddToAuthList(charlie); err != nil {
+	func(cur realm) { err = a.AddToAuthList(0, cur, charlie) }(cross(cur))
+	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
+	// Try an unauthorized deletion (bob is not the superuser).
 	testing.SetRealm(testing.NewUserRealm(bob))
-
-	// Try an unauthorized deletion
-	if err := a.DeleteFromAuthList(alice); err == nil {
+	func(cur realm) { err = a.DeleteFromAuthList(0, cur, alice) }(cross(cur))
+	if err == nil {
 		t.Fatalf("Expected DelFromAuth to error with %v", err)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-
-	if err := a.DeleteFromAuthList(charlie); err != nil {
+	func(cur realm) { err = a.DeleteFromAuthList(0, cur, charlie) }(cross(cur))
+	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 }
 
-func TestAssertOnList(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	a := NewAuthorizableWithAddress(alice)
+func TestAssertOnList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 
-	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
-		a.AssertOnAuthList()
+	uassert.PanicsWithMessage(t, cur, ErrNotInAuthList.Error(), func() {
+		a.AssertOnAuthList(0, cur)
 	})
 }

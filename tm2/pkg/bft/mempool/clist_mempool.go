@@ -386,7 +386,7 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Respo
 			}
 			memTx.senders.Store(peerID, true)
 			mem.addTx(memTx)
-			mem.logger.Info("Added good transaction",
+			mem.logger.Debug("Added good transaction",
 				"tx", txID(tx),
 				"res", res,
 				"height", memTx.height,
@@ -395,7 +395,7 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Respo
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.logger.Info("Rejected bad transaction", "tx", txID(tx), "res", res, "err", res.Error)
+			mem.logger.Debug("Rejected bad transaction", "tx", txID(tx), "res", res, "err", res.Error)
 			// remove from cache (it might be good later)
 			mem.cache.Remove(tx)
 		}
@@ -435,7 +435,7 @@ func (mem *CListMempool) resCbRecheck(req abci.Request, res abci.Response) {
 		if mem.recheckCursor == nil {
 			// Done!
 			atomic.StoreInt32(&mem.rechecking, 0)
-			mem.logger.Info("Done rechecking txs")
+			mem.logger.Debug("Done rechecking txs")
 
 			// incase the recheck removed all txs
 			if mem.Size() > 0 {
@@ -572,7 +572,7 @@ func (mem *CListMempool) Update(
 	// or just notify there're some txs left.
 	if mem.Size() > 0 {
 		if mem.config.Recheck {
-			mem.logger.Info("Recheck txs", "numtxs", mem.Size(), "height", height)
+			mem.logger.Debug("Recheck txs", "numtxs", mem.Size(), "height", height)
 			mem.recheckTxs()
 			// At this point, mem.txs are being rechecked.
 			// mem.recheckCursor re-scans mem.txs and possibly removes some txs.
