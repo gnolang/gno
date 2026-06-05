@@ -15,7 +15,7 @@ type ClientAdapter interface {
 	// ListFiles lists all source files available in a specified package path.
 	ListFiles(ctx context.Context, path string) ([]string, error)
 
-	// File fetche the source file from a given package path and filename.
+	// File fetches the source file from a given package path and filename.
 	File(ctx context.Context, path, filename string) ([]byte, error)
 
 	// Doc retrieves the JSON doc suitable for printing from a

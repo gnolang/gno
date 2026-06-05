@@ -291,7 +291,7 @@ export class PlaygroundController extends BaseController {
 				}
 			} catch {
 				this._resetOutput(
-					`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n`,
+					`Note: Server-side execution not available for scratchpad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n`,
 				);
 				this._setOutput(
 					` gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,

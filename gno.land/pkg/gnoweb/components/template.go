@@ -68,6 +68,6 @@ func init() {
 	var err error
 	tmpl, err = tmpl.ParseFS(html, "layouts/*.html", "ui/*.html", "views/*.html")
 	if err != nil {
-		panic("unable to parse embed tempalates: " + err.Error())
+		panic("unable to parse embed templates: " + err.Error())
 	}
 }
