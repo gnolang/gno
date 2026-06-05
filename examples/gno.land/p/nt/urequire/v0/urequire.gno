@@ -76,9 +76,10 @@ func AbortsWithMessage(t uassert.TestingT, rlm realm, msg string, f any, msgs ..
 
 // AbortsContains requires that the code inside the specified func aborts
 // (panics when crossing another realm) and the abort message contains the specified substring.
-func AbortsContains(t uassert.TestingT, substr string, f any, msgs ...string) {
+// See uassert.AbortsWithMessage for `rlm` semantics.
+func AbortsContains(t uassert.TestingT, rlm realm, substr string, f any, msgs ...string) {
 	t.Helper()
-	if uassert.AbortsContains(t, substr, f, msgs...) {
+	if uassert.AbortsContains(t, rlm, substr, f, msgs...) {
 		return
 	}
 	t.FailNow()
@@ -111,9 +112,10 @@ func PanicsWithMessage(t uassert.TestingT, rlm realm, msg string, f any, msgs ..
 
 // PanicsContains requires that the code inside the specified func panics
 // locally within the same execution realm and the panic message contains the specified substring.
-func PanicsContains(t uassert.TestingT, substr string, f any, msgs ...string) {
+// See uassert.AbortsWithMessage for `rlm` semantics.
+func PanicsContains(t uassert.TestingT, rlm realm, substr string, f any, msgs ...string) {
 	t.Helper()
-	if uassert.PanicsContains(t, substr, f, msgs...) {
+	if uassert.PanicsContains(t, rlm, substr, f, msgs...) {
 		return
 	}
 	t.FailNow()
