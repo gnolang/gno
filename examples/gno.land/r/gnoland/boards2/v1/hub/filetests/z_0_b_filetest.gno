@@ -52,7 +52,7 @@ func main(cur realm) {
 // Output:
 // 1
 // foo123
-// readonly(slice[("test123" string)])
+// slice[("test123" string)]
 // true
 // 1
 // 2

@@ -392,14 +392,13 @@ func (m *Machine) doOpCallDeferNativeBody() {
 // Used by return and panic operation handlers.
 // Must finalize for returns, and must abort for panics.
 func (m *Machine) isRealmBoundary(cfr *Frame) bool {
-	// Explicit cross-call always marks a realm boundary, regardless
-	// of whether m.Realm is tracked. /p/ test code that wraps calls
-	// in `func(cur){...}(cross(cur))` relies on this so panics
-	// propagating back through the cross frame route to revive(),
-	// not all the way up — even though /p/ packages have no Realm
-	// (m.Realm is nil under the borrow rule for /p/-stamped
-	// receivers). Pulled out of the `crlm != nil` guard so it fires
-	// on m.Realm==nil too.
+	// Explicit cross-call always marks a realm boundary, regardless of
+	// whether m.Realm is tracked. /p/ test code that wraps calls in
+	// `func(cur){...}(cross(cur))` relies on this so panics propagating
+	// back through the cross frame route to revive(), not all the way up.
+	// Pulled out of the `crlm != nil` guard so it fires on m.Realm==nil too
+	// (e.g. a stdlib-stamped receiver, which keeps the caller's realm and so
+	// may be nil at the top frame of a non-realm test).
 	if cfr.WithCross {
 		return true
 	}
@@ -440,10 +439,12 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 // Finalize realm updates if realm boundary.
 // NOTE: resource intensive
 func (m *Machine) maybeFinalize(cfr *Frame) {
-	if m.isRealmBoundary(cfr) && m.Realm != nil {
-		// m.Realm==nil only happens for /p/ and stdlib (no real realm),
-		// where there's nothing to finalize even though isRealmBoundary
-		// reports the cross-call frame as a boundary for panic-routing.
+	if m.isRealmBoundary(cfr) && m.Realm != nil && !m.Realm.ID.IsImmutablePkg() {
+		// /p/ and stdlib packages now carry a frozen, immutable realm
+		// (so the readonly gate works inside their method bodies), but
+		// that realm must never be persisted: skip finalization for it.
+		// isRealmBoundary still reports the frame as a boundary for
+		// panic-routing; we just don't run FinalizeRealmTransaction.
 		m.Realm.FinalizeRealmTransaction(m.Store)
 	}
 }
