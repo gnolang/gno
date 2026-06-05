@@ -6018,10 +6018,11 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 						addDep(dt.Name + "." + n.Sel)
 					case VPField:
-						// VPField covers both struct-field access and
-						// unbound method expressions (T.Method, (*T).Method).
-						// Filter to the method-expr case; struct-field
-						// access is not a same-package decl reference.
+						// VPField covers both struct-field access (s.F) and
+						// unbound method expressions (T.M, (*T).M). Only
+						// method exprs carry *TypeType on n.X (type name in
+						// expression position); struct fields carry the
+						// receiver's value type. Skip struct fields.
 						if _, isType := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType); !isType {
 							break
 						}
