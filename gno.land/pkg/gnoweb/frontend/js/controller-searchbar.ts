@@ -29,6 +29,7 @@ export class SearchbarController extends BaseController {
 	private activeIndex = -1;
 	private pageMatches: PageMatch[] = [];
 	private highlightEl: HTMLElement | null = null;
+	private runId = 0;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -40,6 +41,7 @@ export class SearchbarController extends BaseController {
 		input?.addEventListener("keydown", this.keynav.bind(this));
 		input?.addEventListener("focus", this.selectInput.bind(this));
 		document.addEventListener("click", this.onOutsideClick.bind(this));
+		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
 	}
 
 	// search filters the (once-fetched) path list for the current input.
@@ -91,27 +93,32 @@ export class SearchbarController extends BaseController {
 	}, SEARCH_DELAY);
 
 	private async run(q: string): Promise<void> {
+		const id = ++this.runId;
 		const pageMatches = this.scanPage(q);
 		await this.ensureLoaded();
+		if (id !== this.runId) return; // a newer keystroke superseded us
 		this.pageMatches = pageMatches;
 		this.draw(q, this.filter(q), pageMatches);
 	}
 
 	// ensureLoaded fetches the path list once and reuses it for every keystroke.
-	// Concurrent callers share the single in-flight request.
+	// Concurrent callers share the single in-flight request. On failure `loaded`
+	// stays false so the next keystroke retries instead of silently giving up.
 	private ensureLoaded(): Promise<void> {
 		if (this.loaded) return Promise.resolve();
 		if (this.loading) return this.loading;
 		this.loading = fetch(SEARCH_ENDPOINT)
-			.then((res) => (res.ok ? res.json() : { realms: [], packages: [] }))
+			.then((res) => {
+				if (!res.ok) throw new Error(`search.json: HTTP ${res.status}`);
+				return res.json();
+			})
 			.then((data: Partial<PathsResponse>) => {
 				this.realms = data.realms ?? [];
 				this.packages = data.packages ?? [];
 				this.loaded = true;
 			})
 			.catch(() => {
-				this.realms = [];
-				this.packages = [];
+				// swallow: leave loaded=false so a later keystroke can retry
 			})
 			.finally(() => {
 				this.loading = null;
@@ -322,6 +329,7 @@ export class SearchbarController extends BaseController {
 	}
 
 	private close(): void {
+		this.runId++;
 		const results = this.getDOMElement("results");
 		if (results) {
 			results.hidden = true;
@@ -336,6 +344,23 @@ export class SearchbarController extends BaseController {
 
 	private onOutsideClick(e: MouseEvent): void {
 		if (!this.element.contains(e.target as Node)) this.close();
+	}
+
+	// onKeyShortcut focuses the search bar when "/" is pressed outside any
+	// editable element (mirrors GitHub/Linear/Vercel). Skips when modifiers are
+	// held or during IME composition, so chorded shortcuts and CJK input keep
+	// working. The existing focus handler then selects the prefilled path.
+	//
+	// TODO: extract to a shared keyboard-shortcut helper on BaseController when
+	// a second controller needs a global key binding (sole consumer for now —
+	// premature centralization would be YAGNI).
+	private onKeyShortcut(e: KeyboardEvent): void {
+		if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.isComposing)
+			return;
+		const target = e.target as HTMLElement | null;
+		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
+		e.preventDefault();
+		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
 	}
 
 	// selectInput selects the whole input on focus so typing replaces the
@@ -374,19 +399,30 @@ export class SearchbarController extends BaseController {
 	}
 
 	// reveal scrolls to a page match and wraps it in a transient highlight.
+	// The DOM may have changed since scan (other controllers, re-render); skip
+	// silently if the captured range is no longer valid.
 	private reveal(i: number): void {
 		const match = this.pageMatches[i];
 		if (!match?.node.parentNode) return;
 		this.clearHighlight();
 
 		const end = Math.min(match.index + match.length, match.node.length);
-		const range = document.createRange();
-		range.setStart(match.node, match.index);
-		range.setEnd(match.node, end);
+		if (end <= match.index) {
+			this.close();
+			return;
+		}
 
 		const mark = document.createElement("mark");
 		mark.className = "b-omnisearch-hl";
-		range.surroundContents(mark);
+		try {
+			const range = document.createRange();
+			range.setStart(match.node, match.index);
+			range.setEnd(match.node, end);
+			range.surroundContents(mark);
+		} catch {
+			this.close();
+			return;
+		}
 		this.highlightEl = mark;
 		mark.scrollIntoView({ block: "center" });
 		this.close();
@@ -429,16 +465,19 @@ export class SearchbarController extends BaseController {
 
 	// resolveTarget strips a leading `gno.land` host (with or without scheme) so
 	// realm paths copied from anywhere resolve locally; non-`gno.land` absolute
-	// URLs pass through, and relatives resolve against the origin.
+	// URLs pass through, and relatives resolve against the origin. Uses
+	// `new URL` over the (Baseline 2024) `URL.parse` for older-browser reach.
 	static resolveTarget(input: string): string | null {
 		const stripped = input.replace(
 			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
 			"",
 		);
-		const url = URL.parse(stripped, window.location.origin);
-		if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) {
+		try {
+			const url = new URL(stripped, window.location.origin);
+			if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+			return url.href;
+		} catch {
 			return null;
 		}
-		return url.href;
 	}
 }

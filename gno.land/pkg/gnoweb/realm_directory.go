@@ -4,6 +4,8 @@ import (
 	"context"
 	"path"
 	"sync"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // pathLister is the subset of ClientAdapter the directory depends on.
@@ -27,13 +29,15 @@ var _ RealmDirectory = (*rpcRealmDirectory)(nil)
 // cursor pagination beyond 10000.
 const searchPathLimit = 1000
 
-// rpcRealmDirectory serves paths straight from the chain. It holds no state:
-// each call fetches the current paths. A semaphore bounds concurrent outbound
-// queries so a burst of callers cannot amplify load against the node.
+// rpcRealmDirectory serves paths straight from the chain. It holds no state
+// beyond a semaphore and a singleflight group: the semaphore bounds concurrent
+// outbound RPC queries; the group coalesces concurrent /search.json hits so a
+// cold edge cache cannot amplify a burst of clients into a burst of RPC calls.
 type rpcRealmDirectory struct {
 	client pathLister
 	domain string
 	sem    chan struct{}
+	sf     singleflight.Group
 }
 
 func newRPCRealmDirectory(client pathLister, domain string, maxConcurrent int) *rpcRealmDirectory {
@@ -44,20 +48,42 @@ func newRPCRealmDirectory(client pathLister, domain string, maxConcurrent int) *
 	}
 }
 
+type pathsResult struct {
+	realms   []string
+	packages []string
+}
+
+// Paths fans out one query per kind (r, p). Concurrent callers share a single
+// in-flight fetch via singleflight; the leader's context governs cancellation,
+// which is acceptable here as the result is short-lived and identical for all.
 func (d *rpcRealmDirectory) Paths(ctx context.Context) (realms, packages []string, err error) {
-	var wg sync.WaitGroup
-	var rErr, pErr error
+	v, err, _ := d.sf.Do("paths", func() (any, error) {
+		return d.fetchPaths(ctx)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	res := v.(pathsResult)
+	return res.realms, res.packages, nil
+}
+
+func (d *rpcRealmDirectory) fetchPaths(ctx context.Context) (pathsResult, error) {
+	var (
+		wg         sync.WaitGroup
+		res        pathsResult
+		rErr, pErr error
+	)
 	wg.Add(2)
-	go func() { defer wg.Done(); realms, rErr = d.list(ctx, path.Join(d.domain, "r")) }()
-	go func() { defer wg.Done(); packages, pErr = d.list(ctx, path.Join(d.domain, "p")) }()
+	go func() { defer wg.Done(); res.realms, rErr = d.list(ctx, path.Join(d.domain, "r")) }()
+	go func() { defer wg.Done(); res.packages, pErr = d.list(ctx, path.Join(d.domain, "p")) }()
 	wg.Wait()
 	if rErr != nil {
-		return nil, nil, rErr
+		return pathsResult{}, rErr
 	}
 	if pErr != nil {
-		return nil, nil, pErr
+		return pathsResult{}, pErr
 	}
-	return realms, packages, nil
+	return res, nil
 }
 
 // list fetches paths under prefix, bounded by the semaphore, dropping the empty

@@ -6,8 +6,13 @@ import (
 	"net/http"
 )
 
-// searchMaxConcurrentQueries bounds concurrent node path-queries from the search
-// endpoint, so a burst of callers cannot amplify load against the chain.
+// searchMaxConcurrentQueries bounds concurrent node path-queries from the
+// search endpoint. With singleflight coalescing concurrent /search.json hits
+// into a single in-flight Paths() call (2 outbound RPCs total), this limit
+// only governs the brief leader-burst window where new callers can become
+// leaders between back-to-back resolutions. 16 is generous for that case;
+// raising it would only enlarge the worst-case burst footprint if
+// singleflight ever stops coalescing.
 const searchMaxConcurrentQueries = 16
 
 // handlerSearchJSON serves the realm and package path lists as JSON. The list is
