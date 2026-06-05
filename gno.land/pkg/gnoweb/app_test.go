@@ -78,6 +78,7 @@ func TestRoutes(t *testing.T) {
 			// Test special endpoints
 			{"/liveness", ok, `{"status":"ok"}`},
 			{"/ready", ok, `{"status":"ready"}`},
+			{"/search.json", ok, `realms`}, // realm/package discovery list (JSON key always present)
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file

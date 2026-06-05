@@ -192,5 +192,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
+	// Handle realm/package discovery search (browser fetches the list once and filters locally)
+	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
+	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
+
 	return mux, nil
 }
