@@ -7,6 +7,9 @@
 // Issue 3824.
 // Method calls are ignored when deciding initialization
 // order.
+//
+// Regression: codaInitOrderDeps must track method expressions
+// (e.g. T.Method2) in addition to value method calls.
 
 package main
 

@@ -2,9 +2,9 @@
 
 package main
 
-// Tests that method expressions on pointer types, e.g. (*T).PtrMethod,
-// are tracked for init order dependency analysis (via the VPField path
-// with *StarExpr unwrapping in codaInitOrderDeps).
+// Regression: codaInitOrderDeps must track method expressions on
+// pointer types, e.g. (*T).PtrMethod (via the VPField path with
+// *StarExpr unwrapping).
 
 type T int
 

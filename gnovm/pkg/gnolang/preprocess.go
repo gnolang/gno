@@ -5904,20 +5904,6 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
-// extractTypeValue unwraps a type expression to its TypeValue.
-// For method expressions like T.Method or (*T).Method, the X of the
-// SelectorExpr is a type expression that may be wrapped in StarExpr.
-func extractTypeValue(n Node) (TypeValue, bool) {
-	if sx, ok := n.(*StarExpr); ok {
-		n = sx.X
-	}
-	if cx, ok := n.(*ConstExpr); ok {
-		tv, ok := cx.V.(TypeValue)
-		return tv, ok
-	}
-	return TypeValue{}, false
-}
-
 // codaInitOrderDeps records ATTR_DECL_DEPS on package-level *ValueDecl and
 // *FuncDecl nodes by scanning for all references to other package-level names.
 // It must run after preprocess1 (so all NameExpr paths are filled) and before
@@ -6032,35 +6018,33 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 						addDep(dt.Name + "." + n.Sel)
 					case VPField:
-						// Handle method expressions (unbound methods) like
-						// T.Method2 where n.X is a type reference.
-						// The preprocessor assigns VPField to both struct
-						// field access and type-method access; at runtime,
-						// VPField dispatches on the base type: *StructType
-						// for fields, *TypeType for unbound methods
-						// (see values.go). We only enter here when n.X
-						// carries *TypeType, i.e. a method expression.
+						// VPField covers both struct-field access and
+						// unbound method expressions (T.Method, (*T).Method).
+						// Filter to the method-expr case; struct-field
+						// access is not a same-package decl reference.
 						if _, isType := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType); !isType {
-							// Not an unbound method expression; struct field
-							// access (also VPField). Skip.
 							break
 						}
-						tv, ok := extractTypeValue(n.X)
+						// Unwrap (*T) -> T, then read the receiver TypeValue.
+						x := n.X
+						if sx, ok := x.(*StarExpr); ok {
+							x = sx.X
+						}
+						cx, ok := x.(*ConstExpr)
 						if !ok {
 							break
 						}
-						var dt *DeclaredType
-						switch t := tv.Type.(type) {
-						case *DeclaredType:
-							dt = t
-						case *PointerType:
-							var ok bool
-							dt, ok = t.Elt.(*DeclaredType)
-							if !ok {
-								panic("should not happen, VPField method on pointer to non-*DeclaredType")
-							}
-						default:
-							panic("should not happen, VPField TypeValue is neither *DeclaredType nor *PointerType")
+						tv, ok := cx.V.(TypeValue)
+						if !ok {
+							break
+						}
+						rt := tv.Type
+						if pt, ok := rt.(*PointerType); ok {
+							rt = pt.Elt
+						}
+						dt, ok := rt.(*DeclaredType)
+						if !ok {
+							break
 						}
 						if dt.PkgPath != pn.PkgPath {
 							break
