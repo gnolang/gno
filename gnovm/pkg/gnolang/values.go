@@ -855,7 +855,8 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
-// XXX, pass in allocator
+// No allocator needed: map entries are accounted for via
+// packageValueSize(FNames), which counts one fBlocksMap entry per filename.
 func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -898,7 +899,7 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
+func (pv *PackageValue) AddFileBlock(alloc *Allocator, fname string, fb *Block) {
 	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
@@ -906,6 +907,8 @@ func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
 				fname))
 		}
 	}
+	// Allocate incremental cost for the new file block entry.
+	alloc.Allocate(fileBlockEntrySize(fname))
 	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
 	pv.getFBlocksMap()[fname] = fb

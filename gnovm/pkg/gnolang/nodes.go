@@ -1349,10 +1349,13 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	var pv *PackageValue
 	if pn.PkgName == "main" {
-		// Allocation is only for the new created main package,
-		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
+		// Account for the package value + its block (PR #4892:
+		// consistent package sizing, incl. string fields / file blocks
+		// via packageValueSize).
+		alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil))
+		alloc.AllocateBlock(int64(pn.GetNumNames()))
 		// Stamp PkgID = the package's own ID on both PackageValue
 		// and its inner Block. PackageNode caches PkgID on first
 		// access.

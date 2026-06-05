@@ -98,7 +98,6 @@ const (
 	_allocBigdec = 200 // estimated: apd.Decimal + internals
 	_allocType   = 200 // estimated: average Type implementation
 	_allocAny    = 200 // estimated: generic fallback
-
 )
 
 const (
@@ -334,7 +333,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
+	alloc.Allocate(allocStringSize(size))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -376,10 +375,6 @@ func (alloc *Allocator) AllocateMapItem() {
 
 func (alloc *Allocator) AllocateBoundMethod() {
 	alloc.Allocate(allocBoundMethod)
-}
-
-func (alloc *Allocator) AllocatePackageValue() {
-	alloc.Allocate(allocPackage)
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
@@ -607,7 +602,7 @@ func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
 // and its top-level Block share the package's own PkgID — they live
 // in the package's authority.
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	alloc.AllocatePackageValue()
+	alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath, nil))
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pkgID := pn.GetPkgID()
 	blk := &Block{
@@ -655,13 +650,48 @@ func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 // Utilities for obtaining shallow size
 
+// allocStringSize is the full cost of a standalone string value: the heap
+// allocation for the backing array plus the 16-byte string header
+// (allocString = _allocHeap + 16) plus the content bytes.
+func allocStringSize(n int64) int64 {
+	return overflow.Addp(allocString, overflow.Mulp(allocStringByte, n))
+}
+
+// fileBlockEntrySize returns the incremental memory cost of adding one file
+// block entry. The fname is referenced from the FNames []string backing slot
+// (a 16-byte header, included in allocStringSize) and from the fBlocksMap key
+// (a second 16-byte header); its backing bytes are shared and counted once.
+// The FBlocks []Value slot is an interface (16) and the map value is a *Block
+// pointer (8).
+func fileBlockEntrySize(fname string) int64 {
+	const extra = 16 /* FBlocks interface slot */ + 16 /* fBlocksMap key header */ + 8 /* fBlocksMap value *Block */
+	return overflow.Addp(allocStringSize(int64(len(fname))), int64(extra))
+}
+
+// packageValueSize computes the total shallow memory size of a PackageValue
+// including its string fields and file block metadata.
+// Used both during allocation (creation/store-loading) and GC recounting
+// to ensure consistency.
+func packageValueSize(pkgName Name, pkgPath string, fnames []string) int64 {
+	// PkgName/PkgPath headers are already in sizeof(PackageValue); add only each
+	// string's backing array (_allocHeap + bytes), not allocString, which would
+	// re-add the 16-byte header.
+	ss := int64(allocPackage)
+	ss = overflow.Addp(ss, overflow.Addp(_allocHeap, overflow.Mulp(allocStringByte, int64(len(pkgName)))))
+	ss = overflow.Addp(ss, overflow.Addp(_allocHeap, overflow.Mulp(allocStringByte, int64(len(pkgPath)))))
+	for _, fname := range fnames {
+		ss = overflow.Addp(ss, fileBlockEntrySize(fname))
+	}
+	return ss
+}
+
 func (pv *PackageValue) GetShallowSize() int64 {
 	// .uverse is preloaded
 	if pv.PkgPath == ".uverse" {
 		return 0
 	}
 
-	return allocPackage
+	return packageValueSize(pv.PkgName, pv.PkgPath, pv.FNames)
 }
 
 func (b *Block) GetShallowSize() int64 {
@@ -680,25 +710,25 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefNode
 	}
 
-	ss += allocBlock + allocBlockItem*int64(len(b.Values))
+	ss += overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, int64(len(b.Values))))
 
 	return ss
 }
 
 func (av *ArrayValue) GetShallowSize() int64 {
 	if av.Data != nil {
-		return allocArray + int64(len(av.Data))
+		return overflow.Addp(allocArray, int64(len(av.Data)))
 	} else {
-		return allocArray + int64(len(av.List)*allocArrayItem)
+		return overflow.Addp(allocArray, overflow.Mulp(int64(len(av.List)), allocArrayItem))
 	}
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
-	return allocStruct + int64(len(sv.Fields))*allocStructField
+	return overflow.Addp(allocStruct, overflow.Mulp(int64(len(sv.Fields)), allocStructField))
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
-	return allocMap + allocMapItem*int64(mv.GetLength())
+	return overflow.Addp(allocMap, overflow.Mulp(allocMapItem, int64(mv.GetLength())))
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
@@ -742,7 +772,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	return overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(sv))))
 }
 
 func (biv BigintValue) GetShallowSize() int64 {

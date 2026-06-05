@@ -640,7 +640,12 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.FileName, fb)
+		// PreprocessFiles is the lint/import-only path: the PackageValue
+		// is never persisted and runs without a transaction, so file-block
+		// costs are intentionally not charged. fallbackAllocator has no
+		// gasMeter (no gas) and a MaxInt64 budget (never throttles); it is
+		// master's vehicle for a valid-but-non-charging allocator.
+		pv.AddFileBlock(fallbackAllocator, fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
@@ -741,7 +746,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.FileName, fb)
+		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.
