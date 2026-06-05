@@ -566,21 +566,62 @@ func TestProtectedStringTruncation(t *testing.T) {
 	})
 }
 
-func TestTruncateOutput(t *testing.T) {
+func TestBoundedBuilder(t *testing.T) {
 	t.Run("short string unchanged", func(t *testing.T) {
-		s := "hello"
-		assert.Equal(t, s, truncateOutput(s))
+		w := newBoundedBuilder()
+		w.writeString("hello")
+		assert.Equal(t, "hello", w.String())
+		assert.False(t, w.done())
 	})
 
 	t.Run("string at limit unchanged", func(t *testing.T) {
+		w := newBoundedBuilder()
 		s := strings.Repeat("x", printOutputLimit)
-		assert.Equal(t, s, truncateOutput(s))
+		w.writeString(s)
+		assert.Equal(t, s, w.String())
+		assert.False(t, w.done())
 	})
 
 	t.Run("string over limit truncated", func(t *testing.T) {
-		s := strings.Repeat("x", printOutputLimit+100)
-		result := truncateOutput(s)
-		assert.Equal(t, printOutputLimit+len("...(truncated)"), len(result))
-		assert.True(t, strings.HasSuffix(result, "...(truncated)"))
+		w := newBoundedBuilder()
+		w.writeString(strings.Repeat("x", printOutputLimit+100))
+		result := w.String()
+		assert.True(t, w.done())
+		assert.Equal(t, printOutputLimit+len(truncatedSuffix), len(result))
+		assert.True(t, strings.HasSuffix(result, truncatedSuffix))
 	})
+
+	t.Run("writes ignored after truncation", func(t *testing.T) {
+		w := newBoundedBuilder()
+		w.writeString(strings.Repeat("x", printOutputLimit+1))
+		assert.True(t, w.done())
+		before := w.String()
+		w.writeString("more")
+		w.writeByte('!')
+		assert.Equal(t, before, w.String())
+	})
+}
+
+// TestProtectedStringNestedExplosionBounded guards against the print/println
+// memory-exhaustion vector: a structure that is cheap to build but, with shared
+// children re-expanded at every sibling, would render to O(breadth^depth) bytes.
+// The global output cap must keep the rendered string (and thus the work) small
+// regardless of nesting.
+func TestProtectedStringNestedExplosionBounded(t *testing.T) {
+	// [][]...[]int where every level shares the same child object. Built with
+	// printLimit elements per level so the per-collection cap never triggers;
+	// only the global output cap can bound it.
+	cur := makeIntSliceValue(printLimit)
+	for depth := 0; depth < 6; depth++ {
+		list := make([]TypedValue, printLimit)
+		st := &SliceType{Elt: IntType}
+		for i := range list {
+			list[i] = TypedValue{T: st, V: cur}
+		}
+		cur = &SliceValue{Base: &ArrayValue{List: list}, Offset: 0, Length: printLimit, Maxcap: printLimit}
+	}
+
+	result := cur.String()
+	assert.LessOrEqual(t, len(result), printOutputLimit+len(truncatedSuffix))
+	assert.True(t, strings.HasSuffix(result, truncatedSuffix))
 }
