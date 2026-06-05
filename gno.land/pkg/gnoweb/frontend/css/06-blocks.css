@@ -1936,6 +1936,39 @@ main.dev-mode .b-toc a {
 /* ===== GNO REALM VIEW COMPONENT ===== */
 .c-realm-view,
 .c-readme-view {
+	/* ===== FOREIGN COMPONENT ===== */
+	.gno-foreign {
+		display: block;
+		position: relative;
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-3) var(--g-space-4);
+		margin-block: var(--g-space-4);
+		background-color: var(--s-color-bg-surface-primary);
+		/* CSS containment so foreign-controlled content can't escape its
+		   layout/paint sandbox onto sibling page content. */
+		contain: layout paint;
+	}
+
+	.gno-foreign__label {
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		color: var(--s-color-text-tertiary);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-block-end: var(--g-space-2);
+	}
+
+	.gno-foreign__body {
+		& > :first-child {
+			margin-block-start: 0;
+		}
+
+		& > :last-child {
+			margin-block-end: 0;
+		}
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
 		display: flex;

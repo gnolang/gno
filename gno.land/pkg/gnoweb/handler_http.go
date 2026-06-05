@@ -254,6 +254,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
+	gnourl.Origin = requestOrigin(r)
 
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -540,6 +541,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
+		Origin:    gnourl.Origin,
 	})
 }
 
@@ -742,6 +744,31 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
+}
+
+// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// Empty when no host is known; callers fall back to path-relative URLs.
+func requestOrigin(r *http.Request) string {
+	host := r.Host
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if h := strings.TrimSpace(first); h != "" {
+			host = h
+		}
+	}
+	if host == "" {
+		return ""
+	}
+
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "http" || proto == "https" {
+		scheme = proto
+	}
+
+	return scheme + "://" + host
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

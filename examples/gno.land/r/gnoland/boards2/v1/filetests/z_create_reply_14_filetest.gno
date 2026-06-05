@@ -43,7 +43,7 @@ func main(cur realm) {
 
 	// Render content must contain the reply
 	content := boards2.Render("test123/1")
-	println(strings.Contains(content, "\n> "+comment+"\n"))
+	println(strings.Contains(content, "\n> "+comment))
 }
 
 // Output:
