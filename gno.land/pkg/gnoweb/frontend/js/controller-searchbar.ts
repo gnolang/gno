@@ -347,13 +347,12 @@ export class SearchbarController extends BaseController {
 	}
 
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
-	// editable element (mirrors GitHub/Linear/Vercel). Skips when modifiers are
-	// held or during IME composition, so chorded shortcuts and CJK input keep
-	// working. The existing focus handler then selects the prefilled path.
+	// editable element. Skips when modifiers are held or during IME composition
+	// so chorded shortcuts and CJK input keep working. The existing focus
+	// handler then selects the prefilled path.
 	//
 	// TODO: extract to a shared keyboard-shortcut helper on BaseController when
-	// a second controller needs a global key binding (sole consumer for now —
-	// premature centralization would be YAGNI).
+	// a second controller needs a global key binding.
 	private onKeyShortcut(e: KeyboardEvent): void {
 		if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.isComposing)
 			return;
@@ -465,8 +464,7 @@ export class SearchbarController extends BaseController {
 
 	// resolveTarget strips a leading `gno.land` host (with or without scheme) so
 	// realm paths copied from anywhere resolve locally; non-`gno.land` absolute
-	// URLs pass through, and relatives resolve against the origin. Uses
-	// `new URL` over the (Baseline 2024) `URL.parse` for older-browser reach.
+	// URLs pass through, and relatives resolve against the origin.
 	static resolveTarget(input: string): string | null {
 		const stripped = input.replace(
 			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
