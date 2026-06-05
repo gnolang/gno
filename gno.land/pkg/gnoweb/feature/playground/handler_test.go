@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,11 +33,12 @@ type stubClient struct {
 	docResult  *doc.JSONDocumentation
 	docErr     error
 	files      []string
+	filesErr   error
 	fileBodies map[string][]byte
 }
 
 func (s *stubClient) ListFiles(context.Context, string) ([]string, error) {
-	return s.files, nil
+	return s.files, s.filesErr
 }
 
 func (s *stubClient) File(_ context.Context, _, filename string) ([]byte, error) {
@@ -284,6 +287,101 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		// the guard sets the default code instead.
 		got := extractPlaygroundViewData(t, v).InitialCode
 		assert.Equal(t, got, defaultCode, "view must use default code")
+	})
+}
+
+func TestGetForkView(t *testing.T) {
+	t.Parallel()
+
+	t.Run("multiple files concatenated with headers", func(t *testing.T) {
+		t.Parallel()
+
+		deps := validDeps()
+		deps.Client = &stubClient{
+			files: []string{"a.gno", "gnomod.toml"},
+			fileBodies: map[string][]byte{
+				"a.gno":       []byte("package main\n"),
+				"gnomod.toml": []byte("module = \"main\"\n"),
+			},
+		}
+		h := New(deps)
+
+		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		require.Equal(t, http.StatusOK, status)
+
+		code := extractPlaygroundViewData(t, v).InitialCode
+
+		// First header has no leading newline; the second one does
+		assert.True(t, strings.HasPrefix(code, "// --- a.gno ---\n\n"), "first header should not have a leading newline")
+		assert.Contains(t, code, "\n// --- gnomod.toml ---\n\n")
+		assert.Contains(t, code, "package main\n")
+		assert.Contains(t, code, "module = \"main\"\n")
+
+		// a.gno appears before gnomod.toml (list order preserved)
+		assert.Less(t, strings.Index(code, "a.gno"), strings.Index(code, "gnomod.toml"))
+	})
+
+	t.Run("non-source files are filtered out", func(t *testing.T) {
+		t.Parallel()
+
+		deps := validDeps()
+		deps.Client = &stubClient{
+			files: []string{"a.gno", "image.png", "README.md", "gnomod.toml"},
+			fileBodies: map[string][]byte{
+				"a.gno":       []byte("package main\n"),
+				"image.png":   []byte("binary"),
+				"README.md":   []byte("# readme"),
+				"gnomod.toml": []byte("module = \"main\"\n"),
+			},
+		}
+		h := New(deps)
+
+		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		require.Equal(t, http.StatusOK, status)
+
+		code := extractPlaygroundViewData(t, v).InitialCode
+		assert.Contains(t, code, "// --- a.gno ---")
+		assert.Contains(t, code, "// --- gnomod.toml ---")
+		assert.NotContains(t, code, "image.png")
+		assert.NotContains(t, code, "README.md")
+	})
+
+	t.Run("fail listing package files", func(t *testing.T) {
+		t.Parallel()
+
+		deps := validDeps()
+		deps.Client = &stubClient{filesErr: errors.New("boom")}
+		h := New(deps)
+
+		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		assert.Equal(t, http.StatusBadRequest, status)
+
+		// The error path returns a status error component, not a playground view
+		_, ok := v.Component.(*playgroundComponent)
+		assert.False(t, ok, "error path must not return a playground component")
+	})
+
+	t.Run("playground data fields are populated", func(t *testing.T) {
+		t.Parallel()
+
+		deps := validDeps()
+		deps.Client = &stubClient{
+			files:      []string{"a.gno"},
+			fileBodies: map[string][]byte{"a.gno": []byte("package main\n")},
+		}
+		h := New(deps)
+
+		pkgPath := "/r/demo/foo"
+		q := url.Values{"file": {"a.gno"}}
+		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: pkgPath, Query: q})
+		require.Equal(t, http.StatusOK, status)
+
+		data := extractPlaygroundViewData(t, v)
+		assert.Equal(t, path.Join(deps.Domain, pkgPath), data.ForkFrom)
+		assert.Equal(t, "a.gno", data.DefaultFile)
+		assert.Equal(t, deps.Remote, data.Remote)
+		assert.Equal(t, deps.ChainId, data.ChainId)
+		assert.Equal(t, deps.Domain, data.Domain)
 	})
 }
 

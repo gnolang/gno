@@ -61,18 +61,9 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 	pkgPath := u.Path
 	files, err := h.deps.Client.ListFiles(ctx, pkgPath)
 	if err != nil {
-		h.deps.Logger.Warn("unable to list files for fork", "path", pkgPath, "error", err)
-
-		// Render the playground with default code rather than a hard error,
-		// so user can still write code from scratch.
-		return http.StatusOK, NewPageView(PlaygroundData{
-			InitialCode: defaultCode,
-			ForkFrom:    path.Join(h.deps.Domain, pkgPath),
-			Remote:      h.deps.Remote,
-			ChainId:     h.deps.ChainId,
-			Domain:      h.deps.Domain,
-			DefaultFile: u.Query.Get("file"),
-		})
+		msg := "unable to list files for fork"
+		h.deps.Logger.Warn(msg, "path", pkgPath, "error", err)
+		return http.StatusBadRequest, components.StatusErrorComponent(msg)
 	}
 
 	var allCode strings.Builder
