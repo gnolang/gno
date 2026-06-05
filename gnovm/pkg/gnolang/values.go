@@ -1649,18 +1649,23 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
+		count := 0
 		for i := range sl {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
 			if isNaN {
 				return "", true
 			}
-			bz = binary.AppendUvarint(bz, uint64(len(mk)))
-			bz = append(bz, mk...)
-			if i != sl-1 {
+			if count > 0 {
 				bz = append(bz, ',')
 			}
+			bz = binary.AppendUvarint(bz, uint64(len(mk)))
+			bz = append(bz, mk...)
+			count++
 		}
 		bz = append(bz, '}')
 	case *ChanType:
