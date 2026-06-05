@@ -347,9 +347,10 @@ export class SearchbarController extends BaseController {
 	}
 
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
-	// editable element. Skips when modifiers are held or during IME composition
-	// so chorded shortcuts and CJK input keep working. The existing focus
-	// handler then selects the prefilled path.
+	// editable element, then opens the dropdown against the prefilled path so
+	// the action has visible feedback (a bare select() reads as a no-op).
+	// Skips when modifiers are held or during IME composition so chorded
+	// shortcuts and CJK input keep working.
 	//
 	// TODO: extract to a shared keyboard-shortcut helper on BaseController when
 	// a second controller needs a global key binding.
@@ -360,6 +361,7 @@ export class SearchbarController extends BaseController {
 		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
 		e.preventDefault();
 		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
+		this.search();
 	}
 
 	// selectInput selects the whole input on focus so typing replaces the
