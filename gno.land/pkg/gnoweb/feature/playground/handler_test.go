@@ -2,16 +2,21 @@ package playground
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +56,30 @@ func (s *stubClient) Eval(context.Context, string) ([]byte, error) {
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// deflate compresses bytes with DEFLATE (RFC 1951) and returns the base64 of it.
+func deflateBase64(t *testing.T, b []byte) string {
+	t.Helper()
+
+	var buf bytes.Buffer
+	zw, err := flate.NewWriter(&buf, flate.BestCompression)
+	require.NoError(t, err)
+	_, err = zw.Write(b)
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	return base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+// extractPlaygroundViewData extracts data from a playground view.
+func extractPlaygroundViewData(t *testing.T, v *components.View) PlaygroundData {
+	t.Helper()
+
+	c, ok := v.Component.(*playgroundComponent)
+	require.True(t, ok, "unexpected component type %T", v.Component)
+	data, ok := c.data.(PlaygroundData)
+	require.True(t, ok, "unexpected data type %T", c.data)
+	return data
 }
 
 // TestHandlerPlaygroundEval tests the POST /_/api/eval handler directly.
@@ -206,6 +235,94 @@ func TestHandlerPlaygroundFuncs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetPlaygroundViewCode covers the "code" shared-snippet paths.
+func TestGetPlaygroundViewCode(t *testing.T) {
+	t.Parallel()
+
+	h := New(validDeps())
+
+	t.Run("default when no code", func(t *testing.T) {
+		t.Parallel()
+
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: url.Values{}})
+		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, defaultCode, extractPlaygroundViewData(t, v).InitialCode)
+	})
+
+	t.Run("plain base64", func(t *testing.T) {
+		t.Parallel()
+
+		code := "package main // hello"
+		q := url.Values{"code": {base64.StdEncoding.EncodeToString([]byte(code))}}
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
+	})
+
+	t.Run("compressed round-trip", func(t *testing.T) {
+		t.Parallel()
+
+		code := "package main\n\nfunc Render(path string) string { return \"hi\" }\n"
+		q := url.Values{"code": {deflateBase64(t, []byte(code))}, "z": {""}}
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
+	})
+
+	t.Run("decompression bomb is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// ~8 MiB of zeros compresses to a few KB; well over the 1 MiB ceiling.
+		bomb := deflateBase64(t, bytes.Repeat([]byte{0}, 8<<20))
+		q := url.Values{"code": {bomb}, "z": {""}}
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		assert.Equal(t, http.StatusOK, status)
+
+		// The over-limit payload must not be adopted as InitialCode,
+		// the guard sets the default code instead.
+		got := extractPlaygroundViewData(t, v).InitialCode
+		assert.Equal(t, got, defaultCode, "view must use default code")
+	})
+}
+
+// TestDecodeCompressedCode unit-tests the bounded DEFLATE decoder directly.
+func TestDecodeCompressedCode(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid small payload", func(t *testing.T) {
+		t.Parallel()
+
+		want := "some gno source"
+		var buf bytes.Buffer
+		zw, _ := flate.NewWriter(&buf, flate.BestCompression)
+		_, _ = zw.Write([]byte(want))
+		require.NoError(t, zw.Close())
+
+		got, ok := decodeCompressedCode(buf.Bytes())
+		require.True(t, ok)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("over-limit payload rejected", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		zw, _ := flate.NewWriter(&buf, flate.BestCompression)
+		_, _ = zw.Write(bytes.Repeat([]byte{0}, maxDecompressedCodeSize+1))
+		require.NoError(t, zw.Close())
+
+		_, ok := decodeCompressedCode(buf.Bytes())
+		assert.False(t, ok, "payload exceeding the ceiling must be rejected")
+	})
+
+	t.Run("invalid deflate data rejected", func(t *testing.T) {
+		t.Parallel()
+
+		_, ok := decodeCompressedCode([]byte("not deflate data"))
+		assert.False(t, ok)
+	})
 }
 
 // TestRateLimiter tests that the per-IP rate limiter enforces burst

@@ -17,6 +17,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
+// maxDecompressedCodeSize caps DEFLATE-decompressed shared code to guard
+// against decompression bombs when ?code=...&z are present in query path.
+const maxDecompressedCodeSize = 1 << 20 // 1 MiB
+
 const defaultCode = `package main
 
 func Render(path string) string {
@@ -31,11 +35,10 @@ func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
 		if decoded, err := base64.StdEncoding.DecodeString(initial); err == nil {
 			// Decompress code when given as DEFLATE compressed data format (RFC 1951)
 			if u.Query.Has("z") {
-				zr := flate.NewReader(bytes.NewReader(decoded))
-				if plain, err := io.ReadAll(zr); err == nil {
-					initial = string(plain)
+				initial = "" // uses default code if decompress fails
+				if plain, ok := decodeCompressedCode(decoded); ok {
+					initial = plain
 				}
-				zr.Close()
 			} else {
 				initial = string(decoded)
 			}
@@ -237,4 +240,18 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// decodeCompressedCode decompresses DEFLATE data.
+func decodeCompressedCode(data []byte) (string, bool) {
+	zr := flate.NewReader(bytes.NewReader(data))
+	defer zr.Close()
+
+	// Read one byte past the ceiling so an over-limit payload is detectable
+	// rather than silently truncated. Over-limit is validated after by length.
+	plain, err := io.ReadAll(io.LimitReader(zr, maxDecompressedCodeSize+1))
+	if err != nil || len(plain) > maxDecompressedCodeSize {
+		return "", false
+	}
+	return string(plain), true
 }
