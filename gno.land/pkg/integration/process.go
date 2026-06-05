@@ -86,7 +86,6 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 
 	// Setup node configuration
 	nodecfg.DB = db
-	nodecfg.TMConfig.DBPath = pcfg.DBDir
 	nodecfg.TMConfig = pcfg.TMConfig
 	// Each (re)start must bind a fresh OS-assigned port. node.Start mutates
 	// these addresses from ":0" to the concrete resolved port; the harness

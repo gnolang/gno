@@ -48,6 +48,9 @@ func sharedNodeRemote(t *testing.T) string {
 		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 		sharedNode, sharedNodeAddr = integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	})
+	// If the boot above failed, only the test that ran the Once fails; bail
+	// out here so later tests don't run against an empty remote.
+	require.NotEmpty(t, sharedNodeAddr, "shared in-memory node failed to boot")
 	return sharedNodeAddr
 }
 
