@@ -99,7 +99,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Logger:   logger,
 		Playground: playground.New(playground.Deps{
-			Client:  &featureClientAdapter{cfg.ClientAdapter},
+			Client:  &playgroundClientAdapter{cfg.ClientAdapter},
 			Logger:  logger,
 			Domain:  cfg.Meta.Domain,
 			Remote:  cfg.Meta.RemoteHelp,
@@ -112,29 +112,6 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			ChainId: cfg.Meta.ChainId,
 		}),
 	}, nil
-}
-
-// featureClientAdapter adapts ClientAdapter for custom features by removing
-// the FileMeta type dependency to break circular dependencies with gnoweb.
-type featureClientAdapter struct {
-	client ClientAdapter
-}
-
-func (a *featureClientAdapter) ListFiles(ctx context.Context, p string) ([]string, error) {
-	return a.client.ListFiles(ctx, p)
-}
-
-func (a *featureClientAdapter) File(ctx context.Context, p, filename string) ([]byte, error) {
-	body, _, err := a.client.File(ctx, p, filename)
-	return body, err
-}
-
-func (a *featureClientAdapter) Doc(ctx context.Context, p string) (*doc.JSONDocumentation, error) {
-	return a.client.Doc(ctx, p)
-}
-
-func (a *featureClientAdapter) Eval(ctx context.Context, data string) ([]byte, error) {
-	return a.client.Eval(ctx, data)
 }
 
 // ServeHTTP handles HTTP requests and only allows GET requests.
@@ -872,4 +849,29 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+var _ playground.ClientAdapter = (*playgroundClientAdapter)(nil)
+
+// playgroundClientAdapter adapts ClientAdapter for the playground feature by
+// removing the FileMeta type dependency to break circular dependencies with gnoweb.
+type playgroundClientAdapter struct {
+	client ClientAdapter
+}
+
+func (a *playgroundClientAdapter) ListFiles(ctx context.Context, p string) ([]string, error) {
+	return a.client.ListFiles(ctx, p)
+}
+
+func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) ([]byte, error) {
+	body, _, err := a.client.File(ctx, p, filename)
+	return body, err
+}
+
+func (a *playgroundClientAdapter) Doc(ctx context.Context, p string) (*doc.JSONDocumentation, error) {
+	return a.client.Doc(ctx, p)
+}
+
+func (a *playgroundClientAdapter) Eval(ctx context.Context, data string) ([]byte, error) {
+	return a.client.Eval(ctx, data)
 }
