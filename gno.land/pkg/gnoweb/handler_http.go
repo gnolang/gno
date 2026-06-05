@@ -25,14 +25,32 @@ const ReadmeFileName = "README.md"
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
-	Domain     string
-	AssetsPath string
-	ChromaPath string
-	RemoteHelp string
-	ChainId    string
-	Analytics  bool
-	BuildTime  string
-	Banner     components.BannerData
+	Domain            string
+	AssetsPath        string
+	ChromaPath        string
+	RemoteHelp        string
+	ChainId           string
+	Analytics         bool
+	AnalyticsHostname string
+	BuildTime         string
+	Banner            components.BannerData
+}
+
+// RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
+// view is rendered outside IndexLayout, so the analytics fields must be
+// populated explicitly rather than derived from HeadData.
+func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
+	return components.AnalyticsData{
+		Enabled:    s.Analytics,
+		PageType:   "redirect",
+		ChainId:    s.ChainId,
+		AssetsPath: s.AssetsPath,
+		BuildTime:  s.BuildTime,
+		Hostname:   s.AnalyticsHostname,
+		// Path is left empty: redirect targets are server-controlled constants,
+		// and the client path-overwriter falls back to SA's default path for an
+		// empty data-sa-path.
+	}
 }
 
 type AliasKind int
@@ -129,16 +147,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			BuildTime:         h.Static.BuildTime,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Theme:  theme,
 		Banner: h.Static.Banner,
