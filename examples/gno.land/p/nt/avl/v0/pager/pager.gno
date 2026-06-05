@@ -67,11 +67,6 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 		Pager:      p,
 	}
 
-	// pages without content
-	if pageSize < 1 {
-		return page
-	}
-
 	// page number provided is not available
 	if pageNumber < 1 {
 		page.HasNext = totalPages > 0

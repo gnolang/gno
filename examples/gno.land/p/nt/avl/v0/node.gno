@@ -270,13 +270,6 @@ func (node *Node) rotateLeft() *Node {
 func (node *Node) calcHeightAndSize() {
 	node.height = maxInt8(node.getLeftNode().height, node.getRightNode().height) + 1
 	node.size = node.getLeftNode().size + node.getRightNode().size
-
-	if node.height < 0 {
-		panic("height overflow: tree height exceeds int8 max")
-	}
-	if node.size < 0 {
-		panic("size overflow: node size exceeds int max")
-	}
 }
 
 // calcBalance calculates the balance factor of the node.
@@ -390,6 +383,12 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	if node == nil {
 		return false
+	}
+
+	// Clamp negative offset to 0; otherwise `delta := first.size - offset`
+	// over-counts and silently drops nodes.
+	if offset < 0 {
+		offset = 0
 	}
 
 	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.
