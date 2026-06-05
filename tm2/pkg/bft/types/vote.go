@@ -11,7 +11,9 @@ import (
 
 const (
 	// MaxVoteBytes is a maximum vote size (including amino overhead).
-	MaxVoteBytes int    = 247
+	// Down from 247 after constraining canonical PartSetHeader.Total to
+	// uint32 (matches upstream Tendermint v0.34); see CanonicalizePartSetHeader.
+	MaxVoteBytes int    = 242
 	nilVoteStr   string = "nil-Vote"
 )
 
