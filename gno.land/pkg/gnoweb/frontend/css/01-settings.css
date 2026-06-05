@@ -54,6 +54,19 @@
 	--g-transition-transform: transform var(--g-transition-duration)
 		var(--g-transition-timing);
 
+	/* BORROWED FROM #5649 (DELETE ON MERGE): tokens #5649 defines, duplicated so
+	   this PR is self-contained. Also supplies --g-transition-fast, referenced
+	   but undefined on this branch. */
+	--g-transition-fast: var(--g-transition-duration) var(--g-transition-timing);
+	--s-divider-weak: 1px solid color-mix(in srgb, currentColor 6%, transparent);
+	--s-divider: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+	--s-divider-strong: 1px solid
+		color-mix(in srgb, currentColor 14%, transparent);
+	/* finer sizes the reused .b-state-meta references but never defines */
+	--g-font-size-80: calc(12 / var(--g-px-base) * 1rem); /* 12px */
+	--g-font-size-90: calc(13 / var(--g-px-base) * 1rem); /* 13px */
+	/* END BORROWED FROM #5649 */
+
 	/* Animation durations */
 	--g-duration-75: 75ms;
 	--g-duration-100: 100ms;

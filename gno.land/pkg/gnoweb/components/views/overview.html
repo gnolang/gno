@@ -1,0 +1,378 @@
+{{/* ===================================================================================
+LAYOUT - Overview
+=================================================================================== */}}
+{{ define "renderOverview" }}
+<!-- Overview Sidebar -->
+<aside class="b-sidebar sidebar" aria-label="Package metadata and table of contents">
+  <div>
+    <div class="inner u-no-scrollbar c-stack">
+      {{ template "ui/pkg_meta" . }}
+      {{ template "ui/pkg_metadata" . }}
+      {{ template "ui/expend_label" "Package Index" }}
+      {{ with render .ComponentTOC }}<nav class="b-pkg-toc" aria-label="Package index">{{ . }}</nav>{{ end }}
+    </div>
+  </div>
+</aside>
+
+<!-- Overview Header -->
+<header class="b-content-header">
+  <h1 class="title b-content-h1">
+    <span>{{ .Title }} source</span>
+    <span class="b-tag b-tag--type">{{ .Info.PackageType }}</span>
+  </h1>
+  {{ with .Synopsis }}<p class="description">{{ . }}</p>{{ end }}
+</header>
+
+<!-- Overview Content (nav inside so grid row count matches sidebar span) -->
+<md-renderer class="c-overview-view" data-controller="tooltip">
+  {{ template "ui/pkg_nav" . }}
+  {{ template "ui/overview_content" . }}
+</md-renderer>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Package metadata (sidebar card)
+=================================================================================== */}}
+{{ define "ui/pkg_meta" }}
+<dl class="b-state-meta" aria-label="Package info">
+  <dt class="section">Package Info</dt>
+  <div class="row"><dt class="label">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
+  <div class="row mono"><dt class="label">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
+  <div class="row"><dt class="label">Type</dt><dd class="value">{{ .Info.PackageType }}</dd></div>
+  {{ with .Info.GnoVersion }}<div class="row"><dt class="label">Gno</dt><dd class="value">{{ . }}</dd></div>{{ end }}
+  {{ with .Info.License }}{{ if .Kind }}<div class="row"><dt class="label">License</dt><dd class="value"><a href="{{ $.PkgPath }}$source&file={{ .FileName }}">{{ .Kind }}</a></dd></div>{{ end }}{{ end }}
+  {{ with .Info.Creator }}<div class="row"><dt class="label">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
+  {{ if .Info.Creator }}<div class="row"><dt class="label">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
+
+  <dt class="section">Code stats</dt>
+  <div class="row"><dt class="label">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
+  <div class="row"><dt class="label">.gno files</dt><dd class="value">{{ .Stats.GnoFileCount }}</dd></div>
+  <div class="row"><dt class="label">Tests</dt><dd class="value">{{ .Stats.TestCount }}</dd></div>
+  {{ if gt .Stats.FuncCount 0 }}<div class="row"><dt class="label">Funcs</dt><dd class="value">{{ .Stats.FuncCount }} ({{ .Stats.ExportedFunc }} exported)</dd></div>{{ end }}
+  {{ if gt .Stats.TypeCount 0 }}<div class="row"><dt class="label">Types</dt><dd class="value">{{ .Stats.TypeCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.ConstCount 0 }}<div class="row"><dt class="label">Consts</dt><dd class="value">{{ .Stats.ConstCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.VarCount 0 }}<div class="row"><dt class="label">Vars</dt><dd class="value">{{ .Stats.VarCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.ImportCount 0 }}<div class="row"><dt class="label">Imports</dt><dd class="value">{{ .Stats.ImportCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.CrossingCount 0 }}<div class="row"><dt class="label">Crossing</dt><dd class="value">{{ .Stats.CrossingCount }}</dd></div>{{ end }}
+</dl>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Package quality (sidebar card)
+=================================================================================== */}}
+{{ define "ui/pkg_metadata" }}
+<section class="b-pkg-metadata" aria-label="Package metadata">
+  <h3 class="b-state-meta-heading">Metadata</h3>
+  <ul>
+    {{/* Status from gnomod: published|draft + public|private */}}
+    {{ if .Info.Draft }}<li class="b-tag b-tag--draft">draft</li>{{ else }}<li class="b-tag b-tag--published">published</li>{{ end }}
+    {{ if .Info.Private }}<li class="b-tag--tertiary">private</li>{{ else }}<li class="b-tag--tertiary">public</li>{{ end }}
+    {{/* Completeness signals — present-only, uniform tags (no check/cross icon) */}}
+    {{ with .Quality }}
+    {{ if .HasPkgDoc }}<li class="b-tag--tertiary">Documented</li>{{ end }}
+    {{ if .HasReadme }}<li><a class="b-tag--tertiary" href="#readme">README</a></li>{{ end }}
+    {{ if .HasTests }}<li class="b-tag--tertiary">Tests</li>{{ end }}
+    {{ if .HasLicense }}<li><a class="b-tag--tertiary" href="{{ $.PkgPath }}$source&file={{ $.Info.License.FileName }}">License</a></li>{{ end }}
+    {{ end }}
+  </ul>
+</section>
+{{ end }}
+
+
+
+
+{{/* ===================================================================================
+UI - Section nav: sticky anchor links (with count pills) + client-side symbol search
+=================================================================================== */}}
+{{ define "ui/pkg_nav" }}
+<nav class="b-page-subheader" aria-label="Package sections" data-controller="observer">
+  <div class="packages-tabs">
+    {{/* Grouped jumps (Readme+Overview, Consts+Vars) keep the bar from overflowing;
+         the sidebar Package Index still lists each section separately. */}}
+    {{ if .Readme }}<a href="#readme">Overview</a>{{ else if or .PackageDoc .Bugs }}<a href="#overview">Overview</a>{{ end }}
+    {{ if or .Consts .Vars }}<a href="#{{ if .Consts }}constants{{ else }}variables{{ end }}">Values <span class="b-tag--tertiary">{{ add (len .Consts) (len .Vars) }}</span></a>{{ end }}
+    {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ with .Imports }}<a href="#imports">Imports <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
+    {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+  </div>
+  <div class="state-search b-input" role="search">
+    <input type="search" placeholder="Filter symbols"
+           data-controller="filter"
+           data-filter-items-value=".b-pkg-symbol"
+           data-action="input->filter#filter"
+           aria-label="Filter symbols">
+    <svg class="c-icon" aria-hidden="true"><use href="#ico-search"></use></svg>
+  </div>
+</nav>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Overview body
+=================================================================================== */}}
+{{ define "ui/overview_content" }}
+
+  {{ if .SymbolsTruncated }}
+  <p class="b-pkg-notice" role="status">
+    This package exposes more symbols than are shown here.
+    <a href="{{ .PkgPath }}$source">View full source</a>.
+  </p>
+  {{ end }}
+
+  {{ if and (not .Readme) (not .PackageDoc) (not .Bugs) (not .Funcs) (not .Types) (not .Consts) (not .Vars) }}
+  <p class="b-pkg-notice" role="status">No documentation or exported symbols in this package.</p>
+  {{ end }}
+
+{{/* --- README — same wrapper as source/directory views (md-renderer + c-readme-view) --- */}}
+{{ with .Readme }}
+<section class="b-pkg-section" id="readme">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-readme"></use></svg><span>Readme</span></span>
+    <a href="{{ $.PkgPath }}$source&file=README.md" class="b-inline-btn c-with-icon" title="View source">
+      <svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg>
+      <span>View source</span>
+    </a>
+  </h2>
+  <md-renderer class="c-readme-view">
+    {{ render . }}
+  </md-renderer>
+</section>
+{{ end }}
+
+{{/* --- Overview (package doc, with BUG() notes as a trailing subsection, godoc/pkg.go.dev style) --- */}}
+{{ if or .PackageDoc .Bugs }}
+<section class="b-pkg-section" id="overview">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-docs"></use></svg><span>Overview</span></span>
+  </h2>
+  <div class="b-pkg-section__body c-doc-view">
+    {{ with .PackageDoc }}{{ render . }}{{ end }}
+    {{ with .Bugs }}
+    <h3 id="bugs">Bugs</h3>
+    <ul>{{ range . }}<li>{{ . }}</li>{{ end }}</ul>
+    {{ end }}
+  </div>
+</section>
+{{ end }}
+
+{{/* --- Constants --- */}}
+{{ with .Consts }}
+<section class="b-pkg-section" id="constants">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Constants</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <div class="b-pkg-section__body c-stack">{{ range . }}{{ template "ui/pkg_value" . }}{{ end }}</div>
+</section>
+{{ end }}
+
+{{/* --- Variables --- */}}
+{{ with .Vars }}
+<section class="b-pkg-section" id="variables">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Variables</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <div class="b-pkg-section__body c-stack">{{ range . }}{{ template "ui/pkg_value" . }}{{ end }}</div>
+</section>
+{{ end }}
+
+{{/* --- Functions --- */}}
+{{ with .Funcs }}
+<section class="b-pkg-section" id="functions">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Functions</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <div class="b-pkg-section__body c-stack">{{ range . }}{{ template "ui/pkg_func" . }}{{ end }}</div>
+</section>
+{{ end }}
+
+{{/* --- Types --- */}}
+{{ with .Types }}
+<section class="b-pkg-section" id="types">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Types</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <div class="b-pkg-section__body c-stack">{{ range . }}{{ template "ui/pkg_type" . }}{{ end }}</div>
+</section>
+{{ end }}
+
+{{/* --- Imports --- */}}
+{{ with .Imports }}
+<section class="b-pkg-section" id="imports">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Imports</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <ul class="b-pkg-list b-pkg-section__body">
+    {{ range . }}
+    <li class="b-pkg-list__item">
+      {{ if .Link }}
+      <a href="{{ .Link }}" class="b-pkg-list__link">
+        <span class="u-font-mono">{{ .Path }}</span>
+        <span class="b-tag b-tag--kind b-tag--kind-{{ .Kind }}">{{ .Kind }}</span>
+      </a>
+      {{ else }}
+      <span class="b-pkg-list__link b-pkg-list__link--disabled">
+        <span class="u-font-mono">{{ .Path }}</span>
+        <span class="b-tag b-tag--kind b-tag--kind-{{ .Kind }}">{{ .Kind }}</span>
+      </span>
+      {{ end }}
+    </li>
+    {{ end }}
+  </ul>
+</section>
+{{ end }}
+
+{{/* --- Files --- */}}
+<section class="b-pkg-section" id="files">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></span>
+    <span class="count">{{ len .Files }}</span>
+  </h2>
+  <ul class="b-pkg-list b-pkg-section__body">
+    {{ range .Files }}
+    <li class="b-pkg-list__item">
+      <a href="{{ .Link }}" class="b-pkg-list__link">
+        <span class="c-with-icon u-font-mono">
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg>
+          <span>{{ .Name }}</span>
+        </span>
+        <span class="b-pkg-list__tags">
+          {{ if .IsReadme }}<span class="b-tag">readme</span>{{ end }}
+          {{ if .IsLicense }}<span class="b-tag">license</span>{{ end }}
+          {{ if .IsTest }}<span class="b-tag">test</span>{{ end }}
+        </span>
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+</section>
+
+{{/* --- Subpackages --- */}}
+{{ with .Subpackages }}
+<section class="b-pkg-section" id="subpackages">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-folder"></use></svg><span>Directories</span></span>
+    <span class="count">{{ len . }}</span>
+  </h2>
+  <ul class="b-pkg-list b-pkg-section__body">
+    {{ range . }}
+    <li class="b-pkg-list__item">
+      <a href="{{ .Path }}" class="b-pkg-list__link">
+        <span class="c-with-icon u-font-mono">
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-folder"></use></svg>
+          <span>{{ .Name }}</span>
+        </span>
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+</section>
+{{ end }}
+
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Code block wrapper (used by func/type/value templates).
+Uses the shared .source/.code chroma frame for the <pre> box and highlighting.
+Accepts: Component (rendered code), SourceURL (optional).
+=================================================================================== */}}
+{{ define "ui/pkg_code_block" }}
+<div class="source">
+  <div class="code" data-copy-target="{{ .CopyID }}">{{ render .Component }}</div>
+  <div class="srcactions c-inline">
+    <button type="button" class="b-inline-btn c-with-icon" data-controller="copy" data-copy-remote-value="{{ .CopyID }}" data-action="click->copy#copy" aria-label="Copy code">{{ template "ui/copy" }}<span>Copy</span></button>
+    {{ with .SourceURL }}<a class="b-inline-btn c-with-icon" href="{{ . }}" title="Open in Source tab"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>source</span></a>{{ end }}
+  </div>
+</div>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Symbol card header title (prefix + name + permalink). Accepts: Prefix, Name, AnchorID, SourceURL
+=================================================================================== */}}
+{{ define "ui/pkg_symbol_head" }}
+<h3 class="b-pkg-symbol__title">
+  <span class="prefix">{{ .Prefix }}</span>
+  {{ if .SourceURL }}<a href="{{ .SourceURL }}" title="Jump to definition">{{ .Name }}</a>
+  {{ else }}<a href="#{{ .AnchorID }}">{{ .Name }}</a>{{ end }}
+</h3>
+{{ end }}
+
+{{/* Permalink anchor — rendered after a card's tags (not inside the title) so the
+     hidden anchor never opens a gap between the name and the tags. Accepts: anchor id. */}}
+{{ define "ui/pkg_anchor" }}<a href="#{{ . }}" class="anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a>{{ end }}
+
+
+{{/* ===================================================================================
+UI - Function symbol card
+=================================================================================== */}}
+{{ define "ui/pkg_func" }}
+<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}">
+  <header class="b-pkg-symbol__header">
+    {{ template "ui/pkg_symbol_head" (dict "Prefix" "func" "Name" .Name "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
+    {{ if .Crossing }}<span class="b-tag b-tag--crossing">crossing</span>{{ end }}
+    {{ if .IsMethod }}<span class="b-tag">method on {{ .Receiver }}</span>{{ end }}
+    {{ template "ui/pkg_anchor" .AnchorID }}
+    {{ with .ActionURL }}
+    <a href="{{ . }}" class="b-btn b-btn--secondary c-with-icon b-pkg-symbol__action" title="Open in Action">
+      <svg class="c-icon" aria-hidden="true"><use href="#ico-tx-link"></use></svg>
+      <span>Action</span>
+    </a>
+    {{ end }}
+  </header>
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .SignatureComponent }}
+  {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
+  {{ end }}
+</article>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Type symbol card (with nested methods)
+=================================================================================== */}}
+{{ define "ui/pkg_type" }}
+<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}">
+  <header class="b-pkg-symbol__header">
+    {{ template "ui/pkg_symbol_head" (dict "Prefix" "type" "Name" .Name "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
+    <span class="b-tag">{{ .Kind }}</span>
+    {{ template "ui/pkg_anchor" .AnchorID }}
+  </header>
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .SignatureComponent }}
+  {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
+  {{ end }}
+  {{ with .Methods }}
+  <div class="b-pkg-symbol__methods">
+    <h4 class="u-sr-only">Methods on {{ $.Name }}</h4>
+    {{ range . }}{{ template "ui/pkg_func" . }}{{ end }}
+  </div>
+  {{ end }}
+</article>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Value group card (const / var)
+=================================================================================== */}}
+{{ define "ui/pkg_value" }}
+<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Names }}">
+  <header class="b-pkg-symbol__header">
+    {{ template "ui/pkg_symbol_head" (dict "Prefix" .Kind "Name" .Names "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
+    {{ template "ui/pkg_anchor" .AnchorID }}
+  </header>
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .SignatureComponent }}
+  {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
+  {{ end }}
+</article>
+{{ end }}

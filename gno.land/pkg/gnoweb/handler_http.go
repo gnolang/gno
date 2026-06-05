@@ -13,12 +13,14 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"golang.org/x/sync/errgroup"
 )
 
 const ReadmeFileName = "README.md"
@@ -304,9 +306,12 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Source page
+	// Handle Source page: with a file -> source code view; without -> package overview.
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourceView(ctx, gnourl)
+		if gnourl.IsFile() || gnourl.WebQuery.Get("file") != "" {
+			return h.GetSourceView(ctx, gnourl)
+		}
+		return h.GetOverviewView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -805,4 +810,117 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+// GetOverviewView renders the package overview landing page at /r/<pkg>$source.
+// It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
+// a pure OverviewData that the template renders.
+func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	pkgPath := gnourl.Path
+
+	var (
+		files    []string
+		sources  map[string][]byte
+		jdoc     *doc.JSONDocumentation
+		readme   components.Component
+		subpaths []string
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		if files, err = h.Client.ListFiles(gctx, pkgPath); err != nil {
+			return err
+		}
+		// Fetch gnomod.toml + LICENSE as soon as the file list is known so they
+		// download in parallel with the Doc/README/paths queries below.
+		sources = h.fetchMetaFiles(gctx, pkgPath, files)
+		return nil
+	})
+	g.Go(func() error {
+		d, err := h.Client.Doc(gctx, pkgPath)
+		if err != nil {
+			h.Logger.Warn("overview: qdoc failed — degraded mode", "path", pkgPath, "error", err)
+			jdoc = &doc.JSONDocumentation{}
+			return nil
+		}
+		jdoc = d
+		return nil
+	})
+	g.Go(func() error {
+		readme, _ = h.renderReadme(gctx, gnourl, pkgPath)
+		return nil
+	})
+	g.Go(func() error {
+		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
+		paths, err := h.Client.ListPaths(gctx, prefix, 50)
+		if err != nil {
+			return nil
+		}
+		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar").
+		// buildSubpackages works on domain-relative paths.
+		subpaths = make([]string, 0, len(paths))
+		for _, p := range paths {
+			subpaths = append(subpaths, strings.TrimPrefix(p, h.Static.Domain))
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	data := components.BuildOverview(components.OverviewInput{
+		URL:         gnourl,
+		Files:       files,
+		Doc:         jdoc,
+		Sources:     sources,
+		Subpaths:    subpaths,
+		Readme:      readme,
+		Domain:      h.Static.Domain,
+		DocRenderer: h.Renderer,
+	})
+	return http.StatusOK, components.OverviewView(data)
+}
+
+// fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.
+// deriveInfo needs gnomod.toml; deriveLicense needs the LICENSE body to
+// identify the license kind. Imports are supplied by vm/qdoc, so no .gno
+// source is fetched here. Per-file errors are silent (best-effort).
+func (h *HTTPHandler) fetchMetaFiles(ctx context.Context, pkgPath string, files []string) map[string][]byte {
+	targets := filterMetaFiles(files)
+	if len(targets) == 0 {
+		return nil
+	}
+
+	var mu sync.Mutex
+	results := make(map[string][]byte, len(targets))
+
+	var wg sync.WaitGroup
+	for _, f := range targets {
+		wg.Add(1)
+		go func(file string) {
+			defer wg.Done()
+			content, _, err := h.Client.File(ctx, pkgPath, file)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results[file] = content
+			mu.Unlock()
+		}(f)
+	}
+	wg.Wait()
+	return results
+}
+
+// filterMetaFiles returns the metadata files the overview fetches: gnomod.toml
+// and any LICENSE file.
+func filterMetaFiles(files []string) []string {
+	out := make([]string, 0, 2)
+	for _, f := range files {
+		if f == "gnomod.toml" || components.ClassifyFile(f).IsLicense {
+			out = append(out, f)
+		}
+	}
+	return out
 }

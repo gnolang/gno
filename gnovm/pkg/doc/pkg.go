@@ -8,6 +8,8 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -85,6 +87,38 @@ func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, erro
 	pkg.name = pkgName
 
 	return pkg, nil
+}
+
+// extractPosition returns the source file name and 1-based line number for the
+// given AST node, or ("", 0) if the node's position is not tracked in fset.
+func (pkg *pkgData) extractPosition(node ast.Node) (file string, line int) {
+	if node == nil {
+		return "", 0
+	}
+	position := pkg.fset.Position(node.Pos())
+	return position.Filename, position.Line
+}
+
+// imports returns the deduplicated, sorted, non-test import paths. Order is
+// deterministic. It reads the already-parsed AST, so no file is parsed twice.
+func (pkg *pkgData) imports() []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, f := range pkg.files {
+		for _, spec := range f.Imports {
+			path, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				continue
+			}
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+			out = append(out, path)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (pkg *pkgData) parseFile(fileName string, body string, unexported bool) error {
