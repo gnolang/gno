@@ -71,7 +71,7 @@ Additional builtin types:
 | `bigint` | Based on `math/big.Int`                                                                    |
 | `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
 
-### Pointer equality for zero-sized types
+## Pointer equality for zero-sized types
 
 **Gno behavior.** `==` on pointers is pure identity: equal iff both denote the
 same slot (same `Base` + `Index`), uniformly for every element type. `new(T)`
@@ -85,7 +85,7 @@ see the divergence note below).
 
 ```go
 //                                           Gno   / gc-Go
-new(T) == new(T)                          // false / unspecified*  (true only when both escape → runtime.zerobase)
+_ = new(T) == new(T)                      // false / unspecified*  (true only when both escape → runtime.zerobase)
 var x, y T; _ = &x == &y                  // false / unspecified*  (true only when escaped)
 var a [10]T; _ = &a[0] == &a[1]           // false / true          (offset arithmetic, address-identical)
 var s struct{ a, b T }; _ = &s.a == &s.b  // false / true          (offset arithmetic, address-identical)
