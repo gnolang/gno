@@ -416,8 +416,8 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
+		lt := baseOf(lv.T).(*StructType)
 		if debug {
-			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
@@ -427,6 +427,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range ls.Fields {
+			if lt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {
