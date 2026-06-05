@@ -138,18 +138,16 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 func TestHandlerPlaygroundFuncs(t *testing.T) {
 	t.Parallel()
 
-	h := New(Deps{
-		Client: &stubClient{
-			docResult: &doc.JSONDocumentation{
-				Funcs: []*doc.JSONFunc{
-					{Name: "Hello", Signature: "Hello() string"},
-					{Name: "method", Type: "MyType", Signature: "method()"},
-				},
+	deps := validDeps()
+	deps.Client = &stubClient{
+		docResult: &doc.JSONDocumentation{
+			Funcs: []*doc.JSONFunc{
+				{Name: "Hello", Signature: "Hello() string"},
+				{Name: "method", Type: "MyType", Signature: "method()"},
 			},
 		},
-		Logger: discardLogger(),
-		Domain: "gno.land",
-	})
+	}
+	h := New(deps)
 
 	cases := []struct {
 		name       string
