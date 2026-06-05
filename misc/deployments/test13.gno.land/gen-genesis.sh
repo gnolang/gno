@@ -1486,9 +1486,11 @@ run_phase_2() {
 
   # Verify the txs source (file modes only). For --source-txs-rpc and
   # --source-txs-data-dir, gnogenesis enforces --halt-height on the
-  # fetch side. For --source-txs-jsonl-file, we verify the cached
-  # archive's max BlockHeight matches HALT_HEIGHT before doing any work —
-  # saves an hour of replay if the cache is stale.
+  # fetch side. For --source-txs-jsonl-file, we sanity-check that the
+  # cached archive doesn't extend past HALT_HEIGHT — saves an hour of
+  # replay if the cache is from a chain that didn't halt yet. The cache
+  # is allowed to fall short of HALT_HEIGHT because a chain can have
+  # tx-less blocks at the very end.
   if [ -n "$SOURCE_TXS_JSONL_FILE" ]; then
     local TXS_COUNT MAX_HEIGHT
     TXS_COUNT=$(wc -l <"$SOURCE_TXS_JSONL_FILE" | tr -d ' ')
@@ -1506,8 +1508,8 @@ run_phase_2() {
     print_substep "2.3.3" "mode:       jsonl-file ($SOURCE_TXS_JSONL_FILE)"
     print_substep "2.3.4" "txs:        $TXS_COUNT"
     print_substep "2.3.5" "max height: $MAX_HEIGHT (HALT_HEIGHT = $HALT_HEIGHT)"
-    if [ "$MAX_HEIGHT" -ne "$HALT_HEIGHT" ]; then
-      printf 'ERROR: HALT_HEIGHT=%s but txs.jsonl max BlockHeight=%s.\n' \
+    if [ "$MAX_HEIGHT" -gt "$HALT_HEIGHT" ]; then
+      printf 'ERROR: HALT_HEIGHT=%s but txs.jsonl max BlockHeight=%s (cache extends past halt).\n' \
         "$HALT_HEIGHT" "$MAX_HEIGHT" >&2
       printf '       Update the HALT_HEIGHT constant in this script or replace the cached jsonl.\n' >&2
       exit 1
