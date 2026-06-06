@@ -1055,7 +1055,12 @@ func HTMLEscape(s string) string {
 //
 // Allowlist:
 //   - http, https
-//   - mailto (rejected if contains ?body= or &body= — prefill phishing)
+//   - mailto (rejected if it carries any query — body, subject, cc,
+//     bcc, etc. all prefill the composed message and are phishing
+//     vectors. Both a literal '?' and any '&' are rejected: gnoweb's
+//     renderer decodes HTML character references such as '&#x3f;' back
+//     into '?', so '&' is blocked as the only gateway to a reconstructed
+//     query.)
 //   - any URL WITHOUT a scheme — relative paths (`/path`, `./rel`,
 //     `bare-path`), query-only (`?q=v`), fragment-only (`#anchor`).
 //     A `:` appearing inside the URL (e.g. `/path:foo`, `?q=a:b`) is
@@ -1622,11 +1627,23 @@ func linkSchemeAllowed(s string) bool {
 		return true
 	}
 	if strings.HasPrefix(s, "mailto:") {
-		// Reject prefill phishing via ?body= or &body=. Per RFC 6068 §2,
-		// mailto <hfname> is case-insensitive, so match against a
-		// lowercased copy of the URL.
-		lower := strings.ToLower(s)
-		if strings.Contains(lower, "?body=") || strings.Contains(lower, "&body=") {
+		// Policy: a mailto link may carry NO query. RFC 6068 headers
+		// (body, subject, cc, bcc, ...) prefill the composed message and
+		// are a phishing vector. A literal '?' opens the header section,
+		// so reject it outright — this also covers percent-encoded header
+		// names (e.g. ?%62ody=) since the '?' itself is still literal.
+		//
+		// '&' is rejected too. gnoweb's link renderer resolves HTML
+		// character references in the href (goldmark util.URLEscape), so
+		// '&#63;', '&#x3f;', and '&quest;' all decode back into '?' AFTER
+		// this check — reconstituting the query the realm thought it had
+		// stripped. '&' is the only gateway to those references, and a
+		// bare '&' has no legitimate place in a query-less mailto.
+		//
+		// Percent-encoded '%3f' is intentionally allowed: util.URLEscape
+		// leaves it encoded, so it reads as a literal '?' inside the
+		// address, never a header separator.
+		if strings.ContainsAny(s, "?&") {
 			return false
 		}
 		return true

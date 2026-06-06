@@ -333,15 +333,23 @@ func TestURL(t *testing.T) {
 		{"https://example.com/x", "https://example.com/x"},
 		{"http://example.com", "http://example.com"},
 		{"mailto:a@b.com", "mailto:a@b.com"},
-		{"mailto:a@b.com?body=phish", ""},                                // prefill phishing rejected
-		{"mailto:a@b.com?BODY=phish", ""},                                // RFC 6068 §2: hfname case-insensitive
-		{"mailto:a@b.com?Body=phish", ""},                                // mixed case
-		{"mailto:a@b.com?subject=hi&body=phish", ""},                     // body as second param
-		{"mailto:a@b.com?subject=hi&BODY=phish", ""},                     // mixed case second param
-		{"mailto:a@b.com?subject=hello", "mailto:a@b.com?subject=hello"}, // subject still allowed
-		{"//evil.com", ""},                                               // protocol-relative rejected
-		{"javascript:alert(1)", ""},                                      // bad scheme
-		{"/r/foo", "/r/foo"},                                             // relative
+		{"mailto:a@b.com?body=phish", ""},            // any query is a prefill-phishing vector
+		{"mailto:a@b.com?BODY=phish", ""},            // header name case is irrelevant
+		{"mailto:a@b.com?Body=phish", ""},            // mixed case
+		{"mailto:a@b.com?%62ody=phish", ""},          // percent-encoded header (%62 == b)
+		{"mailto:a@b.com?subject=hi&body=phish", ""}, // body as second param
+		{"mailto:a@b.com?subject=hi&BODY=phish", ""}, // mixed case second param
+		{"mailto:a@b.com?subject=hello", ""},         // subject alone still rejected
+		{"mailto:a@b.com?cc=x@y.com", ""},            // cc rejected
+		{"mailto:a@b.com?bcc=x@y.com", ""},           // bcc rejected
+		{"mailto:a@b.com?", ""},                      // bare trailing query marker rejected
+		{"mailto:a@b.com&#x3f;body=phish", ""},       // hex char-ref ? — renderer decodes to ?body=
+		{"mailto:a@b.com&#63;body=phish", ""},        // decimal char-ref ? — same bypass
+		{"mailto:a@b.com&quest;body=phish", ""},      // named char-ref ? — same bypass
+		{"mailto:a@b.com&body=phish", ""},            // bare & gateway rejected
+		{"//evil.com", ""},                           // protocol-relative rejected
+		{"javascript:alert(1)", ""},                  // bad scheme
+		{"/r/foo", "/r/foo"},                         // relative
 		{"./local", "./local"},
 		{"#section", "#section"}, // fragment-only
 		{"", ""},
