@@ -400,6 +400,54 @@ func TestInitChainer(t *testing.T) {
 	require.Equal(t, value, res.Value)
 }
 
+// TestBaseAppQueryInjectsHeight asserts that BaseApp.Query resolves a zero
+// height to the latest committed block height, preserves an explicit height,
+// and passes the resolved height to handlers via req.Height. Covers all three
+// Query branches: .app, .store, and custom-routed.
+func TestBaseAppQueryInjectsHeight(t *testing.T) {
+	t.Parallel()
+
+	// Custom handler echoes req.Height, like the module handlers do.
+	const customRoute = "testquery"
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(customRoute, testHandler{
+			query: func(_ Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+				res.Height, res.Data = req.Height, []byte("ok")
+				return
+			},
+		})
+	}
+
+	app := setupBaseApp(t, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit two blocks so an explicit height (1) differs from the latest (2).
+	const latest = int64(2)
+	for h := int64(1); h <= latest; h++ {
+		app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: h}})
+		app.Commit()
+	}
+	require.Equal(t, latest, app.LastBlockHeight())
+
+	tests := []struct {
+		name       string
+		req        abci.RequestQuery
+		wantHeight int64
+	}{
+		{"custom latest", abci.RequestQuery{Path: customRoute + "/x"}, latest},
+		{"store latest", abci.RequestQuery{Path: ".store/main/key", Data: []byte("absent")}, latest},
+		{"app version latest", abci.RequestQuery{Path: ".app/version"}, latest},
+		{"app explicit height preserved", abci.RequestQuery{Path: ".app/version", Height: 1}, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := app.Query(tt.req)
+			require.True(t, res.IsOK(), "%v", res)
+			require.Equal(t, tt.wantHeight, res.Height)
+		})
+	}
+}
+
 type testTxData struct {
 	FailOnAnte bool
 	Counter    int64
