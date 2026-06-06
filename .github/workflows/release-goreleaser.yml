@@ -1,0 +1,81 @@
+# Unified release workflow: master push releases + nightly scheduled releases.
+# Replaces the old releaser-master.yml and releaser-nightly.yml.
+name: release / goreleaser
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "0 0 * * 2-6" # nightly Tue-Sat
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: "Build as snapshot (no publish)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+
+permissions: {}
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create GitHub releases
+      id-token: write # for keyless signing via sigstore/cosign
+      packages: write # to push images to ghcr.io
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Dummy tag needed for goreleaser on non-tag pushes (non-snapshot runs)
+      - name: Create a dummy tag to avoid goreleaser failure
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.snapshot != true)
+        run: git tag v0.0.0 master
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false # zizmor: cache-poisoning — goreleaser publishes artifacts from this job
+
+      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: anchore/sbom-action@da167eac915b4e86f08b264dbdbc867b61be6f0c # v0.20.5
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Determine release args
+        id: args
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUTS_SNAPSHOT: ${{ inputs.snapshot }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$INPUTS_SNAPSHOT" = "true" ]; then
+            echo "goreleaser-args=release --clean --nightly --snapshot --config ./.github/goreleaser.yaml" >> "$GITHUB_OUTPUT"
+            echo "tag-version=nightly" >> "$GITHUB_OUTPUT"
+          else
+            echo "goreleaser-args=release --clean --nightly --config ./.github/goreleaser.yaml" >> "$GITHUB_OUTPUT"
+            echo "tag-version=master" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          distribution: goreleaser-pro
+          version: ~> v2
+          args: ${{ steps.args.outputs.goreleaser-args }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }} # zizmor: ignore[secrets-outside-env]
+          TAG_VERSION: ${{ steps.args.outputs.tag-version }}

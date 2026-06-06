@@ -1,37 +1,16 @@
 package main
 
-import "math"
-
-type T struct {
-	_ int
-	X int
-}
-
-type F struct {
-	_ float64
-	X int
-}
-
 func main() {
-	m := map[T]string{T{1, 2}: "a"}
-	println(m[T{3, 2}])
+	var m map[string]int
+	delete(m, "foo")
+	delete(m, "")
 
-	m[T{3, 2}] = "b"
-	println(len(m))
-	println(m[T{1, 2}])
+	var m2 map[int]string
+	delete(m2, 0)
+	delete(m2, 42)
 
-	delete(m, T{4, 2})
-	println(len(m))
-
-	f := map[F]string{F{math.NaN(), 2}: "nan"}
-	println(f[F{math.NaN(), 2}])
-	println(len(f))
+	println("all deletes on nil maps succeeded")
 }
 
 // Output:
-// a
-// 1
-// b
-// 0
-// nan
-// 1
+// all deletes on nil maps succeeded
