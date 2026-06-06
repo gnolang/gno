@@ -3067,6 +3067,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// if !n.IsAlias { // not sure why this was here.
 						tmp2.Seal()
 						// }
+						// During mutual type-decl recursion (e.g.
+						// `type T1 struct{Next *T2}; type T2 T1`) a
+						// dependent's Base may alias dstT.Base, captured
+						// while still empty. Fill that original base in
+						// place and reuse it so the dependent observes the
+						// completed underlying type instead of an orphaned
+						// empty one.
+						if dstT.Base != nil && fillTypeInPlace(dstT.Base, tmp2.Base) {
+							tmp2.Base = dstT.Base
+						}
 						*dstT = *tmp2
 					}
 				case PrimitiveType:
