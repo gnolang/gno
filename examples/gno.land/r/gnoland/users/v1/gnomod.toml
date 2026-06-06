@@ -1,5 +1,0 @@
-module = "gno.land/r/gnoland/users/v1"
-gno = "0.9"
-
-[addpkg]
-  creator = "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"

@@ -11,6 +11,10 @@ type HeaderLink struct {
 	URL      string
 	Icon     string
 	IsActive bool
+	// Outbound, when set to one of the Outbound* constants, is rendered as
+	// data-outbound on the link so SimpleAnalytics fires a named
+	// outbound_<label> event instead of an anonymous outbound click.
+	Outbound string
 }
 
 type HeaderLinks struct {
@@ -26,17 +30,18 @@ type HeaderData struct {
 	ChainId    string
 	Remote     string
 	Mode       ViewMode
+	Static     bool
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
 		{Label: "About", URL: "https://gno.land/about"},
-		{Label: "Docs", URL: "https://docs.gno.land/"},
-		{Label: "GitHub", URL: "https://github.com/gnolang"},
+		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -63,12 +68,14 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 		IsActive: isActive(u.WebQuery, "Actions"),
 	}
 
-	switch mode {
-	case ViewModeExplorer:
-		return []HeaderLink{}
-	case ViewModeUser:
+	switch {
+	case static:
 		return []HeaderLink{contentLink}
-	case ViewModePackage:
+	case mode == ViewModeExplorer:
+		return []HeaderLink{}
+	case mode == ViewModeUser:
+		return []HeaderLink{contentLink}
+	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink}
 	default:
 		return []HeaderLink{contentLink, sourceLink, actionsLink}
@@ -77,7 +84,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	data.Links.General = nil
 
 	if mode.ShouldShowGeneralLinks() {

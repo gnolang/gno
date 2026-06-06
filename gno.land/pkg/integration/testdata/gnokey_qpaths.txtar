@@ -62,7 +62,7 @@ stdout 'data: bufio'
 stdout 'bytes'
 stdout 'chain'
 stdout 'chain/banker'
-stdout 'chain/params'
+stdout 'chain/markdown'
 ! stderr '.+'
 
 gnokey query vm/qpaths --data "_/encoding"
@@ -81,7 +81,7 @@ stdout 'data: bufio'
 stdout 'bytes'
 stdout 'chain'
 stdout 'chain/banker'
-stdout 'chain/params'
+stdout 'chain/markdown'
 ! stderr '.+'
 
 -- main.gno --

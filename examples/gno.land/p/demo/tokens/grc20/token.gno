@@ -2,36 +2,91 @@ package grc20
 
 import (
 	"chain"
-	"chain/runtime"
 	"math"
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
-// NewToken creates a new Token.
-// It returns a pointer to the Token and a pointer to the Ledger.
-// Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
-func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
-	if name == "" {
-		panic("name should not be empty")
+// NewToken creates a Token whose origRealm is bound to the calling realm.
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
+// and rlm.PkgPath() — the calling realm itself — becomes the Token's
+// origRealm. Token.ID() returns origRealm + "." + symbol.
+//
+// Because IsCurrent runtime-validates that rlm came from the live
+// crossing frame, origRealm is unforgeable: an external realm cannot
+// fabricate a Token claiming to belong to a different package.
+//
+// Typical call from a realm's init(cur realm) or other crossing function:
+//
+//	Token, ledger := grc20.NewToken(0, cur, "Foo", "FOO", 4)
+//
+// If the Token should be discoverable, follow up with
+// grc20reg.Register(cross, Token, slug).
+func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
 	}
-	if symbol == "" {
-		panic("symbol should not be empty")
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
 	}
-	// XXX additional checks (length, characters, limits, etc)
-
+	if !validName(name) {
+		panic(ErrInvalidName)
+	}
+	if !validSymbol(symbol) {
+		panic(ErrInvalidSymbol)
+	}
+	if decimals < 0 || decimals > MaxDecimals {
+		panic(ErrInvalidDecimals)
+	}
 	ledger := &PrivateLedger{}
 	token := &Token{
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
-		origRealm: runtime.CurrentRealm().PkgPath(),
+		origRealm: pkgPath,
 		ledger:    ledger,
 	}
 	ledger.token = token
 	return token, ledger
+}
+
+// validName reports whether name is a valid display name: non-empty,
+// within MaxNameLen, and contains no control characters (any rune
+// below 0x20 or 0x7f). Permits Unicode letters, digits, punctuation,
+// and spaces — name is purely a display field.
+func validName(name string) bool {
+	if name == "" || len(name) > MaxNameLen {
+		return false
+	}
+	for _, c := range name {
+		if c < 0x20 || c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// validSymbol reports whether symbol is a valid token symbol: non-empty,
+// within MaxSymbolLen, and consists only of [A-Za-z0-9_-]. Matches
+// grc20reg.validateSlug so the symbol round-trips cleanly through
+// Token.ID() and any registry binding.
+func validSymbol(symbol string) bool {
+	if symbol == "" || len(symbol) > MaxSymbolLen {
+		return false
+	}
+	for _, c := range symbol {
+		if !isAlnum(c) && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func isAlnum(c rune) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
 // GetName returns the name of the token.

@@ -3,7 +3,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/sys/users"
 )
 
@@ -20,11 +20,11 @@ func (p Post) String() string {
 
 	author := p.author.String()
 	// We can import and use the r/sys/users package to resolve addresses
-	user, _ := users.ResolveAddress(p.author)
+	user := users.ResolveAddress(p.author)
 	if user != nil {
 		// RenderLink provides a link that is clickable
 		// The link goes to the user's profile page
-		author = user.RenderLink()
+		author = user.RenderLink("")
 	}
 
 	out += ufmt.Sprintf("_by %s on %s_\n\n", author, p.createdAt.Format("02 Jan 2006, 15:04"))

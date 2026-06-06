@@ -2,12 +2,11 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // Constants for different banning periods.
@@ -20,7 +19,7 @@ const (
 // Ban bans a user from a board for a period of time.
 // Only invited guest members and external users can be banned.
 // Banning board owners, admins and moderators is not allowed.
-func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
+func Ban(cur realm, boardID boards.ID, user address, hours uint, reason string) {
 	assertAddressIsValid(user)
 
 	if hours == 0 {
@@ -33,10 +32,10 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 	}
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := boards.Args{boardID, user, until, reason}
-	board.Permissions.WithPermission(caller, PermissionUserBan, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionUserBan, args, func() {
 		// When banning invited members make sure they are guests, otherwise
 		// disallow banning. Only guest or external users can be banned.
 		if board.Permissions.HasUser(user) && !board.Permissions.HasRole(user, RoleGuest) {
@@ -45,7 +44,7 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 
 		banned, found := getBannedUsers(boardID)
 		if !found {
-			banned = avl.NewTree()
+			banned = bptree.NewBPTree32()
 			gBannedUsers.Set(boardID.Key(), banned)
 		}
 
@@ -59,17 +58,17 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 			"until", until.Format(time.RFC3339),
 			"reason", reason,
 		)
-	}))
+	})
 }
 
 // Unban unbans a user from a board.
-func Unban(_ realm, boardID boards.ID, user address, reason string) {
+func Unban(cur realm, boardID boards.ID, user address, reason string) {
 	assertAddressIsValid(user)
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	args := boards.Args{boardID, user, reason}
-	board.Permissions.WithPermission(caller, PermissionUserUnban, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionUserUnban, args, func() {
 		banned, found := getBannedUsers(boardID)
 		if !found || !banned.Has(user.String()) {
 			panic("user is not banned")
@@ -84,7 +83,7 @@ func Unban(_ realm, boardID boards.ID, user address, reason string) {
 			"user", user.String(),
 			"reason", reason,
 		)
-	}))
+	})
 }
 
 // IsBanned checks if a user is banned from a board.

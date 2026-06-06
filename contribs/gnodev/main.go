@@ -47,7 +47,7 @@ Resolvers can be chained, and gnodev will attempt to use them in the order they
 are declared.
 
 For example:
-    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.lands
+    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.land
 
 If no resolvers can resolve a given package path, the loader will return a
 "package not found" error.

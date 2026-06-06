@@ -1,14 +1,11 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -32,6 +30,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
@@ -49,7 +48,6 @@ const (
 	envKeyPkgsLoader
 	envKeyPrivValKey
 	envKeyExecCommand
-	envKeyExecBin
 	envKeyBase
 	envKeyStdinBuffer
 )
@@ -57,13 +55,9 @@ const (
 type commandkind int
 
 const (
-	// commandKindBin builds and uses an integration binary to run the testscript
-	// in a separate process. This should be used for any external package that
-	// wants to use test scripts.
-	commandKindBin commandkind = iota
 	// commandKindTesting uses the current testing binary to run the testscript
 	// in a separate process. This command cannot be used outside this package.
-	commandKindTesting
+	commandKindTesting commandkind = iota
 	// commandKindInMemory runs testscripts in memory.
 	commandKindInMemory
 )
@@ -129,9 +123,6 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	defaultPK, err := GeneratePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)
 
-	var buildOnce sync.Once
-	var gnolandBin string
-
 	// Store the original setup scripts for potential wrapping
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
@@ -142,24 +133,11 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			}
 		}
 
-		cmd, isSet := env.Values[envKeyExecCommand].(commandkind)
-		switch {
-		case !isSet:
-			cmd = commandKindBin // fallback on commandKindBin
-			fallthrough
-		case cmd == commandKindBin:
-			buildOnce.Do(func() {
-				t.Logf("building the gnoland integration node")
-				start := time.Now()
-				gnolandBin = buildGnoland(t, gnoRootDir)
-				t.Logf("time to build the node: %v", time.Since(start).String())
-			})
-
-			env.Values[envKeyExecBin] = gnolandBin
+		// Default to running nodes in-memory when the caller didn't pick a
+		// command kind. setupNode reads this later.
+		if _, isSet := env.Values[envKeyExecCommand].(commandkind); !isSet {
+			env.Values[envKeyExecCommand] = commandKindInMemory
 		}
-
-		// Store the resolved command kind so setupNode can read it later.
-		env.Values[envKeyExecCommand] = cmd
 
 		tmpdir, dbdir := t.TempDir(), t.TempDir()
 		gnoHomeDir := filepath.Join(tmpdir, "gno")
@@ -232,6 +210,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
 		"scanf":       loadpkgCmd(gnoRootDir),
+		"genesiscall": genesiscallCmd(defaultPK),
 		"input":       inputCmd(),
 	}
 
@@ -408,6 +387,14 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 			nodesManager.Delete(sid)
+
+		case "wait-for-new-block":
+			node, exists := nodesManager.Get(sid)
+			if !exists {
+				err = fmt.Errorf("node not started, cannot wait for new block")
+				break
+			}
+			err = waitForNewBlock(ts, node.Address(), defaultPK)
 
 		default:
 			err = fmt.Errorf("not supported command: %q", cmd)
@@ -608,7 +595,7 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		}
 
 		if !strings.HasPrefix(dir, workDir) {
-			dir = filepath.Join(examplesDir, dir)
+			dir = ResolveExamplePath(examplesDir, dir)
 		}
 
 		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
@@ -616,6 +603,42 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 		}
 
 		ts.Logf("%q package was added to genesis", args[0])
+	}
+}
+
+func genesiscallCmd(defaultPK crypto.PrivKey) func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if len(args) < 2 {
+			ts.Fatalf("`genesiscall` requires at least 2 arguments: <pkgpath> <func> [args...]")
+		}
+
+		pkgPath := args[0]
+		funcName := args[1]
+		var callArgs []string
+		if len(args) > 2 {
+			callArgs = args[2:]
+		}
+
+		txs := []gnoland.TxWithMetadata{{
+			Tx: std.Tx{
+				Msgs: []std.Msg{vm.MsgCall{
+					Caller:  defaultPK.PubKey().Address(),
+					PkgPath: pkgPath,
+					Func:    funcName,
+					Args:    callArgs,
+				}},
+				Fee: std.NewFee(2_000_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+			},
+		}}
+
+		if err := gnoland.SignGenesisTxs(txs, defaultPK, "tendermint_test"); err != nil {
+			ts.Fatalf("`genesiscall` unable to sign tx: %s", err)
+		}
+
+		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+		genesis.Txs = append(genesis.Txs, txs...)
+
+		ts.Logf("genesis call %s.%s added", pkgPath, funcName)
 	}
 }
 
@@ -660,7 +683,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
 		}
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret gnoland.GnoAccount
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
 		}
@@ -674,6 +697,75 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
 	}
 
+	return nil
+}
+
+// waitForNewBlock submits a 1ugnot self-transfer from the default account
+// and returns after the containing block is committed. BroadcastTxCommit
+// returns the height of the block that included the tx — strictly greater
+// than the height at submission, since CheckTx happens after submission.
+// Used by txtar tests that need to burn a deterministic number of blocks
+// (e.g. throttle-window tests) without relying on auto-empty-block timing.
+//
+// Built directly against the RPC client (rather than gnoclient) because
+// gnoclient imports this package in its tests, which would create a cycle.
+func waitForNewBlock(ts *testscript.TestScript, remote string, defaultPK crypto.PrivKey) error {
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return fmt.Errorf("create rpc client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	addr := defaultPK.PubKey().Address()
+	qres, err := cli.ABCIQuery(ctx, "auth/accounts/"+addr.String(), []byte{})
+	if err != nil {
+		return fmt.Errorf("query account: %w", err)
+	}
+	if qres.Response.Error != nil {
+		return fmt.Errorf("query account: %w", qres.Response.Error)
+	}
+	var acct gnoland.GnoAccount
+	if err := amino.UnmarshalJSON(qres.Response.Data, &acct); err != nil {
+		return fmt.Errorf("unmarshal account: %w", err)
+	}
+
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: addr,
+			ToAddress:   addr,
+			Amount:      std.Coins{std.NewCoin(ugnot.Denom, 1)},
+		}},
+		Fee: std.NewFee(890_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+	}
+	signBytes, err := tx.GetSignBytes("tendermint_test", acct.BaseAccount.GetAccountNumber(), acct.BaseAccount.GetSequence())
+	if err != nil {
+		return fmt.Errorf("get sign bytes: %w", err)
+	}
+	sig, err := defaultPK.Sign(signBytes)
+	if err != nil {
+		return fmt.Errorf("sign: %w", err)
+	}
+	tx.Signatures = []std.Signature{{PubKey: defaultPK.PubKey(), Signature: sig}}
+
+	txBytes, err := amino.Marshal(tx)
+	if err != nil {
+		return fmt.Errorf("marshal tx: %w", err)
+	}
+
+	bres, err := cli.BroadcastTxCommit(ctx, txBytes)
+	if err != nil {
+		return fmt.Errorf("broadcast: %w", err)
+	}
+	if bres.CheckTx.IsErr() {
+		return fmt.Errorf("check tx failed: %s", bres.CheckTx.Log)
+	}
+	if bres.DeliverTx.IsErr() {
+		return fmt.Errorf("deliver tx failed: %s", bres.DeliverTx.Log)
+	}
+
+	fmt.Fprintf(ts.Stdout(), "new block at height %d\n", bres.Height)
 	return nil
 }
 
@@ -715,15 +807,6 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 		}
 
 		return runTestingNodeProcess(&testingTS{ts}, ctx, pcfg)
-
-	case commandKindBin:
-		bin := ts.Value(envKeyExecBin).(string)
-		nodep, err := RunNodeProcess(ctx, pcfg, bin)
-		if err != nil {
-			ts.Fatalf("unable to start process node: %s", err)
-		}
-
-		return nodep
 
 	default:
 		ts.Fatalf("unknown command kind: %+v", cmd)
@@ -770,45 +853,6 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 		Address: address,
 		Amount:  coins,
 	}, nil
-}
-
-func buildGnoland(t *testing.T, rootdir string) string {
-	t.Helper()
-
-	bin := filepath.Join(t.TempDir(), "gnoland-test")
-
-	t.Log("building gnoland integration binary...")
-
-	// Build a fresh gno binary in a temp directory
-	gnoArgsBuilder := []string{"build", "-o", bin}
-
-	os.Executable()
-
-	// Forward `-covermode` settings if set
-	if coverMode := testing.CoverMode(); coverMode != "" {
-		gnoArgsBuilder = append(gnoArgsBuilder,
-			"-covermode", coverMode,
-		)
-	}
-
-	// Append the path to the gno command source
-	gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(rootdir,
-		"gno.land", "pkg", "integration", "process"))
-
-	t.Logf("build command: %s", strings.Join(gnoArgsBuilder, " "))
-
-	cmd := exec.Command("go", gnoArgsBuilder...)
-
-	var buff bytes.Buffer
-	cmd.Stderr, cmd.Stdout = &buff, &buff
-	defer buff.Reset()
-
-	if err := cmd.Run(); err != nil {
-		require.FailNowf(t, "unable to build binary", "%q\n%s",
-			err.Error(), buff.String())
-	}
-
-	return bin
 }
 
 // GeneratePrivKeyFromMnemonic generates a crypto.PrivKey from a mnemonic.

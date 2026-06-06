@@ -5,9 +5,15 @@ import (
 	"testing"
 
 	pte "gno.land/p/aeddi/panictoerr"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 	grc20 "gno.land/r/demo/defi/grc20factory"
 )
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 
 // Test PanicToError with different types as panic value.
 func TestSimplePanicToError(t *testing.T) {
@@ -27,7 +33,7 @@ func TestSimplePanicToError(t *testing.T) {
 	uassert.Equal(t, err.Error(), "42")
 }
 
-func TestRealmPanicToError(t *testing.T) {
+func TestRealmPanicToError(cur realm, t *testing.T) {
 	// Set a test realm to be able to call a realm.
 	testRealm := testing.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
 	testing.SetRealm(testRealm)
@@ -35,20 +41,25 @@ func TestRealmPanicToError(t *testing.T) {
 	const message = "token instance does not exist"
 	var err error
 
-	// Define a panicking function (not crossing).
+	// Define a panicking function (local panic; does not cross any
+	// realm boundary). Under the unified declaring-realm borrow,
+	// calling grc20.Bank() would borrow into /r/demo/defi/grc20factory
+	// and any panic there would cross a realm boundary, becoming an
+	// abort catchable only by revive() — see the `aborting` case
+	// below. To exercise the pure recover() path, panic locally.
 	panicking := func() {
-		grc20.Bank("unknown")
+		panic(message)
 	}
 
 	// panicking function should panic.
-	uassert.PanicsWithMessage(t, message, panicking)
+	uassert.PanicsWithMessage(t, cur, message, panicking)
 
 	// panicking function should panic when wrapped in AbortToError.
-	uassert.PanicsWithMessage(t, message, func() { pte.AbortToError(panicking) })
+	uassert.PanicsWithMessage(t, cur, message, func() { pte.AbortToError(panicking) })
 
 	// panicking function should not panic when wrapped in PanicToError.
 	uassert.NotPanics(
-		t,
+		t, cur,
 		func() { err = pte.PanicToError(panicking) },
 		"panicking function should not panic when wrapped in PanicToError",
 	)
@@ -56,7 +67,7 @@ func TestRealmPanicToError(t *testing.T) {
 
 	// panicking function should not panic when wrapped in PanicAbortToError.
 	uassert.NotPanics(
-		t,
+		t, cur,
 		func() { err = pte.PanicAbortToError(panicking) },
 		"panicking function should not panic when wrapped in PanicAbortToError",
 	)
@@ -64,18 +75,18 @@ func TestRealmPanicToError(t *testing.T) {
 
 	// Define an aborting function (crossing).
 	aborting := func() {
-		grc20.Faucet(cross, "unknown")
+		grc20.Faucet(cross(cur), "unknown")
 	}
 
 	// aborting function should abort.
-	uassert.AbortsWithMessage(t, message, aborting)
+	uassert.AbortsWithMessage(t, cur, message, aborting)
 
 	// aborting function should abort when wrapped in PanicToError.
-	uassert.AbortsWithMessage(t, message, func() { pte.PanicToError(aborting) })
+	uassert.AbortsWithMessage(t, cur, message, func() { pte.PanicToError(aborting) })
 
 	// aborting function should not abort when wrapped in AbortToError.
 	uassert.NotAborts(
-		t,
+		t, cur,
 		func() { err = pte.AbortToError(aborting) },
 		"aborting function should not abort when wrapped in AbortToError",
 	)
@@ -83,7 +94,7 @@ func TestRealmPanicToError(t *testing.T) {
 
 	// aborting function should not abort when wrapped in PanicAbortToError.
 	uassert.NotAborts(
-		t,
+		t, cur,
 		func() { err = pte.PanicAbortToError(aborting) },
 		"aborting function should not abort when wrapped in PanicAbortToError",
 	)

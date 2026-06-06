@@ -19,6 +19,10 @@
         "label": "Build on Gno.land",
         "items": [
           "builders/what-is-gnolang",
+          "builders/install",
+          "builders/getting-started",
+          "builders/quickstart",
+          "builders/editor-setup",
           "builders/anatomy-of-a-gno-package",
           "builders/local-dev-with-gnodev",
           "builders/example-minisocial-dapp",

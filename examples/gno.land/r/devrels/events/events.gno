@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type (
@@ -43,8 +43,8 @@ const (
 
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
-func AddEvent(_ realm, name, description, link, location, startTime, endTime string) (string, error) {
-	Ownable.AssertOwnedByPrevious()
+func AddEvent(cur realm, name, description, link, location, startTime, endTime string) (string, error) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	if strings.TrimSpace(name) == "" {
 		return "", ErrEmptyName
@@ -82,8 +82,8 @@ func AddEvent(_ realm, name, description, link, location, startTime, endTime str
 }
 
 // DeleteEvent deletes an event with auth given ID
-func DeleteEvent(_ realm, id string) {
-	Ownable.AssertOwnedByPrevious()
+func DeleteEvent(cur realm, id string) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	e, idx, err := GetEventByID(id)
 	if err != nil {
@@ -100,8 +100,8 @@ func DeleteEvent(_ realm, id string) {
 // EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty arguments sent with the call
 // Note: if you need to update the start time or end time, you need to provide both every time
-func EditEvent(_ realm, id string, name, description, link, location, startTime, endTime string) {
-	Ownable.AssertOwnedByPrevious()
+func EditEvent(cur realm, id string, name, description, link, location, startTime, endTime string) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	e, _, err := GetEventByID(id)
 	if err != nil {

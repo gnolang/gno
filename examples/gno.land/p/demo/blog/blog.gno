@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Blog struct {
@@ -53,7 +53,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 		rowItems = append(rowItems, post.RenderListItem())
 
 		if len(rowItems) == maxCol {
-			res.Write("<gno-columns>" + strings.Join(rowItems, "|||") + "</gno-columns>\n")
+			res.Write("<gno-columns>" + strings.Join(rowItems, "<gno-columns-sep>") + "</gno-columns>\n")
 			rowItems = []string{}
 		}
 		return false
@@ -64,7 +64,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 		for len(rowItems) < maxCol {
 			rowItems = append(rowItems, "")
 		}
-		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
+		res.Write("<gno-columns>" + strings.Join(rowItems, "\n<gno-columns-sep>\n") + "</gno-columns>\n")
 	}
 }
 

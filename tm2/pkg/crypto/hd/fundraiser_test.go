@@ -79,6 +79,6 @@ func TestFundraiserCompatibility(t *testing.T) {
 
 		addr := pub.Address()
 		t.Logf("ADDR  \t%X %X\n", addrB, addr)
-		require.Equal(t, addr, crypto.AddressFromBytes(addrB), fmt.Sprintf("Expected addresses to match %d", i))
+		require.Equal(t, addr, crypto.MustAddressFromBytes(addrB), fmt.Sprintf("Expected addresses to match %d", i))
 	}
 }

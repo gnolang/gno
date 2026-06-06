@@ -72,6 +72,7 @@ func (m *Machine) doOpSliceType() {
 
 func (m *Machine) doOpFuncType() {
 	x := m.PopExpr().(*FuncTypeExpr)
+	m.incrCPU(OpCPUSlopeFuncType * int64(len(x.Params)+len(x.Results)))
 	// Allocate space for data.
 	params := make([]FieldType, len(x.Params))
 	results := make([]FieldType, len(x.Results))
@@ -109,6 +110,7 @@ func (m *Machine) doOpMapType() {
 
 func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
+	m.incrCPU(OpCPUSlopeStructType * int64(len(x.Fields)))
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
 	// allocate (minimum) space for fields
@@ -124,6 +126,8 @@ func (m *Machine) doOpStructType() {
 		PkgPath: m.Package.PkgPath,
 		Fields:  fields,
 	}
+	validateEmbedDepth(st, "<anonymous struct>")
+	validateStructFields(st, "<anonymous struct>")
 	m.PushValue(TypedValue{
 		T: gTypeType,
 		V: toTypeValue(st),
@@ -132,6 +136,7 @@ func (m *Machine) doOpStructType() {
 
 func (m *Machine) doOpInterfaceType() {
 	x := m.PopExpr().(*InterfaceTypeExpr)
+	m.incrCPU(OpCPUSlopeInterfaceType * int64(len(x.Methods)))
 	// allocate space
 	methods := make([]FieldType, len(x.Methods))
 	// pop methods
@@ -146,23 +151,41 @@ func (m *Machine) doOpInterfaceType() {
 		Methods: methods,
 		Generic: x.Generic,
 	}
+	validateEmbedDepth(it, "<anonymous interface>")
+	validateInterfaceMethods(it, "<anonymous interface>")
 	m.PushValue(TypedValue{
 		T: gTypeType,
 		V: toTypeValue(it),
 	})
 }
 
-func (m *Machine) doOpChanType() {
-	x := m.PopExpr().(*ChanTypeExpr)
-	tv := m.PeekValue(1) // re-use as result.
-	ct := &ChanType{
-		Dir: x.Dir,
-		Elt: tv.GetType(),
+// staticTypeOfX returns the static type of x. Short-circuits via
+// ATTR_TYPEOF_VALUE / *ConstExpr / *constTypeExpr when possible; otherwise
+// runs a Machine sub-evaluation (Push OpHalt, OpStaticTypeOf, Run, Reap).
+// Used to flatten the recursive Machine sub-runs in doOpStaticTypeOf cases
+// (IndexExpr, SliceExpr, StarExpr, ...) that would otherwise re-evaluate
+// inner subexpression types whose ATTR_TYPEOF_VALUE is already cached.
+func (m *Machine) staticTypeOfX(x Expr) Type {
+	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+		if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+			return tt.Elts[0]
+		}
+		return t
 	}
-	*tv = TypedValue{
-		T: gTypeType,
-		V: toTypeValue(ct),
+	if cx, ok := x.(*ConstExpr); ok {
+		return cx.T
 	}
+	if _, ok := x.(*constTypeExpr); ok {
+		return gTypeType
+	}
+	start := len(m.Values)
+	m.PushOp(OpHalt)
+	m.PushExpr(x)
+	m.PushOp(OpStaticTypeOf)
+	m.Run(StageRun)
+	t := m.ReapValues(start)[0].GetType()
+	x.SetAttribute(ATTR_TYPEOF_VALUE, t)
+	return t
 }
 
 // Evaluate the type of a typed (i.e. not untyped) value.
@@ -199,23 +222,17 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushValue(asValue(UntypedBoolType))
 		}
 	case *CallExpr:
+		// ATTR_TYPEOF_VALUE must already be set on every CallExpr
+		// during preprocessing: for type conversions (TRANS_LEAVE
+		// *CallExpr conversion paths), for generic/specialized
+		// calls, and for plain function calls via the general case.
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 		m.PushValue(asValue(xt.Elem()))
 	case *SelectorExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 
 		// NOTE: this code segment similar to that in op_types.go
 		var dxt Type
@@ -380,12 +397,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 	case *SliceExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].V.(TypeValue).Type
+		xt := m.staticTypeOfX(x.X)
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
@@ -398,12 +410,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			}))
 		}
 	case *StarExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
@@ -412,12 +419,12 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		// The static type of &x is *typeof(x).
+		// ATTR_REF_ELEM_TYPE is set during preprocessing.
+		xt, ok := x.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+		if !ok {
+			panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
+		}
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {

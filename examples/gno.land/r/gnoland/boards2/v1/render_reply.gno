@@ -9,8 +9,8 @@ import (
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
@@ -24,24 +24,24 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
 	rawID = req.GetVar("reply")
 	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
+		res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return
@@ -50,62 +50,130 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	// Call render even for hidden replies to display children.
 	// Original comment content will be hidden under the hood.
 	// See: #3480
-	res.Write(renderPostInner(reply))
+	res.Write(renderPostInner(reply, req.RawPath))
 }
 
-func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) string {
-	p, err := pager.New(path, post.Replies.Size(), pager.WithPageSize(pageSizeReplies))
-	if err != nil {
-		panic(err)
+// newClampedPager builds a pager, clamping an out-of-range, zero, negative,
+// or malformed ?page= to the last valid page instead of erroring. pager.New
+// rejects page==0, page>pageCount, and non-numeric pages with
+// ErrInvalidPageNumber, which the callers would otherwise surface as a panic
+// (aborting the whole render) or an error page in place of the list. A
+// NEGATIVE page is not rejected by pager.New (it only checks ==0 and
+// >pageCount), so it must be caught here too — otherwise it renders a broken
+// "page -N of M" picker with both arrows disabled. Triggers on a stale deep
+// link after deletions, or a hand-edited URL.
+func newClampedPager(path string, size, pageSize int) pager.Pager {
+	p, err := pager.New(path, size, pager.WithPageSize(pageSize))
+	if err == nil && p.Page() >= 1 {
+		return p
 	}
+	// Re-parse without ?page= to get a valid page-1 pager and read the real
+	// page count, then jump to the last page when there is more than one.
+	r := parseRealmPath(path)
+	r.Query.Del("page")
+	first, ferr := pager.New(r.String(), size, pager.WithPageSize(pageSize))
+	if ferr != nil {
+		// A page-less path is valid for every current route, so this is
+		// unreachable today; fall back to the original pager rather than
+		// asserting the invariant with a panic that would abort the render.
+		return p
+	}
+	if last := first.PageCount(); last > 1 {
+		r.Query.Set("page", strconv.Itoa(last))
+		if clamped, e := pager.New(r.String(), size, pager.WithPageSize(pageSize)); e == nil {
+			return clamped
+		}
+	}
+	return first
+}
+
+func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, budget *int) string {
+	p := newClampedPager(path, post.Replies.Size(), pageSizeReplies)
+	link, desc := sortToggleLink(path)
 
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
+		truncated      bool
 	)
 
 	render := func(reply *boards.Post) bool {
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
+		if *budget <= 0 {
+			truncated = true
+			return true // stop: render budget exhausted (see maxRenderedBodies)
+		}
+		// Forward the page order so this reply's nested children match it.
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget, desc))
 		return false
 	}
 
-	b.WriteString("\n" + md.HorizontalRule() + "Sort by: ")
-
-	r := parseRealmPath(path)
-	sortOrder := r.Query.Get("order")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		b.WriteString(md.Link("newest first", r.String()) + "\n")
-
-	} else {
-		r.Query.Set("order", "desc")
-		b.WriteString(md.Link("oldest first", r.String()) + "\n")
-	}
+	b.WriteString("\n" + md.HorizontalRule() + "Sort by: " + link + "\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 
 	post.Replies.Iterate(p.Offset(), count, render)
 
-	if p.HasPages() {
+	if truncated {
+		b.WriteString(indent + "\n" + commentsIndent + "_Some replies not shown — " +
+			md.Link("view all comments", makeThreadFlatURI(post)) + "._\n")
+	}
+
+	// Suppress the page picker when the budget truncated this page: later
+	// replies in the page were skipped, so the offset-based "next page" would
+	// jump past them. The flat link above is the complete, reachable view.
+	if !truncated && p.HasPages() {
 		b.WriteString(md.HorizontalRule())
 		b.WriteString(pager.Picker(p))
 	}
 	return b.String()
 }
 
-func renderSubReplies(post *boards.Post, indent string, levels int) string {
+func renderSubReplies(post *boards.Post, indent string, levels int, budget *int, desc bool) string {
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
+		truncated      bool
 	)
 
-	post.Replies.Iterate(0, post.Replies.Size(), func(reply *boards.Post) bool {
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
+	// Cap inline children at pageSizeReplies. A nested reply list can't have
+	// its own pager (it would collide with the page's ?page=), so instead of
+	// dumping every child here a comment with more links to its own re-rooted
+	// view, which paginates them. Keeps every view bounded to <=pageSizeReplies
+	// children per post. count's sign follows the page order so the inline
+	// children match the view they appear in (desc → the newest ones).
+	count := pageSizeReplies
+	if desc {
+		count = -count
+	}
+	post.Replies.Iterate(0, count, func(reply *boards.Post) bool {
+		if *budget <= 0 {
+			truncated = true
+			return true // stop: render budget exhausted (see maxRenderedBodies)
+		}
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget, desc))
 		return false
 	})
+
+	notice := func(text, uri string) {
+		b.WriteString(indent + "\n" + commentsIndent + md.Link(text, uri) + "\n")
+	}
+	switch {
+	case truncated:
+		// Budget exhausted: the whole-thread flat view is the reachable backstop.
+		notice("More replies — view all comments", makeThreadFlatURI(post))
+	case post.Replies.Size() > pageSizeReplies:
+		// Breadth cap hit: re-root at this comment to page the rest, carrying
+		// the page's sort order so the re-root opens the same way (its first
+		// page then matches the newest-first children shown inline here).
+		uri := makeReplyURI(post)
+		if desc {
+			uri += "?order=desc"
+		}
+		notice("View all "+strconv.Itoa(post.Replies.Size())+" replies", uri)
+	}
 	return b.String()
 }
 
@@ -120,24 +188,24 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
 	rawID = req.GetVar("reply")
 	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
+		res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return

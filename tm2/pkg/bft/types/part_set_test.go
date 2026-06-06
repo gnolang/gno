@@ -89,6 +89,53 @@ func TestWrongProof(t *testing.T) {
 	}
 }
 
+// TestAddPartSwappedIndex is a regression test for a Byzantine attack where a
+// peer sends a Part with part.Index != part.Proof.Index.  Because
+// SimpleProof.Verify uses Proof.Index internally, the merkle check passes even
+// though the bytes would be stored at the wrong slot, making the assembled
+// block undecodable.  AddPart must reject such parts before the merkle check.
+func TestAddPartSwappedIndex(t *testing.T) {
+	t.Parallel()
+
+	data := random.RandBytes(testPartSize * 3)
+	legitSet := NewPartSetFromData(data, testPartSize)
+	require.Equal(t, 3, legitSet.Total())
+
+	part0 := legitSet.GetPart(0)
+	part1 := legitSet.GetPart(1)
+
+	victimSet := NewPartSetFromHeader(legitSet.Header())
+
+	// Byzantine: send part1's proof+bytes but claim Index=0.
+	added, err := victimSet.AddPart(&Part{Index: 0, Bytes: part1.Bytes, Proof: part1.Proof})
+	assert.False(t, added)
+	assert.ErrorIs(t, err, ErrPartSetInvalidProof)
+
+	// Byzantine: send part0's proof+bytes but claim Index=1.
+	added, err = victimSet.AddPart(&Part{Index: 1, Bytes: part0.Bytes, Proof: part0.Proof})
+	assert.False(t, added)
+	assert.ErrorIs(t, err, ErrPartSetInvalidProof)
+}
+
+// TestAddPartWrongTotal checks that a Part whose proof carries a different
+// total than the PartSet is rejected.
+func TestAddPartWrongTotal(t *testing.T) {
+	t.Parallel()
+
+	data := random.RandBytes(testPartSize * 3)
+	legitSet := NewPartSetFromData(data, testPartSize)
+	require.Equal(t, 3, legitSet.Total())
+
+	part := legitSet.GetPart(0)
+	victimSet := NewPartSetFromHeader(legitSet.Header())
+
+	// Tamper the proof total.
+	part.Proof.Total = legitSet.Total() + 1
+	added, err := victimSet.AddPart(part)
+	assert.False(t, added)
+	assert.ErrorIs(t, err, ErrPartSetInvalidProof)
+}
+
 func TestPartSetHeaderValidateBasic(t *testing.T) {
 	t.Parallel()
 

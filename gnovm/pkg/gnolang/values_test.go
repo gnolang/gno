@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,188 @@ func (m *mockTypedValueStruct) String() string {
 
 func (m *mockTypedValueStruct) DeepFill(store Store) Value {
 	return m
+}
+
+func TestSignStaleUpperBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    func(tv *TypedValue) // first assignment
+		apply    func(tv *TypedValue) // second assignment
+		wantSign int
+	}{
+		{
+			name: "int64(-1) then int8(1): Sign should be +1",
+			setup: func(tv *TypedValue) {
+				tv.T = Int64Type
+				tv.SetInt64(-1) // fills all 8 bytes with 0xFF
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Int8Type
+				tv.SetInt8(1) // only writes N[0]
+			},
+			wantSign: 1,
+		},
+		{
+			name: "int64(-1) then int32(1): Sign should be +1",
+			setup: func(tv *TypedValue) {
+				tv.T = Int64Type
+				tv.SetInt64(-1)
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Int32Type
+				tv.SetInt32(1)
+			},
+			wantSign: 1,
+		},
+		{
+			name: "uint64(1) then uint8(0): Sign should be 0",
+			setup: func(tv *TypedValue) {
+				tv.T = Uint64Type
+				tv.SetUint64(1)
+			},
+			apply: func(tv *TypedValue) {
+				tv.T = Uint8Type
+				tv.SetUint8(0)
+			},
+			wantSign: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tv TypedValue
+			tt.setup(&tv)
+			tt.apply(&tv)
+
+			got := tv.Sign()
+			if got != tt.wantSign {
+				t.Errorf("Sign() = %d, want %d", got, tt.wantSign)
+			}
+		})
+	}
+}
+
+func TestSignFloat(t *testing.T) {
+	tests := []struct {
+		name           string
+		setup          func(tv *TypedValue)
+		wantSign       int
+		expectPanicMsg string
+	}{
+		{
+			name: "float32 positive",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(1.25))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float32 negative",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(-1.25))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float32 zero",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(0))
+			},
+			wantSign: 0,
+		},
+		{
+			name: "float64 positive",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(1.25))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float64 negative",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(-1.25))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float64 zero",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(0))
+			},
+			wantSign: 0,
+		},
+		{
+			name: "float32 +Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.Inf(1))))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float32 -Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.Inf(-1))))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float64 +Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.Inf(1)))
+			},
+			wantSign: 1,
+		},
+		{
+			name: "float64 -Inf",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.Inf(-1)))
+			},
+			wantSign: -1,
+		},
+		{
+			name: "float32 NaN",
+			setup: func(tv *TypedValue) {
+				tv.T = Float32Type
+				tv.SetFloat32(math.Float32bits(float32(math.NaN())))
+			},
+			expectPanicMsg: "sign of NaN is undefined",
+		},
+		{
+			name: "float64 NaN",
+			setup: func(tv *TypedValue) {
+				tv.T = Float64Type
+				tv.SetFloat64(math.Float64bits(math.NaN()))
+			},
+			expectPanicMsg: "sign of NaN is undefined",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tv TypedValue
+			tt.setup(&tv)
+
+			if tt.expectPanicMsg != "" {
+				assert.PanicsWithValue(t, tt.expectPanicMsg, func() { tv.Sign() })
+				return
+			}
+
+			got := tv.Sign()
+			if got != tt.wantSign {
+				t.Errorf("Sign() = %d, want %d", got, tt.wantSign)
+			}
+		})
+	}
 }
 
 func TestGetLengthPanic(t *testing.T) {
@@ -179,11 +362,12 @@ func TestComputeMapKey(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.valX, func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			x := m.MustParseExpr(tc.valX)
 			vals := m.Eval(x)
 			require.Len(t, vals, 1)
-			mk, isNaN := vals[0].ComputeMapKey(nil, false)
+			mk, isNaN := vals[0].ComputeMapKey(nil, store, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
 		})
@@ -199,13 +383,14 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 	for _, pair := range pairs {
 		t.Run(pair[0]+" vs "+pair[1], func(t *testing.T) {
-			m := NewMachine("main", nil)
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 			v1 := m.Eval(m.MustParseExpr(pair[0]))
 			v2 := m.Eval(m.MustParseExpr(pair[1]))
 			require.Len(t, v1, 1)
 			require.Len(t, v2, 1)
-			mk1, nan1 := v1[0].ComputeMapKey(nil, false)
-			mk2, nan2 := v2[0].ComputeMapKey(nil, false)
+			mk1, nan1 := v1[0].ComputeMapKey(nil, store, false)
+			mk2, nan2 := v2[0].ComputeMapKey(nil, store, false)
 			require.False(t, nan1)
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)

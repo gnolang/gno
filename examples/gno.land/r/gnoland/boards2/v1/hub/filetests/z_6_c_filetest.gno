@@ -1,0 +1,57 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_6_c_filetest
+
+// Test getting flags from a thread
+package z_6_c_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/hub"
+)
+
+const (
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	admin             = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	moderator         = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+)
+
+var thread hub.Thread
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	boardID := boards2.CreateBoard(cross(cur), "test123", false, false)
+	threadID := boards2.CreateThread(cross(cur), boardID, "Title", "Body")
+
+	// Invite members
+	boards2.InviteMember(cross(cur), boardID, admin, "admin")
+	boards2.InviteMember(cross(cur), boardID, moderator, "moderator")
+
+	// Update flagging threshold to two flags
+	boards2.SetFlaggingThreshold(cross(cur), boardID, 2)
+
+	// Add first flag
+	testing.SetRealm(testing.NewUserRealm(admin))
+	boards2.FlagThread(cross(cur), boardID, threadID, "Reason 1")
+
+	// Add second flag
+	testing.SetRealm(testing.NewUserRealm(moderator))
+	boards2.FlagThread(cross(cur), boardID, threadID, "Reason 2")
+
+	// Get readonly thread
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
+	thread, _ = hub.GetThread(cross(cur), uint64(boardID), uint64(threadID))
+}
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
+	flags := hub.GetFlags(cross(cur), thread.BoardID, thread.ID, 0, 0, thread.FlagCount)
+
+	for _, f := range flags {
+		println(f.User, f.Reason)
+	}
+}
+
+// Output:
+// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 Reason 1
+// g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj Reason 2

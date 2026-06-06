@@ -1,0 +1,22 @@
+# On a successful test run without -v, only the status line should be printed.
+
+gno test .
+
+! stdout .+
+cp stderr gno_stderr.txt
+exec wc -l gno_stderr.txt
+stdout '^\s*1\s'
+
+-- foo.gno --
+package foo
+
+-- foo_test.gno --
+package foo
+
+import "testing"
+
+func TestFoo(t *testing.T) {}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/non_verbose_output"
+gno = "0.9"
