@@ -405,7 +405,8 @@ func TestInitChainer(t *testing.T) {
 // and passes the resolved height to handlers via req.Height. Covers all three
 // Query branches: .app, .store, and custom-routed.
 func TestBaseAppQueryInjectsHeight(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the subtests share one committed app, so tparallel would
+	// otherwise require each subtest to call t.Parallel().
 
 	// Custom handler echoes req.Height, like the module handlers do.
 	const customRoute = "testquery"
