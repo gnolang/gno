@@ -8,11 +8,11 @@ Issue [#5579](https://github.com/gnolang/gno/issues/5579): Rendered realm/readme
 
 Add an AST transformer + inline node + node renderer to `GnoExtension`:
 
-- The transformer walks every heading and groups its children. Each contiguous run of non-link inline children is moved under a synthetic `headingAnchorNode` carrying the heading's id.
+- The transformer walks every heading and groups its children. Each contiguous run of children with no link in their subtree is moved under a synthetic `headingAnchorNode` carrying the heading's id. A child that is itself a link, or that contains one nested inside emphasis/strong/etc., stays in place as a run boundary so the anchor never wraps an `<a>`.
 - The renderer emits `<a class="heading-anchor" href="#id">…</a>` for each `headingAnchorNode`. Inline links inside the heading are left untouched and rendered by their existing renderers.
 - The default goldmark heading renderer continues to emit `<h2 id="…">…</h2>`; no override is needed.
 
-Result: clicking on any non-link text in a heading updates `window.location.hash`, while clicks on inline links still navigate to their destination. Nested `<a>` is impossible by construction — the transformer never wraps a link.
+Result: clicking on any non-link text in a heading updates `window.location.hash`, while clicks on inline links still navigate to their destination. Nested `<a>` is impossible by construction — the transformer never wraps a subtree that contains a link.
 
 No `aria-label` is set on the heading-anchor. Its accessible name falls back to the wrapped text, so screen-reader heading navigation keeps announcing the actual title.
 
@@ -30,6 +30,7 @@ No `aria-label` is set on the heading-anchor. Its accessible name falls back to 
 - Headings with auto-generated IDs are clickable: the whole heading text in the plain case, and every non-link span in the inline-link case. The inline link inside a heading retains its own destination on click.
 - A heading whose entire content is a single link (e.g. `## [foo](/x)`) gets no permalink anchor — the inline link wins the click. Users still reach the section via the address bar / ToC sidebar / Tab key on the heading id. This is judged acceptable given the rarity of the pattern.
 - An image embedded in a heading (e.g. `## ![alt](/img.png)`) is wrapped by the heading-anchor; clicking the image now sets `window.location.hash` instead of doing nothing. Mixed image-in-link headings (`## [![alt](/img)](/x)`) still let the inline link win.
+- A link nested inside other inline markup (e.g. a bold link `## **[x](/y)** tail`) is found by the subtree walk, so the surrounding `**bold**` stays outside the anchor instead of producing a nested `<a>`. Only the link-free runs around it become clickable permalink spans.
 - The golden test suite gained `parser.WithAutoHeadingID()` in the test setup to match production; existing fixtures gained `id` attributes and the anchor markup.
 - The extension is a no-op when a heading has no `id` (e.g. `parser.WithAutoHeadingID()` is not enabled, or a raw HTML heading slips through). The heading renders plain.
 - No new external dependencies.
