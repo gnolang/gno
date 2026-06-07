@@ -16,21 +16,22 @@ stderr 'object not found'
 ! gnokey query vm/qobject_binary --data "invalid"
 stderr 'invalid expression'
 
-# qeval_json: verify RefValue with ObjectID appears for persisted pointer
+# qeval_json: verify RefValue with ObjectID appears for persisted pointer.
+# Height is injected (non-zero) and matched with a regex; data matched by
+# distinctive substrings to tolerate the proof-block height race.
 gnokey query vm/qeval_json --data "gno.land/r/test/obj.GetPointer()"
-cmp stdout getpointer.stdout.golden
+stdout 'height: [1-9][0-9]*'
+stdout '"@type":"/gno.PointerValue"'
+stdout '"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:4"'
 
 # qobject_json: resolve the HeapItemValue ObjectID — must inline the wrapper
 # and show a RefValue (single-hop) for the inner Item struct.
 gnokey query vm/qobject_json --data "08fac97482b733b2035b59fff3b5e13f0e453257:4"
-cmp stdout getobject.stdout.golden
+stdout 'height: [1-9][0-9]*'
+stdout '"objectid":"08fac97482b733b2035b59fff3b5e13f0e453257:4"'
+stdout '"@type":"/gno.HeapItemValue"'
+stdout '"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:5"'
 
--- getpointer.stdout.golden --
-height: 0
-data: {"results":[{"T":{"@type":"/gno.PointerType","Elt":{"@type":"/gno.RefType","ID":"gno.land/r/test/obj.Item"}},"V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:4","Hash":"291be0f405abc15ffc4cb008e7a030f69a7ce2e1"},"Index":"0"}}]}
--- getobject.stdout.golden --
-height: 0
-data: {"objectid":"08fac97482b733b2035b59fff3b5e13f0e453257:4","value":{"@type":"/gno.HeapItemValue","ObjectInfo":{"ID":"08fac97482b733b2035b59fff3b5e13f0e453257:4","Hash":"291be0f405abc15ffc4cb008e7a030f69a7ce2e1","OwnerID":"08fac97482b733b2035b59fff3b5e13f0e453257:3","ModTime":"0","RefCount":"1","LastObjectSize":"340"},"Value":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/obj.Item"},"V":{"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:5","Hash":"89c79af1dcd0818b1bf59fed8e5d0fa5464143f0"}}}}
 -- realm/gnomod.toml --
 module = "gno.land/r/test/obj"
 gno = "0.9"

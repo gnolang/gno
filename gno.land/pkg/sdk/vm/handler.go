@@ -215,6 +215,7 @@ func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res a
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -227,6 +228,7 @@ func (vh vmHandler) queryObjectJSON(ctx sdk.Context, req abci.RequestQuery) (res
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -239,6 +241,7 @@ func (vh vmHandler) queryObjectBinary(ctx sdk.Context, req abci.RequestQuery) (r
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = result
 	return
 }
