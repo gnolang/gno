@@ -22,12 +22,24 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Go spec: operands and RHS are evaluated first, then assignments happen
-	// left-to-right. PopAsPointer for L_i may panic (nil-deref, OOB, nil-map),
-	// so alternate push-operands/resolve/assign in LHS order — a mid-statement
-	// panic then leaves earlier assignments intact.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
+	// Single-LHS fast path (the common case): no operand buffering needed —
+	// there is no left-to-right or panic-atomicity concern with one assignment.
+	if len(s.Lhs) == 1 {
+		lv := m.PopAsPointer(s.Lhs[0])
+		if m.Stage != StagePre && isUntyped(rvs[0].T) && rvs[0].T.Kind() != BoolKind {
+			panic("untyped conversion should not happen at runtime")
+		}
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[0], true)
+		return
+	}
+	// Multi-LHS — Go spec: operands and RHS are evaluated first, then
+	// assignments happen left-to-right. PopAsPointer for L_i may panic
+	// (nil-deref, OOB, nil-map), so buffer each LHS's operand frame, then
+	// resolve+assign one at a time in LHS order. A mid-statement panic
+	// leaves earlier assignments intact, and duplicate LHS targets observe
+	// left-to-right writes.
 	frames := make([][]TypedValue, len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		frames[i] = m.PopValues(numStackValuesForPointer(s.Lhs[i]))
