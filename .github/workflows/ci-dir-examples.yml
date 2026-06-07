@@ -38,7 +38,7 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
+      - run: go run ./gnovm/cmd/gno tool transpile -C examples -v --gobuild .
 
   gno-checks:
     uses: ./.github/workflows/_ci-gno.yml

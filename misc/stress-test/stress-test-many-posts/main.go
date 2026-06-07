@@ -99,7 +99,7 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 			GasWanted:     50_000_000,
 			CallerAddress: test1Address,
 			Msgs: []*api_gen.MsgCall{{
-				PackagePath: "gno.land/r/demo/boards",
+				PackagePath: "gno.land/r/archive/boards",
 				Fnc:         "CreateBoard",
 				Args:        []string{"testboard"},
 			}},
@@ -118,7 +118,7 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 			GasWanted:     50_000_000,
 			CallerAddress: test1Address,
 			Msgs: []*api_gen.MsgCall{{
-				PackagePath: "gno.land/r/demo/boards",
+				PackagePath: "gno.land/r/archive/boards",
 				Fnc:         "CreateThread",
 				Args:        []string{"1", "Test thread", "Test post"},
 			}},
@@ -142,7 +142,7 @@ func doAction(client _goconnect.GnoNativeServiceClient, test1Address []byte) err
 	code := `package main
 
 import (
-	"gno.land/r/demo/boards"
+	"gno.land/r/archive/boards"
 )
 
 func main() {

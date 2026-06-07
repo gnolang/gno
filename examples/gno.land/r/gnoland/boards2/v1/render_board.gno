@@ -43,10 +43,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, board.Threads.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
+	p := newClampedPager(req.RawPath, board.Threads.Size(), pageSizeDefault)
 
 	render := func(thread *boards.Post) bool {
 		res.Write(renderThreadSummary(thread) + "\n")
@@ -55,18 +52,11 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("Sort by: ")
 
-	r := parseRealmPath(req.RawPath)
-	sortOrder := r.Query.Get("order")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
-	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
-	}
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 

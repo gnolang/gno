@@ -7,7 +7,13 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestReadOnlyPublicMethods(t *testing.T) {
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
+func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		alice = testutils.TestAddress("alice")
@@ -37,7 +43,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	// bob uses the faucet.
 	testing.SetOriginCaller(bob)
-	Faucet(cross)
+	Faucet(cross(cur))
 
 	// check balances #2.
 	{
@@ -55,7 +61,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 }
 
-func TestErrConditions(t *testing.T) {
+func TestErrConditions(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		empty = address("")
@@ -80,13 +86,13 @@ func TestErrConditions(t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross, empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross(cur), empty, 1) }},
 		}
 		for _, tc := range tests {
 			if tc.isCross {
-				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+				uassert.AbortsWithMessage(t, cur, tc.msg, tc.fn)
 			} else {
-				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
+				uassert.PanicsWithMessage(t, cur, tc.msg, tc.fn)
 			}
 		}
 	}
@@ -104,7 +110,7 @@ func TestErrConditions(t *testing.T) {
 //			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
 //		}
 //		for _, tc := range testCases {
-//			uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+//			uassert.AbortsWithMessage(t, cur, tc.msg, tc.fn)
 //		}
 //	})
 //	t.Run("transfer", func(t *testing.T) {

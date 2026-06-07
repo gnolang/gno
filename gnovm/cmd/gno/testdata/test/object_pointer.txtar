@@ -73,7 +73,7 @@ func WorkingNew(cur realm) {
 func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
 
-	callee.Register(cross,callerPtr)
+	callee.Register(cross(cur),callerPtr)
 }
 
 func Set(cur realm,value int) {
@@ -97,13 +97,13 @@ import (
 	caller "gno.land/r/testing/bug_caller"
 )
 
-func main() {
-	caller.WorkingNew(cross)
-	caller.Set(cross,42)
+func main(cur realm) {
+	caller.WorkingNew(cross(cur))
+	caller.Set(cross(cur),42)
 	println("With WorkingNew:", caller.Get())
 
-	caller.BuggedNew(cross)
-	caller.Set(cross,42)
+	caller.BuggedNew(cross(cur))
+	caller.Set(cross(cur),42)
 	println("With BuggedNew:", caller.Get())
 }
 

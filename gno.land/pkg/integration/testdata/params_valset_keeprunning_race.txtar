@@ -1,0 +1,103 @@
+# KeepRunning race-safety test for v3's executor.
+#
+# proposal.gno explicitly documents that the executor re-checks
+# KeepRunning at EXECUTION time (not just at proposal creation):
+#
+#   "Race-safety: operator may have flipped KeepRunning=false
+#   between propose-create and propose-execute. Re-check — but
+#   exempt power-update pairs (same op also has a Power=0 entry
+#   in this payload)."
+#
+# This test pins that property:
+#   1. Register operator A with KeepRunning=true.
+#   2. Submit fresh-add proposal {A, power=1}; create-time KR check
+#      passes (KR=true).
+#   3. Flip A's KR to false via UpdateKeepRunning.
+#   4. Vote YES + Execute. The executor must read valoperCache LIVE,
+#      see KR=false (and beingRemoved[A]=false since this is a
+#      fresh add not a power-update pair), and panic with the
+#      documented "KeepRunning=false at execution" message.
+#
+# A regression where the executor captures KeepRunning at create time
+# (or skips the check entirely) would publish a validator the
+# operator has explicitly opted out of running.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Register operator A with default KR=true.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A profile' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Submit fresh-add proposal {A, power=1}. Create-time KR check passes
+# because Register set KR=true.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+
+# Flip A's KeepRunning to false BEFORE the proposal executes. This is
+# the race the test pins.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateKeepRunning -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args false -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Vote YES on the proposal.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Execute. The executor must re-check KeepRunning, see false (no
+# beingRemoved exemption — this is a fresh add), and panic.
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stderr 'KeepRunning=false at execution'
+
+# Verify A's signing pubkey did NOT reach valset:current. Only the
+# genesis validator entry should be present.
+gnokey query params/node:valset:current
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+stdout 'gpub1'
+
+-- run/add_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		cross(cur),
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
+		"Add operator A as validator",
+		"will be sabotaged by KR flip before execute",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

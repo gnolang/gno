@@ -14,6 +14,11 @@ This folder mimics the gno.land package path system; the "root" of the system is
 the `gno.land` folder. Next, it branches out to `p/` and `r/`, which contain
 pure packages and realms, respectively.
 
+The `quarantined/` subtree holds packages that are deliberately kept out of
+the audited examples set. They remain here as integration test fodder and
+history but are not shipped to mainnet/testnet genesis and have not been
+audited or modernized to the current interrealm spec.
+
 ## Personal Realms & Shared Content
 
 **Prioritizing Shared Content:** As we expand our examples and use-cases, it's

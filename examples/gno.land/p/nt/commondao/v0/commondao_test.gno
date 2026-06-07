@@ -329,7 +329,7 @@ func TestCommonDAOVote(t *testing.T) {
 	}
 }
 
-func TestCommonDAOExecute(t *testing.T) {
+func TestCommonDAOExecute(cur realm, t *testing.T) {
 	errTest := errors.New("test")
 	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 	cases := []struct {
@@ -408,7 +408,7 @@ func TestCommonDAOExecute(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dao := tc.setup()
 
-			err := dao.Execute(tc.proposalID)
+			err := dao.Execute(tc.proposalID, cur)
 
 			if tc.err != nil {
 				urequire.Error(t, err, "expected an error")

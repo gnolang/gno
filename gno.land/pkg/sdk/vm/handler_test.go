@@ -129,11 +129,12 @@ package hello
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"time"
 )
 
 var _ = time.RFC3339
-func caller() address { return runtime.OriginCaller() }
+func caller() address { return unsafe.OriginCaller() }
 var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }

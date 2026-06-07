@@ -107,7 +107,7 @@ func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error
 	return blsFile, nil
 }
 
-func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _ *dev.Node) error {
+func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, devNode *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
 
@@ -115,9 +115,13 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _
 
 	fmt.Fprintln(tabw, "KeyName\tAddress\tBalance") // Table header.
 
+	// Bind a Local client to the devnode's RPC environment so queries
+	// go through this node's handlers rather than relying on globals.
+	rpcClient := client.NewLocal(devNode.Node.RPCEnvironment())
+
 	for _, entry := range entries {
 		address := entry.Address.String()
-		qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
+		qres, err := rpcClient.ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
 		if err != nil {
 			return fmt.Errorf("unable to query account %q: %w", address, err)
 		}

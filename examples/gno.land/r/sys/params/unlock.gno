@@ -11,28 +11,28 @@ const (
 	unrestrictedAddrsKey = "unrestricted_addrs"
 )
 
-func ProposeUnlockTransferRequest() dao.ProposalRequest {
-	return NewSysParamStringsPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, unlockTransferTitle, []string{})
+func ProposeUnlockTransferRequest(cur realm) dao.ProposalRequest {
+	return NewSysParamStringsPropRequestWithTitle(cur, bankModulePrefix, "p", restrictedDenomsKey, unlockTransferTitle, []string{})
 }
 
-func ProposeLockTransferRequest() dao.ProposalRequest {
-	return NewSysParamStringsPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, lockTransferTitle, []string{"ugnot"})
+func ProposeLockTransferRequest(cur realm) dao.ProposalRequest {
+	return NewSysParamStringsPropRequestWithTitle(cur, bankModulePrefix, "p", restrictedDenomsKey, lockTransferTitle, []string{"ugnot"})
 }
 
-func ProposeAddUnrestrictedAcctsRequest(addrs ...address) dao.ProposalRequest {
+func ProposeAddUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
 		addrStrings = append(addrStrings, s)
 	}
-	return NewSysParamStringsPropRequestAddWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsPropRequestAddWithTitle(cur, authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
 
-func ProposeRemoveUnrestrictedAcctsRequest(addrs ...address) dao.ProposalRequest {
+func ProposeRemoveUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
 		addrStrings = append(addrStrings, s)
 	}
-	return NewSysParamStringsPropRequestRemoveWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsPropRequestRemoveWithTitle(cur, authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }

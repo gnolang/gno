@@ -1,5 +1,5 @@
 # setup gnocore basics
-FROM        golang:1.24-alpine AS setup-gnocore
+FROM        golang:1.25-alpine AS setup-gnocore
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot

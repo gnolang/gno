@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_members_00_filetest
+
 // Render board members view.
-package main
+package z_ui_board_members_00_filetest
 
 import (
 	"testing"
@@ -12,10 +14,10 @@ const (
 	boardName         = "BoardName"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross(cur), boardName, false, false)
 }
 
 func main() {

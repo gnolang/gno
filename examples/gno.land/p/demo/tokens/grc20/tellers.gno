@@ -2,21 +2,20 @@ package grc20
 
 import (
 	"chain"
-	"chain/runtime"
 )
 
-// CallerTeller returns a GRC20 compatible teller that checks the PreviousRealm
-// caller for each call. It's usually safe to expose it publicly to let users
-// manipulate their tokens directly, or for realms to use their allowance.
+// CallerTeller returns a GRC20 compatible teller that, at each write call,
+// resolves the caller as rlm.Previous() — the realm that crossed into the
+// caller. rlm must be the caller's own captured cur (asserted via
+// rlm.IsCurrent() inside the Teller methods).
 func (tok *Token) CallerTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
 
 	return &fnTeller{
-		accountFn: func() address {
-			caller := runtime.PreviousRealm().Address()
-			return caller
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
 		},
 		Token: tok,
 	}
@@ -40,17 +39,21 @@ func (tok *Token) ReadonlyTeller() Teller {
 // The initializer of this teller should usually never share the resulting Teller from
 // this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
-// WARN: Should be initialized within a crossing function
-// This way the the realm that created the teller will match CurrentRealm
-func (tok *Token) RealmTeller() Teller {
+//
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// The address is frozen eagerly at construction.
+func (tok *Token) RealmTeller(_ int, rlm realm) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
 
-	caller := runtime.CurrentRealm().Address()
+	caller := rlm.Address()
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func(_ int, _ realm) address {
 			return caller
 		},
 		Token: tok,
@@ -59,18 +62,21 @@ func (tok *Token) RealmTeller() Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
-// WARN: Should be initialized within a crossing function
-// This way the realm that created the teller will match CurrentRealm
-func (tok *Token) RealmSubTeller(slug string) Teller {
+//
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// The subaccount address is frozen eagerly at construction.
+func (tok *Token) RealmSubTeller(_ int, rlm realm, slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
 
-	caller := runtime.CurrentRealm().Address()
-	account := accountSlugAddr(caller, slug)
+	account := accountSlugAddr(rlm.Address(), slug)
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func(_ int, _ realm) address {
 			return account
 		},
 		Token: tok,
@@ -96,7 +102,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 	}
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func(_ int, _ realm) address {
 			return addr
 		},
 		Token: ledger.token,
@@ -106,27 +112,36 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to address, amount int64) error {
+func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	caller := ft.accountFn()
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+	caller := ft.accountFn(0, rlm)
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender address, amount int64) error {
+func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	caller := ft.accountFn()
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+	caller := ft.accountFn(0, rlm)
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to address, amount int64) error {
+func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	spender := ft.accountFn()
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+	spender := ft.accountFn(0, rlm)
 	return ft.Token.ledger.TransferFrom(owner, spender, to, amount)
 }
 

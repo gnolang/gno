@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: CodeFence
+// ARGS: 0
+// CONTEXT: %s\nabc\n%s
+-- input.md --
+abc
+-- output.md --
+`
+-- output.html --
+<p><code>abc</code></p>

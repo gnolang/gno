@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
 // Test permission constants
 const (
 	testPermA boards.Permission = iota
@@ -17,7 +23,7 @@ const (
 
 var _ boards.Permissions = (*Permissions)(nil)
 
-func TestBasicPermissionsWithPermission(t *testing.T) {
+func TestBasicPermissionsWithPermission(cur realm, t *testing.T) {
 	cases := []struct {
 		name       string
 		user       address
@@ -87,10 +93,10 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
+				urequire.PanicsWithMessage(t, cur, tc.err, testCaseFn, "expect panic with message")
 				return
 			} else {
-				urequire.NotPanics(t, testCaseFn, "expect no panic")
+				urequire.NotPanics(t, cur, testCaseFn, "expect no panic")
 			}
 
 			urequire.Equal(t, tc.called, called, "expect callback to be called")
@@ -329,7 +335,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 	}
 }
 
-func TestBasicPermissionsSetUserRoles(t *testing.T) {
+func TestBasicPermissionsSetUserRoles(cur realm, t *testing.T) {
 	cases := []struct {
 		name          string
 		user          address
@@ -451,10 +457,10 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, setUserRoles, "expected an error")
+				urequire.PanicsWithMessage(t, cur, tc.err, setUserRoles, "expected an error")
 				return
 			} else {
-				urequire.NotPanics(t, setUserRoles, "expected no error")
+				urequire.NotPanics(t, cur, setUserRoles, "expected no error")
 			}
 
 			roles := perms.GetUserRoles(tc.user)

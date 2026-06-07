@@ -3,7 +3,7 @@ package commondao
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0/list"
+	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -221,7 +221,12 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 //
 // By default active proposals can only be executed after their voting deadline passes.
 // DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
-func (dao *CommonDAO) Execute(proposalID uint64) error {
+//
+// rlm is the realm authority threaded into the executor via cross(rlm).
+// Execute itself is not a crossing function (rlm sits in a non-first
+// parameter slot) because /p/ production code cannot declare crossing
+// functions — callers pass `cur` directly as the rlm argument.
+func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
@@ -256,7 +261,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	if err == nil {
 		if e, ok := p.Definition().(Executable); ok {
 			if fn := e.Executor(); fn != nil {
-				err = fn(cross)
+				err = fn(cross(rlm))
 			}
 		}
 	}

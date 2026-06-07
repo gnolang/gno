@@ -59,7 +59,7 @@ func (m *Machine) doOpValueDecl() {
 
 		nx := &s.NameExprs[i]
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
+		ptr.Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
 	}
 }
 
@@ -69,5 +69,5 @@ func (m *Machine) doOpTypeDecl() {
 	tv := asValue(t)
 	last := m.LastBlock()
 	ptr := last.GetPointerTo(m.Store, s.Path)
-	ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
+	ptr.Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
 }

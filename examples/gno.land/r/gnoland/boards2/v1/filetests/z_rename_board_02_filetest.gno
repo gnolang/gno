@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_rename_board_02_filetest
+
+package z_rename_board_02_filetest
 
 import (
 	"testing"
@@ -11,15 +13,15 @@ const (
 	name          = "foo123"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, name, false, false)
+	boards2.CreateBoard(cross(cur), name, false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.RenameBoard(cross, name, name)
+	boards2.RenameBoard(cross(cur), name, name)
 }
 
 // Error:

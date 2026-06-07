@@ -42,17 +42,17 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title       string
-	Description string
-	Canonical   string
-	Image       string
-	URL         string
-	ChromaPath  string
-	AssetsPath  string
-	Analytics   bool
-	Remote      string
-	ChainId     string
-	BuildTime   string
+	Title             string
+	Description       string
+	Canonical         string
+	Image             string
+	URL               string
+	ChromaPath        string
+	AssetsPath        string
+	AnalyticsHostname string
+	Remote            string
+	ChainId           string
+	BuildTime         string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -180,6 +180,13 @@ type indexLayoutParams struct {
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
+
+	data.FooterData.Analytics.PageType = ClassifyPageType(data.Mode, data.BodyView.Type)
+	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)
+	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
+	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
+	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime
+	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{
 		IndexData: data,

@@ -9,21 +9,40 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestCallerTellerImpl(t *testing.T) {
-	tok, _ := NewToken("Dummy", "DUMMY", 4)
+func TestCallerTellerImpl(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
 	teller := tok.CallerTeller()
 	urequire.False(t, tok == nil)
 	var _ Teller = teller
 }
 
-func TestTeller(t *testing.T) {
+// evilWrap embeds Teller; the seal-marker pattern (if we had one) would be
+// satisfied via promotion, but IsCanonicalTeller rejects it because *evilWrap
+// is nominally distinct from *fnTeller.
+type evilWrap struct {
+	Teller
+}
+
+func TestIsCanonicalTeller(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
+	legit := tok.CallerTeller()
+
+	uassert.True(t, IsCanonicalTeller(legit),
+		"canonical *fnTeller from CallerTeller must pass")
+
+	evil := &evilWrap{Teller: legit}
+	uassert.False(t, IsCanonicalTeller(evil),
+		"foreign type embedding a canonical Teller must be rejected")
+}
+
+func TestTeller(cur realm, t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 		carl  = testutils.TestAddress("carl")
 	)
 
-	token, ledger := NewToken("Dummy", "DUMMY", 6)
+	token, ledger := newTestToken(0, cur, "Dummy", "DUMMY", 6)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -80,12 +99,12 @@ func TestTeller(t *testing.T) {
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
 
-func TestCallerTeller(t *testing.T) {
+func TestCallerTeller(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	token, ledger := NewToken("Dummy", "DUMMY", 6)
+	token, ledger := newTestToken(0, cur, "Dummy", "DUMMY", 6)
 	teller := token.CallerTeller()
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
@@ -114,21 +133,16 @@ func TestCallerTeller(t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
-	tellerThrough := func(action func()) {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
-		action()
-	}
-
 	testing.SetRealm(testing.NewUserRealm(alice))
-	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
+	func(cur realm) { urequire.NoError(t, teller.Approve(0, cur, bob, 600)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
+	func(cur realm) { urequire.Error(t, teller.TransferFrom(0, cur, alice, carl, 700)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-	tellerThrough(func() { urequire.NoError(t, teller.TransferFrom(alice, carl, 400)) })
+	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }

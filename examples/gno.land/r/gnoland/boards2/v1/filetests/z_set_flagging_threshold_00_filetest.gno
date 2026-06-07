@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_flagging_threshold_00_filetest
+
+package z_set_flagging_threshold_00_filetest
 
 import (
 	"testing"
@@ -12,15 +14,15 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetFlaggingThreshold(cross, bid, 4)
+	boards2.SetFlaggingThreshold(cross(cur), bid, 4)
 
 	// Ensure that flagging threshold changed
 	println(boards2.GetFlaggingThreshold(bid))

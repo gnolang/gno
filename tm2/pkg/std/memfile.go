@@ -237,6 +237,12 @@ func (mpkg *MemPackage) IsZero() bool {
 
 // Write all files into dir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
+	for _, mfile := range mpkg.Files {
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
+		}
+	}
+
 	// fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))

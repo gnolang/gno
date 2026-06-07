@@ -283,7 +283,12 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if c.earlyStart {
 		opts = append(opts, node.WithEarlyStart())
 	}
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
+	// Stream the genesis file through an on-disk cache so peak memory stays
+	// bounded on multi-hundred-MB genesis files. The cache lives next to the
+	// chain DB so its lifetime tracks the node data directory.
+	genesisCacheRoot := filepath.Join(cfg.DBDir(), "genesis-cache")
+	genesisProvider := gnoland.StreamingGenesisProvider(genesisPath, genesisCacheRoot, logger)
+	gnoNode, err := node.DefaultNewNodeWithGenesisProvider(cfg, genesisProvider, evsw, logger, opts...)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}

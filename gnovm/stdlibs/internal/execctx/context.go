@@ -57,14 +57,7 @@ func (e ExecContext) GetExecContext() ExecContext {
 	return e
 }
 
-// GetOriginSend returns the OriginSend coins.
-// This implements gno.OriginSendProvider to avoid import cycles.
-func (e ExecContext) GetOriginSend() std.Coins {
-	return e.OriginSend
-}
-
 var _ ExecContexter = ExecContext{}
-var _ gno.OriginSendProvider = ExecContext{}
 
 // ExecContexter is a type capable of returning the parent [ExecContext]. When
 // using these standard libraries, m.Context should always implement this
@@ -80,4 +73,17 @@ type ExecContexter interface {
 // GetContext returns the context from the Gno machine.
 func GetContext(m *gno.Machine) ExecContext {
 	return m.Context.(ExecContexter).GetExecContext()
+}
+
+// Wire the per-tx OriginCaller into gnolang so it can build the per-tx
+// origin realm value (the EOA-shaped value at the chain root used by
+// captured `cur.Previous()`). This must match what runtime.PreviousRealm()
+// surfaces in the same context — (OriginCaller, "") at the EOA boundary.
+func init() {
+	gno.OriginCallerExtractor = func(ctx any) string {
+		if ec, ok := ctx.(ExecContexter); ok {
+			return string(ec.GetExecContext().OriginCaller)
+		}
+		return ""
+	}
 }

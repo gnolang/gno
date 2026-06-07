@@ -98,8 +98,8 @@ func TestStatusNoRenderComponent(t *testing.T) {
 
 func TestRedirectView(t *testing.T) {
 	data := RedirectData{
-		To:            "example/path",
-		WithAnalytics: true,
+		To:        "example/path",
+		Analytics: AnalyticsData{Enabled: true},
 	}
 	view := RedirectView(data)
 
@@ -112,7 +112,7 @@ func TestRedirectView(t *testing.T) {
 	assert.True(t, ok, "expected RedirectData type in component data")
 
 	assert.Equal(t, data.To, redirectData.To, "expected redirect to %s, got %s", data.To, redirectData.To)
-	assert.Equal(t, data.WithAnalytics, redirectData.WithAnalytics, "expected WithAnalytics to be %v, got %v", data.WithAnalytics, redirectData.WithAnalytics)
+	assert.Equal(t, data.Analytics.Enabled, redirectData.Analytics.Enabled, "expected Analytics.Enabled to be %v, got %v", data.Analytics.Enabled, redirectData.Analytics.Enabled)
 
 	assert.NoError(t, view.Render(io.Discard))
 }

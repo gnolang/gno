@@ -14,6 +14,9 @@ func (fs *FooStringer) String() string {
 	return "&FooStringer{" + fs.FieldA + "}"
 }
 
-func AddFooStringer(fa string) {
-	tests.AddStringer(cross, &FooStringer{fa})
+// AddFooStringer is a non-crossing helper. Callers thread their own
+// live cur as `rlm`; `cross(rlm)` forwards it into the (cur realm)-
+// crossing tests.AddStringer.
+func AddFooStringer(_ int, rlm realm, fa string) {
+	tests.AddStringer(cross(rlm), &FooStringer{fa})
 }

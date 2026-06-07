@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: Blockquote
+// CONTEXT: %s
+-- input.md --
+```
+user code never closes
+-- output.md --
+
+> ```
+> user code never closes
+> ```
+
+-- output.html --
+<blockquote>
+<pre><code>user code never closes
+</code></pre>
+</blockquote>

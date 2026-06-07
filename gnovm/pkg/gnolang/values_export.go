@@ -256,7 +256,7 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			key2 := exportValue(cur.Key, seen)
 			val2 := exportValue(cur.Value, seen)
-			list.Append(nilAllocator, key2).Value = val2
+			list.Append(fallbackAllocator, key2).Value = val2
 		}
 		return &MapValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),

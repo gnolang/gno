@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnobr
 
-go 1.24.4
+go 1.25.9
 
 replace github.com/gnolang/gno => ../..
 

@@ -1,0 +1,127 @@
+# Build and upload binaries for chain/* tags.
+name: release / chain-tag
+
+on:
+  push:
+    tags:
+      - "chain/*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. chain/gnoland1.1)"
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+
+permissions: {}
+
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    env:
+      RAW_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false # zizmor: cache-poisoning — this job publishes artifacts
+
+      - name: Compute version
+        id: version
+        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}"
+          SUFFIX="${GOOS}_${GOARCH}"
+          mkdir -p dist
+          for target in \
+            gnoland:./gno.land/cmd/gnoland \
+            gnokey:./gno.land/cmd/gnokey \
+            gnoweb:./gno.land/cmd/gnoweb \
+            gno:./gnovm/cmd/gno
+          do
+            name="${target%%:*}"
+            pkg="${target#*:}"
+            echo "Building ${name}..."
+            go build -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
+          done
+          (cd dist && shasum -a 256 ./* > "checksums_${SUFFIX}.txt")
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  release:
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create/upload release assets
+    env:
+      RAW_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Compute version
+        id: version
+        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate combined checksums
+        run: |
+          cd dist
+          cat checksums_*.txt | sort > CHECKSUMS.txt
+          rm -f checksums_*.txt
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release view "chain/${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "chain/${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${TAG}" \
+              --generate-notes \
+              --verify-tag
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release upload "chain/${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber

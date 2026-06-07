@@ -2,6 +2,7 @@ package tests
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	psubtests "gno.land/p/demo/tests/subtests"
 )
@@ -9,7 +10,7 @@ import (
 const World = "world"
 
 func CurrentRealmPath() string {
-	return runtime.CurrentRealm().PkgPath()
+	return unsafe.CurrentRealm().PkgPath()
 }
 
 //----------------------------------------
@@ -21,6 +22,21 @@ type TestRealmObject2 struct {
 
 func (o2 *TestRealmObject2) Modify() {
 	o2.Field = "modified"
+}
+
+// Value-receiver mutator. By Go/Gno semantics this only mutates the
+// method's local copy. Used by readonly-taint filetests to probe
+// whether a receiver carrying the sticky N_Readonly bit propagates
+// the bit onto the method-frame copy.
+func (o2 TestRealmObject2) ModifyVal() {
+	o2.Field = "modified-val"
+}
+
+// Unexported mutator. Used by the method-expression visibility filetest:
+// `(*tests.TestRealmObject2).clearField` from outside this package must
+// be rejected at preprocess time.
+func (o2 *TestRealmObject2) clearField() {
+	o2.Field = ""
 }
 
 var (
@@ -48,7 +64,7 @@ func ModifyTestRealmObject2c() {
 }
 
 func GetPreviousRealm() runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func GetPSubtestsPreviousRealm() runtime.Realm {
@@ -58,4 +74,10 @@ func GetPSubtestsPreviousRealm() runtime.Realm {
 // Warning: unsafe pattern.
 func Exec(fn func()) {
 	fn()
+}
+
+// ExecRlm mirrors Exec but threads the caller's rlm into the callback
+// so the callback can use `cross(rlm)` instead of bare `cross`.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+	fn(0, rlm)
 }

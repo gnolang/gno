@@ -1,12 +1,11 @@
 package memberstore
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
@@ -27,7 +26,7 @@ const (
 func init() {
 	members = NewMembersByTier()
 
-	tiers = TiersByName{avl.NewTree()}
+	tiers = TiersByName{bptree.NewBPTree32()}
 	tiers.Set(T1, Tier{
 		InvitationPoints: 3,
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
@@ -115,7 +114,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members") + "\n")
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
-		tree, ok := ti.(*avl.Tree)
+		tree, ok := ti.(*bptree.BPTree)
 		if !ok {
 			return false
 		}
@@ -173,9 +172,18 @@ func Render(path string) string {
 	return sb.String()
 }
 
-// Get gets the Members store
-func Get() MembersByTier {
-	currealm := runtime.CurrentRealm().PkgPath()
+// Get gets the Members store.
+//
+// rlm is the cur of an in-scope crossing frame, threaded by the caller.
+// The IsCurrent() check rejects stale or stashed realm values — a
+// malicious realm cannot replay an old cur to claim allowed-DAO
+// identity. After the check, rlm.PkgPath() is the authentic immediate
+// caller's realm.
+func Get(_ int, rlm realm) MembersByTier {
+	if !rlm.IsCurrent() {
+		panic("memberstore.Get: rlm is not the caller's live cur (stale capture or sibling frame)")
+	}
+	currealm := rlm.PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

@@ -10,6 +10,19 @@ type Realm struct {
 	pkgPath string
 }
 
+// NewRealm constructs a Realm from an address and pkgPath. Exposed so
+// the chain/runtime/unsafe package (which lives outside chain/runtime)
+// can return Realm values from stack-walking helpers; Realm's fields
+// are unexported and must not be set outside this package's discipline.
+//
+// Callers should NOT use this to fabricate realm-context for
+// authorization — a constructed Realm is just a (addr, pkgPath) tuple
+// and carries no runtime-validated authority. Use cur.Previous() for
+// caller-identity checks.
+func NewRealm(addr address, pkgPath string) Realm {
+	return Realm{addr, pkgPath}
+}
+
 func (r Realm) String() string {
 	if r.pkgPath == "" {
 		return "UserRealm{ " + r.addr.String() + " }"

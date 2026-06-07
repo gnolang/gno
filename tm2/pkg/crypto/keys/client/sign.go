@@ -34,6 +34,7 @@ type SignCfg struct {
 	AccountNumber  uint64
 	Sequence       uint64
 	NameOrBech32   string
+	Session        bool
 	OutputDocument string
 }
 
@@ -84,11 +85,18 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		"account sequence to sign with",
 	)
 
+	fs.BoolVar(
+		&c.Session,
+		"session",
+		false,
+		"the key is a session account",
+	)
+
 	fs.StringVar(
 		&c.OutputDocument,
 		"output-document",
 		"",
-		"the signature json document to save. If empty, outputs the signature in the terminal",
+		"the signature json document to save. If empty, updates the tx (file) being signed",
 	)
 }
 
@@ -183,6 +191,10 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
+	if cfg.Session {
+		signature.SessionAddr = info.GetAddress()
+	}
+
 	if cfg.OutputDocument != "" {
 		// Don't save the signature in-place, separate it
 		return saveSignature(signature, cfg.OutputDocument)
@@ -251,8 +263,9 @@ func addSignature(tx *std.Tx, sig *std.Signature) error {
 
 		// Save the signature
 		tx.Signatures[index] = std.Signature{
-			PubKey:    sig.PubKey,
-			Signature: sig.Signature,
+			PubKey:      sig.PubKey,
+			Signature:   sig.Signature,
+			SessionAddr: sig.SessionAddr,
 		}
 
 		return nil
@@ -262,8 +275,9 @@ func addSignature(tx *std.Tx, sig *std.Signature) error {
 	// present before
 	tx.Signatures = append(
 		tx.Signatures, std.Signature{
-			PubKey:    sig.PubKey,
-			Signature: sig.Signature,
+			PubKey:      sig.PubKey,
+			Signature:   sig.Signature,
+			SessionAddr: sig.SessionAddr,
 		},
 	)
 

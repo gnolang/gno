@@ -45,22 +45,31 @@ func prepareNodeRPC(t *testing.T, nodeDir string, addr string) {
 	// Run config init
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 
-	args = []string{"config", "set",
+	args = []string{
+		"config", "set",
 		"--config-path", path,
 		"rpc.laddr", addr,
 	}
 
 	// Run config set
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+
+	// Bind P2P to a kernel-assigned free port too; otherwise concurrent test
+	// nodes collide on the default tcp://0.0.0.0:26656 and fail to start.
+	args = []string{
+		"config", "set",
+		"--config-path", path,
+		"p2p.laddr", "tcp://127.0.0.1:0",
+	}
+	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 }
 
 func TestStart_Lazy(t *testing.T) {
-	// Running a full node is cpu consuming
-	// Do run this one in parallel
-	// t.Parallel()
+	t.Parallel()
 
-	// We allow one minute by node lifespan
-	const maxTestDeadline = 2 * time.Minute
+	// Each case starts a full node, so they run in parallel. The deadline is
+	// generous to absorb CPU contention from the concurrent node startups.
+	const maxTestDeadline = 4 * time.Minute
 
 	shortTempDir := func(t *testing.T) string {
 		t.Helper()
@@ -92,6 +101,8 @@ func TestStart_Lazy(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Generate temp socket filepath for listening.
 			// (Use short path to avoid > 120 char socket path).
 			sockFile := filepath.Join(shortTempDir(t), "rpc.sock")

@@ -8,13 +8,25 @@ import (
 
 	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 var (
-	errInvalidGenesisState = errors.New("invalid genesis state type")
-	errInvalidTxSignature  = errors.New("invalid tx signature")
+	errInvalidGenesisState       = errors.New("invalid genesis state type")
+	errInvalidTxSignature        = errors.New("invalid tx signature")
+	errUncoveredGenesisValidator = errors.New("genesis validator has no corresponding valopers.Register migration tx")
+)
+
+// Realm path and function name for the valopers.Register MsgCall the
+// coverage check matches. Mirrors the constants in
+// contribs/gnogenesis/internal/fork/valoper_seed.go; kept duplicated
+// here to avoid coupling verify to fork.
+const (
+	valopersPkgPath    = "gno.land/r/gnops/valopers"
+	valopersRegisterFn = "Register"
 )
 
 type verifyCfg struct {
@@ -101,9 +113,79 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 				return fmt.Errorf("invalid balance: %w", err)
 			}
 		}
+
+		// Hardfork-mode genesis valoper coverage: every entry in
+		// GenesisDoc.Validators must have a matching valopers.Register
+		// migration tx in state.Txs. See checkGenesisValoperCoverage
+		// for why and the runtime gate it mirrors.
+		if err := checkGenesisValoperCoverage(genesis, state); err != nil {
+			return err
+		}
 	}
 
 	io.Printfln("Genesis at %s is valid", cfg.GenesisPath)
 
+	return nil
+}
+
+// checkGenesisValoperCoverage pre-flights the same invariant gnoland's
+// InitChainer auto-asserts at boot under PastChainIDs (see
+// shouldAssertValoperCoverage in gno.land/pkg/gnoland/app.go): every
+// GenesisDoc.Validators entry must have a matching valopers.Register
+// migration tx in state.Txs whose pubkey arg derives to the validator's
+// signing address. Without coverage, the chain boots with orphan
+// validators that v3's operator-keyed proposal flow can't manage — the
+// test-13 footgun this check exists to catch.
+//
+// Gate mirrors the runtime exactly: PastChainIDs non-empty AND
+// Validators non-empty. Fresh chains and dev/lazy-init setups skip both
+// at runtime and here.
+//
+// Args[4] of the Register MsgCall is the signing pubkey (see
+// buildRegisterTx in contribs/gnogenesis/internal/fork/valoper_seed.go).
+// Unparseable pubkeys are skipped silently — the on-chain Register
+// would reject them via bech32 decode, so this surface is downstream.
+func checkGenesisValoperCoverage(genesis *types.GenesisDoc, state gnoland.GnoGenesisState) error {
+	if len(state.PastChainIDs) == 0 || len(genesis.Validators) == 0 {
+		return nil
+	}
+
+	covered := make(map[crypto.Address]bool, len(genesis.Validators))
+	for _, tx := range state.Txs {
+		// Runtime gno.land/pkg/gnoland/app.go:779-787 short-circuits
+		// metadata.Failed=true txs before baseApp.Deliver, so a Failed
+		// Register never populates valoperCache. Mirror that here so
+		// verify doesn't report coverage the runtime won't honor.
+		if tx.Metadata != nil && tx.Metadata.Failed {
+			continue
+		}
+		for _, msg := range tx.Tx.Msgs {
+			call, ok := msg.(vm.MsgCall)
+			if !ok {
+				continue
+			}
+			if call.PkgPath != valopersPkgPath || call.Func != valopersRegisterFn {
+				continue
+			}
+			if len(call.Args) < 5 {
+				continue
+			}
+			pk, err := crypto.PubKeyFromBech32(call.Args[4])
+			if err != nil {
+				continue
+			}
+			covered[pk.Address()] = true
+		}
+	}
+
+	var uncovered []string
+	for _, v := range genesis.Validators {
+		if !covered[v.Address] {
+			uncovered = append(uncovered, v.Address.String())
+		}
+	}
+	if len(uncovered) > 0 {
+		return fmt.Errorf("%w: %v", errUncoveredGenesisValidator, uncovered)
+	}
 	return nil
 }

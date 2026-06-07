@@ -396,11 +396,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "typed-nil"
 		}
-		roPre, roPost := "", ""
-		if tv.IsReadonly() {
-			roPre, roPost = "readonly(", ")"
-		}
-		return roPre + tv.V.(PointerValue).ProtectedString(seen) + roPost
+		return tv.V.(PointerValue).ProtectedString(seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -433,17 +429,12 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
-		// Value may be N_Readonly
-		roPre, roPost := "", ""
-		if tv.IsReadonly() {
-			roPre, roPost = "readonly(", ")"
-		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return roPre + ps.ProtectedString(seen) + roPost
+			return ps.ProtectedString(seen)
 		} else if s, ok := tv.V.(fmt.Stringer); ok {
 			// *NativeType
-			return roPre + s.String() + roPost
+			return s.String()
 		}
 
 		if debug {

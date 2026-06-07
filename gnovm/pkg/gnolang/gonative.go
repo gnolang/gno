@@ -117,12 +117,12 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			av := alloc.NewDataArray(rvl)
+			av := alloc.NewDataArray(nil, rvl)
 			data := av.Data
 			reflect.Copy(reflect.ValueOf(data), rv)
 			tv.V = av
 		} else {
-			av := alloc.NewListArray(rvl)
+			av := alloc.NewListArray(nil, rvl)
 			list := av.List
 			for i := range rvl {
 				list[i] = Go2GnoValue(alloc, store, rv.Index(i))
@@ -133,7 +133,7 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		rvl := rv.Len()
 		rvc := rv.Cap()
 
-		baseArray := alloc.NewListArray2(rvl, rvc)
+		baseArray := alloc.NewListArray2(nil, rvl, rvc)
 		list := baseArray.List
 		for i := range rvl {
 			list[i] = Go2GnoValue(alloc, store, rv.Index(i))

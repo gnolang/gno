@@ -287,6 +287,38 @@ func (h *Handshaker) ReplayBlocks(
 	stateBlockHeight := state.LastBlockHeight
 	h.logger.Info("ABCI Replay Blocks", "appHeight", appBlockHeight, "storeHeight", storeBlockHeight, "stateHeight", stateBlockHeight)
 
+	// "Fresh state" = no real block has been committed for this chain yet.
+	// Captured BEFORE any mutation so the inner "first-time
+	// validators/params update" branch below recognises this as the first
+	// boot for hardfork chains too. genDoc.InitialHeight is the source of
+	// truth — state.InitialHeight may not yet reflect it (e.g. when
+	// MakeGenesisStateFromFile was called against a master-format genesis
+	// before genDoc.InitialHeight was applied).
+	genDocInitialHeight := h.genDoc.InitialHeight
+	if genDocInitialHeight == 0 {
+		genDocInitialHeight = 1
+	}
+	wasStateFresh := stateBlockHeight < genDocInitialHeight
+
+	// fix-a: align state.InitialHeight and state.LastBlockHeight to
+	// genDoc.InitialHeight when the genesis declares a hardfork start
+	// height but the loaded state hasn't (yet) been positioned there.
+	// MakeGenesisState already sets the post-handshake shape on a fresh
+	// run; this branch covers (1) restart with a state that pre-dates
+	// the InitialHeight field, and (2) the cms-ahead-of-state crash
+	// window. Persist immediately (sm.SaveState SetSyncs the state-record
+	// key).
+	if genDocInitialHeight > 1 && state.LastBlockHeight < genDocInitialHeight-1 {
+		state.InitialHeight = genDocInitialHeight
+		state.LastBlockHeight = genDocInitialHeight - 1
+		stateBlockHeight = state.LastBlockHeight
+		h.logger.Info("Aligning state to genesis InitialHeight",
+			"initial_height", state.InitialHeight,
+			"last_block_height", state.LastBlockHeight,
+		)
+		sm.SaveState(h.stateDB, state)
+	}
+
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain.
 	if appBlockHeight == 0 {
 		validators := make([]*types.Validator, len(h.genDoc.Validators))
@@ -302,6 +334,7 @@ func (h *Handshaker) ReplayBlocks(
 			ConsensusParams: &csParams,
 			Validators:      nextVals,
 			AppState:        h.genDoc.AppState,
+			InitialHeight:   h.genDoc.InitialHeight,
 		}
 		res, err := proxyApp.Consensus().InitChainSync(req)
 		if err != nil {
@@ -315,7 +348,9 @@ func (h *Handshaker) ReplayBlocks(
 
 		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
 
-		if stateBlockHeight == 0 { // we only update state when we are in initial state
+		// Use the captured wasStateFresh because the fix-a hoist above may
+		// have advanced state.LastBlockHeight to InitialHeight-1 already.
+		if wasStateFresh {
 			// If the app returned validators or consensus params, update the state.
 			if len(res.Validators) > 0 {
 				vals := types.NewValidatorSetFromABCIValidatorUpdates(res.Validators)
@@ -329,6 +364,8 @@ func (h *Handshaker) ReplayBlocks(
 			if res.ConsensusParams != nil {
 				state.ConsensusParams = state.ConsensusParams.Update(*res.ConsensusParams)
 			}
+
+			// (state.InitialHeight + LastBlockHeight init hoisted to top of function — see fix-a above.)
 			sm.SaveState(h.stateDB, state)
 		}
 	}
@@ -419,7 +456,14 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 	if mutateState {
 		finalBlock--
 	}
-	for i := appBlockHeight + 1; i <= finalBlock; i++ {
+	// When the chain starts at InitialHeight > 1 (e.g. a hardfork upgrade),
+	// heights in [1, InitialHeight-1] are phantom — they never had a block.
+	// Clamp the replay cursor so we don't try to LoadBlock on those heights.
+	startHeight := appBlockHeight + 1
+	if h.genDoc.InitialHeight > startHeight {
+		startHeight = h.genDoc.InitialHeight
+	}
+	for i := startHeight; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)
 		if block == nil {
@@ -430,7 +474,7 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 			assertAppHashEqualsOneFromBlock(appHash, block)
 		}
 
-		appHash, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, h.logger, h.stateDB)
+		appHash, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, state, h.logger, h.stateDB)
 		if err != nil {
 			return nil, err
 		}

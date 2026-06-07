@@ -814,12 +814,16 @@ func (ctx *P3Context2) writePrimitiveEncode(sb *strings.Builder, accessor string
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%soffset = amino.PrependInt32(buf, offset, int32(%s))\n", indent, accessor)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%soffset = amino.PrependPlainVarint(buf, offset, int64(%s))\n", indent, accessor)
 		} else {
 			fmt.Fprintf(sb, "%soffset = amino.PrependVarint(buf, offset, int64(%s))\n", indent, accessor)
 		}
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			fmt.Fprintf(sb, "%soffset = amino.PrependInt64(buf, offset, int64(%s))\n", indent, accessor)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%soffset = amino.PrependPlainVarint(buf, offset, int64(%s))\n", indent, accessor)
 		} else {
 			fmt.Fprintf(sb, "%soffset = amino.PrependVarint(buf, offset, int64(%s))\n", indent, accessor)
 		}
@@ -828,6 +832,8 @@ func (ctx *P3Context2) writePrimitiveEncode(sb *strings.Builder, accessor string
 			fmt.Fprintf(sb, "%soffset = amino.PrependInt64(buf, offset, int64(%s))\n", indent, accessor)
 		} else if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%soffset = amino.PrependInt32(buf, offset, int32(%s))\n", indent, accessor)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%soffset = amino.PrependPlainVarint(buf, offset, int64(%s))\n", indent, accessor)
 		} else {
 			fmt.Fprintf(sb, "%soffset = amino.PrependVarint(buf, offset, int64(%s))\n", indent, accessor)
 		}

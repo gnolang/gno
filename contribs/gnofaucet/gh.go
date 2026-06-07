@@ -248,7 +248,13 @@ func gitHubClaimRewardsMiddleware(rewarder igh.Rewarder) faucet.Middleware {
 			c := std.NewCoin("ugnot", int64(reward)).String()
 			req.Params = append(req.Params, c)
 
-			// TODO: this should be called AFTER the faucet successfully gives tokens to the requester
+			resp := next(ctx, req)
+			if resp.Error != nil {
+				// Downstream rejected (cooldown, drip failure, etc.).
+				// Leave the reward balance untouched so the user can retry.
+				return resp
+			}
+
 			if err := rewarder.Apply(ctx, username, reward); err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
@@ -257,7 +263,7 @@ func gitHubClaimRewardsMiddleware(rewarder igh.Rewarder) faucet.Middleware {
 				)
 			}
 
-			return next(ctx, req)
+			return resp
 		}
 	}
 }

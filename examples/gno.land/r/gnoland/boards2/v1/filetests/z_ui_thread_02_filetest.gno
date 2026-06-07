@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_thread_02_filetest
+
 // Render both original thread and thread repost view.
-package main
+package z_ui_thread_02_filetest
 
 import (
 	"testing"
@@ -20,16 +22,16 @@ var (
 	repostThreadID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, srcBoardName, false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), srcBoardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
+	dstBoardID := boards2.CreateBoard(cross(cur), dstBoardName, false, false)
+	repostThreadID = boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "Bar", "Body2")
 }
 
 func main() {
@@ -47,7 +49,13 @@ func main() {
 // ## Foo
 //
 // **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Body
+// </gno-foreign>
+//
+//
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) [1] • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
 //
@@ -61,8 +69,20 @@ func main() {
 // > Original thread is [Foo](/r/gnoland/boards2/v1:test-board/1)
 // > Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC
 //
-// Body2
 //
+//
+// <gno-foreign>
+// Body2
+// </gno-foreign>
+//
+//
+//
+// >
+// >
+// > <gno-foreign>
 // > Body
+// > </gno-foreign>
+// >
+// >
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)

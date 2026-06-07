@@ -657,6 +657,18 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
+		// Reject duplicate peer IDs
+		if sw.peers.Has(p.ID()) {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+			)
+
+			sw.transport.Remove(p)
+			continue
+		}
+
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
 			sw.transport.Remove(p)
@@ -695,7 +707,9 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 
 	// Add the peer to the peer set. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
-	sw.peers.Add(p)
+	if err := sw.peers.Add(p); err != nil {
+		return err
+	}
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {

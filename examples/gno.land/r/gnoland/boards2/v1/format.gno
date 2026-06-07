@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/markdown/foreign/v0"
 
 	"gno.land/r/sys/users"
 )
@@ -40,6 +41,21 @@ func indentBody(indent string, body string) string {
 		res += indent + line
 	}
 	return res
+}
+
+// indentForeignBody is the single "render a user body" operation: it
+// sandboxes the body in a <gno-foreign> block, indents it like
+// indentBody, AND charges one unit against the per-render budget — so
+// wrapping and budget-accounting can't drift apart (the *int signals
+// the mutation). The body renders inside the sandbox: its block
+// structure (headings, blockquotes, lists, columns, alerts) is
+// contained and cannot hijack realm chrome, so boards no longer needs
+// the write-time markdown blacklist. The opener survives the "> "
+// comment indentation at any depth (goldmark strips the "> " prefix
+// before the block parser runs).
+func indentForeignBody(indent, body string, budget *int) string {
+	*budget-- // one <gno-foreign> block
+	return indentBody(indent, foreign.Foreign(body))
 }
 
 func summaryOf(text string, length int) string {

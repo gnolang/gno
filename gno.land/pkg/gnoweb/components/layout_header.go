@@ -11,6 +11,10 @@ type HeaderLink struct {
 	URL      string
 	Icon     string
 	IsActive bool
+	// Outbound, when set to one of the Outbound* constants, is rendered as
+	// data-outbound on the link so SimpleAnalytics fires a named
+	// outbound_<label> event instead of an anonymous outbound click.
+	Outbound string
 }
 
 type HeaderLinks struct {
@@ -32,8 +36,8 @@ type HeaderData struct {
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
 		{Label: "About", URL: "https://gno.land/about"},
-		{Label: "Docs", URL: "https://docs.gno.land/"},
-		{Label: "GitHub", URL: "https://github.com/gnolang"},
+		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}
 }
 

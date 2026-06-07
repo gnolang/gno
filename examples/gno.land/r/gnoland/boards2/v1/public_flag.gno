@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
 //
 // Threshold is only applicable within the board where it's setted.
-func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
+func SetFlaggingThreshold(cur realm, boardID boards.ID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
@@ -22,9 +21,9 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	args := boards.Args{board.ID, threshold}
-	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func() {
 		assertRealmIsNotLocked()
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
@@ -35,7 +34,7 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 			"boardID", board.ID.String(),
 			"threshold", strconv.Itoa(threshold),
 		)
-	}))
+	})
 }
 
 // GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
@@ -48,13 +47,13 @@ func GetFlaggingThreshold(boardID boards.ID) int {
 //
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
-func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
+func FlagThread(cur realm, boardID, threadID boards.ID, reason string) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		panic("flagging reason is required")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
@@ -110,22 +109,22 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, func() {
 		flagThread()
-	}))
+	})
 }
 
 // FlagReply adds a new flag to a comment or reply.
 //
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
-func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
+func FlagReply(cur realm, boardID, threadID, replyID boards.ID, reason string) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		panic("flagging reason is required")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
@@ -166,7 +165,7 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, func() {
 		flagReply()
-	}))
+	})
 }

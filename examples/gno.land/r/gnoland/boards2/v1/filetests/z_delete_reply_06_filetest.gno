@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_reply_06_filetest
+
+package z_delete_reply_06_filetest
 
 import (
 	"testing"
@@ -18,20 +20,20 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to delete replies
-	boards2.InviteMember(cross, bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross(cur), bid, member, boards2.RoleAdmin)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(member))
 
-	boards2.DeleteReply(cross, bid, tid, rid)
+	boards2.DeleteReply(cross(cur), bid, tid, rid)
 
 	// Ensure reply doesn't exist
 	println(boards2.Render("test-board/1/2"))

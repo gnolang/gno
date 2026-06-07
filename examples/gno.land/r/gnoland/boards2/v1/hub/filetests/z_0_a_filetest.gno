@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_0_a_filetest
+
 // Test default board values
-package main
+package z_0_a_filetest
 
 import (
 	"testing"
@@ -12,14 +14,14 @@ import (
 
 var boardID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "test123", false, false)
+	boardID = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, found := hub.GetBoard(uint64(boardID))
+	board, found := hub.GetBoard(cross(cur), uint64(boardID))
 	if !found {
 		return
 	}

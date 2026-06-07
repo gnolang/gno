@@ -26,7 +26,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](-2)=
 //     @@ -17,15 +17,15 @@
 //                          "Tag": "",
 //                          "Type": {
@@ -39,10 +39,20 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "3f7b8524def84bc42c4301dc9b60ea7bb2b8d77b",
-//     -            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:8"
-//     +            "Hash": "da89a2b407d7ceb547ae17e162a06607f8e11c06",
-//     +            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:5"
+//     -            "Hash": "34cd2ba539cb8490b2304a329a3f44edd89d0425",
+//     -            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:10"
+//     +            "Hash": "979adacee58d2714ae2a70c8d2e6b38d715321dc",
+//     +            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:7"
 //              }
 //          }
 //      }
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "aa1778bedd085a52f08a1834556286316a3f97cf",
+//     +                "Hash": "d1bc5077a7e598bcefa531b2e3d30812765544be",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

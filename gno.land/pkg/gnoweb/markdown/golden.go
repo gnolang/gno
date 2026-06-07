@@ -17,6 +17,11 @@ type GoldenTests struct {
 	Recurse      bool
 	Update       bool
 	GenerateFunc GenFunc
+	// SkipDirs are subdirectory paths (relative to the walk root) that
+	// should be skipped entirely — used to keep this runner out of
+	// directories that use a different txtar layout (e.g. golden/sanitize,
+	// which has its own driver in sanitize_integration_test.go).
+	SkipDirs []string
 }
 
 func NewGoldentTests(exec GenFunc) *GoldenTests {
@@ -42,6 +47,12 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 		}
 
 		if info.IsDir() {
+			rel, _ := filepath.Rel(dir, path)
+			for _, skip := range g.SkipDirs {
+				if rel == skip {
+					return filepath.SkipDir
+				}
+			}
 			return shouldSkipDir
 		}
 

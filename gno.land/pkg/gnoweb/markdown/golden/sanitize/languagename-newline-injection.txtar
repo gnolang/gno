@@ -1,0 +1,7 @@
+// MARKDOWNFUNC: LanguageName
+-- input.md --
+sh
+
+# FAKE
+-- output.md --
+

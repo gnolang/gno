@@ -79,10 +79,10 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 			"too many sessions: count=%d, max=%d", count, std.MaxSessionsPerAccount)))
 	}
 	// Check SpendPeriod max.
-	if msg.SpendPeriod > std.MaxSessionDuration {
+	if msg.SpendPeriod > std.MaxSpendPeriod {
 		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
 			"spend_period exceeds maximum: got=%d, max=%d",
-			msg.SpendPeriod, std.MaxSessionDuration)))
+			msg.SpendPeriod, std.MaxSpendPeriod)))
 	}
 	// Check AllowPaths count.
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
@@ -108,6 +108,16 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 	da.SetSpendLimit(msg.SpendLimit)
 	da.SetSpendPeriod(msg.SpendPeriod)
 	da.SetSpendReset(blockTime)
+
+	// AllowPaths grammar validation lives in gno.land (it knows the
+	// route_type whitelist). tm2 calls into the prototype via a local
+	// interface, so neither layer imports the other.
+	type allowPathsValidator interface{ ValidateAllowPaths([]string) error }
+	if v, ok := sa.(allowPathsValidator); ok {
+		if err := v.ValidateAllowPaths(msg.AllowPaths); err != nil {
+			return abciResult(std.ErrUnauthorized(err.Error()))
+		}
+	}
 
 	// Set AllowPaths via local interface — concrete type is GnoSessionAccount.
 	// This is the CREATION-time writer. The READ-side interface (pathRestricted,

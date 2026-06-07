@@ -1,0 +1,61 @@
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_2_prop3_filetest
+
+package z_2_prop3_filetest
+
+import (
+	"chain"
+	"chain/runtime/unsafe"
+	"testing"
+
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/r/gov/dao"
+	daov3init "gno.land/r/gov/dao/v3/init"
+	users "gno.land/r/sys/namereg/v1"
+	susers "gno.land/r/sys/users"
+)
+
+// Test the full governance-driven registerPrice flow:
+//  1. propose a new price via users.ProposeNewRegisterPrice
+//  2. DAO accepts the proposal (vote YES, execute)
+//  3. verify the executed callback updated registerPrice by exercising
+//     Register with the new amount and watching it succeed (registration
+//     under the old default of 0 ugnot would now panic with the new
+//     price in the error message).
+var c address = unsafe.OriginCaller()
+
+func init(cur realm) {
+	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
+	testing.SetHeight(0)
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	testing.SetHeight(123)
+
+	daov3init.InitWithUsers(cross(cur), c)
+
+	// Propose raising the price from 0 to 20 GNOT.
+	testing.SetOriginCaller(c)
+	testing.SetRealm(testing.NewUserRealm(c))
+	pr := users.ProposeNewRegisterPrice(cross(cur), 20_000_000)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+func main(cur realm) {
+	testing.SetOriginCaller(c)
+
+	// Vote and execute.
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+
+	// New price should be active. Register a user with the new amount;
+	// registration with the old default (0 ugnot) would panic.
+	alice := testutils.TestAddress("alice")
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 20_000_000}})
+	users.Register(cross(cur), "nym-alice123")
+
+	data, _ := susers.ResolveName("nym-alice123")
+	println("registered alice at:", data.Addr())
+}
+
+// Output:
+// registered alice at: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh

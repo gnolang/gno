@@ -2,7 +2,6 @@ package params
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strconv"
 	"strings"
@@ -44,7 +43,7 @@ const (
 // The chain reads this on the next EndBlocker, diffs it against
 // valset:current, and propagates the changes to consensus.
 func SetValsetProposal(cur realm, entries []string) {
-	assertValsetCaller()
+	assertValsetCaller(0, cur)
 	prms.SetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetProposedKey, entries)
 	prms.SetSysParamBool(nodeModulePrefix, valsetSubmodule, valsetDirtyKey, true)
 }
@@ -122,8 +121,18 @@ func parseEntry(entry string) (validators.Validator, error) {
 	}, nil
 }
 
-func assertValsetCaller() {
-	if runtime.PreviousRealm().PkgPath() != valsetAuthorizedRealm {
+func assertValsetCaller(_ int, rlm realm) {
+	// Defense-in-depth IsCurrent gate. Current call sites all pass live
+	// cur (cross(cur) from cache.gno / proposal.gno), so this never
+	// fires today — but the helper trusts its rlm input, and a future
+	// caller that threads a stashed/sibling-frame realm value would
+	// silently bypass the PkgPath check below (Class-2 designation
+	// forgery; see docs/resources/gno-security.md). Gating here makes
+	// the precondition enforceable rather than convention.
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
+	if rlm.Previous().PkgPath() != valsetAuthorizedRealm {
 		panic("unauthorized: only " + valsetAuthorizedRealm + " may write valset params")
 	}
 }

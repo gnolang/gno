@@ -57,6 +57,83 @@ func TestStoreLoadValidators(t *testing.T) {
 	assert.NotZero(t, loadedVals.Size())
 }
 
+// TestLoadValidatorsAtInitialHeight verifies that when a genesis has
+// InitialHeight > 1, validators are saved and loadable at that height.
+// This test demonstrates a bug: saveState only saves validators when
+// nextHeight == 1, so InitialHeight > 1 causes LoadValidators to fail.
+func TestLoadValidatorsAtInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	val, _ := types.RandValidator(true, 10)
+	vals := []*types.Validator{val}
+	genDoc := &types.GenesisDoc{
+		ChainID:       "test-chain",
+		InitialHeight: 50,
+		Validators: []types.GenesisValidator{
+			{Address: val.Address, PubKey: val.PubKey, Power: 10},
+		},
+	}
+	require.NoError(t, genDoc.ValidateAndComplete())
+
+	state, err := sm.MakeGenesisState(genDoc)
+	require.NoError(t, err)
+
+	// Simulate what the Handshaker does after InitChain with InitialHeight > 1:
+	// it sets LastBlockHeight = InitialHeight - 1.
+	state.LastBlockHeight = 49 // InitialHeight - 1
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	// Should be able to load validators at InitialHeight (50).
+	// BUG: This fails with NoValSetForHeightError because saveState only
+	// saves validators at nextHeight when nextHeight == 1.
+	loadedVals, err := sm.LoadValidators(stateDB, 50)
+	require.NoError(t, err, "should load validators at InitialHeight")
+	require.NotNil(t, loadedVals)
+	assert.Equal(t, len(vals), loadedVals.Size())
+}
+
+// TestLoadConsensusParamsAtInitialHeight verifies that consensus params are
+// saved and loadable at InitialHeight when InitialHeight > 1.
+// This test demonstrates the same class of bug as TestLoadValidatorsAtInitialHeight
+// but for consensus params.
+func TestLoadConsensusParamsAtInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	val, _ := types.RandValidator(true, 10)
+	genDoc := &types.GenesisDoc{
+		ChainID:       "test-chain",
+		InitialHeight: 50,
+		Validators: []types.GenesisValidator{
+			{Address: val.Address, PubKey: val.PubKey, Power: 10},
+		},
+	}
+	require.NoError(t, genDoc.ValidateAndComplete())
+
+	state, err := sm.MakeGenesisState(genDoc)
+	require.NoError(t, err)
+
+	// Simulate Handshaker setting LastBlockHeight = InitialHeight - 1.
+	state.LastBlockHeight = 49
+
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	// Should be able to load consensus params at InitialHeight (50).
+	// BUG: saveConsensusParamsInfo stores at nextHeight=50 with
+	// changeHeight=1 (LastHeightConsensusParamsChanged defaults to 1 from
+	// MakeGenesisState). Since changeHeight(1) != nextHeight(50), only a
+	// reference is saved (not the full params). When loading at height 50,
+	// it finds empty params, looks up LastHeightChanged=1, which doesn't
+	// exist => panic.
+	require.NotPanics(t, func() {
+		params, err := sm.LoadConsensusParams(stateDB, 50)
+		require.NoError(t, err, "should load consensus params at InitialHeight")
+		assert.NotEmpty(t, params.Block)
+	}, "LoadConsensusParams should not panic at InitialHeight")
+}
+
 func BenchmarkLoadValidators(b *testing.B) {
 	const valSetSize = 100
 

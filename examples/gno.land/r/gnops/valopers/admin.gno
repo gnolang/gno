@@ -1,8 +1,6 @@
 package valopers
 
 import (
-	"chain"
-
 	"gno.land/p/moul/authz"
 )
 
@@ -12,19 +10,9 @@ func Auth() *authz.Authorizer {
 	return auth
 }
 
-func updateInstructions(newInstructions string) {
-	err := auth.DoByCurrent("update-instructions", func() error {
+func updateInstructions(_ int, rlm realm, newInstructions string) {
+	err := auth.DoByCurrent(0, rlm, "update-instructions", func() error {
 		instructions = newInstructions
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func updateMinFee(newMinFee int64) {
-	err := auth.DoByCurrent("update-min-fee", func() error {
-		minFee = chain.NewCoin("ugnot", newMinFee)
 		return nil
 	})
 	if err != nil {
@@ -34,18 +22,15 @@ func updateMinFee(newMinFee int64) {
 
 func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	cb := func(cur realm) error {
-		updateInstructions(newInstructions)
+		updateInstructions(0, cur, newInstructions)
 		return nil
 	}
 
 	return cb
 }
 
-func NewMinFeeProposalCallback(newMinFee int64) func(realm) error {
-	cb := func(cur realm) error {
-		updateMinFee(newMinFee)
-		return nil
-	}
-
-	return cb
-}
+// The min-fee callback was removed: the fee now lives in sysparams
+// under node:valoper:register_fee, and
+// proposal.ProposeNewMinFeeProposalRequest delegates to
+// sys/params.NewSysParamUint64PropRequest. Removing avoids the
+// forward-compat hazard of a no-op shim with no caller-auth gating.

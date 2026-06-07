@@ -42,85 +42,85 @@ func assertNotValsetKey(module, submodule string) {
 	}
 }
 
-func NewSysParamStringPropRequest(module, submodule, name, value string) dao.ProposalRequest {
+func NewSysParamStringPropRequest(cur realm, module, submodule, name, value string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamString(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamInt64PropRequest(module, submodule, name string, value int64) dao.ProposalRequest {
+func NewSysParamInt64PropRequest(cur realm, module, submodule, name string, value int64) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamInt64(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamUint64PropRequest(module, submodule, name string, value uint64) dao.ProposalRequest {
+func NewSysParamUint64PropRequest(cur realm, module, submodule, name string, value uint64) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamUint64(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamBoolPropRequest(module, submodule, name string, value bool) dao.ProposalRequest {
+func NewSysParamBoolPropRequest(cur realm, module, submodule, name string, value bool) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBool(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamBytesPropRequest(module, submodule, name string, value []byte) dao.ProposalRequest {
+func NewSysParamBytesPropRequest(cur realm, module, submodule, name string, value []byte) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBytes(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamStringsPropRequest(module, submodule, name string, value []string) dao.ProposalRequest {
+func NewSysParamStringsPropRequest(cur realm, module, submodule, name string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 		"",
 	)
 }
 
-func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+func NewSysParamStringsPropRequestWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 		title,
 	)
 }
-func NewSysParamStringsPropRequestAddWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+func NewSysParamStringsPropRequestAddWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
 		title,
 	)
 }
-func NewSysParamStringsPropRequestRemoveWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+func NewSysParamStringsPropRequestRemoveWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
 		title,
 	)
 }
-func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
+func newPropRequest(cur realm, key string, fn func(), title string) dao.ProposalRequest {
 	callback := func(cur realm) error {
 		fn()
 		chain.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
@@ -131,7 +131,7 @@ func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 		title = "Set new sys/params key"
 	}
 
-	e := dao.NewSimpleExecutor(callback, "")
+	e := dao.NewSimpleExecutor(0, cur, callback, "")
 
 	return dao.NewProposalRequest(title, "This proposal wants to add a new key to sys/params: "+key, e)
 }

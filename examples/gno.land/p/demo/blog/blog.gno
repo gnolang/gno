@@ -53,7 +53,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 		rowItems = append(rowItems, post.RenderListItem())
 
 		if len(rowItems) == maxCol {
-			res.Write("<gno-columns>" + strings.Join(rowItems, "|||") + "</gno-columns>\n")
+			res.Write("<gno-columns>" + strings.Join(rowItems, "<gno-columns-sep>") + "</gno-columns>\n")
 			rowItems = []string{}
 		}
 		return false
@@ -64,7 +64,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 		for len(rowItems) < maxCol {
 			rowItems = append(rowItems, "")
 		}
-		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
+		res.Write("<gno-columns>" + strings.Join(rowItems, "\n<gno-columns-sep>\n") + "</gno-columns>\n")
 	}
 }
 

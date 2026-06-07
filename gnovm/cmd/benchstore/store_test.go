@@ -298,7 +298,6 @@ func BenchmarkStoreSetInsert(b *testing.B) {
 					env = newBenchEnv(b, n, 256)
 				}
 				val := make([]byte, 256)
-				//nolint:staticcheck // math/rand.Read deterministic is fine for bench payload
 				rand.Read(val)
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {

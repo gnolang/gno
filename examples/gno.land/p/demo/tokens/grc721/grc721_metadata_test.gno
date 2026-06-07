@@ -7,9 +7,17 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestSetMetadata(t *testing.T) {
+func newDummyMetadataNFT(_ int, rlm realm) *metadataNFT {
+	var nft *metadataNFT
+	func(cur realm) {
+		nft = NewNFTWithMetadata(0, cur, dummyNFTName, dummyNFTSymbol)
+	}(cross(rlm))
+	return nft
+}
+
+func TestSetMetadata(cur realm, t *testing.T) {
 	// Create a new dummy NFT with metadata
-	dummy := NewNFTWithMetadata(dummyNFTName, dummyNFTSymbol)
+	dummy := newDummyMetadataNFT(0, cur)
 	if dummy == nil {
 		t.Errorf("should not be nil")
 	}

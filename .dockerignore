@@ -5,6 +5,7 @@ build/
 misc/*
 !misc/loop/
 !misc/autocounterd/
+!misc/val-scenarios/
 tests/docker-integration/
 docs/
 .github/

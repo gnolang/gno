@@ -197,9 +197,13 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
+			// An empty block store now accepts any height as the first block
+			// (supporting InitialHeight > 1 for chain upgrades).  The panic
+			// here is therefore NOT about contiguous blocks but about the nil
+			// seenCommit that gets marshaled.
 			block:     newBlock(header2, commitAtH10),
 			parts:     uncontiguousPartSet,
-			wantPanic: "only save contiguous blocks", // and incomplete and uncontiguous parts
+			wantPanic: "nil *Commit pointer",
 		},
 
 		{
@@ -471,4 +475,56 @@ func newBlock(hdr types.Header, lastCommit *types.Commit) *types.Block {
 		Header:     hdr,
 		LastCommit: lastCommit,
 	}
+}
+
+// TestBlockStore_InitialHeight verifies that an empty BlockStore accepts a
+// block at any height >= 1.  This is required for chains that start at
+// InitialHeight > 1 (e.g. a chain upgraded from an older chain ID that
+// replays historical transactions at genesis).
+func TestBlockStore_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	state, _, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	const initialHeight = int64(50)
+
+	bs, _ := freshBlockStore()
+	require.Equal(t, int64(0), bs.Height())
+
+	genesisBlock := makeBlock(initialHeight, state, new(types.Commit))
+	parts := genesisBlock.MakePartSet(2)
+	sc := makeTestCommit(initialHeight, tmtime.Now())
+
+	assert.NotPanics(t, func() {
+		bs.SaveBlock(genesisBlock, parts, sc)
+	}, "empty store should accept first block at any height")
+	require.Equal(t, initialHeight, bs.Height())
+}
+
+// TestBlockStore_ContiguousAfterInitialHeight verifies that after the first
+// block is saved (possibly at InitialHeight > 1), subsequent saves must be
+// strictly contiguous.
+func TestBlockStore_ContiguousAfterInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	state, _, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	const initialHeight = int64(50)
+
+	bs, _ := freshBlockStore()
+	genesisBlock := makeBlock(initialHeight, state, new(types.Commit))
+	parts := genesisBlock.MakePartSet(2)
+	sc := makeTestCommit(initialHeight, tmtime.Now())
+	bs.SaveBlock(genesisBlock, parts, sc)
+
+	// Trying to save at a non-contiguous height (50+2=52, not 51) must panic.
+	skippedBlock := makeBlock(initialHeight+2, state, new(types.Commit))
+	skippedParts := skippedBlock.MakePartSet(2)
+	skippedSC := makeTestCommit(initialHeight+2, tmtime.Now())
+
+	assert.Panics(t, func() {
+		bs.SaveBlock(skippedBlock, skippedParts, skippedSC)
+	}, "non-contiguous height must still panic after InitialHeight is set")
 }

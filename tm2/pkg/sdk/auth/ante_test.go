@@ -906,3 +906,54 @@ func TestInvalidUserFee(t *testing.T) {
 	require.False(t, res2.IsOK())
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }
+
+// TestSetGasMeter_SkipGasMeteringKey verifies that setting the
+// SkipGasMeteringKey context value causes SetGasMeter to return an infinite
+// gas meter, even for non-genesis heights. Used by gnoland's
+// GasReplayMode="source" to preserve source-chain outcomes during hardfork
+// replay.
+func TestSetGasMeter_SkipGasMeteringKey(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // default height 1 (not genesis)
+
+	t.Run("default meters gas", func(t *testing.T) {
+		t.Parallel()
+		got := SetGasMeter(ctx, 1000)
+		// Bounded meter: consuming >1000 should panic.
+		require.Panics(t, func() {
+			got.GasMeter().ConsumeGas(2000, "test")
+		})
+	})
+
+	t.Run("SkipGasMeteringKey yields infinite meter", func(t *testing.T) {
+		t.Parallel()
+		skipCtx := ctx.WithValue(SkipGasMeteringKey{}, true)
+		got := SetGasMeter(skipCtx, 1000)
+		// Infinite meter: should handle consumption way beyond gasLimit.
+		require.NotPanics(t, func() {
+			got.GasMeter().ConsumeGas(1_000_000_000, "test")
+		})
+	})
+
+	t.Run("SkipGasMeteringKey=false uses bounded meter", func(t *testing.T) {
+		t.Parallel()
+		noSkipCtx := ctx.WithValue(SkipGasMeteringKey{}, false)
+		got := SetGasMeter(noSkipCtx, 1000)
+		require.Panics(t, func() {
+			got.GasMeter().ConsumeGas(2000, "test")
+		})
+	})
+
+	t.Run("genesis height stays infinite regardless of key", func(t *testing.T) {
+		t.Parallel()
+		header := ctx.BlockHeader().(*bft.Header)
+		header.Height = 0
+		genCtx := ctx.WithBlockHeader(header)
+		got := SetGasMeter(genCtx, 1000)
+		require.NotPanics(t, func() {
+			got.GasMeter().ConsumeGas(10_000_000, "test")
+		})
+	})
+}

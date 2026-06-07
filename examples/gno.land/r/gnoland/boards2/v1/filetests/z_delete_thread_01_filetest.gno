@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_thread_01_filetest
+
+package z_delete_thread_01_filetest
 
 import (
 	"testing"
@@ -8,10 +10,10 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.DeleteThread(cross, 404, 1)
+	boards2.DeleteThread(cross(cur), 404, 1)
 }
 
 // Error:

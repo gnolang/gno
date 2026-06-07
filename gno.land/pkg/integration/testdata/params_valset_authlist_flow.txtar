@@ -1,0 +1,96 @@
+# AddToAuthList / DeleteFromAuthList privilege flow test for valoper
+# UpdateSigningKey.
+#
+# UpdateSigningKey calls v.Auth().AssertPreviousOnAuthList(); the auth
+# list is seeded with just the operator at Register time and extends
+# only via valopers.AddToAuthList. This test exercises three states:
+#
+#   (a) test2 not on auth list: rotation must reject.
+#   (b) member adds test2 to the auth list, test2 rotates: must succeed.
+#   (c) member removes test2 from auth list, test2 attempts again:
+#       must reject again.
+#
+# Why this matters: ops/security teams often delegate rotation to a
+# separate signing identity (HSM-bound or rotation-bot) without giving
+# it operator-level powers. The auth-list machinery is the trust hinge;
+# both add and revoke have to actually take effect.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduser test2 1010000000ugnot
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Disable rotation throttle so the in-test rotations aren't blocked
+# on height-LastRotationHeight < rotation_period_blocks.
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_throttle.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# member registers their own valoper profile with pubKey P.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opMember -args 'member operator' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# (a) test2 NOT on auth list yet: rotation must reject.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
+stderr 'caller is not in authorized list'
+
+# member grants test2 the authority to rotate.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func AddToAuthList -gas-fee 4000001ugnot -gas-wanted 11_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# (b) test2 NOW on auth list: rotation must succeed.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 20_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
+stdout OK!
+
+# member revokes test2's authority.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 8_800_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# (c) test2 again attempts a rotation; must reject post-revoke.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqv78qzekzh8ysj26zgda53kngk6x9329la0vjhwp75t4ytkymfhzz46a2dz -broadcast -chainid=tendermint_test test2
+stderr 'caller is not in authorized list'
+
+-- run/disable_throttle.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	sysparams "gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := sysparams.NewSysParamInt64PropRequest(cross(cur), "node", "valoper", "rotation_period_blocks", 0)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

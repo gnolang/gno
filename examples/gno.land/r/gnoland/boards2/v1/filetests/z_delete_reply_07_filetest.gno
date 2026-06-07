@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_reply_07_filetest
+
 // Open board: Test deleting a reply as the non member user that created it
-package main
+package z_delete_reply_07_filetest
 
 // SEND: 1000000ugnot
 
@@ -22,24 +24,24 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, true)
-	tid = boards2.CreateThread(cross, bid, "Title", "Body")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
 	// Create a new reply as a non member user
 	testing.SetRealm(testing.NewUserRealm(user))
-	rid = boards2.CreateReply(cross, bid, tid, 0, "Comment")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "Comment")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Delete the reply as the non member user that created it
-	boards2.DeleteReply(cross, bid, tid, rid)
+	boards2.DeleteReply(cross(cur), bid, tid, rid)
 
 	// Ensure reply doesn't exist
 	println(rid == 2)

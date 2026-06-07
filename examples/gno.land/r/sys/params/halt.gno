@@ -25,7 +25,7 @@ const (
 // Example: minVersion="chain/gnoland1.1" prevents gnoland1.0 from resuming.
 //
 // Use height=0 to cancel a previously scheduled halt.
-func NewSetHaltRequest(height int64, minVersion string) dao.ProposalRequest {
+func NewSetHaltRequest(cur realm, height int64, minVersion string) dao.ProposalRequest {
 	callback := func(cur realm) error {
 		prms.SetSysParamInt64(nodeModulePrefix, "p", haltHeightKey, height)
 		prms.SetSysParamString(nodeModulePrefix, "p", haltMinVersionKey, minVersion)
@@ -46,6 +46,6 @@ func NewSetHaltRequest(height int64, minVersion string) dao.ProposalRequest {
 		}
 	}
 
-	e := dao.NewSimpleExecutor(callback, "")
+	e := dao.NewSimpleExecutor(0, cur, callback, "")
 	return dao.NewProposalRequest("Set node halt height", desc, e)
 }

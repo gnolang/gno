@@ -234,6 +234,22 @@ PARAM_FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
+    # EnterCrossing is quadratic (O(depth^2) frame walk). See below for quadratic fit.
+    ('EnterCrossing (depth)', 'depth', [
+        ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
+        ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
+    # CopyDataToList / CopyListToData calibrate OpCPUSlopeCopyPrimitive.
+    # Emit only the slower (CopyDataToList) as the canonical slope source.
+    ('CopyDataToList', 'elements', [
+        ('BenchmarkOpCopyDataToList_1k', 1024), ('BenchmarkOpCopyDataToList_10k', 10*1024),
+        ('BenchmarkOpCopyDataToList_100k', 100*1024), ('BenchmarkOpCopyDataToList_1m', 1024*1024)]),
+    ('CopyListToData', 'elements', [
+        ('BenchmarkOpCopyListToData_1k', 1024), ('BenchmarkOpCopyListToData_10k', 10*1024),
+        ('BenchmarkOpCopyListToData_100k', 100*1024), ('BenchmarkOpCopyListToData_1m', 1024*1024)]),
+    # UnrefCopy (non-RefValue) calibrates OpCPUSlopeCopyElement.
+    ('UnrefCopy (int)', 'elements', [
+        ('BenchmarkOpUnrefCopy_Int_1k', 1024), ('BenchmarkOpUnrefCopy_Int_10k', 10*1024),
+        ('BenchmarkOpUnrefCopy_Int_100k', 100*1024)]),
     # Defer is flat: args are already on the stack, cost doesn't scale with arg count.
     # See FLAT_OPS.
     ('TypeSwitch (concrete)', 'clauses', [
@@ -714,6 +730,10 @@ def main():
         'ForLoop (heap copy)':      ('ForLoop',         'ForLoopHeap'),
         'RangeIter (array)':        ('RangeIter',       'RangeIterArray'),
         'ReturnCallDefers':         ('ReturnCallDefers','ReturnCallDefers'),
+        'EnterCrossing (depth)':    (None,              None),  # quadratic — handled separately
+        'CopyDataToList':           (None,              'CopyPrimitive'), # slower helper drives OpCPUSlopeCopyPrimitive
+        'CopyListToData':           (None,              None),  # cheaper than CopyDataToList; shares CopyPrimitive slope
+        'UnrefCopy (int)':          (None,              'CopyElement'),   # primitive unrefCopy drives OpCPUSlopeCopyElement
         'TypeSwitch (concrete)':    ('TypeSwitch',      'TypeSwitchCase'),
         'TypeSwitch (interface)':   (None,              None),  # handled separately
         'TypeAssert1 (interface)':  (None,              'TypeAssertIface'),

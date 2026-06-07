@@ -5,20 +5,20 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
-func buildTestTree() *avl.Tree {
-	root := avl.NewTree()
+func buildTestTree() *bptree.BPTree {
+	root := bptree.NewBPTree32()
 
 	// keyF1 subtree
-	t1 := avl.NewTree()
+	t1 := bptree.NewBPTree32()
 	t1.Set("key1_1", nil)
 	t1.Set("key1_2", nil)
 	root.Set("keyF1", t1)
 
 	// keyF2 subtree
-	t2 := avl.NewTree()
+	t2 := bptree.NewBPTree32()
 	t2.Set("key2_1", nil)
 	t2.Set("key2_2", nil)
 	root.Set("keyF2", t2)

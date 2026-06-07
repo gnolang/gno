@@ -1,0 +1,90 @@
+loadpkg gno.land/p/demo/tests/pfreezecounter $WORK/pfreezecounter
+loadpkg gno.land/r/demo/tests/verifyincdec $WORK/verifyincdec
+
+## start a new node
+gnoland start
+
+## OpInc: c.N++ on a real /p/-stamped *CounterBox must be rejected
+## by the immutability gate in Realm.DidUpdate.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script_bump/script.gno
+stderr 'cannot mutate gno.land/p/demo/tests/pfreezecounter: package is immutable post-init'
+
+## OpDec: c.N-- on the same real /p/-stamped *CounterBox must be rejected.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script_decr/script.gno
+stderr 'cannot mutate gno.land/p/demo/tests/pfreezecounter: package is immutable post-init'
+
+## builtin delete(M, k) on a real /p/-stamped map must be rejected.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script_del/script.gno
+stderr 'cannot mutate gno.land/p/demo/tests/pfreezecounter: package is immutable post-init'
+
+-- pfreezecounter/gnomod.toml --
+module = "gno.land/p/demo/tests/pfreezecounter"
+gno = "0.9"
+
+-- pfreezecounter/pfreezecounter.gno --
+package pfreezecounter
+
+type CounterBox struct{ N int }
+
+var C = &CounterBox{N: 0}
+
+type MapBox struct{ M map[string]int }
+
+var MB = &MapBox{M: map[string]int{"k": 1}}
+
+func (c *CounterBox) Bump() { c.N++ }
+
+func (c *CounterBox) Decr() { c.N-- }
+
+// DelKey is a method on *MapBox so the /p/-receiver borrow rule shifts
+// m.Realm to nil inside the body — that's the path where the builtin
+// delete()'s DidUpdate call must reach the immutability gate.
+func (b *MapBox) DelKey(k string) { delete(b.M, k) }
+
+-- verifyincdec/gnomod.toml --
+module = "gno.land/r/demo/tests/verifyincdec"
+gno = "0.9"
+
+-- verifyincdec/verifyincdec.gno --
+package verifyincdec
+
+import "gno.land/p/demo/tests/pfreezecounter"
+
+func VerifyBump() {
+	pfreezecounter.C.Bump()
+}
+
+func VerifyDecr() {
+	pfreezecounter.C.Decr()
+}
+
+func VerifyDel() {
+	pfreezecounter.MB.DelKey("k")
+}
+
+-- script_bump/script.gno --
+package main
+
+import "gno.land/r/demo/tests/verifyincdec"
+
+func main() {
+	verifyincdec.VerifyBump()
+}
+
+-- script_decr/script.gno --
+package main
+
+import "gno.land/r/demo/tests/verifyincdec"
+
+func main() {
+	verifyincdec.VerifyDecr()
+}
+
+-- script_del/script.gno --
+package main
+
+import "gno.land/r/demo/tests/verifyincdec"
+
+func main() {
+	verifyincdec.VerifyDel()
+}

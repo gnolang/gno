@@ -91,7 +91,7 @@ func TestBeginBlockValidators(t *testing.T) {
 		// block for height 2
 		block, _ := state.MakeBlock(2, makeTxs(2), lastCommit, state.Validators.GetProposer().Address)
 
-		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, log.NewTestingLogger(t), stateDB)
+		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, state, log.NewTestingLogger(t), stateDB)
 		require.Nil(t, err, tc.desc)
 
 		// -> app receives a list of validators with a bool indicating if they signed
@@ -354,4 +354,33 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 	assert.NotPanics(t, func() { state, err = blockExec.ApplyBlock(state, blockID, block) })
 	assert.NotNil(t, err)
 	assert.NotEmpty(t, state.NextValidators.Validators)
+}
+
+// TestGetBeginBlockLastCommitInfo_InitialHeight verifies that
+// getBeginBlockLastCommitInfo does not panic when the chain starts at
+// InitialHeight > 1.  In that case the genesis block (e.g. height 100) has
+// an empty LastBlockID (no real previous block) and the stateDB contains no
+// validator-set entry for height 99 — because the chain never had a block at
+// that height.
+func TestGetBeginBlockLastCommitInfo_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(100)
+
+	// Build a genesis block at initialHeight with zero LastBlockID (no prev block).
+	state, stateDB, _ := makeState(1, 1)
+	state.InitialHeight = initialHeight
+	state.LastBlockHeight = initialHeight - 1
+
+	emptyCommit := types.NewCommit(types.BlockID{}, nil)
+	block, _ := state.MakeBlock(initialHeight, nil, emptyCommit, state.Validators.GetProposer().Address)
+
+	// The stateDB has no validator set saved at height initialHeight-1
+	// because the chain never produced blocks before initialHeight.
+	// Before the fix this panics with "Could not find validator set for height #99".
+	assert.NotPanics(t, func() {
+		info := sm.GetBeginBlockLastCommitInfo(block, state, stateDB)
+		// Genesis block: no votes
+		assert.Empty(t, info.Votes)
+	})
 }

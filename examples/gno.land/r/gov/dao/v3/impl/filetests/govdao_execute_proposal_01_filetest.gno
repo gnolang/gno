@@ -19,36 +19,36 @@ var (
 	govdao     = impl.NewGovDAO()
 )
 
-func init() {
+func init(cur realm) {
 	// Initialize GovDAO members
-	memberstore.Get().DeleteAll()
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetMember(memberstore.T1, user, &memberstore.Member{InvitationPoints: 3})
-	dao.UpdateImpl(cross, dao.UpdateRequest{DAO: impl.NewGovDAO()})
+	memberstore.Get(0, cur).DeleteAll()
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
-	executor = dao.NewSimpleExecutor(cb, "")
+	executor = dao.NewSimpleExecutor(0, cur, cb, "")
 
 	// Create a proposal request that pass on execution
 	request := dao.NewProposalRequest("Test", "This proposal always pass on execution", executor)
 
 	// Create the proposal from a realm so GovDAO instance is able to render the proposal
 	testing.SetRealm(testing.NewUserRealm(user))
-	proposalID = dao.MustCreateProposal(cross, request)
+	proposalID = dao.MustCreateProposal(cross(cur), request)
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
 	// Register proposal with the local GovDAO instance
-	govdao.PostCreateProposal(request, proposalID)
+	govdao.PostCreateProposal(0, cur, request, proposalID)
 }
 
-func main() {
+func main(cur realm) {
 	// Execute proposal, status should be ACTIVE
-	err := govdao.ExecuteProposal(proposalID, executor)
+	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
 
 	println(err == nil)
 	println()
-	println(govdao.Render("gno.land/r/gov/dao/v3/impl", renderPath))
+	println(govdao.Render(cross(cur), "gno.land/r/gov/dao/v3/impl", renderPath))
 }
 
 // Output:

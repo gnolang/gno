@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+```
+[not a link](/url)
+```
+-- output.md --
+
+
+```
+[not a link](/url)
+```
+
+-- output.html --
+<pre><code>[not a link](/url)
+</code></pre>

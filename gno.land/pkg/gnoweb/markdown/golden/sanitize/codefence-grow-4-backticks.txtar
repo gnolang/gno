@@ -1,0 +1,10 @@
+// MARKDOWNFUNC: CodeFence
+// ARGS: 3
+// CONTEXT: %s\ncontent with ```` four ticks inside\n%s
+-- input.md --
+content with ```` four ticks inside
+-- output.md --
+`````
+-- output.html --
+<pre><code>content with ```` four ticks inside
+</code></pre>

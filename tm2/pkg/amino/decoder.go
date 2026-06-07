@@ -51,6 +51,37 @@ func DecodeVarint(bz []byte) (i int64, n int, err error) {
 	return
 }
 
+// DecodePlainVarint decodes a plain protobuf varint (proto int64). Counterpart
+// to DecodeVarint, but for fields tagged binary:"varint" rather than the
+// default zigzag encoding.
+func DecodePlainVarint(bz []byte) (i int64, n int, err error) {
+	u, n := binary.Uvarint(bz)
+	if n == 0 {
+		err = errors.New("buffer too small")
+		return
+	} else if n < 0 {
+		n = -n
+		err = errors.New("EOF decoding plain varint")
+		return
+	}
+	i = int64(u)
+	return
+}
+
+// DecodePlainVarint32 decodes a plain protobuf varint and range-checks into int32.
+func DecodePlainVarint32(bz []byte) (i int32, n int, err error) {
+	v, n, err := DecodePlainVarint(bz)
+	if err != nil {
+		return
+	}
+	if v < int64(math.MinInt32) || v > int64(math.MaxInt32) {
+		err = errors.New("plain varint int32 overflow")
+		return
+	}
+	i = int32(v)
+	return
+}
+
 func DecodeInt32(bz []byte) (i int32, n int, err error) {
 	const size int = 4
 	if len(bz) < size {

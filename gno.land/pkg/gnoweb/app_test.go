@@ -2,15 +2,20 @@ package gnoweb
 
 import (
 	"fmt"
+	"html"
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/rs/xid"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +27,40 @@ const (
 	notFound   = http.StatusNotFound
 	badRequest = http.StatusBadRequest
 )
+
+// Booting an in-memory node loads and runs every example package from genesis
+// — by far the dominant cost of this package's tests. The gnoweb tests only
+// query the node (read-only GETs), so a single node is shared across them all
+// instead of booting one per test. It is created lazily so mock-based tests
+// (handler/renderer) that never touch a node don't pay the boot cost, and
+// torn down in TestMain.
+var (
+	sharedNodeOnce sync.Once
+	sharedNode     *node.Node
+	sharedNodeAddr string
+)
+
+func sharedNodeRemote(t *testing.T) string {
+	t.Helper()
+	sharedNodeOnce.Do(func() {
+		rootdir := gnoenv.RootDir()
+		genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
+		sharedNode, sharedNodeAddr = integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	})
+	// If the boot above failed, only the test that ran the Once fails; bail
+	// out here so later tests don't run against an empty remote.
+	require.NotEmpty(t, sharedNodeAddr, "shared in-memory node failed to boot")
+	return sharedNodeAddr
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedNode != nil {
+		_ = sharedNode.Stop()
+	}
+	os.Exit(code)
+}
 
 func TestRoutes(t *testing.T) {
 	var (
@@ -76,6 +115,7 @@ func TestRoutes(t *testing.T) {
 			// Test special endpoints
 			{"/liveness", ok, `{"status":"ok"}`},
 			{"/ready", ok, `{"status":"ready"}`},
+			{"/search.json", ok, `realms`}, // realm/package discovery list (JSON key always present)
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file
@@ -87,13 +127,9 @@ func TestRoutes(t *testing.T) {
 		}
 	)
 
-	// Setup the logger and node
+	// Use the shared in-memory node (see TestMain).
 	logger := log.NewTestingLogger(t)
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-	defer node.Stop()
+	remoteAddr := sharedNodeRemote(t)
 
 	// Initialize the router with the current node's remote address
 	cfg := NewDefaultAppConfig()
@@ -119,11 +155,7 @@ func TestStaticMarkdownDevLinks(t *testing.T) {
 	t.Parallel()
 
 	logger := log.NewTestingLogger(t)
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-	t.Cleanup(func() { node.Stop() })
+	remoteAddr := sharedNodeRemote(t)
 
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
@@ -181,11 +213,7 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
-	defer node.Stop()
+	remoteAddr := sharedNodeRemote(t)
 
 	t.Run("enabled", func(t *testing.T) {
 		for _, route := range routes {
@@ -203,7 +231,12 @@ func TestAnalytics(t *testing.T) {
 
 				router.ServeHTTP(response, request)
 
-				assert.Contains(t, response.Body.String(), "sa.gno.services")
+				body := response.Body.String()
+				assert.Contains(t, body, "sa.gno.services")
+				assert.Contains(t, body, "js/analytics.js")
+				assert.Contains(t, body, "js/sa-bootstrap.js")
+				assert.Contains(t, body, "auto-events.js")
+				assert.Regexp(t, `data-page-type="[a-z]+"`, body, "page_type must populate with a non-empty enum value")
 			})
 		}
 	})
@@ -226,6 +259,63 @@ func TestAnalytics(t *testing.T) {
 				assert.NotContains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
+	})
+
+	t.Run("page_type", func(t *testing.T) {
+		// Verifies ClassifyPageType's output reaches the sa-bootstrap data-page-type
+		// attribute (which seeds window.sa_metadata client-side) for representative
+		// routes.
+		expected := map[string]string{
+			"/":                         "home",
+			"/r/gnoland/blog":           "realm",
+			"/r/gnoland/blog$help":      "help",
+			"/r/gnoland/blog/admin.gno": "source",
+			"/r/sys/users":              "realm",
+		}
+
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		cfg.Analytics = true
+		logger := log.NewTestingLogger(t)
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		for route, pageType := range expected {
+			t.Run(route, func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodGet, route, nil)
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, request)
+
+				body := response.Body.String()
+				want := fmt.Sprintf(`data-page-type="%s"`, pageType)
+				assert.Contains(t, body, want, "route %q should emit %s", route, want)
+			})
+		}
+	})
+
+	t.Run("path_overwriter_sanitizes_args", func(t *testing.T) {
+		// The SimpleAnalytics path-overwriter reports a sanitized path so
+		// user-supplied function arguments in the URL never reach SA.
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		cfg.Analytics = true
+		logger := log.NewTestingLogger(t)
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		request := httptest.NewRequest(http.MethodGet, "/r/gnoland/blog$help&func=Render&body=topsecret", nil)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		body := response.Body.String()
+		assert.Contains(t, body, `data-path-overwriter="gnoSaPath"`, "latest.js must register the path-overwriter")
+
+		m := regexp.MustCompile(`data-sa-path="([^"]*)"`).FindStringSubmatch(body)
+		require.NotNil(t, m, "data-sa-path attribute must be present")
+		saPath := html.UnescapeString(m[1])
+		assert.Contains(t, saPath, "func=Render", "exported func name should be preserved")
+		assert.Contains(t, saPath, "body=redacted", "user argument value should be masked")
+		assert.NotContains(t, saPath, "topsecret", "raw user argument value must not leak to analytics")
 	})
 }
 
@@ -260,12 +350,8 @@ func TestHealthEndpoints(t *testing.T) {
 	})
 
 	t.Run("healthy", func(t *testing.T) {
-		// Setup node
-		rootdir := gnoenv.RootDir()
-		genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-		node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-		defer node.Stop()
+		// Use the shared in-memory node (see TestMain).
+		remoteAddr := sharedNodeRemote(t)
 
 		// Initialize the router with the current node's remote address
 		cfg := NewDefaultAppConfig()

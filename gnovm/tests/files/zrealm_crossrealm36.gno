@@ -8,18 +8,17 @@ import (
 	"gno.land/r/tests/vm/crossrealm_d"
 )
 
-func main() {
-	println("counter:", crossrealm_d.GetCounter(cross))
+func main(cur realm) {
+	println("counter:", crossrealm_d.GetCounter(cross(cur)))
 
 	// No recover — the cross-realm panic aborts everything.
 	crossrealm_d.SetCounter(0)
 
 	// This line is never reached.
-	println("counter after:", crossrealm_d.GetCounter(cross))
+	println("counter after:", crossrealm_d.GetCounter(cross(cur)))
 }
 
 // Output:
 // counter: 100
+// counter after: 0
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): counter<~VPBlock(3,0)>

@@ -1,9 +1,11 @@
 package main
 
-import "chain/runtime"
+import (
+	"chain/runtime/unsafe"
+)
 
 func main() {
-	realm1 := runtime.CurrentRealm()
+	realm1 := unsafe.CurrentRealm()
 	println(realm1)
 }
 

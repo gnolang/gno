@@ -105,6 +105,8 @@ func TestMachineString(t *testing.T) {
     Blocks:
     Blocks (other):
     Frames:
+    Realm:
+      std
 `,
 		},
 		{
@@ -135,6 +137,8 @@ func TestMachineString(t *testing.T) {
     Blocks:
     Blocks (other):
     Frames:
+    Realm:
+      std
 `,
 		},
 	}

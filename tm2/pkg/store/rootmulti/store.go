@@ -31,6 +31,13 @@ type multiStore struct {
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
 	keysByName   map[string]types.StoreKey
+
+	// initialVersion, when > 0 and lastCommitID.Version == 0, is the version
+	// the next Commit() will produce. Set once via SetInitialVersion (called
+	// from BaseApp.InitChain when GenesisDoc.InitialHeight > 1) and consumed
+	// on the first Commit; not persisted (after the first commit,
+	// lastCommitID.Version is the source of truth).
+	initialVersion int64
 }
 
 var (
@@ -173,8 +180,15 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) Commit() types.CommitID {
-	// Commit stores.
-	version := ms.lastCommitID.Version + 1
+	// Commit stores. For hardfork chains (InitialHeight > 1), the first commit
+	// must land at the chain's InitialHeight so multistore version equals
+	// real chain height. Subsequent commits auto-increment.
+	var version int64
+	if ms.lastCommitID.Version == 0 && ms.initialVersion > 0 {
+		version = ms.initialVersion
+	} else {
+		version = ms.lastCommitID.Version + 1
+	}
 	commitInfo := commitStores(version, ms.stores)
 
 	// Need to update atomically.
@@ -191,6 +205,27 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	ms.lastCommitID = commitID
 	return commitID
+}
+
+// SetInitialVersion records the version the next Commit() should produce
+// when the multistore is empty, and propagates it to substores that
+// implement types.InitialVersionSetter (e.g. iavl). Stores that don't
+// merkleize (e.g. dbadapter) are silently skipped.
+//
+// Must be called AFTER LoadLatestVersion (or LoadVersion) has populated
+// ms.stores. BaseApp.InitChain is the canonical caller, which runs after
+// LoadLatestVersion as part of normal startup. Implements
+// types.InitialVersionSetter.
+func (ms *multiStore) SetInitialVersion(v int64) {
+	if len(ms.stores) == 0 {
+		panic("rootmulti: SetInitialVersion called before LoadLatestVersion")
+	}
+	ms.initialVersion = v
+	for _, store := range ms.stores {
+		if setter, ok := store.(types.InitialVersionSetter); ok {
+			setter.SetInitialVersion(v)
+		}
+	}
 }
 
 // ----------------------------------------

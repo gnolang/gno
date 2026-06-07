@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 const (
@@ -62,7 +62,7 @@ type (
 		creator        address
 		record         *VotingRecord // TODO: Add support for multiple voting records
 		statusReason   string
-		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
+		voteChoices    *bptree.BPTree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
 		createdAt      time.Time
 	}
@@ -126,7 +126,12 @@ func MustValidate(v Validable) {
 }
 
 // MustExecute executes an executable proposal or panics on error.
-func MustExecute(e Executable) {
+//
+// rlm is the realm authority threaded into the executor via cross(rlm).
+// MustExecute itself is not a crossing function (rlm sits in a non-first
+// parameter slot) because /p/ production code cannot declare crossing
+// functions — callers pass `cur` directly as the rlm argument.
+func MustExecute(e Executable, rlm realm) {
 	if e == nil {
 		panic("executable proposal definition is nil")
 	}
@@ -136,7 +141,7 @@ func MustExecute(e Executable) {
 		return
 	}
 
-	if err := fn(cross); err != nil {
+	if err := fn(cross(rlm)); err != nil {
 		panic(err)
 	}
 }
@@ -158,7 +163,7 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 		definition:     d,
 		creator:        creator,
 		record:         &VotingRecord{},
-		voteChoices:    avl.NewTree(),
+		voteChoices:    bptree.NewBPTree32(),
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
 	}

@@ -13,7 +13,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Admin    = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -68,7 +68,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Explore the Ecosystem](/ecosystem)
 - [Careers](https://jobs.ashbyhq.com/allinbits)
 
-|||
+<gno-columns-sep>
 
 ## Build with Gno
 
@@ -78,7 +78,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
-|||
+<gno-columns-sep>
 
 ## Explore the universe
 
@@ -97,7 +97,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 :latest-blogposts:
 
-|||
+<gno-columns-sep>
 
 ## [Latest Events](/events)
 
@@ -132,7 +132,7 @@ Official realm packages developed by the Gno.land core team.
 
 [Browse](/r/gnoland)
 
-|||
+<gno-columns-sep>
 
 ### r/sys
 
@@ -140,7 +140,7 @@ System-level realm packages used by the chain.
 
 [Browse](/r/sys)
 
-|||
+<gno-columns-sep>
 
 ### r/demo
 
@@ -148,7 +148,7 @@ Demo realm packages showcasing what’s possible.
 
 [Browse](/r/demo)
 
-|||
+<gno-columns-sep>
 
 ### p/demo
 
@@ -170,7 +170,7 @@ Pure packages for demo purposes.
 - [Youtube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)
 
-|||
+<gno-columns-sep>
 
 ## Quote of the ~Day~ Block #:chain-height:
 
@@ -223,12 +223,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwned()
+	Admin.AssertOwnedBy(cur.Previous().Address())
 	override = content
 }
 
 func AdminTransferOwnership(cur realm, newOwner address) {
-	if err := Admin.TransferOwnership(newOwner); err != nil {
+	if err := Admin.TransferOwnership(0, cur, newOwner); err != nil {
 		panic(err)
 	}
 }

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_repost_00_filetest
+
+package z_create_repost_00_filetest
 
 import (
 	"testing"
@@ -16,20 +18,20 @@ var (
 	srcTID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross, "src-board", false, false)
-	dstBID = boards2.CreateBoard(cross, "dst-board", false, false)
+	srcBID = boards2.CreateBoard(cross(cur), "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "dst-board", false, false)
 
-	srcTID = boards2.CreateThread(cross, srcBID, "Foo", "bar")
-	boards2.FlagThread(cross, srcBID, srcTID, "idk")
+	srcTID = boards2.CreateThread(cross(cur), srcBID, "Foo", "bar")
+	boards2.FlagThread(cross(cur), srcBID, srcTID, "idk")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Repost should fail if source thread is flagged
-	boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "foo", "bar")
+	boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "foo", "bar")
 }
 
 // Error:

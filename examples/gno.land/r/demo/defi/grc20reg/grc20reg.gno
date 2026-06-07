@@ -2,7 +2,6 @@ package grc20reg
 
 import (
 	"chain"
-	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -13,11 +12,19 @@ import (
 )
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
+
+// Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
+// and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
+// Use this package's Register to make a token discoverable:
+//
+//	Token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
+//	grc20reg.Register(cross, Token, "")
+
 func Register(cur realm, token *grc20.Token, slug string) {
 	if slug != "" {
 		validateSlug(slug)
 	}
-	rlmPath := runtime.PreviousRealm().PkgPath()
+	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
 	chain.Emit(

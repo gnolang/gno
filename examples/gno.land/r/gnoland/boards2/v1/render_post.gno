@@ -9,12 +9,19 @@ import (
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/markdown/foreign/v0"
 	"gno.land/p/nt/mdalert/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-func renderPost(post *boards.Post, path, indent string, levels int) string {
+// renderPost renders a post and (unless it's a leaf or capped) its replies.
+// desc is the page's sort order, forwarded so a comment's nested inline
+// children (renderSubReplies) match the order of the view they appear in. It
+// is unused for the top-level/re-root call (path != "" routes to
+// renderTopLevelReplies, which derives the order from the path); those
+// callers pass false.
+func renderPost(post *boards.Post, path, indent string, levels int, budget *int, desc bool) string {
 	var b strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
@@ -32,27 +39,32 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	}
 
 	b.WriteString(indent + "\n")
-	b.WriteString(renderPostContent(post, indent, levels))
+	b.WriteString(renderPostContent(post, indent, levels, budget))
 
 	if post.Replies.Size() == 0 {
 		return b.String()
 	}
 
-	// XXX: This triggers for reply views
+	// In practice this only fires for the re-rooted view's context-parent,
+	// which renderPostInner renders with an explicit levels==0. The thread
+	// recursion does levels-1 in BOTH renderPost and renderTopLevelReplies/
+	// renderSubReplies, so levels drops by 2 per nesting level and skips 0 —
+	// i.e. levels does NOT bound depth in the thread view; the render budget
+	// and the per-node breadth cap (renderSubReplies) are the real bounds.
 	if levels == 0 {
 		b.WriteString(indent + "\n")
 		return b.String()
 	}
 
 	if path != "" {
-		b.WriteString(renderTopLevelReplies(post, path, indent, levels-1))
+		b.WriteString(renderTopLevelReplies(post, path, indent, levels-1, budget))
 	} else {
-		b.WriteString(renderSubReplies(post, indent, levels-1))
+		b.WriteString(renderSubReplies(post, indent, levels-1, budget, desc))
 	}
 	return b.String()
 }
 
-func renderPostContent(post *boards.Post, indent string, levels int) string {
+func renderPostContent(post *boards.Post, indent string, levels int, budget *int) string {
 	var b strings.Builder
 
 	// Author and date header
@@ -75,7 +87,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		return b.String()
 	}
 
-	srcContent, srcPost := renderSourcePost(post, indent)
+	srcContent, srcPost := renderSourcePost(post, indent, budget)
 	if boards.IsRepost(post) && srcPost != nil {
 		msg := ufmt.Sprintf(
 			"Original thread is %s  \nCreated by %s on %s",
@@ -90,7 +102,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 
 	// Render repost body before original thread's body
 	if post.Body != "" {
-		b.WriteString(indentBody(indent, post.Body) + "\n")
+		b.WriteString(indentForeignBody(indent, post.Body, budget) + "\n")
 		if srcContent != "" {
 			// Add extra line to separate repost content from original thread content
 			b.WriteString("\n")
@@ -129,6 +141,15 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
+	// A reply doesn't carry the thread's frozen flag (FreezeThread sets
+	// Readonly on the thread post only), so check the enclosing thread too —
+	// otherwise a frozen thread's replies show Reply/Edit/Delete links that
+	// the backend rejects. Mirrors the IsReadonly helper (board || thread).
+	if !isReadonly && !boards.IsThread(post) {
+		if t, ok := getThread(post.Board, post.ThreadID); ok {
+			isReadonly = t.Readonly
+		}
+	}
 	if !isReadonly {
 		replyLabel := "Reply"
 		if boards.IsThread(post) {
@@ -149,10 +170,15 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 	}
 
 	if levels == 0 {
-		if boards.IsThread(post) {
+		switch {
+		case boards.IsThread(post):
 			actions = append(actions, md.Link("Show all Replies", makeThreadURI(post)))
-		} else {
-			actions = append(actions, md.Link("View Thread", makeThreadURI(post)))
+		case post.Replies.Size() > 0:
+			// Reached at levels==0 — in practice the re-rooted view's
+			// context-parent (see renderPost). It still has replies below, so
+			// re-root here (Reddit/HN "continue this thread") to keep the
+			// subtree drillable instead of bouncing to the thread root.
+			actions = append(actions, md.Link("Continue this thread →", makeReplyURI(post)))
 		}
 	}
 
@@ -160,7 +186,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 	return b.String()
 }
 
-func renderPostInner(post *boards.Post) string {
+func renderPostInner(post *boards.Post, path string) string {
 	if boards.IsThread(post) {
 		return ""
 	}
@@ -169,6 +195,7 @@ func renderPostInner(post *boards.Post) string {
 		s         string
 		threadID  = post.ThreadID
 		thread, _ = getThread(post.Board, threadID)
+		budget    = maxRenderedBodies()
 	)
 
 	// Fully render parent if it's not a repost.
@@ -180,14 +207,18 @@ func renderPostInner(post *boards.Post) string {
 			parent, _ = getReply(thread, parentID)
 		}
 
-		s += renderPost(parent, "", "", 0) + "\n"
+		s += renderPost(parent, "", "", 0, &budget, false) + "\n"
 	}
 
-	s += renderPost(post, "", "> ", 5)
+	// Pass the reply's own path so renderPost routes to renderTopLevelReplies
+	// and paginates this comment's direct replies (the re-root has its own
+	// ?page= — no collision with the thread view, which is a different path).
+	// desc=false: order is derived from path by renderTopLevelReplies.
+	s += renderPost(post, path, "> ", 5, &budget, false)
 	return s
 }
 
-func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
+func renderSourcePost(post *boards.Post, indent string, budget *int) (string, *boards.Post) {
 	if !boards.IsRepost(post) {
 		return "", nil
 	}
@@ -210,7 +241,7 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 		return indentBody(indent, "⚠ Source post has been flagged as inappropriate"), nil
 	}
 
-	return indentBody(indent, srcPost.Body) + "\n\n", srcPost
+	return indentForeignBody(indent, srcPost.Body, budget) + "\n\n", srcPost
 }
 
 func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
@@ -225,7 +256,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -242,7 +273,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 
@@ -347,7 +378,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -366,7 +397,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 
@@ -384,7 +415,10 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	flags.Iterate(0, flags.Size(), func(f boards.Flag) bool {
-		table.Append([]string{userLink(f.User), f.Reason})
+		// f.Reason is user-supplied (only trimmed at write); escape it so a
+		// flag reason can't inject markdown (links/images) or HTML into the
+		// reasons table. md.EscapeText leaves '|' for mdtable to escape.
+		table.Append([]string{userLink(f.User), md.EscapeText(f.Reason)})
 		return false
 	})
 
@@ -426,7 +460,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	rawID := req.GetVar("thread")
 	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
+		res.Write("Invalid thread ID: " + md.EscapeText(rawID))
 		return
 	}
 
@@ -443,7 +477,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	if isReply {
 		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + rawID)
+			res.Write("Invalid reply ID: " + md.EscapeText(rawID))
 			return
 		}
 
@@ -498,7 +532,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(ufmt.Sprintf("Replying to a comment posted by %s:", userLink(reply.Creator))) +
-				md.Blockquote(reply.Body),
+				foreign.ForeignWithLabel("Quoted comment", reply.Body),
 		)
 	} else {
 		res.Write(md.H1(board.Name + ": Comment"))

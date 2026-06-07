@@ -178,7 +178,9 @@ Gno has a few custom builtin types & keywords that are used for handling Gno-spe
 cases:
 - `realm` - represents a Realm object
 - `address` - represents a Gno address
-- `cross` - passed as a `realm` type argument during a [crossing call](./gno-interrealm.md)
+- `cross(rlm)` - validates `rlm` is the current realm and passes it as the
+  `realm` type argument of a [crossing call](./gno-interrealm.md), e.g.
+  `fn(cross(cur), ...)`
 
 ### `address`
 

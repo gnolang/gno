@@ -168,43 +168,43 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 
 ## Benchmark gap analysis
 
-### Status: 350 benchmarks in bench_ops_test.go (as of 2026-03-14)
+### Status: 350 benchmarks in bench_ops_test.go
 
-### Previously missing — now DONE
+### Covered
 
-1. ~~isEql ArrayKind~~ — BenchmarkOpEql_Array_{1,10,100,1000}
-2. ~~isEql StructKind~~ — BenchmarkOpEql_Struct_{1,10,100,1000}
-3. ~~doOpConvert String→[]rune~~ — BenchmarkOpConvert_StringToRunes_{1,10,100,1000}
-4. ~~doOpConvert []rune→String~~ — BenchmarkOpConvert_RunesToString_{1,10,100,1000}
-5. ~~doOpSelector VPValMethod~~ — BenchmarkOpSelector_VPValMethod
-6. ~~doOpSelector VPInterface~~ — BenchmarkOpSelector_VPInterface_{1,10,100}
-7. ~~doOpTypeAssert1 interface~~ — BenchmarkOpTypeAssert1_Interface_{1,10,100}
-8. ~~doOpTypeAssert2 interface~~ — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
-9. ~~doOpFuncLit with captures~~ — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
-10. ~~doOpCall~~ — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
-11. ~~doOpReturn~~ — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
-12. ~~doOpDefer~~ — BenchmarkOpDefer_{1,10,100}Args
-13. ~~doOpExec OpForLoop~~ — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
-14. ~~doOpExec OpRangeIter~~ — BenchmarkOpRangeIter_{1,10,100,1000}
-15. ~~doOpExec OpRangeIterString~~ — BenchmarkOpRangeIterString_{1,10,100,1000}
-16. ~~doOpExec OpRangeIterMap~~ — BenchmarkOpRangeIterMap_{1,10,100,1000}
-17. ~~doOpIfCond~~ — BenchmarkOpIfCond_TrueBranch + FalseBranch
-18. ~~doOpTypeSwitch~~ — BenchmarkOpTypeSwitch_{1,10,100} + Interface_{1,10,100}
-19. ~~doOpSwitchClauseCase~~ — BenchmarkOpSwitchClauseCase_{Match,Miss}
-20. ~~doOpEval NameExpr~~ — BenchmarkOpEval_NameExpr_Depth{1,10,100}
-21. ~~doOpEval BasicLitExpr~~ — BenchmarkOpEval_BasicLitInt_{Small,Large,Hex} + String
-22. ~~doOpValueDecl~~ — BenchmarkOpValueDecl_{DefaultInt,DefaultArray,DefaultStruct}
-23. ~~doOpPrecall~~ — BenchmarkOpPrecall_{FuncValue,TypeConversion,BoundMethod}
-24. ~~doOpPanic2~~ — BenchmarkOpPanic2
-25. ~~BenchmarkOpEql~~ — + Array, Struct, ByteArray, String parameterized
-26. ~~BenchmarkOpSelector~~ — + VPValMethod, VPInterface parameterized
-27. ~~BenchmarkOpArrayLit~~ — + Uint8 variant
-28. ~~BenchmarkOpConvert_StringToBytes~~ — + StringToRunes, RunesToString
-29. ~~BigInt/BigDec~~ — 14 BigInt ops × 4 bit-lengths + 11 asymmetric + 7 BigDec ops × 4 precisions
-30. ~~String ops~~ — Add, Eql, Lss, Convert, Index1_MapStringKey, Slice × 4 lengths
-31. ~~Byte-array ops~~ — Eql, ArrayLit_Uint8, Index1, Slice × 4 sizes
+1. isEql ArrayKind — BenchmarkOpEql_Array_{1,10,100,1000}
+2. isEql StructKind — BenchmarkOpEql_Struct_{1,10,100,1000}
+3. doOpConvert String→[]rune — BenchmarkOpConvert_StringToRunes_{1,10,100,1000}
+4. doOpConvert []rune→String — BenchmarkOpConvert_RunesToString_{1,10,100,1000}
+5. doOpSelector VPValMethod — BenchmarkOpSelector_VPValMethod
+6. doOpSelector VPInterface — BenchmarkOpSelector_VPInterface_{1,10,100}
+7. doOpTypeAssert1 interface — BenchmarkOpTypeAssert1_Interface_{1,10,100}
+8. doOpTypeAssert2 interface — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
+9. doOpFuncLit with captures — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
+10. doOpCall — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
+11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
+12. doOpDefer — BenchmarkOpDefer_{1,10,100}Args
+13. doOpExec OpForLoop — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
+14. doOpExec OpRangeIter — BenchmarkOpRangeIter_{1,10,100,1000}
+15. doOpExec OpRangeIterString — BenchmarkOpRangeIterString_{1,10,100,1000}
+16. doOpExec OpRangeIterMap — BenchmarkOpRangeIterMap_{1,10,100,1000}
+17. doOpIfCond — BenchmarkOpIfCond_TrueBranch + FalseBranch
+18. doOpTypeSwitch — BenchmarkOpTypeSwitch_{1,10,100} + Interface_{1,10,100}
+19. doOpSwitchClauseCase — BenchmarkOpSwitchClauseCase_{Match,Miss}
+20. doOpEval NameExpr — BenchmarkOpEval_NameExpr_Depth{1,10,100}
+21. doOpEval BasicLitExpr — BenchmarkOpEval_BasicLitInt_{Small,Large,Hex} + String
+22. doOpValueDecl — BenchmarkOpValueDecl_{DefaultInt,DefaultArray,DefaultStruct}
+23. doOpPrecall — BenchmarkOpPrecall_{FuncValue,TypeConversion,BoundMethod}
+24. doOpPanic2 — BenchmarkOpPanic2
+25. BenchmarkOpEql — + Array, Struct, ByteArray, String parameterized
+26. BenchmarkOpSelector — + VPValMethod, VPInterface parameterized
+27. BenchmarkOpArrayLit — + Uint8 variant
+28. BenchmarkOpConvert_StringToBytes — + StringToRunes, RunesToString
+29. BigInt/BigDec — 14 BigInt ops × 4 bit-lengths + 11 asymmetric + 7 BigDec ops × 4 precisions
+30. String ops — Add, Eql, Lss, Convert, Index1_MapStringKey, Slice × 4 lengths
+31. Byte-array ops — Eql, ArrayLit_Uint8, Index1, Slice × 4 sizes
 
-### Also done (code changes, not just benchmarks)
+### Related code changes (not just benchmarks)
 
 - **bytes.Equal fast path** in `isEql` for byte array comparison (~850x speedup)
 - **gcVisitGasTable** replacing flat `VisitCpuFactor=8` with heap-size-aware lookup table

@@ -75,8 +75,10 @@ func TestIndexLayout(t *testing.T) {
 
 func TestEnrichFooterData(t *testing.T) {
 	data := FooterData{
-		Analytics:  true,
-		AssetsPath: "/assets",
+		Analytics: AnalyticsData{
+			Enabled:    true,
+			AssetsPath: "/assets",
+		},
 	}
 
 	enrichedData := EnrichFooterData(data)

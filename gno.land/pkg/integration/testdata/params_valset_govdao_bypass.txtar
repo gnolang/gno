@@ -33,21 +33,21 @@ gnokey query params/node:valset:current
 stdout 'gpub1'
 
 # 1) Strings factory targeting node:valset:proposed — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_strings.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_strings.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 2) Bytes factory targeting node:valset:proposed — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 3) Bool factory targeting node:valset:dirty — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_bool.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bool.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 4) Positive control: a legitimate non-valset write through the same
 # factory family must still succeed. (Construction; we don't execute
 # the proposal — just prove proposal-creation doesn't panic.)
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/legit_nonvalset.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/legit_nonvalset.gno
 stdout OK!
 
 # Post-state: valset:current and valset:dirty unchanged. The
@@ -66,12 +66,12 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
+func main(cur realm) {
 	// Forge a fake-but-format-valid pubkey so WillSetParam wouldn't
 	// reject on entry parse if F1 ever silently regresses. F1 must
 	// panic before we get that far.
 	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
-	_ = sysparams.NewSysParamStringsPropRequest("node", "valset", "proposed", []string{fakePubKey + ":1000000"})
+	_ = sysparams.NewSysParamStringsPropRequest(cross(cur), "node", "valset", "proposed", []string{fakePubKey + ":1000000"})
 }
 
 -- run/bypass_bytes.gno --
@@ -79,8 +79,8 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
-	_ = sysparams.NewSysParamBytesPropRequest("node", "valset", "proposed", []byte("garbage"))
+func main(cur realm) {
+	_ = sysparams.NewSysParamBytesPropRequest(cross(cur), "node", "valset", "proposed", []byte("garbage"))
 }
 
 -- run/bypass_bool.gno --
@@ -88,8 +88,8 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
-	_ = sysparams.NewSysParamBoolPropRequest("node", "valset", "dirty", true)
+func main(cur realm) {
+	_ = sysparams.NewSysParamBoolPropRequest(cross(cur), "node", "valset", "dirty", true)
 }
 
 -- run/legit_nonvalset.gno --
@@ -100,11 +100,11 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	// vm:p:chain_domain is a normal governance-managed key. F1 must
 	// not over-reject it.
-	pr := sysparams.NewSysParamStringPropRequest("vm", "p", "chain_domain", "test.land")
-	dao.MustCreateProposal(cross, pr)
+	pr := sysparams.NewSysParamStringPropRequest(cross(cur), "vm", "p", "chain_domain", "test.land")
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
@@ -116,15 +116,12 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

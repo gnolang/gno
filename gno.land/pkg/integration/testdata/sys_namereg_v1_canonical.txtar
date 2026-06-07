@@ -1,0 +1,46 @@
+# End-to-end test of the unified canonical-collision detection in
+# r/sys/users (Option B). Verifies that:
+#
+#   1. user1 registers nym-balloon123 via namereg/v1 with 20 GNOT.
+#   2. user2 attempts nym-baiioon123 (canonical collision via l→i;
+#      both `balloon` and `baiioon` canonicalize to `baiioon`) and is
+#      rejected with ErrCanonicalCollision from susers.
+#   3. Same alpha stem with different digit suffixes coexists: user2
+#      successfully registers nym-balloon999 (canonical baiioon999 ≠
+#      baiioon123 because the digits are part of the canonical key).
+#
+# Uses `balloon`/`baiioon` rather than `vitalik`/`vital1k` because
+# namereg/v1's stem regex is alpha-only ([a-z]{5,13}); digits in the
+# stem fail at the format-validation layer before reaching the
+# canonical check. The unified store still detects letter-letter
+# confusables in the alpha stem.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/sys/namereg/v1
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+adduserfrom user2 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1 1
+stdout 'g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp'
+
+gnoland start
+
+# user1 registers nym-balloon123 successfully.
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stdout OK!
+
+# user2 attempts a canonical-confusable variant (l→i applied to the
+# stem). Must reject with ErrCanonicalCollision from r/sys/users — the
+# unified canonical store doing its job.
+! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-baiioon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user2
+stderr 'name collides with a confusable variant of an existing name'
+
+# Same alpha stem with different digit suffix is a DIFFERENT canonical
+# string (decision #2: store keyed by full canonical name). user2 can
+# register nym-balloon999 — does not collide with user1's nym-balloon123.
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon999' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user2
+stdout OK!

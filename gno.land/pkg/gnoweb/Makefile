@@ -35,7 +35,7 @@ output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_st
 # esbuild config
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
-input_js := $(shell find $(src_dir_js) -name '*.ts')
+input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts')
 # Separate shared and controller files
 shared_js := $(src_dir_js)/controller.ts
 controller_js := $(filter-out $(shared_js),$(input_js))
@@ -86,6 +86,12 @@ ts: $(esbuild) $(output_js)
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
 	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
+
+# sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
+# parsing until executed and guarantees window.sa_metadata is set before SA's
+# async latest.js loads. It must be an IIFE, not an ES module.
+$(out_dir_js)/sa-bootstrap.js: $(src_dir_js)/sa-bootstrap.ts $(esbuild)
+	NODE_ENV=production $(esbuild) $< --log-level=error --outfile=$@ --format=iife --minify
 
 # Build controller files with shared chunk reference
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js

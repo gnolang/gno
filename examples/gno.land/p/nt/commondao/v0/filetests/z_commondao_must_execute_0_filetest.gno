@@ -16,11 +16,11 @@ func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
 func (testPropDef) Executor() commondao.ExecFunc                { return nil }
 func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func main() {
+func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definitions has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
-	commondao.MustExecute(testPropDef{})
+	commondao.MustExecute(testPropDef{}, cur)
 	println("ok")
 }
 

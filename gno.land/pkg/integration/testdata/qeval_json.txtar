@@ -43,10 +43,10 @@ height: 0
 data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"4"},"N":"AQAAAAAAAAA="}]}
 -- getstruct.stdout.golden --
 height: 0
-data: {"results":[{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/json.User"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"0000000000000000000000000000000000000000:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"alice"}},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"HgAAAAAAAAA="}]}}]}
+data: {"results":[{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/json.User"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"0db98e7192fc2589b348ef5628ebd34f65b53e2c:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"alice"}},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"HgAAAAAAAAA="}]}}]}
 -- getslice.stdout.golden --
 height: 0
-data: {"results":[{"T":{"@type":"/gno.SliceType","Elt":{"@type":"/gno.PrimitiveType","value":"32"},"Vrd":false},"V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.ArrayValue","ObjectInfo":{"ID":"0000000000000000000000000000000000000000:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"List":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AgAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AwAAAAAAAAA="}],"Data":null},"Offset":"0","Length":"3","Maxcap":"3"}}]}
+data: {"results":[{"T":{"@type":"/gno.SliceType","Elt":{"@type":"/gno.PrimitiveType","value":"32"},"Vrd":false},"V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.ArrayValue","ObjectInfo":{"ID":"0db98e7192fc2589b348ef5628ebd34f65b53e2c:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"List":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AgAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AwAAAAAAAAA="}],"Data":null},"Offset":"0","Length":"3","Maxcap":"3"}}]}
 -- getmulti.stdout.golden --
 height: 0
 data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"hello"}},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"KgAAAAAAAAA="}]}

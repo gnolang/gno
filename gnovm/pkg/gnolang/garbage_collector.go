@@ -150,6 +150,20 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	return maxBytes - bytes, true
 }
 
+// isUverseValue reports whether v is the global .uverse package value or its
+// block — the only GC-reachable objects shared across machines.
+func isUverseValue(v Value) bool {
+	switch v := v.(type) {
+	case *PackageValue:
+		return v.PkgPath == uversePkgPath
+	case *Block:
+		if pn, ok := v.Source.(*PackageNode); ok {
+			return pn.PkgPath == uversePkgPath
+		}
+	}
+	return false
+}
+
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
 func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
@@ -158,6 +172,18 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
+		}
+
+		// The .uverse package is a process-global singleton shared by every
+		// machine (SetCachePackage(Uverse())). Counting it here would write
+		// per-machine GC state (LastGCCycle) into that shared object, so a
+		// concurrent machine's GC could skip it — making GC gas
+		// non-deterministic across parallel in-memory nodes. Its contents are
+		// already excluded from traversal by the .uverse checks in the
+		// VisitAssociated methods; exclude the package value and its block
+		// from the visit count too, so GC gas never depends on shared state.
+		if isUverseValue(v) {
+			return false
 		}
 
 		if oo, isObject := v.(Object); isObject {
