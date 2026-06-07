@@ -19,6 +19,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
@@ -46,6 +47,7 @@ type TreeBench interface {
 	Remove(key []byte) ([]byte, bool, error)
 	SaveVersion() ([]byte, int64, error)
 	LoadVersion(version int64) (int64, error)
+	Load() (int64, error)
 	DeleteVersionsTo(toVersion int64) error
 	Iterator(start, end []byte, ascending bool) (dbm.Iterator, error)
 	GetMembershipProof(key []byte) (*ics23.CommitmentProof, error)
@@ -70,12 +72,13 @@ func newIAVLTree(db dbm.DB, cacheSize int) *iavlTree {
 	return &iavlTree{t: iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())}
 }
 
-func (w *iavlTree) Set(k, v []byte) (bool, error)        { return w.t.Set(k, v) }
+func (w *iavlTree) Set(k, v []byte) (bool, error)         { return w.t.Set(k, v) }
 func (w *iavlTree) Get(k []byte) ([]byte, error)          { return w.t.Get(k) }
 func (w *iavlTree) Has(k []byte) (bool, error)            { return w.t.Has(k) }
 func (w *iavlTree) Remove(k []byte) ([]byte, bool, error) { return w.t.Remove(k) }
 func (w *iavlTree) SaveVersion() ([]byte, int64, error)   { return w.t.SaveVersion() }
 func (w *iavlTree) LoadVersion(v int64) (int64, error)    { return w.t.LoadVersion(v) }
+func (w *iavlTree) Load() (int64, error)                  { return w.t.Load() }
 func (w *iavlTree) DeleteVersionsTo(v int64) error        { return w.t.DeleteVersionsTo(v) }
 func (w *iavlTree) Iterator(start, end []byte, asc bool) (dbm.Iterator, error) {
 	return w.t.Iterator(start, end, asc)
@@ -105,12 +108,13 @@ func newBptreeTree(db dbm.DB, cacheSize int) *bptreeTree {
 	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger())}
 }
 
-func (w *bptreeTree) Set(k, v []byte) (bool, error)        { return w.t.Set(k, v) }
+func (w *bptreeTree) Set(k, v []byte) (bool, error)         { return w.t.Set(k, v) }
 func (w *bptreeTree) Get(k []byte) ([]byte, error)          { return w.t.Get(k) }
 func (w *bptreeTree) Has(k []byte) (bool, error)            { return w.t.Has(k) }
 func (w *bptreeTree) Remove(k []byte) ([]byte, bool, error) { return w.t.Remove(k) }
 func (w *bptreeTree) SaveVersion() ([]byte, int64, error)   { return w.t.SaveVersion() }
 func (w *bptreeTree) LoadVersion(v int64) (int64, error)    { return w.t.LoadVersion(v) }
+func (w *bptreeTree) Load() (int64, error)                  { return w.t.Load() }
 func (w *bptreeTree) DeleteVersionsTo(v int64) error        { return w.t.DeleteVersionsTo(v) }
 func (w *bptreeTree) Iterator(start, end []byte, asc bool) (dbm.Iterator, error) {
 	itr, err := w.t.Iterator(start, end, asc)
@@ -212,6 +216,11 @@ func makeDB(b *testing.B, backend string) dbInfo {
 	case "goleveldb":
 		dir := b.TempDir()
 		db, err := goleveldb.NewGoLevelDB("bench", dir)
+		require.NoError(b, err)
+		return dbInfo{db: db, dir: dir, cleanup: func() { db.Close() }}
+	case "pebbledb":
+		dir := b.TempDir()
+		db, err := pebbledb.NewPebbleDBWithOpts("bench", dir, pebbledb.DefaultPebbleOptions())
 		require.NoError(b, err)
 		return dbInfo{db: db, dir: dir, cleanup: func() { db.Close() }}
 	default:
