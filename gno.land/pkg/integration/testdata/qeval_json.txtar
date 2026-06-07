@@ -4,10 +4,9 @@ loadpkg gno.land/r/test/json $WORK/realm
 
 gnoland start
 
-# Query primitive int — returns Amino JSON with PrimitiveType and base64 N field.
-# Height is injected (non-zero) and matched with a regex; the data is matched by
-# distinctive substrings rather than a full golden, so the assertion tolerates
-# the post-genesis proof-block height race.
+# Height is racy (proof block), so match it with a regex and pin the data by
+# distinctive substrings rather than a full golden.
+# Query primitive int — Amino JSON with PrimitiveType and base64 N field.
 gnokey query vm/qeval_json --data "gno.land/r/test/json.GetInt()"
 stdout 'height: [1-9][0-9]*'
 stdout '"@type":"/gno.PrimitiveType","value":"32"'
@@ -24,18 +23,22 @@ stdout 'height: [1-9][0-9]*'
 stdout '"@type":"/gno.PrimitiveType","value":"4"'
 stdout '"N":"AQAAAAAAAAA="'
 
-# Query struct — should contain StructValue with fields
+# Query struct — should contain StructValue with both fields (Name, Age)
 gnokey query vm/qeval_json --data "gno.land/r/test/json.GetStruct()"
 stdout 'height: [1-9][0-9]*'
+stdout '"@type":"/gno.RefType","ID":"gno.land/r/test/json.User"'
 stdout '"@type":"/gno.StructValue"'
 stdout '"@type":"/gno.StringValue","value":"alice"'
 stdout '"N":"HgAAAAAAAAA="'
 
-# Query slice — should contain SliceValue
+# Query slice — should contain SliceValue with all three elements (1, 2, 3)
 gnokey query vm/qeval_json --data "gno.land/r/test/json.GetSlice()"
 stdout 'height: [1-9][0-9]*'
 stdout '"@type":"/gno.SliceValue"'
 stdout '"Length":"3"'
+stdout '"N":"AQAAAAAAAAA="'
+stdout '"N":"AgAAAAAAAAA="'
+stdout '"N":"AwAAAAAAAAA="'
 
 # Query multiple return values — results array has multiple elements
 gnokey query vm/qeval_json --data "gno.land/r/test/json.GetMulti()"

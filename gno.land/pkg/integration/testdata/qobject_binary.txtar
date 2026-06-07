@@ -6,9 +6,8 @@ loadpkg gno.land/r/test/objbin $WORK/realm
 
 gnoland start
 
-# Discover the HeapItemValue ObjectID via qeval_json. Height is injected
-# (non-zero) and matched with a regex; data matched by distinctive substrings
-# to tolerate the proof-block height race.
+# Discover the HeapItemValue ObjectID via qeval_json. Height is racy, so match
+# it with a regex and pin the data by substrings.
 gnokey query vm/qeval_json --data "gno.land/r/test/objbin.GetPointer()"
 stdout 'height: [1-9][0-9]*'
 stdout '"@type":"/gno.PointerValue"'

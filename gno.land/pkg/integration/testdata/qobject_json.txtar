@@ -17,8 +17,7 @@ stderr 'object not found'
 stderr 'invalid expression'
 
 # qeval_json: verify RefValue with ObjectID appears for persisted pointer.
-# Height is injected (non-zero) and matched with a regex; data matched by
-# distinctive substrings to tolerate the proof-block height race.
+# Height is racy, so match it with a regex and pin the data by substrings.
 gnokey query vm/qeval_json --data "gno.land/r/test/obj.GetPointer()"
 stdout 'height: [1-9][0-9]*'
 stdout '"@type":"/gno.PointerValue"'
