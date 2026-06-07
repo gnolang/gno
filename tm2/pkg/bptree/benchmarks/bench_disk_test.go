@@ -49,7 +49,23 @@ var (
 	diskUpdateFrac  = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
 	diskBuildBatch  = flag.Int64("disk-build-batch", 100_000, "keys per SaveVersion while building the fixture")
 	diskReloadEvery = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
+	diskFactory     = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
 )
+
+// selectedFactories returns the factories to run, filtered by -disk-factory
+// (empty = all). Two processes with -disk-factory=iavl and -disk-factory=bptree
+// can populate the same -disk-dir in parallel: distinct sub-DBs, no lock conflict.
+func selectedFactories() []treeFactory {
+	if *diskFactory == "" {
+		return factories
+	}
+	for _, f := range factories {
+		if f.name == *diskFactory {
+			return []treeFactory{f}
+		}
+	}
+	panic(fmt.Sprintf("unknown -disk-factory %q (want iavl|bptree)", *diskFactory))
+}
 
 const (
 	diskKeyLen = 16
@@ -201,7 +217,7 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 // that would warm into cache).
 func BenchmarkDiskGetRandom(b *testing.B) {
 	n := uint64(*diskKeys)
-	for _, f := range factories {
+	for _, f := range selectedFactories() {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
@@ -230,7 +246,7 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 // must consult disk).
 func BenchmarkDiskGetMiss(b *testing.B) {
 	n := uint64(*diskKeys)
-	for _, f := range factories {
+	for _, f := range selectedFactories() {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
@@ -263,7 +279,7 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 func BenchmarkDiskBlockWrite(b *testing.B) {
 	n := uint64(*diskKeys)
 	bs := *diskBlock
-	for _, f := range factories {
+	for _, f := range selectedFactories() {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s/block-%d", f.name, humanCount(n), bs), func(b *testing.B) {
 			b.ReportAllocs()
@@ -318,31 +334,35 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 //	  -disk-dir=/data/pop -disk-keys=10000000 -timeout=2h
 func TestDiskPopulate(t *testing.T) {
 	if *diskDir == "" {
-		t.Skip("set -disk-dir (and -disk-keys) to run the disk populate timing")
+		t.Skip("set -disk-dir (and -disk-keys) to run the disk populate")
 	}
 	n := uint64(*diskKeys)
-	for _, f := range factories {
-		dir := filepath.Join(*diskDir, "populate-"+f.name)
-		require.NoError(t, os.RemoveAll(dir))
-		require.NoError(t, os.MkdirAll(dir, 0o755))
-
-		pdb, err := pebbledb.NewPebbleDBWithOpts(f.name, dir, pebbledb.DefaultPebbleOptions())
+	require.NoError(t, os.MkdirAll(*diskDir, 0o755))
+	for _, f := range selectedFactories() {
+		// Build into the exact path the disk benchmarks reuse (<dir>/<name>.db),
+		// so no rename is needed afterward. Resumable: if already at >= n keys,
+		// skip; otherwise continue from the current size.
+		name := fmt.Sprintf("%s-disk", f.name)
+		pdb, err := pebbledb.NewPebbleDBWithOpts(name, *diskDir, pebbledb.DefaultPebbleOptions())
 		require.NoError(t, err)
 		tree := f.newTree(pdb, *diskNodeCache)
 		if _, err := tree.Load(); err != nil {
 			t.Fatalf("%s load: %v", f.name, err)
 		}
-
-		start := time.Now()
-		buildDiskFixture(t, tree, 0, n, uint64(*diskBuildBatch), f.name, true)
-		elapsed := time.Since(start)
-
+		have := uint64(tree.Size())
+		if have < n {
+			start := time.Now()
+			buildDiskFixture(t, tree, have, n, uint64(*diskBuildBatch), f.name, true)
+			elapsed := time.Since(start)
+			t.Logf(">>> POPULATE %-6s: %d -> %d keys in %s (%.0f keys/sec)",
+				f.name, have, n, elapsed.Round(time.Millisecond), float64(n-have)/elapsed.Seconds())
+		} else {
+			t.Logf(">>> %-6s already populated (size=%d), skipping", f.name, have)
+		}
 		size := tree.Size()
 		tree.Close()
 		pdb.Close()
-		mb := dirSizeMB(dir)
-		t.Logf(">>> POPULATE %-6s: %d keys in %s (%.0f keys/sec), Size=%d, disk=%.0f MB (%.0f B/key)",
-			f.name, n, elapsed.Round(time.Millisecond), float64(n)/elapsed.Seconds(),
-			size, mb, mb*1024*1024/float64(n))
+		mb := dirSizeMB(filepath.Join(*diskDir, name+".db"))
+		t.Logf(">>> %-6s: size=%d, disk=%.0f MB (%.0f B/key)", f.name, size, mb, mb*1024*1024/float64(n))
 	}
 }
