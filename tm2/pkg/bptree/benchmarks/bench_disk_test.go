@@ -32,7 +32,9 @@ import (
 	"fmt"
 	mrand "math/rand"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -113,6 +115,46 @@ func humanCount(n uint64) string {
 	}
 }
 
+// buildDiskFixture inserts keys [from, to) into tree using deterministic
+// index->key/value derivation, committing every `batch` keys. It reloads latest
+// between batches so resident memory stays bounded by the node LRU instead of
+// materializing the whole tree (required for 100M-scale builds). Fresh slices
+// per Set: IAVL retains the key slice by reference (bptree copies internally),
+// so a reused buffer would alias every insert to a single key.
+func buildDiskFixture(tb testing.TB, tree TreeBench, from, to, batch uint64, label string, logProgress bool) {
+	tb.Helper()
+	for i := from; i < to; {
+		end := i + batch
+		if end > to {
+			end = to
+		}
+		for ; i < end; i++ {
+			k := make([]byte, diskKeyLen)
+			v := make([]byte, diskValLen)
+			putDiskKey(k, i)
+			putDiskVal(v, i)
+			if _, err := tree.Set(k, v); err != nil {
+				tb.Fatalf("%s build Set: %v", label, err)
+			}
+		}
+		_, ver, err := tree.SaveVersion()
+		if err != nil {
+			tb.Fatalf("%s build SaveVersion: %v", label, err)
+		}
+		if ver > historySize {
+			if err := tree.DeleteVersionsTo(ver - historySize); err != nil {
+				tb.Fatalf("%s build prune: %v", label, err)
+			}
+		}
+		if _, err := tree.Load(); err != nil { // drop in-mem tree; node LRU stays warm
+			tb.Fatalf("%s build reload: %v", label, err)
+		}
+		if logProgress && (i%(batch*10) == 0 || i == to) {
+			tb.Logf("  %s: %d/%d keys", label, i, to)
+		}
+	}
+}
+
 // ensureDiskFixture opens (or creates) a per-factory pebbledb fixture and builds
 // it to n keys, resuming if it already has some. All build work happens here,
 // OUTSIDE any b.N loop, so it is never timed and never rebuilt during calibration.
@@ -144,39 +186,11 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 		if !ephemeral {
 			b.Logf("building %s fixture in %s: %d -> %d keys (one-time)...", f.name, dir, have, n)
 		}
-		batch := uint64(*diskBuildBatch)
-		var key [diskKeyLen]byte
-		var val [diskValLen]byte
-		for i := have; i < n; {
-			end := i + batch
-			if end > n {
-				end = n
-			}
-			for ; i < end; i++ {
-				putDiskKey(key[:], i)
-				putDiskVal(val[:], i)
-				if _, err := tree.Set(key[:], val[:]); err != nil {
-					b.Fatalf("build Set: %v", err)
-				}
-			}
-			_, ver, err := tree.SaveVersion()
-			if err != nil {
-				b.Fatalf("build SaveVersion: %v", err)
-			}
-			if ver > historySize {
-				if err := tree.DeleteVersionsTo(ver - historySize); err != nil {
-					b.Fatalf("build prune: %v", err)
-				}
-			}
-			// Drop the in-memory COW tree (the node LRU stays warm) so building
-			// 100M keys doesn't accumulate the whole tree in RAM.
-			if _, err := tree.Load(); err != nil {
-				b.Fatalf("build reload: %v", err)
-			}
-			if !ephemeral && (i%(batch*10) == 0 || i == n) {
-				b.Logf("  %s: %d/%d keys", f.name, i, n)
-			}
-		}
+		buildDiskFixture(b, tree, have, n, uint64(*diskBuildBatch), f.name, !ephemeral)
+	}
+	if got := uint64(tree.Size()); got < n {
+		closeFn()
+		b.Fatalf("%s fixture size %d < requested %d — fixture build/persistence is broken", f.name, got, n)
 	}
 	return diskFixture{tree: tree, n: n, close: closeFn}
 }
@@ -255,19 +269,19 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(2))
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
-			var key [diskKeyLen]byte
-			var val [diskValLen]byte
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ { // one iteration == one block
 				for j := 0; j < bs; j++ {
+					k := make([]byte, diskKeyLen) // fresh per Set (IAVL retains key ref)
+					v := make([]byte, diskValLen)
 					if rng.Float64() < *diskUpdateFrac {
-						putDiskKey(key[:], uint64(rng.Int63n(int64(n)))) // update existing
+						putDiskKey(k, uint64(rng.Int63n(int64(n)))) // update existing
 					} else {
-						putDiskKey(key[:], next) // insert new
+						putDiskKey(k, next) // insert new
 						next++
 					}
-					putDiskVal(val[:], next+uint64(j))
-					if _, err := fx.tree.Set(key[:], val[:]); err != nil {
+					putDiskVal(v, next+uint64(j))
+					if _, err := fx.tree.Set(k, v); err != nil {
 						b.Fatalf("Set: %v", err)
 					}
 				}
@@ -292,5 +306,43 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			}
 		})
 		fx.close()
+	}
+}
+
+// TestDiskPopulate measures wall-clock time to populate each tree backend
+// (iavl, bptree) to -disk-keys from empty, separately, into its own fresh
+// pebbledb directory. Gated on -disk-dir so it never runs during a normal
+// `go test`. Example:
+//
+//	go test ./tm2/pkg/bptree/benchmarks/ -run=TestDiskPopulate -v \
+//	  -disk-dir=/data/pop -disk-keys=10000000 -timeout=2h
+func TestDiskPopulate(t *testing.T) {
+	if *diskDir == "" {
+		t.Skip("set -disk-dir (and -disk-keys) to run the disk populate timing")
+	}
+	n := uint64(*diskKeys)
+	for _, f := range factories {
+		dir := filepath.Join(*diskDir, "populate-"+f.name)
+		require.NoError(t, os.RemoveAll(dir))
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+
+		pdb, err := pebbledb.NewPebbleDBWithOpts(f.name, dir, pebbledb.DefaultPebbleOptions())
+		require.NoError(t, err)
+		tree := f.newTree(pdb, *diskNodeCache)
+		if _, err := tree.Load(); err != nil {
+			t.Fatalf("%s load: %v", f.name, err)
+		}
+
+		start := time.Now()
+		buildDiskFixture(t, tree, 0, n, uint64(*diskBuildBatch), f.name, true)
+		elapsed := time.Since(start)
+
+		size := tree.Size()
+		tree.Close()
+		pdb.Close()
+		mb := dirSizeMB(dir)
+		t.Logf(">>> POPULATE %-6s: %d keys in %s (%.0f keys/sec), Size=%d, disk=%.0f MB (%.0f B/key)",
+			f.name, n, elapsed.Round(time.Millisecond), float64(n)/elapsed.Seconds(),
+			size, mb, mb*1024*1024/float64(n))
 	}
 }
