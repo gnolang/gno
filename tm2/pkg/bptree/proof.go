@@ -206,7 +206,8 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 
 // GetMembershipProof returns an ICS23 existence proof for key against the last
 // committed version (verifiable against MutableTree.Hash()), not the working
-// tree. Returns ErrNoCommittedState if no version has been committed yet.
+// tree. Returns ErrNoCommittedState if no version has been committed yet, or
+// ErrEmptyTree if the committed tree is empty.
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {
@@ -217,7 +218,8 @@ func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, er
 
 // GetNonMembershipProof returns an ICS23 non-existence proof for key against the
 // last committed version (verifiable against MutableTree.Hash()), not the working
-// tree. Returns ErrNoCommittedState if no version has been committed yet.
+// tree. Returns ErrNoCommittedState if no version has been committed yet, or
+// ErrEmptyTree if the committed tree is empty.
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {

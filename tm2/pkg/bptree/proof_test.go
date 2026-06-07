@@ -403,6 +403,40 @@ func TestProof_CommittedEmptyTree(t *testing.T) {
 	}
 }
 
+// TestSnapshot_DBBackedValueResolution pins the DB-backed branch of
+// newImmutable's value resolver via Snapshot: an ImmutableTree from a
+// DB-backed MutableTree must resolve exact value bytes through ndb.GetValue.
+// (The in-memory branch is covered by TestImmutableTree_Basic; GetImmutable's
+// DB branch by the store tests — this covers Snapshot's DB path with an
+// exact-byte assertion after the newImmutable refactor.)
+func TestSnapshot_DBBackedValueResolution(t *testing.T) {
+	db := newTestDB(t)
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	want := map[string]string{
+		"alpha":   "value-of-alpha",
+		"bravo":   "value-of-bravo",
+		"charlie": "value-of-charlie",
+	}
+	for k, v := range want {
+		if _, err := tree.Set([]byte(k), []byte(v)); err != nil {
+			t.Fatalf("Set(%s): %v", k, err)
+		}
+	}
+
+	imm := tree.Snapshot(tree.WorkingVersion())
+
+	for k, v := range want {
+		got, err := imm.Get([]byte(k))
+		if err != nil {
+			t.Fatalf("Snapshot Get(%s): %v", k, err)
+		}
+		if !bytes.Equal(got, []byte(v)) {
+			t.Fatalf("Snapshot Get(%s) = %q, want %q", k, got, v)
+		}
+	}
+}
+
 func TestProof_VerifyMethods(t *testing.T) {
 	tree := NewMutableTreeMem()
 	tree.Set([]byte("a"), []byte("1"))
