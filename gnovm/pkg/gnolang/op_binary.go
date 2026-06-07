@@ -88,7 +88,7 @@ func (m *Machine) doOpEql() {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
 	// set result in lv.
-	res := isEql(m, lv, rv, ifaceCmpDynType(bx, lv))
+	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -105,21 +105,17 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv, ifaceCmpDynType(bx, lv))
+	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
-// ifaceCmpDynType returns the dynamic type carried by the interface header
-// when either operand of bx has a static interface type — and nil otherwise.
-// A non-nil result means the comparison must follow Go's runtime semantics:
-// any uncomparable dynamic type at any depth panics, naming this type.
-func ifaceCmpDynType(bx *BinaryExpr, lv *TypedValue) Type {
-	if hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right) {
-		return lv.T
-	}
-	return nil
+// isInterfaceCmp reports whether either operand of bx is statically an
+// interface. A true result tells isEql to apply Go's interface-comparison
+// rule, under which isEql panics on an uncomparable dynamic type.
+func isInterfaceCmp(bx *BinaryExpr) bool {
+	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
 }
 
 func hasInterfaceStaticType(x Expr) bool {
@@ -443,15 +439,16 @@ func (m *Machine) doOpBandn() {
 // ----------------------------------------
 // logic functions
 
-// isEql reports whether lv and rv are equal. ifaceDyn is the dynamic type
-// carried by the interface header at the level the iface unwrap happened,
-// or nil if no via-iface context applies (either the static type isn't
-// interface, or the iface header is itself nil). When non-nil, encountering
-// an uncomparable dynamic kind anywhere in the recursion panics with this
-// type's name, matching Go's runtime.
+// isEql reports whether lv and rv are equal. viaIface is true when the
+// comparison crosses an interface boundary: the operands are statically
+// interface-typed, or we recursed into an interface-typed field or element.
+// At such a boundary Go panics if the dynamic type is uncomparable. The check
+// uses isComparable, which is itself recursive, so it fires at the boundary
+// and names the dynamic type there (e.g. an enclosing struct) rather than the
+// uncomparable leaf reached by deeper recursion.
 //
 // TODO: can be much faster.
-func isEql(m *Machine, lv, rv *TypedValue, ifaceDyn Type) bool {
+func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -463,6 +460,14 @@ func isEql(m *Machine, lv, rv *TypedValue, ifaceDyn Type) bool {
 	}
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
+	}
+	// Both sides share one dynamic type now. If we reached it through an
+	// interface and it is uncomparable, Go panics naming it.
+	if viaIface && !isComparable(lv.T) {
+		m.Panic(typedString(fmt.Sprintf(
+			"runtime error: comparing uncomparable type %s",
+			lv.T.String(),
+		)))
 	}
 	switch lv.T.Kind() {
 	case BoolKind:
@@ -528,26 +533,14 @@ func isEql(m *Machine, lv, rv *TypedValue, ifaceDyn Type) bool {
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
-		// Via interface: panic early when the element type is structurally uncomparable.
-		if ifaceDyn != nil && !isComparable(et) {
-			m.Panic(typedString(fmt.Sprintf(
-				"runtime error: comparing uncomparable type %s",
-				ifaceDyn.String(),
-			)))
-		}
+		// An interface-typed element is a fresh boundary: the recursive call
+		// gets viaIface=true and checks the element's own dynamic type.
 		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
 			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			// Re-capture at every interface boundary: Go re-enters its
-			// interface-equality machinery at each iface element, so the
-			// panic message names the *inner* dynamic type, not the outer.
-			elemDyn := ifaceDyn
-			if elemIsIface {
-				elemDyn = li.T
-			}
-			if !isEql(m, &li, &ri, elemDyn) {
+			if !isEql(m, &li, &ri, elemIsIface) {
 				return false
 			}
 		}
@@ -569,14 +562,10 @@ func isEql(m *Machine, lv, rv *TypedValue, ifaceDyn Type) bool {
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
-			// Re-capture at every interface boundary: when this field's
-			// declared type is interface, the dynamic type held here is
-			// the type Go names on panic, not the outer carrier.
-			fieldDyn := ifaceDyn
-			if baseOf(lt.Fields[i].Type).Kind() == InterfaceKind {
-				fieldDyn = lf.T
-			}
-			if !isEql(m, &lf, &rf, fieldDyn) {
+			// An interface-typed field is a fresh boundary: the recursive call
+			// gets viaIface=true and checks the field's own dynamic type.
+			fieldIsIface := baseOf(lt.Fields[i].Type).Kind() == InterfaceKind
+			if !isEql(m, &lf, &rf, fieldIsIface) {
 				return false
 			}
 		}
@@ -592,18 +581,9 @@ func isEql(m *Machine, lv, rv *TypedValue, ifaceDyn Type) bool {
 		}
 		return true
 	case MapKind, SliceKind, FuncKind:
-		// Uncomparable kinds. Direct comparisons are caught at preprocess
-		// time; the only way we reach here is `m == nil` (one side nil) or
-		// a comparison whose static operands are interface-typed. In the
-		// latter case Go's runtime panics regardless of nil-ness, naming
-		// the dynamic type carried by the interface header — captured in
-		// ifaceDyn — not the inner leaf reached by recursion.
-		if ifaceDyn != nil {
-			m.Panic(typedString(fmt.Sprintf(
-				"runtime error: comparing uncomparable type %s",
-				ifaceDyn.String(),
-			)))
-		}
+		// Uncomparable kinds. A via-interface comparison of these is caught by
+		// the comparability check above before reaching here, so the only way
+		// in is `m == nil` (one side nil), which is a legal pointer compare.
 		return lv.V == rv.V
 	case PointerKind:
 		if lv.T != rv.T &&

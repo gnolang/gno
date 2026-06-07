@@ -982,13 +982,8 @@ func (m *Machine) doOpSwitchClauseCase() {
 	// interface equality at runtime — uncomparable dynamic types panic.
 	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
 	ss := m.PeekStmt1().(*SwitchStmt)
-	var ifaceDyn Type
-	if !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X) {
-		// ss.X is the tag (the iface-typed side); name its dynamic type
-		// in any uncomparable-cmp panic that follows.
-		ifaceDyn = tv.T
-	}
-	match := isEql(m, cv, tv, ifaceDyn)
+	viaIface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
+	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
