@@ -62,6 +62,18 @@ func TestIs(t *testing.T) {
 	}
 }
 
+// TestIsUncomparableNoMatch locks in the #5713 dependency: an uncomparable
+// target whose Is returns false must not match. This fails until #5713 makes
+// the VM panic on comparing uncomparable types, since comparable() currently
+// returns true and the == branch wrongly matches on the nil slice fields.
+func TestIsUncomparableNoMatch(t *testing.T) {
+	a := errorUncomparableNoMatch{}
+	b := errorUncomparableNoMatch{}
+	if got := errors.Is(a, b); got != false {
+		t.Errorf("Is(%v, %v) = %v, want false", a, b, got)
+	}
+}
+
 func TestUnwrap(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
@@ -116,6 +128,14 @@ func (errorUncomparable) Is(target error) bool {
 	}
 	return true
 }
+
+type errorUncomparableNoMatch struct {
+	f []string
+}
+
+func (errorUncomparableNoMatch) Error() string { return "uncomparable no match" }
+
+func (errorUncomparableNoMatch) Is(target error) bool { return false }
 
 type multiErr []error
 
