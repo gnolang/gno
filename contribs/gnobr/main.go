@@ -3,7 +3,7 @@
 //
 // Usage:
 //
-//	gnobr --data-dir gnoland-data --drop-after 352921 --app-hash 311BB985...
+//	gnobr --data-dir gnoland-data --drop-after 352921 [--app-hash 311BB985...]
 package main
 
 import (
@@ -28,7 +28,7 @@ func main() {
 	var (
 		dataDir   = flag.String("data-dir", "gnoland-data", "Path to gnoland data directory")
 		dropAfter = flag.Int64("drop-after", 0, "Keep up to this height, drop everything after")
-		appHash   = flag.String("app-hash", "", "Set this app hash in state.db (hex)")
+		appHash   = flag.String("app-hash", "", "Override app hash in state.db (hex); auto-detected from block header if omitted")
 		dryRun    = flag.Bool("dry-run", false, "Show what would be done without modifying anything")
 	)
 	flag.Parse()
@@ -71,11 +71,14 @@ func main() {
 		return
 	}
 
-	// Read block meta for target height (needed to patch state)
+	// Read block meta for target height and target+1 (needed to patch state)
 	targetMeta := bs.LoadBlockMeta(targetHeight)
 	if targetMeta == nil {
 		log.Fatalf("block meta for height %d not found", targetHeight)
 	}
+	// Block at target+1 has LastResultsHash for target in its header.
+	// Must read before trimming since trim deletes blocks above target.
+	nextMeta := bs.LoadBlockMeta(targetHeight + 1)
 
 	// Trim blocks above target
 	if targetHeight < bsHeight {
@@ -111,15 +114,23 @@ func main() {
 			state.LastBlockTotalTx = targetMeta.Header.TotalTxs
 		}
 
-		// Load ABCI responses for target height to get LastResultsHash
-		abciResp, err := sm.LoadABCIResponses(stDB, targetHeight)
-		if err == nil && abciResp != nil {
-			state.LastResultsHash = abciResp.ResultsHash()
-			fmt.Printf("state.db: LastResultsHash set from ABCI responses\n")
+		// Get LastResultsHash from block at targetHeight+1 (its header stores the
+		// results hash for targetHeight). This avoids loading ABCI responses which
+		// calls osm.Exit() if amino can't unmarshal chain-specific event types.
+		if nextMeta != nil {
+			state.LastResultsHash = nextMeta.Header.LastResultsHash
+			fmt.Printf("state.db: LastResultsHash set from block %d header\n", targetHeight+1)
+		} else {
+			fmt.Printf("state.db: WARNING: block %d not available, LastResultsHash not updated\n", targetHeight+1)
 		}
 
-		if newAppHash != nil {
-			state.AppHash = newAppHash
+		if appHash := resolveAppHash(newAppHash, nextMeta); appHash != nil {
+			state.AppHash = appHash
+			if newAppHash == nil {
+				fmt.Printf("state.db: AppHash auto-detected from block %d header: %X\n", targetHeight+1, appHash)
+			}
+		} else if newAppHash == nil {
+			fmt.Printf("state.db: WARNING: AppHash not updated (block %d not found; use --app-hash to set manually)\n", targetHeight+1)
 		}
 
 		sm.SaveState(stDB, state)
@@ -174,6 +185,21 @@ func saveBlockStoreState(db dbm.DB, height int64) {
 		log.Fatalf("failed to marshal blockstore state: %v", err)
 	}
 	db.SetSync([]byte("blockStore"), buf)
+}
+
+// resolveAppHash returns the app hash to set in state.db.
+// If explicit is non-nil (from --app-hash), it takes precedence.
+// Otherwise, if nextMeta is available, its Header.AppHash is returned (auto-detect:
+// block N+1's header carries the committed app hash after block N).
+// Returning nil means the current app hash in state.db should not be changed.
+func resolveAppHash(explicit []byte, nextMeta *types.BlockMeta) []byte {
+	if explicit != nil {
+		return explicit
+	}
+	if nextMeta != nil {
+		return nextMeta.Header.AppHash
+	}
+	return nil
 }
 
 // Ensure types is used (for BlockID in state patching).
