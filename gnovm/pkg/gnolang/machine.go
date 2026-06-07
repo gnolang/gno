@@ -2752,10 +2752,36 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	return oid.PkgID != m.Realm.ID
 }
 
-// Returns ro = true if the base is readonly,
-// or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a composite lit expr.
-func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+// numStackValuesForPointer reports how many value-stack entries PushForPointer
+// pushes for lx — i.e. how many values resolvePointer/PopAsPointer2 must consume
+// to resolve lx to a PointerValue. It MUST stay in sync with PushForPointer (the
+// producer) and resolvePointer (the consumer): NameExpr pushes nothing,
+// IndexExpr pushes X then Index (2), and SelectorExpr/StarExpr/CompositeLitExpr
+// each push a single X (1).
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panic(fmt.Sprintf(
+			"illegal assignment X expression type %v",
+			reflect.TypeOf(lx)))
+	}
+}
+
+// resolvePointer resolves lx to a PointerValue using the operand values in ops
+// (exactly numStackValuesForPointer(lx) of them) instead of popping them off the
+// value stack. ops are in stack order, oldest first — matching PopValues — so
+// for an IndexExpr ops[0] is X and ops[1] is Index (PushForPointer pushes X then
+// Index, so on the stack the Index sits on top and the original PopAsPointer2
+// popped it first as iv, then X as xv). ro reports a readonly/cross-realm
+// violation. This is the pure resolver shared by PopAsPointer2 (the stack
+// wrapper) and doOpAssign (which reads operand frames in place).
+func (m *Machine) resolvePointer(lx Expr, ops []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2773,8 +2799,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			panic("unexpected NameExpr in PopAsPointer")
 		}
 	case *IndexExpr:
-		iv := m.PopValue()
-		xv := m.PopValue()
+		xv := &ops[0]
+		iv := &ops[1]
 		if xv.T.Kind() == MapKind {
 			// For maps, GetPointerAtIndex unconditionally creates a new entry for
 			// missing keys. Check readonly before this mutation.
@@ -2789,11 +2815,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
-		xv := m.PopValue()
+		xv := &ops[0]
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		xv := m.PopValue()
+		xv := &ops[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
@@ -2803,7 +2829,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
-		tv := *m.PopValue()
+		tv := ops[0]
 		// Heap-slot wrapper is anonymous; nil t skips the
 		// construction-time check. The contained composite literal
 		// was already construction-time-checked at its own allocation.
@@ -2817,6 +2843,25 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	default:
 		panic("should not happen")
 	}
+	return
+}
+
+// Returns ro = true if the base is readonly,
+// or if the base's storage realm != m.Realm and both are non-nil,
+// and the lx isn't a composite lit expr.
+//
+// Thin stack wrapper around resolvePointer: it slices the top
+// numStackValuesForPointer(lx) values off m.Values, resolves, then truncates the
+// stack. This keeps every other caller (op_inc_dec, range stmts, RefExpr, the
+// compound-assign ops) completely unaffected by the in-place refactor.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	n := numStackValuesForPointer(lx)
+	if n == 0 {
+		return m.resolvePointer(lx, nil)
+	}
+	ops := m.Values[len(m.Values)-n:]
+	pv, ro = m.resolvePointer(lx, ops)
+	m.Values = m.Values[:len(m.Values)-n]
 	return
 }
 

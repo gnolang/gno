@@ -22,14 +22,59 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Assign each value evaluated for Lhs.
-	// NOTE: PopValues() returns a slice in
-	// forward order, not the usual reverse.
+	// Go spec (§Assignments): in a tuple assignment, all operands of the LHS
+	// and all RHS expressions are evaluated FIRST (op_exec already did this:
+	// their values sit on m.Values), then the assignments are carried out in
+	// left-to-right order. Two consequences we must preserve here:
+	//   - left-to-right: `a, a, a = 1, 2, 3` must leave a == 3 (the last write
+	//     wins), so we Assign2 in increasing LHS index order.
+	//   - panic atomicity: resolving an LHS pointer (resolvePointer) or the
+	//     Assign2 itself may panic (e.g. `m[k], *p = 42, 2` nil-derefs on *p);
+	//     by then the earlier writes (m[k] = 42) must already be committed.
+	//     So we interleave resolve+assign per LHS left-to-right, NOT
+	//     resolve-all-then-assign-all. See golang/go#23017.
+	//
+	// NOTE: PopValues() returns a slice in forward order, not the usual
+	// reverse. rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(s.Lhs[i])
+
+	if len(s.Lhs) == 1 {
+		// Single-LHS fast path: no operand-frame slicing needed; PopAsPointer
+		// consumes this LHS's operand frame (now on top of the stack) directly.
+		lv := m.PopAsPointer(s.Lhs[0])
+		if m.Stage != StagePre && isUntyped(rvs[0].T) && rvs[0].T.Kind() != BoolKind {
+			panic("untyped conversion should not happen at runtime")
+		}
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[0], true)
+		return
+	}
+
+	// Multi-LHS: after popping the RHS values above, m.Values' top region holds
+	// the LHS operand frames, oldest first — LHS_0's frame at the bottom up to
+	// LHS_{n-1}'s frame on top (op_exec pushes PushForPointer for the LHS in
+	// reverse, so they execute LHS_0 first). Take ONE slice window over that
+	// whole region and truncate the stack once, then resolve each LHS in place
+	// from its sub-slice. This avoids the per-statement make([][]TypedValue, N)
+	// heap allocation of the buffer-and-repush approach.
+	total := 0
+	for _, lx := range s.Lhs {
+		total += numStackValuesForPointer(lx)
+	}
+	ops := m.Values[len(m.Values)-total:]
+	m.Values = m.Values[:len(m.Values)-total]
+
+	offset := 0
+	for i, lx := range s.Lhs {
+		sz := numStackValuesForPointer(lx)
+		// Resolve LHS_i's pointer from its operand frame, then immediately
+		// assign — keeping the left-to-right, fail-with-earlier-writes-committed
+		// discipline described above.
+		lv, ro := m.resolvePointer(lx, ops[offset:offset+sz])
+		if ro {
+			m.Panic(typedString(readonlyAccessPanic(lx)))
+		}
+		offset += sz
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
