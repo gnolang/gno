@@ -54,8 +54,9 @@ func (t *headingAnchorTransformer) Transform(doc *ast.Document, _ text.Reader, _
 }
 
 // wrapHeadingChildren regroups the heading's inline children so that each
-// contiguous run of non-link nodes is moved under a fresh headingAnchorNode.
-// Inline link nodes act as run boundaries and stay where they are.
+// contiguous run of children with no link in their subtree is moved under a
+// fresh headingAnchorNode. A child that renders (or contains) an <a> acts as a
+// run boundary and stays where it is, so the heading-anchor never wraps an <a>.
 // Pre-escapes the heading id once so the renderer doesn't re-escape per run.
 //
 // Idempotent: an existing headingAnchorNode child is treated as already-wrapped
@@ -75,10 +76,11 @@ func wrapHeadingChildren(h *ast.Heading) {
 	c := h.FirstChild()
 	for c != nil {
 		next := c.NextSibling()
-		if isLinkLike(c) {
-			// Either an inline link (run boundary) or an existing
-			// headingAnchorNode from a previous Transform pass — treat
-			// both the same: end the current run, leave the node in place.
+		if containsLinkLike(c) {
+			// A child that renders (or contains) an <a> ends the run: an
+			// inline link, a link nested inside emphasis/strong, or an
+			// existing headingAnchorNode from a previous Transform pass.
+			// Leave the node in place.
 			run = nil
 		} else {
 			if run == nil {
@@ -90,6 +92,23 @@ func wrapHeadingChildren(h *ast.Heading) {
 		}
 		c = next
 	}
+}
+
+// containsLinkLike reports whether n or any of its descendants renders as an
+// <a> tag. A link can be nested inside another inline node (e.g. a bold link
+// `**[x](/y)**`), so checking n's own kind is not enough to keep the
+// heading-anchor from wrapping an <a>. An existing headingAnchorNode counts as
+// link-like (the walk hits n first), which also keeps the transform idempotent.
+func containsLinkLike(n ast.Node) bool {
+	found := false
+	_ = ast.Walk(n, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && isLinkLike(node) {
+			found = true
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	return found
 }
 
 // isLinkLike reports whether the node renders as an <a> tag — i.e. would
