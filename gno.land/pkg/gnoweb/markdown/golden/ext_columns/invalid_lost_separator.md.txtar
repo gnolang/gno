@@ -1,12 +1,12 @@
 -- input.md --
-## shorthand lost separator
+## bare-pipe is no longer a column separator
 |||
 
 ## html tag log separator
 <gno-columns-sep />
 
 -- output.html --
-<h2 id="shorthand-lost-separator"><a class="heading-anchor" href="#shorthand-lost-separator">shorthand lost separator</a></h2>
+<h2 id="bare-pipe-is-no-longer-a-column-separator"><a class="heading-anchor" href="#bare-pipe-is-no-longer-a-column-separator">bare-pipe is no longer a column separator</a></h2>
 <p>|||</p>
 <h2 id="html-tag-log-separator"><a class="heading-anchor" href="#html-tag-log-separator">html tag log separator</a></h2>
 <!-- unexpected/invalid columns tag omitted -->
