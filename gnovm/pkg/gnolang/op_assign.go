@@ -20,21 +20,93 @@ func (m *Machine) doOpDefine() {
 	}
 }
 
+// doOpAssign desugars a (possibly multi-target) assignment into a sequence of
+// per-slot store ops, mirroring how the Go compiler lowers OAS2 in
+// cmd/compile/internal/walk: all RHS values and all LHS address operands are
+// already evaluated (they sit on the value stack); here we only re-arrange
+// them and schedule one OpAssignSlot per LHS so that the actual
+// pointer-resolution + store of each target runs as an independent step, in
+// left-to-right order.
+//
+// This matters because resolving the pointer for L_i (PopAsPointer) can itself
+// panic — nil-deref (*p), out-of-range index, nil-map write. Per the Go spec
+// (§Assignment statements, §Order of evaluation) the stores are carried out
+// left-to-right after all operands are evaluated, so a panic while storing L_i
+// must leave the stores to L_0..L_{i-1} committed. Scheduling each store as a
+// separate op (rather than one right-to-left resolve-then-store loop) gives
+// that atomicity for free: when L_i's op panics, the ops for L_0..L_{i-1} have
+// already run to completion and been popped.
+//
+// Value-stack layout on entry (bottom -> top), as pushed by op_exec.go:
+//
+//	[ L_0 operands ][ L_1 operands ]...[ L_{n-1} operands ][ R_0 ][ R_1 ]...[ R_{n-1} ]
+//
+// We pop the RHS values, then pop each LHS operand frame, then re-push one
+// self-contained group per slot in reverse store order plus an OpAssignSlot
+// for each. Because ops execute LIFO, the slot-0 group/op ends up on top and
+// runs first. Each group is (bottom -> top): R_i, L_i operands, i — the slot
+// index i is read by doOpAssignSlot to recover s.Lhs[i] for PopAsPointer.
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Assign each value evaluated for Lhs.
-	// NOTE: PopValues() returns a slice in
-	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(s.Lhs[i])
-		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
+
+	n := len(s.Lhs)
+	// Single-target assignment (Go's OAS, not OAS2) has no left-to-right
+	// ordering to preserve: there is no earlier store to leave committed if the
+	// lone PopAsPointer panics. Store it directly, avoiding the per-slot
+	// re-arrange and its allocations on this very hot path.
+	if n == 1 {
+		rv := *m.PopValue()
+		lv := m.PopAsPointer(s.Lhs[0])
+		if m.Stage != StagePre && isUntyped(rv.T) && rv.T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
-		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rv, true)
+		return
 	}
+
+	// NOTE: PopValues() returns values in forward (stack, oldest-first) order,
+	// aliasing the stack's backing array; snapshot into independent Go slices
+	// because we immediately re-push (which would overwrite those slots).
+	// These are plain struct copies (no Allocator/Copy involved), matching the
+	// original code, which never copied the assigned values either.
+	rvs := append([]TypedValue(nil), m.PopValues(n)...)
+	// Pop each LHS operand frame (right-to-left, since they sit on top of the
+	// stack in left-to-right push order).
+	frames := make([][]TypedValue, n)
+	for i := n - 1; 0 <= i; i-- {
+		k := numStackValuesForPointer(s.Lhs[i])
+		frames[i] = append([]TypedValue(nil), m.PopValues(k)...)
+	}
+	// Re-push one group + op per slot, slot-0 last so it is on top and stored
+	// first.
+	for i := n - 1; 0 <= i; i-- {
+		m.PushValue(rvs[i])
+		for _, tv := range frames[i] {
+			m.PushValue(tv)
+		}
+		var idx TypedValue
+		idx.T = IntType
+		idx.SetInt(int64(i))
+		m.PushValue(idx)
+		m.PushStmt(s)
+		m.PushOp(OpAssignSlot)
+	}
+}
+
+// doOpAssignSlot stores a single LHS target. See doOpAssign for the layout it
+// consumes: top-of-stack is the slot index i, below it L_i's address operands,
+// and below those the RHS value R_i.
+func (m *Machine) doOpAssignSlot() {
+	s := m.PopStmt().(*AssignStmt)
+	i := int(m.PopValue().GetInt())
+	// PopAsPointer consumes L_i's operands (now on top) and may panic.
+	lv := m.PopAsPointer(s.Lhs[i])
+	rv := *m.PopValue()
+	if m.Stage != StagePre && isUntyped(rv.T) && rv.T.Kind() != BoolKind {
+		panic("untyped conversion should not happen at runtime")
+	}
+	lv.Assign2(m, m.Alloc, m.Store, m.Realm, rv, true)
 }
 
 func (m *Machine) doOpAddAssign() {

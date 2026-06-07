@@ -1294,6 +1294,7 @@ const (
 	OpDefine      Op = 0x8C // X... := Y...
 	OpInc         Op = 0x8D // X++
 	OpDec         Op = 0x8E // X--
+	OpAssignSlot  Op = 0x8F // store one LHS slot (left-to-right desugar)
 
 	/* Decl operators */
 	OpValueDecl Op = 0x90 // var/const ...
@@ -1903,6 +1904,8 @@ func (m *Machine) runOnce() (caught *Exception) {
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
+		case OpAssignSlot:
+			m.doOpAssignSlot()
 		case OpAddAssign:
 			m.incrCPU(OpCPUAddAssign)
 			m.doOpAddAssign()
@@ -2646,6 +2649,22 @@ func (m *Machine) PushForPointer(lx Expr) {
 		panic(fmt.Sprintf(
 			"illegal assignment X expression type %v",
 			reflect.TypeOf(lx)))
+	}
+}
+
+// numStackValuesForPointer reports how many TypedValues PushForPointer
+// pushes onto the value stack for the given LHS expression. Must stay in
+// sync with PushForPointer and PopAsPointer2.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panic("illegal LHS expr type")
 	}
 }
 
