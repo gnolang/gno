@@ -204,6 +204,9 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 
 // --- MutableTree wrappers ---
 
+// GetMembershipProof returns an ICS23 existence proof for key against the last
+// committed version (verifiable against MutableTree.Hash()), not the working
+// tree. Returns ErrNoCommittedState if no version has been committed yet.
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {
@@ -212,6 +215,9 @@ func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, er
 	return imm.GetMembershipProof(key)
 }
 
+// GetNonMembershipProof returns an ICS23 non-existence proof for key against the
+// last committed version (verifiable against MutableTree.Hash()), not the working
+// tree. Returns ErrNoCommittedState if no version has been committed yet.
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {
@@ -224,7 +230,10 @@ func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof,
 // with a value resolver for proof generation. Returns an error if no version
 // has been committed yet.
 func (t *MutableTree) immutableForProof() (*ImmutableTree, error) {
-	if t.lastSaved == nil {
+	// lastSaved is nil both when nothing has ever been committed and when the
+	// committed tree is empty. Only the former is an error; a committed-but-empty
+	// tree (version > 0) falls through, and ImmutableTree returns ErrEmptyTree.
+	if t.lastSaved == nil && t.version == 0 {
 		return nil, ErrNoCommittedState
 	}
 	imm := &ImmutableTree{root: t.lastSaved, version: t.version}

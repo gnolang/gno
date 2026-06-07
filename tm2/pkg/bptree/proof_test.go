@@ -314,11 +314,15 @@ func testProofUsesCommittedState(t *testing.T, newTree func() *MutableTree) {
 	t.Helper()
 	tree := newTree()
 
-	// Before any SaveVersion, proof generation should fail
+	// Before any SaveVersion, proof generation should fail. Both wrappers go
+	// through immutableForProof, so assert the guard on each.
 	tree.Set([]byte("a"), []byte("1"))
 	_, err := tree.GetMembershipProof([]byte("a"))
 	if err != ErrNoCommittedState {
-		t.Fatalf("expected ErrNoCommittedState before SaveVersion, got: %v", err)
+		t.Fatalf("expected ErrNoCommittedState from GetMembershipProof before SaveVersion, got: %v", err)
+	}
+	if _, err := tree.GetNonMembershipProof([]byte("z")); err != ErrNoCommittedState {
+		t.Fatalf("expected ErrNoCommittedState from GetNonMembershipProof before SaveVersion, got: %v", err)
 	}
 
 	// Commit version 1
@@ -370,6 +374,32 @@ func testProofUsesCommittedState(t *testing.T, newTree func() *MutableTree) {
 	}
 	if ok := ics23.VerifyMembership(BptreeSpec, hash2, proofB2, []byte("b"), []byte("2")); !ok {
 		t.Fatalf("proof for 'b' should verify after second save")
+	}
+}
+
+// TestProof_CommittedEmptyTree distinguishes "never committed" from "committed
+// but empty". Committing an empty version sets a version but leaves lastSaved
+// nil; proofs should then report ErrEmptyTree (ImmutableTree's empty-root
+// behavior), not ErrNoCommittedState.
+func TestProof_CommittedEmptyTree(t *testing.T) {
+	tree := NewMutableTreeMem()
+
+	// Never committed → ErrNoCommittedState.
+	if _, err := tree.GetNonMembershipProof([]byte("a")); err != ErrNoCommittedState {
+		t.Fatalf("never committed: expected ErrNoCommittedState, got: %v", err)
+	}
+
+	// Commit an empty version (sets version=1, lastSaved stays nil).
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("SaveVersion: %v", err)
+	}
+
+	// Committed but empty → ErrEmptyTree, not ErrNoCommittedState.
+	if _, err := tree.GetNonMembershipProof([]byte("a")); err != ErrEmptyTree {
+		t.Fatalf("committed empty tree: expected ErrEmptyTree from non-membership, got: %v", err)
+	}
+	if _, err := tree.GetMembershipProof([]byte("a")); err != ErrEmptyTree {
+		t.Fatalf("committed empty tree: expected ErrEmptyTree from membership, got: %v", err)
 	}
 }
 
