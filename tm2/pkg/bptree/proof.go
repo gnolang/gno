@@ -236,19 +236,5 @@ func (t *MutableTree) immutableForProof() (*ImmutableTree, error) {
 	if t.lastSaved == nil && t.version == 0 {
 		return nil, ErrNoCommittedState
 	}
-	imm := &ImmutableTree{root: t.lastSaved, version: t.version}
-	if t.ndb != nil {
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			return t.ndb.GetValue(vk)
-		}
-	} else if t.memValues != nil {
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			val, ok := t.memValues[string(vk)]
-			if !ok {
-				return nil, fmt.Errorf("value not found in memValues")
-			}
-			return val, nil
-		}
-	}
-	return imm, nil
+	return t.newImmutable(t.lastSaved, t.version), nil
 }

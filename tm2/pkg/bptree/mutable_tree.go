@@ -12,10 +12,10 @@ import (
 // MutableTree is the working tree supporting Set, Get, Has, Remove,
 // SaveVersion, LoadVersion, and Rollback.
 type MutableTree struct {
-	root      Node   // nil for empty tree
-	lastSaved Node   // snapshot for rollback (set by SaveVersion)
-	size      int64  // total key count in working tree
-	version   int64  // last saved version
+	root      Node  // nil for empty tree
+	lastSaved Node  // snapshot for rollback (set by SaveVersion)
+	size      int64 // total key count in working tree
+	version   int64 // last saved version
 
 	ndb            *nodeDB // nil for in-memory only (Phase 2 compat)
 	initialVersion uint64
@@ -402,21 +402,33 @@ func (t *MutableTree) loadNode(nkBytes []byte) (Node, error) {
 	return t.ndb.GetNode(nkBytes)
 }
 
+// newImmutable builds an ImmutableTree for root/version with this tree's value
+// resolver wired (DB-backed via ndb, or in-memory via memValues). Centralizes
+// the resolver wiring shared by GetImmutable, Snapshot, and immutableForProof.
+func (t *MutableTree) newImmutable(root Node, version int64) *ImmutableTree {
+	imm := NewImmutableTree(root, version)
+	switch {
+	case t.ndb != nil:
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			return t.ndb.GetValue(vk)
+		}
+	case t.memValues != nil:
+		imm.valueResolver = func(vk []byte) ([]byte, error) {
+			val, ok := t.memValues[string(vk)]
+			if !ok {
+				return nil, fmt.Errorf("value not found in memValues")
+			}
+			return val, nil
+		}
+	}
+	return imm
+}
+
 // GetImmutable returns an ImmutableTree for the given version.
 func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 	if t.ndb == nil {
 		if version == t.version && t.lastSaved != nil {
-			imm := NewImmutableTree(t.lastSaved, version)
-			if t.memValues != nil {
-				imm.valueResolver = func(vk []byte) ([]byte, error) {
-					val, ok := t.memValues[string(vk)]
-					if !ok {
-						return nil, fmt.Errorf("value not found in memValues")
-					}
-					return val, nil
-				}
-			}
-			return imm, nil
+			return t.newImmutable(t.lastSaved, version), nil
 		}
 		return nil, ErrVersionDoesNotExist
 	}
@@ -433,11 +445,7 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	imm := NewImmutableTree(root, version)
-	imm.valueResolver = func(vk []byte) ([]byte, error) {
-		return t.ndb.GetValue(vk)
-	}
-	return imm, nil
+	return t.newImmutable(root, version), nil
 }
 
 // GetVersioned returns the value for a key at a specific version.
@@ -501,21 +509,7 @@ func (t *MutableTree) Version() int64 { return t.version }
 // Snapshot creates an ImmutableTree snapshot of the current working tree
 // with a properly wired value resolver. For tests and lightweight snapshots.
 func (t *MutableTree) Snapshot(version int64) *ImmutableTree {
-	imm := NewImmutableTree(t.root, version)
-	if t.ndb != nil {
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			return t.ndb.GetValue(vk)
-		}
-	} else if t.memValues != nil {
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			val, ok := t.memValues[string(vk)]
-			if !ok {
-				return nil, fmt.Errorf("value not found in memValues")
-			}
-			return val, nil
-		}
-	}
-	return imm
+	return t.newImmutable(t.root, version)
 }
 
 // VersionExists returns true if the given version exists.
