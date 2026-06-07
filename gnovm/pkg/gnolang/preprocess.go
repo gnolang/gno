@@ -5504,7 +5504,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					// t may be an unsealed *DeclaredType during
 					// mutual type-decl recursion (e.g.
 					// `type T1 struct{Next *T2}; type T2 T1`);
-					// TRANS_LEAVE seals it later via declareWith.
+					// TRANS_LEAVE seals it later via `tmp2.Seal()`.
 					t = tv.GetType()
 				}
 				// set t for proper type.
