@@ -40,6 +40,10 @@ func (m *Machine) doOpAssign() {
 	// resolve+assign one at a time in LHS order. A mid-statement panic
 	// leaves earlier assignments intact, and duplicate LHS targets observe
 	// left-to-right writes.
+	// TODO(gas): the buffer+interleave costs ~20-30% more per call than the
+	// previous single-pass design on a dev bench. Recalibrate
+	// OpCPUSlopeAssign (or add a multi-LHS surcharge) on consensus
+	// hardware — see https://github.com/gnolang/gno/issues/5789.
 	frames := make([][]TypedValue, len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		frames[i] = m.PopValues(numStackValuesForPointer(s.Lhs[i]))
