@@ -189,13 +189,17 @@ func memUseMB() float64 {
 	return float64(m.Alloc) / (1024 * 1024)
 }
 
+// dirSizeMB returns dir's on-disk size in MB, counting actually-allocated
+// blocks rather than apparent file size (see fileDiskBytes). This matters for
+// lmdb/mdbx, which pre-mmap a huge sparse map file: its apparent size is the
+// 1TB map ceiling, but only written pages consume disk.
 func dirSizeMB(dir string) float64 {
 	var total int64
 	filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
 		}
-		total += info.Size()
+		total += fileDiskBytes(info)
 		return nil
 	})
 	return float64(total) / (1024 * 1024)

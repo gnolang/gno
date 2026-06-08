@@ -1,6 +1,7 @@
 package benchmarks
 
-// Large-scale, disk-bound benchmark comparison (IAVL vs B+32) on pebbledb.
+// Large-scale, disk-bound benchmark comparison (IAVL vs B+32) on a real disk
+// DB (pebbledb by default; switch with -disk-backend).
 //
 // Unlike the warm benchmarks in bench_test.go (which build a small tree and
 // then read it back from hot caches), this builds a fixture large enough that
@@ -22,6 +23,12 @@ package benchmarks
 //	  -disk-dir=/data/bptree-bench -disk-keys=100000000 \
 //	  -benchtime=20000x -timeout=24h
 //
+// Swap the backend (default pebbledb) with -disk-backend; lmdbdb/mdbxdb need a
+// cgo build (CGO_ENABLED=1):
+//
+//	go test ./tm2/pkg/bptree/benchmarks/ -run=TestDiskPopulate -v \
+//	  -disk-dir=/data/pop -disk-keys=10000000 -disk-backend=lmdbdb -timeout=2h
+//
 // Quick smoke (default 1M keys, ephemeral temp dir):
 //
 //	go test ./tm2/pkg/bptree/benchmarks/ -run=^$ -bench='BenchmarkDisk'
@@ -38,6 +45,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/boltdb"    // -disk-backend=boltdb
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb" // -disk-backend=goleveldb
 	"github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )
 
@@ -52,7 +62,22 @@ var (
 	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
 	diskVerbose      = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
 	diskVerboseEvery = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
+	diskBackend      = flag.String("disk-backend", "pebbledb", "db backend for fixtures: pebbledb (tuned 500MB cache+bloom), goleveldb, boltdb; lmdbdb/mdbxdb need a cgo build")
 )
+
+// openDiskDB opens fixture sub-DB `name` under dir, honoring -disk-backend.
+// pebbledb is opened with the production-tuned options (500MB block cache +
+// bloom filter) the disk benchmarks are calibrated against — the generic
+// registry's pebbledb creator uses empty options, which would silently drop
+// both. Every other backend goes through dbm.NewDB and so must be linked in:
+// goleveldb/boltdb always are; lmdbdb/mdbxdb only in a cgo build (see
+// backends_cgo_test.go).
+func openDiskDB(name, dir string) (dbm.DB, error) {
+	if dbm.BackendType(*diskBackend) == dbm.PebbleDBBackend {
+		return pebbledb.NewPebbleDBWithOpts(name, dir, pebbledb.DefaultPebbleOptions())
+	}
+	return dbm.NewDB(name, dbm.BackendType(*diskBackend), dir)
+}
 
 // selectedFactories returns the factories to run, filtered by -disk-factory
 // (empty = all). Two processes with -disk-factory=iavl and -disk-factory=bptree
@@ -115,8 +140,70 @@ func putDiskVal(buf []byte, i uint64) {
 
 type diskFixture struct {
 	tree  TreeBench
+	db    dbm.DB // retained for block-cache (disk-read) stats; see diskBlockReads
 	n     uint64
 	close func()
+}
+
+// blockCacheStatter is implemented by pebbledb: cumulative block-cache hits and
+// misses, where a miss ≈ one filesystem (disk) block read. Other backends don't
+// expose it, so the disk-read metrics below are pebbledb-only.
+type blockCacheStatter interface {
+	BlockCacheStats() (hits, misses int64)
+}
+
+// diskBlockReads reads the backend's cumulative block-cache (hits, misses).
+// ok is false for backends that don't expose it. misses ≈ physical disk reads;
+// hits+misses ≈ logical block accesses (≈ traversal depth).
+func diskBlockReads(db dbm.DB) (hits, misses int64, ok bool) {
+	if s, isStatter := db.(blockCacheStatter); isStatter {
+		h, m := s.BlockCacheStats()
+		return h, m, true
+	}
+	return 0, 0, false
+}
+
+// readMeter accumulates block-cache deltas across timed segments so a benchmark
+// can report disk reads (misses) and logical block accesses (hits+misses) per
+// op. snap() opens a fresh segment — call it around untimed work (prune/reload)
+// to exclude those reads; fold() accumulates the delta since the last snap/fold
+// and advances the baseline. All methods no-op when the backend lacks stats.
+type readMeter struct {
+	db               dbm.DB
+	ok               bool
+	h0, m0           int64 // baseline at the current segment's start
+	misses, accesses int64 // accumulated over folded segments
+}
+
+func newReadMeter(db dbm.DB) *readMeter {
+	rm := &readMeter{db: db}
+	rm.h0, rm.m0, rm.ok = diskBlockReads(db)
+	return rm
+}
+
+func (rm *readMeter) snap() {
+	if rm.ok {
+		rm.h0, rm.m0, _ = diskBlockReads(rm.db)
+	}
+}
+
+func (rm *readMeter) fold() {
+	if !rm.ok {
+		return
+	}
+	h, m, _ := diskBlockReads(rm.db)
+	rm.misses += m - rm.m0
+	rm.accesses += (h + m) - (rm.h0 + rm.m0)
+	rm.h0, rm.m0 = h, m
+}
+
+// report emits diskreads/<unit> (misses ≈ physical reads) and blocks/<unit>
+// (hits+misses ≈ logical traversal depth). No-op without stats or denom.
+func (rm *readMeter) report(b *testing.B, denom float64, missMetric, accessMetric string) {
+	if rm.ok && denom > 0 {
+		b.ReportMetric(float64(rm.misses)/denom, missMetric)
+		b.ReportMetric(float64(rm.accesses)/denom, accessMetric)
+	}
 }
 
 // humanCount formats a key count for benchmark sub-names (20000->"20k", 1000000->"1M").
@@ -241,7 +328,7 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 	}
 	// Distinct sub-DB per factory so iavl and bptree don't share a directory.
 	name := fmt.Sprintf("%s-disk", f.name)
-	pdb, err := pebbledb.NewPebbleDBWithOpts(name, dir, pebbledb.DefaultPebbleOptions())
+	pdb, err := openDiskDB(name, dir)
 	require.NoError(b, err)
 
 	tree := f.newTree(pdb, *diskNodeCache)
@@ -262,7 +349,7 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 		closeFn()
 		b.Fatalf("%s fixture size %d < requested %d — fixture build/persistence is broken", f.name, got, n)
 	}
-	return diskFixture{tree: tree, n: n, close: closeFn}
+	return diskFixture{tree: tree, db: pdb, n: n, close: closeFn}
 }
 
 // BenchmarkDiskGetRandom measures random point reads of existing keys against a
@@ -278,11 +365,17 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 			b.ReportMetric(float64(fx.tree.Height()), "height")
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
+			// diskreads/op ≈ physical reads per Get (IAVL+fast ~1, bp32 ~2);
+			// blocks/op ≈ logical traversal depth. Fold around the untimed
+			// reload so its reads aren't counted.
+			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
 					b.StopTimer()
+					rm.fold()             // close segment before the untimed reload
 					_, _ = fx.tree.Load() // bound memory; node LRU stays warm
+					rm.snap()             // reopen segment after reload
 					b.StartTimer()
 				}
 				putDiskKey(key[:], uint64(rng.Int63n(int64(n))))
@@ -290,6 +383,8 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 					b.Fatalf("Get: %v", err)
 				}
 			}
+			rm.fold() // final segment
+			rm.report(b, float64(b.N), "diskreads/op", "blocks/op")
 		})
 		fx.close()
 	}
@@ -326,10 +421,14 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 // BenchmarkDiskBlockWrite measures the cost of committing a block: -disk-block
 // writes (a configurable mix of updates to existing keys and new inserts)
 // followed by SaveVersion, against the large on-disk fixture. ns/op is the
-// per-block latency; ns/write is also reported. Pruning and the
-// drop-in-memory-tree reload happen outside the timer (a real node prunes
-// out-of-band and starts each block from committed state, lazily loading what
-// its txs touch — which the timed Set path models).
+// per-block latency; ns/write is also reported. On pebbledb it additionally
+// reports diskreads/write (block-cache misses ≈ physical reads per write) and
+// blocks/write (hits+misses ≈ logical traversal depth) — the empirical basis
+// for the write-depth gas params, where bp32's shallow tree should show far
+// fewer reads than IAVL's deep COW path. Pruning and the drop-in-memory-tree
+// reload happen outside the timer (a real node prunes out-of-band and starts
+// each block from committed state, lazily loading what its txs touch — which
+// the timed Set path models).
 func BenchmarkDiskBlockWrite(b *testing.B) {
 	n := uint64(*diskKeys)
 	bs := *diskBlock
@@ -339,8 +438,14 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(2))
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
+			// diskreads/write (misses ≈ physical reads) and blocks/write
+			// (hits+misses ≈ logical depth) over the TIMED Set+SaveVersion
+			// region; snap()/fold() bracket it so the untimed prune/reload
+			// between blocks are excluded.
+			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ { // one iteration == one block
+				rm.snap()
 				for j := 0; j < bs; j++ {
 					k := make([]byte, diskKeyLen) // fresh per Set (IAVL retains key ref)
 					v := make([]byte, diskValLen)
@@ -359,6 +464,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 				if err != nil {
 					b.Fatalf("SaveVersion: %v", err)
 				}
+				rm.fold()
 				b.StopTimer()
 				if ver > historySize {
 					if err := fx.tree.DeleteVersionsTo(ver - historySize); err != nil {
@@ -372,7 +478,9 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			}
 			b.ReportMetric(float64(bs), "writes/block")
 			if b.N > 0 {
-				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*bs), "ns/write")
+				w := float64(b.N * bs)
+				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/w, "ns/write")
+				rm.report(b, w, "diskreads/write", "blocks/write")
 			}
 		})
 		fx.close()
@@ -397,7 +505,7 @@ func TestDiskPopulate(t *testing.T) {
 		// so no rename is needed afterward. Resumable: if already at >= n keys,
 		// skip; otherwise continue from the current size.
 		name := fmt.Sprintf("%s-disk", f.name)
-		pdb, err := pebbledb.NewPebbleDBWithOpts(name, *diskDir, pebbledb.DefaultPebbleOptions())
+		pdb, err := openDiskDB(name, *diskDir)
 		require.NoError(t, err)
 		tree := f.newTree(pdb, *diskNodeCache)
 		if _, err := tree.Load(); err != nil {
