@@ -1,0 +1,435 @@
+# B+32 Tree (`tm2/pkg/bptree`) — Issue Tally
+
+Consolidated tally of **bugs / correctness / robustness / concurrency issues** raised
+against the B+32 tree (PR [#5438](https://github.com/gnolang/gno/pull/5438)) across its
+review and related fix PRs.
+
+> Scope note: per request this focuses on **bugs**, not optimizations. Pure performance
+> findings from the related PRs are listed compactly in [Appendix I](#appendix-i--performance-findings-not-bugs)
+> for completeness only.
+
+Compiled from PR descriptions, inline review comments, reproducer tests, and verification
+against the current `feat/jae/bp32tree` working tree (2026-06-06).
+
+> ⚠️ **Statuses in §2 below were the FIRST-PASS (inferred) statuses.** They have since been
+> verified line-by-line against the code — see **[§V. Verification results](#v-verification-results--recommendations-verified-against-code)**,
+> which supersedes them. Several first-pass calls were wrong (notably C1, M1, M2, M5 — corrected below).
+
+---
+
+## V. Verification results & recommendations (verified against code)
+
+**Method.** Every claim was re-checked against the actual code on `feat/jae/bp32tree` (2026-06-06)
+by five parallel adversarial code-reading passes (each told to *disprove* the bug and quote
+exact code) plus a manual read of `prune.go` and an **adversarial runtime test**: 200 versions
+of random insert/delete churn on a height-3 DB-backed tree (≈3,400 live keys), pruning a
+15-version sliding window every round, verifying every live key after each prune, plus a
+cold-restart reload. **All existing prune tests + the adversarial test pass.**
+
+**The single most important framing fact:** in the standard gno node, every ABCI `Query`,
+`DeliverTx`, and `Commit` is serialized by one shared `localClientCreator.mtx`, so store reads
+and writes do **not** run concurrently today. That makes the entire *concurrency* class
+(Tier C) **real in code but not triggerable in the current deployment** — they become live
+only if that serialization is relaxed (async pruning, concurrent/historical query connections,
+network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs are the
+**value-key lifecycle** bugs (Tier A).
+
+### Tier A — CONFIRMED, reachable today, correctness / data-loss (priority)
+
+| ID | Bug (verified) | Why it bites | Fix source |
+|---|---|---|---|
+| ~~**H8**~~ ✅ | **FIXED (commit `568bc03b6`).** Was: `LoadVersion(V<latest)`+`Set` did an eager **out-of-batch** `db.Set` into the already-persisted `V+1` namespace, silently overwriting live values. Now values stage in `pendingVals`+batch and `LoadVersion`/`SaveVersion`-non-commit exits `DiscardBatch`, so a stale staged write can't flush over a committed version. | **Bite-proven**: `TestLoadVersion_FailedSaveDoesNotLeakStagedValue` ("LEAK" without the fix). | **commit `568bc03b6`** (root-cause; supersedes the #5570/#5591 mitigations) |
+| ~~**H9**~~ ✅ | **FIXED (commit `568bc03b6`).** Was: idempotent `SaveVersion` left session state set; `Rollback` then `DeleteValueDirect`'d those vks, wiping live data. Now `Rollback` discards the *uncommitted* batch (never deletes committed values) and the idempotent path resets session state — closed three independent ways. | Validated: `TestStaging_IdempotentSaveRollbackKeepsData`; Rollback issues **zero** committed-value deletes (structural). | **commit `568bc03b6`** |
+| ~~**H6**~~ ✅ | **FIXED (commit `568bc03b6`).** Was: `Set` mutated the tree before the eager value write; a `SaveValue` DB error left a dangling ref. Now `SaveValue` only buffers (map + in-memory batch, **no I/O at stage time**), so it cannot fail mid-`Set`; persistence failure is confined to the atomic `Commit`. | Closed by construction (no stage-time I/O); not independently reproducible with memdb. | **commit `568bc03b6`** |
+| ~~**H10**~~ ✅ | **FIXED (commit `74b7ca21b`, adopted from #5591).** `SaveVersion` now uses `versionExistsE`, which propagates the `db.Has` error instead of reading it as "absent"; `VersionExists` logs + returns false for the store-compat surface. Bite-proven: `TestSaveVersion_PropagatesVersionExistsError`. | Transient DB read error on pebbledb/goleveldb. | **commit `74b7ca21b`** (#5591) |
+| ~~**H12**~~ ✅ | ~~`immutableForProof` builds proofs from `t.root` (**uncommitted** working tree), not `t.lastSaved`; proofs verify only against `WorkingHash()`, not the committed `Hash()`. No `ErrNoCommittedState` guard.~~ **FIXED TODAY** — cherry-picked #5468 + nits + `newImmutable` dedup. | **Only the `MutableTree` proof wrappers (tests/bench).** The store `Query` path proves via a committed `ImmutableTree` gated by `VersionExists`, so **production is unaffected** — a `MutableTree`-API/test-hygiene fix, not a query-security bug. | **#5468** (cherry-picked to branch) |
+| ~~**M6**~~ ✅ | **FIXED (commit `74b7ca21b`, adopted from #5570 finding:8).** `MutableTree.Iterate` and `ImmutableTree.Iterate` now capture and return the resolver error instead of swallowing it. Bite-proven: `TestIterate_PropagatesResolverError`. *(`IterateRange` keeps its IAVL-parity `bool` signature per #5570 — test-only caller; the store's query path uses the streaming `Iterator`, which records `Error()`.)* | Any value-store read fault mid-iteration. | **commit `74b7ca21b`** (#5570) |
+
+### Tier B — CONFIRMED, reachable, space leaks / robustness (not honest-state corruption)
+
+| ID | Bug (verified) | Fix source |
+|---|---|---|
+| ~~H4~~ | **NOT A BUG (corrected).** The `vRootNK==nil` early-return skips `LoadOrphans(nextV)`, but orphans are recorded *only* on overwrite/remove of an existing value (`orphanValueKey`, `mutable_tree.go:115,201`). An empty V→V+1 is pure insertion → `orphans[V+1]` is provably empty → nothing to leak. #5570 finding:2's premise is unreachable. | — |
+| ~~H11~~ ✅ | **FIXED (commit `568bc03b6`)** — values are no longer written to the DB until `Commit`, so an uncommitted `Set` persists nothing and a crash leaks nothing (no startup scan needed). Bite-proven: `TestStaging_UncommittedSetDoesNotPersist`. | commit `568bc03b6` |
+| ~~H13~~ ✅ | **FIXED (commit `568bc03b6`)** — `SaveValue` now stages into the batch (flushed atomically at `Commit`), not a direct out-of-batch `db.Set`. Bite-proven via the eager-revert experiment + updated `TestRollback_CleansUpValues`. | commit `568bc03b6` |
+| L1 | `setFirstVersion` is unconditional (not advance-only); no `toVersion<first` guard → out-of-spec arg rewinds the version floor | #5570 finding:41 |
+| L2 | Mid-loop prune error `return err` without `discardBatch` → a later `Commit` flushes partial/over-broad deletes while `firstVersion` is unadvanced | #5570 finding:52 |
+| L3 | `nextV==0` → `deleteAllNodesForVersion`→`deleteSubtree` deletes nodes only, leaks values/orphans (dormant) | #5570 finding:43 |
+| L5 | `DeleteNode` evicts cache **immediately** but delete is only batched; a concurrent miss re-caches from still-live DB → stale cache after flush | #5570 finding:44 |
+| L6 | `Rollback`/`orphanValueKey` ignore `DeleteValueDirect` errors → silent leak | #5570 finding:25 |
+| L7 | `Import` doesn't reset host-tree counters; allocates vks outside session tracking | #5570 finding:39 |
+| M9 | **Write side has no key-length cap** while reads reject >1 MiB → an oversized key serializes then **wedges that version** on reload | #5591 (5f091db7e) |
+| M15 | `Exporter`: abandon-without-`Close()` **permanently leaks the version reader** (decr is only in `Close`), + goroutine leak for trees >32 nodes. Blocking-send was fixed (commit f357c859c) *only when Close is called* | #5442 bug5 |
+| M8 | `LoadVersionForOverwriting`/`DeleteVersionsFrom` **panic** (unsupported). Unused in prod, but panics rather than returning `ErrUnsupported` | #5570 finding:12 |
+
+### Tier C — CONFIRMED in code, NOT triggerable under the current ABCI single-mutex (latent)
+
+| ID | Bug (verified) | Fix source |
+|---|---|---|
+| H1 | Iterators never register as version readers (all 3 `newIterator` calls pass `version=0`; `Close` decr is dead code) → prune can delete nodes a live iterator walks | #5450; #5570 finding:1; #5591 |
+| H2 | `GetImmutable`/`immutableForProof`/`GetImmutableTree` **never call `incrVersionReaders` at all** (stronger than "registers late") → snapshot unprotected from concurrent prune | #5570 finding:30/40 |
+| H3 | Prune active-readers check is TOCTOU — `hasVersionReaders` and the deletes are not under one lock; no `beginPruning`/`endPruning` | #5450; #5570 finding:15 |
+| M11 | COW mutators write node fields with no shared lock (`childMu` guards only lazy-load; clones get fresh mutexes) → concurrent `Get`+`Set` data race | #5570 finding:7 |
+| M12 | `immutableForProof` **aliases the live `t.root`** → concurrent proof+write can read torn `miniTree`/`childHashes` | #5570 finding:9 |
+| M13 | No singleflight/lock on `GetNode` cache-miss → duplicate deserialize, last-writer-wins `Add`, divergent object identity | #5570 arch |
+
+### Tier D — Hardening gaps (corrupt-DB / malicious-input only; not honest-path bugs)
+
+| ID | Bug (verified) | Fix source |
+|---|---|---|
+| M3 | `ReadNode` doesn't reject trailing bytes (corrupt/tampered blob decodes as truncated node; would surface as a parent childHash mismatch) | #5591 (c43bf6a4b) |
+| M4 | `Serialize` writes nil child ref as 0 bytes / nil valueKey as 12 zero bytes with **no assertion** (latent — save pipeline always populates these) | #5570 finding:18; #5591 |
+
+### Tier E — NOT bugs / already fixed / overstated (corrections to first-pass §2)
+
+| ID | First-pass said | **Verified reality** |
+|---|---|---|
+| **C1** | ❌ critical prune bug "still present" | **Original #5442 bug6 is FIXED by #5451** (from-root `findCorrespondingChild`). The adversarial 200-version split/merge/prune/cold-restart test finds **no corruption**; all prune tests pass. Residual: the routing is a *heuristic* (unproven for arbitrary nested split/merge). **Not a reproducible live bug.** ⚠️ Do **not** "fix" it with #5570's mark-and-sweep: that builds the full reachable NodeKey set per prune → **O(tree size)** memory + disk reads (won't scale to 100M-key chains). The dual-tree-walk is O(changed-nodes/block) via its same-hash short-circuit (`prune.go:134`) — keep it; prove/fuzz it instead. |
+| M1 | ❌ numKeys bounds unchecked | **NOT A BUG** — range check `numKeys<0 \|\| >B-1`(inner)/`>B`(leaf) is present right after the cast, before any array use (`node.go:248,297`). |
+| M2 | ⚠️ readBytes OOM | **NOT A BUG** — `length > maxReadBytesLen` (1 MiB) guard precedes `make` (`node.go:355`). |
+| M5 | ❌ GetNode errors swallowed in prune | **ALREADY FIXED** (commit `585ae1e34`) — all delete-decision sites propagate wrapped errors; only the best-effort `findCorrespondingChild` returns nil (the *conservative/safe* prune direction). |
+| M10 | ✅ import bounds | **Confirmed FIXED** (#5451) — `nk>B`/`>B-1` guards at `import.go:61,84`. |
+| M14 | ⚠️ resolveValue returns hash | **Dangerous core FIXED** (commit `cc2c7a7a6`): both `resolveValue` now return errors, not `vh[:]`. Only residue: no dedicated `ErrNoValueResolver` (conflated with `ErrKeyDoesNotExist`), surfaces only for an existing key with no resolver wired (misconfig, not corruption). |
+| L4 | ❌ nodeKeyBytesToArr zero-pads | **NOT A BUG** — no such helper exists; `GetNodeKey` returns nil on wrong length. |
+| L8 | ❌ ImmutableTree.Close not idempotent | **NOT A BUG** — `ImmutableTree.Close` does not exist. |
+| H5 | H — all-zero ValueKey collision | **Overstated/PARTIAL** — needs `Version==0` (non-default; default first version is 1) AND nothing actually reads the zero placeholder as "missing" (effectively dead branch). |
+| H7 | H — SaveVersion resets counters before Commit | **NOT A BUG** — reset happens strictly **after** the `Commit()` success check; a failed Commit correctly leaves counters intact for retry (claim was backwards). |
+| M7 | M — DeleteVersionsFrom leaks nodes | **NOT A BUG (as stated)** — it now **panics** (unsupported) rather than leaking; see M8. |
+| Lat1 | latent — Clone shares slices | Confirmed **latent only** — `c:=*n` aliases key slices, but no path mutates key bytes in place (all writes are slot-reassign/`copyKey`). COW-safe today. |
+
+### Score
+
+- **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
+- **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
+- **Latent concurrency (dormant under ABCI mutex): 5** (Tier C: H2 partial, H3, M11, M12, M13). ✅ **H1** (iterators register as version readers) landed via #5591 cherry-pick.
+- **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
+- **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
+
+### Where things stand
+
+1. **The headline "ship-blocker" (C1) is not reproducible.** #5451's fix holds against heavy adversarial churn; the remaining concern is *provability*, not a known failure.
+2. **The value-key subsystem — the main reachable risk — is now fixed at the root** (commit `568bc03b6`). The eager, out-of-batch `db.Set` (keyed by a per-version nonce that reset to 0 and was never reseeded on load) was the common cause of H6/H8/H11/H13 and H9's teeth. Values now stage in `pendingVals`+batch and flush atomically at `Commit`; `Rollback`/`LoadVersion`/`SaveVersion`-non-commit paths `DiscardBatch`. ✅ H10 (`VersionExists` error) and M6 (`Iterate` errors) are now fixed too (commit `74b7ca21b`, adopted from #5591/#5570) — **all reachable value-key correctness bugs are now closed.**
+3. **All the concurrency findings are dormant** because of the global ABCI mutex — correct today, fragile for any future relaxation, and the package documents no single-goroutine contract.
+4. **Most fixes exist in PRs, but cherry-pick — don't take #5570 wholesale**: #5591 + #5468 cover essentially all of Tier A. #5570 covers Tier A+B+C+D, **but its prune rewrite (mark-and-sweep) is O(tree size) per prune and will not scale** (its benchmark is only 10K keys); lift its prune *locking* + *leak* fixes (H3/L2/L3/L5) and the non-prune findings, but **keep the existing dual-tree-walk**. It's also large, stacked, unmerged, with a noted `LoadVersion` perf regression.
+
+### What should be done — options
+
+**Option 1 — Land the existing fix PRs (most complete).** Rebase + merge **#5591** (15 correctness/safety fixes) and **#5468** (proof root), then **#5570** (the 52-issue pass, incl. mark-and-sweep prune + reader registration). Pros: closes every confirmed item incl. the latent concurrency class and de-risks C1 with a *provable* algorithm. Cons: large surface to review; stacked on diverged branches; #5570's `LoadVersion` perf regression needs resolution first.
+
+**Option 2 — Targeted minimal patch (reachable-only, fastest to safe).** ✅ **Done.** `568bc03b6` (value staging) closed H6/H8/H11/H13 + neutered H9; `74b7ca21b` closed H10 + M6; #5468 closed H12. The only remaining reachable item is the cheap **M9** write-side key-length cap (low severity — wedges a version only if a caller writes a >1 MiB key). Tier C (dormant concurrency) and the C1 pruning heuristic are intentionally deferred.
+
+**Option 3 — Harden the existing pruner; do NOT swap in mark-and-sweep.** ⚠️ #5570's content-addressed mark-and-sweep builds the full reachable NodeKey set of the retained version on every prune → **O(tree size)** memory + disk reads (millions of node KVs at 100M keys), vs. the current dual-tree-walk's **O(changed-nodes/block)** from its same-hash subtree short-circuit (`prune.go:134`). #5570's prune benchmark (10K keys / 50 versions) is too small to expose this; it would not scale in production. Since C1 isn't reproducible, **keep the dual-tree-walk and prove/fuzz it** (random + adversarial split/merge/prune/restart, like the test in §V), and lift only #5570's prune **locking** (H3, `pruneMu`) and **leak** fixes (L2/L3/L5) — not the algorithm swap.
+
+**Option 4 — Document the concurrency contract.** If the ABCI single-mutex invariant is guaranteed, add explicit "MutableTree is single-goroutine; ImmutableTree concurrent-read only under serialization" docs and a `-race` guard test, and consciously defer Tier C. Cheapest; valid only while the invariant holds — revisit before async prune / concurrent queries / state-sync.
+
+**Recommended sequence:** Option 2 now (stop the reachable data-loss) → Option 3 (harden — don't replace — the pruner) → Option 1 to absorb the non-prune fixes → Option 4 docs as the safety net for Tier C. Add the adversarial prune test + value-lifecycle regression tests alongside. **Cherry-pick #5570's findings individually; do not take its mark-and-sweep prune.**
+
+---
+
+## VI. #5591 cherry-pick landed (commits `ac3d2756f..d63d02387`)
+
+Cherry-picked the 12 still-wanted #5591 commits onto the branch; **dropped 3**:
+`536f84a72` (redundant — H10 already on branch), `82eebc957` (redundant — branch
+clears session state via `resetSession`; see §1 of this doc), `388068894`
+(moot — value staging removed eager writes; its test would fail). Three conflicts
+resolved by hand (all in the SaveValue/GetValue/errors area the staging+H10 work
+rewrote): `newImmutable` now sets `imm.ndb` so snapshot iterators register as
+readers; `GetValue` keeps the `pendingVals` read-your-writes check then layers
+the missing-vs-empty `Has` disambiguation; `errors.go` keeps both
+`ErrNoCommittedState` and `ErrKeyTooLong`. One cherry-picked test
+(`TestGetValue_MissingValueReturnsError`) was adapted to commit before simulating
+corruption (staging keeps the value in `pendingVals` until `SaveVersion`).
+
+Closed by this cherry-pick: **H1** (iterators register as version readers —
+`ac3d2756f`, iterator-blocks-prune tests pass), **M3** (`ReadNode` trailing
+bytes — `83f5ee041`), **M4** (`Serialize` nil-ref — `27090f5b0`), **M9**
+(`MaxKeyLen` on Set/Import — `06de00540`), **L3** (unreachable
+`deleteAllNodesForVersion` removed — `1c5d72670`). Plus robustness/perf:
+GetValue missing-vs-empty, orphans[v] first-version edge, separator `copyKey`,
+`saveNode` no-force-load, prune batch-memory bound, deferred key copy. Full
+suite + benchmarks + store wrapper pass; full `-race` (33s) clean.
+
+Caveat carried forward: **H3** (prune-reader TOCTOU) and the rest of Tier C are
+**not** addressed here (they need #5570's `pruneMu`); **H2** is only partially
+addressed (snapshot *iterators* register, but a Get-only/proof snapshot still
+does not). `4dd84b894`'s commit message advertises a 4 MiB flush default that is
+dead under `DefaultOptions`' 100 KiB — behavior is correct, message is stale.
+
+---
+
+## 0. Two different trees — don't conflate
+
+| Tree | Package | Purpose | PRs |
+|---|---|---|---|
+| **Consensus B+32 tree** (this doc) | `tm2/pkg/bptree/`, `tm2/pkg/store/bptree/` | Versioned, Merkle, ICS23 — drop-in IAVL replacement for chain state | #5438, #5442, #5451, #5450, #5468, #5570, #5591, #5571 |
+| Userspace Gno tree (out of scope) | `examples/.../p/.../bptree` | In-realm `avl`-style container | #5475, #5644 |
+
+All bugs below are in the **consensus** tree. #5475 (merged, the userspace tree) and #5644
+(API change `Get` → `nil`) are a *separate package* and carry no bug reports — noted only to
+avoid confusion.
+
+---
+
+## 1. Related-PR map
+
+| PR | Title | Author | State | Base → Head | Role |
+|---|---|---|---|---|---|
+| [#5438](https://github.com/gnolang/gno/pull/5438) | immutable B+32 tree — drop-in IAVL replacement | jaekwon | **open** | master ← feat/jae/bp32tree | The implementation under review |
+| [#5442](https://github.com/gnolang/gno/pull/5442) | tests showcasing bugs — **DO NOT MERGE** | clockworkgr | closed | bp32tree ← test/bp32tree-review | **6 canonical bugs w/ reproducers** |
+| [#5451](https://github.com/gnolang/gno/pull/5451) | Fixes and improvements | clockworkgr | **merged ✅** | bp32tree ← feat/alex/bptree-fixes | Bug-6 partial fix, import bounds, round-trip |
+| [#5450](https://github.com/gnolang/gno/pull/5450) | bptree validation | notJoon | closed (unmerged) | bp32tree ← feat/bptree-validation | 3 robustness bugs |
+| [#5468](https://github.com/gnolang/gno/pull/5468) | use lastSaved in immutableForProof | notJoon | **open** | bp32tree ← fix/bptree-proof-committed-state | Proof-from-uncommitted-state bug |
+| [#5570](https://github.com/gnolang/gno/pull/5570) | correctness/robustness/perf — **52 issues** | clockworkgr | **open** | bp32tree ← bp32tree-second-pass | 52 findings + 2 second-pass |
+| [#5591](https://github.com/gnolang/gno/pull/5591) | deep-dive: correctness/safety/perf | clockworkgr | **open** | bp32tree ← bp32tree-deep-dive | 15 findings |
+| [#5571](https://github.com/gnolang/gno/pull/5571) | leaf v2/v3 + cache + 13-fix pass | clockworkgr | **open** | second-pass ← bp32tree-advanced | Features + self-review bugs |
+
+**Merge reality:** only **#5451** and **#5475** are merged. The large correctness PRs
+(#5570, #5591, #5450, #5468) are **open/unmerged**, so most issues below are **still present**
+on `feat/jae/bp32tree`. See [§4 Branch status](#4-status-on-current-branch-verified).
+
+---
+
+## 2. Master issue tally (deduplicated)
+
+Severity: **C**=Critical, **H**=High, **M**=Medium, **L**=Low, **Lat**=Latent (not yet
+reachable). "Status" verified against the working tree where marked ✅/❌; otherwise inferred
+from merge state.
+
+### Correctness — data loss / corruption / chain halt
+
+| ID | Issue | Sev | Location | Source PR(s) | Status on branch |
+|---|---|---|---|---|---|
+| **C1** | **Pruning deletes nodes shared across versions after an inner-node split** (positional descent picks one "corresponding" node; split siblings deleted while live → next prune panics, `Get`/`Has` panic in `DeliverTx`, node bricked on cold `LoadVersion`). Triggers on first prune (~block 705,601 under `PruneSyncable`). | **C** | `prune.go` `walkAndPrune`/`findCorrespondingChild` | #5442 bug6; partial fix #5451; full rewrite #5570 finding:3 | ❌ **Open** — positional `findCorrespondingChild` still in tree (prune.go:183,203); #5570 mark-and-sweep unmerged |
+| H1 | **Iterators never register as version readers** (`newIterator` hard-codes `version=0`; `incrVersionReaders` never fires) → a concurrent `PruneVersionsTo` deletes nodes a live iterator/snapshot is walking | H | `iterator.go` (all 3 call sites) | #5450; #5570 finding:1; #5591 #1 | ❌ **Open** — all 3 `newIterator(...,0)` still present (iterator.go:329,344,361) |
+| H2 | `GetImmutable`/`immutableForProof` don't register readers (and register **after** loading the root) → snapshot/root torn out by concurrent prune | H | `mutable_tree.go`, `proof.go` | #5570 finding:30, finding:40 | ❌ Open (#5570 unmerged) |
+| H3 | Pruning active-readers check is **TOCTOU** (check then delete in separate critical sections; reader can register in between) | M→H | `prune.go`, `nodedb.go` | #5450; #5570 finding:15 | ❌ Open (#5450/#5570 unmerged) |
+| H4 | Pruning empty-tree branch (`vRootNK == nil`) skips orphan/value cleanup → value records leak permanently | H | `prune.go` | #5570 finding:2 | ❌ Open |
+| H5 | **All-zero `ValueKey` collides with the "missing" sentinel** (nonce starts at 0; first ValueKey in v0 = 12 zero bytes = the missing-value placeholder) | H | `node_key.go`, `mutable_tree.go`, `import.go` | #5570 finding:6 | ❌ Open |
+| H6 | **`Set` not atomic with value save** — tree mutated first, then `SaveValue`; on `SaveValue` error the leaf references a never-persisted ValueKey (dangling ref persisted on next `SaveVersion`) | H | `mutable_tree.go` | #5570 finding:28 | ❌ Open — `treeInsert` (mutable_tree.go:107) runs before `SaveValue` (:120) |
+| H7 | `SaveVersion` partial-failure leaves `nextValueNonce`/session slices dirty → **nonce reuse** overwrites live values (compounds H5) | M→H | `mutable_tree.go` | #5570 finding:36; #5591 #2 | ❌ Open |
+| H8 | **`LoadVersion(non-latest)` + `Set` corrupts values** — new ValueKeys allocated in the `V+1` namespace; `SaveValue` is an out-of-batch direct write that silently overwrites live values before the version hash-check can reject | H | `mutable_tree.go`, `nodedb.go` | #5570 second-pass | ❌ Open |
+| H9 | **Idempotent `SaveVersion` leaks session state** — on the "version already exists, same hash" replay path `sessionValues` survives the early return; a later `Rollback` `DeleteValueDirect`s vks that now collide with live entries → **wipes real data** | H | `mutable_tree.go` | #5591 #2 | ❌ Open |
+| H10 | **`VersionExists` swallows DB errors** (`has,_ := db.Has(...)`) → transient `Has` failure reads as "does not exist", letting `SaveVersion` overwrite an existing version | M→H | `nodedb.go:303` | #5591 #3 | ❌ Open — confirmed `has, _ := ndb.db.Has(...)` at nodedb.go:304 |
+| H11 | **Crashed-session value leak** — `SaveValue` writes eagerly, `sessionValues` is in-memory only; a crash before `SaveVersion`/`Rollback` leaks values permanently (no recovery scan) | M | `nodedb.go`, `mutable_tree.go` | #5442 bug3; #5591 #5 | ❌ Open |
+| ~~H12~~ ✅ | ~~**`immutableForProof` builds proofs from the *unsaved* working root** (`t.root` not `t.lastSaved`) → ICS23 proofs that can't verify against the committed root hash.~~ **FIXED TODAY.** (Scope: only the `MutableTree` proof wrappers; store `Query` proves via a committed `ImmutableTree` gated by `VersionExists`, so production was never affected.) | M→Low (prod: none) | `proof.go` / `mutable_tree.go` | #5468 | ✅ **Fixed today** (#5468 cherry-picked + nits + dedup) |
+
+### Robustness — corruption detection / leaks / panics on bad input
+
+| ID | Issue | Sev | Location | Source PR(s) | Status on branch |
+|---|---|---|---|---|---|
+| H13 | **`SaveValue` bypasses the write batch** (`db.Set`, not `batch.Set`); `Rollback` only restores the root pointer → orphaned values accumulate (unbounded DB bloat). "Certain" to manifest each block. | M | `nodedb.go:157` | #5442 bug3; #5570 finding:25/31 | ❌ Open — confirmed `return ndb.db.Set(key, valCopy)` |
+| M1 | **No bounds check on deserialized `numKeys`** — uvarint cast to `int16` with no `[0,B-1]` range check; `0xFFFF`→`-1` slips past negative-checks; `32`→array-index panic. Single corrupt byte can brick a node. | M | `node.go` `readInnerNode`/`readLeafNode` | #5442 bug4; #5570 finding:23 | ❌ Open — uvarint read with no `> B` guard before cast |
+| M2 | **`readBytes` OOM** — decodes a uvarint length and `make([]byte, length)` before `io.ReadFull`; bogus `1<<40` OOM-kills the process | M | `node.go` `readBytes` | #5450; #5442 bug4 | ⚠️ **Mitigated** — `length > maxReadBytesLen` cap now present (node.go:355); #5591 adds cumulative `maxLeafReadBytes` |
+| M3 | `ReadNode` doesn't reject **trailing bytes** → corrupt payloads with extra bytes decode as silently-truncated nodes | M | `node.go` | #5591 #node-framing | ❌ Open |
+| M4 | **`Serialize` silently writes nil child / valueKey refs** — leaf path writes a 12-byte zero placeholder (round-trips to "value not found"); inner path `w.Write(nil)` shifts every subsequent field read | M | `node.go` | #5570 finding:18; #5591 #framing | ❌ Open |
+| M5 | **`GetNode` error surface is one bucket** — callers can't tell a legitimately-pruned node from a corrupt DB; errors silently swallowed (`continue`) in prune & elsewhere | M | `nodedb.go`, `prune.go` | #5438 review; #5570 finding:5 | ❌ Open — `child,err := GetNode(...); ...; continue` at prune.go:189 |
+| M6 | **`Iterate`/iterator swallows resolver errors** — closure returns `(true,nil)` on error; caller sees "iteration complete" instead of a DB failure (silent data loss); `Valid()==false` indistinguishable from real error | M | `immutable_tree.go`, `mutable_tree.go`, `iterator.go` | #5438 review; #5570 finding:8/34/35 | ❌ Open |
+| M7 | **`DeleteVersionsFrom` / `LoadVersionForOverwriting` leak node data** — delete only root refs (`R` prefix), never node entries (`B` prefix); stub with no orphan analysis | M | `nodedb.go` | #5450 | ❌ Open (#5450 unmerged) |
+| M8 | **Public API methods panic** — `LoadVersionForOverwriting` / `DeleteVersionsFrom` are IAVL-compat surface with no safe impl; calling them takes down the process | M | `mutable_tree.go` | #5570 finding:12 | ❌ Open |
+| M9 | **Write side missing `MaxKeyLen` cap** — read side caps length-prefixed fields, write side unbounded; an oversize key serializes but fails to deserialize → version permanently un-mountable | M | `mutable_tree.go`, `import.go` | #5591 #6 | ❌ Open |
+| M10 | **Import bounds not validated** — `Importer.Add` doesn't check `NumKeys` vs fixed-array bounds → OOB panic on malformed export stream | M | `import.go` | #5442-adjacent; **fixed #5451** | ✅ **Fixed** — `nk > B` / `> B-1` guards present (import.go:61,84) |
+| L1 | `PruneVersionsTo` can **rewind `firstVersion`** below the true first retained version → `AvailableVersions`/`discoverVersions` return wrong ranges | M | `prune.go` | #5570 finding:41 | ❌ Open |
+| L2 | Mid-loop prune error leaves **partial batch state** (deletes for `[first,v-1]` flushed on next `Commit`; `setFirstVersion` skipped → disk/bookkeeping diverge) | L | `prune.go` | #5570 finding:52 | ❌ Open |
+| L3 | `deleteAllNodesForVersion` / unreachable `nextV==0` branch **skips orphan/value cleanup** (dormant value-leak timebomb) | L | `prune.go` | #5570 finding:43; #5591 #unreachable | ❌ Open |
+| L4 | `nodeKeyBytesToArr` silently **zero-pads short slices** → miscompare vs reachable-set could delete live nodes | L | `prune.go` | #5570 finding:47 | ❌ Open |
+| L5 | `DeleteNode` **evicts from cache before batch commit** → a concurrent miss reloads from disk & re-caches, then batch flush leaves cache holding a deleted node | L | `nodedb.go` | #5570 finding:44 | ❌ Open |
+| L6 | `Rollback`/`orphanValueKey` **ignore `DeleteValueDirect` errors** → silent space leak with no diagnostic | L | `mutable_tree.go` | #5570 finding:25/31 | ❌ Open |
+| L7 | `Importer` doesn't reset host-tree counters on reuse → latent nonce reuse | L | `import.go` | #5570 finding:39 | ❌ Open |
+
+### Concurrency / thread-safety
+
+| ID | Issue | Sev | Location | Source PR(s) | Status |
+|---|---|---|---|---|---|
+| M11 | **Thread-safety under-specified**; `childMu` guards only the lazy-load path → concurrent `Get`+`Set` race on COW mutations (and `getChild` fast-path data race) | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ❌ Open (doc + `childLoaded` atomic in #5570) |
+| M12 | **`immutableForProof` shares the mutable root** — proof walks `miniTree` which `Set` rewrites in place → torn state under concurrent proof+write | M | `proof.go` | #5570 finding:9 | ❌ Open |
+| M13 | No **`singleflight` on cache-miss** — two readers missing the same NodeKey deserialize independently and overwrite each other's `Add` | M | `nodedb.go` | #5570 finding:5/arch | ❌ Open |
+| L8 | `ImmutableTree.Close` **not idempotent** — double/concurrent Close decrements reader count twice → corrupts count | L | `immutable_tree.go` | #5570 finding:45 | ❌ Open |
+
+### Latent / API ergonomics
+
+| ID | Issue | Sev | Location | Source PR(s) | Status |
+|---|---|---|---|---|---|
+| Lat1 | **Shallow `Clone()` shares mutable `[]byte` slices** (`c := *n`) — one `append()`/in-place write away from silent cross-version corruption | Lat | `node.go` `Clone` | #5442 bug1; #5570 finding:24/20/27 | ❌ Open (latent; audit shows no in-place mutation today) |
+| M14 | **`resolveValue` returns the 32-byte hash as the value** when no resolver is set (silent data corruption); `ErrKeyDoesNotExist` conflates missing-key with no-resolver | M | `immutable_tree.go`, `mutable_tree.go` | #5442 bug2; #5570 finding:10/11 | ⚠️ **Partially fixed** — now returns `ErrKeyDoesNotExist` (no longer the hash); resolver/missing conflation remains (#5570 `ErrNoValueResolver` unmerged) |
+| M15 | **Exporter goroutine leak + permanent version-reader lock** — `Export` does `go e.run()` with no context/cancel; abandoned `Exporter` blocks forever, version never prunable | M | `export.go` | #5442 bug5 | ❌ Open — `go e.run()` with no context (export.go:47) |
+| M16 | **`InlineValueThreshold` unbounded** (#5571 feature) — oversize inline value produces a leaf exceeding the reader budget → permanently un-mountable; field overloads `-1/0/positive` meanings | M | `options.go` (v2 leaves) | #5571 hardening | n/a — only relevant if #5571 inline-value feature lands |
+| Lat2 | `slotsDirty`/`miniTreeDirty` invariants (#5571 feature) — `InnerNode.Clone` cleared `miniTreeDirty` (stale-merkle hazard); `splitLeaf` missed a dirty mark | M | `node.go`, `split.go` | #5571 self-review | n/a — within #5571's new incremental-merkle feature |
+
+---
+
+## 3. The 6 canonical demonstrated bugs (#5442, with reproducer tests)
+
+These are the original review bugs, each with a **failing reproducer test** in `bugs_test.go`.
+Maps to master IDs in brackets.
+
+| # | Bug | Sev | Likelihood | Reproducer tests | Master |
+|---|---|---|---|---|---|
+| 1 | Shallow clone shares mutable slices | Low (latent) | None today | `TestBug1_CloneSharesSlices`, `TestBug1_COWSafety`, `TestBug1_COWRegressionTest` | Lat1 |
+| 2 | `resolveValue` returns hash as value | Medium | None on store path | `TestBug2_ResolveValueReturnsHash`, `TestBug2_ImmutableResolveValue`, `TestBug2_GetReturnsHashNotValue`, `TestBug2_StoreLayerSetsResolver` | M14 |
+| 3 | `SaveValue` bypasses batch; Rollback leaks | Medium | **Certain** | `TestBug3_SaveValueBypassesBatch`, `TestBug3_RollbackLeavesOrphanedValues`, `TestBug3_ValueVisibleBeforeCommit`, `TestBug3_OrphanAccumulation` | H13/H11 |
+| 4 | No bounds check on deserialized `numKeys` | Medium | Low | `TestBug4_NumKeysOverflow`, `TestBug4_NegativeNumKeysOverflow`, `TestBug4_ZeroNumKeys`, `TestBug4_MaxValidNumKeys` | M1/M2 |
+| 5 | Exporter goroutine leak + version-reader lock | Medium | Low (dormant) | `TestBug5_ExporterGoroutineLeak`, `TestBug5_VersionReaderLeak` | M15 |
+| 6 | **Pruning deletes shared nodes across versions** | **Critical** | **Certain** | `TestBug6_SingleVersionPruneCorruptsTree` (panic ~block 98, 302 cascading errors), `TestBug6_PruneCorruptsNewerVersions` (only 4,686/18,000 keys readable after prune), `TestBug6_PruneBricksNodeOnRestart` | **C1** |
+
+> #5442's bottom line: **"Bug #6 is a ship-blocker. Any chain running B+32 with default
+> pruning will eventually panic and brick"** — the 705,600-block delay before first prune
+> (~12 days @ 1s blocks) means it passes all testing but fails in production.
+
+---
+
+## 4. Status on current branch (verified)
+
+Greps against `feat/jae/bp32tree` working tree (2026-06-06):
+
+| Check | Result | Implication |
+|---|---|---|
+| `prune.go` algorithm | `walkAndPrune` + `findCorrespondingChild` (positional) still present | **C1 critical pruning bug class still in tree** — #5451 added `findCorrespondingChild`-from-root (mitigates the *single*-node variant) but #5570 finding:3 argues the positional approach is still wrong under nested split/merge; mark-and-sweep rewrite unmerged |
+| `newIterator(...)` calls | all 3 pass `version=0` | **H1 unfixed** — iterators don't register as readers |
+| `resolveValue` (immutable) | returns `ErrKeyDoesNotExist` (not `vh[:]`) | M14 **no longer returns hash**; resolver/missing conflation remains |
+| `SaveValue` | `return ndb.db.Set(...)` (direct) | **H13/H11 present** — values bypass batch |
+| `readBytes` | `length > maxReadBytesLen` cap present | **M2 mitigated** by constant cap |
+| `import.go` numKeys | `nk > B` / `> B-1` guards present | **M10 fixed** (merged #5451) |
+| `VersionExists` | `has, _ := db.Has(...)` | **H10 present** — swallows error |
+| `export.go` | `go e.run()`, no context | **M15 present** — leak path open |
+
+**Merged into branch:** #5451 (M10 import bounds, C1 *partial*, round-trip determinism), #5475.
+**Everything else (#5570, #5591, #5450, #5468) is unmerged → those fixes are NOT in the branch.**
+
+---
+
+## 5. Full appendices (per-PR source lists)
+
+### Appendix A — #5442: 6 bugs
+See [§3](#3-the-6-canonical-demonstrated-bugs-5442-with-reproducer-tests).
+
+### Appendix B — #5570: 52 findings + 2 second-pass
+
+Severity from PR: H/M/L/C. Bracketed master IDs where deduped.
+
+**Correctness (14):**
+- finding:1 (H) Iterators didn't register as version readers `[H1]`
+- finding:2 (H) Pruning empty-tree branch leaked orphans `[H4]`
+- finding:3 (H) Cascading prune corruption under splits/merges — positional descent removed, replaced by content-addressed mark-and-sweep `[C1]`
+- finding:6 (H) All-zero ValueKey collided with "missing" sentinel `[H5]`
+- finding:8 (M) `Iterate` swallowed resolver errors `[M6]`
+- finding:15 (M) Pruning active-readers check was TOCTOU `[H3]`
+- finding:26 (L) Idempotent `SaveVersion` mismatched legacy empty-tree blob
+- finding:28 (H) `Set` not atomic with value save `[H6]`
+- finding:30 (H) `GetImmutable`/`immutableForProof` didn't register readers `[H2]`
+- finding:36 (M) `SaveVersion` partial-failure left counters dirty `[H7]`
+- finding:40 (H) readers registered AFTER loading root `[H2]`
+- finding:43 (L) `deleteAllNodesForVersion` skipped orphan processing `[L3]`
+- *second-pass:* `LoadVersion(non-latest)`+`Set` value corruption `[H8]`
+- *second-pass:* `SetCommitting`/`UnsetCommitting` dead flag removed
+
+**Robustness / error handling (20):**
+- finding:5 (H) `GetNode` error surface single bucket `[M5]`
+- finding:12 (M) Public API methods panicked (`LoadVersionForOverwriting`, `DeleteVersionsFrom`) `[M8]`
+- finding:13 (M) `nodeDB` lock-discipline gaps undocumented
+- finding:18 (M) `InnerNode.Serialize` silently wrote nil child refs `[M4]`
+- finding:23 (L) Bounds checks ran AFTER unchecked casts (`numKeys`, `orphanValueKey`) `[M1]`
+- finding:25 (L) `Rollback`/`orphanValueKey` ignored `DeleteValueDirect` errors `[L6]`
+- finding:31 (L) same as 25 (Tier 1)
+- finding:34 (L) Iterator invalidation lost the underlying error `[M6]`
+- finding:35 (L) `MutableTree.Iterator` silently returned nil values (no resolver) `[M6]`
+- finding:37 (L) `treeRemove` root-collapse nodeKey expectations (doc only)
+- finding:38 (L) `Commit` lifecycle on error silently discarded writes
+- finding:39 (L) `Importer` didn't reset host-tree counters on reuse `[L7]`
+- finding:41 (M) `PruneVersionsTo` could rewind `firstVersion` `[L1]`
+- finding:42 (M) Unwired `AsyncPruning` option removed (latent racing writer)
+- finding:44 (L) `DeleteNode` evicted from cache before batch commit `[L5]`
+- finding:45 (L) `ImmutableTree.Close` no idempotency/synchronisation `[L8]`
+- finding:46 (L) Mark-and-sweep leaf-skip relied on unchecked `height==1` invariant
+- finding:47 (L) `nodeKeyBytesToArr` silently zero-padded short slices `[L4]`
+- finding:50 (L) `deleteSubtree` ignored `childNodes[i]` (in-memory children leak)
+- finding:52 (L) Mid-loop prune error left partial batch state `[L2]`
+
+**Code quality / API (12):** finding:7 thread-safety under-specified `[M11]`; finding:9 `immutableForProof` shared mutable root `[M12]`; finding:10 `ErrKeyDoesNotExist` conflated missing/no-resolver `[M14]`; finding:11 `Iterate` w/o resolver returned hash bytes `[M14]`; finding:19 dead code/config; finding:20 name/identifier inconsistencies + separator `copyKey` `[Lat1]`; finding:22 magic numbers/brittle constants (`maxReadBytesLen` 1MiB→64KiB); finding:24 internal contract fragility (`Clone` struct-copy); finding:27 cosmetic; finding:32 panic-on-default in type switches (resolved as designed); finding:48 stale comments; finding:51 leaf-skip comment.
+
+**Performance (8) — see Appendix I:** finding:4, 14, 16, 17, 21 (8 sub-items), 29, 33, 49.
+
+### Appendix C — #5591: 15 deep-dive findings
+
+**Correctness / safety:**
+- Iterator version readers (`version=0`) `[H1]`
+- Idempotent `SaveVersion` leaked session state → Rollback wipes live data `[H9]`
+- `VersionExists` swallowed DB errors `[H10]`
+- `GetValue` couldn't distinguish missing from empty (`(nil,nil)`) — masks corruption as empty
+- Crashed-session value leak — `Load()` now scans value keyspace above `latestVersion` `[H11]`
+- `MaxKeyLen` cap missing on Set/Import write side `[M9]`
+- Unreachable `deleteAllNodesForVersion` value-leak branch `[L3]`
+
+**Fail-fast guards:**
+- `ReadNode` trailing-bytes check `[M3]`
+- `Serialize` rejects nil `valueKey`/child-ref `[M4]`
+
+**Performance (Appendix I):** `saveNode` force-loaded unchanged siblings; `PruneVersionsTo` batch memory (`FlushThreshold`); deferred `copyKey` on update path.
+
+**Defensive / docs:** orphans of first pruned version; `redistributeLeft/Right` inner-case `copyKey` `[Lat1]`; README dedup-claim correction (code does **not** content-address/dedup values — every `Set` allocates a fresh `ValueKey`).
+
+### Appendix D — #5450 (notJoon): 3 bugs
+1. `readBytes` OOM from corrupt length — `length > r.Len()` guard `[M2]`
+2. `DeleteVersionsFrom` / `LoadVersionForOverwriting` leak node data (root-ref-only delete) `[M7]`
+3. `NewIteratorWithNDB` doesn't register as version reader + `PruneVersionsTo` TOCTOU (`beginPruning`/`endPruning` atomic check-and-mark, `ErrVersionBeingPruned`) `[H1/H3]`
+
+### Appendix E — #5468 (notJoon): 1 bug
+- ~~`immutableForProof()` used `t.root` (unsaved working tree) → proofs from uncommitted state, unverifiable against committed `Hash()`.~~ ✅ **FIXED TODAY.** Scope: only the `MutableTree.Get{,Non}MembershipProof` wrappers (tests/bench) — the store `Query` path proves via a committed `ImmutableTree` (gated by `VersionExists`), so production was never affected; a `MutableTree`-API/test-hygiene fix, not a query-security bug. Fix: use `t.lastSaved`, return `ErrNoCommittedState` only when nothing was *ever* committed (committed-but-empty → `ErrEmptyTree`). Cherry-picked #5468 (`cebeecf9a`) + follow-up nits (NonMembership guard assertion, committed-empty test, DB-backed Snapshot test, doc comments, `newImmutable` resolver dedup). `[H12]`
+
+### Appendix F — #5451 (clockworkgr) — MERGED ✅
+- Round-trip determinism (export→import identical structure/rootHash)
+- **Critical pruning bug #6 from #5442** (partial — positional `findCorrespondingChild`-from-root; #5570 argues still insufficient) `[C1]`
+- Comprehensive IAVL-comparison benchmark suite
+- Import bounds not validated → OOB panic `[M10]`
+
+### Appendix G — #5571 (clockworkgr): correctness items
+(Feature PR — v2 inline values / v3 prefix keys / fastnode cache / 13-fix perf. Bugs *introduced & closed within its own features*:)
+- `InnerNode.Clone` cleared `miniTreeDirty` → stale-merkle hazard `[Lat2]`
+- `splitLeaf` missed a dirty-mark on one path `[Lat2]`
+- Fastnode cache served **stale values** on root swap → wholesale purge on Rollback/LoadVersion; defensive copy on Get-hit
+- `InlineValueThreshold` unbounded → un-mountable leaf; 3-layer clamp + named `InlineThreshold` type `[M16]`
+- `maxLeafReadBytes` cumulative cap vs v2/v3 amplification
+
+### Appendix H — #5438 inline review comments (15)
+Seeds of the fix PRs above:
+
+| # | Reviewer | File | Comment | Master |
+|---|---|---|---|---|
+| 1 | notJoon | store.go:143 | `LoadVersion` immutable path silently ignores error (mutable path at :153 handles it) | M5 |
+| 2 | notJoon | mutable_tree.go:82 | `treeInsert` recomputes sha256 for same value — pass the precomputed hash | perf |
+| 3-6 | clockworkgr | prune.go (×4) | `GetNode` errors silently ignored — `continue` only if actually deleted, else bubble up | M5 |
+| 7 | clockworkgr | nodedb.go:304 | should check the error here | M5/H10 |
+| 8 | clockworkgr | immutable_tree.go | Iterator returns `(true,nil)` on error → error lost = silent data loss (same in MutableTree) | M6 |
+| 9 | clockworkgr | mutable_tree.go | same iterator issue | M6 |
+| 10 | clockworkgr | node.go:62 | document `getChild` panics on DB-load failure (unrecoverable) | M5 |
+| 11 | clockworkgr | nodedb.go:313 | loop over all versions w/ `VersionExists` vs iterator scan (use `discoverVersions` pattern) | perf (finding:14) |
+| 12 | clockworkgr | options.go:8 | are these options used anywhere? (dead config) | finding:19/42 |
+| 13 | clockworkgr | mini_merkle.go:88 | `B` is compile-time const — don't recompute depth at runtime | perf (finding:21) |
+| 14 | clockworkgr | remove.go:326 | use `copyKey` for separator consistency | Lat1 |
+| 15 | notJoon | split.go:69 | `splitInner` uses direct reference vs `splitLeaf`'s copy — keep consistent | Lat1 |
+
+Plus a design thread (clockworkgr/notJoon): make `getNode` return `ErrNodeNotFound` for deleted nodes and panic for other failures (→ #5570 finding:5).
+
+### Appendix I — Performance findings (NOT bugs)
+Listed for completeness; excluded from the bug tally per request.
+- **#5570:** finding:4 `saveNode` reloads unchanged subtrees (H, 192 reads vs 6 writes/update); finding:14 `AvailableVersions` O(versions) DB lookups; finding:16 iterator 1 DB read per `Value()`; finding:17 unconditional root clone per `Set` (~4.3 KB); finding:21 hot-path allocations (8 sub-items); finding:29 `Clone()` copies 2 KB mini-merkle + rebuild; finding:33 `seekLast` over-descent; finding:49 `sweepOld` redundant recursion.
+- **#5591:** `saveNode` force-loaded unchanged siblings (~18K reads/block @ scale); `PruneVersionsTo` batch memory; deferred `copyKey` on update.
+- **#5571:** fastnode cache, pooled serialization (allocs −85%), incremental mini-merkle, v2 inline values, v3 prefix compression, mark-and-sweep + LoadVersion fast path.
+
+---
+
+## 6. Bottom line
+
+- **One ship-blocker:** **C1** — the positional pruning algorithm corrupts the tree after
+  inner-node splits and **is still present** on `feat/jae/bp32tree`. #5451 only partially
+  addressed it; the definitive mark-and-sweep rewrite (#5570) is unmerged.
+- **High-severity correctness still open** (all in unmerged PRs): H1–H13 — iterator/snapshot
+  reader registration & prune TOCTOU (H1–H3), value-key nonce collisions & non-atomic value
+  save & version-overwrite races (H5–H10), value/orphan leaks (H4, H11, H13).
+  (**H12 uncommitted-state proofs: fixed on branch — and was never reachable via the
+  store `Query` path, which proves against a committed `ImmutableTree`.**)
+- **Already fixed on branch:** M10 (import bounds, #5451), M2 (readBytes cap), M14 (no longer
+  returns hash-as-value — partial).
+- **Robustness/concurrency hardening** (M1, M3–M13, L1–L8, M15) awaits #5570/#5591/#5450.
+- Two reviewers independently flagged the **iterator-version-reader** (H1) and
+  **prune-reader TOCTOU** (H3) bugs (#5450 notJoon, #5570/#5591 clockworkgr), and #5442's
+  reproducers confirm the **critical prune** (C1) bug — high confidence these are real.
