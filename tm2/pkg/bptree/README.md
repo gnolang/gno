@@ -42,12 +42,12 @@ in the leaf for Merkle proofs. This means:
 - **Less COW amplification**: modifying one key copies only hash references, not sibling values
 - **Copy safety**: callers cannot corrupt stored values by mutating their byte slices
 
-Values are written directly to the DB (not via batch) so `Get` works
-before `SaveVersion`. Values are never garbage collected — dead values
-after pruning are harmless noise. Eagerly-written values left behind by
-a crashed working session (process died before `SaveVersion` or
-`Rollback`) are cleaned up on the next `Load()` by scanning for
-ValueKeys with a version greater than the latest persisted version.
+Values are staged in the write batch (and an in-memory pending buffer so
+`Get` works before `SaveVersion`), then flushed to the DB atomically with
+the nodes and root at `SaveVersion`. `Rollback` discards the staged batch,
+so a working session abandoned before `SaveVersion` (including a process
+crash) leaves nothing in the DB. Values are never garbage collected — dead
+values after pruning are harmless noise.
 
 **No content-addressed deduplication.** Two `Set` calls with identical
 values each get a fresh ValueKey and a separate DB entry — there is no
@@ -213,7 +213,7 @@ tm2/pkg/store/bptree/
 | Leaf iteration | Goroutine + channel | Synchronous stack |
 | Orphan tracking | Explicit orphan index | Dual-tree-walk (no index) |
 | Node loading | Eager (full tree) | Lazy (on demand) |
-| Copy semantics | Values shared by reference | Values copied (content-addressed) |
+| Copy semantics | Values shared by reference | Values copied (keyed by ValueKey, not content-addressed) |
 
 ## Testing
 
