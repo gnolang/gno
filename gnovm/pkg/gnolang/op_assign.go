@@ -57,12 +57,21 @@ func (m *Machine) doOpAssign() {
 	// whole region and truncate the stack once, then resolve each LHS in place
 	// from its sub-slice. This avoids the per-statement make([][]TypedValue, N)
 	// heap allocation of the buffer-and-repush approach.
+	//
+	// INVARIANT: `ops` (and `rvs` above it) alias the live m.Values backing
+	// array with its full capacity retained. Nothing in the loop below may push
+	// onto m.Values — an append would write in place into those windows and
+	// corrupt not-yet-resolved frames. This holds because resolvePointer and
+	// Assign2 are leaf operations that execute no bytecode (the rvs alias is
+	// pre-existing precedent: the old loop read rvs[i] across Assign2 too). The
+	// debug assertion below guards against a future callee breaking it.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
 	}
 	ops := m.Values[len(m.Values)-total:]
 	m.Values = m.Values[:len(m.Values)-total]
+	stackLen := len(m.Values)
 
 	offset := 0
 	for i, lx := range s.Lhs {
@@ -79,6 +88,9 @@ func (m *Machine) doOpAssign() {
 			panic("untyped conversion should not happen at runtime")
 		}
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
+		if debug && len(m.Values) != stackLen {
+			panic("doOpAssign: value stack grew mid-loop; ops/rvs aliases corrupted")
+		}
 	}
 }
 

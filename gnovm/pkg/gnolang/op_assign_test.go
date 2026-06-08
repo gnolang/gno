@@ -4,9 +4,9 @@ import "testing"
 
 // TestDoOpAssign_DuplicateNameLHS_LeftToRight: NameExpr LHS aliasing the
 // same block slot. Covers the forward-Assign2 half of the fix: rvs[n-1] wins.
-// (NameExpr's PopAsPointer does not consume value-stack sub-evals, so this
-// case does not exercise the reverse-pop discipline — that's what
-// TestDoOpAssign_DistinctIndexLHS_ReversePop covers.)
+// (NameExpr's PopAsPointer consumes no value-stack sub-evals, so this case
+// does not exercise per-LHS operand-frame addressing — that's what
+// TestDoOpAssign_DistinctIndexLHS_InPlaceFrames covers.)
 func TestDoOpAssign_DuplicateNameLHS_LeftToRight(t *testing.T) {
 	for _, n := range []int{2, 3, 5, 17} {
 		m := benchMachine()
@@ -31,12 +31,13 @@ func TestDoOpAssign_DuplicateNameLHS_LeftToRight(t *testing.T) {
 	}
 }
 
-// TestDoOpAssign_DistinctIndexLHS_ReversePop: IndexExpr LHS with distinct
-// indices on the same slice. The value-stack sub-eval values must be popped
-// in reverse-LHS order; if a future refactor flips the pop loop to forward,
-// lvs[0] would end up pointing at slice[1] and vice versa, swapping the
+// TestDoOpAssign_DistinctIndexLHS_InPlaceFrames: IndexExpr LHS with distinct
+// indices on the same slice. doOpAssign resolves each LHS forward (left to
+// right) from its own operand frame, read in place from the value-stack window.
+// If the per-LHS offset arithmetic were wrong (e.g. frames addressed in the
+// wrong order), lvs[0] would resolve to slice[1] and vice versa, swapping the
 // final element values.
-func TestDoOpAssign_DistinctIndexLHS_ReversePop(t *testing.T) {
+func TestDoOpAssign_DistinctIndexLHS_InPlaceFrames(t *testing.T) {
 	m := benchMachine()
 	defer m.Release()
 
