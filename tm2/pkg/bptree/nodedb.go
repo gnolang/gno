@@ -107,6 +107,9 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 		if err := n.Serialize(&buf); err != nil {
 			return fmt.Errorf("serializing inner node: %w", err)
 		}
+		// Give in-memory-built inner nodes their ndb so they can lazy-load
+		// children after the working tree drops the in-memory child pointers.
+		n.ndb = ndb
 	case *LeafNode:
 		if err := n.Serialize(&buf); err != nil {
 			return fmt.Errorf("serializing leaf node: %w", err)

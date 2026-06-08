@@ -312,6 +312,10 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 			// redundant but harmless (same NodeKey, same hash).
 			inner.children[i] = child.GetNodeKey().GetKey()
 			inner.childHashes[i] = child.Hash()
+			// Now that children[i]/childHashes[i] are durable, drop the in-memory
+			// child pointer: it reloads on demand via getChild, so the working
+			// tree stays bounded by the cache instead of pinning every saved node.
+			inner.childNodes[i] = nil
 		}
 		inner.RebuildMiniMerkle()
 	}

@@ -1,7 +1,5 @@
 package bptree
 
-import "sync"
-
 // insertResult is returned by recursive insert functions.
 type insertResult struct {
 	updated     bool         // true if key already existed (value replaced)
@@ -202,8 +200,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 
 	// Wire up child nodes for left, preserving ndb from the original node
 	savedNdb := inner.ndb
-	*inner = *leftInner //nolint:govet // intentional copy; mutex re-initialized below
-	inner.childMu = sync.Mutex{}
+	*inner = *leftInner
 	inner.ndb = savedNdb
 	for i := 0; i < inner.NumChildren(); i++ {
 		inner.childNodes[i] = allChildNodes[i]

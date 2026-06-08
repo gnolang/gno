@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"sync"
 )
 
 // Node is the interface implemented by both InnerNode and LeafNode.
@@ -22,14 +21,13 @@ type InnerNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
 	childSizes  [B]int64 // leaf count per child subtree; total = sum(childSizes[:numKeys+1])
-	height      int16 // levels above leaf level (parent of leaves = 1)
+	height      int16    // levels above leaf level (parent of leaves = 1)
 	keys        [B - 1][]byte
-	children    [B][]byte    // serialized NodeKey references (12 bytes each), used for persistence
-	childHashes [B]Hash      // hash of each child subtree
-	childNodes  [B]Node      // in-memory child references (nil = not yet loaded)
-	miniTree    MiniMerkle   // in-memory only, not serialized
-	ndb         *nodeDB      // for lazy child loading; nil for freshly-built (unsaved) nodes
-	childMu     sync.Mutex   // guards lazy loading in getChild for concurrent reads
+	children    [B][]byte  // serialized NodeKey references (12 bytes each), used for persistence
+	childHashes [B]Hash    // hash of each child subtree
+	childNodes  [B]Node    // in-memory child references (nil = not yet loaded)
+	miniTree    MiniMerkle // in-memory only, not serialized
+	ndb         *nodeDB    // for lazy child loading; nil for freshly-built (unsaved) nodes
 }
 
 // LeafNode stores sorted key-value hash pairs.
@@ -37,16 +35,16 @@ type LeafNode struct {
 	nodeKey     *NodeKey
 	numKeys     int16
 	keys        [B][]byte
-	valueHashes [B]Hash   // SHA256 of each value (for Merkle proofs)
-	valueKeys   [B][]byte // ValueKey references (12 bytes each, for value DB lookup)
+	valueHashes [B]Hash    // SHA256 of each value (for Merkle proofs)
+	valueKeys   [B][]byte  // ValueKey references (12 bytes each, for value DB lookup)
 	miniTree    MiniMerkle // in-memory only, not serialized
 }
 
 func (*InnerNode) isNode() {}
 func (*LeafNode) isNode()  {}
 
-func (n *InnerNode) GetNodeKey() *NodeKey  { return n.nodeKey }
-func (n *LeafNode) GetNodeKey() *NodeKey   { return n.nodeKey }
+func (n *InnerNode) GetNodeKey() *NodeKey   { return n.nodeKey }
+func (n *LeafNode) GetNodeKey() *NodeKey    { return n.nodeKey }
 func (n *InnerNode) SetNodeKey(nk *NodeKey) { n.nodeKey = nk }
 func (n *LeafNode) SetNodeKey(nk *NodeKey)  { n.nodeKey = nk }
 
@@ -57,28 +55,23 @@ func (n *LeafNode) Hash() Hash  { return n.miniTree.Root() }
 // NumChildren returns the number of children (numKeys + 1).
 func (n *InnerNode) NumChildren() int { return int(n.numKeys) + 1 }
 
-// getChild returns the child node at index, lazy-loading from DB if needed.
-// Thread-safe: uses a mutex so concurrent reads on ImmutableTree don't race.
+// getChild returns the child node at index. If an in-memory child is present —
+// an unsaved/dirty node, or one set earlier in the current descent — it is
+// returned directly; otherwise the child is lazy-loaded from the DB and returned
+// WITHOUT being memoized on the node. Reads therefore never mutate the node, and
+// the working tree stays bounded by the nodeDB cache instead of pinning every
+// node it has touched. (GetNode already sets ndb on loaded inner nodes.)
 func (n *InnerNode) getChild(idx int) Node {
-	n.childMu.Lock()
-	defer n.childMu.Unlock()
-
 	if n.childNodes[idx] != nil {
 		return n.childNodes[idx]
 	}
 	if n.ndb == nil || n.children[idx] == nil {
 		return nil
 	}
-	// Lazy load from DB
 	child, err := n.ndb.GetNode(n.children[idx])
 	if err != nil {
 		panic(fmt.Sprintf("bptree: failed to load child node %x: %v", n.children[idx], err))
 	}
-	// Propagate ndb for recursive lazy loading
-	if inner, ok := child.(*InnerNode); ok {
-		inner.ndb = n.ndb
-	}
-	n.childNodes[idx] = child
 	return child
 }
 
@@ -88,7 +81,6 @@ func (n *InnerNode) setChild(idx int, child Node) {
 	n.childNodes[idx] = child
 	n.children[idx] = nil
 }
-
 
 // RebuildMiniMerkle recomputes the full mini merkle tree from the
 // slot-level hashes. For InnerNode, slots are childHashes.
@@ -122,9 +114,8 @@ func (n *LeafNode) RebuildMiniMerkle() {
 // keys are never mutated in-place, only replaced by shifting).
 // The ndb reference is preserved for lazy loading.
 func (n *InnerNode) Clone() *InnerNode {
-	c := *n //nolint:govet // intentional copy; mutex is re-initialized below
+	c := *n
 	c.nodeKey = nil
-	c.childMu = sync.Mutex{} // fresh mutex for the clone
 	return &c
 }
 
