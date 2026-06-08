@@ -2773,15 +2773,17 @@ func numStackValuesForPointer(lx Expr) int {
 	}
 }
 
-// resolvePointer resolves lx to a PointerValue using the operand values in ops
-// (exactly numStackValuesForPointer(lx) of them) instead of popping them off the
-// value stack. ops are in stack order, oldest first — matching PopValues — so
-// for an IndexExpr ops[0] is X and ops[1] is Index (PushForPointer pushes X then
-// Index, so on the stack the Index sits on top and the original PopAsPointer2
-// popped it first as iv, then X as xv). ro reports a readonly/cross-realm
-// violation. This is the pure resolver shared by PopAsPointer2 (the stack
-// wrapper) and doOpAssign (which reads operand frames in place).
-func (m *Machine) resolvePointer(lx Expr, ops []TypedValue) (pv PointerValue, ro bool) {
+// resolvePointer resolves lx to a PointerValue using its lhsOperands — the
+// values PushForPointer evaluated for lx (exactly numStackValuesForPointer(lx)
+// of them: the base X, the Index, etc.) — instead of popping them off the value
+// stack. lhsOperands are in stack order, oldest first — matching PopValues —
+// so for an IndexExpr lhsOperands[0] is X and lhsOperands[1] is Index
+// (PushForPointer pushes X then Index, so on the stack the Index sits on top and
+// the original PopAsPointer2 popped it first as iv, then X as xv). ro reports a
+// readonly/cross-realm violation. This is the pure resolver shared by
+// PopAsPointer2 (the stack wrapper) and doOpAssign (which reads the inputs in
+// place).
+func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2799,8 +2801,8 @@ func (m *Machine) resolvePointer(lx Expr, ops []TypedValue) (pv PointerValue, ro
 			panic("unexpected NameExpr in PopAsPointer")
 		}
 	case *IndexExpr:
-		xv := &ops[0]
-		iv := &ops[1]
+		xv := &lhsOperands[0]
+		iv := &lhsOperands[1]
 		if xv.T.Kind() == MapKind {
 			// For maps, GetPointerAtIndex unconditionally creates a new entry for
 			// missing keys. Check readonly before this mutation.
@@ -2815,11 +2817,11 @@ func (m *Machine) resolvePointer(lx Expr, ops []TypedValue) (pv PointerValue, ro
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
-		xv := &ops[0]
+		xv := &lhsOperands[0]
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		xv := &ops[0]
+		xv := &lhsOperands[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
@@ -2829,7 +2831,7 @@ func (m *Machine) resolvePointer(lx Expr, ops []TypedValue) (pv PointerValue, ro
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
-		tv := ops[0]
+		tv := lhsOperands[0]
 		// Heap-slot wrapper is anonymous; nil t skips the
 		// construction-time check. The contained composite literal
 		// was already construction-time-checked at its own allocation.
@@ -2859,8 +2861,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	if n == 0 {
 		return m.resolvePointer(lx, nil)
 	}
-	ops := m.Values[len(m.Values)-n:]
-	pv, ro = m.resolvePointer(lx, ops)
+	lhsOperands := m.Values[len(m.Values)-n:]
+	pv, ro = m.resolvePointer(lx, lhsOperands)
 	m.Values = m.Values[:len(m.Values)-n]
 	return
 }

@@ -55,17 +55,17 @@ func (m *Machine) doOpAssign() {
 	// pushes PushForPointer for the LHS in reverse, so LHS_0 executes first).
 	// PopValues the whole region once, then resolve each LHS from its sub-slice.
 	//
-	// INVARIANT: `ops` (like `rvs`) is a PopValues result — a view into the live
-	// m.Values backing array (see PopValues' "use immediately" contract).
-	// Nothing in the loop below may push onto m.Values, or an append would write
-	// in place over not-yet-resolved frames. resolvePointer and Assign2 are leaf
-	// operations that run no bytecode, so they never push; the debug assertion
-	// below guards against a future callee breaking that.
+	// INVARIANT: `lhsOperands` (like `rvs`) is a PopValues result — a view into
+	// the live m.Values backing array (see PopValues' "use immediately"
+	// contract). Nothing in the loop below may push onto m.Values, or an append
+	// would write in place over not-yet-resolved inputs. resolvePointer and
+	// Assign2 are leaf operations that run no bytecode, so they never push; the
+	// debug assertion below guards against a future callee breaking that.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
 	}
-	ops := m.PopValues(total)
+	lhsOperands := m.PopValues(total)
 	stackLen := len(m.Values)
 
 	offset := 0
@@ -74,7 +74,7 @@ func (m *Machine) doOpAssign() {
 		// Resolve LHS_i's pointer from its operand frame, then immediately
 		// assign — keeping the left-to-right, fail-with-earlier-writes-committed
 		// discipline described above.
-		lv, ro := m.resolvePointer(lx, ops[offset:offset+sz])
+		lv, ro := m.resolvePointer(lx, lhsOperands[offset:offset+sz])
 		if ro {
 			m.Panic(typedString(readonlyAccessPanic(lx)))
 		}
@@ -84,7 +84,7 @@ func (m *Machine) doOpAssign() {
 		}
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 		if debug && len(m.Values) != stackLen {
-			panic("doOpAssign: value stack grew mid-loop; ops/rvs aliases corrupted")
+			panic("doOpAssign: value stack grew mid-loop; lhsOperands/rvs aliases corrupted")
 		}
 	}
 }
