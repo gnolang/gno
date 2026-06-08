@@ -25,7 +25,7 @@ func TestEmptyTreeHash(t *testing.T) {
 	expectedHash := sha256.Sum256(nil)
 
 	// MutableTree (in-memory)
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	h := tree.WorkingHash()
 	if !bytes.Equal(h, expectedHash[:]) {
 		t.Fatalf("WorkingHash on empty tree = %x, want %x", h, expectedHash)
@@ -54,7 +54,7 @@ func TestEmptyTreeHash(t *testing.T) {
 
 func TestInMemoryIteratorValues(t *testing.T) {
 	// Iterator on in-memory trees must resolve actual values, not return hashes.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 10; i++ {
 		tree.Set([]byte{byte(i)}, []byte{byte(i + 100)})
 	}
@@ -82,7 +82,7 @@ func TestInMemoryIteratorValues(t *testing.T) {
 
 func TestKeyDefensivelyCopied(t *testing.T) {
 	// Mutating the key slice after Set must not corrupt the tree.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	key := []byte("hello")
 	tree.Set(key, []byte("world"))
 
@@ -103,7 +103,7 @@ func TestKeyDefensivelyCopied(t *testing.T) {
 
 func TestSetEmptyValue(t *testing.T) {
 	// Set(key, []byte{}) must round-trip correctly — not return nil.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	_, err := tree.Set([]byte("k"), []byte{})
 	if err != nil {
 		t.Fatal(err)

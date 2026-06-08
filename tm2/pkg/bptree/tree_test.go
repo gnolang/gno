@@ -9,7 +9,7 @@ import (
 )
 
 func TestMutableTree_SetGet_Single(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	updated, err := tree.Set([]byte("hello"), []byte("world"))
 	if err != nil || updated {
 		t.Fatalf("first set: updated=%v err=%v", updated, err)
@@ -24,7 +24,7 @@ func TestMutableTree_SetGet_Single(t *testing.T) {
 }
 
 func TestMutableTree_SetGet_Update(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v1"))
 	updated, _ := tree.Set([]byte("k"), []byte("v2"))
 	if !updated {
@@ -36,7 +36,7 @@ func TestMutableTree_SetGet_Update(t *testing.T) {
 }
 
 func TestMutableTree_Has(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("exists"), []byte("yes"))
 	has, _ := tree.Has([]byte("exists"))
 	if !has {
@@ -49,7 +49,7 @@ func TestMutableTree_Has(t *testing.T) {
 }
 
 func TestMutableTree_Remove_Single(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v"))
 	_, found, _ := tree.Remove([]byte("k"))
 	if !found {
@@ -64,7 +64,7 @@ func TestMutableTree_Remove_Single(t *testing.T) {
 }
 
 func TestMutableTree_Remove_NotFound(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v"))
 	_, found, _ := tree.Remove([]byte("missing"))
 	if found {
@@ -76,7 +76,7 @@ func TestMutableTree_Remove_NotFound(t *testing.T) {
 }
 
 func TestMutableTree_EmptyTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	if !tree.IsEmpty() {
 		t.Fatalf("new tree should be empty")
 	}
@@ -93,7 +93,7 @@ func TestMutableTree_EmptyTree(t *testing.T) {
 }
 
 func TestMutableTree_SequentialInserts(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := B * 4 // 128 keys — triggers multiple splits
 	for i := 0; i < n; i++ {
 		key := fmt.Appendf(nil, "key%04d", i)
@@ -126,7 +126,7 @@ func TestMutableTree_SequentialInserts(t *testing.T) {
 }
 
 func TestMutableTree_RandomInserts(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	rng := rand.New(rand.NewSource(12345))
 	n := 500
 	inserted := make(map[string]bool)
@@ -161,7 +161,7 @@ func TestMutableTree_RandomInserts(t *testing.T) {
 }
 
 func TestMutableTree_InsertAndRemove(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 200
 
 	// Insert n keys
@@ -211,7 +211,7 @@ func TestMutableTree_InsertAndRemove(t *testing.T) {
 }
 
 func TestMutableTree_RemoveAll(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "k%03d", i), []byte("v"))
@@ -234,7 +234,7 @@ func TestMutableTree_RemoveAll(t *testing.T) {
 }
 
 func TestMutableTree_Rollback(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("b"), []byte("2"))
 
@@ -266,7 +266,7 @@ func TestMutableTree_Rollback(t *testing.T) {
 }
 
 func TestMutableTree_HashChanges(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v1"))
 	h1 := tree.WorkingHash()
 
@@ -285,7 +285,7 @@ func TestMutableTree_HashChanges(t *testing.T) {
 }
 
 func TestMutableTree_Height(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	if tree.Height() != 0 {
 		t.Fatalf("empty tree height = %d", tree.Height())
 	}
@@ -306,7 +306,7 @@ func TestMutableTree_Height(t *testing.T) {
 }
 
 func TestMutableTree_LargeRandomWorkload(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	rng := rand.New(rand.NewSource(42))
 	reference := make(map[string]string)
 	ops := 2000
@@ -354,7 +354,7 @@ func TestMutableTree_LargeRandomWorkload(t *testing.T) {
 }
 
 func TestMutableTree_SetEmptyKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	_, err := tree.Set([]byte{}, []byte("v"))
 	if err == nil {
 		t.Fatalf("expected error for empty key")
@@ -363,7 +363,7 @@ func TestMutableTree_SetEmptyKey(t *testing.T) {
 
 func TestMutableTree_90_10_Split(t *testing.T) {
 	// Sequential inserts should trigger 90/10 splits.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < B+1; i++ {
 		tree.Set(fmt.Appendf(nil, "s%04d", i), []byte("v"))
 	}
@@ -384,7 +384,7 @@ func TestMutableTree_90_10_Split(t *testing.T) {
 func TestMutableTree_50_50_Split(t *testing.T) {
 	// Insert B keys in order to fill a leaf, then insert a key in the middle.
 	// This should trigger a 50/50 split (not 90/10).
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert even numbers 0, 2, 4, ..., 62 to fill one leaf
 	for i := 0; i < B; i++ {
 		tree.Set([]byte{byte(i * 2)}, []byte("v"))
@@ -417,7 +417,7 @@ func TestMutableTree_InnerNodeSplit(t *testing.T) {
 	// Insert enough sequential keys to force an inner node to split.
 	// With 90/10 leaf splits (31 left, 2 right), we need ~32 leaves
 	// to fill an inner node (B-1=31 separators). That's ~32*31 ≈ 1000 keys.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 1100
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "i%05d", i), []byte("v"))
@@ -446,7 +446,7 @@ func TestMutableTree_InnerNodeSplit(t *testing.T) {
 }
 
 func TestMutableTree_RootCollapseInnerToLeaf(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert B+1 keys to create an inner root with 2 leaf children
 	for i := 0; i < B+1; i++ {
 		tree.Set(fmt.Appendf(nil, "c%04d", i), []byte("v"))
@@ -474,7 +474,7 @@ func TestMutableTree_RootCollapseInnerToLeaf(t *testing.T) {
 }
 
 func TestMutableTree_COW_OldReferencesValid(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "cow%03d", i), []byte("v"))
 	}
@@ -505,7 +505,7 @@ func TestMutableTree_COW_OldReferencesValid(t *testing.T) {
 }
 
 func TestMutableTree_LeafBoundaryMinKeys(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert enough to have at least 2 leaves
 	n := B + MinKeys // 48 keys
 	for i := 0; i < n; i++ {
@@ -538,7 +538,7 @@ func TestMutableTree_LeafBoundaryMinKeys(t *testing.T) {
 
 func TestMutableTree_90_10_FillFactor(t *testing.T) {
 	// Insert many sequential keys and verify leaves are ~97% full (B-1 per leaf).
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := B * 10 // 320 keys
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "f%05d", i), []byte("v"))
@@ -573,7 +573,7 @@ func countLeaves(node Node, leafCount, totalKeys *int) {
 }
 
 func TestMutableTree_GetByIndex(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	keys := make([]string, n)
 	for i := 0; i < n; i++ {
@@ -604,7 +604,7 @@ func TestMutableTree_GetByIndex(t *testing.T) {
 }
 
 func TestMutableTree_GetWithIndex(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	keys := make([]string, n)
 	for i := 0; i < n; i++ {
@@ -638,7 +638,7 @@ func TestMutableTree_GetWithIndex(t *testing.T) {
 }
 
 func TestMutableTree_GetByIndex_EmptyTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	_, _, err := tree.GetByIndex(0)
 	if err == nil {
 		t.Fatalf("GetByIndex on empty tree should error")
@@ -646,7 +646,7 @@ func TestMutableTree_GetByIndex_EmptyTree(t *testing.T) {
 }
 
 func TestMutableTree_GetByIndex_AfterRemove(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "r%03d", i), []byte("v"))
 	}
@@ -670,7 +670,7 @@ func TestMutableTree_GetByIndex_AfterRemove(t *testing.T) {
 }
 
 func TestImmutableTree_Basic(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "im%03d", i), []byte("v"))
 	}
@@ -761,7 +761,7 @@ func TestImmutableTree_Empty(t *testing.T) {
 func TestMutableTree_ManyRemoves_StressRedistribute(t *testing.T) {
 	// Build a large tree, then remove keys one by one in a pattern that
 	// forces both redistribute and merge paths.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 300
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "s%04d", i), []byte("v"))
@@ -796,7 +796,7 @@ func TestMutableTree_ManyRemoves_StressRedistribute(t *testing.T) {
 }
 
 func TestGetWithIndex_KeyBeforeAll(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "m%04d", i), []byte("v"))
 	}
@@ -811,7 +811,7 @@ func TestGetWithIndex_KeyBeforeAll(t *testing.T) {
 }
 
 func TestGetByIndex_GetWithIndex_RoundTrip(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 200
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "rt%05d", i), []byte("v"))
@@ -833,7 +833,7 @@ func TestGetByIndex_GetWithIndex_RoundTrip(t *testing.T) {
 }
 
 func TestImmutableTree_GetByIndex_AllIndices(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 80
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "ia%03d", i), []byte("v"))
@@ -854,7 +854,7 @@ func TestImmutableTree_GetByIndex_AllIndices(t *testing.T) {
 }
 
 func TestImmutableTree_GetWithIndex_MissingKeys(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "iw%04d", i), []byte("v"))
 	}
@@ -889,7 +889,7 @@ func TestImmutableTree_GetWithIndex_MissingKeys(t *testing.T) {
 }
 
 func TestSizeConsistency_InterleavedInsertRemove(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	rng := rand.New(rand.NewSource(777))
 	ref := make(map[string]bool)
 
@@ -924,7 +924,7 @@ func TestSizeConsistency_InterleavedInsertRemove(t *testing.T) {
 func TestInnerNodeSplit_ExactBoundary(t *testing.T) {
 	// Fill an inner node to exactly B-1 separators, then trigger one more
 	// child split to cause the inner node to split.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// With sequential 90/10 splits: each leaf split adds one separator to the parent.
 	// An inner node splits at B-1=31 separators (32 children).
 	// With 90/10, each split creates a left leaf of ~31 keys and right of 2.
@@ -961,13 +961,13 @@ func TestHashDivergence_DifferentInsertionOrder(t *testing.T) {
 	}
 
 	// Order 1: sequential
-	t1 := NewMutableTreeMem()
+	t1 := newMemTree()
 	for _, k := range keys {
 		t1.Set(k, []byte("v"))
 	}
 
 	// Order 2: reverse
-	t2 := NewMutableTreeMem()
+	t2 := newMemTree()
 	for i := len(keys) - 1; i >= 0; i-- {
 		t2.Set(keys[i], []byte("v"))
 	}

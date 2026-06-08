@@ -17,50 +17,30 @@ type MutableTree struct {
 	size      int64 // total key count in working tree
 	version   int64 // last saved version
 
-	ndb            *nodeDB // nil for in-memory only (Phase 2 compat)
+	ndb            *nodeDB
 	initialVersion uint64
 	logger         Logger
 
-	// In-memory value store (no ndb). Keyed by string(valueKey).
-	memValues map[string][]byte
-
 	// Value nonce counter for allocating unique ValueKeys.
 	nextValueNonce uint32
-
-	// No-DB undo log: ValueKeys allocated this session, populated only when
-	// ndb == nil. Rollback deletes them from memValues. The DB path instead
-	// discards the staged batch (DiscardBatch), so it does not track them here.
-	sessionValues [][]byte
 
 	// Tier 2: cross-version orphaned ValueKeys (from prior committed versions).
 	// Persisted to DB at SaveVersion, consumed during PruneVersionsTo.
 	versionOrphans [][]byte
 }
 
-// NewMutableTreeMem creates an in-memory MutableTree (no DB).
-func NewMutableTreeMem() *MutableTree {
-	return &MutableTree{logger: NewNopLogger(), memValues: make(map[string][]byte)}
-}
-
 // allocValueKey allocates a unique ValueKey for the current working session.
 func (t *MutableTree) allocValueKey() []byte {
 	nk := &NodeKey{Version: t.WorkingVersion(), Nonce: t.nextValueNonce}
 	t.nextValueNonce++
-	vk := nk.GetKey()
-	if t.ndb == nil {
-		// No-DB path only: sessionValues is the undo log Rollback replays
-		// against memValues. The DB path's undo log is the discardable batch.
-		t.sessionValues = append(t.sessionValues, vk)
-	}
-	return vk
+	return nk.GetKey()
 }
 
-// resetSession clears all state accumulated during the current working session:
-// the value-nonce counter, the cross-version orphan list, and the no-DB undo
-// log. Called whenever a session is committed, rolled back, or abandoned by
-// loading a different version, so nothing carries into the next working view.
+// resetSession clears the state accumulated during the current working session
+// (the value-nonce counter and the cross-version orphan list). Called whenever a
+// session is committed, rolled back, or abandoned by loading a different
+// version, so nothing carries into the next working view.
 func (t *MutableTree) resetSession() {
-	t.sessionValues = t.sessionValues[:0]
 	t.versionOrphans = t.versionOrphans[:0]
 	t.nextValueNonce = 0
 }
@@ -107,15 +87,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		t.root = leaf
 		t.size = 1
 
-		// Save value out-of-line
-		if t.ndb != nil {
-			if err := t.ndb.SaveValue(value, vk); err != nil {
-				return false, err
-			}
-		} else if t.memValues != nil {
-			valCopy := make([]byte, len(value))
-			copy(valCopy, value)
-			t.memValues[string(vk)] = valCopy
+		// Save value out-of-line.
+		if err := t.ndb.SaveValue(value, vk); err != nil {
+			return false, err
 		}
 		return false, nil
 	}
@@ -133,15 +107,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		t.orphanValueKey(oldValueKey)
 	}
 
-	// Save value out-of-line
-	if t.ndb != nil {
-		if err := t.ndb.SaveValue(value, vk); err != nil {
-			return updated, err
-		}
-	} else if t.memValues != nil {
-		valCopy := make([]byte, len(value))
-		copy(valCopy, value)
-		t.memValues[string(vk)] = valCopy
+	// Save value out-of-line.
+	if err := t.ndb.SaveValue(value, vk); err != nil {
+		return updated, err
 	}
 	return updated, nil
 }
@@ -160,15 +128,7 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 
 // resolveValue resolves a valueKey to actual bytes.
 func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
-	if t.ndb != nil {
-		return t.ndb.GetValue(vk)
-	}
-	if t.memValues != nil {
-		if val, ok := t.memValues[string(vk)]; ok {
-			return val, nil
-		}
-	}
-	return nil, fmt.Errorf("value not found for key %x", vk)
+	return t.ndb.GetValue(vk)
 }
 
 // orphanValueKey handles an orphaned valueKey from an overwrite or remove.
@@ -179,11 +139,7 @@ func (t *MutableTree) orphanValueKey(vk []byte) {
 	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
 	if vkVersion == t.WorkingVersion() {
 		// Tier 1: intra-version orphan — drop the staged value
-		if t.ndb != nil {
-			t.ndb.DeleteValueDirect(vk)
-		} else if t.memValues != nil {
-			delete(t.memValues, string(vk))
-		}
+		t.ndb.DeleteValueDirect(vk)
 	} else {
 		// Tier 2: cross-version orphan — defer to prune
 		t.versionOrphans = append(t.versionOrphans, vk)
@@ -225,18 +181,6 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 // Returns (rootHash, version, error).
 func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	version := t.WorkingVersion()
-
-	if t.ndb == nil {
-		// In-memory only: just snapshot
-		t.lastSaved = t.root
-		t.version = version
-		t.resetSession()
-		if t.root == nil {
-			return emptyHash(), version, nil
-		}
-		h := t.root.Hash()
-		return h[:], version, nil
-	}
 
 	// Values and nodes staged by Set/Remove since the last Commit live in the
 	// batch + pendingVals; they become durable only if Commit succeeds below.
@@ -386,9 +330,6 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 
 // Load loads the latest version from the DB.
 func (t *MutableTree) Load() (int64, error) {
-	if t.ndb == nil {
-		return 0, nil
-	}
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
@@ -401,9 +342,6 @@ func (t *MutableTree) Load() (int64, error) {
 
 // LoadVersion loads a specific version from the DB.
 func (t *MutableTree) LoadVersion(version int64) (int64, error) {
-	if t.ndb == nil {
-		return 0, nil
-	}
 	if version <= 0 {
 		// Version <= 0 means "load latest", matching IAVL behavior.
 		return t.Load()
@@ -462,40 +400,22 @@ func (t *MutableTree) loadNode(nkBytes []byte) (Node, error) {
 }
 
 // newImmutable builds an ImmutableTree for root/version with this tree's value
-// resolver wired (DB-backed via ndb, or in-memory via memValues). Centralizes
-// the resolver wiring shared by GetImmutable, Snapshot, and immutableForProof.
+// resolver wired. Centralizes the resolver wiring shared by GetImmutable,
+// Snapshot, and immutableForProof.
 func (t *MutableTree) newImmutable(root Node, version int64) *ImmutableTree {
 	imm := NewImmutableTree(root, version)
-	switch {
-	case t.ndb != nil:
-		// Carry ndb so iterators created from this snapshot register as version
-		// readers (incrVersionReaders), blocking a concurrent prune of `version`
-		// until they Close. (#5591 ccbbeb66b)
-		imm.ndb = t.ndb
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			return t.ndb.GetValue(vk)
-		}
-	case t.memValues != nil:
-		imm.valueResolver = func(vk []byte) ([]byte, error) {
-			val, ok := t.memValues[string(vk)]
-			if !ok {
-				return nil, fmt.Errorf("value not found in memValues")
-			}
-			return val, nil
-		}
+	// Carry ndb so iterators created from this snapshot register as version
+	// readers (incrVersionReaders), blocking a concurrent prune of `version`
+	// until they Close.
+	imm.ndb = t.ndb
+	imm.valueResolver = func(vk []byte) ([]byte, error) {
+		return t.ndb.GetValue(vk)
 	}
 	return imm
 }
 
 // GetImmutable returns an ImmutableTree for the given version.
 func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
-	if t.ndb == nil {
-		if version == t.version && t.lastSaved != nil {
-			return t.newImmutable(t.lastSaved, version), nil
-		}
-		return nil, ErrVersionDoesNotExist
-	}
-
 	nkBytes, _, err := t.ndb.GetRoot(version)
 	if err != nil {
 		return nil, err
@@ -577,21 +497,12 @@ func (t *MutableTree) Snapshot(version int64) *ImmutableTree {
 
 // VersionExists returns true if the given version exists.
 func (t *MutableTree) VersionExists(version int64) bool {
-	if t.ndb != nil {
-		return t.ndb.VersionExists(version)
-	}
-	return version == t.version && t.lastSaved != nil
+	return t.ndb.VersionExists(version)
 }
 
 // AvailableVersions returns all available version numbers.
 func (t *MutableTree) AvailableVersions() []int {
-	if t.ndb != nil {
-		return t.ndb.AvailableVersions()
-	}
-	if t.lastSaved != nil {
-		return []int{int(t.version)}
-	}
-	return nil
+	return t.ndb.AvailableVersions()
 }
 
 // SetInitialVersion sets the version number for the first SaveVersion.
@@ -601,31 +512,19 @@ func (t *MutableTree) SetInitialVersion(version uint64) {
 
 // SetCommitting signals that a commit is in progress.
 func (t *MutableTree) SetCommitting() {
-	if t.ndb != nil {
-		t.ndb.SetCommitting()
-	}
+	t.ndb.SetCommitting()
 }
 
 // UnsetCommitting signals that a commit has finished.
 func (t *MutableTree) UnsetCommitting() {
-	if t.ndb != nil {
-		t.ndb.UnsetCommitting()
-	}
+	t.ndb.UnsetCommitting()
 }
 
-// Rollback discards all mutations since the last save.
-// Uncommitted values staged this session are dropped with the batch (DB-backed)
-// or removed from the in-memory store (no-DB).
+// Rollback discards all mutations since the last save. Values staged this
+// session live only in the uncommitted batch, so discarding it drops them —
+// nothing was written to the DB to clean up.
 func (t *MutableTree) Rollback() {
-	if t.ndb != nil {
-		// Values are staged in the batch (not yet committed), so discarding the
-		// batch drops them — nothing was written to the DB to clean up.
-		t.ndb.DiscardBatch()
-	} else if t.memValues != nil {
-		for _, vk := range t.sessionValues {
-			delete(t.memValues, string(vk))
-		}
-	}
+	t.ndb.DiscardBatch()
 	t.resetSession()
 
 	t.root = t.lastSaved
@@ -651,10 +550,7 @@ func (t *MutableTree) GetValueByKey(vk []byte) ([]byte, error) {
 
 // Close closes the tree and its underlying DB resources.
 func (t *MutableTree) Close() error {
-	if t.ndb != nil {
-		return t.ndb.Close()
-	}
-	return nil
+	return t.ndb.Close()
 }
 
 // GetByIndex returns the key and value at the given zero-based index.
@@ -681,7 +577,7 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 }
 
 // Iterate calls fn for each key-value pair in sorted order.
-// Values are resolved from the value store (DB or memValues).
+// Values are resolved from the value store.
 func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
 	if t.root == nil {
 		return false, nil

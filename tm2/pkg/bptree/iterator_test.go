@@ -10,7 +10,7 @@ import (
 )
 
 func TestIterator_AscendingFull(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "it%04d", i), []byte("v"))
@@ -33,7 +33,7 @@ func TestIterator_AscendingFull(t *testing.T) {
 }
 
 func TestIterator_DescendingFull(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "it%04d", i), []byte("v"))
@@ -59,7 +59,7 @@ func TestIterator_DescendingFull(t *testing.T) {
 }
 
 func TestIterator_Range(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "r%04d", i), []byte("v"))
 	}
@@ -84,7 +84,7 @@ func TestIterator_Range(t *testing.T) {
 }
 
 func TestIterator_RangeDescending(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "r%04d", i), []byte("v"))
 	}
@@ -108,7 +108,7 @@ func TestIterator_RangeDescending(t *testing.T) {
 }
 
 func TestIterator_EmptyTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	itr, _ := tree.Iterator(nil, nil, true)
 	defer itr.Close()
 	if itr.Valid() {
@@ -117,7 +117,7 @@ func TestIterator_EmptyTree(t *testing.T) {
 }
 
 func TestIterator_EmptyRange(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "e%04d", i), []byte("v"))
 	}
@@ -131,7 +131,7 @@ func TestIterator_EmptyRange(t *testing.T) {
 }
 
 func TestIterator_SingleElement(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("only"), []byte("one"))
 
 	itr, _ := tree.Iterator(nil, nil, true)
@@ -149,7 +149,7 @@ func TestIterator_SingleElement(t *testing.T) {
 }
 
 func TestIterator_StartOnly(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "s%04d", i), []byte("v"))
 	}
@@ -169,7 +169,7 @@ func TestIterator_StartOnly(t *testing.T) {
 }
 
 func TestIterator_EndOnly(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "s%04d", i), []byte("v"))
 	}
@@ -189,7 +189,7 @@ func TestIterator_EndOnly(t *testing.T) {
 }
 
 func TestIterator_Domain(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 
 	start := []byte("a")
@@ -204,7 +204,7 @@ func TestIterator_Domain(t *testing.T) {
 }
 
 func TestIterator_CloseIdempotent(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 
 	itr, _ := tree.Iterator(nil, nil, true)
@@ -216,7 +216,7 @@ func TestIterator_CloseIdempotent(t *testing.T) {
 }
 
 func TestIterator_LargeTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 1000
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "lt%06d", i), []byte("v"))
@@ -291,7 +291,7 @@ func TestIterator_DBBacked_ReturnsValues(t *testing.T) {
 }
 
 func TestIterator_ImmutableTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "im%04d", i), []byte("v"))
 	}
@@ -311,7 +311,7 @@ func TestIterator_ImmutableTree(t *testing.T) {
 }
 
 func TestIterator_IterateRange(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "ir%04d", i), []byte("v"))
 	}
@@ -327,7 +327,7 @@ func TestIterator_IterateRange(t *testing.T) {
 }
 
 func TestIterator_IterateRange_Descending(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "ir%04d", i), []byte("v"))
 	}
@@ -346,7 +346,7 @@ func TestIterator_IterateRange_Descending(t *testing.T) {
 }
 
 func TestIterator_StartEqualsEnd(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "se%04d", i), []byte("v"))
 	}
@@ -358,7 +358,7 @@ func TestIterator_StartEqualsEnd(t *testing.T) {
 }
 
 func TestIterator_StartGreaterThanEnd(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "sg%04d", i), []byte("v"))
 	}
@@ -370,7 +370,7 @@ func TestIterator_StartGreaterThanEnd(t *testing.T) {
 }
 
 func TestIterator_LeafBoundaryCrossing(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := B + 1 // 33 — forces exactly 2 leaves
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "lb%04d", i), []byte("v"))
@@ -398,7 +398,7 @@ func TestIterator_LeafBoundaryCrossing(t *testing.T) {
 }
 
 func TestIterator_DescendingRangeCrossLeafBoundary(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := B + 1
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "dc%04d", i), []byte("v"))
@@ -424,7 +424,7 @@ func TestIterator_DescendingRangeCrossLeafBoundary(t *testing.T) {
 }
 
 func TestIterator_NextAfterInvalid(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("x"), []byte("y"))
 
 	itr, _ := tree.Iterator(nil, nil, true)
@@ -442,7 +442,7 @@ func TestIterator_NextAfterInvalid(t *testing.T) {
 }
 
 func TestIterator_IterateRange_StopEarly(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "se%04d", i), []byte("v"))
 	}

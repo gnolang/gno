@@ -1,9 +1,6 @@
 package bptree
 
-import (
-	"bytes"
-	"fmt"
-)
+import "bytes"
 
 // Iterator traverses key-value pairs in a B+ tree within a [start, end) range.
 // Implements the same contract as tm2/pkg/db.Iterator.
@@ -14,7 +11,7 @@ type Iterator struct {
 	start         []byte
 	end           []byte
 	ascending     bool
-	ndb           *nodeDB       // for value resolution via DB; nil for in-memory
+	ndb           *nodeDB       // for value resolution via DB; nil for snapshot-only iterators
 	valueResolver ValueResolver // alternative value resolution (from ImmutableTree)
 
 	// State
@@ -337,17 +334,7 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 	} else if mtree != nil {
 		ndb = mtree.ndb
 	}
-	itr := newIterator(imm.root, start, end, ascending, ndb, trackVersion)
-	if ndb == nil && mtree != nil && mtree.memValues != nil {
-		itr.valueResolver = func(vk []byte) ([]byte, error) {
-			val, ok := mtree.memValues[string(vk)]
-			if !ok {
-				return nil, fmt.Errorf("value not found in memValues for key %x", vk)
-			}
-			return val, nil
-		}
-	}
-	return itr
+	return newIterator(imm.root, start, end, ascending, ndb, trackVersion)
 }
 
 // Iterator returns an iterator over [start, end) in the given direction.
@@ -355,17 +342,7 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 // version reader: the working tree is never pruned (pruning rejects
 // toVersion >= latest).
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
-	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
-	if t.ndb == nil && t.memValues != nil {
-		itr.valueResolver = func(vk []byte) ([]byte, error) {
-			val, ok := t.memValues[string(vk)]
-			if !ok {
-				return nil, fmt.Errorf("value not found in memValues for key %x", vk)
-			}
-			return val, nil
-		}
-	}
-	return itr, nil
+	return newIterator(t.root, start, end, ascending, t.ndb, 0), nil
 }
 
 // ImmutableTree.Iterator returns an iterator over [start, end).

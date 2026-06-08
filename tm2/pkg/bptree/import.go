@@ -45,14 +45,8 @@ func (imp *Importer) Add(node *ExportNode) error {
 		valueHash := sha256.Sum256(node.Value)
 		vk := (&NodeKey{Version: imp.version, Nonce: imp.nextNonce}).GetKey()
 		imp.nextNonce++
-		if imp.tree.ndb != nil {
-			if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
-				return err
-			}
-		} else if imp.tree.memValues != nil {
-			valCopy := make([]byte, len(node.Value))
-			copy(valCopy, node.Value)
-			imp.tree.memValues[string(vk)] = valCopy
+		if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
+			return err
 		}
 		imp.kvBuffer = append(imp.kvBuffer, importKV{
 			key:       append([]byte(nil), node.Key...),

@@ -20,7 +20,7 @@ var errExportClosed = errors.New("export closed")
 // Exporter streams tree nodes in depth-first post-order (children before parent).
 type Exporter struct {
 	tree      *ImmutableTree
-	ndb       *nodeDB // for fetching values; nil for in-memory
+	ndb       *nodeDB // for fetching values; may be nil (then tree.valueResolver is used)
 	ch        chan *ExportNode
 	done      chan struct{} // closed by Close() to signal goroutine to exit
 	err       error

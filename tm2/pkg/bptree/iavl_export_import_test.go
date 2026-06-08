@@ -183,7 +183,7 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 
 func TestExporter_InMemoryValues(t *testing.T) {
 	// Verify that in-memory export resolves actual values, not raw hashes.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "key%03d", i), fmt.Appendf(nil, "val%03d", i))
 	}
@@ -215,7 +215,7 @@ func TestExporter_InMemoryValues(t *testing.T) {
 
 func TestExporter_InMemoryRoundtrip(t *testing.T) {
 	// Export from in-memory tree, import into another, verify hash match.
-	tree1 := NewMutableTreeMem()
+	tree1 := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree1.Set(fmt.Appendf(nil, "k%04d", i), fmt.Appendf(nil, "v%04d", i))
 	}
@@ -230,7 +230,7 @@ func TestExporter_InMemoryRoundtrip(t *testing.T) {
 	exporter, err := imm.Export(nil)
 	require.NoError(t, err)
 
-	tree2 := NewMutableTreeMem()
+	tree2 := newMemTree()
 	importer, err := tree2.Import(1)
 	require.NoError(t, err)
 

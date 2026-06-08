@@ -15,7 +15,7 @@ func newTestDB(t *testing.T) *memdb.MemDB {
 }
 
 func TestProof_MembershipSingleKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("hello"), []byte("world"))
 	tree.SaveVersion()
 
@@ -31,7 +31,7 @@ func TestProof_MembershipSingleKey(t *testing.T) {
 }
 
 func TestProof_MembershipMultipleKeys(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 100
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "pk%04d", i), fmt.Appendf(nil, "pv%04d", i))
@@ -56,7 +56,7 @@ func TestProof_MembershipMultipleKeys(t *testing.T) {
 }
 
 func TestProof_MembershipWrongValue(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
 
@@ -72,7 +72,7 @@ func TestProof_MembershipWrongValue(t *testing.T) {
 }
 
 func TestProof_MembershipWrongRoot(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
 
@@ -85,7 +85,7 @@ func TestProof_MembershipWrongRoot(t *testing.T) {
 }
 
 func TestProof_MembershipMissingKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.SaveVersion()
 
@@ -96,7 +96,7 @@ func TestProof_MembershipMissingKey(t *testing.T) {
 }
 
 func TestProof_MembershipLargeTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 500
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "lg%05d", i), fmt.Appendf(nil, "val%05d", i))
@@ -121,7 +121,7 @@ func TestProof_MembershipLargeTree(t *testing.T) {
 }
 
 func TestProof_NonMembershipMiddle(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("c"), []byte("3"))
 	tree.SaveVersion()
@@ -139,7 +139,7 @@ func TestProof_NonMembershipMiddle(t *testing.T) {
 }
 
 func TestProof_NonMembershipBeforeAll(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("b"), []byte("2"))
 	tree.Set([]byte("c"), []byte("3"))
 	tree.SaveVersion()
@@ -157,7 +157,7 @@ func TestProof_NonMembershipBeforeAll(t *testing.T) {
 }
 
 func TestProof_NonMembershipAfterAll(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("b"), []byte("2"))
 	tree.SaveVersion()
@@ -175,7 +175,7 @@ func TestProof_NonMembershipAfterAll(t *testing.T) {
 }
 
 func TestProof_NonMembershipExistingKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.SaveVersion()
 
@@ -186,7 +186,7 @@ func TestProof_NonMembershipExistingKey(t *testing.T) {
 }
 
 func TestProof_NonMembershipLargeTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert even numbers
 	for i := 0; i < 200; i += 2 {
 		tree.Set(fmt.Appendf(nil, "nm%04d", i), []byte("v"))
@@ -209,7 +209,7 @@ func TestProof_NonMembershipLargeTree(t *testing.T) {
 }
 
 func TestProof_NonMembershipCrossLeaf(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert even numbers — enough to create multiple leaves
 	for i := 0; i < 200; i += 2 {
 		tree.Set(fmt.Appendf(nil, "cl%04d", i), []byte("v"))
@@ -236,7 +236,7 @@ func TestProof_NonMembershipCrossLeaf(t *testing.T) {
 }
 
 func TestProof_MembershipMultiLevelTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := 2000
 	for i := 0; i < n; i++ {
 		tree.Set(fmt.Appendf(nil, "ml%06d", i), fmt.Appendf(nil, "val%06d", i))
@@ -299,7 +299,7 @@ func TestProof_MembershipDBBacked(t *testing.T) {
 func TestProof_UsesCommittedState(t *testing.T) {
 	t.Run("in-memory", func(t *testing.T) {
 		testProofUsesCommittedState(t, func() *MutableTree {
-			return NewMutableTreeMem()
+			return newMemTree()
 		})
 	})
 	t.Run("db-backed", func(t *testing.T) {
@@ -382,7 +382,7 @@ func testProofUsesCommittedState(t *testing.T, newTree func() *MutableTree) {
 // nil; proofs should then report ErrEmptyTree (ImmutableTree's empty-root
 // behavior), not ErrNoCommittedState.
 func TestProof_CommittedEmptyTree(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 
 	// Never committed → ErrNoCommittedState.
 	if _, err := tree.GetNonMembershipProof([]byte("a")); err != ErrNoCommittedState {
@@ -438,7 +438,7 @@ func TestSnapshot_DBBackedValueResolution(t *testing.T) {
 }
 
 func TestProof_VerifyMethods(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.Set([]byte("b"), []byte("2"))
 	tree.SaveVersion()

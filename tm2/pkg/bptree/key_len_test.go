@@ -11,7 +11,7 @@ import (
 // read path; the node would serialize successfully but fail to deserialize
 // on the next Load, wedging the version permanently.
 func TestSet_RejectsKeyOverMax(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 
 	// Just under the limit is fine.
 	ok := bytes.Repeat([]byte{'a'}, MaxKeyLen)
@@ -38,7 +38,7 @@ func TestSet_RejectsKeyOverMax(t *testing.T) {
 // TestImport_RejectsKeyOverMax asserts the Importer also enforces
 // MaxKeyLen; an untrusted export stream must not poison a fresh tree.
 func TestImport_RejectsKeyOverMax(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	imp, err := tree.Import(1)
 	if err != nil {
 		t.Fatalf("Import: %v", err)

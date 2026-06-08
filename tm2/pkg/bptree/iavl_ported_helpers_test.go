@@ -20,6 +20,11 @@ func getTestTree(size int) *MutableTree {
 	return tree
 }
 
+// newMemTree creates an empty in-memory (memdb-backed) tree for tests.
+func newMemTree() *MutableTree {
+	return NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
+}
+
 // i2b converts an int to a big-endian 4-byte key.
 func i2b(i int) []byte {
 	b := make([]byte, 4)

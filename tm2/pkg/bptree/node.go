@@ -28,7 +28,7 @@ type InnerNode struct {
 	childHashes [B]Hash      // hash of each child subtree
 	childNodes  [B]Node      // in-memory child references (nil = not yet loaded)
 	miniTree    MiniMerkle   // in-memory only, not serialized
-	ndb         *nodeDB      // for lazy child loading; nil for in-memory trees
+	ndb         *nodeDB      // for lazy child loading; nil for freshly-built (unsaved) nodes
 	childMu     sync.Mutex   // guards lazy loading in getChild for concurrent reads
 }
 

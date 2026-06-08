@@ -5,7 +5,7 @@ type ValueResolver func(vk []byte) ([]byte, error)
 
 // ImmutableTree is a read-only snapshot of the tree at a specific version.
 // It is safe for concurrent reads. Created by MutableTree.GetImmutable()
-// (Phase 3) or by snapshotting the root after SaveVersion.
+// or by snapshotting the root after SaveVersion.
 //
 // When the snapshot is backed by a DB, ndb is non-nil. Iterators and exporters
 // created from it register as version readers (via ndb.incrVersionReaders) so

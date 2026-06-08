@@ -11,7 +11,7 @@ import (
 func TestEdge_RollbackAfterMerge_COWIntegrity(t *testing.T) {
 	// The bug: fixUnderflow didn't clone the merge-left sibling for in-memory
 	// trees, corrupting lastSaved. This test verifies the fix.
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 
 	// Build a tree with 3+ leaves
 	for i := 0; i < 49; i++ {
@@ -55,7 +55,7 @@ func TestEdge_RollbackAfterMerge_COWIntegrity(t *testing.T) {
 }
 
 func TestEdge_RollbackThenMutate(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 50; i++ {
 		tree.Set(fmt.Appendf(nil, "rm%03d", i), []byte("v1"))
 	}
@@ -84,7 +84,7 @@ func TestEdge_RollbackThenMutate(t *testing.T) {
 }
 
 func TestEdge_90_10_RightChildUnderflow(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Sequential inserts trigger 90/10 splits: left=31, right=2
 	for i := 0; i < B+1; i++ {
 		tree.Set(fmt.Appendf(nil, "ru%04d", i), []byte("v"))
@@ -118,7 +118,7 @@ func TestEdge_90_10_RightChildUnderflow(t *testing.T) {
 }
 
 func TestEdge_ExactMinKeys_AllSiblingsCantSpare(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Insert enough keys to create multiple leaves, then remove to
 	// bring siblings to exactly MinKeys each.
 	n := B * 3
@@ -150,7 +150,7 @@ func TestEdge_ExactMinKeys_AllSiblingsCantSpare(t *testing.T) {
 }
 
 func TestEdge_NilValue(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Set with nil value — should error (matching IAVL behavior)
 	_, err := tree.Set([]byte("k"), nil)
 	if err == nil {
@@ -159,7 +159,7 @@ func TestEdge_NilValue(t *testing.T) {
 }
 
 func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	n := B * 4 // 128
 
 	// Insert all
@@ -197,7 +197,7 @@ func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
 }
 
 func TestEdge_GetByIndex_LastKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(fmt.Appendf(nil, "lk%04d", i), []byte("v"))
 	}
@@ -212,7 +212,7 @@ func TestEdge_GetByIndex_LastKey(t *testing.T) {
 }
 
 func TestEdge_Iterator_DescendingEndBeforeFirstKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 10; i < 20; i++ {
 		tree.Set(fmt.Appendf(nil, "de%04d", i), []byte("v"))
 	}
@@ -226,7 +226,7 @@ func TestEdge_Iterator_DescendingEndBeforeFirstKey(t *testing.T) {
 }
 
 func TestEdge_ConcurrentImmutableReads(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	for i := 0; i < 200; i++ {
 		tree.Set(fmt.Appendf(nil, "cc%04d", i), []byte("v"))
 	}
@@ -276,7 +276,7 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 }
 
 func TestEdge_GetByIndex_AfterInnerMerge_SizeConsistency(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	// Build a height-2 tree
 	n := 1100
 	for i := 0; i < n; i++ {

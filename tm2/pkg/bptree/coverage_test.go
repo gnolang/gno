@@ -390,31 +390,18 @@ func TestCoverage_LoadVersionPruned(t *testing.T) {
 // --- Export of empty tree ---
 
 func TestCoverage_ExportEmptyTree(t *testing.T) {
-	// For in-memory trees, GetImmutable on an empty tree (nil root) returns
-	// ErrVersionDoesNotExist because lastSaved is nil. This is correct —
-	// there's nothing to export from an empty tree.
-	tree := NewMutableTreeMem()
+	// A saved empty version stores a hash-only root, so GetImmutable returns an
+	// ImmutableTree with a nil root (no error). Exporting an empty tree must
+	// fail with ErrNotInitializedTree.
+	tree := newMemTree()
 	tree.SaveVersion()
 
-	_, err := tree.GetImmutable(1)
-	if err == nil {
-		t.Fatal("expected error getting immutable of empty tree")
-	}
-
-	// For DB-backed trees, same behavior
-	db := memdb.NewMemDB()
-	tree2 := NewMutableTreeWithDB(db, 100, NewNopLogger())
-	tree2.SaveVersion()
-
-	imm2, err := tree2.GetImmutable(1)
+	imm, err := tree.GetImmutable(1)
 	if err != nil {
-		// GetImmutable for empty DB tree returns an ImmutableTree with nil root
-		t.Logf("GetImmutable returned error (expected for empty): %v", err)
+		t.Logf("GetImmutable(1) on empty tree returned: %v", err)
 		return
 	}
-	// If we got an ImmutableTree, Export should fail with ErrNotInitializedTree
-	_, err = imm2.Export(tree2.ndb)
-	if err == nil {
+	if _, err := imm.Export(tree.ndb); err == nil {
 		t.Fatal("expected error exporting empty tree")
 	}
 }
@@ -447,7 +434,7 @@ func TestCoverage_SaveVersionAfterRollback(t *testing.T) {
 // --- GetImmutable on in-memory tree for wrong version ---
 
 func TestCoverage_GetImmutableWrongVersion(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 	tree.SaveVersion()
 

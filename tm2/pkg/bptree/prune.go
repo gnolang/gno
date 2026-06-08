@@ -7,10 +7,6 @@ import "fmt"
 // Adapted for B+ tree fan-out: uses child hash set comparison instead of
 // positional matching.
 func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
-	if t.ndb == nil {
-		return nil
-	}
-
 	first := t.ndb.getFirstVersion()
 	latest := t.ndb.getLatestVersion()
 	if toVersion >= latest {

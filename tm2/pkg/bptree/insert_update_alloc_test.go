@@ -18,7 +18,7 @@ import (
 // treeInsert, the per-Set allocation count on the update path jumps
 // noticeably.
 func TestTreeInsert_UpdateDoesNotCopyKey(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	key := []byte("fixed-key-exercising-update-path")
 	// Initial insert (this one DOES copy; we're measuring updates only).
 	if _, err := tree.Set(key, []byte("v0")); err != nil {
@@ -31,13 +31,11 @@ func TestTreeInsert_UpdateDoesNotCopyKey(t *testing.T) {
 		_, _ = tree.Set(key, updateVal)
 	})
 
-	// Before the fix, treeInsert did copyKey(key) unconditionally, adding
-	// ~1 allocation per update. The value path also allocates a ValueKey
-	// (sessionValues), so we can't assert 0; but we can assert the key
-	// copy is gone by bounding the total. With the fix, updates do a
-	// single valueKey allocation plus internal bookkeeping; the key copy
-	// is removed. A regression puts allocations back at ~1 higher per Set.
-	// Give a small safety margin for future internal tweaks.
+	// Before the fix, treeInsert did copyKey(key) unconditionally, adding ~1
+	// allocation per update. The value-staging path still allocates per Set
+	// (value copy + batch entry), so we can't assert 0; instead we bound the
+	// total to confirm the key copy is elided on the update path. A regression
+	// on that elision pushes allocations back up. Small margin for tweaks.
 	const maxAllowed = 10
 	if n > maxAllowed {
 		t.Fatalf("update path allocates %f per Set; want <= %d (regression on key-copy elision)", n, maxAllowed)
@@ -47,7 +45,7 @@ func TestTreeInsert_UpdateDoesNotCopyKey(t *testing.T) {
 // TestTreeInsert_NewKeyStillCopies verifies that new-insert paths still
 // defensively copy the key, so callers can reuse their input slice.
 func TestTreeInsert_NewKeyStillCopies(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 
 	key := []byte("k")
 	if _, err := tree.Set(key, []byte("v")); err != nil {

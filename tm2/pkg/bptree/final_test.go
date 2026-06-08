@@ -95,7 +95,7 @@ func TestGetChild_PanicsOnDBError(t *testing.T) {
 }
 
 func TestCreateExistenceProof_NilValueResolver(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("a"), []byte("1"))
 
 	// Create ImmutableTree directly without a valueResolver
@@ -108,7 +108,7 @@ func TestCreateExistenceProof_NilValueResolver(t *testing.T) {
 }
 
 func TestMutableTreeMem_GetReturnsActualValues(t *testing.T) {
-	tree := NewMutableTreeMem()
+	tree := newMemTree()
 	tree.Set([]byte("key"), []byte("actual_value"))
 
 	val, err := tree.Get([]byte("key"))
