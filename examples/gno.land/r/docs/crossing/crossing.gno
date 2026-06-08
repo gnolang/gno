@@ -15,11 +15,8 @@ func init(cur realm) {
 	owner = cur.Address()
 }
 
-// Both functions below are exported, so any realm can call them.
-// What differs is the realm parameter, which decides whether the call crosses.
-
-// PublicFunction has a realm parameter, so the call crosses into this realm.
-// cur.Previous() is the idiomatic way to read the caller in a crossing function.
+// PublicFunction's first parameter is a "cur realm", so the call crosses into
+// this realm. cur.Previous() is the idiomatic way to read the caller.
 func PublicFunction(cur realm) string {
 	caller := cur.Previous().Address()
 	return "Called by: " + caller.String()
@@ -30,6 +27,19 @@ func PublicFunction(cur realm) string {
 func InternalHelper() string {
 	caller := unsafe.CurrentRealm().Address()
 	return "I'm a helper function called by: " + caller.String()
+}
+
+// InternalHelperWithRealm takes a realm but doesn't cross: only a first-position
+// realm crosses, so rlm is a plain value here. It lets shared code that can't be
+// a crossing function (e.g. a /p/ package) receive and verify the acting realm.
+func InternalHelperWithRealm(_ int, rlm realm) string {
+	// The call didn't cross, so IsCurrent() holds for the caller's live realm
+	// and rejects any other.
+	if !rlm.IsCurrent() {
+		panic("rlm is not the current realm")
+	}
+
+	return "I'm a helper function called by: " + rlm.Address().String()
 }
 
 // GetOwner returns the owner address
