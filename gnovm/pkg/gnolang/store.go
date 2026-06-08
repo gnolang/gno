@@ -445,7 +445,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 // GetRealmByID looks up a Realm via the per-tx cache, falling back
 // to a path-resolution + baseStore load on miss. Single source of
 // truth for in-memory *Realm pointers within a tx. Used by
-// PushFrameCall Layer 2 borrow and by cross-realm finalize
+// PushFrameCall borrow rule #2 and by cross-realm finalize
 // (touchForeignRealm).
 func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
 	if rlm, ok := ds.cacheRealms[pid]; ok {
@@ -580,9 +580,17 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
 	}
 	// Re-derive denormalized PkgID cache (pv.PkgID is marked
 	// json:"-" so amino skipped it on load).
