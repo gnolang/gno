@@ -638,11 +638,9 @@ func TestStaging_UncommittedSetDoesNotPersist(t *testing.T) {
 	}
 }
 
-// TestStaging_IdempotentSaveRollbackKeepsData validates H9: re-saving an
-// existing version with identical content (the idempotent same-hash path) and
-// then Rolling back must NOT delete that version's committed values. (Under the
-// prior model the idempotent return left sessionValues populated and Rollback
-// eagerly DeleteValueDirect'd them, wiping live committed data.)
+// TestStaging_IdempotentSaveRollbackKeepsData: re-saving an existing version
+// with identical content (the idempotent same-hash path) and then Rolling back
+// must NOT delete that version's committed values.
 func TestStaging_IdempotentSaveRollbackKeepsData(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
@@ -677,15 +675,12 @@ func TestStaging_IdempotentSaveRollbackKeepsData(t *testing.T) {
 	}
 }
 
-// TestSaveVersion_IdempotentClearsVersionOrphans locks the load-bearing half of
-// the idempotent-save session reset: a non-committing idempotent SaveVersion
-// must NOT carry the session's Tier-2 orphan list (versionOrphans) forward.
-// DiscardBatch does not cover versionOrphans (it's a MutableTree field, not in
-// the batch), so resetSession's versionOrphans clear is the only protection; a
-// leak would persist those vks under a later version's orphan record. (This is
-// the surviving, load-bearing part of #5591 82eebc957, which the branch already
-// implements via resetSession — this test guards it through future refactors,
-// notably the planned no-DB-mode removal that will simplify resetSession.)
+// TestSaveVersion_IdempotentClearsVersionOrphans: a non-committing idempotent
+// SaveVersion must NOT carry the session's Tier-2 orphan list (versionOrphans)
+// forward. DiscardBatch does not cover versionOrphans (it's a MutableTree field,
+// not in the batch), so resetSession's versionOrphans clear is the only
+// protection; a leak would persist those vks under a later version's orphan
+// record and prune could then delete still-live values.
 func TestSaveVersion_IdempotentClearsVersionOrphans(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
