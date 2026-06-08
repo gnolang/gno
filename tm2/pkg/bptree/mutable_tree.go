@@ -27,8 +27,9 @@ type MutableTree struct {
 	// Value nonce counter for allocating unique ValueKeys.
 	nextValueNonce uint32
 
-	// Tier 1: all ValueKeys allocated in the current working session.
-	// On Rollback, these are deleted from DB. On SaveVersion, cleared.
+	// No-DB undo log: ValueKeys allocated this session, populated only when
+	// ndb == nil. Rollback deletes them from memValues. The DB path instead
+	// discards the staged batch (DiscardBatch), so it does not track them here.
 	sessionValues [][]byte
 
 	// Tier 2: cross-version orphaned ValueKeys (from prior committed versions).
@@ -46,8 +47,22 @@ func (t *MutableTree) allocValueKey() []byte {
 	nk := &NodeKey{Version: t.WorkingVersion(), Nonce: t.nextValueNonce}
 	t.nextValueNonce++
 	vk := nk.GetKey()
-	t.sessionValues = append(t.sessionValues, vk)
+	if t.ndb == nil {
+		// No-DB path only: sessionValues is the undo log Rollback replays
+		// against memValues. The DB path's undo log is the discardable batch.
+		t.sessionValues = append(t.sessionValues, vk)
+	}
 	return vk
+}
+
+// resetSession clears all state accumulated during the current working session:
+// the value-nonce counter, the cross-version orphan list, and the no-DB undo
+// log. Called whenever a session is committed, rolled back, or abandoned by
+// loading a different version, so nothing carries into the next working view.
+func (t *MutableTree) resetSession() {
+	t.sessionValues = t.sessionValues[:0]
+	t.versionOrphans = t.versionOrphans[:0]
+	t.nextValueNonce = 0
 }
 
 // NewMutableTreeWithDB creates a DB-backed MutableTree.
@@ -154,13 +169,13 @@ func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 }
 
 // orphanValueKey handles an orphaned valueKey from an overwrite or remove.
-// Tier 1 (same working version): delete eagerly from DB.
+// Tier 1 (same working version): drop the staged write before it is committed.
 // Tier 2 (prior version): defer to orphan list for prune-time deletion.
 func (t *MutableTree) orphanValueKey(vk []byte) {
 	// Decode version from the first 8 bytes of the valueKey
 	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
 	if vkVersion == t.WorkingVersion() {
-		// Tier 1: intra-version orphan — delete eagerly
+		// Tier 1: intra-version orphan — drop the staged value
 		if t.ndb != nil {
 			t.ndb.DeleteValueDirect(vk)
 		} else if t.memValues != nil {
@@ -212,15 +227,27 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		// In-memory only: just snapshot
 		t.lastSaved = t.root
 		t.version = version
-		t.sessionValues = t.sessionValues[:0]
-		t.versionOrphans = t.versionOrphans[:0]
-		t.nextValueNonce = 0
+		t.resetSession()
 		if t.root == nil {
 			return emptyHash(), version, nil
 		}
 		h := t.root.Hash()
 		return h[:], version, nil
 	}
+
+	// Values and nodes staged by Set/Remove since the last Commit live in the
+	// batch + pendingVals; they become durable only if Commit succeeds below.
+	// On every non-committing exit (error OR idempotent no-op) we MUST discard
+	// them — a staged write left in the batch would be flushed by the next
+	// Commit (a later SaveVersion or PruneVersionsTo), silently overwriting an
+	// already-persisted version's value namespace (the LoadVersion(non-latest)
+	// +Set hazard). Callers must Rollback after a SaveVersion error.
+	committed := false
+	defer func() {
+		if !committed {
+			t.ndb.DiscardBatch()
+		}
+	}()
 
 	// If this version already exists, verify the hash matches.
 	// This prevents accidentally overwriting a version with different data.
@@ -243,9 +270,12 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
 		}
-		// Same hash — idempotent save, skip
+		// Same hash — idempotent save. The staged values are redundant (this
+		// version is already persisted); the deferred DiscardBatch drops them.
+		// Reset session state like the success path so nothing carries over.
 		t.version = version
 		t.lastSaved = t.root
+		t.resetSession()
 		return newHash, version, nil
 	}
 
@@ -282,6 +312,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	if err := t.ndb.Commit(); err != nil {
 		return nil, 0, err
 	}
+	committed = true
 
 	t.version = version
 	t.lastSaved = t.root
@@ -290,10 +321,7 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		t.ndb.setFirstVersion(version)
 	}
 
-	// Clear session state
-	t.sessionValues = t.sessionValues[:0]
-	t.versionOrphans = t.versionOrphans[:0]
-	t.nextValueNonce = 0
+	t.resetSession()
 
 	return rootHash, version, nil
 }
@@ -356,6 +384,13 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		// Version <= 0 means "load latest", matching IAVL behavior.
 		return t.Load()
 	}
+
+	// Establish a clean working view at `version`: drop any values/nodes staged
+	// since the last Commit (they belong to an abandoned working session) and
+	// reset session counters, so stale staged writes can't later flush into the
+	// wrong version's value namespace.
+	t.ndb.DiscardBatch()
+	t.resetSession()
 
 	// Discover the DB's latest version before loading, to return it
 	// (matching IAVL behavior which returns latestVersion, not targetVersion).
@@ -551,21 +586,19 @@ func (t *MutableTree) UnsetCommitting() {
 }
 
 // Rollback discards all mutations since the last save.
-// Eagerly-written values from the session are deleted from DB.
+// Uncommitted values staged this session are dropped with the batch (DB-backed)
+// or removed from the in-memory store (no-DB).
 func (t *MutableTree) Rollback() {
-	// Delete all eagerly-written values from this session
 	if t.ndb != nil {
-		for _, vk := range t.sessionValues {
-			t.ndb.DeleteValueDirect(vk)
-		}
+		// Values are staged in the batch (not yet committed), so discarding the
+		// batch drops them — nothing was written to the DB to clean up.
+		t.ndb.DiscardBatch()
 	} else if t.memValues != nil {
 		for _, vk := range t.sessionValues {
 			delete(t.memValues, string(vk))
 		}
 	}
-	t.sessionValues = t.sessionValues[:0]
-	t.versionOrphans = t.versionOrphans[:0]
-	t.nextValueNonce = 0
+	t.resetSession()
 
 	t.root = t.lastSaved
 	if t.root != nil {

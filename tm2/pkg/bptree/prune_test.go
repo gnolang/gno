@@ -456,13 +456,21 @@ func TestRollback_CleansUpValues(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	tree.Set([]byte("k"), []byte("v1"))
-	if countDBValues(db) != 1 {
-		t.Fatal("value should be eagerly written")
+	// Values are staged (buffered + batch), not persisted, until SaveVersion.
+	if countDBValues(db) != 0 {
+		t.Fatal("value should not be persisted before SaveVersion")
+	}
+	// Read-your-writes still works via the session buffer.
+	if v, _ := tree.Get([]byte("k")); string(v) != "v1" {
+		t.Fatalf("Get before SaveVersion = %q, want v1", v)
 	}
 
 	tree.Rollback()
 	if countDBValues(db) != 0 {
-		t.Fatal("rollback should delete eagerly-written values")
+		t.Fatal("rollback should leave no persisted values")
+	}
+	if v, _ := tree.Get([]byte("k")); v != nil {
+		t.Fatalf("Get after rollback = %q, want nil", v)
 	}
 
 	// Normal operation after rollback
@@ -470,6 +478,136 @@ func TestRollback_CleansUpValues(t *testing.T) {
 	tree.SaveVersion()
 	if countDBValues(db) != 1 {
 		t.Fatal("after rollback+save: should have 1 value")
+	}
+	if v, _ := tree.Get([]byte("k")); string(v) != "v2" {
+		t.Fatalf("Get after rollback+save = %q, want v2", v)
+	}
+}
+
+// TestLoadVersion_FailedSaveDoesNotLeakStagedValue is the regression test for
+// the dangling-batch hazard (a deferred form of H8): values staged into an
+// already-persisted version's namespace after LoadVersion(non-latest)+Set must
+// NOT survive a failed SaveVersion to be flushed by a later Commit, which would
+// overwrite the committed value. With the staged-value model hardened to
+// DiscardBatch on SaveVersion's non-committing paths, the staged write is
+// dropped and the existing version stays intact.
+func TestLoadVersion_FailedSaveDoesNotLeakStagedValue(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("a"), []byte("A1"))
+	if _, _, err := tree.SaveVersion(); err != nil { // v1
+		t.Fatal(err)
+	}
+	tree.Set([]byte("b"), []byte("B2"))
+	if _, v2, err := tree.SaveVersion(); err != nil || v2 != 2 { // v2 = {a,b}
+		t.Fatalf("save v2: err=%v v=%d", err, v2)
+	}
+
+	// Load the non-latest version 1; the working version becomes 2, which
+	// already exists. The next allocValueKey reuses the {version:2, nonce:0}
+	// key — colliding with b's committed value key.
+	if _, err := tree.LoadVersion(1); err != nil {
+		t.Fatal(err)
+	}
+	tree.Set([]byte("zzz"), []byte("LEAK")) // stages into v2's value namespace
+	if _, _, err := tree.SaveVersion(); err == nil {
+		t.Fatal("SaveVersion of an existing version with different data must error")
+	}
+
+	// Force a Commit WITHOUT an intervening Rollback (prune flushes the batch).
+	// If the staged LEAK survived, this is where it would clobber v2's value.
+	if err := tree.PruneVersionsTo(1); err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+
+	// v2's "b" must still resolve to "B2", never "LEAK".
+	if _, err := tree.LoadVersion(2); err != nil {
+		t.Fatal(err)
+	}
+	got, err := tree.Get([]byte("b"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "B2" {
+		t.Fatalf("v2 value corrupted by staged write: got %q, want B2", got)
+	}
+}
+
+// TestStaging_UncommittedSetDoesNotPersist validates H11: with staged values, a
+// Set that is never SaveVersion'd writes nothing to the DB, so a crash before
+// commit leaks no value rows. (Under the prior eager model the value was
+// db.Set immediately and would orphan permanently on crash.)
+func TestStaging_UncommittedSetDoesNotPersist(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree.Set([]byte("a"), []byte("A1"))
+	if _, _, err := tree.SaveVersion(); err != nil { // v1: 1 committed value
+		t.Fatal(err)
+	}
+	if n := countDBValues(db); n != 1 {
+		t.Fatalf("after v1: %d values, want 1", n)
+	}
+
+	// Stage an uncommitted Set — nothing must hit the DB.
+	tree.Set([]byte("b"), []byte("B-uncommitted"))
+	if n := countDBValues(db); n != 1 {
+		t.Fatalf("uncommitted Set persisted eagerly: %d values, want 1", n)
+	}
+
+	// Simulate a crash: abandon `tree` and reopen the DB fresh. No orphan rows,
+	// and the uncommitted key is absent; the committed key survives.
+	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	if _, err := tree2.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if n := countDBValues(db); n != 1 {
+		t.Fatalf("post-crash: %d leaked value rows, want 1", n)
+	}
+	if v, _ := tree2.Get([]byte("b")); v != nil {
+		t.Fatalf("uncommitted value survived crash: %q", v)
+	}
+	if v, _ := tree2.Get([]byte("a")); string(v) != "A1" {
+		t.Fatalf("committed value lost: %q", v)
+	}
+}
+
+// TestStaging_IdempotentSaveRollbackKeepsData validates H9: re-saving an
+// existing version with identical content (the idempotent same-hash path) and
+// then Rolling back must NOT delete that version's committed values. (Under the
+// prior model the idempotent return left sessionValues populated and Rollback
+// eagerly DeleteValueDirect'd them, wiping live committed data.)
+func TestStaging_IdempotentSaveRollbackKeepsData(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree.Set([]byte("a"), []byte("A1"))
+	if _, _, err := tree.SaveVersion(); err != nil { // v1 = {a}
+		t.Fatal(err)
+	}
+	tree.Set([]byte("b"), []byte("B2"))
+	if _, v2, err := tree.SaveVersion(); err != nil || v2 != 2 { // v2 = {a,b}
+		t.Fatalf("save v2: err=%v v=%d", err, v2)
+	}
+
+	// Reconstruct v2's exact content to hit the idempotent (same-hash) path.
+	if _, err := tree.LoadVersion(1); err != nil {
+		t.Fatal(err)
+	}
+	tree.Set([]byte("b"), []byte("B2")) // tree content now == v2
+	if _, _, err := tree.SaveVersion(); err != nil {
+		t.Fatalf("idempotent save should succeed, got %v", err)
+	}
+	tree.Rollback()
+
+	// v2's committed values must be intact after the idempotent save + rollback.
+	if _, err := tree.LoadVersion(2); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := tree.Get([]byte("b")); string(v) != "B2" {
+		t.Fatalf("idempotent-save+rollback wiped v2: got %q, want B2", v)
+	}
+	if v, _ := tree.Get([]byte("a")); string(v) != "A1" {
+		t.Fatalf("v2 'a' lost: %q", v)
 	}
 }
 

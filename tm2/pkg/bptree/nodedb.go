@@ -21,6 +21,15 @@ type nodeDB struct {
 
 	nodeCache *lru.Cache[string, Node] // keyed by serialized NodeKey
 
+	// pendingVals buffers values staged since the last Commit, keyed by
+	// string(ValueKey). Each staged value is written into the batch (flushed
+	// atomically with nodes/root at Commit) AND mirrored here so GetValue
+	// resolves reads issued before SaveVersion (read-your-writes). Cleared by
+	// Commit and DiscardBatch. Single-writer by design — like batch and
+	// nextNonce, it is mutated only on the Set/SaveVersion/Rollback path, which
+	// the ABCI connection mutex serialises against query reads.
+	pendingVals map[string][]byte
+
 	mtx            sync.Mutex
 	latestVersion  int64
 	firstVersion   int64
@@ -46,6 +55,7 @@ func newNodeDB(db dbm.DB, cacheSize int, logger Logger, opts Options) *nodeDB {
 		batch:          db.NewBatch(),
 		opts:           opts,
 		nodeCache:      cache,
+		pendingVals:    make(map[string][]byte),
 		versionReaders: make(map[int64]uint32),
 		logger:         logger,
 	}
@@ -152,17 +162,25 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 
 // --- Value operations ---
 
-// SaveValue writes a value to the DB directly (not via batch), keyed by
-// ValueKey. Writing early allows Get to work before SaveVersion/Commit.
+// SaveValue stages a value for the current session: it is buffered in
+// pendingVals (so GetValue resolves it before SaveVersion) and written into
+// the batch (so it is flushed atomically with the nodes/root at Commit).
+// Nothing is written to the DB until Commit; Rollback/DiscardBatch drop it.
+// This replaces an earlier eager, un-batched db.Set per value, which could
+// overwrite an already-persisted version's value namespace and leak on crash.
 func (ndb *nodeDB) SaveValue(value, vk []byte) error {
-	key := valueDBKey(vk)
 	valCopy := make([]byte, len(value))
 	copy(valCopy, value)
-	return ndb.db.Set(key, valCopy)
+	ndb.pendingVals[string(vk)] = valCopy
+	return ndb.batch.Set(valueDBKey(vk), valCopy)
 }
 
-// GetValue loads a value by its ValueKey from the DB.
+// GetValue loads a value by its ValueKey, checking the uncommitted session
+// buffer first (read-your-writes before SaveVersion), then the DB.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
+	if v, ok := ndb.pendingVals[string(vk)]; ok {
+		return v, nil
+	}
 	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {
 		return nil, fmt.Errorf("db get value: %w", err)
@@ -175,10 +193,13 @@ func (ndb *nodeDB) DeleteValue(vk []byte) error {
 	return ndb.batch.Delete(valueDBKey(vk))
 }
 
-// DeleteValueDirect deletes a value directly from the DB (for Tier 1
-// intra-version orphans and Rollback — matching SaveValue's eager writes).
+// DeleteValueDirect drops a value staged earlier this session (Tier 1
+// intra-version orphan): remove it from the buffer and stage a batch delete.
+// In the batch the earlier Set then this Delete for the same key net to
+// "absent" on Write (every dbm backend replays ops in order, later wins).
 func (ndb *nodeDB) DeleteValueDirect(vk []byte) error {
-	return ndb.db.Delete(valueDBKey(vk))
+	delete(ndb.pendingVals, string(vk))
+	return ndb.batch.Delete(valueDBKey(vk))
 }
 
 // --- Orphan list operations ---
@@ -409,9 +430,23 @@ func (ndb *nodeDB) Commit() error {
 	} else {
 		err = ndb.batch.Write()
 	}
-	ndb.batch.Close()
-	ndb.batch = ndb.db.NewBatch()
+	// Staged values are now durable in the DB; recycle the batch and clear the
+	// session buffer (so subsequent GetValue reads from disk).
+	ndb.DiscardBatch()
 	return err
+}
+
+// DiscardBatch drops every write staged since the last Commit (values AND
+// nodes) and starts a fresh batch. Used by Commit (after a successful Write),
+// by Rollback, and by SaveVersion's non-committing exits (error/idempotent):
+// staged writes must not survive to be flushed by a later Commit, which would
+// corrupt an existing version.
+func (ndb *nodeDB) DiscardBatch() {
+	if ndb.batch != nil {
+		ndb.batch.Close()
+	}
+	ndb.batch = ndb.db.NewBatch()
+	clear(ndb.pendingVals)
 }
 
 // ResetNonce resets the per-version nonce counter.
