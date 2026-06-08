@@ -42,14 +42,16 @@ import (
 )
 
 var (
-	diskDir         = flag.String("disk-dir", "", "persistent dir for disk fixtures; empty = ephemeral TempDir (fixture rebuilt each run)")
-	diskKeys        = flag.Int64("disk-keys", 1_000_000, "fixture size N in keys (set 100000000 for the realistic disk-bound comparison)")
-	diskBlock       = flag.Int("disk-block", 1000, "writes per block (SaveVersion cadence) for the block-write benchmark")
-	diskNodeCache   = flag.Int("disk-node-cache", 10000, "in-process node LRU cache size, in nodes (production-realistic)")
-	diskUpdateFrac  = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
-	diskBuildBatch  = flag.Int64("disk-build-batch", 100_000, "keys per SaveVersion while building the fixture")
-	diskReloadEvery = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
-	diskFactory     = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
+	diskDir          = flag.String("disk-dir", "", "persistent dir for disk fixtures; empty = ephemeral TempDir (fixture rebuilt each run)")
+	diskKeys         = flag.Int64("disk-keys", 1_000_000, "fixture size N in keys (set 100000000 for the realistic disk-bound comparison)")
+	diskBlock        = flag.Int("disk-block", 1000, "writes per block (SaveVersion cadence) for the block-write benchmark")
+	diskNodeCache    = flag.Int("disk-node-cache", 10000, "in-process node LRU cache size, in nodes (production-realistic)")
+	diskUpdateFrac   = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
+	diskBuildBatch   = flag.Int64("disk-build-batch", 100_000, "keys per SaveVersion while building the fixture")
+	diskReloadEvery  = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
+	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
+	diskVerbose      = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
+	diskVerboseEvery = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
 )
 
 // selectedFactories returns the factories to run, filtered by -disk-factory
@@ -139,11 +141,46 @@ func humanCount(n uint64) string {
 // so a reused buffer would alias every insert to a single key.
 func buildDiskFixture(tb testing.TB, tree TreeBench, from, to, batch uint64, label string, logProgress bool) {
 	tb.Helper()
+
+	// Phase timers (accumulated across batches). Cheap: 4 time.Now per batch.
+	var tSet, tSave, tPrune, tReload time.Duration
+	start := time.Now()
+	lastReport, lastKeys := start, from
+
+	// report streams a live line to stderr (unbuffered, so it shows during the
+	// run regardless of go test log buffering): rate + time split by phase.
+	report := func(done uint64) {
+		now := time.Now()
+		win := now.Sub(lastReport).Seconds()
+		rate := 0.0
+		if win > 0 {
+			rate = float64(done-lastKeys) / win
+		}
+		overall := float64(done-from) / now.Sub(start).Seconds()
+		busy := tSet + tSave + tPrune + tReload
+		pct := func(d time.Duration) float64 {
+			if busy == 0 {
+				return 0
+			}
+			return 100 * float64(d) / float64(busy)
+		}
+		fmt.Fprintf(os.Stderr,
+			"[populate %-6s] %d/%d | %.0f keys/s (%.0fs win), %.0f overall | elapsed %s | "+
+				"set %s/%.0f%% save %s/%.0f%% prune %s/%.0f%% reload %s/%.0f%%\n",
+			label, done, to, rate, win, overall, now.Sub(start).Round(time.Second),
+			tSet.Round(time.Millisecond), pct(tSet),
+			tSave.Round(time.Millisecond), pct(tSave),
+			tPrune.Round(time.Millisecond), pct(tPrune),
+			tReload.Round(time.Millisecond), pct(tReload))
+		lastReport, lastKeys = now, done
+	}
+
 	for i := from; i < to; {
 		end := i + batch
 		if end > to {
 			end = to
 		}
+		t0 := time.Now()
 		for ; i < end; i++ {
 			k := make([]byte, diskKeyLen)
 			v := make([]byte, diskValLen)
@@ -153,21 +190,38 @@ func buildDiskFixture(tb testing.TB, tree TreeBench, from, to, batch uint64, lab
 				tb.Fatalf("%s build Set: %v", label, err)
 			}
 		}
+		tSet += time.Since(t0)
+
+		t0 = time.Now()
 		_, ver, err := tree.SaveVersion()
 		if err != nil {
 			tb.Fatalf("%s build SaveVersion: %v", label, err)
 		}
+		tSave += time.Since(t0)
+
 		if ver > historySize {
+			t0 = time.Now()
 			if err := tree.DeleteVersionsTo(ver - historySize); err != nil {
 				tb.Fatalf("%s build prune: %v", label, err)
 			}
+			tPrune += time.Since(t0)
 		}
+
+		t0 = time.Now()
 		if _, err := tree.Load(); err != nil { // drop in-mem tree; node LRU stays warm
 			tb.Fatalf("%s build reload: %v", label, err)
 		}
-		if logProgress && (i%(batch*10) == 0 || i == to) {
+		tReload += time.Since(t0)
+
+		switch {
+		case *diskVerbose && time.Since(lastReport) >= *diskVerboseEvery:
+			report(i)
+		case !*diskVerbose && logProgress && (i%(batch*10) == 0 || i == to):
 			tb.Logf("  %s: %d/%d keys", label, i, to)
 		}
+	}
+	if *diskVerbose {
+		report(to) // final summary line
 	}
 }
 
