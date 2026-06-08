@@ -36,7 +36,7 @@ func main() {
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---
-// Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=asc)
+// Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?order=asc)
 //
 // ###### [C](/r/gnoland/boards2/v1:TestBoard/3)
 // Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) `owner` on 2009-02-13 11:31pm UTC
