@@ -6,27 +6,40 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"golang.org/x/sync/errgroup"
 )
 
-// maxDecompressedCodeSize caps DEFLATE-decompressed shared code to guard
-// against decompression bombs when ?code=...&z are present in query path.
-const maxDecompressedCodeSize = 1 << 20 // 1 MiB
+const (
+	// maxDecompressedCodeSize caps DEFLATE-decompressed shared code to guard
+	// against decompression bombs when ?code=...&z are present in query path.
+	maxDecompressedCodeSize = 1 << 20 // 1 MiB
 
-const defaultCode = `package main
+	// maxParallelFileFetches caps the number of client source files fetch requests.
+	maxParallelFileFetches = 8
+
+	// maxForkCodeSize caps the total fetched source bytes for a fork to guard
+	// against memory exhaustion from large or numerous on-chain package files.
+	maxForkCodeSize = 1 << 20 // 1 MiB
+
+	// defaultCode defines the default code displayed in the code editor.
+	defaultCode = `package main
 
 func Render(path string) string {
 	return "Hello, Playground!"
 }
 `
+)
 
 func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
 	// If available, read initial source code from a query argument
@@ -57,6 +70,10 @@ func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
 	})
 }
 
+// errForkCodeTooLarge signals that the cumulative fetched fork source exceeded
+// maxForkCodeSize and the fetch was aborted.
+var errForkCodeTooLarge = errors.New("package source is too large to fork")
+
 func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *components.View) {
 	pkgPath := u.Path
 	files, err := h.deps.Client.ListFiles(ctx, pkgPath)
@@ -66,27 +83,73 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 		return http.StatusBadRequest, components.StatusErrorComponent(msg)
 	}
 
-	var allCode strings.Builder
-	for _, fileName := range files {
-		if !strings.HasSuffix(fileName, ".gno") && fileName != "gnomod.toml" {
+	// Fetch the source files in parallel, writing each into its own slot so
+	// the final order matches the order returned by ListFiles.
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxParallelFileFetches)
+
+	// Total bounds the cumulative fetched bytes, crossing maxForkCodeSize aborts
+	// the group, which cancels the remaining in-flight and queued fetches.
+	// Contents is initialized to the number of files. It can contain nils if some
+	// files are not source files. Done to keep file order during content concatenation.
+	var total atomic.Int64
+	contents := make([][]byte, len(files))
+	for i, fileanme := range files {
+		if !isSource(fileanme) {
 			continue
 		}
 
-		body, err := h.deps.Client.File(ctx, pkgPath, fileName)
-		if err != nil {
+		g.Go(func() error {
+			body, err := h.deps.Client.File(ctx, pkgPath, fileanme)
+			if err != nil {
+				return err
+			}
+
+			if total.Add(int64(len(body))) > maxForkCodeSize {
+				return errForkCodeTooLarge
+			}
+
+			contents[i] = body
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		if errors.Is(err, errForkCodeTooLarge) {
+			msg := err.Error()
+			h.deps.Logger.Warn(msg, "path", pkgPath, "limit", maxForkCodeSize)
+			return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(msg)
+		}
+
+		msg := "unable to fetch files for fork"
+		h.deps.Logger.Error(msg, "path", pkgPath, "error", err)
+		return http.StatusInternalServerError, components.StatusErrorComponent(msg)
+	}
+
+	// Pre-size the builder so concatenation allocates a single buffer
+	// instead of growing per file.
+	var code strings.Builder
+	headerOverhead := len("\n// --- ") + len(" ---\n\n")
+	code.Grow(int(total.Load()) + len(files)*headerOverhead)
+
+	// Concatenate the fetched files in the original ListFiles order
+	for i, fileanme := range files {
+		if !isSource(fileanme) {
 			continue
 		}
 
-		if allCode.Len() > 0 {
-			allCode.WriteString("\n// --- " + fileName + " ---\n\n")
-		} else {
-			allCode.WriteString("// --- " + fileName + " ---\n\n")
+		// First content line has no newline
+		if code.Len() > 0 {
+			code.WriteString("\n")
 		}
-		allCode.Write(body)
+
+		code.WriteString("// --- " + fileanme + " ---\n\n")
+		code.Write(contents[i])
+		contents[i] = nil // release the body so it can be collected as we go
 	}
 
 	return http.StatusOK, NewPageView(PlaygroundData{
-		InitialCode: allCode.String(),
+		InitialCode: code.String(),
 		ForkFrom:    path.Join(h.deps.Domain, pkgPath),
 		Remote:      h.deps.Remote,
 		ChainId:     h.deps.ChainId,
@@ -225,6 +288,11 @@ func (h *Handler) serveFuncs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// isSource reports whether a file is source code that can be displayed in the code editor.
+func isSource(filename string) bool {
+	return strings.HasSuffix(filename, ".gno") || filename == "gnomod.toml"
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

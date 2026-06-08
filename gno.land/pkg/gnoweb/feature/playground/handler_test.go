@@ -346,6 +346,29 @@ func TestGetForkView(t *testing.T) {
 		assert.NotContains(t, code, "README.md")
 	})
 
+	t.Run("oversized source is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// Two files whose combined size exceeds maxForkCodeSize.
+		big := bytes.Repeat([]byte("x"), maxForkCodeSize)
+		deps := validDeps()
+		deps.Client = &stubClient{
+			files: []string{"a.gno", "b.gno"},
+			fileBodies: map[string][]byte{
+				"a.gno": big,
+				"b.gno": []byte("package main\n"),
+			},
+		}
+		h := New(deps)
+
+		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		assert.Equal(t, http.StatusRequestEntityTooLarge, status)
+
+		// The error path returns a status error component, not a playground view
+		_, ok := v.Component.(*playgroundComponent)
+		assert.False(t, ok, "oversized path must not return a playground component")
+	})
+
 	t.Run("fail listing package files", func(t *testing.T) {
 		t.Parallel()
 
