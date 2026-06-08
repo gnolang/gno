@@ -251,7 +251,14 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 
 	// If this version already exists, verify the hash matches.
 	// This prevents accidentally overwriting a version with different data.
-	if t.ndb.VersionExists(version) {
+	// Use the error-propagating variant: a transient DB error must NOT be read
+	// as "does not exist" (which would overwrite the existing version with
+	// unverified new data). The deferred DiscardBatch drops staged writes.
+	exists, err := t.ndb.versionExistsE(version)
+	if err != nil {
+		return nil, 0, fmt.Errorf("checking version %d existence: %w", version, err)
+	}
+	if exists {
 		existingNK, existingHash, err := t.ndb.GetRoot(version)
 		if err != nil {
 			return nil, 0, err
@@ -658,13 +665,16 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 	if t.root == nil {
 		return false, nil
 	}
-	return iterateNodeResolved(t.root, func(key, vk []byte) bool {
+	var resolveErr error
+	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 		val, err := t.resolveValue(vk)
 		if err != nil {
-			return true
+			resolveErr = err
+			return true // stop
 		}
 		return fn(key, val)
-	}), nil
+	})
+	return stopped, resolveErr
 }
 
 // --- helpers ---

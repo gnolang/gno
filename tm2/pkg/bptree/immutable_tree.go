@@ -116,13 +116,16 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 		return false, nil
 	}
 	if t.valueResolver != nil {
-		return iterateNodeResolved(t.root, func(key, vk []byte) bool {
+		var resolveErr error
+		stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 			val, err := t.valueResolver(vk)
 			if err != nil {
-				return true // stop on error
+				resolveErr = err
+				return true // stop
 			}
 			return fn(key, val)
-		}), nil
+		})
+		return stopped, resolveErr
 	}
 	return iterateNode(t.root, fn), nil
 }
