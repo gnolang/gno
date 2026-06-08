@@ -50,22 +50,17 @@ func (m *Machine) doOpAssign() {
 		return
 	}
 
-	// Multi-LHS: after popping the RHS values above, m.Values' top region holds
-	// the LHS operand frames, oldest first — LHS_0's frame at the bottom up to
-	// LHS_{n-1}'s frame on top (op_exec pushes PushForPointer for the LHS in
-	// reverse, so they execute LHS_0 first). PopValues that whole region in one
-	// shot, then resolve each LHS in place from its sub-slice — avoiding the
-	// per-statement make([][]TypedValue, N) heap allocation of the
-	// buffer-and-repush approach.
+	// Multi-LHS: m.Values' top region holds the LHS operand frames, oldest
+	// first — LHS_0's frame at the bottom up to LHS_{n-1}'s on top (op_exec
+	// pushes PushForPointer for the LHS in reverse, so LHS_0 executes first).
+	// PopValues the whole region once, then resolve each LHS from its sub-slice.
 	//
-	// INVARIANT: `ops` (like `rvs` above it) is a PopValues result, i.e. a view
-	// into the live m.Values backing array (see PopValues' "use immediately"
-	// contract). Nothing in the loop below may push onto m.Values — an append
-	// would write in place into those windows and corrupt not-yet-resolved
-	// frames. This holds because resolvePointer and Assign2 are leaf operations
-	// that execute no bytecode (the rvs alias is pre-existing precedent: the old
-	// loop read rvs[i] across Assign2 too). The debug assertion below guards
-	// against a future callee breaking it.
+	// INVARIANT: `ops` (like `rvs`) is a PopValues result — a view into the live
+	// m.Values backing array (see PopValues' "use immediately" contract).
+	// Nothing in the loop below may push onto m.Values, or an append would write
+	// in place over not-yet-resolved frames. resolvePointer and Assign2 are leaf
+	// operations that run no bytecode, so they never push; the debug assertion
+	// below guards against a future callee breaking that.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
