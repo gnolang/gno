@@ -73,11 +73,14 @@ declare -A NODE_CONTROLLABLE_SIGNER=()
 declare -A NODE_SIGNER_SERVICE=()
 declare -A NODE_CONTROL_PORT=()
 declare -A NODE_LOG_PID=()
-# Local-runtime state. Ports are base+index, keyed off NODE_COUNTER at register.
+# Local-runtime state. Ports start at base+index and shift up to the next free
+# port if it is taken (see _pick_free_port), keyed off NODE_COUNTER at register.
 declare -A NODE_P2P_PORT=()   # local host P2P port
 declare -A NODE_RS_PORT=()    # local host remote-signer port (controllable signers)
 declare -A NODE_PID=()        # local gnoland process pid
 declare -A NODE_SIGNER_PID=() # local valsignerd process pid
+declare -A _CLAIMED_PORTS=()  # ports already handed out this scenario (local)
+_PICKED_PORT=""               # out-param for _pick_free_port
 NODE_COUNTER=0
 
 SCENARIO_NAME=""
@@ -115,6 +118,30 @@ join_by() {
 
 slugify() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-'
+}
+
+# _pick_free_port START — first free 127.0.0.1 TCP port at or above START that
+# this scenario has not already handed out. Used at register time (local
+# runtime) so the deterministic base+index port shifts up when something else
+# holds it, instead of failing later with a 120s wait_for_rpc timeout. The port
+# must be chosen before prepare_network bakes it into genesis/peers/inventory,
+# so this runs at registration, not at start. Probes via bash's built-in
+# /dev/tcp (no nc/lsof dependency): a successful connect means someone is
+# listening, so the port is busy.
+#
+# The result is returned in the global _PICKED_PORT rather than on stdout,
+# because callers must NOT use $(...) here: command substitution runs in a
+# subshell, which would discard the _CLAIMED_PORTS update and let sibling ports
+# collide.
+_pick_free_port() {
+  local p="${1:?start port required}"
+  # The connect probe runs in a subshell, so fd 3 is scoped to it and needs no
+  # explicit close here.
+  while [ -n "${_CLAIMED_PORTS[$p]:-}" ] || (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; do
+    p=$((p + 1))
+  done
+  _CLAIMED_PORTS[$p]=1
+  _PICKED_PORT="$p"
 }
 
 require_tools() {
@@ -168,6 +195,7 @@ scenario_init() {
   NODE_RS_PORT=()
   NODE_PID=()
   NODE_SIGNER_PID=()
+  _CLAIMED_PORTS=()
   NODE_COUNTER=0
 }
 
@@ -188,13 +216,18 @@ register_node() {
   NODE_PEX[$name]="$pex"
   NODE_SENTRY[$name]="$sentry"
   if [ "$RUNTIME" = "local" ]; then
-    # The docker --rpc-port hint is irrelevant locally; assign deterministic
-    # per-node host ports (all keyed off the same index) so nodes can address
-    # each other on 127.0.0.1. RS/control are only used by controllable signers.
-    NODE_RPC_PORT[$name]="$((LOCAL_RPC_PORT_BASE + NODE_COUNTER))"
-    NODE_P2P_PORT[$name]="$((LOCAL_P2P_PORT_BASE + NODE_COUNTER))"
-    NODE_RS_PORT[$name]="$((LOCAL_RS_PORT_BASE + NODE_COUNTER))"
-    NODE_CONTROL_PORT[$name]="$((LOCAL_CONTROL_PORT_BASE + NODE_COUNTER))"
+    # The docker --rpc-port hint is irrelevant locally; assign per-node host
+    # ports starting from base+index so nodes can address each other on
+    # 127.0.0.1, shifting up to the next free port when a candidate is taken
+    # (e.g. a concurrent local scenario). RS/control are only used by
+    # controllable signers. Chosen here, before prepare_network bakes them into
+    # genesis/peers/inventory.
+    # Not $(...) — _pick_free_port mutates _CLAIMED_PORTS in this shell and
+    # returns via _PICKED_PORT (see its comment).
+    _pick_free_port "$((LOCAL_RPC_PORT_BASE + NODE_COUNTER))";     NODE_RPC_PORT[$name]="$_PICKED_PORT"
+    _pick_free_port "$((LOCAL_P2P_PORT_BASE + NODE_COUNTER))";     NODE_P2P_PORT[$name]="$_PICKED_PORT"
+    _pick_free_port "$((LOCAL_RS_PORT_BASE + NODE_COUNTER))";      NODE_RS_PORT[$name]="$_PICKED_PORT"
+    _pick_free_port "$((LOCAL_CONTROL_PORT_BASE + NODE_COUNTER))"; NODE_CONTROL_PORT[$name]="$_PICKED_PORT"
   else
     NODE_RPC_PORT[$name]="$rpc_port"
   fi
