@@ -24,12 +24,14 @@ type AppConfig struct {
 	txsFile      string
 
 	// Web Configuration
-	noWeb               bool
-	webHTML             bool
-	webListenerAddr     string
-	webRemoteHelperAddr string
-	webWithHTML         bool
-	webHome             string
+	noWeb                bool
+	webHTML              bool
+	webListenerAddr      string
+	webRemoteHelperAddr  string
+	webWithHTML          bool
+	webHome              string
+	webAnalytics         bool
+	webAnalyticsHostname string
 
 	// Loader
 	noExamples                 bool
@@ -124,6 +126,20 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"no-examples",
 		defaultCfg.noExamples,
 		"skip loading $GNOROOT/examples entirely",
+	)
+
+	fs.BoolVar(
+		&c.webAnalytics,
+		"web-analytics",
+		defaultCfg.webAnalytics,
+		"gnoweb: enable SimpleAnalytics tracking",
+	)
+
+	fs.StringVar(
+		&c.webAnalyticsHostname,
+		"web-analytics-hostname",
+		defaultCfg.webAnalyticsHostname,
+		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
 	)
 
 	fs.BoolVar(

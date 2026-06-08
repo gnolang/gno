@@ -103,10 +103,10 @@ After installing, verify that the tools are available:
 # List installed binaries
 ls ~/.gno/bin
 
-# Check binary versions
+# Confirm each binary runs
 gno version
 gnokey version
-gnodev version
+gnodev --help
 ```
 
 ## Troubleshooting
