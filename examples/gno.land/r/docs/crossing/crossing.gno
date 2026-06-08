@@ -8,11 +8,11 @@ import (
 
 var owner address
 
-func init() {
-	// init function has no "realm" argument, there's no crossing.
-	// Function is called automatically only once on deployment, so "owner" is
-	// initialized to the address of the realm being deployed.
-	owner = unsafe.CurrentRealm().Address()
+func init(cur realm) {
+	// init runs automatically only once on deployment. It can take a "cur realm"
+	// handle, so "owner" is set from cur.Address(), the address of the realm
+	// being deployed.
+	owner = cur.Address()
 }
 
 // Both functions below are exported, so any realm can call them.
