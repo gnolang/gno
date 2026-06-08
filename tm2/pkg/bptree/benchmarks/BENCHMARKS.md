@@ -50,11 +50,18 @@ doesn't depend on cache.
 |---|---|---|---|---|
 | 1M | ✓ | ✓ | ✓ | fully cached — *validation only* |
 | 33M | ✓ | ✓ | ✓ | counts solid; **ns still cache-bound** (~10 GB < 16 GB RAM) |
-| **100M** | ⛔ bptree OOMs in prune | **pending** | **pending** | **the real disk-bound test** |
+| **100M** | ✓ ready (OOM fixed, `0de551f17`) | **pending** | **pending** | **the real disk-bound test** |
 
 At 33M the IAVL tree (~10 GB) still mostly fits in 16 GB, so the *counts*
 (`reads/write`, `writes/write`) are meaningful but the *latencies* (`ns`) are
 cache-bound, not disk-bound. The latency gap only opens fully at 100M.
+
+The bptree 100M populate previously OOM-killed on 16 GB; **`0de551f17` fixed the
+root cause** — `getChild` memoized every loaded child and `saveNode` never
+cleared it, so the working tree pinned every node touched since the last reload
+(unbounded growth toward the whole tree). It now matches IAVL (no memoize on
+read, clear on save), bounding the working tree to the node LRU. Verified by the
+`WorkingTreeBoundedAfterSave` and `ConcurrentReadWrite_NoRace` (`-race`) tests.
 
 ---
 
@@ -118,7 +125,11 @@ climbs with `log₂`.
   read-count gap will push `ns/op` toward the full ~3×, *widening* IAVL's lead.
 - Mirror image of writes: B+32 loses reads, wins writes.
 
-> `BenchmarkDiskGetMiss` (negative lookups) not yet collected at scale.
+> **Caveat:** these B+32 read numbers predate `0de551f17`, which trades memoized
+> child pointers for re-fetches from the node LRU (read-path ~+44% worst-case in a
+> synthetic loop, per that commit). Re-measure GET post-fix — the bptree `ns/op`
+> and possibly `reads/op` will rise; `writes/write` is unaffected (structural).
+> `BenchmarkDiskGetMiss` (negative lookups) also not yet collected at scale.
 
 ---
 
@@ -223,13 +234,13 @@ are backend-agnostic; `ns/*` is not.
 
 ## TODO — the 100M run (the one that matters)
 
-1. **Unblock the bptree 100M populate.** It currently OOM-kills on 16 GB during
-   prune (the `walkAndPrune` / `findCorrespondingChild` dual-walk loads orphaned
-   subtrees into memory; the spike grows with N). Either fix the prune to be
-   lockstep (like IAVL's `traverseOrphans`) or add a `-disk-no-prune` build
-   option (the benchmark only reads the latest version, so pruning during the
-   build is optional — it trades the memory spike for more disk). Until then,
-   `GOMEMLIMIT=12GiB` + `-disk-build-batch=25000` may get it through.
+1. **Run the bptree 100M populate.** The OOM that blocked this is fixed
+   (`0de551f17`: the working tree is now bounded by the node LRU — verified by
+   `WorkingTreeBoundedAfterSave`). Use `GOMEMLIMIT=12GiB`, and
+   `-disk-build-batch=25000` if the per-batch working set is tight. Note: the
+   prune *dual-walk* (`walkAndPrune` / `findCorrespondingChild`) is still **slow**
+   at scale — now a performance issue, no longer a memory one; a lockstep prune
+   (like IAVL's `traverseOrphans`) remains a worthwhile follow-up.
 2. **Run BlockWrite + GetRandom at 100M** on the 16 GB target. This is the only
    regime where the IAVL working set (~30 GB) truly exceeds RAM, so its
    `reads/write` become real disk seeks and `ns/write` diverges from B+32's
