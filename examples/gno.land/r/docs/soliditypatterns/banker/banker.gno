@@ -19,6 +19,7 @@ var deposits avl.Tree // address -> int64
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
 func Deposit(cur realm) {
+	// Require a direct user call so coins are credited to the real sender.
 	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
@@ -45,6 +46,11 @@ func Deposit(cur realm) {
 // Withdraw sends coins back to the caller
 // This is equivalent to Solidity's transfer() or call{value: x}()
 func Withdraw(cur realm, amount int64) {
+	// Require a direct user call so only the balance owner can withdraw.
+	if !cur.Previous().IsUserCall() {
+		panic("invalid non-user call")
+	}
+
 	caller := cur.Previous().Address()
 
 	// Get current balance

@@ -41,6 +41,11 @@ Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity'
 
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
+    // Require a direct user call so only the balance owner can withdraw.
+    if !cur.Previous().IsUserCall() {
+        panic("invalid non-user call")
+    }
+
     caller := cur.Previous().Address()
 
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
@@ -56,9 +61,12 @@ pattern keeps your code clear and maintainable:
 
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
-    caller := cur.Previous().Address()
-
     // 1. Checks - validate all preconditions
+    if !cur.Previous().IsUserCall() {
+        panic("invalid non-user call")
+    }
+
+    caller := cur.Previous().Address()
     balance := deposits[caller]
     if balance < amount {
         panic("insufficient balance")
