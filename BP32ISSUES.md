@@ -61,6 +61,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 | M9 | **Write side has no key-length cap** while reads reject >1 MiB → an oversized key serializes then **wedges that version** on reload | #5591 (5f091db7e) |
 | M15 | `Exporter`: abandon-without-`Close()` **permanently leaks the version reader** (decr is only in `Close`), + goroutine leak for trees >32 nodes. Blocking-send was fixed (commit f357c859c) *only when Close is called* | #5442 bug5 |
 | M8 | `LoadVersionForOverwriting`/`DeleteVersionsFrom` **panic** (unsupported). Unused in prod, but panics rather than returning `ErrUnsupported` | #5570 finding:12 |
+| ~~M17~~ ✅ | **FIXED (`0de551f17`).** `getChild` memoized every loaded child on the node and `saveNode` never cleared it → the working-tree graph pinned every node touched since the last reload, growing unbounded toward the whole tree (**OOM at scale**, single-threaded, independent of the bounded LRU). Now getChild doesn't memoize and `saveNode` clears `childNodes` post-persist → working tree bounded to root + LRU. Bite-proven: `TestGetChild_WorkingTreeBoundedAfterSave` (pinned count = 1). | this review |
 
 ### Tier C — CONFIRMED in code, NOT triggerable under the current ABCI single-mutex (latent)
 
@@ -69,8 +70,8 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 | H1 | Iterators never register as version readers (all 3 `newIterator` calls pass `version=0`; `Close` decr is dead code) → prune can delete nodes a live iterator walks | #5450; #5570 finding:1; #5591 |
 | H2 | `GetImmutable`/`immutableForProof`/`GetImmutableTree` **never call `incrVersionReaders` at all** (stronger than "registers late") → snapshot unprotected from concurrent prune | #5570 finding:30/40 |
 | H3 | Prune active-readers check is TOCTOU — `hasVersionReaders` and the deletes are not under one lock; no `beginPruning`/`endPruning` | #5450; #5570 finding:15 |
-| M11 | COW mutators write node fields with no shared lock (`childMu` guards only lazy-load; clones get fresh mutexes) → concurrent `Get`+`Set` data race | #5570 finding:7 |
-| M12 | `immutableForProof` **aliases the live `t.root`** → concurrent proof+write can read torn `miniTree`/`childHashes` | #5570 finding:9 |
+| ~~M11~~ ✅ | **FIXED (`0de551f17`).** `getChild`'s write-back mutated shared nodes on reads (racing the writer's COW `Clone`). Now reads never memoize; writes clone-first → shared nodes immutable; `childMu` removed. `-race`-verified (concurrent `Has`+`Set`). | #5570 finding:7 |
+| ~~M12~~ ✅ | **FIXED (`0de551f17`).** Same mechanism — the aliased root is no longer mutated in place (`miniTree`/`childHashes` rebuilt only on clones), so a concurrent proof reads stable fields. | #5570 finding:9 |
 | M13 | No singleflight/lock on `GetNode` cache-miss → duplicate deserialize, last-writer-wins `Add`, divergent object identity | #5570 arch |
 
 ### Tier D — Hardening gaps (corrupt-DB / malicious-input only; not honest-path bugs)
@@ -101,7 +102,8 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
 - **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
-- **Latent concurrency (dormant under ABCI mutex): 5** (Tier C: H2 partial, H3, M11, M12, M13). ✅ **H1** (iterators register as version readers) landed via #5591 cherry-pick.
+- **Latent concurrency (dormant under ABCI mutex): 3** (Tier C: H2 partial, H3, M13). ✅ **H1** via #5591; ✅ **M11/M12** fixed (`0de551f17`, getChild non-memoization). Residual node-concurrency gap: value-resolving reads race on `pendingVals` (open).
+- **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
 - **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
 
@@ -154,6 +156,43 @@ Caveat carried forward: **H3** (prune-reader TOCTOU) and the rest of Tier C are
 addressed (snapshot *iterators* register, but a Get-only/proof snapshot still
 does not). `4dd84b894`'s commit message advertises a 4 MiB flush default that is
 dead under `DefaultOptions`' 100 KiB — behavior is correct, message is stale.
+
+---
+
+## VII. getChild non-memoization + clear-on-save (commit `0de551f17`)
+
+Adopts IAVL's bounded-memory model and removes the getChild read-path data race
+(M11/M12) in one change:
+
+- **`getChild` no longer memoizes loaded children** (returns them without
+  storing back) → reads never mutate the node; the working tree is bounded by
+  the nodeDB LRU instead of pinning every node ever touched (closes the
+  unbounded-memory / OOM issue, **M17**).
+- **`saveNode` clears `childNodes[i]`** once `children[i]`/`childHashes[i]` are
+  durable.
+- **`SaveNode` sets `inner.ndb`** so in-memory-built nodes (root splits,
+  `splitInner`, merge, import) can lazy-load after the clear; without it the
+  next `Set`/`Remove` on a saved-but-not-reloaded tree panics
+  ("inner node has nil child"). The load-bearing companion change.
+- **`childMu` removed** — reads are pure and writes clone-first, so shared nodes
+  are immutable; the mutex guarded a write that no longer exists.
+
+Closes **M11** (concurrent `Get`+`Set` node-field race — `-race`-verified with a
+concurrent `Has`+`Set` test) and **M12** (the `immutableForProof` aliased root
+can no longer be torn, since shared nodes are never mutated in place).
+
+**Trade-off (benchstat, identical workload):** reads re-fetch loaded children
+from the cache rather than following a memoized pointer — `Get` +44% worst-case
+(synthetic random-read loop, tree fully cached), `Proof` +6%, `Iterate` +31%;
+**`BlockCommit` unchanged** (the dirty path is still memoized via `setChild`).
+bptree's shallower tree (~6 levels vs IAVL's ~28) keeps it ahead of IAVL on
+reads even without memoization, and IAVL never had this memoization.
+
+**Residual carried forward:** this is a *partial* concurrency step. A concurrent
+value-resolving read (`Get`/proof) still races on the `nodeDB.pendingVals` map
+(`SaveValue` write vs `GetValue` read) — a separate, still-open data race. Full
+single-tree concurrency still relies on the ABCI single-mutex; do not treat
+bptree as concurrency-safe on the strength of this change alone.
 
 ---
 
@@ -240,8 +279,8 @@ from merge state.
 
 | ID | Issue | Sev | Location | Source PR(s) | Status |
 |---|---|---|---|---|---|
-| M11 | **Thread-safety under-specified**; `childMu` guards only the lazy-load path → concurrent `Get`+`Set` race on COW mutations (and `getChild` fast-path data race) | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ❌ Open (doc + `childLoaded` atomic in #5570) |
-| M12 | **`immutableForProof` shares the mutable root** — proof walks `miniTree` which `Set` rewrites in place → torn state under concurrent proof+write | M | `proof.go` | #5570 finding:9 | ❌ Open |
+| ~~M11~~ | **Thread-safety under-specified**; `childMu` guarded only the lazy-load path → concurrent `Get`+`Set` race on the `getChild` write-back vs COW `Clone` | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ✅ **FIXED `0de551f17`** — getChild no longer memoizes; `childMu` removed; `-race`-clean. Residual: value-resolving reads still race on `pendingVals` (separate, open). |
+| ~~M12~~ | **`immutableForProof` shares the mutable root** — proof walks `miniTree`/`childHashes` | M | `proof.go` | #5570 finding:9 | ✅ **FIXED `0de551f17`** — shared nodes now immutable (reads pure; miniTree rebuilt only on clones), so the aliased root can't be torn. |
 | M13 | No **`singleflight` on cache-miss** — two readers missing the same NodeKey deserialize independently and overwrite each other's `Add` | M | `nodedb.go` | #5570 finding:5/arch | ❌ Open |
 | L8 | `ImmutableTree.Close` **not idempotent** — double/concurrent Close decrements reader count twice → corrupts count | L | `immutable_tree.go` | #5570 finding:45 | ❌ Open |
 
