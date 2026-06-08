@@ -13,51 +13,88 @@ It is inspired by `../gno-val-test`, but the setup here is reusable and scenario
 
 ## Prerequisites
 
-- `docker`
-- `docker compose`
 - `jq`
 - `curl`
 - `bash` (4+)
+- `docker` + `docker compose` (for `RUNTIME=docker`, the default)
+- a Go toolchain (for `RUNTIME=local`)
 
-## Build The Local Images
+## Runtime Backends
 
-The scripts expect three local Docker images:
+Scenarios run against one of two backends, selected with `RUNTIME`:
+
+- `docker` (default): every node and CLI command runs in a container.
+- `local`: nodes and CLI commands run from native binaries built into `bin/`.
+
+The usage path is identical for both — only the value of `RUNTIME` changes. Build
+the dependencies with `make build`, then run any scenario the same way:
+
+```bash
+make build                       # docker images (default)
+make scenario-01
+
+make build RUNTIME=local         # native binaries instead
+make scenario-01 RUNTIME=local
+```
+
+`make build` is a dispatcher: it runs `build-images` for the docker backend and
+`build-binaries` for the local backend. You can still call those underlying
+targets directly if you prefer.
+
+### `.local` shorthand
+
+Append `.local` to any target to run it against native binaries without spelling
+out `RUNTIME=local`. It works for every target — current and future:
+
+```bash
+make build.local                 # == make build RUNTIME=local
+make scenario-01.local           # == make scenario-01 RUNTIME=local
+make test.local
+make logs-05.local
+```
+
+Extra variables still propagate, e.g. `make scenario-12.local GH_USER=gnolang`.
+Docker is the default, so plain `make <target>` is the docker path — there is no
+`.docker` suffix.
+
+## Build The Dependencies
+
+For `RUNTIME=docker`, `make build` builds three local Docker images:
 
 - `gno-val-scenario-core:local`: built from the root `Dockerfile` `all` target; contains `gnoland` and `gnokey`
 - `gnogenesis:local`: built from the root `Dockerfile` `gnocontribs` target
 - `valsignerd:local`: built from `misc/val-scenarios/Dockerfile`; contains only the scenario signer sidecar
 
-```bash
-make build-images
-```
+For `RUNTIME=local`, `make build RUNTIME=local` builds `gnoland`, `gnokey`, `gnogenesis`, and `valsignerd` into `bin/`.
 
 Override image tags with `IMAGE=...`, `GNOKEY_IMAGE=...`, `GNOGENESIS_IMAGE=...`, and `VALSIGNER_IMAGE=...` if needed. By default, `GNOKEY_IMAGE` is the same image as `IMAGE`.
 
-To build images from a GitHub fork, set `GH_USER`. `GH_REPO` defaults to `gno` and `GH_BRANCH` defaults to `master`. Image tags are derived automatically as `<base>:<GH_USER>-<GH_BRANCH>` (slashes in the branch name become dashes), so multiple versions can coexist without overwriting each other.
+To build from a GitHub fork, set `GH_USER`. `GH_REPO` defaults to `gno` and `GH_BRANCH` defaults to `master`. This drives both backends: image tags and the binary output dir are derived automatically from `<GH_USER>-<GH_BRANCH>` (slashes in the branch name become dashes), so multiple versions can coexist without overwriting each other.
 
 ```bash
-make build-images GH_USER=gnolang
-# -> gno-val-scenario-core:gnolang-master, gnogenesis:gnolang-master, valsignerd:gnolang-master
+make build GH_USER=gnolang
+# images:   gno-val-scenario-core:gnolang-master, gnogenesis:gnolang-master, valsignerd:gnolang-master
+# binaries: bin/gnolang-master/ (with RUNTIME=local)
 
-make build-images GH_USER=gnolang GH_REPO=gno GH_BRANCH=feat/my-branch
-# -> gno-val-scenario-core:gnolang-feat-my-branch, gnogenesis:gnolang-feat-my-branch, valsignerd:gnolang-feat-my-branch
+make build GH_USER=gnolang GH_REPO=gno GH_BRANCH=feat/my-branch
+# -> ...:gnolang-feat-my-branch (or bin/gnolang-feat-my-branch/ for RUNTIME=local)
 ```
 
-When `GH_USER` is set, all images build from the fetched remote branch by default. You can override each source checkout independently:
+When `GH_USER` is set, all artifacts build from the fetched remote branch by default. You can override each source checkout independently:
 
-- `CORE_GNO_ROOT`: source for the core image (`gnoland` and `gnokey`)
-- `GNOGENESIS_GNO_ROOT`: source for the `gnogenesis` image
-- `VALSIGNER_GNO_ROOT`: source for the `valsignerd` image
+- `CORE_GNO_ROOT`: source for `gnoland` and `gnokey`
+- `GNOGENESIS_GNO_ROOT`: source for `gnogenesis`
+- `VALSIGNER_GNO_ROOT`: source for `valsignerd`
 
 This is useful when testing a branch that does not contain every scenario tool. For example, build the chain binaries from a remote branch but use the local `valsignerd`:
 
 ```bash
-GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build-images
+GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build
 ```
 
 The repository is cloned once to `/tmp/gno-remote-build` and reused across subsequent builds. To force a fresh clone, run `make fetch-remote` with the same variables.
 
-To run a scenario against previously built fork images, pass the matching tag variables through the Makefile:
+To run a scenario against previously built fork artifacts, pass the matching tag variables (and `RUNTIME` if local) through the Makefile:
 
 ```bash
 make scenario-12 GH_USER=gnolang GH_BRANCH=feat/my-branch
@@ -72,6 +109,8 @@ make test-all      # run all scenarios
 make scenario-01
 make scenario-04
 ```
+
+Append `.local` (or add `RUNTIME=local`) to any of these to run against native binaries instead of containers, e.g. `make test.local` or `make scenario-01.local`.
 
 `make test-basics` / `make basics` are aliases for `make test-ci`.
 `make test-advanced` / `make advanced` are aliases for `make test-local`.
