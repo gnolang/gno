@@ -46,6 +46,20 @@ func MakeConnectedPeers(
 ) ([]*p2p.MultiplexSwitch, []*p2p.MultiplexTransport) {
 	t.Helper()
 
+	// Each pair of switches is connected from the lower-indexed side only (see
+	// the DialPeers call below), so switch 0 makes cfg.Count-1 outbound dials and
+	// accepts no inbound ones. MultiplexSwitch checks MaxNumOutboundPeers (default
+	// 10) only when a dial is *enqueued*, and we enqueue every peer before any
+	// dial completes, so the cap currently isn't hit even above 10 — but that
+	// relies on enqueueing racing ahead of connection setup. Rather than depend
+	// on that, fail fast with a clear message if a caller ever exceeds the cap,
+	// instead of surfacing it as a confusing 1-minute connect timeout.
+	maxOutbound := int(p2pcfg.DefaultP2PConfig().MaxNumOutboundPeers)
+	require.LessOrEqualf(t, cfg.Count-1, maxOutbound,
+		"cluster of %d requires %d outbound dials from the lowest switch, "+
+			"exceeding the outbound peer cap of %d",
+		cfg.Count, cfg.Count-1, maxOutbound)
+
 	// Initialize collections for switches, transports, and addresses.
 	var (
 		sws   = make([]*p2p.MultiplexSwitch, cfg.Count)
