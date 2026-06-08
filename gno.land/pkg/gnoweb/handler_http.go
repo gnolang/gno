@@ -100,7 +100,7 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// The same URL can return HTML or markdown depending on Accept.
 		w.Header().Set("Vary", "Accept")
 		h.Get(w, r)
@@ -282,8 +282,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		if wantMarkdown {
+			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
+		}
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget.Value, wantMarkdown)
+		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
@@ -293,11 +296,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string, wantMarkdown bool) (int, *components.View) {
-	if wantMarkdown {
-		return http.StatusOK, components.MarkdownView([]byte(mdContent))
-	}
-
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
@@ -340,29 +339,40 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(ctx, gnourl, indexData, wantMarkdown)
+	if wantMarkdown {
+		return h.GetMarkdownRealmView(ctx, gnourl, indexData)
+	}
+	return h.GetRealmView(ctx, gnourl, indexData)
 }
 
-// GetRealmView renders a realm page or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
-	// First fecth the realm
+// fetchRealm fetches a realm's raw Render() output. On success it returns the
+// bytes with ok=true and the status/fallback unset. When the realm cannot be
+// rendered it returns ok=false with the HTML fallback view and status to send as-is.
+func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) ([]byte, int, *components.View, bool) {
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
-	case err == nil: // ok
+	case err == nil:
+		return raw, 0, nil, true
 	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
-		return h.GetDirectoryView(ctx, gnourl, indexData)
+		status, view := h.GetDirectoryView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
-		return h.GetPathsListView(ctx, gnourl, indexData)
+		status, view := h.GetPathsListView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		status, view := GetClientErrorStatusPage(gnourl, err)
+		return nil, status, view, false
 	}
+}
 
-	// Serve raw markdown verbatim, skipping the goldmark HTML render.
-	if wantMarkdown {
-		return http.StatusOK, components.MarkdownView(raw)
+// GetRealmView renders a realm page as HTML, or returns an error/status if not available.
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
 	}
 
 	var content bytes.Buffer
@@ -384,6 +394,16 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		// sanitized before rendering
 		ComponentContent: components.NewReaderComponent(&content),
 	})
+}
+
+// GetMarkdownRealmView serves a realm's raw Render() output as text/markdown. It
+// falls back to the directory, paths-list, or error view when the realm cannot be fetched.
+func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
+	}
+	return http.StatusOK, components.MarkdownView(raw)
 }
 
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
