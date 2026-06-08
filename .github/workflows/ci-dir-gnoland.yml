@@ -28,8 +28,6 @@ jobs:
       # subprocess-per-node mode (cold stdlib reload every boot) and the
       # sequential `tests-ts-seq` workaround, cutting this job from ~22m to
       # a few minutes.
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   gnoweb_generate:
     runs-on: ubuntu-latest
