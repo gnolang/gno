@@ -38,6 +38,11 @@ func (m *Machine) doOpAssign() {
 	// reverse. rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
+	// NOTE: the multi-LHS loop below runs ~6% above the per-LHS OpCPUSlopeAssign
+	// calibration (extra numStackValuesForPointer passes + resolvePointer indirection;
+	// see BenchmarkDoOpAssign_Index_N*). OpCPUSlopeAssign is shared with the
+	// single-LHS fast path, which is unchanged, so we don't retune it for a rare
+	// path. Revisit only if multi-LHS assignment becomes hot.
 
 	if len(s.Lhs) == 1 {
 		// Single-LHS fast path: no operand-frame slicing needed; PopAsPointer
