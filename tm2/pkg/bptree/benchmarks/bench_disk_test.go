@@ -140,69 +140,56 @@ func putDiskVal(buf []byte, i uint64) {
 
 type diskFixture struct {
 	tree  TreeBench
-	db    dbm.DB // retained for block-cache (disk-read) stats; see diskBlockReads
+	db    *countingDB // counts the tree's DB reads/writes; see readMeter
 	n     uint64
 	close func()
 }
 
-// blockCacheStatter is implemented by pebbledb: cumulative block-cache hits and
-// misses, where a miss ≈ one filesystem (disk) block read. Other backends don't
-// expose it, so the disk-read metrics below are pebbledb-only.
-type blockCacheStatter interface {
-	BlockCacheStats() (hits, misses int64)
-}
-
-// diskBlockReads reads the backend's cumulative block-cache (hits, misses).
-// ok is false for backends that don't expose it. misses ≈ physical disk reads;
-// hits+misses ≈ logical block accesses (≈ traversal depth).
-func diskBlockReads(db dbm.DB) (hits, misses int64, ok bool) {
-	if s, isStatter := db.(blockCacheStatter); isStatter {
-		h, m := s.BlockCacheStats()
-		return h, m, true
-	}
-	return 0, 0, false
-}
-
-// readMeter accumulates block-cache deltas across timed segments so a benchmark
-// can report disk reads (misses) and logical block accesses (hits+misses) per
-// op. snap() opens a fresh segment — call it around untimed work (prune/reload)
-// to exclude those reads; fold() accumulates the delta since the last snap/fold
-// and advances the baseline. All methods no-op when the backend lacks stats.
+// readMeter accumulates the tree's DB-operation counts (node reads via Get,
+// node writes via Set/Delete) across timed segments, so a benchmark can report
+// reads and writes per op. Unlike pebble's global block-cache counter, these
+// are reproducible, backend-agnostic, and unaffected by pebble's background
+// compaction (which is below the dbm.DB interface). snap() opens a fresh
+// segment — call it around untimed work (prune/reload) to exclude it; fold()
+// accumulates the delta since the last snap/fold and advances the baseline.
+//
+// Caveat: reads are node-LRU *misses* (Get fires only on a cache miss), so the
+// per-op counts depend on -disk-node-cache and the access pattern, not on tree
+// shape alone. Read them as a fair *relative* iavl-vs-bp32 indicator at full
+// fixture scale and high -benchtime (short runs under-report while the warm LRU
+// still covers the working set), not as an absolute structural depth — to set a
+// fixed gas param, calibrate against production cache size / a cold-cache run.
 type readMeter struct {
-	db               dbm.DB
-	ok               bool
-	h0, m0           int64 // baseline at the current segment's start
-	misses, accesses int64 // accumulated over folded segments
+	db            *countingDB
+	r0, w0        int64 // baseline at the current segment's start
+	reads, writes int64 // accumulated over folded segments
 }
 
-func newReadMeter(db dbm.DB) *readMeter {
+func newReadMeter(db *countingDB) *readMeter {
 	rm := &readMeter{db: db}
-	rm.h0, rm.m0, rm.ok = diskBlockReads(db)
+	rm.r0, rm.w0 = db.stats()
 	return rm
 }
 
-func (rm *readMeter) snap() {
-	if rm.ok {
-		rm.h0, rm.m0, _ = diskBlockReads(rm.db)
-	}
-}
+func (rm *readMeter) snap() { rm.r0, rm.w0 = rm.db.stats() }
 
 func (rm *readMeter) fold() {
-	if !rm.ok {
-		return
-	}
-	h, m, _ := diskBlockReads(rm.db)
-	rm.misses += m - rm.m0
-	rm.accesses += (h + m) - (rm.h0 + rm.m0)
-	rm.h0, rm.m0 = h, m
+	r, w := rm.db.stats()
+	rm.reads += r - rm.r0
+	rm.writes += w - rm.w0
+	rm.r0, rm.w0 = r, w
 }
 
-// report emits diskreads/<unit> (misses ≈ physical reads) and blocks/<unit>
-// (hits+misses ≈ logical traversal depth). No-op without stats or denom.
-func (rm *readMeter) report(b *testing.B, denom float64, missMetric, accessMetric string) {
-	if rm.ok && denom > 0 {
-		b.ReportMetric(float64(rm.misses)/denom, missMetric)
-		b.ReportMetric(float64(rm.accesses)/denom, accessMetric)
+// report emits reads and writes per denom (skipping a metric named "").
+func (rm *readMeter) report(b *testing.B, denom float64, readMetric, writeMetric string) {
+	if denom <= 0 {
+		return
+	}
+	if readMetric != "" {
+		b.ReportMetric(float64(rm.reads)/denom, readMetric)
+	}
+	if writeMetric != "" {
+		b.ReportMetric(float64(rm.writes)/denom, writeMetric)
 	}
 }
 
@@ -331,7 +318,11 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 	pdb, err := openDiskDB(name, dir)
 	require.NoError(b, err)
 
-	tree := f.newTree(pdb, *diskNodeCache)
+	// Wrap so the tree's node reads/writes are counted for the per-op metrics
+	// (the build below also goes through it, but readMeter only samples the
+	// timed benchmark region, so build counts are excluded).
+	cdb := newCountingDB(pdb)
+	tree := f.newTree(cdb, *diskNodeCache)
 	if _, err := tree.Load(); err != nil {
 		b.Fatalf("load %s fixture: %v", f.name, err)
 	}
@@ -349,7 +340,7 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 		closeFn()
 		b.Fatalf("%s fixture size %d < requested %d — fixture build/persistence is broken", f.name, got, n)
 	}
-	return diskFixture{tree: tree, db: pdb, n: n, close: closeFn}
+	return diskFixture{tree: tree, db: cdb, n: n, close: closeFn}
 }
 
 // BenchmarkDiskGetRandom measures random point reads of existing keys against a
@@ -365,9 +356,9 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 			b.ReportMetric(float64(fx.tree.Height()), "height")
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
-			// diskreads/op ≈ physical reads per Get (IAVL+fast ~1, bp32 ~2);
-			// blocks/op ≈ logical traversal depth. Fold around the untimed
-			// reload so its reads aren't counted.
+			// reads/op = node DB reads (Get) per point read ≈ traversal depth
+			// above the node LRU (IAVL+fast ~1, bp32 ~2). Fold around the
+			// untimed reload so its reads aren't counted.
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -384,7 +375,7 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 				}
 			}
 			rm.fold() // final segment
-			rm.report(b, float64(b.N), "diskreads/op", "blocks/op")
+			rm.report(b, float64(b.N), "reads/op", "") // reads only; Get does no writes
 		})
 		fx.close()
 	}
@@ -421,14 +412,14 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 // BenchmarkDiskBlockWrite measures the cost of committing a block: -disk-block
 // writes (a configurable mix of updates to existing keys and new inserts)
 // followed by SaveVersion, against the large on-disk fixture. ns/op is the
-// per-block latency; ns/write is also reported. On pebbledb it additionally
-// reports diskreads/write (block-cache misses ≈ physical reads per write) and
-// blocks/write (hits+misses ≈ logical traversal depth) — the empirical basis
-// for the write-depth gas params, where bp32's shallow tree should show far
-// fewer reads than IAVL's deep COW path. Pruning and the drop-in-memory-tree
-// reload happen outside the timer (a real node prunes out-of-band and starts
-// each block from committed state, lazily loading what its txs touch — which
-// the timed Set path models).
+// per-block latency; ns/write is also reported, along with reads/write and
+// writes/write — the tree's node DB reads/stores per write (deterministic,
+// backend-agnostic), which are the empirical basis for the write-depth gas
+// params: bp32's shallow tree should show far fewer of both than IAVL's deep
+// COW path, and the fast-node index can't help the write path. Pruning and the
+// drop-in-memory-tree reload happen outside the timer (a real node prunes
+// out-of-band and starts each block from committed state, lazily loading what
+// its txs touch — which the timed Set path models).
 func BenchmarkDiskBlockWrite(b *testing.B) {
 	n := uint64(*diskKeys)
 	bs := *diskBlock
@@ -438,10 +429,9 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(2))
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
-			// diskreads/write (misses ≈ physical reads) and blocks/write
-			// (hits+misses ≈ logical depth) over the TIMED Set+SaveVersion
-			// region; snap()/fold() bracket it so the untimed prune/reload
-			// between blocks are excluded.
+			// reads/write and writes/write = the tree's node DB reads/stores
+			// per write, over the TIMED Set+SaveVersion region; snap()/fold()
+			// bracket it so the untimed prune/reload between blocks are excluded.
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ { // one iteration == one block
@@ -480,7 +470,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			if b.N > 0 {
 				w := float64(b.N * bs)
 				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/w, "ns/write")
-				rm.report(b, w, "diskreads/write", "blocks/write")
+				rm.report(b, w, "reads/write", "writes/write")
 			}
 		})
 		fx.close()

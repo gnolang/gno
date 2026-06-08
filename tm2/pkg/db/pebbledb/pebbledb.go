@@ -127,15 +127,6 @@ func (pdb *PebbleDB) Stats() map[string]string {
 	return nil
 }
 
-// BlockCacheStats returns pebble's cumulative block-cache hits and misses. A
-// miss is a block fetched from the filesystem (below pebble's block cache) —
-// the closest proxy for a physical disk read. Read-only; for
-// benchmarking/diagnostics.
-func (pdb *PebbleDB) BlockCacheStats() (hits, misses int64) {
-	m := pdb.db.Metrics()
-	return m.BlockCache.Hits, m.BlockCache.Misses
-}
-
 // ----------------------------------------
 // Batch
 
