@@ -611,6 +611,49 @@ func TestStaging_IdempotentSaveRollbackKeepsData(t *testing.T) {
 	}
 }
 
+// TestSaveVersion_IdempotentClearsVersionOrphans locks the load-bearing half of
+// the idempotent-save session reset: a non-committing idempotent SaveVersion
+// must NOT carry the session's Tier-2 orphan list (versionOrphans) forward.
+// DiscardBatch does not cover versionOrphans (it's a MutableTree field, not in
+// the batch), so resetSession's versionOrphans clear is the only protection; a
+// leak would persist those vks under a later version's orphan record. (This is
+// the surviving, load-bearing part of #5591 82eebc957, which the branch already
+// implements via resetSession — this test guards it through future refactors,
+// notably the planned no-DB-mode removal that will simplify resetSession.)
+func TestSaveVersion_IdempotentClearsVersionOrphans(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("old"))
+	if _, _, err := tree.SaveVersion(); err != nil { // v1 = {k:old}
+		t.Fatal(err)
+	}
+	tree.Set([]byte("k"), []byte("new")) // overwrite
+	if _, v2, err := tree.SaveVersion(); err != nil || v2 != 2 { // v2 = {k:new}
+		t.Fatalf("save v2: err=%v v=%d", err, v2)
+	}
+
+	// Reproduce v2 from v1 by overwriting k again: this appends v1's displaced
+	// ValueKey to versionOrphans (a Tier-2, prior-version orphan), then hits the
+	// idempotent same-hash path.
+	if _, err := tree.LoadVersion(1); err != nil {
+		t.Fatal(err)
+	}
+	tree.Set([]byte("k"), []byte("new"))
+	if len(tree.versionOrphans) == 0 {
+		t.Fatal("precondition: overwriting an existing key should record a Tier-2 orphan")
+	}
+	if _, _, err := tree.SaveVersion(); err != nil { // idempotent (hash == v2)
+		t.Fatalf("idempotent save should succeed: %v", err)
+	}
+
+	// Invariant: a non-committing (idempotent) SaveVersion must not retain the
+	// session's orphan list, or those vks get persisted under a later version.
+	if len(tree.versionOrphans) != 0 {
+		t.Fatalf("idempotent SaveVersion leaked %d versionOrphans", len(tree.versionOrphans))
+	}
+}
+
 func TestPrune_DisjointKeysPreservesValues(t *testing.T) {
 	// Regression: pruning should NOT delete shared values
 	db := memdb.NewMemDB()
