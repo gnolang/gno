@@ -23,14 +23,11 @@ jobs:
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
-      # Run txtar integration tests against in-memory nodes (still
-      # sequential). The previous CI mode spawned a subprocess node per
-      # txtar; each fresh process paid a cold stdlib load (~4s/boot). A
-      # single in-memory process shares the stdlib/typecheck caches across
-      # all txtars, cutting this job's runtime ~2.5x (1204s -> 468s).
-      tests-ts-inmemory: true
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+      # txtar integration tests run against in-memory nodes in parallel by
+      # default (see gno.land/pkg/integration). This replaces the old
+      # subprocess-per-node mode (cold stdlib reload every boot) and the
+      # sequential `tests-ts-seq` workaround, cutting this job from ~22m to
+      # a few minutes.
 
   gnoweb_generate:
     runs-on: ubuntu-latest
