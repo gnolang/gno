@@ -19,6 +19,10 @@ var deposits avl.Tree // address -> int64
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
 func Deposit(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("invalid non-user call")
+	}
+
 	caller := cur.Previous().Address()
 	sent := unsafe.OriginSend()
 
