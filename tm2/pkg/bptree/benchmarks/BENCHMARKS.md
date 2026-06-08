@@ -1,319 +1,244 @@
-# IAVL vs B+32 Tree Benchmark Results
+# IAVL vs B+32 — Disk-Bound Benchmark
 
-**Platform:** Apple M4 Pro, darwin/arm64
-**Go:** benchtime=1s, count=1
-**Date:** 2026-04-08
+**Status:** in progress. Solid data at 1M (validation) and 33M; the decisive
+**100M disk-bound run is still pending** (see [TODO](#todo--the-100m-run-the-one-that-matters)).
+**Date:** 2026-06-07 · **Backend:** pebbledb (production-tuned: 500 MB block
+cache + bloom) · **Node LRU:** `-disk-node-cache=10000`.
 
-All benchmarks test both **memdb** (in-memory) and **goleveldb** (disk-backed) backends.
-Usage: `go test -bench=. ./tm2/pkg/bptree/benchmarks/ -backend=memdb|goleveldb`
-
----
-
-## Summary
-
-| Category | memdb Winner | goleveldb Winner |
-|---|---|---|
-| GET (hit) | IAVL 2-4x | IAVL 5-10x |
-| GET (miss) | ~tie to IAVL 2.5x | **B+32 1.3-8.4x** |
-| HAS | **B+32 8-15x** | **B+32 11-52x** |
-| SET (insert) | IAVL 2.8-3x | IAVL 1.5-7.5x |
-| SET (update) | IAVL 2.2-4.6x | IAVL 2.9-10.5x |
-| Remove | IAVL 4.1-5x | IAVL 4.5-5.8x |
-| Iteration (full) | **B+32 2.1-3.7x** | IAVL 1.4-9x |
-| Iteration (range) | **B+32 67-92x** | IAVL 1.3-5.1x |
-| Block workload | **B+32 3-14%** | **B+32 20-32%** |
-| SaveVersion | ~tie | IAVL 8-23% |
-| LoadVersion | **B+32 2-3.3x** | **B+32 2-3.3x** |
-| Pruning | **B+32 25%** | **B+32 3.3x** |
-| Membership proof | **B+32 3.7-5.1x** | **B+32 3.9-8x** |
-| Non-membership proof | **B+32 2.9-3.6x** | **B+32 2.5-4.1x** |
-| Memory | **B+32 40-47%** | **B+32 25-53%** |
-| Scaling GET (1M) | IAVL 1.1x | IAVL 1.3x |
-
-The backend choice fundamentally changes the comparison. B+32's iteration advantage
-on memdb becomes a disadvantage on goleveldb due to per-value disk reads. Conversely,
-B+32's block workload and pruning advantages grow significantly on goleveldb.
+> **Why this file was rewritten.** The previous version benchmarked 1K–100K keys
+> on memdb/goleveldb — all of which fit in RAM, so it measured CPU/allocation,
+> not storage. Several of its headline conclusions (IAVL wins SET; B+32 wins
+> pruning; B+32 proofs are "faster") **invert or mislead at the scale that
+> matters for a chain**. The numbers below are from `pebbledb` at 33M+ with a
+> working set that starts to exceed cache, using a per-operation DB-op counter.
 
 ---
 
-## Single Operations
+## What we measure, and why
 
-### GET (hit) — known keys
+The IAVL-vs-B+32 difference is a **disk-I/O** story, so it only shows once the
+working set exceeds RAM. On a 16 GB box that means **N ≳ 57M** (IAVL ≈ 300 B/key
+→ ~RAM at ~57M). Below that, both trees are cache-resident and the comparison is
+just CPU.
 
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 55 ns | 125 ns (2.3x) | 54 ns | 405 ns (7.5x) |
-| 10K | 78 ns | 189 ns (2.4x) | 79 ns | 625 ns (7.9x) |
-| 100K | 239 ns | 534 ns (2.2x) | 274 ns | 2,734 ns (10.0x) |
+Each run reports, per operation:
 
-IAVL uses a flat fast-node index giving O(1) GET with 0 allocs. B+32 traverses the tree
-(O(log n)) — on memdb this costs 80 B/2 allocs; on goleveldb 264-1048 B/7-19 allocs
-due to per-node disk reads.
+| metric | meaning |
+|---|---|
+| `reads/op`, `reads/write` | node DB `Get`s the tree issued (node-LRU **misses**) — the traversal/COW read depth |
+| `writes/write` | node + value `Set`s the tree issued (the COW write set) — **structural**, cache-independent |
+| `ns/op`, `ns/write` | wall-clock latency |
+| `allocs/op` | Go allocations |
 
-### GET (miss) — random keys not in tree
+The read/write counts come from a `countingDB` wrapper around `dbm.DB`
+(`countingdb_test.go`): they are **deterministic, backend-agnostic, and
+unaffected by pebble's background compaction** (which lives below the interface)
+— unlike a pebble block-cache-miss counter, which is process-global and wobbles
+with compaction.
 
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 72 ns | 72 ns (1.0x) | 317 ns | 72 ns (**B+32 4.4x**) |
-| 10K | 74 ns | 119 ns (1.6x) | 503 ns | 141 ns (**B+32 3.6x**) |
-| 100K | 102 ns | 254 ns (2.5x) | 2,050 ns | 243 ns (**B+32 8.4x**) |
-
-On memdb, IAVL's fast-node index gives O(1) miss. On goleveldb, IAVL's miss path hits
-disk (144-882 B/5-16 allocs), while B+32 rejects misses in-memory with 0 allocs.
-
-### HAS — existence check (known keys)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 667 ns | 83 ns (**8.0x**) | 882 ns | 81 ns (**10.9x**) |
-| 10K | 2,002 ns | 129 ns (**15.5x**) | 4,542 ns | 135 ns (**33.6x**) |
-| 100K | 3,864 ns | 253 ns (**15.3x**) | 15,271 ns | 291 ns (**52.5x**) |
-
-IAVL `Has()` always traverses the full tree (does not use the fast-node index).
-B+32 `Has()` does a zero-allocation in-memory node traversal without resolving values.
-On goleveldb, IAVL's tree traversal hits disk, making B+32's advantage enormous (52x at 100K).
-
-### SET (insert) — new keys
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 3,106 ns | 9,384 ns (3.0x) | 3,428 ns | 15,095 ns (4.4x) |
-| 10K | 3,114 ns | 9,228 ns (3.0x) | 3,234 ns | 24,392 ns (7.5x) |
-| 100K | 3,562 ns | 10,077 ns (2.8x) | 5,444 ns | 16,806 ns (3.1x) |
-
-### SET (update) — existing keys
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 903 ns | 4,151 ns (4.6x) | 815 ns | 8,855 ns (10.9x) |
-| 10K | 1,433 ns | 4,494 ns (3.1x) | 1,320 ns | 13,877 ns (10.5x) |
-| 100K | 2,388 ns | 5,150 ns (2.2x) | 2,339 ns | 11,478 ns (4.9x) |
-
-On goleveldb, B+32 SET update regresses more than IAVL because B+32 must read the
-existing node from disk before modifying, while IAVL's fast-node index keeps values in memory.
-
-### Remove
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 1,511 ns | 7,481 ns (5.0x) | 1,144 ns | 6,646 ns (5.8x) |
-| 10K | 1,781 ns | 7,257 ns (4.1x) | 1,451 ns | 6,969 ns (4.8x) |
-| 100K | 1,823 ns | 7,473 ns (4.1x) | 1,710 ns | 7,698 ns (4.5x) |
-
-Remove gap is consistent across backends. Benchmark uses batch remove/re-insert
-(batch=100) to amortize timer overhead.
+**Caveat (read it before quoting any number):** `reads/*` are node-LRU *misses*,
+so they depend on `-disk-node-cache` and the access pattern, and they *grow with
+tree depth* as N rises. Treat them as a **relative** indicator at a fixed cache
+size. `writes/write` is the cleaner number — it's the structural COW set and
+doesn't depend on cache.
 
 ---
 
-## Iteration
+## Coverage
 
-### Full iteration (ascending)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
+| scale | populate | writes | reads | regime |
 |---|---|---|---|---|
-| 1K | 217 us | 59 us (**3.7x**) | 147 us | 299 us (2.0x) |
-| 100K | 38.1 ms | 17.9 ms (**2.1x**) | 21.2 ms | 190.2 ms (9.0x) |
+| 1M | ✓ | ✓ | ✓ | fully cached — *validation only* |
+| 33M | ✓ | ✓ | ✓ | counts solid; **ns still cache-bound** (~10 GB < 16 GB RAM) |
+| **100M** | ⛔ bptree OOMs in prune | **pending** | **pending** | **the real disk-bound test** |
 
-### Full iteration (descending)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 223 us | 62 us (**3.6x**) | 277 us | 313 us (1.1x) |
-| 100K | 38.4 ms | 19.7 ms (**1.9x**) | 21.5 ms | 184.7 ms (8.6x) |
-
-### Range iteration (~1% of keys)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 40 us | 595 ns (**67x**) | 2,128 ns | 2,753 ns (1.3x) |
-| 100K | 5.7 ms | 62 us (**92x**) | 179 us | 908 us (5.1x) |
-
-**Backend fundamentally changes the iteration story.** On memdb, B+32's contiguous leaf
-layout and stack-based traversal gives 2-92x faster iteration. On goleveldb, B+32's
-out-of-line value storage requires a separate disk read per `Value()` call (1860K allocs
-for 100K keys vs IAVL's 316K), making it 5-9x slower.
+At 33M the IAVL tree (~10 GB) still mostly fits in 16 GB, so the *counts*
+(`reads/write`, `writes/write`) are meaningful but the *latencies* (`ns`) are
+cache-bound, not disk-bound. The latency gap only opens fully at 100M.
 
 ---
 
-## Block Workload
+## Writes — `BenchmarkDiskBlockWrite` (block=1000)
 
-50% insert + 50% update, commit after each block. 100K base tree.
+**@ 33M, 16 GB target, pebbledb, `-benchtime=300x`:**
 
-| Block Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 100 | 3.60 ms | 3.49 ms (**3%**) | 11.0 ms | 7.57 ms (**32%**) |
-| 500 | 14.3 ms | 12.6 ms (**14%**) | 42.7 ms | 34.2 ms (**20%**) |
-
-B+32's block advantage **grows on goleveldb** (20-32% vs 3-14% on memdb) due to
-fewer, larger batched writes.
-
----
-
-## Versioning
-
-### SaveVersion (after 100 mutations)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 967 us | 1,014 us (~tie) | 1,275 us | 1,655 us (IAVL 23%) |
-| 100K | 1,105 us | 1,107 us (~tie) | 1,856 us | 2,020 us (IAVL 8%) |
-
-On memdb, SaveVersion is a virtual tie. On goleveldb, IAVL is 8-23% faster.
-
-### LoadVersion (goleveldb — always uses disk)
-
-| Size | IAVL (ns/op) | B+32 (ns/op) | Ratio |
+| per write | B+32 | IAVL | ratio |
 |---|---|---|---|
-| 1K | 6,353 | 3,185 | **B+32 2.0x faster** |
-| 100K | 16,507 | 5,005 | **B+32 3.3x faster** |
+| `reads/write` | **1.16** | 31 | ~27× |
+| `writes/write` | **4.0** | 17 | ~4× |
+| `ns/write` | **82 µs** | 304 µs | ~3.7× |
+| `allocs/write` | **258** | 572 | ~2.2× |
+| node ops/write (read+write) | **~5** | ~48 | **~10×** |
 
-### Multi-version creation (50 mutations/version)
+**Reading it:**
+- B+32 issues **~10× fewer node operations per write**. This is the headline —
+  and the **fast-node index cannot help it** (the index accelerates GET only;
+  every mutation still traverses + COWs the real tree).
+- `writes/write` (4.0 vs 17) is the structural COW depth: `log₃₂N` vs `log₂N`
+  (deduped across the block). This is cache-independent and is the number that
+  feeds the write-depth gas param.
+- `reads/write` (1.16 vs 31): B+32's shallow tree + small node set sit in the
+  LRU, so it loads ~1 leaf/write; IAVL re-reads its ~25-deep path (LRU thrash +
+  AVL rotations).
+- `ns/write` at 33M is **CPU-bound, not disk-bound** (fixture fits in RAM). At
+  100M it diverges much further — IAVL's 31 reads become real seeks.
 
-| Versions | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
+**Scaling of the structural counts** (illustrative; 1M is local validation on
+darwin/arm64, 33M is the target):
+
+| | writes/write |  | reads/write |  |
 |---|---|---|---|---|
-| 10 | 6.36 ms | 6.43 ms (~tie) | 12.9 ms | 12.0 ms (~tie) |
-| 100 | 65.5 ms | 66.8 ms (~tie) | 135 ms | 140 ms (~tie) |
+| N | B+32 | IAVL | B+32 | IAVL |
+| 1M | 2.9 | 12.8 | ~0.5 | ~20 |
+| 33M | 4.0 | 17 | 1.16 | 31 |
+| 100M (est.) | ~4.4 | ~18 | *pending* | ~33 |
 
-### Pruning (delete versions 1-50 from 100 versions, 10K base)
-
-| | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| ns/op | 44.6 ms | 33.3 ms (**25%**) | 187 ms | 56.4 ms (**3.3x**) |
-
-B+32's pruning advantage **amplifies on goleveldb** (3.3x vs 1.25x on memdb).
+B+32's write depth is nearly flat (`log₃₂`: +1.5 ops over 100× the keys); IAVL's
+climbs with `log₂`.
 
 ---
 
-## ICS23 Proofs
+## Reads — `BenchmarkDiskGetRandom`
 
-### Membership proof (existence)
+**@ 33M, 16 GB target, pebbledb, `-benchtime=50000x`:**
 
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 4,846 ns | 1,296 ns (**3.7x**) | 5,878 ns | 1,521 ns (**3.9x**) |
-| 100K | 10,360 ns | 2,016 ns (**5.1x**) | 35,600 ns | 4,438 ns (**8.0x**) |
-
-### Non-membership proof (non-existence)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 8,987 ns | 3,149 ns (**2.9x**) | 9,803 ns | 3,975 ns (**2.5x**) |
-| 100K | 16,505 ns | 4,552 ns (**3.6x**) | 44,164 ns | 10,647 ns (**4.1x**) |
-
-B+32's proof advantage grows on goleveldb — IAVL proof generation at 100K goes from
-10us (memdb) to 36-44us (goleveldb) while B+32 only goes from 2-5us to 4-11us.
-
----
-
-## Disk Space (goleveldb — always uses disk)
-
-| Size | IAVL (MB) | B+32 (MB) | B+32 savings |
+| per op | B+32 | IAVL | winner |
 |---|---|---|---|
-| 1K | 0.204 | 0.142 | **30%** |
-| 10K | 2.044 | 1.410 | **31%** |
-| 100K | 18.58 | 12.92 | **30%** |
+| `reads/op` | 2.78 | **0.97** | IAVL ~2.9× |
+| `ns/op` | 197 µs | **127 µs** | IAVL ~1.5× |
+| `allocs/op` | 116 | **9** | IAVL ~13× |
 
-| | IAVL (bytes/key) | B+32 (bytes/key) |
+**Reading it:**
+- **Reads are IAVL's home turf.** Its fast-node index serves a latest-version
+  GET in ~1 read; B+32 needs the leaf **plus** a second read for the out-of-line
+  value (~2.78 with inner-node misses).
+- `ns/op` is only 1.5×, not 2.9×, because at 33M the reads are cache hits (cheap)
+  and a fixed per-op CPU floor dominates — note B+32's **116 allocs/op** (fat
+  32-wide leaf deserialize + value resolve) vs IAVL's 9. At 100M (real seeks) the
+  read-count gap will push `ns/op` toward the full ~3×, *widening* IAVL's lead.
+- Mirror image of writes: B+32 loses reads, wins writes.
+
+> `BenchmarkDiskGetMiss` (negative lookups) not yet collected at scale.
+
+---
+
+## ICS23 proof size (measured, memdb)
+
+Proof *size* is structural (depends on tree shape, not the disk regime), so these
+small-N numbers hold. **B+32 proofs are larger or tied — not smaller** (the
+mini-merkle emits ~`log₂N` binary ops and uses full 32-byte SHA-256):
+
+| proof | IAVL @1K | B+32 @1K | IAVL @100K | B+32 @100K |
+|---|---|---|---|---|
+| membership | 524 B | **685 B** | 880 B | 876 B |
+| non-membership | 1067 B | **1387 B** | 1621 B | **1787 B** |
+
+B+32 generates proofs *faster* (shallower tree, fewer node fetches), but the
+**on-chain cost is the proof bytes**, and there IAVL is equal-or-smaller. Do not
+cite B+32 as having an ICS23 proof-size advantage.
+
+---
+
+## Disk space
+
+Preliminary and **confounded** — needs a clean steady-state measurement at
+scale. Small-N, sparse-file-aware (`st_blocks`) numbers favor B+32 (fewer
+physical KV entries — single-copy out-of-line values vs IAVL's value-in-leaf +
+value-in-fast-node):
+
+| backend @ small N | IAVL B/key | B+32 B/key |
 |---|---|---|
-| 1K | 214 | 148 |
-| 10K | 214 | 148 |
-| 100K | 195 | 136 |
+| pebbledb (30K) | 275 | 187 |
+| lmdb (50K) | 661 | 348 |
 
-### Multi-version disk space (10K base)
+…but the resumable populate (12–15M, retaining 20 versions) inverts to ~304 B/key
+(IAVL) vs ~403 B/key (B+32) — B+32's immutable per-version COW copies cost disk
+under deep history. **TODO:** measure compacted, single-latest-version on-disk
+size at 33M/100M before drawing a conclusion.
 
-| Versions | IAVL (MB) | B+32 (MB) |
+---
+
+## Gas-param implications (`Fixed*Depth100`)
+
+These counts are exactly what gno.land's depth gas params encode (×100
+fixed-point; `gno.land/pkg/sdk/vm/params.go`). Current defaults are
+**B+32-calibrated** and line up with the measured B+32 counts:
+
+| param | current (B+32) | measured B+32 @33M |
 |---|---|---|
-| 10 | 2.43 | 2.28 |
-| 100 | 5.71 | 10.08 |
+| `FixedGetReadDepth100` | 300 | ~278 (2.78 GET reads) |
+| `FixedSetReadDepth100` | 200 | ~116 (1.16 SET reads) |
+| `FixedWriteDepth100` | 440 | ~400 (4.0 writes) |
 
-B+32 uses less disk for few versions, but **grows ~1.8x larger at 100 versions** due
-to immutable node copies per version.
+**If gno.land used IAVL instead**, the params must change — and two of them can
+no longer be fixed, because IAVL's depth scales with `log₂N`:
 
----
-
-## Memory Usage
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 0.88 MB | 0.48 MB (**45%**) | 0.57 MB | 0.27 MB (**53%**) |
-| 10K | 8.04 MB | 4.54 MB (**44%**) | 4.09 MB | 2.63 MB (**36%**) |
-| 100K | 72.6 MB | 43.4 MB (**40%**) | 35.9 MB | 27.0 MB (**25%**) |
-
-| | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 919 B/key | 505 B/key | 601 B/key | 279 B/key |
-| 10K | 843 B/key | 476 B/key | 429 B/key | 275 B/key |
-| 100K | 761 B/key | 455 B/key | 377 B/key | 283 B/key |
-
-B+32 uses less memory on both backends. On goleveldb, both trees use significantly
-less heap (disk-backed nodes are not cached in memory).
-
----
-
-## Scaling (GET latency vs tree size)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 55 ns | 128 ns (2.3x) | 57 ns | 401 ns (7.0x) |
-| 10K | 76 ns | 182 ns (2.4x) | 83 ns | 605 ns (7.3x) |
-| 100K | 186 ns | 429 ns (2.3x) | 260 ns | 2,741 ns (10.5x) |
-| 1M | 799 ns | 908 ns (1.1x) | 3,622 ns | 4,602 ns (1.3x) |
-
-On memdb, IAVL's fast-node advantage diminishes at 1M (1.1x). On goleveldb, both
-hit disk at 1M (IAVL's fast-node cache overflows), narrowing the gap to 1.3x.
-
-## Scaling (SET latency vs tree size)
-
-| Size | IAVL/mem | B+32/mem | IAVL/lvl | B+32/lvl |
-|---|---|---|---|---|
-| 1K | 821 ns | 3,705 ns (4.5x) | 804 ns | 10,921 ns (13.6x) |
-| 10K | 1,148 ns | 3,655 ns (3.2x) | 1,510 ns | 11,170 ns (7.4x) |
-| 100K | 1,885 ns | 4,655 ns (2.5x) | 2,203 ns | 11,742 ns (5.3x) |
-| 1M | 3,029 ns | 5,891 ns (1.9x) | 8,505 ns | 13,515 ns (1.6x) |
-
-SET gap narrows at 1M on both backends. On goleveldb, both trees hit disk for writes.
-
----
-
-## Backend Comparison (mixed workload, 100K keys)
-
-70% read, 20% update, 10% insert. Commit every 500 ops.
-
-| Backend | IAVL (ns/op) | B+32 (ns/op) | Ratio |
+| param | IAVL @10M | IAVL @100M | note |
 |---|---|---|---|
-| memdb | 10,307 | 9,939 | ~tie |
-| goleveldb | 30,355 | 22,472 | **B+32 26% faster** |
+| `FixedGetReadDepth100` | **100** | **100** | fast-node = O(1), N-independent |
+| `FixedSetReadDepth100` | ~2800 | ~3300 | scales with depth → prefer size-driven `ExpectedDepth` |
+| `FixedWriteDepth100` | ~1600 | ~1800 | structural COW depth; cache cannot reduce it |
+
+i.e. dropping B+32 makes GET ~3× cheaper but **SET-read ~16× and write ~4×
+costlier** — the cost lives entirely on the write path, which is structural and
+un-cacheable.
 
 ---
 
-## Key Takeaways
+## How to reproduce
 
-1. **Backend choice fundamentally changes the comparison.** B+32's iteration advantage
-   on memdb (2-92x faster) becomes a disadvantage on goleveldb (5-9x slower) due to
-   per-value disk reads. Choose the backend that matches your deployment.
+One command — populate both factories and benchmark, results in `./bench-out/`:
 
-2. **B+32 HAS is 8-52x faster** across all backends because IAVL's `Has()` traverses
-   the full tree while B+32 does a zero-allocation in-memory traversal. This gap
-   widens dramatically on goleveldb (52x at 100K).
+```bash
+DIR=/data/bp32bench KEYS=100000000 ./tm2/pkg/bptree/benchmarks/run-disk-bench.sh
+```
 
-3. **B+32 GetMiss flips on goleveldb**: on memdb IAVL is 2.5x faster (fast-node index),
-   but on goleveldb B+32 is 8.4x faster because IAVL's miss path hits disk while B+32
-   rejects misses in-memory.
+Override `KEYS`, `BACKEND` (e.g. `lmdbdb`), `BUILD_BATCH`, `PARALLEL`,
+`GOMEMLIMIT`, … — see the script header. Or run the steps by hand:
 
-4. **IAVL wins on single-key mutations (SET/Remove)** on both backends due to its
-   fast-node index. The gap widens on goleveldb for SET but narrows for both at 1M keys.
+```bash
+DIR=/data/bp32bench; KEYS=33000000        # match what you populated
 
-5. **B+32 block workload advantage grows on goleveldb** (20-32% vs 3-14% on memdb)
-   due to fewer, larger batched writes.
+# build fixtures (resumable; run the two factories in parallel)
+go test ./tm2/pkg/bptree/benchmarks/ -run=TestDiskPopulate -v \
+  -disk-dir=$DIR -disk-keys=$KEYS -disk-factory=iavl   -disk-verbose -timeout=24h
+go test ./tm2/pkg/bptree/benchmarks/ -run=TestDiskPopulate -v \
+  -disk-dir=$DIR -disk-keys=$KEYS -disk-factory=bptree -disk-verbose -timeout=24h
 
-6. **B+32 pruning advantage amplifies on goleveldb** (3.3x vs 1.25x on memdb).
+# bench one factory at a time (drop page cache between for a clean read)
+for f in iavl bptree; do
+  sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+  go test ./tm2/pkg/bptree/benchmarks/ -run='^$' -bench=BenchmarkDiskBlockWrite \
+    -disk-dir=$DIR -disk-keys=$KEYS -disk-factory=$f -disk-block=1000 -benchtime=300x -timeout=2h
+  go test ./tm2/pkg/bptree/benchmarks/ -run='^$' -bench=BenchmarkDiskGetRandom \
+    -disk-dir=$DIR -disk-keys=$KEYS -disk-factory=$f -benchtime=50000x -timeout=1h
+done
+```
 
-7. **ICS23 proofs are 3-8x faster** in B+32 across backends. On goleveldb at 100K,
-   membership proofs are 8x faster (4us vs 36us).
+Add `-disk-backend=lmdbdb` (to populate **and** bench) to measure on LMDB, the
+backend gno.land's flat I/O constants reference. The `reads/*`/`writes/*` counts
+are backend-agnostic; `ns/*` is not.
 
-8. **B+32 uses 25-53% less memory** and **30% less disk** per key.
+---
 
-9. **LoadVersion is 2-3.3x faster** in B+32 — important for node startup.
+## TODO — the 100M run (the one that matters)
 
-10. **Multi-version disk growth remains a B+32 weakness**: 1.8x more disk than IAVL at
-    100 retained versions.
+1. **Unblock the bptree 100M populate.** It currently OOM-kills on 16 GB during
+   prune (the `walkAndPrune` / `findCorrespondingChild` dual-walk loads orphaned
+   subtrees into memory; the spike grows with N). Either fix the prune to be
+   lockstep (like IAVL's `traverseOrphans`) or add a `-disk-no-prune` build
+   option (the benchmark only reads the latest version, so pruning during the
+   build is optional — it trades the memory spike for more disk). Until then,
+   `GOMEMLIMIT=12GiB` + `-disk-build-batch=25000` may get it through.
+2. **Run BlockWrite + GetRandom at 100M** on the 16 GB target. This is the only
+   regime where the IAVL working set (~30 GB) truly exceeds RAM, so its
+   `reads/write` become real disk seeks and `ns/write` diverges from B+32's
+   (which stays ~flat). Expected: IAVL `reads/write` ~33, `writes/write` ~18;
+   IAVL `ns/write` blows up while B+32 holds; GET stays IAVL's win (fast-node
+   ~1 read) and its margin *grows* under disk pressure.
+3. **Validate the flat gas costs** (`ReadCostFlat`=59 µs, `WriteCostFlat`=24 µs).
+   They're calibrated for 100M disk-bound reads; at 33M (cached, ~6 µs/op) they
+   over-state cost ~7–10×. Confirm against the 100M run.
+4. **Clean disk-space measurement** (compacted, latest-version-only) at 33M/100M.
+5. **`GetMiss` at scale**, and an **LMDB** pass for gas-constant calibration.
+```
