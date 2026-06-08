@@ -1,5 +1,5 @@
-import { CodeEditor, isDarkMode } from "../../../frontend/js/code-editor.js";
-import { BaseController } from "../../../frontend/js/controller.js";
+import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
+import { BaseController } from "@gnoweb/js/controller.js";
 
 export class RunController extends BaseController {
 	private declare pkgPath: string;

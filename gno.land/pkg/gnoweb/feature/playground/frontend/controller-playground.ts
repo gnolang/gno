@@ -1,5 +1,5 @@
-import { CodeEditor, isDarkMode } from "../../../frontend/js/code-editor.js";
-import { BaseController, makeCopyIcon } from "../../../frontend/js/controller.js";
+import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
+import { BaseController, makeCopyIcon } from "@gnoweb/js/controller.js";
 
 interface PlaygroundFile {
 	name: string;

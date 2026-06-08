@@ -57,6 +57,12 @@ output_js := $(addprefix $(out_dir_js)/,$(patsubst %.ts,%.js,$(notdir $(input_js
 # resolves both legacy and feature-local controllers.
 vpath %.ts $(src_dir_js) $(shell find feature -path 'feature/*/frontend' -type d 2>/dev/null)
 
+# Alias so controllers outside frontend/js/ (per-feature controllers under
+# feature/<name>/frontend/) can import shared modules as @gnoweb/js/... instead
+# of brittle ../../../frontend/js/ relative paths. Resolved relative to esbuild's
+# working directory (this Makefile's dir).
+esbuild_alias := --alias:@gnoweb/js=./frontend/js
+
 # cache
 cache_dir := .cache
 
@@ -106,13 +112,13 @@ node_path := $(node_modules)
 ts: $(esbuild) $(output_js)
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
-	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify $(esbuild_alias)
 
 # Build controller files with shared chunk reference. The bare %.ts
 # prerequisite lets `vpath` resolve sources from frontend/js/ OR from
 # feature/<name>/frontend/ (set above). $< is the path Make found.
 $(out_dir_js)/%.js: %.ts $(out_dir_js)/controller.js
-	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js $(esbuild_alias)
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -146,7 +152,7 @@ dev.maincss: generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	NODE_ENV=development NODE_PATH=$(node_path) $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
+	NODE_ENV=development NODE_PATH=$(node_path) $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch $(esbuild_alias) \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools
