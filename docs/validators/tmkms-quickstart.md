@@ -229,8 +229,19 @@ and which the rest follows from — is:
 4. **Store the recovery seed offline, on paper, in a safe.** Never on the
    validator host.
 
+The `<tmkms-auth-password>` below is a credential **you choose** — it is
+what tmkms presents to log in to the device. Generate a long random one
+(don't type a memorable string) and keep it only in the `0600`
+`password_file` created further down; never commit it or paste it into
+`tmkms.toml`:
+
+```sh
+TMKMS_AUTH_PASSWORD=$(openssl rand -base64 32)   # generate once; use it below and in the password_file
+```
+
 A representative `yubihsm-shell` session (verify the exact token spelling
-against your firmware — capability and option names are the firm part):
+against your firmware — capability and option names are the firm part).
+Substitute `$TMKMS_AUTH_PASSWORD` for `<tmkms-auth-password>`:
 
 ```sh
 yubihsm-shell
@@ -254,12 +265,13 @@ The two things to never grant the signer's auth key: `export-wrapped` and
 `sign-attestation-certificate`. The first turns a leaked credential into
 key theft; the second lets it produce attestations you didn't intend.
 
-Put the tmkms auth password in a file, not the config:
+Store that same password in a file, not the config:
 
 ```sh
-printf '%s' '<tmkms-auth-password>' | sudo tee /etc/tmkms/yubihsm-password >/dev/null
+printf '%s' "$TMKMS_AUTH_PASSWORD" | sudo tee /etc/tmkms/yubihsm-password >/dev/null
 sudo chown tmkms:tmkms /etc/tmkms/yubihsm-password
 sudo chmod 600 /etc/tmkms/yubihsm-password
+unset TMKMS_AUTH_PASSWORD   # drop it from the shell once it's in the file
 ```
 
 ## B.2 Generate gnoland's node + listener identity
@@ -353,24 +365,27 @@ sudo chown tmkms:tmkms /var/lib/tmkms/secrets/kms-identity.key
 echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — copy for B.6
 ```
 
-## B.3 Read the consensus pubkey out of the HSM and seed genesis
+## B.3 Read the consensus pubkey out of the HSM and register the validator
 
 Because the key never leaves the HSM, you can't push it into genesis —
-you read the **public** half out of tmkms and build genesis around it.
-Start tmkms once (with the `tmkms.toml` from B.5) and it logs the
-device's consensus pubkey on connect:
+you read the **public** half out of tmkms and register *that* as your
+validator identity. Start tmkms once (with the `tmkms.toml` from B.4) and
+it logs the device's consensus pubkey on connect:
 
 ```
 [keyring:yubihsm] added consensus Ed25519 key: 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
 ```
 
-Convert that hex pubkey to gno's `gpub1…` / `g1…` forms (run from the gno
-repo root so the imports resolve):
+The hex string above is an **example** — copy the one *your* device logs.
+
+Convert that hex pubkey to gno's `gpub1…` / `g1…` forms with this helper.
+Write the file, then run it **from the gno repo root** (so the
+`github.com/gnolang/gno/...` imports resolve):
 
 ```sh
 cat > pkconv.go <<'GO'
 // Converts a raw ed25519 consensus pubkey (hex or base64) to gno's
-// gpub1… / g1… forms. Run from the gno repo root: go run ./pkconv.go <hex>
+// gpub1… / g1… forms.
 package main
 
 import (
@@ -402,14 +417,29 @@ func main() {
 }
 GO
 
+# pass the hex YOUR device logged (the value below is just an example):
 go run ./pkconv.go 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
 # gpub:    gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9z...
 # address: g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4
 ```
 
-Then build genesis explicitly with `gnogenesis` (do **not** use
-`gnoland start -lazy` here — it would mint a throwaway local key and seed
-genesis with *that* instead of your HSM key):
+That `gpub1…` / `g1…` pair is your validator's public identity. What you
+do with it depends on whether you are joining a chain or bootstrapping
+one:
+
+**Joining an existing chain (the production case).** You do **not**
+generate genesis — the chain already exists. Submit your `gpub1…` pubkey
+and `g1…` address to that chain's validator-onboarding path (its staking
+/ governance process, or the genesis coordinator if it hasn't launched
+yet) to be added to the validator set. The pubkey→address relationship is
+your integrity check: whoever registers you can confirm the address is
+the hash of the pubkey. Keep the pair; you'll confirm gnoland signs with
+this address in B.7. Then skip to [B.4](#b4-write-tmkmstoml).
+
+**Bootstrapping your own chain (test / private networks).** Build genesis
+explicitly with `gnogenesis`, seeding it with the HSM pubkey. Do **not**
+use `gnoland start -lazy` here — it would mint a throwaway local key and
+seed genesis with *that* instead of your HSM key:
 
 ```sh
 gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
@@ -422,9 +452,8 @@ gnogenesis validator add \
 ```
 
 `validator add` checks that the pubkey hashes to the address, so a
-copy-paste slip is caught right here — which also doubles as your
-out-of-band confirmation that the pubkey the HSM reported is the one
-going into genesis.
+copy-paste slip is caught right here — the same integrity check the
+onboarding path performs in the production case.
 
 ## B.4 Write `tmkms.toml`
 
@@ -524,7 +553,9 @@ listening). Run each under its own user — for example with systemd units
 # signer (as the tmkms user)
 sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
 
-# validator (as the gnoland user) — genesis already built in B.3, so NO -lazy
+# validator (as the gnoland user) — point -genesis at the network's
+# genesis.json (the chain you're joining, or the one you built in B.3);
+# either way NO -lazy, since you're not minting a local key.
 sudo -u gnoland gnoland start \
   -data-dir /var/lib/gnoland \
   -genesis /var/lib/gnoland/genesis.json \
