@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_freeze_thread_01_filetest
+
+package z_freeze_thread_01_filetest
 
 import (
 	"testing"
@@ -15,19 +17,19 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	tid = boards2.CreateThread(cross, bid, "foo", "bar")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "foo", "bar")
 
-	boards2.FreezeThread(cross, bid, tid)
+	boards2.FreezeThread(cross(cur), bid, tid)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Attempt to freeze a frozen thread
-	boards2.FreezeThread(cross, bid, tid)
+	boards2.FreezeThread(cross(cur), bid, tid)
 }
 
 // Error:

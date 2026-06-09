@@ -1,7 +1,6 @@
 package grc20reg
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -10,13 +9,13 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestRegistry(t *testing.T) {
+func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
-	realmAddr := runtime.CurrentRealm().PkgPath()
-	token, ledger := grc20.NewToken("TestToken", "TST", 4)
-	ledger.Mint(runtime.CurrentRealm().Address(), 1234567)
+	realmAddr := cur.PkgPath()
+	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
+	ledger.Mint(cur.Address(), 1234567)
 	// register
-	Register(cross, token, "")
+	Register(cross(cur), token, "")
 	regToken := Get(realmAddr)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
@@ -28,13 +27,13 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, invalidToken == nil)
 
 	// register with a slug
-	Register(cross, token, "mySlug")
+	Register(cross(cur), token, "mySlug")
 	regToken = Get(realmAddr + ".mySlug")
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
 	// override
-	Register(cross, token, "")
+	Register(cross(cur), token, "")
 	regToken = Get(realmAddr + "")
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
@@ -53,15 +52,15 @@ func TestRegistry(t *testing.T) {
 	urequire.Equal(t, expected, got)
 }
 
-func TestPagination(t *testing.T) {
+func TestPagination(cur realm, t *testing.T) {
 	// Register 11 tokens to test pagination (default page size is 10)
 	for i := 0; i < 11; i++ {
 		realmPath := ufmt.Sprintf("gno.land/r/demo/token%02d", i)
 		testing.SetRealm(testing.NewCodeRealm(realmPath))
 		tokenName := ufmt.Sprintf("Token%02d", i)
 		tokenSymbol := ufmt.Sprintf("TK%02d", i)
-		token, _ := grc20.NewToken(tokenName, tokenSymbol, 6)
-		Register(cross, token, "")
+		token, _ := grc20.NewToken(0, cur, tokenName, tokenSymbol, 6)
+		Register(cross(cur), token, "")
 	}
 
 	// Test first page (default)
@@ -73,7 +72,7 @@ func TestPagination(t *testing.T) {
 	urequire.True(t, strings.Contains(page2, "Page 2 of 2"), "expected page 2 of 2")
 }
 
-func TestValidateSlug(t *testing.T) {
+func TestValidateSlug(cur realm, t *testing.T) {
 	// Valid slugs — should not panic
 	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c"}
 	for _, slug := range valid {
@@ -81,37 +80,37 @@ func TestValidateSlug(t *testing.T) {
 	}
 }
 
-func TestValidateSlugPanicsOnSpace(t *testing.T) {
+func TestValidateSlugPanicsOnSpace(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug("has space")
 	t.Errorf("should have panicked")
 }
 
-func TestValidateSlugPanicsOnDot(t *testing.T) {
+func TestValidateSlugPanicsOnDot(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug("has.dot")
 	t.Errorf("should have panicked")
 }
 
-func TestValidateSlugPanicsOnSlash(t *testing.T) {
+func TestValidateSlugPanicsOnSlash(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug("has/slash")
 	t.Errorf("should have panicked")
 }
 
-func TestValidateSlugPanicsOnBrackets(t *testing.T) {
+func TestValidateSlugPanicsOnBrackets(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug("[brackets]")
 	t.Errorf("should have panicked")
 }
 
-func TestValidateSlugPanicsOnParens(t *testing.T) {
+func TestValidateSlugPanicsOnParens(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug("(parens)")
 	t.Errorf("should have panicked")
 }
 
-func TestValidateSlugPanicsOnInjection(t *testing.T) {
+func TestValidateSlugPanicsOnInjection(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug(`) [Claim](https://evil.com`)
 	t.Errorf("should have panicked")

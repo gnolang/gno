@@ -2,7 +2,6 @@ package grc20reg
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -19,11 +18,18 @@ var (
 	pagerInstance = pager.NewPager(rotree.Wrap(registry, nil), 10, false)
 )
 
+// Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
+// and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
+// Use this package's Register to make a token discoverable:
+//
+//	Token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
+//	grc20reg.Register(cross(cur), Token, "")
+
 func Register(cur realm, token *grc20.Token, slug string) {
 	if slug != "" {
 		validateSlug(slug)
 	}
-	rlmPath := runtime.PreviousRealm().PkgPath()
+	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
 	chain.Emit(
