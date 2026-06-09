@@ -577,8 +577,8 @@ func (ndb *nodeDB) Close() error {
 	return nil
 }
 
-// DeleteVersion removes a root reference and all nodes for that version
-// from the batch. Used by DeleteVersionsFrom.
+// DeleteRoot stages deletion of a version's root reference in the batch.
+// Used by PruneVersionsTo after the version's orphaned nodes are deleted.
 func (ndb *nodeDB) DeleteRoot(version int64) error {
 	return ndb.batch.Delete(rootDBKey(version))
 }
