@@ -41,6 +41,11 @@ WORK_ROOT="${WORK_ROOT:-/tmp/gno-val-tests}"
 CHAIN_ID="${CHAIN_ID:-dev}"
 TIMEOUT_COMMIT="${TIMEOUT_COMMIT:-1s}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
+# Load the example packages and register the on-chain PoA validator realm in
+# genesis. Only scenarios that deploy/call realms or test governance-based valset
+# changes need this; consensus-only scenarios set it false to skip processing
+# 300+ packages at every node start/restart. See generate_genesis.
+SCENARIO_GENESIS_EXAMPLES="${SCENARIO_GENESIS_EXAMPLES:-true}"
 REMOTE_SIGNER_REQUEST_TIMEOUT="${REMOTE_SIGNER_REQUEST_TIMEOUT:-30s}"
 TX_KEY_NAME="${TX_KEY_NAME:-scenario-tx}"
 TX_PASSWORD="${TX_PASSWORD:-test123456}"
@@ -473,16 +478,11 @@ generate_genesis() {
   mkdir -p "$genesis_work" "$gnokey_home"
 
   # Paths as the binaries see them (host paths locally, container paths in docker).
-  local work gnoroot keys genesis
+  local work gnoroot keys genesis node
   work="$(dpath_work)"
   gnoroot="$(dpath_gnoroot)"
   keys="$(dpath_keys "$gnokey_home")"
   genesis="${work}/genesis.json"
-
-  log "creating genesis deployer key"
-  printf '%s\n\n' "$deployer_mnemonic" | \
-    run_gnokey -v "${gnokey_home}:/keys" \
-      add --recover "$deployer_name" --home "$keys" --insecure-password-stdin >/dev/null
 
   log "generating empty genesis"
   run_gnogenesis generate \
@@ -490,54 +490,65 @@ generate_genesis() {
     --genesis-time "$(date +%s)" \
     --output-path "$genesis" >/dev/null
 
-  log "adding packages from GNO_ROOT"
-  printf '\n' | \
-    run_gnogenesis -v "${gnokey_home}:/keys" \
-      txs add packages "${gnoroot}/examples" \
-        --genesis-path "$genesis" \
-        --gno-home "$keys" \
-        --key-name "$deployer_name" \
-        --insecure-password-stdin >/dev/null
+  # Load examples + register the on-chain PoA valset realm only when requested.
+  # Consensus runs off the genesis validator set added below, so consensus-only
+  # scenarios (SCENARIO_GENESIS_EXAMPLES=false) skip this entirely — it is the
+  # dominant cost, as every node replays 300+ genesis packages at InitChain on
+  # each start and restart.
+  if [ "$SCENARIO_GENESIS_EXAMPLES" = "true" ]; then
+    log "creating genesis deployer key"
+    printf '%s\n\n' "$deployer_mnemonic" | \
+      run_gnokey -v "${gnokey_home}:/keys" \
+        add --recover "$deployer_name" --home "$keys" --insecure-password-stdin >/dev/null
 
-  log "generating valset-init MsgRun"
-  local valset_file="${genesis_work}/valset-init.gno"
-  local valset_entries=""
-  local node
-  for node in "${SCENARIO_GENESIS_VALIDATORS[@]}"; do
-    valset_entries+="$(printf '\t\t\t\t{Address: address("%s"), PubKey: "%s", VotingPower: %s},\n' \
-      "${NODE_ADDRESS[$node]}" "${NODE_PUBKEY[$node]}" "${NODE_POWER[$node]:-1}")"
-  done
-  awk -v entries="$valset_entries" \
-    '/\/\/ GEN:VALSET/ { printf "%s", entries; next } { print }' \
-    "${SCENARIO_LIB_DIR}/valset-init.gno.tpl" > "$valset_file"
+    log "adding packages from GNO_ROOT"
+    printf '\n' | \
+      run_gnogenesis -v "${gnokey_home}:/keys" \
+        txs add packages "${gnoroot}/examples" \
+          --genesis-path "$genesis" \
+          --gno-home "$keys" \
+          --key-name "$deployer_name" \
+          --insecure-password-stdin >/dev/null
 
-  local setup_tx="${genesis_work}/valset-init-tx.json"
-  local setup_tx_jsonl="${genesis_work}/valset-init-tx.jsonl"
+    log "generating valset-init MsgRun"
+    local valset_file="${genesis_work}/valset-init.gno"
+    local valset_entries=""
+    for node in "${SCENARIO_GENESIS_VALIDATORS[@]}"; do
+      valset_entries+="$(printf '\t\t\t\t{Address: address("%s"), PubKey: "%s", VotingPower: %s},\n' \
+        "${NODE_ADDRESS[$node]}" "${NODE_PUBKEY[$node]}" "${NODE_POWER[$node]:-1}")"
+    done
+    awk -v entries="$valset_entries" \
+      '/\/\/ GEN:VALSET/ { printf "%s", entries; next } { print }' \
+      "${SCENARIO_LIB_DIR}/valset-init.gno.tpl" > "$valset_file"
 
-  printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
-    maketx run \
-      --gas-wanted 100000000 \
-      --gas-fee 1ugnot \
-      --chainid "$CHAIN_ID" \
-      --broadcast=false \
-      --home "$keys" \
-      --insecure-password-stdin \
-      "$deployer_name" \
-      "${work}/genesis-work/valset-init.gno" > "$setup_tx"
+    local setup_tx="${genesis_work}/valset-init-tx.json"
+    local setup_tx_jsonl="${genesis_work}/valset-init-tx.jsonl"
 
-  printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
-    sign \
-      --tx-path "${work}/genesis-work/valset-init-tx.json" \
-      --chainid "$CHAIN_ID" \
-      --account-number 0 \
-      --account-sequence 0 \
-      --home "$keys" \
-      --insecure-password-stdin \
-      "$deployer_name" >/dev/null
+    printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
+      maketx run \
+        --gas-wanted 100000000 \
+        --gas-fee 1ugnot \
+        --chainid "$CHAIN_ID" \
+        --broadcast=false \
+        --home "$keys" \
+        --insecure-password-stdin \
+        "$deployer_name" \
+        "${work}/genesis-work/valset-init.gno" > "$setup_tx"
 
-  jq -c '{tx: .}' < "$setup_tx" > "$setup_tx_jsonl"
+    printf '\n' | run_gnokey -v "${gnokey_home}:/keys" \
+      sign \
+        --tx-path "${work}/genesis-work/valset-init-tx.json" \
+        --chainid "$CHAIN_ID" \
+        --account-number 0 \
+        --account-sequence 0 \
+        --home "$keys" \
+        --insecure-password-stdin \
+        "$deployer_name" >/dev/null
 
-  run_gnogenesis txs add sheets --genesis-path "$genesis" "${work}/genesis-work/valset-init-tx.jsonl" >/dev/null
+    jq -c '{tx: .}' < "$setup_tx" > "$setup_tx_jsonl"
+
+    run_gnogenesis txs add sheets --genesis-path "$genesis" "${work}/genesis-work/valset-init-tx.jsonl" >/dev/null
+  fi
 
   log "adding ${#SCENARIO_GENESIS_VALIDATORS[@]} validators to consensus layer"
   for node in "${SCENARIO_GENESIS_VALIDATORS[@]}"; do
