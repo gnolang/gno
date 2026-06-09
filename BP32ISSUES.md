@@ -72,7 +72,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 | ~~H3~~ ✅ | **FIXED (`a07f4b3ce`).** `pruneMu` RWMutex: `incrVersionReaders` RLocks it; `beginPruning` holds it exclusively across the whole prune, so no reader can register a to-be-deleted version. Replaces the `hasVersionReaders` TOCTOU. | #5450; #5570 finding:15 |
 | ~~M11~~ ✅ | **FIXED (`0de551f17`).** `getChild`'s write-back mutated shared nodes on reads (racing the writer's COW `Clone`). Now reads never memoize; writes clone-first → shared nodes immutable; `childMu` removed. `-race`-verified (concurrent `Has`+`Set`). | #5570 finding:7 |
 | ~~M12~~ ✅ | **FIXED (`0de551f17`).** Same mechanism — the aliased root is no longer mutated in place (`miniTree`/`childHashes` rebuilt only on clones), so a concurrent proof reads stable fields. | #5570 finding:9 |
-| M13 | No singleflight/lock on `GetNode` cache-miss → duplicate deserialize, last-writer-wins `Add`, divergent object identity | #5570 arch |
+| ~~M13~~ ✅ | **FIXED (`27c6ebbe5`).** `GetNode` cache-miss loads coalesce via a `singleflight.Group` keyed on the NodeKey — one deserialize + cache Add, shared instance. (Benign post-getChild-fix: read-path nodes are immutable + unmemoized, so it was dedup/efficiency, not a race.) | #5570 arch |
 
 ### Tier D — Hardening gaps (corrupt-DB / malicious-input only; not honest-path bugs)
 
@@ -102,7 +102,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
 - **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
-- **Latent concurrency (dormant under ABCI mutex): 1** (Tier C: M13 `GetNode` cache-miss singleflight only). ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX — snapshot version-reader registration + atomic prune). Single-tree reads (node + value) AND prune-vs-reader are now concurrent-safe against a writer.
+- **Latent concurrency (dormant under ABCI mutex): 0 of the original Tier C.** ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX); ✅ **M13** (`27c6ebbe5`, `GetNode` singleflight). Single-tree node reads, value resolution, prune-vs-reader, AND concurrent node loads are now safe against a writer. **One residual before promotion** (not in the original tally): `MutableTree.version`/`lastSaved`/`root` are read by `immutableForProof` while `SaveVersion` writes them — a pre-existing read-vs-write field race gated by the ABCI mutex; needs an `RWMutex` on `MutableTree` when bptree comes off that mutex.
 - **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
 - **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
@@ -262,8 +262,11 @@ reader, unregistered snapshot doesn't block prune, concurrent prune-vs-reader.
 Adapted 7 existing tests that opened an iterator/exporter via a now-registering
 `GetImmutable` to also Close it.
 
-**Residual:** only M13 (`GetNode` cache-miss singleflight — duplicate deserialize /
-divergent object identity) remains in Tier C; low severity, dormant.
+**Residual:** none in the original Tier C — M13 (`GetNode` cache-miss singleflight)
+is now also fixed (`27c6ebbe5`). The one before-promotion item is the pre-existing
+`MutableTree.version`/`lastSaved`/`root` read-vs-write field race (read by
+`immutableForProof` vs `SaveVersion`), gated by the ABCI mutex; an `RWMutex` on
+`MutableTree` when bptree comes off that mutex.
 
 ---
 
@@ -352,7 +355,7 @@ from merge state.
 |---|---|---|---|---|---|
 | ~~M11~~ | **Thread-safety under-specified**; `childMu` guarded only the lazy-load path → concurrent `Get`+`Set` race on the `getChild` write-back vs COW `Clone` | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ✅ **FIXED `0de551f17`** — getChild no longer memoizes; `childMu` removed; `-race`-clean. The separate value-resolution `pendingVals` race is also now fixed (`75c946820`, §VIII). |
 | ~~M12~~ | **`immutableForProof` shares the mutable root** — proof walks `miniTree`/`childHashes` | M | `proof.go` | #5570 finding:9 | ✅ **FIXED `0de551f17`** — shared nodes now immutable (reads pure; miniTree rebuilt only on clones), so the aliased root can't be torn. |
-| M13 | No **`singleflight` on cache-miss** — two readers missing the same NodeKey deserialize independently and overwrite each other's `Add` | M | `nodedb.go` | #5570 finding:5/arch | ❌ Open |
+| ~~M13~~ | No **`singleflight` on cache-miss** — two readers missing the same NodeKey deserialize independently and overwrite each other's `Add` | M | `nodedb.go` | #5570 finding:5/arch | ✅ **FIXED `27c6ebbe5`** — `loadGroup singleflight.Group` coalesces cache-miss loads |
 | L8 | `ImmutableTree.Close` **not idempotent** — double/concurrent Close decrements reader count twice → corrupts count | L | `immutable_tree.go` | #5570 finding:45 | ❌ Open |
 
 ### Latent / API ergonomics
