@@ -653,8 +653,14 @@ func TestVersionedTree(t *testing.T) {
 	require.NoError(err)
 	require.Equal("val1", string(val))
 
+	// Pruning requires a committed session: the staged Set above must be
+	// saved (or rolled back) first.
+	require.ErrorIs(tree.DeleteVersionsTo(2), ErrUncommittedChanges)
+	_, _, err = tree.SaveVersion() // v5: key1=val0
+	require.NoError(err)
+
 	// Delete versions up to 2
-	tree.DeleteVersionsTo(2)
+	require.NoError(tree.DeleteVersionsTo(2))
 
 	// Deleted versions should not be queryable
 	val, err = tree.GetVersioned([]byte("key2"), 2)

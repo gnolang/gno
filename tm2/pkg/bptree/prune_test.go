@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -585,10 +586,15 @@ func TestLoadVersion_FailedSaveDoesNotLeakStagedValue(t *testing.T) {
 		t.Fatal("SaveVersion of an existing version with different data must error")
 	}
 
-	// Force a Commit WITHOUT an intervening Rollback (prune flushes the batch).
-	// If the staged LEAK survived, this is where it would clobber v2's value.
+	// Prune refuses to run with the dirty session left by the failed
+	// SaveVersion — its batch Commit would otherwise be exactly the "later
+	// Commit" that flushes the staged LEAK over v2's committed value.
+	if err := tree.PruneVersionsTo(1); !errors.Is(err, ErrUncommittedChanges) {
+		t.Fatalf("dirty prune: want ErrUncommittedChanges, got %v", err)
+	}
+	tree.Rollback()
 	if err := tree.PruneVersionsTo(1); err != nil {
-		t.Fatalf("prune: %v", err)
+		t.Fatalf("prune after rollback: %v", err)
 	}
 
 	// v2's "b" must still resolve to "B2", never "LEAK".

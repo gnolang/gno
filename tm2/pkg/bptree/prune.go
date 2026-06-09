@@ -19,6 +19,19 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		return nil
 	}
 
+	// Pruning commits the shared batch (threshold flushes + the final Commit)
+	// and discards it on error, so the batch must contain nothing but prune
+	// deletes: refuse to run with uncommitted working-session state. This also
+	// blocks two session-staging hazards a mid-session prune would trigger: a
+	// threshold flush persisting staged session writes early (breaking the
+	// Rollback "nothing in the DB" guarantee), and — after LoadVersion(old) +
+	// Set — flushing staged writes keyed into an already-committed version's
+	// value namespace, corrupting it.
+	if t.root != t.lastSaved || len(t.ndb.pendingVals) > 0 ||
+		t.nextValueNonce > 0 || len(t.versionOrphans) > 0 {
+		return fmt.Errorf("%w: SaveVersion or Rollback before pruning", ErrUncommittedChanges)
+	}
+
 	// Claim the prune lock and verify no version in [first, toVersion] has an
 	// active reader. beginPruning holds pruneMu for the whole prune so no new
 	// reader can register a to-be-deleted version (H3); endPruning releases it.
@@ -27,6 +40,24 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	}
 	defer t.ndb.endPruning()
 
+	if err := t.pruneRange(first, toVersion, latest); err != nil {
+		// Drop partially-staged deletes so a later unrelated Commit can't flush
+		// them: a half-deleted version with a live root ref would be unreadable
+		// AND unprunable (its retry fails on the missing nodes, and the store's
+		// pruning Commit panics on that error). Intermediate threshold commits
+		// land only on whole-version boundaries, so what was flushed is
+		// consistent; firstVersion is unadvanced, so a retry re-processes.
+		t.ndb.DiscardBatch()
+		return err
+	}
+	t.ndb.setFirstVersion(toVersion + 1)
+	return nil
+}
+
+// pruneRange deletes versions [first, toVersion] and commits the staged
+// deletes. On error, staged-but-uncommitted deletes are left in the batch for
+// the caller to discard.
+func (t *MutableTree) pruneRange(first, toVersion, latest int64) error {
 	// Flush cap in bytes. Commit whenever the pending batch grows past this
 	// bound so PruneVersionsTo's working memory is O(flushThreshold) rather
 	// than O(pruned-nodes-and-values), matching typical per-block usage but
@@ -75,11 +106,7 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		}
 	}
 
-	if err := t.ndb.Commit(); err != nil {
-		return err
-	}
-	t.ndb.setFirstVersion(toVersion + 1)
-	return nil
+	return t.ndb.Commit()
 }
 
 // findNextVersion finds the next existing version after v, up to latest.
@@ -225,7 +252,10 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		// to sibling nodes not reachable from the local newNode.
 		var newChild Node
 		if newRoot != nil {
-			newChild = t.findCorrespondingChild(newRoot, child)
+			newChild, err = t.findCorrespondingChild(newRoot, child)
+			if err != nil {
+				return err
+			}
 		}
 
 		// If the child was found in the new tree with the same hash,
@@ -244,8 +274,11 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 
 // findCorrespondingChild finds the child in newNode's tree that covers
 // the same key range as oldChild. Uses the first key of oldChild to route.
-// Descends to the same height as oldChild.
-func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
+// Descends to the same height as oldChild. Returns (nil, nil) when no
+// corresponding node exists (genuinely orphaned). A node-load failure is
+// returned as an error — it must NOT be treated as "orphaned", or a transient
+// read error would delete subtrees still shared with the successor version.
+func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) (Node, error) {
 	// Get a representative key from the old child
 	var key []byte
 	switch c := oldChild.(type) {
@@ -259,7 +292,7 @@ func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
 		}
 	}
 	if key == nil {
-		return nil
+		return nil, nil
 	}
 
 	targetHeight := nodeHeight(oldChild)
@@ -268,30 +301,31 @@ func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
 	node := newNode
 	for {
 		if nodeHeight(node) == targetHeight {
-			return node
+			return node, nil
 		}
 		if nodeHeight(node) < targetHeight {
-			return nil // new tree is shorter
+			return nil, nil // new tree is shorter
 		}
 
 		inner, ok := node.(*InnerNode)
 		if !ok {
-			return node // leaf — can't descend further
+			return node, nil // leaf — can't descend further
 		}
 		idx := searchInner(inner, key)
 
-		// Try in-memory child first
-		child := inner.getChild(idx)
+		// In-memory child first; else load from the DB, propagating errors
+		// (getChild would panic on a load failure — prune must return it so
+		// the caller can discard the partially-staged batch).
+		child := inner.childNodes[idx]
 		if child == nil && inner.children[idx] != nil {
-			// Load from DB
 			var err error
 			child, err = t.ndb.GetNode(inner.children[idx])
 			if err != nil {
-				return nil
+				return nil, fmt.Errorf("routing to corresponding child: %w", err)
 			}
 		}
 		if child == nil {
-			return nil
+			return nil, nil
 		}
 		node = child
 	}
