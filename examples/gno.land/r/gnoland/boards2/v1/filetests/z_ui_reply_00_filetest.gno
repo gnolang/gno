@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_reply_00_filetest
+
 // Render comment/reply view.
-package main
+package z_ui_reply_00_filetest
 
 import (
 	"testing"
@@ -19,18 +21,18 @@ var (
 	replyID  boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Create two comments and a reply to a comment
-	boards2.CreateReply(cross, boardID, threadID, 0, "First comment")
+	boards2.CreateReply(cross(cur), boardID, threadID, 0, "First comment")
 
-	replyID = boards2.CreateReply(cross, boardID, threadID, 0, "Second comment")
-	boards2.CreateReply(cross, boardID, threadID, replyID, "Third comment")
+	replyID = boards2.CreateReply(cross(cur), boardID, threadID, 0, "Second comment")
+	boards2.CreateReply(cross(cur), boardID, threadID, replyID, "Third comment")
 }
 
 func main() {
@@ -42,19 +44,40 @@ func main() {
 // ## Foo
 //
 // **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Body
+// </gno-foreign>
+//
+//
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [2] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
 //
 //
 // >
-// > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [#3](/r/gnoland/boards2/v1:test-board/1/3)
+// > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
+// >
+// >
+// > <gno-foreign>
 // > Second comment
+// > </gno-foreign>
+// >
+// >
 // >
 // > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=3&threadID=1)
+//
+// ---
+// Sort by: [newest first](/r/gnoland/boards2/v1:test-board/1/3?order=desc)
 // >
 // > >
-// > > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [#4](/r/gnoland/boards2/v1:test-board/1/4)
+// > > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
+// > >
+// > >
+// > > <gno-foreign>
 // > > Third comment
+// > > </gno-foreign>
+// > >
+// > >
 // > >
 // > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=4&threadID=1)
