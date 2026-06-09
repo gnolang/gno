@@ -34,26 +34,28 @@ func (m *Machine) doOpAssign() {
 	//     So we interleave resolve+assign per LHS left-to-right, NOT
 	//     resolve-all-then-assign-all. See golang/go#23017.
 	//
-	// NOTE: PopValues() returns a slice in forward order, not the usual
-	// reverse. rvs[0] is the leftmost RHS value.
-	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
 	// NOTE: the multi-LHS loop below runs ~6% above the per-LHS OpCPUSlopeAssign
 	// calibration (extra numStackValuesForPointer passes + resolvePointer indirection;
 	// see BenchmarkDoOpAssign_Index_N*). OpCPUSlopeAssign is shared with the
-	// single-LHS fast path, which is unchanged, so we don't retune it for a rare
-	// path. Revisit only if multi-LHS assignment becomes hot.
+	// single-LHS fast path, which matches the original cost, so we don't retune
+	// it for a rare path. Revisit only if multi-LHS assignment becomes hot.
 
 	if len(s.Lhs) == 1 {
-		// Single-LHS fast path: no operand-frame slicing needed; PopAsPointer
-		// consumes this LHS's operand frame (now on top of the stack) directly.
+		// Single-LHS fast path: pop the one RHS value (no slice) and resolve the
+		// LHS pointer directly off the stack top — the original, minimal path.
+		rv := m.PopValue()
 		lv := m.PopAsPointer(s.Lhs[0])
-		if m.Stage != StagePre && isUntyped(rvs[0].T) && rvs[0].T.Kind() != BoolKind {
+		if m.Stage != StagePre && isUntyped(rv.T) && rv.T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
-		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[0], true)
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, *rv, true)
 		return
 	}
+
+	// Multi-LHS only. NOTE: PopValues() returns a slice in forward order, not
+	// the usual reverse. rvs[0] is the leftmost RHS value.
+	rvs := m.PopValues(len(s.Lhs))
 
 	// Multi-LHS: m.Values' top region holds the LHS operand frames, oldest
 	// first — LHS_0's frame at the bottom up to LHS_{n-1}'s on top (op_exec
