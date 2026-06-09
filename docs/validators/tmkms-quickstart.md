@@ -202,6 +202,14 @@ its sharpest edges, so the rule for this section is: **provision the
 device by hand, and never run the automated setup or test commands
 against a production key.**
 
+Install tmkms with the `yubihsm` provider (it is **not** in the default
+build — you must enable the feature explicitly):
+
+```sh
+cargo install tmkms --version 0.15.0 --features yubihsm --locked
+tmkms version   # → 0.15.0
+```
+
 ## B.1 Provision the YubiHSM by hand — never `tmkms yubihsm setup`
 
 > **Do not run `tmkms yubihsm setup`.** That command prints the recovery
@@ -769,8 +777,18 @@ the provider and the device handling change.
 
 ## D.1 Prerequisites
 
-- tmkms built with the **`ledgertm`** provider (it is in the default
-  build; to keep softsign too, build `--features ledgertm,softsign`).
+Install tmkms with the **`ledgertm`** provider. Unlike the YubiHSM and
+softsign features, `ledgertm` *is* in the default build, so plain
+`cargo install tmkms` gives it to you; pass it explicitly (and add
+`softsign` if you want both) to be sure:
+
+```sh
+cargo install tmkms --version 0.15.0 --features ledgertm --locked
+# or, to keep softsign too: --features ledgertm,softsign
+```
+
+You also need:
+
 - A Ledger with the **"Tendermint Validator"** app installed (the
   dedicated ed25519 consensus app — *not* the regular Cosmos app),
   plugged in, unlocked, with that app **open**. tmkms cannot reach a
