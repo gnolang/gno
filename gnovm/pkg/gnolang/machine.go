@@ -2843,17 +2843,10 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a composite lit expr.
 //
-// Thin stack wrapper around resolvePointer: slices the top
-// numStackValuesForPointer(lx) values off m.Values, resolves, then truncates.
+// Thin stack wrapper around resolvePointer: pops lx's operands off m.Values
+// and resolves from them.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
-	n := numStackValuesForPointer(lx)
-	if n == 0 {
-		return m.resolvePointer(lx, nil)
-	}
-	lhsOperands := m.Values[len(m.Values)-n:]
-	pv, ro = m.resolvePointer(lx, lhsOperands)
-	m.Values = m.Values[:len(m.Values)-n]
-	return
+	return m.resolvePointer(lx, m.PopValues(numStackValuesForPointer(lx)))
 }
 
 // for testing.
