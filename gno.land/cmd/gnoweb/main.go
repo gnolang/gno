@@ -350,7 +350,7 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; form-action 'self'",
 		imgSrc,
 	)
 
