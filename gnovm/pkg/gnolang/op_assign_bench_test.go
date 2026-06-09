@@ -40,8 +40,7 @@ func BenchmarkDoOpAssign_Name_N5(b *testing.B) { benchAssignNameN(b, 5) }
 
 // benchAssignIndexN benchmarks the IndexExpr LHS path — the heaviest multi-LHS
 // case, since each LHS contributes 2 operand-frame values (X and Index) that
-// resolvePointer reads in place from the PopValues window. This is the path
-// where #5790's in-place read avoids #5765's per-statement frame buffer.
+// resolvePointer reads in place from the PopValues window.
 func benchAssignIndexN(b *testing.B, n int) {
 	m := benchMachine()
 	defer m.Release()
