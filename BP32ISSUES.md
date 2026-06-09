@@ -102,7 +102,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
 - **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
-- **Latent concurrency (dormant under ABCI mutex): 0 of the original Tier C.** ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX); ✅ **M13** (`27c6ebbe5`, `GetNode` singleflight). Single-tree node reads, value resolution, prune-vs-reader, AND concurrent node loads are now safe against a writer. **One residual before promotion** (not in the original tally): `MutableTree.version`/`lastSaved`/`root` are read by `immutableForProof` while `SaveVersion` writes them — a pre-existing read-vs-write field race gated by the ABCI mutex; needs an `RWMutex` on `MutableTree` when bptree comes off that mutex.
+- **Latent concurrency (dormant under ABCI mutex): 0 of the original Tier C.** ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX); ✅ **M13** (`27c6ebbe5`, `GetNode` singleflight). Single-tree node reads, value resolution, prune-vs-reader, AND concurrent node loads are now safe against a writer. **Residual (addressed by contract — §X):** the pre-existing `MutableTree.version`/`lastSaved`/`root` read-vs-write field race is now documented as a single-goroutine contract + named `-race` guard (`446e4a6ad`, option a); an `RWMutex` on `MutableTree` (option b) is the only remaining promotion-time work.
 - **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
 - **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
@@ -263,10 +263,36 @@ Adapted 7 existing tests that opened an iterator/exporter via a now-registering
 `GetImmutable` to also Close it.
 
 **Residual:** none in the original Tier C — M13 (`GetNode` cache-miss singleflight)
-is now also fixed (`27c6ebbe5`). The one before-promotion item is the pre-existing
-`MutableTree.version`/`lastSaved`/`root` read-vs-write field race (read by
-`immutableForProof` vs `SaveVersion`), gated by the ABCI mutex; an `RWMutex` on
-`MutableTree` when bptree comes off that mutex.
+is now also fixed (`27c6ebbe5`). The one before-promotion item — the pre-existing
+`MutableTree.version`/`lastSaved`/`root` read-vs-write field race — is addressed
+by contract in §X.
+
+---
+
+## X. MutableTree single-goroutine contract (commit `446e4a6ad`, Option 4 / option a)
+
+The pre-existing `MutableTree` field race — `immutableForProof`/`Hash`/`Version`/
+`Get`/etc. read `t.version`/`t.lastSaved`/`t.root` while `SaveVersion` writes them
+— is the one concurrency item that is NOT a node/value/prune race closed by the
+earlier fixes. It manifests only if a caller violates the single-writer contract;
+the gno ABCI connection mutex already serializes Query vs Commit, so it is dormant.
+No PR fixes it (verified: #5570's 52-issue pass adds no `MutableTree` mutex either).
+
+Closed by **contract, not a lock** (option a): the `MutableTree` type now documents
+that it is single-goroutine — its mutators and working-tree reads touch the
+unlocked working-tree fields and must not run concurrently — and that concurrent
+reads of a committed version must use `GetImmutable` (safe to call concurrently;
+returns a concurrent-read-safe `ImmutableTree`) or `GetVersioned`/
+`GetCommittedValueByKey`/`VersionExists`/`AvailableVersions`. A named `-race` guard
+(`TestContract_ConcurrentSnapshotReadsVsWriter_NoRace`) encodes the sanctioned
+pattern; the surface is also covered by the getChild/pendingVals/H2/M13 race tests.
+Reviewers confirmed the partition both ways empirically (safe set `-race`-clean;
+`tree.Hash()`/`tree.Version()` called directly DO race).
+
+**Deferred (option b):** an `RWMutex` on `MutableTree` guarding `root`/`version`/
+`lastSaved` — only needed when bptree comes off the ABCI mutex (concurrent
+queries / async prune / network ABCI); it adds lock overhead to the single-writer
+hot path, so it waits for promotion.
 
 ---
 
