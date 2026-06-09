@@ -68,8 +68,8 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 | ID | Bug (verified) | Fix source |
 |---|---|---|
 | H1 | Iterators never register as version readers (all 3 `newIterator` calls pass `version=0`; `Close` decr is dead code) → prune can delete nodes a live iterator walks | #5450; #5570 finding:1; #5591 |
-| H2 | `GetImmutable`/`immutableForProof`/`GetImmutableTree` **never call `incrVersionReaders` at all** (stronger than "registers late") → snapshot unprotected from concurrent prune | #5570 finding:30/40 |
-| H3 | Prune active-readers check is TOCTOU — `hasVersionReaders` and the deletes are not under one lock; no `beginPruning`/`endPruning` | #5450; #5570 finding:15 |
+| ~~H2~~ ✅ | **FIXED (`a07f4b3ce`).** `GetImmutable`/`immutableForProof` now `incrVersionReaders` (before `GetRoot`) and the caller / proof wrapper `Close`s (idempotent `ImmutableTree.Close`); `GetVersioned` defers Close. Long-lived store snapshots use non-registering `GetImmutableUnregistered` (gap accepted, dormant). | #5570 finding:30/40 |
+| ~~H3~~ ✅ | **FIXED (`a07f4b3ce`).** `pruneMu` RWMutex: `incrVersionReaders` RLocks it; `beginPruning` holds it exclusively across the whole prune, so no reader can register a to-be-deleted version. Replaces the `hasVersionReaders` TOCTOU. | #5450; #5570 finding:15 |
 | ~~M11~~ ✅ | **FIXED (`0de551f17`).** `getChild`'s write-back mutated shared nodes on reads (racing the writer's COW `Clone`). Now reads never memoize; writes clone-first → shared nodes immutable; `childMu` removed. `-race`-verified (concurrent `Has`+`Set`). | #5570 finding:7 |
 | ~~M12~~ ✅ | **FIXED (`0de551f17`).** Same mechanism — the aliased root is no longer mutated in place (`miniTree`/`childHashes` rebuilt only on clones), so a concurrent proof reads stable fields. | #5570 finding:9 |
 | M13 | No singleflight/lock on `GetNode` cache-miss → duplicate deserialize, last-writer-wins `Add`, divergent object identity | #5570 arch |
@@ -102,7 +102,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
 - **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
-- **Latent concurrency (dormant under ABCI mutex): 3** (Tier C: H2 partial, H3, M13 — all prune/version-reader). ✅ **H1** via #5591; ✅ **M11/M12** fixed (`0de551f17`, getChild non-memoization); ✅ **pendingVals value-resolution race** fixed (`75c946820`, §VIII). Single-tree node + value reads are now concurrent-safe against a writer.
+- **Latent concurrency (dormant under ABCI mutex): 1** (Tier C: M13 `GetNode` cache-miss singleflight only). ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX — snapshot version-reader registration + atomic prune). Single-tree reads (node + value) AND prune-vs-reader are now concurrent-safe against a writer.
 - **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
 - **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
@@ -224,8 +224,46 @@ writer + committed Get/proof/iterator readers; fails on the prior HEAD).
 
 With this, **single-tree node AND value reads are concurrent-safe against a
 writer.** The LRU `nodeCache` is internally `RWMutex`-locked (not a data race).
-Remaining Tier C items (H2 partial, H3 prune TOCTOU, M13 singleflight) are
-prune/version-reader concerns, still dormant under the ABCI mutex.
+Remaining Tier C: H2/H3 (below) and M13 (`GetNode` cache-miss singleflight).
+
+---
+
+## IX. H2 + H3 — snapshot version-reader registration + atomic prune (commit `a07f4b3ce`)
+
+Closes the read-vs-prune gap: a prune could delete nodes a concurrent `Get`/proof
+snapshot was still walking. Dormant under the ABCI single-mutex; before-promotion
+hardening. Mechanism mirrors #5570 (whose stale base we did NOT cherry-pick).
+
+**H2 — register Get/proof snapshots.** `ImmutableTree.Close()` (idempotent via
+`sync.Once`, gated on a `registered` flag); `GetImmutable`/`immutableForProof`
+`incrVersionReaders` **before** `GetRoot` (closes the reader-side TOCTOU), with
+decr on error paths; the proof wrappers and `GetVersioned` `defer imm.Close()`.
+A new `GetImmutableUnregistered` serves the store's **long-lived** immutable
+`LoadVersion` view, which has no Close hook — registering it would pin the
+version against pruning forever (and `Store.Commit`'s prune **panics** on
+`ErrActiveReaders`, so a leak is a hard crash, not a silent gap). The store-level
+read-vs-prune gap there is accepted (dormant) and documented; **no `Store.Close`**
+added — the `Store`/`MultiStore` abstraction has no `Close` to wire it through
+(rootmulti builds immutable views via `LoadVersion`, never closed).
+
+**H3 — atomic prune.** `nodeDB.pruneMu sync.RWMutex`: `incrVersionReaders` takes
+`pruneMu.RLock()` (stays `void` — no caller ripple); `beginPruning(first,to)`
+takes `pruneMu.Lock()`, checks reader counts under `mtx`, then holds `pruneMu`
+for the whole prune so no new reader can register a to-be-deleted version;
+`endPruning` releases it. A **separate** `pruneMu` (not `mtx`) is required because
+the prune body itself takes `mtx` via `getFirstVersion`/`setFirstVersion` (holding
+`mtx` across the prune would self-deadlock). Replaces the old `hasVersionReaders`
+TOCTOU check.
+
+Keeps HEAD's dual-tree-walk prune + `getCommittedValue` (NOT #5570's
+mark-and-sweep). `-race`-verified: snapshot-blocks-prune-until-Close, no leaked
+reader after `GetVersioned`/proof, `Snapshot.Close` doesn't under-decrement a live
+reader, unregistered snapshot doesn't block prune, concurrent prune-vs-reader.
+Adapted 7 existing tests that opened an iterator/exporter via a now-registering
+`GetImmutable` to also Close it.
+
+**Residual:** only M13 (`GetNode` cache-miss singleflight — duplicate deserialize /
+divergent object identity) remains in Tier C; low severity, dormant.
 
 ---
 
@@ -273,8 +311,8 @@ from merge state.
 |---|---|---|---|---|---|
 | **C1** | **Pruning deletes nodes shared across versions after an inner-node split** (positional descent picks one "corresponding" node; split siblings deleted while live → next prune panics, `Get`/`Has` panic in `DeliverTx`, node bricked on cold `LoadVersion`). Triggers on first prune (~block 705,601 under `PruneSyncable`). | **C** | `prune.go` `walkAndPrune`/`findCorrespondingChild` | #5442 bug6; partial fix #5451; full rewrite #5570 finding:3 | ❌ **Open** — positional `findCorrespondingChild` still in tree (prune.go:183,203); #5570 mark-and-sweep unmerged |
 | H1 | **Iterators never register as version readers** (`newIterator` hard-codes `version=0`; `incrVersionReaders` never fires) → a concurrent `PruneVersionsTo` deletes nodes a live iterator/snapshot is walking | H | `iterator.go` (all 3 call sites) | #5450; #5570 finding:1; #5591 #1 | ❌ **Open** — all 3 `newIterator(...,0)` still present (iterator.go:329,344,361) |
-| H2 | `GetImmutable`/`immutableForProof` don't register readers (and register **after** loading the root) → snapshot/root torn out by concurrent prune | H | `mutable_tree.go`, `proof.go` | #5570 finding:30, finding:40 | ❌ Open (#5570 unmerged) |
-| H3 | Pruning active-readers check is **TOCTOU** (check then delete in separate critical sections; reader can register in between) | M→H | `prune.go`, `nodedb.go` | #5450; #5570 finding:15 | ❌ Open (#5450/#5570 unmerged) |
+| ~~H2~~ | `GetImmutable`/`immutableForProof` don't register readers → snapshot torn out by concurrent prune | H | `mutable_tree.go`, `proof.go` | #5570 finding:30, finding:40 | ✅ **FIXED `a07f4b3ce`** (§IX) — register + idempotent `Close`; long-lived store views use `GetImmutableUnregistered` |
+| ~~H3~~ | Pruning active-readers check is **TOCTOU** (check then delete in separate critical sections; reader can register in between) | M→H | `prune.go`, `nodedb.go` | #5450; #5570 finding:15 | ✅ **FIXED `a07f4b3ce`** (§IX) — `pruneMu` held across the prune |
 | H4 | Pruning empty-tree branch (`vRootNK == nil`) skips orphan/value cleanup → value records leak permanently | H | `prune.go` | #5570 finding:2 | ❌ Open |
 | H5 | **All-zero `ValueKey` collides with the "missing" sentinel** (nonce starts at 0; first ValueKey in v0 = 12 zero bytes = the missing-value placeholder) | H | `node_key.go`, `mutable_tree.go`, `import.go` | #5570 finding:6 | ❌ Open |
 | H6 | **`Set` not atomic with value save** — tree mutated first, then `SaveValue`; on `SaveValue` error the leaf references a never-persisted ValueKey (dangling ref persisted on next `SaveVersion`) | H | `mutable_tree.go` | #5570 finding:28 | ❌ Open — `treeInsert` (mutable_tree.go:107) runs before `SaveValue` (:120) |
