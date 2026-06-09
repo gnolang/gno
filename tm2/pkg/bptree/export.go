@@ -18,6 +18,16 @@ type ExportNode struct {
 var errExportClosed = errors.New("export closed")
 
 // Exporter streams tree nodes in depth-first post-order (children before parent).
+//
+// Lifecycle: the caller MUST Close the Exporter when done — including on error
+// or early return (use defer). Close stops the streaming goroutine and releases
+// the version-reader reservation taken by Export. Abandoning an Exporter without
+// Close leaks that goroutine (it blocks once the 32-entry channel buffer fills,
+// i.e. for any tree with >32 nodes) AND permanently pins its version against
+// pruning: PruneVersionsTo of that version returns ErrActiveReaders, and the
+// store's auto-prune at Commit panics on it. Fully consuming the stream (Next
+// until ErrExportDone) lets the goroutine exit but does NOT release the
+// reservation — Close is still required. Close is idempotent.
 type Exporter struct {
 	tree      *ImmutableTree
 	ndb       *nodeDB // for fetching values; may be nil (then tree.valueResolver is used)
@@ -27,8 +37,9 @@ type Exporter struct {
 	closeOnce sync.Once
 }
 
-// Export creates an Exporter for the tree. The tree's version is protected
-// from pruning via version readers.
+// Export creates an Exporter for the tree. The tree's version is protected from
+// pruning via a version reader held for the Exporter's lifetime; the caller MUST
+// Close the returned Exporter (use defer) to release it — see the Exporter docs.
 func (t *ImmutableTree) Export(ndb *nodeDB) (*Exporter, error) {
 	if t.root == nil {
 		return nil, ErrNotInitializedTree
