@@ -113,6 +113,7 @@ func TestPrune_VersionReaders(t *testing.T) {
 	// Open an exporter on v1
 	imm, _ := tree.GetImmutable(1)
 	exporter, _ := imm.Export(tree.ndb)
+	imm.Close() // GetImmutable also registers a reader; release so only the exporter blocks
 
 	// Pruning should fail
 	err := tree.DeleteVersionsTo(1)
@@ -151,6 +152,7 @@ func TestPrune_IteratorBlocksPrune(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Iterator: %v", err)
 	}
+	imm.Close() // GetImmutable also registers a reader; release so only the iterator blocks
 
 	// Pruning v1 should fail while the iterator is open.
 	if err := tree.DeleteVersionsTo(1); err == nil {
@@ -182,6 +184,7 @@ func TestPrune_StoreIteratorBlocksPrune(t *testing.T) {
 		t.Fatalf("GetImmutable(1): %v", err)
 	}
 	itr := NewIteratorWithNDB(imm, nil, nil, true, tree)
+	imm.Close() // GetImmutable also registers a reader; release so only the iterator blocks
 
 	if err := tree.DeleteVersionsTo(1); err == nil {
 		t.Fatalf("DeleteVersionsTo(1) should fail with an open NDB iterator on v1")
@@ -350,6 +353,7 @@ func TestPrune_IncrementalPreservesAll(t *testing.T) {
 				t.Fatalf("after prune v%d, GetImmutable(%d): %v", pruneV, checkV, err)
 			}
 			h := imm.Hash()
+			imm.Close() // release the reader so the next iteration's prune isn't blocked
 			if !bytes.Equal(h, hashes[checkV]) {
 				t.Fatalf("after prune v%d, v%d hash changed", pruneV, checkV)
 			}
@@ -689,7 +693,7 @@ func TestSaveVersion_IdempotentClearsVersionOrphans(t *testing.T) {
 	if _, _, err := tree.SaveVersion(); err != nil { // v1 = {k:old}
 		t.Fatal(err)
 	}
-	tree.Set([]byte("k"), []byte("new")) // overwrite
+	tree.Set([]byte("k"), []byte("new"))                         // overwrite
 	if _, v2, err := tree.SaveVersion(); err != nil || v2 != 2 { // v2 = {k:new}
 		t.Fatalf("save v2: err=%v v=%d", err, v2)
 	}

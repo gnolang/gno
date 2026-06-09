@@ -72,16 +72,15 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 	if !st.VersionExists(version) {
 		return nil, bp.ErrVersionDoesNotExist
 	}
-	iTree, err := st.tree.GetImmutableTree(version)
+	// Long-lived snapshot (the returned *Store has no Close hook), so load it
+	// UNREGISTERED — registering would pin `version` against pruning forever.
+	// Committed → DB-only resolution (never the writer's pendingVals buffer), so
+	// concurrent reads here cannot race a concurrent SaveVersion.
+	iTree, err := st.mtree.GetImmutableUnregistered(version)
 	if err != nil {
 		return nil, err
 	}
-	// Wire up value resolver so ImmutableTree.Get returns actual values.
-	// Committed snapshot → DB-only resolution (never the writer's pendingVals
-	// buffer), so concurrent reads here cannot race a concurrent SaveVersion.
-	if st.mtree != nil {
-		iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
-	}
+	iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
 	opts := st.opts
 	opts.Immutable = true
 	return &Store{
@@ -131,7 +130,9 @@ func (st *Store) LoadLatestVersion() error {
 		return err
 	}
 	if st.opts.Immutable {
-		iTree, err := st.mtree.GetImmutable(latestV)
+		// Long-lived immutable store view, never Closed → load UNREGISTERED so
+		// it doesn't pin this version against pruning forever.
+		iTree, err := st.mtree.GetImmutableUnregistered(latestV)
 		if err != nil {
 			return err
 		}
@@ -150,7 +151,9 @@ func (st *Store) LoadVersion(ver int64) error {
 		if _, err := st.mtree.Load(); err != nil {
 			return err
 		}
-		iTree, err := st.mtree.GetImmutable(ver)
+		// Long-lived immutable store view, never Closed → load UNREGISTERED so
+		// it doesn't pin this version against pruning forever.
+		iTree, err := st.mtree.GetImmutableUnregistered(ver)
 		if err != nil {
 			return err
 		}
@@ -308,17 +311,16 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 			break
 		}
 
-		// Generate ICS23 proof for the specific version
-		iTree, err := tree.GetImmutableTree(res.Height)
+		// Generate ICS23 proof against a FRESH registered snapshot we own — NOT
+		// tree.GetImmutableTree, which for an immutable store returns the shared
+		// long-lived tree that must not be Closed. The registration blocks a
+		// concurrent prune of res.Height until we Close; resolve values DB-only.
+		iTree, err := st.mtree.GetImmutable(res.Height)
 		if err != nil {
 			panic(fmt.Sprintf("version exists but could not retrieve tree: %v", err))
 		}
-		// Wire value resolver for proof generation. Committed snapshot →
-		// DB-only resolution (never the writer's pendingVals buffer), so a
-		// concurrent SaveVersion cannot race this proof's value reads.
-		if st.mtree != nil {
-			iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
-		}
+		defer iTree.Close()
+		iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
 
 		var proof *ics23.CommitmentProof
 		if value != nil {

@@ -213,6 +213,7 @@ func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, er
 	if err != nil {
 		return nil, err
 	}
+	defer imm.Close()
 	return imm.GetMembershipProof(key)
 }
 
@@ -225,6 +226,7 @@ func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof,
 	if err != nil {
 		return nil, err
 	}
+	defer imm.Close()
 	return imm.GetNonMembershipProof(key)
 }
 
@@ -238,8 +240,16 @@ func (t *MutableTree) immutableForProof() (*ImmutableTree, error) {
 	if t.lastSaved == nil && t.version == 0 {
 		return nil, ErrNoCommittedState
 	}
+	// Register as a reader so a concurrent PruneVersionsTo(t.version) can't
+	// delete nodes the proof will traverse (lastSaved's children reload from the
+	// DB after clear-on-save). The caller MUST Close the returned snapshot.
+	if t.version > 0 {
+		t.ndb.incrVersionReaders(t.version)
+	}
 	// lastSaved is the last COMMITTED root (set after Commit), so its values are
 	// durable in the DB. Resolve DB-only (committed=true) so a proof generated
 	// concurrently with a later Set cannot race that Set's pendingVals write.
-	return t.newImmutable(t.lastSaved, t.version, true), nil
+	imm := t.newImmutable(t.lastSaved, t.version, true)
+	imm.registered = t.version > 0
+	return imm, nil
 }

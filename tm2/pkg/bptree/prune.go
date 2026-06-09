@@ -13,12 +13,13 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		return fmt.Errorf("cannot prune latest version %d", latest)
 	}
 
-	// Check for active readers
-	for v := first; v <= toVersion; v++ {
-		if t.ndb.hasVersionReaders(v) {
-			return fmt.Errorf("%w: version %d", ErrActiveReaders, v)
-		}
+	// Claim the prune lock and verify no version in [first, toVersion] has an
+	// active reader. beginPruning holds pruneMu for the whole prune so no new
+	// reader can register a to-be-deleted version (H3); endPruning releases it.
+	if err := t.ndb.beginPruning(first, toVersion); err != nil {
+		return err
 	}
+	defer t.ndb.endPruning()
 
 	// Flush cap in bytes. Commit whenever the pending batch grows past this
 	// bound so PruneVersionsTo's working memory is O(flushThreshold) rather
@@ -289,4 +290,3 @@ func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
 		node = child
 	}
 }
-

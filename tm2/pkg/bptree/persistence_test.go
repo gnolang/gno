@@ -548,6 +548,7 @@ func TestPersistence_VersionReaders_BlockPruning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
+	imm.Close() // GetImmutable also registers a reader; release so only the exporter blocks
 
 	// Try to delete version 1 — should fail with active reader
 	err = tree.DeleteVersionsTo(1)

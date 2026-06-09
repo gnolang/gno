@@ -169,6 +169,7 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 
 	exporter, err := imm.Export(tree.ndb)
 	require.NoError(t, err)
+	imm.Close() // GetImmutable also registers a reader; release so only the exporter blocks
 
 	// Attempting to delete version 1 while exporter is open should fail
 	err = tree.DeleteVersionsTo(1)

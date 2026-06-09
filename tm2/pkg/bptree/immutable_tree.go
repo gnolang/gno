@@ -1,5 +1,7 @@
 package bptree
 
+import "sync"
+
 // ValueResolver resolves a valueKey to the raw value bytes.
 type ValueResolver func(vk []byte) ([]byte, error)
 
@@ -15,11 +17,28 @@ type ImmutableTree struct {
 	version       int64
 	valueResolver ValueResolver // resolves valueKeys to raw values
 	ndb           *nodeDB       // set when the snapshot is backed by a DB
+	registered    bool          // true if this snapshot incremented versionReaders; Close must decrement
+	closeOnce     sync.Once     // guards decr so double/concurrent Close can't over-decrement
 }
 
 // NewImmutableTree creates an ImmutableTree from a root node and version.
 func NewImmutableTree(root Node, version int64) *ImmutableTree {
 	return &ImmutableTree{root: root, version: version}
+}
+
+// Close releases this snapshot's version-reader reservation, if it holds one,
+// allowing a prune of its version to proceed. It is idempotent (sync.Once) so
+// double or concurrent Close cannot over-decrement. A snapshot from GetImmutable
+// or proof generation is registered and MUST be Closed; unregistered snapshots
+// (Snapshot, GetImmutableUnregistered) make Close a no-op.
+func (t *ImmutableTree) Close() error {
+	t.closeOnce.Do(func() {
+		if t.registered && t.ndb != nil && t.version > 0 {
+			t.ndb.decrVersionReaders(t.version)
+		}
+		t.ndb = nil
+	})
+	return nil
 }
 
 // SetValueResolver sets the function used to resolve valueKeys to raw values.

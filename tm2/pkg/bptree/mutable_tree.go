@@ -431,21 +431,56 @@ func (t *MutableTree) newImmutable(root Node, version int64, committed bool) *Im
 	return imm
 }
 
-// GetImmutable returns an ImmutableTree for the given version.
+// GetImmutable returns a committed read-only snapshot at version, REGISTERED as
+// a version reader: a concurrent PruneVersionsTo(version) is blocked until the
+// snapshot is Closed. Callers MUST Close it (else that version can never prune).
 func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
+	return t.getImmutable(version, true)
+}
+
+// GetImmutableUnregistered returns a committed read-only snapshot WITHOUT
+// registering as a version reader. For long-lived snapshots that have no Close
+// hook (e.g. the store's immutable LoadVersion view) — registering them would
+// pin the version against pruning forever. Such a snapshot is not protected
+// against a concurrent prune of its version (acceptable: prune and queries are
+// serialized by the ABCI mutex today).
+func (t *MutableTree) GetImmutableUnregistered(version int64) (*ImmutableTree, error) {
+	return t.getImmutable(version, false)
+}
+
+// getImmutable builds a committed snapshot at version. When register (and
+// version > 0) it increments the version-reader count BEFORE loading the root —
+// closing the reader-side check-vs-delete TOCTOU — and marks the snapshot so
+// Close decrements it; the count is decremented on every error path.
+func (t *MutableTree) getImmutable(version int64, register bool) (*ImmutableTree, error) {
+	reg := register && version > 0
+	if reg {
+		t.ndb.incrVersionReaders(version)
+	}
 	nkBytes, _, err := t.ndb.GetRoot(version)
 	if err != nil {
+		if reg {
+			t.ndb.decrVersionReaders(version)
+		}
 		return nil, err
 	}
 	if nkBytes == nil {
-		return NewImmutableTree(nil, version), nil
+		// Empty saved version: hold the reservation (if any) until Close.
+		imm := NewImmutableTree(nil, version)
+		imm.ndb = t.ndb
+		imm.registered = reg
+		return imm, nil
 	}
-
 	root, err := t.loadNode(nkBytes)
 	if err != nil {
+		if reg {
+			t.ndb.decrVersionReaders(version)
+		}
 		return nil, err
 	}
-	return t.newImmutable(root, version, true), nil
+	imm := t.newImmutable(root, version, true)
+	imm.registered = reg
+	return imm, nil
 }
 
 // GetVersioned returns the value for a key at a specific version.
@@ -454,6 +489,7 @@ func (t *MutableTree) GetVersioned(key []byte, version int64) ([]byte, error) {
 	if err != nil {
 		return nil, nil // match IAVL behavior: silent nil for missing version
 	}
+	defer imm.Close()
 	return imm.Get(key)
 }
 

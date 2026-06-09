@@ -31,6 +31,7 @@ type nodeDB struct {
 	pendingVals map[string][]byte
 
 	mtx            sync.Mutex
+	pruneMu        sync.RWMutex // serializes prune vs version-reader registration (H3)
 	latestVersion  int64
 	firstVersion   int64
 	versionReaders map[int64]uint32
@@ -436,9 +437,41 @@ func (ndb *nodeDB) discoverVersions() error {
 // --- Version readers ---
 
 func (ndb *nodeDB) incrVersionReaders(version int64) {
+	// Take pruneMu (shared) FIRST: registrations block while a prune holds it
+	// exclusively, closing the check-vs-register TOCTOU. A reader that races an
+	// in-flight prune waits here until the prune finishes, by which point the
+	// version is gone and the caller's GetRoot/GetNode fails naturally.
+	// Concurrent registrations don't block each other.
+	ndb.pruneMu.RLock()
+	defer ndb.pruneMu.RUnlock()
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	ndb.versionReaders[version]++
+}
+
+// beginPruning checks that no version in [first, to] has active readers and, if
+// clear, holds the exclusive pruneMu for the duration of the prune so no new
+// reader can register a to-be-deleted version. Callers MUST call endPruning to
+// release it (typically `defer`). mtx is released before returning; only pruneMu
+// is held across the prune (the prune body itself takes mtx via
+// getFirstVersion/setFirstVersion, so holding mtx here would self-deadlock).
+func (ndb *nodeDB) beginPruning(first, to int64) error {
+	ndb.pruneMu.Lock()
+	ndb.mtx.Lock()
+	for v := first; v <= to; v++ {
+		if ndb.versionReaders[v] > 0 {
+			ndb.mtx.Unlock()
+			ndb.pruneMu.Unlock()
+			return fmt.Errorf("%w: version %d", ErrActiveReaders, v)
+		}
+	}
+	ndb.mtx.Unlock()
+	return nil
+}
+
+// endPruning releases the exclusive pruneMu acquired by beginPruning.
+func (ndb *nodeDB) endPruning() {
+	ndb.pruneMu.Unlock()
 }
 
 func (ndb *nodeDB) decrVersionReaders(version int64) {
@@ -450,12 +483,6 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 			delete(ndb.versionReaders, version)
 		}
 	}
-}
-
-func (ndb *nodeDB) hasVersionReaders(version int64) bool {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	return ndb.versionReaders[version] > 0
 }
 
 // --- Commit coordination ---
