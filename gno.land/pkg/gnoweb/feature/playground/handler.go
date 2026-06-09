@@ -41,7 +41,9 @@ func Render(path string) string {
 `
 )
 
-func (h *Handler) GetPlaygroundView(u *weburl.GnoURL) (int, *components.View) {
+func (h *Handler) GetPlaygroundView(u *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	indexData.HeadData.Title = "Playground — " + h.deps.Domain
+
 	// If available, read initial source code from a query argument
 	initial := u.Query.Get("code")
 	if initial != "" {

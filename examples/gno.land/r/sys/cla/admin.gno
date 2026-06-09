@@ -13,7 +13,7 @@ const RequiredHashChangedEvent = "CLARequiredHashChanged"
 // ProposeNewCLA creates a govdao proposal to update the CLA document hash and URL.
 // When executed, it resets all existing signatures.
 // Propose an empty hash to disable CLA enforcement.
-func ProposeNewCLA(newHash, newURL string) dao.ProposalRequest {
+func ProposeNewCLA(cur realm, newHash, newURL string) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		setRequiredHash(newHash)
 		claURL = newURL
@@ -40,7 +40,7 @@ func ProposeNewCLA(newHash, newURL string) dao.ProposalRequest {
 	return dao.NewProposalRequest(
 		"Update CLA requirement",
 		desc,
-		dao.NewSimpleExecutor(cb, helplink.Realm("gno.land/r/sys/cla").Home()),
+		dao.NewSimpleExecutor(0, cur, cb, helplink.Realm("gno.land/r/sys/cla").Home()),
 	)
 }
 

@@ -12,6 +12,7 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
+	"math/big"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -851,6 +852,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		return "", err
 	}
 	cx := xn.(*gno.CallExpr)
+	// Replace the synthesized first argument at Args[0] with the
+	// compiler-internal `.origin` sentinel. At preprocess this lowers to
+	// the with-cross AST shape (Args[0]=nil, WithCross=true); at runtime
+	// installCrossingCur routes through buildOriginRealm to mint an
+	// EOA-origin cur. The dot-prefix `.origin` is unparseable from user
+	// .gno source (same property as `.cur`), so it can only be introduced
+	// here, by the chain-root MsgCall keeper synthesis.
+	cx.Args[0] = gno.Nx(".origin")
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1
@@ -1109,7 +1118,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer m2.Release()
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
-	m2.RunMain()
+	m2.RunMainMaybeCrossing()
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
@@ -1361,6 +1370,12 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	if err != nil {
 		return err
 	}
+	// If the parsed expression is a call to a crossing function in this
+	// package (e.g., `Render(cur realm, ...)` or any `Get*(cur realm, ...)`
+	// getter), prepend `.cur` as the first argument. Same opt-in pattern
+	// as init(cur realm) / main(cur realm): realms that don't declare a
+	// crossing form are unaffected.
+	m.MaybeInjectCurForEval(xx)
 	fn(m, m.Eval(xx))
 	return nil
 }
@@ -1578,7 +1593,22 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					"not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
 					rlmPath, rlm.Storage, released))
 			}
-			depositUnlocked := overflow.Mulp(released, price.Amount)
+			// Proportional refund based on actual deposit ratio, not current price.
+			// This ensures price governance changes don't lock or orphan deposits.
+			var depositUnlocked int64
+			if rlm.Storage == uint64(released) {
+				// Freeing all storage, refund entire deposit (avoids rounding loss)
+				depositUnlocked = int64(rlm.Deposit)
+			} else {
+				// Partial free: deposit * released / storage
+				// Integer division truncates, so small dust amounts (< 1 ugnot per operation)
+				// may accumulate in the realm's deposit over successive partial frees.
+				// This is negligible in practice relative to deposit sizes.
+				result := new(big.Int).SetUint64(rlm.Deposit)
+				result.Mul(result, big.NewInt(released))
+				result.Div(result, new(big.Int).SetUint64(rlm.Storage))
+				depositUnlocked = result.Int64()
+			}
 			if rlm.Deposit < uint64(depositUnlocked) {
 				panic(fmt.Sprintf(
 					"not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",

@@ -245,11 +245,12 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 	t.Parallel()
 
 	h := New(validDeps())
+	indexData := &components.IndexData{}
 
 	t.Run("default when no code", func(t *testing.T) {
 		t.Parallel()
 
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: url.Values{}})
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: url.Values{}}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, defaultCode, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -259,7 +260,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main // hello"
 		q := url.Values{"code": {base64.StdEncoding.EncodeToString([]byte(code))}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -269,7 +270,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main\n\nfunc Render(path string) string { return \"hi\" }\n"
 		q := url.Values{"code": {deflateBase64(t, []byte(code))}, "z": {""}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -280,7 +281,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		// ~8 MiB of zeros compresses to a few KB; well over the 1 MiB ceiling.
 		bomb := deflateBase64(t, bytes.Repeat([]byte{0}, 8<<20))
 		q := url.Values{"code": {bomb}, "z": {""}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q})
+		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 
 		// The over-limit payload must not be adopted as InitialCode,

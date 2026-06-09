@@ -107,6 +107,10 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if !strings.Contains(csp, "https://assets.gnoteam.com") {
 		t.Errorf("Expected Content-Security-Policy to contain 'https://assets.gnoteam.com', got '%s'", csp)
 	}
+	// The search dropdown fetches the same-origin /search.json, so connect-src must allow 'self'.
+	if !strings.Contains(csp, "connect-src 'self'") {
+		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self', got '%s'", csp)
+	}
 	if res.Header.Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Errorf("Expected Strict-Transport-Security 'max-age=31536000', got '%s'", res.Header.Get("Strict-Transport-Security"))
 	}
