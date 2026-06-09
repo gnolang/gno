@@ -44,7 +44,6 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -135,55 +134,50 @@ func Run(fn, input, arg, arg2 string) string {
 }
 `
 
-// Base stores are initialized once and shared across cases via per-case
-// CacheWrap + BeginTransaction layering (same pattern filetests use to
-// keep cases isolated from each other's package writes).
+// The driver package (which imports sanitize/v0 and its stdlib chain) is
+// preprocessed exactly once and reused across every case. Preprocessing the
+// import chain dominates runtime — re-running it per case made this the
+// slowest package in the gno.land CI job — and the sanitize helpers are pure
+// string→string functions with no mutable package state, so a single shared
+// Machine is safe. Subtests here run sequentially (none call t.Parallel).
 var (
-	baseStoreOnce sync.Once
-	baseCommit    storetypes.CommitStore
-	baseGno       gno.Store
+	driverOnce    sync.Once
+	driverMachine *gno.Machine
 )
 
-func sanitizeBaseStores(t *testing.T) (storetypes.CommitStore, gno.Store) {
+func sanitizeDriverMachine(t *testing.T) *gno.Machine {
 	t.Helper()
-	baseStoreOnce.Do(func() {
-		baseCommit, baseGno = test.TestStore(gnoenv.RootDir(), io.Discard, nil)
+	driverOnce.Do(func() {
+		commit, gnoBase := test.TestStore(gnoenv.RootDir(), io.Discard, nil)
+		tcw := commit.CacheWrap()
+		tx := gnoBase.BeginTransaction(tcw, tcw, nil, nil)
+		m := gno.NewMachineWithOptions(gno.MachineOptions{
+			Store:         tx,
+			Context:       test.Context("", driverPkgPath, nil),
+			Output:        io.Discard,
+			MaxAllocBytes: math.MaxInt64,
+		})
+		mpkg := &std.MemPackage{
+			Type: gno.MPUserProd,
+			Name: "sanitize_test_driver",
+			Path: driverPkgPath,
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(driverPkgPath)},
+				{Name: "driver.gno", Body: driverSrc},
+			},
+		}
+		_, pv := m.RunMemPackage(mpkg, true)
+		m.SetActivePackage(pv)
+		driverMachine = m
 	})
-	return baseCommit, baseGno
+	return driverMachine
 }
 
-// callSanitizeGno spawns a fresh Machine for one case, loads the driver
-// package into it (which itself imports sanitize/v0), and Evals
-// `Run(fn, input, arg)`. The Machine is released before return.
-//
-// Per-case isolation: wrap the base commit store, build a fresh
-// transactional gno store on top of that wrap, and never commit. This
-// matches the filetest pattern and prevents one case's package
-// registrations from leaking into the next.
+// callSanitizeGno Evals `Run(fn, input, arg, arg2)` against the shared driver
+// Machine and returns the string result.
 func callSanitizeGno(t *testing.T, fn, input, arg, arg2 string) string {
 	t.Helper()
-	commit, gnoBase := sanitizeBaseStores(t)
-	tcw := commit.CacheWrap()
-	tx := gnoBase.BeginTransaction(tcw, tcw, nil, nil)
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Store:         tx,
-		Context:       test.Context("", driverPkgPath, nil),
-		Output:        io.Discard,
-		MaxAllocBytes: math.MaxInt64,
-	})
-	defer m.Release()
-
-	mpkg := &std.MemPackage{
-		Type: gno.MPUserProd,
-		Name: "sanitize_test_driver",
-		Path: driverPkgPath,
-		Files: []*std.MemFile{
-			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(driverPkgPath)},
-			{Name: "driver.gno", Body: driverSrc},
-		},
-	}
-	_, pv := m.RunMemPackage(mpkg, true)
-	m.SetActivePackage(pv)
+	m := sanitizeDriverMachine(t)
 
 	// Build the call AST directly. gno.X parses a Go-shaped string with
 	// chopBinary heuristics that misfire on quoted string literals, so
