@@ -16,9 +16,6 @@ on:
         required: false
         type: string
         default: ""
-    secrets:
-      codecov-token:
-        required: true
 
 permissions: {}
 
@@ -108,15 +105,3 @@ jobs:
           go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
           go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
-
-          go tool covdata textfmt -v 1 "$filter" -i="$GOCOVERDIR,$TXTARCOVERDIR" -o gocoverage.out
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
-        with:
-          disable_search: true
-          fail_ci_if_error: true
-          files: ${{ inputs.modulepath }}/gocoverage.out
-          flags: ${{ inputs.modulepath }}
-          token: ${{ secrets.codecov-token }} # zizmor: ignore[secrets-outside-env]
-          verbose: true

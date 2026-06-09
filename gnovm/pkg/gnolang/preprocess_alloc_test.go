@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"testing"
 
@@ -319,12 +320,12 @@ func TestPreprocessAlloc_DoublingConcatBlowsUpFromTinySource(t *testing.T) {
 		"expected no-GC marker (preprocess hard-cap), got: %v", val)
 }
 
-// TestPreprocessAlloc_NotSetMeansSubMachineAllocNil verifies that when
-// a Store has no preprocessAlloc installed, the sub-Machine fallback
-// resolves to a nil Allocator (the historical default) — i.e. the
-// new code does not regress non-keeper paths (filetests, REPL, etc.)
-// that never call SetPreprocessAllocator.
-func TestPreprocessAlloc_NotSetMeansSubMachineAllocNil(t *testing.T) {
+// TestPreprocessAlloc_NotSetMeansSubMachineHasFallbackAlloc verifies
+// that when a Store has no preprocessAlloc installed AND no Alloc
+// option is supplied, the sub-Machine falls back to a non-nil
+// MaxInt64-budget Allocator (interrealm v2: Machine.Alloc must be
+// non-nil so PkgID stamping always fires).
+func TestPreprocessAlloc_NotSetMeansSubMachineHasFallbackAlloc(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	st := NewStore(nil, tm2, tm2)
@@ -332,12 +333,14 @@ func TestPreprocessAlloc_NotSetMeansSubMachineAllocNil(t *testing.T) {
 		"freshly constructed store has no preprocessAlloc")
 
 	// Sub-Machine via NewMachine(pkg, store) with no opts.Alloc and
-	// no store preprocessAlloc → opts.MaxAllocBytes is 0 →
-	// NewAllocator(0) returns nil.
+	// no store preprocessAlloc → falls back to NewAllocator(math.MaxInt64).
 	sub := NewMachine("test", st)
 	defer sub.Release()
-	assert.Nil(t, sub.Alloc,
-		"sub-Machine should have nil Alloc when neither opt nor store provides one")
+	require.NotNil(t, sub.Alloc,
+		"sub-Machine Alloc must be non-nil (interrealm v2: mandatory for stamping)")
+	maxBytes, _ := sub.Alloc.Status()
+	require.Equal(t, int64(math.MaxInt64), maxBytes,
+		"fallback Alloc should have MaxInt64 budget (no enforcement)")
 }
 
 // TestPreprocessAlloc_BeginTransactionPropagates verifies the per-tx

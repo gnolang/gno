@@ -17,6 +17,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
+type countingPrivValidator struct {
+	types.PrivValidator
+	signVoteCalls int
+}
+
+func (pv *countingPrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	pv.signVoteCalls++
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
 /*
 
 ProposeSuite
@@ -205,6 +215,82 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 
 	// if we're a validator, enterPropose should not timeout
 	ensureNoNewTimeout(timeoutCh, cs.config.TimeoutPropose.Nanoseconds())
+}
+
+func TestStateSignAddVoteReusesExistingSelfVote(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	wrapped := &countingPrivValidator{PrivValidator: cs.privValidator}
+	cs.SetPrivValidator(wrapped)
+
+	height, round := cs.Height, cs.Round
+	address := wrapped.PubKey().Address()
+	valIndex, _ := cs.Validators.GetByAddress(address)
+	blockID := types.BlockID{
+		Hash:        []byte("existing-self-prevote"),
+		PartsHeader: types.PartSetHeader{Total: 1, Hash: []byte("parts")},
+	}
+	vote := &types.Vote{
+		ValidatorAddress: address,
+		ValidatorIndex:   valIndex,
+		Height:           height,
+		Round:            round,
+		Timestamp:        time.Now(),
+		Type:             types.PrevoteType,
+		BlockID:          blockID,
+	}
+	require.NoError(t, wrapped.SignVote(config.ChainID(), vote))
+	wrapped.signVoteCalls = 0
+
+	added, err := cs.Votes.AddVote(vote, "peer")
+	require.True(t, added)
+	require.NoError(t, err)
+
+	cs.signAddVote(types.PrevoteType, blockID.Hash, blockID.PartsHeader)
+
+	assert.Zero(t, wrapped.signVoteCalls)
+	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
+}
+
+func TestStateSignAddVoteRefusesConflictingSelfVote(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	wrapped := &countingPrivValidator{PrivValidator: cs.privValidator}
+	cs.SetPrivValidator(wrapped)
+
+	height, round := cs.Height, cs.Round
+	address := wrapped.PubKey().Address()
+	valIndex, _ := cs.Validators.GetByAddress(address)
+	existingBlockID := types.BlockID{
+		Hash:        []byte("existing-self-prevote"),
+		PartsHeader: types.PartSetHeader{Total: 1, Hash: []byte("parts-a")},
+	}
+	vote := &types.Vote{
+		ValidatorAddress: address,
+		ValidatorIndex:   valIndex,
+		Height:           height,
+		Round:            round,
+		Timestamp:        time.Now(),
+		Type:             types.PrevoteType,
+		BlockID:          existingBlockID,
+	}
+	require.NoError(t, wrapped.SignVote(config.ChainID(), vote))
+	wrapped.signVoteCalls = 0
+
+	added, err := cs.Votes.AddVote(vote, "peer")
+	require.True(t, added)
+	require.NoError(t, err)
+
+	cs.signAddVote(
+		types.PrevoteType,
+		[]byte("new-self-prevote"),
+		types.PartSetHeader{Total: 1, Hash: []byte("parts-b")},
+	)
+
+	assert.Zero(t, wrapped.signVoteCalls)
+	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
 }
 
 func TestStateBadProposal(t *testing.T) {
@@ -1802,6 +1888,112 @@ func TestStateOutputVoteStats(t *testing.T) {
 		t.Errorf("Should not output stats message after receiving the known vote or vote from bigger height")
 	case <-time.After(50 * time.Millisecond):
 	}
+}
+
+// mockEvidencePool records calls to ReportConflictingVotes for test assertions.
+type mockEvidencePool struct {
+	callCount int
+	lastVoteA *types.Vote
+	lastVoteB *types.Vote
+}
+
+func (m *mockEvidencePool) ReportConflictingVotes(voteA, voteB *types.Vote) {
+	m.callCount++
+	m.lastVoteA = voteA
+	m.lastVoteB = voteB
+}
+
+// TestConflictingVotesFromPeer verifies that receiving two conflicting votes
+// (double-signing) from another validator is handled gracefully: the vote set
+// retains the original vote and the conflicting one is reported to the evidence pool.
+func TestConflictingVotesFromPeer(t *testing.T) {
+	t.Parallel()
+
+	cs, vss := randConsensusState(2)
+
+	// Inject a mock evidence pool to assert it gets called.
+	evpool := &mockEvidencePool{}
+	cs.evpool = evpool
+
+	peerAddr := vss[1].PubKey().Address()
+	peer := p2pmock.Peer{}
+
+	// First vote from vss[1]: prevote for block hash "blockA".
+	voteA := signVote(vss[1], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteA}, peer.ID()})
+
+	// The vote set should contain voteA.
+	prevotes := cs.Votes.Prevotes(0)
+	stored := prevotes.GetByAddress(peerAddr)
+	require.NotNil(t, stored, "first vote should be present in the vote set")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should match the first vote's block hash")
+
+	// Second vote from the same validator for a different block hash.
+	// This constitutes double-signing.
+	voteB := signVote(vss[1], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
+
+	// The vote set should still hold the original vote, not the conflicting one.
+	stored = prevotes.GetByAddress(peerAddr)
+	require.NotNil(t, stored, "vote should still be present after conflicting vote")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should still be the original, not the conflicting one")
+
+	// The evidence pool should have been called with the conflicting votes.
+	require.Equal(t, 1, evpool.callCount, "ReportConflictingVotes should have been called once")
+	assert.Equal(t, voteA.BlockID.Hash, evpool.lastVoteA.BlockID.Hash,
+		"evidence pool should have received the original vote as voteA")
+	assert.Equal(t, voteB.BlockID.Hash, evpool.lastVoteB.BlockID.Hash,
+		"evidence pool should have received the conflicting vote as voteB")
+}
+
+// TestConflictingVotesFromOurselves verifies that receiving two conflicting
+// votes from the node's own validator (e.g. after an unsafe_reset) is handled
+// gracefully: the vote set retains the original vote and the evidence pool is NOT called.
+func TestConflictingVotesFromOurselves(t *testing.T) {
+	t.Parallel()
+
+	cs, vss := randConsensusState(2)
+
+	// Inject a mock evidence pool to assert it does NOT get called.
+	evpool := &mockEvidencePool{}
+	cs.evpool = evpool
+
+	peer := p2pmock.Peer{}
+
+	// vss[0] is the same validator as cs.privValidator (our own node).
+	// Set its height to 1 to match the consensus state's initial height.
+	vss[0].Height = 1
+	ownAddr := vss[0].PubKey().Address()
+
+	// Verify this is indeed our own validator address.
+	require.Equal(t, cs.privValidator.PubKey().Address(), ownAddr,
+		"vss[0] should share the same address as cs.privValidator")
+
+	// First vote from our own validator: prevote for block hash "blockA".
+	voteA := signVote(vss[0], types.PrevoteType, []byte("blockA"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteA}, peer.ID()})
+
+	// The vote set should contain voteA.
+	prevotes := cs.Votes.Prevotes(0)
+	stored := prevotes.GetByAddress(ownAddr)
+	require.NotNil(t, stored, "first vote should be present in the vote set")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should match the first vote's block hash")
+
+	// Second conflicting vote from our own validator for a different block hash.
+	voteB := signVote(vss[0], types.PrevoteType, []byte("blockB"), types.PartSetHeader{})
+	cs.handleMsg(msgInfo{&VoteMessage{voteB}, peer.ID()})
+
+	// The vote set should still hold the original vote, not the conflicting one.
+	stored = prevotes.GetByAddress(ownAddr)
+	require.NotNil(t, stored, "vote should still be present after conflicting self-vote")
+	assert.Equal(t, voteA.BlockID.Hash, stored.BlockID.Hash,
+		"stored vote should still be the original, not the conflicting one")
+
+	// The evidence pool should NOT have been called for self-conflicting votes.
+	require.Equal(t, 0, evpool.callCount, "ReportConflictingVotes should NOT have been called for our own votes")
 }
 
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
