@@ -2,8 +2,9 @@ package gnolang
 
 import "testing"
 
-// TestDoOpAssign_DuplicateNameLHS_LeftToRight: NameExpr LHS aliasing the
-// same block slot. Covers the forward-Assign2 half of the fix: rvs[n-1] wins.
+// TestDoOpAssign_DuplicateNameLHS_LeftToRight: `a, a, …, a = 1, 2, …, n` —
+// NameExpr LHS all aliasing the same block slot. Covers the forward-Assign2
+// half of the fix: the rightmost RHS (rvs[n-1] == n) wins.
 // (NameExpr's PopAsPointer consumes no value-stack sub-evals, so this case
 // does not exercise per-LHS operand-frame addressing — that's what
 // TestDoOpAssign_DistinctIndexLHS_InPlaceFrames covers.)
@@ -31,12 +32,12 @@ func TestDoOpAssign_DuplicateNameLHS_LeftToRight(t *testing.T) {
 	}
 }
 
-// TestDoOpAssign_DistinctIndexLHS_InPlaceFrames: IndexExpr LHS with distinct
-// indices on the same slice. doOpAssign resolves each LHS forward (left to
-// right) from its own operand frame, read in place from the value-stack window.
-// If the per-LHS offset arithmetic were wrong (e.g. frames addressed in the
-// wrong order), lvs[0] would resolve to slice[1] and vice versa, swapping the
-// final element values.
+// TestDoOpAssign_DistinctIndexLHS_InPlaceFrames: `s[0], s[1] = 10, 20` —
+// IndexExpr LHS with distinct indices on the same slice. doOpAssign resolves
+// each LHS forward (left to right) from its own operand frame, read in place
+// from the value-stack window. If the per-LHS offset arithmetic were wrong
+// (e.g. frames addressed in the wrong order), lvs[0] would resolve to slice[1]
+// and vice versa, swapping the final element values.
 func TestDoOpAssign_DistinctIndexLHS_InPlaceFrames(t *testing.T) {
 	m := benchMachine()
 	defer m.Release()

@@ -2,10 +2,11 @@ package gnolang
 
 import "testing"
 
-// benchAssignNameN benchmarks the NameExpr LHS path. Operand frames are empty
-// here (NameExpr pushes nothing for PushForPointer), so this isolates the
-// multi-LHS bookkeeping overhead — the numStackValuesForPointer passes, the
-// PopValues window, and the resolve+assign loop — with no per-LHS operand work.
+// benchAssignNameN benchmarks the NameExpr LHS path (`a, a, …, a = 1, 2, …, n`).
+// Operand frames are empty here (NameExpr pushes nothing for PushForPointer), so
+// this isolates the multi-LHS bookkeeping overhead — the numStackValuesForPointer
+// passes, the PopValues window, and the resolve+assign loop — with no per-LHS
+// operand work.
 func benchAssignNameN(b *testing.B, n int) {
 	m := benchMachine()
 	defer m.Release()
@@ -38,9 +39,10 @@ func BenchmarkDoOpAssign_Name_N2(b *testing.B) { benchAssignNameN(b, 2) }
 func BenchmarkDoOpAssign_Name_N3(b *testing.B) { benchAssignNameN(b, 3) }
 func BenchmarkDoOpAssign_Name_N5(b *testing.B) { benchAssignNameN(b, 5) }
 
-// benchAssignIndexN benchmarks the IndexExpr LHS path — the heaviest multi-LHS
-// case, since each LHS contributes 2 operand-frame values (X and Index) that
-// resolvePointer reads in place from the PopValues window.
+// benchAssignIndexN benchmarks the IndexExpr LHS path (`s[0], s[1], … = 10, 11, …`)
+// — the heaviest multi-LHS case, since each LHS contributes 2 operand-frame
+// values (X and Index) that resolvePointer reads in place from the PopValues
+// window.
 func benchAssignIndexN(b *testing.B, n int) {
 	m := benchMachine()
 	defer m.Release()
