@@ -62,5 +62,3 @@ jobs:
     with:
       modulepath: contribs/${{ matrix.program }}
       go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
