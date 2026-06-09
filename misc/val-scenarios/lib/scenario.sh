@@ -412,7 +412,9 @@ run_gnogenesis() {
   if [ "$RUNTIME" = "local" ]; then
     "$GNOGENESIS_BIN" "$@"
   else
-    docker run --rm --entrypoint /usr/bin/gnogenesis \
+    # -i keeps stdin open so piped input reaches the container, e.g. the empty
+    # password fed to `txs add packages --insecure-password-stdin`.
+    docker run -i --rm --entrypoint /usr/bin/gnogenesis \
       -v "${SCENARIO_DIR}:/work" -v "${GNO_ROOT}:/gnoroot:ro" \
       "${binds[@]}" "$GNOGENESIS_IMAGE" "$@"
   fi
