@@ -40,7 +40,7 @@ out_dir_js := $(PUBLIC_DIR)/js
 # Pick up both legacy controllers under frontend/js/ and per-feature
 # controllers under feature/<name>/frontend/. All compile to
 # $(out_dir_js)/<basename>.js (flat output, no source-path mirroring).
-input_js := $(shell find $(src_dir_js) -name '*.ts') \
+input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts') \
             $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null)
 # Guard against silent overwrites: two features cannot ship the same
 # controller-X.ts basename (they would compile to the same target).
@@ -107,6 +107,12 @@ ts: $(esbuild) $(output_js)
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
 	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
+
+# sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
+# parsing until executed and guarantees window.sa_metadata is set before SA's
+# async latest.js loads. It must be an IIFE, not an ES module.
+$(out_dir_js)/sa-bootstrap.js: $(src_dir_js)/sa-bootstrap.ts $(esbuild)
+	NODE_ENV=production $(esbuild) $< --log-level=error --outfile=$@ --format=iife --minify
 
 # Build controller files with shared chunk reference. The bare %.ts
 # prerequisite lets `vpath` resolve sources from frontend/js/ OR from

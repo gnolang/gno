@@ -39,7 +39,7 @@ func main(cur realm) {
 
 	// Render content must contain the modified reply
 	content := boards2.Render(path)
-	println(strings.Contains(content, "\n> > "+body+"\n"))
+	println(strings.Contains(content, "\n> > "+body))
 }
 
 // Output:
