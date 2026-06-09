@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"golang.org/x/sync/singleflight"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
@@ -20,6 +21,12 @@ type nodeDB struct {
 	opts  Options
 
 	nodeCache *lru.Cache[string, Node] // keyed by serialized NodeKey
+
+	// loadGroup coalesces concurrent cache-miss GetNode loads of the same
+	// NodeKey so only one goroutine deserializes and caches it, and the rest
+	// share that instance (no duplicate deserialize, single object identity).
+	// See M13.
+	loadGroup singleflight.Group
 
 	// pendingVals buffers values staged since the last Commit, keyed by
 	// string(ValueKey). Each staged value is written into the batch (flushed
@@ -131,37 +138,55 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 
 // GetNode loads a node from cache or DB.
 func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
-	// Check cache
+	key := string(nkBytes)
+
+	// Fast path: cache hit.
 	if ndb.nodeCache != nil {
-		if node, ok := ndb.nodeCache.Get(string(nkBytes)); ok {
+		if node, ok := ndb.nodeCache.Get(key); ok {
 			return node, nil
 		}
 	}
 
-	// Load from DB
-	data, err := ndb.db.Get(nodeDBKey(nkBytes))
+	// Slow path: coalesce concurrent cache-miss loads of the same NodeKey via
+	// singleflight, so only one goroutine does the DB read + deserialize + cache
+	// Add and the rest share that instance (M13).
+	v, err, _ := ndb.loadGroup.Do(key, func() (any, error) {
+		// Re-check the cache: another caller may have populated it while we
+		// waited on the singleflight.
+		if ndb.nodeCache != nil {
+			if node, ok := ndb.nodeCache.Get(key); ok {
+				return node, nil
+			}
+		}
+
+		data, err := ndb.db.Get(nodeDBKey(nkBytes))
+		if err != nil {
+			return nil, fmt.Errorf("db get node: %w", err)
+		}
+		if data == nil {
+			return nil, fmt.Errorf("node not found: %x", nkBytes)
+		}
+
+		nk := GetNodeKey(nkBytes)
+		node, err := ReadNode(nk, data)
+		if err != nil {
+			return nil, fmt.Errorf("deserializing node: %w", err)
+		}
+
+		// Set ndb on inner nodes for lazy child loading.
+		if inner, ok := node.(*InnerNode); ok {
+			inner.ndb = ndb
+		}
+
+		if ndb.nodeCache != nil {
+			ndb.nodeCache.Add(key, node)
+		}
+		return node, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("db get node: %w", err)
+		return nil, err
 	}
-	if data == nil {
-		return nil, fmt.Errorf("node not found: %x", nkBytes)
-	}
-
-	nk := GetNodeKey(nkBytes)
-	node, err := ReadNode(nk, data)
-	if err != nil {
-		return nil, fmt.Errorf("deserializing node: %w", err)
-	}
-
-	// Set ndb on inner nodes for lazy child loading
-	if inner, ok := node.(*InnerNode); ok {
-		inner.ndb = ndb
-	}
-
-	if ndb.nodeCache != nil {
-		ndb.nodeCache.Add(string(nkBytes), node)
-	}
-	return node, nil
+	return v.(Node), nil
 }
 
 // --- Value operations ---
