@@ -63,7 +63,7 @@ stderr 'negative amount not allowed'
 # the receiver is propagated through the deferred call's
 # PushFrameCall, the implicit borrow-realm switch fires, m.Realm
 # becomes callee inside Close, and the field write succeeds.
-gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4500000 -chainid=tendermint_test user1
 stdout OK!
 
 -- callee/gnomod.toml --
@@ -111,7 +111,7 @@ package granter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -122,37 +122,37 @@ import (
 // spend `amount` to the original caller, then closes via defer.
 // Supported within-call pattern.
 func GrantAndSpend(cur realm, limit int64, amount int64) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", limit)))
 	defer al.Close()
 
-	caller := runtime.PreviousRealm().Address()
-	callee.SpendTo(cross, al, caller, amount)
+	caller := unsafe.PreviousRealm().Address()
+	callee.SpendTo(cross(cur), al, caller, amount)
 }
 
 // GrantAndSpendNegative exercises the negative-amount path.
 func GrantAndSpendNegative(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 100000)))
 	defer al.Close()
 
-	caller := runtime.PreviousRealm().Address()
-	callee.SpendNegative(cross, al, caller)
+	caller := unsafe.PreviousRealm().Address()
+	callee.SpendNegative(cross(cur), al, caller)
 }
 
 // GrantAndStore demonstrates the unsupported pattern: callee persists
 // the pointer. granter's defer Close() then fails because the struct
 // is no longer granter-owned. The whole tx reverts.
 func GrantAndStore(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	callee.Store(cross, al)
+	callee.Store(cross(cur), al)
 }

@@ -7,7 +7,7 @@ import "testing"
 // keeping it sorted makes diffs minimal and makes manual scanning for a
 // given entry feasible. If this fails after a maintainer adds an entry,
 // re-sort the slice rather than weakening the test.
-func TestReservedNamesSorted(t *testing.T) {
+func TestReservedNamesSorted(cur realm, t *testing.T) {
 	for i := 1; i < len(reservedNames); i++ {
 		if reservedNames[i-1] >= reservedNames[i] {
 			t.Errorf(

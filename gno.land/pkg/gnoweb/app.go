@@ -36,6 +36,11 @@ type AppConfig struct {
 	UnsafeHTML bool
 	// Analytics enables SimpleAnalytics.
 	Analytics bool
+	// AnalyticsHostname, when non-empty, is rendered as data-hostname on the
+	// SimpleAnalytics script tag to override the hostname SA reports.
+	// Set this when the site listens on a host SA would otherwise report
+	// incorrectly (for example a non-default port in local development).
+	AnalyticsHostname string
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
 	// NodeRequestTimeout define how much time a request to the remote node should live before timeout.
@@ -107,14 +112,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
 
 	staticMeta := StaticMetadata{
-		Domain:     cfg.Domain,
-		AssetsPath: assetsBase,
-		ChromaPath: chromaStylePath,
-		RemoteHelp: cfg.RemoteHelp,
-		ChainId:    cfg.ChainID,
-		Analytics:  cfg.Analytics,
-		BuildTime:  buildTime,
-		Banner:     cfg.Banner,
+		Domain:            cfg.Domain,
+		AssetsPath:        assetsBase,
+		ChromaPath:        chromaStylePath,
+		RemoteHelp:        cfg.RemoteHelp,
+		ChainId:           cfg.ChainID,
+		Analytics:         cfg.Analytics,
+		AnalyticsHostname: cfg.AnalyticsHostname,
+		BuildTime:         buildTime,
+		Banner:            cfg.Banner,
 	}
 
 	// Configure Markdown renderer
@@ -144,15 +150,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with redirect middleware
-	mux.Handle("/", RedirectMiddleware(httphandler, cfg.Analytics))
+	mux.Handle("/", RedirectMiddleware(httphandler, staticMeta))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To:            cfg.FaucetURL,
-				WithAnalytics: cfg.Analytics,
+				To:        cfg.FaucetURL,
+				Analytics: staticMeta.RedirectAnalytics(),
 			}).Render(w)
 		}))
 	}
@@ -189,6 +195,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
+
+	// Handle realm/package discovery search (browser fetches the list once and filters locally)
+	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
+	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
 	return mux, nil
 }

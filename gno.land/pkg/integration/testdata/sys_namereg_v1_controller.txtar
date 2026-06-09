@@ -63,11 +63,11 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # Now exercise the removal path. DAO proposes to REMOVE namereg/v1 from the
 # controller whitelist.
-gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 31_000_000 -chainid=tendermint_test test1 $WORK/run/propose_remove_namereg.gno
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 32_000_000 -chainid=tendermint_test test1 $WORK/run/propose_remove_namereg.gno
 stdout OK!
 
 # Vote + execute.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test test1
@@ -95,8 +95,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/verify_registered.gno --
@@ -124,8 +124,8 @@ import (
 	"gno.land/r/sys/users"
 )
 
-func main() {
+func main(cur realm) {
 	addr := chain.PackageAddress("gno.land/r/sys/namereg/v1")
-	r := users.ProposeControllerRemoval(addr)
-	dao.MustCreateProposal(cross, r)
+	r := users.ProposeControllerRemoval(cross(cur), addr)
+	dao.MustCreateProposal(cross(cur), r)
 }

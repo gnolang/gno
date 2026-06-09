@@ -50,6 +50,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -104,8 +105,9 @@ type TransactionStore interface {
 
 // Gas consumption descriptors.
 const (
-	GasAminoDecodeDesc = "AminoDecodePerByte"
-	GasAminoEncodeDesc = "AminoEncodePerByte"
+	GasComputeMapKeyDesc = "ComputeMapKey"
+	GasAminoDecodeDesc   = "AminoDecodePerByte"
+	GasAminoEncodeDesc   = "AminoEncodePerByte"
 )
 
 // GasConfig defines amino compute gas costs for GnoVM stores.
@@ -140,7 +142,15 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
-	alloc        *Allocator // for accounting for cached items
+	// cacheRealms is the per-tx *Realm pointer cache, parallel to
+	// cacheObjects. Single source of truth for in-memory *Realm
+	// pointers within a tx — populated by GetPackageRealm and
+	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
+	// Ensures pv.Realm and any other in-tx caller observe the same
+	// pointer (so in-memory Time/sumDiff mutations are visible
+	// everywhere).
+	cacheRealms map[PkgID]*Realm
+	alloc       *Allocator // for accounting for cached items
 
 	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
 	// installed by the keeper (AddPackage / Run) before RunMemPackage.
@@ -199,6 +209,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
 		stdlibKeyBytes: make(map[string][]byte),
@@ -233,6 +244,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		cacheRealms:  make(map[PkgID]*Realm),
 		alloc:        ds.alloc.Fork().Reset(),
 
 		// Inherit the per-tx preprocess allocator so sub-Machines spun
@@ -395,7 +407,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	ds.cacheObjects[oid] = pv
 }
 
-// Some atomic operation.
+// Some atomic operation. Consults cacheRealms before reading from
+// baseStore; populates the cache on read so that subsequent in-tx
+// callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -403,6 +417,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
+	if cached, ok := ds.cacheRealms[oid.PkgID]; ok {
+		return cached
+	}
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get(ds.gctx, []byte(key))
 	if bz == nil {
@@ -421,10 +438,29 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 				oid.PkgID, rlm.ID))
 		}
 	}
+	ds.cacheRealms[oid.PkgID] = rlm
 	return rlm
 }
 
+// GetRealmByID looks up a Realm via the per-tx cache, falling back
+// to a path-resolution + baseStore load on miss. Single source of
+// truth for in-memory *Realm pointers within a tx. Used by
+// PushFrameCall borrow rule #2 and by cross-realm finalize
+// (touchForeignRealm).
+func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
+	if rlm, ok := ds.cacheRealms[pid]; ok {
+		return rlm
+	}
+	path := pkgPathFromPkgID(ds, pid)
+	if path == "" {
+		return nil
+	}
+	return ds.GetPackageRealm(path)
+}
+
 // An atomic operation to set the package realm info (id counter etc).
+// Refreshes the cacheRealms entry so subsequent in-tx reads see the
+// updated *Realm pointer.
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -440,6 +476,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
 	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
+	ds.cacheRealms[rlm.ID] = rlm
 	size = len(bz)
 }
 
@@ -543,9 +580,22 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
+	}
+	// Re-derive denormalized PkgID cache (pv.PkgID is marked
+	// json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
@@ -625,8 +675,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	// save object to cache.
 	if debug {
-		if oid.IsZero() {
-			panic("object id cannot be zero")
+		if !oid.IsFinalized() {
+			panic("object id must be finalized at SetObject")
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
@@ -677,8 +727,13 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	// No amino compute gas — delete doesn't marshal/unmarshal.
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
-	// delete from cache.
+	// delete from cache. Lock-step evict cacheRealms when the object
+	// being deleted is a PackageValue: keeps the
+	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
+	if _, isPV := oo.(*PackageValue); isPV {
+		delete(ds.cacheRealms, oid.PkgID)
+	}
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -1115,6 +1170,8 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	// Lock-step reset cacheRealms.
+	ds.cacheRealms = make(map[PkgID]*Realm)
 	ds.realmStorageDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
@@ -1128,6 +1185,16 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
+			// Lock-step evict cacheRealms when a PackageValue is
+			// evicted. Falls back to PkgID derivation from PkgPath
+			// if the PV's PkgID hasn't been stamped yet.
+			if pv, isPV := obj.(*PackageValue); isPV {
+				pid := objId.PkgID
+				if pid.IsZero() {
+					pid = PkgIDFromPkgPath(pv.PkgPath)
+				}
+				delete(ds.cacheRealms, pid)
+			}
 		}
 	}
 }

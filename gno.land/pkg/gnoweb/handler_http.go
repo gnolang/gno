@@ -36,14 +36,32 @@ func Render(path string) string {
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
-	Domain     string
-	AssetsPath string
-	ChromaPath string
-	RemoteHelp string
-	ChainId    string
-	Analytics  bool
-	BuildTime  string
-	Banner     components.BannerData
+	Domain            string
+	AssetsPath        string
+	ChromaPath        string
+	RemoteHelp        string
+	ChainId           string
+	Analytics         bool
+	AnalyticsHostname string
+	BuildTime         string
+	Banner            components.BannerData
+}
+
+// RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
+// view is rendered outside IndexLayout, so the analytics fields must be
+// populated explicitly rather than derived from HeadData.
+func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
+	return components.AnalyticsData{
+		Enabled:    s.Analytics,
+		PageType:   "redirect",
+		ChainId:    s.ChainId,
+		AssetsPath: s.AssetsPath,
+		BuildTime:  s.BuildTime,
+		Hostname:   s.AnalyticsHostname,
+		// Path is left empty: redirect targets are server-controlled constants,
+		// and the client path-overwriter falls back to SA's default path for an
+		// empty data-sa-path.
+	}
 }
 
 type AliasKind int
@@ -140,16 +158,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			BuildTime:         h.Static.BuildTime,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Theme:  theme,
 		Banner: h.Static.Banner,
@@ -267,6 +286,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
+	gnourl.Origin = requestOrigin(r)
 
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -566,6 +586,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
+		Origin:    gnourl.Origin,
 	})
 }
 
@@ -860,6 +881,31 @@ func (h *HTTPHandler) GetRunView(_ context.Context, gnourl *weburl.GnoURL) (int,
 		Remote:  h.Static.RemoteHelp,
 		ChainId: h.Static.ChainId,
 	})
+}
+
+// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// Empty when no host is known; callers fall back to path-relative URLs.
+func requestOrigin(r *http.Request) string {
+	host := r.Host
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if h := strings.TrimSpace(first); h != "" {
+			host = h
+		}
+	}
+	if host == "" {
+		return ""
+	}
+
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "http" || proto == "https" {
+		scheme = proto
+	}
+
+	return scheme + "://" + host
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
