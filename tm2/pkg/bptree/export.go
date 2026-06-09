@@ -70,8 +70,12 @@ func (e *Exporter) exportNode(node Node) error {
 		for i := 0; i < int(n.numKeys); i++ {
 			var value []byte
 			if e.ndb != nil {
+				// Export always runs on a committed ImmutableTree, so resolve
+				// DB-only (never the writer's pendingVals buffer): the export
+				// goroutine runs concurrently with the writer and must not race
+				// SaveValue's map write.
 				var err error
-				value, err = e.ndb.GetValue(n.valueKeys[i])
+				value, err = e.ndb.getCommittedValue(n.valueKeys[i])
 				if err != nil {
 					return err
 				}

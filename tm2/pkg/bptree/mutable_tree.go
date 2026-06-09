@@ -406,14 +406,27 @@ func (t *MutableTree) loadNode(nkBytes []byte) (Node, error) {
 // newImmutable builds an ImmutableTree for root/version with this tree's value
 // resolver wired. Centralizes the resolver wiring shared by GetImmutable,
 // Snapshot, and immutableForProof.
-func (t *MutableTree) newImmutable(root Node, version int64) *ImmutableTree {
+//
+// committed selects the value-resolution policy:
+//   - true  (GetImmutable / immutableForProof): the root is a DURABLE committed
+//     version, read concurrently with the writer → resolve DB-only
+//     (getCommittedValue), never the writer's pendingVals buffer, so reads can't
+//     race SaveValue. A committed version only resolves valueKeys <
+//     workingVersion, so its pendingVals lookups would always miss anyway.
+//   - false (Snapshot): the root is the LIVE working tree, whose latest Sets
+//     live only in pendingVals (not yet in the DB). Snapshot is a
+//     single-writer-only convenience (no concurrent writer by contract), so it
+//     resolves through GetValue for read-your-writes.
+func (t *MutableTree) newImmutable(root Node, version int64, committed bool) *ImmutableTree {
 	imm := NewImmutableTree(root, version)
 	// Carry ndb so iterators created from this snapshot register as version
 	// readers (incrVersionReaders), blocking a concurrent prune of `version`
 	// until they Close.
 	imm.ndb = t.ndb
-	imm.valueResolver = func(vk []byte) ([]byte, error) {
-		return t.ndb.GetValue(vk)
+	if committed {
+		imm.valueResolver = t.ndb.getCommittedValue
+	} else {
+		imm.valueResolver = t.ndb.GetValue
 	}
 	return imm
 }
@@ -432,7 +445,7 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return t.newImmutable(root, version), nil
+	return t.newImmutable(root, version, true), nil
 }
 
 // GetVersioned returns the value for a key at a specific version.
@@ -495,8 +508,13 @@ func (t *MutableTree) Version() int64 { return t.version }
 
 // Snapshot creates an ImmutableTree snapshot of the current working tree
 // with a properly wired value resolver. For tests and lightweight snapshots.
+//
+// The snapshot wraps the LIVE working tree, whose most recent Sets may live
+// only in pendingVals (uncommitted), so it resolves with read-your-writes
+// (committed=false). It is a single-writer-only convenience: unlike
+// GetImmutable, it is NOT safe to read concurrently with the writer.
 func (t *MutableTree) Snapshot(version int64) *ImmutableTree {
-	return t.newImmutable(t.root, version)
+	return t.newImmutable(t.root, version, false)
 }
 
 // VersionExists returns true if the given version exists.
@@ -547,9 +565,19 @@ func (t *MutableTree) Height() int8 {
 	return int8(nodeHeight(t.root))
 }
 
-// GetValueByKey resolves a valueKey to the raw value bytes.
+// GetValueByKey resolves a valueKey to the raw value bytes, consulting the
+// uncommitted working-session buffer first (read-your-writes). Safe only on the
+// single writer goroutine.
 func (t *MutableTree) GetValueByKey(vk []byte) ([]byte, error) {
 	return t.resolveValue(vk)
+}
+
+// GetCommittedValueByKey resolves a valueKey to the raw value bytes from the DB
+// ONLY (never the uncommitted working-session buffer). It is the race-free read
+// for cross-package committed-snapshot consumers (the store's GetImmutable /
+// proof resolvers), which run concurrently with the writer.
+func (t *MutableTree) GetCommittedValueByKey(vk []byte) ([]byte, error) {
+	return t.ndb.getCommittedValue(vk)
 }
 
 // Close closes the tree and its underlying DB resources.

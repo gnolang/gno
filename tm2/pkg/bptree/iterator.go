@@ -15,12 +15,12 @@ type Iterator struct {
 	valueResolver ValueResolver // alternative value resolution (from ImmutableTree)
 
 	// State
-	stack     []stackEntry
-	leaf      *LeafNode
-	leafIdx   int // current position within leaf
-	valid     bool
-	err       error
-	closed    bool
+	stack   []stackEntry
+	leaf    *LeafNode
+	leafIdx int // current position within leaf
+	valid   bool
+	err     error
+	closed  bool
 
 	// Version reader tracking
 	version int64 // 0 if no version reader
@@ -277,15 +277,10 @@ func (it *Iterator) Value() []byte {
 		panic("iterator invalid")
 	}
 	vk := it.leaf.valueKeys[it.leafIdx]
-	if it.ndb != nil {
-		val, err := it.ndb.GetValue(vk)
-		if err != nil {
-			it.err = err
-			it.valid = false
-			return nil
-		}
-		return val
-	}
+	// Resolve via the per-source resolver. A working-tree iterator carries a
+	// pendingVals-aware resolver (read-your-writes, single-writer); a
+	// committed-snapshot iterator carries a DB-only resolver, so it never
+	// touches the writer's pendingVals map and cannot race SaveValue.
 	if it.valueResolver != nil {
 		val, err := it.valueResolver(vk)
 		if err != nil {
@@ -334,7 +329,13 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 	} else if mtree != nil {
 		ndb = mtree.ndb
 	}
-	return newIterator(imm.root, start, end, ascending, ndb, trackVersion)
+	itr := newIterator(imm.root, start, end, ascending, ndb, trackVersion)
+	// Committed snapshot: resolve values DB-only (never the writer's pendingVals
+	// buffer), so iterating concurrently with the writer cannot race SaveValue.
+	if ndb != nil {
+		itr.valueResolver = ndb.getCommittedValue
+	}
+	return itr
 }
 
 // Iterator returns an iterator over [start, end) in the given direction.
@@ -342,7 +343,12 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 // version reader: the working tree is never pruned (pruning rejects
 // toVersion >= latest).
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
-	return newIterator(t.root, start, end, ascending, t.ndb, 0), nil
+	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
+	// Working-tree iterator: resolve through GetValue (pendingVals first) so a
+	// Set issued earlier this session is visible (read-your-writes). Single
+	// writer goroutine, so the pendingVals access does not race.
+	itr.valueResolver = t.ndb.GetValue
+	return itr, nil
 }
 
 // ImmutableTree.Iterator returns an iterator over [start, end).
@@ -358,7 +364,14 @@ func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, 
 		t.ndb.incrVersionReaders(trackVersion)
 	}
 	itr := newIterator(t.root, start, end, ascending, t.ndb, trackVersion)
-	itr.valueResolver = t.valueResolver
+	// Use the snapshot's own resolver (DB-only for newImmutable-derived trees);
+	// if unset but DB-backed, fall back to DB-only committed resolution. Either
+	// way a committed snapshot never touches the writer's pendingVals buffer.
+	if t.valueResolver != nil {
+		itr.valueResolver = t.valueResolver
+	} else if t.ndb != nil {
+		itr.valueResolver = t.ndb.getCommittedValue
+	}
 	return itr, nil
 }
 

@@ -238,5 +238,8 @@ func (t *MutableTree) immutableForProof() (*ImmutableTree, error) {
 	if t.lastSaved == nil && t.version == 0 {
 		return nil, ErrNoCommittedState
 	}
-	return t.newImmutable(t.lastSaved, t.version), nil
+	// lastSaved is the last COMMITTED root (set after Commit), so its values are
+	// durable in the DB. Resolve DB-only (committed=true) so a proof generated
+	// concurrently with a later Set cannot race that Set's pendingVals write.
+	return t.newImmutable(t.lastSaved, t.version, true), nil
 }

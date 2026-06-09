@@ -181,14 +181,29 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 // GetValue loads a value by its ValueKey, checking the uncommitted session
 // buffer first (read-your-writes before SaveVersion), then the DB.
 //
-// On the DB path: a stored empty value ([]byte{}) returns a non-nil empty
-// slice, while a ValueKey absent from the DB (corruption or an already-pruned
-// value — neither expected when called via the tree) returns a wrapped
-// ErrKeyDoesNotExist, so callers can distinguish missing from empty.
+// pendingVals is the single-writer working-session buffer, so GetValue serves
+// the working tree's OWN read-your-writes ONLY (MutableTree.resolveValue and
+// working-tree iteration), all on the writer goroutine. Concurrent
+// committed-snapshot readers must use getCommittedValue, which never touches
+// the map and so cannot race SaveValue.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	if v, ok := ndb.pendingVals[string(vk)]; ok {
 		return v, nil
 	}
+	return ndb.getCommittedValue(vk)
+}
+
+// getCommittedValue loads a value by its ValueKey from the DB ONLY (no
+// pendingVals). It is the race-free read path for committed snapshots
+// (ImmutableTree / store query / proof / Export / snapshot iterators), which
+// run concurrently with the writer and never legitimately need the uncommitted
+// buffer (a committed version resolves only valueKeys < workingVersion).
+//
+// A stored empty value ([]byte{}) returns a non-nil empty slice, while a
+// ValueKey absent from the DB (corruption or an already-pruned value — neither
+// expected when called via the tree) returns a wrapped ErrKeyDoesNotExist, so
+// callers can distinguish missing from empty.
+func (ndb *nodeDB) getCommittedValue(vk []byte) ([]byte, error) {
 	key := valueDBKey(vk)
 	data, err := ndb.db.Get(key)
 	if err != nil {

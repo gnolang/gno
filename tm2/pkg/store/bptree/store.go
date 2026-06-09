@@ -39,9 +39,9 @@ var (
 
 // Store implements types.Store and CommitStore backed by a B+ tree.
 type Store struct {
-	tree Tree
+	tree  Tree
 	mtree *bp.MutableTree // kept for operations that need the concrete type
-	opts types.StoreOptions
+	opts  types.StoreOptions
 }
 
 func UnsafeNewStore(tree *bp.MutableTree, opts types.StoreOptions) *Store {
@@ -76,11 +76,11 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Wire up value resolver so ImmutableTree.Get returns actual values
+	// Wire up value resolver so ImmutableTree.Get returns actual values.
+	// Committed snapshot → DB-only resolution (never the writer's pendingVals
+	// buffer), so concurrent reads here cannot race a concurrent SaveVersion.
 	if st.mtree != nil {
-		iTree.SetValueResolver(func(vk []byte) ([]byte, error) {
-			return st.mtree.GetValueByKey(vk)
-		})
+		iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
 	}
 	opts := st.opts
 	opts.Immutable = true
@@ -121,7 +121,7 @@ func (st *Store) LastCommitID() types.CommitID {
 	}
 }
 
-func (st *Store) GetStoreOptions() types.StoreOptions { return st.opts }
+func (st *Store) GetStoreOptions() types.StoreOptions     { return st.opts }
 func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
 func (st *Store) LoadLatestVersion() error {
@@ -256,12 +256,12 @@ type bptreeIterator struct {
 }
 
 func (it *bptreeIterator) Domain() (start, end []byte) { return it.start, it.end }
-func (it *bptreeIterator) Valid() bool                  { return it.itr.Valid() }
-func (it *bptreeIterator) Key() []byte                  { return it.itr.Key() }
-func (it *bptreeIterator) Value() []byte                { return it.itr.Value() }
-func (it *bptreeIterator) Next()                        { it.itr.Next() }
-func (it *bptreeIterator) Close() error                  { return it.itr.Close() }
-func (it *bptreeIterator) Error() error                  { return it.itr.Error() }
+func (it *bptreeIterator) Valid() bool                 { return it.itr.Valid() }
+func (it *bptreeIterator) Key() []byte                 { return it.itr.Key() }
+func (it *bptreeIterator) Value() []byte               { return it.itr.Value() }
+func (it *bptreeIterator) Next()                       { it.itr.Next() }
+func (it *bptreeIterator) Close() error                { return it.itr.Close() }
+func (it *bptreeIterator) Error() error                { return it.itr.Error() }
 
 // --- Query ---
 
@@ -313,11 +313,11 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		if err != nil {
 			panic(fmt.Sprintf("version exists but could not retrieve tree: %v", err))
 		}
-		// Wire value resolver for proof generation
+		// Wire value resolver for proof generation. Committed snapshot →
+		// DB-only resolution (never the writer's pendingVals buffer), so a
+		// concurrent SaveVersion cannot race this proof's value reads.
 		if st.mtree != nil {
-			iTree.SetValueResolver(func(vk []byte) ([]byte, error) {
-				return st.mtree.GetValueByKey(vk)
-			})
+			iTree.SetValueResolver(st.mtree.GetCommittedValueByKey)
 		}
 
 		var proof *ics23.CommitmentProof
@@ -428,4 +428,3 @@ func BptreeCommitmentOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error)
 func RegisterProofRuntime(prt *merkle.ProofRuntime) {
 	prt.RegisterOpDecoder(ProofOpBptreeCommitment, BptreeCommitmentOpDecoder)
 }
-
