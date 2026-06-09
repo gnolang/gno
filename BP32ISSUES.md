@@ -102,7 +102,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
 - **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
-- **Latent concurrency (dormant under ABCI mutex): 3** (Tier C: H2 partial, H3, M13). ✅ **H1** via #5591; ✅ **M11/M12** fixed (`0de551f17`, getChild non-memoization). Residual node-concurrency gap: value-resolving reads race on `pendingVals` (open).
+- **Latent concurrency (dormant under ABCI mutex): 3** (Tier C: H2 partial, H3, M13 — all prune/version-reader). ✅ **H1** via #5591; ✅ **M11/M12** fixed (`0de551f17`, getChild non-memoization); ✅ **pendingVals value-resolution race** fixed (`75c946820`, §VIII). Single-tree node + value reads are now concurrent-safe against a writer.
 - **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
 - **Disproven / already-fixed / overstated: 12** (Tier E, incl. the C1 ship-blocker, H4, and M1/M2/M5).
@@ -188,11 +188,44 @@ from the cache rather than following a memoized pointer — `Get` +44% worst-cas
 bptree's shallower tree (~6 levels vs IAVL's ~28) keeps it ahead of IAVL on
 reads even without memoization, and IAVL never had this memoization.
 
-**Residual carried forward:** this is a *partial* concurrency step. A concurrent
-value-resolving read (`Get`/proof) still races on the `nodeDB.pendingVals` map
-(`SaveValue` write vs `GetValue` read) — a separate, still-open data race. Full
-single-tree concurrency still relies on the ABCI single-mutex; do not treat
-bptree as concurrency-safe on the strength of this change alone.
+**Residual (now closed — see §VIII):** this getChild change was a *partial*
+concurrency step; a concurrent value-resolving read (`Get`/proof) still raced on
+the `nodeDB.pendingVals` map (`SaveValue` write vs `GetValue` read). That
+residual is fixed in §VIII (`75c946820`).
+
+---
+
+## VIII. pendingVals value-resolution race (commit `75c946820`)
+
+Closes the residual from §VII. A concurrent value-resolving reader on a
+**committed** snapshot (`Get` / proof / `Export` / snapshot iterator) read the
+`nodeDB.pendingVals` map (via `GetValue`) while the writer's `SaveValue` wrote it
+→ `fatal error: concurrent map read and map write`.
+
+`pendingVals` is the uncommitted working-session buffer, keyed by the **working**
+version (`allocValueKey`), so a committed snapshot's lookups never legitimately
+hit it. Fix: confine `pendingVals` to the single-writer working session and
+resolve committed snapshots **DB-only**:
+
+- `nodedb.go`: `getCommittedValue` (DB read + missing-vs-empty `Has`
+  disambiguation); `GetValue` = pendingVals check → `getCommittedValue`, now used
+  only by the working tree's read-your-writes.
+- `newImmutable(root, version, committed)`: `GetImmutable`/`immutableForProof`
+  DB-only; `Snapshot` (wraps the LIVE working tree) keeps read-your-writes;
+  exported `GetCommittedValueByKey`.
+- `iterator.go` `Value()` resolves via the per-source `valueResolver`
+  (working-tree → pendingVals, committed snapshot → DB-only); `export.go`,
+  `proof.go`, `store/bptree` route committed reads DB-only.
+
+**No locks, no perf hit** — committed reads drop an always-missing map probe and
+do the same `db.Get`; the DB handles reader/writer concurrency. Working-tree
+read-your-writes unchanged (single goroutine). `-race`-verified (concurrent
+writer + committed Get/proof/iterator readers; fails on the prior HEAD).
+
+With this, **single-tree node AND value reads are concurrent-safe against a
+writer.** The LRU `nodeCache` is internally `RWMutex`-locked (not a data race).
+Remaining Tier C items (H2 partial, H3 prune TOCTOU, M13 singleflight) are
+prune/version-reader concerns, still dormant under the ABCI mutex.
 
 ---
 
@@ -279,7 +312,7 @@ from merge state.
 
 | ID | Issue | Sev | Location | Source PR(s) | Status |
 |---|---|---|---|---|---|
-| ~~M11~~ | **Thread-safety under-specified**; `childMu` guarded only the lazy-load path → concurrent `Get`+`Set` race on the `getChild` write-back vs COW `Clone` | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ✅ **FIXED `0de551f17`** — getChild no longer memoizes; `childMu` removed; `-race`-clean. Residual: value-resolving reads still race on `pendingVals` (separate, open). |
+| ~~M11~~ | **Thread-safety under-specified**; `childMu` guarded only the lazy-load path → concurrent `Get`+`Set` race on the `getChild` write-back vs COW `Clone` | M | `node.go`, `mutable_tree.go` | #5570 finding:7 | ✅ **FIXED `0de551f17`** — getChild no longer memoizes; `childMu` removed; `-race`-clean. The separate value-resolution `pendingVals` race is also now fixed (`75c946820`, §VIII). |
 | ~~M12~~ | **`immutableForProof` shares the mutable root** — proof walks `miniTree`/`childHashes` | M | `proof.go` | #5570 finding:9 | ✅ **FIXED `0de551f17`** — shared nodes now immutable (reads pure; miniTree rebuilt only on clones), so the aliased root can't be torn. |
 | M13 | No **`singleflight` on cache-miss** — two readers missing the same NodeKey deserialize independently and overwrite each other's `Add` | M | `nodedb.go` | #5570 finding:5/arch | ❌ Open |
 | L8 | `ImmutableTree.Close` **not idempotent** — double/concurrent Close decrements reader count twice → corrupts count | L | `immutable_tree.go` | #5570 finding:45 | ❌ Open |
