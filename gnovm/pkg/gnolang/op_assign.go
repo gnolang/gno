@@ -22,28 +22,18 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Go spec (§Assignments): in a tuple assignment, all operands of the LHS
-	// and all RHS expressions are evaluated FIRST (op_exec already did this:
-	// their values sit on m.Values), then the assignments are carried out in
-	// left-to-right order. Two consequences we must preserve here:
-	//   - left-to-right: `a, a, a = 1, 2, 3` must leave a == 3 (the last write
-	//     wins), so we Assign2 in increasing LHS index order.
-	//   - panic atomicity: resolving an LHS pointer (resolvePointer) or the
-	//     Assign2 itself may panic (e.g. `m[k], *p = 42, 2` nil-derefs on *p);
-	//     by then the earlier writes (m[k] = 42) must already be committed.
-	//     So we interleave resolve+assign per LHS left-to-right, NOT
-	//     resolve-all-then-assign-all. See golang/go#23017.
-	//
+	// Go spec §Assignments: operands and RHS are evaluated first (done by
+	// op_exec; values sit on m.Values), then assigned left-to-right. We resolve
+	// and assign each LHS in increasing index order so the last write wins
+	// (`a, a, a = 1, 2, 3` ⇒ 3) and a panic mid-assignment leaves earlier writes
+	// committed (`m[k], *p = 42, 2`). See golang/go#23017.
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	// NOTE: the multi-LHS loop below runs ~6% above the per-LHS OpCPUSlopeAssign
-	// calibration (extra numStackValuesForPointer passes + resolvePointer indirection;
-	// see BenchmarkDoOpAssign_Index_N*). OpCPUSlopeAssign is shared with the
-	// single-LHS fast path, which matches the original cost, so we don't retune
-	// it for a rare path. Revisit only if multi-LHS assignment becomes hot.
+	// The multi-LHS loop runs ~6% over OpCPUSlopeAssign's per-LHS calibration
+	// (see BenchmarkDoOpAssign_Index_N*); not retuned, as it's a rare path and
+	// the constant is shared with the unchanged single-LHS fast path.
 
 	if len(s.Lhs) == 1 {
-		// Single-LHS fast path: pop the one RHS value (no slice) and resolve the
-		// LHS pointer directly off the stack top — the original, minimal path.
+		// Fast path: one RHS value, resolve the LHS pointer off the stack top.
 		rv := m.PopValue()
 		lv := m.PopAsPointer(s.Lhs[0])
 		if m.Stage != StagePre && isUntyped(rv.T) && rv.T.Kind() != BoolKind {
@@ -53,21 +43,16 @@ func (m *Machine) doOpAssign() {
 		return
 	}
 
-	// Multi-LHS only. NOTE: PopValues() returns a slice in forward order, not
-	// the usual reverse. rvs[0] is the leftmost RHS value.
+	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
 
-	// Multi-LHS: m.Values' top region holds the LHS operand frames, oldest
-	// first — LHS_0's frame at the bottom up to LHS_{n-1}'s on top (op_exec
-	// pushes PushForPointer for the LHS in reverse, so LHS_0 executes first).
-	// PopValues the whole region once, then resolve each LHS from its sub-slice.
+	// The LHS operand frames sit just below, LHS_0 first. Pop the whole region
+	// once and resolve each LHS from its sub-slice in place.
 	//
-	// INVARIANT: `lhsOperands` (like `rvs`) is a PopValues result — a view into
-	// the live m.Values backing array (see PopValues' "use immediately"
-	// contract). Nothing in the loop below may push onto m.Values, or an append
-	// would write in place over not-yet-resolved inputs. resolvePointer and
-	// Assign2 are leaf operations that run no bytecode, so they never push; the
-	// debug assertion below guards against a future callee breaking that.
+	// INVARIANT: lhsOperands (like rvs) is a view into the live m.Values backing
+	// array, so nothing in the loop may push onto m.Values — an append would
+	// overwrite not-yet-resolved frames. resolvePointer and Assign2 run no
+	// bytecode, so they never push; the debug assert below guards regressions.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
@@ -78,9 +63,6 @@ func (m *Machine) doOpAssign() {
 	offset := 0
 	for i, lx := range s.Lhs {
 		sz := numStackValuesForPointer(lx)
-		// Resolve LHS_i's pointer from its operand frame, then immediately
-		// assign — keeping the left-to-right, fail-with-earlier-writes-committed
-		// discipline described above.
 		lv, ro := m.resolvePointer(lx, lhsOperands[offset:offset+sz])
 		if ro {
 			m.Panic(typedString(readonlyAccessPanic(lx)))

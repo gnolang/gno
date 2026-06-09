@@ -2753,11 +2753,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 }
 
 // numStackValuesForPointer reports how many value-stack entries PushForPointer
-// pushes for lx — i.e. how many values resolvePointer/PopAsPointer2 must consume
-// to resolve lx to a PointerValue. It MUST stay in sync with PushForPointer (the
-// producer) and resolvePointer (the consumer): NameExpr pushes nothing,
-// IndexExpr pushes X then Index (2), and SelectorExpr/StarExpr/CompositeLitExpr
-// each push a single X (1).
+// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
 func numStackValuesForPointer(lx Expr) int {
 	switch lx.(type) {
 	case *NameExpr:
@@ -2773,16 +2769,11 @@ func numStackValuesForPointer(lx Expr) int {
 	}
 }
 
-// resolvePointer resolves lx to a PointerValue using its lhsOperands — the
-// values PushForPointer evaluated for lx (exactly numStackValuesForPointer(lx)
-// of them: the base X, the Index, etc.) — instead of popping them off the value
-// stack. lhsOperands are in stack order, oldest first — matching PopValues —
-// so for an IndexExpr lhsOperands[0] is X and lhsOperands[1] is Index
-// (PushForPointer pushes X then Index, so on the stack the Index sits on top and
-// the original PopAsPointer2 popped it first as iv, then X as xv). ro reports a
-// readonly/cross-realm violation. This is the pure resolver shared by
-// PopAsPointer2 (the stack wrapper) and doOpAssign (which reads the inputs in
-// place).
+// resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
+// PushForPointer evaluated for lx) rather than popping them off the value stack.
+// lhsOperands are in stack order, oldest first: for an IndexExpr lhsOperands[0]
+// is X and lhsOperands[1] is Index. ro reports a readonly/cross-realm violation.
+// Shared by PopAsPointer2 (the stack wrapper) and doOpAssign (reads in place).
 func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
@@ -2852,10 +2843,8 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a composite lit expr.
 //
-// Thin stack wrapper around resolvePointer: it slices the top
-// numStackValuesForPointer(lx) values off m.Values, resolves, then truncates the
-// stack. This keeps every other caller (op_inc_dec, range stmts, RefExpr, the
-// compound-assign ops) completely unaffected by the in-place refactor.
+// Thin stack wrapper around resolvePointer: slices the top
+// numStackValuesForPointer(lx) values off m.Values, resolves, then truncates.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	n := numStackValuesForPointer(lx)
 	if n == 0 {
