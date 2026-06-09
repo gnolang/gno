@@ -1,8 +1,10 @@
-package main
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_1_prop2_filetest
+
+package z_1_prop2_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -13,52 +15,49 @@ import (
 )
 
 // Test updating a name via GovDAO
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
-func init() {
+func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(c)
+	daov3init.InitWithUsers(cross(cur), c)
 
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	users.Register(cross, "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 
 	// Prop to delete user
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeDeleteUser(alice, "delete user test")
-	dao.MustCreateProposal(cross, pr)
+	pr := users.ProposeDeleteUser(cross(cur), alice, "delete user test")
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(dao.Render(""))
+	println(dao.Render(cross(cur), ""))
 	println("--")
-	println(dao.Render("0"))
-	println("--")
-
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
-
-	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross(cur), "0"))
 	println("--")
 
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross(cur), "0"))
+	println("--")
+
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+
+	println("--")
+	println(dao.Render(cross(cur), "0"))
 
 	data, _ := susers.ResolveName("nym-alice123")
 	if data == nil {

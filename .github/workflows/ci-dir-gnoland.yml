@@ -23,10 +23,11 @@ jobs:
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
-      # FIXME(gfanton): run txtar integration test sequentially to avoid timeout
-      tests-ts-seq: true
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+      # txtar integration tests run against in-memory nodes in parallel by
+      # default (see gno.land/pkg/integration). This replaces the old
+      # subprocess-per-node mode (cold stdlib reload every boot) and the
+      # sequential `tests-ts-seq` workaround, cutting this job from ~22m to
+      # a few minutes.
 
   gnoweb_generate:
     runs-on: ubuntu-latest
