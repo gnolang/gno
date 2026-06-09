@@ -586,6 +586,15 @@ func TestLoadVersion_FailedSaveDoesNotLeakStagedValue(t *testing.T) {
 		t.Fatal("SaveVersion of an existing version with different data must error")
 	}
 
+	// H8 tripwire: the failed SaveVersion must have discarded the staged
+	// write — nothing buffered, and v2's committed value untouched on disk.
+	if n := len(tree.ndb.pendingVals); n != 0 {
+		t.Fatalf("failed SaveVersion left %d staged values", n)
+	}
+	if raw, err := db.Get(valueDBKey((&NodeKey{Version: 2, Nonce: 0}).GetKey())); err != nil || string(raw) != "B2" {
+		t.Fatalf("v2's value key clobbered on disk after failed SaveVersion: %q, %v", raw, err)
+	}
+
 	// Prune refuses to run with the dirty session left by the failed
 	// SaveVersion — its batch Commit would otherwise be exactly the "later
 	// Commit" that flushes the staged LEAK over v2's committed value.
