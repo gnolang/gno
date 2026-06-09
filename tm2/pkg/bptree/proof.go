@@ -208,6 +208,10 @@ func miniMerkleInnerOps(m *MiniMerkle, index int) []*ics23.InnerOp {
 // committed version (verifiable against MutableTree.Hash()), not the working
 // tree. Returns ErrNoCommittedState if no version has been committed yet, or
 // ErrEmptyTree if the committed tree is empty.
+//
+// Single-goroutine: it reads the working tree's lastSaved/version (see the
+// MutableTree concurrency contract). For concurrent or historical proofs, use
+// GetImmutable(version).GetMembershipProof instead.
 func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {
@@ -221,6 +225,10 @@ func (t *MutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, er
 // last committed version (verifiable against MutableTree.Hash()), not the working
 // tree. Returns ErrNoCommittedState if no version has been committed yet, or
 // ErrEmptyTree if the committed tree is empty.
+//
+// Single-goroutine: it reads the working tree's lastSaved/version (see the
+// MutableTree concurrency contract). For concurrent or historical proofs, use
+// GetImmutable(version).GetNonMembershipProof instead.
 func (t *MutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	imm, err := t.immutableForProof()
 	if err != nil {

@@ -9,8 +9,32 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 )
 
-// MutableTree is the working tree supporting Set, Get, Has, Remove,
-// SaveVersion, LoadVersion, and Rollback.
+// MutableTree is the working (writable) B+ tree: Set, Get, Has, Remove,
+// SaveVersion, LoadVersion, Rollback, pruning, proofs, and iteration.
+//
+// # Concurrency
+//
+// A MutableTree is SINGLE-GOROUTINE. Its mutators (Set, Remove, SaveVersion,
+// LoadVersion, Load, Rollback, DeleteVersionsTo, PruneVersionsTo, Import,
+// SetInitialVersion) and its working-tree reads (Get, Has, Hash, WorkingHash,
+// Version, WorkingVersion, Size, IsEmpty, Height, Iterate, Iterator,
+// GetByIndex, GetWithIndex, GetValueByKey, GetMembershipProof,
+// GetNonMembershipProof, Snapshot) read and write the working-tree fields
+// (root, lastSaved, version, size, nextValueNonce, versionOrphans) WITHOUT
+// locking, so none of them may be called concurrently with each other or with
+// a mutator.
+//
+// For concurrent reads at a COMMITTED version, call GetImmutable(version) — it
+// is safe to call concurrently with the writer (it reads only the
+// internally-synchronized nodeDB, never the working-tree fields) — and read the
+// returned ImmutableTree, which is safe for concurrent reads against an active
+// writer; Close it when done (it holds a version-reader reservation that blocks
+// pruning of that version until released). GetVersioned, GetCommittedValueByKey,
+// VersionExists, and AvailableVersions are likewise safe to call concurrently
+// with the writer.
+//
+// The gno ABCI path satisfies this contract by serializing all store access
+// through the connection mutex.
 type MutableTree struct {
 	root      Node  // nil for empty tree
 	lastSaved Node  // snapshot for rollback (set by SaveVersion)
