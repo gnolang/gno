@@ -1,7 +1,7 @@
 // MARKDOWNFUNC: URL
 // CONTEXT: [email](%s)
 -- input.md --
-mailto:victim@x?cc=evil@y&bcc=evil2@z
+mailto:victim@example.com?BODY=phishing+content
 -- output.md --
 
 -- output.html --
