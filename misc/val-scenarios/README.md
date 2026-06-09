@@ -1,10 +1,10 @@
 # Gnoland Validator Scenario Harness
 
-This repo generates local Gnoland validator networks in Docker and runs scripted failure / recovery scenarios against them.
+This repo generates local Gnoland validator networks — in Docker containers or as native processes — and runs scripted failure / recovery scenarios against them.
 
 It is inspired by `../gno-val-test`, but the setup here is reusable and scenario-driven:
 
-- each validator or sentry runs in its own container
+- each validator or sentry runs in its own container (docker runtime) or as a native process (local runtime); see [Runtime Backends](#runtime-backends)
 - validators can optionally run with a controllable remote-signer sidecar
 - the network is generated from a small Bash DSL
 - scenarios can stop, restart, and reset nodes
@@ -129,10 +129,13 @@ KEEP_UP=1 ./scenarios/05_sentry_ip_rotation.sh
 
 ## Scenario Selection
 
-All scenario scripts live in `scenarios/`. Each script declares whether it should run in CI:
+All scenario scripts live in `scenarios/`. Each script sets a few flags near the top:
 
 - `SCENARIO_CI=true`: included in `.github/workflows/ci-val-scenarios.yml` and `make test`
 - `SCENARIO_CI=false`: local-only, usually because the scenario needs `valsignerd`
+- `SCENARIO_GENESIS_EXAMPLES=false` (optional, default `true`): skip loading the example packages and the on-chain PoA valset realm in genesis. Consensus is driven by the genesis validator set, so consensus-only scenarios set this to avoid replaying ~300 example packages at `InitChain` on every node start and restart (a large speedup). Scenarios that deploy/call realms or change the validator set through governance leave it at the default. See `generate_genesis` in `lib/scenario.sh`.
+
+A scenario that needs real per-node networking (distinct IPs / stable DNS) — e.g. a sentry topology — calls `skip_unless_docker "<reason>"` after `scenario_init`. Under the local runtime every node shares `127.0.0.1` and is mutually reachable, so such isolation cannot be reproduced; the helper exits 0 (skipped, not failed) so `make test.local` passes over it.
 
 ### CI Scenarios
 
@@ -140,7 +143,7 @@ All scenario scripts live in `scenarios/`. Each script declares whether it shoul
 - `scenarios/02_three_validators_restart_staggered.sh`: start 3 validators, stop all after 60s, restart one by one
 - `scenarios/03_three_validators_restart_parallel.sh`: start 3 validators, stop all after 60s, restart all together
 - `scenarios/04_counter_realm_churn.sh`: deploy a sample counter realm, submit transactions, reset one validator, continue submitting txs
-- `scenarios/05_sentry_ip_rotation.sh`: run validators behind a sentry, recreate the sentry to force a new container IP, and verify the network keeps progressing
+- `scenarios/05_sentry_ip_rotation.sh`: run validators behind a sentry, recreate the sentry to force a new container IP, and verify the network keeps progressing (docker only — skipped under the local runtime, which can't isolate nodes that share `127.0.0.1`)
 - `scenarios/06_gas_nondeterminism_check.sh`: restart a subset of validators, estimate addpkg gas on a warm node, and fail if the chain halts after the trigger tx
 - `scenarios/07_four_validators_reset_one.sh`: start 4 validators, stop/reset/restart 1; 3/4 remain above the 2/3 threshold so the chain must keep advancing throughout
 - `scenarios/08_five_validators_reset_two_below_consensus.sh`: start 5 validators, stop/reset 2; 3/5 drops below the 2/3 threshold so the chain must halt, then verify it resumes after both validators are restarted
@@ -252,5 +255,7 @@ The intended flow is:
 7. compose the scenario out of lifecycle and transaction helpers
 
 Use `gen_validator <name> --not-in-genesis` for a validator node that should exist in the generated docker-compose topology but enter the validator set later through a transaction or proposal.
+
+For a consensus-only scenario (no realm deploys/calls, no governance valset changes), set `SCENARIO_GENESIS_EXAMPLES=false` near the top so genesis stays minimal and starts/restarts are fast. If the scenario needs network isolation (a sentry), call `skip_unless_docker "<reason>"` right after `scenario_init` so it is skipped cleanly under the local runtime.
 
 See any file under `scenarios/` for examples.
