@@ -12,6 +12,11 @@ source "${ROOT_DIR}/lib/scenario.sh"
 scenario_init "scenario-05"
 trap scenario_finish EXIT
 
+# Sentry isolation needs real per-node networking (distinct IPs / stable DNS).
+# The local runtime puts every node on 127.0.0.1 where peers are mutually
+# reachable, so a sentry cannot isolate the validators it fronts. Docker only.
+skip_unless_docker "sentry network isolation is not reproducible in the local runtime"
+
 gen_validator val1
 gen_validator val2
 gen_validator val3

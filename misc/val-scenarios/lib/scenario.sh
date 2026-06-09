@@ -164,6 +164,17 @@ require_tools() {
   fi
 }
 
+# skip_unless_docker [REASON] — for scenarios that need real per-node networking
+# (distinct container IPs / stable DNS names). Exits 0 (skipped, not failed) when
+# not running the docker runtime, so `make test.local` passes over them cleanly.
+# The local runtime puts every node on 127.0.0.1 where peers are mutually
+# reachable, so topologies that rely on network isolation cannot be reproduced.
+skip_unless_docker() {
+  [ "$RUNTIME" = "docker" ] && return 0
+  log "SKIP: ${1:-requires the docker runtime} (RUNTIME=${RUNTIME})"
+  exit 0
+}
+
 scenario_init() {
   local name="${1:?scenario name required}"
 
