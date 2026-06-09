@@ -128,7 +128,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 
 	// Handle orphaned old valueKey on update
 	if updated && oldValueKey != nil {
-		t.orphanValueKey(oldValueKey)
+		if err := t.orphanValueKey(oldValueKey); err != nil {
+			return updated, err
+		}
 	}
 
 	// Save value out-of-line.
@@ -158,16 +160,16 @@ func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 // orphanValueKey handles an orphaned valueKey from an overwrite or remove.
 // Tier 1 (same working version): drop the staged write before it is committed.
 // Tier 2 (prior version): defer to orphan list for prune-time deletion.
-func (t *MutableTree) orphanValueKey(vk []byte) {
+func (t *MutableTree) orphanValueKey(vk []byte) error {
 	// Decode version from the first 8 bytes of the valueKey
 	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
 	if vkVersion == t.WorkingVersion() {
 		// Tier 1: intra-version orphan — drop the staged value
-		t.ndb.DeleteValueDirect(vk)
-	} else {
-		// Tier 2: cross-version orphan — defer to prune
-		t.versionOrphans = append(t.versionOrphans, vk)
+		return t.ndb.DeleteValueDirect(vk)
 	}
+	// Tier 2: cross-version orphan — defer to prune
+	t.versionOrphans = append(t.versionOrphans, vk)
+	return nil
 }
 
 // Has returns true if the key exists in the tree.
@@ -196,7 +198,9 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	var val []byte
 	if oldVK != nil {
 		val, _ = t.resolveValue(oldVK)
-		t.orphanValueKey(oldVK)
+		if err := t.orphanValueKey(oldVK); err != nil {
+			return val, true, err
+		}
 	}
 	return val, true, nil
 }
@@ -418,7 +422,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 // LoadVersionForOverwriting is not supported — it would leak values and nodes.
 // Not called by gno.land, the SDK, or the store layer.
 func (t *MutableTree) LoadVersionForOverwriting(_ int64) error {
-	panic("LoadVersionForOverwriting is not supported; use PruneVersionsTo")
+	return fmt.Errorf("%w: LoadVersionForOverwriting (use PruneVersionsTo)", ErrUnsupported)
 }
 
 // loadNode loads a node from the DB. Children are loaded lazily via
@@ -526,7 +530,7 @@ func (t *MutableTree) DeleteVersionsTo(toVersion int64) error {
 // DeleteVersionsFrom is not supported — it would leak values and nodes.
 // Not called by gno.land, the SDK, or the store layer.
 func (t *MutableTree) DeleteVersionsFrom(_ int64) error {
-	panic("DeleteVersionsFrom is not supported; use PruneVersionsTo")
+	return fmt.Errorf("%w: DeleteVersionsFrom (use PruneVersionsTo)", ErrUnsupported)
 }
 
 // Size returns the total number of key-value pairs.

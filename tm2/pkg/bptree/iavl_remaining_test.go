@@ -327,15 +327,16 @@ func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
 	require.Equal(t, []byte("val4"), val)
 }
 
-func TestLoadVersionForOverwriting_Panics(t *testing.T) {
+func TestLoadVersionForOverwriting_Unsupported(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
 	tree.Set([]byte("a"), []byte("1"))
 	tree.SaveVersion()
-	require.New(t).Panics(func() { tree.LoadVersionForOverwriting(1) })
+	require.New(t).ErrorIs(tree.LoadVersionForOverwriting(1), ErrUnsupported)
 }
 
-// TestLoadVersionForOverwritingCase2, Case3 removed — LoadVersionForOverwriting panics.
+// TestLoadVersionForOverwritingCase2, Case3 removed — LoadVersionForOverwriting
+// is unsupported.
 
 func TestVersionedTreeProofs(t *testing.T) {
 	tree := getTestTree(0)
@@ -420,13 +421,13 @@ func TestTreeKeyExistsProof(t *testing.T) {
 }
 
 func TestDeleteVersionsFromNoDeadlock(t *testing.T) {
-	// DeleteVersionsFrom now panics — test that it panics
+	// DeleteVersionsFrom is unsupported — verify it reports that as an error.
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
 	tree.SaveVersion()
-	require.Panics(t, func() { tree.DeleteVersionsFrom(1) })
+	require.ErrorIs(t, tree.DeleteVersionsFrom(1), ErrUnsupported)
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {

@@ -12,6 +12,12 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	if toVersion >= latest {
 		return fmt.Errorf("cannot prune latest version %d", latest)
 	}
+	if toVersion < first {
+		// Everything at or below toVersion is already pruned. Returning early
+		// also keeps setFirstVersion below from REWINDING the version floor
+		// (e.g. PruneVersionsTo(5) with first=100 must not set firstVersion=6).
+		return nil
+	}
 
 	// Claim the prune lock and verify no version in [first, toVersion] has an
 	// active reader. beginPruning holds pruneMu for the whole prune so no new

@@ -14,6 +14,7 @@ var (
 	ErrEmptyKey            = errors.New("key must not be empty")
 	ErrNoCommittedState    = errors.New("no committed state: call SaveVersion before generating proofs")
 	ErrKeyTooLong          = errors.New("key exceeds maximum size")
+	ErrUnsupported         = errors.New("operation not supported")
 )
 
 // MaxKeyLen caps how long a single key can be. Must stay at or below

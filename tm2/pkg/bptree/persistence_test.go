@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -508,29 +509,23 @@ func TestPersistence_ExportImport(t *testing.T) {
 	}
 }
 
-func TestPersistence_LoadVersionForOverwriting_Panics(t *testing.T) {
+func TestPersistence_LoadVersionForOverwriting_Unsupported(t *testing.T) {
 	tree := newTestTree(t)
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic from LoadVersionForOverwriting")
-		}
-	}()
-	tree.LoadVersionForOverwriting(1)
+	if err := tree.LoadVersionForOverwriting(1); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("LoadVersionForOverwriting: want ErrUnsupported, got %v", err)
+	}
 }
 
-func TestPersistence_DeleteVersionsFrom_Panics(t *testing.T) {
+func TestPersistence_DeleteVersionsFrom_Unsupported(t *testing.T) {
 	tree := newTestTree(t)
 	tree.Set([]byte("k"), []byte("v"))
 	tree.SaveVersion()
 	tree.SaveVersion()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic from DeleteVersionsFrom")
-		}
-	}()
-	tree.DeleteVersionsFrom(1)
+	if err := tree.DeleteVersionsFrom(1); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("DeleteVersionsFrom: want ErrUnsupported, got %v", err)
+	}
 }
 
 func TestPersistence_VersionReaders_BlockPruning(t *testing.T) {

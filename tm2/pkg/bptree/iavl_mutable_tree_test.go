@@ -65,15 +65,15 @@ func TestDeleteVersionsTo(t *testing.T) {
 	require.True(t, tree.VersionExists(version+1))
 }
 
-func TestDeleteVersionsFrom_Panics(t *testing.T) {
+func TestDeleteVersionsFrom_Unsupported(t *testing.T) {
 	tree := setupMutableTree(false)
 	tree.Set([]byte("k1"), []byte("v1"))
 	tree.SaveVersion()
-	require.Panics(t, func() { tree.DeleteVersionsFrom(1) })
+	require.ErrorIs(t, tree.DeleteVersionsFrom(1), ErrUnsupported)
 }
 
 // TestDeleteVersionsFrom_ResetsWorkingTree and TestDeleteVersionsFrom_DeleteAll
-// removed — DeleteVersionsFrom now panics (not supported, leaks nodes/values).
+// removed — DeleteVersionsFrom is unsupported (would leak nodes/values).
 
 func TestGetRemove(t *testing.T) {
 	require := require.New(t)
