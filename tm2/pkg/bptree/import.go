@@ -15,18 +15,24 @@ type importKV struct {
 // Importer reconstructs a tree from a stream of ExportNodes,
 // preserving the exact tree structure (and thus the root hash).
 type Importer struct {
-	tree       *MutableTree
-	version    int64
-	kvBuffer   []importKV
-	stack      []Node
-	nextNonce  uint32
+	tree      *MutableTree
+	version   int64
+	kvBuffer  []importKV
+	stack     []Node
+	nextNonce uint32
 }
 
 // Import creates an Importer that will reconstruct a tree at the given version.
+//
+// It first rolls back any uncommitted working-session state (pending batch,
+// orphan list, value-nonce counter) so stale state from a prior un-committed
+// session cannot leak into the import's SaveVersion. Import rebuilds the root
+// from scratch, so reverting t.root to lastSaved here is harmless.
 func (t *MutableTree) Import(version int64) (*Importer, error) {
 	if t.VersionExists(version) {
 		return nil, fmt.Errorf("version %d already exists", version)
 	}
+	t.Rollback()
 	return &Importer{tree: t, version: version}, nil
 }
 
