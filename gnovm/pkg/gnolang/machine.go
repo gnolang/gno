@@ -2770,7 +2770,8 @@ func numStackValuesForPointer(lx Expr) int {
 }
 
 // resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
-// PushForPointer evaluated for lx) rather than popping them off the value stack.
+// PushForPointer evaluated for lx) rather than popping them off the value stack
+// itself — the caller supplies them, so this resolver has no stack side effects.
 // lhsOperands are in stack order, oldest first: for an IndexExpr lhsOperands[0]
 // is X and lhsOperands[1] is Index. ro reports a readonly/cross-realm violation.
 // Shared by PopAsPointer2 (the stack wrapper) and doOpAssign (reads in place).
