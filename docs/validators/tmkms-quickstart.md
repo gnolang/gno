@@ -457,29 +457,43 @@ onboarding path performs in the production case.
 
 ## B.4 Write `tmkms.toml`
 
-Store it at `/etc/tmkms/tmkms.toml`, `0600`, owned by `tmkms`. Absolute
-paths throughout; the password lives in `password_file`, never inline.
+Set the signer address to match the transport you picked in Part A.3 —
+pick **one** (the TCP form embeds the mandatory peer-ID pin from B.2):
 
-```toml
+```sh
+# TCP (separate hosts):
+export TMKMS_ADDR="tcp://${VALIDATOR_PEER_ID}@<validator_ip>:26659"
+# OR same host (Unix socket — no peer ID; socket perms are the boundary):
+export TMKMS_ADDR="unix:///run/gnoland/privval.sock"
+```
+
+Write the config with a heredoc, then lock it down to `0600` owned by
+`tmkms` (the password stays in the separate `password_file`, never
+inline; all paths are absolute):
+
+```sh
+sudo tee /etc/tmkms/tmkms.toml >/dev/null <<TOML
 [[chain]]
-id = "gno-tmkms-prod"
-key_format = { type = "hex" }                       # logs the pubkey in hex (B.3)
+id = "${CHAIN_ID}"
+key_format = { type = "hex" }                                # logs the pubkey in hex (B.3)
 state_file = "/var/lib/tmkms/secrets/consensus_state.json"   # absolute! the HRS gate
 
 [[providers.yubihsm]]
-adapter = { type = "usb" }                          # or { type = "http", addr = "..." }
+adapter = { type = "usb" }                                   # or { type = "http", addr = "..." }
 auth = { key = 2, password_file = "/etc/tmkms/yubihsm-password" }
-keys = [{ chain_ids = ["gno-tmkms-prod"], key = 100, type = "consensus" }]
-# serial_number = "0123456789"                       # pin to one physical device
+keys = [{ chain_ids = ["${CHAIN_ID}"], key = 100, type = "consensus" }]
+# serial_number = "0123456789"                               # pin to one physical device
 
 [[validator]]
-chain_id = "gno-tmkms-prod"
-# TCP (separate hosts): the <peer_id>@ prefix is MANDATORY — see below.
-addr = "tcp://243cef06…dcac@<validator_ip>:26659"
-# Same host instead: addr = "unix:///run/gnoland/privval.sock"
+chain_id = "${CHAIN_ID}"
+addr = "${TMKMS_ADDR}"                                       # from above; peer-ID pin is MANDATORY on TCP
 secret_key = "/var/lib/tmkms/secrets/kms-identity.key"
 protocol_version = "v0.34"
 reconnect = true
+TOML
+
+sudo chown tmkms:tmkms /etc/tmkms/tmkms.toml
+sudo chmod 600 /etc/tmkms/tmkms.toml
 ```
 
 The fields that carry security weight:
@@ -576,7 +590,13 @@ Within a few seconds the node should advance through heights.
 - **Identity check:** the validator address in the `Signed and pushed
   vote` lines must equal the address from B.3 and the genesis entry.
 - **Kill tmkms** and watch gnoland stop committing; restart it and watch
-  it resume. That is the proof the key lives in the HSM, not the node.
+  it resume. That is the proof the key lives in the HSM, not the node:
+
+  ```sh
+  sudo systemctl stop tmkms     # or: sudo pkill -f 'tmkms start'
+  # gnoland's committed height stops climbing...
+  sudo systemctl start tmkms    # ...and resumes after tmkms reconnects
+  ```
 
 > **Benign log noise.** Even when signing works, gnoland periodically
 > logs `SignerListener: accept failed … i/o timeout` and `already
@@ -599,7 +619,13 @@ Within a few seconds the node should advance through heights.
   tmkms yourself.)
 - **Back up the state file** as part of every maintenance procedure — and
   understand a backup is for disaster recovery of the *latest* state, not
-  a checkpoint to roll back to.
+  a checkpoint to roll back to:
+
+  ```sh
+  sudo install -o tmkms -g tmkms -m 600 \
+    /var/lib/tmkms/secrets/consensus_state.json \
+    /var/lib/tmkms/secrets/consensus_state.json.bak
+  ```
 - **Drain the audit log.** With forced auditing on (B.1) the HSM stops
   signing once its audit buffer fills, so run a small auditor that reads
   and clears the log periodically (e.g. every 30s) and ships it off-box.
@@ -628,9 +654,12 @@ hardening on top:
 - **`0600` on `consensus.key` and the state file**, owned by `tmkms`. A
   readable softsign key *is* the validator's private key.
 - **Swap exposure.** tmkms zeroizes the key on drop but does not `mlock`
-  it, so it can be paged to disk. Disable swap on the signer host, or use
-  encrypted swap, if you care about the key never hitting persistent
-  storage in the clear.
+  it, so it can be paged to disk. Disable swap on the signer host (or use
+  encrypted swap) so the key never hits persistent storage in the clear:
+
+  ```sh
+  sudo swapoff -a                     # and comment swap out of /etc/fstab to persist
+  ```
 - **Don't re-run `secrets init` / keygen over an existing key file** —
   it can overwrite without warning. Back up first.
 
