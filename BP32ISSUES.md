@@ -57,7 +57,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 | L3 | `nextV==0` → `deleteAllNodesForVersion`→`deleteSubtree` deletes nodes only, leaks values/orphans (dormant) | #5570 finding:43 |
 | L5 | `DeleteNode` evicts cache **immediately** but delete is only batched; a concurrent miss re-caches from still-live DB → stale cache after flush | #5570 finding:44 |
 | L6 | `Rollback`/`orphanValueKey` ignore `DeleteValueDirect` errors → silent leak | #5570 finding:25 |
-| L7 | `Import` doesn't reset host-tree counters; allocates vks outside session tracking | #5570 finding:39 |
+| ~~L7~~ ✅ | **FIXED (`8208eb3c1`).** `Import` now calls `t.Rollback()` first, discarding any uncommitted working-session state (pending batch, orphan list, value-nonce, working root) so it can't leak into the import's `SaveVersion`. (#5570's "reserve nonce 0" was confirmed unnecessary on HEAD — versions are always ≥1, so a value key is never the all-zero sentinel; `allocValueKey` already uses nonce 0 routinely.) Bite-tested: `TestImport_RollsBackPendingSession`. | #5570 finding:39 |
 | M9 | **Write side has no key-length cap** while reads reject >1 MiB → an oversized key serializes then **wedges that version** on reload | #5591 (5f091db7e) |
 | M15 | `Exporter`: abandon-without-`Close()` **permanently leaks the version reader** (decr is only in `Close`), + goroutine leak for trees >32 nodes. Blocking-send was fixed (commit f357c859c) *only when Close is called* | #5442 bug5 |
 | M8 | `LoadVersionForOverwriting`/`DeleteVersionsFrom` **panic** (unsupported). Unused in prod, but panics rather than returning `ErrUnsupported` | #5570 finding:12 |
@@ -101,7 +101,7 @@ network ABCI, state-sync, or direct library reuse). The *reachable-today* bugs a
 ### Score
 
 - **Reachable correctness bugs remaining: 0.** ✅ H6/H8/H9 (`568bc03b6`); H10/M6 (`74b7ca21b`); H12 (#5468).
-- **Reachable leaks/robustness remaining: ~7** (Tier B: L1/L2/L5/L6/L7, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 landed via the #5591 cherry-pick (§VI).
+- **Reachable leaks/robustness remaining: ~6** (Tier B: L1/L2/L5/L6, M8, M15). ✅ H11/H13 (`568bc03b6`); **M9** + L3 via #5591 (§VI); ✅ **L7** (`8208eb3c1`, Import rolls back pending state).
 - **Latent concurrency (dormant under ABCI mutex): 0 of the original Tier C.** ✅ **H1** via #5591; ✅ **M11/M12** (`0de551f17`); ✅ **pendingVals** (`75c946820`, §VIII); ✅ **H2/H3** (`a07f4b3ce`, §IX); ✅ **M13** (`27c6ebbe5`, `GetNode` singleflight). Single-tree node reads, value resolution, prune-vs-reader, AND concurrent node loads are now safe against a writer. **Residual (addressed by contract — §X):** the pre-existing `MutableTree.version`/`lastSaved`/`root` read-vs-write field race is now documented as a single-goroutine contract + named `-race` guard (`446e4a6ad`, option a); an `RWMutex` on `MutableTree` (option b) is the only remaining promotion-time work.
 - **Memory / liveness: 0.** ✅ **M17** (unbounded working-tree memory → OOM at scale) fixed (`0de551f17`): getChild memoization removed + clear-on-save bound the working tree to the nodeDB LRU, matching IAVL.
 - **Hardening: 0.** ✅ **M3** (ReadNode trailing bytes) + **M4** (Serialize nil-ref) landed via #5591 cherry-pick.
@@ -373,7 +373,7 @@ from merge state.
 | L4 | `nodeKeyBytesToArr` silently **zero-pads short slices** → miscompare vs reachable-set could delete live nodes | L | `prune.go` | #5570 finding:47 | ❌ Open |
 | L5 | `DeleteNode` **evicts from cache before batch commit** → a concurrent miss reloads from disk & re-caches, then batch flush leaves cache holding a deleted node | L | `nodedb.go` | #5570 finding:44 | ❌ Open |
 | L6 | `Rollback`/`orphanValueKey` **ignore `DeleteValueDirect` errors** → silent space leak with no diagnostic | L | `mutable_tree.go` | #5570 finding:25/31 | ❌ Open |
-| L7 | `Importer` doesn't reset host-tree counters on reuse → latent nonce reuse | L | `import.go` | #5570 finding:39 | ❌ Open |
+| ~~L7~~ | `Importer` doesn't reset host-tree counters on reuse → stale pending session state could leak into the import's `SaveVersion` | L | `import.go` | #5570 finding:39 | ✅ **FIXED `8208eb3c1`** — `Import` calls `t.Rollback()` first (clean slate); nonce-1 reservation found unnecessary (versions ≥1) |
 
 ### Concurrency / thread-safety
 
