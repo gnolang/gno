@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -10,7 +11,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -33,6 +37,7 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	jobs                int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -179,6 +184,14 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.IntVar(
+		&c.jobs,
+		"jobs",
+		1,
+		"number of packages to test in parallel; 0 means GOMAXPROCS. "+
+			"When above 1, the output of each package is buffered and printed once the package's tests complete.",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -216,20 +229,22 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}()
 	}
 
-	// Set up options to run tests.
-	stdout := goio.Discard
-	if cmd.verbose {
-		stdout = io.Out()
+	if cmd.jobs != 1 && (cmd.debug || cmd.debugAddr != "") {
+		return errors.New("the interactive debugger can only be used with -jobs 1")
 	}
-	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err(), pkgs)
-	opts.RunFlag = cmd.run
-	opts.Sync = cmd.updateGoldenTests
-	opts.Verbose = cmd.verbose
-	opts.Metrics = cmd.printRuntimeMetrics
-	opts.Events = cmd.printEvents
-	opts.Debug = cmd.debug
-	opts.FailfastFlag = cmd.failfast
-	cache := make(gno.TypeCheckCache, 64)
+
+	// Set up options to run tests.
+	newOpts := func(stdout, stderr goio.Writer) *test.TestOptions {
+		opts := test.NewTestOptions(cmd.rootDir, stdout, stderr, pkgs)
+		opts.RunFlag = cmd.run
+		opts.Sync = cmd.updateGoldenTests
+		opts.Verbose = cmd.verbose
+		opts.Metrics = cmd.printRuntimeMetrics
+		opts.Events = cmd.printEvents
+		opts.Debug = cmd.debug
+		opts.FailfastFlag = cmd.failfast
+		return opts
+	}
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
@@ -241,119 +256,218 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	for _, pkg := range pkgs {
-		// Relativize and prepend dot to pkg dir if possible
-		// We ignore errors since it's a cosmetic thing
-		// XXX: use pkg import path instead of this when printing if possible
-		prettyDir := pkg.Dir
-		if filepath.IsAbs(pkg.Dir) {
-			cwd, err := os.Getwd()
-			if err == nil {
-				relDir, err := filepath.Rel(cwd, pkg.Dir)
-				if err == nil {
-					prettyDir = relDir
-					if prettyDir != "." && !strings.HasPrefix(prettyDir, "."+string(filepath.Separator)) {
-						prettyDir = "." + string(filepath.Separator) + prettyDir
-					}
-				}
-			}
+	if cmd.jobs == 1 {
+		// Sequential run: all packages share a single store, and print
+		// their output directly as they run.
+		stdout := goio.Discard
+		if cmd.verbose {
+			stdout = io.Out()
 		}
+		opts := newOpts(stdout, io.Err())
+		cache := make(gno.TypeCheckCache, 64)
 
-		for _, err := range pkg.Errors {
-			io.ErrPrintfln("%s", err.Error())
-			buildErrCount++
-		}
-		// don't test packages with load errors
-		if len(pkg.Errors) != 0 {
-			io.ErrPrintfln("FAIL    %s \t[setup failed]", prettyDir)
-			continue
-		}
-		// don't test packages not listed in patterns
-		if len(pkg.Match) == 0 {
-			continue
-		}
-
-		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", prettyDir)
-			continue
-		}
-
-		// Read and parse gnomod.toml directly.
-		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
-		mod, err := gnomod.ParseFilepath(fpath)
-		if errors.Is(err, fs.ErrNotExist) {
-			if cmd.autoGnomod {
-				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
-				modstr := gno.GenGnoModLatest(modulePath)
-				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
-				}
-				io.ErrPrintfln("auto-generated %q", fpath)
-				err = mod.WriteFile(fpath)
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
-				}
-				// err == nil.
-			}
-		}
-
-		// Determine pkgPath from gno.mod.
-		pkgPath, ok := determinePkgPath(mod, pkg.Dir, cmd.rootDir)
-		if !ok {
-			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-		}
-
-		// Read MemPackage with all files.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
-		var didPanic, didError bool
-		startedAt := time.Now()
-		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Ignore {
-				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
-					Getter:     opts.TestStore,
-					TestGetter: opts.TestStore,
-					Mode:       gno.TCLatestRelaxed,
-					Cache:      cache,
-				})
-				if errs != nil {
-					didError = true
-					// already printed in lintTypeCheck.
-					// io.ErrPrintln(errs)
-					return
-				}
-			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
-			}
-
-			///////////////////////////////////
-			// Run the tests found in the mpkg.
-			errs := test.Test(mpkg, prettyDir, opts)
-			if errs != nil {
-				didError = true
-				io.ErrPrintln(errs)
-				return
-			}
-		})
-
-		// Print status with duration.
-		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
-		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
-			testErrCount++
-			if cmd.failfast {
+		for _, pkg := range pkgs {
+			buildErrs, testErrs := cmd.testPkg(pkg, opts, cache, io)
+			buildErrCount += buildErrs
+			testErrCount += testErrs
+			if testErrs > 0 && cmd.failfast {
 				return fail()
 			}
-		} else {
-			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
 		}
+	} else {
+		// Parallel run: cmd.jobs workers, each with its own store. The
+		// output of each package is buffered, and printed in package order
+		// as results come in.
+		jobs := cmd.jobs
+		if jobs == 0 {
+			jobs = runtime.GOMAXPROCS(0)
+		}
+		jobs = min(jobs, len(pkgs))
+
+		type pkgResult struct {
+			out, errOut bytes.Buffer
+			buildErrs   int
+			testErrs    int
+			done        chan struct{}
+		}
+		results := make([]pkgResult, len(pkgs))
+		for i := range results {
+			results[i].done = make(chan struct{})
+		}
+		var (
+			nextIdx atomic.Int64
+			failed  atomic.Bool
+			wg      sync.WaitGroup
+		)
+		for range jobs {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cache := make(gno.TypeCheckCache, 64)
+				// One TestOptions (and store) per worker, reused across the
+				// packages it runs so that loaded packages are shared; only
+				// the writers are swapped per package.
+				opts := newOpts(goio.Discard, goio.Discard)
+				for {
+					i := int(nextIdx.Add(1)) - 1
+					if i >= len(pkgs) {
+						return
+					}
+					res := &results[i]
+					if cmd.failfast && failed.Load() {
+						// don't start new tests after the first test failure
+						close(res.done)
+						continue
+					}
+					opts.Output = goio.Discard
+					if cmd.verbose {
+						opts.Output = &res.out
+					}
+					opts.Error = &res.errOut
+					pio := commands.NewTestIO()
+					pio.SetOut(commands.WriteNopCloser(&res.out))
+					pio.SetErr(commands.WriteNopCloser(&res.errOut))
+					res.buildErrs, res.testErrs = cmd.testPkg(pkgs[i], opts, cache, pio)
+					if res.testErrs > 0 {
+						failed.Store(true)
+					}
+					close(res.done)
+				}
+			}()
+		}
+		for i := range results {
+			res := &results[i]
+			<-res.done
+			if res.out.Len() > 0 {
+				_, _ = io.Out().Write(res.out.Bytes())
+			}
+			if res.errOut.Len() > 0 {
+				_, _ = io.Err().Write(res.errOut.Bytes())
+			}
+			buildErrCount += res.buildErrs
+			testErrCount += res.testErrs
+		}
+		wg.Wait()
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
 	}
 
 	return nil
+}
+
+// testPkg loads and tests pkg, printing results to io. It returns the number
+// of build errors and test errors encountered.
+func (c *testCmd) testPkg(
+	pkg *packages.Package,
+	opts *test.TestOptions,
+	cache gno.TypeCheckCache,
+	io commands.IO,
+) (buildErrCount, testErrCount int) {
+	// Relativize and prepend dot to pkg dir if possible
+	// We ignore errors since it's a cosmetic thing
+	// XXX: use pkg import path instead of this when printing if possible
+	prettyDir := pkg.Dir
+	if filepath.IsAbs(pkg.Dir) {
+		cwd, err := os.Getwd()
+		if err == nil {
+			relDir, err := filepath.Rel(cwd, pkg.Dir)
+			if err == nil {
+				prettyDir = relDir
+				if prettyDir != "." && !strings.HasPrefix(prettyDir, "."+string(filepath.Separator)) {
+					prettyDir = "." + string(filepath.Separator) + prettyDir
+				}
+			}
+		}
+	}
+
+	for _, err := range pkg.Errors {
+		io.ErrPrintfln("%s", err.Error())
+		buildErrCount++
+	}
+	// don't test packages with load errors
+	if len(pkg.Errors) != 0 {
+		io.ErrPrintfln("FAIL    %s \t[setup failed]", prettyDir)
+		return
+	}
+	// don't test packages not listed in patterns
+	if len(pkg.Match) == 0 {
+		return
+	}
+
+	if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
+		io.ErrPrintfln("?       %s \t[no test files]", prettyDir)
+		return
+	}
+
+	// Read and parse gnomod.toml directly.
+	fpath := filepath.Join(pkg.Dir, "gnomod.toml")
+	mod, err := gnomod.ParseFilepath(fpath)
+	if errors.Is(err, fs.ErrNotExist) {
+		if c.autoGnomod {
+			modulePath, _ := determinePkgPath(nil, pkg.Dir, c.rootDir)
+			modstr := gno.GenGnoModLatest(modulePath)
+			mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
+			}
+			io.ErrPrintfln("auto-generated %q", fpath)
+			err = mod.WriteFile(fpath)
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
+			}
+			// err == nil.
+		}
+	}
+
+	// Determine pkgPath from gno.mod.
+	pkgPath, ok := determinePkgPath(mod, pkg.Dir, c.rootDir)
+	if !ok {
+		io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+	}
+
+	// Read MemPackage with all files.
+	mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
+	var didPanic, didError bool
+	startedAt := time.Now()
+	didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
+		if mod == nil || !mod.Ignore {
+			_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+				Getter:     opts.TestStore,
+				TestGetter: opts.TestStore,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      cache,
+			})
+			if errs != nil {
+				didError = true
+				// already printed in lintTypeCheck.
+				// io.ErrPrintln(errs)
+				return
+			}
+		} else if c.verbose {
+			io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
+		}
+
+		///////////////////////////////////
+		// Run the tests found in the mpkg.
+		errs := test.Test(mpkg, prettyDir, opts)
+		if errs != nil {
+			didError = true
+			io.ErrPrintln(errs)
+			return
+		}
+	})
+
+	// Print status with duration.
+	duration := time.Since(startedAt)
+	dstr := fmtDuration(duration)
+	if didPanic || didError {
+		io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
+		testErrCount++
+	} else {
+		io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
+	}
+	return
 }
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
