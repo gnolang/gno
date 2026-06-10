@@ -1374,11 +1374,20 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
-	// Set realm for realm packages, main package, and ephemeral run packages
+	// Set realm for realm packages, main package, and ephemeral run packages.
+	// /p/ and stdlib packages also get a realm: it is frozen/immutable
+	// (IsRealm() stays false, so it is never persisted as mutable state), but
+	// giving it a real Realm means borrow rule #2 on a /p/- or stdlib-stamped
+	// receiver shifts m.Realm to this realm instead of nil — so the
+	// readonly/PkgID write gate keeps working inside those method bodies (it
+	// short-circuits to "allow" on nil).
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
+		rlm := NewRealm(pn.PkgPath)
+		pv.SetRealm(rlm)
+	} else if isImmutableLibraryPath(pn.PkgPath) {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
