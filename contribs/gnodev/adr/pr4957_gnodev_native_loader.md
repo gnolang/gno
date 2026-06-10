@@ -79,12 +79,16 @@ workspace / root patterns that `expandPatterns` understands.
 paths (what the proxy accumulates via `Resolve`) as modcache lookups, not
 filesystem scans. So `Reload` calls `gnovm.Load` once for the workspace
 pattern, clears tracked entries from `index` (so they are re-derived from
-disk on the next `Resolve`), and re-runs `Resolve` for every tracked
-path. The union of workspace pkgs + re-resolved tracked pkgs is
-returned. Dep walking happens at the workspace level via `gnovm.Load`;
-proxy-discovered deps are re-discovered request-by-request by the proxy
-itself, consistent with the lazy model. `rootIdx` is preserved across
-Reload — see the Root scan caching section.
+disk on the next `Resolve`), and expands every tracked path into its
+transitive import closure: each package's chain imports (read via
+`Package.Imports`, which reuses gnovm's import parser and excludes test
+files and stdlibs) are resolved recursively and emitted dependency-first,
+so genesis deploys them in order. Without the closure, a lazily-loaded
+realm's addpkg fails chain-side type-checking with "unknown import path" —
+the proxy only ever sees the queried path, never its imports. An
+unresolvable import warns and is skipped rather than failing the reload;
+the chain then reports the precise type-check error for that one package.
+`rootIdx` is preserved across Reload — see the Root scan caching section.
 
 `Resolve` does **not** call `gnovm.Load`. It:
 1. Hits the internal index if already loaded.
@@ -166,7 +170,7 @@ loader flags (`-no-examples`, `-extra-root`, `-remote-override`).
 |---|---|---|
 | In workspace | default | Eager load workspace; examples lazy via proxy |
 | In workspace | `-no-examples` | Eager load workspace; no proxy. Workspace imports of `gno.land/*` paths unreachable via FS roots are warned at startup. |
-| No workspace | default | Discovery-mode banner on stderr; examples lazy via proxy. `gnodev local` registers CWD as an extra-root automatically so loose-realm dirs still resolve. |
+| No workspace | default | Discovery-mode warning in the `Loader` log group; examples lazy via proxy. `gnodev local` registers CWD as an extra-root automatically so loose-realm dirs still resolve. |
 | No workspace | `-no-examples`, no `-extra-root` | **Fatal**: "nothing to load". Explicit combination of flags asks gnodev to do nothing. |
 | Any | `-extra-root <dir>` (nonexistent) | Warning logged; invalid root skipped |
 | Any | `-extra-root <dir>` (valid) | `<dir>` added to the lazy set |
@@ -192,9 +196,10 @@ Fatal only in two cases:
 Everything else is a warning and gnodev proceeds with whatever it managed
 to assemble:
 
-- Missing workspace: a multi-line banner is written to stderr before the
-  slog pipeline starts (so the user sees "discovery mode" as a distinct
-  startup message rather than buried in a log group); gnodev proceeds.
+- Missing workspace: a multiline Warn in the `Loader` log group; the
+  column logger renders it as one bordered block, and routing through the
+  logger keeps raw-mode line endings correct (a raw stderr write bypasses
+  rawterm's `\n` → `\r\n` translation and staircases). gnodev proceeds.
 - Nonexistent `-extra-root`: warn, skip that root.
 - `Resolve` miss in the proxy: debug log, skip — normal in lazy mode.
 - `rpcpkgfetcher` failure: warn, skip — remote not reachable or path
@@ -216,6 +221,15 @@ refuses to accept.
 once on first `Reset()` to produce the initial package set and again on
 every watcher-triggered reload. `app.go` wires the closure to
 `loader.Reload` (lazy mode) or `loader.LoadAll` (`gnodev staging`).
+
+The node also owns the genesis bootstrap tx: the `r/sys/users/init.Bootstrap`
+call (mirroring the chain's genesis whitelist of the user-registration
+controller) is injected only when the realm is part of the genesis package
+set, re-evaluated on every rebuild so a later lazy load of the realm picks
+it up. Genesis txs carry one empty signature slot per signer to pass
+validation. Previously the tx was injected unconditionally at the app layer
+with nil signatures, so it failed `ValidateBasic` at every startup and could
+never succeed in lazy mode anyway.
 
 The proxy (`pkg/proxy/path_interceptor.go`) calls the bound
 `loader.Resolve` directly.
@@ -321,11 +335,16 @@ real capability.
 
 - PR [#4957](https://github.com/gnolang/gno/pull/4957) — initial migration
 - PR [#5604](https://github.com/gnolang/gno/pull/5604) — follow-up
-  refinements (`-remote-override` flag, discovery-mode banner,
+  refinements (`-remote-override` flag, discovery-mode warning,
   `-no-examples` import-graph diagnostic, `LookupFS` FS-only lookup,
   `KindUnknown` zero value, rootIdx Reload preservation, guessPath
   basename sanitization, staging progress logging,
-  `-without-quarantined-examples` via `Config.ExcludeDirs`)
+  `-without-quarantined-examples` via `Config.ExcludeDirs`,
+  transitive import closure for lazily-loaded packages
+  (`Package.Imports` + deps-first expansion in `Reload`),
+  discovery-mode warning routed through the column logger,
+  conditional genesis `users/init` bootstrap tx with sized
+  signature slots)
 - `gnovm/pkg/packages/` — native loader
 - `contribs/gnodev/pkg/packages/` — gnodev's loader package
 - `contribs/gnodev/pkg/proxy/path_interceptor.go` — lazy proxy
