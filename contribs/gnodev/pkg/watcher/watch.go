@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 	"time"
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
@@ -155,36 +154,34 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...*packages.Package) {
 }
 
 func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {
-	pkgsUpdate := []events.PackageUpdate{}
-
-	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
+	// Watches are per-directory (non-recursive), so a file belongs to the
+	// package whose directory directly contains it, or to none.
 	watchList := p.watcher.WatchList()
-	for _, file := range paths {
-		for _, watchDir := range watchList {
-			if len(watchDir) == len(file) {
-				continue // Skip if watchDir == file
-			}
-
-			// Check if a package directory contain our path directory
-			dir := filepath.Dir(file)
-			if !strings.HasPrefix(watchDir, dir) {
-				continue
-			}
-
-			// Accumulate file updates for each package
-			pkgu, ok := mpkgs[watchDir]
-			if !ok {
-				pkgsUpdate = append(pkgsUpdate, events.PackageUpdate{
-					PackageDir: watchDir,
-					Files:      []string{},
-				})
-				pkgu = &pkgsUpdate[len(pkgsUpdate)-1]
-			}
-
-			pkgu.Files = append(pkgu.Files, file)
-		}
+	watchDirs := make(map[string]struct{}, len(watchList))
+	for _, d := range watchList {
+		watchDirs[d] = struct{}{}
 	}
 
+	mpkgs := map[string]*events.PackageUpdate{} // PackageDir -> Update
+	order := []string{}                         // first-seen package order
+	for _, file := range paths {
+		dir := filepath.Dir(file)
+		if _, ok := watchDirs[dir]; !ok {
+			continue
+		}
+		pkgu, ok := mpkgs[dir]
+		if !ok {
+			pkgu = &events.PackageUpdate{PackageDir: dir, Files: []string{}}
+			mpkgs[dir] = pkgu
+			order = append(order, dir)
+		}
+		pkgu.Files = append(pkgu.Files, file)
+	}
+
+	pkgsUpdate := make(PackageUpdateList, 0, len(order))
+	for _, dir := range order {
+		pkgsUpdate = append(pkgsUpdate, *mpkgs[dir])
+	}
 	return pkgsUpdate
 }
 

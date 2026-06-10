@@ -77,6 +77,35 @@ func TestWatcher_AtomicRenameSave(t *testing.T) {
 	require.NotEmpty(t, up)
 }
 
+// TestWatcher_UpdateAttribution pins file-to-package attribution: an event
+// belongs to the package whose directory directly contains the file — not
+// to a sibling package whose path merely shares a string prefix.
+func TestWatcher_UpdateAttribution(t *testing.T) {
+	w, err := NewPackageWatcher(log.NewTestingLogger(t), &mock.ServerEmitter{})
+	require.NoError(t, err)
+	t.Cleanup(w.Stop)
+
+	root := t.TempDir()
+	short := filepath.Join(root, "ab") // package "ab"
+	long := filepath.Join(root, "abc") // sibling sharing "ab" as string prefix
+	for _, dir := range []string{short, long} {
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "pkg.gno"),
+			[]byte("package foo\n"), 0o644))
+	}
+	w.UpdatePackagesWatch(
+		&packages.Package{ImportPath: "gno.land/p/test/ab", Dir: short, Kind: packages.KindFS},
+		&packages.Package{ImportPath: "gno.land/p/test/abc", Dir: long, Kind: packages.KindFS},
+	)
+
+	changed := filepath.Join(short, "pkg.gno")
+	up := w.generatePackagesUpdateList([]string{changed})
+
+	require.Len(t, up, 1, "file in ab/ must not be attributed to sibling abc/")
+	require.Equal(t, short, up[0].PackageDir)
+	require.Equal(t, []string{changed}, up[0].Files)
+}
+
 func TestWatcher_FileRemove(t *testing.T) {
 	w, dir := setupTestingWatcher(t)
 
