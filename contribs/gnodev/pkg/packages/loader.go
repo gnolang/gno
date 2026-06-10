@@ -278,6 +278,23 @@ func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string
 	return out
 }
 
+// AddLocalPackage registers dir as the source of importPath for a dir that
+// has no gnomod.toml — the `gnodev ./scratch-realm` flow, where the module
+// path is generated from the directory name. The package is tracked so it
+// reaches every reload, and ToMemPackage synthesizes the missing
+// gnomod.toml at deploy time.
+func (l *Loader) AddLocalPackage(importPath, dir string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.index[importPath] = &Package{
+		ImportPath:    importPath,
+		Dir:           dir,
+		Kind:          KindFS,
+		MissingGnoMod: true,
+	}
+	l.tracked[importPath] = struct{}{}
+}
+
 // Track registers paths to re-resolve on every Reload / LoadAll, exactly
 // like paths previously seen by Resolve. Paths are not validated here: an
 // unresolvable tracked path is warn-logged at reload time. Used for the

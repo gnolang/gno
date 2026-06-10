@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -153,6 +154,40 @@ func TestGnodev_PathsFlag_ReachesGenesis(t *testing.T) {
 
 	assert.Contains(t, importPaths(app.devNode.ListPkgs()), flagged,
 		"-paths package must be part of the genesis package set")
+}
+
+// ---- E8: gnomod-less package dir deploys under a generated module path
+
+func TestGnodev_NoGnomodDir_DeploysGeneratedModule(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(workspace)
+
+	// A realm dir holding only a .gno file: no gnomod.toml anywhere.
+	dir := filepath.Join(t.TempDir(), "myrealm")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "realm.gno"),
+		[]byte("package myrealm\n\nfunc Render(_ string) string { return \"hi\" }\n"), 0o644))
+
+	cfg := defaultLocalAppConfig
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	cfg.nodeRPCListenerAddr = "127.0.0.1:0"
+	cfg.noWatch = true
+
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+
+	app := NewApp(logger, &cfg, commands.NewTestIO())
+	require.NoError(t, app.Setup(context.Background(), dir))
+	t.Cleanup(app.Close)
+
+	const generated = "gno.land/r/dev/myrealm"
+	assert.Contains(t, importPaths(app.devNode.ListPkgs()), generated,
+		"gnomod-less dir must deploy under the generated module path")
+
+	out := logBuf.String()
+	assert.Contains(t, out, "gnomod.toml", "must warn that gnomod.toml is missing")
+	assert.Contains(t, out, generated, "warning must name the generated module path")
 }
 
 // ---- E6: Reload preserves both workspace and proxy-resolved paths

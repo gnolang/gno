@@ -1,31 +1,43 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	gopath "path"
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
-// guessPath returns the import path for dir. It first tries to read
-// gnomod.toml; if absent, it derives a path under the chain domain's
-// /r/dev/ namespace from the directory base name, sanitized to match
-// gno's Re_name regex (lowercase letters/digits/underscore only,
-// must start with a letter or `_<letter>`).
-func guessPath(cfg *AppConfig, dir string) (path string) {
-	if path, ok := guessPathGnoMod(dir); ok {
-		return path
+// detectLocalPackage classifies dir as a deployable package candidate.
+// A gnomod.toml module path wins; a genuinely absent gnomod.toml falls back
+// to the generated /r/dev/ path, accepted only when the dir actually reads
+// as a gno package. An unparseable gnomod.toml is an error — deploying such
+// a dir under a generated name would hide the user's mistake.
+func detectLocalPackage(cfg *AppConfig, dir string) (path string, hasGnoMod bool, err error) {
+	mod, err := gnomod.ParseDir(dir)
+	switch {
+	case err == nil:
+		return mod.Module, true, nil
+	case !errors.Is(err, gnomod.ErrNoModFile):
+		return "", false, fmt.Errorf("invalid gnomod.toml: %w", err)
 	}
-	return gopath.Join(cfg.chainDomain, "/r/dev/", sanitizePathSegment(filepath.Base(dir)))
+
+	path = generatedPath(cfg, dir)
+	if _, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll); err != nil {
+		return "", false, fmt.Errorf("no gno package found: %w", err)
+	}
+	return path, false, nil
 }
 
-func guessPathGnoMod(dir string) (path string, ok bool) {
-	modfile, err := gnomod.ParseDir(dir)
-	if err != nil {
-		return "", false
-	}
-	return modfile.Module, true
+// generatedPath derives a module path under the chain domain's /r/dev/
+// namespace from the directory base name, sanitized to match gno's Re_name
+// regex (lowercase letters/digits/underscore only, must start with a letter
+// or `_<letter>`).
+func generatedPath(cfg *AppConfig, dir string) string {
+	return gopath.Join(cfg.chainDomain, "/r/dev/", sanitizePathSegment(filepath.Base(dir)))
 }
 
 // sanitizePathSegment lower-cases s, replaces every non-alphanumeric rune

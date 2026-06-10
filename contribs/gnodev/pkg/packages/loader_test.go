@@ -612,6 +612,38 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
 }
 
+// TestLoader_AddLocalPackage covers the gnomod-less dir flow (`gnodev
+// ./scratch-realm` or `cd scratch-realm && gnodev`): the dir is registered
+// under a generated module path, reaches every reload, and its MemPackage
+// carries a synthesized gnomod.toml — chain-side AddPackage validation
+// rejects packages without one.
+func TestLoader_AddLocalPackage(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "myrealm")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "realm.gno"),
+		[]byte("package myrealm\n"), 0o644))
+
+	l := New(Config{Fetcher: pkgdownload.NewInMemoryFetcher(), Logger: testLogger()})
+	l.AddLocalPackage("gno.land/r/dev/myrealm", dir)
+
+	got, err := l.Resolve("gno.land/r/dev/myrealm")
+	require.NoError(t, err)
+	assert.Equal(t, dir, got.Dir)
+
+	pkgs, err := l.Reload()
+	require.NoError(t, err)
+	assert.Contains(t, pathsOf(pkgs), "gno.land/r/dev/myrealm",
+		"registered local package must reach the reload output")
+
+	mp, err := got.ToMemPackage()
+	require.NoError(t, err)
+	gm := mp.GetFile("gnomod.toml")
+	require.NotNil(t, gm, "gnomod.toml must be synthesized for deploy")
+	assert.Contains(t, gm.Body, `module = "gno.land/r/dev/myrealm"`)
+	assert.NoError(t, mp.ValidateBasic(),
+		"synthesized file must keep the mempackage valid (sorted files)")
+}
+
 // TestLoader_Track_ReloadIncludesTracked: paths registered via Track (the
 // -paths flag and -txs-file dependencies) must be part of every Reload
 // output, exactly like proxy-resolved paths.

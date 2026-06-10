@@ -180,10 +180,42 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		}
 		extraRoots = append(extraRoots, r)
 	}
+
+	// Package-dir candidates: explicit [package_dir...] args, plus the CWD
+	// forwarded by the local command. Dirs with a gnomod.toml resolve through
+	// a root scan; gnomod-less dirs deploy under a generated module path and
+	// are registered with the loader below (the scan requires gnomod.toml).
+	type generatedPkg struct{ path, dir string }
+	var generatedPkgs []generatedPkg
 	for _, dir := range dirs {
-		path := guessPath(ds.cfg, dir)
+		dir, err := filepath.Abs(dir)
+		if err != nil {
+			return fmt.Errorf("unable to resolve directory %q: %w", dir, err)
+		}
+		path, hasGnoMod, err := detectLocalPackage(ds.cfg, dir)
+		if err != nil {
+			// The CWD is forwarded unconditionally by the local command;
+			// not being a package there is normal. Explicit args warrant
+			// a warning.
+			if dir == cwd {
+				loaderLogger.Debug("skipping current directory", "dir", dir, "reason", err)
+			} else {
+				loaderLogger.Warn("skipping directory", "dir", dir, "reason", err)
+			}
+			continue
+		}
 		localPaths = append(localPaths, path)
-		extraRoots = append(extraRoots, dir)
+		switch {
+		case !hasGnoMod:
+			loaderLogger.Warn("gnomod.toml not found, deploying under a generated module path",
+				"dir", dir, "module", path,
+				"hint", "create a gnomod.toml to set the module path explicitly")
+			generatedPkgs = append(generatedPkgs, generatedPkg{path: path, dir: dir})
+		case dir != ws:
+			// The workspace root is already eagerly loaded; registering it
+			// again as an extra root would walk it twice per reload.
+			extraRoots = append(extraRoots, dir)
+		}
 	}
 
 	if ws == "" {
@@ -213,6 +245,9 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		Logger:          loaderLogger,
 	}
 	ds.loader = packages.New(loaderCfg)
+	for _, gp := range generatedPkgs {
+		ds.loader.AddLocalPackage(gp.path, gp.dir)
+	}
 
 	// When examples are disabled, surface unresolvable gno.land/* imports at
 	// startup so users get a clear warning instead of a mysterious VM panic

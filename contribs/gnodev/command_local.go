@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
 )
@@ -93,23 +91,9 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// Append the current directory's package path to cfg.paths so the node
-	// preloads/watches it. Workspace discovery + -extra-root now drive the
-	// loader; no resolver wiring is needed here.
-	path := guessPath(&cfg.AppConfig, dir)
-	if _, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll); err == nil {
-		if len(cfg.paths) > 0 {
-			cfg.paths += ","
-		}
-		cfg.paths += path
-
-		// Register CWD as an extra root when no workspace was detected.
-		// Without this, a loose realm dir (no gnomod.toml/gnowork.toml ancestor)
-		// would be referenced in cfg.paths but unresolvable by the loader.
-		if packages.FindWorkspace(dir) == "" {
-			cfg.extraRoots = append(cfg.extraRoots, dir)
-		}
-	}
-
-	return runApp(&cfg.AppConfig, cio) // else run app without any dir
+	// Forward the CWD as a package-dir candidate; Setup applies the same
+	// handling as explicit package dirs (gnomod.toml module path, or a
+	// generated one with a warning) and quietly skips it when it holds no
+	// gno package.
+	return runApp(&cfg.AppConfig, cio, dir)
 }

@@ -28,6 +28,11 @@ type Package struct {
 	Kind       Kind
 	Name       string
 
+	// MissingGnoMod marks a package whose Dir holds no gnomod.toml — a dir
+	// deployed under a module path generated from its name. ToMemPackage
+	// synthesizes the file: chain-side AddPackage validation requires it.
+	MissingGnoMod bool
+
 	memPkg *std.MemPackage // set only for in-memory-backed test packages
 }
 
@@ -54,6 +59,10 @@ func (p *Package) ToMemPackage() (*std.MemPackage, error) {
 	mp, err := gnolang.ReadMemPackage(p.Dir, p.ImportPath, mptype)
 	if err != nil {
 		return nil, fmt.Errorf("read package %s at %s: %w", p.ImportPath, p.Dir, err)
+	}
+	if p.MissingGnoMod && mp.GetFile("gnomod.toml") == nil {
+		mp.SetFile("gnomod.toml", gnolang.GenGnoModLatest(p.ImportPath))
+		mp.Sort()
 	}
 	return mp, nil
 }
