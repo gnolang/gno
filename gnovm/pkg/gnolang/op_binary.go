@@ -126,6 +126,12 @@ func hasInterfaceStaticType(x Expr) bool {
 	if t == nil {
 		return false
 	}
+	// A single-result CallExpr caches its type as a 1-element *tupleType
+	// (see evalStaticTypeOfRaw); unwrap it like evalStaticTypeOf does, so a
+	// function call returning an interface is recognized as a boundary.
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		t = tt.Elts[0]
+	}
 	_, ok := baseOf(t).(*InterfaceType)
 	return ok
 }
