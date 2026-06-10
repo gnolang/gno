@@ -385,9 +385,15 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
+	// A nil dt means the assignment target is discarded: a blank identifier
+	// (`_ = xxx`, assign8.gno, 0f31) or a blank/absent range operand.
+	// Anything is assignable to it.
+	if dt == nil {
+		return nil
+	}
 	// case0
-	if xt == nil { // see test/files/types/eql_0f18
-		if dt == nil || dt.Kind() == InterfaceKind {
+	if xt == nil { // untyped nil, see test/files/types/eql_0f18
+		if dt.Kind() == InterfaceKind {
 			return nil
 		}
 		if !mayBeNil(dt) {
@@ -406,8 +412,6 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 				return errors.New("cannot use nil as %v value", dt)
 			}
 		}
-		return nil
-	} else if dt == nil { // _ = xxx, assign8.gno, 0f31. else cases?
 		return nil
 	}
 	// case3
