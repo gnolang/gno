@@ -45,7 +45,10 @@ func (t *ImmutableTree) Export(ndb *nodeDB) (*Exporter, error) {
 		return nil, ErrNotInitializedTree
 	}
 
-	if ndb != nil {
+	// version > 0 matches the registration convention elsewhere (a version-0
+	// entry is meaningless — nothing prunable exists below firstVersion 1);
+	// Close's unconditional decrement is a no-op for an unregistered version.
+	if ndb != nil && t.version > 0 {
 		ndb.incrVersionReaders(t.version)
 	}
 

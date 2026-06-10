@@ -85,7 +85,15 @@ func (t *MutableTree) pruneRange(first, toVersion, latest int64) error {
 	}
 
 	for v := first; v <= toVersion; v++ {
-		if !t.ndb.VersionExists(v) {
+		// Pruning decisions are destructive, so a DB error here must abort
+		// (versionExistsE), never read as "absent": treating an existing v as
+		// absent would skip it while its successor is pruned against a later
+		// version, deleting records v still shares.
+		exists, err := t.ndb.versionExistsE(v)
+		if err != nil {
+			return fmt.Errorf("bptree: checking v%d before pruning: %w", v, err)
+		}
+		if !exists {
 			continue
 		}
 		// findNextVersion always returns a non-zero version here: we rejected
@@ -93,13 +101,16 @@ func (t *MutableTree) pruneRange(first, toVersion, latest int64) error {
 		// find at least `latest` as a successor. That is the only guarantee
 		// we need — a successor must exist for dual-tree-walk pruning to
 		// know which values (from orphan lists) can safely be deleted.
-		nextV := t.findNextVersion(v, latest)
+		nextV, err := t.findNextVersion(v, latest)
+		if err != nil {
+			return err
+		}
 		if nextV == 0 {
 			// Defensive: should not happen given the toVersion < latest
-			// check above. If it ever does, bail rather than silently
-			// deleting nodes without processing value-orphan lists (the
-			// old deleteAllNodesForVersion path walked nodes but left
-			// every leaf value referenced by v in the DB).
+			// check above. If it ever does, bail — deleting a version
+			// without a successor to dual-walk against would skip the
+			// value-orphan processing and leak every leaf value v
+			// references.
 			return fmt.Errorf("bptree: pruning v%d found no successor (invariant: toVersion=%d < latest=%d should guarantee one)", v, toVersion, latest)
 		}
 		if err := t.pruneVersion(v, nextV); err != nil {
@@ -122,13 +133,20 @@ func (t *MutableTree) pruneRange(first, toVersion, latest int64) error {
 }
 
 // findNextVersion finds the next existing version after v, up to latest.
-func (t *MutableTree) findNextVersion(v, latest int64) int64 {
+// A DB error aborts rather than skipping the candidate (versionExistsE):
+// skipping a RETAINED successor would prune v against a later version and
+// delete records and orphan-listed values the skipped version still uses.
+func (t *MutableTree) findNextVersion(v, latest int64) (int64, error) {
 	for nv := v + 1; nv <= latest; nv++ {
-		if t.ndb.VersionExists(nv) {
-			return nv
+		exists, err := t.ndb.versionExistsE(nv)
+		if err != nil {
+			return 0, fmt.Errorf("finding successor of v%d: %w", v, err)
+		}
+		if exists {
+			return nv, nil
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 // pruneVersion performs the dual-tree-walk between version v and nextV,

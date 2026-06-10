@@ -104,6 +104,9 @@ func (imp *Importer) Add(node *ExportNode) error {
 			return fmt.Errorf("import: inner marker has %d separator keys, expected %d", len(node.SeparatorKeys), node.NumKeys)
 		}
 		for i, sk := range node.SeparatorKeys {
+			if len(sk) == 0 {
+				return fmt.Errorf("import: empty inner separator key %d", i)
+			}
 			if len(sk) > MaxKeyLen {
 				return fmt.Errorf("import: inner separator key %d length %d exceeds MaxKeyLen %d", i, len(sk), MaxKeyLen)
 			}

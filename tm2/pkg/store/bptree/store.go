@@ -342,10 +342,10 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		subspace := req.Data
 		res.Key = subspace
 		iterator := types.PrefixIterator(st, subspace)
+		defer iterator.Close()
 		for ; iterator.Valid(); iterator.Next() {
 			KVs = append(KVs, types.KVPair{Key: iterator.Key(), Value: iterator.Value()})
 		}
-		iterator.Close()
 		res.Value = amino.MustMarshalSized(KVs)
 
 	default:

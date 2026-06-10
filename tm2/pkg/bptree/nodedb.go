@@ -195,8 +195,6 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 // pendingVals (so GetValue resolves it before SaveVersion) and written into
 // the batch (so it is flushed atomically with the nodes/root at Commit).
 // Nothing is written to the DB until Commit; Rollback/DiscardBatch drop it.
-// This replaces an earlier eager, un-batched db.Set per value, which could
-// overwrite an already-persisted version's value namespace and leak on crash.
 func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 	valCopy := make([]byte, len(value))
 	copy(valCopy, value)
@@ -298,6 +296,11 @@ func (ndb *nodeDB) LoadOrphans(version int64) ([][]byte, error) {
 	count, err := binary.ReadUvarint(r)
 	if err != nil {
 		return nil, fmt.Errorf("reading orphan count: %w", err)
+	}
+	// Validate the untrusted count against the bytes actually present before
+	// allocating (a corrupt record could claim a huge count and OOM).
+	if count > uint64(r.Len())/NodeKeySize {
+		return nil, fmt.Errorf("orphan count %d exceeds record size %d", count, len(data))
 	}
 	orphans := make([][]byte, count)
 	for i := range orphans {

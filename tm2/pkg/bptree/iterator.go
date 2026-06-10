@@ -324,8 +324,12 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 	ndb := imm.ndb
 	var trackVersion int64
 	if ndb != nil {
-		trackVersion = imm.version
-		ndb.incrVersionReaders(trackVersion)
+		// version > 0 mirrors Close's decrement guard: registering version 0
+		// would never be released.
+		if imm.version > 0 {
+			trackVersion = imm.version
+			ndb.incrVersionReaders(trackVersion)
+		}
 	} else if mtree != nil {
 		ndb = mtree.ndb
 	}
@@ -340,8 +344,9 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 
 // Iterator returns an iterator over [start, end) in the given direction.
 // MutableTree iterators walk the in-memory working tree and do not take a
-// version reader: the working tree is never pruned (pruning rejects
-// toVersion >= latest).
+// version reader: pruning rejects toVersion >= latest, and a working tree
+// loaded at an older version is protected by the working-tree-reader guard
+// (PruneVersionsTo rejects t.version <= toVersion with ErrActiveReaders).
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
 	// Working-tree iterator: resolve through GetValue (pendingVals first) so a
@@ -359,7 +364,9 @@ func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, er
 // values are resolved via t.valueResolver (no version tracking needed).
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	var trackVersion int64
-	if t.ndb != nil {
+	// version > 0 mirrors Close's decrement guard: registering version 0
+	// would never be released.
+	if t.ndb != nil && t.version > 0 {
 		trackVersion = t.version
 		t.ndb.incrVersionReaders(trackVersion)
 	}
