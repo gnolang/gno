@@ -1,8 +1,8 @@
 # ADR: migrate gnodev to the gnovm native package loader
 
-Status: Accepted
-PR: [#4957](https://github.com/gnolang/gno/pull/4957)
-Date: 2026-04-20
+## Status
+
+Accepted ([#4957](https://github.com/gnolang/gno/pull/4957)).
 
 ## Context
 
