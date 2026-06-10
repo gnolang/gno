@@ -299,11 +299,16 @@ func (l *Loader) Reload() ([]*Package, error) {
 		seen[p.ImportPath] = struct{}{}
 	}
 
-	// Drop tracked paths from the index so Resolve re-derives them from
-	// FS or fetcher (picking up any changes on disk). rootIdx is preserved:
+	// Drop FS-backed tracked paths from the index so Resolve re-derives
+	// them. Remote packages stay cached: on-chain content is immutable for
+	// the session, and Reload runs on every watcher tick — evicting them
+	// would re-fetch over RPC on every file save. rootIdx is preserved:
 	// directories are stable mid-session; new dirs need a gnodev restart.
 	l.mu.Lock()
 	for _, p := range trackedPaths {
+		if pkg, ok := l.index[p]; ok && pkg.Kind == KindRemote {
+			continue
+		}
 		delete(l.index, p)
 	}
 	l.mu.Unlock()

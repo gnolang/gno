@@ -593,6 +593,43 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
 }
 
+// countingFetcher wraps a real fetcher and counts FetchPackage calls.
+type countingFetcher struct {
+	inner pkgdownload.PackageFetcher
+	calls atomic.Int32
+}
+
+func (f *countingFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
+	f.calls.Add(1)
+	return f.inner.FetchPackage(pkgPath)
+}
+
+// TestLoader_Reload_KeepsRemoteCached: on-chain packages are immutable for a
+// gnodev session, and Reload runs on every watcher tick. Evicting remote
+// entries from the index would re-fetch them over RPC on every file save.
+func TestLoader_Reload_KeepsRemoteCached(t *testing.T) {
+	mp := &std.MemPackage{
+		Path:  "gno.land/r/demo/boards",
+		Name:  "boards",
+		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
+	}
+	cf := &countingFetcher{inner: pkgdownload.NewInMemoryFetcher(mp)}
+	l := New(Config{Fetcher: cf, Logger: testLogger()})
+
+	_, err := l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, cf.calls.Load())
+
+	for range 2 {
+		got, err := l.Reload()
+		require.NoError(t, err)
+		assert.Contains(t, pathsOf(got), "gno.land/r/demo/boards",
+			"tracked remote package must stay in the reload output")
+	}
+	assert.EqualValues(t, 1, cf.calls.Load(),
+		"remote packages are session-immutable; Reload must not re-fetch them")
+}
+
 // TestStripStdlibs_FiltersImportsSpecs verifies stripStdlibs keeps Imports
 // and ImportsSpecs consistent: GetNonIgnoredPkgs walks ImportsSpecs, so a
 // stdlib entry surviving there while gone from Imports is a desync trap.
