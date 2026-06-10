@@ -14,7 +14,7 @@ import (
 // and returns the sets of reachable node records (by NodeKey bytes) and
 // referenced value records (by valueKey bytes). A reachable-but-missing node
 // fails the test immediately — that is the over-deletion detector.
-func collectReachable(t *testing.T, tree *MutableTree) (nodes, values map[string]bool) {
+func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string]bool) {
 	t.Helper()
 	nodes, values = map[string]bool{}, map[string]bool{}
 	// Read the RAW DB, bypassing the node cache: an over-deleting prune
@@ -68,7 +68,7 @@ func collectReachable(t *testing.T, tree *MutableTree) (nodes, values map[string
 // must be reachable from some retained version's root, and (when checkValues)
 // every value record must be referenced by some retained leaf. This is the
 // leak detector; collectReachable inside it is the over-deletion detector.
-func assertNoGarbage(t *testing.T, tree *MutableTree, checkValues bool) {
+func assertNoGarbage(t testing.TB, tree *MutableTree, checkValues bool) {
 	t.Helper()
 	nodes, values := collectReachable(t, tree)
 	it, err := tree.ndb.db.Iterator(nil, nil)
@@ -179,7 +179,7 @@ func TestTwinFix_SameValueRewriteTwin(t *testing.T) {
 }
 
 // exportInto replays an Export stream of imm into an Importer at version.
-func exportInto(t *testing.T, tree *MutableTree, imm *ImmutableTree, version int64) {
+func exportInto(t testing.TB, tree *MutableTree, imm *ImmutableTree, version int64) {
 	t.Helper()
 	exp, err := imm.Export(tree.ndb)
 	if err != nil {
