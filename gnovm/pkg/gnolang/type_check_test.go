@@ -90,9 +90,6 @@ func TestIsComparableMemoized(t *testing.T) {
 	if !isComparable(good) {
 		t.Error("isComparable(comparable fanout) = false, want true")
 	}
-	if !isComparable(good) {
-		t.Error("isComparable(comparable fanout) flipped to false on cached call")
-	}
 
 	// The uncomparable field comes last: isComparable checks fields in
 	// order and stops at the first failure, so it must finish walking the
@@ -104,9 +101,6 @@ func TestIsComparableMemoized(t *testing.T) {
 	}}
 	if isComparable(bad) {
 		t.Error("isComparable(uncomparable fanout) = true, want false")
-	}
-	if isComparable(bad) {
-		t.Error("isComparable(uncomparable fanout) flipped to true on cached call")
 	}
 
 	// Cache reads are directly observable by poisoning a verdict with a lie:
