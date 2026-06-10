@@ -877,8 +877,6 @@ func makeUverseNode() {
 					panic("should not happen")
 				}
 				// NOTE: this implementation is almost identical to the next one.
-				// note that in some cases optimization
-				// is possible if dstv.Data != nil.
 				dstl := dst.TV.GetLength()
 				srcl := src.TV.GetLength()
 				minl := min(srcl, dstl)
@@ -901,11 +899,17 @@ func makeUverseNode() {
 				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
-				// TODO: consider an optimization if dstv.Data != nil.
-				for i := range minl {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil {
+					// Copy string bytes directly into the Data-backed
+					// destination, instead of materializing a heap-allocated
+					// pointer box per element (see GetPointerAtIndexInt2).
+					copy(dstBase.Data[dstv.Offset:dstv.Offset+minl], src.TV.GetString())
+				} else {
+					for i := range minl {
+						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -936,21 +940,29 @@ func makeUverseNode() {
 				srcStart := srcv.Offset
 				srcEnd := srcStart + minl
 
-				step := 1
-				start := 0
-				end := minl
-				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
-				requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
-				if requiresBackwardCopy {
-					step = -1
-					start = minl - 1
-					end = -1
-				}
 				m.incrCPU(OpCPUSlopeCopyElement * int64(minl))
-				for i := start; i != end; i += step {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil && srcBase.Data != nil {
+					// Copy bytes directly between Data-backed slices, instead
+					// of materializing two heap-allocated pointer boxes per
+					// element (see GetPointerAtIndexInt2). Go's copy is
+					// overlap-safe in both directions.
+					copy(dstBase.Data[dstStart:dstStart+minl], srcBase.Data[srcStart:srcEnd])
+				} else {
+					step := 1
+					start := 0
+					end := minl
+					// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+					requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
+					if requiresBackwardCopy {
+						step = -1
+						start = minl - 1
+						end = -1
+					}
+					for i := start; i != end; i += step {
+						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,

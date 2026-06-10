@@ -26,6 +26,10 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
+		if res, ok := xv.GetValueAtIntIndex(m.Store, int(iv.ConvertGetInt())); ok {
+			*xv = res // reuse as result
+			return
+		}
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result

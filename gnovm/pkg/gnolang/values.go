@@ -1985,6 +1985,58 @@ func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) Poin
 	return tv.GetPointerAtIndex(m, nilRealm, fallbackAllocator, store, &iv)
 }
 
+// GetValueAtIntIndex is a read-only fast path of GetPointerAtIndex for
+// strings and Data-backed (byte) arrays and slices: it returns the element
+// value directly instead of materializing a heap-allocated pointer box
+// (see GetPointerAtIndexInt2) that the caller immediately Derefs and
+// discards. ok is false when tv is none of those (maps, List-backed arrays
+// and slices), in which case the caller must use GetPointerAtIndex. Checks
+// and panics mirror GetPointerAtIndex: explicit Exceptions for strings and
+// slices; arrays rely on Go's implicit bounds panic, as there.
+func (tv *TypedValue) GetValueAtIntIndex(store Store, ii int) (res TypedValue, ok bool) {
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		if bt == StringType || bt == UntypedStringType {
+			sv := tv.GetString()
+			if ii >= len(sv) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+			}
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+			}
+			res = TypedValue{T: Uint8Type}
+			res.SetUint8(sv[ii])
+			return res, true
+		}
+	case *ArrayType:
+		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
+			res = TypedValue{T: bt.Elt}
+			res.SetUint8(av.Data[ii])
+			return res, true
+		}
+	case *SliceType:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+		}
+		if sv, sok := tv.V.(*SliceValue); sok {
+			if base := sv.GetBase(store); base.Data != nil {
+				if ii < 0 {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d", ii))})
+				} else if sv.Length <= ii {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d (len=%d)",
+						ii, sv.Length))})
+				}
+				res = TypedValue{T: bt.Elt}
+				res.SetUint8(base.Data[sv.Offset+ii])
+				return res, true
+			}
+		}
+	}
+	return TypedValue{}, false
+}
+
 func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
