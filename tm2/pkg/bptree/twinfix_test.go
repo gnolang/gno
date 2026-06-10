@@ -17,13 +17,27 @@ import (
 func collectReachable(t *testing.T, tree *MutableTree) (nodes, values map[string]bool) {
 	t.Helper()
 	nodes, values = map[string]bool{}, map[string]bool{}
+	// Read the RAW DB, bypassing the node cache: an over-deleting prune
+	// re-reads (and re-caches) its own deleted records before the batch
+	// commits, so a cache-first read would mask exactly the over-deletion
+	// this walk exists to detect.
+	loadRaw := func(ref []byte) (Node, error) {
+		data, err := tree.ndb.db.Get(nodeDBKey(ref))
+		if err != nil {
+			return nil, err
+		}
+		if data == nil {
+			return nil, fmt.Errorf("node record %x not in DB", ref)
+		}
+		return ReadNode(GetNodeKey(ref), data)
+	}
 	var walk func(ref []byte)
 	walk = func(ref []byte) {
 		if nodes[string(ref)] {
 			return
 		}
 		nodes[string(ref)] = true
-		n, err := tree.ndb.GetNode(ref)
+		n, err := loadRaw(ref)
 		if err != nil {
 			t.Fatalf("OVER-DELETION: retained version references missing node %x: %v", ref, err)
 		}
@@ -320,7 +334,11 @@ func TestFix2_DivergentReplay_Nodes(t *testing.T) {
 	if _, _, err := tree2.SaveVersion(); err != nil { // idempotent v2
 		t.Fatal(err)
 	}
-	tree2.Set([]byte("dr_extra"), []byte("E"))
+	// v3's change must land in a leaf OTHER than the twinned one (a key
+	// sorting into the twinned leaf would clone it at v3, decoupling v3 from
+	// the record the over-deletion route targets). "dr000_a" sorts into the
+	// first leaf; the twin is near the keyspace maximum.
+	tree2.Set([]byte("dr000_a"), []byte("E"))
 	if _, _, err := tree2.SaveVersion(); err != nil { // v3
 		t.Fatal(err)
 	}
