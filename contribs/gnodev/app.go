@@ -169,9 +169,6 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return fmt.Errorf("get cwd: %w", err)
 	}
 	ws := packages.FindWorkspace(cwd)
-	if ws == "" {
-		logDiscoveryMode(loaderLogger)
-	}
 
 	// Translate positional args into loader roots and path entries.
 	localPaths := make([]string, 0, len(dirs))
@@ -189,8 +186,11 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		extraRoots = append(extraRoots, dir)
 	}
 
-	if ws == "" && ds.cfg.noExamples && len(extraRoots) == 0 {
-		return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
+	if ws == "" {
+		if ds.cfg.noExamples && len(extraRoots) == 0 {
+			return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
+		}
+		logDiscoveryMode(loaderLogger)
 	}
 
 	gnoRoot := gnoenv.RootDir()
