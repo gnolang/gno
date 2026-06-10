@@ -47,8 +47,11 @@ func NewPackageWatcher(logger *slog.Logger, emitter emitter.Emitter) (*PackageWa
 	return p, nil
 }
 
+// debounceInterval batches FS events before emitting a package update.
+// Variable rather than const so tests can shrink it.
+var debounceInterval = 500 * time.Millisecond
+
 func (p *PackageWatcher) startWatching() {
-	const timeout = time.Millisecond * 500 // Debounce interval
 
 	errorsChan := make(chan error, 1)
 	pkgsUpdateChan := make(chan PackageUpdateList)
@@ -87,15 +90,18 @@ func (p *PackageWatcher) startWatching() {
 				filesList = []string{}
 				debounceTimer = nil
 			case evt := <-p.watcher.Events:
-				// Only handle write operations
-				if evt.Op != fsnotify.Write {
+				// React to any content-changing operation. Write covers
+				// in-place saves; Create/Rename cover atomic-rename saves
+				// (sed -i, most editors); Remove covers file deletion.
+				// Chmod-only events (touch, permission churn) are skipped.
+				if !evt.Op.Has(fsnotify.Write | fsnotify.Create | fsnotify.Rename | fsnotify.Remove) {
 					continue
 				}
 
 				filesList = append(filesList, evt.Name)
 
 				// Set up the debounce timer
-				debounceTimer = time.After(timeout)
+				debounceTimer = time.After(debounceInterval)
 			}
 		}
 
