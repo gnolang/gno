@@ -820,7 +820,7 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 }
 
 func assertIndexTypeIsInt(kt Type) {
-	if kt == nil {
+	if kt == nil { // blank key, nothing to check
 		return
 	}
 	if kt.Kind() != IntKind {
@@ -849,9 +849,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
-		if kt != nil {
-			mustAssignableTo(x, cxt.Key, kt)
-		}
+		mustAssignableTo(x, cxt.Key, kt)
 		if vt != nil {
 			mustAssignableTo(x, cxt.Value, vt)
 		}
@@ -868,10 +866,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
 			assertIndexTypeIsInt(kt)
-			if vt != nil {
-				if vt.Kind() != Int32Kind { // rune
-					panic(fmt.Sprintf("value type should be int32, but got %v", vt))
-				}
+			if vt != nil && vt.Kind() != Int32Kind { // rune
+				panic(fmt.Sprintf("value type should be int32, but got %v", vt))
 			}
 		}
 	}
