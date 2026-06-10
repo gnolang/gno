@@ -122,15 +122,11 @@ func hasInterfaceStaticType(x Expr) bool {
 	if x == nil {
 		return false
 	}
-	t, _ := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+	// cachedStaticTypeOf unwraps a single-result CallExpr's 1-element tuple,
+	// so a function call returning an interface is recognized as a boundary.
+	t := cachedStaticTypeOf(x)
 	if t == nil {
 		return false
-	}
-	// A single-result CallExpr caches its type as a 1-element *tupleType
-	// (see evalStaticTypeOfRaw); unwrap it like evalStaticTypeOf does, so a
-	// function call returning an interface is recognized as a boundary.
-	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
-		t = tt.Elts[0]
 	}
 	_, ok := baseOf(t).(*InterfaceType)
 	return ok
