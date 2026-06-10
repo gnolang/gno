@@ -191,6 +191,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 			return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
 		}
 		logDiscoveryMode(loaderLogger)
+	} else {
+		// Name the root explicitly: a forgotten gnowork.toml in a parent
+		// directory silently widens the workspace to that entire tree.
+		loaderLogger.Info("workspace detected", "root", ws)
 	}
 
 	gnoRoot := gnoenv.RootDir()
