@@ -412,7 +412,7 @@ func workspacePattern(workspace string) string {
 		return ""
 	}
 	if hasFile(workspace, "gnowork.toml") {
-		return workspace + "/..."
+		return filepath.Join(workspace, "...")
 	}
 	return workspace
 }
