@@ -662,17 +662,6 @@ func TestLoader_Track_LoadAllIncludesTracked(t *testing.T) {
 		"LoadAll must include tracked paths")
 }
 
-// countingFetcher wraps a real fetcher and counts FetchPackage calls.
-type countingFetcher struct {
-	inner pkgdownload.PackageFetcher
-	calls atomic.Int32
-}
-
-func (f *countingFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
-	f.calls.Add(1)
-	return f.inner.FetchPackage(pkgPath)
-}
-
 // TestLoader_Reload_KeepsRemoteCached: on-chain packages are immutable for a
 // gnodev session, and Reload runs on every watcher tick. Evicting remote
 // entries from the index would re-fetch them over RPC on every file save.
@@ -682,7 +671,7 @@ func TestLoader_Reload_KeepsRemoteCached(t *testing.T) {
 		Name:  "boards",
 		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
 	}
-	cf := &countingFetcher{inner: pkgdownload.NewInMemoryFetcher(mp)}
+	cf := &recordingFetcher{inner: pkgdownload.NewInMemoryFetcher(mp)}
 	l := New(Config{Fetcher: cf, Logger: testLogger()})
 
 	_, err := l.Resolve("gno.land/r/demo/boards")
@@ -721,12 +710,8 @@ func TestStripStdlibs_FiltersImportsSpecs(t *testing.T) {
 	require.Len(t, out, 1)
 	assert.Equal(t, []string{"gno.land/p/test/dep"},
 		out[0].Imports[vmpackages.FileKindPackageSource])
-	specs := out[0].ImportsSpecs[vmpackages.FileKindPackageSource]
-	specPaths := make([]string, len(specs))
-	for i, sp := range specs {
-		specPaths[i] = sp.PkgPath
-	}
-	assert.Equal(t, []string{"gno.land/p/test/dep"}, specPaths,
+	assert.Equal(t, []string{"gno.land/p/test/dep"},
+		out[0].ImportsSpecs.ToStrings()[vmpackages.FileKindPackageSource],
 		"ImportsSpecs must drop stdlib entries alongside Imports")
 }
 
@@ -736,20 +721,26 @@ func TestStripStdlibs_FiltersImportsSpecs(t *testing.T) {
 func TestLoader_KindForDir_ModCacheBoundary(t *testing.T) {
 	l := New(Config{Logger: testLogger()})
 	l.modCache = filepath.Join("/x", "gnomodcache")
+	l.modCachePrefix = l.modCache + string(filepath.Separator)
 
 	assert.Equal(t, KindRemote, l.kindForDir(filepath.Join("/x", "gnomodcache", "gno.land", "p", "foo")))
 	assert.Equal(t, KindRemote, l.kindForDir(filepath.Join("/x", "gnomodcache")))
 	assert.Equal(t, KindFS, l.kindForDir(filepath.Join("/x", "gnomodcache-other", "pkg")))
 }
 
-// recordingFetcher counts FetchPackage invocations so tests can assert that
-// LookupFS — which is FS-only — never reaches the rpc fetcher.
+// recordingFetcher counts FetchPackage invocations, delegating to inner when
+// set and erroring otherwise. Lets tests assert which calls reach the rpc
+// fetcher (LookupFS never may; Reload must not re-fetch cached remotes).
 type recordingFetcher struct {
+	inner pkgdownload.PackageFetcher
 	calls atomic.Int32
 }
 
 func (f *recordingFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
 	f.calls.Add(1)
+	if f.inner != nil {
+		return f.inner.FetchPackage(pkgPath)
+	}
 	return nil, fmt.Errorf("not in test fetcher: %s", pkgPath)
 }
 

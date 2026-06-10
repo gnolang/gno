@@ -28,8 +28,10 @@ var ErrPackageNotFound = errors.New("package not found")
 // bulk operations and a local per-path lookup (filesystem + PackageFetcher)
 // for the proxy's lazy-resolve path.
 type Loader struct {
-	cfg      Config
-	modCache string // gnomod.ModCachePath(), resolved once at construction
+	cfg            Config
+	modCache       string // gnomod.ModCachePath(), resolved once at construction
+	modCachePrefix string // modCache + separator, for boundary-safe prefix checks
+	wsPattern      string // gnovm.Load pattern for cfg.Workspace, resolved once at construction
 
 	mu      sync.RWMutex
 	fetcher pkgdownload.PackageFetcher
@@ -49,13 +51,16 @@ func New(cfg Config) *Loader {
 	if fetcher == nil {
 		fetcher = rpcpkgfetcher.New(cfg.RemoteOverrides)
 	}
+	modCache := filepath.Clean(gnomod.ModCachePath())
 	return &Loader{
-		cfg:      cfg,
-		modCache: filepath.Clean(gnomod.ModCachePath()),
-		fetcher:  fetcher,
-		index:    make(map[string]*Package),
-		tracked:  make(map[string]struct{}),
-		rootIdx:  make(map[string]map[string]string),
+		cfg:            cfg,
+		modCache:       modCache,
+		modCachePrefix: modCache + string(filepath.Separator),
+		wsPattern:      workspacePattern(cfg.Workspace),
+		fetcher:        fetcher,
+		index:          make(map[string]*Package),
+		tracked:        make(map[string]struct{}),
+		rootIdx:        make(map[string]map[string]string),
 	}
 }
 
@@ -289,8 +294,8 @@ func (l *Loader) Track(paths ...string) {
 	}
 }
 
-// Reload re-runs the eager load for the workspace and every -extra-root,
-// then re-Resolves each tracked path. ExcludeDirs is honored via scanRoot.
+// Reload re-runs the eager load for the workspace and every -extra-root;
+// see reloadRoots.
 func (l *Loader) Reload() ([]*Package, error) {
 	return l.reloadRoots(l.cfg.ExtraRoots)
 }
@@ -300,9 +305,12 @@ func (l *Loader) Reload() ([]*Package, error) {
 // the RPC fetcher live outside any FS root, so they are re-resolved
 // individually and merged with the eager result.
 //
-// Note: deletion of an extra-root directory mid-session is not detected;
-// Resolve will return the stale dir from the cached rootIdx until gnodev
-// restarts.
+// The index is never evicted: FS-backed entries are content-free handles
+// (ToMemPackage re-reads disk on every call), and remote packages are
+// session-immutable — re-fetching them on every watcher tick would waste an
+// RPC round-trip per file save. rootIdx is likewise preserved: directories
+// are stable mid-session; new dirs (or deleted extra-roots) need a gnodev
+// restart.
 func (l *Loader) reloadRoots(roots []string) ([]*Package, error) {
 	l.mu.RLock()
 	trackedPaths := make([]string, 0, len(l.tracked))
@@ -320,20 +328,6 @@ func (l *Loader) reloadRoots(roots []string) ([]*Package, error) {
 	for _, p := range out {
 		seen[p.ImportPath] = struct{}{}
 	}
-
-	// Drop FS-backed tracked paths from the index so Resolve re-derives
-	// them. Remote packages stay cached: on-chain content is immutable for
-	// the session, and Reload runs on every watcher tick — evicting them
-	// would re-fetch over RPC on every file save. rootIdx is preserved:
-	// directories are stable mid-session; new dirs need a gnodev restart.
-	l.mu.Lock()
-	for _, p := range trackedPaths {
-		if pkg, ok := l.index[p]; ok && pkg.Kind == KindRemote {
-			continue
-		}
-		delete(l.index, p)
-	}
-	l.mu.Unlock()
 
 	for _, p := range trackedPaths {
 		closure, err := l.resolveClosure(p, seen)
@@ -387,19 +381,23 @@ func (l *Loader) LoadWorkspace() ([]*Package, error) {
 	if l.cfg.Workspace == "" {
 		return nil, nil
 	}
-	return l.loadWithPatterns(l.workspacePattern())
+	return l.loadWithPatterns(l.wsPattern)
 }
 
-// workspacePattern returns the gnovm.Load pattern for the configured
-// workspace. A gnowork.toml root is a multi-package workspace and loads
-// recursively; a gnomod.toml-only root (the `cd myrealm && gnodev` case) is
-// gnovm single-package mode, which rejects recursive patterns, so the bare
-// directory is passed instead.
-func (l *Loader) workspacePattern() string {
-	if hasFile(l.cfg.Workspace, "gnowork.toml") {
-		return l.cfg.Workspace + "/..."
+// workspacePattern returns the gnovm.Load pattern for a workspace root. A
+// gnowork.toml root is a multi-package workspace and loads recursively; a
+// gnomod.toml-only root (the `cd myrealm && gnodev` case) is gnovm
+// single-package mode, which rejects recursive patterns, so the bare
+// directory is passed instead. Resolved once at construction: the marker
+// file is part of the session-stable directory layout.
+func workspacePattern(workspace string) string {
+	if workspace == "" {
+		return ""
 	}
-	return l.cfg.Workspace
+	if hasFile(workspace, "gnowork.toml") {
+		return workspace + "/..."
+	}
+	return workspace
 }
 
 // LoadAll eagerly loads the workspace, every ExtraRoot, GNOROOT/examples
@@ -433,7 +431,7 @@ func (l *Loader) loadEager(roots []string) ([]*Package, error) {
 
 	if l.cfg.Workspace != "" {
 		l.cfg.Logger.Debug("loading workspace", "workspace", l.cfg.Workspace)
-		ws, err := l.loadWithPatternsVm(l.workspacePattern())
+		ws, err := l.loadWithPatternsVm(l.wsPattern)
 		if err != nil {
 			return nil, err
 		}
@@ -605,74 +603,67 @@ func (l *Loader) kindForDir(dir string) Kind {
 		return KindFS
 	}
 	dir = filepath.Clean(dir)
-	if dir == l.modCache || strings.HasPrefix(dir, l.modCache+string(filepath.Separator)) {
+	if dir == l.modCache || strings.HasPrefix(dir, l.modCachePrefix) {
 		return KindRemote
 	}
 	return KindFS
 }
 
-// dropMissingDepImports MUTATES pl: each pkg's source imports (both
-// Imports and ImportsSpecs) lose entries whose paths aren't in pl.
-// Used before PkgList.Sort so that cross-root, remote, or otherwise-absent
-// deps don't block the toposort. Sort errors on any referenced dep missing
-// from the list (see pkglist.go visitPackage), and GetNonIgnoredPkgs walks
-// ImportsSpecs — both views must stay consistent.
+// filterSourceImports MUTATES p: source imports failing keep are dropped
+// from BOTH import views. PkgList.Sort errors on imports missing from the
+// list and GetNonIgnoredPkgs walks ImportsSpecs, so Imports and ImportsSpecs
+// must stay consistent — every import filter goes through here.
+func filterSourceImports(p *vmpackages.Package, keep func(path string) bool) {
+	if imps := p.Imports[vmpackages.FileKindPackageSource]; len(imps) > 0 {
+		kept := imps[:0]
+		for _, imp := range imps {
+			if keep(imp) {
+				kept = append(kept, imp)
+			}
+		}
+		p.Imports[vmpackages.FileKindPackageSource] = kept
+	}
+	if specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]; len(specs) > 0 {
+		kept := specs[:0]
+		for _, sp := range specs {
+			if keep(sp.PkgPath) {
+				kept = append(kept, sp)
+			}
+		}
+		p.ImportsSpecs[vmpackages.FileKindPackageSource] = kept
+	}
+}
+
+// dropMissingDepImports MUTATES pl: each pkg's source imports lose entries
+// whose paths aren't in pl. Used before PkgList.Sort so that cross-root,
+// remote, or otherwise-absent deps don't block the toposort.
 func dropMissingDepImports(pl vmpackages.PkgList) {
 	present := make(map[string]struct{}, len(pl))
 	for _, p := range pl {
 		present[p.ImportPath] = struct{}{}
 	}
 	for _, p := range pl {
-		imps := p.Imports[vmpackages.FileKindPackageSource]
-		kept := imps[:0]
-		for _, imp := range imps {
-			if _, ok := present[imp]; ok {
-				kept = append(kept, imp)
-			}
-		}
-		p.Imports[vmpackages.FileKindPackageSource] = kept
-
-		specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]
-		keptSpecs := specs[:0]
-		for _, sp := range specs {
-			if _, ok := present[sp.PkgPath]; ok {
-				keptSpecs = append(keptSpecs, sp)
-			}
-		}
-		p.ImportsSpecs[vmpackages.FileKindPackageSource] = keptSpecs
+		filterSourceImports(p, func(imp string) bool {
+			_, ok := present[imp]
+			return ok
+		})
 	}
 }
 
 // stripStdlibs returns a pkgList with stdlib packages removed and stdlib
-// imports filtered out of each remaining package's import views (both
-// Imports and ImportsSpecs — see dropMissingDepImports for why the two must
-// stay consistent). This mirrors the convention used by
-// gno.land/pkg/gnoland/genesis.go (via ReadPkgListFromDir): stdlibs are
-// handled natively by the VM, not deployed as on-chain packages.
+// imports filtered out of each remaining package's import views. This
+// mirrors the convention used by gno.land/pkg/gnoland/genesis.go (via
+// ReadPkgListFromDir): stdlibs are handled natively by the VM, not deployed
+// as on-chain packages.
 func stripStdlibs(pkgs vmpackages.PkgList) vmpackages.PkgList {
 	out := pkgs[:0]
 	for _, p := range pkgs {
 		if gnolang.IsStdlib(p.ImportPath) {
 			continue
 		}
-		if imps := p.Imports[vmpackages.FileKindPackageSource]; len(imps) > 0 {
-			kept := imps[:0]
-			for _, imp := range imps {
-				if !gnolang.IsStdlib(imp) {
-					kept = append(kept, imp)
-				}
-			}
-			p.Imports[vmpackages.FileKindPackageSource] = kept
-		}
-		if specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]; len(specs) > 0 {
-			keptSpecs := specs[:0]
-			for _, sp := range specs {
-				if !gnolang.IsStdlib(sp.PkgPath) {
-					keptSpecs = append(keptSpecs, sp)
-				}
-			}
-			p.ImportsSpecs[vmpackages.FileKindPackageSource] = keptSpecs
-		}
+		filterSourceImports(p, func(imp string) bool {
+			return !gnolang.IsStdlib(imp)
+		})
 		out = append(out, p)
 	}
 	return out
