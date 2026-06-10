@@ -148,7 +148,6 @@ fails at use time. Acceptable for a dev tool.
 | `-resolver <name>=<loc>` | `-extra-root <dir>` (repeatable) |
 | `-lazy-loader` | `-no-examples` |
 |  | `-remote-override <domain>=<rpc>` (repeatable) |
-|  | `-without-quarantined-examples` (skip `$GNOROOT/examples/quarantined`) |
 
 `-remote-override` closes the migration gap left by removing
 `-resolver remote=<rpc>`: it populates `Config.RemoteOverrides`, which
