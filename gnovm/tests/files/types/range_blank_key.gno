@@ -1,3 +1,4 @@
+// https://github.com/gnolang/gno/issues/5664
 package main
 
 type matrix struct {
