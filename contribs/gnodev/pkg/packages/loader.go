@@ -565,7 +565,8 @@ func (l *Loader) kindForDir(dir string) Kind {
 	if l.modCache == "" {
 		return KindFS
 	}
-	if strings.HasPrefix(filepath.Clean(dir), l.modCache) {
+	dir = filepath.Clean(dir)
+	if dir == l.modCache || strings.HasPrefix(dir, l.modCache+string(filepath.Separator)) {
 		return KindRemote
 	}
 	return KindFS

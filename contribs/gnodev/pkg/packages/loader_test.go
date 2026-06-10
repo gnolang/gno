@@ -592,6 +592,18 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
 }
 
+// TestLoader_KindForDir_ModCacheBoundary verifies the modcache check matches
+// on path-segment boundaries: a sibling directory whose name merely starts
+// with the modcache path must classify as FS, not Remote.
+func TestLoader_KindForDir_ModCacheBoundary(t *testing.T) {
+	l := New(Config{Logger: testLogger()})
+	l.modCache = filepath.Join("/x", "gnomodcache")
+
+	assert.Equal(t, KindRemote, l.kindForDir(filepath.Join("/x", "gnomodcache", "gno.land", "p", "foo")))
+	assert.Equal(t, KindRemote, l.kindForDir(filepath.Join("/x", "gnomodcache")))
+	assert.Equal(t, KindFS, l.kindForDir(filepath.Join("/x", "gnomodcache-other", "pkg")))
+}
+
 // recordingFetcher counts FetchPackage invocations so tests can assert that
 // LookupFS — which is FS-only — never reaches the rpc fetcher.
 type recordingFetcher struct {
