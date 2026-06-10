@@ -32,8 +32,9 @@ type Package struct {
 }
 
 // ToMemPackage reads the package content. In-memory-backed packages return
-// the embedded MemPackage directly. Filesystem-backed packages are read
-// lazily on first call.
+// the embedded MemPackage directly. Filesystem-backed packages are re-read
+// from disk on EVERY call — never memoize this: hot reload depends on each
+// genesis rebuild observing the current on-disk content.
 func (p *Package) ToMemPackage() (*std.MemPackage, error) {
 	if p.memPkg != nil {
 		return p.memPkg, nil
