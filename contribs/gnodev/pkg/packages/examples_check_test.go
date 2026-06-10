@@ -44,6 +44,31 @@ func TestCheckMissingExampleImports_AllResolved(t *testing.T) {
 	assert.Empty(t, missing)
 }
 
+// TestCheckMissingExampleImports_WorkspaceInternal: imports satisfied by
+// sibling packages inside the workspace itself must not be flagged — the
+// workspace eager-load resolves them regardless of -no-examples. Without
+// this, every multi-package workspace warns on its own internal imports.
+func TestCheckMissingExampleImports_WorkspaceInternal(t *testing.T) {
+	root := t.TempDir()
+	writePkg(t, filepath.Join(root, "lib"), "gno.land/p/me/lib",
+		"package lib\nfunc Hi() string { return \"hi\" }\n")
+	writePkg(t, filepath.Join(root, "realm"),
+		"gno.land/r/me/realm",
+		`package realm
+import "gno.land/p/me/lib"
+func Render(_ string) string { return lib.Hi() }
+`)
+
+	l := New(Config{
+		Examples: false,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	assert.Empty(t, missing, "workspace-internal imports are always resolvable")
+}
+
 func TestCheckMissingExampleImports_StdlibIgnored(t *testing.T) {
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "uses-chain")

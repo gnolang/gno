@@ -38,6 +38,11 @@ func CheckMissingExampleImports(l *Loader, workspace string) []string {
 		if !strings.HasPrefix(imp, "gno.land/") {
 			continue
 		}
+		// Workspace-internal imports are always resolvable by the eager
+		// load; LookupFS only covers extra roots and examples.
+		if _, ok := pkgIdx[imp]; ok {
+			continue
+		}
 		if l.LookupFS(imp) {
 			continue
 		}

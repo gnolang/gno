@@ -108,9 +108,10 @@ func (l *Loader) Resolve(path string) (*Package, error) {
 }
 
 // LookupFS reports whether path is reachable via the loader's filesystem
-// roots (workspace + extra roots + GNOROOT/examples when enabled). Walks any
-// root not yet cached. Does NOT consult the rpc fetcher and does NOT mutate
-// l.index or l.tracked, so it is safe for diagnostic / pre-flight use.
+// roots (extra roots + GNOROOT/examples when enabled; the workspace is NOT
+// consulted — it is covered by the eager load). Walks any root not yet
+// cached. Does NOT consult the rpc fetcher and does NOT mutate l.index or
+// l.tracked, so it is safe for diagnostic / pre-flight use.
 func (l *Loader) LookupFS(path string) bool {
 	// The root list is derived from cfg, which is immutable after New.
 	// Compute it once to avoid duplicate allocations across the lock dance.
