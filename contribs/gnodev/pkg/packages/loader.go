@@ -498,12 +498,16 @@ func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 func (l *Loader) loadWithPatternsVm(patterns ...string) (vmpackages.PkgList, error) {
 	// l.fetcher and l.cfg are set in New and never mutated; no lock needed.
 	conf := vmpackages.LoadConfig{
-		Deps:                true,
-		AllowEmpty:          true,
-		GnoRoot:             l.cfg.GnoRoot,
-		Out:                 &logWriter{logger: l.cfg.Logger},
-		Fetcher:             l.fetcher,
-		ExtraWorkspaceRoots: l.cfg.ExtraRoots,
+		Deps:       true,
+		AllowEmpty: true,
+		GnoRoot:    l.cfg.GnoRoot,
+		Out:        &logWriter{logger: l.cfg.Logger},
+		Fetcher:    l.fetcher,
+		// Dependencies resolve from the same FS roots the lazy path serves;
+		// only paths reachable from none of them go through the fetcher.
+		// gnovm's dep discovery has no exclude-dir support, so ExcludeDirs
+		// does not apply to transitive dependencies.
+		ExtraWorkspaceRoots: l.lookupRoots(),
 	}
 	pkgList, err := vmpackages.Load(conf, patterns...)
 	if err != nil {

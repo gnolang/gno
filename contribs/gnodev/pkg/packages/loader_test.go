@@ -612,6 +612,43 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
 }
 
+// TestLoader_Reload_ExamplesDepsFromDisk: a workspace package importing an
+// examples-resident dep must get it from $GNOROOT/examples, never the
+// fetcher — on-disk source is fresher than the chain and works offline.
+// The fetcher here errors on any call, so a network attempt fails loudly.
+func TestLoader_Reload_ExamplesDepsFromDisk(t *testing.T) {
+	gnoroot := t.TempDir()
+	writePkg(t, filepath.Join(gnoroot, "examples", "lib"), "gno.land/p/test/lib",
+		"package lib\nfunc Hi() string { return \"hi\" }\n")
+
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	writePkg(t, filepath.Join(ws, "realm"), "gno.land/r/test/realm",
+		`package realm
+import "gno.land/p/test/lib"
+func Render(_ string) string { return lib.Hi() }
+`)
+	t.Chdir(ws)
+
+	rec := &recordingFetcher{}
+	l := New(Config{
+		Workspace: ws,
+		Examples:  true,
+		GnoRoot:   gnoroot,
+		Fetcher:   rec,
+		Logger:    testLogger(),
+	})
+
+	pkgs, err := l.Reload()
+	require.NoError(t, err)
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/r/test/realm")
+	assert.Contains(t, paths, "gno.land/p/test/lib",
+		"examples-resident dep must be resolved from disk")
+	assert.Zero(t, rec.calls.Load(),
+		"dep sits in $GNOROOT/examples; the fetcher must not be consulted")
+}
+
 // TestLoader_AddLocalPackage covers the gnomod-less dir flow (`gnodev
 // ./scratch-realm` or `cd scratch-realm && gnodev`): the dir is registered
 // under a generated module path, reaches every reload, and its MemPackage
