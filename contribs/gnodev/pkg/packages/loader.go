@@ -605,9 +605,11 @@ func dropMissingDepImports(pl vmpackages.PkgList) {
 }
 
 // stripStdlibs returns a pkgList with stdlib packages removed and stdlib
-// imports filtered out of each remaining package's import list. This mirrors
-// the convention used by gno.land/pkg/gnoland/genesis.go (via ReadPkgListFromDir):
-// stdlibs are handled natively by the VM, not deployed as on-chain packages.
+// imports filtered out of each remaining package's import views (both
+// Imports and ImportsSpecs — see dropMissingDepImports for why the two must
+// stay consistent). This mirrors the convention used by
+// gno.land/pkg/gnoland/genesis.go (via ReadPkgListFromDir): stdlibs are
+// handled natively by the VM, not deployed as on-chain packages.
 func stripStdlibs(pkgs vmpackages.PkgList) vmpackages.PkgList {
 	out := pkgs[:0]
 	for _, p := range pkgs {
@@ -622,6 +624,15 @@ func stripStdlibs(pkgs vmpackages.PkgList) vmpackages.PkgList {
 				}
 			}
 			p.Imports[vmpackages.FileKindPackageSource] = kept
+		}
+		if specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]; len(specs) > 0 {
+			keptSpecs := specs[:0]
+			for _, sp := range specs {
+				if !gnolang.IsStdlib(sp.PkgPath) {
+					keptSpecs = append(keptSpecs, sp)
+				}
+			}
+			p.ImportsSpecs[vmpackages.FileKindPackageSource] = keptSpecs
 		}
 		out = append(out, p)
 	}

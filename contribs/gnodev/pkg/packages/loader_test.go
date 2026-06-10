@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -590,6 +591,37 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		}
 	}
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
+}
+
+// TestStripStdlibs_FiltersImportsSpecs verifies stripStdlibs keeps Imports
+// and ImportsSpecs consistent: GetNonIgnoredPkgs walks ImportsSpecs, so a
+// stdlib entry surviving there while gone from Imports is a desync trap.
+func TestStripStdlibs_FiltersImportsSpecs(t *testing.T) {
+	pkg := &vmpackages.Package{
+		ImportPath: "gno.land/p/test/pkg",
+		Imports: map[vmpackages.FileKind][]string{
+			vmpackages.FileKindPackageSource: {"chain", "gno.land/p/test/dep"},
+		},
+		ImportsSpecs: vmpackages.ImportsMap{
+			vmpackages.FileKindPackageSource: {
+				{PkgPath: "chain"},
+				{PkgPath: "gno.land/p/test/dep"},
+			},
+		},
+	}
+
+	out := stripStdlibs(vmpackages.PkgList{pkg})
+
+	require.Len(t, out, 1)
+	assert.Equal(t, []string{"gno.land/p/test/dep"},
+		out[0].Imports[vmpackages.FileKindPackageSource])
+	specs := out[0].ImportsSpecs[vmpackages.FileKindPackageSource]
+	specPaths := make([]string, len(specs))
+	for i, sp := range specs {
+		specPaths[i] = sp.PkgPath
+	}
+	assert.Equal(t, []string{"gno.land/p/test/dep"}, specPaths,
+		"ImportsSpecs must drop stdlib entries alongside Imports")
 }
 
 // TestLoader_KindForDir_ModCacheBoundary verifies the modcache check matches
