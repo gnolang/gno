@@ -27,6 +27,9 @@ message GenesisState {
 	auth.GenesisState auth = 3;
 	bank.GenesisState bank = 4;
 	vm.GenesisState vm = 5;
+	repeated string past_chain_i_ds = 6 [json_name = "past_chain_ids"];
+	sint64 initial_height = 7;
+	string gas_replay_mode = 8;
 }
 
 message TxWithMetadata {
@@ -36,4 +39,16 @@ message TxWithMetadata {
 
 message GnoTxMetadata {
 	sint64 timestamp = 1;
+	sint64 block_height = 2;
+	string chain_id = 3;
+	bool failed = 4;
+	repeated SignerAccountInfo signer_info = 5;
+	sint64 gas_used = 6;
+	sint64 gas_wanted = 7;
+}
+
+message SignerAccountInfo {
+	string address = 1;
+	uint64 account_num = 2;
+	uint64 sequence = 3;
 }

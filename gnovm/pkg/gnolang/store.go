@@ -50,6 +50,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -69,6 +70,8 @@ type Store interface {
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	GetPreprocessAllocator() *Allocator
+	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -102,8 +105,9 @@ type TransactionStore interface {
 
 // Gas consumption descriptors.
 const (
-	GasAminoDecodeDesc = "AminoDecodePerByte"
-	GasAminoEncodeDesc = "AminoEncodePerByte"
+	GasComputeMapKeyDesc = "ComputeMapKey"
+	GasAminoDecodeDesc   = "AminoDecodePerByte"
+	GasAminoEncodeDesc   = "AminoEncodePerByte"
 )
 
 // GasConfig defines amino compute gas costs for GnoVM stores.
@@ -138,7 +142,28 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
-	alloc        *Allocator // for accounting for cached items
+	// cacheRealms is the per-tx *Realm pointer cache, parallel to
+	// cacheObjects. Single source of truth for in-memory *Realm
+	// pointers within a tx — populated by GetPackageRealm and
+	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
+	// Ensures pv.Realm and any other in-tx caller observe the same
+	// pointer (so in-memory Time/sumDiff mutations are visible
+	// everywhere).
+	cacheRealms map[PkgID]*Realm
+	alloc       *Allocator // for accounting for cached items
+
+	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
+	// installed by the keeper (AddPackage / Run) before RunMemPackage.
+	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
+	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
+	// nil → Allocate hard-panics on maxBytes overflow rather than
+	// attempting a GC retry (which would undercount because GC doesn't
+	// visit m.Values, the operand stack). gasMeter is shared with the
+	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// Inherited via BeginTransaction so nested forked stores see it.
+	// Cleared by the keeper's defer at handler exit; not serialized.
+	preprocessAlloc *Allocator
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -184,6 +209,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
 		stdlibKeyBytes: make(map[string][]byte),
@@ -218,7 +244,14 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		cacheRealms:  make(map[PkgID]*Realm),
 		alloc:        ds.alloc.Fork().Reset(),
+
+		// Inherit the per-tx preprocess allocator so sub-Machines spun
+		// up via NewMachine(pkg, store) inside preprocess (which fork
+		// the store via BeginTransaction first) see the same hard-cap
+		// allocator the keeper installed.
+		preprocessAlloc: ds.preprocessAlloc,
 
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
@@ -282,6 +315,14 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetPreprocessAllocator() *Allocator {
+	return ds.preprocessAlloc
+}
+
+func (ds *defaultStore) SetPreprocessAllocator(alloc *Allocator) {
+	ds.preprocessAlloc = alloc
 }
 
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
@@ -366,7 +407,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	ds.cacheObjects[oid] = pv
 }
 
-// Some atomic operation.
+// Some atomic operation. Consults cacheRealms before reading from
+// baseStore; populates the cache on read so that subsequent in-tx
+// callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -374,6 +417,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
+	if cached, ok := ds.cacheRealms[oid.PkgID]; ok {
+		return cached
+	}
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get(ds.gctx, []byte(key))
 	if bz == nil {
@@ -386,16 +432,35 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if debugAssert {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
 		}
 	}
+	ds.cacheRealms[oid.PkgID] = rlm
 	return rlm
 }
 
+// GetRealmByID looks up a Realm via the per-tx cache, falling back
+// to a path-resolution + baseStore load on miss. Single source of
+// truth for in-memory *Realm pointers within a tx. Used by
+// PushFrameCall borrow rule #2 and by cross-realm finalize
+// (touchForeignRealm).
+func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
+	if rlm, ok := ds.cacheRealms[pid]; ok {
+		return rlm
+	}
+	path := pkgPathFromPkgID(ds, pid)
+	if path == "" {
+		return nil
+	}
+	return ds.GetPackageRealm(path)
+}
+
 // An atomic operation to set the package realm info (id counter etc).
+// Refreshes the cacheRealms entry so subsequent in-tx reads see the
+// updated *Realm pointer.
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -411,6 +476,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
 	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
+	ds.cacheRealms[rlm.ID] = rlm
 	size = len(bz)
 }
 
@@ -474,18 +540,30 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		// See copyValueWithRefs — child Objects become RefValue slots
+		// in the serialized amino bytes, and internalRefSize accounts
+		// for those slots.
+		ss := oo.GetShallowSize()
+		rs := internalRefSize(oo)
+		// Allocate atomically: one Allocate call prevents GC from
+		// intercepting between shallow-size and RefValue-size accounting.
+		ds.alloc.Allocate(ss + rs)
 
-		if debug {
+		if debugAssert {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		if debugAssert {
+			// Verify stored hash matches actual content hash.
+			if computed := HashBytes(bz); computed != NewHashlet(hash) {
+				panic(fmt.Sprintf(
+					"stored hash mismatch for %s: stored %X, computed %X",
+					oid, hash, computed.Bytes()))
+			}
+		}
 
 		if pv, ok := oo.(*PackageValue); ok {
 			ds.SetStagingPackage(pv)
@@ -502,106 +580,25 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
+	}
+	// Re-derive denormalized PkgID cache (pv.PkgID is marked
+	// json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
-}
-
-func AllocExpanded(alloc *Allocator, val Value) {
-	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-		// do nothing
-	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -678,8 +675,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	// save object to cache.
 	if debug {
-		if oid.IsZero() {
-			panic("object id cannot be zero")
+		if !oid.IsFinalized() {
+			panic("object id must be finalized at SetObject")
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
@@ -730,8 +727,13 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	// No amino compute gas — delete doesn't marshal/unmarshal.
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
-	// delete from cache.
+	// delete from cache. Lock-step evict cacheRealms when the object
+	// being deleted is a PackageValue: keeps the
+	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
+	if _, isPV := oo.(*PackageValue); isPV {
+		delete(ds.cacheRealms, oid.PkgID)
+	}
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -796,7 +798,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				// len(bz) is not the proper cost of tt, but is good enough
 				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
-			if debug {
+			if debugAssert {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -888,7 +890,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if debugAssert {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))
@@ -1168,6 +1170,8 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	// Lock-step reset cacheRealms.
+	ds.cacheRealms = make(map[PkgID]*Realm)
 	ds.realmStorageDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
@@ -1181,6 +1185,16 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
+			// Lock-step evict cacheRealms when a PackageValue is
+			// evicted. Falls back to PkgID derivation from PkgPath
+			// if the PV's PkgID hasn't been stamped yet.
+			if pv, isPV := obj.(*PackageValue); isPV {
+				pid := objId.PkgID
+				if pid.IsZero() {
+					pid = PkgIDFromPkgPath(pv.PkgPath)
+				}
+				delete(ds.cacheRealms, pid)
+			}
 		}
 	}
 }
