@@ -252,11 +252,33 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
 		}
-		// Same hash — idempotent save. The staged values are redundant (this
-		// version is already persisted); the deferred DiscardBatch drops them.
-		// Reset session state like the success path so nothing carries over.
+		// Same hash — idempotent save. Adopt the PERSISTED version's tree:
+		// a replayed in-memory graph can reference different records than the
+		// persisted version does (equal hash does not mean equal NodeKeys or
+		// valueKeys), and carrying it forward would fork the record lineage —
+		// later versions built from it would reference records the persisted
+		// chain dropped (prune then over-deletes them), reference valueKeys
+		// the deferred DiscardBatch is about to discard, or orphan-list
+		// valueKeys the persisted version still needs. Loading the persisted
+		// root makes the working tree exactly the persisted version.
+		var root Node
+		if existingNK != nil {
+			root, err = t.loadNode(existingNK)
+			if err != nil {
+				return nil, 0, fmt.Errorf("adopting persisted version %d: %w", version, err)
+			}
+		}
+		t.root = root
+		t.lastSaved = root
+		if root != nil {
+			t.size = nodeSize(root)
+		} else {
+			t.size = 0
+		}
 		t.version = version
-		t.lastSaved = t.root
+		// Drops the replayed session's value-nonce and orphan list (the
+		// latter could name valueKeys the persisted version still references);
+		// the deferred DiscardBatch drops its staged values and deletes.
 		t.resetSession()
 		return newHash, version, nil
 	}

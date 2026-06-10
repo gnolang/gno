@@ -1,11 +1,14 @@
 package bptree
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 // PruneVersionsTo deletes all versions from firstVersion through toVersion
 // (inclusive), removing orphaned nodes via the dual-tree-walk algorithm.
-// Adapted for B+ tree fan-out: uses child hash set comparison instead of
-// positional matching.
+// Sharing with the successor is decided by NodeKey record identity (COW shares
+// records by reference; content hashes can collide across distinct records).
 func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	first := t.ndb.getFirstVersion()
 	latest := t.ndb.getLatestVersion()
@@ -30,6 +33,15 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 	if t.root != t.lastSaved || len(t.ndb.pendingVals) > 0 ||
 		t.nextValueNonce > 0 || len(t.versionOrphans) > 0 {
 		return fmt.Errorf("%w: SaveVersion or Rollback before pruning", ErrUncommittedChanges)
+	}
+
+	// The working tree is an unregistered reader of t.version: pruning a range
+	// covering it would delete the records it references and brick the view
+	// (the next Get would panic on a missing node). Conservative for a
+	// never-Loaded handle (t.version 0 while the DB holds versions) — that
+	// state is unreachable via the public API anyway.
+	if t.version <= toVersion {
+		return fmt.Errorf("%w: version %d is loaded by the working tree", ErrActiveReaders, t.version)
 	}
 
 	// Claim the prune lock and verify no version in [first, toVersion] has an
@@ -191,9 +203,28 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 	return nil
 }
 
-// walkAndPrune compares two subtrees and deletes nodes from oldNode
-// that are not referenced by newNode. Uses child hash set comparison
-// to handle split/merge position shifts.
+// sameRecord reports whether a and b are the SAME persisted node record
+// (identical NodeKey). COW shares by record reference, not content: two
+// content-identical nodes saved under different NodeKeys ("twins") are
+// distinct records, and treating them as shared would leak the unreferenced
+// one forever (nothing else ever deletes it).
+func sameRecord(a, b Node) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	ak, bk := a.GetNodeKey(), b.GetNodeKey()
+	if ak == nil || bk == nil {
+		return false
+	}
+	return bytes.Equal(ak.GetKey(), bk.GetKey())
+}
+
+// walkAndPrune compares two subtrees and deletes records of oldNode's tree
+// that are not referenced by newNode's. Sharing is record identity (NodeKey
+// equality), with set comparison over child refs to handle split/merge
+// position shifts. Soundness rests on ref-contiguity: the versions
+// referencing a record form a contiguous range, so "not referenced by the
+// successor" means "not referenced by any retained version".
 //
 // newRoot is the root of the new version's tree, used to find children
 // that moved to a different part of the tree due to inner node splits.
@@ -202,8 +233,9 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		return nil
 	}
 
-	// If both nodes have the same hash, the entire subtree is shared — skip.
-	if newNode != nil && oldNode.Hash() == newNode.Hash() {
+	// Same record ⇒ the entire subtree is shared (its child refs are
+	// immutable) — skip.
+	if sameRecord(oldNode, newNode) {
 		return nil
 	}
 
@@ -221,26 +253,25 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		return nil // leaf — already deleted above, no children
 	}
 
-	// Build a set of child hashes from the new node (if it's also an inner node)
-	newChildHashes := make(map[Hash]bool)
+	// Build a set of child record refs from the new node (if it's also inner)
+	newChildRefs := make(map[string]bool)
 	if newInner, ok := newNode.(*InnerNode); ok {
 		for i := 0; i < newInner.NumChildren(); i++ {
-			newChildHashes[newInner.childHashes[i]] = true
+			if ref := newInner.children[i]; ref != nil {
+				newChildRefs[string(ref)] = true
+			}
 		}
 	}
 
 	// For each child in the old inner node:
-	// - If the child hash exists in the new node's children → shared, skip
+	// - If the child's record ref appears in the new node's children → shared
 	// - If not → the child subtree may be orphaned or moved, check from root
 	for i := 0; i < oldInner.NumChildren(); i++ {
-		childHash := oldInner.childHashes[i]
-		if newChildHashes[childHash] {
-			continue // shared subtree
-		}
-
-		// Load and recurse into the orphaned child
 		if oldInner.children[i] == nil {
 			continue // no serialized ref (shouldn't happen for saved nodes)
+		}
+		if newChildRefs[string(oldInner.children[i])] {
+			continue // same record ⇒ shared subtree
 		}
 		child, err := t.ndb.GetNode(oldInner.children[i])
 		if err != nil {
@@ -258,9 +289,9 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 			}
 		}
 
-		// If the child was found in the new tree with the same hash,
-		// it's shared (moved to a different part of the tree due to split) — skip.
-		if newChild != nil && child.Hash() == newChild.Hash() {
+		// If the routing found the SAME record in the new tree, it's shared
+		// (moved to a different parent due to a split/merge) — skip.
+		if sameRecord(child, newChild) {
 			continue
 		}
 

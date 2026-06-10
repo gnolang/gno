@@ -46,8 +46,12 @@ Values are staged in the write batch (and an in-memory pending buffer so
 `Get` works before `SaveVersion`), then flushed to the DB atomically with
 the nodes and root at `SaveVersion`. `Rollback` discards the staged batch,
 so a working session abandoned before `SaveVersion` (including a process
-crash) leaves nothing in the DB. Values are never garbage collected — dead
-values after pruning are harmless noise.
+crash) leaves nothing in the DB. Dead values are reclaimed by pruning:
+overwrites and removes record the displaced ValueKey in a per-version orphan
+list, which `PruneVersionsTo` consumes (deleting the value rows) when the
+displacing version ages out of the retention window. The one exception is an
+`Import`: values referenced only by pre-import versions appear in no orphan
+list and are never reclaimed — a bounded, one-time leak per import (M21).
 
 **No content-addressed deduplication.** Two `Set` calls with identical
 values each get a fresh ValueKey and a separate DB entry — there is no

@@ -602,8 +602,15 @@ func TestLoadVersion_FailedSaveDoesNotLeakStagedValue(t *testing.T) {
 		t.Fatalf("dirty prune: want ErrUncommittedChanges, got %v", err)
 	}
 	tree.Rollback()
+	// Still loaded AT v1 — pruning v1 is refused (M20); re-Load latest first.
+	if err := tree.PruneVersionsTo(1); !errors.Is(err, ErrActiveReaders) {
+		t.Fatalf("prune of loaded version: want ErrActiveReaders, got %v", err)
+	}
+	if _, err := tree.Load(); err != nil {
+		t.Fatal(err)
+	}
 	if err := tree.PruneVersionsTo(1); err != nil {
-		t.Fatalf("prune after rollback: %v", err)
+		t.Fatalf("prune after rollback+load: %v", err)
 	}
 
 	// v2's "b" must still resolve to "B2", never "LEAK".

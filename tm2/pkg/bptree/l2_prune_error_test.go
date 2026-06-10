@@ -171,8 +171,16 @@ func TestPrune_NetZeroSessionStillRejected(t *testing.T) {
 		t.Fatalf("net-zero dirty prune: want ErrUncommittedChanges, got %v", err)
 	}
 	tree.Rollback()
+	// The tree is still loaded AT v1, so pruning v1 is refused (M20: the
+	// working tree is an unregistered reader of its loaded version).
+	if err := tree.PruneVersionsTo(1); !errors.Is(err, ErrActiveReaders) {
+		t.Fatalf("prune of loaded version: want ErrActiveReaders, got %v", err)
+	}
+	if _, err := tree.Load(); err != nil {
+		t.Fatal(err)
+	}
 	if err := tree.PruneVersionsTo(1); err != nil {
-		t.Fatalf("prune after rollback: %v", err)
+		t.Fatalf("prune after rollback+load: %v", err)
 	}
 
 	// v2's committed value must be intact.
