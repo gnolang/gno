@@ -45,6 +45,12 @@ type Machine struct {
 
 	Debugger Debugger
 
+	// blockPool holds dead runtime blocks recycled by acquireBlock /
+	// releaseBlock to relieve Go GC pressure; see releaseBlock for the
+	// conditions under which a block may be pooled. Allocator (gas)
+	// accounting is unaffected by pooling.
+	blockPool []*Block
+
 	// Configuration
 	Output   io.Writer
 	Store    Store
@@ -1746,7 +1752,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.PopResults()
 		case OpPopBlock:
 			m.incrCPU(OpCPUPopBlock)
-			m.PopBlock()
+			m.releaseBlock(m.PopBlock())
 		case OpPopFrameAndReset:
 			m.incrCPU(OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
@@ -2200,6 +2206,84 @@ func (m *Machine) PopBlock() (b *Block) {
 	return b
 }
 
+// blockPoolLimit bounds Machine.blockPool. Deep enough to cover a burst of
+// nested scope pops; small enough that an idle machine pins little memory.
+const blockPoolLimit = 32
+
+// acquireBlock returns a block recycled from the machine's pool when one
+// with sufficient capacity is available, and otherwise falls back to
+// Allocator.NewBlock. Both paths perform identical allocator (gas)
+// accounting and heap item setup; pooling only avoids the Go heap
+// allocations. Used by the runtime ops creating scope and call blocks;
+// package, file and preprocess blocks do not go through here.
+func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
+	n := len(m.blockPool)
+	if n == 0 {
+		return m.Alloc.NewBlock(source, parent)
+	}
+	numNames := int(source.GetNumNames())
+	b := m.blockPool[n-1]
+	if cap(b.Values) < numNames {
+		return m.Alloc.NewBlock(source, parent)
+	}
+	m.blockPool[n-1] = nil
+	m.blockPool = m.blockPool[:n-1]
+	// Keep in sync with Allocator.NewBlock / NewBlock.
+	m.Alloc.AllocateBlock(int64(numNames))
+	values := b.Values[:numNames]
+	initHeapItems(m.Alloc, values, source)
+	b.Source = source
+	b.Values = values
+	b.Parent = parent
+	m.Alloc.stampPkgID(&b.ObjectInfo, nil)
+	return b
+}
+
+// releaseBlock returns a dead runtime scope or call block to the machine's
+// pool, zeroed so that it retains no references. Callers must only pass
+// blocks being discarded from the machine's block stack; with closures
+// capturing heap items rather than blocks (see doOpFuncLit), such blocks
+// cannot be referenced anymore, except for the cases skipped here:
+//
+//   - node-owned static blocks and long-lived file/package blocks, which
+//     also travel on the block stack (RunStatement/Eval flows push static
+//     blocks; file blocks are referenced by FuncValue.Parent);
+//   - blocks captured as a pending Defer.Parent, which the garbage
+//     collector visits until the defer runs (see Block.setNoRecycle);
+//   - blocks attached to the realm (real or with an ObjectID), as
+//     insurance;
+//   - anything discarded while a panic is unwinding (cheap conservatism;
+//     the exception path is cold).
+func (m *Machine) releaseBlock(b *Block) {
+	if len(m.blockPool) >= blockPoolLimit || b.isNoRecycle() || m.Exception != nil {
+		return
+	}
+	switch b.Source.(type) {
+	case nil, RefNode, *FileNode, *PackageNode:
+		return
+	}
+	if b.Source.GetStaticBlock().GetBlock() == b {
+		return
+	}
+	if oi := b.GetObjectInfo(); !oi.ID.IsZero() || oi.GetIsReal() {
+		return
+	}
+	values := b.Values[:cap(b.Values)]
+	clear(values)
+	*b = Block{Values: values[:0]}
+	m.blockPool = append(m.blockPool, b)
+}
+
+// releaseBlocksFrom releases all blocks at stack index n and above into the
+// pool and truncates the block stack to n. It replaces direct
+// `m.Blocks = m.Blocks[:n]` truncations.
+func (m *Machine) releaseBlocksFrom(n int) {
+	for _, b := range m.Blocks[n:] {
+		m.releaseBlock(b)
+	}
+	m.Blocks = m.Blocks[:n]
+}
+
 // The result is a volatile reference in the machine's type stack.
 // Mutate and forget.
 func (m *Machine) LastBlock() *Block {
@@ -2446,7 +2530,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
-		m.Blocks = m.Blocks[:fr.NumBlocks]
+		m.releaseBlocksFrom(fr.NumBlocks)
 		// pop stmts
 		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
 	}
@@ -2455,7 +2539,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
 	// pop blocks
-	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
+	m.releaseBlocksFrom(len(m.Blocks) - depthBlocks)
 }
 
 func (m *Machine) PopFrameAndReset() {
@@ -2464,7 +2548,7 @@ func (m *Machine) PopFrameAndReset() {
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
-	m.Blocks = m.Blocks[:fr.NumBlocks]
+	m.releaseBlocksFrom(fr.NumBlocks)
 	m.PopStmt() // may be sticky
 }
 
@@ -2482,7 +2566,7 @@ func (m *Machine) PopFrameAndReturn() {
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
-	m.Blocks = m.Blocks[:fr.NumBlocks]
+	m.releaseBlocksFrom(fr.NumBlocks)
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := len(m.Values) - numRes
@@ -2512,7 +2596,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
-	m.Blocks = m.Blocks[:fr.NumBlocks+1]
+	m.releaseBlocksFrom(fr.NumBlocks + 1)
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }
@@ -2523,7 +2607,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Values = m.Values[:fr.NumValues+1]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
-	m.Blocks = m.Blocks[:fr.NumBlocks+1]
+	m.releaseBlocksFrom(fr.NumBlocks + 1)
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }

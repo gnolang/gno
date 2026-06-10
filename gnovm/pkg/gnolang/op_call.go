@@ -252,7 +252,7 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fs, pb)
+	b := m.acquireBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -582,7 +582,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	// Create new block scope for defer.
 	pb := dfr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	b := m.acquireBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
@@ -672,6 +672,10 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
+	// lb is captured as Defer.Parent below, which the garbage collector
+	// visits for as long as the defer is pending — possibly well after
+	// this block is popped. Exclude it from block recycling.
+	lb.setNoRecycle()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
