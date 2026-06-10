@@ -583,7 +583,11 @@ func (ndb *nodeDB) DeleteRoot(version int64) error {
 	return ndb.batch.Delete(rootDBKey(version))
 }
 
-// DeleteNode removes a node from the batch (used during pruning).
+// DeleteNode stages deletion of a node in the batch (used during pruning).
+// Evicting the cache before the batch flushes is safe: the prune never re-reads
+// keys it deleted, and registered readers of retained versions never reference
+// them (dual-walk deletes only unshared nodes; beginPruning excludes readers of
+// the pruned range), so no in-contract GetNode can observe the window.
 func (ndb *nodeDB) DeleteNode(nkBytes []byte) error {
 	if ndb.nodeCache != nil {
 		ndb.nodeCache.Remove(string(nkBytes))
