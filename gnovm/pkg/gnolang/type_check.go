@@ -850,19 +850,13 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	switch cxt := xt.(type) {
 	case *MapType:
 		mustAssignableTo(x, cxt.Key, kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Value, vt)
-		}
+		mustAssignableTo(x, cxt.Value, vt)
 	case *SliceType:
 		assertIndexTypeIsInt(kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
+		mustAssignableTo(x, cxt.Elt, vt)
 	case *ArrayType:
 		assertIndexTypeIsInt(kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
+		mustAssignableTo(x, cxt.Elt, vt)
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
 			assertIndexTypeIsInt(kt)
