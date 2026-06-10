@@ -183,6 +183,13 @@ func (dbv DataByteValue) SetByte(b byte) {
 //
 // Since PointerValue is used internally for assignment etc, it MUST stay
 // minimal for computational efficiency.
+//
+// Equality: PointerValues compare by whole-struct identity (lv.V == rv.V in
+// isEql); since TV is determined by (Base, Index), this reduces to same Base +
+// same Index. This holds uniformly for every element type — there is no
+// size-dependent folding (gc-Go's runtime.zerobase / offset-arithmetic collapse
+// for zero-sized types is not replicated). See
+// docs/resources/go-gno-compatibility.md § Pointer equality for zero-sized types.
 type PointerValue struct {
 	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
@@ -316,12 +323,18 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-// Copy duplicates an existing ArrayValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewListArray/NewDataArray stands, so the
-// copy belongs to the realm doing the copying.
+// Copy duplicates an existing ArrayValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the array type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewListArray/NewDataArray stands, so the copy belongs to the
+// realm doing the copying.
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. That leaked foreign authority into /p/-typed copies
+// produced by value-assignments like `*z = *x` (e.g. uint256 Set), causing
+// `cannot directly modify readonly tainted object` panics when a /r/ realm
+// performed in-place arithmetic on a /p/-typed value handed in from another
+// /r/. See https://github.com/gnolang/gno/issues/5736.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
@@ -338,8 +351,8 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -452,15 +465,17 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-// Copy duplicates an existing StructValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewStruct stands, so the copy belongs to
-// the realm doing the copying.
+// Copy duplicates an existing StructValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the struct type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewStruct stands, so the copy belongs to the realm doing the
+// copying.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. See ArrayValue.Copy for the issue (gh #5736) and rationale.
 func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
@@ -472,8 +487,8 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -965,43 +980,6 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"`
 }
 
-// Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
-// readonly. This happens when subvalues are retrieved from an externally
-// stored realm value, such as external realm package vars, or slices or
-// pointers to.
-// NOTE: most of the code except copy methods do not consider N_Readonly.
-// Instead the op functions should with m.IsReadonly() and tv.SetReadonly() and
-// tv.WithReadonly().
-var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
-
-// Returns true if mutable .V is readonly "wrapped".
-func (tv *TypedValue) IsReadonly() bool {
-	return tv.N == N_Readonly && tv.V != nil
-}
-
-// Sets tv.N to N_Readonly if ro and tv is not already immutable.  If ro is
-// false does nothing. See also Type.IsImmutable().
-func (tv *TypedValue) SetReadonly(ro bool) {
-	if tv.V == nil {
-		return // do nothing
-	}
-	if tv.T.IsImmutable() {
-		return // do nothing
-	}
-	if ro {
-		tv.N = N_Readonly
-		return
-	} else {
-		return // preserve prior tv.N
-	}
-}
-
-// Convenience, makes readonly if ro is true.
-func (tv TypedValue) WithReadonly(ro bool) TypedValue {
-	tv.SetReadonly(ro)
-	return tv
-}
-
 func (tv *TypedValue) IsImmutable() bool {
 	return tv.T == nil || tv.T.IsImmutable()
 }
@@ -1087,11 +1065,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
 	default:
 		cp = tv
 	}
@@ -1103,7 +1079,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
-		cp = tv // preserve N_Readonly
+		cp = tv // start from the header (T, N); V is replaced below
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
@@ -1977,7 +1953,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
-			panic("interface method call on undefined value")
+			panic(&Exception{Value: typedString("runtime error: method selector on nil interface")})
 		}
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")

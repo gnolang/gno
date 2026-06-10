@@ -832,8 +832,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
-		// both "_"
+	if isBlankIdentifier(x.Key) && (x.Value == nil || isBlankIdentifier(x.Value)) {
+		// both "_" or key is "_" and value is not present
 		return
 	}
 	assertValidAssignLhs(store, last, x.Key)
