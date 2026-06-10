@@ -29,13 +29,13 @@ jobs:
       actions: read # to read workflow run details
       contents: read
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: github/codeql-action/init@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      - uses: github/codeql-action/init@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v3
         with:
           languages: go
           build-mode: autobuild
-      - uses: github/codeql-action/analyze@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      - uses: github/codeql-action/analyze@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v3
         with:
           category: "/language:go"
