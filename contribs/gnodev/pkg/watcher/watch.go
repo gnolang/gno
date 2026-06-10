@@ -52,7 +52,6 @@ func NewPackageWatcher(logger *slog.Logger, emitter emitter.Emitter) (*PackageWa
 var debounceInterval = 500 * time.Millisecond
 
 func (p *PackageWatcher) startWatching() {
-
 	errorsChan := make(chan error, 1)
 	pkgsUpdateChan := make(chan PackageUpdateList)
 
