@@ -32,6 +32,7 @@ type fuzzCfg struct {
 	maxOps      int   // decoded-op cap per program
 	cacheSize   int
 	allowImport bool
+	maxImports  int // per-program cap: each import leaks values below the wall (M21)
 	allowInject bool
 }
 
@@ -44,6 +45,7 @@ func defaultFuzzCfg() fuzzCfg {
 		maxOps:      2048,
 		cacheSize:   256,
 		allowImport: true,
+		maxImports:  32,
 		allowInject: true,
 	}
 }
@@ -68,6 +70,7 @@ type fuzzState struct {
 	dirty         bool  // effective mutation since the last session boundary
 	opN           int
 	mutSinceSave  int
+	imports       int   // imports so far, capped at cfg.maxImports
 	maxImportVer  int64 // vk-version wall (R2); 0 = no import yet
 }
 
@@ -456,7 +459,7 @@ func (st *fuzzState) doColdRestart() {
 }
 
 func (st *fuzzState) doExportImport(sel byte) {
-	if !st.cfg.allowImport || st.dirty {
+	if !st.cfg.allowImport || st.dirty || st.imports >= st.cfg.maxImports {
 		return
 	}
 	// Source: a retained NON-EMPTY version (Export of an empty tree errors).
@@ -493,7 +496,14 @@ func (st *fuzzState) doExportImport(sel byte) {
 	st.model = snapCopy(st.snaps[src])
 	st.dirty = false
 	st.mutSinceSave = 0
-	st.maxImportVer = target // the vk-version wall (R2)
+	st.maxImportVer = target // the vk-version wall (R2) — must precede catchUp's oracle
+	st.imports++
+	// Forced prune cadence. Imports advance latest like saves do, but at a 4×
+	// wider gate: import runs are the only source of wide multi-version prunes,
+	// so let them build up before catching up.
+	if st.latest-st.first+1 > 4*st.cfg.window {
+		st.catchUp()
+	}
 }
 
 func (st *fuzzState) doInjectError(n byte) {
@@ -821,6 +831,12 @@ func FuzzTreeOps(f *testing.F) {
 	seed(opGrow, 0, 0, 24, opSave, opRemove, 0, 0, opRemove, 0, 1, opSave, opSet, 0, 90, opSave, opPrune, 4)
 	// Cold restart mid-churn.
 	seed(opGrow, 0, 0, 16, opSave, opSet, 0, 4, opSave, opCold, opSet, 0, 5, opSave, opPrune, 4)
+	// Import run crossing the 4×W gate: wide catch-up prune mid-run, then save.
+	importRun := []byte{opGrow, 0, 0, 12, opSave}
+	for i := 0; i < 17; i++ {
+		importRun = append(importRun, opImport, byte(i%2))
+	}
+	seed(append(importRun, opSave, opPrune, 4)...)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		runOpProgram(t, data, defaultFuzzCfg())
