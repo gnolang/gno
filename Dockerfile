@@ -7,6 +7,7 @@ RUN         apk add --no-cache git
 RUN         go env -w GOMODCACHE=/root/.cache/go-build
 # Mod files
 COPY        go.mod go.sum ./
+COPY        misc/puregohid/go.mod misc/puregohid/go.sum misc/puregohid/
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go mod download -x

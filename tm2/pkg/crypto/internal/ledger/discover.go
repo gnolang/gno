@@ -29,7 +29,7 @@ var Discover DiscoverFn = DiscoverDefault
 // DiscoverDefault is the default function for [Discover].
 func DiscoverDefault() (SECP256K1, error) {
 	if !hid.Supported() {
-		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
+		return nil, errors.New("ledger support is not available on this platform")
 	}
 
 	device, err := ledger_go.FindLedgerCosmosUserApp()
