@@ -8,14 +8,14 @@ Please note that this is a quick overview. For a more detailed guide, refer to t
 
 ## Synopsis
 
-**gnodev** [**options**] [**PKG_PATH ...**]
+**gnodev** [**local**|**staging**] [**flags**] [**package_dir ...**]
 
 ## Features
--  **In-Memory Node**: Gnodev starts an in-memory node, automatically loading the **examples** folder and any
-   user-specified paths.
--  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](https://localhost:8888).
+-  **In-Memory Node**: Gnodev starts an in-memory node, loading the workspace containing the current directory
+   at startup; **examples** packages are resolved on demand upon a query or transaction.
+-  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](http://localhost:8888).
 -  **Balances and Keybase Customization**: Set account balances, load them from a file, or add new accounts via a flag.
--  **Hot Reload**: Monitors the **examples** folder and specified directories for file changes, reloading the
+-  **Hot Reload**: Monitors loaded package directories for file changes, reloading the
    package and automatically restarting the node as needed.
 -  **State Maintenance**: Ensures the previous node state is preserved by replaying all transactions.
 -  **Transaction Manipulation**: Allows for interactive cancellation and redoing of transactions.
@@ -26,21 +26,20 @@ While `gnodev` is running, trigger specific actions by pressing the following co
 -  **H**: Display help information.
 -  **A**: Display account balances.
 -  **R**: Reload the node manually.
--  **P**: Cancel the last action.
--  **N**: Redo the last cancelled action.
+-  **P**: Go to the previous transaction.
+-  **N**: Go to the next transaction.
 -  **Ctrl+S**: Save the current state.
--  **Ctrl+R**: Restore the saved state.
 -  **E**: Export the current state to a genesis file.
--  **Cmd+R**: Reset the current node state.
--  **Cmd+C**: Exit `gnodev`.
+-  **Ctrl+R**: Reset the node to its initial (or saved) state.
+-  **Ctrl+C**: Exit `gnodev`.
 
 ## Usage
-Run `gnodev` followed by any specific options and/or package paths. The **examples** directory is loaded
-automatically. Use `--minimal` to prevent this.
+Run `gnodev` followed by any specific options and/or package directories. Packages from the **examples**
+directory are resolved on demand. Use `-no-examples` to prevent this.
 
 Example:
 ```
-gnodev --add-account <bech32/name1>[:<amount1>] ./myrealm
+gnodev -add-account <bech32|name1>[=<amount1>] ./myrealm
 ```
 
 ### `gnodev -h`
@@ -77,7 +76,8 @@ This mode is optimized for realm development, providing an interactive and flexi
 It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
 The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
 
-By default, the current directory and the "example" folder from "gnoroot" will be used as the root resolver.
+By default, the workspace containing the current directory is loaded at startup;
+packages from "$GNOROOT/examples" are resolved on demand upon a query or transaction.
 
 
 FLAGS

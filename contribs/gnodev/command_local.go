@@ -58,7 +58,8 @@ This mode is optimized for realm development, providing an interactive and flexi
 It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
 The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
 
-By default, the current directory and the "example" folder from "gnoroot" will be used as the root resolver.
+By default, the workspace containing the current directory is loaded at startup;
+packages from "$GNOROOT/examples" are resolved on demand upon a query or transaction.
 `,
 			NoParentFlags: true,
 		},
