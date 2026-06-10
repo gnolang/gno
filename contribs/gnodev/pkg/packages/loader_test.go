@@ -78,6 +78,25 @@ var _ = chain.ChainDomain
 	assert.Equal(t, "gno.land/p/demo/bar", pkgs[0].ImportPath)
 }
 
+// TestLoader_Reload_SingleModuleWorkspace covers the canonical
+// `cd myrealm && gnodev` flow: a directory with gnomod.toml but no
+// gnowork.toml ancestor. gnovm treats that as single-package mode and
+// rejects recursive patterns, so the loader must not blindly append "/...".
+func TestLoader_Reload_SingleModuleWorkspace(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "ossas")
+	writePkg(t, dir, "gno.land/r/ossas", "package ossas\n")
+
+	t.Chdir(dir)
+
+	ws := FindWorkspace(dir)
+	require.Equal(t, dir, ws, "gnomod.toml dir must be detected as workspace root")
+
+	l := New(Config{Workspace: ws, Logger: testLogger()})
+	pkgs, err := l.Reload()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gno.land/r/ossas"}, pathsOf(pkgs))
+}
+
 func TestLoader_Resolve_IndexHit(t *testing.T) {
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "demo")

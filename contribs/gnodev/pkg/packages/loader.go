@@ -366,7 +366,19 @@ func (l *Loader) LoadWorkspace() ([]*Package, error) {
 	if l.cfg.Workspace == "" {
 		return nil, nil
 	}
-	return l.loadWithPatterns(l.cfg.Workspace + "/...")
+	return l.loadWithPatterns(l.workspacePattern())
+}
+
+// workspacePattern returns the gnovm.Load pattern for the configured
+// workspace. A gnowork.toml root is a multi-package workspace and loads
+// recursively; a gnomod.toml-only root (the `cd myrealm && gnodev` case) is
+// gnovm single-package mode, which rejects recursive patterns, so the bare
+// directory is passed instead.
+func (l *Loader) workspacePattern() string {
+	if hasFile(l.cfg.Workspace, "gnowork.toml") {
+		return l.cfg.Workspace + "/..."
+	}
+	return l.cfg.Workspace
 }
 
 // LoadAll eagerly loads the workspace, every ExtraRoot, and GNOROOT/examples
@@ -400,7 +412,7 @@ func (l *Loader) loadEager(roots []string) ([]*Package, error) {
 
 	if l.cfg.Workspace != "" {
 		l.cfg.Logger.Debug("loading workspace", "workspace", l.cfg.Workspace)
-		ws, err := l.loadWithPatternsVm(l.cfg.Workspace + "/...")
+		ws, err := l.loadWithPatternsVm(l.workspacePattern())
 		if err != nil {
 			return nil, err
 		}
