@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -168,6 +169,99 @@ func pathsOf(pkgs []*Package) []string {
 		out[i] = p.ImportPath
 	}
 	return out
+}
+
+// TestLoader_Reload_TrackedPathIncludesFSDeps reproduces the lazy-load flow:
+// the proxy Resolves a single realm, then Reload builds the genesis set.
+// The realm's transitive imports must be included (dependencies first), or
+// its genesis addpkg fails type-checking with "unknown import path".
+func TestLoader_Reload_TrackedPathIncludesFSDeps(t *testing.T) {
+	gnoroot := t.TempDir()
+	examples := filepath.Join(gnoroot, "examples")
+	writePkg(t, filepath.Join(examples, "base"), "gno.land/p/test/base",
+		"package base\nfunc Hi() string { return \"hi\" }\n")
+	writePkg(t, filepath.Join(examples, "dep"), "gno.land/p/test/dep",
+		`package dep
+import (
+	"strings"
+	"gno.land/p/test/base"
+)
+func Hello() string { return strings.ToUpper(base.Hi()) }
+`)
+	writePkg(t, filepath.Join(examples, "home"), "gno.land/r/test/home",
+		`package home
+import "gno.land/p/test/dep"
+func Render(_ string) string { return dep.Hello() }
+`)
+
+	l := New(Config{Examples: true, GnoRoot: gnoroot, Logger: testLogger()})
+	_, err := l.Resolve("gno.land/r/test/home")
+	require.NoError(t, err)
+
+	got, err := l.Reload()
+	require.NoError(t, err)
+
+	paths := pathsOf(got)
+	require.ElementsMatch(t, paths,
+		[]string{"gno.land/p/test/base", "gno.land/p/test/dep", "gno.land/r/test/home"})
+	assert.Less(t, slices.Index(paths, "gno.land/p/test/base"), slices.Index(paths, "gno.land/p/test/dep"))
+	assert.Less(t, slices.Index(paths, "gno.land/p/test/dep"), slices.Index(paths, "gno.land/r/test/home"))
+}
+
+func TestLoader_Reload_TrackedPathIncludesRemoteDeps(t *testing.T) {
+	dep := &std.MemPackage{
+		Path:  "gno.land/p/test/dep",
+		Name:  "dep",
+		Files: []*std.MemFile{{Name: "dep.gno", Body: "package dep\nfunc Hello() string { return \"hi\" }\n"}},
+	}
+	home := &std.MemPackage{
+		Path: "gno.land/r/test/home",
+		Name: "home",
+		Files: []*std.MemFile{{Name: "home.gno", Body: `package home
+import "gno.land/p/test/dep"
+func Render(_ string) string { return dep.Hello() }
+`}},
+	}
+
+	l := New(Config{
+		Fetcher: pkgdownload.NewInMemoryFetcher(dep, home),
+		Logger:  testLogger(),
+	})
+	_, err := l.Resolve("gno.land/r/test/home")
+	require.NoError(t, err)
+
+	got, err := l.Reload()
+	require.NoError(t, err)
+
+	paths := pathsOf(got)
+	require.ElementsMatch(t, paths, []string{"gno.land/p/test/dep", "gno.land/r/test/home"})
+	assert.Less(t, slices.Index(paths, "gno.land/p/test/dep"), slices.Index(paths, "gno.land/r/test/home"))
+}
+
+// TestLoader_Reload_TrackedPathMissingDep: an unresolvable import must not
+// abort the reload; the package is still returned and the chain reports the
+// precise type-check error at deploy time.
+func TestLoader_Reload_TrackedPathMissingDep(t *testing.T) {
+	gnoroot := t.TempDir()
+	examples := filepath.Join(gnoroot, "examples")
+	writePkg(t, filepath.Join(examples, "home"), "gno.land/r/test/home",
+		`package home
+import "gno.land/p/test/absent"
+func Render(_ string) string { return absent.Hello() }
+`)
+
+	l := New(Config{
+		Examples: true,
+		GnoRoot:  gnoroot,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+	_, err := l.Resolve("gno.land/r/test/home")
+	require.NoError(t, err)
+
+	got, err := l.Reload()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gno.land/r/test/home"}, pathsOf(got))
 }
 
 func TestLoader_LoadAll(t *testing.T) {

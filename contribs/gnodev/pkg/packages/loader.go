@@ -309,19 +309,49 @@ func (l *Loader) Reload() ([]*Package, error) {
 	l.mu.Unlock()
 
 	for _, p := range trackedPaths {
-		pkg, err := l.Resolve(p)
+		closure, err := l.resolveClosure(p, seen)
 		if err != nil {
 			l.cfg.Logger.Warn("reload tracked path failed", "path", p, "err", err)
 			continue
 		}
-		if _, dup := seen[pkg.ImportPath]; dup {
-			continue
-		}
-		seen[pkg.ImportPath] = struct{}{}
-		out = append(out, pkg)
+		out = append(out, closure...)
 	}
 
 	return out, nil
+}
+
+// resolveClosure resolves path and its transitive package imports,
+// dependency-first, so genesis can deploy them in order. Paths already in
+// seen are skipped; resolved paths are added to it. An unresolvable or
+// unreadable import is logged and skipped rather than failing the closure:
+// the chain reports the precise type-check error at deploy time.
+func (l *Loader) resolveClosure(path string, seen map[string]struct{}) ([]*Package, error) {
+	if _, ok := seen[path]; ok {
+		return nil, nil
+	}
+	pkg, err := l.Resolve(path)
+	if err != nil {
+		return nil, err
+	}
+	// Mark before walking imports so an import cycle terminates.
+	seen[pkg.ImportPath] = struct{}{}
+
+	imports, err := pkg.Imports()
+	if err != nil {
+		l.cfg.Logger.Warn("unable to read package imports", "path", pkg.ImportPath, "err", err)
+		return []*Package{pkg}, nil
+	}
+
+	out := make([]*Package, 0, len(imports)+1)
+	for _, imp := range imports {
+		deps, err := l.resolveClosure(imp, seen)
+		if err != nil {
+			l.cfg.Logger.Warn("unresolvable import", "path", imp, "importer", pkg.ImportPath, "err", err)
+			continue
+		}
+		out = append(out, deps...)
+	}
+	return append(out, pkg), nil
 }
 
 // LoadWorkspace eagerly loads packages in the configured workspace.

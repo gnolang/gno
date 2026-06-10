@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -54,6 +55,29 @@ func (p *Package) ToMemPackage() (*std.MemPackage, error) {
 		return nil, fmt.Errorf("read package %s at %s: %w", p.ImportPath, p.Dir, err)
 	}
 	return mp, nil
+}
+
+// Imports returns the package's declared chain-package imports (sorted,
+// deduplicated). Test files and stdlib imports are excluded: only imports
+// the chain must resolve at deploy time are reported.
+func (p *Package) Imports() ([]string, error) {
+	mp, err := p.ToMemPackage()
+	if err != nil {
+		return nil, err
+	}
+	imap, err := vmpackages.Imports(mp, nil)
+	if err != nil {
+		return nil, err
+	}
+	fimps := imap.Merge(vmpackages.FileKindPackageSource)
+	out := make([]string, 0, len(fimps))
+	for _, fi := range fimps {
+		if gnolang.IsStdlib(fi.PkgPath) {
+			continue
+		}
+		out = append(out, fi.PkgPath)
+	}
+	return out, nil
 }
 
 func packageFromMemPackage(mp *std.MemPackage) *Package {
