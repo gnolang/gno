@@ -777,14 +777,15 @@ the provider and the device handling change.
 
 ## D.1 Prerequisites
 
-Install tmkms with the **`ledgertm`** provider. Unlike the YubiHSM and
-softsign features, `ledgertm` *is* in the default build, so plain
-`cargo install tmkms` gives it to you; pass it explicitly (and add
-`softsign` if you want both) to be sure:
+Install tmkms with the Ledger provider. The cargo feature is named
+**`ledger`** in 0.15.0 (older versions called it `ledgertm`, which is
+why the config block below is still `[[providers.ledgertm]]`). tmkms
+0.15.0 ships **no** default features, so plain `cargo install tmkms`
+gives you neither Ledger nor softsign — pass them explicitly:
 
 ```sh
-cargo install tmkms --version 0.15.0 --features ledgertm --locked
-# or, to keep softsign too: --features ledgertm,softsign
+cargo install tmkms --version 0.15.0 --features ledger --locked
+# or, to keep softsign too: --features ledger,softsign
 ```
 
 You also need:
