@@ -25,20 +25,15 @@ import (
 // While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
-var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+// The map is populated at init and must not be mutated afterwards: it is read
+// concurrently by parallel type-checks.
+var gnoBuiltinsCache = map[string]*std.MemPackage{
+	"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
+}
 
-func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
-	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
-		panic("expected pkgPath to start with gnobuiltins/")
-	}
-	mpkg, ok := gnoBuiltinsCache[pkgPath]
-	if ok {
-		return mpkg
-	}
-	switch pkgPath {
-	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
-		mpkg.SetFile("gno0p9.gno", `package gno0p9
+func gnoBuiltinsGno0p9() *std.MemPackage { // 0.9
+	mpkg := &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+	mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
     PkgPath() string
@@ -58,10 +53,17 @@ func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
 `)
-	default:
+	return mpkg
+}
+
+func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
+	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		panic("expected pkgPath to start with gnobuiltins/")
+	}
+	mpkg, ok := gnoBuiltinsCache[pkgPath]
+	if !ok {
 		panic("unrecognized gnobuiltins pkgpath")
 	}
-	gnoBuiltinsCache[pkgPath] = mpkg
 	return mpkg
 }
 
