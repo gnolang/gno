@@ -320,6 +320,7 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
+	pkgsTxs = append(pkgsTxs, n.bootstrapTxs(pkgs)...)
 	txs := append(pkgsTxs, n.initialState...)
 
 	genesis := gnoland.DefaultGenState()
@@ -417,6 +418,45 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	return state, nil
 }
 
+// usersInitPkgPath is the realm whitelisting the genesis user-registration
+// controller, mirroring the chain's own genesis bootstrap.
+const usersInitPkgPath = "gno.land/r/sys/users/init"
+
+// bootstrapTxs returns the genesis system txs to append after the package
+// deploy txs. The r/sys/users/init.Bootstrap call is injected only when the
+// realm is part of pkgs: calling an undeployed realm would fail at genesis.
+// Re-evaluated on every genesis rebuild, so the call kicks in as soon as a
+// reload brings the realm into the package set.
+func (n *Node) bootstrapTxs(pkgs []*packages.Package) []gnoland.TxWithMetadata {
+	hasUsersInit := slices.ContainsFunc(pkgs, func(p *packages.Package) bool {
+		return p.ImportPath == usersInitPkgPath
+	})
+	if !hasUsersInit {
+		return nil
+	}
+
+	return []gnoland.TxWithMetadata{n.genesisTx(std.Tx{
+		Msgs: []std.Msg{vm.MsgCall{
+			Caller:  n.config.DefaultCreator,
+			PkgPath: usersInitPkgPath,
+			Func:    "Bootstrap",
+		}},
+		Fee: std.NewFee(2_000_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+	})}
+}
+
+// genesisTx wraps tx with genesis metadata and one empty signature slot per
+// signer: genesis txs are not signed but must pass signature-count validation.
+func (n *Node) genesisTx(tx std.Tx) gnoland.TxWithMetadata {
+	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+	return gnoland.TxWithMetadata{
+		Tx: tx,
+		Metadata: &gnoland.GnoTxMetadata{
+			Timestamp: n.startTime.Unix(),
+		},
+	}
+}
+
 func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.Package) []gnoland.TxWithMetadata {
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
@@ -448,18 +488,8 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.Package) []gnoland.TxWi
 			)
 		}
 
-		// Create transaction
 		tx := std.Tx{Fee: fee, Msgs: []std.Msg{msg}}
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-
-		// Wrap it with metadata
-		metatx := gnoland.TxWithMetadata{
-			Tx: tx,
-			Metadata: &gnoland.GnoTxMetadata{
-				Timestamp: n.startTime.Unix(),
-			},
-		}
-		metatxs = append(metatxs, metatx)
+		metatxs = append(metatxs, n.genesisTx(tx))
 	}
 
 	return metatxs
@@ -489,7 +519,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 		genesis := gnoland.DefaultGenState()
 		genesis.Balances = n.config.BalancesList
-		genesis.Txs = n.generateTxs(DefaultFee, pkgs)
+		genesis.Txs = append(n.generateTxs(DefaultFee, pkgs), n.bootstrapTxs(pkgs)...)
 		return n.rebuildNode(ctx, genesis)
 	}
 
@@ -510,6 +540,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
+	pkgsTxs = append(pkgsTxs, n.bootstrapTxs(pkgs)...)
 	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
@@ -654,7 +685,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	msg := strings.TrimFunc(before, func(r rune) bool {
 		return unicode.IsSpace(r) || r == ':'
 	})
-	attrs = append(attrs, slog.String("err", msg))
+	attrs = append(attrs, slog.String("detail", msg))
 
 	// If debug is enable, also append stack
 	if n.logger.Enabled(context.Background(), slog.LevelDebug) {

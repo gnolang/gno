@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -636,6 +637,101 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 	}
 
 	return cli.Call(bcfg, vmMsgs...)
+}
+
+// ---- genesis bootstrap tx (r/sys/users/init)
+
+// usersInitMemPkg returns a minimal stand-in for the examples' r/sys/users/init
+// realm: Bootstrap records that it ran so tests can observe genesis execution.
+func usersInitMemPkg() *std.MemPackage {
+	return &std.MemPackage{
+		Name: "init",
+		Path: usersInitPkgPath,
+		Files: []*std.MemFile{
+			{
+				Name: "init.gno",
+				Body: `package init
+var bootstrapped bool
+func Bootstrap(cur realm) { bootstrapped = true }
+func Render(_ string) string {
+	if bootstrapped {
+		return "bootstrapped"
+	}
+	return "not bootstrapped"
+}
+`,
+			},
+		},
+	}
+}
+
+// genesisUsersInitCalls returns the genesis txs calling into usersInitPkgPath.
+func genesisUsersInitCalls(node *Node) []std.Tx {
+	state := node.GenesisDoc().AppState.(gnoland.GnoGenesisState)
+	var calls []std.Tx
+	for _, tx := range state.Txs {
+		for _, msg := range tx.Tx.Msgs {
+			if call, ok := msg.(vm.MsgCall); ok && call.PkgPath == usersInitPkgPath {
+				calls = append(calls, tx.Tx)
+			}
+		}
+	}
+	return calls
+}
+
+func TestNodeGenesisBootstrap_SkippedWithoutUsersInit(t *testing.T) {
+	fooPkg := std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{Name: "foo.gno", Body: "package foo\nfunc Render(_ string) string { return \"foo\" }\n"},
+		},
+	}
+
+	node, _ := newTestingDevNode(t, &fooPkg)
+	assert.Empty(t, genesisUsersInitCalls(node),
+		"genesis must not call r/sys/users/init when the realm is not loaded")
+}
+
+func TestNodeGenesisBootstrap_InjectedWithUsersInit(t *testing.T) {
+	node, _ := newTestingDevNode(t, usersInitMemPkg())
+
+	calls := genesisUsersInitCalls(node)
+	require.Len(t, calls, 1)
+	assert.NoError(t, calls[0].ValidateBasic())
+
+	// Bootstrap must have executed at genesis.
+	render, err := testingRenderRealm(t, node, usersInitPkgPath)
+	require.NoError(t, err)
+	assert.Equal(t, "bootstrapped", render)
+}
+
+func TestNodeGenesisBootstrap_InjectedOnReload(t *testing.T) {
+	fooPkg := std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{Name: "foo.gno", Body: "package foo\nfunc Render(_ string) string { return \"foo\" }\n"},
+		},
+	}
+	usersInit := usersInitMemPkg()
+
+	// Start with foo only; users/init is known to the loader but not loaded.
+	cfg, holder := newTestingNodeConfig(t, &fooPkg, usersInit)
+	node, emitter := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, fooPkg.Path)
+	assert.Empty(t, genesisUsersInitCalls(node))
+
+	// Loading users/init (as the lazy proxy would) re-injects the bootstrap.
+	node.AddPackagePaths(usersInit.Path)
+	require.NoError(t, node.ReloadAll(context.Background()))
+	require.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+
+	calls := genesisUsersInitCalls(node)
+	require.Len(t, calls, 1)
+
+	render, err := testingRenderRealm(t, node, usersInitPkgPath)
+	require.NoError(t, err)
+	assert.Equal(t, "bootstrapped", render)
 }
 
 // nodeHolder lets the Reload closure read live node state (its .Paths())
