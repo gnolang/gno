@@ -36,7 +36,7 @@ func main() {
 // [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
 //
 // ---
-// Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?order=desc)
+// Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=desc)
 //
 // ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
 // Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) `owner` on 2009-02-13 11:31pm UTC

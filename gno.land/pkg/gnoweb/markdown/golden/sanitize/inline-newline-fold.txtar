@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: # %s
+-- input.md --
+line1
+line2
+-- output.md --
+line1 line2
+-- output.html --
+<h1>line1 line2</h1>

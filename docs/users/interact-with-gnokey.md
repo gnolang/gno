@@ -841,7 +841,7 @@ key, not Alice's personal address.
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 Every signer must sign with the current `account_number` and `sequence` of the

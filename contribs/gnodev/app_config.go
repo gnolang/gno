@@ -20,15 +20,18 @@ type AppConfig struct {
 	txsFile      string
 
 	// Web Configuration
-	noWeb               bool
-	webHTML             bool
-	webListenerAddr     string
-	webRemoteHelperAddr string
-	webWithHTML         bool
-	webHome             string
+	noWeb                bool
+	webHTML              bool
+	webListenerAddr      string
+	webRemoteHelperAddr  string
+	webWithHTML          bool
+	webHome              string
+	webAnalytics         bool
+	webAnalyticsHostname string
 
 	// Resolver
-	resolvers varResolver
+	resolvers                  varResolver
+	withoutQuarantinedExamples bool
 
 	// Node Configuration
 	logFormat           string
@@ -112,10 +115,31 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
 	)
 
+	fs.BoolVar(
+		&c.webAnalytics,
+		"web-analytics",
+		defaultCfg.webAnalytics,
+		"gnoweb: enable SimpleAnalytics tracking",
+	)
+
+	fs.StringVar(
+		&c.webAnalyticsHostname,
+		"web-analytics-hostname",
+		defaultCfg.webAnalyticsHostname,
+		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
+	)
+
 	fs.Var(
 		&c.resolvers,
 		"resolver",
 		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"exclude examples/quarantined/ from the default resolver chain",
 	)
 
 	fs.StringVar(
