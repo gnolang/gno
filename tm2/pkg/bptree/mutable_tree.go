@@ -618,16 +618,6 @@ func (t *MutableTree) SetInitialVersion(version uint64) {
 	t.initialVersion = version
 }
 
-// SetCommitting signals that a commit is in progress.
-func (t *MutableTree) SetCommitting() {
-	t.ndb.SetCommitting()
-}
-
-// UnsetCommitting signals that a commit has finished.
-func (t *MutableTree) UnsetCommitting() {
-	t.ndb.UnsetCommitting()
-}
-
 // Rollback discards all mutations since the last save. Values staged this
 // session live only in the uncommitted batch, so discarding it drops them —
 // nothing was written to the DB to clean up.

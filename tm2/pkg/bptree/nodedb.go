@@ -43,8 +43,7 @@ type nodeDB struct {
 	firstVersion   int64
 	versionReaders map[int64]uint32
 
-	isCommitting bool
-	logger       Logger
+	logger Logger
 
 	nextNonce uint32 // per-SaveVersion nonce counter
 }
@@ -511,20 +510,6 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 			delete(ndb.versionReaders, version)
 		}
 	}
-}
-
-// --- Commit coordination ---
-
-func (ndb *nodeDB) SetCommitting() {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	ndb.isCommitting = true
-}
-
-func (ndb *nodeDB) UnsetCommitting() {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-	ndb.isCommitting = false
 }
 
 // --- Batch operations ---
