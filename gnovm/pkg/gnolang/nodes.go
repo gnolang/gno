@@ -991,6 +991,14 @@ type bodyStmt struct {
 	StrLen        int          // for RangeStmt w/ strings only
 	StrIndex      int          // for RangeStmt w/ strings only
 	NextRune      rune         // for RangeStmt w/ strings only
+
+	// noRecycle is Block-level state (see Block.setNoRecycle), stored here
+	// to fill bodyStmt's trailing padding after NextRune so that
+	// unsafe.Sizeof(Block{}) — and with it the _allocBlock gas constant —
+	// stays unchanged. Safe here because a block's bodyStmt is only
+	// (re)assigned wholesale when entering the block or one of its case
+	// bodies, before any user statement (such as a defer) can run in it.
+	noRecycle bool
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {
