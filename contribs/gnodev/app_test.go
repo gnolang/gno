@@ -128,6 +128,33 @@ func TestGnodev_Staging_EagerAll(t *testing.T) {
 	assert.Contains(t, paths, "gno.land/p/ext/two")
 }
 
+// ---- E7: -paths flag preloads packages into genesis
+
+func TestGnodev_PathsFlag_ReachesGenesis(t *testing.T) {
+	// Empty gnowork.toml workspace: the flagged package is reachable only
+	// through the examples root, never via the eager workspace load — and
+	// genesis txs don't pass through the lazy proxy, so without explicit
+	// tracking it would never deploy.
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(workspace)
+
+	const flagged = "gno.land/p/demo/nestedpkg"
+
+	cfg := defaultLocalAppConfig
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	cfg.nodeRPCListenerAddr = "127.0.0.1:0"
+	cfg.noWatch = true
+	cfg.paths = flagged
+
+	app := NewApp(discardLogger(), &cfg, commands.NewTestIO())
+	require.NoError(t, app.Setup(context.Background()))
+	t.Cleanup(app.Close)
+
+	assert.Contains(t, importPaths(app.devNode.ListPkgs()), flagged,
+		"-paths package must be part of the genesis package set")
+}
+
 // ---- E6: Reload preserves both workspace and proxy-resolved paths
 
 func TestGnodev_Reload_AfterProxyHit(t *testing.T) {

@@ -612,6 +612,56 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
 }
 
+// TestLoader_Track_ReloadIncludesTracked: paths registered via Track (the
+// -paths flag and -txs-file dependencies) must be part of every Reload
+// output, exactly like proxy-resolved paths.
+func TestLoader_Track_ReloadIncludesTracked(t *testing.T) {
+	gnoroot := t.TempDir()
+	examples := filepath.Join(gnoroot, "examples")
+	writePkg(t, filepath.Join(examples, "lib"), "gno.land/p/test/lib",
+		"package lib\nfunc Hi() string { return \"hi\" }\n")
+	writePkg(t, filepath.Join(examples, "realm"), "gno.land/r/test/realm",
+		`package realm
+import "gno.land/p/test/lib"
+func Render(_ string) string { return lib.Hi() }
+`)
+
+	l := New(Config{Examples: true, GnoRoot: gnoroot, Logger: testLogger()})
+	l.Track("gno.land/r/test/realm")
+
+	got, err := l.Reload()
+	require.NoError(t, err)
+	assert.ElementsMatch(t, pathsOf(got),
+		[]string{"gno.land/p/test/lib", "gno.land/r/test/realm"},
+		"tracked path and its transitive deps must reach the reload output")
+}
+
+// TestLoader_Track_LoadAllIncludesTracked: staging mode reloads via LoadAll;
+// tracked paths resolvable only through the fetcher must still be included.
+func TestLoader_Track_LoadAllIncludesTracked(t *testing.T) {
+	mp := &std.MemPackage{
+		Path:  "gno.land/r/remote/only",
+		Name:  "only",
+		Files: []*std.MemFile{{Name: "only.gno", Body: "package only\n"}},
+	}
+
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(ws)
+
+	l := New(Config{
+		Workspace: ws,
+		Fetcher:   pkgdownload.NewInMemoryFetcher(mp),
+		Logger:    testLogger(),
+	})
+	l.Track("gno.land/r/remote/only")
+
+	got, err := l.LoadAll()
+	require.NoError(t, err)
+	assert.Contains(t, pathsOf(got), "gno.land/r/remote/only",
+		"LoadAll must include tracked paths")
+}
+
 // countingFetcher wraps a real fetcher and counts FetchPackage calls.
 type countingFetcher struct {
 	inner pkgdownload.PackageFetcher

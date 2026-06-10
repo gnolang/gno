@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"path"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -28,7 +27,6 @@ var defaultStagingOptions = AppConfig{
 	unsafeAPI:                  false,
 	staging:                    true,
 	withoutQuarantinedExamples: true,
-	paths:                      path.Join(DefaultDomain, "/**"), // Load every package under the main domain
 	emptyBlocks:                false,
 	emptyBlocksInterval:        1,
 

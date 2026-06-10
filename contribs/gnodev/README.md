@@ -99,7 +99,7 @@ FLAGS
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
-  -paths ...	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
   -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
@@ -148,7 +148,7 @@ FLAGS
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
-  -paths gno.land/**	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
   -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly

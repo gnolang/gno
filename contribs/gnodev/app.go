@@ -293,7 +293,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}
 
-	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.paths...)
+	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.loader, ds.paths...)
 	if err != nil {
 		return err
 	}

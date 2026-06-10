@@ -255,7 +255,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.paths,
 		"paths",
 		defaultCfg.paths,
-		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+		`additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas`,
 	)
 
 	fs.BoolVar(

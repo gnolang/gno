@@ -273,16 +273,37 @@ func scanRoot(root string, excludeDirs []string, logger *slog.Logger) map[string
 	return out
 }
 
+// Track registers paths to re-resolve on every Reload / LoadAll, exactly
+// like paths previously seen by Resolve. Paths are not validated here: an
+// unresolvable tracked path is warn-logged at reload time. Used for the
+// -paths flag and -txs-file dependencies, which must reach genesis even
+// though no query or transaction passes through the proxy for them.
+func (l *Loader) Track(paths ...string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, p := range paths {
+		if p == "" {
+			continue
+		}
+		l.tracked[p] = struct{}{}
+	}
+}
+
 // Reload re-runs the eager load for the workspace and every -extra-root,
-// then re-Resolves each tracked path. Tracked paths discovered via the
-// RPC fetcher live outside any FS root, so they are re-resolved
-// individually and merged with the eager result. ExcludeDirs is honored
-// via scanRoot.
+// then re-Resolves each tracked path. ExcludeDirs is honored via scanRoot.
+func (l *Loader) Reload() ([]*Package, error) {
+	return l.reloadRoots(l.cfg.ExtraRoots)
+}
+
+// reloadRoots eagerly loads the workspace plus the given roots, then merges
+// in each tracked path's transitive closure. Tracked paths discovered via
+// the RPC fetcher live outside any FS root, so they are re-resolved
+// individually and merged with the eager result.
 //
 // Note: deletion of an extra-root directory mid-session is not detected;
 // Resolve will return the stale dir from the cached rootIdx until gnodev
 // restarts.
-func (l *Loader) Reload() ([]*Package, error) {
+func (l *Loader) reloadRoots(roots []string) ([]*Package, error) {
 	l.mu.RLock()
 	trackedPaths := make([]string, 0, len(l.tracked))
 	for p := range l.tracked {
@@ -290,7 +311,7 @@ func (l *Loader) Reload() ([]*Package, error) {
 	}
 	l.mu.RUnlock()
 
-	out, err := l.loadEager(l.cfg.ExtraRoots)
+	out, err := l.loadEager(roots)
 	if err != nil {
 		return nil, err
 	}
@@ -381,13 +402,13 @@ func (l *Loader) workspacePattern() string {
 	return l.cfg.Workspace
 }
 
-// LoadAll eagerly loads the workspace, every ExtraRoot, and GNOROOT/examples
-// (when Examples=true). Used by the staging subcommand which wants to
-// materialize every reachable package at startup. The returned slice is
-// topologically sorted: dependencies precede dependents across all roots so
-// genesis deploy can apply packages in order.
+// LoadAll eagerly loads the workspace, every ExtraRoot, GNOROOT/examples
+// (when Examples=true), and every tracked path. Used by the staging
+// subcommand which wants to materialize every reachable package at startup.
+// The returned slice is topologically sorted: dependencies precede
+// dependents across all roots so genesis deploy can apply packages in order.
 func (l *Loader) LoadAll() ([]*Package, error) {
-	return l.loadEager(l.lookupRoots())
+	return l.reloadRoots(l.lookupRoots())
 }
 
 // loadEager runs gnovm.Load against the workspace pattern (implicit:

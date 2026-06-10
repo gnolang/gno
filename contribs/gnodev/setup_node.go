@@ -58,7 +58,7 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -89,6 +89,11 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 	} else {
 		logger.Debug("no path(s) provided")
 	}
+
+	// Genesis txs never pass through the lazy proxy, so -paths entries and
+	// txs-file dependencies must be tracked explicitly to reach the
+	// loader's reload output — and from there, genesis.
+	loader.Track(paths...)
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
