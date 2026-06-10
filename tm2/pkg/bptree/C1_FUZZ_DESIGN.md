@@ -1,9 +1,54 @@
 # C1 fuzzer — design and semantics
 
-> The specification behind `c1fuzz_test.go`: the op set, the model, the
-> `expectedPrune` precedence table, and the oracles. Read this before
-> changing the engine — most clauses here exist because the alternative was
-> shown to false-positive or miss bugs.
+## What this is, in plain English
+
+Both fuzzers throw endless random sequences of operations at the tree and
+constantly check that nothing breaks — they just stress different things:
+
+- **`FuzzTreeOps`** is like hiring millions of short-lived chaos monkeys.
+  Each one gets a brand-new tree and a random script — write some keys,
+  delete some, save a version, prune old versions, take a snapshot, restart,
+  inject a fake disk error — runs it for a few thousand steps, and then the
+  wreckage is audited: is every saved version still perfectly readable? Did
+  the prune delete exactly the right records — nothing it shouldn't have
+  (corruption), nothing left behind (leaks)? Do the cryptographic proofs
+  still verify? Go's fuzzer also *learns*: a random script that reaches new
+  code paths is kept and mutated, so over time it hunts the weird corners a
+  human wouldn't think to write.
+
+- **`TestSoak_TreeOps`** is one monkey with one tree, forever. It simulates
+  a node that just keeps running — saving a version, pruning old ones, over
+  and over, hundreds of thousands of times — auditing after every prune. Its
+  job is to catch anything that only shows up with *age*: slow leaks,
+  drifting bookkeeping, anything that accumulates across a long lifetime
+  rather than within one short script.
+
+Short version: the fuzzer asks *"is there any weird sequence of operations
+that breaks the tree?"* — the soak asks *"does the tree survive running
+forever?"* Both have proven teeth: pointed at the pre-fix code, they catch
+the M19 twin leak and the missing M20 guard within the first second.
+
+## How to run
+
+```sh
+# Fuzzer — runs forever until Ctrl-C (or bound it with -fuzztime=10m):
+go test ./tm2/pkg/bptree/ -run '^$' -fuzz FuzzTreeOps
+
+# Soak — one persistent tree, indefinitely (or BPTREE_SOAK=2h etc.):
+BPTREE_SOAK=forever go test ./tm2/pkg/bptree/ -run TestSoak_TreeOps -timeout=0 -v
+
+# Concurrent-reader stress (runs in the normal suite; best under -race):
+go test -race ./tm2/pkg/bptree/ -run TestStress_ConcurrentSanctionedReaders
+
+# The ten seed programs also run as plain subtests in every normal `go test`.
+```
+
+---
+
+> What follows is the specification behind `c1fuzz_test.go`: the op set, the
+> model, the `expectedPrune` precedence table, and the oracles. Read this
+> before changing the engine — most clauses here exist because the
+> alternative was shown to false-positive or miss bugs.
 
 ## Objective
 Continuously-accumulating assurance for the prune (C1): coverage-guided op
