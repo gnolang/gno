@@ -69,6 +69,10 @@ export class ThemeController extends BaseController {
 		}
 
 		this.applyTheme();
+		// Dispatch only from toggle(), not applyTheme(), so OS-level
+		// prefers-color-scheme changes that invoke applyTheme() are not
+		// reported as user toggles.
+		this.dispatch("theme:changed", { theme: this.preference });
 	}
 
 	private resolveTheme(): "light" | "dark" {

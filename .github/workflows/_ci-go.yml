@@ -11,17 +11,11 @@ on:
       tests-ts-seq:
         required: false
         type: boolean
-      tests-ts-inmemory:
-        required: false
-        type: boolean
       go-version:
         description: "Go version to use; defaults to the version in go.mod"
         required: false
         type: string
         default: ""
-    secrets:
-      codecov-token:
-        required: true
 
 permissions: {}
 
@@ -91,7 +85,6 @@ jobs:
         working-directory: ${{ inputs.modulepath }}
         env:
           SEQ_TS: ${{ inputs.tests-ts-seq }}
-          INMEMORY_TS: ${{ inputs.tests-ts-inmemory }}
           TXTARCOVERDIR: /tmp/txtarcoverdir
           GOCOVERDIR: /tmp/gocoverdir
           COVERDIR: /tmp/coverdir
@@ -112,15 +105,3 @@ jobs:
           go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
           go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
-
-          go tool covdata textfmt -v 1 "$filter" -i="$GOCOVERDIR,$TXTARCOVERDIR" -o gocoverage.out
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
-        with:
-          disable_search: true
-          fail_ci_if_error: true
-          files: ${{ inputs.modulepath }}/gocoverage.out
-          flags: ${{ inputs.modulepath }}
-          token: ${{ secrets.codecov-token }} # zizmor: ignore[secrets-outside-env]
-          verbose: true
