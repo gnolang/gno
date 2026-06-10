@@ -832,23 +832,26 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	if isBlankIdentifier(x.Key) && (x.Value == nil || isBlankIdentifier(x.Value)) {
-		// both "_" or key is "_" and value is not present
-		return
+	// A blank or absent operand has no static type and nothing to check;
+	// handle each operand independently, like AssignStmt.AssertCompatible.
+	var kt, vt Type
+	if !isBlankIdentifier(x.Key) {
+		assertValidAssignLhs(store, last, x.Key)
+		kt = evalStaticTypeOf(store, last, x.Key)
 	}
-	assertValidAssignLhs(store, last, x.Key)
-	// if is valid left value
-
-	kt := evalStaticTypeOf(store, last, x.Key)
-	var vt Type
-	if x.Value != nil {
+	if x.Value != nil && !isBlankIdentifier(x.Value) {
 		vt = evalStaticTypeOf(store, last, x.Value)
+	}
+	if kt == nil && vt == nil {
+		return
 	}
 
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
-		mustAssignableTo(x, cxt.Key, kt)
+		if kt != nil {
+			mustAssignableTo(x, cxt.Key, kt)
+		}
 		if vt != nil {
 			mustAssignableTo(x, cxt.Value, vt)
 		}
@@ -867,7 +870,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 			assertIndexTypeIsInt(kt)
 			if vt != nil {
 				if vt.Kind() != Int32Kind { // rune
-					panic(fmt.Sprintf("value type should be int32, but got %v", kt))
+					panic(fmt.Sprintf("value type should be int32, but got %v", vt))
 				}
 			}
 		}
