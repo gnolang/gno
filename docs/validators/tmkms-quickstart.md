@@ -84,11 +84,21 @@ export CHAIN_ID=gno-tmkms-prod
 
 # Prerequisites — build the helper tools
 
-Every backend below needs two tiny **stdlib-only** Go helpers. Write them
-once, here, and later sections just `go run` them. They have no module
-dependencies, so they run from any directory (Part B.3's `pkconv.go` is
-the one exception — it imports the gno crypto packages and must be run
-from the gno repo root; it's defined where it's used).
+Every backend below needs two tiny **stdlib-only** Go helpers. Define and
+**compile them once**, here; later sections run the resulting binaries.
+They have no module dependencies, so they build and run from any
+directory (Part B.3's `pkconv.go` is the one exception — it imports the
+gno crypto packages and must be run from the gno repo root; it's defined
+where it's used).
+
+> **Running a helper against a service-owned secret.** In Parts B and D
+> the secrets live under `/var/lib` owned by the `tmkms` / `gnoland`
+> users. Run each helper **as the owning user** (`sudo -u tmkms` /
+> `sudo -u gnoland`) so it touches the secret with exactly the privilege
+> it needs — not as root, and without copying the secret into a directory
+> you own. Those users have no home directory, so the Go *toolchain*
+> can't run as them; that is why we compile the helpers as yourself first
+> and only run the finished **binary** under `sudo -u`.
 
 `nodeid-hex.go` — prints a gnoland node's peer ID in the hex form tmkms
 pins in its `addr` (TCP layouts):
@@ -160,6 +170,22 @@ func main() {
 GO
 ```
 
+Compile both as your normal user (the Go toolchain needs its build
+cache), then install them where every user — including the `tmkms` and
+`gnoland` service users — can execute them. Later steps invoke them by
+name, under `sudo -u` when the target is a service-owned `/var/lib`
+secret:
+
+```sh
+go build -o nodeid-hex ./nodeid-hex.go
+go build -o tmkms-identity-keygen ./tmkms-identity-keygen.go
+sudo install -m 0755 nodeid-hex tmkms-identity-keygen /usr/local/bin/
+```
+
+They are one-shot setup tools; remove them with
+`sudo rm /usr/local/bin/{nodeid-hex,tmkms-identity-keygen}` afterward if
+you'd rather not leave them on the box.
+
 ---
 
 # Part A — Host hardening (do this first, for every backend)
@@ -179,9 +205,13 @@ account with no shell and no home limits what a compromised tmkms process
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin tmkms
 ```
 
-If gnoland and tmkms share a host, run gnoland as its own user too (e.g.
-`gnoland`). Two unprivileged users that can only meet over a single
-tightly-permissioned socket is the local isolation you want.
+If gnoland and tmkms share a host, run gnoland under its own dedicated
+user too — two unprivileged users that can only meet over a single
+tightly-permissioned socket is the local isolation you want:
+
+```sh
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin gnoland
+```
 
 ## A.2 Lay out directories with strict permissions
 
@@ -193,6 +223,10 @@ the one thing that can get you slashed. Give them a private home:
 sudo install -d -o tmkms -g tmkms -m 700 /etc/tmkms          # config
 sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms       # state + identity key
 sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms/secrets
+
+# gnoland's own data dir, owned by the gnoland user (it creates the
+# secrets/ and config/ subdirs itself):
+sudo install -d -o gnoland -g gnoland -m 700 /var/lib/gnoland
 ```
 
 Rules that close whole classes of findings at once:
@@ -378,7 +412,7 @@ identity (the peer ID that tmkms pins on TCP), and tmkms needs a
 SecretConnection identity key. Generate the gnoland node secrets:
 
 ```sh
-gnoland secrets init -data-dir /var/lib/gnoland/secrets
+sudo -u gnoland gnoland secrets init -data-dir /var/lib/gnoland/secrets
 ```
 
 In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
@@ -387,31 +421,39 @@ In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
 **Peer ID in hex (TCP layouts).** tmkms pins your validator's peer ID to
 make sure it signs for *your* node and not whoever answers on the port.
 gnoland reports the identity in bech32 (`g1…`); tmkms wants the same 20
-bytes in hex. Run the `nodeid-hex.go` helper from
-[Prerequisites](#prerequisites--build-the-helper-tools):
+bytes in hex. Run the `nodeid-hex` helper from
+[Prerequisites](#prerequisites--build-the-helper-tools) as the gnoland
+user (it owns `node_key.json`):
 
 ```sh
-export VALIDATOR_PEER_ID=$(go run ./nodeid-hex.go /var/lib/gnoland/secrets/node_key.json)
-echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned into tmkms.toml in B.5 (TCP)
+export VALIDATOR_PEER_ID=$(sudo -u gnoland nodeid-hex /var/lib/gnoland/secrets/node_key.json)
+echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned into tmkms.toml in B.4 (TCP)
 ```
 
 **tmkms's SecretConnection identity (TCP layouts).** gnoland only accepts
 the connection if this key's public half is in `allowed_kms_pubkeys`. Run
-the `tmkms-identity-keygen.go` helper from
-[Prerequisites](#prerequisites--build-the-helper-tools):
+the `tmkms-identity-keygen` helper from
+[Prerequisites](#prerequisites--build-the-helper-tools) as the tmkms user,
+so the key is written into tmkms's secrets dir already owned by tmkms (no
+`chown` needed):
 
 ```sh
-ALLOW=$(go run ./tmkms-identity-keygen.go /var/lib/tmkms/secrets/kms-identity.key)
-sudo chown tmkms:tmkms /var/lib/tmkms/secrets/kms-identity.key
-echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — copy for B.6
+ALLOW=$(sudo -u tmkms tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
+echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in B.5
 ```
 
 ## B.3 Read the consensus pubkey out of the HSM and register the validator
 
 Because the key never leaves the HSM, you can't push it into genesis —
 you read the **public** half out of tmkms and register *that* as your
-validator identity. Start tmkms once (with the `tmkms.toml` from B.4) and
-it logs the device's consensus pubkey on connect:
+validator identity. Start tmkms once (as the tmkms user, with the
+`tmkms.toml` from B.4); it logs the device's consensus pubkey on startup.
+Read that line, then stop it with `Ctrl-C` (gnoland isn't up yet, so it
+will just retry the connection in the meantime):
+
+```sh
+sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
+```
 
 ```
 [keyring:yubihsm] added consensus Ed25519 key: 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
@@ -483,8 +525,8 @@ use `gnoland start -lazy` here — it would mint a throwaway local key and
 seed genesis with *that* instead of your HSM key:
 
 ```sh
-gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
-gnogenesis validator add \
+sudo -u gnoland gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
+sudo -u gnoland gnogenesis validator add \
   -genesis-path /var/lib/gnoland/genesis.json \
   -address  g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4 \
   -pub-key  gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9z... \
@@ -570,9 +612,12 @@ allowlist must be non-empty — gnoland refuses to enable the mode with an
 empty one, because an empty allowlist means *accept any peer that
 completes a handshake* (fail-open).
 
+All `gnoland config` commands write under `/var/lib/gnoland`, so run them
+**as the gnoland user** (`sudo -u gnoland`):
+
 ```sh
 CFG=/var/lib/gnoland/config/config.toml
-gnoland config init -config-path "$CFG"
+sudo -u gnoland gnoland config init -config-path "$CFG"
 ```
 
 > **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
@@ -582,18 +627,18 @@ gnoland config init -config-path "$CFG"
 > stays unset.
 
 ```sh
-gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
-gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
-gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
 # listen_addr LAST — this enables the mode:
-gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
 ```
 
 Verify it stuck (`listen_addr` should be your `$PRIVVAL_LISTEN`, not
 empty):
 
 ```sh
-gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
+sudo -u gnoland gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
 ```
 
 ## B.6 Run both as services, in the right order
@@ -742,7 +787,7 @@ to generate**. You still need tmkms's SecretConnection identity key
 with the [Prerequisites](#prerequisites--build-the-helper-tools) helper:
 
 ```sh
-ALLOW=$(go run ./tmkms-identity-keygen.go ./tmkms/secrets/kms-identity.key)
+ALLOW=$(tmkms-identity-keygen ./tmkms/secrets/kms-identity.key)   # operator-owned path, no sudo
 echo "$ALLOW"   # goes into gnoland's allowed_kms_pubkeys (C.3)
 ```
 
@@ -883,44 +928,243 @@ You also need:
   plugged in, unlocked, with that app **open**. tmkms cannot reach a
   locked device or a different app.
 
-## D.2 Provider block and bootstrap
+## D.2 Generate gnoland's node and listener identity
 
-Use a `tmkms.toml` like B.4's, with two changes: the provider is
-`ledgertm` (no key files — the key is on the device), and like Part C
-this uses a same-host **Unix socket** (A.3) instead of TCP, so there is
-no peer-ID pin. Create the socket directory as in A.3
-(`sudo install -d -o gnoland -g tmkms -m 750 /run/gnoland`), then write
-the config exactly as in B.4 (`sudo tee /etc/tmkms/tmkms.toml`) with:
+The consensus key lives on the Ledger, but gnoland still needs its own
+node identity, and tmkms needs a SecretConnection identity key. Generate
+the gnoland node secrets:
 
-```toml
+```sh
+sudo -u gnoland gnoland secrets init -data-dir /var/lib/gnoland/secrets
+```
+
+In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
+— the Ledger signs. On this same-host Unix-socket layout there is **no
+peer-ID pin** to generate (the socket's filesystem permissions are the
+auth boundary, A.3). You do still need tmkms's SecretConnection identity
+key — gnoland only enables the listener with a non-empty
+`allowed_kms_pubkeys`. Run the `tmkms-identity-keygen` helper from
+[Prerequisites](#prerequisites--build-the-helper-tools) as the tmkms user,
+so the key is written into tmkms's secrets dir already owned by tmkms (no
+`chown` needed):
+
+```sh
+ALLOW=$(sudo -u tmkms tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
+echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in D.5
+```
+
+## D.3 Write `tmkms.toml`
+
+Create the socket directory first — only the gnoland and tmkms users can
+traverse it, and gnoland creates the socket inside it at `0600`:
+
+```sh
+sudo install -d -o gnoland -g tmkms -m 750 /run/gnoland
+```
+
+Write the config with a heredoc, then lock it to `0600` owned by `tmkms`
+(all paths absolute). The provider is `ledgertm` — no key files, the key
+is on the device — and the transport is the Unix socket, so the `addr`
+carries no peer-ID pin:
+
+```sh
+sudo tee /etc/tmkms/tmkms.toml >/dev/null <<TOML
 [[chain]]
 id = "${CHAIN_ID}"
-key_format = { type = "hex" }
-state_file = "/var/lib/tmkms/secrets/consensus_state.json"
+key_format = { type = "hex" }                                # logs the pubkey in hex (D.4)
+state_file = "/var/lib/tmkms/secrets/consensus_state.json"   # absolute! the HRS gate
 
 [[providers.ledgertm]]
 chain_ids = ["${CHAIN_ID}"]
 
 [[validator]]
 chain_id = "${CHAIN_ID}"
-addr = "unix:///run/gnoland/privval.sock"   # same-host UDS; no peer-ID pin (A.3)
+addr = "unix:///run/gnoland/privval.sock"                    # same-host UDS; no peer-ID pin (A.3)
 secret_key = "/var/lib/tmkms/secrets/kms-identity.key"
 protocol_version = "v0.34"
 reconnect = true
+TOML
+
+sudo chown tmkms:tmkms /etc/tmkms/tmkms.toml
+sudo chmod 600 /etc/tmkms/tmkms.toml
 ```
 
 Only one `[[providers.ledgertm]]` is allowed and it always signs the
-**consensus** key. Then follow B.2 (node + identity — on UDS the peer-ID
-hex from `nodeid-hex.go` is unused, but you still need the kms-identity
-key for the allowlist), B.3 (start tmkms, read `added consensus Ed25519
-key`, `pkconv.go`, `gnogenesis`), B.5 (listener — set `listen_addr` to
-the same `unix:///run/gnoland/privval.sock`), and B.6/B.7 (start
-non-lazy, verify). gnoland should log `This node is a validator` with the
-`gpub1…` from B.3 and climb.
+**consensus** key. The fields that carry security weight:
+
+- **`state_file` (absolute).** tmkms's authoritative double-sign
+  (height/round/step) gate. **Never restore a stale copy** — rolling it
+  back to an older height is the classic self-double-sign (see D.6).
+- **`protocol_version = "v0.34"`.** gnoland speaks only the v0.34 privval
+  dialect; tmkms 0.15.0 prints a `deprecated … update to v0.38!` warning,
+  which is expected. Do **not** drop or bump it.
+- **No peer-ID pin / no `state_hook`.** On UDS the socket permissions are
+  the auth boundary (A.3), so `addr` has no `<peer_id>@` prefix; and don't
+  wire a `state_hook` (its stdout is never captured, so a `fail_closed`
+  hook can silently kill startup).
+
+## D.4 Read the consensus pubkey off the device and register the validator
+
+Because the key never leaves the Ledger, you read the **public** half out
+of tmkms and register *that* as your validator identity. Start tmkms once
+(as the tmkms user, with the `tmkms.toml` from D.3); it loads the device
+key and logs its consensus pubkey on startup. Read that line, then stop it
+with `Ctrl-C` (gnoland isn't up yet, so it will just retry the connection
+in the meantime):
+
+```sh
+sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
+```
+
+```
+[keyring:ledgertm] added consensus Ed25519 key: 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
+```
+
+The hex string above is an **example** — copy the one *your* device logs.
+
+Convert that hex pubkey to gno's `gpub1…` / `g1…` forms with the
+`pkconv.go` helper. Write the file, then run it **from the gno repo root**
+(so the `github.com/gnolang/gno/...` imports resolve):
+
+```sh
+cat > pkconv.go <<'GO'
+// Converts a raw ed25519 consensus pubkey (hex or base64) to gno's
+// gpub1… / g1… forms.
+package main
+
+import (
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+)
+
+func main() {
+	in := strings.TrimSpace(os.Args[1])
+	bz, err := hex.DecodeString(in)
+	if err != nil {
+		if bz, err = base64.StdEncoding.DecodeString(in); err != nil {
+			panic("pubkey must be 32-byte ed25519 in hex or base64")
+		}
+	}
+	if len(bz) != 32 {
+		panic(fmt.Sprintf("expected 32 bytes, got %d", len(bz)))
+	}
+	var pk ed25519.PubKeyEd25519
+	copy(pk[:], bz)
+	fmt.Println("gpub:   ", crypto.PubKeyToBech32(pk))
+	fmt.Println("address:", pk.Address().String())
+}
+GO
+
+# pass the hex YOUR device logged (the value below is just an example):
+go run ./pkconv.go 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
+# gpub:    gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9z...
+# address: g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4
+```
+
+That `gpub1…` / `g1…` pair is your validator's public identity. Either
+submit it to an existing chain's validator-onboarding path (the
+production case — the chain already exists, so you do **not** generate
+genesis), or bootstrap your own chain by seeding genesis with it. Do
+**not** use `gnoland start -lazy` here — it would mint a throwaway local
+key and seed genesis with *that* instead of your device key:
+
+```sh
+sudo -u gnoland gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
+sudo -u gnoland gnogenesis validator add \
+  -genesis-path /var/lib/gnoland/genesis.json \
+  -address  g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4 \
+  -pub-key  gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9z... \
+  -name     ledger-validator \
+  -power    10
+```
+
+`validator add` checks that the pubkey hashes to the address, catching a
+copy-paste slip right here.
+
+## D.5 Configure gnoland's tmkms listener
+
+Create a default config, then set the four `tmkms_listener` fields. The
+allowlist must be non-empty — gnoland refuses to enable the mode with an
+empty one. On this Unix-socket layout the allowlist is
+belt-and-suspenders (the socket's filesystem permissions are the real
+boundary, A.3), but gnoland still requires it non-empty, so set it with
+`$ALLOW` from D.2.
+
+All `gnoland config` commands write under `/var/lib/gnoland`, so run them
+**as the gnoland user** (`sudo -u gnoland`):
+
+```sh
+export PRIVVAL_LISTEN="unix:///run/gnoland/privval.sock"   # gnoland listens on the socket from D.3
+CFG=/var/lib/gnoland/config/config.toml
+sudo -u gnoland gnoland config init -config-path "$CFG"
+```
+
+> **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
+> block on every write, and a non-empty `listen_addr` is what *enables*
+> that validation. Set `listen_addr` **last** — set it first and the
+> write is rejected because `chain_id` is still empty, and it silently
+> stays unset.
+
+```sh
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
+# listen_addr LAST — this enables the mode:
+sudo -u gnoland gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
+```
+
+Verify it stuck (`listen_addr` should be your socket, not empty):
+
+```sh
+sudo -u gnoland gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
+```
+
+## D.6 Run both, verify, and keep the device awake
+
+**Order matters.** gnoland blocks at startup for up to
+`wait_for_connection_timeout` (default 60s) waiting for tmkms to dial in.
+Start tmkms first (with `reconnect = true` it retries until gnoland is
+listening). Run each under its own user — for example with systemd units
+(`User=tmkms` / `User=gnoland`), or manually:
+
+```sh
+# signer (as the tmkms user) — Ledger plugged in, unlocked, app open
+sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
+
+# validator (as the gnoland user) — NO -lazy; genesis already holds the
+# device's pubkey from D.4
+sudo -u gnoland gnoland start \
+  -data-dir /var/lib/gnoland \
+  -genesis /var/lib/gnoland/genesis.json \
+  -chainid "$CHAIN_ID"
+```
+
+Within a few seconds the node should advance through heights:
+
+- **tmkms log:** `connected to validator successfully`, then ongoing
+  `signed Proposal/Prevote/Precommit …`.
+- **gnoland log:** `This node is a validator` with the `gpub1…` from D.4,
+  and `Committed state … height=N` climbing.
+- **Identity check:** the validator address in the `Signed and pushed
+  vote` lines must equal the address from D.4 and the genesis entry.
+- **Kill tmkms** and watch gnoland stop committing; restart it and watch
+  it resume — proof the key lives on the device, not the node.
 
 > **Keep the device awake.** If the Ledger locks, sleeps, or the app is
 > backgrounded, signing stops and the node stalls until you reopen the
 > app. Plan for that on anything you care about.
+
+> **State-file durability.** Like every backend, tmkms 0.15.0 does not
+> `fsync` its state file before signing the next block, so a hard power
+> loss can roll the on-disk height backward — a double-sign risk. Keep the
+> signer on reliable power and **never** restore an old state file (the
+> full discussion is in [B.7](#b7-verify-its-really-the-hsm-signing--and-keep-it-that-way)).
 
 ---
 
