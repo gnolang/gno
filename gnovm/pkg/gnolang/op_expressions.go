@@ -791,10 +791,7 @@ func (m *Machine) doOpConvert() {
 		} else if t.Kind() == StringKind {
 			// runes ([]int32) → string
 			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
-				if xv.V != nil {
-					sv := xv.V.(*SliceValue)
-					m.incrCPU(OpCPUSlopeConvertRunesStr * int64(sv.GetLength()))
-				}
+				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
 			}
 		}
 	}
