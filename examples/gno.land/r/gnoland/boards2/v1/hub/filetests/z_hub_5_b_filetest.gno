@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_5_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_5_b_filetest
 
 // Test getting reposts of a thread
-package z_5_b_filetest
+package z_hub_5_b_filetest
 
 import (
 	"testing"

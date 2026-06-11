@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_9_a_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_9_a_filetest
 
 // Test default thread comment values
-package z_9_a_filetest
+package z_hub_9_a_filetest
 
 import (
 	"testing"

@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_2_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_2_b_filetest
 
 // Test getting boards
-package z_2_b_filetest
+package z_hub_2_b_filetest
 
 import (
 	"testing"

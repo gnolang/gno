@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_1_c_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_1_c_filetest
 
 // Test non default reposted thread values
-package z_1_c_filetest
+package z_hub_1_c_filetest
 
 import (
 	"testing"

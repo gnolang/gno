@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_6_c_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_6_c_filetest
 
 // Test getting flags from a thread
-package z_6_c_filetest
+package z_hub_6_c_filetest
 
 import (
 	"testing"

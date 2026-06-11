@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_3_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_3_b_filetest
 
 // Test getting threads from a board
-package z_3_b_filetest
+package z_hub_3_b_filetest
 
 import (
 	"testing"

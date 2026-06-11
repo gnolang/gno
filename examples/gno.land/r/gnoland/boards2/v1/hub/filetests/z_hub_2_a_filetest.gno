@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_2_a_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_2_a_filetest
 
 // Test getting boards when no boards exist
-package z_2_a_filetest
+package z_hub_2_a_filetest
 
 import (
 	"testing"

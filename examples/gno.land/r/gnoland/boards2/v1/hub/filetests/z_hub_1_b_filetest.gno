@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_1_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_1_b_filetest
 
 // Test non default thread values
-package z_1_b_filetest
+package z_hub_1_b_filetest
 
 import (
 	"testing"

@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_6_d_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_6_d_filetest
 
 // Test getting flags from a comment
-package z_6_d_filetest
+package z_hub_6_d_filetest
 
 import (
 	"testing"

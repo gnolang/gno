@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_5_a_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_5_a_filetest
 
 // Test getting reposts from a thread without reposts
-package z_5_a_filetest
+package z_hub_5_a_filetest
 
 import (
 	"testing"
