@@ -826,8 +826,10 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 	}
 }
 
-// kt must be non-nil: callers skip blank keys.
 func assertIndexTypeIsInt(kt Type) {
+	if kt == nil {
+		panic("should not happen: nil kt in assertIndexTypeIsInt (blank keys must be skipped by the caller)")
+	}
 	if kt.Kind() != IntKind {
 		panic(fmt.Sprintf("index type should be int, but got %v", kt))
 	}
