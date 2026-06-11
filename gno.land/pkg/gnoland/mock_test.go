@@ -57,6 +57,7 @@ type mockVMKeeper struct {
 	runFn                       func(sdk.Context, vm.MsgRun) (string, error)
 	loadStdlibFn                func(sdk.Context, string)
 	loadStdlibCachedFn          func(sdk.Context, string)
+	populateStdlibCacheFn       func()
 	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
 	commitGnoTransactionStoreFn func(ctx sdk.Context)
 }
@@ -102,6 +103,12 @@ func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	if m.loadStdlibCachedFn != nil {
 		m.loadStdlibCachedFn(ctx, stdlibDir)
+	}
+}
+
+func (m *mockVMKeeper) PopulateStdlibCache() {
+	if m.populateStdlibCacheFn != nil {
+		m.populateStdlibCacheFn()
 	}
 }
 
