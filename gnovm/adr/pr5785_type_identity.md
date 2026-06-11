@@ -68,7 +68,15 @@ from a `[]struct{A int "a"}` could fail an assertion against its own element
 type. Restricting strictness to static checks keeps the runtime internally
 consistent and avoids any consensus-visible change to existing runtime
 behavior. Making runtime value identity fully Go-faithful requires changes to
-the persistence/type-storage model and is left for a follow-up.
+the persistence/type-storage model and is tracked separately in
+[#5817](https://github.com/gnolang/gno/issues/5817).
+
+The practical exposure is limited: statically, such programs are rejected
+wherever Go rejects them, and `gno type check` (go/types) provides full Go
+semantics at deploy time. The remaining runtime divergences (interface
+equality, concrete type assertions, type switch cases) are pinned by
+`eql_struct_tags.gno`, `typeassert_struct_tags.gno`, and
+`typeswitch_struct_tags.gno`.
 
 Error messages for mismatches render types via `String()`, which now includes
 struct tags and renders embedded fields without a redundant name, so messages
@@ -99,14 +107,6 @@ sides.
 
 ## Known Limitations
 
-- Runtime value type identity ignores struct tags, embedded-field syntax, and
-  variadicity: interface values whose dynamic types differ only in tags
-  compare equal (Go: unequal), a concrete type assertion against a
-  tag-variant type succeeds (Go: fails), and type switch cases match
-  likewise. Pinned by `eql_struct_tags.gno`, `typeassert_struct_tags.gno`,
-  and `typeswitch_struct_tags.gno`. Statically, such programs are rejected
-  wherever Go rejects them, and `gno type check` (go/types) provides full Go
-  semantics at deploy time.
 - `RefType` (unresolved store references) cannot be inspected structurally
   without a store, so it is compared by `TypeID()`, preserving the previous
   behavior for persisted types.

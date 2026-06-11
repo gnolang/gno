@@ -274,7 +274,7 @@ func (m *Machine) doOpTypeAssert1() {
 		// assert that x is of type.
 		// NOTE: runtime value type identity is TypeID-based: struct tags
 		// and other distinctions TypeID ignores are enforced statically
-		// only. See gnovm/adr/pr5785_type_identity.md.
+		// only. See gnovm/adr/pr5785_type_identity.md and gnolang/gno#5817.
 		same := t.TypeID() == xt.TypeID()
 		if !same {
 			// TODO: default panic type?
@@ -348,7 +348,7 @@ func (m *Machine) doOpTypeAssert2() {
 		// assert that x is of type.
 		// NOTE: runtime value type identity is TypeID-based: struct tags
 		// and other distinctions TypeID ignores are enforced statically
-		// only. See gnovm/adr/pr5785_type_identity.md.
+		// only. See gnovm/adr/pr5785_type_identity.md and gnolang/gno#5817.
 		same := t.TypeID() == xt.TypeID()
 
 		if same {

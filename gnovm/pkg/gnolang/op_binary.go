@@ -433,7 +433,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	}
 	// NOTE: runtime value type identity is TypeID-based: struct tags and
 	// other distinctions TypeID ignores are enforced statically only.
-	// See gnovm/adr/pr5785_type_identity.md.
+	// See gnovm/adr/pr5785_type_identity.md and gnolang/gno#5817.
 	if lv.T.TypeID() != rv.T.TypeID() {
 		return false
 	}
