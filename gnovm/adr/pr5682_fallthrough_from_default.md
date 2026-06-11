@@ -1,4 +1,4 @@
-# PRxxxx: Allow fallthrough from `default:` when not textually last
+# PR5682: Allow fallthrough from `default:` when not textually last
 
 ## Context
 
