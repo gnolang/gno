@@ -839,19 +839,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	// Validity is asked of every operand (blank is a valid target); only
-	// the type check is skipped for a blank operand, which has no static
-	// type — per-operand, like AssignStmt.AssertCompatible.
-	var kt, vt Type
-	assertValidAssignLhs(store, last, x.Key)
-	if !isBlankIdentifier(x.Key) {
-		kt = evalStaticTypeOf(store, last, x.Key)
-	}
+	// Per-operand, like AssignStmt.AssertCompatible: kt/vt are nil iff the
+	// operand is blank, and the type checks below are skipped for it.
+	kt := evalAssignLhsType(store, last, x.Key)
+	var vt Type
 	if x.Value != nil {
-		assertValidAssignLhs(store, last, x.Value)
-		if !isBlankIdentifier(x.Value) {
-			vt = evalStaticTypeOf(store, last, x.Value)
-		}
+		vt = evalAssignLhsType(store, last, x.Value)
 	}
 	if kt == nil && vt == nil {
 		return
@@ -976,11 +969,10 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			if x.Op == ASSIGN {
 				// assert valid left value
 				for i, lx := range x.Lhs {
-					assertValidAssignLhs(store, last, lx)
-					if isBlankIdentifier(lx) {
-						continue // no static type; nothing to check
+					lt := evalAssignLhsType(store, last, lx)
+					if lt == nil {
+						continue // blank: nothing to check
 					}
-					lt := evalStaticTypeOf(store, last, lx)
 					rt := evalStaticTypeOf(store, last, x.Rhs[i])
 					mustAssignableTo(x, rt, lt)
 				}
@@ -1058,6 +1050,17 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
 	}
+}
+
+// evalAssignLhsType asserts that lx is a valid assignment target and returns
+// its static type, or nil iff lx is blank: blank is a valid target but has no
+// static type, so callers skip type checks on a nil result.
+func evalAssignLhsType(store Store, last BlockNode, lx Expr) Type {
+	assertValidAssignLhs(store, last, lx)
+	if isBlankIdentifier(lx) {
+		return nil
+	}
+	return evalStaticTypeOf(store, last, lx)
 }
 
 func assertValidAssignRhs(store Store, last BlockNode, n Node) {
