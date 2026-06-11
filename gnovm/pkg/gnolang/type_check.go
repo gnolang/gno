@@ -900,9 +900,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable
 					for i, lx := range x.Lhs {
-						assertValidAssignLhs(store, last, lx)
-						if !isBlankIdentifier(lx) {
-							lxt := evalStaticTypeOf(store, last, lx)
+						if lxt := evalAssignLhsType(store, last, lx); lxt != nil {
 							mustAssignableTo(x, cft.Results[i].Type, lxt)
 						}
 					}
@@ -914,16 +912,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				if x.Op == ASSIGN {
 					// check first value
-					assertValidAssignLhs(store, last, x.Lhs[0])
-					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[0])
+					if dt := evalAssignLhsType(store, last, x.Lhs[0]); dt != nil { // see composite3.gno
 						ift := evalStaticTypeOf(store, last, cx)
 						mustAssignableTo(x, ift, dt)
 					}
 					// check second value
-					assertValidAssignLhs(store, last, x.Lhs[1])
-					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
+					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil { // see composite3.gno
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -935,9 +929,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
-					assertValidAssignLhs(store, last, x.Lhs[0])
-					if !isBlankIdentifier(x.Lhs[0]) {
-						lt := evalStaticTypeOf(store, last, x.Lhs[0])
+					if lt := evalAssignLhsType(store, last, x.Lhs[0]); lt != nil {
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := rt.(*MapType); ok {
@@ -953,10 +945,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						}
 					}
 
-					assertValidAssignLhs(store, last, x.Lhs[1])
-					if !isBlankIdentifier(x.Lhs[1]) {
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
-						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
+					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil {
+						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
 					}
