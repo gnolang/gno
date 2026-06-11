@@ -10,6 +10,27 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
+// runeStrFromInt64 converts an integer value to the string containing the
+// UTF-8 representation of the code point, per the Go spec: values that do not
+// fit in an int32 (rune) are necessarily outside the range of valid Unicode
+// code points and convert to "�". Values that do fit in an int32 are
+// handled by Go's native string(rune) conversion, which already maps
+// negatives, surrogates, and values > 0x10FFFF to "�".
+func runeStrFromInt64(v int64) string {
+	if v != int64(rune(v)) {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
+
+// runeStrFromUint64 is like runeStrFromInt64 for unsigned values.
+func runeStrFromUint64(v uint64) string {
+	if v > math.MaxInt32 {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
+
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
@@ -131,7 +152,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -419,7 +440,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -494,7 +515,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -778,7 +799,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
