@@ -7,19 +7,12 @@ with the essential operations.
 
 ## Installing gnokey
 
-To build and install from source, you'll need:
+See the [Installation](../builders/install.md) page for prerequisites and install methods.
 
-- Git
-- Go 1.24+
-- Make
+After installing, verify that `gnokey` is available:
 
-```bash
-# Clone the repository
-git clone https://github.com/gnolang/gno.git
-cd gno
-
-# Install gnokey
-make install
+```sh
+gnokey version
 ```
 
 ## Managing key pairs
@@ -830,7 +823,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
@@ -1258,7 +1251,14 @@ import (
         "gno.land/r/demo/defi/grc20reg"
 )
 
-var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+var (
+        Token *grc20.Token
+        adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+        Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+}
 
 const (
         ugnotMinDeposit  int64 = 1000
