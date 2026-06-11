@@ -1,14 +1,10 @@
 // Package hub exposes safe, read-only views over boards2's persistent
 // state. The Get* functions are crossing functions: callers must invoke
-// them with `cross` (e.g. `hub.GetBoard(cross, id)`). The crossing into
-// hub gives each call a live `cur` whose `Previous()` is the caller's
-// realm — that's what boards2's protected entry points use for the
-// namespace check.
+// them with `cross` (e.g. `hub.GetBoard(cross, id)`).
 //
-// Note for future maintainers: inside a Get* body, `cur.Previous()` is
-// the *immediate* caller's realm, which may be an intermediary, not
-// necessarily the end user. Do not graft user-identity gating onto
-// these reads.
+// Note for future maintainers: these reads perform no caller
+// authorization — boards2's read entry points are unguarded — so do not
+// graft user-identity gating onto them.
 package hub
 
 import (
@@ -19,7 +15,7 @@ import (
 
 // GetBoard returns a safe board.
 func GetBoard(cur realm, id uint64) (Board, bool) {
-	b, found := getBoard(0, cur, id)
+	b, found := getBoard(id)
 	if !found {
 		return Board{}, false
 	}
@@ -28,7 +24,7 @@ func GetBoard(cur realm, id uint64) (Board, bool) {
 
 // GetThread returns a safe board thread.
 func GetThread(cur realm, boardID, threadID uint64) (Thread, bool) {
-	t, found := getThread(0, cur, boardID, threadID)
+	t, found := getThread(boardID, threadID)
 	if !found {
 		return Thread{}, false
 	}
@@ -37,7 +33,7 @@ func GetThread(cur realm, boardID, threadID uint64) (Thread, bool) {
 
 // GetComment returns a safe thread comment.
 func GetComment(cur realm, boardID, threadID, commentID uint64) (Comment, bool) {
-	c, found := getComment(0, cur, boardID, threadID, commentID)
+	c, found := getComment(boardID, threadID, commentID)
 	if !found {
 		return Comment{}, false
 	}
@@ -48,7 +44,7 @@ func GetComment(cur realm, boardID, threadID, commentID uint64) (Comment, bool) 
 // To reverse iterate use a negative count.
 func GetBoards(cur realm, start, count int) []Board {
 	var boards_ []Board
-	boards2.Iterate(cross(cur), start, count, func(b *boards.Board) bool {
+	boards2.Iterate(start, count, func(b *boards.Board) bool {
 		boards_ = append(boards_, NewSafeBoard(b))
 		return false
 	})
@@ -58,7 +54,7 @@ func GetBoards(cur realm, start, count int) []Board {
 // GetThreads returns a list with threads of a board.
 // To reverse iterate use a negative count.
 func GetThreads(cur realm, boardID uint64, start, count int) []Thread {
-	b, found := getBoard(0, cur, boardID)
+	b, found := getBoard(boardID)
 	if !found {
 		return nil
 	}
@@ -74,7 +70,7 @@ func GetThreads(cur realm, boardID uint64, start, count int) []Thread {
 // GetMembers returns a list with the members of a board.
 // To reverse iterate use a negative count.
 func GetMembers(cur realm, boardID uint64, start, count int) []boards.User {
-	b, found := getBoard(0, cur, boardID)
+	b, found := getBoard(boardID)
 	if !found {
 		return nil
 	}
@@ -90,14 +86,14 @@ func GetMembers(cur realm, boardID uint64, start, count int) []boards.User {
 // GetReposts returns a list with repost of a board thread.
 // To reverse iterate use a negative count.
 func GetReposts(cur realm, boardID, threadID uint64, start, count int) []Thread {
-	t, found := getThread(0, cur, boardID, threadID)
+	t, found := getThread(boardID, threadID)
 	if !found {
 		return nil
 	}
 
 	var reposts []Thread
 	t.Reposts.Iterate(start, count, func(rBoardID, rRepostID boards.ID) bool {
-		r, found := getThread(0, cur, uint64(rBoardID), uint64(rRepostID))
+		r, found := getThread(uint64(rBoardID), uint64(rRepostID))
 		if found {
 			reposts = append(reposts, NewSafeThread(r))
 		}
@@ -112,14 +108,14 @@ func GetReposts(cur realm, boardID, threadID uint64, start, count int) []Thread 
 func GetFlags(cur realm, boardID, threadID, commentID uint64, start, count int) []boards.Flag {
 	var storage boards.FlagStorage
 	if commentID == 0 {
-		t, found := getThread(0, cur, boardID, threadID)
+		t, found := getThread(boardID, threadID)
 		if !found {
 			return nil
 		}
 
 		storage = t.Flags
 	} else {
-		c, found := getComment(0, cur, boardID, threadID, commentID)
+		c, found := getComment(boardID, threadID, commentID)
 		if !found {
 			return nil
 		}
@@ -140,7 +136,7 @@ func GetFlags(cur realm, boardID, threadID, commentID uint64, start, count int) 
 // Top level comments can be filtered by checking `Comment.ParentID`, replies
 // always have a parent comment or reply, while comments have no parent.
 func GetComments(cur realm, boardID, threadID uint64, start, count int) []Comment {
-	t, found := getThread(0, cur, boardID, threadID)
+	t, found := getThread(boardID, threadID)
 	if !found {
 		return nil
 	}
@@ -156,7 +152,7 @@ func GetComments(cur realm, boardID, threadID uint64, start, count int) []Commen
 // GetReplies returns a list with top level comment replies.
 // To reverse iterate use a negative count.
 func GetReplies(cur realm, boardID, threadID, commentID uint64, start, count int) []Comment {
-	c, found := getComment(0, cur, boardID, threadID, commentID)
+	c, found := getComment(boardID, threadID, commentID)
 	if !found {
 		return nil
 	}
@@ -169,15 +165,13 @@ func GetReplies(cur realm, boardID, threadID, commentID uint64, start, count int
 	return replies
 }
 
-// getBoard fetches a raw *boards.Board via boards2's protected
-// GetBoard. Non-crossing helper: rlm is hub's own cur, threaded
-// through from the enclosing crossing function.
-func getBoard(_ int, rlm realm, boardID uint64) (*boards.Board, bool) {
-	return boards2.GetBoard(cross(rlm), boards.ID(boardID))
+// getBoard fetches a raw *boards.Board from boards2.
+func getBoard(boardID uint64) (*boards.Board, bool) {
+	return boards2.GetBoard(boards.ID(boardID))
 }
 
-func getThread(_ int, rlm realm, boardID, threadID uint64) (*boards.Post, bool) {
-	b, found := getBoard(0, rlm, boardID)
+func getThread(boardID, threadID uint64) (*boards.Post, bool) {
+	b, found := getBoard(boardID)
 	if !found {
 		return nil, false
 	}
@@ -191,8 +185,8 @@ func getThread(_ int, rlm realm, boardID, threadID uint64) (*boards.Post, bool) 
 	return t, found
 }
 
-func getComment(_ int, rlm realm, boardID, threadID, commentID uint64) (*boards.Post, bool) {
-	t, found := getThread(0, rlm, boardID, threadID)
+func getComment(boardID, threadID, commentID uint64) (*boards.Post, bool) {
+	t, found := getThread(boardID, threadID)
 	if !found {
 		return nil, false
 	}

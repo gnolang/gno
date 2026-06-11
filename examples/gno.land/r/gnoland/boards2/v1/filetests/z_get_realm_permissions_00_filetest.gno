@@ -10,7 +10,7 @@ import (
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	perms := boards2.GetRealmPermissions(cross(cur))
+	perms := boards2.GetRealmPermissions()
 	println(perms != nil)
 }
 

@@ -23,8 +23,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 
-	// Calling as a Boards2 sub realm should succeed
-	perms := boards2.GetRealmPermissions(cross(cur))
+	perms := boards2.GetRealmPermissions()
 	perms.IterateUsers(0, perms.UsersCount(), func(u boards.User) bool {
 		println(u.Address, string(u.Roles[0]))
 		return false
