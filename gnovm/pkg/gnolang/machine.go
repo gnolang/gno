@@ -56,6 +56,12 @@ type Machine struct {
 	// so the slice never outlives call setup. Cleared after each use.
 	callArgsScratch []TypedValue
 
+	// convertScratch is doOpConvert's working slot: ConvertTo and
+	// IsReadonly take the value's address, which would make a local
+	// escape to the heap once per conversion; a machine field's address
+	// is free. Transient within the op; cleared after each use.
+	convertScratch TypedValue
+
 	// Configuration
 	Output   io.Writer
 	Store    Store
@@ -279,6 +285,12 @@ func (m *Machine) Release() {
 		Stmts:  stmts,
 		Blocks: blocks,
 		Frames: frames,
+		// NOTE: blockPool and callArgsScratch are deliberately dropped:
+		// carrying them through the cross-goroutine machinePool was
+		// measured to hurt parallel workloads (pooled blocks keep extra
+		// heap live across GC cycles and lose cache locality when the
+		// machine migrates cores) without helping machine-churn
+		// workloads, since sync.Pool eviction discards them anyway.
 	}
 	machinePool.Put(m)
 }
