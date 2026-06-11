@@ -470,7 +470,7 @@ func (alloc *Allocator) NewString(s string) StringValue {
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
-		panic(&Exception{Value: typedString("len out of range")})
+		panic(NewException(typedString("len out of range")))
 	}
 	alloc.AllocateListArray(int64(n))
 	av := &ArrayValue{
@@ -482,11 +482,11 @@ func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 
 func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 	if l < 0 || c < 0 {
-		panic(&Exception{Value: typedString("len or cap out of range")})
+		panic(NewException(typedString("len or cap out of range")))
 	}
 
 	if c < l {
-		panic(&Exception{Value: typedString("length and capacity swapped")})
+		panic(NewException(typedString("length and capacity swapped")))
 	}
 
 	alloc.AllocateListArray(int64(c))
@@ -499,7 +499,7 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
-		panic(&Exception{Value: typedString("len out of range")})
+		panic(NewException(typedString("len out of range")))
 	}
 
 	alloc.AllocateDataArray(int64(n))

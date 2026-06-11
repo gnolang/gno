@@ -349,7 +349,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 					err = errors.New(v.String())
 				case *gno.PreprocessError:
 					err = &stackWrappedError{v.Unwrap(), debug.Stack()}
-				case gno.UnhandledPanicError:
+				case *gno.Exception:
 					err = v
 				case error:
 					err = &stackWrappedError{v, debug.Stack()}

@@ -537,7 +537,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				cfr := m.PopUntilLastReviveFrame()
 				if cfr == nil {
 					// or abort the transaction.
-					panic(m.makeUnhandledPanicError())
+					panic(m.markAbort())
 				}
 				m.PopFrameAndReturn()
 				// assign exception as return of revive().
@@ -718,14 +718,21 @@ func (m *Machine) doOpDefer() {
 	m.PopValue() // pop func
 }
 
-// Build exception string just as go, separated by \n\t.
-// TODO: deprecate UnhandledPanicError and just use the Exception.
-// (use a field to mark transaction abort)
-func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+// markAbort flips m.Exception into a terminal state (Abort=true,
+// Descriptor populated) and returns it for the caller to go-panic with.
+// Run() detects Abort and surfaces the *Exception directly.
+//
+// TODO: Descriptor currently joins bare panic values ("A\n\tB"). Match
+// Go's runtime by prefixing each entry with "panic: " (and a trailing
+// " [recovered]" on non-head entries) so consumers can distinguish a
+// panic chain from other error strings. Requires re-goldening every
+// filetest in gnovm/tests/files/{panic,recover}*.gno that asserts on
+// the Error: directive.
+func (m *Machine) markAbort() *Exception {
+	m.Exception.Abort = true
 	if m.BoundedPanicRender {
-		return UnhandledPanicError{
-			Descriptor: BoundedSprintException(m.Exception, m, BoundedRenderBytes),
-		}
+		m.Exception.Descriptor = BoundedSprintException(m.Exception, m, BoundedRenderBytes)
+		return m.Exception
 	}
 	numExceptions := m.Exception.NumExceptions()
 	exs := make([]string, numExceptions)
@@ -734,9 +741,8 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 		exs[numExceptions-1-i] = last.Sprint(m)
 		last = last.Previous
 	}
-	return UnhandledPanicError{
-		Descriptor: strings.Join(exs, "\n\t"),
-	}
+	m.Exception.Descriptor = strings.Join(exs, "\n\t")
+	return m.Exception
 }
 
 func (m *Machine) doOpPanic2() {
@@ -745,10 +751,11 @@ func (m *Machine) doOpPanic2() {
 	}
 	cfr := m.PopUntilLastCallFrame()
 	if cfr == nil {
-		// If we can't find a call frame, we're in a corrupted state.
-		// This can happen during init functions with realm calls.
-		// Return the original exception as an unhandled panic.
-		panic(m.makeUnhandledPanicError())
+		// No call frame left to unwind into — typically reached during
+		// init functions with realm calls. Mark m.Exception as Abort
+		// and go-panic; Run() detects Abort and surfaces the
+		// *Exception unchanged to the outer recoverer.
+		panic(m.markAbort())
 	}
 	m.PushOp(OpReturnCallDefers)
 }

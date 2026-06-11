@@ -112,9 +112,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				if dir.Name == DirectiveError {
 					returnErr = multierr.Append(
 						returnErr,
-						fmt.Errorf("%s diff:\n%s\nstacktrace:\n%s\nstack:\n%v",
+						fmt.Errorf("%s diff:\n%s\ngno stack:\n%s%s",
 							dir.Name, unifiedDiff(content, actual),
-							result.GnoStacktrace, string(result.GoPanicStack)),
+							result.GnoStacktrace, goOriginOrStack(result)),
 					)
 				} else {
 					returnErr = multierr.Append(
@@ -137,8 +137,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
-					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected panic: %s%s\ngno stack:\n%s%s",
+					result.Error, optionalOutput(result.Output),
+					result.GnoStacktrace, goOriginOrStack(result))
 			}
 		}
 	} else if result.Output != "" {
@@ -329,8 +330,125 @@ type runResult struct {
 	TypeCheckError string
 	// Set if there was a panic within gno code.
 	GnoStacktrace string
-	// Set if this was recovered from a panic.
+	// Set if this was recovered from a panic. Used as harness chain when
+	// GoVMChain is set, raw dump otherwise (true Go bugs).
 	GoPanicStack []byte
+	// GoVMChain is the VM-internal Go raise-site chain — one entry per
+	// *Exception link, ordered chronologically (oldest → newest). Each
+	// entry pairs the panic's gno value with its captured GoStack so
+	// failures in mixed-origin defer-repanic chains show every VM site
+	// involved, not just the head's. Empty when GoStack was capped or
+	// absent on every link.
+	GoVMChain []runResultGoLink
+}
+
+type runResultGoLink struct {
+	Value   string
+	GoStack string
+}
+
+// goOriginOrStack composes the Go-side info shown after a failure. With
+// at least one VM-chain link, render each non-empty GoStack labeled by
+// chronological position and the panic value; otherwise fall back to the
+// raw debug.Stack dump for true Go runtime bugs.
+func goOriginOrStack(r runResult) string {
+	if rendered := renderGoVMChain(r.GoVMChain); rendered != "" {
+		return "\ngo stack:\n" + rendered + harnessAfterRun(r.GoPanicStack)
+	}
+	if len(r.GoPanicStack) > 0 {
+		return "\nstack:\n" + string(r.GoPanicStack)
+	}
+	return ""
+}
+
+// collectGoVMChain walks ex.Previous to the chain root and returns each
+// link in chronological order (oldest first), pairing each Value's Sprint
+// with its captured GoStack.
+func collectGoVMChain(ex *gno.Exception) []runResultGoLink {
+	if ex == nil {
+		return nil
+	}
+	var links []runResultGoLink
+	for e := ex; e != nil; e = e.Previous {
+		links = append(links, runResultGoLink{
+			Value:   e.Value.String(),
+			GoStack: e.GoStack,
+		})
+	}
+	// Reverse to chronological order.
+	for i, j := 0, len(links)-1; i < j; i, j = i+1, j-1 {
+		links[i], links[j] = links[j], links[i]
+	}
+	return links
+}
+
+func renderGoVMChain(chain []runResultGoLink) string {
+	var sb strings.Builder
+	rendered := 0
+	for i, link := range chain {
+		if link.GoStack == "" {
+			continue
+		}
+		if rendered > 0 {
+			sb.WriteByte('\n')
+		}
+		label := "panic"
+		if i == 0 {
+			label = "panic 1 (original)"
+		} else {
+			label = fmt.Sprintf("panic %d (re-panic)", i+1)
+		}
+		fmt.Fprintf(&sb, "=== %s: %s ===\n", label, link.Value)
+		sb.WriteString(link.GoStack)
+		rendered++
+	}
+	return sb.String()
+}
+
+// harnessAfterRun slices debug.Stack output past the (*Machine).Run frame
+// and trims absolute paths to project-relative form.
+func harnessAfterRun(stack []byte) string {
+	if len(stack) == 0 {
+		return ""
+	}
+	const runMarker = "(*Machine).Run("
+	s := string(stack)
+	i := strings.Index(s, runMarker)
+	if i < 0 {
+		return trimStackPaths(s)
+	}
+	j := strings.Index(s[i:], "\n")
+	if j < 0 {
+		return trimStackPaths(s)
+	}
+	k := strings.Index(s[i+j+1:], "\n")
+	if k < 0 {
+		return trimStackPaths(s)
+	}
+	return trimStackPaths(s[i+j+k+2:])
+}
+
+func trimStackPaths(stack string) string {
+	lines := strings.Split(stack, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "\t/") {
+			continue
+		}
+		rest := line[1:]
+		sep := strings.IndexByte(rest, ':')
+		if sep < 0 {
+			continue
+		}
+		lines[i] = "\t" + gno.TrimOriginFile(rest[:sep]) + rest[sep:]
+	}
+	return strings.Join(lines, "\n")
+}
+
+func optionalOutput(out string) string {
+	if out == "" {
+		return ""
+	}
+	return "\noutput:\n" + out
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
@@ -378,9 +496,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				rr.Error = v.Sprint(m)
 			case *gno.PreprocessError:
 				rr.Error = v.Unwrap().Error()
-			case gno.UnhandledPanicError:
+			case *gno.Exception:
 				rr.Error = v.Error()
 				rr.GnoStacktrace = m.ExceptionStacktrace()
+				rr.GoVMChain = collectGoVMChain(v)
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()

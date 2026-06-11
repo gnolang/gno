@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"math"
+	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -261,11 +263,102 @@ func toConstExpTrace(cte *ConstExpr) string {
 // Exception
 
 // Exception represents a panic that originates from a gno program.
+// Raised via Go-panic with a *Exception value, caught by (*Machine).runOnce,
+// then re-entered cooperatively through pushPanicException (defers, recover,
+// etc.). Abort'd exceptions bypass the cooperative path and re-panic out of
+// Run unchanged so the outer recoverer sees GoStack and Descriptor intact.
+// Preferred construction is NewException, which stamps the Go raise-site
+// chain into GoStack.
+//
+//nolint:errname // predates the error interface; renaming would touch the VM core
 type Exception struct {
 	Value      TypedValue
 	Stacktrace Stacktrace
 	Previous   *Exception
 	Next       *Exception
+
+	// Abort marks the unhandled-panic terminal state (defers exhausted
+	// without recover). markAbort sets it; Run surfaces the *Exception
+	// directly to the outer recoverer instead of re-entering pushPanic.
+	Abort bool
+	// Descriptor caches the joined-chain message for external recoverers
+	// that lack a *Machine for Sprint.
+	Descriptor string
+	// GoStack is the VM-internal Go call chain at the raise site, captured
+	// by NewException via runtime.Callers. Formatted "funcName\n\tfile:line"
+	// per frame, joined by '\n', stopping at (*Machine).Run.
+	GoStack string
+}
+
+// NewException constructs an Exception and captures the Go call chain
+// from the raise site up to (*Machine).Run. Helpers without *Machine
+// access (values.go, alloc.go) use this in place of panic(&Exception{...}).
+func NewException(value TypedValue) *Exception {
+	ex := &Exception{Value: value}
+	ex.GoStack = captureExceptionStack(2)
+	return ex
+}
+
+func captureExceptionStack(skip int) string {
+	var pcs [32]uintptr
+	n := runtime.Callers(skip+1, pcs[:])
+	if n == 0 {
+		return ""
+	}
+	frames := runtime.CallersFrames(pcs[:n])
+	var sb strings.Builder
+	for {
+		f, more := frames.Next()
+		// Step 1: filter out Go runtime noise.
+		if !strings.HasPrefix(f.Function, "runtime.") {
+			sb.WriteString(f.Function)
+			sb.WriteString("\n\t")
+			sb.WriteString(TrimOriginFile(f.File))
+			sb.WriteByte(':')
+			sb.WriteString(strconv.Itoa(f.Line))
+			sb.WriteByte('\n')
+		}
+		// Step 2: cutoff at VM entry.
+		if strings.HasSuffix(f.Function, ".(*Machine).Run") {
+			break
+		}
+		if !more {
+			break
+		}
+	}
+	return sb.String()
+}
+
+// TrimOriginFile reduces an absolute compile-time file path to a
+// project-relative form for stack rendering. "/gnovm/" matches VM Go
+// sources; "/src/" matches Go stdlib frames that leak in when a panic
+// crosses standard-library helpers (e.g. fmt, runtime/debug). Paths
+// matching neither fall back to the basename.
+func TrimOriginFile(file string) string {
+	for _, marker := range []string{"/gnovm/", "/src/"} {
+		if i := strings.Index(file, marker); i >= 0 {
+			return file[i+1:]
+		}
+	}
+	if i := strings.LastIndexByte(file, '/'); i >= 0 {
+		return file[i+1:]
+	}
+	return file
+}
+
+// Error makes *Exception satisfy `error` for recoverer ergonomics.
+// Returns Descriptor when Abort is set (joined-chain format matching
+// legacy UnhandledPanicError.Error()). The non-abort branch is the
+// "raised but not yet terminal" case — typically reached only by
+// out-of-VM recoverers that intercept before defers exhaust.
+func (e *Exception) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	if e.Abort && e.Descriptor != "" {
+		return e.Descriptor
+	}
+	return e.Value.String()
 }
 
 func (e *Exception) StringWithStacktrace(m *Machine) string {
@@ -301,13 +394,4 @@ func (e *Exception) WithPrevious(e2 *Exception) *Exception {
 	e.Previous = e2
 	e2.Next = e
 	return e
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
 }

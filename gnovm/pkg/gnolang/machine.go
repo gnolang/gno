@@ -42,6 +42,12 @@ type Machine struct {
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
+	// goStackCaptures bounds per-link GoStack captures within a single
+	// panic chain. NewException captures eagerly; pushPanicException
+	// clears the new ex.GoStack once the count is past MaxGoStackCaptures
+	// so adversarial deep chains (#5439-style) don't allocate unbounded
+	// Go-heap strings. Reset by Recover() when a chain is consumed.
+	goStackCaptures uint8
 
 	Debugger Debugger
 
@@ -50,9 +56,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
-	// BoundedPanicRender gates makeUnhandledPanicError to use the
-	// bounded printer (see bounded_strings.go). True on validator-
-	// side Machines; false for filetests, REPL, etc.
+	// BoundedPanicRender gates markAbort to use the bounded printer
+	// (see bounded_strings.go) when populating *Exception.Descriptor.
+	// True on validator-side Machines; false for filetests, REPL, etc.
 	BoundedPanicRender bool
 }
 
@@ -87,13 +93,14 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
-	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
-	// the bounded printer (see bounded_strings.go) so adversarial
-	// panic values (huge strings, deeply-nested composites, etc.)
-	// produce output capped at BoundedRenderBytes rather than
-	// allocating proportional to source size. Set true on every
-	// validator-side Machine; default false preserves the existing
-	// verbose render for filetests, REPL, and other trusted contexts.
+	// BoundedPanicRender, when true, makes markAbort use the bounded
+	// printer (see bounded_strings.go) when populating
+	// *Exception.Descriptor so adversarial panic values (huge strings,
+	// deeply-nested composites, etc.) produce output capped at
+	// BoundedRenderBytes rather than allocating proportional to source
+	// size. Set true on every validator-side Machine; default false
+	// preserves the existing verbose render for filetests, REPL, and
+	// other trusted contexts.
 	BoundedPanicRender bool
 }
 
@@ -1637,6 +1644,8 @@ func (m *Machine) Run(st Stage) {
 
 	// Iterative exception recovery: catch Go-level *Exception panics and
 	// convert them to the cooperative pushPanic path without recursion.
+	// Abort'd exceptions are terminal — re-panic directly so the outer
+	// recoverer sees them unchanged (their GoStack/Descriptor survive).
 	for {
 		caught := m.runOnce()
 		if caught == nil {
@@ -1645,7 +1654,10 @@ func (m *Machine) Run(st Stage) {
 		if caught.Stacktrace.IsZero() {
 			caught.Stacktrace = m.Stacktrace()
 		}
-		m.pushPanic(caught.Value)
+		if caught.Abort {
+			panic(caught)
+		}
+		m.pushPanicException(caught)
 	}
 }
 
@@ -2859,15 +2871,10 @@ func (m *Machine) PanicString(ex string) {
 // This function does go-panic.
 // To stop execution immediately stdlib native code MUST use this rather than
 // pushPanic().
-// Some code in realm.go and values.go will panic(&Exception{...}) directly.
-// Keep this code in sync with those calls.
 // Note that m.Run() will fill in the stacktrace if it isn't present.
 func (m *Machine) Panic(etv TypedValue) {
-	// Construct a new exception.
-	ex := &Exception{
-		Value:      etv,
-		Stacktrace: m.Stacktrace(),
-	}
+	ex := NewException(etv)
+	ex.Stacktrace = m.Stacktrace()
 	// Panic immediately.
 	panic(ex)
 }
@@ -2877,25 +2884,39 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
-	// Construct a new exception.
-	ex := &Exception{
+	m.pushPanicException(&Exception{
 		Value:      etv,
 		Stacktrace: m.Stacktrace(),
+		GoStack:    captureExceptionStack(2),
+	})
+}
+
+// pushPanicException is pushPanic's internal entry taking an existing
+// *Exception (caught by runOnce from a panic(NewException(...))). Preserves
+// GoStack/Descriptor/etc. across the cooperative re-entry, except past
+// MaxGoStackCaptures links per chain — see goStackCaptures.
+func (m *Machine) pushPanicException(ex *Exception) {
+	if m.goStackCaptures >= MaxGoStackCaptures {
+		ex.GoStack = ""
+	} else {
+		m.goStackCaptures++
 	}
-	// Pop after capturing stacktrace.
 	fr := m.PopUntilLastCallFrame()
-	// Link ex.Previous.
 	if m.Exception == nil {
-		// Recall the last m.Exception before frame.
 		m.Exception = ex.WithPrevious(fr.LastException)
 	} else {
-		// Replace existing m.Exception with new.
 		m.Exception = ex.WithPrevious(m.Exception)
 	}
-
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
+
+// MaxGoStackCaptures caps the number of *Exception.GoStack captures
+// retained per panic chain. Realistic chains are far shallower; the cap
+// bounds adversarial #5439-style scenarios where a malicious gno program
+// triggers thousands of defer re-panics to drain Go-heap memory with
+// unaccounted runtime.Callers strings.
+const MaxGoStackCaptures = 8
 
 // Recover is the underlying implementation of the recover() function in the
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
@@ -2933,6 +2954,7 @@ func (m *Machine) Recover() *Exception {
 	// call) to an older value when popping a frame with .LastException set
 	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
 	m.Exception = nil
+	m.goStackCaptures = 0
 	return ex
 }
 
