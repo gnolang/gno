@@ -855,34 +855,28 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 
 	xt := evalStaticTypeOf(store, last, x.X)
-	switch cxt := xt.(type) {
-	case *MapType:
-		if kt != nil {
+	if kt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
 			mustAssignableTo(x, cxt.Key, kt)
-		}
-		if vt != nil {
-			mustAssignableTo(x, cxt.Value, vt)
-		}
-	case *SliceType:
-		if kt != nil {
+		case *SliceType, *ArrayType:
 			assertIndexTypeIsInt(kt)
-		}
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
-	case *ArrayType:
-		if kt != nil {
-			assertIndexTypeIsInt(kt)
-		}
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
-	case PrimitiveType:
-		if cxt.Kind() == StringKind {
-			if kt != nil {
+		case PrimitiveType:
+			if cxt.Kind() == StringKind {
 				assertIndexTypeIsInt(kt)
 			}
-			if vt != nil && vt.Kind() != Int32Kind { // rune
+		}
+	}
+	if vt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
+			mustAssignableTo(x, cxt.Value, vt)
+		case *SliceType:
+			mustAssignableTo(x, cxt.Elt, vt)
+		case *ArrayType:
+			mustAssignableTo(x, cxt.Elt, vt)
+		case PrimitiveType:
+			if cxt.Kind() == StringKind && vt.Kind() != Int32Kind { // rune
 				panic(fmt.Sprintf("value type should be int32, but got %v", vt))
 			}
 		}
