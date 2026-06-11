@@ -1082,11 +1082,17 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Keeper bookkeeping reads run unmetered: the test's price math
+			// asserts exact values, so block gas consumed must equal the
+			// counter values exactly — calibrated store-read costs would
+			// otherwise blow the small block budget and skew the economics.
+			readCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
+
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(readCtx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(readCtx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
