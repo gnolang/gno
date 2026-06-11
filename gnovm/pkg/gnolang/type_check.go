@@ -975,6 +975,11 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			panic("assignment operator " + x.Op.TokenString() +
 				" requires only one expression on lhs and rhs")
 		}
+		// `_ += x` reads the target (it desugars to `_ = _ + x`), unlike
+		// plain assignment where blank is a valid (discarded) target.
+		if isBlankIdentifier(x.Lhs[0]) {
+			panic("cannot use _ as value or type")
+		}
 		lt := evalStaticTypeOf(store, last, x.Lhs[0])
 		rt := evalStaticTypeOf(store, last, x.Rhs[0])
 
