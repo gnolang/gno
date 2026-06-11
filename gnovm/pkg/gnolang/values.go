@@ -183,6 +183,13 @@ func (dbv DataByteValue) SetByte(b byte) {
 //
 // Since PointerValue is used internally for assignment etc, it MUST stay
 // minimal for computational efficiency.
+//
+// Equality: PointerValues compare by whole-struct identity (lv.V == rv.V in
+// isEql); since TV is determined by (Base, Index), this reduces to same Base +
+// same Index. This holds uniformly for every element type — there is no
+// size-dependent folding (gc-Go's runtime.zerobase / offset-arithmetic collapse
+// for zero-sized types is not replicated). See
+// docs/resources/go-gno-compatibility.md § Pointer equality for zero-sized types.
 type PointerValue struct {
 	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
@@ -1954,7 +1961,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
-			panic("interface method call on undefined value")
+			panic(&Exception{Value: typedString("runtime error: method selector on nil interface")})
 		}
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")

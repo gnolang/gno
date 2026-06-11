@@ -829,8 +829,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
-		// both "_"
+	if isBlankIdentifier(x.Key) && (x.Value == nil || isBlankIdentifier(x.Value)) {
+		// both "_" or key is "_" and value is not present
 		return
 	}
 	assertValidAssignLhs(store, last, x.Key)
@@ -1174,12 +1174,25 @@ func isComparable(dt Type) bool {
 	case *ArrayType:
 		return isComparable(cdt.Elt)
 	case *StructType:
+		// Memoized: a struct fans out into all its fields, so without a
+		// cache an interface comparison whose dynamic type is a nested
+		// struct re-walks the field graph exponentially on every compare.
+		// Cycles always pass through a pointer/slice/map/interface leaf
+		// (a direct value cycle is infinite-size and rejected at compile
+		// time), so the recursion bottoms out before re-entering a struct
+		// mid-computation; the write is unconditionally safe.
+		if cdt.comparable != 0 {
+			return cdt.comparable == 1
+		}
+		res := uint8(1)
 		for _, f := range cdt.Fields {
 			if !isComparable(f.Type) {
-				return false
+				res = 2
+				break
 			}
 		}
-		return true
+		cdt.comparable = res
+		return res == 1
 	default:
 		return false
 	}

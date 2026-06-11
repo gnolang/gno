@@ -1189,6 +1189,9 @@ func makeUverseNode() {
 			}
 		},
 	)
+	// new(T) mints a fresh *HeapItemValue per call, including for
+	// zero-sized T — no runtime.zerobase folding. See the equality
+	// contract on PointerValue (values.go).
 	defNative("new",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
