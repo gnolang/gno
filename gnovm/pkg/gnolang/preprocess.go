@@ -1558,7 +1558,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
 					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
-					if at != nil && identicalTypesIgnoreTags(ct, at) && !isUntyped(at) {
+					// NOTE: must be exact identity (tags included): a
+					// tag-changing conversion must not be elided, or the
+					// value would keep the old (tagged) type both
+					// statically and at runtime.
+					if at != nil && identicalTypes(ct, at) && !isUntyped(at) {
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n.Args[0], TRANS_CONTINUE
 					}

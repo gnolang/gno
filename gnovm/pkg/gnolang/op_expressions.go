@@ -271,10 +271,11 @@ func (m *Machine) doOpTypeAssert1() {
 			return
 		}
 
-		tid := t.TypeID()
-		xtid := xt.TypeID()
 		// assert that x is of type.
-		same := tid == xtid
+		// NOTE: runtime value type identity is TypeID-based: struct tags
+		// and other distinctions TypeID ignores are enforced statically
+		// only. See gnovm/adr/pr5785_type_identity.md.
+		same := t.TypeID() == xt.TypeID()
 		if !same {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
@@ -344,10 +345,11 @@ func (m *Machine) doOpTypeAssert2() {
 			return
 		}
 
-		tid := t.TypeID()
-		xtid := xt.TypeID()
 		// assert that x is of type.
-		same := tid == xtid
+		// NOTE: runtime value type identity is TypeID-based: struct tags
+		// and other distinctions TypeID ignores are enforced statically
+		// only. See gnovm/adr/pr5785_type_identity.md.
+		same := t.TypeID() == xt.TypeID()
 
 		if same {
 			// *xv = *xv

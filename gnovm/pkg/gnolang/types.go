@@ -368,128 +368,169 @@ func (ft FieldType) TypeID() TypeID {
 	return typeid(s)
 }
 
+// identicalTypes reports whether at and bt are identical following Go's type
+// identity rules: struct tags, embedded field syntax, and variadic function
+// signatures are all significant. Use this where Go requires exact type
+// identity: assignment of composite elements, comparison, function and method
+// signatures, redefinition checks, conversion elision, and uverse generic
+// unification. TypeID() is not suitable for those checks because it ignores
+// tags, embeddedness, and variadicity; it remains the deterministic key for
+// conversion, storage, and runtime value-identity paths.
+//
+// NOTE: interfaces are compared by their literal (unflattened) method lists,
+// so an interface embedding another compares unequal to its flattened
+// equivalent even though Go treats them as identical. This matches the
+// existing TypeID() behavior.
 func identicalTypes(at, bt Type) bool {
-	return typeIDForIdentity(at, false) == typeIDForIdentity(bt, false)
+	return identical(at, bt, false)
 }
 
+// identicalTypesIgnoreTags reports whether at and bt are identical ignoring
+// struct tags (recursively), which is the rule Go applies to explicit
+// conversions.
 func identicalTypesIgnoreTags(at, bt Type) bool {
-	return typeIDForIdentity(at, true) == typeIDForIdentity(bt, true)
+	return identical(at, bt, true)
 }
 
-func typeIDForIdentity(t Type, ignoreTags bool) TypeID {
-	switch ct := t.(type) {
-	case nil:
-		return typeid("<nil>")
-	case PrimitiveType, *DeclaredType, *PackageType, *TypeType, blockType, heapItemType, RefType:
-		return ct.TypeID()
-	case *ArrayType:
-		return typeidf("[%d]%s", ct.Len, typeIDForIdentity(ct.Elt, ignoreTags))
-	case *SliceType:
-		return typeidf("[]%s", typeIDForIdentity(ct.Elt, ignoreTags))
+func identical(at, bt Type, ignoreTags bool) bool {
+	if at == bt {
+		return true // also covers at == nil && bt == nil.
+	}
+	if at == nil || bt == nil {
+		return false
+	}
+	// RefTypes cannot be inspected structurally without a store; compare by
+	// TypeID like the rest of the codebase does. TypeID formats are distinct
+	// per kind, so a RefType's target ID cannot collide with another kind.
+	if _, ok := at.(RefType); ok {
+		return at.TypeID() == bt.TypeID()
+	}
+	if _, ok := bt.(RefType); ok {
+		return at.TypeID() == bt.TypeID()
+	}
+	switch at := at.(type) {
+	case PrimitiveType:
+		bt, ok := bt.(PrimitiveType)
+		return ok && at == bt
+	case *DeclaredType:
+		bt, ok := bt.(*DeclaredType)
+		return ok && at.TypeID() == bt.TypeID()
 	case *PointerType:
-		return typeidf("*%s", typeIDForIdentity(ct.Elt, ignoreTags))
+		bt, ok := bt.(*PointerType)
+		return ok && identical(at.Elt, bt.Elt, ignoreTags)
+	case *ArrayType:
+		bt, ok := bt.(*ArrayType)
+		return ok && at.Len == bt.Len && identical(at.Elt, bt.Elt, ignoreTags)
+	case *SliceType:
+		// NOTE: .Vrd is not part of slice identity; it is only significant
+		// as the last parameter of a function signature, handled in the
+		// *FuncType case below.
+		bt, ok := bt.(*SliceType)
+		return ok && identical(at.Elt, bt.Elt, ignoreTags)
 	case *StructType:
-		return typeidf(
-			"struct{%s}",
-			fieldListTypeIDForIdentity(ct.Fields, ct.PkgPath, true, ignoreTags),
-		)
+		bt, ok := bt.(*StructType)
+		if !ok || len(at.Fields) != len(bt.Fields) {
+			return false
+		}
+		for i := range at.Fields {
+			af, bf := &at.Fields[i], &bt.Fields[i]
+			if af.Name != bf.Name ||
+				af.Embedded != bf.Embedded ||
+				(!ignoreTags && af.Tag != bf.Tag) {
+				return false
+			}
+			// Unexported field names are only identical within one package.
+			if !isUpper(string(af.Name)) && at.PkgPath != bt.PkgPath {
+				return false
+			}
+			if !identical(af.Type, bf.Type, ignoreTags) {
+				return false
+			}
+		}
+		return true
 	case *InterfaceType:
-		if debug {
-			if ct.Generic != "" {
-				panic("generic type has no TypeID")
+		bt, ok := bt.(*InterfaceType)
+		if !ok ||
+			len(at.Methods) != len(bt.Methods) ||
+			at.Generic != bt.Generic {
+			return false
+		}
+		// Method sets are unordered.
+		ams := sortedFieldsIfNeeded(at.Methods)
+		bms := sortedFieldsIfNeeded(bt.Methods)
+		for i := range ams {
+			am, bm := &ams[i], &bms[i]
+			if am.Name != bm.Name || am.Embedded != bm.Embedded {
+				return false
+			}
+			// Unexported method names are only identical within one package.
+			if !isUpper(string(am.Name)) && at.PkgPath != bt.PkgPath {
+				return false
+			}
+			if !identical(am.Type, bm.Type, ignoreTags) {
+				return false
 			}
 		}
-		methods := make(FieldTypeList, len(ct.Methods))
-		copy(methods, ct.Methods)
-		sort.Sort(methods)
-		return typeidf(
-			"interface{%s}",
-			fieldListTypeIDForIdentity(methods, ct.PkgPath, true, ignoreTags),
-		)
+		return true
 	case *ChanType:
-		switch ct.Dir {
-		case SEND | RECV:
-			return typeidf("chan{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
-		case SEND:
-			return typeidf("<-chan{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
-		case RECV:
-			return typeidf("chan<-{%s}", typeIDForIdentity(ct.Elt, ignoreTags))
-		default:
-			panic("should not happen")
-		}
+		bt, ok := bt.(*ChanType)
+		return ok && at.Dir == bt.Dir && identical(at.Elt, bt.Elt, ignoreTags)
 	case *FuncType:
-		return typeidf(
-			"func(%s)(%s)",
-			funcFieldListTypeIDForIdentity(ct.Params, true, ignoreTags),
-			funcFieldListTypeIDForIdentity(ct.Results, false, ignoreTags),
-		)
+		bt, ok := bt.(*FuncType)
+		if !ok ||
+			len(at.Params) != len(bt.Params) ||
+			len(at.Results) != len(bt.Results) ||
+			at.HasVarg() != bt.HasVarg() {
+			return false
+		}
+		// Parameter and result names are not part of a function's identity.
+		for i := range at.Params {
+			if !identical(at.Params[i].Type, bt.Params[i].Type, ignoreTags) {
+				return false
+			}
+		}
+		for i := range at.Results {
+			if !identical(at.Results[i].Type, bt.Results[i].Type, ignoreTags) {
+				return false
+			}
+		}
+		return true
 	case *MapType:
-		return typeidf(
-			"map[%s]%s",
-			typeIDForIdentity(ct.Key, ignoreTags),
-			typeIDForIdentity(ct.Value, ignoreTags),
-		)
+		bt, ok := bt.(*MapType)
+		return ok && identical(at.Key, bt.Key, ignoreTags) &&
+			identical(at.Value, bt.Value, ignoreTags)
 	case *tupleType:
-		return typeidf("(%s)", fieldListTypeIDForIdentity(typesToFields(ct.Elts), "", false, ignoreTags))
+		bt, ok := bt.(*tupleType)
+		if !ok || len(at.Elts) != len(bt.Elts) {
+			return false
+		}
+		for i := range at.Elts {
+			if !identical(at.Elts[i], bt.Elts[i], ignoreTags) {
+				return false
+			}
+		}
+		return true
 	default:
-		return ct.TypeID()
+		// blockType, heapItemType, *PackageType, *TypeType, and any future
+		// kinds: identity by TypeID, as before.
+		return at.TypeID() == bt.TypeID()
 	}
 }
 
-func typesToFields(types []Type) []FieldType {
-	fields := make([]FieldType, len(types))
-	for i, t := range types {
-		fields[i] = FieldType{Type: t}
+// sortedFieldsIfNeeded returns l sorted by name, copying only when l is not
+// already sorted. Interface method lists are usually pre-sorted by TypeID().
+// NOTE: like InterfaceType.TypeID(), this panics (via FieldTypeList.Less) on
+// duplicate method names, e.g. an interface embedding two same-named
+// interfaces from different packages.
+func sortedFieldsIfNeeded(l []FieldType) FieldTypeList {
+	fl := FieldTypeList(l)
+	if sort.IsSorted(fl) {
+		return fl
 	}
-	return fields
-}
-
-func funcFieldListTypeIDForIdentity(l []FieldType, params bool, ignoreTags bool) TypeID {
-	ll := len(l)
-	s := ""
-	for i, ft := range l {
-		if params && i == ll-1 {
-			if st, ok := ft.Type.(*SliceType); ok && st.Vrd {
-				s += "..." + typeIDForIdentity(st.Elt, ignoreTags).String()
-			} else {
-				s += typeIDForIdentity(ft.Type, ignoreTags).String()
-			}
-		} else {
-			s += typeIDForIdentity(ft.Type, ignoreTags).String()
-		}
-		if i != ll-1 {
-			s += ";"
-		}
-	}
-	return typeid(s)
-}
-
-func fieldListTypeIDForIdentity(l []FieldType, pkgPath string, includeNames bool, ignoreTags bool) TypeID {
-	ll := len(l)
-	s := ""
-	for i, ft := range l {
-		if includeNames {
-			if ft.Embedded {
-				s += "(embedded) "
-			}
-			s += fieldNameForIdentity(pkgPath, ft.Name) + " "
-		}
-		s += typeIDForIdentity(ft.Type, ignoreTags).String()
-		if includeNames && !ignoreTags && ft.Tag != "" {
-			s += " " + strconv.Quote(string(ft.Tag))
-		}
-		if i != ll-1 {
-			s += ";"
-		}
-	}
-	return typeid(s)
-}
-
-func fieldNameForIdentity(pkgPath string, name Name) string {
-	if name == "" || isUpper(string(name)) {
-		return string(name)
-	}
-	return pkgPath + "." + string(name)
+	cp := make(FieldTypeList, len(fl))
+	copy(cp, fl)
+	sort.Sort(cp)
+	return cp
 }
 
 func (ft FieldType) String() string {
@@ -612,11 +653,15 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 		if i != 0 {
 			bld.WriteString(sep)
 		}
-		if withName {
+		if withName && !ft.Embedded {
 			bld.WriteString(string(ft.Name))
 			bld.WriteByte(' ')
 		}
 		bld.WriteString(ft.Type.String())
+		if ft.Tag != "" {
+			bld.WriteByte(' ')
+			bld.WriteString(strconv.Quote(string(ft.Tag)))
+		}
 	}
 	return bld.String()
 }
@@ -1374,6 +1419,10 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T).TypeID() {
 					vargt = defaultTypeOf(varg.T)
 				} else if vargt.TypeID() != varg.T.TypeID() {
+					// NOTE: not an identity context: Go only requires each
+					// vararg to be assignable to the (here still generic)
+					// element type; per-arg assignability is enforced
+					// against the specified type via mustAssignableTo.
 					panic(fmt.Sprintf(
 						"incompatible varg types: expected %v, got %s",
 						vargt.String(),
@@ -2672,8 +2721,8 @@ func debugAssertSameTypes(lt, rt Type) {
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-	} else if identicalTypes(lt, rt) {
-		// non-nil types are identical.
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil runtime types are identical (TypeID-based).
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
@@ -2700,8 +2749,8 @@ func debugAssertEqualityTypes(lt, rt Type) {
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
 		// lt implements rt (and rt is nil interface).
-	} else if identicalTypes(lt, rt) {
-		// non-nil types are identical.
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil runtime types are identical (TypeID-based).
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
@@ -2900,7 +2949,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".(type)")]
 				match, ok := lookup[generic]
 				if ok {
-					if match.TypeID() != specTypeval.TypeID() {
+					if !identicalTypes(match, specTypeval) {
 						panic(fmt.Sprintf(
 							"expected %s for <%s> but got %s",
 							match.String(),

@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/assign_struct_embedded.gno:8:2-7: cannot use struct{T main.T} as struct{T main.T}
+// main/assign_struct_embedded.gno:8:2-7: cannot use struct{T main.T} as struct{main.T}
 
 // TypeCheckError:
 // main/assign_struct_embedded.gno:8:6: cannot use y (variable of type struct{T T}) as struct{T} value in assignment

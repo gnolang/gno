@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/assign_ptr_struct_tags.gno:6:2-7: cannot use *struct{A int} as *struct{A int}
+// main/assign_ptr_struct_tags.gno:6:2-7: cannot use *struct{A int "b"} as *struct{A int "a"}
 
 // TypeCheckError:
 // main/assign_ptr_struct_tags.gno:6:6: cannot use y (variable of type *struct{A int "b"}) as *struct{A int "a"} value in assignment

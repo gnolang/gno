@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_struct_tags.gno:6:10-16: invalid operation: (mismatched types struct{A int} and struct{A int})
+// main/cmp_struct_tags.gno:6:10-16: invalid operation: (mismatched types struct{A int "a"} and struct{A int "b"})
 
 // TypeCheckError:
 // main/cmp_struct_tags.gno:6:15: invalid operation: x == y (mismatched types struct{A int "a"} and struct{A int "b"})
