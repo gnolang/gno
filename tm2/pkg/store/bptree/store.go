@@ -7,7 +7,6 @@ import (
 
 	ics23 "github.com/cosmos/ics23/go"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bp "github.com/gnolang/gno/tm2/pkg/bptree"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -275,8 +274,8 @@ func cp(b []byte) []byte {
 // wrapper therefore enforces acknowledgment: reading a non-nil Error() is the
 // acknowledgment; an UNacknowledged error panics at Valid() (catches loop
 // consumers like the cache merge-iterator and VM range scans) or at Close()
-// (catches consumers that stopped early). Deliberate handlers (Query
-// /subspace, IterateRange) check Error() and are never interrupted.
+// (catches consumers that stopped early). Deliberate handlers (IterateRange)
+// check Error() and are never interrupted.
 type bptreeIterator struct {
 	itr        *bp.Iterator
 	start, end []byte
@@ -392,24 +391,25 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		}}
 
 	case "/subspace":
-		var KVs []types.KVPair
-		subspace := req.Data
-		res.Key = subspace
-		iterator := types.PrefixIterator(st, subspace)
-		defer iterator.Close()
-		// The Error() guard runs BEFORE Valid() each round: it acknowledges a
-		// failed iteration (so the wrapper's unchecked-error panic stays
-		// quiet for this deliberate handler) and stops the loop on the
-		// failing row.
-		for ; iterator.Error() == nil && iterator.Valid(); iterator.Next() {
-			KVs = append(KVs, types.KVPair{Key: iterator.Key(), Value: iterator.Value()})
-		}
-		if err := iterator.Error(); err != nil {
-			// No truncated-but-OK payload: res.Value stays unset.
-			res.Error = serrors.ErrInternal(fmt.Sprintf("subspace iteration: %v", err))
-			break
-		}
-		res.Value = amino.MustMarshalSized(KVs)
+		// DISABLED. The legacy (cosmos-sdk-inherited) handler buffered every
+		// key/value pair under the prefix into memory — response size was
+		// bounded by state contents, not the request, with no count/byte/time
+		// cap at any layer of the stack — and the whole drain ran while
+		// holding the global ABCI mutex, stalling consensus for its duration.
+		// No in-repo client ever used it.
+		//
+		// HOW TO FIX (if a real need appears), reintroduce it bounded:
+		//  1. Serve from a pinned committed snapshot (GetImmutable at the
+		//     requested height — honor req.Height instead of ignoring it),
+		//     so pages are consistent and never read the live working tree.
+		//  2. Cap the page (max pairs AND max bytes, ~1MB). Iteration is
+		//     byte-ordered, so return the last key and let the client resume
+		//     with {prefix, after-key} encoded in req.Data; flag truncation.
+		//  3. Gate the height by the retention window (KeepRecent) and
+		//     Close the snapshot on every path (it blocks pruning while held).
+		// Until then, range scans over chain state belong in an indexer.
+		res.Error = serrors.ErrUnknownRequest(
+			"/subspace queries are disabled (unbounded response; see store.go for the bounded re-introduction recipe) — use /key or an indexer")
 
 	default:
 		res.Error = serrors.ErrUnknownRequest(fmt.Sprintf("Unexpected query path: %v", req.Path))

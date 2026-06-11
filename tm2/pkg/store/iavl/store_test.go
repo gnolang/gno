@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -504,28 +503,17 @@ func TestIAVLStoreQuery(t *testing.T) {
 	v3 := []byte("val3")
 
 	ksub := []byte("key")
-	KVs0 := []types.KVPair{}
-	KVs1 := []types.KVPair{
-		{Key: k1, Value: v1},
-		{Key: k2, Value: v2},
-	}
-	KVs2 := []types.KVPair{
-		{Key: k1, Value: v3},
-		{Key: k2, Value: v2},
-	}
-	valExpSubEmpty := amino.MustMarshalSized(KVs0)
-	valExpSub1 := amino.MustMarshalSized(KVs1)
-	valExpSub2 := amino.MustMarshalSized(KVs2)
 
 	cid := iavlStore.Commit()
 	ver := cid.Version
 	query := abci.RequestQuery{Path: "/key", Data: k1, Height: ver}
 	querySub := abci.RequestQuery{Path: "/subspace", Data: ksub, Height: ver}
 
-	// query subspace before anything set
+	// /subspace is disabled (unbounded response); it must return an error,
+	// never data.
 	qres := iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSubEmpty, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// set data
 	iavlStore.Set(nil, k1, v1)
@@ -548,10 +536,10 @@ func TestIAVLStoreQuery(t *testing.T) {
 	require.Nil(t, qres.Error)
 	require.Equal(t, v1, qres.Value)
 
-	// and for the subspace
+	// subspace stays disabled regardless of state
 	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub1, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// modify
 	iavlStore.Set(nil, k1, v3)
@@ -572,10 +560,6 @@ func TestIAVLStoreQuery(t *testing.T) {
 	qres = iavlStore.Query(query2)
 	require.Nil(t, qres.Error)
 	require.Equal(t, v2, qres.Value)
-	// and for the subspace
-	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub2, qres.Value)
 
 	// default (height 0) will show latest -1
 	query0 := abci.RequestQuery{Path: "/key", Data: k1}

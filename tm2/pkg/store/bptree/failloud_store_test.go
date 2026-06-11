@@ -97,10 +97,36 @@ func TestStoreIterator_CheckedErrorNoPanic(t *testing.T) {
 	}
 }
 
-// N28: a value failure during a /subspace query must set res.Error — not
-// return a truncated-but-OK payload, and not trip the wrapper's
-// unchecked-error panic (the handler acknowledges via Error()).
-func TestQuerySubspace_PropagatesIterationError(t *testing.T) {
+// /subspace is disabled (unbounded response; see the Query handler comment for
+// the bounded re-introduction recipe). It must return an error and no payload,
+// on empty and populated stores alike.
+func TestQuerySubspace_Disabled(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := bp.NewMutableTreeWithDB(db, 0, bp.NewNopLogger())
+	st := UnsafeNewStore(tree, types.StoreOptions{})
+
+	res := st.Query(abci.RequestQuery{Path: "/subspace", Data: []byte("sub/")})
+	if res.Error == nil || res.Value != nil {
+		t.Fatalf("disabled /subspace must error with no payload, got err=%v value=%x", res.Error, res.Value)
+	}
+
+	for i := range 20 {
+		st.Set(nil, fmt.Appendf(nil, "sub/key%03d", i), []byte("v"))
+	}
+	st.Commit()
+	res = st.Query(abci.RequestQuery{Path: "/subspace", Data: []byte("sub/")})
+	if res.Error == nil || res.Value != nil {
+		t.Fatalf("disabled /subspace must error with no payload, got err=%v value=%x", res.Error, res.Value)
+	}
+}
+
+// N28 (originally exercised via /subspace; that handler is now disabled): a
+// VALUE-record failure mid-iteration must surface through Error() — not read
+// as clean exhaustion (silent truncation) — and acknowledging it must keep the
+// wrapper's unchecked-error panic quiet through Close. Complements the
+// node-record corruption tests above (value resolution fails in Value(), not
+// during the seek).
+func TestStoreIterator_ValueErrorSurfaces(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := bp.NewMutableTreeWithDB(db, 0, bp.NewNopLogger())
 	st := UnsafeNewStore(tree, types.StoreOptions{})
@@ -109,7 +135,7 @@ func TestQuerySubspace_PropagatesIterationError(t *testing.T) {
 	}
 	st.Commit()
 
-	// Destroy one value record under the subspace.
+	// Destroy one value record under the prefix.
 	itr, err := db.Iterator([]byte{'V'}, []byte{'V' + 1})
 	if err != nil {
 		t.Fatal(err)
@@ -127,18 +153,26 @@ func TestQuerySubspace_PropagatesIterationError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Fresh store (no cache) over the corrupted DB.
+	// Fresh store (no cache) over the corrupted DB; iterate like the old
+	// handler did: read every Value(), checking Error() each round.
 	tree2 := bp.NewMutableTreeWithDB(db, 0, bp.NewNopLogger())
 	st2 := UnsafeNewStore(tree2, types.StoreOptions{})
 	if err := st2.LoadLatestVersion(); err != nil {
 		t.Fatal(err)
 	}
-	res := st2.Query(abci.RequestQuery{Path: "/subspace", Data: []byte("sub/")})
-	if res.Error == nil {
-		t.Fatalf("corrupt value read as clean /subspace response (value len=%d)", len(res.Value))
+	it := types.PrefixIterator(st2, []byte("sub/"))
+	rows := 0
+	for ; it.Error() == nil && it.Valid(); it.Next() {
+		_ = it.Key()
+		_ = it.Value()
+		rows++
 	}
-	if res.Value != nil {
-		t.Fatalf("truncated payload returned alongside the error")
+	if it.Error() == nil {
+		t.Fatalf("corrupt value read as clean iteration (%d rows)", rows)
+	}
+	// Acknowledged via Error() above: Close must not panic.
+	if err := it.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
 }
 
