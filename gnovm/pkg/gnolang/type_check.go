@@ -844,6 +844,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		kt = evalStaticTypeOf(store, last, x.Key)
 	}
 	if x.Value != nil && !isBlankIdentifier(x.Value) {
+		assertValidAssignLhs(store, last, x.Value)
 		vt = evalStaticTypeOf(store, last, x.Value)
 	}
 	if kt == nil && vt == nil {
