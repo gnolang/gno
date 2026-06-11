@@ -29,7 +29,11 @@ func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string
 		if data == nil {
 			return nil, fmt.Errorf("node record %x not in DB", ref)
 		}
-		return ReadNode(GetNodeKey(ref), data)
+		payload, err := verifyChecksum(data)
+		if err != nil {
+			return nil, fmt.Errorf("node record %x: %w", ref, err)
+		}
+		return ReadNode(GetNodeKey(ref), payload)
 	}
 	var walk func(ref []byte)
 	walk = func(ref []byte) {

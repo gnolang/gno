@@ -125,7 +125,7 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 		return fmt.Errorf("unknown node type")
 	}
 
-	if err := ndb.batch.Set(nodeDBKey(nkBytes), buf.Bytes()); err != nil {
+	if err := ndb.batch.Set(nodeDBKey(nkBytes), stampChecksum(buf.Bytes())); err != nil {
 		return err
 	}
 
@@ -165,9 +165,13 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 		if data == nil {
 			return nil, fmt.Errorf("node not found: %x", nkBytes)
 		}
+		payload, err := verifyChecksum(data)
+		if err != nil {
+			return nil, fmt.Errorf("node record %x: %w", nkBytes, err)
+		}
 
 		nk := GetNodeKey(nkBytes)
-		node, err := ReadNode(nk, data)
+		node, err := ReadNode(nk, payload)
 		if err != nil {
 			return nil, fmt.Errorf("deserializing node: %w", err)
 		}
@@ -194,11 +198,16 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 // pendingVals (so GetValue resolves it before SaveVersion) and written into
 // the batch (so it is flushed atomically with the nodes/root at Commit).
 // Nothing is written to the DB until Commit; Rollback/DiscardBatch drop it.
+//
+// The pendingVals buffer and the staged batch record are INDEPENDENT
+// allocations: some backends (memdb, boltdb) retain the staged slice by
+// reference all the way into the committed store, so sharing one buffer would
+// alias the committed record to the read-your-writes buffer.
 func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 	valCopy := make([]byte, len(value))
 	copy(valCopy, value)
 	ndb.pendingVals[string(vk)] = valCopy
-	return ndb.batch.Set(valueDBKey(vk), valCopy)
+	return ndb.batch.Set(valueDBKey(vk), stampChecksum(value))
 }
 
 // GetValue loads a value by its ValueKey, checking the uncommitted session
@@ -233,11 +242,15 @@ func (ndb *nodeDB) getCommittedValue(vk []byte) ([]byte, error) {
 		return nil, fmt.Errorf("db get value: %w", err)
 	}
 	if data != nil {
-		return data, nil
+		payload, err := verifyChecksum(data)
+		if err != nil {
+			return nil, fmt.Errorf("value record %x: %w", vk, err)
+		}
+		return payload, nil
 	}
-	// nil could mean "key missing" (corruption) or "stored value was empty"
-	// on a backend that doesn't normalize [] to an empty slice. Disambiguate
-	// with Has().
+	// Every stored record carries a checksum (>= 4 bytes), so nil from Get
+	// means "missing" on every backend; the Has() check just keeps the error
+	// distinct if a backend ever returns nil for a present key.
 	has, herr := ndb.db.Has(key)
 	if herr != nil {
 		return nil, fmt.Errorf("db has value: %w", herr)
@@ -245,7 +258,7 @@ func (ndb *nodeDB) getCommittedValue(vk []byte) ([]byte, error) {
 	if !has {
 		return nil, fmt.Errorf("%w: valueKey %x", ErrKeyDoesNotExist, vk)
 	}
-	return []byte{}, nil
+	return nil, fmt.Errorf("value record %x: %w: present but empty", vk, ErrChecksumMismatch)
 }
 
 // DeleteValue adds a value deletion to the batch (committed at prune time).
@@ -279,7 +292,7 @@ func (ndb *nodeDB) SaveOrphans(version int64, orphans [][]byte) error {
 	for _, vk := range orphans {
 		buf = append(buf, vk...)
 	}
-	return ndb.batch.Set(orphanDBKey(version), buf)
+	return ndb.batch.Set(orphanDBKey(version), stampChecksum(buf))
 }
 
 // LoadOrphans loads the orphan list for a version from the DB.
@@ -288,10 +301,16 @@ func (ndb *nodeDB) LoadOrphans(version int64) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if data == nil || len(data) == 0 {
+	if data == nil {
 		return nil, nil
 	}
-	r := bytes.NewReader(data)
+	// A 0-length record is corrupt, not "no orphans": SaveOrphans never
+	// writes empty lists, and every legitimate record carries a checksum.
+	payload, err := verifyChecksum(data)
+	if err != nil {
+		return nil, fmt.Errorf("orphan record v%d: %w", version, err)
+	}
+	r := bytes.NewReader(payload)
 	count, err := binary.ReadUvarint(r)
 	if err != nil {
 		return nil, fmt.Errorf("reading orphan count: %w", err)
@@ -321,18 +340,23 @@ func (ndb *nodeDB) DeleteOrphans(version int64) error {
 // SaveRoot writes a root reference: NodeKey (12B) + root hash (32B) = 44B.
 // For empty trees, nk is nil but hash is still stored (just the 32-byte hash).
 func (ndb *nodeDB) SaveRoot(version int64, nk *NodeKey, hash []byte) error {
+	if nk == nil && len(hash) == 0 {
+		// Both callers always supply a 32-byte hash (an empty tree stores
+		// emptyHash()); a hashless record would be indistinguishable from
+		// corruption on reload.
+		return fmt.Errorf("bptree: SaveRoot v%d: nil node key and empty hash", version)
+	}
 	var val []byte
 	if nk != nil {
 		val = make([]byte, 0, NodeKeySize+HashSize)
 		val = append(val, nk.GetKey()...)
 		val = append(val, hash...)
-	} else if len(hash) > 0 {
+	} else {
 		// Empty tree: store just the hash (no NodeKey prefix)
 		val = make([]byte, 0, HashSize)
 		val = append(val, hash...)
 	}
-	// val is nil/empty only if both nk and hash are nil/empty
-	return ndb.batch.Set(rootDBKey(version), val)
+	return ndb.batch.Set(rootDBKey(version), stampChecksum(val))
 }
 
 // GetRoot loads the root reference for a version.
@@ -345,18 +369,18 @@ func (ndb *nodeDB) GetRoot(version int64) ([]byte, []byte, error) {
 	if data == nil {
 		return nil, nil, ErrVersionDoesNotExist
 	}
-	if len(data) == 0 {
-		// Legacy empty tree (no hash stored)
-		return nil, nil, nil
+	payload, err := verifyChecksum(data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("root record v%d: %w", version, err)
 	}
-	if len(data) == HashSize {
+	if len(payload) == HashSize {
 		// Empty tree with hash only (no NodeKey)
-		return nil, data, nil
+		return nil, payload, nil
 	}
-	if len(data) != NodeKeySize+HashSize {
-		return nil, nil, fmt.Errorf("corrupt root ref: len=%d", len(data))
+	if len(payload) != NodeKeySize+HashSize {
+		return nil, nil, fmt.Errorf("corrupt root ref: len=%d", len(payload))
 	}
-	return data[:NodeKeySize], data[NodeKeySize:], nil
+	return payload[:NodeKeySize], payload[NodeKeySize:], nil
 }
 
 // --- Version management ---

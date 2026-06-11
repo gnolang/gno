@@ -16,6 +16,7 @@ var (
 	ErrKeyTooLong          = errors.New("key exceeds maximum size")
 	ErrUnsupported         = errors.New("operation not supported")
 	ErrUncommittedChanges  = errors.New("uncommitted working-session changes")
+	ErrChecksumMismatch    = errors.New("record checksum mismatch")
 )
 
 // MaxKeyLen caps how long a single key can be. Must stay at or below

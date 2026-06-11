@@ -591,7 +591,7 @@ func TestLoadVersion_FailedSaveDoesNotLeakStagedValue(t *testing.T) {
 	if n := len(tree.ndb.pendingVals); n != 0 {
 		t.Fatalf("failed SaveVersion left %d staged values", n)
 	}
-	if raw, err := db.Get(valueDBKey((&NodeKey{Version: 2, Nonce: 0}).GetKey())); err != nil || string(raw) != "B2" {
+	if raw, err := db.Get(valueDBKey((&NodeKey{Version: 2, Nonce: 0}).GetKey())); err != nil || string(raw) != string(stampChecksum([]byte("B2"))) {
 		t.Fatalf("v2's value key clobbered on disk after failed SaveVersion: %q, %v", raw, err)
 	}
 
