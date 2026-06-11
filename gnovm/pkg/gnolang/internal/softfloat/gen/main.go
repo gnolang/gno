@@ -52,11 +52,73 @@ func processSoftFloat64File() {
 	// Replace package name
 	newContent = strings.Replace(newContent, "package runtime", "package softfloat", 1)
 
+	// Apply the gnolang/gno#5806 fix to the upstream sources.
+	newContent = patchSubnormalCancellation(newContent)
+
 	// Write to destination file
 	err = os.WriteFile("runtime_softfloat64.go", []byte(newContent), 0o644)
 	if err != nil {
 		log.Fatal("Error writing to destination file:", err)
 	}
+}
+
+// patchSubnormalCancellation fixes a latent bug in the upstream
+// runtime/softfloat64.go: fpack64/fpack32 return a wrongly-scaled subnormal
+// when fadd64/fsub64 produce a heavily-cancelled mantissa (two near-equal,
+// opposite-sign normals summing to a subnormal). The denormal path resets to
+// the un-normalized mant0/exp0 and only right-shifts, which is the wrong
+// direction when mant0 < 1<<mantbits while exp0 is a normal-range exponent.
+// We insert a left-normalization loop before the subnormal alignment.
+//
+// See https://github.com/gnolang/gno/issues/5806. This has also been reported
+// upstream; once Go fixes it, this patch's anchors will no longer be found and
+// the generator will fail loudly so the workaround can be removed.
+//
+// On a Go upgrade, if `go generate` fails with "expected exactly one anchor
+// match", inspect the new upstream softfloat64.go: either upstream fixed the
+// bug (remove this patch) or it reformatted the surrounding code (update the
+// anchors below).
+func patchSubnormalCancellation(content string) string {
+	patches := []struct{ desc, old, new string }{
+		{
+			desc: "fpack64",
+			old: "\t\t// repeat expecting denormal\n" +
+				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
+				"\t\tfor exp < bias64 {",
+			new: "\t\t// repeat expecting denormal\n" +
+				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
+				"\t\t// gnolang/gno#5806: re-normalize the mantissa before aligning to the\n" +
+				"\t\t// subnormal exponent, so a heavily-cancelled mant0 (mant0 < 1<<mantbits64\n" +
+				"\t\t// with a normal-range exp0) is shifted in the correct direction. No-op\n" +
+				"\t\t// for already-normalized callers (mul/div/conversions).\n" +
+				"\t\tfor mant < 1<<mantbits64 {\n" +
+				"\t\t\tmant <<= 1\n" +
+				"\t\t\texp--\n" +
+				"\t\t}\n" +
+				"\t\tfor exp < bias64 {",
+		},
+		{
+			desc: "fpack32",
+			old: "\t\t// repeat expecting denormal\n" +
+				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
+				"\t\tfor exp < bias32 {",
+			new: "\t\t// repeat expecting denormal\n" +
+				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
+				"\t\t// gnolang/gno#5806: see fpack64 above.\n" +
+				"\t\tfor mant < 1<<mantbits32 {\n" +
+				"\t\t\tmant <<= 1\n" +
+				"\t\t\texp--\n" +
+				"\t\t}\n" +
+				"\t\tfor exp < bias32 {",
+		},
+	}
+	for _, p := range patches {
+		if strings.Count(content, p.old) != 1 {
+			log.Fatalf("gno#5806 patch for %s: expected exactly one anchor match (upstream may have changed or fixed it)", p.desc)
+		}
+		content = strings.Replace(content, p.old, p.new, 1)
+	}
+	return content
 }
 
 func processSoftFloat64TestFile() {
@@ -83,6 +145,17 @@ func processSoftFloat64TestFile() {
 	newContent = strings.Replace(newContent, "GOARCH", "runtime.GOARCH", 1)
 
 	newContent = strings.Replace(newContent, "import (", "import (\n\t. \"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat\"", 1)
+
+	// Add a regression case for gnolang/gno#5806 to the all-pairs test base.
+	const anchor = "\t\t1.112536929253601e-308, // first normal\n"
+	if strings.Count(newContent, anchor) != 1 {
+		log.Fatal("gno#5806 test patch: base-slice anchor not found")
+	}
+	newContent = strings.Replace(newContent, anchor, anchor+
+		"\t\t// gnolang/gno#5806: two near-equal opposite-sign normals whose sum\n"+
+		"\t\t// cancels into a subnormal; exercises the fpack64 denormal path.\n"+
+		"\t\tmath.Float64frombits(9333378022939403091),\n"+
+		"\t\tmath.Float64frombits(110005986185704326),\n", 1)
 
 	// Write to destination file
 	err = os.WriteFile("runtime_softfloat64_test.go", []byte(newContent), 0o644)

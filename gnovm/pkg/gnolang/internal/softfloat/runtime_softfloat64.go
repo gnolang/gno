@@ -128,6 +128,14 @@ func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {
 		}
 		// repeat expecting denormal
 		mant, exp, trunc = mant0, exp0, trunc0
+		// gnolang/gno#5806: re-normalize the mantissa before aligning to the
+		// subnormal exponent, so a heavily-cancelled mant0 (mant0 < 1<<mantbits64
+		// with a normal-range exp0) is shifted in the correct direction. No-op
+		// for already-normalized callers (mul/div/conversions).
+		for mant < 1<<mantbits64 {
+			mant <<= 1
+			exp--
+		}
 		for exp < bias64 {
 			trunc |= mant & 1
 			mant >>= 1
@@ -179,6 +187,11 @@ func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {
 		}
 		// repeat expecting denormal
 		mant, exp, trunc = mant0, exp0, trunc0
+		// gnolang/gno#5806: see fpack64 above.
+		for mant < 1<<mantbits32 {
+			mant <<= 1
+			exp--
+		}
 		for exp < bias32 {
 			trunc |= mant & 1
 			mant >>= 1
