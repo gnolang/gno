@@ -21,6 +21,8 @@ called out at the exact step where it applies.
 It is ordered by what you should actually run for real stake first, and
 descends toward test/lab setups:
 
+- **[Prerequisites — helper tools](#prerequisites--build-the-helper-tools)** —
+  two small stdlib-only Go helpers every backend uses; build them once.
 - **[Part A — Host hardening](#part-a--host-hardening-do-this-first-for-every-backend)** —
   the OS-level groundwork (dedicated user, locked-down directories,
   transport choice). Do this regardless of which signer backend you pick.
@@ -76,6 +78,86 @@ once and reuse it:
 
 ```sh
 export CHAIN_ID=gno-tmkms-prod
+```
+
+---
+
+# Prerequisites — build the helper tools
+
+Every backend below needs two tiny **stdlib-only** Go helpers. Write them
+once, here, and later sections just `go run` them. They have no module
+dependencies, so they run from any directory (Part B.3's `pkconv.go` is
+the one exception — it imports the gno crypto packages and must be run
+from the gno repo root; it's defined where it's used).
+
+`nodeid-hex.go` — prints a gnoland node's peer ID in the hex form tmkms
+pins in its `addr` (TCP layouts):
+
+```sh
+cat > nodeid-hex.go <<'GO'
+// Prints a gnoland node's peer ID in the hex form tmkms expects.
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+func main() {
+	raw, err := os.ReadFile(os.Args[1]) // path to node_key.json
+	if err != nil {
+		panic(err)
+	}
+	var nk struct {
+		PrivKey string `json:"priv_key"`
+	}
+	if err := json.Unmarshal(raw, &nk); err != nil {
+		panic(err)
+	}
+	priv, err := base64.StdEncoding.DecodeString(nk.PrivKey)
+	if err != nil {
+		panic(err)
+	}
+	pub := priv[32:]           // ed25519: priv = seed(32) ‖ pub(32)
+	addr := sha256.Sum256(pub) // node address = SHA256(pubkey)[:20]
+	fmt.Println(hex.EncodeToString(addr[:20]))
+}
+GO
+```
+
+`tmkms-identity-keygen.go` — generates tmkms's SecretConnection identity
+key at the path you pass and prints its pubkey for gnoland's
+`allowed_kms_pubkeys`:
+
+```sh
+cat > tmkms-identity-keygen.go <<'GO'
+package main
+
+import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"os"
+)
+
+func main() {
+	seed := make([]byte, ed25519.SeedSize)
+	if _, err := rand.Read(seed); err != nil {
+		panic(err)
+	}
+	pub := ed25519.NewKeyFromSeed(seed).Public().(ed25519.PublicKey)
+	if err := os.WriteFile(os.Args[1], []byte(base64.StdEncoding.EncodeToString(seed)), 0o600); err != nil {
+		panic(err)
+	}
+	fmt.Println("ed25519:" + hex.EncodeToString(pub)) // for gnoland's allowed_kms_pubkeys
+}
+GO
 ```
 
 ---
@@ -189,6 +271,13 @@ export PRIVVAL_LISTEN="tcp://<validator_interface_ip>:26659"
 # TMKMS_ADDR set in B.5 once the peer ID is known: tcp://<peer_id>@<validator_ip>:26659
 ```
 
+The two transports are independent of the signer backend, so the worked
+examples below deliberately show both: **Part B (YubiHSM) uses TCP** (the
+peer-ID-pinned, cross-host form), while **Parts C (softsign) and D
+(Ledger) use the same-host Unix socket** (the simpler form). Use
+whichever matches your real deployment regardless of which backend you
+picked.
+
 ---
 
 # Part B — Production validator with a YubiHSM (recommended)
@@ -298,76 +387,20 @@ In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
 **Peer ID in hex (TCP layouts).** tmkms pins your validator's peer ID to
 make sure it signs for *your* node and not whoever answers on the port.
 gnoland reports the identity in bech32 (`g1…`); tmkms wants the same 20
-bytes in hex. This stdlib-only helper converts it:
+bytes in hex. Run the `nodeid-hex.go` helper from
+[Prerequisites](#prerequisites--build-the-helper-tools):
 
 ```sh
-cat > nodeid-hex.go <<'GO'
-// Prints a gnoland node's peer ID in the hex form tmkms expects.
-package main
-
-import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"os"
-)
-
-func main() {
-	raw, err := os.ReadFile(os.Args[1]) // path to node_key.json
-	if err != nil {
-		panic(err)
-	}
-	var nk struct {
-		PrivKey string `json:"priv_key"`
-	}
-	if err := json.Unmarshal(raw, &nk); err != nil {
-		panic(err)
-	}
-	priv, err := base64.StdEncoding.DecodeString(nk.PrivKey)
-	if err != nil {
-		panic(err)
-	}
-	pub := priv[32:]           // ed25519: priv = seed(32) ‖ pub(32)
-	addr := sha256.Sum256(pub) // node address = SHA256(pubkey)[:20]
-	fmt.Println(hex.EncodeToString(addr[:20]))
-}
-GO
-
 export VALIDATOR_PEER_ID=$(go run ./nodeid-hex.go /var/lib/gnoland/secrets/node_key.json)
 echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned into tmkms.toml in B.5 (TCP)
 ```
 
 **tmkms's SecretConnection identity (TCP layouts).** gnoland only accepts
-the connection if this key's public half is in `allowed_kms_pubkeys`:
+the connection if this key's public half is in `allowed_kms_pubkeys`. Run
+the `tmkms-identity-keygen.go` helper from
+[Prerequisites](#prerequisites--build-the-helper-tools):
 
 ```sh
-cat > tmkms-identity-keygen.go <<'GO'
-package main
-
-import (
-	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
-	"fmt"
-	"os"
-)
-
-func main() {
-	seed := make([]byte, ed25519.SeedSize)
-	if _, err := rand.Read(seed); err != nil {
-		panic(err)
-	}
-	pub := ed25519.NewKeyFromSeed(seed).Public().(ed25519.PublicKey)
-	if err := os.WriteFile(os.Args[1], []byte(base64.StdEncoding.EncodeToString(seed)), 0o600); err != nil {
-		panic(err)
-	}
-	fmt.Println("ed25519:" + hex.EncodeToString(pub)) // for gnoland's allowed_kms_pubkeys
-}
-GO
-
 ALLOW=$(go run ./tmkms-identity-keygen.go /var/lib/tmkms/secrets/kms-identity.key)
 sudo chown tmkms:tmkms /var/lib/tmkms/secrets/kms-identity.key
 echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — copy for B.6
@@ -693,6 +726,7 @@ Reslice and re-encode (no crypto — a byte slice — so plain `python3` is
 fine):
 
 ```sh
+mkdir -p ./tmkms/secrets
 python3 - <<'PY' > ./tmkms/secrets/consensus.key
 import json, base64
 v = json.load(open("gnoland-data/secrets/priv_validator_key.json"))["priv_key"]["value"]
@@ -701,38 +735,92 @@ PY
 chmod 600 ./tmkms/secrets/consensus.key
 ```
 
-Then generate the peer-ID and kms-identity values exactly as in B.2
-(`nodeid-hex.go`, `tmkms-identity-keygen.go`).
+This lab uses a **same-host Unix socket** (A.3) — the simplest transport
+and the counterpart to Part B's TCP setup — so there is **no peer-ID pin
+to generate**. You still need tmkms's SecretConnection identity key
+(gnoland requires a non-empty allowlist even on a socket). Generate it
+with the [Prerequisites](#prerequisites--build-the-helper-tools) helper:
+
+```sh
+ALLOW=$(go run ./tmkms-identity-keygen.go ./tmkms/secrets/kms-identity.key)
+echo "$ALLOW"   # goes into gnoland's allowed_kms_pubkeys (C.3)
+```
 
 ## C.2 tmkms.toml with the softsign provider
 
-Same shape as B.4, with the provider block swapped for softsign:
+Same shape as B.4, with two lab changes: the provider block is
+**softsign**, and the transport is a same-host **Unix socket** instead of
+TCP (so no peer-ID pin — Part B already showed the TCP form). tmkms needs
+**absolute** paths (A.2), so resolve the lab dirs first, then write the
+file with a heredoc so the paths expand:
 
-```toml
+```sh
+export TMKMS_DIR=$(cd ./tmkms && pwd)                            # ./tmkms from C.1
+export PRIVVAL_SOCK="$(cd ./gnoland-data && pwd)/privval.sock"   # gnoland creates it at 0600
+
+tee "$TMKMS_DIR/tmkms.toml" >/dev/null <<TOML
 [[chain]]
 id = "gno-tmkms-test"
 key_format = { type = "hex" }
-state_file = "/abs/path/tmkms/secrets/consensus_state.json"
+state_file = "$TMKMS_DIR/secrets/consensus_state.json"
 
 [[providers.softsign]]
 chain_ids = ["gno-tmkms-test"]
 key_type = "consensus"
 key_format = "base64"
-path = "/abs/path/tmkms/secrets/consensus.key"
+path = "$TMKMS_DIR/secrets/consensus.key"
 
 [[validator]]
 chain_id = "gno-tmkms-test"
-addr = "tcp://<peer_id>@127.0.0.1:26659"   # or unix:///… on one host
-secret_key = "/abs/path/tmkms/secrets/kms-identity.key"
+addr = "unix://$PRIVVAL_SOCK"   # same-host UDS; no peer-ID pin (A.3)
+secret_key = "$TMKMS_DIR/secrets/kms-identity.key"
 protocol_version = "v0.34"
 reconnect = true
+TOML
+chmod 600 "$TMKMS_DIR/tmkms.toml"
 ```
 
-## C.3 Configure gnoland and start (lazy genesis is fine here)
+## C.3 Configure gnoland's tmkms listener and start (lazy genesis is fine here)
 
 Because the consensus key exists on disk *and* is registered locally, you
-can let `-lazy` build genesis from `priv_validator_key.json`. Configure
-the listener as in B.5, then:
+can let `-lazy` build genesis from `priv_validator_key.json`.
+
+First configure the listener. Create a default config, then set the four
+`tmkms_listener` fields. The allowlist must be non-empty — gnoland
+refuses to enable the mode with an empty one. On this Unix-socket layout
+the allowlist is belt-and-suspenders — **filesystem permissions on the
+socket are the real boundary** (A.3) — but gnoland still requires it
+non-empty, so set it with `$ALLOW` from C.1.
+
+```sh
+export CHAIN_ID=gno-tmkms-test                 # must match C.2's [[chain]].id
+export PRIVVAL_LISTEN="unix://$PRIVVAL_SOCK"   # gnoland listens on the socket from C.2
+CFG=./gnoland-data/config/config.toml
+gnoland config init -config-path "$CFG"
+```
+
+> **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
+> block on every write, and a non-empty `listen_addr` is what *enables*
+> that validation. Set `listen_addr` **last** — set it first and the
+> write is rejected because `chain_id` is still empty, and it silently
+> stays unset.
+
+```sh
+gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
+gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
+gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
+# listen_addr LAST — this enables the mode:
+gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
+```
+
+Verify it stuck (`listen_addr` should be your `$PRIVVAL_LISTEN`, not
+empty):
+
+```sh
+gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
+```
+
+Then start both:
 
 ```sh
 # terminal 1
@@ -797,19 +885,38 @@ You also need:
 
 ## D.2 Provider block and bootstrap
 
-Use the B.4 `tmkms.toml` but replace the provider with `ledgertm` — no
-key files, no paths:
+Use a `tmkms.toml` like B.4's, with two changes: the provider is
+`ledgertm` (no key files — the key is on the device), and like Part C
+this uses a same-host **Unix socket** (A.3) instead of TCP, so there is
+no peer-ID pin. Create the socket directory as in A.3
+(`sudo install -d -o gnoland -g tmkms -m 750 /run/gnoland`), then write
+the config exactly as in B.4 (`sudo tee /etc/tmkms/tmkms.toml`) with:
 
 ```toml
+[[chain]]
+id = "${CHAIN_ID}"
+key_format = { type = "hex" }
+state_file = "/var/lib/tmkms/secrets/consensus_state.json"
+
 [[providers.ledgertm]]
-chain_ids = ["gno-tmkms-test"]
+chain_ids = ["${CHAIN_ID}"]
+
+[[validator]]
+chain_id = "${CHAIN_ID}"
+addr = "unix:///run/gnoland/privval.sock"   # same-host UDS; no peer-ID pin (A.3)
+secret_key = "/var/lib/tmkms/secrets/kms-identity.key"
+protocol_version = "v0.34"
+reconnect = true
 ```
 
 Only one `[[providers.ledgertm]]` is allowed and it always signs the
-**consensus** key. Then follow B.2 (node + identity), B.3 (start tmkms,
-read `added consensus Ed25519 key`, `pkconv.go`, `gnogenesis`), B.5
-(listener), and B.6/B.7 (start non-lazy, verify). gnoland should log
-`This node is a validator` with the `gpub1…` from B.3 and climb.
+**consensus** key. Then follow B.2 (node + identity — on UDS the peer-ID
+hex from `nodeid-hex.go` is unused, but you still need the kms-identity
+key for the allowlist), B.3 (start tmkms, read `added consensus Ed25519
+key`, `pkconv.go`, `gnogenesis`), B.5 (listener — set `listen_addr` to
+the same `unix:///run/gnoland/privval.sock`), and B.6/B.7 (start
+non-lazy, verify). gnoland should log `This node is a validator` with the
+`gpub1…` from B.3 and climb.
 
 > **Keep the device awake.** If the Ledger locks, sleeps, or the app is
 > backgrounded, signing stops and the node stalls until you reopen the
