@@ -268,18 +268,57 @@ func cp(b []byte) []byte {
 }
 
 // bptreeIterator wraps bp.Iterator to satisfy types.Iterator.
+//
+// Iteration failures (corrupt/missing node or value records) surface through
+// Error(). Most store consumers never check it, so a failed iterator would
+// read as normal exhaustion — SILENT TRUNCATION on the consensus path. The
+// wrapper therefore enforces acknowledgment: reading a non-nil Error() is the
+// acknowledgment; an UNacknowledged error panics at Valid() (catches loop
+// consumers like the cache merge-iterator and VM range scans) or at Close()
+// (catches consumers that stopped early). Deliberate handlers (Query
+// /subspace, IterateRange) check Error() and are never interrupted.
 type bptreeIterator struct {
 	itr        *bp.Iterator
 	start, end []byte
+	errAcked   bool
 }
 
 func (it *bptreeIterator) Domain() (start, end []byte) { return it.start, it.end }
-func (it *bptreeIterator) Valid() bool                 { return it.itr.Valid() }
-func (it *bptreeIterator) Key() []byte                 { return it.itr.Key() }
-func (it *bptreeIterator) Value() []byte               { return it.itr.Value() }
-func (it *bptreeIterator) Next()                       { it.itr.Next() }
-func (it *bptreeIterator) Close() error                { return it.itr.Close() }
-func (it *bptreeIterator) Error() error                { return it.itr.Error() }
+
+func (it *bptreeIterator) Valid() bool {
+	v := it.itr.Valid()
+	if !v {
+		if err := it.itr.Error(); err != nil && !it.errAcked {
+			it.errAcked = true
+			panic(fmt.Sprintf("bptree store iterator: iteration failed and the error was never checked (reads as silent truncation): %v", err))
+		}
+	}
+	return v
+}
+
+func (it *bptreeIterator) Key() []byte   { return it.itr.Key() }
+func (it *bptreeIterator) Value() []byte { return it.itr.Value() }
+func (it *bptreeIterator) Next()         { it.itr.Next() }
+
+func (it *bptreeIterator) Error() error {
+	err := it.itr.Error()
+	if err != nil {
+		it.errAcked = true
+	}
+	return err
+}
+
+func (it *bptreeIterator) Close() error {
+	// Close the wrapped iterator FIRST: it releases the version reader, and
+	// the release must survive the panic below (a recovered panic must not
+	// leave the version pinned against pruning).
+	cerr := it.itr.Close()
+	if err := it.itr.Error(); err != nil && !it.errAcked {
+		it.errAcked = true
+		panic(fmt.Sprintf("bptree store iterator: iteration failed and the error was never checked (reads as silent truncation): %v", err))
+	}
+	return cerr
+}
 
 // --- Query ---
 

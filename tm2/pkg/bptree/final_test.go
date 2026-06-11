@@ -54,7 +54,7 @@ func TestConcurrent_LazyLoadFromDB(t *testing.T) {
 	}
 }
 
-func TestGetChild_PanicsOnDBError(t *testing.T) {
+func TestGetChild_ErrorsOnDBError(t *testing.T) {
 	// Create a tree, save it, then corrupt the DB so getChild fails
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
@@ -80,18 +80,11 @@ func TestGetChild_PanicsOnDBError(t *testing.T) {
 		db.Delete(k)
 	}
 
-	// Now any traversal should panic because getChild can't load from DB
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("expected panic from getChild on DB error")
-		}
-		msg := fmt.Sprint(r)
-		if len(msg) < 10 {
-			t.Fatalf("panic message too short: %s", msg)
-		}
-	}()
-	tree2.Get([]byte("panic025"))
+	// Any traversal returns an error (a single corrupt/missing record fails
+	// the one operation; it must not kill the process).
+	if _, err := tree2.Get([]byte("panic025")); err == nil {
+		t.Fatal("expected error from getChild on DB error")
+	}
 }
 
 func TestCreateExistenceProof_NilValueResolver(t *testing.T) {

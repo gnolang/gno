@@ -39,7 +39,10 @@ func assertReloadable(t *testing.T, n Node) {
 		t.Fatalf("reachable InnerNode (height=%d) has nil ndb; getChild cannot lazy-load its children", inner.height)
 	}
 	for i := 0; i < inner.NumChildren(); i++ {
-		child := inner.getChild(i)
+		child, err := inner.getChild(i)
+		if err != nil {
+			t.Fatalf("getChild(%d) on InnerNode height=%d: %v", i, inner.height, err)
+		}
 		if child == nil {
 			t.Fatalf("getChild(%d) returned nil on InnerNode height=%d", i, inner.height)
 		}

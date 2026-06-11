@@ -125,7 +125,10 @@ func (e *Exporter) exportNode(node Node) error {
 	case *InnerNode:
 		// Recurse children first (depth-first post-order)
 		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
+			child, err := n.getChild(i)
+			if err != nil {
+				return err
+			}
 			if child == nil {
 				// Unreachable on a healthy tree; silently skipping would emit
 				// a desynced stream that fails confusingly at the importer.

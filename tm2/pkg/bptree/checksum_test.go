@@ -59,9 +59,9 @@ func TestChecksum_RoundTrip(t *testing.T) {
 }
 
 // TestChecksum_CorruptionMatrix flips bytes in persisted records of every
-// type and asserts the corruption ALWAYS surfaces loud — an error (direct
-// reads) or a panic whose message names the checksum (descent paths, which
-// panic via getChild by design; see N37) — and never silent acceptance.
+// type and asserts the corruption ALWAYS surfaces loud — an error on every
+// tree-level read path (descents included: getChild propagates load failures)
+// — and never silent acceptance. The recover branch is kept defensively.
 func TestChecksum_CorruptionMatrix(t *testing.T) {
 	build := func() (*memdb.MemDB, []string) {
 		db := memdb.NewMemDB()

@@ -362,9 +362,8 @@ func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) (Node, erro
 		}
 		idx := searchInner(inner, key)
 
-		// In-memory child first; else load from the DB, propagating errors
-		// (getChild would panic on a load failure — prune must return it so
-		// the caller can discard the partially-staged batch).
+		// In-memory child first; else load from the DB, propagating errors so
+		// the caller can discard the partially-staged batch.
 		child := inner.childNodes[idx]
 		if child == nil && inner.children[idx] != nil {
 			var err error

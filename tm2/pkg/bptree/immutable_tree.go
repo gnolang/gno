@@ -62,7 +62,10 @@ func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
 	}
-	_, _, vk, found := treeLookup(t.root, key)
+	_, _, vk, found, err := treeLookup(t.root, key)
+	if err != nil {
+		return nil, err
+	}
 	if !found {
 		return nil, nil
 	}
@@ -74,7 +77,10 @@ func (t *ImmutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found := treeLookup(t.root, key)
+	_, _, _, found, err := treeLookup(t.root, key)
+	if err != nil {
+		return false, err
+	}
 	return found, nil
 }
 
@@ -118,7 +124,10 @@ func (t *ImmutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 	if t.root == nil || index < 0 || index >= t.Size() {
 		return nil, nil, ErrKeyDoesNotExist
 	}
-	key, _, vk := treeGetByIndex(t.root, index)
+	key, _, vk, err := treeGetByIndex(t.root, index)
+	if err != nil {
+		return nil, nil, err
+	}
 	val, err := t.resolveValue(vk)
 	return key, val, err
 }
@@ -128,7 +137,10 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if t.root == nil {
 		return 0, nil, nil
 	}
-	idx, _, vk, found := treeGetWithIndex(t.root, key)
+	idx, _, vk, found, err := treeGetWithIndex(t.root, key)
+	if err != nil {
+		return 0, nil, err
+	}
 	if !found {
 		return idx, nil, nil
 	}
@@ -144,7 +156,7 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 	}
 	if t.valueResolver != nil {
 		var resolveErr error
-		stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
+		stopped, walkErr := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 			val, err := t.valueResolver(vk)
 			if err != nil {
 				resolveErr = err
@@ -152,6 +164,9 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 			}
 			return fn(key, val)
 		})
+		if walkErr != nil {
+			return stopped, walkErr
+		}
 		return stopped, resolveErr
 	}
 	// No resolver: refuse rather than fall back to passing value HASHES where

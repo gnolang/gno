@@ -492,10 +492,12 @@ func TestMutableTree_COW_OldReferencesValid(t *testing.T) {
 
 	// Walk old root — should still have exactly the original 50 keys
 	var oldKeys []string
-	iterateNode(oldRoot, func(key, value []byte) bool {
+	if _, err := iterateNode(oldRoot, func(key, value []byte) bool {
 		oldKeys = append(oldKeys, string(key))
 		return false
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if len(oldKeys) != 50 {
 		t.Fatalf("old root has %d keys, want 50", len(oldKeys))
 	}
@@ -564,7 +566,10 @@ func countLeaves(node Node, leafCount, totalKeys *int) {
 		*totalKeys += int(n.numKeys)
 	case *InnerNode:
 		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
+			child, err := n.getChild(i)
+			if err != nil {
+				panic(err)
+			}
 			if child != nil {
 				countLeaves(child, leafCount, totalKeys)
 			}

@@ -67,6 +67,14 @@ func newIterator(root Node, start, end []byte, ascending bool, ndb *nodeDB, vers
 	} else {
 		it.seekLast(root)
 	}
+	// A failed construction seek holds no reservation: release the version
+	// reader now (the caller may never Close a never-valid iterator) and zero
+	// the version so a deferred Close — which decrements only when version>0
+	// — cannot double-release.
+	if it.err != nil && it.ndb != nil && it.version > 0 {
+		it.ndb.decrVersionReaders(it.version)
+		it.version = 0
+	}
 	return it
 }
 
@@ -82,7 +90,13 @@ func (it *Iterator) seekFirst(node Node) {
 				childIdx = 0
 			}
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: childIdx})
-			node = n.getChild(childIdx)
+			child, err := n.getChild(childIdx)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
+			node = child
 		case *LeafNode:
 			it.leaf = n
 			if it.start != nil {
@@ -126,7 +140,13 @@ func (it *Iterator) seekLast(node Node) {
 				childIdx = n.NumChildren() - 1
 			}
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: childIdx})
-			node = n.getChild(childIdx)
+			child, err := n.getChild(childIdx)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
+			node = child
 		case *LeafNode:
 			it.leaf = n
 			if it.end != nil {
@@ -160,7 +180,12 @@ func (it *Iterator) nextLeaf() {
 		top.childIdx++
 		if top.childIdx < top.inner.NumChildren() {
 			// Descend to leftmost leaf of next child
-			node := top.inner.getChild(top.childIdx)
+			node, err := top.inner.getChild(top.childIdx)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
 			it.descendLeft(node)
 			return
 		}
@@ -178,7 +203,12 @@ func (it *Iterator) prevLeaf() {
 		top.childIdx--
 		if top.childIdx >= 0 {
 			// Descend to rightmost leaf of previous child
-			node := top.inner.getChild(top.childIdx)
+			node, err := top.inner.getChild(top.childIdx)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
 			it.descendRight(node)
 			return
 		}
@@ -194,7 +224,13 @@ func (it *Iterator) descendLeft(node Node) {
 		switch n := node.(type) {
 		case *InnerNode:
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: 0})
-			node = n.getChild(0)
+			child, err := n.getChild(0)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
+			node = child
 		case *LeafNode:
 			it.leaf = n
 			it.leafIdx = 0
@@ -215,7 +251,13 @@ func (it *Iterator) descendRight(node Node) {
 		case *InnerNode:
 			idx := n.NumChildren() - 1
 			it.stack = append(it.stack, stackEntry{inner: n, childIdx: idx})
-			node = n.getChild(idx)
+			child, err := n.getChild(idx)
+			if err != nil {
+				it.err = err
+				it.valid = false
+				return
+			}
+			node = child
 		case *LeafNode:
 			it.leaf = n
 			it.leafIdx = int(n.numKeys) - 1

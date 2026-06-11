@@ -61,18 +61,23 @@ func (n *InnerNode) NumChildren() int { return int(n.numKeys) + 1 }
 // WITHOUT being memoized on the node. Reads therefore never mutate the node, and
 // the working tree stays bounded by the nodeDB cache instead of pinning every
 // node it has touched. (GetNode already sets ndb on loaded inner nodes.)
-func (n *InnerNode) getChild(idx int) Node {
+//
+// A load failure (missing or corrupt record) returns an error so a single bad
+// record fails the one operation instead of killing the process; (nil, nil) is
+// returned only for the defensive no-ndb/no-ref case, which is unreachable on
+// a healthy tree.
+func (n *InnerNode) getChild(idx int) (Node, error) {
 	if n.childNodes[idx] != nil {
-		return n.childNodes[idx]
+		return n.childNodes[idx], nil
 	}
 	if n.ndb == nil || n.children[idx] == nil {
-		return nil
+		return nil, nil
 	}
 	child, err := n.ndb.GetNode(n.children[idx])
 	if err != nil {
-		panic(fmt.Sprintf("bptree: failed to load child node %x: %v", n.children[idx], err))
+		return nil, fmt.Errorf("loading child node %x: %w", n.children[idx], err)
 	}
-	return child
+	return child, nil
 }
 
 // setChild sets the in-memory child node at index and clears the

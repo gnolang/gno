@@ -120,7 +120,12 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 
 	valueHash := sha256.Sum256(value)
 	vk := t.allocValueKey()
-	newRoot, updated, oldValueKey := treeInsert(t.root, key, valueHash, vk)
+	newRoot, updated, oldValueKey, err := treeInsert(t.root, key, valueHash, vk)
+	if err != nil {
+		// Mid-descent load failure: every mutation was on unpublished clones,
+		// so the tree is untouched — do NOT publish the root.
+		return false, err
+	}
 	t.root = newRoot
 	if !updated {
 		t.size++
@@ -145,7 +150,10 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
 	}
-	_, _, vk, found := treeLookup(t.root, key)
+	_, _, vk, found, err := treeLookup(t.root, key)
+	if err != nil {
+		return nil, err
+	}
 	if !found {
 		return nil, nil
 	}
@@ -177,7 +185,10 @@ func (t *MutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found := treeLookup(t.root, key)
+	_, _, _, found, err := treeLookup(t.root, key)
+	if err != nil {
+		return false, err
+	}
 	return found, nil
 }
 
@@ -187,7 +198,12 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if t.root == nil {
 		return nil, false, nil
 	}
-	newRoot, _, oldVK, found := treeRemove(t.root, key)
+	newRoot, _, oldVK, found, err := treeRemove(t.root, key)
+	if err != nil {
+		// Mid-descent load failure: every mutation was on unpublished clones,
+		// so the tree is untouched — do NOT publish the root.
+		return nil, false, err
+	}
 	if !found {
 		return nil, false, nil
 	}
@@ -666,7 +682,10 @@ func (t *MutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 	if t.root == nil || index < 0 || index >= t.size {
 		return nil, nil, ErrKeyDoesNotExist
 	}
-	key, _, vk := treeGetByIndex(t.root, index)
+	key, _, vk, err := treeGetByIndex(t.root, index)
+	if err != nil {
+		return nil, nil, err
+	}
 	val, err := t.resolveValue(vk)
 	return key, val, err
 }
@@ -676,7 +695,10 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if t.root == nil {
 		return 0, nil, nil
 	}
-	idx, _, vk, found := treeGetWithIndex(t.root, key)
+	idx, _, vk, found, err := treeGetWithIndex(t.root, key)
+	if err != nil {
+		return 0, nil, err
+	}
 	if !found {
 		return idx, nil, nil
 	}
@@ -691,7 +713,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 		return false, nil
 	}
 	var resolveErr error
-	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
+	stopped, walkErr := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 		val, err := t.resolveValue(vk)
 		if err != nil {
 			resolveErr = err
@@ -699,25 +721,33 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 		}
 		return fn(key, val)
 	})
+	if walkErr != nil {
+		return stopped, walkErr
+	}
 	return stopped, resolveErr
 }
 
 // --- helpers ---
 
-func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
+func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool, error) {
 	for {
 		switch n := node.(type) {
 		case *LeafNode:
 			pos, found := searchLeaf(n, key)
 			if !found {
-				return n, Hash{}, nil, false
+				return n, Hash{}, nil, false, nil
 			}
-			return n, n.valueHashes[pos], n.valueKeys[pos], true
+			return n, n.valueHashes[pos], n.valueKeys[pos], true, nil
 		case *InnerNode:
 			idx := searchInner(n, key)
-			child := n.getChild(idx)
+			child, err := n.getChild(idx)
+			if err != nil {
+				return nil, Hash{}, nil, false, err
+			}
 			if child == nil {
-				return nil, Hash{}, nil, false
+				// Defensive; unreachable on healthy trees (in-range children
+				// always have a node or a ref).
+				return nil, Hash{}, nil, false, nil
 			}
 			node = child
 		default:
@@ -726,19 +756,22 @@ func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
 	}
 }
 
-func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
+func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte, error) {
 	switch n := node.(type) {
 	case *LeafNode:
 		// Copy the key: it is returned to external callers (GetByIndex) and
 		// embedded in non-membership proofs; the raw slice belongs to a live
 		// leaf shared with the tree and node cache.
-		return copyKey(n.keys[index]), n.valueHashes[index], n.valueKeys[index]
+		return copyKey(n.keys[index]), n.valueHashes[index], n.valueKeys[index], nil
 	case *InnerNode:
 		offset := int64(0)
 		for i := 0; i < n.NumChildren(); i++ {
 			childSize := n.childSizes[i]
 			if index < offset+childSize {
-				child := n.getChild(i)
+				child, err := n.getChild(i)
+				if err != nil {
+					return nil, Hash{}, nil, err
+				}
 				return treeGetByIndex(child, index-offset)
 			}
 			offset += childSize
@@ -749,75 +782,91 @@ func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
 	}
 }
 
-func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool) {
+func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool, error) {
 	switch n := node.(type) {
 	case *LeafNode:
 		pos, found := searchLeaf(n, key)
 		if !found {
-			return int64(pos), Hash{}, nil, false
+			return int64(pos), Hash{}, nil, false, nil
 		}
-		return int64(pos), n.valueHashes[pos], n.valueKeys[pos], true
+		return int64(pos), n.valueHashes[pos], n.valueKeys[pos], true, nil
 	case *InnerNode:
 		childIdx := searchInner(n, key)
 		offset := int64(0)
 		for i := 0; i < childIdx; i++ {
 			offset += n.childSizes[i]
 		}
-		child := n.getChild(childIdx)
-		idx, vh, vk, found := treeGetWithIndex(child, key)
-		return offset + idx, vh, vk, found
+		child, err := n.getChild(childIdx)
+		if err != nil {
+			return 0, Hash{}, nil, false, err
+		}
+		idx, vh, vk, found, err := treeGetWithIndex(child, key)
+		return offset + idx, vh, vk, found, err
 	default:
 		panic("unknown node type")
 	}
 }
 
-func iterateNode(node Node, fn func(key, value []byte) bool) bool {
+// iterateNode walks the subtree passing raw value HASHES to the callback. On
+// a child-load error it returns (true, err) — "stopped abnormally"; stopped
+// is meaningless when err != nil.
+func iterateNode(node Node, fn func(key, value []byte) bool) (bool, error) {
 	switch n := node.(type) {
 	case *LeafNode:
 		for i := 0; i < int(n.numKeys); i++ {
 			if fn(n.keys[i], n.valueHashes[i][:]) {
-				return true
+				return true, nil
 			}
 		}
-		return false
+		return false, nil
 	case *InnerNode:
 		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
+			child, err := n.getChild(i)
+			if err != nil {
+				return true, err
+			}
 			if child != nil {
-				if iterateNode(child, fn) {
-					return true
+				stopped, err := iterateNode(child, fn)
+				if stopped || err != nil {
+					return stopped, err
 				}
 			}
 		}
-		return false
+		return false, nil
 	default:
 		panic("unknown node type")
 	}
 }
 
 // iterateNodeResolved is like iterateNode but passes valueKeys to the callback
-// instead of valueHashes, enabling value resolution via ValueKey.
-func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) bool {
+// instead of valueHashes, enabling value resolution via ValueKey. On a
+// child-load error it returns (true, err); stopped is meaningless when
+// err != nil.
+func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) (bool, error) {
 	switch n := node.(type) {
 	case *LeafNode:
 		for i := 0; i < int(n.numKeys); i++ {
 			// Copy the key: it reaches the caller's callback, and the raw
 			// slice belongs to a live leaf shared with the tree and cache.
 			if fn(copyKey(n.keys[i]), n.valueKeys[i]) {
-				return true
+				return true, nil
 			}
 		}
-		return false
+		return false, nil
 	case *InnerNode:
 		for i := 0; i < n.NumChildren(); i++ {
-			child := n.getChild(i)
+			child, err := n.getChild(i)
+			if err != nil {
+				return true, err
+			}
 			if child != nil {
-				if iterateNodeResolved(child, fn) {
-					return true
+				stopped, err := iterateNodeResolved(child, fn)
+				if stopped || err != nil {
+					return stopped, err
 				}
 			}
 		}
-		return false
+		return false, nil
 	default:
 		panic("unknown node type")
 	}

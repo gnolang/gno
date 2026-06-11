@@ -162,7 +162,10 @@ func (t *ImmutableTree) findPathToKey(key []byte) ([]pathEntry, int, Hash, error
 		case *InnerNode:
 			childIdx := searchInner(n, key)
 			path = append(path, pathEntry{node: n, childIdx: childIdx})
-			child := n.getChild(childIdx)
+			child, err := n.getChild(childIdx)
+			if err != nil {
+				return nil, 0, Hash{}, err
+			}
 			if child == nil {
 				return nil, 0, Hash{}, fmt.Errorf("nil child at inner node")
 			}

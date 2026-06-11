@@ -10,32 +10,40 @@ type removeResult struct {
 
 // treeRemove removes a key from the tree rooted at root.
 // Returns the (possibly new) root, old value hash, old valueKey, and whether found.
-func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool) {
+//
+// On error (a child failed to load mid-descent) every mutation so far was on
+// unpublished clones, so the caller's tree is untouched — the caller must not
+// publish the returned root.
+func treeRemove(root Node, key []byte) (Node, Hash, []byte, bool, error) {
 	if root == nil {
-		return nil, Hash{}, nil, false
+		return nil, Hash{}, nil, false, nil
 	}
 	root = cloneNode(root)
-	res := nodeRemove(root, key)
+	res, err := nodeRemove(root, key)
+	if err != nil {
+		return nil, Hash{}, nil, false, err
+	}
 	if !res.found {
-		return root, Hash{}, nil, false
+		return root, Hash{}, nil, false, nil
 	}
 
 	// Check for root collapse
 	if inner, ok := root.(*InnerNode); ok && inner.numKeys == 0 {
-		// Root has single child — collapse
-		return inner.getChild(0), res.oldValue, res.oldValueKey, true
+		// Root has single child — collapse. The survivor is always in memory:
+		// reaching numKeys==0 means this descent merged into childNodes[0].
+		return inner.childNodes[0], res.oldValue, res.oldValueKey, true, nil
 	}
 	if leaf, ok := root.(*LeafNode); ok && leaf.numKeys == 0 {
 		// Empty tree
-		return nil, res.oldValue, res.oldValueKey, true
+		return nil, res.oldValue, res.oldValueKey, true, nil
 	}
-	return root, res.oldValue, res.oldValueKey, true
+	return root, res.oldValue, res.oldValueKey, true, nil
 }
 
-func nodeRemove(node Node, key []byte) removeResult {
+func nodeRemove(node Node, key []byte) (removeResult, error) {
 	switch n := node.(type) {
 	case *LeafNode:
-		return leafRemove(n, key)
+		return leafRemove(n, key), nil
 	case *InnerNode:
 		return innerRemove(n, key)
 	default:
@@ -66,18 +74,24 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	return removeResult{found: true, oldValue: oldVH, oldValueKey: oldVK, underflow: leaf.numKeys < MinKeys}
 }
 
-func innerRemove(inner *InnerNode, key []byte) removeResult {
+func innerRemove(inner *InnerNode, key []byte) (removeResult, error) {
 	childIdx := searchInner(inner, key)
-	child := inner.getChild(childIdx)
+	child, err := inner.getChild(childIdx)
+	if err != nil {
+		return removeResult{}, err
+	}
 	if child == nil {
 		panic("nil child in innerRemove")
 	}
 
 	child = cloneNode(child)
 	inner.setChild(childIdx, child)
-	res := nodeRemove(child, key)
+	res, err := nodeRemove(child, key)
+	if err != nil {
+		return removeResult{}, err
+	}
 	if !res.found {
-		return res
+		return res, nil
 	}
 
 	inner.childSizes[childIdx]--
@@ -85,11 +99,17 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 
 	if !res.underflow {
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
-		return removeResult{found: true, oldValue: res.oldValue, oldValueKey: res.oldValueKey}
+		return removeResult{found: true, oldValue: res.oldValue, oldValueKey: res.oldValueKey}, nil
 	}
 
-	// Fix underflow
-	merged := fixUnderflow(inner, childIdx)
+	// Fix underflow. A sibling load failure fails the whole Remove (the tree
+	// is unpublished clones throughout) — deliberately no try-the-other-
+	// sibling fallback: operating around an unreadable record risks the
+	// balance invariants for no recovery benefit.
+	merged, err := fixUnderflow(inner, childIdx)
+	if err != nil {
+		return removeResult{}, err
+	}
 	inner.RebuildMiniMerkle()
 
 	// Inner node underflows if it has fewer than MinKeys-1 separators
@@ -99,31 +119,37 @@ func innerRemove(inner *InnerNode, key []byte) removeResult {
 		oldValue:    res.oldValue,
 		oldValueKey: res.oldValueKey,
 		underflow:   merged && inner.numKeys < int16(MinKeys-1),
-	}
+	}, nil
 }
 
 // fixUnderflow fixes an underflowing child at childIdx by redistributing
 // or merging. Returns true if a merge occurred.
-func fixUnderflow(parent *InnerNode, childIdx int) bool {
+func fixUnderflow(parent *InnerNode, childIdx int) (bool, error) {
 	// Try redistribute from left sibling
 	if childIdx > 0 {
-		left := parent.getChild(childIdx - 1)
+		left, err := parent.getChild(childIdx - 1)
+		if err != nil {
+			return false, err
+		}
 		if canSpare(left) {
 			leftClone := cloneNode(left)
 			parent.setChild(childIdx-1, leftClone)
 			redistributeRight(parent, childIdx-1) // move from left to child
-			return false
+			return false, nil
 		}
 	}
 
 	// Try redistribute from right sibling
 	if childIdx < int(parent.numKeys) {
-		right := parent.getChild(childIdx + 1)
+		right, err := parent.getChild(childIdx + 1)
+		if err != nil {
+			return false, err
+		}
 		if canSpare(right) {
 			rightClone := cloneNode(right)
 			parent.setChild(childIdx+1, rightClone)
 			redistributeLeft(parent, childIdx) // move from right to child
-			return false
+			return false, nil
 		}
 	}
 
@@ -133,15 +159,23 @@ func fixUnderflow(parent *InnerNode, childIdx int) bool {
 	// of checking GetNodeKey() != nil was incorrect for in-memory trees
 	// where nodeKeys are always nil.
 	if childIdx > 0 {
-		leftClone := cloneNode(parent.getChild(childIdx - 1))
+		left, err := parent.getChild(childIdx - 1)
+		if err != nil {
+			return false, err
+		}
+		leftClone := cloneNode(left)
 		parent.setChild(childIdx-1, leftClone)
 		merge(parent, childIdx-1)
 	} else {
-		rightClone := cloneNode(parent.getChild(childIdx + 1))
+		right, err := parent.getChild(childIdx + 1)
+		if err != nil {
+			return false, err
+		}
+		rightClone := cloneNode(right)
 		parent.setChild(childIdx+1, rightClone)
 		merge(parent, childIdx)
 	}
-	return true
+	return true, nil
 }
 
 func canSpare(n Node) bool {
@@ -157,9 +191,11 @@ func canSpare(n Node) bool {
 
 // redistributeRight moves the last entry from parent.child[idx] to
 // parent.child[idx+1], updating the separator at parent.keys[idx].
+// Both operands are in memory by construction (setChild'd by innerRemove /
+// fixUnderflow before this runs), so the reads cannot hit the DB.
 func redistributeRight(parent *InnerNode, idx int) {
-	left := parent.getChild(idx)
-	right := parent.getChild(idx + 1)
+	left := parent.childNodes[idx]
+	right := parent.childNodes[idx+1]
 
 	switch l := left.(type) {
 	case *LeafNode:
@@ -235,9 +271,11 @@ func redistributeRight(parent *InnerNode, idx int) {
 
 // redistributeLeft moves the first entry from parent.child[idx+1] to
 // parent.child[idx], updating the separator at parent.keys[idx].
+// Both operands are in memory by construction (setChild'd by innerRemove /
+// fixUnderflow before this runs), so the reads cannot hit the DB.
 func redistributeLeft(parent *InnerNode, idx int) {
-	left := parent.getChild(idx)
-	right := parent.getChild(idx + 1)
+	left := parent.childNodes[idx]
+	right := parent.childNodes[idx+1]
 
 	switch r := right.(type) {
 	case *LeafNode:
@@ -311,9 +349,11 @@ func redistributeLeft(parent *InnerNode, idx int) {
 
 // merge merges parent.child[idx+1] into parent.child[idx], removing
 // the separator at parent.keys[idx].
+// Both operands are in memory by construction (setChild'd by innerRemove /
+// fixUnderflow before this runs), so the reads cannot hit the DB.
 func merge(parent *InnerNode, idx int) {
-	left := parent.getChild(idx)
-	right := parent.getChild(idx + 1)
+	left := parent.childNodes[idx]
+	right := parent.childNodes[idx+1]
 
 	switch l := left.(type) {
 	case *LeafNode:

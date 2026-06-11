@@ -28,15 +28,15 @@ func TestGetValue_MissingValueReturnsError(t *testing.T) {
 
 	// Capture the vk via tree lookup, then delete the value directly from DB
 	// to simulate corruption.
-	_, _, vk, found := treeLookup(tree.root, []byte("k"))
-	if !found {
-		t.Fatalf("setup: key not found")
+	_, _, vk, found, err := treeLookup(tree.root, []byte("k"))
+	if err != nil || !found {
+		t.Fatalf("setup: key not found (%v)", err)
 	}
 	if err := db.Delete(valueDBKey(vk)); err != nil {
 		t.Fatalf("delete value: %v", err)
 	}
 
-	_, err := tree.ndb.GetValue(vk)
+	_, err = tree.ndb.GetValue(vk)
 	if err == nil {
 		t.Fatalf("GetValue on missing vk should return error")
 	}
