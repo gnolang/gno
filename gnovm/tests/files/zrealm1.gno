@@ -25,7 +25,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](269)={
+// c[08ada09dee16d791fd406d629fe29bb0ed084a30:6](269)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -41,21 +41,21 @@ func main(cur realm,) {
 //         {}
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//         "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "LastObjectSize": "269",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//         "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](156)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](156)=
 //     @@ -2,9 +2,19 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
 //     -    "Value": {}
@@ -66,8 +66,27 @@ func main(cur realm,) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "860c81a9b1ccd2bc42fc95635a1e940c88b758d7",
-//     +            "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//     +            "Hash": "9b6e58b7899427bb12c0faab3866ee328b4537d0",
+//     +            "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //     +        }
 //     +    }
 //      }
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "808",
+//     -        "ModTime": "0",
+//     +        "ModTime": "6",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "77f76390147dcb12d9de104eb549c3a959934c1c",
+//     +                "Hash": "b3fb08b4c35ce02f0b8af6d0e14232598df9259c",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

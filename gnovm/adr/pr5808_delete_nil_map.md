@@ -8,17 +8,18 @@ toolchain).
 ## Context
 
 Per the Go spec ("Deletion of map elements"): "If the map m is nil or does
-not contain such an element, delete is a no-op." GnoVM instead panicked
+not contain such an element, delete is a no-op." GnoVM previously panicked
 with an unrecoverable VM abort (`interface conversion: gnolang.Value is
 nil, not *gnolang.MapValue`) — the delete builtin type-asserted the map
-value without a nil guard.
+value without a nil guard. The guard itself landed in PR #5196 (early
+return before the `*MapValue` type assertion and before the readonly-taint
+check), with a basic filetest (`map48.gno`).
 
 ## Decision
 
-Return early from the delete builtin when the map value is nil, before the
-`*MapValue` type assertion and before the readonly-taint check.
-
-Two deliberate consequences:
+Keep the guard exactly as #5196 placed it, and pin its full semantics with
+tests, since two of its consequences are deliberate behavior decisions that
+were not previously covered:
 
 1. **Ordering relative to the readonly check is unobservable.** A nil
    value can never carry the readonly taint: `TypedValue.IsReadonly`
@@ -52,4 +53,5 @@ Two deliberate consequences:
   vars, package vars, struct fields, function returns, conversions,
   cross-realm values); key expressions are still evaluated exactly once.
 - Covered by `gnovm/tests/files/delete1.gno` and
-  `gnovm/tests/files/zrealm_mapnil.gno`.
+  `gnovm/tests/files/zrealm_mapnil.gno`, extending the basic coverage of
+  `map48.gno` from #5196.

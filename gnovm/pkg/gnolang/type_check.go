@@ -127,6 +127,15 @@ func isNumericOrString(t Type) bool {
 	}
 }
 
+func isInteger(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		return t.category()&IsInteger != 0
+	default:
+		return false
+	}
+}
+
 func isWhole(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
@@ -150,7 +159,7 @@ func isIntegerKind(k Kind) bool {
 
 func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
 		return true
 	default:
 		return false
@@ -593,7 +602,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
+	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}
@@ -820,8 +829,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
-		// both "_"
+	if isBlankIdentifier(x.Key) && (x.Value == nil || isBlankIdentifier(x.Value)) {
+		// both "_" or key is "_" and value is not present
 		return
 	}
 	assertValidAssignLhs(store, last, x.Key)
@@ -993,7 +1002,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				// check negative
 				if ric {
 					rv := evalConst(store, last, x.Rhs[0])
-					rv.AssertNonNegative("invalid operation: negative shift count")
+					if rv.TypedValue.Sign() < 0 {
+						panic(fmt.Sprintf("invalid operation: negative shift count: %v", &rv.TypedValue))
+					}
 				}
 			default:
 				// do nothing
@@ -1163,12 +1174,25 @@ func isComparable(dt Type) bool {
 	case *ArrayType:
 		return isComparable(cdt.Elt)
 	case *StructType:
+		// Memoized: a struct fans out into all its fields, so without a
+		// cache an interface comparison whose dynamic type is a nested
+		// struct re-walks the field graph exponentially on every compare.
+		// Cycles always pass through a pointer/slice/map/interface leaf
+		// (a direct value cycle is infinite-size and rejected at compile
+		// time), so the recursion bottoms out before re-entering a struct
+		// mid-computation; the write is unconditionally safe.
+		if cdt.comparable != 0 {
+			return cdt.comparable == 1
+		}
+		res := uint8(1)
 		for _, f := range cdt.Fields {
 			if !isComparable(f.Type) {
-				return false
+				res = 2
+				break
 			}
 		}
-		return true
+		cdt.comparable = res
+		return res == 1
 	default:
 		return false
 	}

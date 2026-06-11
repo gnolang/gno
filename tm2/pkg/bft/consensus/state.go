@@ -14,7 +14,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -36,7 +35,6 @@ import (
 var (
 	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
 	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
-	ErrAddingVote               = errors.New("Error adding vote")
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
@@ -83,6 +81,20 @@ type txNotifier interface {
 	TxsAvailable() <-chan struct{}
 }
 
+// interface to the evidence pool
+type evidencePool interface {
+	// ReportConflictingVotes reports conflicting votes to the evidence pool
+	// to be processed into evidence.
+	ReportConflictingVotes(voteA, voteB *types.Vote)
+}
+
+// NoOpEvidencePool is a no-op implementation of evidencePool.
+// TODO: replace with a real evidence pool that persists double-signing
+// evidence and enables validator slashing.
+type NoOpEvidencePool struct{}
+
+func (NoOpEvidencePool) ReportConflictingVotes(_, _ *types.Vote) {}
+
 // ConsensusState handles execution of the consensus algorithm.
 // It processes votes and proposals, and upon reaching agreement,
 // commits blocks to the chain and executes them against the application.
@@ -102,6 +114,9 @@ type ConsensusState struct {
 
 	// notify us if txs are available
 	txNotifier txNotifier
+
+	// add evidence to the pool when it's detected
+	evpool evidencePool
 
 	// internal state
 	mtx sync.RWMutex
@@ -152,6 +167,7 @@ func NewConsensusState(
 	blockExec *sm.BlockExecutor,
 	blockStore sm.BlockStore,
 	txNotifier txNotifier,
+	evpool evidencePool,
 	options ...StateOption,
 ) *ConsensusState {
 	cs := &ConsensusState{
@@ -159,6 +175,7 @@ func NewConsensusState(
 		blockExec:        blockExec,
 		blockStore:       blockStore,
 		txNotifier:       txNotifier,
+		evpool:           evpool,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
@@ -490,10 +507,22 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
 func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
-	if state.LastBlockHeight == 0 {
+	// Defensive guard: a state with LastBlockHeight strictly less than
+	// InitialHeight-1 indicates a plumbing bug (handshaker should have set
+	// LastBlockHeight = InitialHeight-1 on a fresh hardfork chain).
+	if state.LastBlockHeight < state.InitialHeight-1 {
+		panic(fmt.Sprintf("reconstructLastCommit: state.LastBlockHeight %d < state.InitialHeight-1 %d", state.LastBlockHeight, state.InitialHeight-1))
+	}
+	// Pre-genesis: no real block has been committed yet. Covers both standard
+	// chain (LastBlockHeight==0, InitialHeight==1) and hardfork chain
+	// (LastBlockHeight==InitialHeight-1) before the first block is produced.
+	if state.LastBlockHeight < state.InitialHeight {
 		return
 	}
 	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
+	if seenCommit == nil {
+		panic(fmt.Sprintf("Failed to reconstruct LastCommit: SeenCommit not found for height %d", state.LastBlockHeight))
+	}
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		panic("Failed to reconstruct LastCommit: Does not have +2/3 maj")
@@ -645,14 +674,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 				panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", mi, err))
 			}
 
-			if _, ok := mi.Msg.(*VoteMessage); ok {
-				// we actually want to simulate failing during
-				// the previous WriteSync, but this isn't easy to do.
-				// Equivalent would be to fail here and manually remove
-				// some bytes from the end of the wal.
-				fail.Fail() // XXX
-			}
-
 			// handles proposals, block parts, votes
 			cs.handleMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
@@ -695,18 +716,10 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		added, err = cs.tryAddVote(msg.Vote, peerID)
+		added = cs.tryAddVote(msg.Vote, peerID)
 		if added {
 			cs.statsMsgQueue <- mi
 		}
-
-		// if err == ErrAddingVote {
-		// TODO: punish peer
-		// We probably don't want to stop the peer here. The vote does not
-		// necessarily comes from a malicious peer but can be just broadcasted by
-		// a typical peer.
-		// https://github.com/tendermint/tendermint/issues/1281
-		// }
 
 		// NOTE: the vote is broadcast to peers by the reactor listening
 		// for vote events
@@ -719,11 +732,9 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		return
 	}
 
-	if err != nil { //nolint:staticcheck
-		// Causes TestReactorValidatorSetChanges to timeout
-		// https://github.com/tendermint/tendermint/issues/3406
-		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
-		// 	"peer", peerID, "err", err, "msg", msg)
+	if err != nil {
+		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
+			"peer", peerID, "err", err, "msg", msg)
 	}
 }
 
@@ -855,13 +866,20 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 }
 
 // needProofBlock returns true on the first height (so the genesis app hash is signed right away)
-// and where the last block (height-1) caused the app hash to change
+// and where the last block (height-1) caused the app hash to change.
 func (cs *ConsensusState) needProofBlock(height int64) bool {
-	if height == 1 {
+	if height < cs.state.InitialHeight {
+		panic(fmt.Sprintf("needProofBlock: height %d < cs.state.InitialHeight %d", height, cs.state.InitialHeight))
+	}
+	// Genesis block of this chain: standard InitialHeight==1, hardfork InitialHeight>1.
+	if height == cs.state.InitialHeight {
 		return true
 	}
 
 	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
+	if lastBlockMeta == nil {
+		panic(fmt.Sprintf("Failed to load block meta for height %d", height-1))
+	}
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }
 
@@ -991,8 +1009,10 @@ func (cs *ConsensusState) isProposalComplete() bool {
 func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
 	var commit *types.Commit
 	switch {
-	case cs.Height == 1:
-		// We're creating a proposal for the first block.
+	case cs.Height < cs.state.InitialHeight:
+		panic(fmt.Sprintf("createProposalBlock: cs.Height %d < cs.state.InitialHeight %d", cs.Height, cs.state.InitialHeight))
+	case cs.Height == cs.state.InitialHeight:
+		// We're creating a proposal for the genesis block of this chain.
 		// The commit is empty, but not nil.
 		commit = types.NewCommit(types.BlockID{}, nil)
 	case cs.LastCommit.HasTwoThirdsMajority():
@@ -1332,8 +1352,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		"num txs", block.NumTxs,
 	)
 
-	fail.Fail() // XXX
-
 	// Save to blockStore.
 	if cs.blockStore.Height() < block.Height {
 		// NOTE: the seenCommit is local justification to commit this block,
@@ -1345,8 +1363,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		// Happens during replay if we already saved the block but didn't commit
 		cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height)
 	}
-
-	fail.Fail() // XXX
 
 	// Write MetaMessage{Height+1} for this height, implying that the
 	// blockstore has saved the block for height Height.
@@ -1366,8 +1382,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", meta, err))
 	}
 
-	fail.Fail() // XXX
-
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
@@ -1384,12 +1398,8 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		return
 	}
 
-	fail.Fail() // XXX
-
 	// NewHeightStep!
 	cs.updateToState(stateCopy)
-
-	fail.Fail() // XXX
 
 	// cs.StartTime is already set.
 	// Schedule Round0 to start soon.
@@ -1521,35 +1531,51 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool, error) {
+func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) bool {
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
-		// But if it's a conflicting sig, add it to the cs.mempool.
+		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if goerrors.Is(err, ErrVoteHeightMismatch) {
-			return added, err
-		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
-			/* XXX
-			addr := cs.privValidator.GetPubKey().Address()
-			if bytes.Equal(vote.ValidatorAddress, addr) {
-				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-				return added, err
-			}
-			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
-			return added, err
-			*/
-			panic("not yet implemented")
-		} else {
-			// Either
-			// 1) bad peer OR
-			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
-			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
-			cs.Logger.Info("Error attempting to add vote", "err", err)
-			return added, ErrAddingVote
+			return added
 		}
+
+		var voteErr *types.VoteConflictingVotesError
+		if goerrors.As(err, &voteErr) {
+			addr := cs.privValidator.PubKey().Address()
+			if vote.ValidatorAddress == addr {
+				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
+					"height", vote.Height,
+					"round", vote.Round,
+					"type", vote.Type,
+					"voteA", voteErr.VoteA,
+					"voteB", voteErr.VoteB)
+				return added
+			}
+
+			// report conflicting votes to the evidence pool
+			cs.evpool.ReportConflictingVotes(voteErr.VoteA, voteErr.VoteB)
+			cs.Logger.Warn("Found and sent conflicting votes to the evidence pool",
+				"peer", peerID,
+				"validator", vote.ValidatorAddress,
+				"height", vote.Height,
+				"round", vote.Round,
+				"type", vote.Type,
+				"voteA", voteErr.VoteA,
+				"voteB", voteErr.VoteB,
+			)
+			return added
+		}
+
+		// Either
+		// 1) bad peer OR
+		// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
+		// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
+		cs.Logger.Info("Error attempting to add vote", "err", err)
+		return added
 	}
-	return added, nil
+	return added
 }
 
 // -----------------------------------------------------------------------------
@@ -1746,14 +1772,63 @@ func (cs *ConsensusState) voteTime() time.Time {
 	return minVoteTime
 }
 
+func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address crypto.Address) *types.Vote {
+	var voteSet *types.VoteSet
+	switch type_ {
+	case types.PrevoteType:
+		voteSet = cs.Votes.Prevotes(cs.Round)
+	case types.PrecommitType:
+		voteSet = cs.Votes.Precommits(cs.Round)
+	default:
+		panic(fmt.Sprintf("Unexpected vote type %X", type_))
+	}
+
+	return voteSet.GetByAddress(address)
+}
+
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) {
-	address := cs.privValidator.PubKey().Address()
-
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(address) {
+	if cs.privValidator == nil {
 		return
 	}
+
+	address := cs.privValidator.PubKey().Address()
+	if !cs.Validators.HasAddress(address) {
+		return
+	}
+
+	// Avoid re-signing a vote we've already signed for this round; see ADR tm2/adr/pr5348_consensus_avoid_resign.md.
+	blockID := types.BlockID{Hash: hash, PartsHeader: header}
+	if existing := cs.existingSignedVote(type_, address); existing != nil {
+		if existing.BlockID.Equals(blockID) {
+			cs.Logger.Info(
+				"Reusing known self vote from vote set",
+				"height", existing.Height,
+				"round", existing.Round,
+				"type", existing.Type,
+				"validator address", existing.ValidatorAddress,
+				"validator index", existing.ValidatorIndex,
+			)
+			return
+		}
+
+		logFn := cs.Logger.Error
+		if cs.replayMode {
+			logFn = cs.Logger.Warn
+		}
+		logFn(
+			"Refusing to sign conflicting self vote",
+			"height", cs.Height,
+			"round", cs.Round,
+			"type", type_,
+			"validator address", address,
+			"existing block ID", existing.BlockID,
+			"new block ID", blockID,
+		)
+		return
+	}
+
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
