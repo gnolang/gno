@@ -103,7 +103,9 @@ func (e *Exporter) exportNode(node Node) error {
 				return errors.New("export: no value resolver available (ndb is nil and no valueResolver set)")
 			}
 			if err := e.send(&ExportNode{
-				Key:    n.keys[i],
+				// Copy: the consumer owns the ExportNode; the raw key slice
+				// belongs to a live leaf shared with the tree and cache.
+				Key:    copyKey(n.keys[i]),
 				Value:  value,
 				Height: 0,
 			}); err != nil {
@@ -129,10 +131,11 @@ func (e *Exporter) exportNode(node Node) error {
 				}
 			}
 		}
-		// Emit inner node marker with ALL separator keys
+		// Emit inner node marker with ALL separator keys (copies — the
+		// consumer owns the ExportNode; the raw slices belong to live nodes).
 		sepKeys := make([][]byte, n.numKeys)
 		for i := 0; i < int(n.numKeys); i++ {
-			sepKeys[i] = n.keys[i]
+			sepKeys[i] = copyKey(n.keys[i])
 		}
 		if err := e.send(&ExportNode{
 			Height:        int8(n.height),

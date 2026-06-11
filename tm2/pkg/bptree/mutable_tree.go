@@ -729,7 +729,10 @@ func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool) {
 func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte) {
 	switch n := node.(type) {
 	case *LeafNode:
-		return n.keys[index], n.valueHashes[index], n.valueKeys[index]
+		// Copy the key: it is returned to external callers (GetByIndex) and
+		// embedded in non-membership proofs; the raw slice belongs to a live
+		// leaf shared with the tree and node cache.
+		return copyKey(n.keys[index]), n.valueHashes[index], n.valueKeys[index]
 	case *InnerNode:
 		offset := int64(0)
 		for i := 0; i < n.NumChildren(); i++ {
@@ -798,7 +801,9 @@ func iterateNodeResolved(node Node, fn func(key, vk []byte) bool) bool {
 	switch n := node.(type) {
 	case *LeafNode:
 		for i := 0; i < int(n.numKeys); i++ {
-			if fn(n.keys[i], n.valueKeys[i]) {
+			// Copy the key: it reaches the caller's callback, and the raw
+			// slice belongs to a live leaf shared with the tree and cache.
+			if fn(copyKey(n.keys[i]), n.valueKeys[i]) {
 				return true
 			}
 		}

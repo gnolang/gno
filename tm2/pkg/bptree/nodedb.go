@@ -220,7 +220,9 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 // the map and so cannot race SaveValue.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	if v, ok := ndb.pendingVals[string(vk)]; ok {
-		return v, nil
+		// Return a copy: a caller mutating the result must not change what
+		// later reads of the staged value observe.
+		return copyKey(v), nil
 	}
 	return ndb.getCommittedValue(vk)
 }
@@ -246,7 +248,10 @@ func (ndb *nodeDB) getCommittedValue(vk []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("value record %x: %w", vk, err)
 		}
-		return payload, nil
+		// Copy, never re-slice: some backends (memdb) return their internal
+		// storage from Get, so handing out the payload would let a caller
+		// mutate the committed record in place.
+		return copyKey(payload), nil
 	}
 	// Every stored record carries a checksum (>= 4 bytes), so nil from Get
 	// means "missing" on every backend; the Has() check just keeps the error

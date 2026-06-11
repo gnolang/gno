@@ -1,6 +1,9 @@
 package bptree
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 // ValueResolver resolves a valueKey to the raw value bytes.
 type ValueResolver func(vk []byte) ([]byte, error)
@@ -151,5 +154,8 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, e
 		})
 		return stopped, resolveErr
 	}
-	return iterateNode(t.root, fn), nil
+	// No resolver: refuse rather than fall back to passing value HASHES where
+	// the callback expects values — a semantic trap that also exposed slices
+	// aliasing the leaves' live hash arrays.
+	return false, errors.New("bptree: Iterate requires a value resolver")
 }

@@ -230,6 +230,11 @@ func (st *Store) ReverseIterator(gctx *types.GasContext, start, end []byte) type
 }
 
 func (st *Store) makeIterator(start, end []byte, ascending bool) types.Iterator {
+	// Copy the bounds (nil-preserving — nil means unbounded): Domain() hands
+	// them back to callers, and the caller may mutate its own slices after
+	// constructing the iterator. The wrapped bp.Iterator takes its own copies
+	// independently.
+	start, end = cp(start), cp(end)
 	// For immutable stores, use the immutable tree's iterator but with
 	// the mutable tree's ndb for value resolution.
 	switch t := st.tree.(type) {
@@ -250,6 +255,16 @@ func (st *Store) makeIterator(start, end []byte, ascending bool) types.Iterator 
 		}
 		return &bptreeIterator{itr: itr, start: start, end: end}
 	}
+}
+
+// cp returns a nil-preserving copy of an iterator bound.
+func cp(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }
 
 // bptreeIterator wraps bp.Iterator to satisfy types.Iterator.

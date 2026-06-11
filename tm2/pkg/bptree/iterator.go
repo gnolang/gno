@@ -31,13 +31,28 @@ type stackEntry struct {
 	childIdx int
 }
 
+// copyBound returns a nil-preserving copy of an iterator bound: nil stays nil
+// (nil means "unbounded" — an empty slice would invert that semantics).
+func copyBound(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
+}
+
 // newIterator creates an iterator over the tree rooted at root.
 // start is inclusive, end is exclusive. If start is nil, starts from the beginning.
 // If end is nil, iterates to the end.
+//
+// The bounds are copied at construction: checkStart/checkEnd consult them on
+// every Next, so a caller mutating its slices mid-iteration must not shift
+// the range.
 func newIterator(root Node, start, end []byte, ascending bool, ndb *nodeDB, version int64) *Iterator {
 	it := &Iterator{
-		start:     start,
-		end:       end,
+		start:     copyBound(start),
+		end:       copyBound(end),
 		ascending: ascending,
 		ndb:       ndb,
 		version:   version,
@@ -269,7 +284,10 @@ func (it *Iterator) Key() []byte {
 	if !it.valid {
 		panic("iterator invalid")
 	}
-	return it.leaf.keys[it.leafIdx]
+	// Copy per the dbm iterator contract ("safe for modification"): the raw
+	// slice belongs to a live leaf shared with the tree and the node cache —
+	// mutating it would corrupt committed state.
+	return copyKey(it.leaf.keys[it.leafIdx])
 }
 
 func (it *Iterator) Value() []byte {
