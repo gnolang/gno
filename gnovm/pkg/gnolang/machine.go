@@ -51,6 +51,11 @@ type Machine struct {
 	// accounting is unaffected by pooling.
 	blockPool []*Block
 
+	// callArgsScratch is the reusable buffer doOpCall hands to
+	// popCopyArgs; the args are copied into the call block immediately,
+	// so the slice never outlives call setup. Cleared after each use.
+	callArgsScratch []TypedValue
+
 	// Configuration
 	Output   io.Writer
 	Store    Store

@@ -316,11 +316,16 @@ func (m *Machine) doOpCall() {
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, m.callArgsScratch)
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
 	}
+	// args is machine-owned scratch consumed by the loop above: keep the
+	// (possibly grown) buffer for the next call and drop the value
+	// references so they don't outlive the call setup.
+	clear(args)
+	m.callArgsScratch = args[:0]
 	// Inherit fr.Cur from the block for crossing functions entered without
 	// a cross-call (doOpPrecall sets fr.Cur only for cross-call entries).
 	// Bound-method receivers occupy block[0], so cur is at block[1] for
@@ -624,17 +629,29 @@ func (m *Machine) doOpReturnCallDefers() {
 // numArgs: number of arguments provided.
 // isVarg: true if called with ...varg.
 // recv: receiver if bound otherwise undefined.
+// scratch: optional reusable buffer; used when its capacity suffices, in
+// which case the result aliases it and must not outlive the caller (pass
+// nil when the result escapes, as in doOpDefer).
 // Returns a slice of parameters with receiver (if any) and varg conversion.
 // For bound method calls the returned slice is 1 greater than len(ft.Params).
-// Constructed varg slice is allocated, but the result slice is not.
-func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+// Constructed varg slice is allocated; the result slice aliases scratch when
+// its capacity suffices and is heap-allocated otherwise (not VM-allocated
+// either way).
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue, scratch []TypedValue) []TypedValue {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0
 	if !recv.IsUndefined() {
 		isMethod = 1
 	}
-	args := make([]TypedValue, isMethod+numParams)
+	var args []TypedValue
+	if cap(scratch) >= isMethod+numParams {
+		// Every slot is overwritten below: args[0] for methods, the rest
+		// by PopCopyValues and the varg assignment.
+		args = scratch[:isMethod+numParams]
+	} else {
+		args = make([]TypedValue, isMethod+numParams)
+	}
 	if isMethod == 1 {
 		args[0] = recv
 	}
@@ -689,7 +706,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			TypedValue{})
+			TypedValue{},
+			nil) // args escape into the Defer.
 		cfr.PushDefer(Defer{
 			Func:   fv,
 			Args:   args,
@@ -703,7 +721,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			recv)
+			recv,
+			nil) // args escape into the Defer.
 		cfr.PushDefer(Defer{
 			Func:          fv,
 			IsBoundMethod: true,
