@@ -63,7 +63,7 @@ type BaseApp struct {
 	minGasPrices []GasPrice
 
 	// Thread-safe snapshot of the last block header.
-	// Updated atomically in setCheckState() and BeginBlock().
+	// Updated atomically in setCheckState().
 	// Used by Simulate and query handlers that run outside the consensus mutex.
 	lastBlockHeader atomic.Value // stores headerSnapshot
 

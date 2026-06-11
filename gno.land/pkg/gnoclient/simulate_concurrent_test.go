@@ -19,7 +19,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func TestSimulateBurstDuringCommit(t *testing.T) {
@@ -139,5 +138,3 @@ func TestSimulateBurstDuringCommit(t *testing.T) {
 
 	assert.Zero(t, errors, "simulate had errors during concurrent block commits")
 }
-
-var _ = std.Coin{}
