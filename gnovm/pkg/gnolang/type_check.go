@@ -847,8 +847,11 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if !isBlankIdentifier(x.Key) {
 		kt = evalStaticTypeOf(store, last, x.Key)
 	}
-	if x.Value != nil && !isBlankIdentifier(x.Value) {
-		vt = evalStaticTypeOf(store, last, x.Value)
+	if x.Value != nil {
+		assertValidAssignLhs(store, last, x.Value)
+		if !isBlankIdentifier(x.Value) {
+			vt = evalStaticTypeOf(store, last, x.Value)
+		}
 	}
 	if kt == nil && vt == nil {
 		return
@@ -1025,6 +1028,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
+		// like go/types, operator/type errors take precedence over
+		// target assignability.
+		assertValidAssignLhs(store, last, x.Lhs[0])
 	}
 }
 
