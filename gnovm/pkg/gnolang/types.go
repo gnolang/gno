@@ -377,10 +377,11 @@ func (ft FieldType) TypeID() TypeID {
 // tags, embeddedness, and variadicity; it remains the deterministic key for
 // conversion, storage, and runtime value-identity paths.
 //
-// NOTE: interfaces are compared by their literal (unflattened) method lists,
-// so an interface embedding another compares unequal to its flattened
-// equivalent even though Go treats them as identical. This matches the
-// existing TypeID() behavior.
+// NOTE: like TypeID(), this compares interfaces by their literal
+// (unflattened) method lists, so an interface embedding another compares
+// unequal to its flattened equivalent even though Go treats them as
+// identical. This pre-existing TypeID()-level gap is tracked in
+// https://github.com/gnolang/gno/issues/5810.
 func identicalTypes(at, bt Type) bool {
 	return identical(at, bt, false)
 }
@@ -521,7 +522,8 @@ func identical(at, bt Type, ignoreTags bool) bool {
 // already sorted. Interface method lists are usually pre-sorted by TypeID().
 // NOTE: like InterfaceType.TypeID(), this panics (via FieldTypeList.Less) on
 // duplicate method names, e.g. an interface embedding two same-named
-// interfaces from different packages.
+// interfaces from different packages (see
+// https://github.com/gnolang/gno/issues/5810).
 func sortedFieldsIfNeeded(l []FieldType) FieldTypeList {
 	fl := FieldTypeList(l)
 	if sort.IsSorted(fl) {

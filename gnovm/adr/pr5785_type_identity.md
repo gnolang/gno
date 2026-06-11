@@ -107,16 +107,16 @@ sides.
   and `typeswitch_struct_tags.gno`. Statically, such programs are rejected
   wherever Go rejects them, and `gno type check` (go/types) provides full Go
   semantics at deploy time.
-- Interfaces are compared by their literal (unflattened) method lists: an
-  interface that embeds another interface compares unequal to its flattened
-  equivalent, even though Go treats them as identical. This matches the
-  existing `TypeID()` behavior and is left for a follow-up.
 - `RefType` (unresolved store references) cannot be inspected structurally
   without a store, so it is compared by `TypeID()`, preserving the previous
   behavior for persisted types.
-- Interfaces embedding two same-named interfaces from different packages
-  panic in `sort` on the duplicate method name, as `InterfaceType.TypeID()`
-  already does; `identical()` inherits that behavior unchanged.
+
+`identical()` inherits, but does not widen, the pre-existing interface
+identity gap where embedded interface method sets are not flattened (and the
+related duplicate same-named embedded panic). That is a `TypeID()`-level issue
+present in `master`, tracked separately in
+[#5810](https://github.com/gnolang/gno/issues/5810), not an accepted
+limitation of this change.
 
 ## Consequences
 
