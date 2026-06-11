@@ -80,7 +80,8 @@ re-entrant, no package-level mutable state).
 ### Entry 2 — `TestSoak_TreeOps` (env-gated)
 Skip unless `BPTREE_SOAK` is set (duration or "forever"; document
 `-timeout=0`). ONE `fuzzState` forever: seeded rng generates chunks for
-`runOpChunk`. Boundedness by construction:
+`runTideChunk` (tide mode — dedicated section below). Boundedness by
+construction:
 - **Forced prune cadence + catch-up**: when retained window > W, enter
   catch-up — Rollback a dirty session, **Close ALL harness holds**, suppress
   new holds at/below the target, prune to latest−W, and **assert it
@@ -95,7 +96,7 @@ Skip unless `BPTREE_SOAK` is set (duration or "forever"; document
 - **Bounded failure context**: failures report the op counter and engine
   state; the full program regenerates deterministically from the seed (no
   unbounded trace is kept).
-- Height-4 (40k-key) config: follow-up, not v1.
+- Height-4 coverage: tide mode (below) crests at 50k keys = 4 levels.
 
 ### Entry 3 — `TestStress_ConcurrentSanctionedReaders` (seeded `-race`)
 Not a fuzz target (schedules aren't input-reproducible). Seeded writer runs a
@@ -217,6 +218,46 @@ Readers:
 - `SnapshotReads(v)` — GetImmutable + Get/Has + Close immediately.
 - `IteratePartial(v)` — open, consume some, Close.
 
+## Tide mode (the soak decoder)
+
+`TestSoak_TreeOps` does not use `runOpChunk`: it drives `runTideChunk`, a
+second decoder over the same engine. Motivation: the fixed-equilibrium mix
+above settles at a couple hundred live keys — height 2 — so non-root inners
+with inner children (height 4, first reached around 12–23k keys) were never
+exercised by anything oracle-checked. The tide oscillates live keys between 0
+and `cfg.tideHigh` (soak: 50,000 over a 65,536 keyspace = a height-4 crest),
+crossing every height transition in both directions every cycle (~54k ops).
+
+- **Tide state**: `rising` flips to falling at `len(model) >= tideHigh`, back
+  to rising at exactly 0. The dominant single-key op (50.8%) and the 1–64-key
+  wave (9.4%) follow the tide (Set/grow rising, Remove/shrink falling); a
+  counter op (25.4%) churns against it. Shrink waves remove the n smallest
+  LIVE keys at/above a start slot — blind removes would decay asymptotically
+  and never reach the floor.
+- **Sessions**: the sessionCap backbone commits at 1024 mutations (soak
+  config); byte-247 Save is rare jitter (~1/1024). Most sessions run ~1024
+  set/removes.
+- **Session-killers gated to ~1/4096** (Rollback, LoadOld, ColdRestart,
+  InjectError — everything that discards the staged session): at 1/256 they
+  discarded ~90% of tide progress and the soak never crested. InjectError
+  saves-if-dirty first (it is otherwise dead under 1k-mutation sessions) and
+  doubles as the soak's wide (width ≤3) injected prune.
+- **Empty version every cycle**: the falling→rising flip commits the drained
+  tree, keeping prune-through-empty covered (DrainAll is not in the tide
+  table).
+- **Stall detector**: no flip within 300k ops ⇒ Fatalf (~8× the expected
+  half-cycle: rise ≈ 38k ops, fall ≈ 21k). A drift regression turns the soak
+  red instead of silently shallow again.
+- **Constraint**: tideHigh must stay below ~0.93×keys — the rising drift
+  equilibrium; above it the crest is unreachable and the detector fires.
+- **Report card**: `soakStats` counts branch firings (injects armed/fired,
+  cell-5 blocks, adoptions, empty/twin saves, flips, max prune width, …) and
+  is logged at exit, so a long run prints evidence of what it covered.
+  Counter values are deterministic per seed.
+- The oracles, the `expectedPrune` table, and the per-prune oracle cadence
+  are unchanged; `FuzzTreeOps` still decodes with `runOpChunk`, which stays
+  byte-frozen for the committed corpus.
+
 ## Oracles
 Cheap (every op): the return-value expectations above.
 Full (after EVERY prune — measured ~0.15–1ms at this scale — and at chunk end):
@@ -260,4 +301,3 @@ prune; separator-shift deletes (each leaf's first key) → prune.
 - Out-of-contract concurrency (two writers; unregistered working-tree reads).
 - Import to gaps/pruned versions (M18/M21 — filed; precondition lands with
   state-sync).
-- Height-4 soak config (follow-up).

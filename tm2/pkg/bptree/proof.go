@@ -7,6 +7,9 @@ import (
 )
 
 // GetMembershipProof generates an ICS23 existence proof for a key.
+// Proofs over empty-valued keys generate but can never verify: ics23's LeafOp
+// rejects empty values (the value-side twin of the empty-key constraint;
+// IAVL behaves identically). See TestProof_EmptyValueUnprovable.
 func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	exist, err := t.createExistenceProof(key)
 	if err != nil {
@@ -18,6 +21,8 @@ func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, 
 }
 
 // GetNonMembershipProof generates an ICS23 non-existence proof for a key.
+// The proof embeds the gap's neighbor existence proofs, so it cannot verify
+// when an adjacent key holds an empty value (see GetMembershipProof).
 func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
 	if t.root == nil {
 		return nil, ErrEmptyTree
