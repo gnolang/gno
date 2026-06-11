@@ -70,7 +70,9 @@ func (store *cacheStore) SetDepthEstimator(de types.DepthEstimator) {
 }
 
 // expectedDepth returns the estimated IAVL tree depth, floored by
-// GasConfig.MinDepth. Returns 1 for non-IAVL stores (no estimator).
+// GasConfig.MinDepth. Without an estimator the base depth is 1, but a
+// positive MinDepth still floors it — flat stores then take the
+// depth-charging path too.
 func (store *cacheStore) expectedDepth(gctx *types.GasContext) int64 {
 	depth := int64(1)
 	if store.depthEstimator != nil {
