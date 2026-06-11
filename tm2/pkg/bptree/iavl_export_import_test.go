@@ -263,11 +263,12 @@ func TestExporter_InMemoryRoundtrip(t *testing.T) {
 
 func TestImporter_NegativeVersion(t *testing.T) {
 	tree := getTestTree(0)
-	// Version -1 is invalid but our Import just checks VersionExists
-	// The behavior may differ from IAVL which explicitly rejects negative versions
+	// Negative (and zero) versions are rejected: the import target must
+	// exceed the latest committed version, matching IAVL's rejection.
 	_, err := tree.Import(-1)
-	// We accept this since version -1 won't match existing versions
-	assert.NoError(t, err)
+	assert.Error(t, err)
+	_, err = tree.Import(0)
+	assert.Error(t, err)
 }
 
 func TestImporter_NotEmpty(t *testing.T) {

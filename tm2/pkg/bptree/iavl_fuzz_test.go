@@ -83,11 +83,10 @@ func TestImporter_Add_Closed(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, imp.Close())
 
-	// Adding after close should still work (Close is a no-op in our impl)
-	// In IAVL this would error. Our importer is simpler.
+	// Add after Close must error: Close rolled back the staged session, so a
+	// late Add would stage values that ride into an unrelated next commit.
 	err = imp.Add(&ExportNode{Key: []byte("a"), Value: []byte("b"), Height: 0})
-	// We don't enforce closed state on Add — intentional simplification
-	_ = err
+	require.Error(t, err)
 }
 
 func TestImporter_NotEmptyDatabase(t *testing.T) {
@@ -129,10 +128,11 @@ func TestImporter_Commit_Closed(t *testing.T) {
 	imp.Add(&ExportNode{Height: -1, NumKeys: 1})
 	require.NoError(t, imp.Close())
 
-	// Commit after close — our implementation allows this since Close is a no-op
+	// Commit after Close must error: Close discarded the staged value
+	// records, so committing the surviving node stack would persist a root
+	// whose leaves reference values that no longer exist.
 	err = imp.Commit()
-	// This may or may not error depending on implementation
-	_ = err
+	require.Error(t, err)
 }
 
 func TestImporter_Add(t *testing.T) {

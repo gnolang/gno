@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -125,10 +126,13 @@ func (e *Exporter) exportNode(node Node) error {
 		// Recurse children first (depth-first post-order)
 		for i := 0; i < n.NumChildren(); i++ {
 			child := n.getChild(i)
-			if child != nil {
-				if err := e.exportNode(child); err != nil {
-					return err
-				}
+			if child == nil {
+				// Unreachable on a healthy tree; silently skipping would emit
+				// a desynced stream that fails confusingly at the importer.
+				return fmt.Errorf("export: nil child %d in inner node", i)
+			}
+			if err := e.exportNode(child); err != nil {
+				return err
 			}
 		}
 		// Emit inner node marker with ALL separator keys (copies — the
