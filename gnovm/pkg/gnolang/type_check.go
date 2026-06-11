@@ -839,11 +839,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	// A blank or absent operand has no static type and nothing to check;
-	// handle each operand independently, like AssignStmt.AssertCompatible.
+	// Validity is asked of every operand (blank is a valid target); only
+	// the type check is skipped for a blank operand, which has no static
+	// type — per-operand, like AssignStmt.AssertCompatible.
 	var kt, vt Type
+	assertValidAssignLhs(store, last, x.Key)
 	if !isBlankIdentifier(x.Key) {
-		assertValidAssignLhs(store, last, x.Key)
 		kt = evalStaticTypeOf(store, last, x.Key)
 	}
 	if x.Value != nil && !isBlankIdentifier(x.Value) {
