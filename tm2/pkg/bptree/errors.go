@@ -17,6 +17,11 @@ var (
 	ErrUnsupported         = errors.New("operation not supported")
 	ErrUncommittedChanges  = errors.New("uncommitted working-session changes")
 	ErrChecksumMismatch    = errors.New("record checksum mismatch")
+	// ErrSessionPoisoned wraps (via %w on the sentinel, with the original
+	// failure flattened into the message) the first error that left the
+	// working session inconsistent. Set/Remove/SaveVersion refuse while it is
+	// set; Rollback or a successful LoadVersion clears it.
+	ErrSessionPoisoned = errors.New("session poisoned by an earlier failure: Rollback before continuing")
 )
 
 // MaxKeyLen caps how long a single key can be. Must stay at or below

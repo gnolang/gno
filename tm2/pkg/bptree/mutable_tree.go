@@ -51,6 +51,16 @@ type MutableTree struct {
 	// Tier 2: cross-version orphaned ValueKeys (from prior committed versions).
 	// Persisted to DB at SaveVersion, consumed during PruneVersionsTo.
 	versionOrphans [][]byte
+
+	// poisoned records the first error that left the session inconsistent
+	// (a mutation published before its DB staging failed, or a SaveVersion
+	// whose deferred DiscardBatch destroyed staged values the working tree
+	// still references). While set, Set/Remove/SaveVersion refuse with
+	// ErrSessionPoisoned — committing the session would silently persist
+	// dangling references or an unloadable version. Rollback fully restores
+	// the session and clears it; a successful LoadVersion (full session
+	// replacement) clears it too.
+	poisoned error
 }
 
 // allocValueKey allocates a unique ValueKey for the current working session.
@@ -89,6 +99,9 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 // Set inserts or updates a key-value pair. Returns true if the key
 // already existed (update), false if it was a new insert.
 func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
+	if t.poisoned != nil {
+		return false, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+	}
 	if len(key) == 0 {
 		return false, ErrEmptyKey
 	}
@@ -113,6 +126,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 
 		// Save value out-of-line.
 		if err := t.ndb.SaveValue(value, vk); err != nil {
+			// The root/size were already published referencing this value —
+			// a later SaveVersion would commit a dangling valueKey.
+			t.poisoned = err
 			return false, err
 		}
 		return false, nil
@@ -134,12 +150,18 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	// Handle orphaned old valueKey on update
 	if updated && oldValueKey != nil {
 		if err := t.orphanValueKey(oldValueKey); err != nil {
+			// Post-publication failure: the tree references the new value
+			// while the old one's staged delete failed.
+			t.poisoned = err
 			return updated, err
 		}
 	}
 
 	// Save value out-of-line.
 	if err := t.ndb.SaveValue(value, vk); err != nil {
+		// The tree already references this valueKey — a later SaveVersion
+		// would commit it dangling.
+		t.poisoned = err
 		return updated, err
 	}
 	return updated, nil
@@ -195,6 +217,9 @@ func (t *MutableTree) Has(key []byte) (bool, error) {
 // Remove removes a key from the tree. Returns the old value and
 // whether the key was found.
 func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
+	if t.poisoned != nil {
+		return nil, false, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+	}
 	if t.root == nil {
 		return nil, false, nil
 	}
@@ -215,6 +240,10 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if oldVK != nil {
 		val, _ = t.resolveValue(oldVK)
 		if err := t.orphanValueKey(oldVK); err != nil {
+			// Post-publication failure: the removal is published but the
+			// displaced value's staged delete failed — committing would leak
+			// the record permanently (it appears in no orphan list).
+			t.poisoned = err
 			return val, true, err
 		}
 	}
@@ -223,7 +252,11 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 
 // SaveVersion persists the current tree state as a new version.
 // Returns (rootHash, version, error).
-func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
+func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err error) {
+	if t.poisoned != nil {
+		return nil, 0, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+	}
+
 	version := t.WorkingVersion()
 
 	// Values and nodes staged by Set/Remove since the last Commit live in the
@@ -232,11 +265,22 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	// them — a staged write left in the batch would be flushed by the next
 	// Commit (a later SaveVersion or PruneVersionsTo), silently overwriting an
 	// already-persisted version's value namespace (the LoadVersion(non-latest)
-	// +Set hazard). Callers must Rollback after a SaveVersion error.
+	// +Set hazard).
+	//
+	// That discard is also why EVERY error exit poisons the session: it
+	// destroys the staged values while the working tree still references
+	// them, so a retry (even after a transient fault) would commit dangling
+	// valueKeys — or, after the save phase started, an unloadable version
+	// (saveNode skips "already saved" nodes whose records were discarded).
+	// Rollback restores the session and clears the poison. NOTE: the
+	// poison-setter reads the named err — keep all returns explicit.
 	committed := false
 	defer func() {
 		if !committed {
 			t.ndb.DiscardBatch()
+		}
+		if err != nil {
+			t.poisoned = err
 		}
 	}()
 
@@ -309,7 +353,6 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 	}
 
 	// Save root reference
-	var rootHash []byte
 	if t.root != nil {
 		h := t.root.Hash()
 		rootHash = h[:]
@@ -411,21 +454,21 @@ func (t *MutableTree) Load() (int64, error) {
 }
 
 // LoadVersion loads a specific version from the DB.
+//
+// All fallible reads happen BEFORE the working session is discarded: on any
+// error the previous session survives fully intact (a failed load must not
+// wipe staged values the working tree still references — committing that
+// would persist dangling valueKeys).
 func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if version <= 0 {
 		// Version <= 0 means "load latest", matching IAVL behavior.
 		return t.Load()
 	}
 
-	// Establish a clean working view at `version`: drop any values/nodes staged
-	// since the last Commit (they belong to an abandoned working session) and
-	// reset session counters, so stale staged writes can't later flush into the
-	// wrong version's value namespace.
-	t.ndb.DiscardBatch()
-	t.resetSession()
-
 	// Discover the DB's latest version before loading, to return it
 	// (matching IAVL behavior which returns latestVersion, not targetVersion).
+	// Refreshing first/latest on a path that later errors is harmless: they
+	// are re-derived counters, not session state.
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
@@ -437,11 +480,14 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	}
 
 	if nkBytes == nil {
-		// Empty tree at this version
+		// Empty tree at this version: replace the session.
+		t.ndb.DiscardBatch()
+		t.resetSession()
 		t.root = nil
 		t.size = 0
 		t.version = version
 		t.lastSaved = nil
+		t.poisoned = nil // full session replacement
 		return latestVersion, nil
 	}
 
@@ -450,10 +496,17 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		return 0, fmt.Errorf("loading root: %w", err)
 	}
 
+	// Reads succeeded — replace the session: drop any values/nodes staged
+	// since the last Commit (they belong to the abandoned working session)
+	// and reset session counters, so stale staged writes can't later flush
+	// into the wrong version's value namespace.
+	t.ndb.DiscardBatch()
+	t.resetSession()
 	t.root = root
 	t.size = nodeSize(root)
 	t.version = version
 	t.lastSaved = root
+	t.poisoned = nil // full session replacement
 	return latestVersion, nil
 }
 
@@ -647,6 +700,9 @@ func (t *MutableTree) Rollback() {
 	} else {
 		t.size = 0
 	}
+	// Rollback restores every field a poisoning failure left inconsistent,
+	// so the session is clean again.
+	t.poisoned = nil
 }
 
 // Height returns the tree height.

@@ -124,6 +124,12 @@ func (imp *Importer) Add(node *ExportNode) error {
 		vk := (&NodeKey{Version: imp.version, Nonce: imp.nextNonce}).GetKey()
 		imp.nextNonce++
 		if err := imp.tree.ndb.SaveValue(node.Value, vk); err != nil {
+			// An I/O failure (unlike a validation rejection) leaves the
+			// stream un-resumable: the entry was never buffered, so a
+			// continued stream would either trip the exact-drain check or,
+			// if this leaf was the whole stream, commit an empty tree.
+			// Poison so Commit refuses; the caller re-imports.
+			imp.state = importerFailed
 			return err
 		}
 		imp.kvBuffer = append(imp.kvBuffer, importKV{

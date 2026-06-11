@@ -708,9 +708,12 @@ func TestOverwriteEmpty(t *testing.T) {
 	// Should error because version 2 already exists with a different hash
 	require.Error(err)
 
-	// However, removing the key and saving an empty version should work
-	// since it matches the existing empty version 2's hash.
-	tree.Remove([]byte("foo"))
+	// The failed save poisoned the session (its staged values were
+	// discarded); Rollback restores the clean empty v1 view.
+	tree.Rollback()
+
+	// Saving the (empty) working tree should now work, since it matches the
+	// existing empty version 2's hash (idempotent adopt).
 	_, version, err := tree.SaveVersion()
 	require.NoError(err)
 	require.EqualValues(2, version)
