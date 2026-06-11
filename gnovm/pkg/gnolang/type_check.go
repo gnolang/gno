@@ -388,8 +388,9 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	// Assignability is defined only between types. A blank/absent target
 	// (`_ = xxx`, blank range operands) has no static type — callers must
 	// skip the check syntactically (isBlankIdentifier) instead of passing
-	// nil, otherwise an accidental nil (e.g. an untyped-nil lhs) would be
-	// silently accepted.
+	// nil. A nil dt is ambiguous: an untyped-nil lvalue also has a nil
+	// static type (e.g. `for k, nil = range m`), so accepting nil here
+	// would silently skip the check for it instead of rejecting it.
 	if dt == nil {
 		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
 	}
