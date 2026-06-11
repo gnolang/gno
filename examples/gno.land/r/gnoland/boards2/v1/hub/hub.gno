@@ -8,8 +8,19 @@ package hub
 
 import (
 	"gno.land/p/gnoland/boards"
+	hubexts "gno.land/p/gnoland/boards/exts/hub"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+// Safe view types are defined in the hub extensions package and
+// re-exported here so callers can keep using the hub realm types.
+type (
+	Board   = hubexts.Board
+	Comment = hubexts.Comment
+	Flag    = hubexts.Flag
+	Member  = hubexts.Member
+	Thread  = hubexts.Thread
 )
 
 // GetBoard returns a safe board.
@@ -18,7 +29,7 @@ func GetBoard(id uint64) (Board, bool) {
 	if !found {
 		return Board{}, false
 	}
-	return NewSafeBoard(b), true
+	return hubexts.NewSafeBoard(b), true
 }
 
 // GetThread returns a safe board thread.
@@ -27,7 +38,7 @@ func GetThread(boardID, threadID uint64) (Thread, bool) {
 	if !found {
 		return Thread{}, false
 	}
-	return NewSafeThread(t), true
+	return hubexts.NewSafeThread(t), true
 }
 
 // GetComment returns a safe thread comment.
@@ -36,7 +47,7 @@ func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 	if !found {
 		return Comment{}, false
 	}
-	return NewSafeComment(c), true
+	return hubexts.NewSafeComment(c), true
 }
 
 // GetBoards returns a list with all boards.
@@ -44,7 +55,7 @@ func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 func GetBoards(start, count int) []Board {
 	var boards_ []Board
 	boards2.Iterate(start, count, func(b *boards.Board) bool {
-		boards_ = append(boards_, NewSafeBoard(b))
+		boards_ = append(boards_, hubexts.NewSafeBoard(b))
 		return false
 	})
 	return boards_
@@ -60,7 +71,7 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 
 	var threads []Thread
 	b.Threads.Iterate(start, count, func(thread *boards.Post) bool {
-		threads = append(threads, NewSafeThread(thread))
+		threads = append(threads, hubexts.NewSafeThread(thread))
 		return false
 	})
 	return threads
@@ -94,7 +105,7 @@ func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 	t.Reposts.Iterate(start, count, func(rBoardID, rRepostID boards.ID) bool {
 		r, found := getThread(uint64(rBoardID), uint64(rRepostID))
 		if found {
-			reposts = append(reposts, NewSafeThread(r))
+			reposts = append(reposts, hubexts.NewSafeThread(r))
 		}
 		return false
 	})
@@ -142,7 +153,7 @@ func GetComments(boardID, threadID uint64, start, count int) []Comment {
 
 	var comments []Comment
 	t.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		comments = append(comments, NewSafeComment(comment))
+		comments = append(comments, hubexts.NewSafeComment(comment))
 		return false
 	})
 	return comments
@@ -158,7 +169,7 @@ func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment
 
 	var replies []Comment
 	c.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		replies = append(replies, NewSafeComment(comment))
+		replies = append(replies, hubexts.NewSafeComment(comment))
 		return false
 	})
 	return replies

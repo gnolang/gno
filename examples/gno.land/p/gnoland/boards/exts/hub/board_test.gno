@@ -7,7 +7,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/nt/urequire/v0"
 
-	"gno.land/r/gnoland/boards2/v1/hub"
+	"gno.land/p/gnoland/boards/exts/hub"
 )
 
 func TestBoardIterateThreads(t *testing.T) {
