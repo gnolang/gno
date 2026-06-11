@@ -1,6 +1,5 @@
 // Package hub exposes safe, read-only views over boards2's persistent
-// state. The Get* functions are crossing functions: callers must invoke
-// them with `cross` (e.g. `hub.GetBoard(cross, id)`).
+// state. The Get* functions are plain non-crossing functions.
 //
 // Note for future maintainers: these reads perform no caller
 // authorization — boards2's read entry points are unguarded — so do not
@@ -14,7 +13,7 @@ import (
 )
 
 // GetBoard returns a safe board.
-func GetBoard(cur realm, id uint64) (Board, bool) {
+func GetBoard(id uint64) (Board, bool) {
 	b, found := getBoard(id)
 	if !found {
 		return Board{}, false
@@ -23,7 +22,7 @@ func GetBoard(cur realm, id uint64) (Board, bool) {
 }
 
 // GetThread returns a safe board thread.
-func GetThread(cur realm, boardID, threadID uint64) (Thread, bool) {
+func GetThread(boardID, threadID uint64) (Thread, bool) {
 	t, found := getThread(boardID, threadID)
 	if !found {
 		return Thread{}, false
@@ -32,7 +31,7 @@ func GetThread(cur realm, boardID, threadID uint64) (Thread, bool) {
 }
 
 // GetComment returns a safe thread comment.
-func GetComment(cur realm, boardID, threadID, commentID uint64) (Comment, bool) {
+func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 	c, found := getComment(boardID, threadID, commentID)
 	if !found {
 		return Comment{}, false
@@ -42,7 +41,7 @@ func GetComment(cur realm, boardID, threadID, commentID uint64) (Comment, bool) 
 
 // GetBoards returns a list with all boards.
 // To reverse iterate use a negative count.
-func GetBoards(cur realm, start, count int) []Board {
+func GetBoards(start, count int) []Board {
 	var boards_ []Board
 	boards2.Iterate(start, count, func(b *boards.Board) bool {
 		boards_ = append(boards_, NewSafeBoard(b))
@@ -53,7 +52,7 @@ func GetBoards(cur realm, start, count int) []Board {
 
 // GetThreads returns a list with threads of a board.
 // To reverse iterate use a negative count.
-func GetThreads(cur realm, boardID uint64, start, count int) []Thread {
+func GetThreads(boardID uint64, start, count int) []Thread {
 	b, found := getBoard(boardID)
 	if !found {
 		return nil
@@ -69,7 +68,7 @@ func GetThreads(cur realm, boardID uint64, start, count int) []Thread {
 
 // GetMembers returns a list with the members of a board.
 // To reverse iterate use a negative count.
-func GetMembers(cur realm, boardID uint64, start, count int) []boards.User {
+func GetMembers(boardID uint64, start, count int) []boards.User {
 	b, found := getBoard(boardID)
 	if !found {
 		return nil
@@ -85,7 +84,7 @@ func GetMembers(cur realm, boardID uint64, start, count int) []boards.User {
 
 // GetReposts returns a list with repost of a board thread.
 // To reverse iterate use a negative count.
-func GetReposts(cur realm, boardID, threadID uint64, start, count int) []Thread {
+func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 	t, found := getThread(boardID, threadID)
 	if !found {
 		return nil
@@ -105,7 +104,7 @@ func GetReposts(cur realm, boardID, threadID uint64, start, count int) []Thread 
 // GetFlag returns a list with thread or comment moderation flags.
 // To reverse iterate use a negative count.
 // Thread flags are returned when `commentID` is zero, or comment flags are returned otherwise.
-func GetFlags(cur realm, boardID, threadID, commentID uint64, start, count int) []boards.Flag {
+func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Flag {
 	var storage boards.FlagStorage
 	if commentID == 0 {
 		t, found := getThread(boardID, threadID)
@@ -135,7 +134,7 @@ func GetFlags(cur realm, boardID, threadID, commentID uint64, start, count int) 
 // To reverse iterate use a negative count.
 // Top level comments can be filtered by checking `Comment.ParentID`, replies
 // always have a parent comment or reply, while comments have no parent.
-func GetComments(cur realm, boardID, threadID uint64, start, count int) []Comment {
+func GetComments(boardID, threadID uint64, start, count int) []Comment {
 	t, found := getThread(boardID, threadID)
 	if !found {
 		return nil
@@ -151,7 +150,7 @@ func GetComments(cur realm, boardID, threadID uint64, start, count int) []Commen
 
 // GetReplies returns a list with top level comment replies.
 // To reverse iterate use a negative count.
-func GetReplies(cur realm, boardID, threadID, commentID uint64, start, count int) []Comment {
+func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment {
 	c, found := getComment(boardID, threadID, commentID)
 	if !found {
 		return nil

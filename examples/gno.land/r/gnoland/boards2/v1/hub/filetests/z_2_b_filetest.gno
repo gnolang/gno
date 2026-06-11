@@ -19,7 +19,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetBoards(cross(cur), 0, boards2.BoardCount())
+	boards := hub.GetBoards(0, boards2.BoardCount())
 
 	for _, b := range boards {
 		println(b.ID, b.Name)

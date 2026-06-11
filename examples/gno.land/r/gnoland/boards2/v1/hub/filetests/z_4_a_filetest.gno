@@ -22,12 +22,12 @@ func init(cur realm) {
 
 	// Get readonly board
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, _ = hub.GetBoard(cross(cur), uint64(boardID))
+	board, _ = hub.GetBoard(uint64(boardID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	members := hub.GetMembers(cross(cur), board.ID, 0, board.MemberCount)
+	members := hub.GetMembers(board.ID, 0, board.MemberCount)
 
 	for _, m := range members {
 		println(m.Address, m.Roles)

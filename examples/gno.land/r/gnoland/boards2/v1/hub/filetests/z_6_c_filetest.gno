@@ -40,12 +40,12 @@ func init(cur realm) {
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(cross(cur), uint64(boardID), uint64(threadID))
+	thread, _ = hub.GetThread(uint64(boardID), uint64(threadID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(cross(cur), thread.BoardID, thread.ID, 0, 0, thread.FlagCount)
+	flags := hub.GetFlags(thread.BoardID, thread.ID, 0, 0, thread.FlagCount)
 
 	for _, f := range flags {
 		println(f.User, f.Reason)

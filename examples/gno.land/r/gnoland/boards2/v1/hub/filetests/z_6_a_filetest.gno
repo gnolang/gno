@@ -25,7 +25,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(cross(cur), uint64(boardID), uint64(threadID), 0, 0, 1)
+	flags := hub.GetFlags(uint64(boardID), uint64(threadID), 0, 0, 1)
 	println(len(flags))
 }
 

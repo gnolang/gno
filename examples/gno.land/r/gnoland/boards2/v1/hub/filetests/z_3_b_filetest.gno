@@ -23,12 +23,12 @@ func init(cur realm) {
 
 	// Get readonly board
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, _ = hub.GetBoard(cross(cur), uint64(boardID))
+	board, _ = hub.GetBoard(uint64(boardID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	threads := hub.GetThreads(cross(cur), board.ID, 0, board.ThreadCount)
+	threads := hub.GetThreads(board.ID, 0, board.ThreadCount)
 
 	for _, t := range threads {
 		println(t.ID, t.Title)

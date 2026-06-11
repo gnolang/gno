@@ -36,7 +36,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, found := hub.GetComment(cross(cur), uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, found := hub.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 	if !found {
 		return
 	}
