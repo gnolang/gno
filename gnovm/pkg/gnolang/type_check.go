@@ -387,7 +387,8 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	}
 	// A nil dt means the assignment target is discarded: a blank identifier
 	// (`_ = xxx`, assign8.gno, 0f31) or a blank/absent range operand.
-	// Anything is assignable to it.
+	// Anything is assignable to it. (`_ = nil` is rejected earlier, in
+	// assertValidAssignRhs; here `T(nil)` is indistinguishable from `nil`.)
 	if dt == nil {
 		return nil
 	}
@@ -1050,7 +1051,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 		panic(fmt.Sprintf("unexpected node type %T", n))
 	}
 
-	for _, exp := range exps {
+	for i, exp := range exps {
 		tt := evalStaticTypeOfRaw(store, last, exp)
 		if tt == nil {
 			switch x := n.(type) {
@@ -1061,6 +1062,11 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 				panic("use of untyped nil in variable declaration")
 			case *AssignStmt:
 				if x.Op != DEFINE {
+					// `v = nil` is checked against v's type later, but a
+					// blank target has no type to convert nil to: `_ = nil`.
+					if i < len(x.Lhs) && isBlankIdentifier(x.Lhs[i]) && isNilIdentifier(exp) {
+						panic("use of untyped nil in assignment")
+					}
 					continue
 				}
 				panic("use of untyped nil in assignment")
@@ -1157,6 +1163,19 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 func isBlankIdentifier(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
 		return nx.Name == blankIdentifier
+	}
+	return false
+}
+
+// isNilIdentifier reports whether x is the bare `nil` keyword, possibly
+// const-folded; a conversion like `T(nil)` also has a nil static type but is
+// not bare nil.
+func isNilIdentifier(x Expr) bool {
+	if cx, ok := x.(*ConstExpr); ok {
+		x = cx.Source
+	}
+	if nx, ok := x.(*NameExpr); ok {
+		return nx.Name == "nil"
 	}
 	return false
 }
