@@ -1,0 +1,102 @@
+# Reusable workflow for Gno packages/realms: fmt + lint + test.
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to run gno tools on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use; defaults to the version in go.mod"
+        required: false
+        type: string
+        default: ""
+      debug:
+        description: "Enable debug logs"
+        required: false
+        type: boolean
+      run-fmt:
+        description: "Run gno fmt"
+        required: false
+        type: boolean
+        default: true
+      run-lint:
+        description: "Run gno lint"
+        required: false
+        type: boolean
+        default: true
+      run-test:
+        description: "Run gno test"
+        required: false
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  fmt:
+    name: fmt
+    if: inputs.run-fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - run: go run ./gnovm/cmd/gno -C "${INPUTS_PATH}" fmt -diff ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}
+
+  lint:
+    name: lint
+    if: inputs.run-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - run: go run ./gnovm/cmd/gno lint -C "${INPUTS_PATH}" -v ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}
+
+  test:
+    name: test
+    if: inputs.run-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+
+      - name: Setup debug env
+        if: inputs.debug
+        run: |
+          export LOG_PATH_DIR="${RUNNER_TEMP}/logs"
+          mkdir -p "$LOG_PATH_DIR"
+          echo "LOG_LEVEL=debug" >> "$GITHUB_ENV"
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> "$GITHUB_ENV"
+
+      - name: Run gno test
+        run: go run ./gnovm/cmd/gno test -C "${INPUTS_PATH}" -v -print-runtime-metrics -print-events ./...
+        env:
+          INPUTS_PATH: ${{ inputs.path }}

@@ -30,8 +30,8 @@ gno mod init gno.land/r/<namespace>/counter
 Replace `<namespace>` with your username. In this example, we’ll use `example`.
 This command creates a file with the following content:
 
-```
-module gno.land/r/example/counter
+```toml
+module = "gno.land/r/example/counter"
 ```
 
 Then, in the same directory, create two files- `counter.gno` & `counter_test.gno`:

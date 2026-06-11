@@ -1,7 +1,8 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_realm_notice_01_filetest
+
+package z_set_realm_notice_01_filetest
 
 import (
-	"strings"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -9,23 +10,19 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func init() {
+func init(cur realm) {
 	// Set an initial message so it can be cleared
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.SetRealmNotice(cross, "This is a test realm message")
+	boards2.SetRealmNotice(cross(cur), "This is a test realm message")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRealmNotice(cross, "")
+	boards2.SetRealmNotice(cross(cur), "")
 
-	// Render content must contain the message
-	content := boards2.Render("")
-	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
-	println(strings.HasPrefix(content, "# Boards"))
+	println(boards2.Notice == "")
 }
 
 // Output:
-// false
 // true

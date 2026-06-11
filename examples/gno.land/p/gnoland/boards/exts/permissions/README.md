@@ -10,7 +10,7 @@ custom checks and requirements before the callback is called.
 
 Usage Example:
 
-[embedmd]:# (filetests/z_readme_filetest.gno go)
+[embedmd]:# (filetests/readme_filetest.gno go)
 ```go
 package main
 
@@ -28,7 +28,7 @@ const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const RoleExample boards.Role = "example"
 
 // Define a permission
-const PermissionFoo boards.Permission = "foo"
+const PermissionFoo boards.Permission = 42
 
 func main() {
 	// Define a custom foo permission validation function

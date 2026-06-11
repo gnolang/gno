@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ban_02_filetest
+
+package z_ban_02_filetest
 
 import (
 	"testing"
@@ -15,17 +17,17 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Try to ban a user without banning permissions
-	boards2.Ban(cross, bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.BanDay, "Reason")
+	boards2.Ban(cross(cur), bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.BanDay, "Reason")
 }
 
 // Error:
-// unauthorized
+// unauthorized, user g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5 doesn't have the required permission
