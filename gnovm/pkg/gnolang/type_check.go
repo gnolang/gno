@@ -385,12 +385,13 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
-	// A nil dt means the assignment target is discarded: a blank identifier
-	// (`_ = xxx`, assign8.gno, 0f31) or a blank/absent range operand.
-	// Anything is assignable to it. (`_ = nil` is rejected earlier, in
-	// assertValidAssignRhs; here `T(nil)` is indistinguishable from `nil`.)
+	// Assignability is defined only between types. A blank/absent target
+	// (`_ = xxx`, blank range operands) has no static type — callers must
+	// skip the check syntactically (isBlankIdentifier) instead of passing
+	// nil, otherwise an accidental nil (e.g. an untyped-nil lhs) would be
+	// silently accepted.
 	if dt == nil {
-		return nil
+		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
 	}
 	// case0
 	if xt == nil { // untyped nil, see test/files/types/eql_0f18
@@ -824,10 +825,8 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 	}
 }
 
+// kt must be non-nil: callers skip blank keys.
 func assertIndexTypeIsInt(kt Type) {
-	if kt == nil { // blank key, nothing to check
-		return
-	}
 	if kt.Kind() != IntKind {
 		panic(fmt.Sprintf("index type should be int, but got %v", kt))
 	}
@@ -854,17 +853,31 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
-		mustAssignableTo(x, cxt.Key, kt)
-		mustAssignableTo(x, cxt.Value, vt)
+		if kt != nil {
+			mustAssignableTo(x, cxt.Key, kt)
+		}
+		if vt != nil {
+			mustAssignableTo(x, cxt.Value, vt)
+		}
 	case *SliceType:
-		assertIndexTypeIsInt(kt)
-		mustAssignableTo(x, cxt.Elt, vt)
+		if kt != nil {
+			assertIndexTypeIsInt(kt)
+		}
+		if vt != nil {
+			mustAssignableTo(x, cxt.Elt, vt)
+		}
 	case *ArrayType:
-		assertIndexTypeIsInt(kt)
-		mustAssignableTo(x, cxt.Elt, vt)
+		if kt != nil {
+			assertIndexTypeIsInt(kt)
+		}
+		if vt != nil {
+			mustAssignableTo(x, cxt.Elt, vt)
+		}
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
-			assertIndexTypeIsInt(kt)
+			if kt != nil {
+				assertIndexTypeIsInt(kt)
+			}
 			if vt != nil && vt.Kind() != Int32Kind { // rune
 				panic(fmt.Sprintf("value type should be int32, but got %v", vt))
 			}
@@ -963,6 +976,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				// assert valid left value
 				for i, lx := range x.Lhs {
 					assertValidAssignLhs(store, last, lx)
+					if isBlankIdentifier(lx) {
+						continue // no static type; nothing to check
+					}
 					lt := evalStaticTypeOf(store, last, lx)
 					rt := evalStaticTypeOf(store, last, x.Rhs[i])
 					mustAssignableTo(x, rt, lt)

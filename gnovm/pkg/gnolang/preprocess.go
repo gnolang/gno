@@ -4715,8 +4715,10 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
-		// e.g. int(1) == int8(1)
-		mustAssignableTo(n, cx.T, t)
+		if t != nil {
+			// e.g. int(1) == int8(1)
+			mustAssignableTo(n, cx.T, t)
+		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		if debug {
@@ -4733,7 +4735,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
 			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
-		} else {
+		} else if t != nil {
 			mustAssignableTo(n, xt, t)
 		}
 		return
@@ -4780,7 +4782,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
-				mustAssignableTo(n, xt, t)
+				if t != nil {
+					mustAssignableTo(n, xt, t)
+				}
 
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
