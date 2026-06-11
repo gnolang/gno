@@ -662,7 +662,7 @@ func (opts *TestOptions) runTestFiles(
 				)
 			}
 			storageStr := fmtStorageDiffs(m.Store.RealmStorageDiffs())
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s%s\n",
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s, allocs=%s%s\n",
 				prettySize(m.Cycles),
 				allocsVal,
 				storageStr,
