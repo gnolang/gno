@@ -160,7 +160,7 @@ func TestStoreIterator_ValueErrorSurfaces(t *testing.T) {
 	if err := st2.LoadLatestVersion(); err != nil {
 		t.Fatal(err)
 	}
-	it := types.PrefixIterator(st2, []byte("sub/"))
+	it := types.PrefixIterator(nil, st2, []byte("sub/"))
 	rows := 0
 	for ; it.Error() == nil && it.Valid(); it.Next() {
 		_ = it.Key()

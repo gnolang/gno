@@ -145,6 +145,10 @@
 	--s-border: var(--g-space-px, 1px) solid var(--s-color-border-primary); /* Small border width */
 	--s-border-secondary: var(--g-space-px, 1px) solid
 		var(--s-color-border-secondary); /* Small border width */
+
+	/* Logo / gnome */
+	--s-logo-hat: var(--g-color-green-600, #226c57);
+	--s-logo-beard: var(--g-color-gray-300, #999999);
 }
 
 /* ===== DARK THEME ===== */

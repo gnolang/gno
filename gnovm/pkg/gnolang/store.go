@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"iter"
@@ -19,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/pmezard/go-difflib/difflib"
@@ -36,6 +38,9 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 // NativeResolver is a function which can retrieve native bodies of native functions.
 type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
+// StorageDiffs maps realm paths to their storage size difference (in bytes).
+type StorageDiffs = map[string]int64
+
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
@@ -48,6 +53,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -62,11 +68,13 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
+	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	GetPreprocessAllocator() *Allocator
+	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -78,9 +86,10 @@ type Store interface {
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
-	SetNativeResolver(NativeResolver)                     // for native functions
-	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
-	PopulateStdlibCache(paths []string)            // populate stdlib byte cache at node start
+	SetNativeResolver(NativeResolver)                              // for native functions
+	GetNative(pkgPath string, name Name) func(m *Machine)          // for native functions
+	PopulateStdlibCache(paths []string)                            // populate stdlib byte cache at node start
+	PopulateStdlibCacheFrom(paths []string, baseStore store.Store) // populate from a specific store
 	SetLogStoreOps(dst io.Writer)
 	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
@@ -99,13 +108,11 @@ type TransactionStore interface {
 
 // Gas consumption descriptors.
 const (
-	GasAminoDecodeDesc = "AminoDecodePerByte"
-	GasAminoEncodeDesc = "AminoEncodePerByte"
+	GasComputeMapKeyDesc = "ComputeMapKey"
+	GasAminoDecodeDesc   = "AminoDecodePerByte"
+	GasAminoEncodeDesc   = "AminoEncodePerByte"
 )
 
-// GasConfig defines gas cost for each operation on KVStores.
-// Per-byte costs cover serialization and are charged at each call site.
-// TODO: flat I/O costs (DB lookup, page fault, fsync) should be charged
 // GasConfig defines amino compute gas costs for GnoVM stores.
 // Storage I/O gas is handled separately by the cache.Store via GasContext.
 type GasConfig struct {
@@ -138,7 +145,28 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
-	alloc        *Allocator // for accounting for cached items
+	// cacheRealms is the per-tx *Realm pointer cache, parallel to
+	// cacheObjects. Single source of truth for in-memory *Realm
+	// pointers within a tx — populated by GetPackageRealm and
+	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
+	// Ensures pv.Realm and any other in-tx caller observe the same
+	// pointer (so in-memory Time/sumDiff mutations are visible
+	// everywhere).
+	cacheRealms map[PkgID]*Realm
+	alloc       *Allocator // for accounting for cached items
+
+	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
+	// installed by the keeper (AddPackage / Run) before RunMemPackage.
+	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
+	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
+	// nil → Allocate hard-panics on maxBytes overflow rather than
+	// attempting a GC retry (which would undercount because GC doesn't
+	// visit m.Values, the operand stack). gasMeter is shared with the
+	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// Inherited via BeginTransaction so nested forked stores see it.
+	// Cleared by the keeper's defer at handler exit; not serialized.
+	preprocessAlloc *Allocator
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -159,7 +187,7 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	realmStorageDiffs map[string]int64 // maps realm path to size diff
+	realmStorageDiffs StorageDiffs // maps realm path to size diff
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -184,12 +212,13 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
 		stdlibKeyBytes: make(map[string][]byte),
 
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -218,7 +247,14 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		cacheRealms:  make(map[PkgID]*Realm),
 		alloc:        ds.alloc.Fork().Reset(),
+
+		// Inherit the per-tx preprocess allocator so sub-Machines spun
+		// up via NewMachine(pkg, store) inside preprocess (which fork
+		// the store via BeginTransaction first) see the same hard-cap
+		// allocator the keeper installed.
+		preprocessAlloc: ds.preprocessAlloc,
 
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
@@ -237,7 +273,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 	}
 	InitStoreCaches(ds2)
 
@@ -282,6 +318,14 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetPreprocessAllocator() *Allocator {
+	return ds.preprocessAlloc
+}
+
+func (ds *defaultStore) SetPreprocessAllocator(alloc *Allocator) {
+	ds.preprocessAlloc = alloc
 }
 
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
@@ -366,7 +410,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	ds.cacheObjects[oid] = pv
 }
 
-// Some atomic operation.
+// Some atomic operation. Consults cacheRealms before reading from
+// baseStore; populates the cache on read so that subsequent in-tx
+// callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -374,6 +420,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
+	if cached, ok := ds.cacheRealms[oid.PkgID]; ok {
+		return cached
+	}
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get(ds.gctx, []byte(key))
 	if bz == nil {
@@ -381,18 +430,40 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoDecodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("DECODE_REALM", gas, []byte(key), len(bz), "none")
+	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if debugAssert {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
 		}
 	}
+	ds.cacheRealms[oid.PkgID] = rlm
 	return rlm
 }
 
+// GetRealmByID looks up a Realm via the per-tx cache, falling back
+// to a path-resolution + baseStore load on miss. Single source of
+// truth for in-memory *Realm pointers within a tx. Used by
+// PushFrameCall borrow rule #2 and by cross-realm finalize
+// (touchForeignRealm).
+func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
+	if rlm, ok := ds.cacheRealms[pid]; ok {
+		return rlm
+	}
+	path := pkgPathFromPkgID(ds, pid)
+	if path == "" {
+		return nil
+	}
+	return ds.GetPackageRealm(path)
+}
+
 // An atomic operation to set the package realm info (id counter etc).
+// Refreshes the cacheRealms entry so subsequent in-tx reads see the
+// updated *Realm pointer.
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -404,7 +475,11 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	bz := amino.MustMarshal(rlm)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
+	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
+	ds.cacheRealms[rlm.ID] = rlm
 	size = len(bz)
 }
 
@@ -455,26 +530,43 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		size = len(hashbz)
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
+		fromCache := oid.PkgID.IsStdlibPkg() && ds.stdlibKeyBytes[key] != nil
 		var oo Object
 		gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasAminoDecodeDesc)
+		if trace.StoreGasEnabled {
+			trace.Store("DECODE_OBJ", gas, []byte(key), len(hashbz),
+				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
+		}
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		// See copyValueWithRefs — child Objects become RefValue slots
+		// in the serialized amino bytes, and internalRefSize accounts
+		// for those slots.
+		ss := oo.GetShallowSize()
+		rs := internalRefSize(oo)
+		// Allocate atomically: one Allocate call prevents GC from
+		// intercepting between shallow-size and RefValue-size accounting.
+		ds.alloc.Allocate(ss + rs)
 
-		if debug {
+		if debugAssert {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		if debugAssert {
+			// Verify stored hash matches actual content hash.
+			if computed := HashBytes(bz); computed != NewHashlet(hash) {
+				panic(fmt.Sprintf(
+					"stored hash mismatch for %s: stored %X, computed %X",
+					oid, hash, computed.Bytes()))
+			}
+		}
 
 		if pv, ok := oo.(*PackageValue); ok {
 			ds.SetStagingPackage(pv)
@@ -491,106 +583,25 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
+	}
+	// Re-derive denormalized PkgID cache (pv.PkgID is marked
+	// json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
-}
-
-func AllocExpanded(alloc *Allocator, val Value) {
-	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-		// do nothing
-	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -608,6 +619,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_OBJ", gas, []byte(backendObjectKey(oid)), len(bz), "none")
+	}
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	if len(hash) != HashSize {
@@ -664,8 +678,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	// save object to cache.
 	if debug {
-		if oid.IsZero() {
-			panic("object id cannot be zero")
+		if !oid.IsFinalized() {
+			panic("object id must be finalized at SetObject")
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
@@ -682,13 +696,21 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		key = []byte(oid.String())
 		value = hash.Bytes()
 		ds.iavlStore.Set(ds.gctx, key, value)
+		if trace.StoreGasEnabled {
+			trace.Store("IAVL_SET_ESCAPED", 0, key, len(value), "none")
+		}
 	}
 	return diff
 }
 
 func (ds *defaultStore) loadForLog(oid ObjectID) Object {
+	// Pass nil gctx: this read exists only to render the opslog diff,
+	// which is a test-only observability feature (filetest harness).
+	// Charging gas here would make tx gas depend on whether opslog is
+	// enabled, breaking determinism if the feature is ever wired into
+	// production diagnostics.
 	key := backendObjectKey(oid)
-	hashbz := ds.baseStore.Get(ds.gctx, []byte(key))
+	hashbz := ds.baseStore.Get(nil, []byte(key))
 	if hashbz == nil {
 		return nil
 	}
@@ -708,12 +730,25 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	// No amino compute gas — delete doesn't marshal/unmarshal.
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
-	// delete from cache.
+	// delete from cache. Lock-step evict cacheRealms when the object
+	// being deleted is a PackageValue: keeps the
+	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
+	if _, isPV := oo.(*PackageValue); isPV {
+		delete(ds.cacheRealms, oid.PkgID)
+	}
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
 		ds.baseStore.Delete(ds.gctx, []byte(key))
+	}
+	// delete escaped hash from iavl.
+	if oo.GetIsEscaped() && ds.iavlStore != nil {
+		key := []byte(oid.String())
+		ds.iavlStore.Delete(ds.gctx, key)
+		if trace.StoreGasEnabled {
+			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
+		}
 	}
 	// delete escaped hash from iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
@@ -747,10 +782,16 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		bz := ds.baseStore.Get(ds.gctx, []byte(key))
+		bz := ds.stdlibKeyBytes[key] // from byte cache — no I/O gas
+		if bz == nil {
+			bz = ds.baseStore.Get(ds.gctx, []byte(key)) // from store — charges I/O gas
+		}
 		if bz != nil {
 			gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasAminoDecodeDesc)
+			if trace.StoreGasEnabled {
+				trace.Store("DECODE_TYPE", gas, []byte(key), len(bz), "none")
+			}
 			cacheSum := sha256.Sum256(bz)
 			var tt Type
 			if val, ok := ds.aminoCache.Get(cacheSum[:]); ok {
@@ -760,7 +801,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				// len(bz) is not the proper cost of tt, but is good enough
 				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
-			if debug {
+			if debugAssert {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -795,13 +836,12 @@ func (ds *defaultStore) SetType(tt Type) {
 		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	tid := tt.TypeID()
-	// return if tid already known.
-	if tt2, exists := ds.cacheTypes[tid]; exists {
-		if tt != tt2 {
-			// this can happen for a variety of reasons.
-			// TODO classify them and optimize.
-			return
-		}
+	// Idempotent: if this TypeID is already known in-cache, do nothing.
+	// The cache is populated either by a previous SetType (which also
+	// persisted to backend) or by loading from backend on GetType — either
+	// way the backend already has the canonical entry.
+	if _, exists := ds.cacheTypes[tid]; exists {
+		return
 	}
 	// save type to backend.
 	if ds.baseStore != nil {
@@ -812,6 +852,9 @@ func (ds *defaultStore) SetType(tt Type) {
 		ds.aminoCache.Set(cacheSum[:], tcopy, int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasAminoEncodeDesc)
+		if trace.StoreGasEnabled {
+			trace.Store("ENCODE_TYPE", gas, []byte(key), len(bz), "none")
+		}
 		ds.baseStore.Set(ds.gctx, []byte(key), bz)
 		size = len(bz)
 	}
@@ -850,7 +893,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if debugAssert {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))
@@ -943,7 +986,13 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	ds.consumeGas(gas, GasAminoEncodeDesc)
 	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
+	if trace.StoreGasEnabled {
+		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
+	}
 	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+	if trace.StoreGasEnabled {
+		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
+	}
 	size = len(bz)
 }
 
@@ -961,6 +1010,9 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	}
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(ds.gctx, pathkey)
+	if trace.StoreGasEnabled {
+		trace.Store("IAVL_GET_MEMPKG", 0, pathkey, len(bz), "none")
+	}
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
@@ -976,6 +1028,9 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	}
 	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoDecodeDesc)
+	if trace.StoreGasEnabled {
+		trace.Store("DECODE_MEMPKG", gas, pathkey, len(bz), "none")
+	}
 
 	var mpkg *std.MemPackage
 	amino.MustUnmarshal(bz, &mpkg)
@@ -1061,14 +1116,24 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 // Each stdlib package's objects are found via a prefix iterator on
 // "oid:<pkgid_hex>:".
 func (ds *defaultStore) PopulateStdlibCache(paths []string) {
+	ds.populateStdlibCache(paths, ds.baseStore)
+}
+
+func (ds *defaultStore) PopulateStdlibCacheFrom(paths []string, baseStore store.Store) {
+	ds.populateStdlibCache(paths, baseStore)
+}
+
+func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Store) {
 	for _, path := range paths {
+		// Cache object bytes (oid:<pkgid_hex>:*).
 		pid := PkgIDFromPkgPath(path)
-		prefix := "oid:" + pid.String() + ":"
+		prefix := "oid:" + hex.EncodeToString(pid.Hashlet[:]) + ":"
 		start := []byte(prefix)
-		// End key: increment last byte of prefix for exclusive upper bound.
 		endPrefix := prefix[:len(prefix)-1] + string(rune(prefix[len(prefix)-1]+1))
 		end := []byte(endPrefix)
-		iter := ds.baseStore.Iterator(nil, start, end)
+		// nil gctx: stdlib-cache population runs at node startup only,
+		// never under a tx or query meter — must remain gas-free.
+		iter := baseStore.Iterator(nil, start, end)
 		for ; iter.Valid(); iter.Next() {
 			key := string(iter.Key())
 			val := iter.Value()
@@ -1077,11 +1142,28 @@ func (ds *defaultStore) PopulateStdlibCache(paths []string) {
 			ds.stdlibKeyBytes[key] = bz
 		}
 		iter.Close()
+
+		// Cache type bytes (tid:<path>.*).
+		// Type keys use the full package path (e.g., "tid:strings.Builder").
+		// Range: [tid:<path>. , tid:<path>/) captures all package-level types.
+		tprefix := "tid:" + path + "."
+		tstart := []byte(tprefix)
+		tend := []byte("tid:" + path + "/")
+		// nil gctx: see comment above.
+		titer := baseStore.Iterator(nil, tstart, tend)
+		for ; titer.Valid(); titer.Next() {
+			key := string(titer.Key())
+			val := titer.Value()
+			bz := make([]byte, len(val))
+			copy(bz, val)
+			ds.stdlibKeyBytes[key] = bz
+		}
+		titer.Close()
 	}
 }
 
 // It resturns storage changes per realm within message
-func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
+func (ds *defaultStore) RealmStorageDiffs() StorageDiffs {
 	return ds.realmStorageDiffs
 }
 
@@ -1091,7 +1173,9 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.realmStorageDiffs = make(map[string]int64)
+	// Lock-step reset cacheRealms.
+	ds.cacheRealms = make(map[PkgID]*Realm)
+	ds.realmStorageDiffs = make(StorageDiffs)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
@@ -1104,6 +1188,16 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
+			// Lock-step evict cacheRealms when a PackageValue is
+			// evicted. Falls back to PkgID derivation from PkgPath
+			// if the PV's PkgID hasn't been stamped yet.
+			if pv, isPV := obj.(*PackageValue); isPV {
+				pid := objId.PkgID
+				if pid.IsZero() {
+					pid = PkgIDFromPkgPath(pv.PkgPath)
+				}
+				delete(ds.cacheRealms, pid)
+			}
 		}
 	}
 }

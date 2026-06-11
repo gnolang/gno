@@ -75,7 +75,7 @@ Resolvers can be chained, and gnodev will attempt to use them in the order they
 are declared.
 
 For example:
-    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.lands
+    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.land
 
 If no resolvers can resolve a given package path, the loader will return a
 "package not found" error.
@@ -127,11 +127,14 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
+  -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=false 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 
@@ -172,11 +175,14 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
+  -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=true 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 

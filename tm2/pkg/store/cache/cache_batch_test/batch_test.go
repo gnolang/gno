@@ -123,35 +123,25 @@ func (s nonBatchStore) Get(gctx *store.GasContext, key []byte) []byte {
 	v, _ := s.db.Get(key)
 	return v
 }
-
 func (s nonBatchStore) Has(gctx *store.GasContext, key []byte) bool {
 	v, _ := s.db.Has(key)
 	return v
 }
-
 func (s nonBatchStore) Set(gctx *store.GasContext, key, value []byte) { s.db.Set(key, value) }
-
-func (s nonBatchStore) Delete(gctx *store.GasContext, key []byte) { s.db.Delete(key) }
-
+func (s nonBatchStore) Delete(gctx *store.GasContext, key []byte)     { s.db.Delete(key) }
 func (s nonBatchStore) Iterator(gctx *store.GasContext, start, end []byte) store.Iterator {
 	it, _ := s.db.Iterator(start, end)
 	return it
 }
-
 func (s nonBatchStore) ReverseIterator(gctx *store.GasContext, start, end []byte) store.Iterator {
 	it, _ := s.db.ReverseIterator(start, end)
 	return it
 }
-
-func (s nonBatchStore) CacheWrap() store.Store { return cache.New(s) }
-
-func (s nonBatchStore) Write() { panic("unexpected") }
-
-func (s nonBatchStore) Flush() {}
-
+func (s nonBatchStore) CacheWrap() store.Store               { return cache.New(s) }
+func (s nonBatchStore) Write()                               { panic("unexpected") }
+func (s nonBatchStore) Flush()                               {}
 func (s nonBatchStore) SetStoreOptions(_ store.StoreOptions) {}
-
-func (s nonBatchStore) GetStoreOptions() store.StoreOptions { return store.StoreOptions{} }
+func (s nonBatchStore) GetStoreOptions() store.StoreOptions  { return store.StoreOptions{} }
 
 func TestCacheFallbackWritePebbleDB(t *testing.T) {
 	t.Parallel()

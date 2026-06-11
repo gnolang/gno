@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_11_filetest
+
+package z_create_reply_11_filetest
 
 import (
 	"testing"
@@ -8,25 +10,25 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var (
 	bid boards.ID
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	tid = boards2.CreateThread(cross, bid, "foo", "bar")
-	boards2.FreezeThread(cross, bid, tid)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "foo", "bar")
+	boards2.FreezeThread(cross(cur), bid, tid)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// cannot reply to a frozen thread
-	boards2.CreateReply(cross, bid, tid, 0, "foobar")
+	boards2.CreateReply(cross(cur), bid, tid, 0, "foobar")
 }
 
 // Error:

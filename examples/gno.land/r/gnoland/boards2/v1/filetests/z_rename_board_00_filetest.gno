@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_rename_board_00_filetest
+
+package z_rename_board_00_filetest
 
 import (
 	"testing"
@@ -9,25 +11,25 @@ import (
 )
 
 const (
-	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	name            = "foo123"
 	newName         = "bar123"
 )
 
 var bid boards.ID // Operate on board DAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, name, false, false)
+	bid = boards2.CreateBoard(cross(cur), name, false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.RenameBoard(cross, name, newName)
+	boards2.RenameBoard(cross(cur), name, newName)
 
 	// Ensure board is renamed by the default board owner
-	bid2, _ := boards2.GetBoardIDFromName(cross, newName)
+	bid2, _ := boards2.GetBoardIDFromName(cross(cur), newName)
 	println("IDs match =", bid == bid2)
 }
 

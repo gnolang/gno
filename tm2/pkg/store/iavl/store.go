@@ -39,21 +39,30 @@ var (
 	_ types.DepthEstimator = (*Store)(nil)
 )
 
-// ExpectedDepth returns floor(log2(size)) + 1 as a deterministic estimate
-// of IAVL tree traversal depth. Size is consensus state — constant within
-// a block.
-func (st *Store) ExpectedDepth() int64 {
-	size := st.tree.Size()
+// expectedDepth100 returns floor(log2(size)) + 1, scaled by 100 for
+// fixed-point depth estimation. Size is consensus state — constant
+// within a block.
+func expectedDepth100(size int64) int64 {
 	if size <= 1 {
-		return 1
+		return 100
 	}
-	return int64(bits.Len64(uint64(size)))
+	return int64(bits.Len64(uint64(size))) * 100
 }
+
+// For IAVL (no fast nodes), all three depths are the same — full tree depth.
+func (st *Store) ExpectedGetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedSetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedWriteDepth100() int64   { return expectedDepth100(st.tree.Size()) }
 
 // Store Implements types.Store and CommitStore.
 type Store struct {
 	tree Tree
 	opts types.StoreOptions
+	// initialVersion, when > 0, is the chain's first persisted version
+	// (set via SetInitialVersion from BaseApp.InitChain on hardfork chains).
+	// Used by Commit() to skip the prune branch for toRelease < initialVersion,
+	// avoiding a per-Commit no-op DeleteVersionsTo call. 0 for standard chains.
+	initialVersion int64
 }
 
 func UnsafeNewStore(tree *iavl.MutableTree, opts types.StoreOptions) *Store {
@@ -97,14 +106,19 @@ func (st *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	// Release an old version of history, if not a sync waypoint.
+	// Release an old version of history, if not a sync waypoint. Skip when
+	// toRelease is below the chain's initial version (set via
+	// SetInitialVersion). For standard chains, initialVersion=0 so the check
+	// is always-true and existing behavior is preserved byte-identically.
 	previous := version - 1
-	if st.opts.KeepRecent < previous {
+	if previous > st.opts.KeepRecent {
 		toRelease := previous - st.opts.KeepRecent
-		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
-			err := st.tree.DeleteVersionsTo(toRelease)
-			if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
-				panic(err)
+		if toRelease >= st.initialVersion {
+			if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
+				err := st.tree.DeleteVersionsTo(toRelease)
+				if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -121,6 +135,22 @@ func (st *Store) LastCommitID() types.CommitID {
 		Version: st.tree.Version(),
 		Hash:    st.tree.Hash(),
 	}
+}
+
+// SetInitialVersion sets the version that the next Commit() will produce
+// (via the underlying MutableTree) AND records initialVersion on the Store
+// for the prune-skip guard. Used at chain initialization (InitChain) to
+// align the multistore's commit version with the chain's InitialHeight when
+// starting a hardfork chain at height > 1. Has no effect on the iavl tree
+// once it has any saved versions; the initialVersion field is set
+// unconditionally for the prune guard. Implements types.InitialVersionSetter.
+func (st *Store) SetInitialVersion(v int64) {
+	mt, ok := st.tree.(*iavl.MutableTree)
+	if !ok {
+		panic("SetInitialVersion on immutable iavl store")
+	}
+	mt.SetInitialVersion(uint64(v))
+	st.initialVersion = v
 }
 
 // Implements Committer.
@@ -207,6 +237,9 @@ func (st *Store) Delete(gctx *types.GasContext, key []byte) {
 }
 
 // Implements types.Store.
+//
+// Iterator does not charge gas. Gas is charged by cache.Store, which
+// wraps this store on gas-metered production paths.
 func (st *Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 
@@ -221,6 +254,8 @@ func (st *Store) Iterator(gctx *types.GasContext, start, end []byte) types.Itera
 }
 
 // Implements types.Store.
+//
+// ReverseIterator does not charge gas. See Iterator.
 func (st *Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 

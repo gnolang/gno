@@ -1,8 +1,10 @@
 package gnolang
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
+	"math"
 	"path"
 	"reflect"
 	"runtime"
@@ -48,6 +50,10 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+	// BoundedPanicRender gates makeUnhandledPanicError to use the
+	// bounded printer (see bounded_strings.go). True on validator-
+	// side Machines; false for filetests, REPL, etc.
+	BoundedPanicRender bool
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -81,15 +87,23 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
+	// the bounded printer (see bounded_strings.go) so adversarial
+	// panic values (huge strings, deeply-nested composites, etc.)
+	// produce output capped at BoundedRenderBytes rather than
+	// allocating proportional to source size. Set true on every
+	// validator-side Machine; default false preserves the existing
+	// verbose render for filetests, REPL, and other trusted contexts.
+	BoundedPanicRender bool
 }
 
 const (
-	startingOpsCap     = 1024
-	startingValuesCap  = 512
-	startingExprsCap   = 128
-	startingStmtsCap   = 128
-	startingBlocksCap  = 64
-	startingFramesCap  = 32
+	startingOpsCap    = 1024
+	startingValuesCap = 512
+	startingExprsCap  = 128
+	startingStmtsCap  = 128
+	startingBlocksCap = 64
+	startingFramesCap = 32
 )
 
 // the machine constructor gets spammed
@@ -122,8 +136,43 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		output = io.Discard
 	}
 	alloc := opts.Alloc
+	// isPreprocessing is true when this Machine inherits the per-tx
+	// preprocess allocator from the store (i.e., it's a sub-Machine
+	// spun up by Preprocess via NewMachine(pkg, store)). When true, the
+	// post-claim SetGCFn / SetGasMeter setup below is skipped: the
+	// preprocess allocator is pre-configured by the keeper with
+	// gasMeter set and collect=nil (hard-cap, no GC retry).
+	isPreprocessing := false
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
+		// Sub-Machines via NewMachine(pkg, store) pass no Alloc opt.
+		// Pick up the per-tx preprocess allocator from the store if
+		// installed by the keeper (AddPackage / Run handlers).
+		if opts.Store != nil {
+			if pa := opts.Store.GetPreprocessAllocator(); pa != nil {
+				alloc = pa
+				isPreprocessing = true
+				// Inherit the preprocess allocator's gas meter as the
+				// sub-Machine's gas meter so CPU gas (m.incrCPU) and
+				// alloc gas (alloc.Allocate's gasMeter charge) both
+				// bill against the same tx gas budget.
+				if vmGasMeter == nil {
+					vmGasMeter = pa.GetGasMeter()
+				}
+			}
+		}
+		if alloc == nil {
+			if opts.MaxAllocBytes > 0 {
+				alloc = NewAllocator(opts.MaxAllocBytes)
+			} else {
+				// No budget specified: still need a real allocator so
+				// PkgID stamping works. Use MaxInt64 as the "no budget
+				// enforcement" sentinel.
+				alloc = NewAllocator(math.MaxInt64)
+			}
+		}
+	}
+	if alloc == nil {
+		panic("NewMachineWithOptions: alloc must be non-nil")
 	}
 	store := opts.Store
 	if store == nil {
@@ -135,7 +184,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil {
+	if !isPreprocessing {
+		// Skip GC fn and gas-meter installation when the alloc is the
+		// per-tx preprocess allocator inherited from the store: it's
+		// pre-configured with gasMeter set and collect=nil intentionally
+		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
@@ -147,6 +200,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -223,9 +277,42 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
 	m.Package = pv
-	m.Realm = pv.GetRealm()
+	m.setRealm(pv.GetRealm())
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
+	}
+}
+
+// setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
+// them in lock-step. Every m.Realm assignment must route through
+// this helper so the allocator's currentRealmID stays accurate.
+// Used by allocator constructors to stamp PkgID onto newly-allocated
+// objects.
+//
+// Accepts nil — clears currentRealmID to PkgID{} which matches
+// "no realm context."
+func (m *Machine) setRealm(r *Realm) {
+	m.Realm = r
+	if r != nil {
+		m.Alloc.currentRealmID = r.ID
+		m.Alloc.currentRealmPath = r.Path
+	} else {
+		m.Alloc.currentRealmID = PkgID{}
+		m.Alloc.currentRealmPath = ""
+	}
+}
+
+// assertBorrowedRealm panics (debug builds only) when a borrow rule is about
+// to set m.Realm to nil for a package that MUST carry a realm — /r/, /p/, or
+// stdlib (IsRealmPath || isImmutableLibraryPath). That would silently put the
+// machine in "single-user mode" (IsReadonly/isExternalRealm short-circuit on
+// nil m.Realm) and reopen the nil-realm cross-realm write hole. _test overlays
+// and uverse legitimately have no realm and are excluded (neither predicate
+// matches them).
+func assertBorrowedRealm(pkgPath string, r *Realm) {
+	if debugAssert && r == nil &&
+		(IsRealmPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
+		panic("borrow rule set m.Realm=nil for realm-bearing package: " + pkgPath)
 	}
 }
 
@@ -344,7 +431,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 	}
 	// run init functions
@@ -355,7 +442,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store mempackage; we already validated type.
 		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 
@@ -452,6 +539,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 				CallExpr: fr.Source.(*CallExpr),
 				IsDefer:  fr.IsDefer,
 				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
+				FuncName: stacktraceFuncName(fr),
 			})
 		}
 	}
@@ -475,9 +563,17 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 			return
 		}
 
+		if len(m.Stmts) == 0 {
+			// Finalize-time panics (e.g., persistence checks in saveObject)
+			// run with an empty stmt stack — there's no current statement
+			// to attribute a line to. Leave LastLine zero.
+			return
+		}
 		ls := m.PeekStmt(1)
 		if bs, ok := ls.(*bodyStmt); ok {
-			stacktrace.LastLine = bs.LastStmt().GetLine()
+			if last := bs.LastStmt(); last != nil {
+				stacktrace.LastLine = last.GetLine()
+			}
 			return
 		}
 	}
@@ -505,9 +601,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		for _, update := range updates {
 			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv)
+				rlm.DidUpdate(m, pb, nil, hiv)
 			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+				rlm.DidUpdate(m, pb, nil, update.GetFirstObject(m.Store))
 			}
 		}
 	}
@@ -521,18 +617,14 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package. It is also used to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
-//   - fixFrom: the version of gno to fix from.
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
-	if fixFrom != "" {
-		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
-	}
-	pv := pn.NewPackage(nilAllocator)
+	pv := pn.NewPackage(m.Alloc)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -551,21 +643,38 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(nilAllocator, pv)
+	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 		m.resavePackageValues(throwaway)
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 	return pn, pv
+}
+
+// initHeap is a min-heap of pending-declaration indices, used by runFileDecls
+// to always pick the earliest-in-declaration-order ready entry.
+type initHeap []int
+
+func (h initHeap) Len() int           { return len(h) }
+func (h initHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h initHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *initHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+func (h *initHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[:n-1]
+	return x
 }
 
 // Add files to the package's *FileSet and run decls in them.
@@ -638,71 +747,86 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
 
-	// to detect loops in var declarations.
-	loopfindr := []Name{}
-	// recursive function for var declarations.
-	var runDeclarationFor func(fn *FileNode, decl Decl)
-	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.FileName)
-		// get dependencies of decl.
-		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
-		for dep := range deps {
-			// if dep already defined as import, skip.
-			if _, ok := fn.GetLocalIndex(dep); ok {
+	// To initialize package variables, Go's spec says the following:
+	//    Within a package, package-level variable initialization proceeds
+	//    stepwise, with each step selecting the variable earliest in declaration
+	//    order which has no dependencies on uninitialized variables.
+	//
+	// Implementation: Kahn's topological sort with declaration-order tiebreaking
+	// via a min-heap keyed on declaration index.
+	//
+	// Phase 1: Collect all non-FuncDecl declarations in source order and compute
+	// effective deps (collapsing FuncDecl edges) once for all declarations.
+	// Phase 2: Build reverse-dep index and unsatisfied counts, then use a
+	// min-heap to always pick the earliest-in-declaration-order ready entry.
+
+	// Build ordered pending list from all non-FuncDecl decls, preserving source
+	// declaration order. declFiles tracks which FileNode each decl belongs to.
+	var pending []Decl
+	var declFiles []*FileNode
+	for _, fn := range fns {
+		for _, decl := range fn.Decls {
+			if _, ok := decl.(*FuncDecl); ok {
 				continue
 			}
-			// if dep already in fdeclared, skip.
-			if _, ok := fdeclared[dep]; ok {
-				continue
-			}
-			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
-			// special case: if doesn't exist:
-			if !exists {
-				if isUverseName(dep) { // then is reserved keyword in uverse.
-					continue
-				} else { // is an undefined dependency.
-					panic(fmt.Sprintf(
-						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
-				}
-			}
-			// if dep already in loopfindr, abort.
-			if slices.Contains(loopfindr, dep) {
-				if _, ok := (*depdecl).(*FuncDecl); ok {
-					// recursive function dependencies
-					// are OK with func decls.
-					continue
-				} else {
-					panic(fmt.Sprintf(
-						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
-				}
-			}
-			// run dependency declaration
-			loopfindr = append(loopfindr, dep)
-			runDeclarationFor(fn, *depdecl)
-			loopfindr = loopfindr[:len(loopfindr)-1]
+			pending = append(pending, decl)
+			declFiles = append(declFiles, fn)
 		}
-		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.FileName)
+	}
+
+	// Compute effective deps for all decls at once (memoized DFS, O(V+E)).
+	effectiveDeps := resolveEffectiveDeps(pending, pn, fdeclared)
+
+	// Build reverse deps and unsatisfied counts. reverseDeps maps a ValueDecl
+	// to the indices of pending entries that depend on it.
+	unsatisfied := make([]int, len(pending))
+	reverseDeps := map[*ValueDecl][]int{}
+	for i, decl := range pending {
+		deps := effectiveDeps[decl]
+		unsatisfied[i] = len(deps)
+		for _, dep := range deps {
+			reverseDeps[dep] = append(reverseDeps[dep], i)
+		}
+	}
+
+	// Seed heap with zero-dep entries.
+	ready := &initHeap{}
+	for i := range pending {
+		if unsatisfied[i] == 0 {
+			heap.Push(ready, i)
+		}
+	}
+
+	// Kahn's loop: always pop the earliest-in-declaration-order ready entry.
+	for ready.Len() > 0 {
+		idx := heap.Pop(ready).(int)
+		decl := pending[idx]
+		fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
+		// Notify dependents; enqueue newly-ready ones.
+		if vd, ok := decl.(*ValueDecl); ok {
+			for _, depIdx := range reverseDeps[vd] {
+				unsatisfied[depIdx]--
+				if unsatisfied[depIdx] == 0 {
+					heap.Push(ready, depIdx)
+				}
+			}
+		}
 	}
 
-	// Declarations (and variable initializations).  This must happen
-	// after all files are preprocessed, because value decl may be out of
-	// order and depend on other files.
-
-	// Run declarations.
-	for _, fn := range fns {
-		for _, decl := range fn.Decls {
-			runDeclarationFor(fn, decl)
+	// Sanity check: all entries must have been processed. If any remain,
+	// it means resolveEffectiveDeps missed a cycle or the reverse-dep
+	// notification has a gap.
+	for i, decl := range pending {
+		if unsatisfied[i] > 0 {
+			panic(fmt.Sprintf(
+				"incomplete initialization: %v still has %d unsatisfied deps",
+				decl.GetDeclNames(), unsatisfied[i]))
 		}
 	}
 
@@ -755,11 +879,15 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types.
+	// save declared types — only those that belong to this package.
+	// Aliases to uverse types or to types from other packages have a
+	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
+	// be redundant (cross-pkg: the owning pkg already SetType'd them;
+	// uverse: lives in the in-memory VM registry, not in chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
 					m.Store.SetType(dt)
 				}
 			}
@@ -816,6 +944,51 @@ func (m *Machine) RunMain() {
 // either main() or main(cur crossing).
 func (m *Machine) RunMainMaybeCrossing() {
 	m.runFunc(StageRun, "main", true)
+}
+
+// MaybeInjectCurForEval prepends `.cur` as the first argument to xx when
+// xx is a CallExpr whose target is a crossing function declared in the
+// current package. This mirrors the init/main optional-cur pattern
+// (runFunc(maybeCrossing=true) above): callers of QueryEval get
+// crossing-aware dispatch for free, so realms can opt into
+// `Render(cur realm, path string) string` (or any crossing getter)
+// without breaking the qeval contract.
+//
+// The injected `.cur` is the preprocessor-special name that resolves
+// (preprocess.go) to NewConcreteRealm(nil, ctxpn.PkgPath, gOriginRealmTV)
+// — i.e., the realm's own authority with origin as previous, treated as
+// "frame -1 already crossed" exactly like init/main.
+//
+// No-op when:
+//   - xx isn't a CallExpr
+//   - the callee isn't a simple NameExpr in this package (selectors,
+//     chained calls, closures, method expressions all fall through)
+//   - the resolved function isn't a crossing function
+//   - the name is unknown (typo'd — let normal eval surface the error)
+//
+// The user MUST omit the cur argument in the query expression. The chain
+// owns the cur for the query path; a user-supplied first arg would land
+// in arg position 2 and fail with an arity/type error at preprocess.
+func (m *Machine) MaybeInjectCurForEval(xx Expr) {
+	ce, ok := xx.(*CallExpr)
+	if !ok {
+		return
+	}
+	nx, ok := ce.Func.(*NameExpr)
+	if !ok {
+		return
+	}
+	pv := m.Package
+	pb := pv.GetBlock(m.Store)
+	pn := pb.GetSource(m.Store).(*PackageNode)
+	if _, ok := pn.GetLocalIndex(nx.Name); !ok {
+		return
+	}
+	ft, ok := pn.GetStaticTypeOf(m.Store, nx.Name).(*FuncType)
+	if !ok || !ft.IsCrossing() {
+		return
+	}
+	ce.Args = append([]Expr{Nx(".cur")}, ce.Args...)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -1154,12 +1327,14 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 }
 
 // incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
-// gas = (bits/32)^2 * slope / 32.
+// gas = (bits/32)^2 * slope / 32. Uses overflow.Mulp so a future
+// maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
+// int64) can't silently wrap into a negative charge.
 func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen()) / 32
 		rb := int64(rv.GetBigInt().BitLen()) / 32
-		m.incrCPU(lb * rb * slope / 32)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 32)
 	}
 }
 
@@ -1173,12 +1348,13 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 }
 
 // incrCPUBigDecQuad charges quadratic CPU gas for BigDec Mul/Quo.
-// gas = (digits/10)^2 * slope / 10.
+// gas = (digits/10)^2 * slope / 10. overflow.Mulp keeps the compute
+// safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits() / 10
 		rb := rv.GetBigDec().NumDigits() / 10
-		m.incrCPU(lb * rb * slope / 10)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
 
@@ -1225,12 +1401,12 @@ const (
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
 	OpCPUDefer               = 71
-	OpCPUCallDeferNativeBody = 172  // XXX arbitrary, not properly benchmarked
-	OpCPUGo                  = 1    // XXX not yet implemented
-	OpCPUSelect              = 1    // XXX not yet implemented
+	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
+	OpCPUGo                  = 1   // XXX not yet implemented
+	OpCPUSelect              = 1   // XXX not yet implemented
 	OpCPUSwitchClause        = 87
-	OpCPUSwitchClauseCase    = 109  // max(match=109, miss=106)
-	OpCPUTypeSwitch          = 280  // parameterized; base from fit (280.5); per-clause added in handler
+	OpCPUSwitchClauseCase    = 109 // max(match=109, miss=106)
+	OpCPUTypeSwitch          = 280 // parameterized; base from fit (280.5); per-clause added in handler
 	OpCPUIfCond              = 87  // max(true=86, false=87)
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
@@ -1244,19 +1420,19 @@ const (
 	OpCPUReturnToBlock       = 119
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 64
-	OpCPUUneg  = 69
-	OpCPUUnot  = 70
-	OpCPUUxor  = 69
-	OpCPUUrecv = 1  // XXX not yet implemented
-	OpCPULor   = 83
-	OpCPULand  = 86 // benchmark: true=69, false=66; 86 includes dispatch overhead not isolated by benchops
-	OpCPUEql   = 93 // max(int=85, float64=93); parameterized cases added in handler
-	OpCPUNeq   = 83
-	OpCPULss   = 73
-	OpCPULeq   = 72
-	OpCPUGtr   = 72
-	OpCPUGeq   = 72
+	OpCPUUpos      = 64
+	OpCPUUneg      = 69
+	OpCPUUnot      = 70
+	OpCPUUxor      = 69
+	OpCPUUrecv     = 1 // XXX not yet implemented
+	OpCPULor       = 83
+	OpCPULand      = 86 // benchmark: true=69, false=66; 86 includes dispatch overhead not isolated by benchops
+	OpCPUEql       = 93 // max(int=85, float64=93); parameterized cases added in handler
+	OpCPUNeq       = 83
+	OpCPULss       = 73
+	OpCPULeq       = 72
+	OpCPUGtr       = 72
+	OpCPUGeq       = 72
 	OpCPUAddInt    = 81  // int add (81.0 ns)
 	OpCPUAddFloat  = 148 // float64 add (148.0 ns)
 	OpCPUAddString = 186 // string concat (191.5 ns - 5 alloc)
@@ -1269,34 +1445,34 @@ const (
 	OpCPUQuoInt    = 138 // int quo (137.7 ns)
 	OpCPUQuoFloat  = 234 // float64 quo (234.1 ns)
 	OpCPURem       = 142
-	OpCPUShl   = 80
-	OpCPUShr   = 79
-	OpCPUBand  = 71
-	OpCPUBandn = 71
+	OpCPUShl       = 80
+	OpCPUShr       = 79
+	OpCPUBand      = 71
+	OpCPUBandn     = 71
 
 	/* Other expression operators */
-	OpCPUEval        = 82  // parameterized for NameExpr; base from fit (81.7)
-	OpCPUBinary1     = 69  // max(LAND true=69, LAND false=66)
-	OpCPUIndex1      = 106 // max(array=102, slice=106, map/string similar)
-	OpCPUIndex2      = 1014
+	OpCPUEval                = 82  // parameterized for NameExpr; base from fit (81.7)
+	OpCPUBinary1             = 69  // max(LAND true=69, LAND false=66)
+	OpCPUIndex1              = 106 // max(array=102, slice=106, map/string similar)
+	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
 	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
-	OpCPUSlice       = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
-	OpCPUStar        = 102
-	OpCPURef         = 210
-	OpCPUTypeAssert1 = 83  // concrete; interface case parameterized in handler
-	OpCPUTypeAssert2 = 96  // max(hit=85, miss=96)
+	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
+	OpCPUStar                = 102
+	OpCPURef                 = 210
+	OpCPUTypeAssert1         = 83 // concrete; interface case parameterized in handler
+	OpCPUTypeAssert2         = 96 // max(hit=85, miss=96)
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
-	OpCPUStaticTypeOf = 520 // XXX arbitrary
-	OpCPUCompositeLit = 76
-	OpCPUArrayLit     = 292  // base from fit; per-element added in handler
-	OpCPUSliceLit     = 342  // base from fit; per-element added in handler
-	OpCPUSliceLit2    = 966  // base from fit; per-alloc-size added in handler
-	OpCPUMapLit       = 536  // base; per-entry added in handler (fit base negative, clamped to ~536)
-	OpCPUStructLit    = 326  // base from fit; per-field added in handler (max of unnamed=307, named=326)
-	OpCPUFuncLit      = 269  // base from fit; per-capture added in handler
+	OpCPUStaticTypeOf    = 520 // XXX arbitrary
+	OpCPUCompositeLit    = 76
+	OpCPUArrayLit        = 292 // base from fit; per-element added in handler
+	OpCPUSliceLit        = 342 // base from fit; per-element added in handler
+	OpCPUSliceLit2       = 966 // base from fit; per-alloc-size added in handler
+	OpCPUMapLit          = 536 // base; per-entry added in handler (fit base negative, clamped to ~536)
+	OpCPUStructLit       = 326 // base from fit; per-field added in handler (max of unnamed=307, named=326)
+	OpCPUFuncLit         = 269 // base from fit; per-capture added in handler
 	OpCPUConvertNumeric  = 151 // int->int64 and similar (151.2 ns)
 	OpCPUConvertStrBytes = 363 // string->[]byte (381.7 ns - 19 alloc)
 
@@ -1304,15 +1480,15 @@ const (
 	OpCPUFieldType     = 164 // (164.4 ns)
 	OpCPUArrayType     = 153
 	OpCPUSliceType     = 152
-	OpCPUPointerType   = 1    // dead code (no dispatch case)
-	OpCPUInterfaceType = 382  // base from fit; per-method added in handler
+	OpCPUPointerType   = 1   // dead code (no dispatch case)
+	OpCPUInterfaceType = 382 // base from fit; per-method added in handler
 	OpCPUChanType      = 153
-	OpCPUFuncType      = 283  // base from fit (283.2); per-param+result added in handler
+	OpCPUFuncType      = 283 // base from fit (283.2); per-param+result added in handler
 	OpCPUMapType       = 150
-	OpCPUStructType    = 321  // base from fit; per-field added in handler
+	OpCPUStructType    = 321 // base from fit; per-field added in handler
 
 	/* Statement operators */
-	OpCPUAssign      = 89  // base from fit; per-LHS added in handler
+	OpCPUAssign      = 89 // base from fit; per-LHS added in handler
 	OpCPUAddAssign   = 97
 	OpCPUSubAssign   = 88
 	OpCPUMulAssign   = 86
@@ -1363,29 +1539,43 @@ const (
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
-	OpCPUSlopeEqlArray        = 141 // per element (fit: 141.2)
-	OpCPUSlopeEqlStruct       = 136 // per field (fit: 136.0)
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
 	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
 	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
+	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
+
+	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
+	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
+	// path. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
+	// 8168).
+	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
+	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
+	// copy path — unrefCopy and Assign2 general case. Under-charges the
+	// RefValue case where unrefCopy hits the store; that worst-case is
+	// paid via store gas when GetObject is called.
+	OpCPUSlopeCopyElement = 40 // per element
+	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
+	// gas = depth^2 * slope / 10.
+	OpCPUSlopeEnterCrossingQuad = 6
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
-	OpCPUSlopeBigIntAdd   = 46  // fit: 0.0449 ns/bit * 1024 = 46.0
-	OpCPUSlopeBigIntSub   = 68  // fit: 0.0664 ns/bit * 1024 = 68.0
-	OpCPUSlopeBigIntBand  = 58  // fit: 0.0562 ns/bit * 1024 = 57.6
-	OpCPUSlopeBigIntBor   = 59  // fit: 0.0581 ns/bit * 1024 = 59.5
-	OpCPUSlopeBigIntXor   = 69  // fit: 0.0671 ns/bit * 1024 = 68.7
-	OpCPUSlopeBigIntBandn = 68  // fit: 0.0669 ns/bit * 1024 = 68.5
-	OpCPUSlopeBigIntUneg  = 43  // fit: 0.0422 ns/bit * 1024 = 43.2
-	OpCPUSlopeBigIntUxor  = 46  // fit: 0.0446 ns/bit * 1024 = 45.6
-	OpCPUSlopeBigIntInc   = 62  // fit: 0.0604 ns/bit * 1024 = 61.9
-	OpCPUSlopeBigIntDec   = 62  // fit: 0.0606 ns/bit * 1024 = 62.1
-	OpCPUSlopeBigIntEql   = 10  // fit: 0.0097 ns/bit * 1024 = 9.9
-	OpCPUSlopeBigIntLss   = 9   // fit: 0.0089 ns/bit * 1024 = 9.1
+	OpCPUSlopeBigIntAdd   = 46 // fit: 0.0449 ns/bit * 1024 = 46.0
+	OpCPUSlopeBigIntSub   = 68 // fit: 0.0664 ns/bit * 1024 = 68.0
+	OpCPUSlopeBigIntBand  = 58 // fit: 0.0562 ns/bit * 1024 = 57.6
+	OpCPUSlopeBigIntBor   = 59 // fit: 0.0581 ns/bit * 1024 = 59.5
+	OpCPUSlopeBigIntXor   = 69 // fit: 0.0671 ns/bit * 1024 = 68.7
+	OpCPUSlopeBigIntBandn = 68 // fit: 0.0669 ns/bit * 1024 = 68.5
+	OpCPUSlopeBigIntUneg  = 43 // fit: 0.0422 ns/bit * 1024 = 43.2
+	OpCPUSlopeBigIntUxor  = 46 // fit: 0.0446 ns/bit * 1024 = 45.6
+	OpCPUSlopeBigIntInc   = 62 // fit: 0.0604 ns/bit * 1024 = 61.9
+	OpCPUSlopeBigIntDec   = 62 // fit: 0.0606 ns/bit * 1024 = 62.1
+	OpCPUSlopeBigIntEql   = 10 // fit: 0.0097 ns/bit * 1024 = 9.9
+	OpCPUSlopeBigIntLss   = 9  // fit: 0.0089 ns/bit * 1024 = 9.1
 	// Quadratic: gas = (bits/32) * (bits/32) * slope / 32.
 	// Fit includes both same-width and cross-width benchmarks.
 	// Cross-width ops (e.g. 4096÷64) are cheaper per Q-unit than same-width,
@@ -1411,6 +1601,26 @@ const (
 	OpCPUSlopeBigDecMulQ = 6 // per (digits/10)^2 / 10
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
+
+	// ComputeMapKey per-call constant: bookkeeping cost of one
+	// ComputeMapKey invocation (header bytes, type-ID append, switch
+	// dispatch). Recursive paths (array of element type, struct) charge
+	// this for every child call. Calibrated from BenchmarkComputeMapKey_*
+	// ns/op(pure) ~45-80 ns on Xeon-equivalent hardware.
+	OpCPUComputeMapKey = 80
+	// ComputeMapKey per-byte slope: charged on the total number of bytes
+	// appended to the per-call buffer, covering every O(N) work path
+	// uniformly — TypeID prefix, byte-array fast path (ArrayType with
+	// av.Data != nil), StringType primitive path, brackets/separators,
+	// uvarint length headers, and the parent loop's re-copy of each
+	// child's mk. Without this the cost of hashing a multi-MB key, or a
+	// type with a long TypeID, would be paid as a single OpCPUComputeMapKey
+	// (the DoS vector closed by GHSA-m7rp-96x5-hvpx).
+	// gas = bytes * slope / 10. Calibrated to the asymptotic per-byte memcpy
+	// throughput of ~0.36–0.40 ns/byte Xeon-equivalent (large-N regime
+	// from BenchmarkComputeMapKey_Bytes); the per-call constant absorbs
+	// the constant-overhead portion that dominates at small N.
+	OpCPUSlopeComputeMapKeyByte = 4 // per byte/10
 )
 
 //----------------------------------------
@@ -1424,18 +1634,30 @@ func (m *Machine) Run(st Stage) {
 	if bm.NativeEnabled {
 		defer bm.FinishNative()
 	}
-	defer func() {
-		r := recover()
 
-		if r != nil {
-			switch r := r.(type) {
-			case *Exception:
-				if r.Stacktrace.IsZero() {
-					r.Stacktrace = m.Stacktrace()
-				}
-				m.pushPanic(r.Value)
-				m.Run(st)
-			default:
+	// Iterative exception recovery: catch Go-level *Exception panics and
+	// convert them to the cooperative pushPanic path without recursion.
+	for {
+		caught := m.runOnce()
+		if caught == nil {
+			return
+		}
+		if caught.Stacktrace.IsZero() {
+			caught.Stacktrace = m.Stacktrace()
+		}
+		m.pushPanic(caught.Value)
+	}
+}
+
+// runOnce executes the op loop until it completes (OpHalt) or a Go-level
+// *Exception panic is caught. Returns the caught exception, or nil if the
+// loop completed normally. Non-Exception panics are re-raised.
+func (m *Machine) runOnce() (caught *Exception) {
+	defer func() {
+		if r := recover(); r != nil {
+			if ex, ok := r.(*Exception); ok {
+				caught = ex
+			} else {
 				panic(r)
 			}
 		}
@@ -1473,7 +1695,9 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
-			m.incrCPU(OpCPUCallNativeBody)
+			// Per-native gas is charged inside doOpCallNativeBody via
+			// chargeNativeGas (uses the calibrated table or, for natives
+			// not in the table, falls back to OpCPUCallNativeBody flat).
 			m.doOpCallNativeBody()
 		case OpReturn:
 			m.incrCPU(OpCPUReturn)
@@ -1496,14 +1720,12 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
-			m.incrCPU(OpCPUCallDeferNativeBody)
+			// Per-native gas charged inside doOpCallDeferNativeBody.
 			m.doOpCallDeferNativeBody()
 		case OpGo:
-			m.incrCPU(OpCPUGo)
-			panic("not yet implemented")
+			panic("goroutines are not yet supported")
 		case OpSelect:
-			m.incrCPU(OpCPUSelect)
-			panic("not yet implemented")
+			panic("select is not yet supported")
 		case OpSwitchClause:
 			m.incrCPU(OpCPUSwitchClause)
 			m.doOpSwitchClause()
@@ -1542,8 +1764,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
-			m.incrCPU(OpCPUUrecv)
-			m.doOpUrecv()
+			panic("channel type is not yet supported")
 		/* Binary operators */
 		case OpLor:
 			m.incrCPU(OpCPULor)
@@ -1665,8 +1886,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
-			m.incrCPU(OpCPUChanType)
-			m.doOpChanType()
+			panic("channel type is not yet supported")
 		case OpFuncType:
 			m.incrCPU(OpCPUFuncType)
 			m.doOpFuncType()
@@ -2085,7 +2305,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.Realm = pv.GetRealm()
+		r := pv.GetRealm()
+		assertBorrowedRealm(pv.PkgPath, r)
+		m.setRealm(r)
 		return
 	}
 
@@ -2114,42 +2336,85 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
-	if recv.IsDefined() { // method call
+	// Not cross nor crossing. Three borrow rules apply (the first
+	// applicable one fires):
+	//
+	//   #1. /r/-declared function/method/closure → borrow to the
+	//       callable's declaring realm (any receiver shape, or top-level
+	//       function). /r/attacker code runs with /r/attacker's
+	//       authority, not victim's.
+	//
+	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
+	//       foreign-stamped object, borrow to the receiver's constructing
+	//       realm (which is the same as its storage realm).
+	//
+	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
+	//       package, borrow to the realm context that was active when
+	//       the closure was constructed (and will be stored).
+	//
+	// Stdlib-stamped receivers are EXCLUDED from borrow rule #2: stdlib is
+	// a trusted, frozen transform library that owns no mutable state, so
+	// its methods run with the CALLER's authority (m.Realm unchanged), not
+	// stdlib's. This lets a stdlib method write a caller-supplied out-param
+	// buffer (e.g. base64.Encode(dst, src) where dst is caller-owned), while
+	// still blocking writes to a third realm's data (foreign != caller). It
+	// also keeps the nil-realm write hole closed: a tx's entry realm is
+	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
+	// by the readonly gate against the caller's realm.
+	if IsRealmPath(pv.PkgPath) {
+		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
+			r := pv.GetRealm()
+			assertBorrowedRealm(pv.PkgPath, r)
+			m.setRealm(r)
+		}
+		return
+	}
+	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			// no switch
-			return
-		} else {
+		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
-				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
+			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
-				return
+				r := objpv.GetRealm()
+				assertBorrowedRealm(objpv.PkgPath, r)
+				m.setRealm(r)
 			}
 		}
-	} else { // top level function
-		// no switch
-		return
+	}
+	// borrow rule #3: closure capture-realm borrow.
+	//
+	// fv.GetObjectInfo().ID.PkgID is the realm whose currentRealmID
+	// was active at doOpFuncLit (closure construction) time. For
+	// closures persisted into /r/A's state (e.g. /p/X.MakeCounter()
+	// called from /r/A.init), this is /r/A — not /p/X. So borrowing
+	// to it routes correctly even when fv.PkgPath is a /p/.
+	//
+	// IsClosure gates this: top-level FuncDecls also carry a stamped
+	// PkgID (= the declaring package), but they don't represent a
+	// closed-over capability — borrow rule #1 already handles the /r/-declared
+	// case, and /p/-declared FuncDecls shouldn't shift the realm.
+	//
+	// Stdlib-stamped closures are skipped, mirroring borrow rule #2's
+	// stdlib-receiver skip: stdlib owns no mutable state and runs with the
+	// caller's authority, so a stdlib-init-constructed closure keeps m.Realm
+	// at the caller's realm rather than borrowing to the (frozen) stdlib
+	// realm. The zero-PkgID check skips closures constructed with no realm
+	// context (uverse). The equality short-circuit avoids a redundant
+	// setRealm when we're already in the closure's home.
+	if fv.IsClosure {
+		pid := fv.GetObjectInfo().ID.PkgID
+		if !pid.IsZero() && !pid.IsStdlibPkg() && (m.Realm == nil || pid != m.Realm.ID) {
+			pkgOID := ObjectIDFromPkgID(pid)
+			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
+				if objpv, ok := pobj.(*PackageValue); ok {
+					r := objpv.GetRealm()
+					assertBorrowedRealm(objpv.PkgPath, r)
+					m.setRealm(r)
+				}
+			}
+		}
 	}
 }
 
@@ -2230,7 +2495,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
-	m.Realm = fr.LastRealm
+	m.setRealm(fr.LastRealm)
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -2265,6 +2530,22 @@ func (m *Machine) PeekFrameAndContinueRange() {
 
 func (m *Machine) NumFrames() int {
 	return len(m.Frames)
+}
+
+// NumCallFrames returns the number of actual function call frames,
+// excluding closure frames (func literals) and control-flow basic
+// frames (for/range/switch where Func is nil). Only named, non-closure
+// function calls count as separate call boundaries for origin-call
+// purposes.
+func (m *Machine) NumCallFrames() int {
+	count := 0
+	for i := range m.Frames {
+		fr := &m.Frames[i]
+		if fr.Func != nil && !fr.Func.IsClosure {
+			count++
+		}
+	}
+	return count
 }
 
 // Returns the current frame.
@@ -2377,20 +2658,40 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
+// The "tainted" wording in the message is historical; the failure is the
+// cross-realm ownership check (tvoid.PkgID != m.Realm.ID) — the target is
+// owned by a realm different from the one currently executing. Going
+// through a method or crossing function re-enters via PushFrameCall, whose
+// implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
+// the target's owner.
 func readonlyAccessPanic(x Expr) string {
-	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns true iff:
-//   - m.Realm is nil (single user mode), or
+// IsReadonly is the write-guard form, used at every mutation site
+// (PopAsPointer2, uverse append/copy/delete, map assign). Returns false if
+// m.Realm is nil (single user mode). Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
-//   - tv is N_Readonly, or
-//   - tv is not an object ("first object" ID is zero), or
-//   - tv is an unreal object (no object id), or
-//   - tv is an object residing in external realm
+//   - tv is a real object residing in external realm
+//
+// One own-package write exemption: STDLIB code may write its own
+// stdlib-stamped data. Stdlib is transient-mutable (re-initialized each tx —
+// e.g. math/rand's global RNG advancing p.lo/p.hi), and stdlib methods run
+// with the caller's realm (borrow rule #2 is skipped for stdlib receivers),
+// so without this a stdlib package mutating its own global would wrongly
+// panic. Keyed on m.Package (the executing code), so an attacker can't
+// trigger it; and NOT granted to /p/ — a /p/ package writing its own
+// immutable global must still be blocked.
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
-	// Returns true iff:
-	//  - m.Realm is nil (single user mode)
+	var ownPkgID PkgID
+	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() {
+		ownPkgID = m.Package.PkgID
+	}
+	return m.isReadonly(tv, ownPkgID)
+}
+
+func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
+	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
 	}
@@ -2402,16 +2703,57 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 			return true // external package
 		}
 	}
-	//   - tv is N_Readonly, or
-	//   - tv is not an object ("first object" ID is zero), or
-	//   - tv is an unreal object (no object id), or
-	//   - tv is an object residing in external realm
-	return tv.IsReadonlyBy(m.Realm.ID)
+	//  - tv is a real object residing in external realm (unless it is the
+	//    executing package's own data, stamped ownPkgID).
+	return tv.IsReadonlyBy(m.Realm.ID, ownPkgID)
+}
+
+// isExternalRealm returns true if base is a real Object belonging to
+// a different realm than m.Realm. Used for NameExpr cross-realm checks
+// where we have a Base (Block) rather than a TypedValue.
+func (m *Machine) isExternalRealm(base Value) bool {
+	if m.Realm == nil {
+		return false
+	}
+	obj, ok := base.(Object)
+	if !ok {
+		return false
+	}
+	oid := obj.GetObjectID()
+	if oid.IsZero() {
+		return false // transient (local var, unreal block)
+	}
+	// HIVs are exempt from the external-realm gate at the NameExpr
+	// write path. Two paths reach here:
+	//   - Real HIV in foreign realm: PushFrameCall's borrow rule #3 already
+	//     borrowed m.Realm to the closure's capture-realm, so by
+	//     the time we get here HIV.PkgID == m.Realm.ID. The check
+	//     would be a no-op anyway; skip to save the comparison.
+	//   - Unreal HIV (transient heap-promotion wrapper for an
+	//     escaping local): not a realm-owned slot — the alloc-site
+	//     PkgID stamp is incidental.
+	//
+	// Deref-through writes (*p = ...) take the PointerValue path
+	// via IsReadonly → IsReadonlyBy, which has its own HIV branch
+	// at ownership.go:468-490; that's still the authoritative gate
+	// for pointer-deref writes obtained via &name.
+	if _, ok := base.(*HeapItemValue); ok {
+		return false
+	}
+	// Stdlib own-write exemption (mirrors IsReadonly): a stdlib package may
+	// write its own stdlib-stamped package global (e.g. a top-level stdlib
+	// function reassigning a global) even though it runs with the caller's
+	// realm, since borrow rule #2 is skipped for stdlib receivers. Keyed on
+	// m.Package (the executing code), so an attacker can't trigger it; NOT
+	// granted to /p/ — a /p/ global stays immutable post-init.
+	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() && oid.PkgID == m.Package.PkgID {
+		return false
+	}
+	return oid.PkgID != m.Realm.ID
 }
 
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
@@ -2420,11 +2762,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -2441,9 +2783,9 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 				// Ensure we always panic, without expecting the caller to do it.
 				m.Panic(typedString(readonlyAccessPanic(lx)))
 			}
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
@@ -2455,20 +2797,23 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("nil pointer dereference"))
+				m.Panic(typedString("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv)
+		// Heap-slot wrapper is anonymous; nil t skips the
+		// construction-time check. The contained composite literal
+		// was already construction-time-checked at its own allocation.
+		hv := m.Alloc.NewHeapItem(nil, tv)
 		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
 			Index: 0,
 		}
-		ro = false // always mutable
+		ro = false // always mutable; composite literals are freshly allocated (unreal) values not yet owned by any realm.
 	default:
 		panic("should not happen")
 	}

@@ -89,7 +89,7 @@ func StopOpCode() {
 
 // StartStore suspends the current VM op timer and begins a
 // store operation. Returns the old op code for ResumeOpCode.
-func StartStore(storeCode byte) byte {
+func StartStore(storeCode StoreOp) byte {
 	old := measure.curOpCode
 	// Finalize the VM op's time up to now.
 	now := finalizeCurrent()
@@ -104,7 +104,7 @@ func StartStore(storeCode byte) byte {
 
 // StopStore ends the store operation, records its duration
 // and size, then resumes the previous VM op.
-func StopStore(storeCode byte, old byte, size int) {
+func StopStore(storeCode StoreOp, old byte, size int) {
 	now := time.Now()
 	if measure.curStart != measure.timeZero {
 		measure.storeAccumDur[storeCode] += now.Sub(measure.curStart)
@@ -117,8 +117,8 @@ func StopStore(storeCode byte, old byte, size int) {
 
 // ---- Native operations ----
 
-func StartNative(nativeCode byte) byte {
-	if nativeCode == invalidCode {
+func StartNative(nativeCode NativeOp) byte {
+	if byte(nativeCode) == invalidCode {
 		panic("the NativeCode is invalid")
 	}
 	old := measure.curOpCode
@@ -131,7 +131,7 @@ func StartNative(nativeCode byte) byte {
 	return old
 }
 
-func StopNative(nativeCode byte, old byte) {
+func StopNative(nativeCode NativeOp, old byte) {
 	now := time.Now()
 	if measure.curStart != measure.timeZero {
 		measure.nativeAccumDur[nativeCode] += now.Sub(measure.curStart)

@@ -17,7 +17,7 @@ import (
 var (
 	cacheSize        = 100
 	numRecent  int64 = 5
-	storeEvery int64 = 0
+	storeEvery int64 = 3
 )
 
 func bz(s string) []byte { return []byte(s) }
@@ -118,8 +118,8 @@ func TestPrefixStoreIterate(t *testing.T) {
 
 	setRandomKVPairs(prefixStore)
 
-	bIter := types.PrefixIterator(baseStore, prefix)
-	pIter := types.PrefixIterator(prefixStore, nil)
+	bIter := types.PrefixIterator(nil, baseStore, prefix)
+	pIter := types.PrefixIterator(nil, prefixStore, nil)
 
 	for bIter.Valid() && pIter.Valid() {
 		require.Equal(t, bIter.Key(), append(prefix, pIter.Key()...))

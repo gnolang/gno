@@ -270,7 +270,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 
 	var i int
 
-	iter := types.PrefixIterator(iavlStore, []byte("test"))
+	iter := types.PrefixIterator(nil, iavlStore, []byte("test"))
 	expected := []string{"test1", "test2", "test3"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -282,7 +282,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.PrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.PrefixIterator(nil, iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(0)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -298,7 +298,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.PrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.PrefixIterator(nil, iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(0)},
 		{byte(255), byte(255), byte(1)},
@@ -334,7 +334,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 
 	var i int
 
-	iter := types.ReversePrefixIterator(iavlStore, []byte("test"))
+	iter := types.ReversePrefixIterator(nil, iavlStore, []byte("test"))
 	expected := []string{"test3", "test2", "test1"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -345,7 +345,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(nil, iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(255)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -360,7 +360,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(nil, iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(255)},
 		{byte(255), byte(255), byte(1)},
@@ -413,17 +413,17 @@ func TestIAVLAlternativePruning(t *testing.T) {
 	// Expected stored / deleted version numbers for:
 	// numRecent = 3, storeEvery = 0 (no waypoints)
 	states := []pruneState{
-		{[]int64{}, []int64{}},                                // v0
-		{[]int64{1}, []int64{}},                               // v1
-		{[]int64{1, 2}, []int64{}},                            // v2
-		{[]int64{1, 2, 3}, []int64{}},                         // v3
-		{[]int64{1, 2, 3, 4}, []int64{}},                      // v4: toRelease=0, 3<0 false
-		{[]int64{2, 3, 4, 5}, []int64{1}},                     // v5: toRelease=1
-		{[]int64{3, 4, 5, 6}, []int64{1, 2}},                  // v6: toRelease=2
-		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},               // v7: toRelease=3
-		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},            // v8: toRelease=4
-		{[]int64{6, 7, 8, 9}, []int64{1, 2, 3, 4, 5}},         // v9: toRelease=5
-		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}},     // v10: toRelease=6
+		{[]int64{}, []int64{}},                            // v0
+		{[]int64{1}, []int64{}},                           // v1
+		{[]int64{1, 2}, []int64{}},                        // v2
+		{[]int64{1, 2, 3}, []int64{}},                     // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                  // v4: toRelease=0, 3<0 false
+		{[]int64{2, 3, 4, 5}, []int64{1}},                 // v5: toRelease=1
+		{[]int64{3, 4, 5, 6}, []int64{1, 2}},              // v6: toRelease=2
+		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},           // v7: toRelease=3
+		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},        // v8: toRelease=4
+		{[]int64{6, 7, 8, 9}, []int64{1, 2, 3, 4, 5}},     // v9: toRelease=5
+		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}}, // v10: toRelease=6
 	}
 	testPruning(t, int64(3), int64(0), states)
 }

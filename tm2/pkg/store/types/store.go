@@ -91,6 +91,22 @@ type MultiStore interface {
 }
 
 // ----------------------------------------
+// Checkpointable
+
+// Checkpointable is implemented by cache-wrapped multistores that
+// support snapshotting and rollback. Used by BaseApp to preserve
+// ante handler writes when msg execution fails.
+type Checkpointable interface {
+	// Checkpoint saves a snapshot of the current cache state.
+	Checkpoint()
+	// HasCheckpoint returns true if a checkpoint is active.
+	HasCheckpoint() bool
+	// WriteCheckpoint restores the checkpoint snapshot and flushes
+	// only the checkpointed entries to the parent store.
+	WriteCheckpoint()
+}
+
+// ----------------------------------------
 // Committer, CommitID
 
 // Something that can persist to disk
@@ -112,6 +128,14 @@ type Committer interface {
 type CommitStore interface {
 	Committer
 	Store
+}
+
+// InitialVersionSetter is implemented by CommitStores whose committed
+// version can be initialized to a non-zero value. Used by InitChain to
+// align multistore version with chain height when InitialHeight > 1.
+// Stores that don't merkleize (e.g. dbadapter) need not implement this.
+type InitialVersionSetter interface {
+	SetInitialVersion(version int64)
 }
 
 // Used by MultiStores to mount a new store.

@@ -212,19 +212,20 @@ func TestStore_GetImmutable(t *testing.T) {
 	}
 }
 
-func TestStore_ExpectedDepth(t *testing.T) {
+func TestStore_ExpectedDepth100(t *testing.T) {
 	st := newTestStore()
-	d := st.ExpectedDepth()
-	if d != 1 {
-		t.Fatalf("empty depth = %d", d)
+	if d := st.ExpectedGetReadDepth100(); d != 100 {
+		t.Fatalf("empty depth100 = %d, want 100 (one op floor)", d)
 	}
 
 	for i := 0; i < 100; i++ {
 		st.Set(nil, []byte{byte(i)}, []byte("v"))
 	}
-	d = st.ExpectedDepth()
-	if d < 1 {
-		t.Fatalf("100-key depth = %d", d)
+	// 100 keys: bits.Len64(100)=7 -> 140 (1.4 node reads), and all three
+	// depths agree for a B+ tree.
+	g, s2, w := st.ExpectedGetReadDepth100(), st.ExpectedSetReadDepth100(), st.ExpectedWriteDepth100()
+	if g != 140 || s2 != g || w != g {
+		t.Fatalf("depth100 = %d/%d/%d, want 140 each", g, s2, w)
 	}
 }
 

@@ -92,6 +92,12 @@ func processSoftFloat64TestFile() {
 }
 
 func gitRoot() (string, error) {
+	// Try git rev-parse --show-toplevel first; this correctly handles git worktrees.
+	if out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// Fall back to walking up parent directories looking for a .git entry.
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"math/bits"
 	"unsafe"
 
@@ -18,10 +19,30 @@ type Allocator struct {
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
 	gasMeter store.GasMeter
+
+	// currentRealmID mirrors m.Realm.ID at all times. Synced via
+	// Machine.setRealm at every realm transition. Used by allocator
+	// constructors to stamp PkgID onto newly-allocated objects'
+	// ObjectInfo without needing a *Machine reference. Zero when
+	// m.Realm is nil.
+	currentRealmID PkgID
+	// currentRealmPath mirrors m.Realm.Path; used in
+	// checkConstructionTime's panic message so users see a readable
+	// realm path rather than an opaque PkgID hex.
+	currentRealmPath string
 }
 
-// for gonative, which doesn't consider the allocator.
-var nilAllocator = (*Allocator)(nil)
+// fallbackAllocator is for the small set of pure-fn / no-Machine paths
+// that need a valid *Allocator pointer but never produce a persistable
+// composite — e.g. ConvertGetInt (IntType-only conversion), MapList.Append
+// for MapItems (which carry no ObjectInfo), and uverse-init / package-init
+// helpers. Its currentRealmID is zero, so any incidental stamp is a no-op
+// (PkgID.IsZero indistinguishable from "never set"). Its byte budget is
+// MaxInt64 so accounting never throttles.
+//
+// Production paths that *do* produce persistable composites flow through
+// m.Alloc, which has currentRealmID synced via setRealm.
+var fallbackAllocator = NewAllocator(math.MaxInt64)
 
 // Allocation size constants for gas metering.
 //
@@ -66,7 +87,7 @@ const (
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
-	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
+	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
 
@@ -78,10 +99,6 @@ const (
 	_allocType   = 200 // estimated: average Type implementation
 	_allocAny    = 200 // estimated: generic fallback
 
-	// Go primitives.
-	_allocSlice = 24 // Go slice header (ptr + len + cap)
-	_allocValue = 16 // Go interface (type ptr + data ptr)
-	_allocName  = 16 // Go string header (ptr + len)
 )
 
 const (
@@ -227,6 +244,17 @@ func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
 }
 
+// GetGasMeter returns the gas meter wired to this allocator (or nil).
+// Used by NewMachineWithOptions when a sub-Machine inherits the
+// preprocess allocator from the store and needs the same gas meter for
+// CPU-gas charging via m.incrCPU.
+func (alloc *Allocator) GetGasMeter() store.GasMeter {
+	if alloc == nil {
+		return nil
+	}
+	return alloc.gasMeter
+}
+
 func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
@@ -273,13 +301,17 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	if alloc == nil {
-		// this can happen for map items just prior to assignment.
-		return
-	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
+		if alloc.collect == nil {
+			// Forked allocators (e.g. the store's tx-scoped allocator
+			// before NewMachineWithOptions installs a GC callback, and
+			// query-path store allocators which never get one) have no
+			// collect function — there's nothing to GC, so cap is final.
+			panic("allocation limit exceeded (no GC)")
+		}
 		if left, ok := alloc.collect(); !ok {
-			panic("should not happen, allocation limit exceeded while gc.")
+			// GC could not free enough.
+			panic("allocation limit exceeded")
 		} else {
 			if debug {
 				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)
@@ -375,22 +407,80 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
+// checkConstructionTime panics if asked to construct a /r/-declared
+// type when the executing realm is different. Enforces the
+// "storage = authority" rule: every meaningfully-constructed
+// /r/-typed object must originate inside its declaring realm.
+//
+// Only fires at user-visible construction sites: composite literals
+// (doOpStructLit/ArrayLit/MapLit/SliceLit*) and the new()/make()
+// uverse builtins. Zero-value defaults (return-slot init, var
+// declarations, copies) are not "construction" in the sense that
+// matters here — they are anonymous placeholders that will be
+// overwritten or carry a copied PkgID.
+//
+// Anonymous composites, primitives, /p/, and stdlib types have no
+// declaring-realm constraint and pass through unchecked.
+//
+// nil t skips the check (anonymous sub-allocations); alloc is assumed
+// non-nil.
+func (alloc *Allocator) checkConstructionTime(t Type) {
+	if t == nil {
+		return
+	}
+	pid := getDeclaredPkgID(t)
+	if !pid.IsRealmPkg() {
+		return
+	}
+	if pid != alloc.currentRealmID {
+		panic(fmt.Sprintf(
+			"cannot allocate %s in realm %s",
+			t.String(), alloc.currentRealmPath))
+	}
+}
+
+// stampPkgID stamps PkgID on the given ObjectInfo. If t has a
+// /r/-declared PkgID (named struct types and pointers/declared types
+// wrapping them), stamp with the type's declared realm; otherwise
+// stamp with alloc.currentRealmID.
+//
+// Type-driven stamping makes "/r/realmA-typed values live in
+// /r/realmA" strictly true: a zero-value default like `var X
+// atype.RealmObject` in /r/bvar stamps the StructValue with /r/atype,
+// not /r/bvar. Field writes from /r/bvar are then blocked by
+// DidUpdate.
+//
+// Wrappers (HeapItemValue, Block, BoundMethodValue, FuncValue
+// closures) and anonymous composites (anonymous arrays/maps, slice
+// backing arrays) pass nil and stamp with currentRealmID — they are
+// storage slots / lexical scopes owned by the executing realm, not
+// data of a particular type.
+func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		oi.SetPkgID(pid)
+		return
+	}
+	oi.SetPkgID(alloc.currentRealmID)
+}
+
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
 
-func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
 	alloc.AllocateListArray(int64(n))
-	return &ArrayValue{
+	av := &ArrayValue{
 		List: make([]TypedValue, n),
 	}
+	alloc.stampPkgID(&av.ObjectInfo, t)
+	return av
 }
 
-func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
+func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 	if l < 0 || c < 0 {
 		panic(&Exception{Value: typedString("len or cap out of range")})
 	}
@@ -400,24 +490,28 @@ func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 	}
 
 	alloc.AllocateListArray(int64(c))
-	return &ArrayValue{
+	av := &ArrayValue{
 		List: make([]TypedValue, l, c),
 	}
+	alloc.stampPkgID(&av.ObjectInfo, t)
+	return av
 }
 
-func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
 
 	alloc.AllocateDataArray(int64(n))
-	return &ArrayValue{
+	av := &ArrayValue{
 		Data: make([]byte, n),
 	}
+	alloc.stampPkgID(&av.ObjectInfo, t)
+	return av
 }
 
-func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
-	av := alloc.NewDataArray(len(data))
+func (alloc *Allocator) NewArrayFromData(t Type, data []byte) *ArrayValue {
+	av := alloc.NewDataArray(t, len(data))
 	copy(av.Data, data)
 	return av
 }
@@ -441,14 +535,19 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // NOTE: cap(list) is propagated directly into the Gno SliceValue.Maxcap.
 // Callers must ensure cap(list) == len(list) to produce deterministic results
 // across Go versions (Go's append growth strategy is unspecified).
+// SliceValue is not an Object (no ObjectInfo); only the inner ArrayValue
+// (Base) gets PkgID stamped — at currentRealmID since slices/arrays are
+// anonymous composites.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
+	base := &ArrayValue{
+		List: fullList,
+	}
+	alloc.stampPkgID(&base.ObjectInfo, nil)
 	return &SliceValue{
-		Base: &ArrayValue{
-			List: fullList,
-		},
+		Base:   base,
 		Offset: 0,
 		Length: len(list),
 		Maxcap: cap(list),
@@ -462,10 +561,12 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
+	base := &ArrayValue{
+		Data: fullData,
+	}
+	alloc.stampPkgID(&base.ObjectInfo, nil)
 	return &SliceValue{
-		Base: &ArrayValue{
-			Data: fullData,
-		},
+		Base:   base,
 		Offset: 0,
 		Length: len(data),
 		Maxcap: cap(data),
@@ -473,11 +574,13 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 }
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
-func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
+func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
-	return &StructValue{
+	sv := &StructValue{
 		Fields: fields,
 	}
+	alloc.stampPkgID(&sv.ObjectInfo, t)
+	return sv
 }
 
 func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
@@ -486,37 +589,48 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 }
 
 // NOTE: fields will be allocated.
-func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
+func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-	return alloc.NewStruct(tvs)
+	return alloc.NewStruct(t, tvs)
 }
 
-func (alloc *Allocator) NewMap(size int) *MapValue {
+func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
+	alloc.stampPkgID(&mv.ObjectInfo, t)
 	return mv
 }
 
-// Only used for constructing the main package
+// Only used for constructing the main package. Both the PackageValue
+// and its top-level Block share the package's own PkgID — they live
+// in the package's authority.
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 	alloc.AllocatePackageValue()
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
+	pkgID := pn.GetPkgID()
+	blk := &Block{
+		Source: pn,
+	}
+	blk.ObjectInfo.SetPkgID(pkgID)
 	pv := &PackageValue{
-		Block: &Block{
-			Source: pn,
-		},
+		Block:      blk,
 		PkgName:    pn.PkgName,
 		PkgPath:    pn.PkgPath,
+		PkgID:      pkgID,
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[string]*Block),
 	}
+	pv.ObjectInfo.SetPkgID(pkgID)
 
 	return pv
 }
 
+// NewBlock allocates a fresh Block. Blocks belong to the executing
+// package's realm (currentRealmID), since a Block represents a
+// lexical scope inside that realm's running code.
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
@@ -527,9 +641,15 @@ func (alloc *Allocator) NewType(t Type) Type {
 	return t
 }
 
-func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
+func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
-	return &HeapItemValue{Value: tv}
+	hiv := &HeapItemValue{Value: tv}
+	// Pass nil: HIV is a storage slot wrapping a value; stamp with the
+	// executing realm so the declaring scope can reassign its own var.
+	// The wrapped value carries its own (potentially foreign-realm)
+	// stamp, which gates field-level writes via DidUpdate(po=value).
+	alloc.stampPkgID(&hiv.ObjectInfo, nil)
+	return hiv
 }
 
 // -----------------------------------------------
@@ -557,7 +677,7 @@ func (b *Block) GetShallowSize() int64 {
 	// RefNode is not value, put it here
 	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
+		ss += allocRefNode
 	}
 
 	ss += allocBlock + allocBlockItem*int64(len(b.Values))
@@ -641,4 +761,101 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
+}
+
+// internalRefSize computes the allocation size for RefValue slots stored
+// within an object's amino-serialized form. During copyValueWithRefs, child
+// Objects are replaced with RefValue{ObjectID, Hash} placeholders. These
+// RefValue slots are not counted by GetShallowSize (which only counts the
+// object's own structure), so we must account for them here to keep the
+// allocator consistent with the store's memory usage.
+func internalRefSize(val Value) int64 {
+	var size int64
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+		// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val))
+	}
+	return size
 }

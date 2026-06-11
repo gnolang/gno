@@ -123,7 +123,3 @@ func (m *Machine) doOpUxor() {
 			baseOf(xv.T)))
 	}
 }
-
-func (m *Machine) doOpUrecv() {
-	panic("not yet implemented")
-}

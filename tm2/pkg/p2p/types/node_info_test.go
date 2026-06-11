@@ -40,6 +40,16 @@ func TestNodeInfo_Validate(t *testing.T) {
 		assert.ErrorIs(t, info.Validate(), crypto.ErrZeroID)
 	})
 
+	t.Run("missing net address", func(t *testing.T) {
+		t.Parallel()
+
+		info := &NodeInfo{
+			NetAddress: nil,
+		}
+
+		assert.ErrorIs(t, info.Validate(), ErrInvalidNetAddress)
+	})
+
 	t.Run("invalid version", func(t *testing.T) {
 		t.Parallel()
 

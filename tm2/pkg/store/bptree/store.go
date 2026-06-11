@@ -51,20 +51,26 @@ func UnsafeNewStore(tree *bp.MutableTree, opts types.StoreOptions) *Store {
 	}
 }
 
-// ExpectedDepth returns log₂(size) / log₂(B) as a deterministic estimate
-// of B+ tree traversal depth.
-func (st *Store) ExpectedDepth() int64 {
-	size := st.tree.Size()
+// expectedDepth100 returns log₃₂(size) in 100x fixed-point — the B+32
+// traversal depth in node reads. log₃₂ = log₂/5, so the ×100 scaling becomes
+// ×20, preserving the fractional precision integer division would truncate.
+// Floored at 100 (one op).
+func expectedDepth100(size int64) int64 {
 	if size <= 1 {
-		return 1
+		return 100
 	}
-	// log₂(size) / log₂(32) = log₂(size) / 5
-	depth := int64(bits.Len64(uint64(size))) / 5
-	if depth < 1 {
-		depth = 1
+	d := int64(bits.Len64(uint64(size))) * 20
+	if d < 100 {
+		return 100
 	}
-	return depth
+	return d
 }
+
+// For the B+ tree, GET/SET descents and the COW write path all touch one
+// node per level — all three depths equal the traversal depth.
+func (st *Store) ExpectedGetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedSetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedWriteDepth100() int64   { return expectedDepth100(st.tree.Size()) }
 
 // GetImmutable returns a read-only store at a specific version.
 func (st *Store) GetImmutable(version int64) (*Store, error) {

@@ -1521,7 +1521,7 @@ func BenchmarkOpIndex1_ByteArray(b *testing.B) {
 	expr := &IndexExpr{}
 
 	at := &ArrayType{Elt: Uint8Type, Len: 100}
-	av := m.Alloc.NewDataArray(100)
+	av := m.Alloc.NewDataArray(nil, 100)
 	for i := range av.Data {
 		av.Data[i] = byte(i % 256)
 	}
@@ -1550,7 +1550,7 @@ func BenchmarkOpIndex1_Slice(b *testing.B) {
 	expr := &IndexExpr{}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(10)
+	baseArray := m.Alloc.NewListArray(nil, 10)
 	for i := range 10 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
@@ -1585,7 +1585,7 @@ func benchOpIndex1MapHit(b *testing.B, size int) {
 	mv.MakeMap(size)
 	for i := range size {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 	// Look up a key near the middle.
@@ -1626,7 +1626,7 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 	mv.MakeMap(10)
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1660,7 +1660,7 @@ func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
 	for i := range 10 {
 		k := strings.Repeat("x", keyLen-1) + string(rune('A'+i))
 		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
 	lookupKey := m.Alloc.NewString(strings.Repeat("x", keyLen-1) + string(rune('A'+5)))
@@ -1711,7 +1711,7 @@ func benchOpSelector(b *testing.B, nFields int, fieldIdx int) {
 	for i := range nFields {
 		fieldValues[i] = TypedValue{T: IntType, N: i2n(int64(i + 1))}
 	}
-	sv := m.Alloc.NewStruct(fieldValues)
+	sv := m.Alloc.NewStruct(nil, fieldValues)
 
 	selExpr := &SelectorExpr{
 		Path: ValuePath{
@@ -1852,7 +1852,7 @@ func BenchmarkOpIndex2_MapHit(b *testing.B) {
 	mv.MakeMap(10)
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1889,7 +1889,7 @@ func BenchmarkOpIndex2_MapMiss(b *testing.B) {
 	mv.MakeMap(10)
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1958,7 +1958,7 @@ func BenchmarkOpSlice_ByteArray(b *testing.B) {
 	}
 
 	at := &ArrayType{Elt: Uint8Type, Len: 100}
-	av := m.Alloc.NewDataArray(100)
+	av := m.Alloc.NewDataArray(nil, 100)
 	for i := range av.Data {
 		av.Data[i] = byte(i)
 	}
@@ -1992,7 +1992,7 @@ func BenchmarkOpSlice_Slice(b *testing.B) {
 	}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(100)
+	baseArray := m.Alloc.NewListArray(nil, 100)
 	for i := range 100 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
@@ -3302,7 +3302,7 @@ func BenchmarkOpSlice_3Index(b *testing.B) {
 	}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(100)
+	baseArray := m.Alloc.NewListArray(nil, 100)
 	for i := range 100 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
@@ -3419,8 +3419,8 @@ func benchOpEql_ByteArray(b *testing.B, n int) {
 	expr := &BinaryExpr{}
 
 	at := &ArrayType{Elt: Uint8Type, Len: n}
-	av1 := m.Alloc.NewDataArray(n)
-	av2 := m.Alloc.NewDataArray(n)
+	av1 := m.Alloc.NewDataArray(nil, n)
+	av2 := m.Alloc.NewDataArray(nil, n)
 	for i := 0; i < n; i++ {
 		av1.Data[i] = byte(i % 256)
 		av2.Data[i] = byte(i % 256)
@@ -3472,8 +3472,8 @@ func benchOpEql_Struct(b *testing.B, nFields int) {
 		fv1[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 		fv2[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	sv1 := m.Alloc.NewStruct(fv1)
-	sv2 := m.Alloc.NewStruct(fv2)
+	sv1 := m.Alloc.NewStruct(nil, fv1)
+	sv2 := m.Alloc.NewStruct(nil, fv2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -3772,7 +3772,7 @@ func benchOpConvert_RunesToString(b *testing.B, length int) {
 	for i := range length {
 		list[i] = TypedValue{T: Int32Type, N: i2n(int64('a' + i%26))}
 	}
-	sliceBase := m.Alloc.NewListArray(length)
+	sliceBase := m.Alloc.NewListArray(nil, length)
 	copy(sliceBase.List, list)
 	sv := m.Alloc.NewSlice(sliceBase, 0, length, length)
 	runeSliceType := &SliceType{Elt: Int32Type}
@@ -3893,7 +3893,7 @@ func benchInterfaceAndImpl(alloc *Allocator, nMethods, nImpl int) (*InterfaceTyp
 		}
 		dt.Methods[i] = TypedValue{T: ft, V: fv}
 	}
-	sv := alloc.NewStruct([]TypedValue{})
+	sv := alloc.NewStruct(nil, []TypedValue{})
 	return iface, dt, sv
 }
 
@@ -4004,7 +4004,7 @@ func BenchmarkOpSelector_VPValMethod(b *testing.B) {
 	dt.Methods = []TypedValue{{T: ft, V: fv}}
 
 	fieldValues := []TypedValue{{T: IntType, N: i2n(42)}}
-	sv := m.Alloc.NewStruct(fieldValues)
+	sv := m.Alloc.NewStruct(nil, fieldValues)
 
 	selExpr := &SelectorExpr{
 		Path: ValuePath{
@@ -4045,7 +4045,7 @@ func benchOpFuncLit(b *testing.B, nCaptures int) {
 	for i := range nCaptures {
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 	blk := &Block{Values: values}
@@ -4129,7 +4129,7 @@ func benchOpCall(b *testing.B, nParams int, nCaptures int) {
 	for i := range nCaptures {
 		captures[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 
@@ -4298,7 +4298,7 @@ func benchOpForLoopHeapCopy(b *testing.B, numInit int) {
 	for i := range numInit {
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 	blk := &Block{Values: values}
@@ -4329,7 +4329,7 @@ func benchOpForLoopHeapCopy(b *testing.B, numInit int) {
 		blk.bodyStmt.NextBodyIndex = 0 // == BodyLen (0)
 		// Restore HeapItemValues (doOpExec replaces them).
 		for i := range numInit {
-			blk.Values[i].V = m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))})
+			blk.Values[i].V = m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))})
 		}
 		bm.SwitchOpCode(bmTarget)
 		m.doOpExec(OpForLoop)
@@ -4625,7 +4625,7 @@ func benchMethodSetup(alloc *Allocator) (ft *FuncType, fv *FuncValue, dt *Declar
 		body:      []Stmt{},
 	}
 	dt.Methods = []TypedValue{{T: ft, V: fv}}
-	sv = alloc.NewStruct([]TypedValue{{T: IntType, N: i2n(42)}})
+	sv = alloc.NewStruct(nil, []TypedValue{{T: IntType, N: i2n(42)}})
 	return
 }
 
@@ -5006,7 +5006,7 @@ func benchOpRangeIter(b *testing.B, n int) {
 	for i := range n {
 		elems[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	av := m.Alloc.NewListArray(n)
+	av := m.Alloc.NewListArray(nil, n)
 	copy(av.List, elems)
 	at := &ArrayType{Len: n, Elt: IntType}
 	arrayTV := TypedValue{T: at, V: av}
@@ -5124,7 +5124,7 @@ func benchOpRangeIterMap(b *testing.B, n int) {
 	for i := range n {
 		k := TypedValue{T: IntType, N: i2n(int64(i))}
 		v := TypedValue{T: IntType, N: i2n(int64(i * 10))}
-		ptr := mv.GetPointerForKey(m.Alloc, m.Store, k)
+		ptr := mv.GetPointerForKey(m, m.Alloc, m.Store, k)
 		ptr.TV.Assign(m.Alloc, v, false)
 	}
 	mapTV := TypedValue{T: mt, V: mv}
@@ -5532,22 +5532,99 @@ func BenchmarkOpInterfaceType_10(b *testing.B)   { benchOpInterfaceType(b, 10) }
 func BenchmarkOpInterfaceType_100(b *testing.B)  { benchOpInterfaceType(b, 100) }
 func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000) }
 
-func BenchmarkOpChanType(b *testing.B) {
+// ---------------------------------------------------------------------------
+// Copy helpers: calibrate OpCPUSlopeCopyPrimitive and OpCPUSlopeCopyElement.
+//
+// Primitive slope (OpCPUSlopeCopyPrimitive): per-byte/Uint8-element cost for
+//   copyDataToList, copyListToData, raw memcpy, and Assign2 DataByteType path.
+//   Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
+//
+// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for unrefCopy
+//   and Assign2 general path. Calibrated via BenchmarkOpUnrefCopy_Int_*
+//   (non-RefValue case); under-charges worst-case RefValue store-hit.
+//
+// These benchmarks use the standard benchMachine / reportBenchops wiring so
+// they emit ns/op(pure) and are picked up by cmd/calibrate/plot_fits.py and
+// gen_analysis.py. The linear fit against N gives the slope in ns/elem.
+// ---------------------------------------------------------------------------
+
+func benchOpCopyDataToList(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
-	x := &ChanTypeExpr{Dir: SEND | RECV}
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	dst := make([]TypedValue, n)
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
-		m.PushValue(asValue(IntType))
-		m.PushExpr(x)
 		bm.SwitchOpCode(bmTarget)
-		m.doOpChanType()
+		copyDataToList(dst, data, Uint8Type)
 		bm.SwitchOpCode(bmSetup)
-		m.Values = m.Values[:0]
 	}
 	reportBenchops(b)
 }
+
+func BenchmarkOpCopyDataToList_1k(b *testing.B)   { benchOpCopyDataToList(b, 1024) }
+func BenchmarkOpCopyDataToList_10k(b *testing.B)  { benchOpCopyDataToList(b, 10*1024) }
+func BenchmarkOpCopyDataToList_100k(b *testing.B) { benchOpCopyDataToList(b, 100*1024) }
+func BenchmarkOpCopyDataToList_1m(b *testing.B)   { benchOpCopyDataToList(b, 1024*1024) }
+
+func benchOpCopyListToData(b *testing.B, n int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	dst := make([]byte, n)
+	tvs := make([]TypedValue, n)
+	for i := range tvs {
+		tvs[i] = TypedValue{T: Uint8Type}
+		tvs[i].SetUint8(byte(i))
+	}
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		bm.SwitchOpCode(bmTarget)
+		copyListToData(dst, tvs)
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpCopyListToData_1k(b *testing.B)   { benchOpCopyListToData(b, 1024) }
+func BenchmarkOpCopyListToData_10k(b *testing.B)  { benchOpCopyListToData(b, 10*1024) }
+func BenchmarkOpCopyListToData_100k(b *testing.B) { benchOpCopyListToData(b, 100*1024) }
+func BenchmarkOpCopyListToData_1m(b *testing.B)   { benchOpCopyListToData(b, 1024*1024) }
+
+// UnrefCopy on non-RefValue (common case: IntType primitive). RefValue case
+// is more expensive due to store hit, but charged via store gas downstream.
+func benchOpUnrefCopyInt(b *testing.B, n int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	src := make([]TypedValue, n)
+	for i := range src {
+		src[i] = TypedValue{T: IntType, N: i2n(int64(i))}
+	}
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		bm.SwitchOpCode(bmTarget)
+		for i := range src {
+			_ = src[i].unrefCopy(m.Alloc, nil)
+		}
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpUnrefCopy_Int_1k(b *testing.B)   { benchOpUnrefCopyInt(b, 1024) }
+func BenchmarkOpUnrefCopy_Int_10k(b *testing.B)  { benchOpUnrefCopyInt(b, 10*1024) }
+func BenchmarkOpUnrefCopy_Int_100k(b *testing.B) { benchOpUnrefCopyInt(b, 100*1024) }
+
+// BenchmarkOpChanType removed: channels are no longer supported in Gno
+// (upstream banned them; doOpChanType was deleted).
 
 // ---------------------------------------------------------------------------
 // Helper: encode int64/uint64 into [8]byte (little-endian, matching unsafe cast)

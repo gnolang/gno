@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_permissions_00_filetest
+
+package z_set_permissions_00_filetest
 
 import (
 	"testing"
@@ -10,7 +12,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	bid           = boards.ID(0) // Operate on realm instead of individual boards
 )
 
@@ -21,10 +23,10 @@ func init() {
 	perms = permissions.New()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetPermissions(cross, bid, perms)
+	boards2.SetPermissions(cross(cur), bid, perms)
 
 	// Owner that setted new permissions is not a member of the new permissions
 	println(boards2.IsMember(bid, owner))

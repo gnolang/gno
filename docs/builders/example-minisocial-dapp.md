@@ -4,7 +4,7 @@ We will create a MiniSocial [realm](../resources/realms.md),
 a minimalist social media application. This tutorial will showcase a full local
 development flow for Gno, using all the tools covered in previous tutorials.
 
-Find the full app on [this link](https://gno.land/r/docs/minisocial/v1).
+Find the full app on [this link](https://staging.gno.land/r/docs/minisocial/v1).
 
 ## Prerequisites
 
@@ -26,13 +26,13 @@ realm and is used by Gno tools. Run the following command to create a `gnomod.to
 gno mod init gno.land/r/example/minisocial
 ```
 
-In this case, we'll be using the `examples` namespace, but you can change this to
+In this case, we'll be using the `example` namespace, but you can change this to
 the namespace of your liking later.
 
 Next, in the same folder, start by creating three files:
 
 ```sh
-touch types.gno minisocial.gno render.gno
+touch types.gno posts.gno render.gno
 ```
 
 While all code can be stored in a single file, separating logical units,
@@ -68,7 +68,7 @@ type Post struct {
 The `address` keyword is a built-in keyword type represents a Gno address.
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
-[Go-Gno Compatability](../resources/go-gno-compatibility.md) page for more info.
+[Go-Gno Compatibility](../resources/go-gno-compatibility.md) page for more info.
 
 ### `posts.gno`
 
@@ -103,7 +103,7 @@ func CreatePost(_ realm, text string) error {
 	// Append the new post to the list
 	posts = append(posts, &Post{
 		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		author:    unsafe.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
 		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 
@@ -117,7 +117,7 @@ A few things to note:
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
 - To get the caller of `CreatePost`, we need to import `chain/runtime`,
-which provides access to the function caller, and use `runtime.PreviousRealm.Address()`.
+which provides access to the function caller, and use `runtime.PreviousRealm().Address()`.
 Check out the [realm concept page](../resources/realms.md) & the 
 [`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
@@ -126,7 +126,7 @@ included in, instead of the system time.
 :::info Lint & format
 
 The `gno` binary provides tooling which can help you write correct code.
-You can use `gno lint` and `gno tool fmt` to lint and format your code,
+You can use `gno lint` and `gno fmt` to lint and format your code,
 respectively.
 :::
 
@@ -211,7 +211,6 @@ gnokey maketx call \
 -func "CreatePost" \
 -args "This is my first post" \
 -gas-fee 1000000ugnot -gas-wanted 5000000 \
--broadcast \
 -chainid "dev" \
 -remote "tcp://127.0.0.1:26657" \
 {MYKEY}
@@ -240,7 +239,7 @@ func (p Post) String() string {
 Here, package `ufmt` is used to provide string formatting functionality. It can
 be imported via with `gno.land/p/nt/ufmt/v0`.
 
-With this, we can expand our `Render()` function in `posts.gno` as follows:
+With this, we can expand our `Render()` function in `render.gno` as follows:
 
 [embedmd]:# (../_assets/minisocial/render-1.gno go)
 ```go
@@ -292,7 +291,7 @@ import (
 	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
@@ -300,9 +299,10 @@ func TestCreatePostSingle(t *testing.T) {
 
 	text1 := "Hello World!"
 
-	// To call a crossing function, we specify the `cross` keyword
-	// This matches the first argument of type realm in the function itself
-	err := CreatePost(cross, text1)
+	// To call a crossing function, we pass cross(cur) as the first
+	// argument; cross(rlm) validates rlm is the current realm and
+	// flows through to the callee's `cur realm` parameter.
+	err := CreatePost(cross(cur), text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -321,7 +321,7 @@ We can add the following test showcasing how TDT works in Gno:
 
 [embedmd]:# (../_assets/minisocial/posts_test-1.gno go /func TestCreatePostMultiple/ $)
 ```go
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -338,10 +338,9 @@ func TestCreatePostMultiple(t *testing.T) {
 		authorAddr := testutils.TestAddress(p.author)
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
-		// Create the post
-		// To call a crossing function, we specify the `cross` keyword
-		// This matches the first argument of type realm in the function itself
-		err := CreatePost(cross, p.text)
+		// Create the post via cross(cur) so the realm capability flows
+		// to CreatePost's `cur realm` parameter.
+		err := CreatePost(cross(cur), p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}
@@ -378,12 +377,12 @@ Congratulations on completing your first Gno realm!
 Now you're equipped with the required knowledge to venture into Gno.land.
 
 Full code of this app can be found on the Staging network, on
-[this link](https://gno.land/r/docs/minisocial).
+[this link](https://staging.gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [Gno.land User Registry](https://gno.land/demo/users).
+registered in the [Gno.land User Registry](https://staging.gno.land/r/sys/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:
@@ -396,11 +395,11 @@ func (p Post) String() string {
 
 	author := p.author.String()
 	// We can import and use the r/sys/users package to resolve addresses
-	user, _ := users.ResolveAddress(p.author)
+	user := users.ResolveAddress(p.author)
 	if user != nil {
 		// RenderLink provides a link that is clickable
 		// The link goes to the user's profile page
-		author = user.RenderLink()
+		author = user.RenderLink("")
 	}
 
 	out += ufmt.Sprintf("_by %s on %s_\n\n", author, p.createdAt.Format("02 Jan 2006, 15:04"))

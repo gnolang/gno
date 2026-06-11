@@ -1,0 +1,12 @@
+-- input.md --
+before
+
+<gno-foreign label="a" foo="b">
+body
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<!-- raw HTML omitted -->
+<p>after</p>

@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
@@ -38,16 +41,31 @@ func (cv cValue) String() string {
 
 // cacheStore wraps an in-memory cache around an underlying types.Store.
 type cacheStore struct {
-	mtx            sync.Mutex
-	cache          map[string]*cValue
-	unsortedCache  map[string]struct{}
-	sortedCache    *list.List // always ascending sorted
-	parent         types.Store
-	depthEstimator types.DepthEstimator // nil for flat stores (e.g. dbadapter)
-	chargedGas     map[string]types.Gas // write/delete gas deduplication per key
+	mtx           sync.Mutex
+	cache         map[string]*cValue
+	unsortedCache map[string]struct{}
+	sortedCache   *list.List // always ascending sorted
+	parent        types.Store
+	chargedGas    map[string]types.Gas // write/delete gas deduplication per key
+
+	// Checkpoint for rollback support. When set, WriteCheckpoint()
+	// restores these snapshots and flushes only the checkpointed state.
+	checkpointCache      map[string]*cValue
+	checkpointChargedGas map[string]types.Gas
+
+	// Depth estimation for gas. Cached at construction time from
+	// DepthEstimator (IAVL/B+tree). 100x fixed-point (300 = 3.0).
+	// hasEstimator is false for flat stores (dbadapter).
+	hasEstimator    bool
+	getReadDepth100 int64
+	setReadDepth100 int64
+	writeDepth100   int64
 }
 
-var _ types.Store = (*cacheStore)(nil)
+var (
+	_ types.Store          = (*cacheStore)(nil)
+	_ types.Checkpointable = (*cacheStore)(nil)
+)
 
 func New(parent types.Store) *cacheStore {
 	cs := &cacheStore{
@@ -57,31 +75,56 @@ func New(parent types.Store) *cacheStore {
 		parent:        parent,
 		chargedGas:    make(map[string]types.Gas),
 	}
-	// Auto-detect DepthEstimator from parent.
+	// Auto-detect DepthEstimator from parent and cache depths.
 	if de, ok := parent.(types.DepthEstimator); ok {
-		cs.depthEstimator = de
+		cs.hasEstimator = true
+		cs.getReadDepth100 = de.ExpectedGetReadDepth100()
+		cs.setReadDepth100 = de.ExpectedSetReadDepth100()
+		cs.writeDepth100 = de.ExpectedWriteDepth100()
 	}
 	return cs
 }
 
-// SetDepthEstimator sets the depth estimator for IAVL-backed stores.
-func (store *cacheStore) SetDepthEstimator(de types.DepthEstimator) {
-	store.depthEstimator = de
+// effectiveGetReadDepth100 returns the GET read depth.
+// If FixedGetReadDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinGetReadDepth100.
+func (store *cacheStore) effectiveGetReadDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedGetReadDepth100 > 0 {
+		return gctx.Config.FixedGetReadDepth100
+	}
+	d := store.getReadDepth100
+	if gctx != nil && gctx.Config.MinGetReadDepth100 > 0 && d < gctx.Config.MinGetReadDepth100 {
+		d = gctx.Config.MinGetReadDepth100
+	}
+	return d
 }
 
-// expectedDepth returns the estimated IAVL tree depth, floored by
-// GasConfig.MinDepth. Without an estimator the base depth is 1, but a
-// positive MinDepth still floors it — flat stores then take the
-// depth-charging path too.
-func (store *cacheStore) expectedDepth(gctx *types.GasContext) int64 {
-	depth := int64(1)
-	if store.depthEstimator != nil {
-		depth = store.depthEstimator.ExpectedDepth()
+// effectiveSetReadDepth100 returns the SET read depth.
+// If FixedSetReadDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinSetReadDepth100.
+func (store *cacheStore) effectiveSetReadDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedSetReadDepth100 > 0 {
+		return gctx.Config.FixedSetReadDepth100
 	}
-	if gctx != nil && gctx.Config.MinDepth > 0 && depth < gctx.Config.MinDepth {
-		depth = gctx.Config.MinDepth
+	d := store.setReadDepth100
+	if gctx != nil && gctx.Config.MinSetReadDepth100 > 0 && d < gctx.Config.MinSetReadDepth100 {
+		d = gctx.Config.MinSetReadDepth100
 	}
-	return depth
+	return d
+}
+
+// effectiveWriteDepth100 returns the write depth.
+// If FixedWriteDepth100 is set, uses that exactly.
+// Otherwise uses the tree estimate, floored by MinWriteDepth100.
+func (store *cacheStore) effectiveWriteDepth100(gctx *types.GasContext) int64 {
+	if gctx != nil && gctx.Config.FixedWriteDepth100 > 0 {
+		return gctx.Config.FixedWriteDepth100
+	}
+	d := store.writeDepth100
+	if gctx != nil && gctx.Config.MinWriteDepth100 > 0 && d < gctx.Config.MinWriteDepth100 {
+		d = gctx.Config.MinWriteDepth100
+	}
+	return d
 }
 
 // Implements types.Store.
@@ -94,14 +137,22 @@ func (store *cacheStore) Get(gctx *types.GasContext, key []byte) (value []byte) 
 	if !ok {
 		// Cache miss — charge depth-based I/O gas, then fetch.
 		if gctx != nil {
-			depth := store.expectedDepth(gctx)
-			if depth > 1 {
-				gctx.ConsumeGas(types.Gas(depth)*gctx.Config.ReadCostFlat, "DepthReadFlat")
+			var gas types.Gas
+			if store.hasEstimator {
+				d := store.effectiveGetReadDepth100(gctx)
+				gas = overflow.Mulp(d, gctx.Config.ReadCostFlat) / 100
+				gctx.ConsumeGas(gas, "DepthReadFlat")
 			} else {
 				gctx.WillGet() // flat ReadCostFlat (non-depth store)
+				gas = gctx.Config.ReadCostFlat
 			}
 			value = store.parent.Get(nil, key)
+			perByte := overflow.Mulp(gctx.Config.ReadCostPerByte, types.Gas(len(value)))
 			gctx.DidGet(value) // ReadCostPerByte (nil-safe)
+			if trace.StoreGasEnabled {
+				trace.Store("GET", overflow.Addp(gas, perByte), key, len(value),
+					fmt.Sprintf("depth=%v", store.hasEstimator))
+			}
 		} else {
 			value = store.parent.Get(nil, key)
 		}
@@ -127,18 +178,27 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
+			if trace.StoreGasEnabled {
+				trace.Store("REFUND", prev, key, 0, "dedup")
+			}
 		}
 		var gas types.Gas
-		depth := store.expectedDepth(gctx)
-		if depth > 1 {
-			depthGas := types.Gas(depth) * (gctx.Config.ReadCostFlat + gctx.Config.WriteCostFlat)
-			depthGas += gctx.Config.WriteCostPerByte * types.Gas(len(value))
-			gctx.ConsumeGas(depthGas, "IavlSet")
-			gas = depthGas
+		if store.hasEstimator {
+			rd := store.effectiveSetReadDepth100(gctx)
+			wd := store.effectiveWriteDepth100(gctx)
+			rdGas := overflow.Mulp(rd, gctx.Config.ReadCostFlat) / 100
+			wdGas := overflow.Mulp(wd, gctx.Config.WriteCostFlat) / 100
+			pbGas := overflow.Mulp(gctx.Config.WriteCostPerByte, types.Gas(len(value)))
+			gas = overflow.Addp(overflow.Addp(rdGas, wdGas), pbGas)
+			gctx.ConsumeGas(gas, "DepthSet")
 		} else {
 			gas = gctx.WillSet(value)
 		}
 		store.chargedGas[k] = gas
+		if trace.StoreGasEnabled {
+			trace.Store("SET", gas, key, len(value),
+				fmt.Sprintf("depth=%v", store.hasEstimator))
+		}
 	}
 
 	store.setCacheValue(key, value, false, true)
@@ -161,18 +221,26 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
+			if trace.StoreGasEnabled {
+				trace.Store("REFUND", prev, key, 0, "dedup")
+			}
 		}
 		var gas types.Gas
-		depth := store.expectedDepth(gctx)
-		if depth > 1 {
-			// IAVL: depth reads + depth writes to remove and rebalance
-			depthGas := types.Gas(depth) * (gctx.Config.ReadCostFlat + gctx.Config.WriteCostFlat)
-			gctx.ConsumeGas(depthGas, "IavlDelete")
-			gas = depthGas
+		if store.hasEstimator {
+			rd := store.effectiveSetReadDepth100(gctx)
+			wd := store.effectiveWriteDepth100(gctx)
+			rdGas := overflow.Mulp(rd, gctx.Config.ReadCostFlat) / 100
+			wdGas := overflow.Mulp(wd, gctx.Config.WriteCostFlat) / 100
+			gas = overflow.Addp(rdGas, wdGas)
+			gctx.ConsumeGas(gas, "DepthDelete")
 		} else {
 			gas = gctx.WillDelete() // DeleteCost
 		}
 		store.chargedGas[k] = gas
+		if trace.StoreGasEnabled {
+			trace.Store("DELETE", gas, key, 0,
+				fmt.Sprintf("depth=%v", store.hasEstimator))
+		}
 	}
 
 	store.setCacheValue(key, nil, true, true)
@@ -182,7 +250,12 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 func (store *cacheStore) Write() {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
+	store.writeLocked()
+}
 
+// writeLocked flushes dirty cache entries to the parent and clears the cache.
+// Caller must hold store.mtx.
+func (store *cacheStore) writeLocked() {
 	// We need a copy of all of the keys.
 	// Not the best, but probably not a bottleneck depending.
 	keys := make([]string, 0, len(store.cache))
@@ -246,6 +319,53 @@ func (store *cacheStore) clear() {
 	store.unsortedCache = make(map[string]struct{})
 	store.sortedCache = list.New()
 	store.chargedGas = make(map[string]types.Gas)
+	store.checkpointCache = nil
+	store.checkpointChargedGas = nil
+}
+
+// ----------------------------------------
+// Checkpoint/rollback support.
+
+// Checkpoint saves a shallow clone of the cache and chargedGas maps.
+// Used by BaseApp to snapshot ante handler state before msg execution.
+// setCacheValue always allocates a new *cValue, so the cloned map's
+// pointers remain valid after subsequent Set/Delete calls.
+//
+// The GasMeter's consumed counter is intentionally NOT snapshotted.
+// On msg failure/OOG, WriteCheckpoint rewinds writes but the meter
+// keeps everything charged during the msg — the SDK "failed tx burns
+// gas" invariant. Rewinding the meter would refund gas for a
+// rolled-back attempt and let an attacker retry expensive operations
+// for the cost of the ante alone. chargedGas being tx-local (one
+// cacheStore per tx) means no later tx sees the restored map, so
+// there's no cross-tx write-dedup inconsistency from the asymmetry.
+func (store *cacheStore) Checkpoint() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	store.checkpointCache = maps.Clone(store.cache)
+	store.checkpointChargedGas = maps.Clone(store.chargedGas)
+}
+
+// HasCheckpoint returns true if a checkpoint is active.
+func (store *cacheStore) HasCheckpoint() bool {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	return store.checkpointCache != nil
+}
+
+// WriteCheckpoint restores the checkpoint snapshot, then flushes only
+// the checkpointed (ante) entries to the parent store.
+func (store *cacheStore) WriteCheckpoint() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	if store.checkpointCache == nil {
+		panic("WriteCheckpoint called without Checkpoint")
+	}
+	store.cache = store.checkpointCache
+	store.chargedGas = store.checkpointChargedGas
+	store.checkpointCache = nil
+	store.checkpointChargedGas = nil
+	store.writeLocked()
 }
 
 // ----------------------------------------
@@ -254,8 +374,11 @@ func (store *cacheStore) clear() {
 // Implements Store.
 func (store *cacheStore) CacheWrap() types.Store {
 	cs := New(store)
-	// Propagate depth estimator to nested cache layers.
-	cs.depthEstimator = store.depthEstimator
+	// Propagate cached depths to nested cache layers.
+	cs.hasEstimator = store.hasEstimator
+	cs.getReadDepth100 = store.getReadDepth100
+	cs.setReadDepth100 = store.setReadDepth100
+	cs.writeDepth100 = store.writeDepth100
 	return cs
 }
 
@@ -287,7 +410,7 @@ func (store *cacheStore) iterator(gctx *types.GasContext, start, end []byte, asc
 	store.dirtyItems(start, end)
 	cache = newMemIterator(start, end, store.sortedCache, ascending)
 
-	return newCacheMergeIterator(parent, cache, ascending)
+	return newGasIterator(gctx, newCacheMergeIterator(parent, cache, ascending))
 }
 
 // Constructs a slice of dirty items, to use w/ memIterator.

@@ -199,14 +199,14 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	store.Set(nil, []byte{byte(55), byte(255), byte(255), byte(255), byte(1)}, []byte("test4"))
 	store.Set(nil, []byte{byte(56)}, []byte("test4"))
 
-	iter := types.PrefixIterator(store, []byte("test"))
+	iter := types.PrefixIterator(nil, store, []byte("test"))
 	count := 0
 	for ; iter.Valid(); iter.Next() {
 		count++
 	}
 	require.Equal(t, 3, count)
 
-	iter = types.PrefixIterator(store, []byte{byte(55), byte(255), byte(255)})
+	iter = types.PrefixIterator(nil, store, []byte{byte(55), byte(255), byte(255)})
 	count = 0
 	for ; iter.Valid(); iter.Next() {
 		count++
@@ -223,7 +223,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	store.Set(nil, []byte("test2"), []byte("test2"))
 	store.Set(nil, []byte("test3"), []byte("test3"))
 
-	iter := types.ReversePrefixIterator(store, []byte("test"))
+	iter := types.ReversePrefixIterator(nil, store, []byte("test"))
 	expected := []string{"test3", "test2", "test1"}
 	var i int
 	for i = 0; iter.Valid(); iter.Next() {

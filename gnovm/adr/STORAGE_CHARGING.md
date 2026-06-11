@@ -1,5 +1,13 @@
 # Storage Charging
 
+> **HISTORICAL.** This document describes the storage-gas model that existed
+> *before* the gas refactor. The per-operation constants discussed here
+> (`GasGetObject`, `GasSetType`, `GasGetPackageRealm`, ...) were replaced with
+> two universal amino compute constants (`GasAminoEncode` / `GasAminoDecode`)
+> plus a depth-aware I/O model charged at the `cache.Store` boundary. See
+> `gno.land/adr/gas_refactor.md` for the current design. This file is kept for
+> historical context.
+
 Spec for the current storage cost model. Two independent mechanisms charge for
 storage: **storage gas** (burned per-transaction) and **storage deposits**
 (locked/refunded over the lifetime of stored data).

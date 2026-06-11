@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_flag_reply_01_filetest
+
+package z_flag_reply_01_filetest
 
 import (
 	"testing"
@@ -6,12 +8,12 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross, 404, 1, 1, "Reason")
+	boards2.FlagReply(cross(cur), 404, 1, 1, "Reason")
 }
 
 // Error:
