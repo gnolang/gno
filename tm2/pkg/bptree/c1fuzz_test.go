@@ -21,9 +21,9 @@ import (
 )
 
 // The C1 fuzzer: model-based op programs interleaving prune with every other
-// operation, per C1_FUZZ_DESIGN.md (v5, 4 review rounds). One engine, three
-// entry points: FuzzTreeOps (native fuzzing), TestSoak_TreeOps (env-gated
-// continuous soak), TestStress_ConcurrentSanctionedReaders (seeded -race).
+// operation. One engine, three entry points: FuzzTreeOps (native fuzzing),
+// TestSoak_TreeOps (env-gated continuous soak),
+// TestStress_ConcurrentSanctionedReaders (seeded -race).
 // Two decoders: runOpChunk (byte-frozen by the committed corpus) and
 // runTideChunk (soak-only tide).
 
