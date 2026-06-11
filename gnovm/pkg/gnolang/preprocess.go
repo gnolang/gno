@@ -4403,6 +4403,7 @@ func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {
 	cx.Last = last
 	cx.Source = source
 	cx.Type = t
+	cx.cachedValue = asValue(t)
 	cx.SetSpan(source.GetSpan())
 	setPreprocessed(cx)
 	return cx
