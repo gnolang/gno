@@ -16,14 +16,14 @@ func k2b(i int) []byte {
 	return b
 }
 
-// TestStore_PendingVals_ConcurrentQueryProve_NoRace drives the cross-package
+// TestStore_PendingVals_ConcurrentQueryProve_NoRace guards the cross-package
 // committed-snapshot value-resolution paths through the store wrapper:
-//   - st.GetImmutable(v).Get(...)  → store.go:81 resolver → GetValueByKey → GetValue
-//   - st.Query(Prove:true)         → store.go:318 resolver → GetValueByKey → GetValue
+//   - st.GetImmutable(v).Get(...)  → resolver → GetCommittedValueByKey → getCommittedValue
+//   - st.Query(Prove:true)         → resolver → GetCommittedValueByKey → getCommittedValue
 //
 // concurrently with a writer issuing st.Set (→ SaveValue writes pendingVals).
-//
-// On HEAD this fails under -race; after the plan's fix it must be clean.
+// Since 75c946820 the committed paths are DB-only and never touch the map;
+// regressing them back to GetValue must make this fail under -race.
 func TestStore_PendingVals_ConcurrentQueryProve_NoRace(t *testing.T) {
 	db := memdb.NewMemDB()
 	st := StoreConstructor(db, types.StoreOptions{}).(*Store)

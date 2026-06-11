@@ -36,6 +36,15 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		feed    func(t *testing.T, imp *Importer) error
 	}{
 		{
+			// The migration guard for the M24 empty-key divergence: bptree
+			// rejects empty keys at Set, so the importer must reject them too —
+			// an IAVL→bptree migration carrying an empty-key entry fails loud
+			// at import time, never as a runtime panic after cutover.
+			"empty leaf key", "empty", func(t *testing.T, imp *Importer) error {
+				return imp.Add(&ExportNode{Height: 0, Key: []byte{}, Value: []byte("v")})
+			},
+		},
+		{
 			"unsorted leaf keys", "sorted", func(t *testing.T, imp *Importer) error {
 				if err := imp.Add(&ExportNode{Height: 0, Key: []byte("b"), Value: []byte("v")}); err != nil {
 					return err

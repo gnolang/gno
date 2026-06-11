@@ -1,24 +1,25 @@
 package bptree
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
-// TestPendingVals_ConcurrentValueResolve_NoRace exercises the residual race the
-// PENDINGVALS_PLAN targets: a value-resolving reader on a COMMITTED snapshot
-// reads ndb.pendingVals (via GetValue) while the single writer's SaveValue
-// writes that same map → "concurrent map read and map write".
+// TestPendingVals_ConcurrentValueResolve_NoRace guards the committed-snapshot
+// half of the pendingVals split (75c946820): committed-snapshot value reads
+// resolve DB-only (getCommittedValue) and never touch ndb.pendingVals, so they
+// cannot race the single writer's SaveValue map writes.
 //
-// The reader hits all three committed-snapshot value-resolution paths:
-//   - GetImmutable(v).Get(key)          → ImmutableTree.resolveValue → GetValue
-//   - GetMembershipProof(key)           → createExistenceProof → valueResolver → GetValue
-//   - snapshot Iterator.Value()         → it.ndb.GetValue
+// The reader hits the committed-snapshot value-resolution paths:
+//   - GetImmutable(v).Get(key)          → resolveValue → getCommittedValue
+//   - GetMembershipProof(key)           → valueResolver → getCommittedValue
+//   - snapshot Iterator.Value()         → getCommittedValue
 //
-// On HEAD this must fail under -race. After the plan's fix (committed reads are
-// DB-only) it must be clean.
+// Regressing any of those resolvers back to GetValue (the map-touching,
+// writer-only path) must make this fail under -race.
 func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
 	const n = 2_000
@@ -234,4 +235,82 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 		itr2.Next()
 	}
 	itr2.Close()
+}
+
+// TestExport_ConcurrentWithWriter_NoRace guards the Export half of the
+// pendingVals split: Export is concurrent BY CONSTRUCTION (it spawns its own
+// streaming goroutine), so its value resolution must be DB-only
+// (getCommittedValue in export.go) even when a writer is staging values
+// (SaveValue → pendingVals map writes) at the same time. Regressing the
+// exporter's resolution to ndb.GetValue must make this fail under -race —
+// none of the other guard tests covers the exporter goroutine.
+func TestExport_ConcurrentWithWriter_NoRace(t *testing.T) {
+	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
+	const n = 2_000
+	for i := 0; i < n; i++ {
+		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, version, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	imm, err := tree.GetImmutable(version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer imm.Close()
+
+	// Writer: continuously stage values WITHOUT committing, so pendingVals is
+	// being mutated for the whole window.
+	stop := make(chan struct{})
+	var writerWg sync.WaitGroup
+	writerWg.Add(1)
+	go func() {
+		defer writerWg.Done()
+		k := n
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if _, err := tree.Set(i2b(k), i2b(k)); err != nil {
+				t.Error(err)
+				return
+			}
+			k++
+		}
+	}()
+
+	// Drain full exports of the committed snapshot while the writer runs. Each
+	// Export spawns the exporter goroutine, which resolves every leaf value.
+	for round := 0; round < 50; round++ {
+		exp, err := imm.Export(imm.ndb)
+		if err != nil {
+			t.Fatal(err)
+		}
+		leaves := 0
+		for {
+			node, nerr := exp.Next()
+			if errors.Is(nerr, ErrExportDone) {
+				break
+			}
+			if nerr != nil {
+				exp.Close()
+				t.Fatalf("export round %d: %v", round, nerr)
+			}
+			if node.Height == 0 {
+				leaves++
+			}
+		}
+		exp.Close()
+		if leaves != n {
+			t.Fatalf("export round %d: drained %d leaves, want %d", round, leaves, n)
+		}
+	}
+
+	close(stop)
+	writerWg.Wait()
 }
