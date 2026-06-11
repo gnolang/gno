@@ -397,8 +397,17 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		res.Key = subspace
 		iterator := types.PrefixIterator(st, subspace)
 		defer iterator.Close()
-		for ; iterator.Valid(); iterator.Next() {
+		// The Error() guard runs BEFORE Valid() each round: it acknowledges a
+		// failed iteration (so the wrapper's unchecked-error panic stays
+		// quiet for this deliberate handler) and stops the loop on the
+		// failing row.
+		for ; iterator.Error() == nil && iterator.Valid(); iterator.Next() {
 			KVs = append(KVs, types.KVPair{Key: iterator.Key(), Value: iterator.Value()})
+		}
+		if err := iterator.Error(); err != nil {
+			// No truncated-but-OK payload: res.Value stays unset.
+			res.Error = serrors.ErrInternal(fmt.Sprintf("subspace iteration: %v", err))
+			break
 		}
 		res.Value = amino.MustMarshalSized(KVs)
 

@@ -442,28 +442,47 @@ func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, 
 	return itr, nil
 }
 
-// IterateRange iterates over [start, end) calling fn. Stops if fn returns true.
-func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(key, value []byte) bool) bool {
-	itr, _ := t.Iterator(start, end, ascending)
+// IterateRange iterates over [start, end) calling fn. Stops early if fn
+// returns true. A value-resolution or node-load failure is returned as err —
+// fn is never called with the failing row, and stopped is meaningless when
+// err != nil.
+func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(key, value []byte) bool) (stopped bool, err error) {
+	itr, err := t.Iterator(start, end, ascending)
+	if err != nil {
+		return false, err
+	}
 	defer itr.Close()
 	for itr.Valid() {
-		if fn(itr.Key(), itr.Value()) {
-			return true
+		key := itr.Key()
+		value := itr.Value()
+		if err := itr.Error(); err != nil {
+			return false, err
+		}
+		if fn(key, value) {
+			return true, nil
 		}
 		itr.Next()
 	}
-	return false
+	return false, itr.Error()
 }
 
-// IterateRange on MutableTree.
-func (t *MutableTree) IterateRange(start, end []byte, ascending bool, fn func(key, value []byte) bool) bool {
-	itr, _ := t.Iterator(start, end, ascending)
+// IterateRange on MutableTree. Same contract as ImmutableTree.IterateRange.
+func (t *MutableTree) IterateRange(start, end []byte, ascending bool, fn func(key, value []byte) bool) (stopped bool, err error) {
+	itr, err := t.Iterator(start, end, ascending)
+	if err != nil {
+		return false, err
+	}
 	defer itr.Close()
 	for itr.Valid() {
-		if fn(itr.Key(), itr.Value()) {
-			return true
+		key := itr.Key()
+		value := itr.Value()
+		if err := itr.Error(); err != nil {
+			return false, err
+		}
+		if fn(key, value) {
+			return true, nil
 		}
 		itr.Next()
 	}
-	return false
+	return false, itr.Error()
 }

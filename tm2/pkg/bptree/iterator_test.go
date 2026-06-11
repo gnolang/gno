@@ -448,10 +448,13 @@ func TestIterator_IterateRange_StopEarly(t *testing.T) {
 	}
 
 	count := 0
-	stopped := tree.IterateRange(nil, nil, true, func(key, value []byte) bool {
+	stopped, err := tree.IterateRange(nil, nil, true, func(key, value []byte) bool {
 		count++
 		return count >= 5 // stop after 5
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !stopped {
 		t.Fatalf("should have stopped early")
 	}

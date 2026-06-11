@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bp "github.com/gnolang/gno/tm2/pkg/bptree"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -93,6 +94,51 @@ func TestStoreIterator_CheckedErrorNoPanic(t *testing.T) {
 	// Acknowledged: neither a further Error() read nor Close panics.
 	if err := itr.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
+	}
+}
+
+// N28: a value failure during a /subspace query must set res.Error — not
+// return a truncated-but-OK payload, and not trip the wrapper's
+// unchecked-error panic (the handler acknowledges via Error()).
+func TestQuerySubspace_PropagatesIterationError(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := bp.NewMutableTreeWithDB(db, 0, bp.NewNopLogger())
+	st := UnsafeNewStore(tree, types.StoreOptions{})
+	for i := range 20 {
+		st.Set(nil, fmt.Appendf(nil, "sub/key%03d", i), []byte("v"))
+	}
+	st.Commit()
+
+	// Destroy one value record under the subspace.
+	itr, err := db.Iterator([]byte{'V'}, []byte{'V' + 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var victim []byte
+	for ; itr.Valid(); itr.Next() {
+		victim = append([]byte(nil), itr.Key()...)
+		break
+	}
+	itr.Close()
+	if victim == nil {
+		t.Fatal("no value records")
+	}
+	if err := db.Delete(victim); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fresh store (no cache) over the corrupted DB.
+	tree2 := bp.NewMutableTreeWithDB(db, 0, bp.NewNopLogger())
+	st2 := UnsafeNewStore(tree2, types.StoreOptions{})
+	if err := st2.LoadLatestVersion(); err != nil {
+		t.Fatal(err)
+	}
+	res := st2.Query(abci.RequestQuery{Path: "/subspace", Data: []byte("sub/")})
+	if res.Error == nil {
+		t.Fatalf("corrupt value read as clean /subspace response (value len=%d)", len(res.Value))
+	}
+	if res.Value != nil {
+		t.Fatalf("truncated payload returned alongside the error")
 	}
 }
 
