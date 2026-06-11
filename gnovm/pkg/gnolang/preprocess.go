@@ -2878,6 +2878,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *IncDecStmt:
 				xt := evalStaticTypeOf(store, last, n.X)
 				n.AssertCompatible(xt)
+				assertValidAssignLhs(store, last, n.X)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:

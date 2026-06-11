@@ -1011,6 +1011,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
+		// like go/types, operator/type errors take precedence over
+		// target assignability.
+		assertValidAssignLhs(store, last, x.Lhs[0])
 	}
 }
 
