@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -23,6 +24,8 @@ import (
 // operation, per C1_FUZZ_DESIGN.md (v5, 4 review rounds). One engine, three
 // entry points: FuzzTreeOps (native fuzzing), TestSoak_TreeOps (env-gated
 // continuous soak), TestStress_ConcurrentSanctionedReaders (seeded -race).
+// Two decoders: runOpChunk (byte-frozen by the committed corpus) and
+// runTideChunk (soak-only tide).
 
 type fuzzCfg struct {
 	keys        int   // keyspace size
@@ -34,6 +37,7 @@ type fuzzCfg struct {
 	allowImport bool
 	maxImports  int // per-program cap: each import leaks values below the wall (M21)
 	allowInject bool
+	tideHigh    int // tide crest for runTideChunk (soak-only); read only by its flip check
 }
 
 func defaultFuzzCfg() fuzzCfg {
@@ -72,6 +76,8 @@ type fuzzState struct {
 	mutSinceSave  int
 	imports       int   // imports so far, capped at cfg.maxImports
 	maxImportVer  int64 // vk-version wall (R2); 0 = no import yet
+	rising        bool  // tide direction: growing toward tideHigh vs draining to 0
+	lastFlipOp    int   // opN at the last tide flip (stall detection)
 }
 
 func newFuzzState(tb testing.TB, cfg fuzzCfg) *fuzzState {
@@ -88,7 +94,7 @@ func newFuzzState(tb testing.TB, cfg fuzzCfg) *fuzzState {
 	}
 }
 
-func (st *fuzzState) key(i int) string   { return fmt.Sprintf("fz%04d", i%st.cfg.keys) }
+func (st *fuzzState) key(i int) string   { return fmt.Sprintf("fz%05d", i%st.cfg.keys) }
 func (st *fuzzState) nzKey(i int) string { return fmt.Sprintf("nz%04d", i) } // disjoint sub-keyspace (R8)
 
 func snapCopy(m map[string]string) map[string]string {
@@ -280,6 +286,50 @@ func (st *fuzzState) doGrowWave(start, n int) {
 	}
 }
 
+// doShrinkWave removes up to n live keys starting at the first live key at or
+// above the start slot, wrapping to the smallest live keys if too few remain.
+// Targeting live keys (unlike doRemove's blind selector) is what lets the
+// falling tide actually reach 0 instead of decaying asymptotically. The single
+// model scan keeps only the n smallest candidates — sorting all live keys per
+// wave would dominate the falling phase.
+func (st *fuzzState) doShrinkWave(start, n int) {
+	from := st.key(start)
+	pick := make([]string, 0, n)
+	for k := range st.model {
+		if k >= from {
+			pick = insertSmallest(pick, k, n)
+		}
+	}
+	if rest := n - len(pick); rest > 0 {
+		low := make([]string, 0, rest)
+		for k := range st.model {
+			if k < from {
+				low = insertSmallest(low, k, rest)
+			}
+		}
+		pick = append(pick, low...)
+	}
+	for _, k := range pick {
+		st.doRemove(k)
+	}
+}
+
+// insertSmallest inserts k into the sorted slice, keeping only the limit smallest.
+func insertSmallest(ks []string, k string, limit int) []string {
+	if len(ks) == limit && k >= ks[limit-1] {
+		return ks // not among the smallest — the common case at scale
+	}
+	i, _ := slices.BinarySearch(ks, k)
+	if i >= limit {
+		return ks
+	}
+	ks = slices.Insert(ks, i, k)
+	if len(ks) > limit {
+		ks = ks[:limit]
+	}
+	return ks
+}
+
 func (st *fuzzState) doDrainAll() {
 	for _, k := range st.sortedModelKeys() {
 		st.doRemove(k)
@@ -328,6 +378,9 @@ func (st *fuzzState) releaseHolds(all bool) {
 	}
 }
 
+// doSnapshotReads verifies up to 3 entries of a retained version against its
+// snapshot, iterating from a selector-derived interior point — an O(log n)
+// seek that reaches arbitrary paths without sorting the snapshot.
 func (st *fuzzState) doSnapshotReads(sel byte) {
 	v, ok := st.pickRetained(sel)
 	if !ok {
@@ -338,20 +391,31 @@ func (st *fuzzState) doSnapshotReads(sel byte) {
 		st.tb.Fatalf("op %d: GetImmutable(%d): %v", st.opN, v, err)
 	}
 	defer imm.Close()
-	snap := st.snaps[v]
-	ks := make([]string, 0, len(snap))
-	for k := range snap {
-		ks = append(ks, k)
+	it, err := imm.Iterator([]byte(st.key(int(sel)<<8)), nil, true)
+	if err != nil {
+		st.tb.Fatalf("op %d: v%d iterator: %v", st.opN, v, err)
 	}
-	sort.Strings(ks)
-	for i := 0; i < len(ks) && i < 3; i++ {
-		got, err := imm.Get([]byte(ks[i]))
-		if err != nil || string(got) != snap[ks[i]] {
-			st.tb.Fatalf("op %d: v%d Get(%s) = %q, %v; want %q", st.opN, v, ks[i], got, err, snap[ks[i]])
+	defer it.Close()
+	snap := st.snaps[v]
+	for i := 0; i < 3 && it.Valid(); i++ {
+		k := string(it.Key())
+		if string(it.Value()) != snap[k] {
+			st.tb.Fatalf("op %d: v%d iter %s = %q (%v); want %q", st.opN, v, k, it.Value(), it.Error(), snap[k])
 		}
+		got, err := imm.Get(it.Key())
+		if err != nil || string(got) != snap[k] {
+			st.tb.Fatalf("op %d: v%d Get(%s) = %q, %v; want %q", st.opN, v, k, got, err, snap[k])
+		}
+		it.Next()
+	}
+	if err := it.Error(); err != nil {
+		st.tb.Fatalf("op %d: v%d iterator error: %v", st.opN, v, err)
 	}
 }
 
+// doIteratePartial walks up to sel%97 steps, descending when sel >= 128 — the
+// harness's only descending-iterator coverage; strides past 32 cross leaf
+// boundaries (B=32) in both directions.
 func (st *fuzzState) doIteratePartial(sel byte) {
 	v, ok := st.pickRetained(sel)
 	if !ok {
@@ -362,15 +426,15 @@ func (st *fuzzState) doIteratePartial(sel byte) {
 		st.tb.Fatalf("op %d: GetImmutable(%d): %v", st.opN, v, err)
 	}
 	defer imm.Close()
-	it, err := imm.Iterator(nil, nil, true)
+	it, err := imm.Iterator(nil, nil, sel < 128)
 	if err != nil {
 		st.tb.Fatalf("op %d: Iterator(%d): %v", st.opN, v, err)
 	}
-	for i := 0; i < int(sel)%7 && it.Valid(); i++ {
+	defer it.Close()
+	for i := 0; i < int(sel)%97 && it.Valid(); i++ {
 		_ = it.Key()
 		it.Next()
 	}
-	it.Close()
 }
 
 func (st *fuzzState) doLoadOld(sel byte) {
@@ -507,8 +571,14 @@ func (st *fuzzState) doExportImport(sel byte) {
 }
 
 func (st *fuzzState) doInjectError(n byte) {
-	if !st.cfg.allowInject || st.dirty {
+	if !st.cfg.allowInject {
 		return
+	}
+	// Commit any staged session first: with ~1000-mutation sessions a dirty
+	// early-return would make this op nearly dead. The save may cascade into
+	// catchUp (holds released, window pruned) before arming — benign.
+	if st.dirty {
+		st.doSave()
 	}
 	to := st.latest - 1
 	if to < st.first || st.expectedPrune(to) != expNil {
@@ -518,7 +588,13 @@ func (st *fuzzState) doInjectError(n byte) {
 	if st.tree.ndb.nodeCache != nil {
 		st.tree.ndb.nodeCache.Purge()
 	}
-	atomic.StoreInt32(&st.fdb.allow, int32(n%8))
+	// n<<4 spreads the failure 0..4080 reads into the walk: deep enough to land
+	// mid-prune at soak tree sizes, shallow enough that the not-fired branch
+	// stays reachable. Staged deletes remain far below prune's 4MiB flush
+	// threshold (≤2W-1 versions of ~1k-mutation diffs), so a fired error can
+	// never follow a partial intermediate commit — the fired-path oracle below
+	// relies on every retained version still existing.
+	atomic.StoreInt32(&st.fdb.allow, int32(n)<<4)
 	atomic.StoreInt32(&st.fdb.armed, 1)
 	err := st.tree.DeleteVersionsTo(to)
 	fired := atomic.LoadInt32(&st.fdb.allow) < 0
@@ -635,16 +711,21 @@ func (st *fuzzState) proofOracle() {
 				st.tb.Fatalf("op %d: v%d membership proof for %s does not verify", st.opN, v, k)
 			}
 		}
+		// Absent-key probes: an edge bracket, plus an interior gap (strictly
+		// between a present key and its successor) — the only probe shape that
+		// yields a two-sided (left AND right neighbor) NonExist.
 		absent := "a!" // sorts before the fz/nz keyspaces
 		if v%2 == 0 {
 			absent = "zz!" // and after
 		}
-		proof, err := imm.GetNonMembershipProof([]byte(absent))
-		if err != nil {
-			st.tb.Fatalf("op %d: v%d non-membership proof(%s): %v", st.opN, v, absent, err)
-		}
-		if !ics23.VerifyNonMembership(BptreeSpec, st.hashes[v], proof, []byte(absent)) {
-			st.tb.Fatalf("op %d: v%d non-membership proof for %s does not verify", st.opN, v, absent)
+		for _, probe := range []string{absent, ks[(len(ks)-1)/2] + "!"} {
+			proof, err := imm.GetNonMembershipProof([]byte(probe))
+			if err != nil {
+				st.tb.Fatalf("op %d: v%d non-membership proof(%s): %v", st.opN, v, probe, err)
+			}
+			if !ics23.VerifyNonMembership(BptreeSpec, st.hashes[v], proof, []byte(probe)) {
+				st.tb.Fatalf("op %d: v%d non-membership proof for %s does not verify", st.opN, v, probe)
+			}
 		}
 		imm.Close()
 	}
@@ -699,9 +780,11 @@ func (st *fuzzState) pruneTarget(sel byte) (int64, bool) {
 }
 
 // runOpChunk decodes and executes ops against persistent state.
-func runOpChunk(st *fuzzState, data []byte) {
+// makePops returns the byte-cursor primitives shared by both decoders; every
+// op's byte consumption flows through these, and the corpus freezes it.
+func makePops(data []byte) (pop func() (byte, bool), pop2 func() (int, bool)) {
 	pos := 0
-	pop := func() (byte, bool) {
+	pop = func() (byte, bool) {
 		if pos >= len(data) {
 			return 0, false
 		}
@@ -709,11 +792,16 @@ func runOpChunk(st *fuzzState, data []byte) {
 		pos++
 		return b, true
 	}
-	pop2 := func() (int, bool) {
+	pop2 = func() (int, bool) {
 		a, ok1 := pop()
 		b, ok2 := pop()
 		return int(a)<<8 | int(b), ok1 && ok2
 	}
+	return pop, pop2
+}
+
+func runOpChunk(st *fuzzState, data []byte) {
+	pop, pop2 := makePops(data)
 	ops := 0
 	for ops < st.cfg.maxOps {
 		op, ok := pop()
@@ -791,6 +879,125 @@ func runOpChunk(st *fuzzState, data []byte) {
 	}
 }
 
+// runTideChunk decodes one chunk in tide mode: mutations dominate and follow
+// the rising/falling state (grow to cfg.tideHigh, drain to 0, repeat), and
+// waves run 1-64 consecutive keys. Sessions commit on the ~1024-mutation
+// sessionCap backbone; the byte-247 save is rare jitter. Cheap lifecycle ops
+// run at 1/256, but the four session-killers (rollback, load-old, cold
+// restart, error injection) are gated to ~1/4096 — at 1/256 they discarded
+// ~90% of tide progress before it could commit and the soak never crested.
+// The tide is what carries the tree through height transitions both ways
+// (1↔4 levels at tideHigh=50k); the fixed-equilibrium decoder above never
+// leaves height 2.
+func runTideChunk(st *fuzzState, data []byte) {
+	pop, pop2 := makePops(data)
+	ops := 0
+	for ops < st.cfg.maxOps {
+		op, ok := pop()
+		if !ok {
+			return
+		}
+		ops++
+		st.opN++
+		st.releaseHolds(false)
+		if st.mutSinceSave > st.cfg.sessionCap {
+			st.doSave()
+		}
+		if st.rising && len(st.model) >= st.cfg.tideHigh {
+			st.rising = false
+			st.lastFlipOp = st.opN
+		} else if !st.rising && len(st.model) == 0 {
+			// Commit the drained tree so every cycle retains an empty version;
+			// the rising window's catch-up then prunes through it.
+			if st.dirty {
+				st.doSave()
+			}
+			st.rising = true
+			st.lastFlipOp = st.opN
+		}
+		// ~8× the expected half-cycle (rise ≈ 38k ops, fall ≈ 21k): never
+		// trips on variance, catches a drift regression within minutes.
+		if st.opN-st.lastFlipOp > 300_000 {
+			st.tb.Fatalf("op %d: tide stalled (rising=%v, %d live keys, versions [%d,%d])",
+				st.opN, st.rising, len(st.model), st.first, st.latest)
+		}
+		switch {
+		case op < 130: // dominant single key: Set rising, Remove falling
+			if k, ok := pop2(); ok {
+				if st.rising {
+					st.doSet(st.key(k))
+				} else {
+					st.doRemove(st.key(k))
+				}
+			}
+		case op < 195: // counter single key: churn against the tide
+			if k, ok := pop2(); ok {
+				if st.rising {
+					st.doRemove(st.key(k))
+				} else {
+					st.doSet(st.key(k))
+				}
+			}
+		case op < 215:
+			if k, ok := pop2(); ok {
+				st.doSetSame(st.key(k))
+			}
+		case op < 239: // wave: 1-64 consecutive keys in the tide's direction
+			start, ok1 := pop2()
+			n, ok2 := pop()
+			if ok1 && ok2 {
+				if st.rising {
+					st.doGrowWave(start, 1+int(n)%64)
+				} else {
+					st.doShrinkWave(start, 1+int(n)%64)
+				}
+			}
+		case op < 247:
+			if k, ok := pop(); ok {
+				st.doNetZero(int(k))
+			}
+		case op == 247: // save jitter ~1/1024; the sessionCap backbone sets the cadence
+			if b, ok := pop(); ok && b < 64 {
+				st.doSave()
+			}
+		case op == 248:
+			if sel, ok := pop(); ok {
+				if to, doIt := st.pruneTarget(sel); doIt {
+					st.doPrune(to)
+				}
+			}
+		case op == 249:
+			if sel, ok := pop(); ok {
+				st.doHold(sel)
+			}
+		case op == 250:
+			if sel, ok := pop(); ok {
+				st.doSnapshotReads(sel)
+			}
+		case op == 251:
+			if sel, ok := pop(); ok {
+				st.doIteratePartial(sel)
+			}
+		default: // 252-255: session-killers, gated to ~1/4096 (gate byte always
+			// consumed): ~13 firings per tide cycle each — useful, not in the way.
+			if g, ok := pop(); ok && g < 16 {
+				switch op {
+				case 252:
+					st.doRollback()
+				case 253:
+					st.doLoadOld(g)
+				case 254:
+					st.doColdRestart()
+				default: // 255: inject; depth byte popped only on gate-pass
+					if n, ok := pop(); ok {
+						st.doInjectError(n)
+					}
+				}
+			}
+		}
+	}
+}
+
 func runOpProgram(tb testing.TB, data []byte, cfg fuzzCfg) {
 	st := newFuzzState(tb, cfg)
 	runOpChunk(st, data)
@@ -823,8 +1030,8 @@ func FuzzTreeOps(f *testing.F) {
 	seed(opGrow, 0, 0, 20, opSave, opSet, 0, 5, opSave, opImport, 1, opPrune, 4)
 	// LoadOld: covering prune, idempotent save, recovery.
 	seed(opSet, 0, 1, opSave, opSet, 0, 2, opSave, opSet, 0, 3, opSave, opLoadOld, 0, opPrune, 4)
-	// Injected error mid-prune then retry.
-	seed(opGrow, 0, 0, 20, opSave, opSet, 0, 7, opSave, opSet, 0, 8, opSave, opInject, 2)
+	// Injected error mid-prune then retry (depth 0: fires on the first armed read).
+	seed(opGrow, 0, 0, 20, opSave, opSet, 0, 7, opSave, opSet, 0, 8, opSave, opInject, 0)
 	// Held snapshot blocks then releases.
 	seed(opSet, 0, 1, opSave, opSet, 0, 2, opSave, opHold, 0, opPrune, 3, opSnap, 0, opPrune, 3)
 	// Separator-shift deletes (first keys) then prune.
@@ -867,17 +1074,31 @@ func TestSoak_TreeOps(t *testing.T) {
 	cfg := defaultFuzzCfg()
 	cfg.allowImport = false // M21: repeated imports leak unboundedly
 	cfg.maxOps = 1 << 30    // the chunk loop, not the op cap, bounds each pass
+	cfg.keys = 1 << 16      // full 2-byte selector range; tideHigh must stay below ~0.93×keys (drift equilibrium) or the rise stalls
+	cfg.tideHigh = 50_000   // crest at height-4 trees (non-root inners with inner children)
+	cfg.sessionCap = 1024   // the session backbone: most sessions commit at ~1024 mutations
 	st := newFuzzState(t, cfg)
+	st.rising = true
 	rng := rand.New(rand.NewSource(seed))
 	chunk := make([]byte, 4096)
-	chunks := 0
+	chunks, peakKeys, peakLevels := 0, 0, 0
 	for spec == "forever" || time.Now().Before(deadline) {
 		rng.Read(chunk)
-		runOpChunk(st, chunk)
+		runTideChunk(st, chunk)
 		chunks++
-		if chunks%64 == 0 {
-			t.Logf("soak: %d chunks, %d ops, versions [%d,%d], %d live keys",
-				chunks, st.opN, st.first, st.latest, len(st.model))
+		peakKeys = max(peakKeys, len(st.model))
+		levels := 0
+		if st.tree.root != nil {
+			levels = int(nodeHeight(st.tree.root)) + 1
+		}
+		peakLevels = max(peakLevels, levels)
+		if chunks%16 == 0 {
+			phase := "rising"
+			if !st.rising {
+				phase = "falling"
+			}
+			t.Logf("soak: %d chunks, %d ops, versions [%d,%d], %d live keys, %d levels, %s (peak %d keys / %d levels)",
+				chunks, st.opN, st.first, st.latest, len(st.model), levels, phase, peakKeys, peakLevels)
 		}
 	}
 	st.releaseHolds(true)
