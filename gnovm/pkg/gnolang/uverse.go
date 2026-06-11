@@ -708,6 +708,16 @@ func makeUverseNode() {
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
+				if arg0.TV.V == nil {
+					// Go spec: if the map is nil, delete is a no-op.
+					// The readonly check below cannot apply here: a
+					// nil value never carries the readonly taint
+					// (see TypedValue.IsReadonly). Note this no-ops
+					// even for unhashable interface keys, where the
+					// gc runtime panics; gno follows the spec text
+					// and its own nil-map read behavior instead.
+					return
+				}
 				mv := arg0.TV.V.(*MapValue)
 
 				if m.IsReadonly(arg0.TV) {
