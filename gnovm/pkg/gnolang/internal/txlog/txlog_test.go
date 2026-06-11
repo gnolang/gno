@@ -3,6 +3,7 @@ package txlog
 import (
 	"fmt"
 	"maps"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -333,6 +334,133 @@ func (b bufferedTxMap[K, V]) Delete(k K) {
 		return
 	}
 	b.dirty[k] = deletable[V]{deleted: true}
+}
+
+func TestSyncGoMap(t *testing.T) {
+	t.Parallel()
+
+	m := NewSyncGoMap[string, int]()
+
+	// Get on empty map returns zero value and false.
+	v, ok := m.Get("a")
+	assert.False(t, ok)
+	assert.Zero(t, v)
+
+	// Set then Get.
+	m.Set("a", 1)
+	m.Set("b", 2)
+	v, ok = m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, 1, v)
+	v, ok = m.Get("b")
+	assert.True(t, ok)
+	assert.Equal(t, 2, v)
+
+	// Overwrite existing key.
+	m.Set("a", 99)
+	v, ok = m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, 99, v)
+
+	// Delete existing key.
+	m.Delete("a")
+	v, ok = m.Get("a")
+	assert.False(t, ok)
+	assert.Zero(t, v)
+
+	// Delete non-existent key is a no-op.
+	m.Delete("missing")
+
+	// Iterate returns all remaining entries.
+	assert.Equal(t, map[string]int{"b": 2}, maps.Collect(m.Iterate()))
+}
+
+// TestSyncGoMap_iterateSnapshot verifies that Iterate snapshots the map at
+// call time, so mutations made during the for-range loop do not affect the
+// sequence being consumed.
+func TestSyncGoMap_iterateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	m := NewSyncGoMap[int, int]()
+	m.Set(1, 10)
+	m.Set(2, 20)
+
+	seen := map[int]int{}
+	for k, v := range m.Iterate() {
+		seen[k] = v
+		// Mutate the live map during iteration.
+		m.Set(3, 30)
+		m.Delete(k)
+	}
+
+	// The iteration should have visited exactly the two original entries.
+	assert.Equal(t, map[int]int{1: 10, 2: 20}, seen)
+
+	// Mutations are visible after iteration completes.
+	_, ok1 := m.Get(1)
+	_, ok2 := m.Get(2)
+	v3, ok3 := m.Get(3)
+	assert.False(t, ok1)
+	assert.False(t, ok2)
+	assert.True(t, ok3)
+	assert.Equal(t, 30, v3)
+}
+
+// TestSyncGoMap_concurrent exercises SyncGoMap under concurrent readers,
+// writers, and iterators. Run with -race to detect data races.
+func TestSyncGoMap_concurrent(t *testing.T) {
+	t.Parallel()
+
+	const (
+		keys       = 50
+		goroutines = 8
+		ops        = 500
+	)
+
+	m := NewSyncGoMap[int, int]()
+	for i := range keys {
+		m.Set(i, i)
+	}
+
+	var wg sync.WaitGroup
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				m.Get(i % keys)
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				k := i % keys
+				m.Set(k, k*2)
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for range ops / 10 {
+				k := 0
+				for range m.Iterate() {
+					k++
+				}
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				m.Delete(i % keys)
+			}
+		})
+	}
+
+	wg.Wait()
 }
 
 func Benchmark_txLogRead(b *testing.B) {
