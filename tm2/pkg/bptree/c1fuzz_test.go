@@ -59,6 +59,18 @@ type heldSnap struct {
 	expireAt int
 }
 
+// soakStats counts branch firings so a long soak run reports what it actually
+// covered. Deterministic per seed — diffable across runs as a regression signal.
+type soakStats struct {
+	flips, emptySaves, twinSaves         int
+	injectArmed, injectFired             int
+	cell5Blocked                         int
+	adoptions, adoptExistsErrs           int
+	rollbacks, loadOlds, coldRestarts    int
+	shrinkWraps, boundedIters, emptySets int
+	maxPruneWidth                        int64
+}
+
 type fuzzState struct {
 	tb   testing.TB
 	cfg  fuzzCfg
@@ -78,6 +90,7 @@ type fuzzState struct {
 	maxImportVer  int64 // vk-version wall (R2); 0 = no import yet
 	rising        bool  // tide direction: growing toward tideHigh vs draining to 0
 	lastFlipOp    int   // opN at the last tide flip (stall detection)
+	stats         soakStats
 }
 
 func newFuzzState(tb testing.TB, cfg fuzzCfg) *fuzzState {
@@ -149,6 +162,9 @@ func (st *fuzzState) expectedPrune(toVersion int64) pruneExp {
 // model transition on success, and runs the full oracle after real work.
 func (st *fuzzState) doPrune(toVersion int64) {
 	exp := st.expectedPrune(toVersion)
+	if exp == expActiveReaders && st.tree.Version() > toVersion {
+		st.stats.cell5Blocked++ // held-reader block (cell 5), not the loaded-version guard
+	}
 	err := st.tree.DeleteVersionsTo(toVersion)
 	switch exp {
 	case expNil:
@@ -157,6 +173,9 @@ func (st *fuzzState) doPrune(toVersion int64) {
 				st.opN, toVersion, err, st.first, st.latest, st.tree.Version(), st.dirty, len(st.holds))
 		}
 		if toVersion >= st.first { // real work (not the cell-2 no-op)
+			if w := toVersion - st.first + 1; w > st.stats.maxPruneWidth {
+				st.stats.maxPruneWidth = w
+			}
 			for v := range st.snaps {
 				if v <= toVersion {
 					delete(st.snaps, v)
@@ -185,6 +204,10 @@ func (st *fuzzState) doPrune(toVersion int64) {
 
 func (st *fuzzState) doSet(k string) {
 	v := fmt.Sprintf("v%d", st.opN)
+	if st.opN%101 == 0 {
+		v = "" // empty value: the only value-shape-dependent path (empty-vs-missing)
+		st.stats.emptySets++
+	}
 	if _, err := st.tree.Set([]byte(k), []byte(v)); err != nil {
 		st.tb.Fatalf("op %d: Set(%s): %v", st.opN, k, err)
 	}
@@ -230,6 +253,12 @@ func (st *fuzzState) doNetZero(i int) {
 }
 
 func (st *fuzzState) doSave() {
+	if len(st.model) == 0 {
+		st.stats.emptySaves++
+	}
+	if st.mutSinceSave == 0 {
+		st.stats.twinSaves++ // clean-session save: content-identical adjacent versions
+	}
 	h, v, err := st.tree.SaveVersion()
 	if err != nil {
 		st.tb.Fatalf("op %d: SaveVersion: %v", st.opN, err)
@@ -270,6 +299,7 @@ func (st *fuzzState) catchUp() {
 }
 
 func (st *fuzzState) doRollback() {
+	st.stats.rollbacks++
 	st.tree.Rollback()
 	if st.latest > 0 {
 		st.model = snapCopy(st.snaps[st.latest])
@@ -306,6 +336,9 @@ func (st *fuzzState) doShrinkWave(start, n int) {
 			if k < from {
 				low = insertSmallest(low, k, rest)
 			}
+		}
+		if len(low) > 0 {
+			st.stats.shrinkWraps++
 		}
 		pick = append(pick, low...)
 	}
@@ -415,7 +448,10 @@ func (st *fuzzState) doSnapshotReads(sel byte) {
 
 // doIteratePartial walks up to sel%97 steps, descending when sel >= 128 — the
 // harness's only descending-iterator coverage; strides past 32 cross leaf
-// boundaries (B=32) in both directions.
+// boundaries (B=32) in both directions. Every third selector bounds the walk
+// to a selector-derived [start, end) window — the only end-bounded iteration
+// at depth. Any yield outside the window (including from a wrapped/inverted
+// window, which must yield nothing) fails.
 func (st *fuzzState) doIteratePartial(sel byte) {
 	v, ok := st.pickRetained(sel)
 	if !ok {
@@ -426,14 +462,26 @@ func (st *fuzzState) doIteratePartial(sel byte) {
 		st.tb.Fatalf("op %d: GetImmutable(%d): %v", st.opN, v, err)
 	}
 	defer imm.Close()
-	it, err := imm.Iterator(nil, nil, sel < 128)
+	var start, end []byte
+	if sel%3 == 0 {
+		lo := (int(sel) * 257) % st.cfg.keys
+		span := 1 + (int(sel)*7)%500
+		start, end = []byte(st.key(lo)), []byte(st.key(lo+span))
+		st.stats.boundedIters++
+	}
+	it, err := imm.Iterator(start, end, sel < 128)
 	if err != nil {
 		st.tb.Fatalf("op %d: Iterator(%d): %v", st.opN, v, err)
 	}
 	defer it.Close()
 	for i := 0; i < int(sel)%97 && it.Valid(); i++ {
-		_ = it.Key()
+		if k := it.Key(); start != nil && (bytes.Compare(k, start) < 0 || bytes.Compare(k, end) >= 0) {
+			st.tb.Fatalf("op %d: v%d bounded iterator yielded %s outside [%s,%s)", st.opN, v, k, start, end)
+		}
 		it.Next()
+	}
+	if err := it.Error(); err != nil {
+		st.tb.Fatalf("op %d: v%d iterator error: %v", st.opN, v, err)
 	}
 }
 
@@ -442,6 +490,7 @@ func (st *fuzzState) doLoadOld(sel byte) {
 	if len(vs) < 2 {
 		return // R7: with one retained version a covering prune is the cell-1 plain error
 	}
+	st.stats.loadOlds++
 	v := vs[int(sel)%(len(vs)-1)] // any retained version < latest
 	// Entry pin: LoadVersion discards any staged session; the model drops its
 	// overlay at op START and the working view becomes the v snapshot.
@@ -477,11 +526,13 @@ func (st *fuzzState) doLoadOld(sel byte) {
 			if err != nil || sv != v+1 {
 				st.tb.Fatalf("op %d: idempotent adoption at v%d: got v%d, %v", st.opN, v+1, sv, err)
 			}
+			st.stats.adoptions++
 			st.model = snapCopy(st.snaps[v+1])
 		} else {
 			if err == nil || !strings.Contains(err.Error(), "already exists with a different hash") {
 				st.tb.Fatalf("op %d: save-while-loaded at v%d: want exists-error, got %v", st.opN, v+1, err)
 			}
+			st.stats.adoptExistsErrs++
 		}
 	}
 	// Closing recovery: back to latest.
@@ -502,6 +553,7 @@ func (st *fuzzState) doColdRestart() {
 	if st.latest == 0 {
 		return // nothing committed; a fresh tree would have nothing to Load
 	}
+	st.stats.coldRestarts++
 	st.tree = NewMutableTreeWithDB(st.fdb, st.cfg.cacheSize, NewNopLogger())
 	v, err := st.tree.Load()
 	if err != nil {
@@ -590,10 +642,10 @@ func (st *fuzzState) doInjectError(n byte) {
 	}
 	// n<<4 spreads the failure 0..4080 reads into the walk: deep enough to land
 	// mid-prune at soak tree sizes, shallow enough that the not-fired branch
-	// stays reachable. Staged deletes remain far below prune's 4MiB flush
-	// threshold (≤2W-1 versions of ~1k-mutation diffs), so a fired error can
-	// never follow a partial intermediate commit — the fired-path oracle below
-	// relies on every retained version still existing.
+	// stays reachable. A width-3 prune of ~1k-mutation diffs can stage close
+	// to the 100KB flush threshold (options.go), so a mid-prune flush before
+	// the error is possible — the fired path below reconciles for it.
+	st.stats.injectArmed++
 	atomic.StoreInt32(&st.fdb.allow, int32(n)<<4)
 	atomic.StoreInt32(&st.fdb.armed, 1)
 	err := st.tree.DeleteVersionsTo(to)
@@ -603,7 +655,20 @@ func (st *fuzzState) doInjectError(n byte) {
 		if err == nil {
 			st.tb.Fatalf("op %d: injector fired but prune(%d) succeeded", st.opN, to)
 		}
-		st.perVersionOracle() // all retained versions intact after the failed prune
+		st.stats.injectFired++
+		// A mid-prune threshold flush may have committed the deletion of
+		// leading versions before the error fired — sanctioned idempotent
+		// behavior. Reconcile the model to what actually survived.
+		for v := range st.snaps {
+			if !st.tree.VersionExists(v) {
+				delete(st.snaps, v)
+				delete(st.hashes, v)
+				if v >= st.first {
+					st.first = v + 1
+				}
+			}
+		}
+		st.perVersionOracle() // surviving retained versions intact after the failed prune
 		// Disarmed retry succeeds — the continuous L2 property.
 		st.doPrune(to)
 	} else {
@@ -649,6 +714,16 @@ func (st *fuzzState) garbageOracle() {
 			if !nodes[string(k[1:])] {
 				st.tb.Fatalf("op %d: LEAK: node record %x unreachable", st.opN, k[1:])
 			}
+		case PrefixOrphan:
+			// Orphan records exist only for (first, latest]: orphans[first]
+			// is consumed when its predecessor is pruned.
+			if v := int64(binary.BigEndian.Uint64(k[1:])); v <= st.first || v > st.latest {
+				st.tb.Fatalf("op %d: LEAK: orphan record for v%d outside (%d,%d]", st.opN, v, st.first, st.latest)
+			}
+		case PrefixRoot:
+			if v := int64(binary.BigEndian.Uint64(k[1:])); v < st.first || v > st.latest {
+				st.tb.Fatalf("op %d: LEAK: root record for v%d outside [%d,%d]", st.opN, v, st.first, st.latest)
+			}
 		case PrefixVal:
 			if values[string(k[1:])] {
 				continue
@@ -659,6 +734,8 @@ func (st *fuzzState) garbageOracle() {
 				continue // tolerated below the import wall (M21)
 			}
 			st.tb.Fatalf("op %d: LEAK: value record %x referenced by no retained leaf", st.opN, k[1:])
+		default:
+			st.tb.Fatalf("op %d: unknown record prefix %q (key %x)", st.opN, k[0], k)
 		}
 	}
 }
@@ -703,6 +780,9 @@ func (st *fuzzState) proofOracle() {
 		sort.Strings(ks)
 		for _, i := range []int{0, len(ks) / 2, len(ks) - 1} {
 			k := ks[i]
+			if snap[k] == "" {
+				continue // ics23 LeafOp rejects empty values — unprovable by construction (the M24 empty-key constraint, value side)
+			}
 			proof, err := imm.GetMembershipProof([]byte(k))
 			if err != nil {
 				st.tb.Fatalf("op %d: v%d membership proof(%s): %v", st.opN, v, k, err)
@@ -713,12 +793,22 @@ func (st *fuzzState) proofOracle() {
 		}
 		// Absent-key probes: an edge bracket, plus an interior gap (strictly
 		// between a present key and its successor) — the only probe shape that
-		// yields a two-sided (left AND right neighbor) NonExist.
-		absent := "a!" // sorts before the fz/nz keyspaces
+		// yields a two-sided (left AND right neighbor) NonExist. A probe is
+		// skipped when an adjacent leaf holds an empty value: the embedded
+		// neighbor ExistenceProof is unprovable (ics23 LeafOp, cf. M24).
+		mid := (len(ks) - 1) / 2
+		probes := make([]string, 0, 2)
 		if v%2 == 0 {
-			absent = "zz!" // and after
+			if snap[ks[len(ks)-1]] != "" {
+				probes = append(probes, "zz!") // sorts after the fz/nz keyspaces
+			}
+		} else if snap[ks[0]] != "" {
+			probes = append(probes, "a!") // and before
 		}
-		for _, probe := range []string{absent, ks[(len(ks)-1)/2] + "!"} {
+		if snap[ks[mid]] != "" && (mid+1 >= len(ks) || snap[ks[mid+1]] != "") {
+			probes = append(probes, ks[mid]+"!")
+		}
+		for _, probe := range probes {
 			proof, err := imm.GetNonMembershipProof([]byte(probe))
 			if err != nil {
 				st.tb.Fatalf("op %d: v%d non-membership proof(%s): %v", st.opN, v, probe, err)
@@ -906,6 +996,7 @@ func runTideChunk(st *fuzzState, data []byte) {
 		if st.rising && len(st.model) >= st.cfg.tideHigh {
 			st.rising = false
 			st.lastFlipOp = st.opN
+			st.stats.flips++
 		} else if !st.rising && len(st.model) == 0 {
 			// Commit the drained tree so every cycle retains an empty version;
 			// the rising window's catch-up then prunes through it.
@@ -914,6 +1005,7 @@ func runTideChunk(st *fuzzState, data []byte) {
 			}
 			st.rising = true
 			st.lastFlipOp = st.opN
+			st.stats.flips++
 		}
 		// ~8× the expected half-cycle (rise ≈ 38k ops, fall ≈ 21k): never
 		// trips on variance, catches a drift regression within minutes.
@@ -1081,12 +1173,16 @@ func TestSoak_TreeOps(t *testing.T) {
 	st.rising = true
 	rng := rand.New(rand.NewSource(seed))
 	chunk := make([]byte, 4096)
+	// peak/low are per-log-window (chunk-boundary samples) so the line stays
+	// diagnostic on long runs; the exact floor (0) is what flips the phase.
 	chunks, peakKeys, peakLevels := 0, 0, 0
+	lowKeys := cfg.tideHigh
 	for spec == "forever" || time.Now().Before(deadline) {
 		rng.Read(chunk)
 		runTideChunk(st, chunk)
 		chunks++
 		peakKeys = max(peakKeys, len(st.model))
+		lowKeys = min(lowKeys, len(st.model))
 		levels := 0
 		if st.tree.root != nil {
 			levels = int(nodeHeight(st.tree.root)) + 1
@@ -1097,8 +1193,9 @@ func TestSoak_TreeOps(t *testing.T) {
 			if !st.rising {
 				phase = "falling"
 			}
-			t.Logf("soak: %d chunks, %d ops, versions [%d,%d], %d live keys, %d levels, %s (peak %d keys / %d levels)",
-				chunks, st.opN, st.first, st.latest, len(st.model), levels, phase, peakKeys, peakLevels)
+			t.Logf("soak: %d chunks, %d ops, versions [%d,%d], %d live keys, %d levels, %s (window peak %d / low %d keys, max %d levels)",
+				chunks, st.opN, st.first, st.latest, len(st.model), levels, phase, peakKeys, lowKeys, peakLevels)
+			peakKeys, lowKeys = 0, cfg.tideHigh
 		}
 	}
 	st.releaseHolds(true)
@@ -1106,6 +1203,7 @@ func TestSoak_TreeOps(t *testing.T) {
 		st.fullOracle()
 	}
 	t.Logf("soak done: %d chunks, %d ops", chunks, st.opN)
+	t.Logf("soak stats: %+v", st.stats)
 }
 
 // --- entry point 3: seeded -race stress on the sanctioned concurrent surface ---
