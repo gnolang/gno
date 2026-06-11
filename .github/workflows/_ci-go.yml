@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: ""
+      coverage:
+        description: "Collect coverage and print per-module percentages (the data is not uploaded anywhere; see #5795). Instrumentation slows interpreter-heavy tests measurably."
+        required: false
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -90,8 +95,16 @@ jobs:
           COVERDIR: /tmp/coverdir
           INPUTS_MODULEPATH: ${{ inputs.modulepath }}
           INPUTS_TESTS_EXTRA_ARGS: ${{ inputs.tests-extra-args }}
+          INPUTS_COVERAGE: ${{ inputs.coverage }}
         run: |
           set -x
+
+          if [ "$INPUTS_COVERAGE" != "true" ]; then
+            # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+            # shellcheck disable=SC2086
+            go test -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./...
+            exit 0
+          fi
 
           mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
