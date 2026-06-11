@@ -1,20 +1,18 @@
-// Package hub exposes safe, read-only views over boards2's persistent
-// state. The Get* functions are plain non-crossing functions.
+// The `hub.gno` file exposes safe, read-only views over the realm's
+// persistent state.
 //
 // Note for future maintainers: these reads perform no caller
-// authorization — boards2's read entry points are unguarded — so do not
-// graft user-identity gating onto them.
-package hub
+// authorization, so do not graft user-identity gating onto them.
+
+package boards2
 
 import (
 	"gno.land/p/gnoland/boards"
 	hubexts "gno.land/p/gnoland/boards/exts/hub"
-
-	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 // Safe view types are defined in the hub extensions package and
-// re-exported here so callers can keep using the hub realm types.
+// re-exported here so callers can keep using them via this realm.
 type (
 	Board   = hubexts.Board
 	Comment = hubexts.Comment
@@ -25,7 +23,7 @@ type (
 
 // GetBoard returns a safe board.
 func GetBoard(id uint64) (Board, bool) {
-	b, found := getBoard(id)
+	b, found := gBoards.Get(boards.ID(id))
 	if !found {
 		return Board{}, false
 	}
@@ -34,7 +32,7 @@ func GetBoard(id uint64) (Board, bool) {
 
 // GetThread returns a safe board thread.
 func GetThread(boardID, threadID uint64) (Thread, bool) {
-	t, found := getThread(boardID, threadID)
+	t, found := getBoardThread(boardID, threadID)
 	if !found {
 		return Thread{}, false
 	}
@@ -54,7 +52,7 @@ func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 // To reverse iterate use a negative count.
 func GetBoards(start, count int) []Board {
 	var boards_ []Board
-	boards2.Iterate(start, count, func(b *boards.Board) bool {
+	gBoards.Iterate(start, count, func(b *boards.Board) bool {
 		boards_ = append(boards_, hubexts.NewSafeBoard(b))
 		return false
 	})
@@ -64,7 +62,7 @@ func GetBoards(start, count int) []Board {
 // GetThreads returns a list with threads of a board.
 // To reverse iterate use a negative count.
 func GetThreads(boardID uint64, start, count int) []Thread {
-	b, found := getBoard(boardID)
+	b, found := gBoards.Get(boards.ID(boardID))
 	if !found {
 		return nil
 	}
@@ -80,7 +78,7 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 // GetMembers returns a list with the members of a board.
 // To reverse iterate use a negative count.
 func GetMembers(boardID uint64, start, count int) []boards.User {
-	b, found := getBoard(boardID)
+	b, found := gBoards.Get(boards.ID(boardID))
 	if !found {
 		return nil
 	}
@@ -96,14 +94,14 @@ func GetMembers(boardID uint64, start, count int) []boards.User {
 // GetReposts returns a list with repost of a board thread.
 // To reverse iterate use a negative count.
 func GetReposts(boardID, threadID uint64, start, count int) []Thread {
-	t, found := getThread(boardID, threadID)
+	t, found := getBoardThread(boardID, threadID)
 	if !found {
 		return nil
 	}
 
 	var reposts []Thread
 	t.Reposts.Iterate(start, count, func(rBoardID, rRepostID boards.ID) bool {
-		r, found := getThread(uint64(rBoardID), uint64(rRepostID))
+		r, found := getBoardThread(uint64(rBoardID), uint64(rRepostID))
 		if found {
 			reposts = append(reposts, hubexts.NewSafeThread(r))
 		}
@@ -118,7 +116,7 @@ func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Flag {
 	var storage boards.FlagStorage
 	if commentID == 0 {
-		t, found := getThread(boardID, threadID)
+		t, found := getBoardThread(boardID, threadID)
 		if !found {
 			return nil
 		}
@@ -146,7 +144,7 @@ func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Fl
 // Top level comments can be filtered by checking `Comment.ParentID`, replies
 // always have a parent comment or reply, while comments have no parent.
 func GetComments(boardID, threadID uint64, start, count int) []Comment {
-	t, found := getThread(boardID, threadID)
+	t, found := getBoardThread(boardID, threadID)
 	if !found {
 		return nil
 	}
@@ -175,28 +173,18 @@ func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment
 	return replies
 }
 
-// getBoard fetches a raw *boards.Board from boards2.
-func getBoard(boardID uint64) (*boards.Board, bool) {
-	return boards2.GetBoard(boards.ID(boardID))
-}
-
-func getThread(boardID, threadID uint64) (*boards.Post, bool) {
-	b, found := getBoard(boardID)
+// getBoardThread returns a board thread from their IDs.
+func getBoardThread(boardID, threadID uint64) (*boards.Post, bool) {
+	b, found := gBoards.Get(boards.ID(boardID))
 	if !found {
 		return nil, false
 	}
-
-	t, found := b.Threads.Get(boards.ID(threadID))
-	if !found {
-		// When thread is not found search it within hidden threads
-		meta := b.Meta.(*boards2.BoardMeta)
-		t, found = meta.HiddenThreads.Get(boards.ID(threadID))
-	}
-	return t, found
+	return getThread(b, boards.ID(threadID))
 }
 
+// getComment returns a thread comment from their IDs.
 func getComment(boardID, threadID, commentID uint64) (*boards.Post, bool) {
-	t, found := getThread(boardID, threadID)
+	t, found := getBoardThread(boardID, threadID)
 	if !found {
 		return nil, false
 	}

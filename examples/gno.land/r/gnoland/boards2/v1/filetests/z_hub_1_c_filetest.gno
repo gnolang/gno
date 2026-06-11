@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_1_c_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_1_c_filetest
 
 // Test non default reposted thread values
 package z_hub_1_c_filetest
@@ -9,7 +9,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
 var (
@@ -44,7 +43,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, found := hub.GetThread(uint64(boardID), uint64(threadID))
+	thread, found := boards2.GetThread(uint64(boardID), uint64(threadID))
 	if !found {
 		return
 	}

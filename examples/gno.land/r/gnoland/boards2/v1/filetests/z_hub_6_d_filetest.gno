@@ -1,13 +1,12 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_6_c_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_6_d_filetest
 
-// Test getting flags from a thread
-package z_hub_6_c_filetest
+// Test getting flags from a comment
+package z_hub_6_d_filetest
 
 import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
 const (
@@ -16,14 +15,15 @@ const (
 	moderator         = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 )
 
-var thread hub.Thread
+var comment boards2.Comment
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	boardID := boards2.CreateBoard(cross(cur), "test123", false, false)
 	threadID := boards2.CreateThread(cross(cur), boardID, "Title", "Body")
+	commentID := boards2.CreateReply(cross(cur), boardID, threadID, 0, "Comment")
 
-	// Invite members
+	// Invite member
 	boards2.InviteMember(cross(cur), boardID, admin, "admin")
 	boards2.InviteMember(cross(cur), boardID, moderator, "moderator")
 
@@ -32,20 +32,20 @@ func init(cur realm) {
 
 	// Add first flag
 	testing.SetRealm(testing.NewUserRealm(admin))
-	boards2.FlagThread(cross(cur), boardID, threadID, "Reason 1")
+	boards2.FlagReply(cross(cur), boardID, threadID, commentID, "Reason 1")
 
 	// Add second flag
 	testing.SetRealm(testing.NewUserRealm(moderator))
-	boards2.FlagThread(cross(cur), boardID, threadID, "Reason 2")
+	boards2.FlagReply(cross(cur), boardID, threadID, commentID, "Reason 2")
 
-	// Get readonly thread
+	// Get readonly comment
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(uint64(boardID), uint64(threadID))
+	comment, _ = boards2.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(thread.BoardID, thread.ID, 0, 0, thread.FlagCount)
+	flags := boards2.GetFlags(comment.BoardID, comment.ThreadID, comment.ID, 0, comment.FlagCount)
 
 	for _, f := range flags {
 		println(f.User, f.Reason)

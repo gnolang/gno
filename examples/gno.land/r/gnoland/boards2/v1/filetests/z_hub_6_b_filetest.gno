@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_6_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_6_b_filetest
 
 // Test getting flags from an unflagged comment
 package z_hub_6_b_filetest
@@ -9,7 +9,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
 var (
@@ -27,7 +26,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(uint64(boardID), uint64(threadID), uint64(commentID), 0, 1)
+	flags := boards2.GetFlags(uint64(boardID), uint64(threadID), uint64(commentID), 0, 1)
 	println(len(flags))
 }
 

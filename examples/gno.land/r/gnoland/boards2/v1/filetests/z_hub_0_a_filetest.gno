@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_0_a_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_0_a_filetest
 
 // Test default board values
 package z_hub_0_a_filetest
@@ -9,7 +9,6 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
 var boardID boards.ID
@@ -21,7 +20,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, found := hub.GetBoard(uint64(boardID))
+	board, found := boards2.GetBoard(uint64(boardID))
 	if !found {
 		return
 	}

@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_8_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_8_b_filetest
 
 // Test getting replies from a comment
 package z_hub_8_b_filetest
@@ -7,10 +7,9 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
-var comment hub.Comment
+var comment boards2.Comment
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
@@ -27,12 +26,12 @@ func init(cur realm) {
 
 	// Get readonly comment
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, _ = hub.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, _ = boards2.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	replies := hub.GetReplies(comment.BoardID, comment.ThreadID, comment.ID, 0, comment.ReplyCount)
+	replies := boards2.GetReplies(comment.BoardID, comment.ThreadID, comment.ID, 0, comment.ReplyCount)
 
 	for _, r := range replies {
 		println(r.ID, r.Body)

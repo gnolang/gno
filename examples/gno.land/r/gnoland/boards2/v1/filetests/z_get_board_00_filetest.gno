@@ -22,13 +22,12 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 
-	// Calling as a Boards2 sub realm should succeed
-	board, found := boards2.GetBoard(bid)
+	board, found := boards2.GetBoard(uint64(bid))
 	if !found {
 		return
 	}
 
-	println(board.ID == bid)
+	println(board.ID == uint64(bid))
 }
 
 // Output:

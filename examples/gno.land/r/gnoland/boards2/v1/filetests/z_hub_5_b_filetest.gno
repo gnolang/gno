@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_5_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_5_b_filetest
 
 // Test getting reposts of a thread
 package z_hub_5_b_filetest
@@ -7,10 +7,9 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
-var thread hub.Thread
+var thread boards2.Thread
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
@@ -27,12 +26,12 @@ func init(cur realm) {
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(uint64(boardID), uint64(threadID))
+	thread, _ = boards2.GetThread(uint64(boardID), uint64(threadID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	reposts := hub.GetReposts(thread.BoardID, thread.ID, 0, thread.RepostCount)
+	reposts := boards2.GetReposts(thread.BoardID, thread.ID, 0, thread.RepostCount)
 
 	for _, t := range reposts {
 		println(t.ID, t.Title)

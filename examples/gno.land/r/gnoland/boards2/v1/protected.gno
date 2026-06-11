@@ -16,11 +16,6 @@ func GetRealmPermissions() boards.Permissions {
 	return gPerms
 }
 
-// GetBoard returns a board.
-func GetBoard(boardID boards.ID) (_ *boards.Board, found bool) {
-	return gBoards.Get(boardID)
-}
-
 // MustGetBoard returns a board or panics on error.
 func MustGetBoard(boardID boards.ID) *boards.Board {
 	return mustGetBoard(boardID)

@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_hub_3_b_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_hub_3_b_filetest
 
 // Test getting threads from a board
 package z_hub_3_b_filetest
@@ -7,10 +7,9 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
-var board hub.Board
+var board boards2.Board
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
@@ -23,12 +22,12 @@ func init(cur realm) {
 
 	// Get readonly board
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, _ = hub.GetBoard(uint64(boardID))
+	board, _ = boards2.GetBoard(uint64(boardID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	threads := hub.GetThreads(board.ID, 0, board.ThreadCount)
+	threads := boards2.GetThreads(board.ID, 0, board.ThreadCount)
 
 	for _, t := range threads {
 		println(t.ID, t.Title)
