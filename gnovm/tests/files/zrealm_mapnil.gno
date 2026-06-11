@@ -11,7 +11,7 @@ import (
 // so this pins the cross-realm no-op path, not taint interaction.
 func main(cur realm) {
 	var m map[string]int // nil
-	crossrealm_b.SetObject(cross, m)
+	crossrealm_b.SetObject(cross(cur), m)
 	rm := crossrealm_b.Object.(map[string]int)
 	delete(rm, "admin")
 	println("ok, len:", len(rm))
