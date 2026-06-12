@@ -17,7 +17,7 @@ func main() {
 }
 
 // Error:
-// main/method41.gno:16:6-11: missing field Foo in main.C
+// main/method41.gno:16:6-11: ambiguous selector Foo in main.C
 
 // TypeCheckError:
 // main/method41.gno:16:8: ambiguous selector c.Foo
