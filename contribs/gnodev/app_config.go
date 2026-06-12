@@ -146,13 +146,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.withoutQuarantinedExamples,
 		"without-quarantined-examples",
 		defaultCfg.withoutQuarantinedExamples,
-		"skip loading $GNOROOT/examples/quarantined while keeping the rest of examples",
+		"skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)",
 	)
 
 	fs.Var(
 		(*commands.StringArr)(&c.extraRoots),
 		"extra-root",
-		"additional workspace root to include (repeatable)",
+		"additional workspace root to include (repeatable); every package under it is eager-loaded",
 	)
 
 	fs.Var(

@@ -33,6 +33,25 @@ func writePkg(t *testing.T, dir, module, body string) {
 		[]byte(body), 0o644))
 }
 
+func TestLoader_Reload_AnnouncesExtraRootOnce(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "one"), "gno.land/p/ext/one", "package one\n")
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	l := New(Config{Workspace: "", ExtraRoots: []string{extra}, Logger: logger})
+
+	_, err := l.Reload()
+	require.NoError(t, err)
+	_, err = l.Reload()
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("loaded root")),
+		"each eager root is announced at info exactly once per session")
+	assert.Contains(t, buf.String(), "packages=1")
+}
+
 func TestLoader_LoadWorkspace_Empty(t *testing.T) {
 	l := New(Config{Workspace: "", Logger: testLogger()})
 	pkgs, err := l.LoadWorkspace()

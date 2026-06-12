@@ -33,11 +33,12 @@ type Loader struct {
 	modCachePrefix string // modCache + separator, for boundary-safe prefix checks
 	wsPattern      string // gnovm.Load pattern for cfg.Workspace, resolved once at construction
 
-	mu      sync.RWMutex
-	fetcher pkgdownload.PackageFetcher
-	index   map[string]*Package
-	tracked map[string]struct{}          // paths added via Resolve, used by Reload
-	rootIdx map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
+	mu        sync.RWMutex
+	fetcher   pkgdownload.PackageFetcher
+	index     map[string]*Package
+	tracked   map[string]struct{}          // paths added via Resolve, used by Reload
+	rootIdx   map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
+	announced map[string]struct{}          // roots already info-logged by loadEager
 }
 
 func New(cfg Config) *Loader {
@@ -61,6 +62,7 @@ func New(cfg Config) *Loader {
 		index:          make(map[string]*Package),
 		tracked:        make(map[string]struct{}),
 		rootIdx:        make(map[string]map[string]string),
+		announced:      make(map[string]struct{}),
 	}
 }
 
@@ -454,7 +456,18 @@ func (l *Loader) loadEager(roots []string) ([]*Package, error) {
 	for i, root := range roots {
 		l.cfg.Logger.Debug("loading root", "root", root, "n", i+1, "of", len(roots))
 		rp := l.loadExtraRootVm(root)
-		l.cfg.Logger.Debug("loaded root", "root", root, "packages", len(rp))
+		// Announce each root's contribution at info on its first eager load
+		// so packages entering genesis from an extra root are visible
+		// without -v; reloads run on every watcher tick, so subsequent
+		// passes log at debug.
+		logFn := l.cfg.Logger.Debug
+		l.mu.Lock()
+		if _, ok := l.announced[root]; !ok {
+			l.announced[root] = struct{}{}
+			logFn = l.cfg.Logger.Info
+		}
+		l.mu.Unlock()
+		logFn("loaded root", "root", root, "packages", len(rp))
 		appendUnique(rp)
 	}
 
