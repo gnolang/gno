@@ -854,7 +854,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		return
 	}
 
-	xt := evalStaticTypeOf(store, last, x.X)
+	xt := baseOf(evalStaticTypeOf(store, last, x.X))
 	if kt != nil {
 		switch cxt := xt.(type) {
 		case *MapType:
@@ -935,12 +935,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					if lt := evalAssignLhsType(store, last, x.Lhs[0]); lt != nil {
 						if _, ok := cx.X.(*NameExpr); ok {
-							rt := evalStaticTypeOf(store, last, cx.X)
+							rt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := rt.(*MapType); ok {
 								mustAssignableTo(x, mt.Value, lt)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
-							cpt := evalStaticTypeOf(store, last, cx.X)
+							cpt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := cpt.(*MapType); ok {
 								mustAssignableTo(x, mt.Value, lt)
 							} else {
