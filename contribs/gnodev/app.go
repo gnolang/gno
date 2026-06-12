@@ -144,12 +144,14 @@ func (ds *App) Close() {
 	ds.deferred()
 }
 
-// logDiscoveryMode warns that no workspace (gnomod.toml/gnowork.toml) was
-// found in the CWD ancestry. The multiline message renders as a single
-// bordered block through the column logger.
-func logDiscoveryMode(logger *slog.Logger) {
+// logNoWorkspace warns that no workspace (gnomod.toml/gnowork.toml) was
+// found in the CWD ancestry. hint is the mode's loading consequence
+// (cfg.noWorkspaceHint, owned by each command's default config). The
+// multiline message renders as a single bordered block through the column
+// logger.
+func logNoWorkspace(logger *slog.Logger, hint string) {
 	logger.Warn("no workspace (gnomod.toml / gnowork.toml) found in ./ or any parent.\n" +
-		"running in discovery mode: packages resolve on-demand via examples and RPC.\n" +
+		hint + "\n" +
 		"to include local packages, pass -extra-root <dir> or cd into a workspace.")
 }
 
@@ -227,7 +229,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		if ds.cfg.noExamples && len(extraRoots) == 0 {
 			return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
 		}
-		logDiscoveryMode(loaderLogger)
+		logNoWorkspace(loaderLogger, ds.cfg.noWorkspaceHint)
 	} else {
 		// Name the root explicitly: a forgotten gnowork.toml in a parent
 		// directory silently widens the workspace to that entire tree.

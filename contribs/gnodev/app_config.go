@@ -42,6 +42,7 @@ type AppConfig struct {
 	// Node Configuration
 	logFormat           string
 	staging             bool
+	noWorkspaceHint     string // mode's loading consequence in the no-workspace banner; not a flag
 	verbose             bool
 	noWatch             bool
 	noReplay            bool

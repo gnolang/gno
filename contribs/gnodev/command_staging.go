@@ -12,6 +12,9 @@ type StagingAppConfig struct {
 	AppConfig
 }
 
+// stagingNoWorkspaceHint is staging mode's line in the no-workspace banner.
+const stagingNoWorkspaceHint = "staging eager-loads $GNOROOT/examples (unless -no-examples) and every -extra-root up front."
+
 var defaultStagingOptions = AppConfig{
 	chainId:                    "dev",
 	chainDomain:                DefaultDomain,
@@ -26,6 +29,7 @@ var defaultStagingOptions = AppConfig{
 	interactive:                false,
 	unsafeAPI:                  false,
 	staging:                    true,
+	noWorkspaceHint:            stagingNoWorkspaceHint,
 	withoutQuarantinedExamples: true,
 	emptyBlocks:                false,
 	emptyBlocksInterval:        1,

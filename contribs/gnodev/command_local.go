@@ -14,6 +14,9 @@ import (
 
 const DefaultDomain = "gno.land"
 
+// localNoWorkspaceHint is local mode's line in the no-workspace banner.
+const localNoWorkspaceHint = "running in discovery mode: packages resolve on-demand from examples, and from a chain RPC for domains passed via -remote."
+
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
 
 type LocalAppConfig struct {
@@ -34,6 +37,7 @@ var defaultLocalAppConfig = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
+	noWorkspaceHint:     localNoWorkspaceHint,
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
