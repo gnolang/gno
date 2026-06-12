@@ -300,6 +300,16 @@ func TestDataExpandPatterns(t *testing.T) {
 			}},
 		},
 		{
+			name:          "single-package-bare-recursive",
+			workroot:      localFromSlash("./testdata/singlepkg-1"),
+			singlePackage: true,
+			patterns:      []string{"..."},
+			res: []*pkgMatch{{
+				Dir:   filepath.Join(cwd, "testdata", "singlepkg-1"),
+				Match: []string{"..."},
+			}},
+		},
+		{
 			name:          "single-package-abs-recursive",
 			workroot:      localFromSlash("./testdata/singlepkg-1"),
 			singlePackage: true,
