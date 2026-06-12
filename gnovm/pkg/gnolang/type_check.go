@@ -867,8 +867,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		case *ArrayType:
 			mustAssignableTo(x, cxt.Elt, vt)
 		case PrimitiveType:
-			if cxt.Kind() == StringKind && vt.Kind() != Int32Kind { // rune
-				panic(fmt.Sprintf("value type should be int32, but got %v", vt))
+			if cxt.Kind() == StringKind {
+				mustAssignableTo(x, Int32Type, vt) // rune
 			}
 		}
 	}
