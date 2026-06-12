@@ -241,13 +241,13 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 
 	loaderCfg := packages.Config{
-		Workspace:       ws,
-		Examples:        !ds.cfg.noExamples,
-		ExtraRoots:      extraRoots,
-		ExcludeDirs:     excludeDirs,
-		GnoRoot:         gnoRoot,
-		RemoteOverrides: ds.cfg.remoteOverrides,
-		Logger:          loaderLogger,
+		Workspace:   ws,
+		Examples:    !ds.cfg.noExamples,
+		ExtraRoots:  extraRoots,
+		ExcludeDirs: excludeDirs,
+		GnoRoot:     gnoRoot,
+		Remotes:     ds.cfg.remotes,
+		Logger:      loaderLogger,
 	}
 	ds.loader = packages.New(loaderCfg)
 	for _, gp := range generatedPkgs {
@@ -262,7 +262,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 			loaderLogger.Warn(
 				"-no-examples is set but workspace packages import gno.land/* paths that are unresolvable",
 				"missing", missing,
-				"hint", "drop -no-examples or add -extra-root <dir> covering these paths",
+				"hint", "drop -no-examples, add -extra-root <dir> covering these paths, or pass -remote <domain>=<rpc> to fetch them",
 			)
 		}
 	}

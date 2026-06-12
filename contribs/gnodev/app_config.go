@@ -37,7 +37,7 @@ type AppConfig struct {
 	noExamples                 bool
 	withoutQuarantinedExamples bool
 	extraRoots                 []string
-	remoteOverrides            map[string]string
+	remotes                    map[string]string
 
 	// Node Configuration
 	logFormat           string
@@ -156,9 +156,9 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.Var(
-		(*remoteOverrideArr)(&c.remoteOverrides),
-		"remote-override",
-		"override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace",
+		(*remoteArr)(&c.remotes),
+		"remote",
+		"fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched",
 	)
 
 	fs.StringVar(

@@ -52,6 +52,31 @@ func TestLoader_Reload_AnnouncesExtraRootOnce(t *testing.T) {
 	assert.Contains(t, buf.String(), "packages=1")
 }
 
+func TestLoader_ModcachePackagesAnnounced(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GNOHOME", home)
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	l := New(Config{Logger: logger})
+
+	sorted := vmpackages.SortedPkgList{&vmpackages.Package{
+		ImportPath: "gno.land/p/demo/cached",
+		Dir:        filepath.Join(home, "pkg", "mod", "gno.land", "p", "demo", "cached"),
+		Name:       "cached",
+	}}
+
+	pkgs := l.vmPkgListToPackages(sorted)
+	require.Len(t, pkgs, 1)
+	assert.Equal(t, KindRemote, pkgs[0].Kind)
+	assert.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("modcache")),
+		"a modcache-resident package is announced at info")
+
+	_ = l.vmPkgListToPackages(sorted)
+	assert.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("modcache")),
+		"announced once per session, not per reload")
+}
+
 func TestLoader_LoadWorkspace_Empty(t *testing.T) {
 	l := New(Config{Workspace: "", Logger: testLogger()})
 	pkgs, err := l.LoadWorkspace()

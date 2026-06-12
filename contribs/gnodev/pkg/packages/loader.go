@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
-	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -33,12 +32,13 @@ type Loader struct {
 	modCachePrefix string // modCache + separator, for boundary-safe prefix checks
 	wsPattern      string // gnovm.Load pattern for cfg.Workspace, resolved once at construction
 
-	mu        sync.RWMutex
-	fetcher   pkgdownload.PackageFetcher
-	index     map[string]*Package
-	tracked   map[string]struct{}          // paths added via Resolve, used by Reload
-	rootIdx   map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
-	announced map[string]struct{}          // roots already info-logged by loadEager
+	mu                sync.RWMutex
+	fetcher           pkgdownload.PackageFetcher
+	index             map[string]*Package
+	tracked           map[string]struct{}          // paths added via Resolve, used by Reload
+	rootIdx           map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
+	announced         map[string]struct{}          // roots already info-logged by loadEager
+	modcacheAnnounced map[string]struct{}          // modcache paths already info-logged by vmPkgListToPackages
 }
 
 func New(cfg Config) *Loader {
@@ -50,19 +50,20 @@ func New(cfg Config) *Loader {
 	}
 	fetcher := cfg.Fetcher
 	if fetcher == nil {
-		fetcher = rpcpkgfetcher.New(cfg.RemoteOverrides)
+		fetcher = newRemoteFetcher(cfg.Remotes)
 	}
 	modCache := filepath.Clean(gnomod.ModCachePath())
 	return &Loader{
-		cfg:            cfg,
-		modCache:       modCache,
-		modCachePrefix: modCache + string(filepath.Separator),
-		wsPattern:      workspacePattern(cfg.Workspace),
-		fetcher:        fetcher,
-		index:          make(map[string]*Package),
-		tracked:        make(map[string]struct{}),
-		rootIdx:        make(map[string]map[string]string),
-		announced:      make(map[string]struct{}),
+		cfg:               cfg,
+		modCache:          modCache,
+		modCachePrefix:    modCache + string(filepath.Separator),
+		wsPattern:         workspacePattern(cfg.Workspace),
+		fetcher:           fetcher,
+		index:             make(map[string]*Package),
+		tracked:           make(map[string]struct{}),
+		rootIdx:           make(map[string]map[string]string),
+		announced:         make(map[string]struct{}),
+		modcacheAnnounced: make(map[string]struct{}),
 	}
 }
 
@@ -607,6 +608,14 @@ func (l *Loader) vmPkgListToPackages(sorted vmpackages.SortedPkgList) []*Package
 			Dir:        vp.Dir,
 			Name:       vp.Name,
 			Kind:       l.kindForDir(vp.Dir),
+		}
+		// A modcache entry is a chain copy cached on disk, which can drift
+		// from local sources; announce each once so its origin is visible.
+		if p.Kind == KindRemote {
+			if _, ok := l.modcacheAnnounced[p.ImportPath]; !ok {
+				l.modcacheAnnounced[p.ImportPath] = struct{}{}
+				l.cfg.Logger.Info("using modcache package", "path", p.ImportPath, "dir", p.Dir)
+			}
 		}
 		l.index[p.ImportPath] = p
 		out = append(out, p)

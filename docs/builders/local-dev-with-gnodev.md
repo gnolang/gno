@@ -65,8 +65,9 @@ a valid path segment (lowercase letters, digits and underscores).
 In addition to your working directory, packages and realms located in the
 [examples/ folder](https://github.com/gnolang/gno/tree/master/examples) from the
 monorepo `gnodev` was installed from are resolved on demand, upon the first query
-or transaction referencing them. `gnodev` can also resolve packages from a remote
-network via the `-remote-override <domain>=<rpc>` flag.
+or transaction referencing them. `gnodev` can also fetch packages from a remote
+network with the `-remote <domain>=<rpc>` flag; without it, packages resolve
+only from local sources (workspace, extra roots, and examples).
 
 ### 2. Premining balances
 

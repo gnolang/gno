@@ -89,7 +89,7 @@ FLAGS
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
-  -extra-root ...	additional workspace root to include (repeatable)
+  -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format console	log output format, can be `json` or `console`
@@ -100,7 +100,7 @@ FLAGS
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
-  -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
+  -remote ...	fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
@@ -111,7 +111,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
-  -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples
+  -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
 ```
 
@@ -138,7 +138,7 @@ FLAGS
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
-  -extra-root ...	additional workspace root to include (repeatable)
+  -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format json	log output format, can be `json` or `console`
@@ -149,7 +149,7 @@ FLAGS
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
-  -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
+  -remote ...	fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
@@ -160,7 +160,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
-  -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples
+  -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
 ```
 

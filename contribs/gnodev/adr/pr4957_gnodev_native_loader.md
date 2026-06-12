@@ -56,8 +56,8 @@ type Config struct {
     ExtraRoots      []string                   // user-supplied additional roots
     ExcludeDirs     []string                   // dir paths the FS scanner must SkipDir (matched against walker output)
     GnoRoot         string
-    RemoteOverrides map[string]string          // domain → RPC URL (ignored when Fetcher set)
-    Fetcher         pkgdownload.PackageFetcher // override the default rpcpkgfetcher (tests)
+    Remotes         map[string]string          // domain → RPC URL; fetching is opt-in per domain (ignored when Fetcher set)
+    Fetcher         pkgdownload.PackageFetcher // override the default fetcher (tests)
     Logger          *slog.Logger
 }
 
@@ -147,13 +147,14 @@ fails at use time. Acceptable for a dev tool.
 |---|---|
 | `-resolver <name>=<loc>` | `-extra-root <dir>` (repeatable) |
 | `-lazy-loader` | `-no-examples` |
-|  | `-remote-override <domain>=<rpc>` (repeatable) |
+|  | `-remote <domain>=<rpc>` (repeatable) |
 
-`-remote-override` closes the migration gap left by removing
-`-resolver remote=<rpc>`: it populates `Config.RemoteOverrides`, which
-`rpcpkgfetcher.New` consumes when resolving paths outside the workspace.
-Workspace packages hit the FS lookup first, so the override only ever
-applies to cross-workspace and unresolved imports.
+`-remote` closes the migration gap left by removing
+`-resolver remote=<rpc>`: it populates `Config.Remotes`, and remote
+fetching happens only for the domains listed there — with no `-remote`
+flag the loader is filesystem-only. Workspace packages hit the FS
+lookup first, so the flag only ever applies to cross-workspace and
+unresolved imports.
 
 When `gnodev local` runs in a directory without `gnomod.toml`, the
 fallback import path is derived from the directory basename. The
@@ -163,7 +164,7 @@ letters fall back to `app`.
 
 Modes are not exposed. Behavior is derived from filesystem state
 (workspace detected via `gnowork.toml` / `gnomod.toml`) plus the three
-loader flags (`-no-examples`, `-extra-root`, `-remote-override`).
+loader flags (`-no-examples`, `-extra-root`, `-remote`).
 
 | CWD state | Flags | Behavior |
 |---|---|---|
@@ -173,7 +174,7 @@ loader flags (`-no-examples`, `-extra-root`, `-remote-override`).
 | No workspace | `-no-examples`, no `-extra-root` | **Fatal**: "nothing to load". Explicit combination of flags asks gnodev to do nothing. |
 | Any | `-extra-root <dir>` (nonexistent) | Warning logged; invalid root skipped |
 | Any | `-extra-root <dir>` (valid) | `<dir>` added to the lazy set |
-| Any | `-remote-override gno.land=<rpc>` | Cross-workspace fetches for the given domain go to `<rpc>` instead of the default |
+| Any | `-remote gno.land=<rpc>` | Cross-workspace fetches for the given domain go to `<rpc>`; domains without a `-remote` entry are never fetched |
 | Any | `-without-quarantined-examples` | `$GNOROOT/examples/quarantined` is skipped during root scans and eager load; the rest of `examples/` is still indexed. Default `true` in `gnodev staging`. |
 
 `gnodev staging` eager-loads the workspace, every `-extra-root`, and
@@ -334,7 +335,7 @@ real capability.
 
 - PR [#4957](https://github.com/gnolang/gno/pull/4957) — initial migration
 - PR [#5604](https://github.com/gnolang/gno/pull/5604) — follow-up
-  refinements (`-remote-override` flag, discovery-mode warning,
+  refinements (`-remote` flag, discovery-mode warning,
   `-no-examples` import-graph diagnostic, `LookupFS` FS-only lookup,
   `KindUnknown` zero value, rootIdx Reload preservation, guessPath
   basename sanitization, staging progress logging,

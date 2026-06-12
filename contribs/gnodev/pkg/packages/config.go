@@ -30,9 +30,11 @@ type Config struct {
 	// GnoRoot is the installed gno root; defaults to gnoenv.RootDir().
 	GnoRoot string
 
-	// RemoteOverrides maps a chain domain (e.g. "gno.land") to an RPC URL for rpcpkgfetcher.
-	// Ignored when Fetcher is non-nil.
-	RemoteOverrides map[string]string
+	// Remotes maps a chain domain (e.g. "gno.land") to the RPC URL used to
+	// fetch that domain's packages. Remote fetching is opt-in per domain:
+	// domains without an entry are never fetched, and an empty map disables
+	// remote fetching entirely. Ignored when Fetcher is non-nil.
+	Remotes map[string]string
 
 	// Fetcher overrides the default rpcpkgfetcher. Primarily for tests that
 	// use InMemoryFetcher. Leave nil in production.
