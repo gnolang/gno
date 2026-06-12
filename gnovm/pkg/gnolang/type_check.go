@@ -815,7 +815,8 @@ func (x *UnaryExpr) AssertCompatible(t Type) {
 	}
 }
 
-func (x *IncDecStmt) AssertCompatible(t Type) {
+func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
+	t := evalStaticTypeOf(store, last, x.X)
 	// check compatible
 	if checker, ok := IncDecStmtChecker[x.Op]; ok {
 		if !checker(t) {
@@ -824,6 +825,9 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
+	// like go/types, operator/type errors take precedence over
+	// target assignability.
+	assertValidAssignLhs(store, last, x.X)
 }
 
 func assertIndexTypeIsInt(kt Type) {
