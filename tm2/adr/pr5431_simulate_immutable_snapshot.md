@@ -81,8 +81,12 @@ snapshot methods and is a more invasive refactor for the same result.
 ## Consequences
 
 - **Simulate reads committed state**: Simulate no longer sees pending mempool
-  changes (e.g. sequence number updates from `CheckTx`). This is acceptable for
-  gas estimation and matches Cosmos SDK behavior.
+  changes (e.g. sequence number updates from `CheckTx`). This diverges from
+  Cosmos SDK behavior: the SDK reads `checkState` (which includes pending
+  mempool changes) for simulation. A similar committed-snapshot patch existed
+  in CometBFT (`cometbft/cometbft@869833e`) but was later reverted
+  (`cometbft/cometbft@14f8ac7`) for compatibility reasons — not because the
+  approach was unsound.
 
 - **Slightly slower snapshot load**: `MultiImmutableCacheWrapWithVersion` loads
   from the database rather than reading `checkState`'s in-memory cache. This is
