@@ -2619,6 +2619,8 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	return nil
 }
 
+// Per-shape operand counts are mirrored in numStackValuesForPointer (below)
+// and consumed by resolvePointer — keep all three in sync.
 func (m *Machine) PushForPointer(lx Expr) {
 	switch lx := lx.(type) {
 	case *NameExpr:
@@ -2643,10 +2645,31 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
-		panic(fmt.Sprintf(
-			"illegal assignment X expression type %v",
-			reflect.TypeOf(lx)))
+		panicIllegalPointerLHS(lx)
 	}
+}
+
+// numStackValuesForPointer reports how many value-stack entries PushForPointer
+// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panicIllegalPointerLHS(lx)
+		return 0 // unreachable
+	}
+}
+
+// Outlined so the switches above stay within the inlining budget.
+func panicIllegalPointerLHS(lx Expr) {
+	panic(fmt.Sprintf(
+		"illegal assignment X expression type %v",
+		reflect.TypeOf(lx)))
 }
 
 // Pop a pointer (for writing only).
@@ -2752,23 +2775,6 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	return oid.PkgID != m.Realm.ID
 }
 
-// numStackValuesForPointer reports how many value-stack entries PushForPointer
-// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
-func numStackValuesForPointer(lx Expr) int {
-	switch lx.(type) {
-	case *NameExpr:
-		return 0
-	case *IndexExpr:
-		return 2
-	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
-		return 1
-	default:
-		panic(fmt.Sprintf(
-			"illegal assignment X expression type %v",
-			reflect.TypeOf(lx)))
-	}
-}
-
 // resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
 // PushForPointer evaluated for lx) rather than popping them off the value stack
 // itself — the caller supplies them, so this resolver has no stack side effects.
@@ -2790,7 +2796,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			panic("unexpected NameExpr in PopAsPointer")
+			panic("unexpected NameExpr in resolvePointer")
 		}
 	case *IndexExpr:
 		xv := &lhsOperands[0]
@@ -2840,10 +2846,6 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 	return
 }
 
-// Returns ro = true if the base is readonly,
-// or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a composite lit expr.
-//
 // Thin stack wrapper around resolvePointer: pops lx's operands off m.Values
 // and resolves from them.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {

@@ -28,9 +28,6 @@ func (m *Machine) doOpAssign() {
 	// (`a, a, a = 1, 2, 3` ⇒ 3) and a panic mid-assignment leaves earlier writes
 	// committed (`m[k], *p = 42, 2`). See golang/go#23017.
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	// The multi-LHS loop runs ~6% over OpCPUSlopeAssign's per-LHS calibration
-	// (see BenchmarkDoOpAssign_Index_N*); not retuned, as it's a rare path and
-	// the constant is shared with the unchanged single-LHS fast path.
 
 	if len(s.Lhs) == 1 {
 		// Fast path: one RHS value, resolve the LHS pointer off the stack top.
@@ -42,6 +39,10 @@ func (m *Machine) doOpAssign() {
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, *rv, true)
 		return
 	}
+
+	// The multi-LHS loop below runs ~6% over OpCPUSlopeAssign's per-LHS
+	// calibration (see BenchmarkDoOpAssign_Index_N*); not retuned, as it's a
+	// rare path and the constant is shared with the single-LHS fast path above.
 
 	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
