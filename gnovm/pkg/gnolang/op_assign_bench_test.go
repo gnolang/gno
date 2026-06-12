@@ -8,6 +8,7 @@ import "testing"
 // passes, the PopValues window, and the resolve+assign loop — with no per-LHS
 // operand work.
 func benchAssignNameN(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 	blk, nxs := benchBlockVars(m, 1)
@@ -44,6 +45,7 @@ func BenchmarkDoOpAssign_Name_N5(b *testing.B) { benchAssignNameN(b, 5) }
 // values (X and Index) that resolvePointer reads in place from the PopValues
 // window.
 func benchAssignIndexN(b *testing.B, n int) {
+	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
