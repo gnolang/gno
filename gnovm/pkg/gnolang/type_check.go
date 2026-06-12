@@ -862,10 +862,8 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		switch cxt := xt.(type) {
 		case *MapType:
 			mustAssignableTo(x, cxt.Value, vt)
-		case *SliceType:
-			mustAssignableTo(x, cxt.Elt, vt)
-		case *ArrayType:
-			mustAssignableTo(x, cxt.Elt, vt)
+		case *SliceType, *ArrayType:
+			mustAssignableTo(x, cxt.Elem(), vt)
 		case PrimitiveType:
 			if cxt.Kind() == StringKind {
 				mustAssignableTo(x, Int32Type, vt) // rune
