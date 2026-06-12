@@ -984,6 +984,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		if isBlankIdentifier(x.Lhs[0]) {
 			panic("cannot use _ as value or type")
 		}
+		assertValidAssignRhs(store, last, x)
 		lt := evalStaticTypeOf(store, last, x.Lhs[0])
 		rt := evalStaticTypeOf(store, last, x.Rhs[0])
 
