@@ -374,7 +374,7 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 					b.Fatalf("Get: %v", err)
 				}
 			}
-			rm.fold() // final segment
+			rm.fold()                                  // final segment
 			rm.report(b, float64(b.N), "reads/op", "") // reads only; Get does no writes
 		})
 		fx.close()

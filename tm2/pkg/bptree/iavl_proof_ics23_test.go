@@ -14,7 +14,7 @@ import (
 type Where int
 
 const (
-	Left   Where = iota
+	Left Where = iota
 	Middle
 	Right
 )

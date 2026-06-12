@@ -18,7 +18,7 @@ func TestOrphans_FirstVersionEmpty(t *testing.T) {
 		setup          func(tree *MutableTree)
 	}{
 		{
-			name: "default initialVersion, no sets",
+			name:  "default initialVersion, no sets",
 			setup: func(_ *MutableTree) {},
 		},
 		{

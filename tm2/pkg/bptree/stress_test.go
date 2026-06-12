@@ -26,11 +26,11 @@ func TestStress_RandomOperationOracle(t *testing.T) {
 	rng := rand.New(rand.NewSource(42))
 
 	const (
-		numOps         = 20000
-		verifyEvery    = 500
-		saveEvery      = 200
-		pruneEvery     = 1000
-		maxKeySpace    = 2000
+		numOps      = 20000
+		verifyEvery = 500
+		saveEvery   = 200
+		pruneEvery  = 1000
+		maxKeySpace = 2000
 	)
 
 	var savedVersions []int64
@@ -100,9 +100,9 @@ func TestStress_ValueLeakDetector(t *testing.T) {
 	rng := rand.New(rand.NewSource(99))
 
 	const (
-		numVersions = 200
+		numVersions    = 200
 		keysPerVersion = 100
-		maxKeySpace = 500
+		maxKeySpace    = 500
 	)
 
 	for v := 0; v < numVersions; v++ {
