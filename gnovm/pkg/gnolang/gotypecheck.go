@@ -424,6 +424,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return nil, errs
 	}
 
+	// STEP 3.5: Guard against pathological type-expansion fan-out before the
+	// (unmetered) Go type checker runs. go/types' validType walk is exponential
+	// on value-containment fan-out types; left unbounded it is a consensus DoS.
+	// See checkTypeExpansionBound.
+	if errs = checkTypeExpansionBound(gofset, allgofs); errs != nil {
+		return nil, errs
+	}
+
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
 		err := prepareGoGno0p9(gof)
