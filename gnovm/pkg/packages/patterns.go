@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -54,14 +53,23 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 		if !loaderCtx.IsWorkspace {
 			switch patKind {
 			case patternKindRecursiveLocal:
-				return nil, errors.New("recursive pattern not supported in single-package mode, consider creating a gnowork.toml file")
+				// strip the trailing "..." segment; getPatternKind only
+				// accepts end-anchored recursion
+				dir, _ := filepath.Split(match)
+				absDir, err := filepath.Abs(dir)
+				if err != nil {
+					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
+				}
+				if absDir != loaderCtx.Root {
+					return nil, fmt.Errorf("recursive pattern %q is not rooted at the current package in single-package mode (%q is not %q), consider creating a gnowork.toml file", match, absDir, loaderCtx.Root)
+				}
 			case patternKindDirectory:
 				absPat, err := filepath.Abs(match)
 				if err != nil {
 					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 				}
 				if absPat != loaderCtx.Root {
-					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, absPat, loaderCtx.Root)
+					return nil, fmt.Errorf("pattern %q is not the current package (%q is not %q)", match, absPat, loaderCtx.Root)
 				}
 			case patternKindSingleFile:
 				absPat, err := filepath.Abs(match)
@@ -70,7 +78,7 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 				}
 				dir := filepath.Dir(absPat)
 				if dir != loaderCtx.Root {
-					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, dir, loaderCtx.Root)
+					return nil, fmt.Errorf("pattern %q is not the current package (%q is not %q)", match, dir, loaderCtx.Root)
 				}
 			}
 		}
@@ -124,9 +132,11 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
-			// sanity assert
+			// single-package mode: the pattern was validated above to be
+			// rooted at the context root, the only package it can match
 			if !loaderCtx.IsWorkspace {
-				panic(fmt.Errorf("unexpected recursive pattern at this point"))
+				addPkgDir(loaderCtx.Root, &match)
+				continue
 			}
 
 			dirs, err := expandRecursive(loaderCtx.Root, pat)

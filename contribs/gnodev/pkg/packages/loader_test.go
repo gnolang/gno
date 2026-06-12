@@ -81,7 +81,7 @@ var _ = chain.ChainDomain
 // TestLoader_Reload_SingleModuleWorkspace covers the canonical
 // `cd myrealm && gnodev` flow: a directory with gnomod.toml but no
 // gnowork.toml ancestor. gnovm treats that as single-package mode and
-// rejects recursive patterns, so the loader must not blindly append "/...".
+// accepts a recursive pattern rooted at the package dir.
 func TestLoader_Reload_SingleModuleWorkspace(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "ossas")
 	writePkg(t, dir, "gno.land/r/ossas", "package ossas\n")

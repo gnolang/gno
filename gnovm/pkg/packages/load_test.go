@@ -221,6 +221,7 @@ func TestDataLoad(t *testing.T) {
 	workspace1Abs := filepath.Join(cwd, "testdata", "workspace-1")
 	workspace2Abs := filepath.Join(cwd, "testdata", "workspace-2")
 	workspace3Abs := filepath.Join(cwd, "testdata", "workspace-3")
+	singlepkg1Abs := filepath.Join(cwd, "testdata", "singlepkg-1")
 
 	tcs := []struct {
 		name             string
@@ -432,6 +433,25 @@ func TestDataLoad(t *testing.T) {
 					Pos: PackageDir("gno.example.com/r/wspace3/subwork/subworkpkg"),
 					Msg: "query files list for pkg \"gno.example.com/r/wspace3/subwork/subworkpkg\": package \"gno.example.com/r/wspace3/subwork/subworkpkg\" is not available",
 				}},
+			}},
+		},
+		{
+			name:     "single-package-recursive",
+			workdir:  localFromSlash("./testdata/singlepkg-1"),
+			patterns: []string{"./..."},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/single/foo",
+				Name:       "foo",
+				Dir:        singlepkg1Abs,
+				Match:      []string{"./..."},
+				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
 			}},
 		},
 		{

@@ -401,20 +401,15 @@ func (l *Loader) LoadWorkspace() ([]*Package, error) {
 	return l.loadWithPatterns(l.wsPattern)
 }
 
-// workspacePattern returns the gnovm.Load pattern for a workspace root. A
-// gnowork.toml root is a multi-package workspace and loads recursively; a
-// gnomod.toml-only root (the `cd myrealm && gnodev` case) is gnovm
-// single-package mode, which rejects recursive patterns, so the bare
-// directory is passed instead. Resolved once at construction: the marker
-// file is part of the session-stable directory layout.
+// workspacePattern returns the gnovm.Load pattern for a workspace root:
+// recursive for both gnowork.toml workspaces and gnomod.toml-only roots
+// (the `cd myrealm && gnodev` case — gnovm accepts a recursive pattern
+// rooted at the single package).
 func workspacePattern(workspace string) string {
 	if workspace == "" {
 		return ""
 	}
-	if hasFile(workspace, "gnowork.toml") {
-		return filepath.Join(workspace, "...")
-	}
-	return workspace
+	return filepath.Join(workspace, "...")
 }
 
 // LoadAll eagerly loads the workspace, every ExtraRoot, GNOROOT/examples
