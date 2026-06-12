@@ -472,6 +472,14 @@ func (op CommitmentOp) ProofOp() merkle.ProofOp {
 func (op CommitmentOp) GetKey() []byte { return op.Key }
 
 func (op CommitmentOp) Run(args [][]byte) ([][]byte, error) {
+	// A nil op.Proof or nil-inner proof nil-derefs in Calculate()/ics23 below.
+	// The getters are nil-safe, so this one check rejects nil-proof, nil-inner,
+	// and (unsupported) batch/compressed shapes; the switch below only verifies
+	// existence/non-existence, so no valid proof is newly rejected. Not wire-
+	// reachable (Unmarshal always allocates the inner); defense-in-depth.
+	if op.Proof.GetExist() == nil && op.Proof.GetNonexist() == nil {
+		return nil, fmt.Errorf("proof is neither an existence nor a non-existence proof")
+	}
 	root, err := op.Proof.Calculate()
 	if err != nil {
 		return nil, fmt.Errorf("could not calculate root: %w", err)

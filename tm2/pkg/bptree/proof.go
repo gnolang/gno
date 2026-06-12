@@ -75,6 +75,8 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 // VerifyMembership verifies an ICS23 existence proof against the tree's root hash.
 // The value is taken from the proof itself (no tree lookup needed).
 func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	// Reject a nil / nil-inner / wrong-type proof before ics23 (which would
+	// nil-deref on it); this also lets exist.Value be read safely below.
 	exist := proof.GetExist()
 	if exist == nil {
 		return false, fmt.Errorf("proof is not an existence proof")
@@ -85,6 +87,13 @@ func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byt
 
 // VerifyNonMembership verifies an ICS23 non-existence proof.
 func (t *ImmutableTree) VerifyNonMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	// Reject a non-existence proof with a nil inner (or a nil/wrong-type
+	// proof) before handing it to ics23, which would nil-deref on it. Mirrors
+	// the GetExist guard in VerifyMembership; not reachable from a decoded
+	// (wire) proof, but keeps this independent of ics23's unmarshal details.
+	if proof.GetNonexist() == nil {
+		return false, fmt.Errorf("proof is not a non-existence proof")
+	}
 	root := t.Hash()
 	return ics23.VerifyNonMembership(BptreeSpec, root, proof, key), nil
 }
