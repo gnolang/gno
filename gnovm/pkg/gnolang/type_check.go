@@ -1074,8 +1074,10 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 				panic("use of untyped nil in variable declaration")
 			case *AssignStmt:
 				if x.Op != DEFINE {
-					// `v = nil` is checked against v's type later, but a
-					// blank target has no type to convert nil to: `_ = nil`.
+					// Assigning nil to a typed target is judged later by
+					// the assignability check against that target's type.
+					// A blank target has no type and no later check, so
+					// `_ = nil` must be rejected here.
 					if i < len(x.Lhs) && isBlankIdentifier(x.Lhs[i]) && isNilIdentifier(exp) {
 						panic("use of untyped nil in assignment")
 					}
