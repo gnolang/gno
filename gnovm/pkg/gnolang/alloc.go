@@ -439,9 +439,27 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	}
 }
 
-// stampPkgID stamps PkgID = alloc.currentRealmID on the given
-// ObjectInfo.
-func (alloc *Allocator) stampPkgID(oi *ObjectInfo) {
+// stampPkgID stamps PkgID on the given ObjectInfo. If t has a
+// /r/-declared PkgID (named struct types and pointers/declared types
+// wrapping them), stamp with the type's declared realm; otherwise
+// stamp with alloc.currentRealmID.
+//
+// Type-driven stamping makes "/r/realmA-typed values live in
+// /r/realmA" strictly true: a zero-value default like `var X
+// atype.RealmObject` in /r/bvar stamps the StructValue with /r/atype,
+// not /r/bvar. Field writes from /r/bvar are then blocked by
+// DidUpdate.
+//
+// Wrappers (HeapItemValue, Block, BoundMethodValue, FuncValue
+// closures) and anonymous composites (anonymous arrays/maps, slice
+// backing arrays) pass nil and stamp with currentRealmID — they are
+// storage slots / lexical scopes owned by the executing realm, not
+// data of a particular type.
+func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		oi.SetPkgID(pid)
+		return
+	}
 	oi.SetPkgID(alloc.currentRealmID)
 }
 
@@ -458,7 +476,7 @@ func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 	av := &ArrayValue{
 		List: make([]TypedValue, n),
 	}
-	alloc.stampPkgID(&av.ObjectInfo)
+	alloc.stampPkgID(&av.ObjectInfo, t)
 	return av
 }
 
@@ -475,7 +493,7 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 	av := &ArrayValue{
 		List: make([]TypedValue, l, c),
 	}
-	alloc.stampPkgID(&av.ObjectInfo)
+	alloc.stampPkgID(&av.ObjectInfo, t)
 	return av
 }
 
@@ -488,7 +506,7 @@ func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
 	av := &ArrayValue{
 		Data: make([]byte, n),
 	}
-	alloc.stampPkgID(&av.ObjectInfo)
+	alloc.stampPkgID(&av.ObjectInfo, t)
 	return av
 }
 
@@ -527,7 +545,7 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	base := &ArrayValue{
 		List: fullList,
 	}
-	alloc.stampPkgID(&base.ObjectInfo)
+	alloc.stampPkgID(&base.ObjectInfo, nil)
 	return &SliceValue{
 		Base:   base,
 		Offset: 0,
@@ -546,7 +564,7 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	base := &ArrayValue{
 		Data: fullData,
 	}
-	alloc.stampPkgID(&base.ObjectInfo)
+	alloc.stampPkgID(&base.ObjectInfo, nil)
 	return &SliceValue{
 		Base:   base,
 		Offset: 0,
@@ -561,7 +579,7 @@ func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
 	sv := &StructValue{
 		Fields: fields,
 	}
-	alloc.stampPkgID(&sv.ObjectInfo)
+	alloc.stampPkgID(&sv.ObjectInfo, t)
 	return sv
 }
 
@@ -581,7 +599,7 @@ func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
-	alloc.stampPkgID(&mv.ObjectInfo)
+	alloc.stampPkgID(&mv.ObjectInfo, t)
 	return mv
 }
 
@@ -626,7 +644,11 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	hiv := &HeapItemValue{Value: tv}
-	alloc.stampPkgID(&hiv.ObjectInfo)
+	// Pass nil: HIV is a storage slot wrapping a value; stamp with the
+	// executing realm so the declaring scope can reassign its own var.
+	// The wrapped value carries its own (potentially foreign-realm)
+	// stamp, which gates field-level writes via DidUpdate(po=value).
+	alloc.stampPkgID(&hiv.ObjectInfo, nil)
 	return hiv
 }
 

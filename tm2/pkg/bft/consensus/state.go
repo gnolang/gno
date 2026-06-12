@@ -35,7 +35,6 @@ import (
 var (
 	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
 	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
-	ErrAddingVote               = errors.New("Error adding vote")
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
@@ -82,6 +81,20 @@ type txNotifier interface {
 	TxsAvailable() <-chan struct{}
 }
 
+// interface to the evidence pool
+type evidencePool interface {
+	// ReportConflictingVotes reports conflicting votes to the evidence pool
+	// to be processed into evidence.
+	ReportConflictingVotes(voteA, voteB *types.Vote)
+}
+
+// NoOpEvidencePool is a no-op implementation of evidencePool.
+// TODO: replace with a real evidence pool that persists double-signing
+// evidence and enables validator slashing.
+type NoOpEvidencePool struct{}
+
+func (NoOpEvidencePool) ReportConflictingVotes(_, _ *types.Vote) {}
+
 // ConsensusState handles execution of the consensus algorithm.
 // It processes votes and proposals, and upon reaching agreement,
 // commits blocks to the chain and executes them against the application.
@@ -101,6 +114,9 @@ type ConsensusState struct {
 
 	// notify us if txs are available
 	txNotifier txNotifier
+
+	// add evidence to the pool when it's detected
+	evpool evidencePool
 
 	// internal state
 	mtx sync.RWMutex
@@ -151,6 +167,7 @@ func NewConsensusState(
 	blockExec *sm.BlockExecutor,
 	blockStore sm.BlockStore,
 	txNotifier txNotifier,
+	evpool evidencePool,
 	options ...StateOption,
 ) *ConsensusState {
 	cs := &ConsensusState{
@@ -158,6 +175,7 @@ func NewConsensusState(
 		blockExec:        blockExec,
 		blockStore:       blockStore,
 		txNotifier:       txNotifier,
+		evpool:           evpool,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
@@ -698,18 +716,10 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		added, err = cs.tryAddVote(msg.Vote, peerID)
+		added = cs.tryAddVote(msg.Vote, peerID)
 		if added {
 			cs.statsMsgQueue <- mi
 		}
-
-		// if err == ErrAddingVote {
-		// TODO: punish peer
-		// We probably don't want to stop the peer here. The vote does not
-		// necessarily comes from a malicious peer but can be just broadcasted by
-		// a typical peer.
-		// https://github.com/tendermint/tendermint/issues/1281
-		// }
 
 		// NOTE: the vote is broadcast to peers by the reactor listening
 		// for vote events
@@ -722,11 +732,9 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		return
 	}
 
-	if err != nil { //nolint:staticcheck
-		// Causes TestReactorValidatorSetChanges to timeout
-		// https://github.com/tendermint/tendermint/issues/3406
-		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
-		// 	"peer", peerID, "err", err, "msg", msg)
+	if err != nil {
+		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
+			"peer", peerID, "err", err, "msg", msg)
 	}
 }
 
@@ -1523,35 +1531,51 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool, error) {
+func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) bool {
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
-		// But if it's a conflicting sig, add it to the cs.mempool.
+		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if goerrors.Is(err, ErrVoteHeightMismatch) {
-			return added, err
-		} else if _, ok := err.(*types.VoteConflictingVotesError); ok {
-			/* XXX
-			addr := cs.privValidator.GetPubKey().Address()
-			if bytes.Equal(vote.ValidatorAddress, addr) {
-				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-				return added, err
-			}
-			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
-			return added, err
-			*/
-			panic("not yet implemented")
-		} else {
-			// Either
-			// 1) bad peer OR
-			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
-			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
-			cs.Logger.Info("Error attempting to add vote", "err", err)
-			return added, ErrAddingVote
+			return added
 		}
+
+		var voteErr *types.VoteConflictingVotesError
+		if goerrors.As(err, &voteErr) {
+			addr := cs.privValidator.PubKey().Address()
+			if vote.ValidatorAddress == addr {
+				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
+					"height", vote.Height,
+					"round", vote.Round,
+					"type", vote.Type,
+					"voteA", voteErr.VoteA,
+					"voteB", voteErr.VoteB)
+				return added
+			}
+
+			// report conflicting votes to the evidence pool
+			cs.evpool.ReportConflictingVotes(voteErr.VoteA, voteErr.VoteB)
+			cs.Logger.Warn("Found and sent conflicting votes to the evidence pool",
+				"peer", peerID,
+				"validator", vote.ValidatorAddress,
+				"height", vote.Height,
+				"round", vote.Round,
+				"type", vote.Type,
+				"voteA", voteErr.VoteA,
+				"voteB", voteErr.VoteB,
+			)
+			return added
+		}
+
+		// Either
+		// 1) bad peer OR
+		// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
+		// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
+		cs.Logger.Info("Error attempting to add vote", "err", err)
+		return added
 	}
-	return added, nil
+	return added
 }
 
 // -----------------------------------------------------------------------------
@@ -1748,14 +1772,63 @@ func (cs *ConsensusState) voteTime() time.Time {
 	return minVoteTime
 }
 
+func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address crypto.Address) *types.Vote {
+	var voteSet *types.VoteSet
+	switch type_ {
+	case types.PrevoteType:
+		voteSet = cs.Votes.Prevotes(cs.Round)
+	case types.PrecommitType:
+		voteSet = cs.Votes.Precommits(cs.Round)
+	default:
+		panic(fmt.Sprintf("Unexpected vote type %X", type_))
+	}
+
+	return voteSet.GetByAddress(address)
+}
+
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) {
-	address := cs.privValidator.PubKey().Address()
-
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(address) {
+	if cs.privValidator == nil {
 		return
 	}
+
+	address := cs.privValidator.PubKey().Address()
+	if !cs.Validators.HasAddress(address) {
+		return
+	}
+
+	// Avoid re-signing a vote we've already signed for this round; see ADR tm2/adr/pr5348_consensus_avoid_resign.md.
+	blockID := types.BlockID{Hash: hash, PartsHeader: header}
+	if existing := cs.existingSignedVote(type_, address); existing != nil {
+		if existing.BlockID.Equals(blockID) {
+			cs.Logger.Info(
+				"Reusing known self vote from vote set",
+				"height", existing.Height,
+				"round", existing.Round,
+				"type", existing.Type,
+				"validator address", existing.ValidatorAddress,
+				"validator index", existing.ValidatorIndex,
+			)
+			return
+		}
+
+		logFn := cs.Logger.Error
+		if cs.replayMode {
+			logFn = cs.Logger.Warn
+		}
+		logFn(
+			"Refusing to sign conflicting self vote",
+			"height", cs.Height,
+			"round", cs.Round,
+			"type", type_,
+			"validator address", address,
+			"existing block ID", existing.BlockID,
+			"new block ID", blockID,
+		)
+		return
+	}
+
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})

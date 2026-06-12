@@ -316,6 +316,33 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 		}
 	}
 
+	// Generate skip stubs for reserved field numbers.
+	// Without these, old wire bytes carrying a removed field would hit the
+	// default: error case and break backward compatibility.
+	for _, rnum := range info.Reserved {
+		fmt.Fprintf(sb, "\t\tcase %d:\n", rnum)
+		sb.WriteString("\t\t\tswitch typ3 {\n")
+		sb.WriteString("\t\t\tcase amino.Typ3Varint:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeVarint(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ38Byte:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeInt64(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ3ByteLength:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeByteSlice(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ34Byte:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeInt32(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tdefault:\n")
+		fmt.Fprintf(sb, "\t\t\t\treturn fmt.Errorf(\"invalid typ3 %%v for reserved field %d\", typ3)\n", rnum)
+		sb.WriteString("\t\t\t}\n")
+	}
+
 	sb.WriteString("\t\tdefault:\n")
 	fmt.Fprintf(sb, "\t\t\treturn fmt.Errorf(\"unknown field number %%d for %s\", fnum)\n", info.Type.Name())
 	sb.WriteString("\t\t}\n")
@@ -789,6 +816,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint32(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -799,6 +828,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -811,6 +842,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
 		} else if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}

@@ -131,11 +131,11 @@ func (m *Machine) doOpExec(op Op) {
 					continue
 				}
 				// For-loop init re-allocates the heap slot in the
-				// current realm.
+				// current realm. HIV is a wrapper; pass nil.
 				newHIV := &HeapItemValue{
 					Value: hiv.Value,
 				}
-				m.Alloc.stampPkgID(&newHIV.ObjectInfo)
+				m.Alloc.stampPkgID(&newHIV.ObjectInfo, nil)
 				last.Values[i].V = newHIV
 			}
 			// run post if exists.
@@ -978,7 +978,12 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m, cv, tv)
+	// A switch tag whose static type is an interface compares like an
+	// interface equality at runtime — uncomparable dynamic types panic.
+	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
+	ss := m.PeekStmt1().(*SwitchStmt)
+	viaIface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
+	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

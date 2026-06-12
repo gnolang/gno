@@ -30,6 +30,7 @@ Power up your Gno.land journey with these tools:
 
 - [Gno Studio](https://gno.studio/) - Web IDE for Gno development
   - [Gno Studio Connect](https://gno.studio/connect) - Interact with any Gno.land app with a web wallet
+- [Editor Setup](../builders/editor-setup.md) - Configure your editor with LSP support
 - [Gno Playground](https://play.gno.land/) - Try Gno code in your browser
 - [Faucet Hub](https://faucet.gno.land/) - Get testnet tokens
 

@@ -30,7 +30,7 @@ func PreviousRealm() runtime.Realm {
 
 // CurrentRealm returns the current realm-context.
 //
-// SECURITY: stack-walks. Inside a /p/ helper called via Rule-2 borrow
+// SECURITY: stack-walks. Inside a /p/ helper called via borrow rule #2 borrow
 // it returns the BORROWER's realm — using equality against an admin
 // address here ships a delegation bug. The idiomatic substitute, when
 // you have cur, is cur.PkgPath() / cur.Address(); when you don't,
