@@ -2637,98 +2637,80 @@ func defaultTypeOf(t Type) Type {
 	}
 }
 
-func fillEmbeddedName(ft *FieldType, nameSrc ...Expr) {
+func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	if ft.Name != "" {
 		return
 	}
 	if n := pickEmbedName(nameSrc); n != "" {
 		ft.Name = n
-		ft.Embedded = true
-		return
-	}
-	switch ct := ft.Type.(type) {
-	case *PointerType:
-		// dereference one level
-		switch ct := ct.Elt.(type) {
+	} else {
+		switch ct := ft.Type.(type) {
+		case *PointerType:
+			// dereference one level
+			switch ct := ct.Elt.(type) {
+			case *DeclaredType:
+				ft.Name = ct.Name
+			default:
+				// should not happen,
+				panic("should not happen")
+			}
 		case *DeclaredType:
 			ft.Name = ct.Name
+		case PrimitiveType:
+			switch ct {
+			case BoolType:
+				ft.Name = Name("bool")
+			case StringType:
+				ft.Name = Name("string")
+			case IntType:
+				ft.Name = Name("int")
+			case Int8Type:
+				ft.Name = Name("int8")
+			case Int16Type:
+				ft.Name = Name("int16")
+			case Int32Type:
+				ft.Name = Name("int32")
+			case Int64Type:
+				ft.Name = Name("int64")
+			case UintType:
+				ft.Name = Name("uint")
+			case Uint8Type:
+				ft.Name = Name("uint8")
+			case Uint16Type:
+				ft.Name = Name("uint16")
+			case Uint32Type:
+				ft.Name = Name("uint32")
+			case Uint64Type:
+				ft.Name = Name("uint64")
+			case Float32Type:
+				ft.Name = Name("float32")
+			case Float64Type:
+				ft.Name = Name("float64")
+			}
 		default:
-			// should not happen,
-			panic("should not happen")
+			panic(fmt.Sprintf(
+				"unexpected field type %s",
+				ft.Type.String()))
 		}
-	case *DeclaredType:
-		ft.Name = ct.Name
-	case PrimitiveType:
-		switch ct {
-		case BoolType:
-			ft.Name = Name("bool")
-		case StringType:
-			ft.Name = Name("string")
-		case IntType:
-			ft.Name = Name("int")
-		case Int8Type:
-			ft.Name = Name("int8")
-		case Int16Type:
-			ft.Name = Name("int16")
-		case Int32Type:
-			ft.Name = Name("int32")
-		case Int64Type:
-			ft.Name = Name("int64")
-		case UintType:
-			ft.Name = Name("uint")
-		case Uint8Type:
-			ft.Name = Name("uint8")
-		case Uint16Type:
-			ft.Name = Name("uint16")
-		case Uint32Type:
-			ft.Name = Name("uint32")
-		case Uint64Type:
-			ft.Name = Name("uint64")
-		case Float32Type:
-			ft.Name = Name("float32")
-		case Float64Type:
-			ft.Name = Name("float64")
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected field type %s",
-			ft.Type.String()))
 	}
 	ft.Embedded = true
 }
 
-func pickEmbedName(xs []Expr) Name {
-	var zero Name
-	if len(xs) == 0 {
-		return zero
-	}
-	x := xs[0]
+func pickEmbedName(x Expr) Name {
 	for {
 		switch e := x.(type) {
-		case *constTypeExpr:
-			if e.Source == nil {
-				return zero
-			}
-			x = e.Source
-		case *ConstExpr:
-			if e.Source == nil {
-				return zero
-			}
-			x = e.Source
+		case *constTypeExpr, *ConstExpr:
+			x = unconst(x)
 		case *StarExpr:
 			x = e.X
+		case *NameExpr:
+			return e.Name
+		case *SelectorExpr:
+			return e.Sel
 		default:
-			goto done
+			return ""
 		}
 	}
-done:
-	switch e := x.(type) {
-	case *NameExpr:
-		return e.Name
-	case *SelectorExpr:
-		return e.Sel
-	}
-	return zero
 }
 
 func IsImplementedBy(it Type, ot Type) bool {
