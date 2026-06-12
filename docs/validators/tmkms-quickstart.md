@@ -1,69 +1,39 @@
 # gnoland + tmkms: secure setup
 
-A step-by-step guide to standing up a gnoland validator whose consensus
-key is held by [tmkms] instead of living on the node — and configuring
-both the host and tmkms so that the failure modes a security review of
-tmkms surfaced are closed *before* they can bite you.
-
-The review of tmkms 0.15.0 catalogued dozens of findings; the large
-majority of them are not code bugs you can hit by accident but
-**operational footguns** — bad defaults, convenience commands that leak
-secrets, missing permission checks — every one of which is neutralised by
-provisioning and configuring the system correctly. This guide bakes that
-hardening in. Where a residual *code-level* risk remains (there is
-essentially one that matters: state-file durability on power loss), it is
-called out at the exact step where it applies.
+Stand up a gnoland validator whose consensus key lives in [tmkms], not on
+the node. tmkms 0.15.0's risks are mostly **operational footguns** (bad
+defaults, secret-leaking convenience commands, missing permission checks),
+not accidental code bugs — this guide provisions around them. One residual
+*code* risk remains (state-file durability on power loss); it's flagged
+where it applies. See [tmkms.md](tmkms.md) for architecture and threat model.
 
 [tmkms]: https://github.com/iqlusioninc/tmkms
 
 ## How to read this guide
 
-It is ordered by what you should actually run for real stake first, and
-descends toward test/lab setups:
+Ordered real-stake-first:
 
-- **[Prerequisites — helper tools](#prerequisites--build-the-helper-tools)** —
-  two small stdlib-only Go helpers every backend uses; build them once.
-- **[Part A — Host hardening](#part-a--host-hardening-do-this-first-for-every-backend)** —
-  the OS-level groundwork (dedicated user, locked-down directories,
-  transport choice). Do this regardless of which signer backend you pick.
-- **[Part B — Production with a YubiHSM](#part-b--production-validator-with-a-yubihsm-recommended)** —
-  the recommended production path. The consensus key is generated inside
-  the HSM and **never exists outside it**.
-- **[Part C — Testnet/lab with softsign](#part-c--testnetlab-with-softsign-key-on-disk)** —
-  the file-based backend. Simple, but the key touches disk: testnets and
-  learning only.
-- **[Part D — Ledger hardware signer](#part-d--advanced-ledger-hardware-signer)** —
-  a hardware key for advanced/low-stake setups without HSM-grade failover.
-- **[Part E — Prove it](#part-e--prove-it-with-the-repos-automated-test)** and the
-  **[checklist](#secure-setup-checklist)**.
+- **[Prerequisites](#prerequisites--build-the-helper-tools)** — helper tools, binaries on PATH, GNOROOT.
+- **[Part A](#part-a--host-hardening-do-this-first-for-every-backend)** — host hardening (users, dirs, transport); do first.
+- **[Part B](#part-b--production-validator-with-a-yubihsm-recommended)** — YubiHSM, key never leaves hardware (recommended).
+- **[Part C](#part-c--testnetlab-with-softsign-key-on-disk)** — softsign, key on disk (lab/learning only).
+- **[Part D](#part-d--advanced-ledger-hardware-signer)** — Ledger hardware signer (advanced/low-stake).
+- **[Part E](#part-e--prove-it-with-the-repos-automated-test)** + [checklist](#secure-setup-checklist).
 
-> **What is verified vs. derived.** The gnoland side of every path here —
-> the listener, the allowlist, the peer-ID pin, the `v0.34` protocol pin,
-> and signing through tmkms — is exercised end-to-end by the repo's
-> real-tmkms integration test, with **softsign** and a **Ledger** as the
-> backends (see [Part E](#part-e--prove-it-with-the-repos-automated-test)).
-> The **YubiHSM** provisioning and provider config in Part B are derived
-> from the tmkms security review, the tmkms source, and YubiHSM's own
-> documentation; they need the physical device to exercise. Treat the
-> exact `yubihsm-shell` / TOML tokens as a recipe to verify against your
-> firmware and tmkms version — but the *security policy* they encode
-> (non-exportable key, audit log on, minimal capabilities) is firm.
-
-See [tmkms.md](tmkms.md) for the architecture, the threat model, and the
-operational checklist this guide is the hands-on companion to.
+> **Verified vs. derived.** The gnoland side of every path (listener,
+> allowlist, peer-ID pin, `v0.34` pin, signing) is covered by the repo's
+> real-tmkms test with softsign and a Ledger (Part E). Part B's YubiHSM
+> steps are derived from the review + tmkms/YubiHSM docs — verify the exact
+> tokens against your firmware; the policy they encode (non-exportable key,
+> audit on, minimal caps) is firm.
 
 ## The security model in one paragraph
 
-The connection between gnoland and tmkms is **mutually authenticated**,
-and the defining property of this mode is that **tmkms dials gnoland** —
-gnoland listens, tmkms connects in. gnoland verifies it is talking to
-*your* signer (not an impostor) and tmkms verifies it is talking to
-*your* validator (not an attacker's listener). How that mutual check is
-enforced depends on the transport, and getting it right is the single
-most important configuration decision — see
-[Part A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp).
-
-Three distinct ed25519 keys are in play — don't mix them up:
+tmkms **dials** gnoland (gnoland listens); the connection is mutually
+authenticated, and *how* depends on the transport
+([A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp)) — the
+single most important choice here. Three ed25519 keys are in play — don't
+mix them up:
 
 | Key | Lives in | Role |
 |---|---|---|
@@ -71,10 +41,9 @@ Three distinct ed25519 keys are in play — don't mix them up:
 | **kms-identity key** | tmkms `kms-identity.key` | tmkms's SecretConnection identity; its pubkey goes in gnoland's `allowed_kms_pubkeys` (TCP only) |
 | **node key** | gnoland `node_key.json` | gnoland's SecretConnection identity; its peer ID (hex) is pinned in tmkms's `addr` (TCP only) |
 
-The `chain_id` must be **identical** everywhere — the gnoland genesis,
-gnoland's `tmkms_listener.chain_id`, and tmkms's `[[chain]].id` /
-`[[validator]].chain_id`. If they drift, tmkms refuses to sign. Pick it
-once and reuse it:
+`chain_id` must be **identical** everywhere (gnoland genesis,
+`tmkms_listener.chain_id`, tmkms's `[[chain]].id` and
+`[[validator]].chain_id`) or tmkms refuses to sign. Set once:
 
 ```sh
 export CHAIN_ID=gno-tmkms-prod
@@ -84,23 +53,16 @@ export CHAIN_ID=gno-tmkms-prod
 
 # Prerequisites — build the helper tools
 
-Every backend below needs two tiny **stdlib-only** Go helpers. Define and
-**compile them once**, here; later sections run the resulting binaries.
-They have no module dependencies, so they build and run from any
-directory (Part B.3's `pkconv.go` is the one exception — it imports the
-gno crypto packages and must be run from the gno repo root; it's defined
-where it's used).
+Two tiny **stdlib-only** Go helpers, compiled once. They build/run from
+any directory (Part B.3's `pkconv.go` is the exception — it imports gno
+crypto, run from the repo root; defined where it's used).
 
-> **Running a helper against a service-owned secret.** In Parts B and D
-> the secrets live under `/var/lib`, owned by a service user (the separate
-> `tmkms` user on Part B's TCP layout; the shared `gnoland` user on Part
-> D's UDS layout — see [A.1](#a1-pick-the-user-model-it-depends-on-the-transport)).
-> Run each helper **as the owning user** (`sudo -u <user>`) so it touches
-> the secret with exactly the privilege it needs — not as root, and
-> without copying the secret into a directory you own. Those users have no
-> home directory, so the Go *toolchain* can't run as them; that is why we
-> compile the helpers as yourself first and only run the finished
-> **binary** under `sudo -u`.
+> **Run helpers as the secret's owner.** In Parts B/D the secrets live
+> under `/var/lib` owned by a service user (separate `tmkms` on TCP; shared
+> `gnoland` on UDS — [A.1](#a1-pick-the-user-model-it-depends-on-the-transport)).
+> Run each helper `sudo -u <that user>` — least privilege, no copying the
+> secret to your dir. Those users have no home, so the Go toolchain can't
+> run as them: compile as yourself, run only the built binary under sudo.
 
 `nodeid-hex.go` — prints a gnoland node's peer ID in the hex form tmkms
 pins in its `addr` (TCP layouts):
@@ -172,11 +134,7 @@ func main() {
 GO
 ```
 
-Compile both as your normal user (the Go toolchain needs its build
-cache), then install them where every user — including the `tmkms` and
-`gnoland` service users — can execute them. Later steps invoke them by
-name, under `sudo -u` when the target is a service-owned `/var/lib`
-secret:
+Compile as yourself, install where the service users can run them:
 
 ```sh
 go build -o nodeid-hex ./nodeid-hex.go
@@ -184,28 +142,24 @@ go build -o tmkms-identity-keygen ./tmkms-identity-keygen.go
 sudo install -m 0755 nodeid-hex tmkms-identity-keygen /usr/local/bin/
 ```
 
-They are one-shot setup tools; remove them with
-`sudo rm /usr/local/bin/{nodeid-hex,tmkms-identity-keygen}` afterward if
-you'd rather not leave them on the box.
+One-shot tools; `sudo rm /usr/local/bin/{nodeid-hex,tmkms-identity-keygen}`
+afterward if you don't want them lying around.
 
 ## Put the binaries on a system path
 
-Anything you run under `sudo -u tmkms` / `sudo -u gnoland` must live where
-those no-home users can reach it. Build `gnoland` and `gnogenesis` from the
-repo, then install them — together with the `tmkms` binary `cargo` drops in
-`~/.cargo/bin` — to `/usr/local/bin`. They otherwise land under your home,
-which the service users can't traverse, so `sudo -u tmkms tmkms …` fails
-with `Permission denied`.
+Service users (no home) can't reach binaries under your home, so
+`sudo -u … <bin>` fails with `Permission denied`. Build gnoland/gnogenesis
+and install them — with the `tmkms` binary `cargo` drops in
+`~/.cargo/bin` — to `/usr/local/bin`:
 
 ```sh
-# build from the gno repo root (output lands in each component's build/ dir)
+# from the gno repo root (output lands in each component's build/ dir)
 make -C gno.land build.gnoland
 make -C contribs/gnogenesis build
 sudo install -m 0755 gno.land/build/gnoland contribs/gnogenesis/build/gnogenesis /usr/local/bin/
 ```
 
-The backend sections repeat the `tmkms` step right after its
-`cargo install`:
+The backend sections repeat the `tmkms` step after its `cargo install`:
 
 ```sh
 sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # after cargo install (Parts B/D)
@@ -213,18 +167,11 @@ sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # after cargo install 
 
 ## Set `GNOROOT` to a gno checkout
 
-`gnoland` needs `GNOROOT` for two things: it panics at startup without it
-(a flag-default quirk), and — on **every** path — `InitChainer` loads the
-standard library `.gno` sources from `$GNOROOT/gnovm/stdlibs/` when it
-initialises the chain. So `GNOROOT` must point at a **complete gno
-checkout**, and one whose stdlib set **matches the `gnoland` binary you
-built** — a mismatched or empty directory fails with
-`failed loading stdlib "…": does not exist`.
-
-Your build clone almost certainly sits under your home directory, which
-the no-home `gnoland` user can't traverse. Put a readable copy at
-`/opt/gno` by cloning **your own tree at the same commit** (not GitHub
-master, whose stdlibs may differ from your binary):
+gnoland loads stdlib `.gno` sources from `$GNOROOT/gnovm/stdlibs/` on every
+start (and panics without `GNOROOT` set). So it must point at a **complete
+checkout whose stdlibs match the binary you built** — empty/mismatched
+fails with `failed loading stdlib "…": does not exist`. Your build clone is
+under your home (unreadable to `gnoland`), so copy it to `/opt/gno`:
 
 ```sh
 sudo git clone --local "$(git -C . rev-parse --show-toplevel)" /opt/gno
@@ -232,182 +179,124 @@ sudo git -C /opt/gno checkout "$(git rev-parse --abbrev-ref HEAD)"   # match you
 export GNOROOT=/opt/gno
 ```
 
-`/opt/gno` is world-readable, so the `gnoland` user can read the stdlibs.
-Because `sudo -u gnoland` scrubs the environment, every `gnoland` command
-below passes `GNOROOT` back with `env GNOROOT="$GNOROOT"` (for a systemd
-unit, `Environment=GNOROOT=/opt/gno`).
+`sudo -u gnoland` scrubs the env, so every `gnoland` command below passes
+`env GNOROOT="$GNOROOT"` (systemd: `Environment=GNOROOT=/opt/gno`).
 
 ---
 
 # Part A — Host hardening (do this first, for every backend)
 
-These steps apply whether you end up on a YubiHSM, a Ledger, or softsign.
-tmkms does **not** enforce file permissions on its own key, state, or
-config files (it accepts world-readable secrets silently), so the OS must
-enforce them for it.
+tmkms doesn't enforce permissions on its own key/state/config (it accepts
+world-readable secrets silently) — the OS must.
 
 ## A.1 Pick the user model (it depends on the transport)
 
-Never run the signer as root or as your login user — use locked-down
-system accounts with no shell and no home. **How many** you create depends
-on the transport you'll choose in [A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp),
-because the two transports authenticate differently:
+Never run as root or your login user — use locked-down system accounts (no
+shell, no home). **How many** depends on the transport
+([A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp)):
 
-- **TCP (Part B, and any cross-host or same-host loopback layout): two
-  separate users.** gnoland and tmkms authenticate each other
-  cryptographically over the connection, so isolating them as distinct
-  unprivileged accounts is the local hardening you want.
-- **Same-host Unix socket (Parts C and D): one shared user.** gnoland
-  forces the socket to `0600` owned by *its own* user
-  (`tm2/pkg/bft/privval/config.go`), and connecting to a Unix socket needs
-  write access to it — so **only that one user can dial in**. tmkms must
-  run as the *same* user as gnoland; a separate `tmkms` user simply gets
-  `Permission denied (os error 13)`. You trade local process isolation for
-  simplicity here — if you want the two roles isolated on one host, use the
-  loopback **TCP** layout instead.
-
-Create the gnoland user (every path uses it):
+- **TCP (Part B, or loopback): two users.** They authenticate
+  cryptographically, so isolate them as distinct accounts.
+- **Same-host UDS (Parts C, D): one user.** gnoland forces the socket to
+  `0600` owned by *itself* (`tm2/pkg/bft/privval/config.go`), and
+  connecting needs write access — so only that user can dial in (a separate
+  `tmkms` user gets `Permission denied (os error 13)`). Run tmkms as the
+  gnoland user. Want isolation on one host? Use loopback TCP.
 
 ```sh
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin gnoland
-```
-
-For a **TCP** layout, also create the separate signer user:
-
-```sh
+# TCP only — separate signer user (UDS runs tmkms as gnoland):
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin tmkms
 ```
 
-For a **same-host UDS** layout, skip that — both processes run as one
-user: Part D runs them as the `gnoland` user (tmkms's config and secrets
-living under `gnoland` ownership), while Part C's lab runs both as your
-operator user.
-
 ## A.2 Lay out directories with strict permissions
 
-tmkms's secrets and its state file are the crown jewels. The state file
-in particular is the **double-sign gate** — losing or rolling it back is
-the one thing that can get you slashed. Give them a private home:
+The state file is the **double-sign gate** — losing or rolling it back can
+get you slashed. Give the secrets a private `0600` home:
 
 ```sh
 sudo install -d -o tmkms -g tmkms -m 700 /etc/tmkms          # config
 sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms       # state + identity key
 sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms/secrets
 
-# gnoland's own data dir, owned by the gnoland user (it creates the
-# secrets/ and config/ subdirs itself):
+# gnoland's own data dir (it creates secrets/ and config/ itself):
 sudo install -d -o gnoland -g gnoland -m 700 /var/lib/gnoland
 ```
 
-> **Same-host UDS (single user):** tmkms runs as `gnoland` (A.1), so own
-> `/etc/tmkms` and `/var/lib/tmkms` with `-o gnoland -g gnoland` instead.
-> The commands above are written for the two-user TCP layout (Part B).
+> **UDS (single user):** own `/etc/tmkms` and `/var/lib/tmkms` with
+> `-o gnoland -g gnoland` instead (tmkms runs as `gnoland`, A.1). The above
+> is the two-user TCP layout.
 
-Rules that close whole classes of findings at once:
-
-- **Every secret and the state file is `0600`, owned by `tmkms`.** A
-  world- or group-readable consensus key, identity key, or YubiHSM
-  password is game over; tmkms won't warn you, so enforce it yourself.
-- **Use absolute paths everywhere** in `tmkms.toml`. tmkms resolves some
-  paths (notably the default state-file path) relative to its *current
-  working directory*; an absolute path removes any ambiguity about which
-  state file is the authoritative one and stops a stray relative path
-  from silently creating a fresh, height-zero state.
-- **Never put a password inline** in `tmkms.toml`. Use a separate
-  `password_file` (Part B.5), itself `0600`, so the config can be read
-  for debugging without exposing the credential.
+- Secrets + state `0600`, owned by the signer user — tmkms won't reject
+  world-readable secrets, so you must.
+- **Absolute paths** in `tmkms.toml` — a CWD-relative state file can
+  silently become a fresh, height-zero one.
+- Password in a separate `password_file` (B.5), never inline — keeps it out
+  of the config and process listings.
 
 ## A.3 Choose the transport: Unix socket or firewalled TCP
 
-This is where mutual authentication actually lives. Two valid layouts,
-each with a *different* auth boundary — pick deliberately:
+Two layouts, different auth boundaries — pick deliberately:
 
 ### Same host → Unix-domain socket (auth by filesystem, single user)
 
-If tmkms and gnoland run on the same machine, a Unix socket is the
-simplest layout. gnoland creates the socket and `chmod`s it to `0600`
-owned by **its own user** — and because connecting to a Unix socket needs
-write access, **only that user can dial in.** So on UDS, tmkms runs as the
-*same* user as gnoland (A.1); the socket directory just needs to exist,
-owned by that user:
+gnoland creates the socket `0600` owned by **its own user**, and
+connecting needs write access — so only that user dials in. tmkms runs as
+gnoland (A.1); just create the dir:
 
 ```sh
 sudo install -d -o gnoland -g gnoland -m 700 /run/gnoland
-# gnoland will create /run/gnoland/privval.sock at 0600, owned by gnoland;
-# tmkms, running as gnoland, connects to it.
+# gnoland creates /run/gnoland/privval.sock at 0600; tmkms (as gnoland) connects.
 ```
 
-> **Important:** over a Unix socket the `allowed_kms_pubkeys` allowlist is
-> **not** the gate — gnoland cannot crypto-verify a UDS peer against it.
-> *The socket's owner-only `0600` mode is the entire authentication
-> boundary:* the single user running both processes can connect, every
-> other local user is locked out. You still set the allowlist (gnoland
-> requires a non-empty one), but on UDS it is belt-and-suspenders, not the
-> lock. If you need the signer isolated in its **own** user on one host,
-> that is exactly what the loopback TCP layout below buys you.
+> On UDS the `allowed_kms_pubkeys` allowlist can't be crypto-checked — the
+> `0600` socket is the whole auth boundary (one user in, every other local
+> user out). Set the allowlist anyway (gnoland requires it non-empty), but
+> it's belt-and-suspenders. For per-user isolation, use loopback TCP.
 
 ### TCP, firewalled (auth by cryptography, two users)
 
-For real stake, run the signer on its **own host**. (The same TCP layout
-on `127.0.0.1` also works on a single host — that is how you keep gnoland
-and tmkms in two isolated users on one box, since UDS can't.) Either way
-the auth boundary is cryptographic:
+Run the signer on its **own host** (or `127.0.0.1` for two isolated users
+on one box). Auth is cryptographic, both halves mandatory:
 
 - gnoland verifies tmkms via `allowed_kms_pubkeys` (the signer's pubkey).
 - tmkms verifies gnoland via the **peer ID pinned in its `addr`**.
 
-Both are mandatory. Then firewall the listen port so that **only the
-signer host** can reach it — the crypto is the lock, the firewall keeps
-strangers from even knocking (and from using your validator as a free
-oracle to probe):
+Firewall the port to the signer host only (crypto is the lock; the firewall
+stops strangers knocking or using you as a signing oracle to probe):
 
 ```sh
-# allow only the signer host to reach the privval port; deny the rest
 sudo ufw allow from <SIGNER_HOST_IP> to any port 26659 proto tcp
 sudo ufw deny 26659/tcp
 ```
 
-Bind gnoland's listener to the specific reachable interface, not a
-wildcard, when you can.
+Bind gnoland to the specific interface, not a wildcard, when you can.
 
-The rest of this guide uses placeholders you can set to match your
-choice. For a same-host UDS layout:
+Placeholders for the rest of the guide:
 
 ```sh
-export PRIVVAL_LISTEN="unix:///run/gnoland/privval.sock"   # gnoland listens here
-export TMKMS_ADDR="unix:///run/gnoland/privval.sock"       # tmkms dials here (no peer-ID on UDS)
-```
-
-For a two-host TCP layout (note the **mandatory** `<peer_id>@` prefix in
-the tmkms address — filled in at B.3):
-
-```sh
+# UDS:
+export PRIVVAL_LISTEN="unix:///run/gnoland/privval.sock"
+export TMKMS_ADDR="unix:///run/gnoland/privval.sock"   # no peer-ID on UDS
+# TCP (peer-ID prefix on TMKMS_ADDR is mandatory; filled at B.3):
 export PRIVVAL_LISTEN="tcp://<validator_interface_ip>:26659"
-# TMKMS_ADDR set in B.5 once the peer ID is known: tcp://<peer_id>@<validator_ip>:26659
 ```
 
-The two transports are independent of the signer backend, so the worked
-examples below deliberately show both: **Part B (YubiHSM) uses TCP** (the
-peer-ID-pinned, cross-host form), while **Parts C (softsign) and D
-(Ledger) use the same-host Unix socket** (the simpler form). Use
-whichever matches your real deployment regardless of which backend you
-picked.
+Examples below show both: **Part B uses TCP**, **Parts C/D use UDS** — mix
+transport and backend freely.
 
 ---
 
 # Part B — Production validator with a YubiHSM (recommended)
 
-A YubiHSM holds the consensus key inside tamper-resistant hardware and,
-provisioned correctly, **never lets it out** — not even to its own
-operator. That single property removes the entire "key stolen off disk /
-exported silently" class of risk that softsign cannot. The catch is that
-tmkms's *convenience* tooling around the YubiHSM is where the review found
-its sharpest edges, so the rule for this section is: **provision the
-device by hand, and never run the automated setup or test commands
+A YubiHSM holds the consensus key in hardware and, provisioned correctly,
+**never lets it out** — removing the entire "key stolen/exported off disk"
+class softsign can't. The catch: tmkms's *convenience* tooling around the
+YubiHSM is where the review found its sharpest edges. Rule for this
+section: **provision by hand, never run the automated setup/test commands
 against a production key.**
 
-Install tmkms with the `yubihsm` provider (it is **not** in the default
-build — you must enable the feature explicitly):
+Install tmkms with the `yubihsm` provider (not in the default build):
 
 ```sh
 cargo install tmkms --version 0.15.0 --features yubihsm --locked
@@ -423,38 +312,28 @@ tmkms version   # → 0.15.0
 > roles with key-export capability. Provision with `yubihsm-shell`
 > instead, so the secrets never leave your control.
 
-Work on an **offline** machine. The high-level policy you are encoding —
-and which the rest follows from — is:
+Work on an **offline** machine. The policy to encode:
 
-1. **Generate the consensus key inside the device** (or import it once and
-   destroy the source). It must **not** carry the `exportable-under-wrap`
-   capability. A non-exportable key cannot be wrapped out, so a stolen
-   credential later cannot exfiltrate it.
-2. **The auth key tmkms uses to log in gets `sign-eddsa` only.** No
-   `export-wrapped`, no `sign-attestation-certificate`, no broad
-   delegated capabilities. If that credential leaks, it can ask for
-   signatures (which the firewall + state machine still gate) but cannot
-   extract or clone the key.
-3. **Turn the audit log on and force it.** The device ships with auditing
-   off; with it forced on, the HSM records every operation and refuses to
-   sign once its log buffer fills — so an attempted misuse leaves a trail
-   and cannot run unbounded.
-4. **Store the recovery seed offline, on paper, in a safe.** Never on the
-   validator host.
+1. **Generate the consensus key inside the device** (or import once and
+   destroy the source), **without** `exportable-under-wrap` — so a stolen
+   credential can't wrap it out.
+2. **tmkms's auth key gets `sign-eddsa` only** — no `export-wrapped`, no
+   `sign-attestation-certificate`. If it leaks it can request signatures
+   (still gated by firewall + state machine) but not clone the key.
+3. **Force the audit log on** (ships off) — the HSM logs every op and
+   refuses to sign once the buffer fills, so misuse leaves a trail.
+4. **Store the recovery seed offline on paper** — never on the host.
 
-The `<tmkms-auth-password>` below is a credential **you choose** — it is
-what tmkms presents to log in to the device. Generate a long random one
-(don't type a memorable string) and keep it only in the `0600`
-`password_file` created further down; never commit it or paste it into
-`tmkms.toml`:
+`<tmkms-auth-password>` is a credential **you choose** for tmkms to log in.
+Generate a long random one; keep it only in the `0600` `password_file`
+below, never in `tmkms.toml`:
 
 ```sh
 TMKMS_AUTH_PASSWORD=$(openssl rand -base64 32)   # generate once; use it below and in the password_file
 ```
 
-A representative `yubihsm-shell` session (verify the exact token spelling
-against your firmware — capability and option names are the firm part).
-Substitute `$TMKMS_AUTH_PASSWORD` for `<tmkms-auth-password>`:
+A representative `yubihsm-shell` session (verify exact token spelling
+against your firmware). Substitute `$TMKMS_AUTH_PASSWORD`:
 
 ```sh
 yubihsm-shell
@@ -474,11 +353,10 @@ yubihsm-shell
 # Replace/disable the default admin auth key (id 1) afterwards.
 ```
 
-The two things to never grant the signer's auth key: `export-wrapped` and
-`sign-attestation-certificate`. The first turns a leaked credential into
-key theft; the second lets it produce attestations you didn't intend.
+Never grant the auth key `export-wrapped` (turns a leak into key theft) or
+`sign-attestation-certificate` (lets it forge attestations).
 
-Store that same password in a file, not the config:
+Store the password in a file, not the config:
 
 ```sh
 printf '%s' "$TMKMS_AUTH_PASSWORD" | sudo tee /etc/tmkms/yubihsm-password >/dev/null
@@ -489,35 +367,29 @@ unset TMKMS_AUTH_PASSWORD   # drop it from the shell once it's in the file
 
 ## B.2 Generate gnoland's node + listener identity
 
-The consensus key lives in the HSM, but gnoland still needs its own node
-identity (the peer ID that tmkms pins on TCP), and tmkms needs a
-SecretConnection identity key. Generate the gnoland node secrets:
+The key lives in the HSM, but gnoland still needs a node identity (the peer
+ID tmkms pins) and tmkms needs a SecretConnection identity key. Generate
+the node secrets:
 
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland secrets init -data-dir /var/lib/gnoland/secrets
 ```
 
-In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
-— tmkms signs. Only `node_key.json` (the peer ID) matters here.
+In tmkms mode `priv_validator_key.json` doesn't sign — only `node_key.json`
+(the peer ID) matters.
 
-**Peer ID in hex (TCP layouts).** tmkms pins your validator's peer ID to
-make sure it signs for *your* node and not whoever answers on the port.
-gnoland reports the identity in bech32 (`g1…`); tmkms wants the same 20
-bytes in hex. Run the `nodeid-hex` helper from
-[Prerequisites](#prerequisites--build-the-helper-tools) as the gnoland
-user (it owns `node_key.json`):
+**Peer ID in hex (TCP)** — tmkms pins it to sign only for *your* node.
+gnoland reports bech32; tmkms wants the same 20 bytes in hex. Run
+`nodeid-hex` as the gnoland user (it owns the key):
 
 ```sh
 export VALIDATOR_PEER_ID=$(sudo -u gnoland nodeid-hex /var/lib/gnoland/secrets/node_key.json)
-echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned into tmkms.toml in B.4 (TCP)
+echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned in B.4
 ```
 
-**tmkms's SecretConnection identity (TCP layouts).** gnoland only accepts
-the connection if this key's public half is in `allowed_kms_pubkeys`. Run
-the `tmkms-identity-keygen` helper from
-[Prerequisites](#prerequisites--build-the-helper-tools) as the tmkms user,
-so the key is written into tmkms's secrets dir already owned by tmkms (no
-`chown` needed):
+**tmkms's SecretConnection identity (TCP)** — its pubkey must be in
+`allowed_kms_pubkeys`. Run `tmkms-identity-keygen` as the tmkms user so the
+key lands tmkms-owned:
 
 ```sh
 ALLOW=$(sudo -u tmkms tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
@@ -526,12 +398,10 @@ echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in B.5
 
 ## B.3 Read the consensus pubkey out of the HSM and register the validator
 
-Because the key never leaves the HSM, you can't push it into genesis —
-you read the **public** half out of tmkms and register *that* as your
-validator identity. Start tmkms once (as the tmkms user, with the
-`tmkms.toml` from B.4); it logs the device's consensus pubkey on startup.
-Read that line, then stop it with `Ctrl-C` (gnoland isn't up yet, so it
-will just retry the connection in the meantime):
+The key never leaves the HSM, so you read its **public** half from tmkms
+and register that. Start tmkms once (as the tmkms user, `tmkms.toml` from
+B.4); it logs the consensus pubkey on startup. Read it, then `Ctrl-C`
+(gnoland isn't up; tmkms just retries meanwhile):
 
 ```sh
 sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
@@ -541,11 +411,10 @@ sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
 [keyring:yubihsm] added consensus Ed25519 key: 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
 ```
 
-The hex string above is an **example** — copy the one *your* device logs.
+That hex is an **example** — copy the one *your* device logs.
 
-Convert that hex pubkey to gno's `gpub1…` / `g1…` forms with this helper.
-Write the file, then run it **from the gno repo root** (so the
-`github.com/gnolang/gno/...` imports resolve):
+Convert it to gno's `gpub1…` / `g1…` forms with this helper, run **from the
+gno repo root** (so the imports resolve):
 
 ```sh
 cat > pkconv.go <<'GO'
@@ -588,23 +457,15 @@ go run ./pkconv.go 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D
 # address: g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4
 ```
 
-That `gpub1…` / `g1…` pair is your validator's public identity. What you
-do with it depends on whether you are joining a chain or bootstrapping
-one:
+That `gpub1…` / `g1…` pair is your validator's public identity. Then:
 
-**Joining an existing chain (the production case).** You do **not**
-generate genesis — the chain already exists. Submit your `gpub1…` pubkey
-and `g1…` address to that chain's validator-onboarding path (its staking
-/ governance process, or the genesis coordinator if it hasn't launched
-yet) to be added to the validator set. The pubkey→address relationship is
-your integrity check: whoever registers you can confirm the address is
-the hash of the pubkey. Keep the pair; you'll confirm gnoland signs with
-this address in B.7. Then skip to [B.4](#b4-write-tmkmstoml).
+**Joining an existing chain (production).** Don't generate genesis — submit
+the `gpub1…` / `g1…` to the chain's validator-onboarding path. Keep the
+pair (confirmed in B.7), then skip to [B.4](#b4-write-tmkmstoml).
 
-**Bootstrapping your own chain (test / private networks).** Build genesis
-explicitly with `gnogenesis`, seeding it with the HSM pubkey. Do **not**
-use `gnoland start -lazy` here — it would mint a throwaway local key and
-seed genesis with *that* instead of your HSM key:
+**Bootstrapping your own chain (test).** Build genesis with `gnogenesis`,
+seeded with the HSM pubkey. **No** `gnoland start -lazy` — it would mint a
+throwaway local key and seed genesis with that instead:
 
 ```sh
 sudo -u gnoland gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
@@ -616,14 +477,13 @@ sudo -u gnoland gnogenesis validator add \
   -power    10
 ```
 
-`validator add` checks that the pubkey hashes to the address, so a
-copy-paste slip is caught right here — the same integrity check the
-onboarding path performs in the production case.
+`validator add` checks the pubkey hashes to the address, catching a
+copy-paste slip here (same check the onboarding path runs).
 
 ## B.4 Write `tmkms.toml`
 
-Set the signer address to match the transport you picked in Part A.3 —
-pick **one** (the TCP form embeds the mandatory peer-ID pin from B.2):
+Set the signer `addr` to match A.3 — pick **one** (the TCP form embeds the
+mandatory peer-ID pin from B.2):
 
 ```sh
 # TCP (separate hosts):
@@ -632,14 +492,12 @@ export TMKMS_ADDR="tcp://${VALIDATOR_PEER_ID}@<validator_ip>:26659"
 export TMKMS_ADDR="unix:///run/gnoland/privval.sock"
 ```
 
-> **Picking the UDS form here?** Part B is written for two isolated users
-> (TCP). Over a Unix socket only the socket's owner can connect (A.3), so
-> you must run tmkms as the `gnoland` user and own its config/secrets with
-> `gnoland` — follow the single-user ownership shown in Part D.
+> **Picking UDS here?** Part B is two-user (TCP). Over a socket only the
+> owner connects (A.3), so run tmkms as `gnoland` and own its
+> config/secrets with `gnoland` — see Part D's single-user ownership.
 
-Write the config with a heredoc, then lock it down to `0600` owned by
-`tmkms` (the password stays in the separate `password_file`, never
-inline; all paths are absolute):
+Write the config, then lock it `0600` owned by `tmkms` (password stays in
+the `password_file`; all paths absolute):
 
 ```sh
 sudo tee /etc/tmkms/tmkms.toml >/dev/null <<TOML
@@ -666,52 +524,35 @@ sudo chown tmkms:tmkms /etc/tmkms/tmkms.toml
 sudo chmod 600 /etc/tmkms/tmkms.toml
 ```
 
-The fields that carry security weight:
+Security-weight fields:
 
-- **`addr` peer-ID pin (TCP).** The `<peer_id>@` prefix is the half of
-  mutual auth that lets tmkms verify gnoland. **Omit it and tmkms will
-  sign for whoever answers on that port** — an on-path attacker becomes a
-  signing oracle — and it only logs `unverified validator peer ID!` while
-  doing so. Always pin `$VALIDATOR_PEER_ID` from B.2. (On a `unix://`
-  socket there is no peer ID; the socket permissions from Part A.3 are the
-  boundary instead.)
-- **`state_file` (absolute).** This is tmkms's authoritative double-sign
-  (height/round/step) gate. It must be an absolute path on durable
-  storage. **Never restore a stale copy of it** — rolling it back to an
-  older height is the classic self-double-sign. See B.7 for the one
-  durability caveat that remains.
-- **`password_file`, not an inline `password`.** Keeps the credential out
-  of the config and out of process listings.
-- **`protocol_version = "v0.34"`.** gnoland speaks only the v0.34 privval
-  dialect and refuses any other value. tmkms 0.15.0 prints a
-  `deprecated protocol_version v0.34 (update to v0.38)!` warning — that is
-  expected; stay on a tmkms release that still supports v0.34. Do **not**
-  drop the field or bump it to v0.38 for gnoland.
-- **No `state_hook`.** tmkms's hook subsystem for regenerating state has
-  sharp edges (its stdout is never captured, so a `fail_closed` hook can
-  silently kill startup). Write/seed the state file directly instead;
-  don't wire a hook.
+- **`addr` peer-ID pin (TCP)** — the `<peer_id>@` prefix lets tmkms verify
+  gnoland. Omit it and tmkms signs for whoever answers the port (only
+  logging `unverified validator peer ID!`). Always pin `$VALIDATOR_PEER_ID`.
+  (No peer ID on `unix://`; socket perms are the boundary.)
+- **`state_file` (absolute, durable)** — the double-sign (HRS) gate. Never
+  restore a stale copy (classic self-double-sign). One caveat in B.7.
+- **`password_file`, not inline `password`** — keeps the credential out of
+  the config and process listings.
+- **`protocol_version = "v0.34"`** — gnoland speaks only v0.34; the
+  `deprecated … update to v0.38!` warning is expected. Don't drop or bump it.
+- **No `state_hook`** — its stdout is never captured, so a `fail_closed`
+  hook can silently kill startup. Seed the state file directly.
 
 ## B.5 Configure gnoland's tmkms listener
 
-Create a default config, then set the four `tmkms_listener` fields. The
-allowlist must be non-empty — gnoland refuses to enable the mode with an
-empty one, because an empty allowlist means *accept any peer that
-completes a handshake* (fail-open).
-
-All `gnoland config` commands write under `/var/lib/gnoland`, so run them
-**as the gnoland user** (`sudo -u gnoland`):
+Set the four `tmkms_listener` fields. The allowlist must be non-empty — an
+empty one is fail-open (accept any peer that handshakes). Run as the
+gnoland user (all `gnoland config` commands write under `/var/lib/gnoland`):
 
 ```sh
 CFG=/var/lib/gnoland/config/config.toml
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config init -config-path "$CFG"
 ```
 
-> **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
-> block on every write, and a non-empty `listen_addr` is what *enables*
-> that validation. Set `listen_addr` **last** — set it first and the
-> write is rejected because `chain_id` is still empty, and it silently
-> stays unset.
+> **Ordering gotcha.** A non-empty `listen_addr` enables validation of the
+> whole block, so set it **last** — set it first and the write is rejected
+> (`chain_id` still empty) and silently stays unset.
 
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
@@ -730,19 +571,17 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config get -config-path "$CFG" co
 
 ## B.6 Run both as services, in the right order
 
-**Order matters.** gnoland blocks at startup for up to
-`wait_for_connection_timeout` (default 60s) waiting for tmkms to dial in.
-Start tmkms first (with `reconnect = true` it will retry until gnoland is
-listening). Run each under its own user — for example with systemd units
-(`User=tmkms` / `User=gnoland`), or manually:
+**Order matters.** gnoland blocks up to `wait_for_connection_timeout`
+(default 60s) waiting for tmkms, so start tmkms first (`reconnect = true`
+makes it retry). Run each as its own user (systemd `User=tmkms` /
+`User=gnoland`):
 
 ```sh
 # signer (as the tmkms user)
 sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
 
-# validator (as the gnoland user) — point -genesis at the network's
-# genesis.json (the chain you're joining, or the one you built in B.3);
-# either way NO -lazy, since you're not minting a local key.
+# validator (as the gnoland user) — -genesis = the network's genesis;
+# NO -lazy (you're not minting a local key).
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland start \
   -data-dir /var/lib/gnoland \
   -genesis /var/lib/gnoland/genesis.json \
@@ -751,7 +590,7 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland start \
 
 ## B.7 Verify it's really the HSM signing — and keep it that way
 
-Within a few seconds the node should advance through heights.
+Within seconds the node should advance through heights.
 
 - **tmkms log:** `connected to validator successfully`, then ongoing
   `signed Proposal/Prevote/Precommit …`. **No** `unverified validator
@@ -771,95 +610,76 @@ Within a few seconds the node should advance through heights.
   sudo systemctl start tmkms    # ...and resumes after tmkms reconnects
   ```
 
-> **Benign log noise.** Even when signing works, gnoland periodically
-> logs `SignerListener: accept failed … i/o timeout` and `already
-> connected, dropping listen request`. The endpoint holds one live signer
-> connection and these are idle re-accept attempts timing out. Watch the
-> committed height, not these lines.
+> **Benign log noise.** `SignerListener: accept failed … i/o timeout` and
+> `already connected, dropping listen request` are idle re-accept attempts
+> on the one live connection — ignore them, watch the committed height.
 
 **Keep it safe in production:**
 
-- **The one residual code-level risk — state-file durability.** tmkms
-  writes its state file but, in 0.15.0, does not `fsync` it before
-  signing the next block. A hard power loss in that window can roll the
-  on-disk height *backward*, and signing again from the lower height is a
-  double-sign. Mitigate operationally: run the signer host on reliable
-  power (UPS), keep the state file on durable local storage (not a flaky
-  network mount), and **never** restore an old state file after a crash —
-  if you're unsure of its freshness, treat the validator as needing a
-  fresh, carefully-reconciled state rather than a rollback. (A two-line
-  upstream patch adding the `fsync` closes this; track it if you build
-  tmkms yourself.)
-- **Back up the state file** as part of every maintenance procedure — and
-  understand a backup is for disaster recovery of the *latest* state, not
-  a checkpoint to roll back to:
+- **Residual code risk — state-file durability.** tmkms 0.15.0 doesn't
+  `fsync` its state file before signing the next block, so a power loss can
+  roll the on-disk height backward → double-sign. Mitigate: reliable power
+  (UPS), durable local storage (no flaky network mount), and **never**
+  restore an old state file after a crash. (A two-line upstream `fsync`
+  patch closes it.)
+- **Back up the state file** (for recovery of the *latest* state, not as a
+  rollback checkpoint):
 
   ```sh
   sudo install -o tmkms -g tmkms -m 600 \
     /var/lib/tmkms/secrets/consensus_state.json \
     /var/lib/tmkms/secrets/consensus_state.json.bak
   ```
-- **Drain the audit log.** With forced auditing on (B.1) the HSM stops
-  signing once its audit buffer fills, so run a small auditor that reads
-  and clears the log periodically (e.g. every 30s) and ships it off-box.
-- **Never run `tmkms yubihsm test` against the production key.** It is an
-  unbounded signing oracle that bypasses the double-sign state machine
-  entirely. Test only against a throwaway key on a non-production device.
-- **Don't re-run provisioning over a live key.** tmkms's key-write path
-  has no "refuse if exists" guard, so a re-run of an init/keygen can
-  silently overwrite. Provision once; back up before you ever touch it.
+- **Drain the audit log** — with forced auditing on (B.1) the HSM stops
+  signing when the buffer fills; run an auditor that reads/clears it (~30s)
+  and ships it off-box.
+- **Never `tmkms yubihsm test` against the production key** — it's an
+  unbounded signing oracle that bypasses the double-sign gate.
+- **Don't re-run provisioning over a live key** — the key-write path has no
+  "refuse if exists" guard and can silently overwrite. Provision once.
 
 ---
 
 # Part C — Testnet/lab with softsign (key on disk)
 
-softsign keeps the consensus key in a **file on the validator host**.
-That is fine for understanding the wiring and for testnets, but the key
-touches disk, so this path is **not for real stake** — use Part B for
-that. Everything about the *connection* (Part A transport, allowlist,
-peer-ID pin, `protocol_version`, verification) is identical; only key
-custody and the genesis bootstrap differ.
+softsign keeps the consensus key in a **file on the host** — fine for
+testnets and learning the wiring, but **not for real stake** (use Part B).
+The *connection* (transport, allowlist, peer-ID pin, `protocol_version`,
+verification) is identical to Part B; only key custody and genesis differ.
 
-This lab is a same-host **UDS** layout, so it follows A.1's single-user
-rule the simplest way: it runs **both processes as your operator user** in
-local directories, rather than provisioning the `gnoland`/`tmkms` system
-users. Apply the rest of Part A's hardening — `0600` secrets, locked
-directories, the transport choice — scaled to that. The softsign-specific
-hardening on top:
+This lab is a same-host **UDS** layout, so per A.1 it runs **both processes
+as your operator user** in local dirs (no system users). softsign-specific
+hardening:
 
-- **`0600` on `consensus.key` and the state file**, owned by the user
-  running both processes (you). A readable softsign key *is* the
-  validator's private key.
-- **Swap exposure.** tmkms zeroizes the key on drop but does not `mlock`
-  it, so it can be paged to disk. Disable swap on the signer host (or use
-  encrypted swap) so the key never hits persistent storage in the clear:
+- **`0600` on `consensus.key` and the state file** — a readable softsign
+  key *is* the validator's private key.
+- **Disable swap** — tmkms zeroizes the key but doesn't `mlock` it, so it
+  can be paged to disk:
 
   ```sh
   sudo swapoff -a                     # and comment swap out of /etc/fstab to persist
   ```
-- **Don't re-run `secrets init` / keygen over an existing key file** —
-  it can overwrite without warning. Back up first.
+- **Don't re-run `secrets init` / keygen over an existing key** — it can
+  overwrite without warning.
 
 ## C.1 Generate node secrets and export the consensus key
 
-Install tmkms with the softsign feature (it is **not** in the default
-build):
+Install tmkms with the softsign feature (not in the default build):
 
 ```sh
 cargo install tmkms --version 0.15.0 --features softsign --locked
 ```
 
-Generate the gnoland node secrets (this also creates the consensus key
-that softsign will load and that genesis will register):
+Generate the node secrets (this also makes the consensus key softsign
+loads and genesis registers):
 
 ```sh
 gnoland secrets init -data-dir ./gnoland-data/secrets
 ```
 
-gnoland stores the ed25519 private key as base64 of the 64-byte
-`seed‖pubkey`; tmkms softsign wants base64 of just the 32-byte **seed**.
-Reslice and re-encode (no crypto — a byte slice — so plain `python3` is
-fine):
+gnoland stores the key as base64 of the 64-byte `seed‖pubkey`; softsign
+wants base64 of just the 32-byte **seed**. Reslice (just bytes, plain
+`python3`):
 
 ```sh
 mkdir -p ./tmkms/secrets
@@ -871,24 +691,18 @@ PY
 chmod 600 ./tmkms/secrets/consensus.key
 ```
 
-This lab uses a **same-host Unix socket** (A.3) — the simplest transport
-and the counterpart to Part B's TCP setup — so there is **no peer-ID pin
-to generate**. You still need tmkms's SecretConnection identity key
-(gnoland requires a non-empty allowlist even on a socket). Generate it
-with the [Prerequisites](#prerequisites--build-the-helper-tools) helper:
+UDS layout, so **no peer-ID pin**. You still need tmkms's SecretConnection
+identity key (gnoland requires a non-empty allowlist even on a socket):
 
 ```sh
-ALLOW=$(tmkms-identity-keygen ./tmkms/secrets/kms-identity.key)   # operator-owned path, no sudo
+ALLOW=$(tmkms-identity-keygen ./tmkms/secrets/kms-identity.key)   # operator-owned, no sudo
 echo "$ALLOW"   # goes into gnoland's allowed_kms_pubkeys (C.3)
 ```
 
 ## C.2 tmkms.toml with the softsign provider
 
-Same shape as B.4, with two lab changes: the provider block is
-**softsign**, and the transport is a same-host **Unix socket** instead of
-TCP (so no peer-ID pin — Part B already showed the TCP form). tmkms needs
-**absolute** paths (A.2), so resolve the lab dirs first, then write the
-file with a heredoc so the paths expand:
+Like B.4, but **softsign** provider and a **Unix socket** (no peer-ID pin).
+tmkms needs **absolute** paths (A.2), so resolve the lab dirs first:
 
 ```sh
 export TMKMS_DIR=$(cd ./tmkms && pwd)                            # ./tmkms from C.1
@@ -918,15 +732,12 @@ chmod 600 "$TMKMS_DIR/tmkms.toml"
 
 ## C.3 Configure gnoland's tmkms listener and start (lazy genesis is fine here)
 
-Because the consensus key exists on disk *and* is registered locally, you
-can let `-lazy` build genesis from `priv_validator_key.json`.
+The key is on disk *and* registered locally, so `-lazy` can build genesis
+from `priv_validator_key.json`.
 
-First configure the listener. Create a default config, then set the four
-`tmkms_listener` fields. The allowlist must be non-empty — gnoland
-refuses to enable the mode with an empty one. On this Unix-socket layout
-the allowlist is belt-and-suspenders — **filesystem permissions on the
-socket are the real boundary** (A.3) — but gnoland still requires it
-non-empty, so set it with `$ALLOW` from C.1.
+Configure the listener — set the four `tmkms_listener` fields with `$ALLOW`
+from C.1 (non-empty allowlist required; on UDS it's belt-and-suspenders,
+the socket perms are the real boundary, A.3):
 
 ```sh
 export CHAIN_ID=gno-tmkms-test                 # must match C.2's [[chain]].id
@@ -935,11 +746,9 @@ CFG=./gnoland-data/config/config.toml
 gnoland config init -config-path "$CFG"
 ```
 
-> **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
-> block on every write, and a non-empty `listen_addr` is what *enables*
-> that validation. Set `listen_addr` **last** — set it first and the
-> write is rejected because `chain_id` is still empty, and it silently
-> stays unset.
+> **Ordering gotcha.** A non-empty `listen_addr` enables validation of the
+> whole block, so set it **last** — set it first and the write is rejected
+> (`chain_id` still empty) and silently stays unset.
 
 ```sh
 gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
@@ -956,11 +765,9 @@ empty):
 gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
 ```
 
-This lab runs both processes as your operator user, so the exported
-`GNOROOT` (from [Prerequisites](#set-gnoroot-to-a-gno-checkout)) carries
-through — no `env GNOROOT=…` prefix needed. The `-lazy` start additionally
-reads `examples/` from `GNOROOT`, one more reason it must be a full
-checkout. Then start both:
+Both run as your operator user, so the exported `GNOROOT` carries through
+(no `env` prefix). `-lazy` also reads `examples/` from `GNOROOT` — another
+reason it must be a full checkout. Start both:
 
 ```sh
 # terminal 1
@@ -975,49 +782,39 @@ gnoland start \
   -skip-genesis-sig-verification
 ```
 
-- `-skip-genesis-sig-verification` is the standard dev-genesis flag (the
-  default `-lazy` genesis contains example txs signed by test accounts);
-  it is unrelated to tmkms.
-- `-lazy` only generates *missing* files — it will not clobber your tmkms
-  config or secrets — reads the local consensus pubkey to register the
-  genesis validator, then boots using the tmkms listener for signing.
+- `-skip-genesis-sig-verification` — standard dev-genesis flag (the `-lazy`
+  genesis has example txs from test accounts); unrelated to tmkms.
+- `-lazy` only generates *missing* files (won't clobber tmkms config), reads
+  the local pubkey to register the validator, then signs via tmkms.
 
-Verify exactly as in B.7.
+Verify as in B.7.
 
 ---
 
 # Part D — Advanced: Ledger hardware signer
 
-A Ledger holds the consensus key **on the device** and never exports it —
-like a YubiHSM, but it is a single signer with no failover, so it suits
-advanced/low-stake setups rather than high-availability mainnet duty (for
-HA use a YubiHSM or threshold signing such as Horcrux). The bootstrap is
-the same "read the pubkey out, seed genesis from it" flow as Part B; only
-the provider and the device handling change.
+A Ledger holds the consensus key **on the device**, like a YubiHSM but a
+single signer with no failover — so advanced/low-stake, not HA mainnet (use
+a YubiHSM or Horcrux for HA). Same "read the pubkey out, seed genesis" flow
+as Part B; only the provider and device handling change.
 
-> **Residual hardware caveat.** In tmkms 0.15.0 the Ledger code path does
-> not check the device's APDU return code on the pubkey and signature
-> responses, so in principle a device/transport error could be accepted
-> as if valid. In practice the `gnogenesis validator add` pubkey→address
-> check (B.3) catches a wrong *pubkey* at setup time, and a malformed
-> *signature* simply fails consensus rather than producing a bad valid
-> one. Use a known-good device and verify the pubkey out-of-band.
+> **Residual hardware caveat.** tmkms 0.15.0 doesn't check the Ledger's
+> APDU return codes, so a device/transport error could be accepted as
+> valid. In practice the `gnogenesis validator add` pubkey→address check
+> (B.3) catches a wrong pubkey, and a bad signature just fails consensus.
+> Use a known-good device and verify the pubkey out-of-band.
 
 ## D.1 Prerequisites
 
-Part D is a **same-host Unix-socket** layout, so — per
-[A.1](#a1-pick-the-user-model-it-depends-on-the-transport) — tmkms runs as
-the **`gnoland`** user, not a separate `tmkms` user, and its config and
-secrets live under `gnoland` ownership. The commands below reflect that;
-own `/etc/tmkms` and `/var/lib/tmkms` with `gnoland` (A.2). For a
-two-isolated-user Ledger setup, switch to the loopback-TCP layout from
-Part B instead.
+This is a same-host **UDS** layout, so per
+[A.1](#a1-pick-the-user-model-it-depends-on-the-transport) tmkms runs as the
+**`gnoland`** user (own `/etc/tmkms` + `/var/lib/tmkms` with `gnoland`, A.2)
+— no separate `tmkms` user. For two isolated users, use Part B's loopback
+TCP instead.
 
-Install tmkms with the Ledger provider. The cargo feature is named
-**`ledger`** in 0.15.0 (older versions called it `ledgertm`, which is
-why the config block below is still `[[providers.ledgertm]]`). tmkms
-0.15.0 ships **no** default features, so plain `cargo install tmkms`
-gives you neither Ledger nor softsign — pass them explicitly:
+Install tmkms with the Ledger provider — the feature is `ledger` in 0.15.0
+(the config block is still `[[providers.ledgertm]]`); 0.15.0 has no default
+features:
 
 ```sh
 cargo install tmkms --version 0.15.0 --features ledger --locked
@@ -1027,15 +824,11 @@ sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # so sudo -u gnoland c
 
 You also need:
 
-- A Ledger with the **"Tendermint Validator"** app installed (the
-  dedicated ed25519 consensus app — *not* the regular Cosmos app),
-  plugged in, unlocked, with that app **open**. tmkms cannot reach a
-  locked device or a different app.
-- **Device access for the `gnoland` user.** tmkms runs as `gnoland`; if
-  that user can't open the Ledger's `/dev/hidraw*` node,
-  `sudo -u gnoland tmkms start` fails with `signing operation failed`.
-  Grant the `gnoland` group the hidraw device, reload, then **replug** the
-  Ledger:
+- A Ledger with the **"Tendermint Validator"** app (the ed25519 consensus
+  app, *not* the Cosmos app) plugged in, unlocked, app **open**.
+- **Device access for `gnoland`.** If `gnoland` can't open the Ledger's
+  `/dev/hidraw*`, `tmkms start` fails with `signing operation failed`. Grant
+  the `gnoland` group the hidraw device, reload, then **replug**:
 
   ```sh
   echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2c97", MODE="0660", GROUP="gnoland"' \
@@ -1045,23 +838,17 @@ You also need:
 
 ## D.2 Generate gnoland's node and listener identity
 
-The consensus key lives on the Ledger, but gnoland still needs its own
-node identity, and tmkms needs a SecretConnection identity key. Generate
-the gnoland node secrets:
+The key is on the Ledger, but gnoland still needs a node identity and tmkms
+a SecretConnection identity key. Generate the node secrets:
 
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland secrets init -data-dir /var/lib/gnoland/secrets
 ```
 
-In tmkms mode gnoland's `priv_validator_key.json` is **not** used to sign
-— the Ledger signs. On this same-host Unix-socket layout there is **no
-peer-ID pin** to generate (the socket's `0600` owner-only mode is the auth
-boundary, A.3). You do still need tmkms's SecretConnection identity key —
-gnoland only enables the listener with a non-empty `allowed_kms_pubkeys`.
-Run the `tmkms-identity-keygen` helper from
-[Prerequisites](#prerequisites--build-the-helper-tools) as the `gnoland`
-user (tmkms runs as `gnoland` here), so the key lands in the secrets dir
-already owned by `gnoland`:
+`priv_validator_key.json` doesn't sign (the Ledger does), and UDS has **no
+peer-ID pin**. You still need the identity key (allowlist must be
+non-empty); run `tmkms-identity-keygen` as `gnoland` so it lands
+gnoland-owned:
 
 ```sh
 ALLOW=$(sudo -u gnoland tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
@@ -1070,19 +857,15 @@ echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in D.5
 
 ## D.3 Write `tmkms.toml`
 
-This is the same-host UDS layout, so the socket directory is the one you
-already created in [A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp).
-If you skipped it there, create it now — owned by `gnoland`, which creates
-the socket inside it at `0600` and (running as `gnoland`) connects to it:
+Socket dir from [A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp)
+(create it if you skipped it):
 
 ```sh
 sudo install -d -o gnoland -g gnoland -m 700 /run/gnoland
 ```
 
-Write the config with a heredoc, then lock it to `0600` owned by `gnoland`
-(tmkms runs as `gnoland`; all paths absolute). The provider is `ledgertm`
-— no key files, the key is on the device — and the transport is the Unix
-socket, so the `addr` carries no peer-ID pin:
+Write the config, lock it `0600` owned by `gnoland`. Provider is `ledgertm`
+(no key files — the key is on the device); UDS, so no peer-ID pin:
 
 ```sh
 sudo tee /etc/tmkms/tmkms.toml >/dev/null <<TOML
@@ -1106,28 +889,22 @@ sudo chown gnoland:gnoland /etc/tmkms/tmkms.toml
 sudo chmod 600 /etc/tmkms/tmkms.toml
 ```
 
-Only one `[[providers.ledgertm]]` is allowed and it always signs the
-**consensus** key. The fields that carry security weight:
+One `[[providers.ledgertm]]`, always signs the **consensus** key.
+Security-weight fields:
 
-- **`state_file` (absolute).** tmkms's authoritative double-sign
-  (height/round/step) gate. **Never restore a stale copy** — rolling it
-  back to an older height is the classic self-double-sign (see D.6).
-- **`protocol_version = "v0.34"`.** gnoland speaks only the v0.34 privval
-  dialect; tmkms 0.15.0 prints a `deprecated … update to v0.38!` warning,
-  which is expected. Do **not** drop or bump it.
-- **No peer-ID pin / no `state_hook`.** On UDS the socket permissions are
-  the auth boundary (A.3), so `addr` has no `<peer_id>@` prefix; and don't
-  wire a `state_hook` (its stdout is never captured, so a `fail_closed`
-  hook can silently kill startup).
+- **`state_file` (absolute)** — the double-sign (HRS) gate. Never restore a
+  stale copy (D.6).
+- **`protocol_version = "v0.34"`** — gnoland speaks only v0.34; the
+  `deprecated … update to v0.38!` warning is expected. Don't drop or bump it.
+- **No peer-ID pin / no `state_hook`** — UDS has no `<peer_id>@`; and a
+  `state_hook`'s stdout is never captured, so a `fail_closed` hook can
+  silently kill startup.
 
 ## D.4 Read the consensus pubkey off the device and register the validator
 
-Because the key never leaves the Ledger, you read the **public** half out
-of tmkms and register *that* as your validator identity. Start tmkms once
-(as the `gnoland` user, with the `tmkms.toml` from D.3); it loads the
-device key and logs its consensus pubkey on startup. Read that line, then
-stop it with `Ctrl-C` (gnoland isn't up yet, so it will just retry the
-connection in the meantime):
+The key never leaves the Ledger, so read its **public** half from tmkms.
+Start tmkms once (as `gnoland`, `tmkms.toml` from D.3); it logs the consensus
+pubkey on startup. Read it, then `Ctrl-C` (gnoland isn't up; tmkms retries):
 
 ```sh
 sudo -u gnoland tmkms start -c /etc/tmkms/tmkms.toml
@@ -1137,11 +914,10 @@ sudo -u gnoland tmkms start -c /etc/tmkms/tmkms.toml
 [keyring:ledgertm] added consensus Ed25519 key: 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D350
 ```
 
-The hex string above is an **example** — copy the one *your* device logs.
+That hex is an **example** — copy the one *your* device logs.
 
-Convert that hex pubkey to gno's `gpub1…` / `g1…` forms with the
-`pkconv.go` helper. Write the file, then run it **from the gno repo root**
-(so the `github.com/gnolang/gno/...` imports resolve):
+Convert it to gno's `gpub1…` / `g1…` forms with `pkconv.go`, run **from the
+gno repo root**:
 
 ```sh
 cat > pkconv.go <<'GO'
@@ -1184,12 +960,10 @@ go run ./pkconv.go 2C854661478AA1CDC954D11ABA6ABB6DBF469572564C24C61ABFC0622A04D
 # address: g1qmptf8uxdg6l0rh07jwvur0kk8my9vrdf5qtp4
 ```
 
-That `gpub1…` / `g1…` pair is your validator's public identity. Either
-submit it to an existing chain's validator-onboarding path (the
-production case — the chain already exists, so you do **not** generate
-genesis), or bootstrap your own chain by seeding genesis with it. Do
-**not** use `gnoland start -lazy` here — it would mint a throwaway local
-key and seed genesis with *that* instead of your device key:
+That `gpub1…` / `g1…` pair is your validator's identity. Either submit it to
+an existing chain's onboarding path (no genesis to generate), or bootstrap
+your own by seeding genesis with it. **No** `gnoland start -lazy` — it would
+mint a throwaway key and seed genesis with that:
 
 ```sh
 sudo -u gnoland gnogenesis generate -chain-id "$CHAIN_ID" -output-path /var/lib/gnoland/genesis.json
@@ -1206,15 +980,9 @@ copy-paste slip right here.
 
 ## D.5 Configure gnoland's tmkms listener
 
-Create a default config, then set the four `tmkms_listener` fields. The
-allowlist must be non-empty — gnoland refuses to enable the mode with an
-empty one. On this Unix-socket layout the allowlist is
-belt-and-suspenders (the socket's filesystem permissions are the real
-boundary, A.3), but gnoland still requires it non-empty, so set it with
-`$ALLOW` from D.2.
-
-All `gnoland config` commands write under `/var/lib/gnoland`, so run them
-**as the gnoland user** (`sudo -u gnoland`):
+Set the four `tmkms_listener` fields with `$ALLOW` from D.2 (non-empty
+allowlist required; on UDS it's belt-and-suspenders, A.3). Run as the
+gnoland user:
 
 ```sh
 export PRIVVAL_LISTEN="unix:///run/gnoland/privval.sock"   # gnoland listens on the socket from D.3
@@ -1222,11 +990,9 @@ CFG=/var/lib/gnoland/config/config.toml
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config init -config-path "$CFG"
 ```
 
-> **Ordering gotcha.** `config set` validates the whole `tmkms_listener`
-> block on every write, and a non-empty `listen_addr` is what *enables*
-> that validation. Set `listen_addr` **last** — set it first and the
-> write is rejected because `chain_id` is still empty, and it silently
-> stays unset.
+> **Ordering gotcha.** A non-empty `listen_addr` enables validation of the
+> whole block, so set it **last** — set it first and the write is rejected
+> (`chain_id` still empty) and silently stays unset.
 
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
@@ -1244,11 +1010,9 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config get -config-path "$CFG" co
 
 ## D.6 Run both, verify, and keep the device awake
 
-**Order matters.** gnoland blocks at startup for up to
-`wait_for_connection_timeout` (default 60s) waiting for tmkms to dial in.
-Start tmkms first (with `reconnect = true` it retries until gnoland is
-listening). On this UDS layout **both run as the `gnoland` user** (A.1) —
-with systemd, `User=gnoland` on both units — or manually:
+**Order matters.** gnoland blocks up to `wait_for_connection_timeout`
+(default 60s) waiting for tmkms, so start tmkms first (`reconnect = true`
+retries). **Both run as `gnoland`** (A.1; systemd `User=gnoland` on both):
 
 ```sh
 # signer (as gnoland) — Ledger plugged in, unlocked, app open
@@ -1273,23 +1037,20 @@ Within a few seconds the node should advance through heights:
 - **Kill tmkms** and watch gnoland stop committing; restart it and watch
   it resume — proof the key lives on the device, not the node.
 
-> **Keep the device awake.** If the Ledger locks, sleeps, or the app is
-> backgrounded, signing stops and the node stalls until you reopen the
-> app. Plan for that on anything you care about.
+> **Keep the device awake.** If the Ledger locks/sleeps or the app is
+> backgrounded, signing stops and the node stalls until you reopen it.
 
-> **State-file durability.** Like every backend, tmkms 0.15.0 does not
-> `fsync` its state file before signing the next block, so a hard power
-> loss can roll the on-disk height backward — a double-sign risk. Keep the
-> signer on reliable power and **never** restore an old state file (the
-> full discussion is in [B.7](#b7-verify-its-really-the-hsm-signing--and-keep-it-that-way)).
+> **State-file durability.** As in every backend, tmkms 0.15.0 doesn't
+> `fsync` its state file before signing, so a power loss can roll the height
+> backward (double-sign). Reliable power, never restore an old state file
+> ([B.7](#b7-verify-its-really-the-hsm-signing--and-keep-it-that-way)).
 
 ---
 
 # Part E — Prove it with the repo's automated test
 
-A build-tagged Go test drives a **real tmkms binary** through the full
-signing flow (softsign and Ledger backends), exercising the gnoland side
-of every path above:
+A build-tagged Go test drives a **real tmkms binary** (softsign + Ledger)
+through the full signing flow, exercising the gnoland side of every path:
 
 ```sh
 go test -tags=tmkms_integration -count=1 -v ./tm2/pkg/bft/privval/upstream/...
