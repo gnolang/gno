@@ -40,9 +40,13 @@ func (m *Machine) doOpAssign() {
 		return
 	}
 
-	// The multi-LHS loop below runs ~6% over OpCPUSlopeAssign's per-LHS
-	// calibration (see BenchmarkDoOpAssign_Index_N*); not retuned, as it's a
-	// rare path and the constant is shared with the single-LHS fast path above.
+	// NOTE: Gas: the loop below costs ~6-13% more CPU per LHS than
+	// OpCPUSlopeAssign charges, depending on LHS shape (~6% IndexExpr, ~13%
+	// NameExpr; see BenchmarkDoOpAssign_*_N*). Not recalibrated: the
+	// constant also prices the unchanged single-LHS fast path above, so
+	// raising it would overcharge the common case to fit a rare one. If
+	// exact pricing is wanted, add a per-LHS multi-assign surcharge constant
+	// instead (consensus-breaking, so best batched with other gas changes).
 
 	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
