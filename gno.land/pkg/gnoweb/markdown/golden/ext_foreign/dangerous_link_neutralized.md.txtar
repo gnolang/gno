@@ -1,0 +1,19 @@
+-- input.md --
+before
+
+<gno-foreign>
+A `javascript:` autolink: <javascript:alert(1)>
+
+A `javascript:` link: [click](javascript:alert(2))
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>A <code>javascript:</code> autolink: <a href="" rel="noopener nofollow ugc">javascript:alert(1)<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p>A <code>javascript:</code> link: <a href="" rel="noopener nofollow ugc">click<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+</div>
+</div>
+<p>after</p>
