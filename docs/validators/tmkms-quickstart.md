@@ -57,12 +57,11 @@ Two tiny **stdlib-only** Go helpers, compiled once. They build/run from
 any directory (Part B.3's `pkconv.go` is the exception — it imports gno
 crypto, run from the repo root; defined where it's used).
 
-> **Run helpers as the secret's owner.** In Parts B/D the secrets live
-> under `/var/lib` owned by a service user (separate `tmkms` on TCP; shared
-> `gnoland` on UDS — [A.1](#a1-pick-the-user-model-it-depends-on-the-transport)).
-> Run each helper `sudo -u <that user>` — least privilege, no copying the
-> secret to your dir. Those users have no home, so the Go toolchain can't
-> run as them: compile as yourself, run only the built binary under sudo.
+> **Run helpers as `gnoland`.** In Parts B/D the secrets live under
+> `/var/lib` owned by `gnoland`; run each helper `sudo -u gnoland` (least
+> privilege, no copying the secret to your dir). That user has no home, so
+> the Go toolchain can't run as it: compile as yourself, run only the built
+> binary under sudo.
 
 `nodeid-hex.go` — prints a gnoland node's peer ID in the hex form tmkms
 pins in its `addr` (TCP layouts):
@@ -147,40 +146,36 @@ afterward if you don't want them lying around.
 
 ## Put the binaries on a system path
 
-Service users (no home) can't reach binaries under your home, so
-`sudo -u … <bin>` fails with `Permission denied`. Build gnoland/gnogenesis
-and install them — with the `tmkms` binary `cargo` drops in
-`~/.cargo/bin` — to `/usr/local/bin`:
+Clone gno **once** to `/opt/gno`: you build the binaries from it and later
+point `GNOROOT` at it, so the binary and its stdlibs always match. Own it as
+your user (to build in place); it stays world-readable for the service
+users, who — having no home — can't reach a clone under yours and otherwise
+hit `Permission denied` on `sudo -u … <bin>`. Build gnoland and gnogenesis
+and install them to `/usr/local/bin`:
 
 ```sh
-# from the gno repo root (output lands in each component's build/ dir)
+sudo install -d -o "$(id -un)" /opt/gno
+git clone https://github.com/gnolang/gno /opt/gno   # or reuse a clone, building from the same checkout
+cd /opt/gno
 make -C gno.land build.gnoland
 make -C contribs/gnogenesis build
 sudo install -m 0755 gno.land/build/gnoland contribs/gnogenesis/build/gnogenesis /usr/local/bin/
 ```
 
-The backend sections repeat the `tmkms` step after its `cargo install`:
-
-```sh
-sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # after cargo install (Parts B/D)
-```
-
 ## Set `GNOROOT` to a gno checkout
 
 gnoland loads stdlib `.gno` sources from `$GNOROOT/gnovm/stdlibs/` on every
-start (and panics without `GNOROOT` set). So it must point at a **complete
-checkout whose stdlibs match the binary you built** — empty/mismatched
-fails with `failed loading stdlib "…": does not exist`. Your build clone is
-under your home (unreadable to `gnoland`), so copy it to `/opt/gno`:
+start (and panics without `GNOROOT` set). Point it at the `/opt/gno`
+checkout you just built from — same commit, so the stdlibs match the binary
+(empty/mismatched fails with `failed loading stdlib "…": does not exist`).
+It's world-readable, so the `gnoland` user can read it:
 
 ```sh
-sudo git clone --local "$(git -C . rev-parse --show-toplevel)" /opt/gno
-sudo git -C /opt/gno checkout "$(git rev-parse --abbrev-ref HEAD)"   # match your built binary
 export GNOROOT=/opt/gno
 ```
 
 `sudo -u gnoland` scrubs the env, so every `gnoland` command below passes
-`env GNOROOT="$GNOROOT"` (systemd: `Environment=GNOROOT=/opt/gno`).
+`env GNOROOT="$GNOROOT"`.
 
 ---
 
@@ -189,24 +184,14 @@ export GNOROOT=/opt/gno
 tmkms doesn't enforce permissions on its own key/state/config (it accepts
 world-readable secrets silently) — the OS must.
 
-## A.1 Pick the user model (it depends on the transport)
+## A.1 Run everything as the gnoland user
 
-Never run as root or your login user — use locked-down system accounts (no
-shell, no home). **How many** depends on the transport
-([A.3](#a3-choose-the-transport-unix-socket-or-firewalled-tcp)):
-
-- **TCP (Part B, or loopback): two users.** They authenticate
-  cryptographically, so isolate them as distinct accounts.
-- **Same-host UDS (Parts C, D): one user.** gnoland forces the socket to
-  `0600` owned by *itself* (`tm2/pkg/bft/privval/config.go`), and
-  connecting needs write access — so only that user can dial in (a separate
-  `tmkms` user gets `Permission denied (os error 13)`). Run tmkms as the
-  gnoland user. Want isolation on one host? Use loopback TCP.
+Never run as root or your login user. Use **one** locked-down system
+account, `gnoland`, for both gnoland and tmkms — on each host, if you run
+them on two:
 
 ```sh
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin gnoland
-# TCP only — separate signer user (UDS runs tmkms as gnoland):
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin tmkms
 ```
 
 ## A.2 Lay out directories with strict permissions
@@ -215,19 +200,13 @@ The state file is the **double-sign gate** — losing or rolling it back can
 get you slashed. Give the secrets a private `0600` home:
 
 ```sh
-sudo install -d -o tmkms -g tmkms -m 700 /etc/tmkms          # config
-sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms       # state + identity key
-sudo install -d -o tmkms -g tmkms -m 700 /var/lib/tmkms/secrets
-
-# gnoland's own data dir (it creates secrets/ and config/ itself):
-sudo install -d -o gnoland -g gnoland -m 700 /var/lib/gnoland
+sudo install -d -o gnoland -g gnoland -m 700 /etc/tmkms          # tmkms config
+sudo install -d -o gnoland -g gnoland -m 700 /var/lib/tmkms       # state + identity key
+sudo install -d -o gnoland -g gnoland -m 700 /var/lib/tmkms/secrets
+sudo install -d -o gnoland -g gnoland -m 700 /var/lib/gnoland     # gnoland data dir
 ```
 
-> **UDS (single user):** own `/etc/tmkms` and `/var/lib/tmkms` with
-> `-o gnoland -g gnoland` instead (tmkms runs as `gnoland`, A.1). The above
-> is the two-user TCP layout.
-
-- Secrets + state `0600`, owned by the signer user — tmkms won't reject
+- Secrets + state `0600`, owned by `gnoland` — tmkms won't reject
   world-readable secrets, so you must.
 - **Absolute paths** in `tmkms.toml` — a CWD-relative state file can
   silently become a fresh, height-zero one.
@@ -238,26 +217,23 @@ sudo install -d -o gnoland -g gnoland -m 700 /var/lib/gnoland
 
 Two layouts, different auth boundaries — pick deliberately:
 
-### Same host → Unix-domain socket (auth by filesystem, single user)
+### Same host → Unix-domain socket (auth by filesystem)
 
-gnoland creates the socket `0600` owned by **its own user**, and
-connecting needs write access — so only that user dials in. tmkms runs as
-gnoland (A.1); just create the dir:
+gnoland creates the socket `0600` owned by `gnoland`; tmkms (also `gnoland`)
+connects. Just create the dir:
 
 ```sh
 sudo install -d -o gnoland -g gnoland -m 700 /run/gnoland
-# gnoland creates /run/gnoland/privval.sock at 0600; tmkms (as gnoland) connects.
 ```
 
 > On UDS the `allowed_kms_pubkeys` allowlist can't be crypto-checked — the
-> `0600` socket is the whole auth boundary (one user in, every other local
-> user out). Set the allowlist anyway (gnoland requires it non-empty), but
-> it's belt-and-suspenders. For per-user isolation, use loopback TCP.
+> `0600` socket is the whole auth boundary. Set it anyway (gnoland requires
+> it non-empty), but it's belt-and-suspenders.
 
-### TCP, firewalled (auth by cryptography, two users)
+### TCP, firewalled (auth by cryptography)
 
-Run the signer on its **own host** (or `127.0.0.1` for two isolated users
-on one box). Auth is cryptographic, both halves mandatory:
+Run the signer on its **own host** (or `127.0.0.1` on one box). Auth is
+cryptographic, both halves mandatory:
 
 - gnoland verifies tmkms via `allowed_kms_pubkeys` (the signer's pubkey).
 - tmkms verifies gnoland via the **peer ID pinned in its `addr`**.
@@ -300,7 +276,7 @@ Install tmkms with the `yubihsm` provider (not in the default build):
 
 ```sh
 cargo install tmkms --version 0.15.0 --features yubihsm --locked
-sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # so sudo -u tmkms can run it
+sudo install -m 0755 ~/.cargo/bin/tmkms /usr/local/bin/   # so sudo -u gnoland can run it
 tmkms version   # → 0.15.0
 ```
 
@@ -360,7 +336,7 @@ Store the password in a file, not the config:
 
 ```sh
 printf '%s' "$TMKMS_AUTH_PASSWORD" | sudo tee /etc/tmkms/yubihsm-password >/dev/null
-sudo chown tmkms:tmkms /etc/tmkms/yubihsm-password
+sudo chown gnoland:gnoland /etc/tmkms/yubihsm-password
 sudo chmod 600 /etc/tmkms/yubihsm-password
 unset TMKMS_AUTH_PASSWORD   # drop it from the shell once it's in the file
 ```
@@ -388,23 +364,23 @@ echo "$VALIDATOR_PEER_ID"   # e.g. 243cef06…dcac — pinned in B.4
 ```
 
 **tmkms's SecretConnection identity (TCP)** — its pubkey must be in
-`allowed_kms_pubkeys`. Run `tmkms-identity-keygen` as the tmkms user so the
-key lands tmkms-owned:
+`allowed_kms_pubkeys`. Run `tmkms-identity-keygen` as `gnoland` so the key
+lands gnoland-owned:
 
 ```sh
-ALLOW=$(sudo -u tmkms tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
+ALLOW=$(sudo -u gnoland tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
 echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in B.5
 ```
 
 ## B.3 Read the consensus pubkey out of the HSM and register the validator
 
 The key never leaves the HSM, so you read its **public** half from tmkms
-and register that. Start tmkms once (as the tmkms user, `tmkms.toml` from
+and register that. Start tmkms once (as `gnoland`, `tmkms.toml` from
 B.4); it logs the consensus pubkey on startup. Read it, then `Ctrl-C`
 (gnoland isn't up; tmkms just retries meanwhile):
 
 ```sh
-sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
+sudo -u gnoland tmkms start -c /etc/tmkms/tmkms.toml
 ```
 
 ```
@@ -492,11 +468,7 @@ export TMKMS_ADDR="tcp://${VALIDATOR_PEER_ID}@<validator_ip>:26659"
 export TMKMS_ADDR="unix:///run/gnoland/privval.sock"
 ```
 
-> **Picking UDS here?** Part B is two-user (TCP). Over a socket only the
-> owner connects (A.3), so run tmkms as `gnoland` and own its
-> config/secrets with `gnoland` — see Part D's single-user ownership.
-
-Write the config, then lock it `0600` owned by `tmkms` (password stays in
+Write the config, then lock it `0600` owned by `gnoland` (password stays in
 the `password_file`; all paths absolute):
 
 ```sh
@@ -520,7 +492,7 @@ protocol_version = "v0.34"
 reconnect = true
 TOML
 
-sudo chown tmkms:tmkms /etc/tmkms/tmkms.toml
+sudo chown gnoland:gnoland /etc/tmkms/tmkms.toml
 sudo chmod 600 /etc/tmkms/tmkms.toml
 ```
 
@@ -569,16 +541,15 @@ empty):
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config get -config-path "$CFG" consensus.priv_validator.tmkms_listener
 ```
 
-## B.6 Run both as services, in the right order
+## B.6 Run both, in the right order
 
 **Order matters.** gnoland blocks up to `wait_for_connection_timeout`
 (default 60s) waiting for tmkms, so start tmkms first (`reconnect = true`
-makes it retry). Run each as its own user (systemd `User=tmkms` /
-`User=gnoland`):
+makes it retry). Run each in its own terminal, both as `gnoland`:
 
 ```sh
-# signer (as the tmkms user)
-sudo -u tmkms tmkms start -c /etc/tmkms/tmkms.toml
+# signer (as gnoland)
+sudo -u gnoland tmkms start -c /etc/tmkms/tmkms.toml
 
 # validator (as the gnoland user) — -genesis = the network's genesis;
 # NO -lazy (you're not minting a local key).
@@ -605,9 +576,8 @@ Within seconds the node should advance through heights.
   it resume. That is the proof the key lives in the HSM, not the node:
 
   ```sh
-  sudo systemctl stop tmkms     # or: sudo pkill -f 'tmkms start'
-  # gnoland's committed height stops climbing...
-  sudo systemctl start tmkms    # ...and resumes after tmkms reconnects
+  sudo pkill -f 'tmkms start'   # gnoland's committed height stops climbing...
+  sudo -u gnoland tmkms start -c /etc/tmkms/tmkms.toml   # ...resumes after tmkms reconnects
   ```
 
 > **Benign log noise.** `SignerListener: accept failed … i/o timeout` and
@@ -626,7 +596,7 @@ Within seconds the node should advance through heights.
   rollback checkpoint):
 
   ```sh
-  sudo install -o tmkms -g tmkms -m 600 \
+  sudo install -o gnoland -g gnoland -m 600 \
     /var/lib/tmkms/secrets/consensus_state.json \
     /var/lib/tmkms/secrets/consensus_state.json.bak
   ```
@@ -806,11 +776,8 @@ as Part B; only the provider and device handling change.
 
 ## D.1 Prerequisites
 
-This is a same-host **UDS** layout, so per
-[A.1](#a1-pick-the-user-model-it-depends-on-the-transport) tmkms runs as the
-**`gnoland`** user (own `/etc/tmkms` + `/var/lib/tmkms` with `gnoland`, A.2)
-— no separate `tmkms` user. For two isolated users, use Part B's loopback
-TCP instead.
+Same-host **UDS** layout; tmkms runs as `gnoland` like everything else
+(A.1).
 
 Install tmkms with the Ledger provider — the feature is `ledger` in 0.15.0
 (the config block is still `[[providers.ledgertm]]`); 0.15.0 has no default
@@ -1012,7 +979,7 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config get -config-path "$CFG" co
 
 **Order matters.** gnoland blocks up to `wait_for_connection_timeout`
 (default 60s) waiting for tmkms, so start tmkms first (`reconnect = true`
-retries). **Both run as `gnoland`** (A.1; systemd `User=gnoland` on both):
+retries). Run each in its own terminal, both as `gnoland`:
 
 ```sh
 # signer (as gnoland) — Ledger plugged in, unlocked, app open
@@ -1058,7 +1025,7 @@ go test -tags=tmkms_integration -count=1 -v ./tm2/pkg/bft/privval/upstream/...
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `sudo -u tmkms`/`gnoland`: `unable to execute …: Permission denied` | binary under `~/.cargo/bin` or your home; service user can't traverse it | `sudo install -m 0755 <binary> /usr/local/bin/` ([Prerequisites](#put-the-binaries-on-a-system-path)) |
+| `sudo -u gnoland …`: `unable to execute …: Permission denied` | binary under `~/.cargo/bin` or your home; the `gnoland` user can't traverse it | `sudo install -m 0755 <binary> /usr/local/bin/` ([Prerequisites](#put-the-binaries-on-a-system-path)) |
 | gnoland panics: `unable to determine GNOROOT` | `GNOROOT` unset, or scrubbed by `sudo -u` | `export GNOROOT=/opt/gno` and pass `env GNOROOT="$GNOROOT"` through sudo ([Prerequisites](#set-gnoroot-to-a-gno-checkout)) |
 | gnoland panics at InitChainer: `failed loading stdlib "…": does not exist` | `GNOROOT` isn't a complete checkout, or its stdlibs don't match the binary | Point `GNOROOT` at a full checkout of the tree you built, at the same commit ([Prerequisites](#set-gnoroot-to-a-gno-checkout)) |
 | tmkms: `unknown field 'softsign', expected 'ledgertm'` | tmkms built without softsign | `cargo install tmkms --version 0.15.0 --features softsign --locked` |
@@ -1069,7 +1036,7 @@ go test -tags=tmkms_integration -count=1 -v ./tm2/pkg/bft/privval/upstream/...
 | Node never advances past height 1, no signing in tmkms log | `chain_id` mismatch across genesis / config.toml / tmkms.toml | Make all three identical and restart |
 | Signatures produced but rejected by the chain | consensus key in the signer ≠ genesis validator key | Re-seed genesis from the *same* key the signer holds |
 | tmkms: `unverified validator peer ID! (<hex>)` | peer-ID prefix missing from `addr` (TCP) | Pin `tcp://<hex>@host:port` with `$VALIDATOR_PEER_ID` (B.4) |
-| tmkms (UDS): `I/O error: Permission denied (os error 13)` | tmkms runs as a *different* user than gnoland; the socket is `0600` owner-only | Run both as one user (A.1), or switch to loopback TCP for two users |
+| tmkms (UDS): `I/O error: Permission denied (os error 13)` | tmkms isn't running as `gnoland`; the socket is `0600` owned by `gnoland` | Run tmkms as `gnoland` (A.1) |
 | tmkms (Ledger): `error loading configuration: signing operation failed` | the user running tmkms can't open the Ledger's `/dev/hidraw*` node | Add the hidraw udev rule for that user's group, reload, replug (D.1) |
 | tmkms (Ledger): startup `SigningError` / no pubkey | device locked, asleep, or wrong app | Unlock, open **Tendermint Validator** app, restart tmkms |
 
@@ -1081,16 +1048,16 @@ Run down this list before putting real stake behind the validator. Each
 item plainly states why it matters.
 
 **Host & OS**
-- [ ] tmkms runs as a dedicated, no-shell system user — *limits what a
-  compromised signer process can reach.*
-- [ ] Config, state, and key files are `0600`, owned by `tmkms` — *tmkms
+- [ ] gnoland and tmkms run as the dedicated, no-shell `gnoland` user —
+  *limits what a compromised process can reach.*
+- [ ] Config, state, and key files are `0600`, owned by `gnoland` — *tmkms
   won't reject world-readable secrets; the OS must.*
 - [ ] All paths in `tmkms.toml` are absolute — *stops a CWD-relative
   state file from silently becoming a fresh, height-zero one.*
 
 **Transport & auth**
-- [ ] Same host: Unix socket in a directory only tmkms+gnoland can reach —
-  *on UDS, filesystem permissions are the only auth boundary.*
+- [ ] Same host: socket `0600` owned by `gnoland` — *on UDS, the owner-only
+  socket is the auth boundary.*
 - [ ] Separate hosts: TCP with the peer-ID pinned in `addr` **and** the
   signer pubkey in `allowed_kms_pubkeys` — *both halves of mutual auth;
   without the pin tmkms signs for any impostor on the port.*
