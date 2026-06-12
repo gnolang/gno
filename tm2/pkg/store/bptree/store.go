@@ -30,10 +30,11 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 }
 
 var (
-	_ types.Store          = (*Store)(nil)
-	_ types.CommitStore    = (*Store)(nil)
-	_ types.Queryable      = (*Store)(nil)
-	_ types.DepthEstimator = (*Store)(nil)
+	_ types.Store                = (*Store)(nil)
+	_ types.CommitStore          = (*Store)(nil)
+	_ types.Queryable            = (*Store)(nil)
+	_ types.DepthEstimator       = (*Store)(nil)
+	_ types.InitialVersionSetter = (*Store)(nil)
 )
 
 // Store implements types.Store and CommitStore backed by a B+ tree.
@@ -41,6 +42,11 @@ type Store struct {
 	tree  Tree
 	mtree *bp.MutableTree // kept for operations that need the concrete type
 	opts  types.StoreOptions
+	// initialVersion, when > 0, is the chain's first persisted version (set
+	// via SetInitialVersion from BaseApp.InitChain on hardfork chains). Used
+	// by Commit() to skip the prune branch for toRelease < initialVersion.
+	// 0 for standard chains.
+	initialVersion int64
 }
 
 func UnsafeNewStore(tree *bp.MutableTree, opts types.StoreOptions) *Store {
@@ -49,6 +55,19 @@ func UnsafeNewStore(tree *bp.MutableTree, opts types.StoreOptions) *Store {
 		mtree: tree,
 		opts:  opts,
 	}
+}
+
+// SetInitialVersion sets the version the first SaveVersion commits as, to
+// align the multistore's commit version with the chain's InitialHeight when
+// starting a hardfork chain at height > 1. Has no effect on the tree once it
+// has any saved versions; the initialVersion field is set unconditionally
+// for the prune guard. Implements types.InitialVersionSetter.
+func (st *Store) SetInitialVersion(v int64) {
+	if st.mtree == nil {
+		panic("SetInitialVersion on immutable bptree store")
+	}
+	st.mtree.SetInitialVersion(uint64(v))
+	st.initialVersion = v
 }
 
 // expectedDepth100 returns log₃₂(size) in 100x fixed-point — the B+32
@@ -103,11 +122,13 @@ func (st *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	// Prune old versions per strategy
+	// Prune old versions per strategy. Skip when toRelease is below the
+	// chain's initial version (hardfork chains start at InitialHeight > 1;
+	// for standard chains initialVersion=0 and the check is always true).
 	previous := version - 1
 	if st.opts.KeepRecent < previous {
 		toRelease := previous - st.opts.KeepRecent
-		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
+		if toRelease >= st.initialVersion && (st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0) {
 			err := st.tree.DeleteVersionsTo(toRelease)
 			if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, bp.ErrVersionDoesNotExist) {
 				panic(err)

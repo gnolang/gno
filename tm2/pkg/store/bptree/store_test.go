@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -322,5 +323,52 @@ func TestStore_StoreOptions(t *testing.T) {
 	st.SetStoreOptions(opts)
 	if !st.GetStoreOptions().Immutable {
 		t.Fatalf("options not saved")
+	}
+}
+
+// Hardfork chains start at InitialHeight > 1: the first Commit must land at
+// the initial version, pruning must cross the boundary without touching
+// sub-initial versions, and a cold reload must recover the same state.
+func TestStore_SetInitialVersion(t *testing.T) {
+	db := memdb.NewMemDB()
+	st := StoreConstructor(db, types.StoreOptions{
+		PruningOptions: types.NewPruningOptions(2, 0), // KeepRecent=2
+	}).(*Store)
+
+	st.SetInitialVersion(100)
+	st.Set(nil, []byte("k"), []byte("v100"))
+	id := st.Commit()
+	if id.Version != 100 {
+		t.Fatalf("first commit at v%d, want 100", id.Version)
+	}
+
+	// Commit through 106: prunes cross the initial-version boundary
+	// (toRelease < 100 must no-op, then real prunes follow).
+	for v := int64(101); v <= 106; v++ {
+		st.Set(nil, []byte("k"), []byte(fmt.Sprintf("v%d", v)))
+		if id = st.Commit(); id.Version != v {
+			t.Fatalf("commit at v%d, want %d", id.Version, v)
+		}
+	}
+	if st.tree.VersionExists(100) {
+		t.Fatal("v100 still retained; want pruned (KeepRecent=2)")
+	}
+	for v := int64(104); v <= 106; v++ {
+		if !st.tree.VersionExists(v) {
+			t.Fatalf("v%d missing; want retained", v)
+		}
+	}
+
+	// Cold reload from the same DB: discoverVersions over [104,106].
+	st2 := StoreConstructor(db, types.StoreOptions{}).(*Store)
+	if err := st2.LoadLatestVersion(); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := st2.Get(nil, []byte("k")); !bytes.Equal(got, []byte("v106")) {
+		t.Fatalf("reloaded Get = %q, want v106", got)
+	}
+	st2.Set(nil, []byte("k"), []byte("v107"))
+	if id = st2.Commit(); id.Version != 107 {
+		t.Fatalf("post-reload commit at v%d, want 107", id.Version)
 	}
 }
