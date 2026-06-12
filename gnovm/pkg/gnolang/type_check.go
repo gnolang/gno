@@ -1181,17 +1181,23 @@ func isBlankIdentifier(x Expr) bool {
 	return false
 }
 
-// isNilIdentifier reports whether x is the bare `nil` keyword, possibly
-// const-folded; a conversion like `T(nil)` also has a nil static type but is
-// not bare nil.
+// isNilIdentifier reports whether x is the bare `nil` keyword. By check time
+// `nil` is always const-folded, so the original syntax is recovered from the
+// ConstExpr's Source; a conversion like `T(nil)` also has a nil static type
+// but a non-NameExpr Source, and reports false.
 func isNilIdentifier(x Expr) bool {
-	if cx, ok := x.(*ConstExpr); ok {
-		x = cx.Source
+	switch cx := x.(type) {
+	case *ConstExpr:
+		nx, ok := cx.Source.(*NameExpr)
+		return ok && nx.Name == "nil"
+	case *NameExpr:
+		if cx.Name == "nil" {
+			panic("should not happen: unfolded nil NameExpr in isNilIdentifier")
+		}
+		return false
+	default:
+		return false
 	}
-	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == "nil"
-	}
-	return false
 }
 
 // isComparable returns true if the type can be compared with ==.
