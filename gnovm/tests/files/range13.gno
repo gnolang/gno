@@ -7,9 +7,9 @@ func main() {
 }
 
 // Stacktrace:
-// panic: runtime error: slice type cannot be used as map key
+// panic: runtime error: hash of unhashable type []int
 // main<VPBlock(1,0)>()
 //     main/range13.gno:5
 
 // Error:
-// runtime error: slice type cannot be used as map key
+// runtime error: hash of unhashable type []int
