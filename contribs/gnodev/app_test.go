@@ -190,6 +190,36 @@ func TestGnodev_NoGnomodDir_DeploysGeneratedModule(t *testing.T) {
 	assert.Contains(t, out, generated, "warning must name the generated module path")
 }
 
+// ---- E9: duplicate package-dir args register once
+
+func TestGnodev_DuplicateDirArgs_RegisteredOnce(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(workspace)
+
+	dir := filepath.Join(t.TempDir(), "myrealm")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "realm.gno"),
+		[]byte("package myrealm\n\nfunc Render(_ string) string { return \"hi\" }\n"), 0o644))
+
+	cfg := defaultLocalAppConfig
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	cfg.nodeRPCListenerAddr = "127.0.0.1:0"
+	cfg.noWatch = true
+
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+
+	// The same dir twice — the `gnodev ./x ./x` and `cd x && gnodev .` shapes.
+	app := NewApp(logger, &cfg, commands.NewTestIO())
+	require.NoError(t, app.Setup(context.Background(), dir, dir))
+	t.Cleanup(app.Close)
+
+	assert.Contains(t, importPaths(app.devNode.ListPkgs()), "gno.land/r/dev/myrealm")
+	assert.Equal(t, 1, bytes.Count(logBuf.Bytes(), []byte("generated module path")),
+		"duplicate dir args must register the package once")
+}
+
 // ---- E6: Reload preserves both workspace and proxy-resolved paths
 
 func TestGnodev_Reload_AfterProxyHit(t *testing.T) {

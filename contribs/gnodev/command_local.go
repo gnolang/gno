@@ -86,14 +86,17 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		}
 	}
 
-	dir, err := os.Getwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// Forward the CWD as a package-dir candidate; Setup applies the same
-	// handling as explicit package dirs (gnomod.toml module path, or a
-	// generated one with a warning) and quietly skips it when it holds no
-	// gno package.
-	return runApp(&cfg.AppConfig, cio, dir)
+	// Explicit [package_dir...] args first, then the CWD; Setup absolutizes
+	// and deduplicates them, applies the same handling to each (gnomod.toml
+	// module path, or a generated one with a warning), and quietly skips
+	// the CWD when it holds no gno package.
+	dirs := make([]string, 0, len(args)+1)
+	dirs = append(dirs, args...)
+	dirs = append(dirs, cwd)
+	return runApp(&cfg.AppConfig, cio, dirs...)
 }

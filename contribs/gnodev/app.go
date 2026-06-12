@@ -187,11 +187,16 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	// are registered with the loader below (the scan requires gnomod.toml).
 	type generatedPkg struct{ path, dir string }
 	var generatedPkgs []generatedPkg
+	seenDirs := make(map[string]struct{}, len(dirs))
 	for _, dir := range dirs {
 		dir, err := filepath.Abs(dir)
 		if err != nil {
 			return fmt.Errorf("unable to resolve directory %q: %w", dir, err)
 		}
+		if _, ok := seenDirs[dir]; ok {
+			continue
+		}
+		seenDirs[dir] = struct{}{}
 		path, hasGnoMod, err := detectLocalPackage(ds.cfg, dir)
 		if err != nil {
 			// The CWD is forwarded unconditionally by the local command;
