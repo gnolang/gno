@@ -10,6 +10,11 @@ const (
 	// MinKeys is the minimum occupancy for non-root nodes (B/2).
 	MinKeys = B / 2
 
+	// miniMerkleDepth is log₂(B), the depth of the per-node mini-merkle heap.
+	// B is a compile-time constant, so this is too; the init() below asserts
+	// 1<<miniMerkleDepth == B so the two can't silently drift.
+	miniMerkleDepth = 5
+
 	// HashSize is the size of a SHA256 hash in bytes.
 	HashSize = sha256.Size // 32
 
@@ -48,6 +53,9 @@ var emptyTreeHash Hash
 func init() {
 	if B&(B-1) != 0 {
 		panic("B must be a power of 2 (required for mini-merkle heap layout)")
+	}
+	if 1<<miniMerkleDepth != B {
+		panic("miniMerkleDepth must equal log₂(B)")
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)

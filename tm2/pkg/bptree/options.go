@@ -5,7 +5,6 @@ type Options struct {
 	Sync           bool   // fsync writes
 	InitialVersion uint64 // first version number
 	FlushThreshold int    // batch flush size in bytes
-	AsyncPruning   bool   // background pruning
 }
 
 // Option is a functional option for tree construction.
@@ -27,8 +26,4 @@ func InitialVersionOption(iv uint64) Option {
 
 func FlushThresholdOption(ft int) Option {
 	return func(o *Options) { o.FlushThreshold = ft }
-}
-
-func AsyncPruningOption(ap bool) Option {
-	return func(o *Options) { o.AsyncPruning = ap }
 }

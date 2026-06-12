@@ -437,15 +437,33 @@ func (ndb *nodeDB) versionExistsE(version int64) (bool, error) {
 	return ndb.db.Has(rootDBKey(version))
 }
 
-// AvailableVersions returns all versions that have root references.
+// AvailableVersions returns all versions that have root references, ascending.
+// A single PrefixRoot scan (root keys are PrefixRoot‖version-BE, so iteration is
+// already version-ordered) rather than one db.Has per version in [first, latest].
 func (ndb *nodeDB) AvailableVersions() []int {
+	prefix := []byte{PrefixRoot}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	end[0]++
+
+	itr, err := ndb.db.Iterator(prefix, end)
+	if err != nil {
+		return nil
+	}
+	defer itr.Close()
+
 	var versions []int
-	first := ndb.getFirstVersion()
-	latest := ndb.getLatestVersion()
-	for v := first; v <= latest; v++ {
-		if ndb.VersionExists(v) {
-			versions = append(versions, int(v))
+	for ; itr.Valid(); itr.Next() {
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
 		}
+		versions = append(versions, int(binary.BigEndian.Uint64(key[1:])))
+	}
+	if itr.Error() != nil {
+		// Don't return a silently-truncated list on a mid-scan DB error; mirror
+		// the Iterator()-open error path. (discoverVersions propagates instead.)
+		return nil
 	}
 	return versions
 }

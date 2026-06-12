@@ -3,8 +3,8 @@ package bptree
 // splitResult is returned when a node split occurs during insertion.
 // The caller (parent) must insert the separator key and the new right child.
 type splitResult struct {
-	separator []byte     // first key of the right node (copy for parent)
-	right     Node       // the new right sibling
+	separator []byte // first key of the right node (copy for parent)
+	right     Node   // the new right sibling
 }
 
 // splitLeaf splits a leaf that has B+1 keys (overflow after insert at pos).
@@ -55,7 +55,7 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 // not duplicated. Left gets splitPoint keys and splitPoint+1 children.
 // Right gets the remaining keys and children.
 func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int16, sizes []int64) (*InnerNode, splitResult) {
-	totalKeys := len(keys) // B (one more than max B-1)
+	totalKeys := len(keys)      // B (one more than max B-1)
 	splitPoint := totalKeys / 2 // B/2 = 16
 
 	left := &InnerNode{height: height}
@@ -65,8 +65,10 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 	copy(left.childHashes[:], childHashes[:splitPoint+1])
 	copy(left.childSizes[:], sizes[:splitPoint+1])
 
-	// The separator is keys[splitPoint] — consumed, not in either node
-	sep := keys[splitPoint]
+	// The separator is keys[splitPoint] — consumed, not in either node.
+	// Copy it (like splitLeaf) so the promoted key is an independent slice,
+	// making the node-level key-ownership invariant unconditional.
+	sep := copyKey(keys[splitPoint])
 
 	rightKeys := keys[splitPoint+1:]
 	rightChildren := children[splitPoint+1:]
@@ -85,12 +87,3 @@ func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int
 		right:     right,
 	}
 }
-
-func sumSizes(sizes []int64) int64 {
-	var s int64
-	for _, v := range sizes {
-		s += v
-	}
-	return s
-}
-

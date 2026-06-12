@@ -58,8 +58,8 @@ func (m *MiniMerkle) Clear() {
 // Also returns the position indices (0=left child, 1=right child) indicating
 // which side the proven slot is on at each level.
 func (m *MiniMerkle) SiblingPath(index int) (siblings []Hash, positions []int) {
-	siblings = make([]Hash, 0, miniMerkleDepth())
-	positions = make([]int, 0, miniMerkleDepth())
+	siblings = make([]Hash, 0, miniMerkleDepth)
+	positions = make([]int, 0, miniMerkleDepth)
 	pos := B + index
 	for pos > 1 {
 		if pos%2 == 0 {
@@ -74,17 +74,6 @@ func (m *MiniMerkle) SiblingPath(index int) (siblings []Hash, positions []int) {
 		pos /= 2
 	}
 	return
-}
-
-// miniMerkleDepth returns log₂(B), the depth of the mini merkle tree.
-func miniMerkleDepth() int {
-	d := 0
-	n := B
-	for n > 1 {
-		n /= 2
-		d++
-	}
-	return d
 }
 
 // NewMiniMerkle creates a MiniMerkle with all slots set to the sentinel.
