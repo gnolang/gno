@@ -830,15 +830,6 @@ func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
 	assertValidAssignLhs(store, last, x.X)
 }
 
-func assertIndexTypeIsInt(kt Type) {
-	if kt == nil {
-		panic("should not happen: nil kt in assertIndexTypeIsInt (blank keys must be skipped by the caller)")
-	}
-	if kt.Kind() != IntKind {
-		panic(fmt.Sprintf("index type should be int, but got %v", kt))
-	}
-}
-
 func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
@@ -860,10 +851,10 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		case *MapType:
 			mustAssignableTo(x, cxt.Key, kt)
 		case *SliceType, *ArrayType:
-			assertIndexTypeIsInt(kt)
+			mustAssignableTo(x, IntType, kt)
 		case PrimitiveType:
 			if cxt.Kind() == StringKind {
-				assertIndexTypeIsInt(kt)
+				mustAssignableTo(x, IntType, kt)
 			}
 		}
 	}
