@@ -14,8 +14,8 @@ import (
 // and returns the sets of reachable node records (by NodeKey bytes) and
 // referenced value records (by valueKey bytes). A reachable-but-missing node
 // fails the test immediately — that is the over-deletion detector.
-func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string]bool) {
-	t.Helper()
+func collectReachable(tb testing.TB, tree *MutableTree) (nodes, values map[string]bool) {
+	tb.Helper()
 	nodes, values = map[string]bool{}, map[string]bool{}
 	// Read the RAW DB, bypassing the node cache: an over-deleting prune
 	// re-reads (and re-caches) its own deleted records before the batch
@@ -43,7 +43,7 @@ func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string
 		nodes[string(ref)] = true
 		n, err := loadRaw(ref)
 		if err != nil {
-			t.Fatalf("OVER-DELETION: retained version references missing node %x: %v", ref, err)
+			tb.Fatalf("OVER-DELETION: retained version references missing node %x: %v", ref, err)
 		}
 		switch nn := n.(type) {
 		case *InnerNode:
@@ -59,7 +59,7 @@ func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string
 	for _, v := range tree.AvailableVersions() {
 		nk, _, err := tree.ndb.GetRoot(int64(v))
 		if err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 		if nk != nil {
 			walk(nk)
@@ -72,12 +72,12 @@ func collectReachable(t testing.TB, tree *MutableTree) (nodes, values map[string
 // must be reachable from some retained version's root, and (when checkValues)
 // every value record must be referenced by some retained leaf. This is the
 // leak detector; collectReachable inside it is the over-deletion detector.
-func assertNoGarbage(t testing.TB, tree *MutableTree, checkValues bool) {
-	t.Helper()
-	nodes, values := collectReachable(t, tree)
+func assertNoGarbage(tb testing.TB, tree *MutableTree, checkValues bool) {
+	tb.Helper()
+	nodes, values := collectReachable(tb, tree)
 	it, err := tree.ndb.db.Iterator(nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	defer it.Close()
 	for ; it.Valid(); it.Next() {
@@ -88,11 +88,11 @@ func assertNoGarbage(t testing.TB, tree *MutableTree, checkValues bool) {
 		switch k[0] {
 		case PrefixNode:
 			if !nodes[string(k[1:])] {
-				t.Fatalf("LEAK: node record %x unreachable from any retained version", k[1:])
+				tb.Fatalf("LEAK: node record %x unreachable from any retained version", k[1:])
 			}
 		case PrefixVal:
 			if checkValues && !values[string(k[1:])] {
-				t.Fatalf("LEAK: value record %x referenced by no retained leaf", k[1:])
+				tb.Fatalf("LEAK: value record %x referenced by no retained leaf", k[1:])
 			}
 		}
 	}
@@ -183,31 +183,31 @@ func TestTwinFix_SameValueRewriteTwin(t *testing.T) {
 }
 
 // exportInto replays an Export stream of imm into an Importer at version.
-func exportInto(t testing.TB, tree *MutableTree, imm *ImmutableTree, version int64) {
-	t.Helper()
+func exportInto(tb testing.TB, tree *MutableTree, imm *ImmutableTree, version int64) {
+	tb.Helper()
 	exp, err := imm.Export(tree.ndb)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	defer exp.Close()
 	imp, err := tree.Import(version)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	for {
 		node, err := exp.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 		if err := imp.Add(node); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 	if err := imp.Commit(); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 }
 

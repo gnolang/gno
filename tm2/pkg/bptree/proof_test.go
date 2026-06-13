@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -318,10 +319,10 @@ func testProofUsesCommittedState(t *testing.T, newTree func() *MutableTree) {
 	// through immutableForProof, so assert the guard on each.
 	tree.Set([]byte("a"), []byte("1"))
 	_, err := tree.GetMembershipProof([]byte("a"))
-	if err != ErrNoCommittedState {
+	if !errors.Is(err, ErrNoCommittedState) {
 		t.Fatalf("expected ErrNoCommittedState from GetMembershipProof before SaveVersion, got: %v", err)
 	}
-	if _, err := tree.GetNonMembershipProof([]byte("z")); err != ErrNoCommittedState {
+	if _, err := tree.GetNonMembershipProof([]byte("z")); !errors.Is(err, ErrNoCommittedState) {
 		t.Fatalf("expected ErrNoCommittedState from GetNonMembershipProof before SaveVersion, got: %v", err)
 	}
 
@@ -385,7 +386,7 @@ func TestProof_CommittedEmptyTree(t *testing.T) {
 	tree := newMemTree()
 
 	// Never committed → ErrNoCommittedState.
-	if _, err := tree.GetNonMembershipProof([]byte("a")); err != ErrNoCommittedState {
+	if _, err := tree.GetNonMembershipProof([]byte("a")); !errors.Is(err, ErrNoCommittedState) {
 		t.Fatalf("never committed: expected ErrNoCommittedState, got: %v", err)
 	}
 
@@ -395,10 +396,10 @@ func TestProof_CommittedEmptyTree(t *testing.T) {
 	}
 
 	// Committed but empty → ErrEmptyTree, not ErrNoCommittedState.
-	if _, err := tree.GetNonMembershipProof([]byte("a")); err != ErrEmptyTree {
+	if _, err := tree.GetNonMembershipProof([]byte("a")); !errors.Is(err, ErrEmptyTree) {
 		t.Fatalf("committed empty tree: expected ErrEmptyTree from non-membership, got: %v", err)
 	}
-	if _, err := tree.GetMembershipProof([]byte("a")); err != ErrEmptyTree {
+	if _, err := tree.GetMembershipProof([]byte("a")); !errors.Is(err, ErrEmptyTree) {
 		t.Fatalf("committed empty tree: expected ErrEmptyTree from membership, got: %v", err)
 	}
 }

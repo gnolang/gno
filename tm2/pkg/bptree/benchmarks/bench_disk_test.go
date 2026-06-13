@@ -182,6 +182,7 @@ func (rm *readMeter) fold() {
 
 // report emits reads and writes per denom (skipping a metric named "").
 func (rm *readMeter) report(b *testing.B, denom float64, readMetric, writeMetric string) {
+	b.Helper()
 	if denom <= 0 {
 		return
 	}

@@ -804,7 +804,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	imp, _ := tree2.Import(1)
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {

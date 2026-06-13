@@ -41,11 +41,13 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 			// an IAVL→bptree migration carrying an empty-key entry fails loud
 			// at import time, never as a runtime panic after cutover.
 			"empty leaf key", "empty", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				return imp.Add(&ExportNode{Height: 0, Key: []byte{}, Value: []byte("v")})
 			},
 		},
 		{
 			"unsorted leaf keys", "sorted", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				if err := imp.Add(&ExportNode{Height: 0, Key: []byte("b"), Value: []byte("v")}); err != nil {
 					return err
 				}
@@ -54,6 +56,7 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"duplicate leaf keys", "sorted", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				if err := imp.Add(&ExportNode{Height: 0, Key: []byte("a"), Value: []byte("v1")}); err != nil {
 					return err
 				}
@@ -62,12 +65,14 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"unsorted across leaf boundary", "sorted", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				importLeaf(t, imp, "m")
 				return imp.Add(&ExportNode{Height: 0, Key: []byte("a"), Value: []byte("v")})
 			},
 		},
 		{
 			"cross-boundary regrouping", "exactly", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				// e1,e2, marker(1), would leave e1 buffered — the exporter
 				// always drains exactly.
 				if err := imp.Add(&ExportNode{Height: 0, Key: []byte("a"), Value: []byte("v")}); err != nil {
@@ -81,6 +86,7 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"separator below left max", "window", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				importLeaf(t, imp, "a", "b")
 				importLeaf(t, imp, "m", "n")
 				// sep must satisfy max(left)="b" < sep <= min(right)="m";
@@ -90,6 +96,7 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"separator above right min", "window", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				importLeaf(t, imp, "a", "b")
 				importLeaf(t, imp, "m", "n")
 				// "z" > min(right)="m".
@@ -98,6 +105,7 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"wrong inner height", "height", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				importLeaf(t, imp, "a")
 				importLeaf(t, imp, "m")
 				// Children are leaves (height 0) → derived inner height 1.
@@ -106,6 +114,7 @@ func TestImportValidation_RejectsMalformedStreams(t *testing.T) {
 		},
 		{
 			"non-uniform child heights", "height", func(t *testing.T, imp *Importer) error {
+				t.Helper()
 				// Build an inner over two leaves (height 1), then a third
 				// leaf, then an inner claiming both as children: heights 1
 				// and 0 are non-uniform.

@@ -100,7 +100,7 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 // already existed (update), false if it was a new insert.
 func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if t.poisoned != nil {
-		return false, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+		return false, fmt.Errorf("%w: %w", ErrSessionPoisoned, t.poisoned)
 	}
 	if len(key) == 0 {
 		return false, ErrEmptyKey
@@ -207,18 +207,14 @@ func (t *MutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found, err := treeLookup(t.root, key)
-	if err != nil {
-		return false, err
-	}
-	return found, nil
+	return treeHas(t.root, key)
 }
 
 // Remove removes a key from the tree. Returns the old value and
 // whether the key was found.
 func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if t.poisoned != nil {
-		return nil, false, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+		return nil, false, fmt.Errorf("%w: %w", ErrSessionPoisoned, t.poisoned)
 	}
 	if t.root == nil {
 		return nil, false, nil
@@ -254,7 +250,7 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 // Returns (rootHash, version, error).
 func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err error) {
 	if t.poisoned != nil {
-		return nil, 0, fmt.Errorf("%w: %v", ErrSessionPoisoned, t.poisoned)
+		return nil, 0, fmt.Errorf("%w: %w", ErrSessionPoisoned, t.poisoned)
 	}
 
 	version := t.WorkingVersion()
@@ -810,6 +806,16 @@ func treeLookup(node Node, key []byte) (*LeafNode, Hash, []byte, bool, error) {
 			panic("unknown node type")
 		}
 	}
+}
+
+// treeHas reports whether key exists under node. It wraps treeLookup, which
+// returns five values; Has only needs found and err.
+func treeHas(node Node, key []byte) (bool, error) {
+	_, _, _, found, err := treeLookup(node, key) //nolint:dogsled // treeLookup returns 5 values; only found+err are needed here
+	if err != nil {
+		return false, err
+	}
+	return found, nil
 }
 
 func treeGetByIndex(node Node, index int64) ([]byte, Hash, []byte, error) {

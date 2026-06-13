@@ -77,11 +77,7 @@ func (t *ImmutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found, err := treeLookup(t.root, key)
-	if err != nil {
-		return false, err
-	}
-	return found, nil
+	return treeHas(t.root, key)
 }
 
 // Size returns the total number of key-value pairs.

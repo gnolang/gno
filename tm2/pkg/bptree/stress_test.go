@@ -5,6 +5,7 @@ package bptree
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -258,7 +259,7 @@ func TestStress_ExportImportLargeTree(t *testing.T) {
 	}
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {
@@ -349,7 +350,7 @@ func TestStress_ConcurrentImmutableReads(t *testing.T) {
 				key := fmt.Appendf(nil, "cr%05d", idx)
 				val, err := imm.Get(key)
 				if err != nil {
-					errCh <- fmt.Errorf("g%d iter%d: Get(%q): %v", goroutineID, iter, key, err)
+					errCh <- fmt.Errorf("g%d iter%d: Get(%q): %w", goroutineID, iter, key, err)
 					return
 				}
 				expected := fmt.Appendf(nil, "init_%05d", idx)
@@ -575,11 +576,4 @@ func TestStress_WorstCaseRestructuring(t *testing.T) {
 	verify2()
 
 	t.Logf("all phases complete, final size=%d, values=%d", tree.Size(), valCount)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

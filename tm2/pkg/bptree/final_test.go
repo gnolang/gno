@@ -37,7 +37,7 @@ func TestConcurrent_LazyLoadFromDB(t *testing.T) {
 				key := fmt.Appendf(nil, "clz%04d", i)
 				has, err := imm.Has(key)
 				if err != nil {
-					errs <- fmt.Errorf("g%d Has(%s): %v", gid, key, err)
+					errs <- fmt.Errorf("g%d Has(%s): %w", gid, key, err)
 					return
 				}
 				if !has {

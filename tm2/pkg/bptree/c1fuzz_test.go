@@ -94,6 +94,7 @@ type fuzzState struct {
 }
 
 func newFuzzState(tb testing.TB, cfg fuzzCfg) *fuzzState {
+	tb.Helper()
 	fdb := &failingGetDB{DB: memdb.NewMemDB()}
 	return &fuzzState{
 		tb:     tb,
@@ -1091,6 +1092,7 @@ func runTideChunk(st *fuzzState, data []byte) {
 }
 
 func runOpProgram(tb testing.TB, data []byte, cfg fuzzCfg) {
+	tb.Helper()
 	st := newFuzzState(tb, cfg)
 	runOpChunk(st, data)
 	st.releaseHolds(true)
