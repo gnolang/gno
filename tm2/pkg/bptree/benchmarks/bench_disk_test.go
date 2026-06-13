@@ -472,10 +472,6 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 		closeFn()
 		b.Fatalf("%s fixture size %d < requested %d — fixture build/persistence is broken", f.name, got, n)
 	}
-	// Actual item count, not the -disk-keys target: BlockWrite inserts fresh
-	// keys every run (the update-frac<1 half), so the persistent fixture grows
-	// across runs. Logging it keeps successive runs comparable.
-	b.Logf("%s fixture: %d items, height %d", f.name, tree.Size(), tree.Height())
 	return diskFixture{tree: tree, db: cdb, n: n, close: closeFn}
 }
 
@@ -489,6 +485,7 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
+			b.Logf("%s fixture: %d items, height %d", f.name, fx.tree.Size(), fx.tree.Height())
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
 			// Untimed warmup: move the LRU ramp's knee before the measured
@@ -548,6 +545,7 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
+			b.Logf("%s fixture: %d items, height %d", f.name, fx.tree.Size(), fx.tree.Height())
 			rng := mrand.New(mrand.NewSource(3))
 			var key [diskKeyLen]byte
 			if b.N > 1 {
@@ -605,6 +603,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s/block-%d", f.name, humanCount(n), bs), func(b *testing.B) {
 			b.ReportAllocs()
+			b.Logf("%s fixture: %d items, height %d", f.name, fx.tree.Size(), fx.tree.Height())
 			rng := mrand.New(mrand.NewSource(2))
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
 			// Untimed warmup blocks (rounded up from -disk-warmup-ops writes):
@@ -686,7 +685,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			}
 			// Post-run size: this benchmark grew the fixture by the inserts in
 			// b.N*bs writes; quantifies the per-run drift the start log warned of.
-			b.Logf("%s fixture after run: %d items (was the start-log count)", f.name, fx.tree.Size())
+			b.Logf("%s fixture after run: %d items", f.name, fx.tree.Size())
 		})
 		fx.close()
 	}
