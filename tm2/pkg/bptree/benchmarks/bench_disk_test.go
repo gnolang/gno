@@ -57,7 +57,8 @@ var (
 	diskBlock        = flag.Int("disk-block", 1000, "writes per block (SaveVersion cadence) for the block-write benchmark")
 	diskNodeCache    = flag.Int("disk-node-cache", 10000, "in-process node LRU cache size, in nodes (production-realistic)")
 	diskUpdateFrac   = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
-	diskBuildBatch   = flag.Int64("disk-build-batch", 100_000, "keys per SaveVersion while building the fixture")
+	diskBuildBatch   = flag.Int64("disk-build-batch", 25_000, "keys per SaveVersion while building the fixture")
+	diskWarmupOps    = flag.Int("disk-warmup-ops", 0, "untimed ops before measurement to warm the node LRU (random gets for the Get benches; whole blocks for BlockWrite). A fresh tree starts cold and reported counts average over every iteration, so size this to several times the node cache: ~50000 for the default 10K cache, ~1500000 for a 330K cache")
 	diskReloadEvery  = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
 	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
 	diskVerbose      = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
@@ -357,6 +358,20 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 			b.ReportMetric(float64(fx.tree.Height()), "height")
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
+			// Untimed warmup: fill the node LRU to steady state first — the
+			// meter below averages over every iteration, so a cold start
+			// inflates reads/op. Distinct seed: warm with a representative
+			// random set, not the exact keys the timed loop will read.
+			warm := mrand.New(mrand.NewSource(11))
+			for i := 0; i < *diskWarmupOps; i++ {
+				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
+					_, _ = fx.tree.Load()
+				}
+				putDiskKey(key[:], uint64(warm.Int63n(int64(n))))
+				if _, err := fx.tree.Get(key[:]); err != nil {
+					b.Fatalf("warmup Get: %v", err)
+				}
+			}
 			// reads/op = node DB reads (Get) per point read ≈ traversal depth
 			// above the node LRU (IAVL+fast ~1, bp32 ~2). Fold around the
 			// untimed reload so its reads aren't counted.
@@ -393,6 +408,16 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(3))
 			var key [diskKeyLen]byte
+			warm := mrand.New(mrand.NewSource(13))
+			for i := 0; i < *diskWarmupOps; i++ {
+				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
+					_, _ = fx.tree.Load()
+				}
+				putDiskMissKey(key[:], uint64(warm.Int63n(int64(n))))
+				if _, err := fx.tree.Get(key[:]); err != nil {
+					b.Fatalf("warmup Get: %v", err)
+				}
+			}
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
@@ -430,6 +455,39 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(2))
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
+			// Untimed warmup blocks (rounded up from -disk-warmup-ops writes):
+			// warm the node LRU so the metered region reflects steady state.
+			if *diskWarmupOps > 0 {
+				warm := mrand.New(mrand.NewSource(12))
+				for wb := (*diskWarmupOps + bs - 1) / bs; wb > 0; wb-- {
+					for j := 0; j < bs; j++ {
+						k := make([]byte, diskKeyLen)
+						v := make([]byte, diskValLen)
+						if warm.Float64() < *diskUpdateFrac {
+							putDiskKey(k, uint64(warm.Int63n(int64(n))))
+						} else {
+							putDiskKey(k, next)
+							next++
+						}
+						putDiskVal(v, next+uint64(j))
+						if _, err := fx.tree.Set(k, v); err != nil {
+							b.Fatalf("warmup Set: %v", err)
+						}
+					}
+					_, ver, err := fx.tree.SaveVersion()
+					if err != nil {
+						b.Fatalf("warmup SaveVersion: %v", err)
+					}
+					if ver > historySize {
+						if err := fx.tree.DeleteVersionsTo(ver - historySize); err != nil {
+							b.Fatalf("warmup prune: %v", err)
+						}
+					}
+					if _, err := fx.tree.Load(); err != nil {
+						b.Fatalf("warmup reload: %v", err)
+					}
+				}
+			}
 			// reads/write and writes/write = the tree's node DB reads/stores
 			// per write, over the TIMED Set+SaveVersion region; snap()/fold()
 			// bracket it so the untimed prune/reload between blocks are excluded.

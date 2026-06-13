@@ -21,8 +21,13 @@
 #   READ_N      GetRandom benchtime, in ops                   [50000]
 #   NODE_CACHE  in-process node LRU                           [10000]
 #   FACTORIES   trees to run                                  ["iavl bptree"]
-#   BUILD_BATCH keys per SaveVersion while building           [100000]
-#               (lower to 25000 if the bptree populate OOMs)
+#   BUILD_BATCH keys per SaveVersion while building           [25000]
+#               (raise to 100000 on a big-RAM box for a faster build)
+#   WARMUP      untimed ops before each bench                 [50000]
+#               (warms the node LRU; reported counts average over every
+#               iteration, so a cold start inflates them. Size to several
+#               x NODE_CACHE: 50000 fits the default 10K cache; use
+#               ~1500000 when benchmarking a 330K-node cache.)
 #   PARALLEL    1 = populate both factories at once           [1]
 #               (faster, but doubles RAM pressure; set 0 on a tight box)
 #   DROP_CACHES 1 = drop OS page cache before each bench       [1] (needs sudo)
@@ -40,7 +45,8 @@ WRITE_N="${WRITE_N:-300}"
 READ_N="${READ_N:-50000}"
 NODE_CACHE="${NODE_CACHE:-10000}"
 FACTORIES="${FACTORIES:-iavl bptree}"
-BUILD_BATCH="${BUILD_BATCH:-100000}"
+BUILD_BATCH="${BUILD_BATCH:-25000}"
+WARMUP="${WARMUP:-50000}"
 PARALLEL="${PARALLEL:-1}"
 DROP_CACHES="${DROP_CACHES:-1}"
 OUT="${OUT:-./bench-out}"
@@ -71,7 +77,7 @@ populate() {
 		>"$OUT/populate-$f.log" 2>&1; then
 		echo ">> populate $f OK"
 	else
-		echo "!! populate $f FAILED ($OUT/populate-$f.log) — likely OOM; try BUILD_BATCH=25000, a smaller KEYS, or PARALLEL=0"
+		echo "!! populate $f FAILED ($OUT/populate-$f.log) — likely OOM; try a smaller KEYS or PARALLEL=0"
 	fi
 }
 
@@ -88,12 +94,12 @@ for f in $FACTORIES; do
 	drop_caches
 	echo ">> BlockWrite $f"
 	go test "$PKG" -run='^$' -bench=BenchmarkDiskBlockWrite -timeout=2h \
-		"${common[@]}" -disk-factory="$f" -disk-block="$BLOCK" -benchtime="${WRITE_N}x" \
+		"${common[@]}" -disk-factory="$f" -disk-block="$BLOCK" -disk-warmup-ops="$WARMUP" -benchtime="${WRITE_N}x" \
 		2>&1 | tee "$OUT/blockwrite-$f.txt"
 	drop_caches
 	echo ">> GetRandom $f"
 	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetRandom -timeout=1h \
-		"${common[@]}" -disk-factory="$f" -benchtime="${READ_N}x" \
+		"${common[@]}" -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
 		2>&1 | tee "$OUT/getrandom-$f.txt"
 done
 
