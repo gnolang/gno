@@ -17,10 +17,11 @@
 #               (reads/writes counts are backend-agnostic; ns is not.
 #                lmdbdb is the backend gno.land's flat gas costs reference.)
 #   BLOCK       writes per block (SaveVersion cadence)        [1000]
-#   WRITE_N     BlockWrite benchtime, in blocks               [300]
-#   READ_N      GetRandom/GetMiss benchtime, in ops         [500000]
-#               (5 convergence windows at the default 100k reload
-#                cadence; use 1000000 for 8 full windows)
+#   WRITE_N     BlockWrite benchtime, in blocks              [1200]
+#               (16 convergence windows of 75 blocks; lower for quick checks)
+#   READ_N      GetRandom/GetMiss benchtime, in ops        [4000000]
+#               (40 reload-interval windows; capped at 8 reported.
+#                lower for quick checks)
 #   NODE_CACHE  in-process node LRU                           [10000]
 #   FACTORIES   trees to run                                  ["iavl bptree"]
 #   BUILD_BATCH keys per SaveVersion while building           [25000]
@@ -43,8 +44,8 @@ DIR="${DIR:-/data/bp32bench}"
 KEYS="${KEYS:-100000000}"
 BACKEND="${BACKEND:-pebbledb}"
 BLOCK="${BLOCK:-1000}"
-WRITE_N="${WRITE_N:-300}"
-READ_N="${READ_N:-500000}"
+WRITE_N="${WRITE_N:-1200}"
+READ_N="${READ_N:-4000000}"
 NODE_CACHE="${NODE_CACHE:-10000}"
 FACTORIES="${FACTORIES:-iavl bptree}"
 BUILD_BATCH="${BUILD_BATCH:-25000}"

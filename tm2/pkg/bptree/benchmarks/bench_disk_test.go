@@ -472,6 +472,10 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 		closeFn()
 		b.Fatalf("%s fixture size %d < requested %d — fixture build/persistence is broken", f.name, got, n)
 	}
+	// Actual item count, not the -disk-keys target: BlockWrite inserts fresh
+	// keys every run (the update-frac<1 half), so the persistent fixture grows
+	// across runs. Logging it keeps successive runs comparable.
+	b.Logf("%s fixture: %d items, height %d", f.name, tree.Size(), tree.Height())
 	return diskFixture{tree: tree, db: cdb, n: n, close: closeFn}
 }
 
@@ -680,6 +684,9 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 				rm.report(b, w, "reads/write", "writes/write") // whole-run averages
 				rm.reportTail(b, "write", true)                // steady tail; median defeats compaction spikes
 			}
+			// Post-run size: this benchmark grew the fixture by the inserts in
+			// b.N*bs writes; quantifies the per-run drift the start log warned of.
+			b.Logf("%s fixture after run: %d items (was the start-log count)", f.name, fx.tree.Size())
 		})
 		fx.close()
 	}
