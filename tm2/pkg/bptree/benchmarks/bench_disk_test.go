@@ -40,6 +40,8 @@ import (
 	mrand "math/rand"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -160,25 +162,45 @@ type diskFixture struct {
 // fixture scale and high -benchtime (short runs under-report while the warm LRU
 // still covers the working set), not as an absolute structural depth — to set a
 // fixed gas param, calibrate against production cache size / a cold-cache run.
+type segment struct {
+	ops, reads, writes int64
+	ns                 int64 // timed wall ns (b.Elapsed deltas; StopTimer spans excluded)
+}
+
 type readMeter struct {
 	db            *countingDB
 	r0, w0        int64 // baseline at the current segment's start
+	prevNS        int64 // b.Elapsed() at the current segment's start
 	reads, writes int64 // accumulated over folded segments
+	segs          []segment
 }
 
+// newReadMeter must be created immediately before b.ResetTimer(): the elapsed
+// baseline starts at 0, which ResetTimer makes true.
 func newReadMeter(db *countingDB) *readMeter {
 	rm := &readMeter{db: db}
 	rm.r0, rm.w0 = db.stats()
 	return rm
 }
 
-func (rm *readMeter) snap() { rm.r0, rm.w0 = rm.db.stats() }
+// snap opens a fresh segment; call after untimed work so it is excluded.
+func (rm *readMeter) snap(b *testing.B) {
+	rm.r0, rm.w0 = rm.db.stats()
+	rm.prevNS = b.Elapsed().Nanoseconds()
+}
 
-func (rm *readMeter) fold() {
+// fold closes the current segment covering ops benchmark ops. b.Elapsed()
+// freezes across StopTimer spans, so untimed reload/prune gaps between a
+// fold and the following snap contribute nothing to segment wall time.
+func (rm *readMeter) fold(b *testing.B, ops int64) {
 	r, w := rm.db.stats()
+	el := b.Elapsed().Nanoseconds()
+	if ops > 0 {
+		rm.segs = append(rm.segs, segment{ops: ops, reads: r - rm.r0, writes: w - rm.w0, ns: el - rm.prevNS})
+	}
 	rm.reads += r - rm.r0
 	rm.writes += w - rm.w0
-	rm.r0, rm.w0 = r, w
+	rm.r0, rm.w0, rm.prevNS = r, w, el
 }
 
 // report emits reads and writes per denom (skipping a metric named "").
@@ -192,6 +214,114 @@ func (rm *readMeter) report(b *testing.B, denom float64, readMetric, writeMetric
 	}
 	if writeMetric != "" {
 		b.ReportMetric(float64(rm.writes)/denom, writeMetric)
+	}
+}
+
+const tailMaxWindows = 8
+
+type window struct {
+	ops, reads, writes int64
+	medNSPerOp         float64 // median over the window's segments of seg.ns/seg.ops
+}
+
+// windows groups the folded segments into at most maxW consecutive windows of
+// K = ceil(S/maxW) segments, grouped from the END so every window except
+// possibly the first is full — the tail windows the convergence verdict reads
+// are never runts. A short final segment (under half the previous one) is
+// merged into its predecessor first. The median makes one compaction-stalled
+// block unable to flip a write window; for single-segment windows it
+// degenerates to the segment mean.
+func (rm *readMeter) windows(maxW int) []window {
+	segs := append([]segment(nil), rm.segs...)
+	if n := len(segs); n >= 2 && segs[n-1].ops*2 < segs[n-2].ops {
+		last := segs[n-1]
+		segs[n-2].ops += last.ops
+		segs[n-2].reads += last.reads
+		segs[n-2].writes += last.writes
+		segs[n-2].ns += last.ns
+		segs = segs[:n-1]
+	}
+	if len(segs) == 0 {
+		return nil
+	}
+	k := (len(segs) + maxW - 1) / maxW
+	var ws []window
+	for hi := len(segs); hi > 0; hi -= k {
+		lo := hi - k
+		if lo < 0 {
+			lo = 0
+		}
+		var w window
+		rates := make([]float64, 0, hi-lo)
+		for _, sg := range segs[lo:hi] {
+			w.ops += sg.ops
+			w.reads += sg.reads
+			w.writes += sg.writes
+			rates = append(rates, float64(sg.ns)/float64(sg.ops))
+		}
+		slices.Sort(rates)
+		if m := len(rates); m%2 == 1 {
+			w.medNSPerOp = rates[m/2]
+		} else {
+			w.medNSPerOp = (rates[m/2-1] + rates[m/2]) / 2
+		}
+		ws = append([]window{w}, ws...)
+	}
+	return ws
+}
+
+// pctDelta returns 100*(cur-prev)/prev. Both-zero is 0 (converged at zero,
+// e.g. bptree miss reads); zero-to-nonzero has no finite delta.
+func pctDelta(cur, prev float64) (float64, bool) {
+	if prev == 0 {
+		if cur == 0 {
+			return 0, true
+		}
+		return 0, false
+	}
+	return 100 * (cur - prev) / prev, true
+}
+
+// reportTail emits steady-state estimates from the FINAL window plus
+// convergence deltas vs the penultimate window, and logs the full per-window
+// series so a pasted run shows ramp-then-flat (or still-ramping) at a glance.
+// Steady iff the conv-* deltas are small AND the logged tail isn't a monotone
+// same-sign slide. With fewer than 2 windows only the window count is emitted:
+// such a run carries no convergence evidence.
+func (rm *readMeter) reportTail(b *testing.B, denom string, emitWrites bool) {
+	b.Helper()
+	ws := rm.windows(tailMaxWindows)
+	b.ReportMetric(float64(len(ws)), "windows")
+	if len(ws) == 0 {
+		return
+	}
+	nsSeries := make([]string, len(ws))
+	readSeries := make([]string, len(ws))
+	for i, w := range ws {
+		nsSeries[i] = fmt.Sprintf("%.0f", w.medNSPerOp)
+		readSeries[i] = fmt.Sprintf("%.3f", float64(w.reads)/float64(w.ops))
+	}
+	b.Logf("windows (%d ops each, oldest->newest): ns/%s: %s | reads/%s: %s",
+		ws[len(ws)-1].ops, denom, strings.Join(nsSeries, " "), denom, strings.Join(readSeries, " "))
+	if len(ws) < 2 {
+		return
+	}
+	last, prev := ws[len(ws)-1], ws[len(ws)-2]
+	b.ReportMetric(last.medNSPerOp, "tail-ns/"+denom)
+	if d, ok := pctDelta(last.medNSPerOp, prev.medNSPerOp); ok {
+		b.ReportMetric(d, "conv-ns-%")
+	}
+	lastReads := float64(last.reads) / float64(last.ops)
+	b.ReportMetric(lastReads, "tail-reads/"+denom)
+	if d, ok := pctDelta(lastReads, float64(prev.reads)/float64(prev.ops)); ok {
+		b.ReportMetric(d, "conv-reads-%")
+	}
+	if emitWrites {
+		lastWrites := float64(last.writes) / float64(last.ops)
+		b.ReportMetric(lastWrites, "tail-writes/"+denom)
+		if d, ok := pctDelta(lastWrites, float64(prev.writes)/float64(prev.ops)); ok {
+			b.ReportMetric(d, "conv-writes-%")
+		}
 	}
 }
 
@@ -355,34 +485,39 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 		fx := ensureDiskFixture(b, f, n)
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
-			b.ReportMetric(float64(fx.tree.Height()), "height")
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
-			// Untimed warmup: fill the node LRU to steady state first — the
-			// meter below averages over every iteration, so a cold start
-			// inflates reads/op. Distinct seed: warm with a representative
-			// random set, not the exact keys the timed loop will read.
-			warm := mrand.New(mrand.NewSource(11))
-			for i := 0; i < *diskWarmupOps; i++ {
-				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
-					_, _ = fx.tree.Load()
-				}
-				putDiskKey(key[:], uint64(warm.Int63n(int64(n))))
-				if _, err := fx.tree.Get(key[:]); err != nil {
-					b.Fatalf("warmup Get: %v", err)
+			// Untimed warmup: move the LRU ramp's knee before the measured
+			// region (the tail windows below verify whatever ramp remains).
+			// Distinct seed: warm with a representative random set, not the
+			// exact keys the timed loop will read. Gated on the real round —
+			// go-bench's b.N=1 calibration pass needn't pay it.
+			if b.N > 1 {
+				warm := mrand.New(mrand.NewSource(11))
+				for i := 0; i < *diskWarmupOps; i++ {
+					if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
+						_, _ = fx.tree.Load()
+					}
+					putDiskKey(key[:], uint64(warm.Int63n(int64(n))))
+					if _, err := fx.tree.Get(key[:]); err != nil {
+						b.Fatalf("warmup Get: %v", err)
+					}
 				}
 			}
 			// reads/op = node DB reads (Get) per point read ≈ traversal depth
 			// above the node LRU (IAVL+fast ~1, bp32 ~2). Fold around the
-			// untimed reload so its reads aren't counted.
+			// untimed reload so its reads aren't counted; each reload interval
+			// is one convergence segment.
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
+			segStart := 0
 			for i := 0; i < b.N; i++ {
 				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
 					b.StopTimer()
-					rm.fold()             // close segment before the untimed reload
+					rm.fold(b, int64(i-segStart)) // close segment before the untimed reload
+					segStart = i
 					_, _ = fx.tree.Load() // bound memory; node LRU stays warm
-					rm.snap()             // reopen segment after reload
+					rm.snap(b)            // reopen segment after reload
 					b.StartTimer()
 				}
 				putDiskKey(key[:], uint64(rng.Int63n(int64(n))))
@@ -390,8 +525,11 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 					b.Fatalf("Get: %v", err)
 				}
 			}
-			rm.fold()                                  // final segment
-			rm.report(b, float64(b.N), "reads/op", "") // reads only; Get does no writes
+			rm.fold(b, int64(b.N-segStart))            // final segment
+			rm.report(b, float64(b.N), "reads/op", "") // whole-run average (ramp-inclusive)
+			rm.reportTail(b, "op", false)              // steady-state tail + convergence
+			// After ResetTimer (which clears earlier ReportMetric extras).
+			b.ReportMetric(float64(fx.tree.Height()), "height")
 		})
 		fx.close()
 	}
@@ -408,21 +546,28 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 			b.ReportAllocs()
 			rng := mrand.New(mrand.NewSource(3))
 			var key [diskKeyLen]byte
-			warm := mrand.New(mrand.NewSource(13))
-			for i := 0; i < *diskWarmupOps; i++ {
-				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
-					_, _ = fx.tree.Load()
-				}
-				putDiskMissKey(key[:], uint64(warm.Int63n(int64(n))))
-				if _, err := fx.tree.Get(key[:]); err != nil {
-					b.Fatalf("warmup Get: %v", err)
+			if b.N > 1 {
+				warm := mrand.New(mrand.NewSource(13))
+				for i := 0; i < *diskWarmupOps; i++ {
+					if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
+						_, _ = fx.tree.Load()
+					}
+					putDiskMissKey(key[:], uint64(warm.Int63n(int64(n))))
+					if _, err := fx.tree.Get(key[:]); err != nil {
+						b.Fatalf("warmup Get: %v", err)
+					}
 				}
 			}
+			rm := newReadMeter(fx.db)
 			b.ResetTimer()
+			segStart := 0
 			for i := 0; i < b.N; i++ {
 				if i > 0 && *diskReloadEvery > 0 && i%*diskReloadEvery == 0 {
 					b.StopTimer()
+					rm.fold(b, int64(i-segStart))
+					segStart = i
 					_, _ = fx.tree.Load()
+					rm.snap(b)
 					b.StartTimer()
 				}
 				putDiskMissKey(key[:], uint64(rng.Int63n(int64(n))))
@@ -430,6 +575,9 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 					b.Fatalf("Get: %v", err)
 				}
 			}
+			rm.fold(b, int64(b.N-segStart))
+			rm.report(b, float64(b.N), "reads/op", "")
+			rm.reportTail(b, "op", false)
 		})
 		fx.close()
 	}
@@ -457,7 +605,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			next := uint64(fx.tree.Size()) // fresh-insert index, past all existing keys
 			// Untimed warmup blocks (rounded up from -disk-warmup-ops writes):
 			// warm the node LRU so the metered region reflects steady state.
-			if *diskWarmupOps > 0 {
+			if *diskWarmupOps > 0 && b.N > 1 {
 				warm := mrand.New(mrand.NewSource(12))
 				for wb := (*diskWarmupOps + bs - 1) / bs; wb > 0; wb-- {
 					for j := 0; j < bs; j++ {
@@ -494,7 +642,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ { // one iteration == one block
-				rm.snap()
+				rm.snap(b)
 				for j := 0; j < bs; j++ {
 					k := make([]byte, diskKeyLen) // fresh per Set (IAVL retains key ref)
 					v := make([]byte, diskValLen)
@@ -513,7 +661,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 				if err != nil {
 					b.Fatalf("SaveVersion: %v", err)
 				}
-				rm.fold()
+				rm.fold(b, int64(bs))
 				b.StopTimer()
 				if ver > historySize {
 					if err := fx.tree.DeleteVersionsTo(ver - historySize); err != nil {
@@ -529,7 +677,8 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			if b.N > 0 {
 				w := float64(b.N * bs)
 				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/w, "ns/write")
-				rm.report(b, w, "reads/write", "writes/write")
+				rm.report(b, w, "reads/write", "writes/write") // whole-run averages
+				rm.reportTail(b, "write", true)                // steady tail; median defeats compaction spikes
 			}
 		})
 		fx.close()

@@ -18,7 +18,9 @@
 #                lmdbdb is the backend gno.land's flat gas costs reference.)
 #   BLOCK       writes per block (SaveVersion cadence)        [1000]
 #   WRITE_N     BlockWrite benchtime, in blocks               [300]
-#   READ_N      GetRandom benchtime, in ops                   [50000]
+#   READ_N      GetRandom/GetMiss benchtime, in ops         [500000]
+#               (5 convergence windows at the default 100k reload
+#                cadence; use 1000000 for 8 full windows)
 #   NODE_CACHE  in-process node LRU                           [10000]
 #   FACTORIES   trees to run                                  ["iavl bptree"]
 #   BUILD_BATCH keys per SaveVersion while building           [25000]
@@ -42,7 +44,7 @@ KEYS="${KEYS:-100000000}"
 BACKEND="${BACKEND:-pebbledb}"
 BLOCK="${BLOCK:-1000}"
 WRITE_N="${WRITE_N:-300}"
-READ_N="${READ_N:-50000}"
+READ_N="${READ_N:-500000}"
 NODE_CACHE="${NODE_CACHE:-10000}"
 FACTORIES="${FACTORIES:-iavl bptree}"
 BUILD_BATCH="${BUILD_BATCH:-25000}"
@@ -98,13 +100,36 @@ for f in $FACTORIES; do
 		2>&1 | tee "$OUT/blockwrite-$f.txt"
 	drop_caches
 	echo ">> GetRandom $f"
-	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetRandom -timeout=1h \
+	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetRandom -timeout=2h \
 		"${common[@]}" -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
 		2>&1 | tee "$OUT/getrandom-$f.txt"
+	drop_caches
+	echo ">> GetMiss $f"
+	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetMiss -timeout=2h \
+		"${common[@]}" -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
+		2>&1 | tee "$OUT/getmiss-$f.txt"
 done
 
 echo
-echo "==== summary (reads/writes per op, ns) ===="
-grep -hE 'BenchmarkDisk(BlockWrite|GetRandom)' \
-	"$OUT"/blockwrite-*.txt "$OUT"/getrandom-*.txt 2>/dev/null || true
+echo "==== summary (whole-run averages + tail-* steady state) ===="
+grep -hE 'BenchmarkDisk(BlockWrite|GetRandom|GetMiss)' \
+	"$OUT"/blockwrite-*.txt "$OUT"/getrandom-*.txt "$OUT"/getmiss-*.txt 2>/dev/null || true
+echo
+echo "==== convergence verdicts (steady iff |conv-ns-%| <= 5 read / 10 write AND |conv-reads-%| <= 2) ===="
+grep -hE 'BenchmarkDisk(BlockWrite|GetRandom|GetMiss)' \
+	"$OUT"/blockwrite-*.txt "$OUT"/getrandom-*.txt "$OUT"/getmiss-*.txt 2>/dev/null |
+	awk '{
+		name=$1; ns=""; rd=""; lim=5
+		if (name ~ /BlockWrite/) lim=10
+		for (i=2; i<NF; i++) {
+			if ($(i+1)=="conv-ns-%") ns=$i
+			if ($(i+1)=="conv-reads-%") rd=$i
+		}
+		if (ns=="" ) { print name": NO CONVERGENCE DATA (run too short for 2+ windows)"; next }
+		bad=0
+		if (ns<0?-ns>lim:ns>lim) bad=1
+		if (rd!="" && (rd<0?-rd>2:rd>2)) bad=1
+		print name": " (bad?"NOT CONVERGED":"CONVERGED") "  (conv-ns "ns"%, conv-reads "rd"%)"
+	}'
+echo "also eyeball the per-bench '--- BENCH' window series: flat tail = steady, monotone slide = still ramping"
 echo "full output + populate logs in: $OUT/"
