@@ -18,6 +18,108 @@ All numbers assume the default 10,000-entry LRU node cache.
 for B+32 (nodes are ~4.3KB in memory) vs ~1.3MB for IAVL (nodes are ~130B).
 See the "Equal Memory Comparison" section for a fair same-budget analysis.
 
+**Model vs. measurement.** Every table outside the next section is an
+analytical *model* (operation counts derived from tree height and cache
+size). The "Measured Results" section below reports *measured* numbers from
+the disk benchmark harness against a real ~101M-key PebbleDB fixture. Where
+the two disagree, the measured number is authoritative and the model note is
+corrected inline.
+
+## Measured Results (~101M keys, PebbleDB)
+
+Source: `tm2/pkg/bptree/benchmarks/` (driver `run-disk-bench.sh`), AMD Ryzen 7
+5700G, NVMe SSD, PebbleDB (production-tuned: 500MB block cache + bloom), 10K-node
+LRU, 1000 writes/block. See "Provenance" at the end of this section.
+
+**Methodology.** Each benchmark runs in op-indexed windows and reports both the
+whole-run average and a final-window ("tail") steady-state estimate with the
+window-to-window convergence delta, so a run *proves* whether it reached steady
+state instead of averaging the cold-cache ramp into the result. Two cache
+timescales are separated: the in-process **node LRU** (warms in ~10⁵–10⁶ ops and
+governs the operation **counts**) and the **OS page cache** (at 100M keys over
+RAM it never fully warms and governs **latency**). Counts converged to <0.1%
+window-to-window and reproduced across runs; latency is reported as a band where
+it is page-cache- or compaction-limited.
+
+### Logical DB operations per op (converged, reproducible)
+
+Node-LRU misses hitting PebbleDB — backend-agnostic, page-cache-independent, and
+the empirical basis for the storage-gas depth parameters.
+
+| operation         | B+32     | IAVL (+fast node) | ratio            |
+|-------------------|----------|-------------------|------------------|
+| GET reads/op      | **3.66** | **0.97**          | IAVL 3.8× fewer  |
+| GET-miss reads/op | **2.66** | **1.00**          | IAVL 2.7× fewer  |
+| SET reads/write   | **2.86** | **34.1**          | B+32 11.9× fewer |
+| SET writes/write  | **4.36** | **19.6**          | B+32 4.5× fewer  |
+
+### Latency (representative; PebbleDB on the box above)
+
+| operation              | B+32       | IAVL (+fast node) | note                                  |
+|------------------------|------------|-------------------|---------------------------------------|
+| SET (per write)        | **~125 µs**| **540–640 µs**    | B+32 converges; IAVL plateaus (below) |
+| GET (latest, point)    | ~70–97 µs  | **~17–24 µs**     | IAVL+fast wins point reads (~4×)       |
+| GET-miss               | ~54 µs     | ~20 µs            | both page-cache-limited (upper bounds) |
+
+The IAVL GET/GET-miss latencies are page-cache-, not structure-limited: cold-start
+runs were still descending toward the warm-cache values at 2M ops. The ranges span
+warm (lower) to cold-started-tail (upper).
+
+### What measurement changed in the model
+
+- **B+32 GET reads: modeled 3.0 → measured 3.66.** The model's "cache holds all
+  inner nodes up to ~200M items" is wrong — 10K nodes holds all inner nodes only
+  up to ~200K items. At 100M there are ~217K inner nodes (≈207K at the level just
+  above the leaves alone), so the 10K LRU covers only the top ~4 levels; a GET
+  misses the level-1 inner + leaf + out-of-line value ≈ 3, plus occasional
+  level-2 eviction → 3.66.
+- **IAVL SET reads: modeled 15 → measured 34.1.** The model assumed the top 13
+  levels stay cached (height − 13). Measured *exceeds the tree height*: a
+  1000-mutation random block thrashes the 10K LRU, AVL rebalancing reads
+  siblings/ancestors on the way up, and orphan tracking adds reads. The measured
+  IAVL height is **32**, not the modeled 28 (IAVL runs taller than 1.04·log₂n).
+- **B+32 SET reads: modeled 2.0 → measured 2.86** (same level-1-uncached effect,
+  no value read).
+- **Writes confirmed:** B+32 4.36 vs modeled 4.4; IAVL 19.6 vs modeled 18.1
+  (the +1.5 is the fast-node index write + rebalancing writes).
+
+### The read/write tradeoff (the honest summary)
+
+- **Writes — B+32 wins decisively and reproducibly:** ~4.5× fewer write-ops,
+  ~12× fewer read-ops on the COW path, **4.5–4.9× lower per-write latency**
+  (~125 µs vs 540–640 µs).
+- **Latest-version point reads — IAVL+fast node wins:** its fast-node index is a
+  flat 1-lookup structure (0.97 reads ≈ ~17 µs) vs B+32's tree path +
+  out-of-line value (3.66 reads ≈ ~70 µs) — about **4× faster for IAVL**. This
+  corrects the older "B+32 wins reads clearly" claim, which holds only against
+  IAVL *without* fast nodes (13–32 reads).
+- **B+32 wins the reads the fast node can't serve:** historical/versioned queries
+  (fast index only covers the latest version), proof generation (needs the full
+  tree path regardless), and it avoids the fast node's doubled value storage and
+  its extra write per SET.
+
+### IAVL sustained-write plateau
+
+IAVL block-write latency does **not** keep warming toward a back-to-back rerun's
+number (a 454 µs rerun was a transient riding a warm page cache). Under sustained
+writes the per-window latency ramps down, then **plateaus** (final windows flat to
+±0.3%) at **540–640 µs**: PebbleDB compaction read-amplification (IAVL writes ~19.6
+small records per write) offsets further cache warming. The plateau *level* varies
+~15% run-to-run because the benchmark mutates and grows the fixture (≈325K keys per
+BlockWrite run; currently ~101.5M), leaving different LSM/compaction state at each
+start. B+32, writing ~4.4 larger records per write, plateaus cleanly at ~125 µs.
+
+### Provenance
+
+- Hardware: AMD Ryzen 7 5700G, NVMe SSD, Linux.
+- Backend: PebbleDB (`DefaultPebbleOptions`: 500MB block cache + bloom filter).
+- Fixture: ~101M keys (16-byte keys, 40-byte values), built once and reused;
+  grows ~325K keys per BlockWrite run.
+- Node LRU: 10,000 nodes (~43MB B+32, ~1.3MB IAVL). Block: 1000 writes/SaveVersion,
+  50% updates / 50% fresh inserts.
+- Counts converged <0.1% window-to-window across runs; GET latencies are
+  page-cache-limited upper bounds, not fully-warm steady state.
+
 ## B+32 Tree
 
 ### No cache
@@ -44,8 +146,12 @@ Every node on the root-to-leaf path is a disk read.
 
 ### With 10K-node cache (~43MB)
 
-Cache holds all inner nodes for trees up to ~200M items.
-At larger sizes, the deepest inner level partially spills.
+**Correction (measured):** 10K nodes holds all inner nodes only up to ~200K
+items, NOT ~200M. At 100M there are ~217K inner nodes (~207K of them at the
+level just above the leaves), so the cache covers only the top ~4 levels and
+the modeled GET-reads row below (3.0) is optimistic — measured is **3.66**
+(see "Measured Results"). The table's *shape* across sizes still holds; the
+absolute cached-read counts at ≥100M are ~0.7 higher than modeled.
 
 | Items | Height | GET reads | GET writes | SET reads | SET writes | DEL reads | DEL writes |
 |-------|--------|-----------|------------|-----------|------------|-----------|------------|
@@ -258,9 +364,18 @@ IAVL writes ~3x fewer bytes per block despite ~4x more operations.
 **The tradeoff:** B+32's structural advantage is fewer, larger writes.
 This means fewer round-trips to the DB and fewer WAL entries, but more
 bytes flowing through LSM compaction. Which factor dominates depends on
-the workload and storage backend. For read-heavy workloads (queries,
-proof generation), B+32 wins clearly. For write-heavy workloads, the
-byte volume partially offsets the operation count advantage.
+the workload and storage backend.
+
+**Measured at 100M (see "Measured Results"), the read story splits by whether
+IAVL has the fast-node index:**
+- **Writes: B+32 wins decisively** — ~4.5× fewer write-ops and 4.5–4.9× lower
+  per-write latency (~125 µs vs 540–640 µs), reproducibly.
+- **Latest-version point reads: IAVL+fast wins** (1 read ≈ 17 µs vs B+32's
+  3.66 reads ≈ ~70 µs, ~4× faster). B+32 "wins reads" only versus IAVL
+  *without* fast nodes.
+- **B+32 wins the reads the fast node can't serve:** historical/versioned
+  queries and proof generation (both need the full tree path), without the
+  fast node's doubled value storage and extra per-SET write.
 
 **Writes are determined by tree height.** Cache helps reads but not writes.
 IAVL's height of 26-34 means 26-34 writes per SET regardless of cache.
