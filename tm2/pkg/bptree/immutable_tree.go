@@ -21,6 +21,7 @@ type ImmutableTree struct {
 	valueResolver ValueResolver // resolves valueKeys to raw values
 	ndb           *nodeDB       // set when the snapshot is backed by a DB
 	registered    bool          // true if this snapshot incremented versionReaders; Close must decrement
+	fast          bool          // consult the fast index in Get (committed snapshots only; see newImmutable)
 	closeOnce     sync.Once     // guards decr so double/concurrent Close can't over-decrement
 }
 
@@ -61,6 +62,16 @@ func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
 func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
+	}
+	// Advisory fast path (committed snapshots only): resolve via the inline fast
+	// index in 1 read, trusting an entry only when it is no newer than this
+	// snapshot. A miss, a too-new entry, or a corrupt entry falls through to the
+	// authoritative tree walk; the index is never the source of truth for
+	// absence. See fast_index.go.
+	if t.fast && t.ndb != nil {
+		if val, ok := t.ndb.fastGet(key, t.version); ok {
+			return val, nil
+		}
 	}
 	_, _, vk, found, err := treeLookup(t.root, key)
 	if err != nil {

@@ -302,7 +302,16 @@ func (imp *Importer) Commit() error {
 	prevVersion, prevInitial := imp.tree.version, imp.tree.initialVersion
 	imp.tree.version = imp.version - 1
 	imp.tree.initialVersion = 0
-	if _, _, err := imp.tree.SaveVersion(); err != nil {
+	// Import staged values via SaveValue directly, bypassing per-entry fast-index
+	// maintenance, so the index is empty. Suppress SaveVersion's completeness
+	// stamp for this one commit (toggle off, restore after) so the next Load
+	// rebuilds the index from the imported tree rather than trusting an empty one.
+	// No-op when the fast index is already disabled.
+	prevFast := imp.tree.ndb.opts.FastIndex
+	imp.tree.ndb.opts.FastIndex = false
+	_, _, err := imp.tree.SaveVersion()
+	imp.tree.ndb.opts.FastIndex = prevFast
+	if err != nil {
 		imp.tree.version, imp.tree.initialVersion = prevVersion, prevInitial
 		imp.state = importerFailed
 		return err

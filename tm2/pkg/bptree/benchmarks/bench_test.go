@@ -108,6 +108,12 @@ func newBptreeTree(db dbm.DB, cacheSize int) *bptreeTree {
 	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger())}
 }
 
+// newBptreeTreeFast is newBptreeTree with the latest-version fast index enabled.
+// On a fixture built without it, the first Load rebuilds the index (untimed).
+func newBptreeTreeFast(db dbm.DB, cacheSize int) *bptreeTree {
+	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger(), bptree.FastIndexOption(true))}
+}
+
 func (w *bptreeTree) Set(k, v []byte) (bool, error)         { return w.t.Set(k, v) }
 func (w *bptreeTree) Get(k []byte) ([]byte, error)          { return w.t.Get(k) }
 func (w *bptreeTree) Has(k []byte) (bool, error)            { return w.t.Has(k) }
@@ -241,13 +247,28 @@ func cacheForSize(size int) int {
 }
 
 type treeFactory struct {
-	name    string
+	name string
+	// dbName overrides the on-disk fixture sub-DB name (default: name). Lets
+	// "bptree-fast" reuse the "bptree" fixture and just add the 'F' keyspace.
+	dbName  string
 	newTree func(db dbm.DB, cache int) TreeBench
 }
 
+// fixtureName is the disk-fixture sub-DB name (dbName, or name if unset).
+func (f treeFactory) fixtureName() string {
+	if f.dbName != "" {
+		return f.dbName
+	}
+	return f.name
+}
+
 var factories = []treeFactory{
-	{"iavl", func(db dbm.DB, c int) TreeBench { return newIAVLTree(db, c) }},
-	{"bptree", func(db dbm.DB, c int) TreeBench { return newBptreeTree(db, c) }},
+	{name: "iavl", newTree: func(db dbm.DB, c int) TreeBench { return newIAVLTree(db, c) }},
+	{name: "bptree", newTree: func(db dbm.DB, c int) TreeBench { return newBptreeTree(db, c) }},
+	// Reuses the "bptree" fixture (dbName); the first run rebuilds the 'F' index
+	// untimed during ensureDiskFixture's Load. Run AFTER the bptree fixture
+	// exists, and not in parallel with "bptree" (same sub-DB).
+	{name: "bptree-fast", dbName: "bptree", newTree: func(db dbm.DB, c int) TreeBench { return newBptreeTreeFast(db, c) }},
 }
 
 // buildTree constructs a tree once outside b.Run so it is NOT rebuilt on

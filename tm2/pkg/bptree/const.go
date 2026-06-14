@@ -32,6 +32,11 @@ const (
 	PrefixRoot   byte = 'R'
 	PrefixMeta   byte = 'M'
 	PrefixOrphan byte = 'O'
+	// PrefixFast keys the optional latest-version fast index (user-key →
+	// version‖value). It is an unauthenticated read accelerator outside the
+	// Merkle commitment; see fast_index.go. PrefixMeta‖"fastidx" stamps the
+	// version it is complete for.
+	PrefixFast byte = 'F'
 
 	// Node type bytes for serialization.
 	TypeInner byte = 0x01
@@ -56,6 +61,16 @@ func init() {
 	}
 	if 1<<miniMerkleDepth != B {
 		panic("miniMerkleDepth must equal log₂(B)")
+	}
+	// DB key prefixes must be pairwise distinct: a collision would let one
+	// record type masquerade as another (e.g. a fast-index entry parsed as a
+	// node). Asserting here means a future prefix addition can't silently alias.
+	seen := map[byte]bool{}
+	for _, p := range []byte{PrefixNode, PrefixVal, PrefixRoot, PrefixMeta, PrefixOrphan, PrefixFast} {
+		if seen[p] {
+			panic("bptree: duplicate DB key prefix")
+		}
+		seen[p] = true
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)

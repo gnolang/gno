@@ -5,6 +5,7 @@ type Options struct {
 	Sync           bool   // fsync writes
 	InitialVersion uint64 // first version number
 	FlushThreshold int    // batch flush size in bytes
+	FastIndex      bool   // maintain the latest-version fast index (read accelerator)
 }
 
 // Option is a functional option for tree construction.
@@ -26,4 +27,13 @@ func InitialVersionOption(iv uint64) Option {
 
 func FlushThresholdOption(ft int) Option {
 	return func(o *Options) { o.FlushThreshold = ft }
+}
+
+// FastIndexOption enables the optional latest-version fast index: a flat
+// user-key → version‖value map that accelerates committed point Gets of present
+// keys (1 read instead of a full tree descent + value read). It is an
+// unauthenticated read accelerator — not part of the Merkle root — so it can be
+// toggled per-node without affecting the app hash. Default off.
+func FastIndexOption(b bool) Option {
+	return func(o *Options) { o.FastIndex = b }
 }

@@ -23,9 +23,22 @@ const (
 	ProofOpBptreeCommitment = "ics23:bptree"
 )
 
+// FastIndexEnabled controls whether stores built by StoreConstructor enable the
+// bptree fast index — an unauthenticated read accelerator outside the Merkle
+// commitment (see bptree.FastIndexOption). It is a package-level toggle because
+// StoreConstructor's signature is fixed by CommitStoreConstructor and
+// types.StoreOptions is shared with the IAVL store. Set it before stores are
+// mounted (e.g. at process init). Off by default; toggling it does not change
+// the app hash, so nodes may differ without forking.
+var FastIndexEnabled bool
+
 // StoreConstructor implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger())
+	var bopts []bp.Option
+	if FastIndexEnabled {
+		bopts = append(bopts, bp.FastIndexOption(true))
+	}
+	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger(), bopts...)
 	return UnsafeNewStore(tree, opts)
 }
 

@@ -32,3 +32,11 @@ func GetNodeKey(key []byte) *NodeKey {
 // GetRootKey is removed. The root node's NodeKey is NOT nonce=1 —
 // nonces are assigned bottom-up during SaveVersion, so the root gets
 // the last nonce. Use ndb.GetRoot(version) to find the actual root.
+
+// vkVersion extracts the version a valueKey was allocated at — its first 8 bytes,
+// big-endian (NodeKey.Version). allocValueKey stamps the WorkingVersion, so this
+// is the version in which the key was last written. Used by orphan handling and
+// the fast index (to reject entries newer than a reader's snapshot).
+func vkVersion(vk []byte) int64 {
+	return int64(binary.BigEndian.Uint64(vk[:8]))
+}

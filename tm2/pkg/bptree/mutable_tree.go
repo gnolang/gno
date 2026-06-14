@@ -3,7 +3,6 @@ package bptree
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -131,6 +130,12 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 			t.poisoned = err
 			return false, err
 		}
+		// Maintain the fast index (no-op when disabled). Staged after SaveValue
+		// so a poisoned value never leaves a live index entry behind.
+		if err := t.ndb.setFastIndex(key, vk, value); err != nil {
+			t.poisoned = err
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -164,6 +169,12 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		t.poisoned = err
 		return updated, err
 	}
+	// Maintain the fast index (no-op when disabled). Overwrites any prior entry
+	// for key with the new value; the old vk is already orphaned above.
+	if err := t.ndb.setFastIndex(key, vk, value); err != nil {
+		t.poisoned = err
+		return updated, err
+	}
 	return updated, nil
 }
 
@@ -192,8 +203,7 @@ func (t *MutableTree) resolveValue(vk []byte) ([]byte, error) {
 // Tier 2 (prior version): defer to orphan list for prune-time deletion.
 func (t *MutableTree) orphanValueKey(vk []byte) error {
 	// Decode version from the first 8 bytes of the valueKey
-	vkVersion := int64(binary.BigEndian.Uint64(vk[:8]))
-	if vkVersion == t.WorkingVersion() {
+	if vkVersion(vk) == t.WorkingVersion() {
 		// Tier 1: intra-version orphan — drop the staged value
 		return t.ndb.DeleteValueDirect(vk)
 	}
@@ -242,6 +252,12 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 			t.poisoned = err
 			return val, true, err
 		}
+	}
+	// Drop the fast-index entry (no-op when disabled). Load-bearing: a leftover
+	// entry would be wrongly trusted for a snapshot at vkVersion(vk_old) or later.
+	if err := t.ndb.deleteFastIndex(key); err != nil {
+		t.poisoned = err
+		return val, true, err
 	}
 	return val, true, nil
 }
@@ -367,6 +383,13 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		return nil, 0, err
 	}
 
+	// Stamp the fast index complete through this version (no-op when disabled),
+	// so Load skips the rebuild for an eagerly-maintained index. Rides the same
+	// atomic Commit as the index entries it describes.
+	if err := t.ndb.setFastIndexVersion(version); err != nil {
+		return nil, 0, err
+	}
+
 	// Commit batch (nodes + root + orphan list, atomically)
 	if err := t.ndb.Commit(); err != nil {
 		return nil, 0, err
@@ -446,7 +469,18 @@ func (t *MutableTree) Load() (int64, error) {
 	if latest == 0 {
 		return 0, nil
 	}
-	return t.LoadVersion(latest)
+	v, err := t.LoadVersion(latest)
+	if err != nil {
+		return v, err
+	}
+	// Build the fast index from the loaded latest root if it is absent/stale
+	// (e.g. enabling the feature on an existing DB, or post-import). No-op when
+	// disabled or already current; advisory, so this runs before serving and a
+	// failure is non-fatal in practice (reads fall back to the tree walk).
+	if err := t.ensureFastIndex(); err != nil {
+		return v, err
+	}
+	return v, nil
 }
 
 // LoadVersion loads a specific version from the DB.
@@ -540,6 +574,9 @@ func (t *MutableTree) newImmutable(root Node, version int64, committed bool) *Im
 	imm.ndb = t.ndb
 	if committed {
 		imm.valueResolver = t.ndb.getCommittedValue
+		// Only committed snapshots may use the fast index: it reflects committed
+		// state, so a read-your-writes (Snapshot) tree must not consult it.
+		imm.fast = t.ndb.opts.FastIndex
 	} else {
 		imm.valueResolver = t.ndb.GetValue
 	}

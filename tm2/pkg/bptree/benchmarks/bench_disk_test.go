@@ -62,7 +62,7 @@ var (
 	diskBuildBatch   = flag.Int64("disk-build-batch", 25_000, "keys per SaveVersion while building the fixture")
 	diskWarmupOps    = flag.Int("disk-warmup-ops", 0, "untimed ops before measurement to warm the node LRU (random gets for the Get benches; whole blocks for BlockWrite). A fresh tree starts cold and reported counts average over every iteration, so size this to several times the node cache: ~50000 for the default 10K cache, ~1500000 for a 330K cache")
 	diskReloadEvery  = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
-	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree (empty = both). Lets two processes populate in parallel into one -disk-dir.")
+	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree|bptree-fast (empty = all). Lets processes populate in parallel into one -disk-dir. bptree-fast reuses the bptree fixture (run it after bptree, not concurrently).")
 	diskVerbose      = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
 	diskVerboseEvery = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
 	diskBackend      = flag.String("disk-backend", "pebbledb", "db backend for fixtures: pebbledb (tuned 500MB cache+bloom), goleveldb, boltdb; lmdbdb/mdbxdb need a cgo build")
@@ -94,7 +94,7 @@ func selectedFactories() []treeFactory {
 			return []treeFactory{f}
 		}
 	}
-	panic(fmt.Sprintf("unknown -disk-factory %q (want iavl|bptree)", *diskFactory))
+	panic(fmt.Sprintf("unknown -disk-factory %q (want iavl|bptree|bptree-fast)", *diskFactory))
 }
 
 const (
@@ -445,8 +445,9 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 	} else {
 		require.NoError(b, os.MkdirAll(dir, 0o755))
 	}
-	// Distinct sub-DB per factory so iavl and bptree don't share a directory.
-	name := fmt.Sprintf("%s-disk", f.name)
+	// Distinct sub-DB per factory so iavl and bptree don't share a directory
+	// (bptree-fast deliberately reuses bptree's via fixtureName).
+	name := fmt.Sprintf("%s-disk", f.fixtureName())
 	pdb, err := openDiskDB(name, dir)
 	require.NoError(b, err)
 
@@ -708,7 +709,7 @@ func TestDiskPopulate(t *testing.T) {
 		// Build into the exact path the disk benchmarks reuse (<dir>/<name>.db),
 		// so no rename is needed afterward. Resumable: if already at >= n keys,
 		// skip; otherwise continue from the current size.
-		name := fmt.Sprintf("%s-disk", f.name)
+		name := fmt.Sprintf("%s-disk", f.fixtureName())
 		pdb, err := openDiskDB(name, *diskDir)
 		require.NoError(t, err)
 		tree := f.newTree(pdb, *diskNodeCache)
