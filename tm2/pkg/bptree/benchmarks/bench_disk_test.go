@@ -47,6 +47,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	bptree "github.com/gnolang/gno/tm2/pkg/bptree"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/boltdb"    // -disk-backend=boltdb
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb" // -disk-backend=goleveldb
@@ -732,4 +733,38 @@ func TestDiskPopulate(t *testing.T) {
 		mb := dirSizeMB(filepath.Join(*diskDir, name+".db"))
 		t.Logf(">>> %-6s: size=%d, disk=%.0f MB (%.0f B/key)", f.name, size, mb, mb*1024*1024/float64(n))
 	}
+}
+
+// stderrLogger streams bptree Info/Warn/Error logs (e.g. fast-index rebuild
+// progress) to stderr so a long backfill is observable. Debug is dropped.
+type stderrLogger struct{}
+
+func (stderrLogger) Info(msg string, kv ...any)  { fmt.Fprintf(os.Stderr, "  %s %v\n", msg, kv) }
+func (stderrLogger) Warn(msg string, kv ...any)  { fmt.Fprintf(os.Stderr, "  WARN %s %v\n", msg, kv) }
+func (stderrLogger) Error(msg string, kv ...any) { fmt.Fprintf(os.Stderr, "  ERROR %s %v\n", msg, kv) }
+func (stderrLogger) Debug(string, ...any)        {}
+
+// TestDiskFastIndexBackfill builds the inline 1-GET fast index onto an existing
+// bptree disk fixture (one-time). Point -disk-dir at the fixture directory; it
+// opens the "bptree" sub-DB with the index enabled and Loads, which rebuilds the
+// index from the latest tree — reading and re-storing every live value (slow at
+// 100M, but one-time). Idempotent: a second run finds the stamp current and is a
+// no-op. Progress streams to stderr.
+//
+//	go test ./tm2/pkg/bptree/benchmarks/ -run TestDiskFastIndexBackfill -v \
+//	  -disk-dir=/data/bptree-bench -disk-node-cache=10000 -timeout=24h
+func TestDiskFastIndexBackfill(t *testing.T) {
+	if *diskDir == "" {
+		t.Skip("set -disk-dir to the fixture directory")
+	}
+	pdb, err := openDiskDB("bptree-disk", *diskDir)
+	require.NoError(t, err)
+	defer pdb.Close()
+
+	tree := bptree.NewMutableTreeWithDB(pdb, *diskNodeCache, stderrLogger{}, bptree.FastIndexOption(true))
+	start := time.Now()
+	v, err := tree.Load()
+	require.NoError(t, err)
+	t.Logf("fast index backfill complete: version=%d, tree size=%d, elapsed=%s",
+		v, tree.Size(), time.Since(start))
 }

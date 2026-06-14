@@ -198,8 +198,11 @@ func (t *MutableTree) rebuildFastIndex() (err error) {
 	if err = t.ndb.clearFastIndex(); err != nil {
 		return err
 	}
+	// A first-enable rebuild on a large DB reads and re-stores every live value,
+	// so it can take a while; log start/progress/done (no-op under NopLogger).
+	t.ndb.logger.Info("bptree: rebuilding fast index", "version", t.version)
+	n := 0
 	if t.root != nil {
-		n := 0
 		_, walkErr := iterateNodeResolved(t.root, func(key, vk []byte) bool {
 			var value []byte
 			if value, err = t.ndb.getCommittedValue(vk); err != nil {
@@ -211,6 +214,9 @@ func (t *MutableTree) rebuildFastIndex() (err error) {
 			n++
 			if n%fastRebuildFlush == 0 {
 				err = t.ndb.Commit()
+				if err == nil && n%(fastRebuildFlush*64) == 0 {
+					t.ndb.logger.Info("bptree: fast index rebuild progress", "entries", n)
+				}
 			}
 			return err != nil
 		})
@@ -224,5 +230,9 @@ func (t *MutableTree) rebuildFastIndex() (err error) {
 	if err = t.ndb.setFastIndexVersion(t.version); err != nil {
 		return err
 	}
-	return t.ndb.Commit()
+	if err = t.ndb.Commit(); err != nil {
+		return err
+	}
+	t.ndb.logger.Info("bptree: fast index rebuilt", "entries", n)
+	return nil
 }
