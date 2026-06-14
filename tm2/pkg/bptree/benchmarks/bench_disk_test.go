@@ -746,7 +746,7 @@ func (stderrLogger) Debug(string, ...any)        {}
 
 // TestDiskFastIndexBackfill builds the inline 1-GET fast index onto an existing
 // bptree disk fixture (one-time). Point -disk-dir at the fixture directory; it
-// opens the "bptree" sub-DB with the index enabled and Loads, which rebuilds the
+// opens the "bptree-disk" sub-DB with the index enabled and Loads, which rebuilds the
 // index from the latest tree — reading and re-storing every live value (slow at
 // 100M, but one-time). Idempotent: a second run finds the stamp current and is a
 // no-op. Progress streams to stderr.

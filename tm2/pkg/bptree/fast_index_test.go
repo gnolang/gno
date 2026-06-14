@@ -393,7 +393,7 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 			t.Fatalf("k%03d = %q; want %q", i, got, want)
 		}
 	}
-	fastValueEqualitySweep(t, dstDB, dst2, ver)
+	fastValueEqualitySweep(t, dstDB, dst2)
 }
 
 // TestFastIndex_RebuildClearsStale: a stale 'F' entry for a key not in the tree
@@ -447,14 +447,20 @@ func TestFastIndex_Prune(t *testing.T) {
 		}
 	}
 
-	fastValueEqualitySweep(t, db, tr, latest)
+	fastValueEqualitySweep(t, db, tr)
 }
 
 // fastValueEqualitySweep asserts every 'F' entry's inlined value byte-equals the
-// tree's committed value for that key — the inline replacement for the pointer
-// no-dangling check, and the only check that catches a wrong inline value
-// independent of whether a read consumes it.
-func fastValueEqualitySweep(t *testing.T, db dbm.DB, tr *MutableTree, latest int64) {
+// tree's authoritative value for that key — the inline replacement for the
+// pointer no-dangling check.
+//
+// It resolves the expected value via MutableTree.Get (the tree walk, which never
+// consults the fast index), NOT via GetVersioned / the committed ImmutableTree
+// (whose fast path would read the very same 'F' entry, making the check
+// circular). So a wrong inline value written by setFastIndex is genuinely caught.
+// tr must be at the latest committed version (the version the index reflects),
+// which all callers are.
+func fastValueEqualitySweep(t *testing.T, db dbm.DB, tr *MutableTree) {
 	t.Helper()
 	itr, err := db.Iterator([]byte{PrefixFast}, []byte{PrefixFast + 1})
 	if err != nil {
@@ -467,12 +473,12 @@ func fastValueEqualitySweep(t *testing.T, db dbm.DB, tr *MutableTree, latest int
 			t.Fatalf("corrupt 'F' entry %x: %v", itr.Key(), err)
 		}
 		userKey := append([]byte(nil), itr.Key()[1:]...) // strip PrefixFast
-		want, err := tr.GetVersioned(userKey, latest)
+		want, err := tr.Get(userKey)                     // index-free tree walk → non-circular
 		if err != nil {
-			t.Fatalf("GetVersioned(%q): %v", userKey, err)
+			t.Fatalf("tr.Get(%q): %v", userKey, err)
 		}
 		if got := payload[8:]; !bytes.Equal(got, want) {
-			t.Fatalf("'F'%q inline value %q != committed %q", userKey, got, want)
+			t.Fatalf("'F'%q inline value %q != tree value %q", userKey, got, want)
 		}
 	}
 }
