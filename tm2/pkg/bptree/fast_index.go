@@ -162,8 +162,9 @@ func (ndb *nodeDB) clearFastIndex() error {
 
 // ensureFastIndex rebuilds the fast index from the latest root if it is absent
 // or stale (the stamp != the loaded version). Called from Load when the feature
-// is on. Because the index is advisory, a stale index is never wrong — only
-// slower — so a rebuild failure is non-fatal to Load (the next Load retries).
+// is on. The index is advisory, so a stale/missing index is never wrong, only
+// slower; a rebuild error is returned to Load's caller (the loaded tree is still
+// usable, and a retry Load re-attempts the rebuild).
 func (t *MutableTree) ensureFastIndex() error {
 	if !t.ndb.opts.FastIndex {
 		return nil
@@ -195,12 +196,14 @@ func (t *MutableTree) rebuildFastIndex() (err error) {
 		}
 	}()
 
+	// A first-enable rebuild on a large DB reads and re-stores every live value,
+	// so it can take a while; log start/progress/done (no-op under NopLogger).
+	// Logged before clearFastIndex so the (also potentially long) clear isn't
+	// silent on a re-backfill over an existing index.
+	t.ndb.logger.Info("bptree: rebuilding fast index", "version", t.version)
 	if err = t.ndb.clearFastIndex(); err != nil {
 		return err
 	}
-	// A first-enable rebuild on a large DB reads and re-stores every live value,
-	// so it can take a while; log start/progress/done (no-op under NopLogger).
-	t.ndb.logger.Info("bptree: rebuilding fast index", "version", t.version)
 	n := 0
 	if t.root != nil {
 		_, walkErr := iterateNodeResolved(t.root, func(key, vk []byte) bool {

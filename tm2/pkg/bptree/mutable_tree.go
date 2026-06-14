@@ -475,8 +475,10 @@ func (t *MutableTree) Load() (int64, error) {
 	}
 	// Build the fast index from the loaded latest root if it is absent/stale
 	// (e.g. enabling the feature on an existing DB, or post-import). No-op when
-	// disabled or already current; advisory, so this runs before serving and a
-	// failure is non-fatal in practice (reads fall back to the tree walk).
+	// disabled or already current. A rebuild error is returned (surfacing an
+	// index-write failure, or a value-read failure since the rebuild re-reads
+	// every live value, at startup); the loaded tree itself is unaffected and a
+	// retry Load re-attempts the rebuild.
 	if err := t.ensureFastIndex(); err != nil {
 		return v, err
 	}
