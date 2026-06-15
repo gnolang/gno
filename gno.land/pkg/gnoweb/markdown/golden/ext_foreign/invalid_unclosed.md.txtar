@@ -1,0 +1,15 @@
+-- input.md --
+before
+
+<gno-foreign>
+unclosed body
+
+(no closing tag follows)
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>unclosed body</p>
+<p>(no closing tag follows)</p>
+</div>
+</div>

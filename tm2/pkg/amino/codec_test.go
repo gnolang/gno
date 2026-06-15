@@ -303,3 +303,71 @@ func TestDupNamesMustPanic(t *testing.T) {
 		)
 	})
 }
+
+func TestReservedFieldMisuse(t *testing.T) {
+	cdc := amino.NewCodec()
+
+	// Blank identifier without amino:"reserved" must panic.
+	type MissingTag struct {
+		A string
+		_ [0]struct{}
+		B string
+	}
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(MissingTag{})) }) //nolint:errcheck
+
+	// Named field with amino:"reserved" must panic.
+	type NamedReserved struct {
+		A string
+		B string `amino:"reserved"`
+		C string
+	}
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(NamedReserved{})) }) //nolint:errcheck
+}
+
+func TestReservedFieldDecodeBackwardCompat(t *testing.T) {
+	// Encoding with a 3-field struct and decoding into a struct where
+	// the middle field is amino:"reserved" should round-trip successfully.
+
+	type OldStruct struct {
+		A string
+		B string
+		C string
+	}
+
+	type NewStruct struct {
+		A string
+		_ [0]struct{} `amino:"reserved"`
+		C string
+	}
+
+	cdc := amino.NewCodec()
+
+	bz, err := cdc.Marshal(OldStruct{A: "hello", B: "removed", C: "world"})
+	assert.NoError(t, err)
+
+	var got NewStruct
+	err = cdc.Unmarshal(bz, &got)
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", got.A)
+	assert.Equal(t, "world", got.C)
+}
+
+func TestReservedFieldBinFieldNum(t *testing.T) {
+	// A struct with a blank-identifier reserved field between A and B.
+	// A should get BinFieldNum=1, the reserved slot consumes 2, B gets 3.
+	type WithReserved struct {
+		A string
+		_ [0]struct{} `amino:"reserved"`
+		B string
+	}
+
+	cdc := amino.NewCodec()
+	info, err := cdc.GetTypeInfo(reflect.TypeOf(WithReserved{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	si := info.StructInfo
+	assert.Equal(t, []uint32{2}, si.Reserved)
+	assert.Equal(t, uint32(1), si.Fields[0].BinFieldNum) // A
+	assert.Equal(t, uint32(3), si.Fields[1].BinFieldNum) // B
+}
