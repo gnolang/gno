@@ -1417,6 +1417,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 
+				// Cache the interface-comparison verdict once: doOpEql/doOpNeq
+				// read ATTR_IFACE_CMP per evaluation instead of recomputing it.
+				// Only set when true, so the attribute's presence is the verdict.
+				if (n.Op == EQL || n.Op == NEQ) &&
+					(isInterfaceStaticType(lt) || isInterfaceStaticType(rt)) {
+					n.SetAttribute(ATTR_IFACE_CMP, true)
+				}
+
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 

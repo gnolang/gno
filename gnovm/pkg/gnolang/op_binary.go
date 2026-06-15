@@ -87,8 +87,9 @@ func (m *Machine) doOpEql() {
 	if lv.T != nil && lv.T.Kind() == BigintKind {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
-	// set result in lv.
-	res := isEql(m, lv, rv, isInterfaceCmp(bx))
+	// set result in lv. ATTR_IFACE_CMP is the preprocess-cached verdict that an
+	// operand is statically interface-typed (see preprocess of *BinaryExpr).
+	res := isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) != nil)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -105,17 +106,22 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
+	res := !isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) != nil)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
-// isInterfaceCmp reports whether either operand of bx is statically an
-// interface. A true result tells isEql to apply Go's interface-comparison
-// rule, under which isEql panics on an uncomparable dynamic type.
-func isInterfaceCmp(bx *BinaryExpr) bool {
-	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
+// isInterfaceStaticType reports whether the resolved static type t is an
+// interface. Used at preprocess time to set ATTR_IFACE_CMP from the operands'
+// types as returned by evalStaticTypeOf (which already unwraps a single-result
+// tuple, so t is never a raw *tupleType here).
+func isInterfaceStaticType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	_, ok := baseOf(t).(*InterfaceType)
+	return ok
 }
 
 func hasInterfaceStaticType(x Expr) bool {
