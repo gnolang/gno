@@ -1394,7 +1394,8 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return memFile.Body, nil
 	} else {
-		memPkg := store.GetMemPackage(dirpath)
+		// GetMemPackageAll so the file listing includes test/filetest files.
+		memPkg := store.GetMemPackageAll(dirpath)
 		if memPkg == nil {
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}

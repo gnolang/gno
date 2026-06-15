@@ -613,7 +613,8 @@ func debugLineInfo(m *Machine) {
 
 func isMemPackage(st Store, pkgPath string) bool {
 	ds, ok := st.(*defaultStore)
-	return ok && ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath)))
+	return ok && (ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath))) ||
+		ds.iavlStore.Has(ds.gctx, []byte(backendPackageAllButProdKey(pkgPath))))
 }
 
 func fileContent(st Store, pkgPath, name string) (string, error) {

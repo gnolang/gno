@@ -327,6 +327,13 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		if mpkg == nil {
+			// An indexed package with no production files (e.g. an
+			// xxx_test-only package) has no prod blob, so GetMemPackage
+			// returns nil. There are no production block nodes to build;
+			// its test files live under the #allbutprod sibling.
+			continue
+		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)

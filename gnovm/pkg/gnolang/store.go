@@ -81,6 +81,7 @@ type Store interface {
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
+	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
 	IterMemPackage() <-chan *std.MemPackage
@@ -981,19 +982,84 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	}
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
+	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
+	pathkey := []byte(backendPackagePathKey(mpkg.Path))
+	// MP*All packages are split for storage: production files under pathkey
+	// (the import/preprocess hot path, so its read/decode gas is charged on
+	// prod bytes only), and the remaining test/filetest files under a sibling
+	// "#allbutprod" key read only by query paths (see GetMemPackageAll). Other
+	// (already-filtered) types are stored whole under pathkey as before.
+	if mpkgtype.IsAll() {
+		prod, allButProd := splitProdAllButProd(mpkg)
+		// prod is nil for a package with no production .gno files (e.g. an
+		// xxx_test-only package): it has no prod blob, and readers treat a
+		// missing prod blob as nil. splitProdAllButProd folds that package's
+		// non-.gno files into the #allbutprod sibling so GetMemPackageAll can
+		// reconstruct the full package losslessly.
+		if prod != nil {
+			size += ds.setMemPackageBlob(pathkey, prod)
+		}
+		if len(allButProd.Files) > 0 {
+			size += ds.setMemPackageBlob([]byte(backendPackageAllButProdKey(mpkg.Path)), allButProd)
+		}
+	} else {
+		size += ds.setMemPackageBlob(pathkey, mpkg)
+	}
+}
+
+// setMemPackageBlob amino-marshals mpkg, charges encode gas, writes it under key
+// in the iavl store, and returns the encoded byte length.
+func (ds *defaultStore) setMemPackageBlob(key []byte, mpkg *std.MemPackage) int {
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
-	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	if trace.StoreGasEnabled {
-		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
+		trace.Store("ENCODE_MEMPKG", gas, key, len(bz), "none")
 	}
-	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+	ds.iavlStore.Set(ds.gctx, key, bz)
 	if trace.StoreGasEnabled {
-		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
+		trace.Store("IAVL_SET_MEMPKG", 0, key, len(bz), "none")
 	}
-	size = len(bz)
+	return len(bz)
+}
+
+// splitProdAllButProd partitions an MP*All mempackage into its production blob
+// and the complement ("all but prod") sibling so that prod ∪ allButProd ==
+// mpkg.Files exactly, with no overlap and no drops.
+//
+// The production blob holds the importable subset: non-.gno files plus non-test
+// .gno files, typed MP*Prod. However, a package with no production .gno files
+// (e.g. an xxx_test-only package) has no valid prod blob — an empty mempackage
+// fails validation, and readers treat a missing prod blob as nil — so in that
+// case prod is returned nil and ALL of its files (including non-.gno files such
+// as gnomod.toml, LICENSE, README, *.md, *.toml) are folded into the complement
+// instead, otherwise they would be silently dropped from storage.
+//
+// The complement keeps the package's Name/Path/Info and the original MP*All type
+// as an inert sentinel: it is written and read only by the store and never
+// enters the MemPackageType dispatch paths.
+func splitProdAllButProd(mpkg *std.MemPackage) (prod, allButProd *std.MemPackage) {
+	prod = MPFProd.FilterMemPackage(mpkg)
+	allButProd = &std.MemPackage{
+		Name: mpkg.Name,
+		Path: mpkg.Path,
+		Info: mpkg.Info,
+		Type: mpkg.Type,
+	}
+	// If there are no production .gno files, the prod blob will not be written
+	// (it would fail validation). Fold every non-prod-.gno file into the
+	// complement so reconstruction stays lossless.
+	prodSkipped := prod.IsEmpty()
+	if prodSkipped {
+		prod = nil
+	}
+	for _, mfile := range mpkg.Files {
+		if IsTestFile(mfile.Name) || (prodSkipped && !strings.HasSuffix(mfile.Name, ".gno")) {
+			allButProd.Files = append(allButProd.Files, mfile.Copy())
+		}
+	}
+	allButProd.Sort()
+	return prod, allButProd
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.
@@ -1038,11 +1104,57 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	return mpkg
 }
 
+// getMemPackageAllButProd reads and decodes the "#allbutprod" sibling blob (the
+// test/filetest files) for path, or nil if there is none. Charges decode gas.
+func (ds *defaultStore) getMemPackageAllButProd(path string) *std.MemPackage {
+	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// GetMemPackageAll retrieves the complete MemPackage at path, including test and
+// filetest files, by merging the production blob with its "#allbutprod" sibling.
+// It returns nil if the package does not exist. The import/run hot path uses the
+// prod-only GetMemPackage; GetMemPackageAll is for query/tooling paths that must
+// see test files (e.g. vm/qfile).
+func (ds *defaultStore) GetMemPackageAll(path string) *std.MemPackage {
+	prod := ds.GetMemPackage(path)
+	allButProd := ds.getMemPackageAllButProd(path)
+	if prod == nil && allButProd == nil {
+		return nil
+	}
+	base := prod
+	if base == nil {
+		base = allButProd
+	}
+	merged := &std.MemPackage{
+		Name: base.Name,
+		Path: base.Path,
+		Info: base.Info,
+		Type: MPAnyAll.Decide(path), // MPUserAll or MPStdlibAll.
+	}
+	if prod != nil {
+		merged.Files = append(merged.Files, prod.Files...)
+	}
+	if allButProd != nil {
+		merged.Files = append(merged.Files, allButProd.Files...)
+	}
+	merged.Sort()
+	return merged
+}
+
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
-// do not exist.
+// do not exist. It consults the full package (prod + test files) so that
+// test/filetest files remain retrievable.
 func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	mpkg := ds.GetMemPackage(path)
+	mpkg := ds.GetMemPackageAll(path)
 	if mpkg == nil {
 		return nil
 	}
@@ -1067,7 +1179,13 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 		defer iter.Close()
 
 		for ; iter.Valid(); iter.Next() {
-			path := decodeBackendPackagePathKey(string(iter.Key()))
+			key := string(iter.Key())
+			// Skip "#allbutprod" sibling keys: they are storage shards, not
+			// real package paths.
+			if strings.Contains(key, "#") {
+				continue
+			}
+			path := decodeBackendPackagePathKey(key)
 			if !yield(path) {
 				return
 			}
@@ -1293,6 +1411,14 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+// backendPackageAllButProdKey returns the sibling key holding a package's
+// test/filetest files (everything in an MP*All package but its production
+// subset). It suffixes the package path key with "#allbutprod"; "#" cannot
+// appear in a valid package path, so it never collides with a real package key.
+func backendPackageAllButProdKey(path string) string {
+	return backendPackagePathKey(path) + "#allbutprod"
+}
 
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")

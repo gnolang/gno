@@ -68,7 +68,12 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped 2026-06-14: mempackage prod/test storage split — MP*All packages now
+// store production files under pkg:<path> (typed MP*Prod) and test/filetest files
+// under a pkg:<path>#allbutprod sibling, changing stored package bytes and the
+// iavlStore Merkle root. Behavior is unchanged; only the storage encoding shifted.
+const expectedCrossrealm38Hash = "ada686cf2b393e34dcacd0bff650ee50a12c159afcb14534e13fda0ca502e7dd"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
