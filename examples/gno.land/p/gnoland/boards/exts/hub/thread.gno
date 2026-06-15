@@ -6,11 +6,25 @@ import (
 
 // Flag defines a type for thread and comment flags.
 type Flag struct {
-	// User is the user that flagged.
-	User address
+	// user is the user that flagged.
+	user address
 
-	// Reason is the reason for flagging.
-	Reason string
+	// reason is the reason for flagging.
+	reason string
+}
+
+// User returns the user that flagged.
+func (f Flag) User() address { return f.user }
+
+// Reason returns the reason for flagging.
+func (f Flag) Reason() string { return f.reason }
+
+// NewSafeFlag creates a safe flag.
+func NewSafeFlag(ref boards.Flag) Flag {
+	return Flag{
+		user:   ref.User,
+		reason: ref.Reason,
+	}
 }
 
 // Thread defines a type for board threads.
