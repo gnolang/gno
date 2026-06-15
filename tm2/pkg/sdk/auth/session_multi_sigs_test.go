@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// TestTwoSessionSignaturesTwoMasters creates a trasaction with two session account
+// TestTwoSessionSignaturesTwoMasters creates a transaction with two session account
 // signatures and two messages with different master accounts. Validation should pass.
 func TestTwoSessionSignaturesTwoMasters(t *testing.T) {
 	t.Parallel()
