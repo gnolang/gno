@@ -196,6 +196,13 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = opts.Context
 	mm.GasMeter = vmGasMeter
+	// If the Machine has a meter, the store must too — otherwise
+	// store-routed charges (e.g. ComputeMapKey) silently drop.
+	if vmGasMeter != nil && store != nil && store.GetMeter() == nil {
+		if ds, ok := store.(*defaultStore); ok {
+			ds.gasMeter = vmGasMeter
+		}
+	}
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
