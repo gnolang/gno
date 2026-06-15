@@ -72,6 +72,7 @@ func TestNewMapHintBoundary(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			alloc := NewAllocator(math.MaxInt64)
 			alloc.NewMap(mt, tc.size)
 			if _, b := alloc.Status(); b != tc.want {
