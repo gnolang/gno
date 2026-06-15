@@ -142,9 +142,10 @@ type P3Import struct {
 }
 
 type P3Message struct {
-	Comment string
-	Name    string
-	Fields  []P3Field
+	Comment  string
+	Name     string
+	Fields   []P3Field
+	Reserved []uint32
 }
 
 type P3Field struct {
@@ -221,6 +222,9 @@ func (msg P3Message) PrintCode(p *press.Press) *press.Press {
 		for _, fld := range msg.Fields {
 			fld.PrintCode(p)
 		}
+		for _, n := range msg.Reserved {
+			p.Pl("reserved %v;", n)
+		}
 	}).Pl("}")
 	return p
 }
@@ -281,6 +285,7 @@ func nListFieldOptions(fopts amino.FieldOptions) amino.FieldOptions {
 	return amino.FieldOptions{
 		BinFixed64:     fopts.BinFixed64,
 		BinFixed32:     fopts.BinFixed32,
+		BinPlainVarint: fopts.BinPlainVarint,
 		UseGoogleTypes: fopts.UseGoogleTypes,
 	}
 }
@@ -341,6 +346,8 @@ func (nl NList) Name() string {
 		prefix = "Fixed64"
 	} else if nl.FieldOptions.BinFixed32 {
 		prefix = "Fixed32"
+	} else if nl.FieldOptions.BinPlainVarint {
+		prefix = "Varint"
 	}
 	if nl.FieldOptions.UseGoogleTypes {
 		prefix = "G" + prefix

@@ -2,7 +2,7 @@
 #
 # Affirmative-coverage counterpart to the pre-interrealm-v2 tests
 # interrealm_final.txtar / interrealm_mix_call.txtar /
-# interrealm_mix_run.txtar (which test the inverted pre-Layer-1-borrow
+# interrealm_mix_run.txtar (which test the inverted pre-v2 borrow
 # semantics). Kept side-by-side so a reader can compare expectations.
 #
 # Each case is a small function on /r/test/caller invoked via
@@ -14,12 +14,12 @@
 # interrealm v2 rules under test (see gnovm/adr/interrealm_v2.md § "Storage = Authority" and
 # docs/resources/gno-interrealm.md § "Implicit Realm-Storage Borrowing"):
 #
-#   Layer 1 — declaring-realm borrow:  any /r/X-declared callable
+#   borrow rule #1 — declaring-realm borrow:  any /r/X-declared callable
 #     (function, method on any receiver shape, closure, interface
 #     dispatch to /r/X-declared method) runs its body with
 #     m.Realm = /r/X for the call duration.
 #
-#   Layer 2 — storage-realm borrow:  a /p/-declared (or stdlib)
+#   borrow rule #2 — storage-realm borrow:  a /p/-declared (or stdlib)
 #     method invoked on a defined receiver whose authoring PkgID
 #     differs from m.Realm soft-switches m.Realm to the receiver's
 #     PkgID. This fires for both REAL and UNREAL foreign receivers.
@@ -31,8 +31,10 @@
 #   Construction-time:  composite literals, new(), make() of foreign
 #     /r/-declared types panic at the call site.
 #
-#   Readonly taint:  values read from foreign-realm state carry
-#     N_Readonly; later writes panic, surviving conversions.
+#   Cross-realm write gate:  writes to an object owned by a realm
+#     other than m.Realm panic ("readonly tainted object"). The
+#     N_Readonly provenance taint has been removed; protection now
+#     rests on this storage-ownership check alone.
 #
 #   Copy semantics:  Copy preserves source PkgID when the source
 #     carries realm authority; when the source PkgID is
@@ -75,11 +77,11 @@ stdout 'neighborLibA=0'
 
 
 ## ============================================================
-## Layer 1 — declaring-realm borrow
+## borrow rule #1 — declaring-realm borrow
 ## ============================================================
 
 ## L1_FnTopLevel: top-level /r/-declared fn invoked from foreign realm.
-## Body's `global = n` succeeds (Layer 1 borrow → m.Realm = /r/owned).
+## Body's `global = n` succeeds (borrow rule #1 → m.Realm = /r/owned).
 ##
 ##   func L1_FnTopLevel(cur realm) {
 ##       owned.MutateGlobal(5)
@@ -100,7 +102,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'realValue=1 '
 
 ## L1_MethodRealForeignWrite: /r/owned method writes to a
-## /r/neighbor-owned field. Layer 1 borrow shifts m.Realm to
+## /r/neighbor-owned field. borrow rule #1 shifts m.Realm to
 ## /r/owned, the foreign-field write panics on readonly taint.
 ##
 ##   func L1_MethodRealForeignWrite(cur realm) {
@@ -133,7 +135,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'global=6 '
 
 ## L1_BoundMethod: bound-method dispatch (`f := obj.M; f()`) goes
-## through BoundMethodValue, still triggers Layer 1.
+## through BoundMethodValue, still triggers borrow rule #1.
 ##
 ##   func L1_BoundMethod(cur realm) {
 ##       f := owned.Real.Mutate
@@ -159,7 +161,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'trace=L1_ValueReceiver:cur=gno.land/r/test/caller'
 
 ## L1_MultiHop: caller → neighbor.MutateOwnedVia → owned.Real.Mutate.
-## Two Layer 1 borrows on the stack; both unwind correctly.
+## Two borrow rule #1 borrows on the stack; both unwind correctly.
 ##
 ##   func L1_MultiHop(cur realm) {
 ##       neighbor.MutateOwnedVia(owned.Real)
@@ -190,11 +192,11 @@ stderr 'cannot cur-call to external realm function'
 
 
 ## ============================================================
-## Layer 2 — storage-realm borrow on /p/-method
+## borrow rule #2 — storage-realm borrow on /p/-method
 ## ============================================================
 
 ## L2_PMethodOnOwnedReal: /p/-method on real /r/owned-allocated
-## receiver. Layer 2 borrows m.Realm to /r/owned; write succeeds.
+## receiver. borrow rule #2 borrows m.Realm to /r/owned; write succeeds.
 ##
 ##   func L2_PMethodOnOwnedReal(cur realm) {
 ##       owned.Lib.TouchA()
@@ -204,7 +206,7 @@ stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'libA=1 '
 
-## L2_PMethodOnOwnedUnreal: Layer 2 fires for unreal foreign
+## L2_PMethodOnOwnedUnreal: borrow rule #2 fires for unreal foreign
 ## receivers too. owned.LibFactory() returns a PkgID=/r/owned
 ## LibContainer with NewTime=0; TouchA still borrows to /r/owned.
 ##
@@ -217,7 +219,7 @@ stdout OK!
 # unreal receiver — no persisted state delta
 
 ## L2_PMethodOnNeighborReceiver: 3-realm geometry. Receiver in
-## /r/neighbor. Layer 2 → /r/neighbor (not /r/owned, not /r/caller).
+## /r/neighbor. borrow rule #2 → /r/neighbor (not /r/owned, not /r/caller).
 ##
 ##   func L2_PMethodOnNeighborReceiver(cur realm) {
 ##       neighbor.Lib.TouchA()
@@ -228,7 +230,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/neighbor:"
 stdout 'neighborLibA=1'
 
 ## L2_PMethodOnPrimitiveReceiver: primitive-receiver /p/-method does
-## NOT trigger Layer 2 (no Object identity to carry PkgID).
+## NOT trigger borrow rule #2 (no Object identity to carry PkgID).
 ##
 ##   func L2_PMethodOnPrimitiveReceiver(cur realm) {
 ##       var p v2lib.PrimitiveCounter = 42
@@ -244,7 +246,7 @@ stdout OK!
 
 ## IFACE_DispatchTargetsDeclaring: caller invokes Toucher.Touch()
 ## where dynamic type is /r/owned.EvilToucher. VPInterface dispatch
-## still triggers Layer 1 to /r/owned.
+## still triggers borrow rule #1 to /r/owned.
 ##
 ##   func IFACE_DispatchTargetsDeclaring(cur realm) {
 ##       var t v2lib.Toucher = owned.NewEvilToucher()
@@ -283,23 +285,24 @@ stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/
 ## Readonly taint
 ## ============================================================
 
-## READONLY_RoundTripFails: caller reads owned.GlobalSlice (carries
-## N_Readonly from the dot-selector read), passes back through
-## owned.MutateSlice. Even with Layer 1 borrow active, the taint
-## survives and the indexed write panics.
+## READONLY_RoundTripSucceeds: caller reads owned.GlobalSlice and
+## passes it back through owned.MutateSlice. With the readonly taint
+## removed, borrow rule #1 puts m.Realm at /r/owned for the duration
+## of MutateSlice, and the indexed write to owned's own slice commits
+## under owned's authority — the round-trip now succeeds.
 ##
-##   func READONLY_RoundTripFails(cur realm) {
+##   func READONLY_RoundTripSucceeds(cur realm) {
 ##       owned.MutateSlice(owned.GlobalSlice)
 ##   }
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
+gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripSucceeds -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
 
 
 ## ============================================================
 ## Realm-context invariant
 ## ============================================================
 
-## CTX_BorrowDoesNotShiftCurrentRealm: Layer 1 borrow shifts m.Realm
+## CTX_BorrowDoesNotShiftCurrentRealm: borrow rule #1 shifts m.Realm
 ## but NOT unsafe.CurrentRealm(). Inside the borrowed body,
 ## CurrentRealm reports caller (or user for top-level user calls).
 ##
@@ -485,7 +488,7 @@ func PublicSet(cur realm, n int) {
 }
 
 // RecordValueReceiverTrace is invoked from L1_ValueReceiver. It runs
-// under Layer 1 borrow to /r/owned; from inside, CurrentRealm reports
+// under borrow rule #1 to /r/owned; from inside, CurrentRealm reports
 // the caller (the realm-context which borrow does NOT shift).
 func RecordValueReceiverTrace() {
 	trace = "L1_ValueReceiver:cur=" + unsafe.CurrentRealm().PkgPath()
@@ -510,7 +513,7 @@ func NewEvilToucher() *EvilToucher {
 }
 
 // PanicInsideBorrow is invoked by DEFER_BorrowUnwindAfterRecover.
-// Panics inside the Layer 1 borrowed body; caller recovers.
+// Panics inside the borrow rule #1ed body; caller recovers.
 func PanicInsideBorrow() {
 	panic("intentional panic for unwind test")
 }
@@ -573,7 +576,7 @@ import (
 	"gno.land/r/test/owned"
 )
 
-// ----- Layer 1 -----
+// ----- borrow rule #1 -----
 
 func L1_FnTopLevel(cur realm) {
 	owned.MutateGlobal(5)
@@ -613,7 +616,7 @@ func L1_CrossingExplicit(cur realm) {
 	owned.PublicSet(cross(cur), 99)
 }
 
-// ----- Layer 2 -----
+// ----- borrow rule #2 -----
 
 func L2_PMethodOnOwnedReal(cur realm) {
 	owned.Lib.TouchA()
@@ -650,9 +653,9 @@ func CONSTRUCT_NewFails(cur realm) {
 	_ = new(owned.Resource)
 }
 
-// ----- Readonly taint -----
+// ----- Readonly taint removed: foreign-slice round-trip now succeeds -----
 
-func READONLY_RoundTripFails(cur realm) {
+func READONLY_RoundTripSucceeds(cur realm) {
 	owned.MutateSlice(owned.GlobalSlice)
 }
 

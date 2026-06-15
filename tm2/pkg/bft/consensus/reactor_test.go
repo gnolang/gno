@@ -25,6 +25,39 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type prevoteCountingPrivValidator struct {
+	types.PrivValidator
+	mtx              sync.Mutex
+	prevoteSignCalls int
+}
+
+func (pv *prevoteCountingPrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	if vote.Type == types.PrevoteType {
+		pv.mtx.Lock()
+		pv.prevoteSignCalls++
+		pv.mtx.Unlock()
+	}
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
+func (pv *prevoteCountingPrivValidator) PrevoteSignCalls() int {
+	pv.mtx.Lock()
+	defer pv.mtx.Unlock()
+	return pv.prevoteSignCalls
+}
+
+type gatedPrevotePrivValidator struct {
+	types.PrivValidator
+	gate <-chan struct{}
+}
+
+func (pv *gatedPrevotePrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	if vote.Type == types.PrevoteType {
+		<-pv.gate
+	}
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
 // ----------------------------------------------
 // in-process testnets
 
@@ -147,6 +180,80 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 	}
 
 	// wait till everyone makes the first new block
+	timeoutWaitGroup(t, N, func(j int) {
+		<-blocksSubs[j]
+	}, css)
+}
+
+func TestReactorDoesNotResignKnownSelfPrevote(t *testing.T) {
+	t.Parallel()
+
+	const N = 2
+	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
+	defer cleanup()
+
+	node0PrivVal := &prevoteCountingPrivValidator{PrivValidator: css[0].privValidator}
+	css[0].SetPrivValidator(node0PrivVal)
+
+	node1Gate := make(chan struct{})
+	css[1].SetPrivValidator(&gatedPrevotePrivValidator{
+		PrivValidator: css[1].privValidator,
+		gate:          node1Gate,
+	})
+
+	node0VoteCh := subscribeToVoter(css[0], node0PrivVal.PubKey().Address())
+	firstPrevoteCh := make(chan *types.Vote, 1)
+	stopVotes := make(chan struct{})
+	votesDrained := make(chan struct{})
+	go func() {
+		defer close(votesDrained)
+		for {
+			select {
+			case <-stopVotes:
+				return
+			case msg := <-node0VoteCh:
+				voteEvent, ok := msg.(types.EventVote)
+				if !ok || voteEvent.Vote.Type != types.PrevoteType {
+					continue
+				}
+
+				select {
+				case firstPrevoteCh <- voteEvent.Vote:
+				default:
+				}
+			}
+		}
+	}()
+
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
+	defer func() {
+		close(stopVotes)
+		<-votesDrained
+		stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
+	}()
+
+	var selfPrevote *types.Vote
+	select {
+	case <-time.After(ensureTimeout):
+		t.Fatal("timeout waiting for node 0 prevote")
+	case selfPrevote = <-firstPrevoteCh:
+	}
+
+	before := node0PrivVal.PrevoteSignCalls()
+	if before == 0 {
+		t.Fatal("expected node 0 to have signed its prevote")
+	}
+
+	if css[0].Height != selfPrevote.Height || css[0].Round != selfPrevote.Round {
+		t.Fatalf("expected node 0 to still be at %d/%d, got %d/%d", selfPrevote.Height, selfPrevote.Round, css[0].Height, css[0].Round)
+	}
+
+	css[0].signAddVote(types.PrevoteType, selfPrevote.BlockID.Hash, selfPrevote.BlockID.PartsHeader)
+
+	assert.Equal(t, before, node0PrivVal.PrevoteSignCalls())
+
+	close(node1Gate)
+
 	timeoutWaitGroup(t, N, func(j int) {
 		<-blocksSubs[j]
 	}, css)

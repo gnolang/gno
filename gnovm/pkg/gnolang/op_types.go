@@ -159,6 +159,21 @@ func (m *Machine) doOpInterfaceType() {
 	})
 }
 
+// cachedStaticTypeOf returns the static type cached on x via ATTR_TYPEOF_VALUE,
+// unwrapping a single-result CallExpr's 1-element tuple. It returns nil when no
+// type has been cached yet; it never evaluates. Use Machine.staticTypeOfX for
+// the resolving variant.
+func cachedStaticTypeOf(x Expr) Type {
+	t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+	if !ok {
+		return nil
+	}
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
+	}
+	return t
+}
+
 // staticTypeOfX returns the static type of x. Short-circuits via
 // ATTR_TYPEOF_VALUE / *ConstExpr / *constTypeExpr when possible; otherwise
 // runs a Machine sub-evaluation (Push OpHalt, OpStaticTypeOf, Run, Reap).
@@ -166,10 +181,7 @@ func (m *Machine) doOpInterfaceType() {
 // (IndexExpr, SliceExpr, StarExpr, ...) that would otherwise re-evaluate
 // inner subexpression types whose ATTR_TYPEOF_VALUE is already cached.
 func (m *Machine) staticTypeOfX(x Expr) Type {
-	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
-		if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
-			return tt.Elts[0]
-		}
+	if t := cachedStaticTypeOf(x); t != nil {
 		return t
 	}
 	if cx, ok := x.(*ConstExpr); ok {
