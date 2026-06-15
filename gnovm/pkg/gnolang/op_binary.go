@@ -124,20 +124,6 @@ func isInterfaceStaticType(t Type) bool {
 	return ok
 }
 
-func hasInterfaceStaticType(x Expr) bool {
-	if x == nil {
-		return false
-	}
-	// cachedStaticTypeOf unwraps a single-result CallExpr's 1-element tuple,
-	// so a function call returning an interface is recognized as a boundary.
-	t := cachedStaticTypeOf(x)
-	if t == nil {
-		return false
-	}
-	_, ok := baseOf(t).(*InterfaceType)
-	return ok
-}
-
 func (m *Machine) doOpLss() {
 	m.PopExpr()
 
