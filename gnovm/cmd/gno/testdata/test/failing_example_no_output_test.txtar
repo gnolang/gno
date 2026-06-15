@@ -4,7 +4,6 @@
 
 stderr '--- FAIL: ExampleTestFailingNoOutput.+'
 stderr 'got:'
-stderr ''
 stderr 'want:'
 stderr 'foo'
 
