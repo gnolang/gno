@@ -1417,14 +1417,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 
-				// Cache the interface-comparison verdict once: doOpEql/doOpNeq
-				// read ATTR_IFACE_CMP per evaluation instead of recomputing it.
-				// Only set when true, so a present true attribute is the verdict.
-				if (n.Op == EQL || n.Op == NEQ) &&
-					(isInterfaceStaticType(lt) || isInterfaceStaticType(rt)) {
-					n.SetAttribute(ATTR_IFACE_CMP, true)
-				}
-
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 
@@ -1549,6 +1541,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, n, &n.Right, lt)
 						}
 					}
+				}
+
+				// Cache the interface-comparison verdict for doOpEql/doOpNeq.
+				// Here at the end of the case, only surviving ==/!= nodes remain
+				// (const-folds and shifts returned earlier). Set only when true.
+				if (n.Op == EQL || n.Op == NEQ) &&
+					(isInterfaceStaticType(lt) || isInterfaceStaticType(rt)) {
+					n.SetAttribute(ATTR_IFACE_CMP, true)
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
