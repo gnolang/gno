@@ -14,8 +14,8 @@ import (
 )
 
 // TestBinaryExprIfaceCmp_SurvivesColdReload guards the persistence assumption
-// behind BinaryExpr.ifaceCmp: the verdict is computed at preprocess and is NOT
-// amino-persisted, so correctness across a node restart relies on packages
+// behind the ATTR_IFACE_CMP attribute: the verdict is computed at preprocess and
+// is NOT amino-persisted, so correctness across a node restart relies on packages
 // being re-preprocessed on load (store.go: "Upon restart, all packages will be
 // re-preprocessed"). This is the same lifecycle the operands' ATTR_TYPEOF_VALUE
 // already depends on.
@@ -23,8 +23,9 @@ import (
 // The realm function compares two interface values whose dynamic type ([]int)
 // is uncomparable, which must panic. We persist the realm, then load it into a
 // COLD store (fresh node cache over the same backing DB) via the restart
-// re-preprocess protocol, and assert the panic still fires — proving ifaceCmp
-// was re-established on reload rather than silently defaulting to false.
+// re-preprocess protocol, and assert the panic still fires — proving the
+// ATTR_IFACE_CMP verdict was re-established on reload rather than silently
+// defaulting to false.
 func TestBinaryExprIfaceCmp_SurvivesColdReload(t *testing.T) {
 	t.Parallel()
 

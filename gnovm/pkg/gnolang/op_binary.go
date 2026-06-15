@@ -89,7 +89,7 @@ func (m *Machine) doOpEql() {
 	}
 	// set result in lv. ATTR_IFACE_CMP is the preprocess-cached verdict that an
 	// operand is statically interface-typed (see preprocess of *BinaryExpr).
-	res := isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) != nil)
+	res := isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) == true)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -106,22 +106,10 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) != nil)
+	res := !isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) == true)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
-}
-
-// isInterfaceStaticType reports whether the resolved static type t is an
-// interface. Used at preprocess time to set ATTR_IFACE_CMP from the operands'
-// types as returned by evalStaticTypeOf (which already unwraps a single-result
-// tuple, so t is never a raw *tupleType here).
-func isInterfaceStaticType(t Type) bool {
-	if t == nil {
-		return false
-	}
-	_, ok := baseOf(t).(*InterfaceType)
-	return ok
 }
 
 func (m *Machine) doOpLss() {

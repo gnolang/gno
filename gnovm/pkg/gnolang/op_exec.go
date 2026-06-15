@@ -983,7 +983,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	// ATTR_IFACE_CMP is the preprocess-cached verdict (set only for a
 	// non-type-switch with an interface tag); see preprocess of *SwitchStmt.
 	ss := m.PeekStmt1().(*SwitchStmt)
-	viaIface := ss.GetAttribute(ATTR_IFACE_CMP) != nil
+	viaIface := ss.GetAttribute(ATTR_IFACE_CMP) == true
 	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause

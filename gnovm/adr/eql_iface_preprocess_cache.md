@@ -28,8 +28,8 @@ Compute the verdict **once at preprocess** and cache it as an attribute.
 - In `preprocess.go`'s `*BinaryExpr` `TRANS_LEAVE`, where the operand static
   types `lt`/`rt` are already resolved, set `ATTR_IFACE_CMP=true` for `EQL`/`NEQ`
   when `isInterfaceStaticType(lt) || isInterfaceStaticType(rt)`. Set only when
-  true, so the attribute's presence is the verdict.
-- `doOpEql`/`doOpNeq` read `bx.GetAttribute(ATTR_IFACE_CMP) != nil` — one map
+  true, so a present-and-`true` attribute is the verdict.
+- `doOpEql`/`doOpNeq` read `bx.GetAttribute(ATTR_IFACE_CMP) == true` — one map
   lookup instead of #5713's two-lookups-plus-`baseOf`.
 
 The same cache covers the `switch`-tag path: a non-type-switch whose tag is
@@ -90,7 +90,11 @@ doubled the `==`/`!=` op surface.
   cutting the feature's overhead by ~3-4× on the common path while preserving
   the interface-comparison panic.
 - The `switch`-tag comparison path gets the same treatment in one change, so no
-  per-evaluation interface-type recomputation remains for either path.
+  per-evaluation interface-type recomputation remains at the top-level `==`/`!=`
+  and switch-tag boundaries. (The recursive array-element/struct-field interface
+  checks in `isEql` still resolve per-eval — they walk values, not Exprs, so they
+  have no AST node to cache on; their cost is a `baseOf(t).Kind()`, not the
+  attribute-map lookups this cache eliminates.)
 
 ## Verification
 

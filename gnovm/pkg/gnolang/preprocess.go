@@ -1419,7 +1419,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 				// Cache the interface-comparison verdict once: doOpEql/doOpNeq
 				// read ATTR_IFACE_CMP per evaluation instead of recomputing it.
-				// Only set when true, so the attribute's presence is the verdict.
+				// Only set when true, so a present true attribute is the verdict.
 				if (n.Op == EQL || n.Op == NEQ) &&
 					(isInterfaceStaticType(lt) || isInterfaceStaticType(rt)) {
 					n.SetAttribute(ATTR_IFACE_CMP, true)
