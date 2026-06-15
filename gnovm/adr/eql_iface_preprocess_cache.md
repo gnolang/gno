@@ -32,9 +32,12 @@ Compute the verdict **once at preprocess** and cache it as an attribute.
 - `doOpEql`/`doOpNeq` read `bx.GetAttribute(ATTR_IFACE_CMP) != nil` — one map
   lookup instead of #5713's two-lookups-plus-`baseOf`.
 
-`isInterfaceCmp(*BinaryExpr)` is removed (its only callers were the handlers).
-`hasInterfaceStaticType(Expr)` is retained — the `op_exec.go` switch-tag path
-still uses it.
+The same cache covers the `switch`-tag path: a non-type-switch whose tag is
+statically an interface compares each case like an interface equality, so its
+`*SwitchStmt` gets `ATTR_IFACE_CMP` at preprocess and `op_exec` reads it per
+clause comparison. With both call sites converted, the per-evaluation helpers
+`isInterfaceCmp(*BinaryExpr)` and `hasInterfaceStaticType(Expr)` are removed;
+`isInterfaceStaticType(Type)` is the single preprocess-time predicate.
 
 ### Why an attribute, not a struct field
 
@@ -86,9 +89,8 @@ doubled the `==`/`!=` op surface.
 - Per-evaluation `==`/`!=` cost drops from two attribute lookups to one,
   cutting the feature's overhead by ~3-4× on the common path while preserving
   the interface-comparison panic.
-- **Follow-up (out of scope):** `op_exec.go`'s switch-tag path
-  (`hasInterfaceStaticType(ss.X)`) still recomputes its verdict per evaluation;
-  the same preprocess cache could be applied to `SwitchStmt`.
+- The `switch`-tag comparison path gets the same treatment in one change, so no
+  per-evaluation interface-type recomputation remains for either path.
 
 ## Verification
 
