@@ -302,6 +302,20 @@ func (m *Machine) setRealm(r *Realm) {
 	}
 }
 
+// assertBorrowedRealm panics (debug builds only) when a borrow rule is about
+// to set m.Realm to nil for a package that MUST carry a realm — /r/, /p/, or
+// stdlib (IsRealmPath || isImmutableLibraryPath). That would silently put the
+// machine in "single-user mode" (IsReadonly/isExternalRealm short-circuit on
+// nil m.Realm) and reopen the nil-realm cross-realm write hole. _test overlays
+// and uverse legitimately have no realm and are excluded (neither predicate
+// matches them).
+func assertBorrowedRealm(pkgPath string, r *Realm) {
+	if debugAssert && r == nil &&
+		(IsRealmPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
+		panic("borrow rule set m.Realm=nil for realm-bearing package: " + pkgPath)
+	}
+}
+
 //----------------------------------------
 // top level Run* methods.
 
@@ -2291,7 +2305,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.setRealm(pv.GetRealm())
+		r := pv.GetRealm()
+		assertBorrowedRealm(pv.PkgPath, r)
+		m.setRealm(r)
 		return
 	}
 
@@ -2320,28 +2336,36 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing. Layered borrow:
-	//   1. /r/-declared function/method → borrow to method's
-	//      declaring realm (any receiver shape, or top-level
-	//      function). Closes the .Title() class for /r/-declared
-	//      callables: attacker code runs with attacker's
-	//      authority, not victim's.
-	//   2. Otherwise (stdlib or /p/-declared) → if the receiver is
-	//      a real object in a foreign realm, borrow to receiver's
-	//      storage realm. Preserves the existing pattern where
-	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
-	//      mutate state living in another realm.
-	//   3. Otherwise, if fv is a closure (FuncLit-constructed, not
-	//      a top-level FuncDecl) → borrow to the realm whose
-	//      authority was active when the closure was minted.
-	//      Realizes "closure = capability": invoking a persisted
-	//      closure runs its body under the realm owning its
-	//      captures, so writes to captured HIVs are in-realm at
-	//      every NameExpr write site — no per-write gate needed
-	//      in isExternalRealm.
+	// Not cross nor crossing. Three borrow rules apply (the first
+	// applicable one fires):
+	//
+	//   #1. /r/-declared function/method/closure → borrow to the
+	//       callable's declaring realm (any receiver shape, or top-level
+	//       function). /r/attacker code runs with /r/attacker's
+	//       authority, not victim's.
+	//
+	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
+	//       foreign-stamped object, borrow to the receiver's constructing
+	//       realm (which is the same as its storage realm).
+	//
+	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
+	//       package, borrow to the realm context that was active when
+	//       the closure was constructed (and will be stored).
+	//
+	// Stdlib-stamped receivers are EXCLUDED from borrow rule #2: stdlib is
+	// a trusted, frozen transform library that owns no mutable state, so
+	// its methods run with the CALLER's authority (m.Realm unchanged), not
+	// stdlib's. This lets a stdlib method write a caller-supplied out-param
+	// buffer (e.g. base64.Encode(dst, src) where dst is caller-owned), while
+	// still blocking writes to a third realm's data (foreign != caller). It
+	// also keeps the nil-realm write hole closed: a tx's entry realm is
+	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
+	// by the readonly gate against the caller's realm.
 	if IsRealmPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
-			m.setRealm(pv.GetRealm())
+			r := pv.GetRealm()
+			assertBorrowedRealm(pv.PkgPath, r)
+			m.setRealm(r)
 		}
 		return
 	}
@@ -2349,15 +2373,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		obj := recv.GetFirstObject(m.Store)
 		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() &&
+			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
 				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				m.setRealm(objpv.GetRealm())
+				r := objpv.GetRealm()
+				assertBorrowedRealm(objpv.PkgPath, r)
+				m.setRealm(r)
 			}
 		}
 	}
-	// Rule 3: closure capture-realm borrow.
+	// borrow rule #3: closure capture-realm borrow.
 	//
 	// fv.GetObjectInfo().ID.PkgID is the realm whose currentRealmID
 	// was active at doOpFuncLit (closure construction) time. For
@@ -2367,19 +2393,25 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//
 	// IsClosure gates this: top-level FuncDecls also carry a stamped
 	// PkgID (= the declaring package), but they don't represent a
-	// closed-over capability — Rule 1 already handles the /r/-declared
+	// closed-over capability — borrow rule #1 already handles the /r/-declared
 	// case, and /p/-declared FuncDecls shouldn't shift the realm.
 	//
-	// The zero-PkgID check skips closures constructed in uverse/stdlib
-	// init (no realm context). The equality short-circuit avoids a
-	// redundant setRealm when we're already in the closure's home.
+	// Stdlib-stamped closures are skipped, mirroring borrow rule #2's
+	// stdlib-receiver skip: stdlib owns no mutable state and runs with the
+	// caller's authority, so a stdlib-init-constructed closure keeps m.Realm
+	// at the caller's realm rather than borrowing to the (frozen) stdlib
+	// realm. The zero-PkgID check skips closures constructed with no realm
+	// context (uverse). The equality short-circuit avoids a redundant
+	// setRealm when we're already in the closure's home.
 	if fv.IsClosure {
 		pid := fv.GetObjectInfo().ID.PkgID
-		if !pid.IsZero() && (m.Realm == nil || pid != m.Realm.ID) {
+		if !pid.IsZero() && !pid.IsStdlibPkg() && (m.Realm == nil || pid != m.Realm.ID) {
 			pkgOID := ObjectIDFromPkgID(pid)
 			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
 				if objpv, ok := pobj.(*PackageValue); ok {
-					m.setRealm(objpv.GetRealm())
+					r := objpv.GetRealm()
+					assertBorrowedRealm(objpv.PkgPath, r)
+					m.setRealm(r)
 				}
 			}
 		}
@@ -2626,22 +2658,39 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// "tainted" here is loose: most failures are not the sticky N_Readonly
-// bit but the contextual ownership check (tvoid.PkgID != m.Realm.ID) —
-// i.e., the target is owned by a realm different from the one currently
-// executing. Either way, going through a method or crossing function
-// re-enters via PushFrameCall, whose implicit borrow-realm switch (or
-// hard cross-call) lines m.Realm up with the target's owner.
+// The "tainted" wording in the message is historical; the failure is the
+// cross-realm ownership check (tvoid.PkgID != m.Realm.ID) — the target is
+// owned by a realm different from the one currently executing. Going
+// through a method or crossing function re-enters via PushFrameCall, whose
+// implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
+// the target's owner.
 func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns false if m.Realm is nil (single user mode, nothing is readonly).
-// Otherwise returns true iff:
+// IsReadonly is the write-guard form, used at every mutation site
+// (PopAsPointer2, uverse append/copy/delete, map assign). Returns false if
+// m.Realm is nil (single user mode). Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
-//   - tv is N_Readonly, or
 //   - tv is a real object residing in external realm
+//
+// One own-package write exemption: STDLIB code may write its own
+// stdlib-stamped data. Stdlib is transient-mutable (re-initialized each tx —
+// e.g. math/rand's global RNG advancing p.lo/p.hi), and stdlib methods run
+// with the caller's realm (borrow rule #2 is skipped for stdlib receivers),
+// so without this a stdlib package mutating its own global would wrongly
+// panic. Keyed on m.Package (the executing code), so an attacker can't
+// trigger it; and NOT granted to /p/ — a /p/ package writing its own
+// immutable global must still be blocked.
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	var ownPkgID PkgID
+	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() {
+		ownPkgID = m.Package.PkgID
+	}
+	return m.isReadonly(tv, ownPkgID)
+}
+
+func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
@@ -2654,9 +2703,9 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 			return true // external package
 		}
 	}
-	//   - tv is N_Readonly, or
-	//   - tv is a real object residing in external realm
-	return tv.IsReadonlyBy(m.Realm.ID)
+	//  - tv is a real object residing in external realm (unless it is the
+	//    executing package's own data, stamped ownPkgID).
+	return tv.IsReadonlyBy(m.Realm.ID, ownPkgID)
 }
 
 // isExternalRealm returns true if base is a real Object belonging to
@@ -2676,7 +2725,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	}
 	// HIVs are exempt from the external-realm gate at the NameExpr
 	// write path. Two paths reach here:
-	//   - Real HIV in foreign realm: PushFrameCall's Rule 3 already
+	//   - Real HIV in foreign realm: PushFrameCall's borrow rule #3 already
 	//     borrowed m.Realm to the closure's capture-realm, so by
 	//     the time we get here HIV.PkgID == m.Realm.ID. The check
 	//     would be a no-op anyway; skip to save the comparison.
@@ -2689,6 +2738,15 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	// at ownership.go:468-490; that's still the authoritative gate
 	// for pointer-deref writes obtained via &name.
 	if _, ok := base.(*HeapItemValue); ok {
+		return false
+	}
+	// Stdlib own-write exemption (mirrors IsReadonly): a stdlib package may
+	// write its own stdlib-stamped package global (e.g. a top-level stdlib
+	// function reassigning a global) even though it runs with the caller's
+	// realm, since borrow rule #2 is skipped for stdlib receivers. Keyed on
+	// m.Package (the executing code), so an attacker can't trigger it; NOT
+	// granted to /p/ — a /p/ global stays immutable post-init.
+	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() && oid.PkgID == m.Package.PkgID {
 		return false
 	}
 	return oid.PkgID != m.Realm.ID

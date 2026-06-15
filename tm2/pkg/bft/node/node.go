@@ -361,6 +361,7 @@ func createConsensusReactor(config *cfg.Config,
 		blockExec,
 		blockStore,
 		mempool,
+		cs.NoOpEvidencePool{},
 	)
 	consensusState.SetLogger(consensusLogger)
 	if privValidator != nil {

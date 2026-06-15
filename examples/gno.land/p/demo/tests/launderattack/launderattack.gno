@@ -127,7 +127,7 @@ func (EvilAnyMutator) Run(x any) {
 
 // EvilWrite is a top-level /p/-declared function value matching
 // `func(*launderpkg.Immutable)`. Top-level /p/ functions trigger
-// neither Rule 1 (not /r/-declared) nor Rule 2 (no receiver), so
+// neither borrow rule #1 (not /r/-declared) nor borrow rule #2 (no receiver), so
 // when EvilWrite is invoked as a callback from inside a
 // borrowed-to-victim /p/-method body (e.g. Immutable.Apply, or any
 // avl.Tree.Iterate-style hook), it inherits the victim's m.Realm
@@ -140,6 +140,18 @@ func EvilWrite(i *launderpkg.Immutable) {
 // that exercise Object's mutator surface through Apply-style callbacks.
 func EvilObjectWrite(o *launderpkg.Object) {
 	o.Field = "pwnd-via-apply-obj"
+}
+
+// StoredHook is a /p/attack package-level closure: a FuncLit evaluated
+// during /p/launderattack init, so its ObjectInfo.PkgID is stamped
+// /p/launderattack. Unlike a top-level FuncDecl (EvilWrite/EvilObjectWrite,
+// IsClosure=false), invoking a closure triggers PushFrameCall's borrow rule
+// #3, which borrows m.Realm to the closure's construction realm
+// (/p/launderattack). Used to probe rule #3: a write through it to a foreign
+// /r/ object must still be rejected. (If rule #3 ever regressed to a nil
+// borrow, m.Realm would go nil and the write would silently succeed.)
+var StoredHook = func(o *launderpkg.Object) {
+	o.Field = "pwnd-via-stored-closure"
 }
 
 // Tamperer is a stamped /p/attack value (constructed at init under
