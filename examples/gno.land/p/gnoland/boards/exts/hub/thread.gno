@@ -15,8 +15,6 @@ type Flag struct {
 
 // Thread defines a type for board threads.
 type Thread struct {
-	ref *boards.Post
-
 	// ID is the unique identifier of the thread.
 	ID uint64
 
@@ -61,28 +59,6 @@ type Thread struct {
 	UpdatedAt int64
 }
 
-// IterateFlags iterates thread moderation flags.
-// To reverse iterate use a negative count.
-func (t Thread) IterateFlags(start, count int, fn func(boards.Flag) bool) bool {
-	return t.ref.Flags.Iterate(start, count, fn)
-}
-
-// IterateReposts iterates thread reposts.
-// To reverse iterate use a negative count.
-func (t Thread) IterateReposts(start, count int, fn func(boardID, repostThreadID uint64) bool) bool {
-	return t.ref.Reposts.Iterate(start, count, func(boardID, repostThreadID boards.ID) bool {
-		return fn(uint64(boardID), uint64(repostThreadID))
-	})
-}
-
-// IterateComments iterates thread comments.
-// To reverse iterate use a negative count.
-func (t Thread) IterateComments(start, count int, fn func(Comment) bool) bool {
-	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		return fn(NewSafeComment(comment))
-	})
-}
-
 // NewSafeThread creates a safe thread.
 func NewSafeThread(ref *boards.Post) Thread {
 	if !boards.IsThread(ref) {
@@ -90,7 +66,6 @@ func NewSafeThread(ref *boards.Post) Thread {
 	}
 
 	return Thread{
-		ref:              ref,
 		ID:               uint64(ref.ID),
 		OriginalBoardID:  uint64(ref.OriginalBoardID),
 		OriginalThreadID: uint64(ref.ParentID),

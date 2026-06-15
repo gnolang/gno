@@ -6,8 +6,6 @@ import (
 
 // Comment defines a type for threads comment/replies.
 type Comment struct {
-	ref *boards.Post
-
 	// ID is the unique identifier of the comment.
 	ID uint64
 
@@ -43,20 +41,6 @@ type Comment struct {
 	UpdatedAt int64
 }
 
-// IterateFlags iterates comment moderation flags.
-// To reverse iterate use a negative count.
-func (c Comment) IterateFlags(start, count int, fn func(boards.Flag) bool) bool {
-	return c.ref.Flags.Iterate(start, count, fn)
-}
-
-// IterateReplies iterates comment replies (sub-comments).
-// To reverse iterate use a negative count.
-func (t Comment) IterateReplies(start, count int, fn func(Comment) bool) bool {
-	return t.ref.Replies.Iterate(start, count, func(comment *boards.Post) bool {
-		return fn(NewSafeComment(comment))
-	})
-}
-
 // NewSafeComment creates a safe comment.
 func NewSafeComment(ref *boards.Post) Comment {
 	if boards.IsThread(ref) {
@@ -74,7 +58,6 @@ func NewSafeComment(ref *boards.Post) Comment {
 	}
 
 	return Comment{
-		ref:        ref,
 		ID:         uint64(ref.ID),
 		BoardID:    uint64(ref.Board.ID),
 		ThreadID:   uint64(ref.ThreadID),

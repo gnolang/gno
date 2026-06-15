@@ -12,8 +12,6 @@ type Member struct {
 
 // Board defines a safe type for boards.
 type Board struct {
-	ref *boards.Board
-
 	// ID is the unique identifier of the board.
 	ID uint64
 
@@ -42,20 +40,6 @@ type Board struct {
 	UpdatedAt int64
 }
 
-// IterateThreads iterates board threads by creation time.
-// To reverse iterate use a negative count.
-func (b Board) IterateThreads(start, count int, fn func(Thread) bool) bool {
-	return b.ref.Threads.Iterate(start, count, func(thread *boards.Post) bool {
-		return fn(NewSafeThread(thread))
-	})
-}
-
-// IterateMembers iterates board members.
-// To reverse iterate use a negative count.
-func (b Board) IterateMembers(start, count int, fn func(boards.User) bool) bool {
-	return b.ref.Permissions.IterateUsers(start, count, fn)
-}
-
 // NewSafeBoard creates a safe board.
 func NewSafeBoard(ref *boards.Board) Board {
 	var usersCount int
@@ -69,7 +53,6 @@ func NewSafeBoard(ref *boards.Board) Board {
 	}
 
 	return Board{
-		ref:         ref,
 		ID:          uint64(ref.ID),
 		Name:        ref.Name,
 		Aliases:     append([]string(nil), ref.Aliases...),
