@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -800,14 +802,30 @@ func loadExampleTestFuncs(tfiles *gno.FileSet) (rt []*gno.FuncDecl) {
 				if fd.IsMethod {
 					continue
 				}
-				fname := string(fd.Name)
-				if strings.HasPrefix(fname, "Example") && len(fd.Type.Params) == 0 {
+				if isExampleFunc(fd) {
 					rt = append(rt, fd)
 				}
 			}
 		}
 	}
 	return
+}
+
+// isExampleFunc checks if fd is a function with no args or return values and valid function name starting with "Example"
+func isExampleFunc(fd *gno.FuncDecl) bool {
+	const prefix = "Example"
+	name := string(fd.Name)
+	if fd.IsMethod || len(fd.Type.Params) != 0 || len(fd.Type.Results) != 0 {
+		return false
+	}
+	if !strings.HasPrefix(name, prefix) {
+		return false
+	}
+	if len(name) == len(prefix) {
+		return true
+	}
+	r, _ := utf8.DecodeRuneInString(name[len(prefix):])
+	return !unicode.IsLower(r)
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the mpkg.
