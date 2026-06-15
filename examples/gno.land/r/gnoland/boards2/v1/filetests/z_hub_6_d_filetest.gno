@@ -48,7 +48,7 @@ func main(cur realm) {
 	flags := boards2.GetFlags(comment.BoardID(), comment.ThreadID(), comment.ID(), 0, comment.FlagCount())
 
 	for _, f := range flags {
-		println(f.User, f.Reason)
+		println(f.User(), f.Reason())
 	}
 }
 

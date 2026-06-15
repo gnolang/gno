@@ -110,10 +110,10 @@ func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 	return reposts
 }
 
-// GetFlag returns a list with thread or comment moderation flags.
+// GetFlags returns a list with thread or comment moderation flags.
 // To reverse iterate use a negative count.
 // Thread flags are returned when `commentID` is zero, or comment flags are returned otherwise.
-func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Flag {
+func GetFlags(boardID, threadID, commentID uint64, start, count int) []Flag {
 	var storage boards.FlagStorage
 	if commentID == 0 {
 		t, found := getBoardThread(boardID, threadID)
@@ -131,9 +131,9 @@ func GetFlags(boardID, threadID, commentID uint64, start, count int) []boards.Fl
 		storage = c.Flags
 	}
 
-	var flags []boards.Flag
+	var flags []Flag
 	storage.Iterate(start, count, func(f boards.Flag) bool {
-		flags = append(flags, f)
+		flags = append(flags, hubexts.NewSafeFlag(f))
 		return false
 	})
 	return flags

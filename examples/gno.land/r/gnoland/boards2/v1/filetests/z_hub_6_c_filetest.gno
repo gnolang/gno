@@ -47,7 +47,7 @@ func main(cur realm) {
 	flags := boards2.GetFlags(thread.BoardID(), thread.ID(), 0, 0, thread.FlagCount())
 
 	for _, f := range flags {
-		println(f.User, f.Reason)
+		println(f.User(), f.Reason())
 	}
 }
 
