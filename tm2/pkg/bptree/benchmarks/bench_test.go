@@ -58,6 +58,12 @@ type TreeBench interface {
 	Height() int8
 	Version() int64
 	Close() error
+	// CommittedReader opens a read-only snapshot at version and returns a
+	// point-read function over it (the ABCI-query read path) plus a closer.
+	// bptree routes through ImmutableTree.Get (so the fast index engages); iavl
+	// through its ImmutableTree (fast nodes engage). The working-tree Get does
+	// NOT use the bptree fast index, so this is the path that exercises it.
+	CommittedReader(version int64) (get func([]byte) ([]byte, error), closeFn func() error, err error)
 }
 
 // -----------------------------------------------------------------------
@@ -95,6 +101,13 @@ func (w *iavlTree) Size() int64         { return w.t.Size() }
 func (w *iavlTree) Height() int8        { return w.t.Height() }
 func (w *iavlTree) Version() int64      { return w.t.Version() }
 func (w *iavlTree) Close() error        { return w.t.Close() }
+func (w *iavlTree) CommittedReader(version int64) (func([]byte) ([]byte, error), func() error, error) {
+	imm, err := w.t.GetImmutable(version)
+	if err != nil {
+		return nil, nil, err
+	}
+	return imm.Get, func() error { return nil }, nil // iavl ImmutableTree needs no Close
+}
 
 // -----------------------------------------------------------------------
 // bptree wrapper
@@ -138,6 +151,13 @@ func (w *bptreeTree) Size() int64         { return w.t.Size() }
 func (w *bptreeTree) Height() int8        { return w.t.Height() }
 func (w *bptreeTree) Version() int64      { return w.t.Version() }
 func (w *bptreeTree) Close() error        { return w.t.Close() }
+func (w *bptreeTree) CommittedReader(version int64) (func([]byte) ([]byte, error), func() error, error) {
+	imm, err := w.t.GetImmutable(version) // committed snapshot; imm.Get uses the fast index
+	if err != nil {
+		return nil, nil, err
+	}
+	return imm.Get, imm.Close, nil // Close releases the version-reader reservation
+}
 
 // -----------------------------------------------------------------------
 // Helpers

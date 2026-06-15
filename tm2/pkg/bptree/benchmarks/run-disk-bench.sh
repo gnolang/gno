@@ -23,7 +23,9 @@
 #               (40 reload-interval windows; capped at 8 reported.
 #                lower for quick checks)
 #   NODE_CACHE  in-process node LRU                           [10000]
-#   FACTORIES   trees to run                                  ["iavl bptree"]
+#   FACTORIES   trees to run                                  ["iavl bptree-fast"]
+#               (bptree-fast reuses the "bptree" fixture and backfills the
+#                inline index on first Load — see the heads-up below)
 #   BUILD_BATCH keys per SaveVersion while building           [25000]
 #               (raise to 100000 on a big-RAM box for a faster build)
 #   WARMUP      untimed ops before each bench                 [50000]
@@ -36,6 +38,10 @@
 #   DROP_CACHES 1 = drop OS page cache before each bench       [1] (needs sudo)
 #   GOMEMLIMIT  Go soft heap cap, to survive big populates     [12GiB]
 #   OUT         results/logs dir                               [./bench-out]
+#   COMMITTED_READ 1 = GetRandom/GetMiss read via a committed    [1]
+#               snapshot at the latest version (the ABCI-query path the bptree
+#               fast index serves); 0 = working-tree Get (index-free, the old
+#               behavior). bptree-fast only beats iavl on reads with this on.
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -47,17 +53,22 @@ BLOCK="${BLOCK:-1000}"
 WRITE_N="${WRITE_N:-1200}"
 READ_N="${READ_N:-4000000}"
 NODE_CACHE="${NODE_CACHE:-10000}"
-FACTORIES="${FACTORIES:-iavl bptree}"
+FACTORIES="${FACTORIES:-iavl bptree-fast}"
 BUILD_BATCH="${BUILD_BATCH:-25000}"
 WARMUP="${WARMUP:-50000}"
 PARALLEL="${PARALLEL:-1}"
 DROP_CACHES="${DROP_CACHES:-1}"
 OUT="${OUT:-./bench-out}"
+COMMITTED_READ="${COMMITTED_READ:-1}"
 export GOMEMLIMIT="${GOMEMLIMIT:-12GiB}"
 
 PKG=./tm2/pkg/bptree/benchmarks/
 mkdir -p "$DIR" "$OUT"
 common=(-disk-dir="$DIR" -disk-keys="$KEYS" -disk-backend="$BACKEND" -disk-node-cache="$NODE_CACHE")
+# committed-read flag for the Get benches only (BlockWrite ignores it). A scalar,
+# not an array, so the empty case expands to nothing cleanly under `set -u`.
+read_flag=""
+[ "$COMMITTED_READ" = 1 ] && read_flag="-disk-committed-read"
 
 drop_caches() {
 	[ "$DROP_CACHES" = 1 ] || return 0
@@ -102,12 +113,12 @@ for f in $FACTORIES; do
 	drop_caches
 	echo ">> GetRandom $f"
 	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetRandom -timeout=2h \
-		"${common[@]}" -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
+		"${common[@]}" $read_flag -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
 		2>&1 | tee "$OUT/getrandom-$f.txt"
 	drop_caches
 	echo ">> GetMiss $f"
 	go test "$PKG" -run='^$' -bench=BenchmarkDiskGetMiss -timeout=2h \
-		"${common[@]}" -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
+		"${common[@]}" $read_flag -disk-factory="$f" -disk-warmup-ops="$WARMUP" -benchtime="${READ_N}x" \
 		2>&1 | tee "$OUT/getmiss-$f.txt"
 done
 

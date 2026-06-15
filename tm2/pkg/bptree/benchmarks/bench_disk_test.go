@@ -55,18 +55,19 @@ import (
 )
 
 var (
-	diskDir          = flag.String("disk-dir", "", "persistent dir for disk fixtures; empty = ephemeral TempDir (fixture rebuilt each run)")
-	diskKeys         = flag.Int64("disk-keys", 1_000_000, "fixture size N in keys (set 100000000 for the realistic disk-bound comparison)")
-	diskBlock        = flag.Int("disk-block", 1000, "writes per block (SaveVersion cadence) for the block-write benchmark")
-	diskNodeCache    = flag.Int("disk-node-cache", 10000, "in-process node LRU cache size, in nodes (production-realistic)")
-	diskUpdateFrac   = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
-	diskBuildBatch   = flag.Int64("disk-build-batch", 25_000, "keys per SaveVersion while building the fixture")
-	diskWarmupOps    = flag.Int("disk-warmup-ops", 0, "untimed ops before measurement to warm the node LRU (random gets for the Get benches; whole blocks for BlockWrite). A fresh tree starts cold and reported counts average over every iteration, so size this to several times the node cache: ~50000 for the default 10K cache, ~1500000 for a 330K cache")
-	diskReloadEvery  = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
-	diskFactory      = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree|bptree-fast (empty = all). Lets processes populate in parallel into one -disk-dir. bptree-fast reuses the bptree fixture (run it after bptree, not concurrently).")
-	diskVerbose      = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
-	diskVerboseEvery = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
-	diskBackend      = flag.String("disk-backend", "pebbledb", "db backend for fixtures: pebbledb (tuned 500MB cache+bloom), goleveldb, boltdb; lmdbdb/mdbxdb need a cgo build")
+	diskDir           = flag.String("disk-dir", "", "persistent dir for disk fixtures; empty = ephemeral TempDir (fixture rebuilt each run)")
+	diskKeys          = flag.Int64("disk-keys", 1_000_000, "fixture size N in keys (set 100000000 for the realistic disk-bound comparison)")
+	diskBlock         = flag.Int("disk-block", 1000, "writes per block (SaveVersion cadence) for the block-write benchmark")
+	diskNodeCache     = flag.Int("disk-node-cache", 10000, "in-process node LRU cache size, in nodes (production-realistic)")
+	diskUpdateFrac    = flag.Float64("disk-update-frac", 0.5, "fraction of block writes that update existing keys (rest insert new keys)")
+	diskBuildBatch    = flag.Int64("disk-build-batch", 25_000, "keys per SaveVersion while building the fixture")
+	diskWarmupOps     = flag.Int("disk-warmup-ops", 0, "untimed ops before measurement to warm the node LRU (random gets for the Get benches; whole blocks for BlockWrite). A fresh tree starts cold and reported counts average over every iteration, so size this to several times the node cache: ~50000 for the default 10K cache, ~1500000 for a 330K cache")
+	diskReloadEvery   = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
+	diskCommittedRead = flag.Bool("disk-committed-read", false, "read the Get/GetMiss benches through a committed snapshot held at the latest version (the ABCI-query path that the bptree fast index serves) instead of the working-tree Get, which is index-free")
+	diskFactory       = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree|bptree-fast (empty = all). Lets processes populate in parallel into one -disk-dir. bptree-fast reuses the bptree fixture (run it after bptree, not concurrently).")
+	diskVerbose       = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
+	diskVerboseEvery  = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
+	diskBackend       = flag.String("disk-backend", "pebbledb", "db backend for fixtures: pebbledb (tuned 500MB cache+bloom), goleveldb, boltdb; lmdbdb/mdbxdb need a cgo build")
 )
 
 // openDiskDB opens fixture sub-DB `name` under dir, honoring -disk-backend.
@@ -477,6 +478,32 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 	return diskFixture{tree: tree, db: cdb, n: n, close: closeFn}
 }
 
+// pointReadFn returns the per-op read function for the Get benches plus a closer.
+// By default it's the working-tree Get (index-free for bptree); with
+// -disk-committed-read it's a point read through a single committed snapshot held
+// at the latest version — the ABCI-query path, where the bptree fast index
+// engages (iavl's fast nodes engage on either path). The snapshot is opened ONCE
+// and reused for the whole loop — deliberately not MutableTree.GetVersioned, which
+// re-opens (GetImmutable) per call: a per-read open adds its root read to every op
+// and would inflate reads/op by ~1 for every tree, hiding the index's win. Node
+// memory stays bounded by the shared LRU since the snapshot pins only its root.
+//
+// Contract: a disk read bench must route EVERY lookup through the returned read fn
+// (warmup included), never fx.tree.Get directly — otherwise -disk-committed-read is
+// silently ignored for that bench and it measures the index-free working tree.
+func pointReadFn(b *testing.B, fx diskFixture) (read func([]byte) ([]byte, error), closeFn func()) {
+	if !*diskCommittedRead {
+		return fx.tree.Get, func() {}
+	}
+	v := fx.tree.Version()
+	get, c, err := fx.tree.CommittedReader(v)
+	if err != nil {
+		b.Fatalf("committed reader at v%d: %v", v, err)
+	}
+	b.Logf("reading via committed snapshot at version %d (ABCI-query path)", v)
+	return get, func() { _ = c() }
+}
+
 // BenchmarkDiskGetRandom measures random point reads of existing keys against a
 // large on-disk fixture. Each op derives a fresh random existing key, so reads
 // are genuinely scattered across the whole keyspace (not a small repeating pool
@@ -488,6 +515,8 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
 			b.Logf("%s fixture: %d items, height %d", f.name, fx.tree.Size(), fx.tree.Height())
+			read, closeReader := pointReadFn(b, fx)
+			defer closeReader()
 			rng := mrand.New(mrand.NewSource(1))
 			var key [diskKeyLen]byte
 			// Untimed warmup: move the LRU ramp's knee before the measured
@@ -502,15 +531,18 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 						_, _ = fx.tree.Load()
 					}
 					putDiskKey(key[:], uint64(warm.Int63n(int64(n))))
-					if _, err := fx.tree.Get(key[:]); err != nil {
+					if _, err := read(key[:]); err != nil {
 						b.Fatalf("warmup Get: %v", err)
 					}
 				}
 			}
-			// reads/op = node DB reads (Get) per point read ≈ traversal depth
-			// above the node LRU (IAVL+fast ~1, bp32 ~2). Fold around the
-			// untimed reload so its reads aren't counted; each reload interval
-			// is one convergence segment.
+			// reads/op = node DB reads (Get) per point read. With
+			// -disk-committed-read, IAVL and bptree-fast both ~1 (their fast
+			// layer returns the value in one read); plain bptree ~height (full
+			// node walk + out-of-line value fetch). Without the flag, reads route
+			// through the index-free working tree for every tree. Fold around the
+			// untimed reload so its reads aren't counted; each reload interval is
+			// one convergence segment.
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			segStart := 0
@@ -524,7 +556,7 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 					b.StartTimer()
 				}
 				putDiskKey(key[:], uint64(rng.Int63n(int64(n))))
-				if _, err := fx.tree.Get(key[:]); err != nil {
+				if _, err := read(key[:]); err != nil {
 					b.Fatalf("Get: %v", err)
 				}
 			}
@@ -548,6 +580,8 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 		b.Run(fmt.Sprintf("%s/%s", f.name, humanCount(n)), func(b *testing.B) {
 			b.ReportAllocs()
 			b.Logf("%s fixture: %d items, height %d", f.name, fx.tree.Size(), fx.tree.Height())
+			read, closeReader := pointReadFn(b, fx)
+			defer closeReader()
 			rng := mrand.New(mrand.NewSource(3))
 			var key [diskKeyLen]byte
 			if b.N > 1 {
@@ -557,7 +591,7 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 						_, _ = fx.tree.Load()
 					}
 					putDiskMissKey(key[:], uint64(warm.Int63n(int64(n))))
-					if _, err := fx.tree.Get(key[:]); err != nil {
+					if _, err := read(key[:]); err != nil {
 						b.Fatalf("warmup Get: %v", err)
 					}
 				}
@@ -575,7 +609,7 @@ func BenchmarkDiskGetMiss(b *testing.B) {
 					b.StartTimer()
 				}
 				putDiskMissKey(key[:], uint64(rng.Int63n(int64(n))))
-				if _, err := fx.tree.Get(key[:]); err != nil {
+				if _, err := read(key[:]); err != nil {
 					b.Fatalf("Get: %v", err)
 				}
 			}
