@@ -45,7 +45,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := boards2.GetFlags(comment.BoardID, comment.ThreadID, comment.ID, 0, comment.FlagCount)
+	flags := boards2.GetFlags(comment.BoardID(), comment.ThreadID(), comment.ID(), 0, comment.FlagCount())
 
 	for _, f := range flags {
 		println(f.User, f.Reason)

@@ -43,8 +43,8 @@ func TestThreadIterateFlags(t *testing.T) {
 
 			comment := hub.NewSafeComment(ref)
 
-			urequire.Equal(t, len(tt.flags), comment.FlagCount, "expect number of flags to match")
-			comment.IterateFlags(0, comment.FlagCount, func(f boards.Flag) bool {
+			urequire.Equal(t, len(tt.flags), comment.FlagCount(), "expect number of flags to match")
+			comment.IterateFlags(0, comment.FlagCount(), func(f boards.Flag) bool {
 				urequire.Equal(t, tt.flags[i].User, f.User, "expect user to match")
 				urequire.Equal(t, tt.flags[i].Reason, f.Reason, "expect reason to match")
 				i++
@@ -103,8 +103,8 @@ func TestThreadIterateReposts(t *testing.T) {
 
 			thread := hub.NewSafeThread(ref)
 
-			urequire.Equal(t, ref.Reposts.Size(), thread.RepostCount, "expect number of reposts to match")
-			thread.IterateReposts(0, thread.RepostCount, func(boardID, repostThreadID uint64) bool {
+			urequire.Equal(t, ref.Reposts.Size(), thread.RepostCount(), "expect number of reposts to match")
+			thread.IterateReposts(0, thread.RepostCount(), func(boardID, repostThreadID uint64) bool {
 				urequire.Equal(t, tt.expected[i][0], boardID, "expect repost board ID to match")
 				urequire.Equal(t, tt.expected[i][1], repostThreadID, "expect repost thread ID to match")
 				i++
@@ -153,14 +153,14 @@ func TestThreadIterateComments(t *testing.T) {
 
 			thread := hub.NewSafeThread(ref)
 
-			urequire.Equal(t, ref.Replies.Size(), thread.CommentCount, "expect number of replies to match")
-			thread.IterateComments(0, thread.CommentCount, func(comment hub.Comment) bool {
-				id := boards.ID(comment.ID)
+			urequire.Equal(t, ref.Replies.Size(), thread.CommentCount(), "expect number of replies to match")
+			thread.IterateComments(0, thread.CommentCount(), func(comment hub.Comment) bool {
+				id := boards.ID(comment.ID())
 				expected, found := ref.Replies.Get(id)
 
 				urequire.True(t, found, "expect comment to be found")
-				urequire.Equal(t, expected.Creator, comment.Creator, "expect creator to match")
-				urequire.Equal(t, expected.Body, comment.Body, "expect body to match")
+				urequire.Equal(t, expected.Creator, comment.Creator(), "expect creator to match")
+				urequire.Equal(t, expected.Body, comment.Body(), "expect body to match")
 				return false
 			})
 		})

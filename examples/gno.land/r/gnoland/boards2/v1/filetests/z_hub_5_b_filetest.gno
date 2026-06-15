@@ -31,10 +31,10 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	reposts := boards2.GetReposts(thread.BoardID, thread.ID, 0, thread.RepostCount)
+	reposts := boards2.GetReposts(thread.BoardID(), thread.ID(), 0, thread.RepostCount())
 
 	for _, t := range reposts {
-		println(t.ID, t.Title)
+		println(t.ID(), t.Title())
 	}
 }
 

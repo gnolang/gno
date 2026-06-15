@@ -27,7 +27,7 @@ func main(cur realm) {
 		return
 	}
 
-	println(board.ID == uint64(bid))
+	println(board.ID() == uint64(bid))
 }
 
 // Output:

@@ -27,10 +27,10 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	threads := boards2.GetThreads(board.ID, 0, board.ThreadCount)
+	threads := boards2.GetThreads(board.ID(), 0, board.ThreadCount())
 
 	for _, t := range threads {
-		println(t.ID, t.Title)
+		println(t.ID(), t.Title())
 	}
 }
 

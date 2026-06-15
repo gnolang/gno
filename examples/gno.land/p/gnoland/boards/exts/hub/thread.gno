@@ -15,49 +15,92 @@ type Flag struct {
 
 // Thread defines a type for board threads.
 type Thread struct {
-	// ID is the unique identifier of the thread.
-	ID uint64
+	// id is the unique identifier of the thread.
+	id uint64
 
-	// OriginalBoardID contains the board ID of the original thread when current is a repost.
-	OriginalBoardID uint64
+	// originalBoardID contains the board ID of the original thread when current is a repost.
+	originalBoardID uint64
 
-	// OriginalThreadID contains the ID of the original thread when current is a repost.
-	OriginalThreadID uint64
+	// originalThreadID contains the ID of the original thread when current is a repost.
+	originalThreadID uint64
 
-	// BoardID is the board ID where thread is created.
-	BoardID uint64
+	// boardID is the board ID where thread is created.
+	boardID uint64
 
-	// Title contains thread's title.
-	Title string
+	// title contains thread's title.
+	title string
 
-	// Body contains content of the thread.
-	Body string
+	// body contains content of the thread.
+	body string
 
-	// Hidden indicates that thread is hidden.
-	Hidden bool
+	// hidden indicates that thread is hidden.
+	hidden bool
 
-	// Readonly indicates that thread is readonly.
-	Readonly bool
+	// readonly indicates that thread is readonly.
+	readonly bool
 
-	// CommentCount contains the number of thread comments.
+	// commentCount contains the number of thread comments.
 	// Count only includes top level comment, replies are not included.
-	CommentCount int
+	commentCount int
 
-	// RepostCount contains the number of times thread has been reposted.
-	RepostCount int
+	// repostCount contains the number of times thread has been reposted.
+	repostCount int
 
-	// FlagCount contains the number of flags that thread has.
-	FlagCount int
+	// flagCount contains the number of flags that thread has.
+	flagCount int
 
-	// Creator is the account address that created the thread.
-	Creator address
+	// creator is the account address that created the thread.
+	creator address
 
-	// CreatedAt is thread's creation time as Unix time.
-	CreatedAt int64
+	// createdAt is thread's creation time as Unix time.
+	createdAt int64
 
-	// UpdatedAt is thread's update time as unix time.
-	UpdatedAt int64
+	// updatedAt is thread's update time as unix time.
+	updatedAt int64
 }
+
+// ID returns the unique identifier of the thread.
+func (t Thread) ID() uint64 { return t.id }
+
+// OriginalBoardID returns the board ID of the original thread when current is a repost.
+func (t Thread) OriginalBoardID() uint64 { return t.originalBoardID }
+
+// OriginalThreadID returns the ID of the original thread when current is a repost.
+func (t Thread) OriginalThreadID() uint64 { return t.originalThreadID }
+
+// BoardID returns the board ID where the thread is created.
+func (t Thread) BoardID() uint64 { return t.boardID }
+
+// Title returns the thread's title.
+func (t Thread) Title() string { return t.title }
+
+// Body returns the content of the thread.
+func (t Thread) Body() string { return t.body }
+
+// Hidden indicates that the thread is hidden.
+func (t Thread) Hidden() bool { return t.hidden }
+
+// Readonly indicates that the thread is readonly.
+func (t Thread) Readonly() bool { return t.readonly }
+
+// CommentCount returns the number of thread comments.
+// Count only includes top level comment, replies are not included.
+func (t Thread) CommentCount() int { return t.commentCount }
+
+// RepostCount returns the number of times the thread has been reposted.
+func (t Thread) RepostCount() int { return t.repostCount }
+
+// FlagCount returns the number of flags that the thread has.
+func (t Thread) FlagCount() int { return t.flagCount }
+
+// Creator returns the account address that created the thread.
+func (t Thread) Creator() address { return t.creator }
+
+// CreatedAt returns the thread's creation time as Unix time.
+func (t Thread) CreatedAt() int64 { return t.createdAt }
+
+// UpdatedAt returns the thread's update time as Unix time.
+func (t Thread) UpdatedAt() int64 { return t.updatedAt }
 
 // NewSafeThread creates a safe thread.
 func NewSafeThread(ref *boards.Post) Thread {
@@ -66,19 +109,19 @@ func NewSafeThread(ref *boards.Post) Thread {
 	}
 
 	return Thread{
-		ID:               uint64(ref.ID),
-		OriginalBoardID:  uint64(ref.OriginalBoardID),
-		OriginalThreadID: uint64(ref.ParentID),
-		BoardID:          uint64(ref.Board.ID),
-		Title:            ref.Title,
-		Body:             ref.Body,
-		Hidden:           ref.Hidden,
-		Readonly:         ref.Readonly,
-		CommentCount:     ref.Replies.Size(),
-		RepostCount:      ref.Reposts.Size(),
-		FlagCount:        ref.Flags.Size(),
-		Creator:          ref.Creator,
-		CreatedAt:        timeToUnix(ref.CreatedAt),
-		UpdatedAt:        timeToUnix(ref.UpdatedAt),
+		id:               uint64(ref.ID),
+		originalBoardID:  uint64(ref.OriginalBoardID),
+		originalThreadID: uint64(ref.ParentID),
+		boardID:          uint64(ref.Board.ID),
+		title:            ref.Title,
+		body:             ref.Body,
+		hidden:           ref.Hidden,
+		readonly:         ref.Readonly,
+		commentCount:     ref.Replies.Size(),
+		repostCount:      ref.Reposts.Size(),
+		flagCount:        ref.Flags.Size(),
+		creator:          ref.Creator,
+		createdAt:        timeToUnix(ref.CreatedAt),
+		updatedAt:        timeToUnix(ref.UpdatedAt),
 	}
 }

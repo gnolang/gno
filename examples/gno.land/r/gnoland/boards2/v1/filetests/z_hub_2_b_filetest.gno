@@ -21,7 +21,7 @@ func main(cur realm) {
 	boards := boards2.GetBoards(0, boards2.BoardCount())
 
 	for _, b := range boards {
-		println(b.ID, b.Name)
+		println(b.ID(), b.Name())
 	}
 }
 

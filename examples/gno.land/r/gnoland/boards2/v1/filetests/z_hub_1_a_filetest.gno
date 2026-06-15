@@ -29,20 +29,20 @@ func main(cur realm) {
 		return
 	}
 
-	println(thread.ID)
-	println(thread.OriginalBoardID)
-	println(thread.OriginalThreadID)
-	println(thread.BoardID)
-	println(thread.Title)
-	println(thread.Body)
-	println(thread.Hidden)
-	println(thread.Readonly)
-	println(thread.CommentCount)
-	println(thread.RepostCount)
-	println(thread.FlagCount)
-	println(thread.Creator)
-	println(thread.CreatedAt)
-	println(thread.UpdatedAt)
+	println(thread.ID())
+	println(thread.OriginalBoardID())
+	println(thread.OriginalThreadID())
+	println(thread.BoardID())
+	println(thread.Title())
+	println(thread.Body())
+	println(thread.Hidden())
+	println(thread.Readonly())
+	println(thread.CommentCount())
+	println(thread.RepostCount())
+	println(thread.FlagCount())
+	println(thread.Creator())
+	println(thread.CreatedAt())
+	println(thread.UpdatedAt())
 }
 
 // Output:

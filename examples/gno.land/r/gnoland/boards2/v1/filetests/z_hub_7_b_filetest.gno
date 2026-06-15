@@ -30,10 +30,10 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comments := boards2.GetComments(thread.BoardID, thread.ID, 0, thread.CommentCount)
+	comments := boards2.GetComments(thread.BoardID(), thread.ID(), 0, thread.CommentCount())
 
 	for _, c := range comments {
-		println(c.ID, c.Body)
+		println(c.ID(), c.Body())
 	}
 }
 

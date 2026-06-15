@@ -49,15 +49,15 @@ func TestBoardIterateThreads(t *testing.T) {
 
 			board := hub.NewSafeBoard(ref)
 
-			urequire.Equal(t, ref.Threads.Size(), board.ThreadCount, "expect number of threads to match")
-			board.IterateThreads(0, board.ThreadCount, func(thread hub.Thread) bool {
-				id := boards.ID(thread.ID)
+			urequire.Equal(t, ref.Threads.Size(), board.ThreadCount(), "expect number of threads to match")
+			board.IterateThreads(0, board.ThreadCount(), func(thread hub.Thread) bool {
+				id := boards.ID(thread.ID())
 				expected, found := ref.Threads.Get(id)
 
 				urequire.True(t, found, "expect thread to be found")
-				urequire.Equal(t, expected.Creator, thread.Creator, "expect creator to match")
-				urequire.Equal(t, expected.Title, thread.Title, "expect title to match")
-				urequire.Equal(t, expected.Body, thread.Body, "expect body to match")
+				urequire.Equal(t, expected.Creator, thread.Creator(), "expect creator to match")
+				urequire.Equal(t, expected.Title, thread.Title(), "expect title to match")
+				urequire.Equal(t, expected.Body, thread.Body(), "expect body to match")
 				return false
 			})
 		})
@@ -100,8 +100,8 @@ func TestBoardIterateMembers(t *testing.T) {
 			ref.Permissions = perms
 			board := hub.NewSafeBoard(ref)
 
-			urequire.Equal(t, len(tt.users), board.MemberCount, "expect number of members to match")
-			board.IterateMembers(0, board.MemberCount, func(user boards.User) bool {
+			urequire.Equal(t, len(tt.users), board.MemberCount(), "expect number of members to match")
+			board.IterateMembers(0, board.MemberCount(), func(user boards.User) bool {
 				urequire.Equal(t, tt.users[i].Address, user.Address, "expect address to match")
 				i++
 				return false

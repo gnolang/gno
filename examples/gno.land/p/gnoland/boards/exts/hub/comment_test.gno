@@ -43,8 +43,8 @@ func TestCommentIterateFlags(t *testing.T) {
 
 			comment := hub.NewSafeComment(ref)
 
-			urequire.Equal(t, len(tt.flags), comment.FlagCount, "expect number of flags to match")
-			comment.IterateFlags(0, comment.FlagCount, func(f boards.Flag) bool {
+			urequire.Equal(t, len(tt.flags), comment.FlagCount(), "expect number of flags to match")
+			comment.IterateFlags(0, comment.FlagCount(), func(f boards.Flag) bool {
 				urequire.Equal(t, tt.flags[i].User, f.User, "expect user to match")
 				urequire.Equal(t, tt.flags[i].Reason, f.Reason, "expect reason to match")
 				i++
@@ -93,14 +93,14 @@ func TestCommentIterateReplies(t *testing.T) {
 
 			comment := hub.NewSafeComment(ref)
 
-			urequire.Equal(t, ref.Replies.Size(), comment.ReplyCount, "expect number of replies to match")
-			comment.IterateReplies(0, comment.ReplyCount, func(reply hub.Comment) bool {
-				id := boards.ID(reply.ID)
+			urequire.Equal(t, ref.Replies.Size(), comment.ReplyCount(), "expect number of replies to match")
+			comment.IterateReplies(0, comment.ReplyCount(), func(reply hub.Comment) bool {
+				id := boards.ID(reply.ID())
 				expected, found := ref.Replies.Get(id)
 
 				urequire.True(t, found, "expect reply to be found")
-				urequire.Equal(t, expected.Creator, reply.Creator, "expect creator to match")
-				urequire.Equal(t, expected.Body, reply.Body, "expect body to match")
+				urequire.Equal(t, expected.Creator, reply.Creator(), "expect creator to match")
+				urequire.Equal(t, expected.Body, reply.Body(), "expect body to match")
 				return false
 			})
 		})

@@ -37,15 +37,15 @@ func main(cur realm) {
 		return
 	}
 
-	println(board.ID)
-	println(board.Name)
-	println(board.Aliases)
-	println(board.Readonly)
-	println(board.ThreadCount)
-	println(board.MemberCount)
-	println(board.Creator)
-	println(board.CreatedAt)
-	println(board.UpdatedAt)
+	println(board.ID())
+	println(board.Name())
+	println(board.Aliases())
+	println(board.Readonly())
+	println(board.ThreadCount())
+	println(board.MemberCount())
+	println(board.Creator())
+	println(board.CreatedAt())
+	println(board.UpdatedAt())
 }
 
 // Output:

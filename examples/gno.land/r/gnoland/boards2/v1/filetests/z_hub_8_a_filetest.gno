@@ -24,7 +24,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	replies := boards2.GetReplies(comment.BoardID, comment.ThreadID, comment.ID, 0, comment.ReplyCount)
+	replies := boards2.GetReplies(comment.BoardID(), comment.ThreadID(), comment.ID(), 0, comment.ReplyCount())
 	println(len(replies))
 }
 

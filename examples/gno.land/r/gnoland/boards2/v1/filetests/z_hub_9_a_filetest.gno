@@ -31,17 +31,17 @@ func main(cur realm) {
 		return
 	}
 
-	println(comment.ID)
-	println(comment.BoardID)
-	println(comment.ThreadID)
-	println(comment.ParentID)
-	println(comment.Body)
-	println(comment.Hidden)
-	println(comment.ReplyCount)
-	println(comment.FlagCount)
-	println(comment.Creator)
-	println(comment.CreatedAt)
-	println(comment.UpdatedAt)
+	println(comment.ID())
+	println(comment.BoardID())
+	println(comment.ThreadID())
+	println(comment.ParentID())
+	println(comment.Body())
+	println(comment.Hidden())
+	println(comment.ReplyCount())
+	println(comment.FlagCount())
+	println(comment.Creator())
+	println(comment.CreatedAt())
+	println(comment.UpdatedAt())
 }
 
 // Output:

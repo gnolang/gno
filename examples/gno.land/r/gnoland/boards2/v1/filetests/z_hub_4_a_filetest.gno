@@ -26,7 +26,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	members := boards2.GetMembers(board.ID, 0, board.MemberCount)
+	members := boards2.GetMembers(board.ID(), 0, board.MemberCount())
 
 	for _, m := range members {
 		println(m.Address, m.Roles)
