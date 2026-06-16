@@ -113,6 +113,54 @@ func TestCopyFromCachedStore(t *testing.T) {
 	assert.Equal(t, cachedStore.cacheNodes, destStore.cacheNodes, "cacheNodes should match")
 }
 
+func TestDeleteMemPackageClearsStaleBlobsOnReAdd(t *testing.T) {
+	newStore := func() *defaultStore {
+		d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+		d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+		d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+		return NewStore(nil, d1s, d2s)
+	}
+	const pkgPath = "gno.land/r/demo/foo"
+	withTests := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+				{Name: "foo_test.gno", Body: "package foo\n"},
+			},
+		}
+	}
+	prodOnly := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+			},
+		}
+	}
+
+	// DeleteMemPackage removes both the prod blob and the #allbutprod sibling.
+	st := newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	require.NotNil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+	st.DeleteMemPackage(pkgPath)
+	assert.Nil(t, st.GetMemPackage(pkgPath))
+	assert.Nil(t, st.GetMemPackageAll(pkgPath))
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+
+	// Re-add idempotency (mirrors the keeper clearing a private package before
+	// redeploy): dropping the test file must not leave a stale #allbutprod sibling.
+	st = newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	st.DeleteMemPackage(pkgPath)
+	st.AddMemPackage(prodOnly(), MPUserAll)
+	all := st.GetMemPackageAll(pkgPath)
+	require.NotNil(t, all)
+	require.Len(t, all.Files, 1)
+	assert.Equal(t, "foo.gno", all.Files[0].Name)
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"), "stale test file must not survive re-add")
+}
+
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{

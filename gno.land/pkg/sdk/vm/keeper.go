@@ -624,6 +624,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+	if pv != nil {
+		// A private package is being redeployed (non-private re-adds were
+		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
+		// its conditional writes don't fully replace across both keys, so a stale
+		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
+		// survive the re-add and be served by qfile/GetMemPackage.
+		gnostore.DeleteMemPackage(pkgPath)
+	}
 
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")

@@ -80,6 +80,7 @@ type Store interface {
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
+	DeleteMemPackage(path string)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
@@ -1005,6 +1006,17 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	} else {
 		size += ds.setMemPackageBlob(pathkey, mpkg)
 	}
+}
+
+// DeleteMemPackage removes both the production blob (pkg:<path>) and the
+// #allbutprod sibling for path. It is a no-op for keys that do not exist. Used
+// before a private-package redeploy: AddMemPackage stores an MP*All package as
+// two keys, and its conditional writes are not a full replace across both, so a
+// stale sibling (or, for a now-prod-less package, a stale prod blob) could
+// otherwise survive a re-add and be served by GetMemPackage/GetMemPackageAll.
+func (ds *defaultStore) DeleteMemPackage(path string) {
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackagePathKey(path)))
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageAllButProdKey(path)))
 }
 
 // setMemPackageBlob amino-marshals mpkg, charges encode gas, writes it under key
