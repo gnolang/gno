@@ -158,6 +158,15 @@ func NewPrivValidatorFromConfig(
 	// returned validator with a FileState — that'd be a redundant gate
 	// at best and a misconfiguration footgun at worst.
 	if config.TmkmsListener.IsEnabled() {
+		// Defend in depth: ValidateBasic is normally reached during config
+		// loading via PrivValidatorConfig.ValidateBasic, but a programmatic
+		// caller may invoke this directly. Re-validate here so the required
+		// allowlist, scheme, protocol-version and timeout/retry bounds can't
+		// be bypassed (e.g. an empty allowlist on TCP, or a sub-2ms timeout
+		// that would panic time.NewTicker at endpoint start).
+		if err := config.TmkmsListener.ValidateBasic(); err != nil {
+			return nil, err
+		}
 		return newTmkmsListenerPrivValidator(config.TmkmsListener, clientPrivKey, clientLogger)
 	}
 

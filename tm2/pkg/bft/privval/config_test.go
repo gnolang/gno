@@ -272,6 +272,25 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		require.ErrorIs(t, err, errBothExternalSignersEnabled)
 	})
 
+	t.Run("tmkms listener invalid config rejected by factory", func(t *testing.T) {
+		t.Parallel()
+
+		// A programmatic caller may invoke NewPrivValidatorFromConfig without
+		// going through PrivValidatorConfig.ValidateBasic during config load.
+		// The factory must still validate the tmkms config — here an empty
+		// allowlist on a TCP listener must be refused, not built fail-open.
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "tcp://127.0.0.1:0"
+		cfg.TmkmsListener.ChainID = "test-chain"
+		// AllowedKMSPubKeys left empty.
+
+		privVal, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		require.Nil(t, privVal)
+		require.ErrorIs(t, err, errEmptyTmkmsAllowedPubkeys)
+	})
+
 	t.Run("tmkms listener wait-timeout surfaces as error", func(t *testing.T) {
 		t.Parallel()
 
@@ -288,6 +307,11 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		cfg.RemoteSigner.ServerAddress = "" // disable gnokms path
 		cfg.TmkmsListener.ListenAddr = "tcp://" + addr
 		cfg.TmkmsListener.ChainID = "test-chain"
+		// Required on a TCP listener; value is irrelevant here since no
+		// signer dials in.
+		cfg.TmkmsListener.AllowedKMSPubKeys = []string{
+			"0000000000000000000000000000000000000000000000000000000000000000",
+		}
 		cfg.TmkmsListener.WaitForConnectionTimeout = 50 * time.Millisecond
 
 		privVal, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
@@ -371,6 +395,11 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		cfg.RemoteSigner.ServerAddress = ""
 		cfg.TmkmsListener.ListenAddr = "tcp://" + addr
 		cfg.TmkmsListener.ChainID = "test-chain"
+		// Required on a TCP listener; value is irrelevant here since no
+		// signer dials in.
+		cfg.TmkmsListener.AllowedKMSPubKeys = []string{
+			"0000000000000000000000000000000000000000000000000000000000000000",
+		}
 		cfg.TmkmsListener.WaitForConnectionTimeout = 30 * time.Millisecond
 
 		// First call: Init times out waiting for a signer to dial in.
