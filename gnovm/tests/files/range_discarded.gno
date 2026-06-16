@@ -1,8 +1,3 @@
-# range of nil array/ptr does not panic if value is discarded.
-
-gno run .
-
--- main.gno --
 package main
 
 func main() {
@@ -15,4 +10,8 @@ func main() {
 	if s != 45 {
 		println("BUG")
 	}
+	println("OK")
 }
+
+// Output:
+// OK
