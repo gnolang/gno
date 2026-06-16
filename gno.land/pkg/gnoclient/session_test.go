@@ -256,6 +256,117 @@ func TestValidateSessionKey(t *testing.T) {
 	require.NoError(t, signer.Validate())
 }
 
+func TestQuerySessionAccount_Integration(t *testing.T) {
+	// Set up in-memory node and RPCClient
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	sessionSigner := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
+	sessionInfo, err := sessionSigner.Info()
+	require.NoError(t, err)
+	createSession(t, rpcClient, masterSigner, sessionInfo.GetPubKey())
+
+	client := Client{
+		Signer:    masterSigner,
+		RPCClient: rpcClient,
+	}
+
+	// Query the session account — must succeed and return a valid account
+	account, qres, err := client.QuerySessionAccount(masterInfo.GetAddress(), sessionInfo.GetAddress())
+	require.NoError(t, err)
+	require.NotNil(t, qres)
+	require.NotNil(t, account)
+
+	// Query with an unknown session address — must return an error
+	unknown, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
+	_, _, err = client.QuerySessionAccount(masterInfo.GetAddress(), unknown)
+	require.Error(t, err)
+}
+
+func TestRevokeSession_Integration(t *testing.T) {
+	// Set up in-memory node and RPCClient
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	sessionSigner := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
+	sessionInfo, err := sessionSigner.Info()
+	require.NoError(t, err)
+	createSession(t, rpcClient, masterSigner, sessionInfo.GetPubKey())
+
+	masterClient := Client{
+		Signer:    masterSigner,
+		RPCClient: rpcClient,
+	}
+
+	// Revoke the specific session
+	baseCfg := BaseTxCfg{
+		GasFee:    ugnot.ValueString(2100000),
+		GasWanted: 50000000,
+	}
+	msg := auth.MsgRevokeSession{
+		Creator:    masterInfo.GetAddress(),
+		SessionKey: sessionInfo.GetPubKey(),
+	}
+	_, err = masterClient.RevokeSession(baseCfg, msg)
+	require.NoError(t, err)
+
+	// The session account should no longer exist
+	_, _, err = masterClient.QuerySessionAccount(masterInfo.GetAddress(), sessionInfo.GetAddress())
+	require.Error(t, err)
+}
+
+func TestRevokeAllSessions_Integration(t *testing.T) {
+	// Set up in-memory node and RPCClient
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	sessionSigner := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
+	sessionInfo, err := sessionSigner.Info()
+	require.NoError(t, err)
+	createSession(t, rpcClient, masterSigner, sessionInfo.GetPubKey())
+
+	masterClient := Client{
+		Signer:    masterSigner,
+		RPCClient: rpcClient,
+	}
+
+	// Revoke all sessions
+	baseCfg := BaseTxCfg{
+		GasFee:    ugnot.ValueString(2100000),
+		GasWanted: 50000000,
+	}
+	msg := auth.MsgRevokeAllSessions{
+		Creator: masterInfo.GetAddress(),
+	}
+	_, err = masterClient.RevokeAllSessions(baseCfg, msg)
+	require.NoError(t, err)
+
+	// The session account should no longer exist
+	_, _, err = masterClient.QuerySessionAccount(masterInfo.GetAddress(), sessionInfo.GetAddress())
+	require.Error(t, err)
+}
+
 func newInMemorySessionSigner(t *testing.T, chainid string, master crypto.Address) *SignerFromKeybase {
 	t.Helper()
 
