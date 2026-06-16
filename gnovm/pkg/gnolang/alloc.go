@@ -311,7 +311,7 @@ func (alloc *Allocator) Fork() *Allocator {
 // This guards only the int64-overflow boundary, not Go's full maxAlloc
 // threshold; smaller-but-still-oversized lengths are caught by the maxBytes
 // limit in Allocate (user make() runs on a finite-budget allocator).
-func mustFit(v int64, ok bool) int64 {
+func sliceAllocMustFit(v int64, ok bool) int64 {
 	if !ok {
 		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
 	}
