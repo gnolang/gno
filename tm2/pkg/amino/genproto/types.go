@@ -142,9 +142,10 @@ type P3Import struct {
 }
 
 type P3Message struct {
-	Comment string
-	Name    string
-	Fields  []P3Field
+	Comment  string
+	Name     string
+	Fields   []P3Field
+	Reserved []uint32
 }
 
 type P3Field struct {
@@ -220,6 +221,9 @@ func (msg P3Message) PrintCode(p *press.Press) *press.Press {
 	p.Pl("message %v {", msg.Name).I(func(p *press.Press) {
 		for _, fld := range msg.Fields {
 			fld.PrintCode(p)
+		}
+		for _, n := range msg.Reserved {
+			p.Pl("reserved %v;", n)
 		}
 	}).Pl("}")
 	return p
