@@ -1,0 +1,93 @@
+# Demonstrates the mempackage prod/test storage split's import-time gas win:
+# a dependency's _test.gno bytes do NOT inflate the cost of importing it.
+#
+# depa and depb have byte-identical PRODUCTION code; depb additionally carries a
+# large lib_test.gno. usea imports depa, useb imports depb, and usea/useb are
+# byte-identical apart from the a<->b in the package name and import path. When
+# addpkg type-checks an importer it decodes the imported dependency's stored
+# blob; the split stores depb's test file in a pkg:<path>#allbutprod sibling that
+# is never decoded here, so importing depb decodes the same bytes as importing
+# depa => usea and useb cost the SAME gas.
+#
+# On the pre-split single-blob layout, depb's mempackage included its _test.gno,
+# so type-checking useb decoded those extra bytes and useb cost MORE than usea.
+#
+# Measured: on this branch usea == useb == 3172401 (equal => the win). On master
+# (pre-split) usea == 3172364 but useb == 3212984 -- importing depb costs +40620
+# gas for its _test.gno bytes. The split removes that import penalty.
+#
+# The two GAS USED assertions below MUST stay equal to each other; that equality
+# is the regression guard for the split (the absolute value is an ordinary pin).
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/depa -pkgpath gno.land/p/demo/depa -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/depb -pkgpath gno.land/p/demo/depb -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+
+gnokey maketx addpkg -pkgdir $WORK/usea -pkgpath gno.land/p/demo/usea -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+3172401'
+gnokey maketx addpkg -pkgdir $WORK/useb -pkgpath gno.land/p/demo/useb -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+3172401'
+
+-- depa/gnomod.toml --
+module = "gno.land/p/demo/depa"
+gno = "0.9"
+-- depa/lib.gno --
+package depa
+
+func Hi() string { return "hi" }
+-- depb/gnomod.toml --
+module = "gno.land/p/demo/depb"
+gno = "0.9"
+-- depb/lib.gno --
+package depb
+
+func Hi() string { return "hi" }
+-- depb/lib_test.gno --
+package depb
+
+// This _test.gno exists only to add bytes to depb's test files. Under the
+// prod/test storage split these bytes live in the pkg:<path>#allbutprod
+// sibling and are NOT decoded when another package imports depb, so they do
+// not affect importer gas. Padding below makes the size difference vs the
+// prod blob substantial and the master-vs-branch delta clearly measurable.
+//
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123
+func testPad() string { return Hi() }
+-- usea/gnomod.toml --
+module = "gno.land/p/demo/usea"
+gno = "0.9"
+-- usea/lib.gno --
+package usea
+
+import "gno.land/p/demo/depa"
+
+func Use() string { return depa.Hi() }
+-- useb/gnomod.toml --
+module = "gno.land/p/demo/useb"
+gno = "0.9"
+-- useb/lib.gno --
+package useb
+
+import "gno.land/p/demo/depb"
+
+func Use() string { return depb.Hi() }
