@@ -3,6 +3,7 @@ package bptree
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -357,7 +358,7 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	}
 	for {
 		node, nerr := exp.Next()
-		if nerr == ErrExportDone {
+		if errors.Is(nerr, ErrExportDone) {
 			break
 		}
 		if nerr != nil {

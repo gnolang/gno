@@ -187,6 +187,7 @@ func newReadMeter(db *countingDB) *readMeter {
 
 // snap opens a fresh segment; call after untimed work so it is excluded.
 func (rm *readMeter) snap(b *testing.B) {
+	b.Helper()
 	rm.r0, rm.w0 = rm.db.stats()
 	rm.prevNS = b.Elapsed().Nanoseconds()
 }
@@ -195,6 +196,7 @@ func (rm *readMeter) snap(b *testing.B) {
 // freezes across StopTimer spans, so untimed reload/prune gaps between a
 // fold and the following snap contribute nothing to segment wall time.
 func (rm *readMeter) fold(b *testing.B, ops int64) {
+	b.Helper()
 	r, w := rm.db.stats()
 	el := b.Elapsed().Nanoseconds()
 	if ops > 0 {
@@ -492,6 +494,7 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 // (warmup included), never fx.tree.Get directly — otherwise -disk-committed-read is
 // silently ignored for that bench and it measures the index-free working tree.
 func pointReadFn(b *testing.B, fx diskFixture) (read func([]byte) ([]byte, error), closeFn func()) {
+	b.Helper()
 	if !*diskCommittedRead {
 		return fx.tree.Get, func() {}
 	}
