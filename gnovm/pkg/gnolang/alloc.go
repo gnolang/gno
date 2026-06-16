@@ -341,6 +341,18 @@ func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }
 
+// arrayItemAllocSize is the per-element allocation cost of a fixed-size array
+// of element type et, matching defaultArrayValue's dispatch: byte arrays back
+// onto AllocateDataArray (1 byte/elem), everything else onto AllocateListArray
+// (allocArrayItem/elem). Kept here next to that dispatch so the preprocessor's
+// checkArrayLenFits guard can't silently drift from the allocator.
+func arrayItemAllocSize(et Type) int64 {
+	if et.Kind() == Uint8Kind {
+		return 1
+	}
+	return allocArrayItem
+}
+
 func (alloc *Allocator) AllocateDataArray(size int64) {
 	alloc.Allocate(overflow.Addp(allocArray, size))
 }

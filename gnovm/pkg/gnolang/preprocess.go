@@ -2420,17 +2420,24 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
 					if at.Vrd {
-						idx := 0
+						idx := int64(0)
 						for _, elt := range n.Elts {
 							if elt.Key == nil {
 								idx++
 							} else {
-								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
-								if idx <= k {
-									idx = k + 1
-								} else {
+								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								if idx > k {
 									panic("array lit key out of order")
 								}
+								// The implied length is k+1. MaxInt64 is the only key
+								// whose length overflows int64; Go rejects that key as
+								// an out-of-bounds index (the largest key that forms a
+								// valid length is MaxInt64-1). Match Go, and stop k+1
+								// from wrapping negative past checkArrayLenFits below.
+								if k == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", k))
+								}
+								idx = k + 1
 							}
 						}
 						// update type
@@ -2438,12 +2445,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// at.Vrd = false
 						// Reject an oversized [...]T{idx: v} array, whose length
 						// is only known here, at compile time (see checkArrayLenFits).
-						checkArrayLenFits(at.Elt, int64(idx))
-						at.Len = idx
+						checkArrayLenFits(at.Elt, idx)
+						at.Len = int(idx)
 						// Mutating Len invalidates the cached typeid.
 						at.typeid = ""
 						// update node
-						cx := constInt(n, int64(idx))
+						cx := constInt(n, idx)
 						unconst(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -4884,10 +4891,7 @@ func checkArrayLenFits(et Type, length int64) {
 	if length <= 0 {
 		return // negative lengths are rejected earlier (go/types).
 	}
-	per := int64(allocArrayItem)
-	if et.Kind() == Uint8Kind {
-		per = 1 // byte arrays use AllocateDataArray (1 byte/elem).
-	}
+	per := arrayItemAllocSize(et)
 	if length > (math.MaxInt64-allocArray)/per {
 		panic(fmt.Sprintf("type [%d]%s larger than address space", length, et.String()))
 	}

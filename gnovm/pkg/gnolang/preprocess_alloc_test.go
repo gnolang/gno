@@ -359,3 +359,54 @@ func TestPreprocessAlloc_BeginTransactionPropagates(t *testing.T) {
 	require.Same(t, preAlloc, got,
 		"forked tx-store must share the SAME *Allocator pointer (gas counters and bytes are shared across the tx)")
 }
+
+// TestCheckArrayLenFits exercises the preprocess-time array-length guard
+// directly. The make20/21/22 filetests only cover the wildly-oversized
+// MaxInt64 case end-to-end; the cases that matter for the threshold math —
+// the exact boundary, and the per-element divergence between the byte
+// (1 byte/elem) and non-byte (allocArrayItem/elem) paths — can't be written
+// as filetests because a boundary-length array would attempt a real
+// allocation. They are checked here instead.
+func TestCheckArrayLenFits(t *testing.T) {
+	// Thresholds derived the same way the guard does, so the boundary cases
+	// double as change-detectors for the formula.
+	perItem := int64(allocArrayItem) // non-byte: a full TypedValue slot.
+	thrItem := (math.MaxInt64 - allocArray) / perItem
+	thrByte := int64(math.MaxInt64-allocArray) / 1 // byte: 1 byte/elem.
+
+	tests := []struct {
+		name    string
+		et      Type
+		length  int64
+		wantMsg string // "" => must not panic
+	}{
+		{"zero length", IntType, 0, ""},
+		{"negative length", IntType, -1, ""},
+		{"small array", IntType, 1 << 20, ""},
+		{"non-byte at boundary", IntType, thrItem, ""},
+		{"non-byte just over boundary", IntType, thrItem + 1, "larger than address space"},
+		{"non-byte maxint64", IntType, math.MaxInt64, "type [9223372036854775807]int larger than address space"},
+		{"byte at boundary", Uint8Type, thrByte, ""},
+		{"byte just over boundary", Uint8Type, thrByte + 1, "larger than address space"},
+		{"byte maxint64", Uint8Type, math.MaxInt64, "type [9223372036854775807]uint8 larger than address space"},
+		// 1<<62 overflows the non-byte (allocArrayItem/elem) accounting but
+		// still fits the byte (1/elem) path: the two branches must diverge.
+		{"cross-branch rejected as non-byte", IntType, 1 << 62, "larger than address space"},
+		{"cross-branch accepted as byte", Uint8Type, 1 << 62, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantMsg == "" {
+				require.NotPanics(t, func() { checkArrayLenFits(tt.et, tt.length) })
+				return
+			}
+			defer func() {
+				r := recover()
+				require.NotNil(t, r, "expected a panic")
+				require.Contains(t, fmt.Sprint(r), tt.wantMsg)
+			}()
+			checkArrayLenFits(tt.et, tt.length)
+		})
+	}
+}
