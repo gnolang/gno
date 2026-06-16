@@ -963,6 +963,14 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 // MPAnyProd and MPAnyTest.
 // MPFiletests are not allowed, as they are currently only read from disk (e.g.
 // test/files). However, MP*All may include filetests files.
+//
+// MP*All packages are stored as two keys (a prod blob plus a #allbutprod
+// sibling) and the writes are conditional, so this is NOT a full replace across
+// both keys. Re-adding an MP*All package at an existing path (e.g. a private
+// redeploy) MUST call DeleteMemPackage(path) first, or a stale sibling/prod blob
+// can survive. The keeper's AddPackage does this; new MP*All re-add callers must
+// too. (Already-filtered non-All types are stored under a single key and
+// overwrite cleanly.)
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	var size int
 	if bm.Enabled {
