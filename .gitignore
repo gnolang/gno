@@ -2,6 +2,7 @@
 .DS_Store
 .vscode
 .idea
+CLAUDE.md
 
 # Default node data
 gnoland-data
