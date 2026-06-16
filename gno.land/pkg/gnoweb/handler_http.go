@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"path"
@@ -24,14 +25,32 @@ const ReadmeFileName = "README.md"
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
-	Domain     string
-	AssetsPath string
-	ChromaPath string
-	RemoteHelp string
-	ChainId    string
-	Analytics  bool
-	BuildTime  string
-	Banner     components.BannerData
+	Domain            string
+	AssetsPath        string
+	ChromaPath        string
+	RemoteHelp        string
+	ChainId           string
+	Analytics         bool
+	AnalyticsHostname string
+	BuildTime         string
+	Banner            components.BannerData
+}
+
+// RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
+// view is rendered outside IndexLayout, so the analytics fields must be
+// populated explicitly rather than derived from HeadData.
+func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
+	return components.AnalyticsData{
+		Enabled:    s.Analytics,
+		PageType:   "redirect",
+		ChainId:    s.ChainId,
+		AssetsPath: s.AssetsPath,
+		BuildTime:  s.BuildTime,
+		Hostname:   s.AnalyticsHostname,
+		// Path is left empty: redirect targets are server-controlled constants,
+		// and the client path-overwriter falls back to SA's default path for an
+		// empty data-sa-path.
+	}
 }
 
 type AliasKind int
@@ -128,16 +147,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			BuildTime:         h.Static.BuildTime,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Theme:  theme,
 		Banner: h.Static.Banner,
@@ -253,6 +273,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
+	gnourl.Origin = requestOrigin(r)
 
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -469,6 +490,21 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
+	// renderDoc renders a markdown documentation string to a Component.
+	// Returns nil for empty input; renderer errors degrade to escaped text.
+	renderDoc := func(src string) components.Component {
+		if strings.TrimSpace(src) == "" {
+			return nil
+		}
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+			h.Logger.Warn("render doc failed — falling back to escaped plain text",
+				"error", err)
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+		}
+		return components.NewReaderComponent(&buf)
+	}
+
 	// Get public non-method funcs
 	fsigs := []*doc.JSONFunc{}
 	for _, fun := range jdoc.Funcs {
@@ -502,6 +538,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Wrap each function with its pre-rendered documentation Component.
+	functions := make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		functions = append(functions, components.HelpFunction{
+			JSONFunc:     fn,
+			DocComponent: renderDoc(fn.Doc),
+		})
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -512,9 +557,10 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Functions: functions,
+		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
+		Origin:    gnourl.Origin,
 	})
 }
 
@@ -717,6 +763,31 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
+}
+
+// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// Empty when no host is known; callers fall back to path-relative URLs.
+func requestOrigin(r *http.Request) string {
+	host := r.Host
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if h := strings.TrimSpace(first); h != "" {
+			host = h
+		}
+	}
+	if host == "" {
+		return ""
+	}
+
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "http" || proto == "https" {
+		scheme = proto
+	}
+
+	return scheme + "://" + host
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

@@ -89,7 +89,7 @@ Initially, all users are granted a default namespace with their address - a
 pseudo-anonymous (PA) namespace - to which the associated address can
 deploy. This namespace has the following format:
 ```
-gno.land/{p,r}/{std.Address}/**
+gno.land/{p,r}/{address}/**
 ```
 
 For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the

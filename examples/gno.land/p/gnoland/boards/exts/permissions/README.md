@@ -10,7 +10,7 @@ custom checks and requirements before the callback is called.
 
 Usage Example:
 
-[embedmd]:# (filetests/z_readme_filetest.gno go)
+[embedmd]:# (filetests/readme_filetest.gno go)
 ```go
 package main
 

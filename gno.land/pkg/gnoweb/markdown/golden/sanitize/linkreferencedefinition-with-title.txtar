@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: LinkReferenceDefinition
+// ARGS: "https://example.com/path", "Example Site"
+-- input.md --
+example-ref
+-- output.md --
+
+
+[example-ref]: https://example.com/path "Example Site"
+

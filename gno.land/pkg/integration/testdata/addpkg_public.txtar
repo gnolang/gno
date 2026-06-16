@@ -7,56 +7,56 @@ loadpkg gno.land/p/nt/avl/v0
 gnoland start
 
 # add the public realm first
-gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 750001ugnot -gas-wanted 7_500_000 -chainid=tendermint_test test1
 stdout OK!
 
 # add the normal realm (not marked as private)
-gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 910001ugnot -gas-wanted 9_100_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 570001ugnot -gas-wanted 5_700_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 410001ugnot -gas-wanted 4_500_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 570001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 530001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 600001ugnot -gas-wanted 6_000_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 640001ugnot -gas-wanted 6_400_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 730001ugnot -gas-wanted 7_300_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveInterfaceToPublicRealm -gas-fee 610001ugnot -gas-wanted 6_100_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveArrayToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveArrayToPublicRealm -gas-fee 580001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealm -gas-fee 590001ugnot -gas-wanted 5_900_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 740001ugnot -gas-wanted 7_400_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 550001ugnot -gas-wanted 5_700_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 580001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/normalrealm.GetTreePointer()'
@@ -100,75 +100,75 @@ func init() {
 }
 
 func SaveTreeToPublicRealm(cur realm) {
-    publicrealm.SaveYourTree(cross, tree)
+    publicrealm.SaveYourTree(cross(cur), tree)
 }
 
 func SaveIntToPublicRealm(cur realm) {
-    publicrealm.SaveYourInt(cross, integerValue)
+    publicrealm.SaveYourInt(cross(cur), integerValue)
 }
 
 func SaveSliceToPublicRealm(cur realm) {
-    publicrealm.SaveYourSlice(cross, normalSlice)
+    publicrealm.SaveYourSlice(cross(cur), normalSlice)
 }
 
 func SaveMapToPublicRealm(cur realm) {
-    publicrealm.SaveYourMap(cross, normalMap)
+    publicrealm.SaveYourMap(cross(cur), normalMap)
 }
 
 func SaveStructToPublicRealm(cur realm) {
-    publicrealm.SaveYourStruct(cross, normalStruct)
+    publicrealm.SaveYourStruct(cross(cur), normalStruct)
 }
 
 func SaveMixedStructToPublicRealmWithoutRef(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, nil)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross(cur), "mixed", nil, nil)
+    publicrealm.SaveYourMixedStruct(cross(cur), mixed)
 }
 
 func SaveMixedStructToPublicRealmWithRefToStruct(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, normalStruct)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross(cur), "mixed", nil, normalStruct)
+    publicrealm.SaveYourMixedStruct(cross(cur), mixed)
 }
 
 func SaveMixedStructToPublicRealmWithRefToTree(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, nil)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross(cur), "mixed", tree, nil)
+    publicrealm.SaveYourMixedStruct(cross(cur), mixed)
 }
 
 var savedMixedInNormal *publicrealm.PublicStruct
 
 func SaveMixedStructToPublicRealmAfterSaving(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, normalStruct)
+    mixed := publicrealm.CreatePublicStruct(cross(cur), "mixed", tree, normalStruct)
     savedMixedInNormal = mixed
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    publicrealm.SaveYourMixedStruct(cross(cur), mixed)
 }
 
 func SaveInterfaceToPublicRealm(cur realm) {
     var iface interface{} = tree
-    publicrealm.SaveYourInterface(cross, iface)
+    publicrealm.SaveYourInterface(cross(cur), iface)
 }
 
 func SaveArrayToPublicRealm(cur realm) {
     arr := [3]*avl.Tree{tree, tree, tree}
-    publicrealm.SaveYourArray(cross, arr)
+    publicrealm.SaveYourArray(cross(cur), arr)
 }
 
 func SaveNestedToPublicRealm(cur realm) {
-    nested := publicrealm.CreateNestedStruct(cross)
+    nested := publicrealm.CreateNestedStruct(cross(cur))
     nested.SetNormalRef(tree)
-    publicrealm.SaveYourNested(cross, nested)
+    publicrealm.SaveYourNested(cross(cur), nested)
 }
 
 var savedNestedInNormal *publicrealm.NestedStruct
 
 func SaveNestedToPublicRealmAfterSaving(cur realm) {
-    nested := publicrealm.CreateNestedStruct(cross)
+    nested := publicrealm.CreateNestedStruct(cross(cur))
     nested.SetNormalRef(tree)
     savedNestedInNormal = nested
-    publicrealm.SaveYourNested(cross, nested)
+    publicrealm.SaveYourNested(cross(cur), nested)
 }
 
 func SaveClosureToPublicRealm(cur realm) {
-    publicrealm.SaveYourClosure(cross, GetNewTree)
+    publicrealm.SaveYourClosure(cross(cur), GetNewTree)
 }
 
 func GetNewTree() *avl.Tree {
@@ -181,7 +181,7 @@ func SaveValueFromNormalStructToPublicRealm(cur realm) {
         Value: 0,
         Tree:  avl.NewTree(),
     }
-    publicrealm.SaveYourValueFromNormalStruct(cross, normalData)
+    publicrealm.SaveYourValueFromNormalStruct(cross(cur), normalData)
 }
 
 func GetTreePointer() *avl.Tree {

@@ -7,19 +7,12 @@ with the essential operations.
 
 ## Installing gnokey
 
-To build and install from source, you'll need:
+See the [Installation](../builders/install.md) page for prerequisites and install methods.
 
-- Git
-- Go 1.24+
-- Make
+After installing, verify that `gnokey` is available:
 
-```bash
-# Clone the repository
-git clone https://github.com/gnolang/gno.git
-cd gno
-
-# Install gnokey
-make install
+```sh
+gnokey version
 ```
 
 ## Managing key pairs
@@ -221,6 +214,7 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -230,6 +224,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
@@ -828,7 +823,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
@@ -1256,7 +1251,14 @@ import (
         "gno.land/r/demo/defi/grc20reg"
 )
 
-var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+var (
+        Token *grc20.Token
+        adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+        Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+}
 
 const (
         ugnotMinDeposit  int64 = 1000
@@ -1295,12 +1297,12 @@ data: {
     {
       "type": "",
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address std.Address) Valoper",
+      "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
       "params": [
         {
           "Name": "address",
-          "Type": "std.Address"
+          "Type": "address"
         }
       ],
       "results": [
@@ -1329,7 +1331,7 @@ data: {
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]
