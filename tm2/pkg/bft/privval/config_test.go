@@ -128,6 +128,48 @@ func TestValidateBasic(t *testing.T) {
 
 		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidTmkmsListenAddr)
 	})
+
+	// validTmkmsTCPConfig returns a config that clears every check up to the
+	// timeout/retry bounds, so a single tweaked field is what trips ValidateBasic.
+	validTmkmsTCPConfig := func() *PrivValidatorConfig {
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "tcp://127.0.0.1:0"
+		cfg.TmkmsListener.ChainID = "test-chain"
+		cfg.TmkmsListener.AllowedKMSPubKeys = []string{
+			"0000000000000000000000000000000000000000000000000000000000000000",
+		}
+		return cfg
+	}
+
+	t.Run("tmkms listener with sub-minimum timeout_read_write rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// 1ms makes pingInterval = 1ms*2/3 = 0, which panics time.NewTicker
+		// at endpoint start; it must be refused at validation time.
+		cfg := validTmkmsTCPConfig()
+		cfg.TmkmsListener.TimeoutReadWrite = time.Millisecond
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidTmkmsTimeoutReadWrite)
+	})
+
+	t.Run("tmkms listener with negative retries rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := validTmkmsTCPConfig()
+		cfg.TmkmsListener.Retries = -1
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNegativeTmkmsRetries)
+	})
+
+	t.Run("tmkms listener with negative retry_timeout rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := validTmkmsTCPConfig()
+		cfg.TmkmsListener.RetryTimeout = -time.Second
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNegativeTmkmsRetryTimeout)
+	})
 }
 
 func TestPathGetters(t *testing.T) {

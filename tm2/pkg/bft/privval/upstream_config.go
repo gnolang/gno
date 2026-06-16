@@ -24,13 +24,23 @@ import (
 
 // Errors returned by TmkmsListenerConfig.
 var (
-	errInvalidTmkmsListenAddr     = errors.New("invalid tmkms_listener.listen_addr")
-	errInvalidTmkmsAllowedPubkeys = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
-	errEmptyTmkmsChainID          = errors.New("tmkms_listener.chain_id must not be empty")
-	errEmptyTmkmsAllowedPubkeys   = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty on a tcp:// listener (an empty allowlist accepts any peer that completes the SecretConnection handshake)")
-	errUnsupportedProtocolVersion = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
-	errBothExternalSignersEnabled = errors.New("only one of remote_signer or tmkms_listener may be configured")
+	errInvalidTmkmsListenAddr       = errors.New("invalid tmkms_listener.listen_addr")
+	errInvalidTmkmsAllowedPubkeys   = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
+	errEmptyTmkmsChainID            = errors.New("tmkms_listener.chain_id must not be empty")
+	errEmptyTmkmsAllowedPubkeys     = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty on a tcp:// listener (an empty allowlist accepts any peer that completes the SecretConnection handshake)")
+	errUnsupportedProtocolVersion   = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
+	errBothExternalSignersEnabled   = errors.New("only one of remote_signer or tmkms_listener may be configured")
+	errInvalidTmkmsTimeoutReadWrite = errors.New("tmkms_listener.timeout_read_write is below the minimum")
+	errNegativeTmkmsRetries         = errors.New("tmkms_listener.retries must not be negative (use 0 for infinite)")
+	errNegativeTmkmsRetryTimeout    = errors.New("tmkms_listener.retry_timeout must not be negative")
 )
+
+// minTmkmsTimeoutReadWrite is the lower bound for TimeoutReadWrite. The ping
+// interval is derived as 2/3 of it (SignerListenerEndpoint.OnStart), so a
+// value under ~2ms rounds the interval down to 0 and panics time.NewTicker
+// ("non-positive interval for NewTicker"). We require a comfortably sane
+// floor instead of just the panic threshold; cometbft defaults to 5s.
+const minTmkmsTimeoutReadWrite = 1 * time.Second
 
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
 // Field types and JSON/TOML tags chosen to match cometbft's config style
@@ -142,6 +152,16 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 	if c.ProtocolVersion != upstream.ProtocolVersion {
 		return fmt.Errorf("%w: got %q, supported: %q",
 			errUnsupportedProtocolVersion, c.ProtocolVersion, upstream.ProtocolVersion)
+	}
+	if c.TimeoutReadWrite < minTmkmsTimeoutReadWrite {
+		return fmt.Errorf("%w: got %s, minimum %s",
+			errInvalidTmkmsTimeoutReadWrite, c.TimeoutReadWrite, minTmkmsTimeoutReadWrite)
+	}
+	if c.Retries < 0 {
+		return fmt.Errorf("%w: got %d", errNegativeTmkmsRetries, c.Retries)
+	}
+	if c.RetryTimeout < 0 {
+		return fmt.Errorf("%w: got %s", errNegativeTmkmsRetryTimeout, c.RetryTimeout)
 	}
 	return nil
 }
