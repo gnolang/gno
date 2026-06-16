@@ -1190,14 +1190,21 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
 		defer iter.Close()
 
+		var last string
+		var hasLast bool
 		for ; iter.Valid(); iter.Next() {
 			key := string(iter.Key())
-			// Skip "#allbutprod" sibling keys: they are storage shards, not
-			// real package paths.
-			if strings.Contains(key, "#") {
+			// A package's prod key (pkg:<path>) and its #allbutprod sibling map
+			// to the same path. Strip the sibling suffix and de-dup so each
+			// package is yielded exactly once — including an empty-prod package
+			// (only a sibling key). Prod and sibling keys for a path are
+			// adjacent in iavl order, so de-dup against the previous suffices.
+			key = strings.TrimSuffix(key, "#allbutprod")
+			path := decodeBackendPackagePathKey(key)
+			if hasLast && path == last {
 				continue
 			}
-			path := decodeBackendPackagePathKey(key)
+			last, hasLast = path, true
 			if !yield(path) {
 				return
 			}

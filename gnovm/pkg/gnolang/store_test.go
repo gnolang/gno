@@ -247,3 +247,37 @@ func TestFindByPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	store := NewStore(nil, d1s, d2s)
+
+	add := func(name string, files ...*std.MemFile) {
+		store.AddMemPackage(&std.MemPackage{
+			Type:  MPUserAll,
+			Name:  name,
+			Path:  "gno.land/r/demo/" + name,
+			Files: files,
+		}, MPUserAll)
+	}
+	// alpha: prod + test -> prod blob + #allbutprod sibling (must list once, not twice).
+	add("alpha", &std.MemFile{Name: "alpha.gno", Body: "package alpha\n"},
+		&std.MemFile{Name: "alpha_test.gno", Body: "package alpha\n"})
+	// beta: test-only -> #allbutprod sibling only (empty prod; must still list once).
+	add("beta", &std.MemFile{Name: "beta_test.gno", Body: "package beta\n"})
+	// gamma: prod only -> prod blob only.
+	add("gamma", &std.MemFile{Name: "gamma.gno", Body: "package gamma\n"})
+
+	var got []string
+	store.FindPathsByPrefix("gno.land")(func(p string) bool {
+		got = append(got, p)
+		return true
+	})
+	require.Equal(t, []string{
+		"gno.land/r/demo/alpha",
+		"gno.land/r/demo/beta",
+		"gno.land/r/demo/gamma",
+	}, got)
+}

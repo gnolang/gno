@@ -1422,7 +1422,9 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
-	memPkg := store.GetMemPackage(pkgPath)
+	// GetMemPackageAll for parity with QueryFile, so doc generation sees test
+	// files (e.g. for any future test-derived examples).
+	memPkg := store.GetMemPackageAll(pkgPath)
 	if memPkg == nil {
 		err := ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))

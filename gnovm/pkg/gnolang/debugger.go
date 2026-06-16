@@ -619,7 +619,11 @@ func isMemPackage(st Store, pkgPath string) bool {
 
 func fileContent(st Store, pkgPath, name string) (string, error) {
 	if isMemPackage(st, pkgPath) {
-		return st.GetMemFile(pkgPath, name).Body, nil
+		// The package is in the store, but the requested file may not be in it;
+		// guard the nil before dereferencing, then fall through to disk.
+		if mf := st.GetMemFile(pkgPath, name); mf != nil {
+			return mf.Body, nil
+		}
 	}
 	buf, err := os.ReadFile(name)
 	return string(buf), err
