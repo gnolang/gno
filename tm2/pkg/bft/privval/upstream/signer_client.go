@@ -12,6 +12,7 @@ package upstream
 // because the validator's identity isn't yet known.
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
 // SignerClient implements types.PrivValidator.
@@ -95,9 +97,20 @@ func (sc *SignerClient) Init(maxWait time.Duration) error {
 	return nil
 }
 
-// Close shuts the endpoint down.
+// Close shuts the endpoint down. It stops the endpoint's service — closing
+// the listener, the ping loop and the service loop, and releasing the bound
+// port — and drops the live conn (via OnStop). signerEndpoint.Close only
+// drops the conn; stopping the service is required because node shutdown
+// closes the validator through PrivValidator.Close (node.go), so a plain
+// DropConnection would leave the listener, goroutines and port alive,
+// blocking clean in-process restart. Idempotent: a second Close (or a Close
+// before the endpoint was started) is a no-op.
 func (sc *SignerClient) Close() error {
-	return sc.endpoint.Close()
+	if err := sc.endpoint.Stop(); err != nil &&
+		!errors.Is(err, service.ErrAlreadyStopped) && !errors.Is(err, service.ErrNotStarted) {
+		return err
+	}
+	return nil
 }
 
 // IsConnected reports whether the endpoint has a live conn to the signer.
