@@ -366,8 +366,11 @@ func (alloc *Allocator) AllocateFunc() {
 	alloc.Allocate(allocFunc)
 }
 
-func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
+func (alloc *Allocator) AllocateMap() {
+	// Only the map header is charged; items are charged on insertion via
+	// AllocateMapItem. The make() size hint is intentionally ignored — see
+	// the make() map case in uverse.go.
+	alloc.Allocate(allocMap)
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -595,10 +598,10 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 	return alloc.NewStruct(t, tvs)
 }
 
-func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
-	alloc.AllocateMap(int64(size))
+func (alloc *Allocator) NewMap(t Type) *MapValue {
+	alloc.AllocateMap()
 	mv := &MapValue{}
-	mv.MakeMap(size)
+	mv.MakeMap()
 	alloc.stampPkgID(&mv.ObjectInfo, t)
 	return mv
 }
