@@ -103,6 +103,31 @@ func TestValidateBasic(t *testing.T) {
 
 		assert.ErrorIs(t, cfg.ValidateBasic(), errUnsupportedProtocolVersion)
 	})
+
+	t.Run("tmkms listener on unix socket allows empty allowlist", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "unix:///var/run/gnoland/privval.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+		// AllowedKMSPubKeys intentionally empty: a unix socket has no
+		// SecretConnection and the allowlist is not enforced, so it must
+		// not be required (the boundary is filesystem permissions).
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
+	t.Run("tmkms listener with unsupported scheme rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "udp://127.0.0.1:26659"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidTmkmsListenAddr)
+	})
 }
 
 func TestPathGetters(t *testing.T) {

@@ -197,9 +197,16 @@ func newTmkmsListenerPrivValidator(
 		compatLn = upstream.NewTCPListener(t, clientPrivKey, allowlist,
 			upstream.TCPListenerTimeoutReadWrite(cfg.TimeoutReadWrite))
 	case *net.UnixListener:
+		// A unix socket carries no SecretConnection and no pubkey allowlist:
+		// the access boundary is purely filesystem permissions. If an
+		// operator configured an allowlist, warn that it is not enforced
+		// here so they don't rely on it for a false sense of security.
+		if len(allowlist) > 0 {
+			logger.Warn("tmkms_listener: allowed_kms_pubkeys is ignored on a unix:// listener; " +
+				"access is controlled by filesystem permissions on the socket and its parent directory")
+		}
 		// Default umask leaves the socket world-writable on most distros;
-		// any local user could connect and (with an SecretConnection handshake
-		// that we can't gate by allowlist on UDS) become the signer. Tighten
+		// any local user could then connect and become the signer. Tighten
 		// to owner-only RW. Best-effort: ignore the error (some filesystems
 		// don't honor chmod on sockets) but log it.
 		if err := os.Chmod(address, 0o600); err != nil {

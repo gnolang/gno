@@ -145,10 +145,12 @@ For Horcrux running multiple cosigners, list one entry per cosigner.
 | Mutual auth | ed25519 allowlist | Filesystem perms (gnoland chmods `0600`) |
 | Use when | Signer is on a different host | Signer is on the same host |
 
-For UDS, gnoland sets the socket to mode `0600` after `bind(2)` so a
-local non-root user can't reach the SecretConn handshake stage at all.
-You should still keep the parent directory's perms tight (e.g. only
-the gnoland service user has search bit on it).
+For UDS there is no SecretConnection and no pubkey allowlist — the only
+access control is filesystem permissions. gnoland sets the socket to mode
+`0600` after `bind(2)` so only the owning user can connect; any
+`allowed_kms_pubkeys` you configure is ignored in this mode. You should
+still keep the parent directory's perms tight (e.g. only the gnoland
+service user has the search bit on it).
 
 ## Protocol version pin
 

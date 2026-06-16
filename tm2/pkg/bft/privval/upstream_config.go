@@ -19,16 +19,17 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 // Errors returned by TmkmsListenerConfig.
 var (
-	errInvalidTmkmsListenAddr      = errors.New("invalid tmkms_listener.listen_addr")
-	errInvalidTmkmsAllowedPubkeys  = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
-	errEmptyTmkmsChainID           = errors.New("tmkms_listener.chain_id must not be empty")
-	errEmptyTmkmsAllowedPubkeys    = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
-	errUnsupportedProtocolVersion  = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
-	errBothExternalSignersEnabled  = errors.New("only one of remote_signer or tmkms_listener may be configured")
+	errInvalidTmkmsListenAddr     = errors.New("invalid tmkms_listener.listen_addr")
+	errInvalidTmkmsAllowedPubkeys = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
+	errEmptyTmkmsChainID          = errors.New("tmkms_listener.chain_id must not be empty")
+	errEmptyTmkmsAllowedPubkeys   = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty on a tcp:// listener (an empty allowlist accepts any peer that completes the SecretConnection handshake)")
+	errUnsupportedProtocolVersion = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
+	errBothExternalSignersEnabled = errors.New("only one of remote_signer or tmkms_listener may be configured")
 )
 
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
@@ -43,10 +44,12 @@ type TmkmsListenerConfig struct {
 
 	// AllowedKMSPubKeys is the allowlist of expected signer pubkeys.
 	// Each entry is a hex-encoded ed25519 pubkey (32 bytes → 64 hex
-	// chars), optionally with an "ed25519:" prefix. An empty list
-	// accepts any peer that completes the SecretConnection handshake —
-	// fail-open mode, dev/test only.
-	AllowedKMSPubKeys []string `json:"allowed_kms_pubkeys" toml:"allowed_kms_pubkeys" comment:"Allowlist of expected signer pubkeys (hex-encoded ed25519). Empty = accept any peer (dev only)."`
+	// chars), optionally with an "ed25519:" prefix. It is the only
+	// authorization control on a tcp:// listener and is required there
+	// (an empty list would accept any peer that completes the
+	// SecretConnection handshake). On a unix:// listener it is ignored —
+	// the boundary is filesystem permissions, not the pubkey allowlist.
+	AllowedKMSPubKeys []string `json:"allowed_kms_pubkeys" toml:"allowed_kms_pubkeys" comment:"Allowlist of expected signer pubkeys (hex-encoded ed25519). Required for tcp:// listeners; ignored for unix:// (use filesystem permissions)."`
 
 	// ChainID is sent in PubKeyRequest/SignVoteRequest/SignProposalRequest.
 	// tmkms verifies its configured chain_id matches, refusing to sign
@@ -106,13 +109,15 @@ func (c *TmkmsListenerConfig) IsEnabled() bool {
 // ValidateBasic is invoked by the parent PrivValidatorConfig.ValidateBasic.
 // Only checks fields when the mode is enabled.
 //
-// Refuses an empty AllowedKMSPubKeys when the mode is enabled. The
-// underlying TCPListener treats an empty allowlist as "accept any peer
-// that completes the SecretConnection handshake" — useful for dev/test
-// but a footgun in production: a misconfigured firewall plus an attacker
-// who can mint an ed25519 keypair would be enough to substitute the
-// signer. We force the operator to put their tmkms identity in the
-// allowlist explicitly.
+// The allowlist requirement is scheme-dependent. On a tcp:// listener the
+// allowlist is the only authorization control: an empty allowlist accepts
+// any peer that completes the SecretConnection handshake — a footgun in
+// production (a misconfigured firewall plus an attacker who can mint an
+// ed25519 keypair would be enough to substitute the signer), so a non-empty
+// allowlist is required. On a unix:// listener the allowlist is not enforced
+// at all (NewUnixListener does no SecretConnection); the boundary there is
+// filesystem permissions, so we neither require nor honor it — if one is
+// configured, newTmkmsListenerPrivValidator logs that it is ignored.
 func (c *TmkmsListenerConfig) ValidateBasic() error {
 	if !c.IsEnabled() {
 		return nil
@@ -120,8 +125,16 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 	if c.ChainID == "" {
 		return errEmptyTmkmsChainID
 	}
-	if len(c.AllowedKMSPubKeys) == 0 {
-		return errEmptyTmkmsAllowedPubkeys
+	switch protocol, _ := osm.ProtocolAndAddress(c.ListenAddr); protocol {
+	case "tcp":
+		if len(c.AllowedKMSPubKeys) == 0 {
+			return errEmptyTmkmsAllowedPubkeys
+		}
+	case "unix":
+		// Allowlist not applicable; intentionally not required.
+	default:
+		return fmt.Errorf("%w: unsupported scheme %q (want tcp:// or unix://)",
+			errInvalidTmkmsListenAddr, protocol)
 	}
 	if _, err := c.ParseAllowlist(); err != nil {
 		return fmt.Errorf("%w: %v", errInvalidTmkmsAllowedPubkeys, err)
