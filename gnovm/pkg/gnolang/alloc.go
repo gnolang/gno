@@ -300,18 +300,11 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
-// mustFit returns v from a preceding overflow.Add/Mul, or raises a
-// recoverable Gno *Exception (the same "makeslice: len out of range" runtime
-// error Go produces, and that uverse make() already panics on) when that
-// op reported overflow (ok == false). The plain overflow.Addp/Mulp variants
-// panic with a bare Go string, which Gno code cannot recover() from. Scoped
-// to slice/array sizing only — other allocators (maps, blocks, strings)
-// carry different Go semantics.
-//
-// This guards only the int64-overflow boundary, not Go's full maxAlloc
-// threshold; smaller-but-still-oversized lengths are caught by the maxBytes
-// limit in Allocate (user make() runs on a finite-budget allocator).
-func sliceAllocMustFit(v int64, ok bool) int64 {
+// allocMustFit returns v when ok is true. When ok is false (overflow), it panics
+// with a recoverable *Exception matching Go's "makeslice: len out of range"
+// (the plain overflow.Addp/Mulp variants use a bare Go string, which Gno
+// cannot recover() from). Scoped to slice/array allocators only.
+func allocMustFit(v int64, ok bool) int64 {
 	if !ok {
 		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
 	}
@@ -360,11 +353,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(mustFit(overflow.Add(allocArray, size)))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, size)))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(mustFit(overflow.Add(allocArray, mustFit(overflow.Mul(allocArrayItem, items)))))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, allocMustFit(overflow.Mul(allocArrayItem, items)))))
 }
 
 func (alloc *Allocator) AllocateSlice() {
