@@ -39,14 +39,20 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
-	caller, err := s.Info()
-	if err != nil {
-		return err
-	}
-
 	// To verify if the password unlocks the account, sign a blank transaction.
+	// To set the Caller, imitate Sign below
+	var addr crypto.Address
+	if !s.GetMaster().IsZero() {
+		addr = s.GetMaster()
+	} else {
+		signer, err := s.Info()
+		if err != nil {
+			return err
+		}
+		addr = signer.GetAddress()
+	}
 	msg := vm.MsgCall{
-		Caller: caller.GetAddress(),
+		Caller: addr,
 	}
 	signCfg := SignCfg{
 		UnsignedTX: std.Tx{

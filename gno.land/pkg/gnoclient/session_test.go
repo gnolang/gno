@@ -234,6 +234,28 @@ func main(cur realm) {
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
 }
 
+// TestValidateSessionKey tests that Signer.Validate works for a session key
+func TestValidateSessionKey(t *testing.T) {
+	// Set up packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
+	// Make the master and session account
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	// As a baseline, validate the "normal" master account key
+	require.NoError(t, masterSigner.Validate())
+	// Now, validate the session account key
+	signer := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
+	require.NoError(t, signer.Validate())
+}
+
 func newInMemorySessionSigner(t *testing.T, chainid string, master crypto.Address) *SignerFromKeybase {
 	t.Helper()
 
