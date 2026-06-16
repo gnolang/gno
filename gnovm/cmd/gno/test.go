@@ -36,8 +36,7 @@ type testCmd struct {
 	printRuntimeMetrics bool
 	printEvents         bool
 	debug               bool
-	debugAddr           string
-	jobs                int
+	parallel            int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -178,19 +177,14 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"enable interactive debugger using stdin and stdout",
 	)
 
-	fs.StringVar(
-		&c.debugAddr,
-		"debug-addr",
-		"",
-		"enable interactive debugger using tcp address in the form [host]:port",
-	)
-
 	fs.IntVar(
-		&c.jobs,
-		"jobs",
-		1,
-		"number of packages to test in parallel; 0 means GOMAXPROCS. "+
-			"When above 1, the output of each package is buffered and printed once the package's tests complete.",
+		&c.parallel,
+		"p",
+		0,
+		fmt.Sprintf("number of packages to test in parallel; n <= 0 means GOMAXPROCS (%d). "+
+			"When above 1, the output of each package is buffered and printed once the package's tests complete. "+
+			"-debug enforces -p 1.",
+			runtime.GOMAXPROCS(0)),
 	)
 }
 
@@ -229,10 +223,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}()
 	}
 
-	if cmd.jobs != 1 && (cmd.debug || cmd.debugAddr != "") {
-		return errors.New("the interactive debugger can only be used with -jobs 1")
-	}
-
 	// Set up options to run tests.
 	newOpts := func(stdout, stderr goio.Writer) *test.TestOptions {
 		opts := test.NewTestOptions(cmd.rootDir, stdout, stderr, pkgs)
@@ -256,7 +246,17 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	if cmd.jobs == 1 {
+	// enforce -p 1 for -debug
+	if cmd.debug {
+		if cmd.parallel <= 1 {
+			// 0 or 1 jobs
+			cmd.parallel = 1
+		} else {
+			return errors.New("the interactive debugger can only be used with -p 1")
+		}
+	}
+
+	if cmd.parallel == 1 {
 		// Sequential run: all packages share a single store, and print
 		// their output directly as they run.
 		stdout := goio.Discard
@@ -275,11 +275,11 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			}
 		}
 	} else {
-		// Parallel run: cmd.jobs workers, each with its own store. The
+		// Parallel run: cmd.parallel workers, each with its own store. The
 		// output of each package is buffered, and printed in package order
 		// as results come in.
-		jobs := cmd.jobs
-		if jobs == 0 {
+		jobs := cmd.parallel
+		if jobs <= 0 {
 			jobs = runtime.GOMAXPROCS(0)
 		}
 		jobs = min(jobs, len(pkgs))
