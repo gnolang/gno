@@ -360,14 +360,14 @@ func TestPreprocessAlloc_BeginTransactionPropagates(t *testing.T) {
 		"forked tx-store must share the SAME *Allocator pointer (gas counters and bytes are shared across the tx)")
 }
 
-// TestCheckArrayLenFits exercises the preprocess-time array-length guard
+// TestCheckArrayAllocFits exercises the preprocess-time array-length guard
 // directly. The make20/21/22 filetests only cover the wildly-oversized
 // MaxInt64 case end-to-end; the cases that matter for the threshold math —
 // the exact boundary, and the per-element divergence between the byte
 // (1 byte/elem) and non-byte (allocArrayItem/elem) paths — can't be written
 // as filetests because a boundary-length array would attempt a real
 // allocation. They are checked here instead.
-func TestCheckArrayLenFits(t *testing.T) {
+func TestCheckArrayAllocFits(t *testing.T) {
 	// Thresholds derived the same way the guard does, so the boundary cases
 	// double as change-detectors for the formula.
 	perItem := int64(allocArrayItem) // non-byte: a full TypedValue slot.
@@ -398,7 +398,7 @@ func TestCheckArrayLenFits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.wantMsg == "" {
-				require.NotPanics(t, func() { checkArrayLenFits(tt.et, tt.length) })
+				require.NotPanics(t, func() { checkArrayAllocFits(tt.et, tt.length) })
 				return
 			}
 			defer func() {
@@ -406,7 +406,62 @@ func TestCheckArrayLenFits(t *testing.T) {
 				require.NotNil(t, r, "expected a panic")
 				require.Contains(t, fmt.Sprint(r), tt.wantMsg)
 			}()
-			checkArrayLenFits(tt.et, tt.length)
+			checkArrayAllocFits(tt.et, tt.length)
+		})
+	}
+}
+
+// TestEllipsisArrayIndexOverflow pins the variadic-array measurement guards
+// that reject an [...]T literal whose implied length would overflow int64.
+// This guard lives in preprocess1's measurement loop — a path the
+// checkArrayAllocFits test above never reaches (it emits "array index ... out
+// of bounds", not "larger than address space") — so it needs its own coverage.
+// Mirrors the make23 (keyed) and make26 (unkeyed trailing element) filetests.
+func TestEllipsisArrayIndexOverflow(t *testing.T) {
+	tests := []struct {
+		name string
+		expr string
+		want string
+	}{
+		{
+			// Keyed MaxInt64 implies length MaxInt64+1 (make23).
+			"keyed maxint64",
+			"[...]int{9223372036854775807: 1}",
+			"array index 9223372036854775807 out of bounds",
+		},
+		{
+			// Trailing unkeyed element after a MaxInt64-1 key reaches index
+			// MaxInt64, overflowing the running length (make26).
+			"unkeyed trailing element",
+			"[...]int{9223372036854775806: 1, 2}",
+			"array index 9223372036854775807 out of bounds",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st, _ := newPreprocessAllocTestStore(t, 64*1024*1024, stypes.NewInfiniteGasMeter())
+			defer st.SetPreprocessAllocator(nil)
+
+			pkgPath := "gno.land/r/test/ellipsis"
+			m := NewMachineWithOptions(MachineOptions{
+				PkgPath: pkgPath,
+				Store:   st,
+				Output:  io.Discard,
+				Alloc:   NewAllocator(64 * 1024 * 1024),
+			})
+			defer m.Release()
+
+			mpkg := &std.MemPackage{
+				Type: MPUserProd,
+				Name: "ellipsis",
+				Path: pkgPath,
+				Files: []*std.MemFile{{Name: "a.gno", Body: fmt.Sprintf(
+					"package ellipsis\nfunc main() { _ = %s }\n", tt.expr)}},
+			}
+			panicked, val := runMemPackageRecover(m, mpkg)
+			require.True(t, panicked, "expected preprocess to reject overflowing length")
+			require.Contains(t, fmt.Sprint(val), tt.want, "got: %v", val)
 		})
 	}
 }

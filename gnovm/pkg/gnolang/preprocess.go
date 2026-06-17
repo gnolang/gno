@@ -2422,6 +2422,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if at.Vrd {
 						idx := int64(0)
 						for _, elt := range n.Elts {
+							// The implied length is the largest index + 1; an index of
+							// MaxInt64 overflows that to MaxInt64+1. Reject it as out of
+							// bounds (matching Go, whose largest valid index here is
+							// MaxInt64-1) so idx can't wrap negative past
+							// checkArrayAllocFits below.
 							if elt.Key == nil {
 								if idx == math.MaxInt64 {
 									panic(fmt.Sprintf("array index %d out of bounds [0:0]", idx))
@@ -2432,11 +2437,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if idx > k {
 									panic("array lit key out of order")
 								}
-								// The implied length is k+1. MaxInt64 is the only key
-								// whose length overflows int64; Go rejects that key as
-								// an out-of-bounds index (the largest key that forms a
-								// valid length is MaxInt64-1). Match Go, and stop k+1
-								// from wrapping negative past checkArrayLenFits below.
 								if k == math.MaxInt64 {
 									panic(fmt.Sprintf("array index %d out of bounds [0:0]", k))
 								}
@@ -2447,8 +2447,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (dontcare)
 						// at.Vrd = false
 						// Reject an oversized [...]T{idx: v} array, whose length
-						// is only known here, at compile time (see checkArrayLenFits).
-						checkArrayLenFits(at.Elt, idx)
+						// is only known here, at compile time (see checkArrayAllocFits).
+						checkArrayAllocFits(at.Elt, idx)
 						at.Len = int(idx)
 						// Mutating Len invalidates the cached typeid.
 						at.typeid = ""
@@ -2667,9 +2667,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					convertConst(store, last, n, cx, IntType)
 					n.Len = cx
 					// Reject an oversized fixed-size array at compile time (see
-					// checkArrayLenFits). This covers [N]T and [N]T{...}; the
+					// checkArrayAllocFits). This covers [N]T and [N]T{...}; the
 					// [...]T{idx: v} form is measured and checked elsewhere.
-					checkArrayLenFits(evalStaticType(store, last, n.Elt), cx.GetInt())
+					checkArrayAllocFits(evalStaticType(store, last, n.Elt), cx.GetInt())
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
 				// with *constTypeExprs (as *ConstExprs are) because
@@ -4884,13 +4884,13 @@ func isNamedConversion(xt, t Type) bool {
 	return false
 }
 
-// checkArrayLenFits rejects a fixed-size array of element type et and the given
+// checkArrayAllocFits rejects a fixed-size array of element type et and the given
 // length whose backing allocation would overflow int64, mirroring the runtime
 // allocator's allocMustFit guard (AllocateListArray/AllocateDataArray). Go's
 // compiler rejects such an array at compile time ("larger than address space");
 // go/types does not, so without this it would only fail at allocation time.
 // Called for every fixed-size array form: [N]T, [N]T{...}, and [...]T{idx: v}.
-func checkArrayLenFits(et Type, length int64) {
+func checkArrayAllocFits(et Type, length int64) {
 	if length <= 0 {
 		return // negative lengths are rejected earlier (go/types).
 	}
