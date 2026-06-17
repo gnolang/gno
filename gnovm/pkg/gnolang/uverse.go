@@ -1137,18 +1137,23 @@ func makeUverseNode() {
 				}
 			case *MapType:
 				switch vargsl {
-				case 0:
+				case 0, 1:
+					// The optional size argument is an advisory hint.
+					// GnoVM ignores it: the map is created empty and
+					// grows on insertion, with each item charged then
+					// (via AllocateMapItem).
+					//
+					// This diverges from Go, which preallocates buckets
+					// sized to the hint (Go only forces a 0 hint when it
+					// is negative or large enough to overflow its size
+					// math). GnoVM skips that on purpose: the hint is not
+					// persisted across state recovery, and honoring it
+					// would either double-charge gas for the items or let
+					// a large hint trigger an unmetered Go-level
+					// preallocation. As in Go, no hint value ever panics.
 					m.PushValue(TypedValue{
 						T: tt,
-						V: m.Alloc.NewMap(tt, 0),
-					})
-					return
-				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
-					li := int(lv.ConvertGetInt())
-					m.PushValue(TypedValue{
-						T: tt,
-						V: m.Alloc.NewMap(tt, li),
+						V: m.Alloc.NewMap(tt),
 					})
 					return
 				default:
