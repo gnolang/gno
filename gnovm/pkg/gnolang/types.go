@@ -2641,76 +2641,31 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	if ft.Name != "" {
 		return
 	}
-	if n := pickEmbedName(nameSrc); n != "" {
-		ft.Name = n
-	} else {
-		switch ct := ft.Type.(type) {
-		case *PointerType:
-			// dereference one level
-			switch ct := ct.Elt.(type) {
-			case *DeclaredType:
-				ft.Name = ct.Name
-			default:
-				// should not happen,
-				panic("should not happen")
-			}
-		case *DeclaredType:
-			ft.Name = ct.Name
-		case PrimitiveType:
-			switch ct {
-			case BoolType:
-				ft.Name = Name("bool")
-			case StringType:
-				ft.Name = Name("string")
-			case IntType:
-				ft.Name = Name("int")
-			case Int8Type:
-				ft.Name = Name("int8")
-			case Int16Type:
-				ft.Name = Name("int16")
-			case Int32Type:
-				ft.Name = Name("int32")
-			case Int64Type:
-				ft.Name = Name("int64")
-			case UintType:
-				ft.Name = Name("uint")
-			case Uint8Type:
-				ft.Name = Name("uint8")
-			case Uint16Type:
-				ft.Name = Name("uint16")
-			case Uint32Type:
-				ft.Name = Name("uint32")
-			case Uint64Type:
-				ft.Name = Name("uint64")
-			case Float32Type:
-				ft.Name = Name("float32")
-			case Float64Type:
-				ft.Name = Name("float64")
-			}
-		default:
-			panic(fmt.Sprintf(
-				"unexpected field type %s",
-				ft.Type.String()))
-		}
-	}
-	ft.Embedded = true
-}
-
-func pickEmbedName(x Expr) Name {
+	// Derive the field name from the source expr, not ft.Type: an alias
+	// (type Int = int) resolves away, so ft.Type would yield "int" instead
+	// of the written "Int". An embedded field is always a (qualified/pointer)
+	// type name, so unwrapping const/pointer layers lands on the NameExpr or
+	// SelectorExpr that carries the name as written.
+	x := nameSrc
 	for {
 		switch e := x.(type) {
 		case *constTypeExpr, *ConstExpr:
 			x = unconst(x)
+			continue
 		case *StarExpr:
 			x = e.X
+			continue
 		case *NameExpr:
-			return e.Name
+			ft.Name = e.Name
 		case *SelectorExpr:
-			return e.Sel
-		default:
-			return ""
+			ft.Name = e.Sel
 		}
+		break
 	}
+	if ft.Name == "" {
+		panic(fmt.Sprintf("cannot derive embedded name for field type %s", ft.Type.String()))
+	}
+	ft.Embedded = true
 }
 
 func IsImplementedBy(it Type, ot Type) bool {
