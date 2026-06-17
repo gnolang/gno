@@ -24,8 +24,6 @@ jobs:
     with:
       modulepath: "gnovm"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
   stdlibs:
     uses: ./.github/workflows/_ci-gno.yml
     with:

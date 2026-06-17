@@ -194,6 +194,10 @@ func (m *Machine) doOpStar() {
 // var i interface{} = 42; &i must yield *interface{}, not *int.
 // ATTR_REF_ELEM_TYPE is set during preprocessing in
 // TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
+//
+// No size-dependent path here: zero-sized element types take the
+// same (Base, Index) route as any other. See the equality contract
+// on PointerValue (values.go).
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv, _ := m.PopAsPointer2(rx.X)
@@ -572,7 +576,7 @@ func (m *Machine) doOpMapLit() {
 	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(mt, 0)
+	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
