@@ -300,6 +300,17 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
+// allocMustFit returns v when ok is true. When ok is false (overflow), it panics
+// with a recoverable *Exception matching Go's "makeslice: len out of range"
+// (the plain overflow.Addp/Mulp variants use a bare Go string, which Gno
+// cannot recover() from). Scoped to slice/array allocators only.
+func allocMustFit(v int64, ok bool) int64 {
+	if !ok {
+		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+	}
+	return v
+}
+
 func (alloc *Allocator) Allocate(size int64) {
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if alloc.collect == nil {
@@ -354,11 +365,11 @@ func arrayItemAllocSize(et Type) int64 {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(overflow.Addp(allocArray, size))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, size)))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, allocMustFit(overflow.Mul(allocArrayItem, items)))))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -378,8 +389,11 @@ func (alloc *Allocator) AllocateFunc() {
 	alloc.Allocate(allocFunc)
 }
 
-func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
+func (alloc *Allocator) AllocateMap() {
+	// Only the map header is charged; items are charged on insertion via
+	// AllocateMapItem. The make() size hint is intentionally ignored — see
+	// the make() map case in uverse.go.
+	alloc.Allocate(allocMap)
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -607,10 +621,10 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 	return alloc.NewStruct(t, tvs)
 }
 
-func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
-	alloc.AllocateMap(int64(size))
+func (alloc *Allocator) NewMap(t Type) *MapValue {
+	alloc.AllocateMap()
 	mv := &MapValue{}
-	mv.MakeMap(size)
+	mv.MakeMap()
 	alloc.stampPkgID(&mv.ObjectInfo, t)
 	return mv
 }
