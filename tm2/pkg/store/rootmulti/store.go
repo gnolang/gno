@@ -3,6 +3,7 @@ package rootmulti
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -21,6 +22,29 @@ const (
 	commitInfoKeyFmt = "s/%d" // s/<version>
 )
 
+// refSnapshot wraps a db.Snapshot with a reference count so it can be shared
+// between the multiStore (which owns the initial ref) and concurrent queries
+// (each of which acquires a ref for its duration). The snapshot is closed only
+// when the last reference is released.
+type refSnapshot struct {
+	snap dbm.Snapshot
+	refs atomic.Int64
+}
+
+func newRefSnapshot(snap dbm.Snapshot) *refSnapshot {
+	rs := &refSnapshot{snap: snap}
+	rs.refs.Store(1) // initial ref held by querySnapshot
+	return rs
+}
+
+func (rs *refSnapshot) acquire() { rs.refs.Add(1) }
+
+func (rs *refSnapshot) release() {
+	if rs.refs.Add(-1) == 0 {
+		rs.snap.Close()
+	}
+}
+
 // multiStore is composed of many CommitStores. Name contrasts with
 // cacheMultiStore which is for cache-wrapping other MultiStores. It implements
 // the CommitMultiStore interface.
@@ -38,6 +62,9 @@ type multiStore struct {
 	// on the first Commit; not persisted (after the first commit,
 	// lastCommitID.Version is the source of truth).
 	initialVersion int64
+
+	// current read snapshot, swapped after each Commit
+	querySnapshot atomic.Pointer[refSnapshot]
 }
 
 var (
@@ -196,7 +223,20 @@ func (ms *multiStore) Commit() types.CommitID {
 	defer batch.Close()
 	setCommitInfo(batch, version, commitInfo)
 	setLatestVersion(batch, version)
-	batch.Write()
+	err := batch.WriteSync()
+	if err != nil {
+		panic("rootmulti: Commit() failed: " + err.Error())
+	}
+
+	// Take a fresh snapshot of the now-consistent DB state.
+	// Queries will read from this until the next Commit.
+	if snap, err := ms.db.NewSnapshot(); err == nil {
+		rs := newRefSnapshot(snap)
+		old := ms.querySnapshot.Swap(rs)
+		if old != nil {
+			old.release() // drop the ref held by querySnapshot
+		}
+	}
 
 	// Prepare for next version.
 	commitID := types.CommitID{
@@ -205,6 +245,15 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	ms.lastCommitID = commitID
 	return commitID
+}
+
+// QuerySnapshot returns the current read-only DB snapshot representing the last
+// fully committed block. Returns nil if no snapshot is available.
+func (ms *multiStore) QuerySnapshot() dbm.Snapshot {
+	if rs := ms.querySnapshot.Load(); rs != nil {
+		return rs.snap
+	}
+	return nil
 }
 
 // SetInitialVersion records the version the next Commit() should produce
@@ -247,23 +296,41 @@ func (ms *multiStore) MultiWrite() {
 }
 
 // Implements CommitMultiStore.
-func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, error) {
+func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, func(), error) {
+	var db dbm.DB
+	var release func()
+
+	if rs := ms.querySnapshot.Load(); rs != nil {
+		// Acquire a reference so the snapshot stays alive for the duration of
+		// this query, even if Commit() swaps it out concurrently.
+		rs.acquire()
+		release = rs.release
+		db = dbm.NewSnapshotDB(rs.snap)
+	} else {
+		// Backend doesn't support snapshots (e.g. non-PebbleDB in tests).
+		// Fall back to ImmutableDB over the live DB — same behaviour as before.
+		release = func() {}
+		db = dbm.NewImmutableDB(ms.db)
+	}
+
 	ims := &multiStore{
-		db:           dbm.NewImmutableDB(ms.db),
+		db:           db,
 		storeOpts:    ms.storeOpts,
 		storesParams: ms.storesParams,
 		keysByName:   ms.keysByName,
 	}
 	ims.storeOpts.Immutable = true
-	err := ims.LoadVersion(version)
-	if err != nil {
-		return nil, err
+
+	if err := ims.LoadVersion(version); err != nil {
+		release() // don't leak the snapshot ref on error
+		return nil, nil, err
 	}
+
 	stores := make(map[types.StoreKey]types.Store, len(ims.stores))
 	for storeKey, store := range ims.stores {
 		stores[storeKey] = immut.New(store)
 	}
-	return cachemulti.New(stores, ims.keysByName), nil
+	return cachemulti.New(stores, ims.keysByName), release, nil
 }
 
 // Implements MultiStore.

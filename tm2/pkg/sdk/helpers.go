@@ -66,13 +66,15 @@ func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 	height := header.GetHeight()
 
 	// Load an immutable snapshot of committed state at the given height.
-	// This is safe for concurrent access — IAVL versions are copy-on-write.
-	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
+	// The snapshot is pinned until release() is called, preventing concurrent
+	// Commit() calls from freeing it while we're still reading.
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
 	if err != nil {
 		return ABCIResultFromError(
 			std.ErrInternal(fmt.Sprintf("failed to load state for simulate at height %d: %s", height, err)),
 		)
 	}
+	defer release()
 
 	ctx := NewContext(RunTxModeSimulate, cacheMS, header, app.logger).
 		WithTxBytes(txBytes).

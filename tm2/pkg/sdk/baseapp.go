@@ -519,7 +519,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		return
 	}
 
-	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
 	if err != nil {
 		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
@@ -529,6 +529,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		))
 		return
 	}
+	defer release()
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
@@ -968,21 +969,22 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	header := app.deliverState.ctx.BlockHeader()
 
-	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
-	// The write to the DeliverTx state writes all state transitions to the root
-	// MultiStore (app.cms) so when Commit() is called is persists those values.
-	app.deliverState.ms.MultiWrite()
-	commitID := app.cms.Commit()
-	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
-
-	// Save this header.
-	baseStore := app.cms.GetStore(app.baseKey)
+	// Write block header into the deliver cache before flush,
+	// so it lands in the same batch as all other block state.
+	baseStore := app.deliverState.ms.GetStore(app.baseKey)
 	if baseStore == nil {
 		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'base' Store"))
 		return
 	}
 	headerBz := amino.MustMarshal(header)
 	baseStore.Set(nil, mainLastHeaderKey, headerBz)
+
+	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
+	// The write to the DeliverTx state writes all state transitions to the root
+	// MultiStore (app.cms) so when Commit() is called is persists those values.
+	app.deliverState.ms.MultiWrite()
+	commitID := app.cms.Commit()
+	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
 
 	// Reset the Check state to the latest committed.
 	//

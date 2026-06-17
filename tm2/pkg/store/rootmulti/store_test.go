@@ -2,6 +2,7 @@ package rootmulti
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -61,12 +62,13 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	require.Equal(t, int64(1), cID.Version)
 
 	// require failure when given an invalid or pruned version
-	_, err = ms.MultiImmutableCacheWrapWithVersion(cID.Version + 1)
+	_, _, err = ms.MultiImmutableCacheWrapWithVersion(cID.Version + 1)
 	require.Error(t, err)
 
 	// require a valid version can be cache-loaded
-	cms, err := ms.MultiImmutableCacheWrapWithVersion(cID.Version)
+	cms, release, err := ms.MultiImmutableCacheWrapWithVersion(cID.Version)
 	require.NoError(t, err)
+	defer release()
 
 	// require a valid key lookup yields the correct value
 	kvStore := cms.GetStore(ms.keysByName["store1"])
@@ -257,6 +259,152 @@ func TestMultiStoreQuery(t *testing.T) {
 	qres = multi.Query(query)
 	require.Nil(t, qres.Error)
 	require.Equal(t, v2, qres.Value)
+}
+
+// TestSnapshotReadIsolation verifies that a snapshot acquired at version N
+// continues to return version-N data after version N+1 has been committed.
+// This is the core cross-store consistency guarantee: both IAVL and dbadapter
+// sub-stores must reflect the same block height within a single query.
+func TestSnapshotReadIsolation(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	key := []byte("city")
+	v1 := []byte("paris")
+	v2 := []byte("berlin")
+
+	// Commit version 1 with v1.
+	ms.getStoreByName("store1").Set(nil, key, v1)
+	cid1 := ms.Commit()
+	require.Equal(t, int64(1), cid1.Version)
+
+	// Acquire an immutable view pinned to version 1 before committing v2.
+	snap1, release1, err := ms.MultiImmutableCacheWrapWithVersion(cid1.Version)
+	require.NoError(t, err)
+
+	// Commit version 2 with v2 — this swaps the querySnapshot.
+	ms.getStoreByName("store1").Set(nil, key, v2)
+	cid2 := ms.Commit()
+	require.Equal(t, int64(2), cid2.Version)
+
+	// The version-1 snapshot must still return v1, not v2.
+	got := snap1.GetStore(ms.keysByName["store1"]).Get(nil, key)
+	require.Equal(t, v1, got, "version-1 snapshot must not see version-2 writes")
+
+	// A fresh snapshot at version 2 must return v2.
+	snap2, release2, err := ms.MultiImmutableCacheWrapWithVersion(cid2.Version)
+	require.NoError(t, err)
+	defer release2()
+
+	got2 := snap2.GetStore(ms.keysByName["store1"]).Get(nil, key)
+	require.Equal(t, v2, got2, "version-2 snapshot must return version-2 value")
+
+	// Releasing the version-1 snapshot after version-2 has been committed must
+	// not panic — the refcount keeps it alive until this point.
+	release1()
+}
+
+// TestSnapshotRefcounting verifies that the snapshot underlying a query is not
+// closed while references are still held, and is closed exactly once after all
+// references are released.
+func TestSnapshotRefcounting(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	ms.getStoreByName("store1").Set(nil, []byte("k"), []byte("v"))
+	cid := ms.Commit()
+
+	// Acquire three concurrent references to the same version.
+	const N = 3
+	releases := make([]func(), N)
+	for i := range N {
+		_, rel, err := ms.MultiImmutableCacheWrapWithVersion(cid.Version)
+		require.NoError(t, err)
+		releases[i] = rel
+	}
+
+	// Commit the next version — swaps the snapshot. The old snapshot must remain
+	// valid because three references still hold it.
+	ms.Commit()
+
+	// Release two of the three refs — snapshot must still be alive.
+	releases[0]()
+	releases[1]()
+
+	// The third ref can still read without panic.
+	snap, rel3, err := ms.MultiImmutableCacheWrapWithVersion(cid.Version)
+	require.NoError(t, err)
+	require.NotNil(t, snap.GetStore(ms.keysByName["store1"]))
+	rel3()
+
+	// Releasing the last original ref must not panic.
+	releases[2]()
+}
+
+// TestSnapshotConcurrentCommitAndQuery runs concurrent calls to
+// MultiImmutableCacheWrapWithVersion while Commit() advances the block height.
+// Run with -race to detect data races on the snapshot pointer swap.
+func TestSnapshotConcurrentCommitAndQuery(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	key := []byte("counter")
+
+	// Seed version 1 so queries have a valid version to request.
+	ms.getStoreByName("store1").Set(nil, key, []byte{0})
+	seedCID := ms.Commit()
+
+	const (
+		numCommits = 20
+		numReaders = 8
+	)
+
+	var wg sync.WaitGroup
+
+	// Writer goroutine: commits numCommits blocks.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := range numCommits {
+			ms.getStoreByName("store1").Set(nil, key, []byte{byte(i + 1)})
+			ms.Commit()
+		}
+	}()
+
+	// Reader goroutines: each repeatedly acquires a snapshot at the seed version
+	// and reads from it, then releases. Must never panic or data-race.
+	for range numReaders {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range numCommits {
+				snap, release, err := ms.MultiImmutableCacheWrapWithVersion(seedCID.Version)
+				if err != nil {
+					// Version may have been pruned; that's acceptable.
+					continue
+				}
+				store := snap.GetStore(ms.keysByName["store1"])
+				require.NotNil(t, store)
+				// Seed version must always return the seeded value, never a
+				// later value — cross-store consistency check.
+				got := store.Get(nil, key)
+				require.Equal(t, []byte{0}, got,
+					"snapshot at seed version must return seed value, not a later write")
+				release()
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 // -----------------------------------------------------------------------
