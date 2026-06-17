@@ -2423,6 +2423,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						idx := int64(0)
 						for _, elt := range n.Elts {
 							if elt.Key == nil {
+								if idx == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", idx))
+								}
 								idx++
 							} else {
 								k := evalConst(store, last, elt.Key).ConvertGetInt()
