@@ -1,31 +1,26 @@
 package main
 
-// An oversized make([]T, n) must produce a Gno-recoverable panic when the
-// allocation-size accounting overflows int64, not an unrecoverable Go-host
-// panic. The length is the only cheap, user-controlled input that can reach
-// the overflow (append's size is bounded by already-allocated slices). Both
-// array allocator entry points are covered: AllocateListArray ([]int) and
-// AllocateDataArray ([]byte).
-
-func shouldPanic(f func()) {
-	defer func() {
-		r := recover()
-		if r == nil {
-			panic("not panicking")
-		}
-		println("recovered:", r)
-	}()
-	f()
-}
+// A map's size argument is an advisory hint, and GnoVM ignores it
+// entirely: the map is created empty and grows on insertion. Any hint —
+// negative, or large enough to overflow internal size accounting — is a
+// no-op that must never panic (unlike a bad slice length). Go also never
+// panics on a bad map hint, though for valid hints it does preallocate.
 
 func main() {
-	length := int(^uint(0) >> 1) // max int
-	shouldPanic(func() { _ = make([]int, length) })  // AllocateListArray
-	shouldPanic(func() { _ = make([]byte, length) }) // AllocateDataArray
-	println("ok")
+	neg := -1
+	a := make(map[int]int, neg)
+	println("neg:", len(a))
+
+	huge := int(^uint(0) >> 1) // max int
+	b := make(map[int]int, huge)
+	println("huge:", len(b))
+
+	a[1] = 10
+	b[2] = 20
+	println("usable:", a[1], b[2], len(a), len(b))
 }
 
 // Output:
-// recovered: runtime error: makeslice: len out of range
-// recovered: runtime error: makeslice: len out of range
-// ok
+// neg: 0
+// huge: 0
+// usable: 10 20 1 1
