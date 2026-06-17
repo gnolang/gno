@@ -300,6 +300,17 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
+// allocMustFit returns v when ok is true. When ok is false (overflow), it panics
+// with a recoverable *Exception matching Go's "makeslice: len out of range"
+// (the plain overflow.Addp/Mulp variants use a bare Go string, which Gno
+// cannot recover() from). Scoped to slice/array allocators only.
+func allocMustFit(v int64, ok bool) int64 {
+	if !ok {
+		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+	}
+	return v
+}
+
 func (alloc *Allocator) Allocate(size int64) {
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if alloc.collect == nil {
@@ -342,11 +353,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(overflow.Addp(allocArray, size))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, size)))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
+	alloc.Allocate(allocMustFit(overflow.Add(allocArray, allocMustFit(overflow.Mul(allocArrayItem, items)))))
 }
 
 func (alloc *Allocator) AllocateSlice() {
