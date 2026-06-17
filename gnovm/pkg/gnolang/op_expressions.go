@@ -576,7 +576,7 @@ func (m *Machine) doOpMapLit() {
 	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(mt, 0)
+	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization

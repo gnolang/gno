@@ -2420,27 +2420,40 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
 					if at.Vrd {
-						idx := 0
+						idx := int64(0)
 						for _, elt := range n.Elts {
+							// The implied length is the largest index + 1; an index of
+							// MaxInt64 overflows that to MaxInt64+1. Reject it as out of
+							// bounds (matching Go, whose largest valid index here is
+							// MaxInt64-1) so idx can't wrap negative past
+							// checkArrayAllocFits below.
 							if elt.Key == nil {
+								if idx == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", idx))
+								}
 								idx++
 							} else {
-								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
-								if idx <= k {
-									idx = k + 1
-								} else {
+								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								if idx > k {
 									panic("array lit key out of order")
 								}
+								if k == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", k))
+								}
+								idx = k + 1
 							}
 						}
 						// update type
 						// (dontcare)
 						// at.Vrd = false
-						at.Len = idx
+						// Reject an oversized [...]T{idx: v} array, whose length
+						// is only known here, at compile time (see checkArrayAllocFits).
+						checkArrayAllocFits(at.Elt, idx)
+						at.Len = int(idx)
 						// Mutating Len invalidates the cached typeid.
 						at.typeid = ""
 						// update node
-						cx := constInt(n, int64(idx))
+						cx := constInt(n, idx)
 						unconst(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -2653,6 +2666,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					cx := evalConst(store, last, n.Len)
 					convertConst(store, last, n, cx, IntType)
 					n.Len = cx
+					// Reject an oversized fixed-size array at compile time (see
+					// checkArrayAllocFits). This covers [N]T and [N]T{...}; the
+					// [...]T{idx: v} form is measured and checked elsewhere.
+					checkArrayAllocFits(evalStaticType(store, last, n.Elt), cx.GetInt())
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
 				// with *constTypeExprs (as *ConstExprs are) because
@@ -4868,6 +4885,22 @@ func isNamedConversion(xt, t Type) bool {
 		}
 	}
 	return false
+}
+
+// checkArrayAllocFits rejects a fixed-size array of element type et and the given
+// length whose backing allocation would overflow int64, mirroring the runtime
+// allocator's allocMustFit guard (AllocateListArray/AllocateDataArray). Go's
+// compiler rejects such an array at compile time ("larger than address space");
+// go/types does not, so without this it would only fail at allocation time.
+// Called for every fixed-size array form: [N]T, [N]T{...}, and [...]T{idx: v}.
+func checkArrayAllocFits(et Type, length int64) {
+	if length <= 0 {
+		return // negative lengths are rejected earlier (go/types).
+	}
+	per := arrayItemAllocSize(et)
+	if length > (math.MaxInt64-allocArray)/per {
+		panic(fmt.Sprintf("type [%d]%s larger than address space", length, et.String()))
+	}
 }
 
 // like checkOrConvertType(last, x, nil)

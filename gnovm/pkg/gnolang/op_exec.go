@@ -209,7 +209,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
@@ -978,7 +978,12 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m, cv, tv)
+	// A switch tag whose static type is an interface compares like an
+	// interface equality at runtime — uncomparable dynamic types panic.
+	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
+	ss := m.PeekStmt1().(*SwitchStmt)
+	viaIface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
+	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
