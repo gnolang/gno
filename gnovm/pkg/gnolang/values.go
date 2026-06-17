@@ -768,9 +768,11 @@ type MapListItem struct {
 	Value TypedValue
 }
 
-func (mv *MapValue) MakeMap(c int) {
+// MakeMap initializes mv with no capacity hint: the make() size argument
+// is intentionally not honored (see the make() map case in uverse.go).
+func (mv *MapValue) MakeMap() {
 	mv.List = &MapList{}
-	mv.vmap = make(map[MapKey]*MapListItem, c)
+	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
 func (mv *MapValue) GetLength() int {
