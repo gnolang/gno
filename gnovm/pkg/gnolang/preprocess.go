@@ -2665,7 +2665,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Len = cx
 					// Reject an oversized fixed-size array at compile time (see
 					// checkArrayLenFits). This covers [N]T and [N]T{...}; the
-					// [...]T{idx: v} form is measured later and checked there.
+					// [...]T{idx: v} form is measured and checked elsewhere.
 					checkArrayLenFits(evalStaticType(store, last, n.Elt), cx.GetInt())
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
