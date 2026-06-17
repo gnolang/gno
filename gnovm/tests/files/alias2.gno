@@ -1,3 +1,7 @@
+// A plain (unqualified) embedded type alias keeps the alias name as the field
+// name: struct{Int} stays distinct from struct{int}, and two same-named aliases
+// of different underlying types stay distinct too. (alias3 covers the qualified
+// selector form pkg.T, plus pointer and interface embeds.)
 package main
 
 type Int = int

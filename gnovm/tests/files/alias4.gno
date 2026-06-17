@@ -1,3 +1,5 @@
+// An alias to a defined type (type C = T) embeds under the alias name "C",
+// not the target type's name "T", so struct{C} and struct{T} are distinct.
 package main
 
 type T struct{ V int }

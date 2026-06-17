@@ -1,3 +1,8 @@
+// An embedded type alias takes its field name from the name as written, not
+// from the resolved underlying type, across all embed forms: the qualified
+// selector pkg.T (named after T, the selector's final segment), pointer *T,
+// and interface embeds. Otherwise distinct alias embeds collapse to equal
+// TypeIDs.
 package main
 
 import "filetests/extern/aliasdef"
