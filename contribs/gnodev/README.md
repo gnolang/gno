@@ -118,6 +118,7 @@ FLAGS
   -lazy-loader=true 	enable lazy loader
   -log-format console	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
+  -no-dev-key=false 	skip auto-importing the well-known dev account into the local keybase
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
@@ -166,6 +167,7 @@ FLAGS
   -lazy-loader=false 	enable lazy loader
   -log-format json	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
+  -no-dev-key=false 	skip auto-importing the well-known dev account into the local keybase
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
