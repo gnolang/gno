@@ -1,30 +1,18 @@
 package packages
 
 import (
-	"os"
-	"path/filepath"
+	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
-// FindWorkspace walks up from start looking for gnowork.toml or gnomod.toml.
-// Returns the directory containing the first match, or "" if none found.
+// FindWorkspace resolves the loader root for start, or "" when start is in
+// neither a gnowork.toml workspace nor a gnomod.toml package directory (the
+// caller then falls back to discovery mode). It delegates to gnovm's loader
+// context so the workspace gnodev eager-loads is, by construction, one gnovm's
+// own Load can satisfy — the two cannot drift on which markers define a root.
 func FindWorkspace(start string) string {
-	dir, err := filepath.Abs(start)
+	root, err := vmpackages.FindLoaderRoot(start)
 	if err != nil {
 		return ""
 	}
-	for {
-		if hasFile(dir, "gnowork.toml") || hasFile(dir, "gnomod.toml") {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
-}
-
-func hasFile(dir, name string) bool {
-	info, err := os.Stat(filepath.Join(dir, name))
-	return err == nil && !info.IsDir()
+	return root
 }
