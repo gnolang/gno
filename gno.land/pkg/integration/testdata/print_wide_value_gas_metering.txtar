@@ -1,0 +1,22 @@
+# Asserts that println OUTPUT is metered against the per-tx gas budget.
+# A 1,000,000-element []int is allocated (~40MB, ~7.2M gas) and printed
+# (~8 MB of output). gas-wanted (9M) is set deliberately ABOVE the
+# slice-make cost so the make succeeds and the budget is then exhausted
+# by the print itself: the buffered meteredWriter charges allocGas per
+# flushed chunk (location "stream output"), tripping "out of gas"
+# mid-print. gasUsed lands just over gas-wanted — that small per-flush
+# overshoot is the signature of the print path, as opposed to the
+# make's single ~5.9M atomic allocation charge.
+
+gnoland start
+
+! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 9000000 -chainid=tendermint_test test1 $WORK/script/script.gno
+stderr '(out of gas|allocation limit exceeded)'
+
+-- script/script.gno --
+package main
+
+func main() {
+	xs := make([]int, 1_000_000)
+	println(xs)
+}

@@ -8,7 +8,6 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -16,8 +15,6 @@ const (
 	// NativeCPUUversePrintInit is the base gas cost for the Print function.
 	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
 	NativeCPUUversePrintInit = 1376
-	// NativeCPUUversePrintPerChar is now chars per gas unit.
-	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
@@ -1585,13 +1582,31 @@ func consumeGas(m *Machine, amount types.Gas) {
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
+//
+// Output streams into a buffered meteredWriter, which charges gas via
+// allocGas once per flushed buffer rather than once per write. The
+// cumulative output cost is therefore bounded by the per-tx gas budget,
+// in proportion to the bytes produced, instead of being a single
+// after-the-fact charge on the joined Go string.
+//
+// formatUverseOutput is preserved (still used by benchmark
+// instrumentation at lines ~920 and ~942 for output-length sampling).
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	consumeGas(m, NativeCPUUversePrintInit)
-	output := formatUverseOutput(m, xv, newline)
-	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
-	// For debugging:
-	// fmt.Println(colors.Cyan(string(output)))
-	m.Output.Write(output)
+	mw := newMeteredWriter(m.Output, m)
+	defer mw.free()
+	xvl := xv.TV.GetLength()
+	for i := 0; i < xvl; i++ {
+		if i != 0 {
+			mw.WriteByte(' ')
+		}
+		ev := xv.TV.GetPointerAtIndexInt(m, m.Store, i).Deref()
+		ev.SprintTo(mw, m)
+	}
+	if newline {
+		mw.WriteByte('\n')
+	}
+	mw.Flush()
 }
 
 func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {

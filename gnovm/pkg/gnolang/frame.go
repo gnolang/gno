@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"strings"
 )
@@ -268,13 +269,35 @@ type Exception struct {
 	Next       *Exception
 }
 
-func (e *Exception) StringWithStacktrace(m *Machine) string {
-	return "panic: " + e.Value.Sprint(m) + "\n" + e.Stacktrace.String()
+// SprintTo writes the exception's value to w via (*TypedValue).SprintTo,
+// so the output is metered against m's gas meter. Named SprintTo (not
+// WriteTo) to avoid shadowing io.WriterTo's WriteTo(io.Writer)
+// (int64, error) — the signature here differs and would only confuse
+// readers.
+func (e *Exception) SprintTo(w io.Writer, m *Machine) {
+	e.Value.SprintTo(w, m)
 }
 
+// StringWithStacktrace formats the exception as "panic: <value>\n<stacktrace>".
+// Streams the value portion through the metered writer (charging output gas);
+// the stacktrace is appended afterward.
+func (e *Exception) StringWithStacktrace(m *Machine) string {
+	var b strings.Builder
+	b.Grow(128)
+	b.WriteString("panic: ")
+	e.SprintTo(&b, m)
+	b.WriteByte('\n')
+	b.WriteString(e.Stacktrace.String())
+	return b.String()
+}
+
+// Sprint returns the formatted exception value as a string. Thin
+// wrapper around SprintTo for legacy string-returning callers.
 func (e *Exception) Sprint(m *Machine) string {
-	res := e.Value.Sprint(m)
-	return res
+	var b strings.Builder
+	b.Grow(64)
+	e.SprintTo(&b, m)
+	return b.String()
 }
 
 func (e *Exception) NumExceptions() int {
