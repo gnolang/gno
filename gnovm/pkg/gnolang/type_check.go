@@ -385,12 +385,10 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
-	// Assignability is defined only between types. A blank/absent target
-	// (`_ = xxx`, blank range operands) has no static type — callers must
-	// skip the check syntactically (isBlankIdentifier) instead of passing
-	// nil. A nil dt is ambiguous: an untyped-nil lvalue also has a nil
-	// static type (e.g. `for k, nil = range m`), so accepting nil here
-	// would silently skip the check for it instead of rejecting it.
+	// A nil dt is rejected, not skipped: blank targets (`_ = xxx`, blank
+	// range operands) must be filtered by the caller, since an untyped-nil
+	// lvalue (`for k, nil = range m`) also has a nil static type and must
+	// still be caught here.
 	if dt == nil {
 		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
 	}
@@ -815,6 +813,10 @@ func (x *UnaryExpr) AssertCompatible(t Type) {
 	}
 }
 
+// AssertCompatible checks that x++/x-- is well-formed: the operand's type must
+// support the operator, and the operand must be a valid (addressable, settable)
+// assignment target. The operator/type error is reported first, matching
+// go/types.
 func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
 	t := evalStaticTypeOf(store, last, x.X)
 	// check compatible
@@ -830,12 +832,15 @@ func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
 	assertValidAssignLhs(store, last, x.X)
 }
 
+// AssertCompatible checks that the range key and value targets are valid
+// assignment targets and that their types are assignable from the range
+// expression's key/element types. Each operand is handled independently
+// (like AssignStmt.AssertCompatible): kt/vt are nil iff that operand is
+// blank, and the type checks are skipped for a nil operand.
 func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	// Per-operand, like AssignStmt.AssertCompatible: kt/vt are nil iff the
-	// operand is blank, and the type checks below are skipped for it.
 	kt := evalAssignLhsType(store, last, x.Key)
 	var vt Type
 	if x.Value != nil {
@@ -846,6 +851,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 
 	xt := baseOf(evalStaticTypeOf(store, last, x.X))
+	// Ranging over a pointer to array iterates the array itself (int keys,
+	// array-element values), so unwrap it to the array type. Mirrors the
+	// PointerKind handling in preprocess.
+	if pt, ok := xt.(*PointerType); ok {
+		xt = baseOf(pt.Elem())
+	}
 	if kt != nil {
 		switch cxt := xt.(type) {
 		case *MapType:

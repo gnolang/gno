@@ -4731,6 +4731,10 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
+		// A nil t means "no destination type, just default-convert below"
+		// (the typeless `var x = <expr>` path and recursive untyped-operand
+		// calls). It must be guarded here: checkAssignableTo now panics on a
+		// nil dt rather than treating it as a no-op.
 		if t != nil {
 			// e.g. int(1) == int8(1)
 			mustAssignableTo(n, cx.T, t)
