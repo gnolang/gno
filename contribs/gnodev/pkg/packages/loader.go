@@ -325,12 +325,12 @@ func (l *Loader) Reload() ([]*Package, error) {
 // the RPC fetcher live outside any FS root, so they are re-resolved
 // individually and merged with the eager result.
 //
-// The index is never evicted: FS-backed entries are content-free handles
-// (ToMemPackage re-reads disk on every call), and remote packages are
+// The package index is never evicted: FS-backed entries are content-free
+// handles (ToMemPackage re-reads disk on every call), and remote packages are
 // session-immutable — re-fetching them on every watcher tick would waste an
-// RPC round-trip per file save. rootIdx is likewise preserved: directories
-// are stable mid-session; new dirs (or deleted extra-roots) need a gnodev
-// restart.
+// RPC round-trip per file save. Extra roots, by contrast, are re-walked each
+// eager load (see loadExtraRootVm) so packages added to or removed from a root
+// mid-session surface on reload without a gnodev restart.
 func (l *Loader) reloadRoots(roots []string) ([]*Package, error) {
 	l.mu.RLock()
 	trackedPaths := make([]string, 0, len(l.tracked))
@@ -535,14 +535,17 @@ func (l *Loader) loadWithPatternsVm(patterns ...string) (vmpackages.PkgList, err
 // Per-package failures (unreadable mempackage, parse error) are warning-logged
 // and skipped; the function never errors.
 //
-// Note: on first access to a given root, ensureRootIndexLocked walks the
-// entire root under the write lock, briefly blocking concurrent Resolve /
-// LookupFS calls. Acceptable at startup; the per-package ReadMemPackage and
-// Imports work below runs without the lock.
+// The root walk and per-package ReadMemPackage/Imports work both run without
+// the lock; only the rootIdx swap is taken under the write lock.
 func (l *Loader) loadExtraRootVm(root string) vmpackages.PkgList {
 	type entry struct{ path, dir string }
+	// Re-walk the root on every eager load so packages added to (or removed
+	// from) an extra root mid-session surface on reload, matching the
+	// workspace, which gnovm.Load re-walks each reload. The fresh index also
+	// refreshes the lazy-path cache that Resolve/LookupFS read between reloads.
+	idx := scanRoot(root, l.cfg.ExcludeDirs, l.cfg.Logger)
 	l.mu.Lock()
-	idx := l.ensureRootIndexLocked(root)
+	l.rootIdx[root] = idx
 	entries := make([]entry, 0, len(idx))
 	for p, d := range idx {
 		entries = append(entries, entry{p, d})

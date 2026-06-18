@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -50,6 +49,33 @@ func TestLoader_Reload_AnnouncesExtraRootOnce(t *testing.T) {
 	assert.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("loaded root")),
 		"each eager root is announced at info exactly once per session")
 	assert.Contains(t, buf.String(), "packages=1")
+}
+
+// A package directory created in an -extra-root after the first reload must
+// surface on the next reload, matching the workspace (which gnovm.Load
+// re-walks every reload). Otherwise side-by-side editing of a workspace realm
+// and an extra-root realm behaves inconsistently.
+func TestLoader_Reload_PicksUpNewExtraRootPkg(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "one"), "gno.land/p/ext/one", "package one\n")
+
+	l := New(Config{Workspace: "", ExtraRoots: []string{extra}, Logger: testLogger()})
+
+	pkgs, err := l.Reload()
+	require.NoError(t, err)
+	require.Len(t, pkgs, 1)
+
+	writePkg(t, filepath.Join(extra, "two"), "gno.land/p/ext/two", "package two\n")
+
+	pkgs, err = l.Reload()
+	require.NoError(t, err)
+
+	paths := make([]string, len(pkgs))
+	for i, p := range pkgs {
+		paths[i] = p.ImportPath
+	}
+	assert.Contains(t, paths, "gno.land/p/ext/two",
+		"a package added to an extra root mid-session should appear on reload")
 }
 
 func TestLoader_ModcachePackagesAnnounced(t *testing.T) {
@@ -346,10 +372,11 @@ func TestLoader_LoadAll(t *testing.T) {
 	assert.Contains(t, paths, "gno.land/p/ext/two")
 }
 
-// TestLoader_Reload_PreservesRootIdx verifies that Reload does NOT invalidate
-// rootIdx — directories are stable mid-session and re-walking large roots on
-// every watcher event is too expensive. Restart is required to pick up new dirs.
-func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
+// TestLoader_Reload_KeepsRootIdxPopulated verifies that Reload re-walks the
+// extra root (so new dirs surface, see TestLoader_Reload_PicksUpNewExtraRootPkg)
+// while leaving rootIdx populated, so the lazy Resolve/LookupFS path keeps
+// working across reloads.
+func TestLoader_Reload_KeepsRootIdxPopulated(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
 	wsPkg := filepath.Join(root, "wspkg")
@@ -367,28 +394,24 @@ func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
 	_, err = l.Resolve("gno.land/p/ext/two")
 	require.NoError(t, err)
 
-	// Snapshot rootIdx before Reload.
 	l.mu.RLock()
-	idxBefore, ok := l.rootIdx[extra]
+	_, ok := l.rootIdx[extra]
 	require.True(t, ok, "rootIdx should contain the extra root after Resolve")
-	require.NotEmpty(t, idxBefore)
 	l.mu.RUnlock()
 
 	_, err = l.Reload()
 	require.NoError(t, err)
 
-	// rootIdx must still be populated after Reload.
+	// rootIdx must still be populated after Reload so the lazy path keeps
+	// resolving against the extra root.
 	l.mu.RLock()
 	idxAfter, ok := l.rootIdx[extra]
 	l.mu.RUnlock()
-	// rootIdx must still be the SAME map across Reload, not just an
-	// equivalent freshly re-walked one. Compare map header pointers.
-	require.True(t, ok, "rootIdx should be preserved across Reload")
-	assert.Equal(t,
-		reflect.ValueOf(idxBefore).Pointer(),
-		reflect.ValueOf(idxAfter).Pointer(),
-		"rootIdx must be the same map (no re-walk), not a content-equivalent rebuild",
-	)
+	require.True(t, ok, "rootIdx should remain populated across Reload")
+	assert.NotEmpty(t, idxAfter)
+
+	_, err = l.Resolve("gno.land/p/ext/two")
+	require.NoError(t, err, "lazy Resolve should still work after Reload")
 }
 
 // TestLoader_LoadAll_SortsExtraRoots verifies LoadAll returns packages in
