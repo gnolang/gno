@@ -271,7 +271,7 @@ func upstreamWireProposal(p upstream.Proposal) []byte {
 	return buf
 }
 
-// ---- Canonical types (Phase 1 retag, encoded via tm2/pkg/bft/types codec) ---
+// ---- Canonical types (encoded via tm2/pkg/bft/types codec) ----------------
 
 // upstreamWireCanonicalProposal mirrors upstream's canonical.proto:
 //
