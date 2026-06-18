@@ -4138,10 +4138,10 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 	case *InterfaceTypeExpr:
 		it := &InterfaceType{
 			PkgPath: packageOf(last).PkgPath,
-			// flatten embedded interfaces so identity is the method set, not
-			// the embedded-interface (alias) spelling; see
-			// flattenInterfaceMethods.
-			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, true)),
+			// Build without embed naming (embed=false): flattenInterfaceMethods
+			// expands embedded interfaces into their method set, making identity
+			// the method set rather than the embedded-interface (alias) spelling.
+			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false)),
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
@@ -4153,9 +4153,9 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 
 // buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
 // mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
-// embed=true mirrors doOpStructType / doOpInterfaceType, which name embedded
-// fields (the interface path then flattens embeds via flattenInterfaceMethods,
-// which discards the embed name); embed=false mirrors doOpFuncType.
+// embed=true mirrors doOpStructType, which names embedded fields per field;
+// embed=false mirrors doOpFuncType and the interface path (which leaves embeds
+// unnamed and flattens them via flattenInterfaceMethods).
 func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
 	fts := make([]FieldType, len(fxs))
 	for i := range fxs {
