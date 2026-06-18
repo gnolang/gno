@@ -2668,6 +2668,36 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	ft.Embedded = true
 }
 
+// fillEmbeddedInterfaceName names an embedded-interface field from its
+// resolved type, NOT from the source spelling. This is deliberately the
+// opposite of fillEmbeddedName (used for struct embeds): Go computes
+// interface identity from the flattened method set, so an embedded alias and
+// its target must collapse to one identity — interface{ SAlias } (where
+// type SAlias = Stringer) must equal interface{ Stringer }. Deriving the
+// name from the resolved *DeclaredType keeps both named "Stringer", matching
+// pre-#5739 behavior and Go.
+//
+// TODO(gnovm): this only equalizes alias-vs-target. GnoVM still stores an
+// embedded interface as a single named method entry instead of flattening
+// its method set, so structurally identical interfaces with different
+// spellings still diverge from Go (e.g. interface{ Stringer } !=
+// interface{ Str() string }, which is also broken on master). The complete
+// fix flattens embedded method sets at construction, dropping the embed name
+// from the TypeID entirely; see the follow-up branch scratch/iface-flatten.
+// Embedding an alias to an *anonymous* interface still panics here, as it
+// did pre-#5739 — the flattening follow-up also resolves that.
+func fillEmbeddedInterfaceName(ft *FieldType) {
+	if ft.Name != "" {
+		return
+	}
+	dt, ok := ft.Type.(*DeclaredType)
+	if !ok {
+		panic(fmt.Sprintf("cannot derive embedded interface name for type %s", ft.Type.String()))
+	}
+	ft.Name = dt.Name
+	ft.Embedded = true
+}
+
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:

@@ -4136,9 +4136,16 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
+		// Build without struct-style embed naming (embed=false), then name
+		// embedded interfaces from the resolved type rather than the written
+		// spelling, so an alias and its target collapse to one identity.
+		methods := buildFieldTypesAST(store, last, x.Methods, false)
+		for i := range methods {
+			fillEmbeddedInterfaceName(&methods[i])
+		}
 		it := &InterfaceType{
 			PkgPath: packageOf(last).PkgPath,
-			Methods: buildFieldTypesAST(store, last, x.Methods, true),
+			Methods: methods,
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
@@ -4150,8 +4157,9 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 
 // buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
 // mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
-// embed=true mirrors doOpStructType/doOpInterfaceType which call
-// fillEmbeddedName per field; embed=false mirrors doOpFuncType which does not.
+// embed=true mirrors doOpStructType, which calls fillEmbeddedName per field;
+// embed=false mirrors doOpFuncType (and the interface path, which builds with
+// embed=false and then names embeds via fillEmbeddedInterfaceName).
 func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
 	fts := make([]FieldType, len(fxs))
 	for i := range fxs {
