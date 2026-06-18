@@ -282,7 +282,7 @@ var OriginCallerExtractor func(ctx any) string
 // `cur.Previous()` after the override surfaces what X_getRealm surfaces
 // as PreviousRealm of the override frame. Exposed for X_setContext.
 func BuildOverridePrevField(addr, pkgPath string) TypedValue {
-	return newRealmHIVPointer(fallbackAllocator, addr, pkgPath, TypedValue{})
+	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
 }
 
 // buildOriginRealm constructs a per-call origin realm matching what
@@ -321,7 +321,7 @@ func init() {
 	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
 
 	// Build the global placeholder origin realm now that types are wired.
-	gOriginRealmTV = newRealmHIVPointer(fallbackAllocator, "", "", TypedValue{})
+	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
 }
 
 // OriginRealmTV returns the typed-nil *.grealm used as the prev seed for
@@ -1554,7 +1554,94 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage(fallbackAllocator)
+	uverseValue = uverseNode.NewPackage(nil)
+
+	sealUverseTypes()
+}
+
+// sealUverseTypes pre-fills the lazily-memoized fields on the shared, process-
+// global uverse type singletons, single-threaded during package init, so they
+// are read-only afterward and the parallel test suites (and `gno test -p`) do
+// not race filling them on first concurrent access.
+//
+// Each Type kind caches metadata on first use — TypeID, FuncType.bound,
+// Declared/StructType.pkgID, Interface/StructType effective counts — none of
+// which is safe to fill from multiple goroutines. Computing them here once
+// makes the shared type graph immutable. Per-store types are unaffected (each
+// is preprocessed by a single goroutine). DeclaredType.methodIndex is not
+// pre-filled: it builds only past methodIndexThreshold, which no uverse
+// singleton reaches.
+func sealUverseTypes() {
+	seen := make(map[Type]bool)
+	var seal func(t Type)
+	seal = func(t Type) {
+		if t == nil || seen[t] {
+			return
+		}
+		seen[t] = true
+		switch ct := t.(type) {
+		case *PointerType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *SliceType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ArrayType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ChanType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *MapType:
+			ct.TypeID()
+			seal(ct.Key)
+			seal(ct.Value)
+		case *FuncType:
+			ct.TypeID()
+			if len(ct.Params) > 0 {
+				ct.BoundType() // method type: fill bound
+			}
+			for i := range ct.Params {
+				seal(ct.Params[i].Type)
+			}
+			for i := range ct.Results {
+				seal(ct.Results[i].Type)
+			}
+		case *StructType:
+			ct.TypeID()
+			ct.GetPkgID()
+			effectiveStructSurface(ct, map[Type]struct{}{})
+			for i := range ct.Fields {
+				seal(ct.Fields[i].Type)
+			}
+		case *InterfaceType:
+			if ct.Generic != "" {
+				return // generic uverse type: no TypeID, never concurrently filled
+			}
+			ct.TypeID()
+			effectiveInterfaceMethods(ct, map[Type]struct{}{})
+			for i := range ct.Methods {
+				seal(ct.Methods[i].Type)
+			}
+		case *DeclaredType:
+			ct.TypeID()
+			ct.GetPkgID()
+			seal(ct.Base)
+			for i := range ct.Methods {
+				seal(ct.Methods[i].T)
+			}
+		default:
+			// PrimitiveType, PackageType, TypeType, etc.
+			ct.TypeID()
+		}
+	}
+	for _, t := range []Type{
+		gErrorType, gStringerType, gAddressType, gRealmType,
+		gConcreteRealmType, gConcreteRealmPtrType, gByteSliceType,
+		gPackageType, gTypeType,
+	} {
+		seal(t)
+	}
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

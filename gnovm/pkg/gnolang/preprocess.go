@@ -4282,10 +4282,10 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	// store.GetAllocator() may be nil here — store.BeginTransaction
-	// below forks alloc which propagates nil — and we need a non-nil
-	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
-	// is throwaway, never persisted.
-	pv := pn.NewPackage(fallbackAllocator) // throwaway
+	// below forks alloc which propagates nil — and that's fine: this
+	// PackageValue is a throwaway, never persisted, so a nil (no-op)
+	// allocator suffices.
+	pv := pn.NewPackage(nil) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4889,8 +4889,8 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
 		// special-case in append-iface-nil at line ~1804). The
 		// conversion lands in a ConstExpr that isn't persisted directly,
-		// so use fallbackAllocator: no stamping needed.
-		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
+		// so use a nil (no-op) allocator: no stamping needed.
+		ConvertTo(nil, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }

@@ -1222,9 +1222,9 @@ func (tv *TypedValue) SetInt(n int64) {
 
 func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	// IntType-only conversion: no allocation occurs; fallbackAllocator
-	// is used purely to satisfy the *Allocator argument.
-	ConvertTo(fallbackAllocator, store, tv, IntType, false)
+	// IntType-only conversion: no allocation occurs, so pass a nil
+	// (no-op) allocator.
+	ConvertTo(nil, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
@@ -1993,7 +1993,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(m, nilRealm, fallbackAllocator, store, &iv)
+	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
 }
 
 func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
