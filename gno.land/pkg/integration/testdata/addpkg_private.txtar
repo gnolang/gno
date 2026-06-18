@@ -48,7 +48,7 @@ stderr 'cannot persist object of type defined in the private realm gno.land/r/fo
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfPrivateStructToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
+stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptySliceOfPrivateStructToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
@@ -78,10 +78,10 @@ stderr 'cannot persist object from the private realm gno.land/r/foobar/privatere
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm2 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
+stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm3 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
+stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateKeyToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
@@ -112,7 +112,7 @@ stderr 'cannot persist object from the private realm gno.land/r/foobar/privatere
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithPrivateDataToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
+stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithTreePointerToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'

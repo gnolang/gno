@@ -12,7 +12,6 @@ package upstream
 //   <varint length><N bytes proto-encoded message>
 
 import (
-	"bufio"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -21,6 +20,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// byteReader adapts an io.Reader to io.ByteReader by reading exactly one
+// byte at a time, so binary.ReadUvarint consumes only the varint prefix and
+// never reads ahead into the next frame.
+type byteReader struct{ r io.Reader }
+
+func (b byteReader) ReadByte() (byte, error) {
+	var p [1]byte
+	if _, err := io.ReadFull(b.r, p[:]); err != nil {
+		return 0, err
+	}
+	return p[0], nil
+}
+
 // MaxRemoteSignerMsgSize bounds a single privval message. Mirrors
 // cometbft/privval/signer_endpoint.go::maxRemoteSignerMsgSize. Larger
 // messages are refused before allocation to prevent memory amplification.
@@ -28,20 +40,24 @@ const MaxRemoteSignerMsgSize = 1024 * 10
 
 // DelimitedReader reads varint-length-prefixed proto.Message values.
 type DelimitedReader struct {
-	r          *bufio.Reader
+	r          io.Reader
 	maxMsgSize int
 }
 
-// NewDelimitedReader wraps r with a buffered reader and enforces the given
-// per-message size cap. Use MaxRemoteSignerMsgSize for the privval path.
+// NewDelimitedReader reads directly from r (no buffering) and enforces the
+// given per-message size cap. Use MaxRemoteSignerMsgSize for the privval
+// path. It deliberately does NOT wrap r in a bufio.Reader: these readers are
+// created fresh per message and discarded, and a buffered reader would slurp
+// bytes belonging to the next frame (e.g. a coalesced TCP segment) and lose
+// them when dropped — breaking the SecretConnection handshake intermittently.
 func NewDelimitedReader(r io.Reader, maxMsgSize int) *DelimitedReader {
-	return &DelimitedReader{r: bufio.NewReader(r), maxMsgSize: maxMsgSize}
+	return &DelimitedReader{r: r, maxMsgSize: maxMsgSize}
 }
 
 // ReadMsg reads one message and decodes it into msg. Returns the number of
 // bytes consumed (length-prefix + payload), or an error.
 func (dr *DelimitedReader) ReadMsg(msg proto.Message) (int, error) {
-	length64, err := binary.ReadUvarint(dr.r)
+	length64, err := binary.ReadUvarint(byteReader{dr.r})
 	if err != nil {
 		return 0, err
 	}
@@ -81,6 +97,12 @@ func (dw *DelimitedWriter) WriteMsg(msg proto.Message) (int, error) {
 	body, err := proto.Marshal(msg)
 	if err != nil {
 		return 0, fmt.Errorf("upstream/protoio: marshal: %w", err)
+	}
+	// Bound the body before computing the framed size. Mirrors the reader's
+	// maxMsgSize cap: the peer refuses anything larger than its own cap, and
+	// bounding here keeps n+len(body) well clear of int overflow.
+	if len(body) > MaxRemoteSignerMsgSize {
+		return 0, fmt.Errorf("upstream/protoio: message length %d exceeds cap %d", len(body), MaxRemoteSignerMsgSize)
 	}
 	var prefix [binary.MaxVarintLen64]byte
 	n := binary.PutUvarint(prefix[:], uint64(len(body)))

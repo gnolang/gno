@@ -318,11 +318,33 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if po == nil || !po.GetIsReal() {
 		return // do nothing.
 	}
-	if po.GetObjectID().PkgID != rlm.ID {
-		// Invariant violation: all mutation paths must have a pre-mutation
-		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
-		// here. If this fires, a pre-check is missing.
+	if poPkgID := po.GetObjectID().PkgID; poPkgID != rlm.ID {
+		// The write target isn't the active realm's own data, yet the
+		// pre-check (IsReadonly) allowed it. The one legitimate case is a
+		// transient stdlib self-mutation: a stdlib method runs with the
+		// CALLER's realm (borrow rule #2 is skipped for stdlib receivers), so
+		// writing its own stdlib-stamped state (e.g. math/rand's global RNG
+		// advancing p.lo/p.hi — including when called from a /p/ context) has
+		// poPkgID != m.Realm. Stdlib is re-initialized each tx and never
+		// persisted → no-op. Anything else means a pre-mutation readonly
+		// check is missing. (Checked before the /p/ gate below so math/rand
+		// run with m.Realm at a /p/ realm isn't mistaken for a /p/
+		// self-mutation; stdlib init writes have poPkgID == rlm.ID.)
+		if poPkgID.IsStdlibPkg() {
+			return
+		}
 		panic("invariant violation: DidUpdate called on external-realm object without prior readonly check")
+	}
+	// po == rlm: the active realm is writing its OWN data. Reject if that
+	// realm is an immutable /p/ realm in StageRun — a /p/-stamped receiver
+	// borrows m.Realm to its frozen /p/ realm, so a post-init write to the
+	// /p/'s own state lands here. Stdlib is handled above; init writes are
+	// StageAdd, also exempt.
+	if m != nil && m.Stage == StageRun &&
+		rlm.ID.IsImmutablePkg() && !rlm.ID.IsStdlibPkg() {
+		panic(fmt.Sprintf(
+			"cannot mutate %s: package is immutable post-init",
+			rlm.Path))
 	}
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
@@ -1029,6 +1051,27 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 		oo.SetIsNewEscaped(false)
 		oo.SetIsEscaped(true)
 		// XXX anything else to do?
+	}
+
+	// Invariant: a realm's package block must be escaped when persisted.
+	// It holds the package-level variable bindings, and only escaped objects
+	// get their hash written to the iavl (consensus) store; a non-escaped
+	// package block would inline into the rootless, unescaped PackageValue,
+	// so its state would not be committed to the app hash. The block reaches
+	// refcount >= 2 structurally (PackageValue.Block + each file block's
+	// parent edge), so this holds for every realm — asserted here so a future
+	// change to the ownership/escape walk that broke it fails loudly under
+	// -tags debugAssert (make test.debugAssert) instead of silently dropping
+	// realm state from consensus.
+	if debugAssert {
+		if b, ok := oo.(*Block); ok {
+			if pn, ok := b.GetSource(store).(*PackageNode); ok && IsRealmPath(pn.PkgPath) {
+				if !b.GetIsEscaped() {
+					panic(fmt.Sprintf("realm package block %q persisted unescaped: "+
+						"package-level state would not be committed to the iavl store", pn.PkgPath))
+				}
+			}
+		}
 	}
 
 	// set object to store.

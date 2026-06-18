@@ -1,0 +1,93 @@
+name: ci / multiarch-determinism
+
+# Cross-compile a tiny Go driver that embeds gnovm directly: it builds
+# a gno.Machine, loads the stdlib, parses an embedded corpus.gno, and
+# runs it. The corpus calls into gno stdlibs (crypto/sha256,
+# crypto/ed25519, crypto/chacha20, crypto/bech32, crypto/subtle,
+# hash/adler32, ...) so the exercise covers both gnovm's native
+# bindings (Go2Gno/Gno2Go marshalling, injected funcs) and its
+# pure-gno interpreter paths.
+#
+# The driver is cross-built with CGO disabled for several
+# architectures on a single Ubuntu runner, executed under qemu-user,
+# and the stdouts are diffed. Any byte-level difference indicates
+# non-determinism somewhere in the gnovm + stdlib stack that user code
+# on-chain would also encounter.
+#
+# Running on one host removes runner-to-runner variability and keeps
+# the comparison cheap (seconds of CPU per run).
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "misc/multiarch-determinism/**"
+      - "gnovm/**"
+      - "tm2/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci-multiarch-determinism.yml"
+  pull_request:
+    paths:
+      - "misc/multiarch-determinism/**"
+      - "gnovm/**"
+      - "tm2/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci-multiarch-determinism.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+      - name: Install qemu-user
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-user
+      - name: Cross-build the driver for each architecture
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for arch in amd64 arm64; do
+            GOOS=linux GOARCH="$arch" go build \
+              -trimpath \
+              -o "out/driver-${arch}" \
+              ./misc/multiarch-determinism
+          done
+          file out/driver-*
+      - name: Run each driver under qemu and capture stdout
+        env:
+          GNOROOT: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          ./out/driver-amd64              > out/result-amd64.txt
+          qemu-aarch64 ./out/driver-arm64 > out/result-arm64.txt
+          wc -l out/result-*.txt
+      - name: Diff stdouts (any difference fails the job)
+        run: |
+          set -euo pipefail
+          if ! diff -u out/result-amd64.txt out/result-arm64.txt; then
+            echo "::error::Cross-architecture output diverges. See diff above."
+            exit 1
+          fi
+          echo "All architectures produced byte-identical gno stdlib output."
+      - name: Upload outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: multiarch-outputs
+          path: out/
+          retention-days: 7

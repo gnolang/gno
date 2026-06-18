@@ -1,8 +1,12 @@
 // PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_edit_reply_08_filetest
 
+// Editing a reply to contain a <gno-form> is now accepted: the
+// write-time blacklist relaxation applies to edits too (EditReply shares
+// the validator). The body renders inside a <gno-foreign> sandbox.
 package z_edit_reply_08_filetest
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -24,8 +28,12 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
+	// Previously rejected on edit ("forms are not allowed in replies").
 	boards2.EditReply(cross(cur), bid, tid, rid, "<gno-form><gno-select name=\"foo\" value=\"\" /></gno-form>")
+
+	content := boards2.Render("test-board/1")
+	println(strings.Contains(content, "<gno-foreign>"))
 }
 
-// Error:
-// Gno-Flavored Markdown forms are not allowed in replies
+// Output:
+// true

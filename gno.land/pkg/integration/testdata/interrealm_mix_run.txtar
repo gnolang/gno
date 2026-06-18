@@ -15,7 +15,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
 
 ## run non_crossing_mutation
-## interrealm v2: Layer 1 borrows m.Realm = /r/borrowrealm during the call;
+## interrealm v2: borrow rule #1 borrows m.Realm = /r/borrowrealm during the call;
 ## `value++` is a same-realm write — succeeds. (Pre-interrealm-v2: panicked
 ## with readonly taint because borrow did not fire on non-crossing.)
 gnokey maketx run runner $WORK/run/non_crossing_mutation.gno -gas-fee 5000000ugnot -gas-wanted 200000000 -chainid=tendermint_test

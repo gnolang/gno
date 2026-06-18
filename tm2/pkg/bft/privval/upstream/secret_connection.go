@@ -225,6 +225,10 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 			chunkLength := len(chunk)
 			binary.LittleEndian.PutUint32(frame, uint32(chunkLength))
 			copy(frame[scDataLenSize:], chunk)
+			// Pooled buffers aren't zeroed and the pool is shared (incl.
+			// chain-p2p), so the unused tail may hold another connection's
+			// plaintext; Seal covers the whole frame, so clear it first.
+			clear(frame[scDataLenSize+chunkLength:])
 
 			sc.sendAead.Seal(sealedFrame[:0], sc.sendNonce[:], frame, nil)
 			incrSecConnNonce(sc.sendNonce)

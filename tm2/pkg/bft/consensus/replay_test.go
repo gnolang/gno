@@ -1333,7 +1333,7 @@ func TestReconstructLastCommit_InitialHeight(t *testing.T) {
 
 	// NewConsensusState calls reconstructLastCommit; this must not panic.
 	require.NotPanics(t, func() {
-		_ = NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+		_ = NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool, NoOpEvidencePool{})
 	})
 }
 
@@ -1359,7 +1359,7 @@ func TestCreateProposalBlock_InitialHeight(t *testing.T) {
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), nil, mempool)
 
 	store := &nilReturningBlockStore{height: 0, nilBlockMetaAt: 99}
-	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool, NoOpEvidencePool{})
 
 	// Supply a private validator so createProposalBlock can proceed past the
 	// commit-selection logic and reach the actual block creation.
@@ -1403,7 +1403,7 @@ func TestNeedProofBlock_InitialHeight(t *testing.T) {
 	// (no blocks exist yet — this is what a real empty store does).
 	store := &nilReturningBlockStore{height: 0, nilBlockMetaAt: 99}
 
-	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
+	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool, NoOpEvidencePool{})
 
 	// cs.Height is 100 (LastBlockHeight+1 == state.InitialHeight).
 	// needProofBlock(100) returns true because height == InitialHeight.
