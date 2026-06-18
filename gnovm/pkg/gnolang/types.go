@@ -1045,7 +1045,8 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			return tr, hasPtr, rcvr, ft, false
 		}
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
-			// embedded interfaces must be recursively searched.
+			// embedded interfaces must be recursively searched; only
+			// legacy unflattened interfaces from persisted state reach here.
 			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
 			if accessError {
 				// XXX make test case and check against go
@@ -1068,7 +1069,8 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
-			// field is embedded interface...
+			// field is embedded interface; only legacy unflattened
+			// interfaces from persisted state reach here.
 			im2 := baseOf(im.Type).(*InterfaceType)
 			if err := im2.VerifyImplementedBy(ot); err != nil {
 				return err
@@ -2668,23 +2670,12 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	ft.Embedded = true
 }
 
-// flattenInterfaceMethods expands embedded-interface entries into their
-// constituent methods, so a freshly-constructed InterfaceType's Methods list
-// holds only concrete methods, never an embedded interface. This makes
-// interface identity the flattened method set, matching Go: the
-// embedded-interface name (e.g. an alias spelling) no longer leaks into the
-// TypeID, so interface{ Stringer } and interface{ Str() string } — and an
-// embedded alias vs its target — share one identity.
-//
-// Each source interface was itself flattened and method-count-capped at its
-// own construction, so the expansion is bounded; validateInterfaceMethods
-// re-checks the cap on the flattened result at the call sites.
-//
-// Identical methods reached via two paths (diamond embedding) are deduped.
-// A genuine same-name/different-signature conflict is rejected by go/types
-// (TypeCheckMemPackage, run before the VM constructs any type on the addpkg
-// path), so reaching the panic here is should-not-happen — consistent with
-// the other construction-time guards in this file (e.g. FieldTypeList.Less).
+// flattenInterfaceMethods expands embedded interfaces into their methods so
+// Methods holds only concrete methods. Interface identity then equals the
+// flattened method set (matching Go): the embed/alias spelling no longer
+// leaks into the TypeID. Diamond embeds dedup; a same-name/different-type
+// conflict can't reach here (go/types rejects it first), so the panic is a
+// should-not-happen guard. Bounded: sources are already flattened+capped.
 func flattenInterfaceMethods(fts []FieldType) []FieldType {
 	out := make([]FieldType, 0, len(fts))
 	seen := make(map[Name]Type, len(fts))
