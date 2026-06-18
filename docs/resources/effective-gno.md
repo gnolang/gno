@@ -632,11 +632,48 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Prefer avl.Tree over map for scalable storage
+### Shape persistent storage for on-chain access
 
-An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
-entries in one object (accessing any value loads everything), while AVL trees
-store each node separately (accessing a value loads only the search path).
+Gno persists ordinary variables, but not every Go-shaped data structure is a
+good storage shape for a realm. A slice or map is often fine for small,
+bounded state. It becomes ineffective when the collection grows over time,
+changes frequently, or needs range queries, pagination, membership tests, or
+stable iteration.
+
+The reason is storage locality. A `map` or `slice` is stored as one logical
+object graph. Updating or reading one element can force the VM to load or write
+more state than the operation conceptually needs. Tree-backed packages store
+items as separate nodes, so touching one key mostly touches the search path and
+the changed node.
+
+Use this rule of thumb:
+
+| Need | Prefer | Avoid |
+|------|--------|-------|
+| Small fixed config | struct fields, constants, small maps | over-engineered trees |
+| Growing key/value state | `avl.Tree` or `bptree.BPTree` | package-level `map[...]...` |
+| Membership set | `avl.Tree`, `addrset`, or another set helper | linear scan over `[]address` |
+| Ordered/range iteration | `avl.Tree`, `bptree.BPTree` | map iteration or sorted slices |
+| User-facing pagination | `avl`/`bptree` pager helpers | rendering the whole collection |
+| Append-only queue | `fifo` or a purpose-built queue | `append` plus front deletion |
+| Unique list semantics | `ulist` / list helpers | manual dedupe over slices |
+
+This is not a ban on slices and maps. They are still effective for:
+
+- tiny bounded lists, such as two admins or three enum-like options;
+- transient values built inside one function call;
+- render-time formatting after you have already paged or filtered the stored
+  state;
+- simple structs where every field is usually read or written together.
+
+It is a warning against making them the default persistent index for things
+that will grow with users, posts, votes, orders, balances, messages, claims,
+positions, or game objects.
+
+#### Prefer `avl.Tree` over `map` for scalable key/value storage
+
+An `avl.Tree` works like a `map` for storing key-value pairs. Maps store all
+entries in one object graph, while AVL trees store each node separately.
 This makes `avl.Tree` significantly more efficient in both gas usage and
 runtime performance for large or growing datasets.
 
@@ -709,6 +746,97 @@ func AddUser(id, name string) {
 ```
 
 For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+
+#### Avoid slice-as-database patterns
+
+The most common ineffective realm pattern is a package-level slice that grows
+forever:
+
+```go
+var posts []Post
+
+func AddPost(cur realm, text string) {
+	posts = append(posts, Post{
+		Author: cur.Previous().Address(),
+		Text:   text,
+	})
+}
+
+func Render(_ string) string {
+	out := ""
+	for _, post := range posts {
+		out += post.Text + "\n"
+	}
+	return out
+}
+```
+
+This is easy to write, but it couples every operation to the whole collection.
+Deleting from the front shifts elements. Looking up by author is a linear scan.
+Rendering all posts grows with total history rather than with the page the user
+asked for.
+
+Prefer storing by key and rendering one page at a time:
+
+```go
+import (
+	"strconv"
+
+	"gno.land/p/nt/avl/v0"
+)
+
+type Post struct {
+	Author address
+	Text   string
+}
+
+var (
+	nextID int
+	posts  avl.Tree // decimal id -> Post
+)
+
+func AddPost(cur realm, text string) {
+	if !cur.IsCurrent() {
+		panic("invalid realm")
+	}
+	id := strconv.Itoa(nextID)
+	nextID++
+	posts.Set(id, Post{
+		Author: cur.Previous().Address(),
+		Text:   text,
+	})
+}
+```
+
+From there, add secondary indexes when needed:
+
+```go
+var postsByAuthor avl.Tree // author + "/" + id -> id
+```
+
+The storage model should match the operations you expect the realm to support.
+If users can query by owner, maintain an owner index. If they can page by time,
+use sortable keys. If they only ever need the latest item, do not store a full
+history unless the history is part of the product.
+
+#### Use specialized helpers instead of open-coded collections
+
+Some `p/` packages encode common storage patterns better than ad hoc maps and
+slices:
+
+- `gno.land/p/nt/avl/v0` and `gno.land/p/nt/bptree/v0`: scalable key/value
+  storage, sorted iteration, range queries, read-only wrappers, and pager
+  helpers.
+- `gno.land/p/moul/ulist`: unique list helpers for cases where list order and
+  deduplication both matter.
+- `gno.land/p/moul/addrset`: address set semantics without repeatedly writing
+  membership boilerplate.
+- `gno.land/p/moul/fifo`: queue-like workflows where front deletion would make
+  a slice expensive.
+
+Choose helpers that match your access pattern, then wrap them behind your
+realm's own API. Keep mutable structures unexported; expose values, read-only
+views, or paged results rather than raw pointers to internal state.
 
 ### Construct "safe" objects
 

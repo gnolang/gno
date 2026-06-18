@@ -36,6 +36,9 @@ Add a small `gno.land/r/docs/security_patterns` realm that demonstrates:
 
 Update `docs/resources/gno-security-guide.md` with a concise Render anti-pattern
 section and checklist item. Link the example from the docs examples index.
+Update `docs/resources/effective-gno.md` with broader storage-shape guidance so
+agents and builders treat growing maps, slices, indexes, queues, and unique
+lists as general design patterns, not only security concerns.
 
 The loop framework lives in `misc/` because the stable source of truth is the
 Gno repository: the executable checks, the public guide, and the public examples
