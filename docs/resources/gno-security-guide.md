@@ -327,6 +327,34 @@ a call frame`.
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
+### 5.8 Raw public text in `Render`
+
+`Render(path string) string` is a public display surface. The `path`
+argument and any user-authored state are attacker-controlled text. Do
+not concatenate them directly into markdown links, tables, headings, or
+HTML-like text.
+
+```go
+func Render(path string) string {
+    return "# Echo\n\n" + path // raw markdown injection surface
+}
+```
+
+Escape markdown punctuation before display, or keep untrusted text in a
+format where the renderer treats it as plain text.
+
+```go
+func Render(path string) string {
+    return "# Echo\n\n" + escapeMarkdown(path)
+}
+```
+
+This is not a cross-realm authority bug by itself, but it is a common
+way to turn harmless stored text or URL path data into misleading UI.
+Treat output from helper packages the same way: if the helper does not
+document escaping, assume its output is untrusted until escaped at the
+realm boundary.
+
 ---
 
 ## 6. Properties That Make the Boundary Stronger Than Expected
@@ -437,6 +465,10 @@ Before deploying a realm:
 
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
+
+- [ ] `Render(path)` and any markdown helper output escape
+  user-controlled path, profile, title, description, or message text
+  before returning it.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
