@@ -146,7 +146,7 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	// flatten embedded interfaces so identity is the method set, not the
 	// embedded-interface (alias) spelling; see flattenInterfaceMethods.
-	methods = flattenInterfaceMethods(methods)
+	methods = flattenInterfaceMethods(methods, m.Package.PkgPath)
 	// push interface type
 	it := &InterfaceType{
 		PkgPath: m.Package.PkgPath,

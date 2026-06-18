@@ -352,6 +352,15 @@ type FieldType struct {
 	Type     Type
 	Embedded bool
 	Tag      Tag
+	// PkgPath is the defining package of an unexported interface method,
+	// recorded when flattenInterfaceMethods hoists a method out of an
+	// embedded interface (whose package may differ from the enclosing
+	// interface). Empty for exported methods, struct fields, and entries
+	// decoded from pre-flattening persisted state; an empty value falls back
+	// to the enclosing interface's PkgPath. Used to keep unexported-method
+	// identity package-qualified (see ms.TypeIDForPackage) and to gate
+	// interface satisfaction (see VerifyImplementedBy).
+	PkgPath string
 }
 
 func (ft FieldType) Kind() Kind {
@@ -402,13 +411,32 @@ func (l FieldTypeList) Len() int {
 	return len(l)
 }
 
+// idName returns the field's identity name: an exported name is bare, an
+// unexported name is qualified by the method's origin package (ft.PkgPath
+// when set, otherwise fallbackPkg — the enclosing interface's package). This
+// keeps unexported-method identity package-scoped, matching Go, even after a
+// method has been flattened out of an embedded interface from another package.
+func (ft FieldType) idName(fallbackPkg string) string {
+	if isUpper(string(ft.Name)) {
+		return string(ft.Name)
+	}
+	pkg := ft.PkgPath
+	if pkg == "" {
+		pkg = fallbackPkg
+	}
+	return pkg + "." + string(ft.Name)
+}
+
 // FieldTypeList implements sort.Interface.
 func (l FieldTypeList) Less(i, j int) bool {
-	iname, jname := l[i].Name, l[j].Name
-	if iname == jname {
-		panic(fmt.Sprintf("duplicate name found in field list: %s", iname))
+	// Key on the package-qualified identity name so two same-named unexported
+	// methods from different packages (legal after flattening cross-package
+	// embeds) sort distinctly rather than tripping the duplicate guard.
+	ikey, jkey := l[i].idName(""), l[j].idName("")
+	if ikey == jkey {
+		panic(fmt.Sprintf("duplicate name found in field list: %s", l[i].Name))
 	}
-	return iname < jname
+	return ikey < jkey
 }
 
 // FieldTypeList implements sort.Interface.
@@ -443,12 +471,9 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		fn := ft.Name
-		if isUpper(string(fn)) {
-			s += string(fn) + " " + ft.Type.TypeID().String()
-		} else {
-			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
-		}
+		// idName qualifies an unexported method by its origin package
+		// (ft.PkgPath when flattened out of another package, else pkgPath).
+		s += ft.idName(pkgPath) + " " + ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ";"
 		}
@@ -1078,8 +1103,15 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 				continue
 			}
 		}
-		// find method in field.
-		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
+		// find method in field. Gate unexported-method access against the
+		// method's origin package (im.PkgPath when flattened out of another
+		// package), not the enclosing interface's — otherwise a type could
+		// satisfy another package's sealed interface.
+		callerPath := im.PkgPath
+		if callerPath == "" {
+			callerPath = it.PkgPath
+		}
+		tr, hp, rt, ft, _ := findEmbeddedFieldType(callerPath, ot, im.Name, nil)
 		if tr == nil { // not found.
 			return fmt.Errorf("missing method %s", im.Name)
 		}
@@ -2676,27 +2708,47 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 // leaks into the TypeID. Diamond embeds dedup; a same-name/different-type
 // conflict can't reach here (go/types rejects it first), so the panic is a
 // should-not-happen guard. Bounded: sources are already flattened+capped.
-func flattenInterfaceMethods(fts []FieldType) []FieldType {
+// pkgPath is the enclosing interface's package, used to qualify the identity
+// of directly-declared unexported methods. Methods hoisted from an embedded
+// interface keep their own origin package (the embed's PkgPath, or, if the
+// embed is itself from another package, the method's already-stamped
+// FieldType.PkgPath), so that an unexported method's (pkgpath, name) identity
+// — and the sealed-interface guarantee it backs — survives flattening.
+func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	out := make([]FieldType, 0, len(fts))
-	seen := make(map[Name]Type, len(fts))
-	add := func(name Name, typ Type) {
-		if prev, ok := seen[name]; ok {
+	// keyed on the package-qualified identity name: two same-named unexported
+	// methods from different packages are distinct and must coexist.
+	seen := make(map[string]Type, len(fts))
+	add := func(name Name, typ Type, originPkg string) {
+		ft := FieldType{Name: name, Type: typ}
+		if !isUpper(string(name)) {
+			ft.PkgPath = originPkg
+		}
+		key := ft.idName(pkgPath)
+		if prev, ok := seen[key]; ok {
 			if prev.TypeID() != typ.TypeID() {
 				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", name))
 			}
 			return
 		}
-		seen[name] = typ
-		out = append(out, FieldType{Name: name, Type: typ})
+		seen[key] = typ
+		out = append(out, ft)
 	}
 	for i := range fts {
 		if et := embeddedInterface(fts[i].Type); et != nil {
 			for j := range et.Methods {
-				add(et.Methods[j].Name, et.Methods[j].Type)
+				m := et.Methods[j]
+				// origin pkg: the method's own stamp (if already hoisted from
+				// another package) else the embedded interface's package.
+				origin := m.PkgPath
+				if origin == "" {
+					origin = et.PkgPath
+				}
+				add(m.Name, m.Type, origin)
 			}
 			continue
 		}
-		add(fts[i].Name, fts[i].Type)
+		add(fts[i].Name, fts[i].Type, pkgPath)
 	}
 	return out
 }

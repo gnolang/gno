@@ -4136,12 +4136,13 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
+		pkgPath := packageOf(last).PkgPath
 		it := &InterfaceType{
-			PkgPath: packageOf(last).PkgPath,
+			PkgPath: pkgPath,
 			// Build without embed naming (embed=false): flattenInterfaceMethods
 			// expands embedded interfaces into their method set, making identity
 			// the method set rather than the embedded-interface (alias) spelling.
-			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false)),
+			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
