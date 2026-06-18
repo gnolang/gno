@@ -1,10 +1,6 @@
 package securitypatterns
 
-import (
-	"html"
-
-	"gno.land/p/moul/md"
-)
+import "gno.land/p/moul/md"
 
 var (
 	admin   = address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -55,5 +51,5 @@ func assertAdmin(cur realm) bool {
 }
 
 func escapeRenderText(s string) string {
-	return md.EscapeText(html.EscapeString(s))
+	return md.EscapeText(s)
 }

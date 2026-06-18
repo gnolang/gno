@@ -22,14 +22,14 @@ func TestSetMessageRequiresLiveAdmin(cur realm, t *testing.T) {
 }
 
 func TestRenderEscapesMarkdown(t *testing.T) {
-	out := Render("[x](javascript:alert(1)) <b>")
+	out := Render("[x](javascript:alert(1)) > quote")
 	if strings.Contains(out, "[x](javascript") {
 		t.Fatalf("render output contains raw markdown link: %s", out)
 	}
 	if !strings.Contains(out, "\\[x\\]\\(javascript:alert\\(1\\)\\)") {
 		t.Fatalf("render output did not escape markdown punctuation: %s", out)
 	}
-	if !strings.Contains(out, "&lt;b&gt;") {
-		t.Fatalf("render output did not escape angle brackets: %s", out)
+	if !strings.Contains(out, "\\> quote") {
+		t.Fatalf("render output did not escape markdown blockquote marker: %s", out)
 	}
 }

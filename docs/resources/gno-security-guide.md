@@ -376,20 +376,15 @@ func Render(path string) string {
 ```
 
 Escape user text before display, or keep it in a format where the renderer
-treats it as plain text. Prefer maintained helpers over open-coded replacers:
-use the standard `html` package for HTML-sensitive characters, and use markdown
-helpers such as `gno.land/p/moul/md` when inserting untrusted text into
-markdown syntax.
+treats it as plain text. Prefer Gno markdown helpers over open-coded replacers.
+For example, use helpers such as `gno.land/p/moul/md` when inserting untrusted
+text into markdown syntax.
 
 ```go
-import (
-    "html"
-
-    "gno.land/p/moul/md"
-)
+import "gno.land/p/moul/md"
 
 func Render(path string) string {
-    return "# Echo\n\n" + md.EscapeText(html.EscapeString(path))
+    return "# Echo\n\n" + md.EscapeText(path)
 }
 ```
 
@@ -519,8 +514,7 @@ Before deploying a realm:
 
 - [ ] `Render(path)` and any markdown helper output escape
   user-controlled path, profile, title, description, or message text
-  before returning it, using stdlib escaping and maintained markdown helpers
-  where practical.
+  before returning it, using Gno markdown helpers where practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
