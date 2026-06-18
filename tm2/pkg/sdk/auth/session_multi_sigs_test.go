@@ -10,6 +10,8 @@ import (
 
 // TestTwoSessionSignaturesTwoMasters creates a transaction with two session account
 // signatures and two messages with different master accounts. Validation should pass.
+// This is the nominal case for the GetSigners/GetSignatures contract issue
+// https://github.com/gnolang/gno/issues/5731 .
 func TestTwoSessionSignaturesTwoMasters(t *testing.T) {
 	t.Parallel()
 
@@ -45,7 +47,10 @@ func TestTwoSessionSignaturesTwoMasters(t *testing.T) {
 // TestTwoSessionSignaturesOneMaster creates a transaction with two session account
 // signatures and two messages with the same master. Validation should fail because GetSigners()
 // deduplicates and returns only one signer address, a mismatch with two signatures.
-// (However, this would succeed if we deduplicate the combined signer-addr/signature-pubkey.)
+//
+// This is a known limitation tracked in https://github.com/gnolang/gno/issues/5731 : the
+// test asserts the current (rejecting) behavior and would change if the contract is fixed.
+// (For example, it would succeed if we deduplicate the combined signer-addr/signature-pubkey.)
 func TestTwoSessionSignaturesOneMaster(t *testing.T) {
 	t.Parallel()
 
@@ -81,7 +86,10 @@ func TestTwoSessionSignaturesOneMaster(t *testing.T) {
 // account plus a signature by a session account under that master. It has
 // two messages with the same signer address of the master. Validation should fail because GetSigners()
 // deduplicates and returns only one signer address, a mismatch with two signatures.
-// (However, this would succeed if we deduplicate the combined signer-addr/signature-pubkey.)
+//
+// This is a known limitation tracked in https://github.com/gnolang/gno/issues/5731 : the
+// test asserts the current (rejecting) behavior and would change if the contract is fixed.
+// (For example, it would succeed if we deduplicate the combined signer-addr/signature-pubkey.)
 func TestOneMasterOneSessionSignature(t *testing.T) {
 	t.Parallel()
 
@@ -113,6 +121,9 @@ func TestOneMasterOneSessionSignature(t *testing.T) {
 // TestThreeSessionSignaturesTwoMasters creates a transaction with three session account
 // signatures and three messages with two different masters. Validation should fail because GetSigners()
 // deduplicates and returns only two signer addresses, a mismatch with three signatures.
+//
+// This is a known limitation tracked in https://github.com/gnolang/gno/issues/5731 : the
+// test asserts the current (rejecting) behavior and would change if the contract is fixed.
 // (We could try to deduplicate the combined signer-addr/signature-pubkey but it is not clear which
 // master belongs to which account session signature.)
 func TestThreeSessionSignaturesTwoMasters(t *testing.T) {
