@@ -25,6 +25,7 @@ func TestMain(m *testing.M) {
 
 	// Check if the embedded command should be executed
 	if !*runCommand {
+		configureForAvailableMemory()
 		os.Exit(m.Run())
 	}
 
