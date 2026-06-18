@@ -436,9 +436,10 @@ func TestDataLoad(t *testing.T) {
 			}},
 		},
 		{
-			name:     "single-package-recursive",
-			workdir:  localFromSlash("./testdata/singlepkg-1"),
-			patterns: []string{"./..."},
+			name:             "single-package-recursive",
+			workdir:          localFromSlash("./testdata/singlepkg-1"),
+			patterns:         []string{"./..."},
+			outShouldContain: "nested package(s) ignored: nested",
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/single/foo",
 				Name:       "foo",

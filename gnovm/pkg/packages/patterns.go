@@ -133,8 +133,16 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 
 		case patternKindRecursiveLocal:
 			// single-package mode: the pattern was validated above to be
-			// rooted at the context root, the only package it can match
+			// rooted at the context root, the only package it can match.
+			// A recursive pattern reads as "everything underneath", but
+			// single-package mode loads only the root — warn about any nested
+			// packages it silently drops so the quiet isn't mistaken for full
+			// coverage.
 			if !loaderCtx.IsWorkspace {
+				if nested := nestedPackageDirs(loaderCtx.Root, pat); len(nested) > 0 {
+					fmt.Fprintf(out, "gno: warning: %q matched only the root package in single-package mode; %d nested package(s) ignored: %s (create a gnowork.toml to include them)\n",
+						match, len(nested), strings.Join(nested, ", "))
+				}
 				addPkgDir(loaderCtx.Root, &match)
 				continue
 			}
@@ -221,6 +229,29 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 	}
 
 	return pkgDirs, nil
+}
+
+// nestedPackageDirs returns the package directories under root (excluding root
+// itself) that a recursive pattern would match in workspace mode but that
+// single-package mode silently drops. Paths are relative to root for legible
+// warnings. Best-effort: a walk error yields nil rather than failing the load.
+func nestedPackageDirs(root, pat string) []string {
+	dirs, err := expandRecursive(root, pat)
+	if err != nil {
+		return nil
+	}
+	var nested []string
+	for _, d := range dirs {
+		if d == root {
+			continue
+		}
+		rel, err := filepath.Rel(root, d)
+		if err != nil {
+			continue
+		}
+		nested = append(nested, rel)
+	}
+	return nested
 }
 
 type patternKind int
