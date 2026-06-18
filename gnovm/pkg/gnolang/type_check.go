@@ -385,10 +385,13 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
-	// A nil dt is rejected, not skipped: blank targets (`_ = xxx`, blank
-	// range operands) must be filtered by the caller, since an untyped-nil
-	// lvalue (`for k, nil = range m`) also has a nil static type and must
-	// still be caught here.
+	// dt (the destination type) must be non-nil. A nil dt is ambiguous: it
+	// is the static type both of a blank/absent target (`_ = x`, blank range
+	// operands), which should be skipped, and of an untyped-nil lvalue
+	// (`for k, nil = range m`), which must be rejected. Callers disambiguate
+	// upstream — skipping blank operands and guarding "no destination type"
+	// paths with `if t != nil` — so a nil reaching here is a caller bug,
+	// caught loudly instead of silently dropping the check.
 	if dt == nil {
 		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
 	}
