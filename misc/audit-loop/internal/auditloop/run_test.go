@@ -69,6 +69,26 @@ func TestRenderMarkdownEscapeRule(t *testing.T) {
 	}
 }
 
+func TestPaymentUserCallRule(t *testing.T) {
+	assertRuleCounts(t, "payment_user_call", "payment-user-call", 1, 0)
+}
+
+func TestOriginCallerAuthRule(t *testing.T) {
+	assertRuleCounts(t, "origin_caller_auth", "origin-caller-auth", 1, 0)
+}
+
+func TestCallbackParamRule(t *testing.T) {
+	assertRuleCounts(t, "callback_param", "callback-param", 1, 0)
+}
+
+func TestInterfaceRealmParamRule(t *testing.T) {
+	assertRuleCounts(t, "interface_realm_param", "interface-realm-param", 1, 0)
+}
+
+func TestExportedPointerLeakRule(t *testing.T) {
+	assertRuleCounts(t, "exported_pointer_leak", "exported-pointer-leak", 2, 0)
+}
+
 func TestRunWithFakeGNO(t *testing.T) {
 	tmp := t.TempDir()
 	gno := filepath.Join(tmp, "gno")
@@ -87,5 +107,26 @@ func TestRunWithFakeGNO(t *testing.T) {
 	}
 	if len(report.Fixtures) != 2 {
 		t.Fatalf("expected 2 fixture results, got %d", len(report.Fixtures))
+	}
+}
+
+func assertRuleCounts(t *testing.T, rule, fixture string, vulnerable, fixed int) {
+	t.Helper()
+	base := filepath.Join("..", "..", "fixtures", fixture)
+
+	hits, err := RunRule(rule, filepath.Join(base, "vulnerable"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != vulnerable {
+		t.Fatalf("expected %d vulnerable hits, got %d: %+v", vulnerable, len(hits), hits)
+	}
+
+	hits, err = RunRule(rule, filepath.Join(base, "fixed"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != fixed {
+		t.Fatalf("expected %d fixed hits, got %d: %+v", fixed, len(hits), hits)
 	}
 }

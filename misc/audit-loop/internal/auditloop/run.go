@@ -8,9 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+var exportedPointerVarRE = regexp.MustCompile(`^var\s+[A-Z]\w*\s+\*`)
 
 type Options struct {
 	GNOBin string
@@ -114,6 +117,16 @@ func RunRule(rule, dir string) ([]Hit, error) {
 		return currentGuardHits(dir)
 	case "render_markdown_escape":
 		return renderMarkdownEscapeHits(dir)
+	case "payment_user_call":
+		return paymentUserCallHits(dir)
+	case "origin_caller_auth":
+		return originCallerAuthHits(dir)
+	case "callback_param":
+		return callbackParamHits(dir)
+	case "interface_realm_param":
+		return interfaceRealmParamHits(dir)
+	case "exported_pointer_leak":
+		return exportedPointerLeakHits(dir)
 	default:
 		return nil, fmt.Errorf("unknown rule %q", rule)
 	}
@@ -189,6 +202,136 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 			}
 			if inRender && braceDepth <= 0 {
 				inRender = false
+			}
+		}
+	}
+	return hits, nil
+}
+
+func paymentUserCallHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		inFunc := false
+		braceDepth := 0
+		seenUserCall := false
+		for i, line := range strings.Split(string(data), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "func ") {
+				inFunc = true
+				braceDepth = 0
+				seenUserCall = false
+			}
+			if inFunc {
+				braceDepth += strings.Count(line, "{")
+				braceDepth -= strings.Count(line, "}")
+			}
+			if strings.Contains(line, ".IsUserCall()") {
+				seenUserCall = true
+			}
+			if strings.Contains(line, "OriginSend()") && !seenUserCall {
+				hits = append(hits, newHit(dir, file, i+1, line))
+			}
+			if inFunc && braceDepth <= 0 {
+				inFunc = false
+				seenUserCall = false
+			}
+		}
+	}
+	return hits, nil
+}
+
+func originCallerAuthHits(dir string) ([]Hit, error) {
+	return lineContainsHits(dir, func(line string) bool {
+		trimmed := strings.TrimSpace(line)
+		return !strings.HasPrefix(trimmed, "//") &&
+			strings.Contains(line, "OriginCaller()") &&
+			!strings.Contains(line, "SetOriginCaller")
+	})
+}
+
+func callbackParamHits(dir string) ([]Hit, error) {
+	return lineContainsHits(dir, func(line string) bool {
+		trimmed := strings.TrimSpace(line)
+		return strings.HasPrefix(trimmed, "func ") && strings.Contains(trimmed, " func(")
+	})
+}
+
+func interfaceRealmParamHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		inInterface := false
+		braceDepth := 0
+		for i, line := range strings.Split(string(data), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.Contains(trimmed, "interface {") {
+				inInterface = true
+				braceDepth = 0
+			}
+			if inInterface {
+				braceDepth += strings.Count(line, "{")
+				braceDepth -= strings.Count(line, "}")
+				if strings.Contains(line, "realm") {
+					hits = append(hits, newHit(dir, file, i+1, line))
+				}
+			}
+			if inInterface && braceDepth <= 0 {
+				inInterface = false
+			}
+		}
+	}
+	return hits, nil
+}
+
+func exportedPointerLeakHits(dir string) ([]Hit, error) {
+	return lineContainsHits(dir, func(line string) bool {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") {
+			return false
+		}
+		if exportedPointerVarRE.MatchString(trimmed) {
+			return true
+		}
+		return strings.HasPrefix(trimmed, "func ") &&
+			strings.Contains(trimmed, ") *") &&
+			len(trimmed) > len("func ") &&
+			trimmed[len("func ")] >= 'A' &&
+			trimmed[len("func ")] <= 'Z'
+	})
+}
+
+func lineContainsHits(dir string, match func(string) bool) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if match(line) {
+				hits = append(hits, newHit(dir, file, i+1, line))
 			}
 		}
 	}

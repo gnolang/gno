@@ -17,10 +17,16 @@ to executable tests.
 ## Decision
 
 Add a small `misc/audit-loop` harness that keeps sanitized finding fixtures and
-expected records in this repository. It currently exercises:
+expected records in this repository. It currently exercises seven recurring
+patterns:
 
 - `cur.Previous()` before `cur.IsCurrent()`;
-- raw `Render(path)` markdown output.
+- raw `Render(path)` markdown output;
+- `OriginSend()` without an `IsUserCall()` guard;
+- `OriginCaller()` used as authorization identity;
+- caller-supplied callbacks accepted by realm APIs;
+- interfaces that expose `cur realm`;
+- exported pointers or pointer getters for mutable state.
 
 Add a small `gno.land/r/docs/security_patterns` realm that demonstrates:
 

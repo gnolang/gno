@@ -327,7 +327,42 @@ a call frame`.
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
-### 5.8 Raw public text in `Render`
+### 5.8 `OriginCaller()` as authorization identity
+
+`OriginCaller()` names the transaction origin, not necessarily the
+immediate realm that crossed into your function. If a realm uses it as
+an admin or ownership check, an intermediate realm can become a confused
+deputy path unless the API is intentionally EOA-only and documents that
+constraint.
+
+```go
+func SetPaused(cur realm, next bool) {
+    if runtime.OriginCaller() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+Prefer authenticating the live crossing frame:
+
+```go
+func SetPaused(cur realm, next bool) {
+    if !cur.IsCurrent() {
+        panic("invalid realm")
+    }
+    if cur.Previous().Address() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+**Rule**: use `cur.Previous()` under `cur.IsCurrent()` for realm API
+authorization. Reserve `OriginCaller()` for deliberately EOA-origin
+semantics, and make that tradeoff explicit.
+
+### 5.9 Raw public text in `Render`
 
 `Render(path string) string` is a public display surface. The `path`
 argument and any user-authored state are attacker-controlled text. Do
@@ -463,6 +498,10 @@ Before deploying a realm:
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.
 
+- [ ] Authorization checks do not use `OriginCaller()` unless the
+  function is intentionally EOA-origin-only and documents why immediate
+  caller identity is not required.
+
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
 
@@ -560,6 +599,8 @@ Attackers cannot:
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
+- `misc/audit-loop` — sanitized finding fixtures and expected records
+  that keep recurring audit lessons executable.
 - `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
   the four bypass tests demonstrating why seal is documentation, not
   defense.

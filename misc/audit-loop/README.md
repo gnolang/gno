@@ -30,6 +30,17 @@ go run ./cmd/auditloop -format json ./expected/*.yaml
 
 ## Expected records
 
+Current slices:
+
+- `current-guard`: `cur.Previous()` before `cur.IsCurrent()`.
+- `render-markdown`: raw `Render(path)` markdown output.
+- `payment-user-call`: `OriginSend()` without an `IsUserCall()` guard.
+- `origin-caller-auth`: `OriginCaller()` used as authorization identity.
+- `callback-param`: caller-supplied callbacks accepted by realm APIs.
+- `interface-realm-param`: interfaces that expose `cur realm`.
+- `exported-pointer-leak`: exported pointers or pointer getters for mutable
+  state.
+
 Each `expected/*.yaml` record describes one finding family and its fixtures:
 
 ```yaml
