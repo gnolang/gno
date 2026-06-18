@@ -8,7 +8,7 @@ them in your [realms](./realms.md) and [packages](./gno-packages.md).
 | Type | Example | Best For |
 |------|---------|----------|
 | **[Array](#arrays)** | `[5]int` | Fixed-size collections |
-| **[AVL Tree](#avl-trees)** | `avl.Tree` | Large/growing datasets |
+| **[Tree-backed index](#tree-backed-indexes)** | `avl.Tree`, `bptree.BPTree` | Large/growing sorted datasets |
 | **[Map](#maps)** | `map[string]int` | Small key-value stores |
 | **[Slice](#slices)** | `[]string` | Dynamic lists |
 | **[Struct](#structs)** | `type User struct{...}` | Grouped data |
@@ -29,11 +29,13 @@ value := numbers[0]
 
 Arrays are copied when passed to functions. Use pointers to modify them: `func update(arr *[5]int)`.
 
-## AVL Trees
+## Tree-backed Indexes
 
-For large or growing datasets, prefer [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md)
-over maps as it is significantly more efficient in both [gas](./gas-fees.md)
-cost and runtime performance.
+For large or growing sorted datasets, prefer a tree-backed index over a
+persistent map. Tree implementations store nodes or leaf pages separately, so
+reading or writing one key does not require loading the whole collection.
+Common choices include [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md)
+and [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno).
 
 ```go
 import "gno.land/p/nt/avl/v0"
@@ -57,7 +59,7 @@ users.Iterate("", "", func(key string, value any) bool {
 })
 ```
 
-**Learn more:** [Effective Gno: Prefer avl.Tree over map](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage)
+**Learn more:** [Effective Gno: Choose storage types by access pattern](./effective-gno.md#choose-storage-types-by-access-pattern)
 
 ## Maps
 

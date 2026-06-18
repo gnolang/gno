@@ -632,7 +632,7 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Shape persistent storage for on-chain access
+### Choose storage types by access pattern
 
 Gno persists ordinary variables, but not every Go-shaped data structure is a
 good storage shape for a realm. A slice or map is often fine for small,
@@ -643,20 +643,20 @@ stable iteration.
 The reason is storage locality. A `map` or `slice` is stored as one logical
 object graph. Updating or reading one element can force the VM to load or write
 more state than the operation conceptually needs. Tree-backed packages store
-items as separate nodes, so touching one key mostly touches the search path and
-the changed node.
+items as separate nodes, so touching one key mostly touches the search path,
+leaf page, or changed node.
 
 Use this rule of thumb:
 
 | Need | Prefer | Avoid |
 |------|--------|-------|
 | Small fixed config | struct fields, constants, small maps | over-engineered trees |
-| Growing key/value state | `avl.Tree` or `bptree.BPTree` | package-level `map[...]...` |
-| Membership set | `avl.Tree`, `addrset`, or another set helper | linear scan over `[]address` |
-| Ordered/range iteration | `avl.Tree`, `bptree.BPTree` | map iteration or sorted slices |
-| User-facing pagination | `avl`/`bptree` pager helpers | rendering the whole collection |
-| Append-only queue | `fifo` or a purpose-built queue | `append` plus front deletion |
-| Unique list semantics | `ulist` / list helpers | manual dedupe over slices |
+| Growing key/value state | a tree-backed index | package-level `map[...]...` |
+| Membership set | a set helper or tree-backed index | linear scan over `[]address` |
+| Ordered/range iteration | a sorted tree-backed index | map iteration or sorted slices |
+| User-facing pagination | pager helpers over a tree-backed index | rendering the whole collection |
+| Append-only queue | a queue helper or purpose-built index | `append` plus front deletion |
+| Unique list semantics | unique-list or set helpers | manual dedupe over slices |
 
 This is not a ban on slices and maps. They are still effective for:
 
@@ -670,30 +670,59 @@ It is a warning against making them the default persistent index for things
 that will grow with users, posts, votes, orders, balances, messages, claims,
 positions, or game objects.
 
-#### Prefer `avl.Tree` over `map` for scalable key/value storage
+#### Storage types and tradeoffs
 
-An `avl.Tree` works like a `map` for storing key-value pairs. Maps store all
-entries in one object graph, while AVL trees store each node separately.
-This makes `avl.Tree` significantly more efficient in both gas usage and
-runtime performance for large or growing datasets.
+Pick the storage type that matches the operations your realm promises to
+support. If no existing helper fits, write a small wrapper package with the same
+discipline: keep storage private, expose typed methods, and page or range over
+large collections.
+
+| Storage type | Good fit | Tradeoffs |
+|--------------|----------|-----------|
+| Struct fields | Small records that are usually read or written together | Poor fit for unbounded collections |
+| Array | Fixed-size collections with stable positions | Size is part of the type |
+| Slice | Small bounded lists or transient render-time lists | Front deletion, membership checks, and whole-list rendering grow with length |
+| Map | Small bounded key/value state with direct lookups | Persistent maps are one object graph and iteration should not be an API contract |
+| [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
+| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
+| [`avl/list`](../../examples/gno.land/p/nt/avl/v0/list) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/v0/list) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
+| [`addrset`](../../examples/gno.land/p/moul/addrset) or another set helper | Address membership and authorization sets | Specialized to set semantics; use a tree directly when you need extra indexes |
+| [`ulist`](../../examples/gno.land/p/moul/ulist) | Unique list semantics where order and deduplication both matter | Not a replacement for arbitrary range-query indexes |
+| [`fifo`](../../examples/gno.land/p/moul/fifo) | Queue workflows | Not designed for sorted lookup by arbitrary key |
+
+Use a good tree implementation when your realm needs a growing sorted index.
+Both `avl.Tree` and `bptree.BPTree` implement similar key/value operations:
+`Get`, `Set`, `Remove`, sorted iteration, reverse iteration, and offset-based
+iteration. AVL is simple and well documented; B+ tree storage can reduce tree
+height by keeping more entries per node. The right choice depends on workload,
+dataset size, and whether you need to tune fanout.
+
+#### Prefer tree-backed indexes over maps for scalable key/value storage
+
+Tree-backed indexes work like a `map` for storing key-value pairs. Maps store
+all entries in one object graph, while tree implementations store nodes or leaf
+pages separately. This usually makes a tree-backed index more efficient in gas
+usage and runtime performance for large or growing datasets.
 
 **Key differences**:
 
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Tree-backed indexes**: O(log n) lookup, lazy loading, iterate in **sorted
+  key order**.
 - **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
-**Use `avl.Tree` when you need**:
+**Use a tree-backed index when you need**:
 
 - Lazy loading (efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "bob" and "charlie")
 - Data that grows over time (user registries, leaderboards)
 - Sorted iteration by key value
+- Offset-based pagination over a stable order
 
 **Use `map` when you need**:
 
 - O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
-- Type safety (AVL values are `any` and require type assertions)
+- Small bounded datasets (for example, configuration values)
+- Type safety (tree values are usually `any` and require type assertions)
 
 ```go
 // Map example
@@ -745,7 +774,10 @@ func AddUser(id, name string) {
 }
 ```
 
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+For a detailed explanation of how tree nodes are stored in Gno's object store,
+see the [AVL package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+For a higher-fanout alternative with the same core interface, see
+[`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno).
 
 #### Avoid slice-as-database patterns
 
