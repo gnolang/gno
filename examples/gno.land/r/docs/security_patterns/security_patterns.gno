@@ -1,7 +1,10 @@
-// Package securitypatterns demonstrates compact realm-authoring security patterns.
 package securitypatterns
 
-import "strings"
+import (
+	"html"
+
+	"gno.land/p/moul/md"
+)
 
 var (
 	admin   = address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -34,9 +37,9 @@ func Message() string {
 func Render(path string) string {
 	out := "# Security Patterns\n\n"
 	out += "Admin: `" + admin.String() + "`\n\n"
-	out += "Message: " + escapeMarkdown(message) + "\n"
+	out += "Message: " + escapeRenderText(message) + "\n"
 	if path != "" {
-		out += "\nPath: `" + escapeMarkdown(path) + "`\n"
+		out += "\nPath: `" + escapeRenderText(path) + "`\n"
 	}
 	return out
 }
@@ -51,14 +54,6 @@ func assertAdmin(cur realm) bool {
 	return true
 }
 
-func escapeMarkdown(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "`", "\\`")
-	s = strings.ReplaceAll(s, "[", "\\[")
-	s = strings.ReplaceAll(s, "]", "\\]")
-	s = strings.ReplaceAll(s, "(", "\\(")
-	s = strings.ReplaceAll(s, ")", "\\)")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
+func escapeRenderText(s string) string {
+	return md.EscapeText(html.EscapeString(s))
 }

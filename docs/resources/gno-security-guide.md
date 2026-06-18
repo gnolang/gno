@@ -375,20 +375,32 @@ func Render(path string) string {
 }
 ```
 
-Escape markdown punctuation before display, or keep untrusted text in a
-format where the renderer treats it as plain text.
+Escape user text before display, or keep it in a format where the renderer
+treats it as plain text. Prefer maintained helpers over open-coded replacers:
+use the standard `html` package for HTML-sensitive characters, and use markdown
+helpers such as `gno.land/p/moul/md` when inserting untrusted text into
+markdown syntax.
 
 ```go
+import (
+    "html"
+
+    "gno.land/p/moul/md"
+)
+
 func Render(path string) string {
-    return "# Echo\n\n" + escapeMarkdown(path)
+    return "# Echo\n\n" + md.EscapeText(html.EscapeString(path))
 }
 ```
 
 This is not a cross-realm authority bug by itself, but it is a common
 way to turn harmless stored text or URL path data into misleading UI.
-Treat output from helper packages the same way: if the helper does not
-document escaping, assume its output is untrusted until escaped at the
-realm boundary.
+Opinionated rendering libraries and frameworks can help keep this consistent.
+For example, packages such as `gno.land/p/moul/md` and neighboring markdown UI
+helpers provide functions for links, headings, tables, forms, and text escaping.
+When choosing one, check whether the helper documents escaping for labels,
+URLs, table cells, and raw content. If it does not, assume its output is
+untrusted until escaped at the realm boundary.
 
 ---
 
@@ -507,7 +519,8 @@ Before deploying a realm:
 
 - [ ] `Render(path)` and any markdown helper output escape
   user-controlled path, profile, title, description, or message text
-  before returning it.
+  before returning it, using stdlib escaping and maintained markdown helpers
+  where practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).

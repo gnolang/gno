@@ -196,7 +196,8 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 			if inRender {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
-				if strings.Contains(line, "return") && strings.Contains(line, "path") && !strings.Contains(line, "escape") {
+				lower := strings.ToLower(line)
+				if strings.Contains(line, "return") && strings.Contains(line, "path") && !strings.Contains(lower, "escape") {
 					hits = append(hits, newHit(dir, file, i+1, line))
 				}
 			}

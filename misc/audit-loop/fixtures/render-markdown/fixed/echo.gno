@@ -1,18 +1,11 @@
 package echo
 
-import "strings"
+import (
+	"html"
+
+	"gno.land/p/moul/md"
+)
 
 func Render(path string) string {
-	return "# Echo\n\n" + escapeMarkdown(path)
-}
-
-func escapeMarkdown(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "[", "\\[")
-	s = strings.ReplaceAll(s, "]", "\\]")
-	s = strings.ReplaceAll(s, "(", "\\(")
-	s = strings.ReplaceAll(s, ")", "\\)")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
+	return "# Echo\n\n" + md.EscapeText(html.EscapeString(path))
 }
