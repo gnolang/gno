@@ -62,7 +62,9 @@ jobs:
           if ! command -v tmkms >/dev/null 2>&1; then
             cargo install tmkms --version 0.15.0 --features softsign --locked
           fi
-          tmkms --version
+          # tmkms uses the abscissa CLI framework: the version is printed
+          # via the `version` subcommand, not a `--version` flag.
+          tmkms version
 
       - name: Run integration test
         working-directory: tm2

@@ -147,7 +147,7 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 			errInvalidTmkmsListenAddr, protocol)
 	}
 	if _, err := c.ParseAllowlist(); err != nil {
-		return fmt.Errorf("%w: %v", errInvalidTmkmsAllowedPubkeys, err)
+		return fmt.Errorf("%w: %w", errInvalidTmkmsAllowedPubkeys, err)
 	}
 	if c.ProtocolVersion != upstream.ProtocolVersion {
 		return fmt.Errorf("%w: got %q, supported: %q",
