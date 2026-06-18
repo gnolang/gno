@@ -17,6 +17,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFindLoaderRoot(t *testing.T) {
+	t.Run("gnowork ancestor resolves to workspace root", func(t *testing.T) {
+		root := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), nil, 0o644))
+		child := filepath.Join(root, "a", "b")
+		require.NoError(t, os.MkdirAll(child, 0o755))
+
+		gotRoot, err := FindLoaderRoot(child)
+		require.NoError(t, err)
+		assert.Equal(t, root, gotRoot)
+	})
+
+	t.Run("bare gnomod in dir resolves to that dir", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "gnomod.toml"), nil, 0o644))
+
+		gotRoot, err := FindLoaderRoot(dir)
+		require.NoError(t, err)
+		assert.Equal(t, dir, gotRoot)
+	})
+
+	t.Run("bare gnomod in ancestor is not a context", func(t *testing.T) {
+		root := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(root, "gnomod.toml"), nil, 0o644))
+		child := filepath.Join(root, "sub")
+		require.NoError(t, os.MkdirAll(child, 0o755))
+
+		_, err := FindLoaderRoot(child)
+		assert.ErrorIs(t, err, ErrGnoContextNotFound)
+	})
+
+	t.Run("neither marker", func(t *testing.T) {
+		_, err := FindLoaderRoot(t.TempDir())
+		assert.ErrorIs(t, err, ErrGnoContextNotFound)
+	})
+}
+
 func TestListAndNonIgnoredPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
