@@ -88,14 +88,14 @@ has been updated.
 
 ### Pointer equality
 
-Pointer `==` is `PointerValue` identity (same `.Base` + `.Index`, as defined
-above). `new(T)` and `&CompositeLit{}` each mint a fresh `*HeapItemValue` and
-return a pointer to it (`.Base` = that heap item, `.Index` = 0), so two such
-pointers always differ in `.Base` and compare unequal — uniformly for all
-element types, including zero-sized ones. For the user-visible
-divergence from gc-Go (`runtime.zerobase` folding, offset arithmetic on
-zero-sized fields), see [Go/Gno compatibility § Pointer equality for
-zero-sized types](go-gno-compatibility.md#pointer-equality-for-zero-sized-types).
+In Gno, two pointers are equal only when they point to the same variable. Two
+distinct zero-sized variables are never equal, even where Go may report them
+equal:
+
+```go
+a, b := struct{}{}, struct{}{}
+_ = &a == &b // false in Gno; unspecified in Go
+```
 
 ## Blocks and Heap Items
 
