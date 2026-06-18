@@ -14,6 +14,7 @@ import (
 )
 
 var exportedPointerVarRE = regexp.MustCompile(`^var\s+[A-Z]\w*\s+\*`)
+var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 
 type Options struct {
 	GNOBin string
@@ -127,6 +128,8 @@ func RunRule(rule, dir string) ([]Hit, error) {
 		return interfaceRealmParamHits(dir)
 	case "exported_pointer_leak":
 		return exportedPointerLeakHits(dir)
+	case "render_map_iteration":
+		return renderMapIterationHits(dir)
 	default:
 		return nil, fmt.Errorf("unknown rule %q", rule)
 	}
@@ -318,6 +321,58 @@ func exportedPointerLeakHits(dir string) ([]Hit, error) {
 	})
 }
 
+func renderMapIterationHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+
+		mapVars := make(map[string]struct{})
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if match := mapVarRE.FindStringSubmatch(trimmed); match != nil {
+				mapVars[match[1]] = struct{}{}
+			}
+		}
+
+		inRender := false
+		braceDepth := 0
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "func Render(") {
+				inRender = true
+				braceDepth = 0
+			}
+			if inRender {
+				braceDepth += strings.Count(line, "{")
+				braceDepth -= strings.Count(line, "}")
+				if strings.Contains(line, "range ") {
+					for name := range mapVars {
+						if strings.Contains(line, "range "+name) {
+							hits = append(hits, newHit(dir, file, i+1, line))
+						}
+					}
+				}
+			}
+			if inRender && braceDepth <= 0 {
+				inRender = false
+			}
+		}
+	}
+	return hits, nil
+}
+
 func lineContainsHits(dir string, match func(string) bool) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -375,7 +430,7 @@ func (report Report) Markdown() string {
 	if !report.OK {
 		status = "FAIL"
 	}
-	fmt.Fprintf(&b, "# Audit Loop: %s\n\n", report.Title)
+	fmt.Fprintf(&b, "# Audit Pattern Iteration: %s\n\n", report.Title)
 	fmt.Fprintf(&b, "- id: `%s`\n", report.ID)
 	fmt.Fprintf(&b, "- rule: `%s`\n", report.Rule)
 	fmt.Fprintf(&b, "- status: `%s`\n\n", status)

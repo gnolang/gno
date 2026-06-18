@@ -724,6 +724,12 @@ usage and runtime performance for large or growing datasets.
 - Small bounded datasets (for example, configuration values)
 - Type safety (tree values are usually `any` and require type assertions)
 
+Do not make map iteration order part of a public API or `Render` output.
+Gno's current map iteration is deterministic, but map order is still the wrong
+contract for leaderboards, member lists, tables, feeds, and pagination. If
+users can observe or link to an order, store explicit sortable keys and iterate
+through a tree-backed index or an explicit ordered list.
+
 ```go
 // Map example
 users := make(map[string]User)

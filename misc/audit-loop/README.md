@@ -1,16 +1,17 @@
-# Gno audit loop
+# Gno audit pattern iterations
 
-This directory contains the private-to-public audit guide loop harness for
-sanitized finding families.
+This directory contains the private-to-public audit pattern iteration harness
+for sanitized finding families.
 
 The durable repo split is:
 
-- `misc/audit-loop`: executable harness, expected records, and fixtures.
+- `misc/audit-loop`: executable iteration harness, expected records, and
+  fixtures.
 - `docs/resources`: builder-facing guidance promoted from stable findings.
 - `examples/gno.land`: compact public examples that demonstrate the safer
   contract pattern.
 
-Run all current slices:
+Run all current pattern slices:
 
 ```sh
 make run AUDIT_LOOP_FLAGS='-gno-bin /path/to/gno'
@@ -30,7 +31,7 @@ go run ./cmd/auditloop -format json ./expected/*.yaml
 
 ## Expected records
 
-Current slices:
+Current pattern slices:
 
 - `current-guard`: `cur.Previous()` before `cur.IsCurrent()`.
 - `render-markdown`: raw `Render(path)` markdown output.
@@ -40,6 +41,8 @@ Current slices:
 - `interface-realm-param`: interfaces that expose `cur realm`.
 - `exported-pointer-leak`: exported pointers or pointer getters for mutable
   state.
+- `render-map-iteration`: public Render output that depends on map iteration
+  order.
 
 Each `expected/*.yaml` record describes one finding family and its fixtures:
 
@@ -61,7 +64,7 @@ fixtures:
 Paths are relative to the YAML file. `want_gno_test` is `pass` or `fail`.
 `want_pattern_hits` is the exact count expected from the rule.
 
-## Adding a slice
+## Adding a pattern slice
 
 1. Add sanitized fixtures under `fixtures/<slice>/`.
 2. Add an `expected/<slice>.yaml` record.

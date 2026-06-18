@@ -89,6 +89,10 @@ func TestExportedPointerLeakRule(t *testing.T) {
 	assertRuleCounts(t, "exported_pointer_leak", "exported-pointer-leak", 2, 0)
 }
 
+func TestRenderMapIterationRule(t *testing.T) {
+	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
+}
+
 func TestRunWithFakeGNO(t *testing.T) {
 	tmp := t.TempDir()
 	gno := filepath.Join(tmp, "gno")

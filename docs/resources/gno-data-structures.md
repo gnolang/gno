@@ -86,7 +86,9 @@ for username, score := range scores {
 **Note**: In Gno, map iteration order follows insertion order, unlike Go which uses
 randomized iteration order due to underlying C hashmap implementation.
 While this makes Gno behavior deterministic, you should still not rely on
-iteration order for correctness to maintain compatibility with Go semantics.
+iteration order for correctness or public `Render` output. Use an explicit
+ordered list or tree-backed index when users depend on stable ordering,
+pagination, or range queries.
 
 ## Slices
 

@@ -16,9 +16,9 @@ to executable tests.
 
 ## Decision
 
-Add a small `misc/audit-loop` harness that keeps sanitized finding fixtures and
-expected records in this repository. It currently exercises seven recurring
-patterns:
+Add a small `misc/audit-loop` pattern-iteration harness that keeps sanitized
+finding fixtures and expected records in this repository. It currently
+exercises eight recurring patterns:
 
 - `cur.Previous()` before `cur.IsCurrent()`;
 - raw `Render(path)` markdown output;
@@ -27,6 +27,7 @@ patterns:
 - caller-supplied callbacks accepted by realm APIs;
 - interfaces that expose `cur realm`;
 - exported pointers or pointer getters for mutable state.
+- Render output that depends on map iteration order.
 
 Add a small `gno.land/r/docs/security_patterns` realm that demonstrates:
 
@@ -40,10 +41,10 @@ Update `docs/resources/effective-gno.md` with broader storage-shape guidance so
 agents and builders treat growing maps, slices, indexes, queues, and unique
 lists as general design patterns, not only security concerns.
 
-The loop framework lives in `misc/` because the stable source of truth is the
-Gno repository: the executable checks, the public guide, and the public examples
-should evolve together. Agent-specific repos can consume this material later
-without owning it.
+The pattern-iteration harness lives in `misc/` because the stable source of
+truth is the Gno repository: the executable checks, the public guide, and the
+public examples should evolve together. Agent-specific repos can consume this
+material later without owning it.
 
 ## Alternatives Considered
 
