@@ -2668,34 +2668,46 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	ft.Embedded = true
 }
 
-// fillEmbeddedInterfaceName names an embedded-interface field from its
-// resolved type, NOT from the source spelling. This is deliberately the
-// opposite of fillEmbeddedName (used for struct embeds): Go computes
-// interface identity from the flattened method set, so an embedded alias and
-// its target must collapse to one identity — interface{ SAlias } (where
-// type SAlias = Stringer) must equal interface{ Stringer }. Deriving the
-// name from the resolved *DeclaredType keeps both named "Stringer", matching
-// pre-#5739 behavior and Go.
+// flattenInterfaceMethods expands embedded-interface entries into their
+// constituent methods, so a freshly-constructed InterfaceType's Methods list
+// holds only concrete methods, never an embedded interface. This makes
+// interface identity the flattened method set, matching Go: the
+// embedded-interface name (e.g. an alias spelling) no longer leaks into the
+// TypeID, so interface{ Stringer } and interface{ Str() string } — and an
+// embedded alias vs its target — share one identity.
 //
-// TODO(gnovm): this only equalizes alias-vs-target. GnoVM still stores an
-// embedded interface as a single named method entry instead of flattening
-// its method set, so structurally identical interfaces with different
-// spellings still diverge from Go (e.g. interface{ Stringer } !=
-// interface{ Str() string }, which is also broken on master). The complete
-// fix flattens embedded method sets at construction, dropping the embed name
-// from the TypeID entirely; see the follow-up branch scratch/iface-flatten.
-// Embedding an alias to an *anonymous* interface still panics here, as it
-// did pre-#5739 — the flattening follow-up also resolves that.
-func fillEmbeddedInterfaceName(ft *FieldType) {
-	if ft.Name != "" {
-		return
+// Each source interface was itself flattened and method-count-capped at its
+// own construction, so the expansion is bounded; validateInterfaceMethods
+// re-checks the cap on the flattened result at the call sites.
+//
+// Identical methods reached via two paths (diamond embedding) are deduped.
+// A genuine same-name/different-signature conflict is rejected by go/types
+// (TypeCheckMemPackage, run before the VM constructs any type on the addpkg
+// path), so reaching the panic here is should-not-happen — consistent with
+// the other construction-time guards in this file (e.g. FieldTypeList.Less).
+func flattenInterfaceMethods(fts []FieldType) []FieldType {
+	out := make([]FieldType, 0, len(fts))
+	seen := make(map[Name]Type, len(fts))
+	add := func(name Name, typ Type) {
+		if prev, ok := seen[name]; ok {
+			if prev.TypeID() != typ.TypeID() {
+				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", name))
+			}
+			return
+		}
+		seen[name] = typ
+		out = append(out, FieldType{Name: name, Type: typ})
 	}
-	dt, ok := ft.Type.(*DeclaredType)
-	if !ok {
-		panic(fmt.Sprintf("cannot derive embedded interface name for type %s", ft.Type.String()))
+	for i := range fts {
+		if et := embeddedInterface(fts[i].Type); et != nil {
+			for j := range et.Methods {
+				add(et.Methods[j].Name, et.Methods[j].Type)
+			}
+			continue
+		}
+		add(fts[i].Name, fts[i].Type)
 	}
-	ft.Name = dt.Name
-	ft.Embedded = true
+	return out
 }
 
 func IsImplementedBy(it Type, ot Type) bool {

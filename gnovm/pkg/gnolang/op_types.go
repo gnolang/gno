@@ -142,11 +142,11 @@ func (m *Machine) doOpInterfaceType() {
 	// pop methods
 	for i := len(x.Methods) - 1; 0 <= i; i-- {
 		ft := m.PopValue().V.(TypeValue).Type.(FieldType)
-		// embedded interfaces are named from the resolved type, not the
-		// written spelling, so an alias and its target stay identical.
-		fillEmbeddedInterfaceName(&ft)
 		methods[i] = ft
 	}
+	// flatten embedded interfaces so identity is the method set, not the
+	// embedded-interface (alias) spelling; see flattenInterfaceMethods.
+	methods = flattenInterfaceMethods(methods)
 	// push interface type
 	it := &InterfaceType{
 		PkgPath: m.Package.PkgPath,
