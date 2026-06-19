@@ -891,7 +891,7 @@ func makeUverseNode() {
 				}
 				dstBase := dstv.GetBase(m.Store)
 				// DidUpdate is required here even though Assign2 is called per
-				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
+				// element below: for byte slices (Data != nil), GetElementPointer
 				// returns a DataByteType pointer and Assign2 returns early for that
 				// case without calling DidUpdate. The top-level call ensures the
 				// backing array is always marked dirty in the realm store.
@@ -902,11 +902,11 @@ func makeUverseNode() {
 				if dstBase.Data != nil {
 					// Copy string bytes directly into the Data-backed
 					// destination, instead of materializing a heap-allocated
-					// pointer box per element (see GetPointerAtIndexInt2).
+					// pointer box per element (see GetElementPointer).
 					copy(dstBase.Data[dstv.Offset:dstv.Offset+minl], src.TV.GetString())
 				} else {
 					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
 						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
@@ -944,7 +944,7 @@ func makeUverseNode() {
 				if dstBase.Data != nil && srcBase.Data != nil {
 					// Copy bytes directly between Data-backed slices, instead
 					// of materializing two heap-allocated pointer boxes per
-					// element (see GetPointerAtIndexInt2). Go's copy is
+					// element (see GetElementPointer). Go's copy is
 					// overlap-safe in both directions.
 					copy(dstBase.Data[dstStart:dstStart+minl], srcBase.Data[srcStart:srcEnd])
 				} else {
@@ -959,8 +959,8 @@ func makeUverseNode() {
 						end = -1
 					}
 					for i := start; i != end; i += step {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := srcv.GetElementPointer(m.Store, i, bst.Elt)
 						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 				}
