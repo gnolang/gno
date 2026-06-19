@@ -209,7 +209,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {

@@ -30,12 +30,12 @@ func registerLocal(t *testing.T, types ...any) *amino.Codec {
 	return cdc
 }
 
-// Phase 7 of GNOKMSAMINOVARINT.md: tests for the new binary:"varint" tag.
-// These verify the new plain-varint encoding path matches upstream protobuf
-// int64/int32 wire bytes, that mutual-exclusion validation fires at
-// registration, and that the existing zigzag path is unaffected.
+// Tests for the binary:"varint" tag. Verify the plain-varint encoding
+// path matches upstream protobuf int64/int32 wire bytes, that
+// mutual-exclusion validation fires at registration, and that the
+// existing zigzag path is unaffected.
 
-// ---- Phase 7.2 / 7.4: encoder primitives (no codec needed) -----------------
+// ---- encoder primitives (no codec needed) ----------------------------------
 
 // Plain varint of -1 takes the full 10 bytes (sign-extended uint64
 // 0xFFFFFFFFFFFFFFFF). Zigzag of -1 takes 1 byte. This is the load-bearing
@@ -147,7 +147,7 @@ func TestPlainVarintReversed_MatchesForward(t *testing.T) {
 	}
 }
 
-// ---- Phase 7.1 / 7.3 / 7.10: round-trip through codec ----------------------
+// ---- round-trip through codec ----------------------------------------------
 
 type plainVarintStruct struct {
 	A int64 `binary:"varint"`
@@ -200,12 +200,12 @@ func TestPlainVarintCodec_LargerThanZigzag(t *testing.T) {
 		"plain varint of negative values must be longer than zigzag")
 }
 
-// ---- Phase 7.5 / 7.6 / 7.7: registration-time validation -------------------
+// ---- registration-time validation ------------------------------------------
 
 // Both fixed64 and varint on the same field must panic at registration.
-// This test only exercises the validation if Phase 1's comma-split parser
-// is in place; without it, the entire string fails the switch and no flag
-// gets set, so the test would silently no-op.
+// This test only exercises the validation if the comma-split tag parser
+// is in place; without it, the entire "varint,fixed64" string fails the
+// switch and no flag gets set, so the test would silently no-op.
 type bothFixedAndVarintStruct struct {
 	X int64 `binary:"varint,fixed64"`
 }
@@ -269,7 +269,7 @@ func TestPlainVarint_RejectWrongTypes(t *testing.T) {
 	}
 }
 
-// ---- Phase 7.14: wire compat with stdlib protobuf --------------------------
+// ---- wire compat with stdlib protobuf --------------------------------------
 
 // Encode an int64-tagged-varint field via amino, decode the inner field bytes
 // with google.golang.org/protobuf/protowire (stdlib). This is the definitive
@@ -314,7 +314,7 @@ func TestPlainVarint_StdlibProtobufInterop(t *testing.T) {
 	assert.Equal(t, int64(-42), gotFields[2])
 }
 
-// ---- Phase 7.15: regression — tag-less fields unaffected -------------------
+// ---- regression: tag-less fields unaffected --------------------------------
 
 // A struct with NO binary:"varint" tag must produce byte-identical output
 // to before the patch. We can't compare against a frozen byte sequence here
@@ -354,14 +354,14 @@ func TestPlainVarint_TagLessUnaffected(t *testing.T) {
 	assert.Equal(t, 2, count)
 }
 
-// ---- Phase 7.11 / 7.12 / 7.13: nested-list propagation --------------------
+// ---- nested-list propagation -----------------------------------------------
 //
-// The Phase 5b/5c fixes (`nListFieldOptions` preserving BinPlainVarint, and
-// `NList.Name()` adding a `Varint` distinguisher) are only exercised through
-// the schema-generator's nested-list path. Without these tests the regression
+// `nListFieldOptions` must preserve BinPlainVarint, and `NList.Name()`
+// must add a `Varint` distinguisher; both are only exercised through the
+// schema-generator's nested-list path. Without these tests the regression
 // surface is silent: a future edit to `nListFieldOptions` that drops
-// BinPlainVarint would still encode bytes correctly per-element, but emit a
-// schema that says `repeated sint64` while the bytes are plain-varint —
+// BinPlainVarint would still encode bytes correctly per-element, but emit
+// a schema that says `repeated sint64` while the bytes are plain-varint —
 // schema/wire mismatch, stdlib-protobuf decoder rejects.
 
 // listVarintField has a slice-of-int64 field tagged binary:"varint". This

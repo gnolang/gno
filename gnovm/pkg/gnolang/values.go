@@ -299,13 +299,22 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	if ii < 0 {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+	}
 	if av.Data == nil {
+		if ii >= len(av.List) {
+			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
+		}
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
 			Index: ii,
 		}
+	}
+	if ii >= len(av.Data) {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
 	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
@@ -759,9 +768,11 @@ type MapListItem struct {
 	Value TypedValue
 }
 
-func (mv *MapValue) MakeMap(c int) {
+// MakeMap initializes mv with no capacity hint: the make() size argument
+// is intentionally not honored (see the make() map case in uverse.go).
+func (mv *MapValue) MakeMap() {
 	mv.List = &MapList{}
-	mv.vmap = make(map[MapKey]*MapListItem, c)
+	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
 func (mv *MapValue) GetLength() int {
@@ -1211,9 +1222,9 @@ func (tv *TypedValue) SetInt(n int64) {
 
 func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	// IntType-only conversion: no allocation occurs; fallbackAllocator
-	// is used purely to satisfy the *Allocator argument.
-	ConvertTo(fallbackAllocator, store, tv, IntType, false)
+	// IntType-only conversion: no allocation occurs, so pass a nil
+	// (no-op) allocator.
+	ConvertTo(nil, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
@@ -1982,7 +1993,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(m, nilRealm, fallbackAllocator, store, &iv)
+	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
 }
 
 // GetValueAtIntIndex is a read-only fast path of GetPointerAtIndex for
