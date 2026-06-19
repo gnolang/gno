@@ -87,8 +87,9 @@ func (m *Machine) doOpEql() {
 	if lv.T != nil && lv.T.Kind() == BigintKind {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
-	// set result in lv.
-	res := isEql(m, lv, rv, isInterfaceCmp(bx))
+	// set result in lv. ATTR_IFACE_CMP is the preprocess-cached verdict that an
+	// operand is statically interface-typed (see preprocess of *BinaryExpr).
+	res := isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) == true)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -105,31 +106,10 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
+	res := !isEql(m, lv, rv, bx.GetAttribute(ATTR_IFACE_CMP) == true)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
-}
-
-// isInterfaceCmp reports whether either operand of bx is statically an
-// interface. A true result tells isEql to apply Go's interface-comparison
-// rule, under which isEql panics on an uncomparable dynamic type.
-func isInterfaceCmp(bx *BinaryExpr) bool {
-	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
-}
-
-func hasInterfaceStaticType(x Expr) bool {
-	if x == nil {
-		return false
-	}
-	// cachedStaticTypeOf unwraps a single-result CallExpr's 1-element tuple,
-	// so a function call returning an interface is recognized as a boundary.
-	t := cachedStaticTypeOf(x)
-	if t == nil {
-		return false
-	}
-	_, ok := baseOf(t).(*InterfaceType)
-	return ok
 }
 
 func (m *Machine) doOpLss() {
