@@ -97,6 +97,6 @@ jobs:
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> "$GITHUB_ENV"
 
       - name: Run gno test
-        run: go run ./gnovm/cmd/gno test -C "${INPUTS_PATH}" -v -print-runtime-metrics -print-events -jobs 4 ./...
+        run: go run ./gnovm/cmd/gno test -C "${INPUTS_PATH}" -v -print-runtime-metrics -print-events ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}

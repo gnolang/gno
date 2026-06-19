@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -36,8 +37,7 @@ type testCmd struct {
 	printRuntimeMetrics bool
 	printEvents         bool
 	debug               bool
-	debugAddr           string
-	jobs                int
+	parallel            int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -119,7 +119,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.failfast,
 		"failfast",
 		false,
-		"do not start new tests after the first test failure",
+		"do not start new tests after the first test failure; with -p > 1, packages already running still finish",
 	)
 
 	fs.BoolVar(
@@ -178,19 +178,14 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"enable interactive debugger using stdin and stdout",
 	)
 
-	fs.StringVar(
-		&c.debugAddr,
-		"debug-addr",
-		"",
-		"enable interactive debugger using tcp address in the form [host]:port",
-	)
-
 	fs.IntVar(
-		&c.jobs,
-		"jobs",
-		1,
-		"number of packages to test in parallel; 0 means GOMAXPROCS. "+
-			"When above 1, the output of each package is buffered and printed once the package's tests complete.",
+		&c.parallel,
+		"p",
+		0,
+		fmt.Sprintf("number of packages to test in parallel; n <= 0 means GOMAXPROCS (%d). "+
+			"When above 1, the output of each package is buffered and printed once the package's tests complete. "+
+			"-debug enforces -p 1.",
+			runtime.GOMAXPROCS(0)),
 	)
 }
 
@@ -229,10 +224,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}()
 	}
 
-	if cmd.jobs != 1 && (cmd.debug || cmd.debugAddr != "") {
-		return errors.New("the interactive debugger can only be used with -jobs 1")
-	}
-
 	// Set up options to run tests.
 	newOpts := func(stdout, stderr goio.Writer) *test.TestOptions {
 		opts := test.NewTestOptions(cmd.rootDir, stdout, stderr, pkgs)
@@ -256,7 +247,17 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	if cmd.jobs == 1 {
+	// enforce -p 1 for -debug
+	if cmd.debug {
+		if cmd.parallel <= 1 {
+			// 0 or 1 jobs
+			cmd.parallel = 1
+		} else {
+			return errors.New("the interactive debugger can only be used with -p 1")
+		}
+	}
+
+	if cmd.parallel == 1 {
 		// Sequential run: all packages share a single store, and print
 		// their output directly as they run.
 		stdout := goio.Discard
@@ -275,11 +276,11 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			}
 		}
 	} else {
-		// Parallel run: cmd.jobs workers, each with its own store. The
-		// output of each package is buffered, and printed in package order
+		// Parallel run: cmd.parallel workers, each with its own store. The
+		// output of each package is buffered, and printed in completion order
 		// as results come in.
-		jobs := cmd.jobs
-		if jobs == 0 {
+		jobs := cmd.parallel
+		if jobs <= 0 {
 			jobs = runtime.GOMAXPROCS(0)
 		}
 		jobs = min(jobs, len(pkgs))
@@ -288,21 +289,15 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			out, errOut bytes.Buffer
 			buildErrs   int
 			testErrs    int
-			done        chan struct{}
 		}
-		results := make([]pkgResult, len(pkgs))
-		for i := range results {
-			results[i].done = make(chan struct{})
-		}
+		done := make(chan *pkgResult, jobs)
 		var (
-			nextIdx atomic.Int64
-			failed  atomic.Bool
-			wg      sync.WaitGroup
+			nextIdx      atomic.Int64
+			failfastSkip atomic.Bool
+			wg           sync.WaitGroup
 		)
 		for range jobs {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				cache := make(gno.TypeCheckCache, 64)
 				// One TestOptions (and store) per worker, reused across the
 				// packages it runs so that loaded packages are shared; only
@@ -313,10 +308,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					if i >= len(pkgs) {
 						return
 					}
-					res := &results[i]
-					if cmd.failfast && failed.Load() {
+					res := &pkgResult{}
+					if cmd.failfast && failfastSkip.Load() {
 						// don't start new tests after the first test failure
-						close(res.done)
+						done <- res
 						continue
 					}
 					opts.Output = goio.Discard
@@ -328,16 +323,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					pio.SetOut(commands.WriteNopCloser(&res.out))
 					pio.SetErr(commands.WriteNopCloser(&res.errOut))
 					res.buildErrs, res.testErrs = cmd.testPkg(pkgs[i], opts, cache, pio)
-					if res.testErrs > 0 {
-						failed.Store(true)
+					if cmd.failfast && res.testErrs > 0 {
+						failfastSkip.Store(true)
 					}
-					close(res.done)
+					done <- res
 				}
-			}()
+			})
 		}
-		for i := range results {
-			res := &results[i]
-			<-res.done
+		go func() {
+			// once all goroutines exit, call close() on done.
+			wg.Wait()
+			close(done)
+		}()
+		for res := range done {
 			if res.out.Len() > 0 {
 				_, _ = io.Out().Write(res.out.Bytes())
 			}
@@ -347,7 +345,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			buildErrCount += res.buildErrs
 			testErrCount += res.testErrs
 		}
-		wg.Wait()
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
@@ -380,6 +377,18 @@ func (c *testCmd) testPkg(
 			}
 		}
 	}
+
+	// Recover from unexpected panics in the test machinery (gnomod parsing,
+	// mempackage reads, type-check setup, ...) so a single bad package fails
+	// on its own rather than aborting the whole run. Panics from test
+	// execution itself are already handled by catchPanic below.
+	defer func() {
+		if rec := recover(); rec != nil {
+			io.ErrPrintfln("panic: %v\n%s", rec, debug.Stack())
+			io.ErrPrintfln("FAIL    %s \t[test system panic]", prettyDir)
+			testErrCount++
+		}
+	}()
 
 	for _, err := range pkg.Errors {
 		io.ErrPrintfln("%s", err.Error())
