@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
 
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
@@ -25,11 +26,13 @@ import (
 // While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
-// The map is populated at init and must not be mutated afterwards: it is read
-// concurrently by parallel type-checks.
-var gnoBuiltinsCache = map[string]*std.MemPackage{
-	"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
-}
+// The map must not be mutated afterwards: it is read concurrently by parallel
+// type-checks.
+var gnoBuiltinsCache = sync.OnceValue(func() map[string]*std.MemPackage {
+	return map[string]*std.MemPackage{
+		"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
+	}
+})
 
 func gnoBuiltinsGno0p9() *std.MemPackage { // 0.9
 	mpkg := &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
@@ -60,7 +63,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
 		panic("expected pkgPath to start with gnobuiltins/")
 	}
-	mpkg, ok := gnoBuiltinsCache[pkgPath]
+	mpkg, ok := gnoBuiltinsCache()[pkgPath]
 	if !ok {
 		panic("unrecognized gnobuiltins pkgpath")
 	}
