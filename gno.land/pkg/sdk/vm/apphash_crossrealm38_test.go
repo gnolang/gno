@@ -58,7 +58,10 @@ import (
 // the merged nil-realm write-gate fix (#5758): crossrealm38 still produces e37075fb
 // on a clean origin/master. Behavior is unchanged (the zrealm_crossrealm38.gno
 // filetest passes); only the genesis encoding shifted.
-const expectedCrossrealm38Hash = "0fbdbf8ff64fd5b851a030229304d95c9196c80a449c47da89ed76ff1f3c0bb4"
+// Hash bumped 2026-06-07: adding the errors stdlib (Unwrap/Is/Join) to the genesis
+// stdlib set shifts the iavlStore Merkle root. Behavior is unchanged (the
+// zrealm_crossrealm38.gno filetest still passes); only the genesis encoding shifted.
+const expectedCrossrealm38Hash = "332560ed578f35abfdf1bae5d696d470f14902a9d41ca05878f7f899013243ea"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
