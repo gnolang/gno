@@ -50,6 +50,10 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+
+	// Coverage tracking
+	CoverageTracker CoverageTracker
+
 	// BoundedPanicRender gates makeUnhandledPanicError to use the
 	// bounded printer (see bounded_strings.go). True on validator-
 	// side Machines; false for filetests, REPL, etc.
@@ -87,7 +91,11 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
-	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
+
+	// Coverage tracking
+	CoverageTracker CoverageTracker
+
+  // BoundedPanicRender, when true, makes makeUnhandledPanicError use
 	// the bounded printer (see bounded_strings.go) so adversarial
 	// panic values (huge strings, deeply-nested composites, etc.)
 	// produce output capped at BoundedRenderBytes rather than
@@ -200,7 +208,16 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+
+	// Initialize coverage tracker
+	if opts.CoverageTracker != nil {
+		mm.CoverageTracker = opts.CoverageTracker
+	} else {
+		mm.CoverageTracker = DefaultCoverageTracker()
+	}
+
 	mm.BoundedPanicRender = opts.BoundedPanicRender
+
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -3062,4 +3079,42 @@ func (m *Machine) ExceptionStacktrace() string {
 		builder.WriteString(last.StringWithStacktrace(m))
 	}
 	return builder.String()
+}
+
+// trackCoverageForNode tracks code coverage for expressions and statements.
+// It accepts only Node types (which includes Expr and Stmt) to ensure type safety.
+func (m *Machine) trackCoverageForNode(node Node) {
+	if node == nil {
+		return
+	}
+
+	line := node.GetLine()
+	if line <= 0 {
+		return
+	}
+
+	if m.Package == nil {
+		return
+	}
+
+	if len(m.Blocks) == 0 {
+		return
+	}
+
+	lb := m.LastBlock()
+	if lb == nil {
+		return
+	}
+
+	src := lb.GetSource(m.Store)
+	if src == nil {
+		return
+	}
+
+	loc := src.GetLocation()
+	if loc.IsZero() {
+		return
+	}
+
+	m.CoverageTracker.TrackExecution(m.Package.PkgPath, loc.File, line)
 }

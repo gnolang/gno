@@ -18,6 +18,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -81,6 +82,18 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, 
 		Debug:         debug,
 		ReviveEnabled: true,
 		GasMeter:      gasMeter,
+	})
+}
+
+// MachineWithCoverage creates a machine with VM coverage tracking enabled.
+func MachineWithCoverage(testStore gno.Store, output io.Writer, pkgPath string, debug bool, coverageTracker gno.CoverageTracker) *gno.Machine {
+	return gno.NewMachineWithOptions(gno.MachineOptions{
+		Store:           testStore,
+		Output:          output,
+		Context:         Context("", pkgPath, nil),
+		Debug:           debug,
+		ReviveEnabled:   true,
+		CoverageTracker: coverageTracker,
 	})
 }
 
@@ -249,6 +262,15 @@ type TestOptions struct {
 	// Uses Error to print the events emitted.
 	Events bool
 
+	// Enable coverage tracking
+	Coverage bool
+	// Coverage output file
+	CoverageOutput string
+	// TestPackagePath is the path of the package being tested (used for coverage)
+	TestPackagePath string
+	// CoverageTracker is the VM coverage tracker (set after Test completes)
+	CoverageTracker gno.CoverageTracker
+
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
 	tcCache        gno.TypeCheckCache
@@ -329,6 +351,20 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// initialize coverage tracker if enabled
+	var covTracker *coverage.Tracker
+	if opts.Coverage {
+		// Create VM coverage tracker
+		covTracker = coverage.NewTracker()
+		covTracker.SetEnabled(true)
+
+		// Set the package being tested
+		opts.TestPackagePath = mpkg.Path
+
+		// Analyze the package to register executable lines
+		// This will be done after the package is loaded into the store
+	}
+
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
@@ -339,7 +375,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// This needs to happen before LoadImports, as LoadImports will
 	// otherwise only load without *_test.gno files (but we want them for
 	// mpkg since we're running tests on them).
-	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+	m2Opts := gno.MachineOptions{
 		PkgPath: mpkg.Path,
 		Output:  opts.WriterForStore(),
 		Store:   tgs,
@@ -358,7 +394,12 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// new packages by default, which we don't want.  Instead we
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
-	})
+	}
+	if covTracker != nil {
+		m2Opts.CoverageTracker = covTracker
+	}
+	m2 := gno.NewMachineWithOptions(m2Opts)
+
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -368,8 +409,19 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Eagerly load imports.
 	abortOnError := true
-	if err := LoadImports(tgs, mpkg, abortOnError); err != nil {
+	// When coverage is enabled for a realm, load realm dependencies to avoid panics
+	loadRealmDeps := opts.Coverage && gno.IsRealmPath(mpkg.Path)
+	if err := LoadImportsWithOptions(tgs, mpkg, abortOnError, loadRealmDeps); err != nil {
 		return err
+	}
+
+	// Analyze the package for coverage after it's loaded
+	if covTracker != nil {
+		// Get the package node from the store
+		if pn := tgs.GetPackageNode(mpkg.Path); pn != nil {
+			analyzer := coverage.NewAnalyzer(covTracker)
+			analyzer.AnalyzePackage(pn)
+		}
 	}
 
 	// Stands for "test", "integration test", and "filetest".
@@ -381,7 +433,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	if len(tset.Files)+len(itset.Files) > 0 {
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(mpkg, tset, tgs)
+			err := opts.runTestFiles(mpkg, tset, tgs, covTracker)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -402,7 +454,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itmpkg, itset, tgs)
+			err := opts.runTestFiles(itmpkg, itset, tgs, covTracker)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -449,8 +501,25 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			} else if opts.Verbose {
 				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 			}
+		}
+	}
 
-			// XXX: add per-test metrics
+	// generate coverage report
+	if opts.Coverage && covTracker != nil {
+		// Store the tracker in options for later access
+		opts.CoverageTracker = covTracker
+
+		report := covTracker.GenerateReport()
+
+		// Print to console
+		fmt.Fprint(opts.Error, report.String())
+
+		// Also save to file if specified
+		if opts.CoverageOutput != "" {
+			// TODO: Implement proper file output formats (JSON, HTML, etc.)
+			if err := os.WriteFile(opts.CoverageOutput, []byte(report.String()), 0644); err != nil {
+				errs = multierr.Append(errs, fmt.Errorf("failed to write coverage report: %w", err))
+			}
 		}
 	}
 
@@ -464,6 +533,7 @@ func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
+	coverageTracker *coverage.Tracker,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -491,7 +561,11 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
+	if coverageTracker != nil {
+		m = MachineWithCoverage(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, coverageTracker)
+	} else {
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
+	}
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -512,7 +586,11 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		if coverageTracker != nil {
+			m = MachineWithCoverage(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, coverageTracker)
+		} else {
+			m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		}
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
@@ -611,7 +689,7 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
-		if opts.Verbose {
+		if opts.Verbose && m.GasMeter != nil {
 			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
 		}
 

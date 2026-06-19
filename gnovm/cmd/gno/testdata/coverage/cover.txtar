@@ -1,0 +1,90 @@
+# Coverage analysis with -cover flag
+
+gno test -cover .
+
+! stdout .+
+stderr 'Coverage Report'
+
+gno test -cover -v .
+
+! stdout .+
+stderr 'Coverage Report'
+
+gno test -cover -show main.gno .
+
+! stdout .+
+stderr 'Coverage Report'
+
+gno test -cover -show '*.gno' .
+
+! stdout .+
+stderr 'Coverage Report'
+
+-- main.gno --
+package testcoverage
+
+func Add(a, b int) int {
+	return a + b
+}
+
+func Subtract(a, b int) int {
+	return a - b
+}
+
+func Multiply(a, b int) int {
+	result := 0
+	for i := 0; i < b; i++ {
+		result += a
+	}
+	return result
+}
+
+func Divide(a, b int) int {
+	if b == 0 {
+		panic("division by zero")
+	}
+	return a / b
+}
+
+func IsEven(n int) bool {
+	if n%2 == 0 {
+		return true
+	}
+	return false
+}
+
+-- main_test.gno --
+package testcoverage
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	result := Add(2, 3)
+	if result != 5 {
+		t.Errorf("Add(2, 3) = %d, want 5", result)
+	}
+}
+
+func TestSubtract(t *testing.T) {
+	result := Subtract(5, 3)
+	if result != 2 {
+		t.Errorf("Subtract(5, 3) = %d, want 2", result)
+	}
+}
+
+func TestMultiply(t *testing.T) {
+	result := Multiply(3, 4)
+	if result != 12 {
+		t.Errorf("Multiply(3, 4) = %d, want 12", result)
+	}
+}
+
+func TestIsEven(t *testing.T) {
+	if !IsEven(4) {
+		t.Error("IsEven(4) should be true")
+	}
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test"
+gno = "0.9"
