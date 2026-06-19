@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"log"
@@ -11,12 +12,21 @@ import (
 	"sync"
 )
 
+// softfloatPatch carries the gnolang/gno#5806 fix (and a regression test case)
+// applied on top of the imported upstream sources. See applyPatch.
+//
+//go:embed softfloat.diff
+var softfloatPatch string
+
 func main() {
 	// Process softfloat64.go file
 	processSoftFloat64File()
 
 	// Process softfloat64_test.go file
 	processSoftFloat64TestFile()
+
+	// Apply softfloat.diff on top of the imported sources.
+	applyPatch()
 
 	// Run mvdan.cc/gofumpt
 	gofumpt()
@@ -52,9 +62,6 @@ func processSoftFloat64File() {
 	// Replace package name
 	newContent = strings.Replace(newContent, "package runtime", "package softfloat", 1)
 
-	// Apply the gnolang/gno#5806 fix to the upstream sources.
-	newContent = patchSubnormalCancellation(newContent)
-
 	// Write to destination file
 	err = os.WriteFile("runtime_softfloat64.go", []byte(newContent), 0o644)
 	if err != nil {
@@ -62,84 +69,29 @@ func processSoftFloat64File() {
 	}
 }
 
-// patchSubnormalCancellation fixes a latent bug in the upstream
-// runtime/softfloat64.go: fpack64/fpack32 return a wrongly-scaled subnormal
-// when fadd64/fsub64 produce a heavily-cancelled mantissa (two near-equal,
-// opposite-sign normals summing to a subnormal). fpack saved mant0/exp0/trunc0
-// before its normalization loop, so the denormal path restored an un-normalized
-// mantissa and shifted it the wrong way. The fix moves the save to after the
-// normalization loop, matching the change merged upstream in golang/go#79964.
+// applyPatch applies the embedded softfloat.diff to the freshly written
+// runtime_softfloat64.go and runtime_softfloat64_test.go. The diff carries the
+// gnolang/gno#5806 fix for a latent bug in upstream runtime/softfloat64.go:
+// fpack64/fpack32 returned a wrongly-scaled subnormal when fadd64/fsub64
+// produced a heavily-cancelled mantissa (two near-equal, opposite-sign normals
+// summing to a subnormal). fpack saved mant0/exp0/trunc0 before its
+// normalization loop, so the denormal path restored an un-normalized mantissa
+// and shifted it the wrong way. The fix moves the save to after the loop,
+// matching the change merged upstream in golang/go#79964, and adds a regression
+// case to the all-pairs test.
 //
-// See https://github.com/gnolang/gno/issues/5806 and golang/go#79964. Once gno
-// upgrades to a Go release containing the upstream fix, this patch's anchors
-// will no longer be found and the generator will fail loudly so it can be
-// removed.
+// patch is run non-interactively (-f) with a zero fuzz factor (-F 0) so it
+// fails loudly if the upstream sources drift: once gno upgrades to a Go release
+// containing the fix, the diff context will no longer match and `go generate`
+// will error, signaling that this patch (and softfloat.diff) can be removed.
 //
-// On a Go upgrade, if `go generate` fails with "expected exactly one anchor
-// match", inspect the new upstream softfloat64.go: either it already contains
-// the fix (remove this patch) or it reformatted the surrounding code (update
-// the anchors below).
-func patchSubnormalCancellation(content string) string {
-	patches := []struct{ desc, old, new string }{
-		{
-			desc: "fpack64",
-			old: "func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {\n" +
-				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
-				"\tif mant == 0 {\n" +
-				"\t\treturn sign\n" +
-				"\t}\n" +
-				"\tfor mant < 1<<mantbits64 {\n" +
-				"\t\tmant <<= 1\n" +
-				"\t\texp--\n" +
-				"\t}\n" +
-				"\tfor mant >= 4<<mantbits64 {",
-			new: "func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {\n" +
-				"\tif mant == 0 {\n" +
-				"\t\treturn sign\n" +
-				"\t}\n" +
-				"\tfor mant < 1<<mantbits64 {\n" +
-				"\t\tmant <<= 1\n" +
-				"\t\texp--\n" +
-				"\t}\n" +
-				"\t// Save the normalized mantissa; the denormal path below restores it and\n" +
-				"\t// re-aligns to the subnormal exponent. Saving before this loop (as the\n" +
-				"\t// code originally did) left a heavily-cancelled add/sub mantissa\n" +
-				"\t// un-normalized, which that path then shifted the wrong way. See #79964.\n" +
-				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
-				"\tfor mant >= 4<<mantbits64 {",
-		},
-		{
-			desc: "fpack32",
-			old: "func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {\n" +
-				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
-				"\tif mant == 0 {\n" +
-				"\t\treturn sign\n" +
-				"\t}\n" +
-				"\tfor mant < 1<<mantbits32 {\n" +
-				"\t\tmant <<= 1\n" +
-				"\t\texp--\n" +
-				"\t}\n" +
-				"\tfor mant >= 4<<mantbits32 {",
-			new: "func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {\n" +
-				"\tif mant == 0 {\n" +
-				"\t\treturn sign\n" +
-				"\t}\n" +
-				"\tfor mant < 1<<mantbits32 {\n" +
-				"\t\tmant <<= 1\n" +
-				"\t\texp--\n" +
-				"\t}\n" +
-				"\t// See fpack64: save the normalized mantissa for the denormal path below.\n" +
-				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
-				"\tfor mant >= 4<<mantbits32 {",
-		},
+// See https://github.com/gnolang/gno/issues/5806 and golang/go#79964.
+func applyPatch() {
+	cmd := exec.Command("patch", "-p1", "-f", "-F", "0")
+	cmd.Stdin = strings.NewReader(softfloatPatch)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Fatalf("error applying softfloat.diff (upstream sources may have changed; see gen/main.go): %v\n%s", err, out)
 	}
-	for _, p := range patches {
-		if strings.Count(content, p.old) != 1 {
-			log.Fatalf("gno#5806 patch for %s: expected exactly one anchor match (upstream may have changed or fixed it)", p.desc)
-		}
-		content = strings.Replace(content, p.old, p.new, 1)
-	}
-	return content
 }
 
 func processSoftFloat64TestFile() {
@@ -166,15 +118,6 @@ func processSoftFloat64TestFile() {
 	newContent = strings.Replace(newContent, "GOARCH", "runtime.GOARCH", 1)
 
 	newContent = strings.Replace(newContent, "import (", "import (\n\t. \"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat\"", 1)
-
-	// Add a regression case for gnolang/gno#5806 to the all-pairs test base.
-	const anchor = "\t\t1.112536929253601e-308, // first normal\n"
-	if strings.Count(newContent, anchor) != 1 {
-		log.Fatal("gno#5806 test patch: base-slice anchor not found")
-	}
-	newContent = strings.Replace(newContent, anchor, anchor+
-		"\t\t-2.662107816930723e-301, // #79964: two near-equal opposite-sign\n"+
-		"\t\t2.662107858822336e-301,  // normals cancelling to a subnormal\n", 1)
 
 	// Write to destination file
 	err = os.WriteFile("runtime_softfloat64_test.go", []byte(newContent), 0o644)
