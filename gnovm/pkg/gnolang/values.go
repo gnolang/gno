@@ -2002,8 +2002,9 @@ func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) Poin
 // (see GetPointerAtIndexInt2) that the caller immediately Derefs and
 // discards. ok is false when tv is none of those (maps, List-backed arrays
 // and slices), in which case the caller must use GetPointerAtIndex. Checks
-// and panics mirror GetPointerAtIndex: explicit Exceptions for strings and
-// slices; arrays rely on Go's implicit bounds panic, as there.
+// and panics mirror GetPointerAtIndex: out-of-range indices raise explicit
+// Exceptions for strings, arrays and slices, so they stay recoverable rather
+// than escaping as un-recoverable Go panics (see #5738).
 func (tv *TypedValue) GetValueAtIntIndex(store Store, ii int) (res TypedValue, ok bool) {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
@@ -2021,6 +2022,12 @@ func (tv *TypedValue) GetValueAtIntIndex(store Store, ii int) (res TypedValue, o
 		}
 	case *ArrayType:
 		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+			}
+			if ii >= len(av.Data) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+			}
 			res = TypedValue{T: bt.Elt}
 			res.SetUint8(av.Data[ii])
 			return res, true
