@@ -890,13 +890,14 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// DidUpdate is required here even though Assign2 is called per
-				// element below: for byte slices (Data != nil), GetElementPointer
-				// returns a DataByteType pointer and Assign2 returns early for that
-				// case without calling DidUpdate. The top-level call ensures the
-				// backing array is always marked dirty in the realm store.
+				// The fast path below writes raw bytes straight into
+				// dstBase.Data, bypassing Assign2 — so this top-level DidUpdate
+				// is what marks the backing array dirty and enforces cross-realm
+				// write permissions (mirroring append). In the slow per-element
+				// path Assign2's DataByteType branch also calls DidUpdate, making
+				// this redundant but harmless there.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
-				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
+				// PointerValue.Assign2 fast-paths DataByteType: just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
 				if dstBase.Data != nil {
@@ -932,7 +933,9 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// Same as above: DidUpdate is required for the DataByte case.
+				// Same as above: the Data-backed fast path bypasses Assign2, so
+				// this top-level DidUpdate marks the array dirty and enforces
+				// cross-realm write permissions.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
