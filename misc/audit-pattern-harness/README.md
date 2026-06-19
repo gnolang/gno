@@ -5,7 +5,7 @@ for sanitized finding families.
 
 The durable repo split is:
 
-- `misc/audit-loop`: executable audit pattern harness, expected records, and
+- `misc/audit-pattern-harness`: executable audit pattern harness, expected records, and
   fixtures.
 - `docs/resources`: builder-facing guidance promoted from stable findings.
 - `examples/gno.land`: compact public examples that demonstrate the safer

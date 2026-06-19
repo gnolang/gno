@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gnolang/gno/misc/audit-loop/internal/auditpattern"
+	"github.com/gnolang/gno/misc/audit-pattern-harness/internal/auditpattern"
 )
 
 func main() {
