@@ -6018,36 +6018,21 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 						addDep(dt.Name + "." + n.Sel)
 					case VPField:
-						// VPField covers both struct-field access (s.F) and
-						// unbound method expressions (T.M, (*T).M). Only
-						// method exprs carry *TypeType on n.X (type name in
-						// expression position); struct fields carry the
-						// receiver's value type. Skip struct fields.
-						if _, isType := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType); !isType {
-							break
-						}
-						// Unwrap (*T) -> T, then read the receiver TypeValue.
-						x := n.X
-						if sx, ok := x.(*StarExpr); ok {
-							x = sx.X
-						}
-						cx, ok := x.(*ConstExpr)
+						// VPField is struct-field access (s.F) or an unbound
+						// method expression (T.M, (*T).M). Only the latter
+						// evaluates n.X as a type, so ATTR_TYPE_VALUE holds
+						// the receiver type; struct fields lack it and break.
+						rt, ok := n.X.GetAttribute(ATTR_TYPE_VALUE).(Type)
 						if !ok {
 							break
 						}
-						tv, ok := cx.V.(TypeValue)
-						if !ok {
-							break
-						}
-						rt := tv.Type
+						// Unwrap a pointer receiver, covering both (*T).M and
+						// the pointer-alias form (`type P = *T; P.M`).
 						if pt, ok := rt.(*PointerType); ok {
 							rt = pt.Elt
 						}
 						dt, ok := rt.(*DeclaredType)
-						if !ok {
-							break
-						}
-						if dt.PkgPath != pn.PkgPath {
+						if !ok || dt.PkgPath != pn.PkgPath {
 							break
 						}
 						addDep(dt.Name + "." + n.Sel)
