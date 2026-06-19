@@ -23,13 +23,6 @@ func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, cr
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
 
-	// Create and fund master account.
-	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
-	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(tu.NewTestCoins())
-	masterAcc.SetPubKey(masterPub)
-	env.acck.SetAccount(env.ctx, masterAcc)
-
 	// Set block time > 0 to avoid genesis special casing.
 	now := time.Now()
 	env.ctx = env.ctx.WithBlockHeader(&bft.Header{
@@ -38,7 +31,23 @@ func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, cr
 		Time:    now,
 	})
 
+	masterPriv, masterAddr := setupSessionFromEnv(t, env)
 	return env, anteHandler, masterPriv, masterAddr
+}
+
+// setupSessionFromEnv creates a funded master account, given a env (for example
+// from setupSessionEnv).
+func setupSessionFromEnv(t *testing.T, env testEnv) (crypto.PrivKey, crypto.Address) {
+	t.Helper()
+
+	// Create and fund master account.
+	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
+	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
+	masterAcc.SetCoins(tu.NewTestCoins())
+	masterAcc.SetPubKey(masterPub)
+	env.acck.SetAccount(env.ctx, masterAcc)
+
+	return masterPriv, masterAddr
 }
 
 // sessionSpendLimit returns a spend limit large enough to cover test fees.

@@ -56,16 +56,18 @@ If the current working directory contains a `gnomod.toml` file, `gnodev` deploys
 package to the `pkgpath` specified inside. Check out [this page](../resources/configuring-gno-projects.md)
 for more info.
 
-If no `gnomod.toml` file is found, `gnodev` searches for a `.gno` file containing a
-package name and deploys it under `gno.land/r/dev/<pkgname>`.
+If no `gnomod.toml` file is found, `gnodev` deploys the package under
+`gno.land/r/dev/<dirname>`, where `<dirname>` is the directory name sanitized to
+a valid path segment (lowercase letters, digits and underscores).
 
 #### Deploying example packages
 
-In addition to your working directory, `gnodev` automatically deploys all packages
-and realms located in the [examples/ folder](https://github.com/gnolang/gno/tree/master/examples)
-from the monorepo it was installed from. This makes all packages in the `examples/`
-folder available for use during development. `gnodev` also provides the option
-to resolve packages from a remote testnet, which can be set via the `-resolver` flag.
+In addition to your working directory, packages and realms located in the
+[examples/ folder](https://github.com/gnolang/gno/tree/master/examples) from the
+monorepo `gnodev` was installed from are resolved on demand, upon the first query
+or transaction referencing them. `gnodev` can also fetch packages from a remote
+network with the `-remote <domain>=<rpc>` flag; without it, packages resolve
+only from local sources (workspace, extra roots, and examples).
 
 ### 2. Premining balances
 

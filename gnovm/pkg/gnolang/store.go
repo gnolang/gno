@@ -1215,7 +1215,7 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
-	if enabled {
+	if enabled.Load() {
 		ds.opslog = buf
 	} else {
 		ds.opslog = nil
