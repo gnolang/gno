@@ -1,10 +1,10 @@
-# test-13 hardfork genesis
+# test13 hardfork genesis
 
-Builds the **test-13** hardfork genesis from gnoland1's chain state. Versus gnoland1, test-13:
+Builds the **test13** hardfork genesis from gnoland1's chain state. Versus gnoland1, test13:
 
 - **Adds 5 packages** to the base set: `p/onbloc/{uint256,int256,json}`, `r/sys/validators/v3`, `r/demo/defi/grc20reg`.
 - **Rotates the sole GovDAO T1 member** from manfred (gnoland1 inherit) to aeddi.
-- **Replaces the valset** with test-13's and noops every historical gnoland1 valset change 
+- **Replaces the valset** with test13's and noops every historical gnoland1 valset change 
 - **Adds 10 pre-funded faucets** at 1e18 ugnot (≈1T GNOT) each and unrestricts them at genesis.
 - **Rebases on current master**: gnoland1's historical txs are replayed as-is wherever they still execute; the rest are patched (39 entries in 8 groups) to absorb the breaking changes master has shipped since gnoland1.
 
@@ -83,7 +83,7 @@ Every entry under `transactions/` is a directory containing a `meta.json` (alway
 
 ### `base/`
 
-Genesis-time txs prepended to the assembled genesis. One entry today: `bootstrap/` — the test-13 bootstrap MsgRun. Seeds the deployer as sole T1, unrestricts the 10 faucets + the gnoland1 airdrop faucet + the GovDAO multisig, locks the bank, swaps in manfred as the permanent T1, restricts `dao.UpdateImpl` `AllowedDAOs` to `r/gov/dao/v3/impl` + `r/test13/rotate`, and self-ejects the temporary deployer.
+Genesis-time txs prepended to the assembled genesis. One entry today: `bootstrap/` — the test13 bootstrap MsgRun. Seeds the deployer as sole T1, unrestricts the 10 faucets + the gnoland1 airdrop faucet + the GovDAO multisig, locks the bank, swaps in manfred as the permanent T1, restricts `dao.UpdateImpl` `AllowedDAOs` to `r/gov/dao/v3/impl` + `r/test13/rotate`, and self-ejects the temporary deployer.
 
 ### `patched/`
 
@@ -97,8 +97,8 @@ Per-tx overrides applied to gnoland1's historical tx stream. Each patch is match
 | `set-minfee`          | 1   | Same drift on `proposal.ProposeNewMinFeeProposalRequest`                                                                                                                                                          | rewrite body                                                                             |
 | `gnomaze`             | 1   | User realm `g19p3yzr…/gnomaze`: `runtime.CurrentRealm` moved to `runtime/unsafe`; drop `cur` from helpers that don't need it                                                                                      | rewrite body (multi-file `pkg/`)                                                         |
 | `boards2-permissions` | 1   | User realm `g1hy6zry…/boards2/permissions/v1`: `runtime/unsafe` split + `banker.NewBanker(BankerTypeReadonly)` → `banker.NewReadonlyBanker()`                                                                     | rewrite body (multi-file `pkg/`)                                                         |
-| `boards2-cascade`     | 9   | PR #5280 removed `g16jpf0…` from `boards2/v1` `initRealmPermissions`; historical ops by that address can't pass the permission check on test-13                                                                   | 7 caller-swap (rewrite `MsgCall.Caller` to the GovDAO T1 multisig) + 2 dead-letter noops |
-| `validator-noops`     | 22  | 17 historical `add_validator`/`rm_validator` MsgRuns target the vestigial `r/sys/validators/v2` realm (unseeded on test-13 by design) + 5 historical `valopers.Register` MsgCalls fail the post-#5285 squat guard | noop MsgRun                                                                              |
+| `boards2-cascade`     | 9   | PR #5280 removed `g16jpf0…` from `boards2/v1` `initRealmPermissions`; historical ops by that address can't pass the permission check on test13                                                                   | 7 caller-swap (rewrite `MsgCall.Caller` to the GovDAO T1 multisig) + 2 dead-letter noops |
+| `validator-noops`     | 22  | 17 historical `add_validator`/`rm_validator` MsgRuns target the vestigial `r/sys/validators/v2` realm (unseeded on test13 by design) + 5 historical `valopers.Register` MsgCalls fail the post-#5285 squat guard | noop MsgRun                                                                              |
 
 The single biggest cascade comes from `unrestrict` h1950: without that patch the gnoland1 airdrop faucet stays restricted, and 2,553 subsequent faucet `MsgSend`s fail with `RestrictedTransferError`. One patch resolves the entire cascade.
 
@@ -106,7 +106,7 @@ The single biggest cascade comes from `unrestrict` h1950: without that patch the
 
 Post-replay genesis-mode MsgCalls — they run after the historical replay and are tagged `Source="migration"`. Two entries today:
 
-- `rotate-call/` — MsgCall to `gno.land/r/test13/rotate.Rotate()`. Swaps the sole T1 from manfred to the test-13 multisig via direct memberstore writes, then self-ejects from `AllowedDAOs`.
+- `rotate-call/` — MsgCall to `gno.land/r/test13/rotate.Rotate()`. Swaps the sole T1 from manfred to the test13 multisig via direct memberstore writes, then self-ejects from `AllowedDAOs`.
 - `names-enable/` — MsgCall to `gno.land/r/sys/names.Enable()`. Turns on the v3 names module (gnoland1 left it disabled).
 
 Both use `caller_override` to appear as the GovDAO T1 multisig at execution time (the only account funded at migration-replay time).
