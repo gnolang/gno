@@ -65,51 +65,72 @@ func processSoftFloat64File() {
 // patchSubnormalCancellation fixes a latent bug in the upstream
 // runtime/softfloat64.go: fpack64/fpack32 return a wrongly-scaled subnormal
 // when fadd64/fsub64 produce a heavily-cancelled mantissa (two near-equal,
-// opposite-sign normals summing to a subnormal). The denormal path resets to
-// the un-normalized mant0/exp0 and only right-shifts, which is the wrong
-// direction when mant0 < 1<<mantbits while exp0 is a normal-range exponent.
-// We insert a left-normalization loop before the subnormal alignment.
+// opposite-sign normals summing to a subnormal). fpack saved mant0/exp0/trunc0
+// before its normalization loop, so the denormal path restored an un-normalized
+// mantissa and shifted it the wrong way. The fix moves the save to after the
+// normalization loop, matching the change merged upstream in golang/go#79964.
 //
-// See https://github.com/gnolang/gno/issues/5806. This has also been reported
-// upstream; once Go fixes it, this patch's anchors will no longer be found and
-// the generator will fail loudly so the workaround can be removed.
+// See https://github.com/gnolang/gno/issues/5806 and golang/go#79964. Once gno
+// upgrades to a Go release containing the upstream fix, this patch's anchors
+// will no longer be found and the generator will fail loudly so it can be
+// removed.
 //
 // On a Go upgrade, if `go generate` fails with "expected exactly one anchor
-// match", inspect the new upstream softfloat64.go: either upstream fixed the
-// bug (remove this patch) or it reformatted the surrounding code (update the
-// anchors below).
+// match", inspect the new upstream softfloat64.go: either it already contains
+// the fix (remove this patch) or it reformatted the surrounding code (update
+// the anchors below).
 func patchSubnormalCancellation(content string) string {
 	patches := []struct{ desc, old, new string }{
 		{
 			desc: "fpack64",
-			old: "\t\t// repeat expecting denormal\n" +
-				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
-				"\t\tfor exp < bias64 {",
-			new: "\t\t// repeat expecting denormal\n" +
-				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
-				"\t\t// gnolang/gno#5806: re-normalize the mantissa before aligning to the\n" +
-				"\t\t// subnormal exponent, so a heavily-cancelled mant0 (mant0 < 1<<mantbits64\n" +
-				"\t\t// with a normal-range exp0) is shifted in the correct direction. No-op\n" +
-				"\t\t// for already-normalized callers (mul/div/conversions).\n" +
-				"\t\tfor mant < 1<<mantbits64 {\n" +
-				"\t\t\tmant <<= 1\n" +
-				"\t\t\texp--\n" +
-				"\t\t}\n" +
-				"\t\tfor exp < bias64 {",
+			old: "func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {\n" +
+				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
+				"\tif mant == 0 {\n" +
+				"\t\treturn sign\n" +
+				"\t}\n" +
+				"\tfor mant < 1<<mantbits64 {\n" +
+				"\t\tmant <<= 1\n" +
+				"\t\texp--\n" +
+				"\t}\n" +
+				"\tfor mant >= 4<<mantbits64 {",
+			new: "func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {\n" +
+				"\tif mant == 0 {\n" +
+				"\t\treturn sign\n" +
+				"\t}\n" +
+				"\tfor mant < 1<<mantbits64 {\n" +
+				"\t\tmant <<= 1\n" +
+				"\t\texp--\n" +
+				"\t}\n" +
+				"\t// Save the normalized mantissa; the denormal path below restores it and\n" +
+				"\t// re-aligns to the subnormal exponent. Saving before this loop (as the\n" +
+				"\t// code originally did) left a heavily-cancelled add/sub mantissa\n" +
+				"\t// un-normalized, which that path then shifted the wrong way. See #79964.\n" +
+				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
+				"\tfor mant >= 4<<mantbits64 {",
 		},
 		{
 			desc: "fpack32",
-			old: "\t\t// repeat expecting denormal\n" +
-				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
-				"\t\tfor exp < bias32 {",
-			new: "\t\t// repeat expecting denormal\n" +
-				"\t\tmant, exp, trunc = mant0, exp0, trunc0\n" +
-				"\t\t// gnolang/gno#5806: see fpack64 above.\n" +
-				"\t\tfor mant < 1<<mantbits32 {\n" +
-				"\t\t\tmant <<= 1\n" +
-				"\t\t\texp--\n" +
-				"\t\t}\n" +
-				"\t\tfor exp < bias32 {",
+			old: "func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {\n" +
+				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
+				"\tif mant == 0 {\n" +
+				"\t\treturn sign\n" +
+				"\t}\n" +
+				"\tfor mant < 1<<mantbits32 {\n" +
+				"\t\tmant <<= 1\n" +
+				"\t\texp--\n" +
+				"\t}\n" +
+				"\tfor mant >= 4<<mantbits32 {",
+			new: "func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {\n" +
+				"\tif mant == 0 {\n" +
+				"\t\treturn sign\n" +
+				"\t}\n" +
+				"\tfor mant < 1<<mantbits32 {\n" +
+				"\t\tmant <<= 1\n" +
+				"\t\texp--\n" +
+				"\t}\n" +
+				"\t// See fpack64: save the normalized mantissa for the denormal path below.\n" +
+				"\tmant0, exp0, trunc0 := mant, exp, trunc\n" +
+				"\tfor mant >= 4<<mantbits32 {",
 		},
 	}
 	for _, p := range patches {
@@ -152,10 +173,8 @@ func processSoftFloat64TestFile() {
 		log.Fatal("gno#5806 test patch: base-slice anchor not found")
 	}
 	newContent = strings.Replace(newContent, anchor, anchor+
-		"\t\t// gnolang/gno#5806: two near-equal opposite-sign normals whose sum\n"+
-		"\t\t// cancels into a subnormal; exercises the fpack64 denormal path.\n"+
-		"\t\tmath.Float64frombits(9333378022939403091),\n"+
-		"\t\tmath.Float64frombits(110005986185704326),\n", 1)
+		"\t\t-2.662107816930723e-301, // #79964: two near-equal opposite-sign\n"+
+		"\t\t2.662107858822336e-301,  // normals cancelling to a subnormal\n", 1)
 
 	// Write to destination file
 	err = os.WriteFile("runtime_softfloat64_test.go", []byte(newContent), 0o644)
