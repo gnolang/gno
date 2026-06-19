@@ -290,8 +290,8 @@ func (msg MockMsgMultiSend) SpendForSigner(signer crypto.Address) std.Coins {
 	return total
 }
 
-// NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
-func NewSessionTestTx(
+// NewSessionTestSignature creates a signature signed by a session key with SessionAddr set.
+func NewSessionTestSignature(
 	t *testing.T,
 	chainID string,
 	msgs []std.Msg,
@@ -300,7 +300,7 @@ func NewSessionTestTx(
 	accNum uint64,
 	seq uint64,
 	fee std.Fee,
-) std.Tx {
+) std.Signature {
 	t.Helper()
 
 	signBytes, err := std.GetSignaturePayload(std.SignDoc{
@@ -315,11 +315,26 @@ func NewSessionTestTx(
 	sig, err := sessionPriv.Sign(signBytes)
 	require.NoError(t, err)
 
-	sigs := []std.Signature{{
+	return std.Signature{
 		// PubKey omitted — stored on session account at creation.
 		SessionAddr: sessionAddr,
 		Signature:   sig,
-	}}
+	}
+}
 
-	return std.NewTx(msgs, fee, sigs, "")
+// NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
+func NewSessionTestTx(
+	t *testing.T,
+	chainID string,
+	msgs []std.Msg,
+	sessionPriv crypto.PrivKey,
+	sessionAddr crypto.Address,
+	accNum uint64,
+	seq uint64,
+	fee std.Fee,
+) std.Tx {
+	t.Helper()
+
+	sig := NewSessionTestSignature(t, chainID, msgs, sessionPriv, sessionAddr, accNum, seq, fee)
+	return std.NewTx(msgs, fee, []std.Signature{sig}, "")
 }
