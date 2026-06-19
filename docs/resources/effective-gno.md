@@ -670,32 +670,24 @@ It is a warning against making them the default persistent index for things
 that will grow with users, posts, votes, orders, balances, messages, claims,
 positions, or game objects.
 
-#### Storage types and tradeoffs
+#### Choose the simplest storage shape that matches the access pattern
 
 Pick the storage type that matches the operations your realm promises to
-support. If no existing helper fits, write a small wrapper package with the same
-discipline: keep storage private, expose typed methods, and page or range over
+support. Keep storage private, expose typed methods, and page or range over
 large collections.
 
-| Storage type | Good fit | Tradeoffs |
-|--------------|----------|-----------|
-| Struct fields | Small records that are usually read or written together | Poor fit for unbounded collections |
-| Array | Fixed-size collections with stable positions | Size is part of the type |
-| Slice | Small bounded lists or transient render-time lists | Front deletion, membership checks, and whole-list rendering grow with length |
-| Map | Small bounded key/value state with direct lookups | Persistent maps are one object graph and iteration should not be an API contract |
-| [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
-| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
-| [`avl/list`](../../examples/gno.land/p/nt/avl/v0/list) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/v0/list) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
-| [`addrset`](../../examples/gno.land/p/moul/addrset) or another set helper | Address membership and authorization sets | Specialized to set semantics; use a tree directly when you need extra indexes |
-| [`ulist`](../../examples/gno.land/p/moul/ulist) | Unique list semantics where order and deduplication both matter | Not a replacement for arbitrary range-query indexes |
-| [`fifo`](../../examples/gno.land/p/moul/fifo) | Queue workflows | Not designed for sorted lookup by arbitrary key |
+Use this short decision model:
 
-Use a good tree implementation when your realm needs a growing sorted index.
-Both `avl.Tree` and `bptree.BPTree` implement similar key/value operations:
-`Get`, `Set`, `Remove`, sorted iteration, reverse iteration, and offset-based
-iteration. AVL is simple and well documented; B+ tree storage can reduce tree
-height by keeping more entries per node. The right choice depends on workload,
-dataset size, and whether you need to tune fanout.
+- fields or small maps for tiny bounded configuration;
+- maps for small direct lookups where iteration order is irrelevant;
+- tree-backed indexes for growing key/value state, ordering, range queries, or
+  pagination;
+- list or queue helpers for append-only feeds and queues;
+- explicit secondary indexes for every query path users depend on.
+
+For detailed examples and package tradeoffs, see
+[Gno Data Structures](./gno-data-structures.md). For non-official community
+helpers, see [Community Packages](./community-packages.md).
 
 #### Prefer tree-backed indexes over maps for scalable key/value storage
 
@@ -731,53 +723,12 @@ users can observe or link to an order, store explicit sortable keys and iterate
 through a tree-backed index or an explicit ordered list.
 
 ```go
-// Map example
-users := make(map[string]User)
-users["bob"] = User{}
-users["alice"] = User{}
-for name := range users { // unspecified order
-	// ...
-}
-user := users["alice"] // O(1) direct access
+// Small, bounded lookup: a map can be fine.
+usersByName[name] = user
 
-// AVL example
-var users avl.Tree
-users.Set("bob", &User{})
-users.Set("alice", &User{})
-users.Set("charlie", &User{})
-
-// Iterate all users (sorted alphabetically)
-users.Iterate("", "", func(name string, value any) bool {
-	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User) // Type assertion required - values are any
-	return false // return true to stop iteration
-})
-
-// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
-// This is O(log n + k) where k = results in range
-users.Iterate("bob", "charlie", func(name string, value any) bool {
-	// Only visits: bob (end is exclusive)
-	user := value.(*User) 
-	return false
-})
-
-// Get a specific user (O(log n))
-value, exists := users.Get("alice")
-if !exists {
-	return nil
-}
-return value.(*User)
-
-// Multi-index example - search the same data in different ways
-var (
-	usersById   avl.Tree // Find user by ID
-	usersByName avl.Tree // Find user by name
-)
-
-func AddUser(id, name string) {
-	usersById.Set(id, name)     // Can search by ID
-	usersByName.Set(name, id)   // Can search by name
-}
+// Growing, ordered lookup: use a tree-backed index.
+usersByName.Set(name, user)
+usersByCreatedAt.Set(createdAtKey, userID)
 ```
 
 For a detailed explanation of how tree nodes are stored in Gno's object store,
@@ -814,41 +765,13 @@ Deleting from the front shifts elements. Looking up by author is a linear scan.
 Rendering all posts grows with total history rather than with the page the user
 asked for.
 
-Prefer storing by key and rendering one page at a time:
+Prefer storing by stable key and rendering one page at a time. Use an existing
+list helper for append-only feeds, or combine a sequential ID helper with a
+tree-backed index:
 
 ```go
-import (
-	"strconv"
-
-	"gno.land/p/nt/avl/v0"
-)
-
-type Post struct {
-	Author address
-	Text   string
-}
-
-var (
-	nextID int
-	posts  avl.Tree // decimal id -> Post
-)
-
-func AddPost(cur realm, text string) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
-	id := strconv.Itoa(nextID)
-	nextID++
-	posts.Set(id, Post{
-		Author: cur.Previous().Address(),
-		Text:   text,
-	})
-}
-```
-
-From there, add secondary indexes when needed:
-
-```go
+id := ids.Next().String()
+posts.Set(id, post)
 var postsByAuthor avl.Tree // author + "/" + id -> id
 ```
 
@@ -856,25 +779,6 @@ The storage model should match the operations you expect the realm to support.
 If users can query by owner, maintain an owner index. If they can page by time,
 use sortable keys. If they only ever need the latest item, do not store a full
 history unless the history is part of the product.
-
-#### Use specialized helpers instead of open-coded collections
-
-Some `p/` packages encode common storage patterns better than ad hoc maps and
-slices:
-
-- `gno.land/p/nt/avl/v0` and `gno.land/p/nt/bptree/v0`: scalable key/value
-  storage, sorted iteration, range queries, read-only wrappers, and pager
-  helpers.
-- `gno.land/p/moul/ulist`: unique list helpers for cases where list order and
-  deduplication both matter.
-- `gno.land/p/moul/addrset`: address set semantics without repeatedly writing
-  membership boilerplate.
-- `gno.land/p/moul/fifo`: queue-like workflows where front deletion would make
-  a slice expensive.
-
-Choose helpers that match your access pattern, then wrap them behind your
-realm's own API. Keep mutable structures unexported; expose values, read-only
-views, or paged results rather than raw pointers to internal state.
 
 ### Construct "safe" objects
 

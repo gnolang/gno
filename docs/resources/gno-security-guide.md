@@ -358,9 +358,20 @@ func SetPaused(cur realm, next bool) {
 }
 ```
 
-**Rule**: use `cur.Previous()` under `cur.IsCurrent()` for realm API
-authorization. Reserve `OriginCaller()` for deliberately EOA-origin
-semantics, and make that tradeoff explicit.
+Choose the caller identity primitive that matches the boundary you are
+protecting:
+
+| Context | Prefer | Why |
+|---------|--------|-----|
+| Realm API authorization | `cur.Previous()` after `cur.IsCurrent()` | Authorizes the immediate caller that crossed into this realm. |
+| Payment-gated user action | `cur.Previous().IsUserCall()` plus the payment check | Rejects realm-mediated calls when the product requires a direct user call. |
+| Explicit EOA-origin policy | `OriginCaller()` | Only when the API intentionally follows the transaction signer through intermediate realms. Document this. |
+| Remembering a caller for later | `cur.Previous().Address()` or `.PkgPath()` | Realm values are frame-local and must not be persisted. |
+| Caller-supplied address parameter | Avoid for auth; derive inside the function | A parameter is only data supplied by the caller. |
+
+**Rule**: use `cur.Previous()` under `cur.IsCurrent()` for ordinary realm API
+authorization. Use direct-user and origin-caller checks only when that is the
+actual product policy, and make the tradeoff explicit.
 
 ### 5.9 Raw public text in `Render`
 
@@ -376,26 +387,23 @@ func Render(path string) string {
 ```
 
 Escape user text before display, or keep it in a format where the renderer
-treats it as plain text. Prefer Gno markdown helpers over open-coded replacers.
-For example, use helpers such as `gno.land/p/moul/md` when inserting untrusted
-text into markdown syntax.
+treats it as plain text. Prefer the official Gno markdown sanitizer for your
+target Gno version over open-coded replacers.
 
 ```go
-import "gno.land/p/moul/md"
+import "gno.land/p/nt/markdown/sanitize/v0"
 
 func Render(path string) string {
-    return "# Echo\n\n" + md.EscapeText(path)
+    return "# Echo\n\n" + sanitize.InlineText(path)
 }
 ```
 
 This is not a cross-realm authority bug by itself, but it is a common
 way to turn harmless stored text or URL path data into misleading UI.
-Opinionated rendering libraries and frameworks can help keep this consistent.
-For example, packages such as `gno.land/p/moul/md` and neighboring markdown UI
-helpers provide functions for links, headings, tables, forms, and text escaping.
-When choosing one, check whether the helper documents escaping for labels,
-URLs, table cells, and raw content. If it does not, assume its output is
-untrusted until escaped at the realm boundary.
+Opinionated rendering libraries and frameworks can help keep this consistent,
+but check whether each helper sanitizes internally or expects sanitized input.
+See [Community Packages](./community-packages.md) for non-official markdown
+builders and their review checklist.
 
 ---
 
@@ -514,7 +522,8 @@ Before deploying a realm:
 
 - [ ] `Render(path)` and any markdown helper output escape
   user-controlled path, profile, title, description, or message text
-  before returning it, using Gno markdown helpers where practical.
+  before returning it, using the official Gno markdown sanitizer where
+  practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).

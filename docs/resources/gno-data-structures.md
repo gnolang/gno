@@ -34,8 +34,14 @@ Arrays are copied when passed to functions. Use pointers to modify them: `func u
 For large or growing sorted datasets, prefer a tree-backed index over a
 persistent map. Tree implementations store nodes or leaf pages separately, so
 reading or writing one key does not require loading the whole collection.
-Common choices include [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md)
-and [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno).
+
+Common choices include:
+
+| Type | Good fit | Tradeoffs |
+|------|----------|-----------|
+| [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
+| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
+| [`avl/list`](../../examples/gno.land/p/nt/avl/v0/list) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/v0/list) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
 
 ```go
 import "gno.land/p/nt/avl/v0"
@@ -59,7 +65,40 @@ users.Iterate("", "", func(key string, value any) bool {
 })
 ```
 
+Use an explicit ID helper for append-like records. `seqid.ID` generates keys
+that preserve numeric order when stored in a tree:
+
+```go
+import (
+    "gno.land/p/nt/avl/v0"
+    "gno.land/p/nt/seqid/v0"
+)
+
+var (
+    nextPostID seqid.ID
+    posts      avl.Tree // seqid string -> Post
+)
+
+func AddPost(post Post) string {
+    id := nextPostID.Next().String()
+    posts.Set(id, post)
+    return id
+}
+```
+
+Add secondary indexes for each lookup path users need:
+
+```go
+var (
+    postsByID     avl.Tree // id -> Post
+    postsByAuthor avl.Tree // author + "/" + id -> id
+)
+```
+
 **Learn more:** [Effective Gno: Choose storage types by access pattern](./effective-gno.md#choose-storage-types-by-access-pattern)
+
+For non-official storage helpers such as unique lists, sets, and queues, see
+[Community Packages](./community-packages.md).
 
 ## Maps
 
