@@ -183,6 +183,13 @@ func (dbv DataByteValue) SetByte(b byte) {
 //
 // Since PointerValue is used internally for assignment etc, it MUST stay
 // minimal for computational efficiency.
+//
+// Equality: PointerValues compare by whole-struct identity (lv.V == rv.V in
+// isEql); since TV is determined by (Base, Index), this reduces to same Base +
+// same Index. This holds uniformly for every element type — there is no
+// size-dependent folding (gc-Go's runtime.zerobase / offset-arithmetic collapse
+// for zero-sized types is not replicated). See
+// docs/resources/go-gno-compatibility.md § Pointer equality for zero-sized types.
 type PointerValue struct {
 	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
@@ -292,13 +299,22 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	if ii < 0 {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+	}
 	if av.Data == nil {
+		if ii >= len(av.List) {
+			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
+		}
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
 			Index: ii,
 		}
+	}
+	if ii >= len(av.Data) {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
 	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
@@ -752,9 +768,11 @@ type MapListItem struct {
 	Value TypedValue
 }
 
-func (mv *MapValue) MakeMap(c int) {
+// MakeMap initializes mv with no capacity hint: the make() size argument
+// is intentionally not honored (see the make() map case in uverse.go).
+func (mv *MapValue) MakeMap() {
 	mv.List = &MapList{}
-	mv.vmap = make(map[MapKey]*MapListItem, c)
+	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
 func (mv *MapValue) GetLength() int {
