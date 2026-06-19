@@ -459,6 +459,26 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
+// enableDebugger attaches the interactive debugger to m. Source files are
+// resolved relative to the gno root, then the bundled stdlibs, then the
+// examples tree.
+func (opts *TestOptions) enableDebugger(m *gno.Machine) {
+	fileContent := func(ppath, name string) string {
+		p := filepath.Join(opts.RootDir, ppath, name)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+			b, err = os.ReadFile(p)
+		}
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "examples", ppath, name)
+			b, _ = os.ReadFile(p)
+		}
+		return string(b)
+	}
+	m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+}
+
 // Runs *_test.go tests.
 // Not the same as pkg/test/filetest runFiletests()
 // which runs *_filetest.go tests.
@@ -582,20 +602,7 @@ func (opts *TestOptions) runTestFiles(
 		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
-			fileContent := func(ppath, name string) string {
-				p := filepath.Join(opts.RootDir, ppath, name)
-				b, err := os.ReadFile(p)
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
-					b, err = os.ReadFile(p)
-				}
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, _ = os.ReadFile(p)
-				}
-				return string(b)
-			}
-			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+			opts.enableDebugger(m)
 		}
 
 		eval := m.Eval(gno.Call(
@@ -698,20 +705,7 @@ func (opts *TestOptions) runTestFiles(
 		runExampleTestCX := gno.NewConstExpr(runExampleTestX, runExampleTest)
 
 		if opts.Debug {
-			fileContent := func(ppath, name string) string {
-				p := filepath.Join(opts.RootDir, ppath, name)
-				b, err := os.ReadFile(p)
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
-					b, err = os.ReadFile(p)
-				}
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, _ = os.ReadFile(p)
-				}
-				return string(b)
-			}
-			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+			opts.enableDebugger(m)
 		}
 
 		startedAt := time.Now()
@@ -727,17 +721,18 @@ func (opts *TestOptions) runTestFiles(
 		if panicked {
 			// Already printed the panic message and stacktrace
 			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", fname, fmtDuration(timeSpent))
-			return false
+			passed = false
+		} else {
+			stdout := opts.filetestBuffer.String()
+			expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
+			unordered := fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED) == true
+			passed = opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
 		}
+		// Print gas after the PASS/FAIL line, matching the ordinary test loop above.
 		if opts.Verbose {
 			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
 		}
-
-		stdout := opts.filetestBuffer.String()
-		expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
-		unordered := fd.Attributes.HasAttribute(gno.ATTR_OUTPUT_UNORDERED) && fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED).(bool)
-
-		return opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
+		return passed
 	}
 
 	for _, fd := range examples {

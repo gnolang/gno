@@ -24,7 +24,7 @@ func (opts *TestOptions) processExampleResult(name, stdout, expected string, tim
 		gotLines := slices.Sorted(strings.SplitSeq(got, "\n"))
 		wantLines := slices.Sorted(strings.SplitSeq(want, "\n"))
 		if !slices.Equal(gotLines, wantLines) {
-			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, expected)
+			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", got, want)
 		}
 	} else {
 		if got != want {

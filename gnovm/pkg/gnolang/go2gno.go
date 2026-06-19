@@ -300,6 +300,12 @@ func setSpanFromRightChild(fs *token.FileSet, gon ast.Node, n Node, rightChild N
 // must call setSpanFromLeftChild / setSpanFromRightChild inside their
 // case to avoid SpanFromGo's O(N) gon.Pos()/gon.End() recursion;
 // other cases let the defer handle it.
+//
+// fileComments carries the enclosing file's comment groups. It is consumed
+// only at the FuncDecl boundary, to extract an Example test's "// Output:"
+// directive (see exampleOutput); the *ast.File case supplies it from
+// gon.Comments. All other recursive calls thread it through (or pass nil)
+// without reading it.
 func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (n Node) {
 	if gon == nil {
 		return nil
