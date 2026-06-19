@@ -1,4 +1,4 @@
-package auditloop
+package auditpattern
 
 import (
 	"bytes"
@@ -430,7 +430,7 @@ func (report Report) Markdown() string {
 	if !report.OK {
 		status = "FAIL"
 	}
-	fmt.Fprintf(&b, "# Audit Pattern Iteration: %s\n\n", report.Title)
+	fmt.Fprintf(&b, "# Audit Pattern Harness: %s\n\n", report.Title)
 	fmt.Fprintf(&b, "- id: `%s`\n", report.ID)
 	fmt.Fprintf(&b, "- rule: `%s`\n", report.Rule)
 	fmt.Fprintf(&b, "- status: `%s`\n\n", status)

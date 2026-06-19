@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gnolang/gno/misc/audit-loop/internal/auditloop"
+	"github.com/gnolang/gno/misc/audit-loop/internal/auditpattern"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "usage: auditloop [flags] expected.yaml [expected.yaml...]")
+		fmt.Fprintln(os.Stderr, "usage: auditpattern [flags] expected.yaml [expected.yaml...]")
 		os.Exit(2)
 	}
 
@@ -25,14 +25,14 @@ func main() {
 	defer cancel()
 
 	ok := true
-	var reports []auditloop.Report
+	var reports []auditpattern.Report
 	for _, path := range flag.Args() {
-		rec, err := auditloop.LoadRecord(path)
+		rec, err := auditpattern.LoadRecord(path)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-		report := auditloop.Run(ctx, rec, auditloop.Options{GNOBin: *gnoBin})
+		report := auditpattern.Run(ctx, rec, auditpattern.Options{GNOBin: *gnoBin})
 		if !report.OK {
 			ok = false
 		}
@@ -48,7 +48,7 @@ func main() {
 			fmt.Print(report.Markdown())
 		}
 	case "json":
-		data, err := auditloop.ReportsJSON(reports)
+		data, err := auditpattern.ReportsJSON(reports)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)

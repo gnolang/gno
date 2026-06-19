@@ -1,7 +1,9 @@
 .PHONY: test run
 
+GO ?= go
+
 test:
-	go test ./...
+	$(GO) test ./...
 
 run:
-	go run ./cmd/auditloop $(AUDIT_LOOP_FLAGS) ./expected/*.yaml
+	$(GO) run ./cmd/auditpattern $(AUDIT_PATTERN_FLAGS) ./expected/*.yaml

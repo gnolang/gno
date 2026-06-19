@@ -1,4 +1,4 @@
-package auditloop
+package auditpattern
 
 import (
 	"context"

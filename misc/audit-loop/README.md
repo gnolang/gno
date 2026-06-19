@@ -1,11 +1,11 @@
-# Gno audit pattern iterations
+# Gno audit pattern harness
 
-This directory contains the private-to-public audit pattern iteration harness
+This directory contains the private-to-public audit pattern harness
 for sanitized finding families.
 
 The durable repo split is:
 
-- `misc/audit-loop`: executable iteration harness, expected records, and
+- `misc/audit-loop`: executable audit pattern harness, expected records, and
   fixtures.
 - `docs/resources`: builder-facing guidance promoted from stable findings.
 - `examples/gno.land`: compact public examples that demonstrate the safer
@@ -14,19 +14,19 @@ The durable repo split is:
 Run all current pattern slices:
 
 ```sh
-make run AUDIT_LOOP_FLAGS='-gno-bin /path/to/gno'
+make run AUDIT_PATTERN_FLAGS='-gno-bin /path/to/gno'
 ```
 
 Development builds of `gno` may need `GNOROOT`:
 
 ```sh
-GNOROOT=/path/to/gnolang/gno make run AUDIT_LOOP_FLAGS='-gno-bin /path/to/gno'
+GNOROOT=/path/to/gnolang/gno make run AUDIT_PATTERN_FLAGS='-gno-bin /path/to/gno'
 ```
 
 Emit JSON:
 
 ```sh
-go run ./cmd/auditloop -format json ./expected/*.yaml
+go run ./cmd/auditpattern -format json ./expected/*.yaml
 ```
 
 ## Expected records
@@ -68,6 +68,6 @@ Paths are relative to the YAML file. `want_gno_test` is `pass` or `fail`.
 
 1. Add sanitized fixtures under `fixtures/<slice>/`.
 2. Add an `expected/<slice>.yaml` record.
-3. Teach `internal/auditloop` the new rule.
+3. Teach `internal/auditpattern` the new rule.
 4. Promote stable, sanitized lessons to `docs/resources` and
    `examples/gno.land` when they are useful for builders.
