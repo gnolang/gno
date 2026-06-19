@@ -316,7 +316,9 @@ func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerVal
 	if ii >= len(av.Data) {
 		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
-	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
+	// heap alloc, so need to compare value rather than pointer.
+	// If you Deref the result, TypedValue.GetByteAtIndexInt is more efficient.
+	btv := &TypedValue{
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -2061,7 +2063,8 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			ii := int(iv.ConvertGetInt())
-			btv := &TypedValue{ // heap alloc
+			// heap alloc; GetByteAtIndexInt optimizes this if you Deref the result.
+			btv := &TypedValue{
 				T: Uint8Type,
 			}
 
