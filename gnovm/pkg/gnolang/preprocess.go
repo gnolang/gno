@@ -6057,6 +6057,25 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							break
 						}
 						addDep(dt.Name + "." + n.Sel)
+					case VPField:
+						// VPField is struct-field access (s.F) or an unbound
+						// method expression (T.M, (*T).M). Only the latter
+						// evaluates n.X as a type, so ATTR_TYPE_VALUE holds
+						// the receiver type; struct fields lack it and break.
+						rt, ok := n.X.GetAttribute(ATTR_TYPE_VALUE).(Type)
+						if !ok {
+							break
+						}
+						// Unwrap a pointer receiver, covering both (*T).M and
+						// the pointer-alias form (`type P = *T; P.M`).
+						if pt, ok := rt.(*PointerType); ok {
+							rt = pt.Elt
+						}
+						dt, ok := rt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
 					}
 				}
 			}
