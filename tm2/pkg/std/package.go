@@ -13,6 +13,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// Account
 	&BaseAccount{}, "BaseAccount",
 	&BaseSessionAccount{}, "BaseSessionAccount",
+	// Vesting Account
+	&BaseVestingAccount{}, "BaseVestingAccount",
+	&ContinuousVestingAccount{}, "ContinuousVestingAccount",
+	&DelayedVestingAccount{}, "DelayedVestingAccount",
 	// Coin
 	&Coin{}, "Coin",
 	// GasPrice
@@ -51,4 +55,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	SessionNotFoundError{}, "SessionNotFoundError",
 	SessionLimitError{}, "SessionLimitError",
 	SessionNotAllowedError{}, "SessionNotAllowedError",
+	InvalidVestingScheduleError{}, "InvalidVestingScheduleError",
+	VestingLockedCoinsError{}, "VestingLockedCoinsError",
 ))

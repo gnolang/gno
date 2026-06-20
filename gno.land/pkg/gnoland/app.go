@@ -651,8 +651,20 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 }
 
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
-	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-	cfg.acck.SetAccount(ctx, acc)
+	if bal.IsVesting() {
+		baseAcc := std.NewBaseAccountWithAddress(bal.Address)
+		cva, err := std.NewContinuousVestingAccount(
+			&baseAcc, bal.OriginalVesting,
+			bal.VestingStartTime, bal.VestingEndTime,
+		)
+		if err != nil {
+			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
+		}
+		cfg.acck.SetAccount(ctx, cva)
+	} else {
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
+	}
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		panic(err)
 	}
