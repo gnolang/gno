@@ -280,6 +280,20 @@ func (ms *multiStore) QuerySnapshot() dbm.Snapshot {
 	return nil
 }
 
+// Close releases the current query snapshot so the underlying DB can be closed
+// cleanly. Call this before closing the backing DB; otherwise PebbleDB (and
+// any backend that tracks open snapshots) will report a resource leak.
+//
+// This is safe to call without the snapshotMu: by the time Close() is invoked
+// the node has stopped accepting connections, so no new queries call
+// MultiImmutableCacheWrapWithVersion and no new Commit()s race with us.
+func (ms *multiStore) Close() error {
+	if old := ms.querySnapshot.Swap(nil); old != nil {
+		old.release() // drops the store's initial ref → closes snapshot when refs hit 0
+	}
+	return nil
+}
+
 // SetInitialVersion records the version the next Commit() should produce
 // when the multistore is empty, and propagates it to substores that
 // implement types.InitialVersionSetter (e.g. iavl). Stores that don't

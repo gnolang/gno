@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/debug"
 	"sort"
@@ -1009,6 +1010,14 @@ func (app *BaseApp) SetHaltHeight(height uint64) {
 func (app *BaseApp) Close() error {
 	if app.db == nil {
 		return nil
+	}
+
+	// Release any open query snapshot before closing the DB.
+	// The multiStore holds a snapshot with refs=1 that is normally released by
+	// the next Commit(). On shutdown that swap never happens, so we must drain
+	// it explicitly; otherwise PebbleDB reports "leaked snapshots" at Close time.
+	if closer, ok := app.cms.(io.Closer); ok {
+		closer.Close() //nolint:errcheck // multiStore.Close() always returns nil
 	}
 
 	app.logger.Info("Closing application.db")
