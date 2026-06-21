@@ -365,6 +365,6 @@ func stripPrefix(key []byte, prefix []byte) (stripped []byte) {
 	return key[len(prefix):]
 }
 
-func (_ *PrefixDB) NewSnapshot() (Snapshot, error) {
+func (*PrefixDB) NewSnapshot() (Snapshot, error) {
 	return nil, errors.New("snapshots not supported")
 }

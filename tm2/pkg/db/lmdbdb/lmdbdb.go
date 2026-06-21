@@ -234,7 +234,7 @@ func (l *LMDB) Stats() map[string]string {
 	}
 }
 
-func (_ *LMDB) NewSnapshot() (db.Snapshot, error) {
+func (*LMDB) NewSnapshot() (db.Snapshot, error) {
 	return nil, errors.New("snapshots not supported")
 }
 

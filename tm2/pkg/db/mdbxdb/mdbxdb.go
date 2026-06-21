@@ -236,7 +236,7 @@ func (m *MDBX) Stats() map[string]string {
 	}
 }
 
-func (_ *MDBX) NewSnapshot() (db.Snapshot, error) {
+func (*MDBX) NewSnapshot() (db.Snapshot, error) {
 	return nil, errors.New("snapshots not supported")
 }
 

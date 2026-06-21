@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/db"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
@@ -219,7 +218,7 @@ type memSnapshot struct {
 	db map[string][]byte
 }
 
-func (db *MemDB) NewSnapshot() (db.Snapshot, error) {
+func (db *MemDB) NewSnapshot() (dbm.Snapshot, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -230,7 +229,7 @@ func (db *MemDB) NewSnapshot() (db.Snapshot, error) {
 	return snap, nil
 }
 
-var _ db.Snapshot = (*memSnapshot)(nil)
+var _ dbm.Snapshot = (*memSnapshot)(nil)
 
 func (s *memSnapshot) Close() error {
 	return nil
@@ -246,12 +245,12 @@ func (s *memSnapshot) Has(key []byte) (bool, error) {
 	return ok, nil
 }
 
-func (s *memSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
+func (s *memSnapshot) Iterator(start, end []byte) (dbm.Iterator, error) {
 	keys := getSortedKeys(s.db, start, end, false)
 	return internal.NewMemIterator(s, keys, start, end), nil
 }
 
-func (s *memSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
+func (s *memSnapshot) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
 	keys := getSortedKeys(s.db, start, end, true)
 	return internal.NewMemIterator(s, keys, start, end), nil
 }
