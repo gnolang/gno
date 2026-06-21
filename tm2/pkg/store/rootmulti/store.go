@@ -3,6 +3,7 @@ package rootmulti
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -63,8 +64,29 @@ type multiStore struct {
 	// lastCommitID.Version is the source of truth).
 	initialVersion int64
 
-	// current read snapshot, swapped after each Commit
+	// querySnapshot holds the last fully-committed DB snapshot.
+	// It is swapped atomically by Commit() and read by query paths.
 	querySnapshot atomic.Pointer[refSnapshot]
+
+	// snapshotMu closes the TOCTOU gap between Load() and acquire().
+	//
+	// atomic.Pointer guarantees that each individual Load/Swap is atomic, but
+	// it does NOT make a Load+acquire pair atomic with respect to a concurrent
+	// Swap+release. Without this mutex the following interleaving is possible:
+	//
+	//   query goroutine          Commit goroutine
+	//   ──────────────────────   ────────────────────────────────
+	//   rs := Load()  (refs=1)
+	//                            Swap(newRS)
+	//                            old.release()  →  refs 1→0  →  snap.Close()
+	//   rs.acquire()             (snapshot already closed!)
+	//   rs.snap.Get(...)         ← use-after-free / panic
+	//
+	// snapshotMu prevents this: MultiImmutableCacheWrapWithVersion holds it
+	// as an RLock around Load+acquire, and Commit() holds it as a write-lock
+	// around Swap+release. Because the write-lock excludes all RLocks, no
+	// release() can reach zero while a Load+acquire is in progress.
+	snapshotMu sync.RWMutex
 }
 
 var (
@@ -232,10 +254,12 @@ func (ms *multiStore) Commit() types.CommitID {
 	// Queries will read from this until the next Commit.
 	if snap, err := ms.db.NewSnapshot(); err == nil {
 		rs := newRefSnapshot(snap)
+		ms.snapshotMu.Lock()
 		old := ms.querySnapshot.Swap(rs)
 		if old != nil {
 			old.release() // drop the ref held by querySnapshot
 		}
+		ms.snapshotMu.Unlock()
 	}
 
 	// Prepare for next version.
@@ -300,7 +324,9 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 	var db dbm.DB
 	var release func()
 
-	if rs := ms.querySnapshot.Load(); rs != nil {
+	ms.snapshotMu.RLock()
+	rs := ms.querySnapshot.Load()
+	if rs != nil {
 		// Acquire a reference so the snapshot stays alive for the duration of
 		// this query, even if Commit() swaps it out concurrently.
 		rs.acquire()
@@ -312,6 +338,7 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 		release = func() {}
 		db = dbm.NewImmutableDB(ms.db)
 	}
+	ms.snapshotMu.RUnlock()
 
 	ims := &multiStore{
 		db:           db,
