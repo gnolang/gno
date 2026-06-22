@@ -1,0 +1,33 @@
+# A `cur realm` (the uverse .grealm type) boxed into a user interface dispatches
+# its method lazily at the call, resolving to the uverse .grealm.PkgPath native.
+# Pins that interface method-value dispatch handles a boxed builtin receiver.
+#
+# It also exercises the alloc guard in BoundMethodValue.GetShallowSize: the
+# `g := i.PkgPath` bind freshly allocates a lazy bmv (Func == nil) that resolves
+# to a .uverse method. Because Func is nil it skips the `.uverse → 0` branch and
+# is counted at full size — correctly: it is a per-call runtime allocation, not
+# the pre-loaded uverse singleton (which only a *resolved* uverse bmv is).
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/r -pkgpath gno.land/r/test/uv -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/uv -func Run -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout 'gno.land/r/test/uv'
+stdout OK!
+
+-- r/gnomod.toml --
+module = "gno.land/r/test/uv"
+gno = "0.9"
+
+-- r/uv.gno --
+package uv
+
+type PkgPather interface{ PkgPath() string }
+
+func Run(cur realm) string {
+	var i PkgPather = cur // box the cur realm (uverse .grealm) into a user interface
+	g := i.PkgPath         // lazy bind → resolves to the uverse .grealm.PkgPath at the call
+	return g()
+}

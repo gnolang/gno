@@ -27,15 +27,23 @@ func (m *Machine) doOpPrecall() {
 		}
 	case *BoundMethodValue:
 		m.incrCPU(OpCPUPrecallBoundMethod)
-		recv := fv.Receiver
-		m.PushFrameCall(cx, fv.Func, recv, false)
+		fn, recv := fv.Func, fv.Receiver
+		// A lazy interface bind resolves its concrete method + receiver at
+		// call time, walking the saved operand's current value (Go's call-time
+		// dispatch). A resolved bind is used as-is. nil derefs raise within the
+		// walk (caught by the Run loop).
+		if fv.IsLazy() {
+			m.incrCPU(OpCPULazyBoundResolve)
+			fn, recv = resolveLazyBound(m.Alloc, m.Store, fv)
+		}
+		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
-		isCrossing := fv.IsCrossing()
+		isCrossing := fn.IsCrossing()
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
 		if cx.IsWithCross() {
-			m.installCrossingCur(cx, isCrossing, fv.Func.PkgPath)
+			m.installCrossingCur(cx, isCrossing, fn.PkgPath)
 		}
 	case TypeValue:
 		m.incrCPU(OpCPUPrecallTypeConv)
@@ -558,21 +566,32 @@ func (m *Machine) doOpReturnCallDefers() {
 		return
 	}
 
-	if dfr.Func == nil {
-		m.pushPanic(typedString("defer called a nil function"))
+	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
+	var fv *FuncValue
+	var recv TypedValue // frame receiver; zero for a plain func
+	switch cv := dfr.Callable.(type) {
+	case *FuncValue:
+		fv = cv
+	case *BoundMethodValue:
+		// A lazy interface bind resolves its concrete method + receiver now, at
+		// the deferred call — Go's call-time dispatch on the operand's current
+		// value (nil derefs raise within the walk, caught by the Run loop). A
+		// resolved bind uses the receiver captured at the defer statement.
+		if cv.IsLazy() {
+			m.incrCPU(OpCPULazyBoundResolve)
+			fv, recv = resolveLazyBound(m.Alloc, m.Store, cv)
+		} else {
+			fv, recv = cv.Func, dfr.Args[0]
+		}
+		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
+	default: // nil (deferred a nil func value)
+		m.pushPanic(typedString("runtime error: call of nil function"))
 		return
 	}
 
 	// Call last deferred call.
-	fv := dfr.Func
 	ft := fv.GetType(m.Store)
-	// Push frame for defer.
-	if dfr.IsBoundMethod {
-		// args[0] is the receiver, per popCopyArgs bound-method invariant.
-		m.PushFrameCall(&dfr.Source.Call, fv, dfr.Args[0], true)
-	} else {
-		m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
-	}
+	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -581,7 +600,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	m.PushOp(OpExec)
 	// Convert if variadic argument.
 	// Create new block scope for defer.
-	pb := dfr.Func.GetParent(m.Store)
+	pb := fv.GetParent(m.Store)
 	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
@@ -680,37 +699,26 @@ func (m *Machine) doOpDefer() {
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		fv := cv
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{})
-		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
-		})
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case *BoundMethodValue:
-		fv := cv.Func
-		recv := cv.Receiver
+		// Args (and the receiver/operand) are captured now, at the defer
+		// statement. For a lazy interface bind, dispatch is resolved at the
+		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
+		// for a resolved bind, args[0] holds the copied receiver.
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			recv)
-		cfr.PushDefer(Defer{
-			Func:          fv,
-			IsBoundMethod: true,
-			Args:          args,
-			Source:        ds,
-			Parent:        lb,
-		})
+			cv.Receiver)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case nil:
-		cfr.PushDefer(Defer{
-			Func: nil,
-		})
+		// deferred a nil func value; raised as call-of-nil at the deferred call.
+		cfr.PushDefer(Defer{Source: ds, Parent: lb})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return

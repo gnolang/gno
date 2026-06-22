@@ -81,7 +81,7 @@ const (
 	_allocSliceValue       = 40  // unsafe.Sizeof(SliceValue{})
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
-	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
+	_allocBoundMethodValue = 216 // unsafe.Sizeof(BoundMethodValue{})
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
@@ -744,8 +744,12 @@ func (mv *MapValue) GetShallowSize() int64 {
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
-	// skip .uverse
-	if bmv.Func.PkgPath == ".uverse" {
+	// A resolved bmv whose method is a pre-loaded uverse native is size 0.
+	// A lazy interface bind has Func == nil (no PkgPath to test); it is a
+	// fresh runtime allocation, so it is counted at full size even though it
+	// may resolve to a uverse method (e.g. a boxed `cur realm`) — the wrapper
+	// is real, unlike the pre-loaded singleton, so full is correct.
+	if bmv.Func != nil && bmv.Func.PkgPath == ".uverse" {
 		return 0
 	}
 	return allocBoundMethod
