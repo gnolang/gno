@@ -8,6 +8,8 @@ Builds the **test13** hardfork genesis from gnoland1's chain state. Versus gnola
 - **Adds 10 pre-funded faucets** at 1e18 ugnot (≈1T GNOT) each and unrestricts them at genesis.
 - **Rebases on current master**: gnoland1's historical txs are replayed as-is wherever they still execute; the rest are patched (39 entries in 8 groups) to absorb the breaking changes master has shipped since gnoland1.
 
+To run a full node and put yourself forward as a validator on test13, see [`VALIDATOR.md`](./VALIDATOR.md).
+
 ## Quick start
 
 The script is fully self-contained: builds the binaries from the worktree, downloads the independence-day airdrop snapshot, fetches the historical tx stream, applies patches + migrations, assembles the genesis, and verifies sha256 of every produced artifact.
