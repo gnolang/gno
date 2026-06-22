@@ -79,7 +79,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   address set semantics.
 - [`gno.land/p/moul/fifo`](../../examples/gno.land/p/moul/fifo/fifo.gno):
   queue-like storage.
-- [`gno.land/p/moul/collection`](../../examples/gno.land/p/moul/collection/collection.gno):
+- `gno.land/p/moul/collection`:
   indexed collection patterns built on tree storage and `seqid`.
 - [`gno.land/p/nt/avl/v0`](../../examples/gno.land/p/nt/avl/v0/README.md):
   general sorted key/value indexes with range and offset iteration.
@@ -87,7 +87,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   B+ tree storage variants for large sorted datasets and scan-heavy indexes.
 - [`gno.land/p/nt/seqid/v0`](../../examples/gno.land/p/nt/seqid/v0/README.md):
   sequential IDs encoded so they sort correctly as AVL keys.
-- [`gno.land/p/jeronimoalbi/bitset`](../../examples/gno.land/p/jeronimoalbi/bitset/bitset.gno):
+- `gno.land/p/jeronimoalbi/bitset`:
   compact membership flags when IDs are dense numeric indexes.
 
 Use these as references for access-pattern-specific storage, not as a reason to
@@ -149,7 +149,7 @@ func IsClaimed(id uint64) bool {
 
 - [`gno.land/p/nt/ownable/v0`](../../examples/gno.land/p/nt/ownable/v0/README.md):
   owner-gated administration with explicit `cur realm` checks.
-- [`gno.land/p/nt/pausable/v0`](../../examples/gno.land/p/nt/pausable/v0/README.md):
+- `gno.land/p/nt/pausable/v0`:
   pause switches layered on an `ownable.Ownable`.
 - [`gno.land/p/moul/authz`](../../examples/gno.land/p/moul/authz/authz.gno):
   authorization helper patterns worth studying when a single owner is not
@@ -181,7 +181,7 @@ func SetName(cur realm, name string) {
   and [`gno.land/p/onbloc/uint256`](../../examples/gno.land/p/onbloc/uint256/README.md):
   fixed-width integer helpers for domains that need larger arithmetic than the
   built-in integer types.
-- [`gno.land/p/lou/query`](../../examples/gno.land/p/lou/query/query.gno):
+- `gno.land/p/lou/query`:
   query-string parsing helpers for `Render(path)` and URL-like inputs.
 
 Prefer explicit parsing over ad-hoc string splitting when the input format has
@@ -206,12 +206,12 @@ func DecodeTitle(input string) (string, bool) {
 
 ## Application Patterns
 
-- [`gno.land/p/agherasie/forms`](../../examples/gno.land/p/agherasie/forms/doc.gno):
+- `gno.land/p/agherasie/forms`:
   form creation, typed answers, deadlines, and validation.
-- [`gno.land/p/lou/blog`](../../examples/gno.land/p/lou/blog/doc.gno):
+- `gno.land/p/lou/blog`:
   a larger package split across posts, comments, moderation, rendering, and
   query helpers.
-- [`gno.land/p/morgan/chess`](../../examples/gno.land/p/morgan/chess/engine.gno):
+- `gno.land/p/morgan/chess`:
   domain-heavy package structure with tests around game rules.
 
 Use these as source-reading material for package boundaries and tests, not as
