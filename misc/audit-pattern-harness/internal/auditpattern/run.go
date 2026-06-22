@@ -34,7 +34,7 @@ type FixtureResult struct {
 	PathOK               bool     `json:"path_ok"`
 	GNOTestOK            bool     `json:"gno_test_ok"`
 	GNOTestWant          string   `json:"gno_test_want"`
-	GNOTestOutput        string   `json:"gno_test_output,omitempty"`
+	GNOTestOutput        string   `json:"gno_test_output"`
 	PatternHits          []Hit    `json:"pattern_hits"`
 	WantPatternHits      int      `json:"want_pattern_hits"`
 	PatternExpectationOK bool     `json:"pattern_expectation_ok"`
@@ -105,11 +105,16 @@ func runGNOTest(ctx context.Context, gnoBin, dir string) (bool, string) {
 	}
 	cmd := exec.CommandContext(ctx, gnoBin, "test", ".")
 	cmd.Dir = dir
+	cmd.Env = os.Environ()
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
-	return err == nil, strings.TrimSpace(out.String())
+	output := strings.TrimSpace(out.String())
+	if ctx.Err() != nil {
+		return false, "[timeout] " + output
+	}
+	return err == nil, output
 }
 
 func RunRule(rule, dir string) ([]Hit, error) {
@@ -263,9 +268,11 @@ func originCallerAuthHits(dir string) ([]Hit, error) {
 }
 
 func callbackParamHits(dir string) ([]Hit, error) {
+	// Use the original (non-trimmed) line so that function literals assigned
+	// inside a body (which are always indented) are not matched as top-level
+	// function declarations that accept callback parameters.
 	return lineContainsHits(dir, func(line string) bool {
-		trimmed := strings.TrimSpace(line)
-		return strings.HasPrefix(trimmed, "func ") && strings.Contains(trimmed, " func(")
+		return strings.HasPrefix(line, "func ") && strings.Contains(line, " func(")
 	})
 }
 

@@ -6,6 +6,9 @@ import (
 )
 
 func TestSetMessageRequiresLiveAdmin(cur realm, t *testing.T) {
+	// cross(cur) at the call site performs the realm crossing: PreviousRealm
+	// inside SetMessage becomes the UserRealm set just above, so assertAdmin
+	// can verify the caller's address.
 	testing.SetRealm(testing.NewUserRealm(admin))
 	SetMessage(cross(cur), "hello")
 	if Message() != "hello" {

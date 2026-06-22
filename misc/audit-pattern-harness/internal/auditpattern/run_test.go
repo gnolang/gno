@@ -5,13 +5,30 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
 )
 
+// pkgDir is the directory containing this test file, resolved at init time via
+// runtime.Caller so that path computations work regardless of working directory.
+var pkgDir = func() string {
+	_, f, _, _ := runtime.Caller(0)
+	return filepath.Dir(f)
+}()
+
+func harnessRoot() string { return filepath.Clean(filepath.Join(pkgDir, "..", "..")) }
+func repoRoot() string    { return filepath.Clean(filepath.Join(harnessRoot(), "..", "..")) }
+func fixturesDir(name string) string {
+	return filepath.Join(harnessRoot(), "fixtures", name)
+}
+func expectedFile(name string) string {
+	return filepath.Join(harnessRoot(), "expected", name+".yaml")
+}
+
 func TestLoadRecordResolvesFixturePaths(t *testing.T) {
-	rec, err := LoadRecord(filepath.Join("..", "..", "expected", "current-guard.yaml"))
+	rec, err := LoadRecord(expectedFile("current-guard"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +44,7 @@ func TestLoadRecordResolvesFixturePaths(t *testing.T) {
 }
 
 func TestCurrentGuardRule(t *testing.T) {
-	base := filepath.Join("..", "..", "fixtures", "current-guard")
+	base := fixturesDir("current-guard")
 
 	hits, err := RunRule("current_guard", filepath.Join(base, "vulnerable"))
 	if err != nil {
@@ -50,7 +67,7 @@ func TestCurrentGuardRule(t *testing.T) {
 }
 
 func TestRenderMarkdownEscapeRule(t *testing.T) {
-	base := filepath.Join("..", "..", "fixtures", "render-markdown")
+	base := fixturesDir("render-markdown")
 
 	hits, err := RunRule("render_markdown_escape", filepath.Join(base, "vulnerable"))
 	if err != nil {
@@ -103,7 +120,7 @@ func TestRunWithFakeGNO(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec, err := LoadRecord(filepath.Join("..", "..", "expected", "current-guard.yaml"))
+	rec, err := LoadRecord(expectedFile("current-guard"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,14 +135,12 @@ func TestRunWithFakeGNO(t *testing.T) {
 }
 
 func TestAgentPatternContract(t *testing.T) {
-	harnessRoot := filepath.Clean(filepath.Join("..", ".."))
-	repoRoot := filepath.Clean(filepath.Join(harnessRoot, "..", ".."))
 	specFiles := []string{
-		filepath.Join(harnessRoot, "README.md"),
-		filepath.Join(repoRoot, "docs", "resources", "gno-security-guide.md"),
-		filepath.Join(repoRoot, "docs", "resources", "effective-gno.md"),
-		filepath.Join(repoRoot, "docs", "resources", "gno-data-structures.md"),
-		filepath.Join(repoRoot, "docs", "resources", "community-packages.md"),
+		filepath.Join(harnessRoot(), "README.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "gno-security-guide.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "effective-gno.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "gno-data-structures.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "community-packages.md"),
 	}
 	requiredTerms := map[string][]string{
 		"callback-param":        {"callback", "caller-supplied"},
@@ -139,7 +154,7 @@ func TestAgentPatternContract(t *testing.T) {
 	}
 
 	corpus := readSpecCorpus(t, specFiles)
-	records := loadAllRecords(t, harnessRoot)
+	records := loadAllRecords(t, harnessRoot())
 	if len(records) < len(requiredTerms) {
 		t.Fatalf("expected at least %d records, got %d", len(requiredTerms), len(records))
 	}
@@ -200,7 +215,7 @@ func TestAgentPatternContractWithGNO(t *testing.T) {
 		}
 	}
 
-	for _, rec := range loadAllRecords(t, filepath.Clean(filepath.Join("..", ".."))) {
+	for _, rec := range loadAllRecords(t, harnessRoot()) {
 		t.Run(rec.ID, func(t *testing.T) {
 			report := Run(context.Background(), rec, Options{GNOBin: gnoBin})
 			if !report.OK {
@@ -212,7 +227,7 @@ func TestAgentPatternContractWithGNO(t *testing.T) {
 
 func assertRuleCounts(t *testing.T, rule, fixture string, vulnerable, fixed int) {
 	t.Helper()
-	base := filepath.Join("..", "..", "fixtures", fixture)
+	base := fixturesDir(fixture)
 
 	hits, err := RunRule(rule, filepath.Join(base, "vulnerable"))
 	if err != nil {

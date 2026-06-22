@@ -40,6 +40,9 @@ func Render(path string) string {
 	return out
 }
 
+// assertAdmin guards a state-mutating call. The caller must pass its own cur
+// realm down; assertAdmin is a non-crossing helper, so it does not shift
+// PreviousRealm — the crossing happened in the outer function.
 func assertAdmin(cur realm) bool {
 	if !cur.IsCurrent() {
 		panic("invalid realm")

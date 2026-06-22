@@ -83,3 +83,36 @@ Paths are relative to the YAML file. `want_gno_test` is `pass` or `fail`.
 3. Teach `internal/auditpattern` the new rule.
 4. Promote stable, sanitized lessons to `docs/resources` and
    `examples/gno.land` when they are useful for builders.
+
+## Known limitations
+
+Pattern detection is heuristic — the rules scan text, not an AST. Expect both
+false positives and false negatives in real-world code.
+
+### current_guard
+
+Detects `.Previous()` before `.IsCurrent()` only within the **same function**.
+If the `IsCurrent()` check lives in a helper function called from the same
+function that calls `.Previous()`, the detector will not flag it. Check helper
+call chains manually when auditing cross-realm code.
+
+### payment_user_call
+
+Flags any `OriginSend()` call not preceded by `.IsUserCall()` in the same
+function — this catches both the no-guard case **and** the wrong-guard case
+(`IsUser()` instead of `IsUserCall()`). The rule does not distinguish between
+the two; both appear as pattern hits.
+
+### render_markdown_escape
+
+Flags `return` statements inside `Render` that contain the `path` variable
+without the word `escape` on the same line. Patterns using intermediate
+variable names (e.g. `sanitized := md.EscapeText(path); return sanitized`)
+are not flagged even when unsafe.
+
+### Spec corpus test
+
+`TestAgentPatternContract` verifies that each pattern family's required terms
+appear somewhere in the spec files. It confirms that the docs discuss the
+topic; it does not verify that the security advice in those docs is correct.
+Manual review is still required before promoting new guidance.

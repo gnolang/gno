@@ -48,7 +48,25 @@ func LoadRecord(path string) (Record, error) {
 		rec.Fixtures[i].Path = abs
 	}
 
+	if err := rec.ValidatePaths(); err != nil {
+		return Record{}, fmt.Errorf("%s: %w", path, err)
+	}
+
 	return rec, nil
+}
+
+// ValidatePaths checks that every fixture path exists and is a directory.
+func (rec Record) ValidatePaths() error {
+	for i, fixture := range rec.Fixtures {
+		info, err := os.Stat(fixture.Path)
+		if err != nil {
+			return fmt.Errorf("fixtures[%d] %s: %w", i, fixture.Name, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("fixtures[%d] %s: path is not a directory", i, fixture.Name)
+		}
+	}
+	return nil
 }
 
 func (rec Record) validate() error {
