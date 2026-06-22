@@ -193,6 +193,12 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 				return
 			}
 
+			// Drop the node from the manager so it (and its in-memory store,
+			// which retains the per-node stdlib cache) becomes collectable once
+			// the script ends. Without this the manager — which lives for the
+			// whole TestTestdata run — pins every node, leaking ~50 MB/script.
+			nodesManager.Delete(sid)
+
 			if err := n.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				env.T().Fatal(err.Error())
