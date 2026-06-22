@@ -37,6 +37,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/parser"
@@ -89,7 +90,7 @@ func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
 	// Use a fset, even if empty, so the spans are set properly.
 	fset := token.NewFileSet()
 	// parse with Go2Gno.
-	return Go2Gno(fset, x).(Expr), nil
+	return Go2Gno(fset, x, nil).(Expr), nil
 }
 
 func (m *Machine) MustParseExpr(code string) Expr {
@@ -127,7 +128,7 @@ func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
 	// parse with Go2Gno.
 	for _, gostmt := range gostmts {
 		var stmt Stmt
-		nn := Go2Gno(fset, gostmt)
+		nn := Go2Gno(fset, gostmt, nil)
 		switch nn := nn.(type) {
 		case Stmt:
 			stmt = nn
@@ -226,7 +227,7 @@ func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error)
 		}
 	}()
 	// Parse with Go2Gno.
-	fn = Go2Gno(fs, astf).(*FileNode)
+	fn = Go2Gno(fs, astf, nil).(*FileNode)
 	fn.FileName = fname
 	return fn, nil
 }
@@ -299,7 +300,13 @@ func setSpanFromRightChild(fs *token.FileSet, gon ast.Node, n Node, rightChild N
 // must call setSpanFromLeftChild / setSpanFromRightChild inside their
 // case to avoid SpanFromGo's O(N) gon.Pos()/gon.End() recursion;
 // other cases let the defer handle it.
-func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
+//
+// fileComments carries the enclosing file's comment groups. It is consumed
+// only at the FuncDecl boundary, to extract an Example test's "// Output:"
+// directive (see exampleOutput); the *ast.File case supplies it from
+// gon.Comments. All other recursive calls thread it through (or pass nil)
+// without reading it.
+func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (n Node) {
 	if gon == nil {
 		return nil
 	}
@@ -444,7 +451,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Value: toExpr(fs, gon.Value),
 		}
 	case *ast.FuncLit:
-		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+		type_ := Go2Gno(fs, gon.Type, fileComments).(*FuncTypeExpr)
 
 		return &FuncLitExpr{
 			Type: *type_,
@@ -570,7 +577,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		ess := []Stmt(nil)
 		if gon.Else != nil {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
-				ess = Go2Gno(fs, gon.Else).(*BlockStmt).Body
+				ess = Go2Gno(fs, gon.Else, fileComments).(*BlockStmt).Body
 			} else {
 				ess = []Stmt{toStmt(fs, gon.Else)}
 			}
@@ -652,21 +659,29 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			if len(gon.Recv.List) == 0 {
 				panicWithPos("method has no receiver")
 			}
-			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
+			recv = *Go2Gno(fs, gon.Recv.List[0], fileComments).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
-		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+		type_ := Go2Gno(fs, gon.Type, fileComments).(*FuncTypeExpr)
 		var body []Stmt
 		if gon.Body != nil {
-			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
+			body = Go2Gno(fs, gon.Body, fileComments).(*BlockStmt).Body
 		}
-		return &FuncDecl{
+		fd := &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
 			NameExpr: NameExpr{Name: name},
 			Type:     *type_,
 			Body:     body,
 		}
+		if gon.Body != nil && strings.HasPrefix(gon.Name.Name, "Example") && fileComments != nil {
+			output, unordered, hasOutput := exampleOutput(gon.Body, fileComments)
+			if hasOutput {
+				fd.SetAttribute(ATTR_EXAMPLE_OUTPUT, output)
+				fd.SetAttribute(ATTR_OUTPUT_UNORDERED, unordered)
+			}
+		}
+		return fd
 	case *ast.GenDecl:
 		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
@@ -676,7 +691,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			if gd, ok := d.(*ast.GenDecl); ok {
 				decls = append(decls, toDecls(fs, gd)...)
 			} else {
-				decls = append(decls, toDecl(fs, d))
+				decls = append(decls, toDecl(fs, d, gon.Comments))
 			}
 		}
 		return &FileNode{
@@ -790,7 +805,7 @@ func toWord(tok token.Token) Word {
 
 func toExpr(fs *token.FileSet, gox ast.Expr) Expr {
 	// TODO: could the language handle this?
-	gnox := Go2Gno(fs, gox)
+	gnox := Go2Gno(fs, gox, nil)
 	if gnox == nil {
 		return nil
 	} else {
@@ -810,7 +825,7 @@ func toExprs(fs *token.FileSet, goxs []ast.Expr) (gnoxs Exprs) {
 }
 
 func toStmt(fs *token.FileSet, gos ast.Stmt) Stmt {
-	gnos := Go2Gno(fs, gos)
+	gnos := Go2Gno(fs, gos, nil)
 	if gnos == nil {
 		return nil
 	} else {
@@ -834,7 +849,7 @@ func toBody(fs *token.FileSet, body *ast.BlockStmt) Body {
 }
 
 func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
-	gnos := Go2Gno(fs, gos)
+	gnos := Go2Gno(fs, gos, nil)
 	if gnos == nil {
 		return nil
 	} else {
@@ -842,8 +857,8 @@ func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
 	}
 }
 
-func toDecl(fs *token.FileSet, god ast.Decl) Decl {
-	gnod := Go2Gno(fs, god)
+func toDecl(fs *token.FileSet, god ast.Decl, fileComments []*ast.CommentGroup) Decl {
+	gnod := Go2Gno(fs, god, fileComments)
 	if gnod == nil {
 		return nil
 	} else {
@@ -1006,7 +1021,7 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 	kvxs = make([]KeyValueExpr, len(elts))
 	for i, x := range elts {
 		if kvx, ok := x.(*ast.KeyValueExpr); ok {
-			kvxs[i] = *Go2Gno(fs, kvx).(*KeyValueExpr)
+			kvxs[i] = *Go2Gno(fs, kvx, nil).(*KeyValueExpr)
 		} else {
 			kvx := KeyValueExpr{
 				Key:   nil,

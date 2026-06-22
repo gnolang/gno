@@ -305,7 +305,7 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: lmdbdb | mdbxdb | pebbledb | goleveldb | boltdb\n* lmdbdb (github.com/bmatsuo/lmdb-go)\n  - B+ tree with mmap, fastest reads at scale\n  - requires CGo\n  - default\n* mdbxdb (github.com/erigontech/mdbx-go)\n  - MDBX (improved LMDB fork), B+ tree with mmap\n  - auto-grows, better write perf, used by Erigon\n  - requires CGo\n* pebbledb (github.com/cockroachdb/pebble)\n  - LSM tree, pure go\n  - stable\n* goleveldb (github.com/syndtr/goleveldb)\n  - pure go\n  - stable\n  - use goleveldb build tag\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: lmdbdb | mdbxdb | pebbledb | goleveldb | boltdb\n* lmdbdb (github.com/bmatsuo/lmdb-go)\n  - B+ tree with mmap, fastest reads at scale\n  - requires CGo\n* mdbxdb (github.com/erigontech/mdbx-go)\n  - MDBX (improved LMDB fork), B+ tree with mmap\n  - auto-grows, better write perf, used by Erigon\n  - requires CGo\n* pebbledb (github.com/cockroachdb/pebble)\n  - LSM tree, pure go\n  - stable\n  - default\n* goleveldb (github.com/syndtr/goleveldb)\n  - pure go\n  - stable\n  - use goleveldb build tag\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
