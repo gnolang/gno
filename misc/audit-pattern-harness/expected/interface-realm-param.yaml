@@ -1,6 +1,10 @@
 id: interface-realm-param
 title: Interface method exposes cur realm
 rule: interface_realm_param
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Remove cur realm from caller-implemented interface methods.
 fixtures:
   - name: vulnerable
     path: ../fixtures/interface-realm-param/vulnerable

@@ -73,6 +73,11 @@ Each `expected/*.yaml` record describes one finding family and its fixtures:
 id: current-guard
 title: cur.Previous without cur.IsCurrent
 rule: current_guard
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Check cur.IsCurrent before reading cur.Previous for authorization.
+  allow_removed_exports: [] # optional, for intentionally removed unsafe APIs
 fixtures:
   - name: vulnerable
     path: ../fixtures/current-guard/vulnerable
@@ -87,12 +92,20 @@ fixtures:
 Paths are relative to the YAML file. `want_gno_test` is `pass` or `fail`.
 `want_pattern_hits` is the exact count expected from the rule.
 
+The `repair` block is experimental. It describes the intended bad-to-good
+fixture pair for an agent or tool to learn from. `TestRepairContracts` verifies
+that the source fixture demonstrates the pattern, the target fixture removes it,
+the `.gno` files actually changed, and exported top-level function names remain
+stable across the repair except for names listed in `allow_removed_exports`.
+
 ## Adding a pattern slice
 
 1. Add sanitized fixtures under `fixtures/<slice>/`.
 2. Add an `expected/<slice>.yaml` record.
-3. Teach `internal/auditpattern` the new rule.
-4. Promote stable, sanitized lessons to `docs/resources` and
+3. Add a `repair` block that points from the vulnerable fixture to the fixed
+   fixture and states the intended remediation goal.
+4. Teach `internal/auditpattern` the new rule.
+5. Promote stable, sanitized lessons to `docs/resources` and
    `examples/gno.land` when they are useful for builders.
 
 ## Known limitations

@@ -1,6 +1,10 @@
 id: exported-pointer-leak
 title: Exported pointer exposes mutable state
 rule: exported_pointer_leak
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Stop exporting pointers to mutable state; expose value-returning read APIs.
 fixtures:
   - name: vulnerable
     path: ../fixtures/exported-pointer-leak/vulnerable

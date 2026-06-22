@@ -5,11 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 )
+
+var exportedFuncRE = regexp.MustCompile(`(?m)^func\s+([A-Z]\w*)\s*\(`)
 
 // pkgDir is the directory containing this test file, resolved at init time via
 // runtime.Caller so that path computations work regardless of working directory.
@@ -333,6 +336,50 @@ func TestAgentPatternContractWithGNO(t *testing.T) {
 	}
 }
 
+func TestRepairContracts(t *testing.T) {
+	for _, rec := range loadAllRecords(t, harnessRoot()) {
+		t.Run(rec.ID, func(t *testing.T) {
+			from := fixtureByName(t, rec, rec.Repair.FromFixture)
+			to := fixtureByName(t, rec, rec.Repair.ToFixture)
+			if strings.TrimSpace(rec.Repair.Goal) == "" {
+				t.Fatalf("repair goal is empty")
+			}
+
+			fromHits, err := RunRule(rec.Rule, from.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fromHits) == 0 {
+				t.Fatalf("repair source %q must demonstrate at least one hit", from.Name)
+			}
+
+			toHits, err := RunRule(rec.Rule, to.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(toHits) != 0 {
+				t.Fatalf("repair target %q still has hits: %+v", to.Name, toHits)
+			}
+
+			fromFiles := gnoFileContents(t, from.Path)
+			toFiles := gnoFileContents(t, to.Path)
+			if !sameKeys(fromFiles, toFiles) {
+				t.Fatalf("repair fixtures must keep the same .gno file set: from=%v to=%v", sortedKeys(fromFiles), sortedKeys(toFiles))
+			}
+			if !anyChanged(fromFiles, toFiles) {
+				t.Fatalf("repair target must change at least one .gno file")
+			}
+
+			fromAPI := exportedFuncNames(fromFiles)
+			toAPI := exportedFuncNames(toFiles)
+			fromAPI = withoutStrings(fromAPI, rec.Repair.AllowRemovedExports)
+			if !sameStringSlices(fromAPI, toAPI) {
+				t.Fatalf("repair target should preserve exported top-level function names: from=%v to=%v", fromAPI, toAPI)
+			}
+		})
+	}
+}
+
 func assertRuleCounts(t *testing.T, rule, fixture string, vulnerable, fixed int) {
 	t.Helper()
 	base := fixturesDir(fixture)
@@ -398,4 +445,115 @@ func loadAllRecords(t *testing.T, harnessRoot string) []Record {
 		records = append(records, rec)
 	}
 	return records
+}
+
+func fixtureByName(t *testing.T, rec Record, name string) Fixture {
+	t.Helper()
+
+	for _, fixture := range rec.Fixtures {
+		if fixture.Name == name {
+			return fixture
+		}
+	}
+	t.Fatalf("fixture %q not found in %s", name, rec.ID)
+	return Fixture{}
+}
+
+func gnoFileContents(t *testing.T, dir string) map[string]string {
+	t.Helper()
+
+	files, err := gnoFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, file := range files {
+		rel, err := filepath.Rel(dir, file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[filepath.ToSlash(rel)] = string(data)
+	}
+	if len(out) == 0 {
+		t.Fatalf("no .gno files under %s", dir)
+	}
+	return out
+}
+
+func exportedFuncNames(files map[string]string) []string {
+	seen := map[string]bool{}
+	for _, data := range files {
+		for _, match := range exportedFuncRE.FindAllStringSubmatch(data, -1) {
+			seen[match[1]] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sameKeys(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key := range left {
+		if _, ok := right[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func anyChanged(left, right map[string]string) bool {
+	for key, value := range left {
+		if right[key] != value {
+			return true
+		}
+	}
+	return false
+}
+
+func sameStringSlices(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func withoutStrings(values, remove []string) []string {
+	if len(remove) == 0 {
+		return values
+	}
+	blocked := map[string]bool{}
+	for _, value := range remove {
+		blocked[value] = true
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if !blocked[value] {
+			out = append(out, value)
+		}
+	}
+	return out
 }

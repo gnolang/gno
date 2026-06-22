@@ -12,7 +12,15 @@ type Record struct {
 	ID       string    `yaml:"id" json:"id"`
 	Title    string    `yaml:"title" json:"title"`
 	Rule     string    `yaml:"rule" json:"rule"`
+	Repair   Repair    `yaml:"repair" json:"repair"`
 	Fixtures []Fixture `yaml:"fixtures" json:"fixtures"`
+}
+
+type Repair struct {
+	FromFixture         string   `yaml:"from_fixture" json:"from_fixture"`
+	ToFixture           string   `yaml:"to_fixture" json:"to_fixture"`
+	Goal                string   `yaml:"goal" json:"goal"`
+	AllowRemovedExports []string `yaml:"allow_removed_exports,omitempty" json:"allow_removed_exports,omitempty"`
 }
 
 type Fixture struct {
@@ -79,13 +87,27 @@ func (rec Record) validate() error {
 	if rec.Rule == "" {
 		return fmt.Errorf("missing rule")
 	}
+	if rec.Repair.FromFixture == "" {
+		return fmt.Errorf("repair: missing from_fixture")
+	}
+	if rec.Repair.ToFixture == "" {
+		return fmt.Errorf("repair: missing to_fixture")
+	}
+	if rec.Repair.Goal == "" {
+		return fmt.Errorf("repair: missing goal")
+	}
 	if len(rec.Fixtures) == 0 {
 		return fmt.Errorf("missing fixtures")
 	}
+	fixtures := map[string]bool{}
 	for i, fixture := range rec.Fixtures {
 		if fixture.Name == "" {
 			return fmt.Errorf("fixtures[%d]: missing name", i)
 		}
+		if fixtures[fixture.Name] {
+			return fmt.Errorf("fixtures[%d]: duplicate name %q", i, fixture.Name)
+		}
+		fixtures[fixture.Name] = true
 		if fixture.Path == "" {
 			return fmt.Errorf("fixtures[%d]: missing path", i)
 		}
@@ -97,6 +119,15 @@ func (rec Record) validate() error {
 		if fixture.WantPatternHits < 0 {
 			return fmt.Errorf("fixtures[%d]: want_pattern_hits must be >= 0", i)
 		}
+	}
+	if !fixtures[rec.Repair.FromFixture] {
+		return fmt.Errorf("repair: from_fixture %q does not match a fixture", rec.Repair.FromFixture)
+	}
+	if !fixtures[rec.Repair.ToFixture] {
+		return fmt.Errorf("repair: to_fixture %q does not match a fixture", rec.Repair.ToFixture)
+	}
+	if rec.Repair.FromFixture == rec.Repair.ToFixture {
+		return fmt.Errorf("repair: from_fixture and to_fixture must differ")
 	}
 	return nil
 }
