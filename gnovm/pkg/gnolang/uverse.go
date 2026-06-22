@@ -686,8 +686,10 @@ func makeUverseNode() {
 
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
-								// Per-element DidUpdate calls below are sufficient
-								// to mark arg0Base dirty; no top-level call needed.
+								// The list-source sub-branch marks arg0Base dirty via
+								// per-element DidUpdate; the data-source sub-branch must
+								// call DidUpdate itself, because copyDataToList writes raw
+								// bytes into arg0Base.List without going through Assign2.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
@@ -719,6 +721,9 @@ func makeUverseNode() {
 										)
 									}
 								} else {
+									// Mark arg0Base dirty before the raw copyDataToList
+									// write (see the branch comment above).
+									m.Realm.DidUpdate(m, arg0Base, nil, nil)
 									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copyDataToList(
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
