@@ -29,6 +29,18 @@ Emit JSON:
 go run ./cmd/auditpattern -format json ./expected/*.yaml
 ```
 
+Run the deterministic agent contract test:
+
+```sh
+go test ./internal/auditpattern -run TestAgentPatternContract
+```
+
+This test treats the guide files and expected records as the spec. It verifies
+that each pattern family is documented, has vulnerable and fixed fixtures, flags
+the vulnerable fixture, and leaves the fixed fixture clean. The compile-check
+variant runs automatically when `GNO_BIN` is set or `gno` is available on
+`PATH`; otherwise it skips with instructions.
+
 ## Expected records
 
 Current pattern slices:
