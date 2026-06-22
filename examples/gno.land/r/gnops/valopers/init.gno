@@ -49,11 +49,13 @@ To add your validator node to the registry, use the [**Register**](` + txlink.Ca
     - **on-prem**: For validators running on on-premises infrastructure
     - **data-center**: For validators running in dedicated data centers
 
-- **Validator Address**
-  - Your validator node's address
+- **Operator Address**
+  - The ` + "`g1...`" + ` address of your operator account (from your ` + "`gnokey`" + ` keyring)
+  - **Must be controlled by the signer** of this transaction — the realm rejects the call if the signer doesn't control that address
 
-- **Validator Public Key**
-  - Your validator node's public key
+- **Validator Consensus Public Key**
+  - Your validator node's consensus public key, in the ` + "`gpub1...`" + ` format
+  - Retrieve it by running: ` + "`gnoland secrets get validator_key`" + `
 
 ### ✍️ Required Information for the Description
 
@@ -65,6 +67,8 @@ Please provide detailed answers to the following questions to ensure transparenc
 4. Contact details
 5. Why are you interested in validating on **gno.land**?
 6. What contributions have you made or are willing to make to **gno.land**?
+7. Your node architecture. For example, do you run sentry nodes to shield your validator?
+8. How do you handle backups? Describe your backup strategy for keys and node data.
 
 ---
 
