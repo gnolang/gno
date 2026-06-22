@@ -653,10 +653,7 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	if bal.IsVesting() {
 		baseAcc := std.NewBaseAccountWithAddress(bal.Address)
-		cva, err := std.NewContinuousVestingAccount(
-			&baseAcc, bal.OriginalVesting,
-			bal.VestingStartTime, bal.VestingEndTime,
-		)
+		cva, err := std.NewContinuousVestingAccount(&baseAcc, *bal.Vesting)
 		if err != nil {
 			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
 		}

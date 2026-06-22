@@ -13,7 +13,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// Account
 	&BaseAccount{}, "BaseAccount",
 	&BaseSessionAccount{}, "BaseSessionAccount",
-	// Vesting Account
+	// Vesting
+	&VestingSchedule{}, "VestingSchedule",
 	&BaseVestingAccount{}, "BaseVestingAccount",
 	&ContinuousVestingAccount{}, "ContinuousVestingAccount",
 	&DelayedVestingAccount{}, "DelayedVestingAccount",

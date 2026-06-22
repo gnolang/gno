@@ -8,12 +8,47 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
+// -----------------------------------------------------------------------------
+// VestingSchedule
+
+// VestingSchedule defines the parameters of a vesting schedule.
+// StartTime=0 means cliff/delayed vesting (all coins vest at EndTime).
+type VestingSchedule struct {
+	OriginalVesting Coins `json:"original_vesting" yaml:"original_vesting"`
+	StartTime       int64 `json:"start_time,omitempty" yaml:"start_time,omitempty"`
+	EndTime         int64 `json:"end_time" yaml:"end_time"`
+}
+
+// Validate checks the schedule fields.
+func (vs VestingSchedule) Validate() error {
+	if vs.EndTime < 0 {
+		return fmt.Errorf("end time cannot be negative: %d", vs.EndTime)
+	}
+	if vs.StartTime >= vs.EndTime {
+		return fmt.Errorf(
+			"vesting start-time (%d) must be before end-time (%d)",
+			vs.StartTime, vs.EndTime,
+		)
+	}
+	if !vs.OriginalVesting.IsValid() && !vs.OriginalVesting.IsZero() {
+		return fmt.Errorf("invalid original vesting coins: %s", vs.OriginalVesting)
+	}
+	return nil
+}
+
+// IsZero returns true if the schedule has no vesting amount.
+func (vs VestingSchedule) IsZero() bool {
+	return vs.OriginalVesting.IsZero()
+}
+
+// -----------------------------------------------------------------------------
+// VestingAccount interface
+
 // VestingAccount defines an account type that vests coins via a vesting schedule.
 type VestingAccount interface {
 	Account
 
-	// LockedCoins returns the set of coins that are not spendable.
-	// Equivalent to GetVestingCoins(blockTime).
+	// LockedCoins returns the set of coins that are not spendable at blockTime.
 	LockedCoins(blockTime time.Time) Coins
 
 	GetVestedCoins(blockTime time.Time) Coins
@@ -49,12 +84,9 @@ func SpendableCoins(va VestingAccount, blockTime time.Time) Coins {
 // BaseVestingAccount
 
 // BaseVestingAccount provides common fields for vesting account types.
-// It is embedded in concrete vesting account types.
 type BaseVestingAccount struct {
 	BaseAccount
-
-	OriginalVesting Coins `json:"original_vesting" yaml:"original_vesting"`
-	EndTime         int64 `json:"end_time" yaml:"end_time"`
+	VestingSchedule
 }
 
 // ProtoBaseVestingAccount returns a prototype for BaseVestingAccount.
@@ -77,9 +109,10 @@ func (bva BaseVestingAccount) String() string {
   AccountNumber:    %d
   Sequence:         %d
   OriginalVesting:  %s
+  StartTime:        %d
   EndTime:          %d`,
 		bva.Address, pubkey, bva.Coins, bva.AccountNumber, bva.Sequence,
-		bva.OriginalVesting, bva.EndTime,
+		bva.OriginalVesting, bva.StartTime, bva.EndTime,
 	)
 }
 
@@ -93,15 +126,9 @@ func (bva BaseVestingAccount) GetEndTime() int64 {
 	return bva.EndTime
 }
 
-// Validate checks for errors on the account fields.
-func (bva BaseVestingAccount) Validate() error {
-	if bva.EndTime < 0 {
-		return fmt.Errorf("end time cannot be negative: %d", bva.EndTime)
-	}
-	if !bva.OriginalVesting.IsValid() && !bva.OriginalVesting.IsZero() {
-		return fmt.Errorf("invalid original vesting coins: %s", bva.OriginalVesting)
-	}
-	return nil
+// GetStartTime returns the vesting start time.
+func (bva BaseVestingAccount) GetStartTime() int64 {
+	return bva.StartTime
 }
 
 // -----------------------------------------------------------------------------
@@ -111,28 +138,21 @@ func (bva BaseVestingAccount) Validate() error {
 // Coins vest linearly from StartTime to EndTime.
 type ContinuousVestingAccount struct {
 	BaseVestingAccount
-
-	StartTime int64 `json:"start_time" yaml:"start_time"`
 }
 
 // NewContinuousVestingAccount creates a new ContinuousVestingAccount.
 func NewContinuousVestingAccount(
 	baseAcc *BaseAccount,
-	originalVesting Coins,
-	startTime, endTime int64,
+	schedule VestingSchedule,
 ) (*ContinuousVestingAccount, error) {
-	bva := &BaseVestingAccount{
-		BaseAccount:     *baseAcc,
-		OriginalVesting: originalVesting,
-		EndTime:         endTime,
-	}
-
 	cva := &ContinuousVestingAccount{
-		BaseVestingAccount: *bva,
-		StartTime:          startTime,
+		BaseVestingAccount: BaseVestingAccount{
+			BaseAccount:     *baseAcc,
+			VestingSchedule: schedule,
+		},
 	}
 
-	if err := cva.Validate(); err != nil {
+	if err := schedule.Validate(); err != nil {
 		return nil, err
 	}
 	return cva, nil
@@ -166,9 +186,6 @@ func (cva ContinuousVestingAccount) String() string {
 }
 
 // GetVestedCoins returns the total amount of vested coins at blockTime.
-// If blockTime <= StartTime, no coins are vested.
-// If blockTime >= EndTime, all original vesting coins are vested.
-// Otherwise, coins vest linearly between StartTime and EndTime.
 func (cva ContinuousVestingAccount) GetVestedCoins(blockTime time.Time) Coins {
 	var vestedCoins Coins
 
@@ -184,7 +201,6 @@ func (cva ContinuousVestingAccount) GetVestedCoins(blockTime time.Time) Coins {
 	totalDuration := cva.EndTime - cva.StartTime
 
 	for _, ovc := range cva.OriginalVesting {
-		// vestedAmt = originalAmt * elapsed / totalDuration
 		product, ok := overflow.Mul(ovc.Amount, elapsed)
 		if !ok {
 			panic(fmt.Sprintf(
@@ -207,32 +223,14 @@ func (cva ContinuousVestingAccount) GetVestingCoins(blockTime time.Time) Coins {
 }
 
 // LockedCoins returns the set of coins that are not spendable.
-// Without delegation, locked coins equal vesting coins.
 func (cva ContinuousVestingAccount) LockedCoins(blockTime time.Time) Coins {
 	return cva.GetVestingCoins(blockTime)
-}
-
-// GetStartTime returns the vesting start time.
-func (cva ContinuousVestingAccount) GetStartTime() int64 {
-	return cva.StartTime
-}
-
-// Validate checks for errors on the account fields.
-func (cva ContinuousVestingAccount) Validate() error {
-	if cva.GetStartTime() >= cva.GetEndTime() {
-		return fmt.Errorf(
-			"vesting start-time (%d) must be before end-time (%d)",
-			cva.StartTime, cva.EndTime,
-		)
-	}
-	return cva.BaseVestingAccount.Validate()
 }
 
 // -----------------------------------------------------------------------------
 // DelayedVestingAccount
 
 // DelayedVestingAccount vests all coins at EndTime (cliff vesting).
-// Before EndTime, no coins are vested. After EndTime, all coins are vested.
 type DelayedVestingAccount struct {
 	BaseVestingAccount
 }
@@ -240,20 +238,16 @@ type DelayedVestingAccount struct {
 // NewDelayedVestingAccount creates a new DelayedVestingAccount.
 func NewDelayedVestingAccount(
 	baseAcc *BaseAccount,
-	originalVesting Coins,
-	endTime int64,
+	schedule VestingSchedule,
 ) (*DelayedVestingAccount, error) {
-	bva := &BaseVestingAccount{
-		BaseAccount:     *baseAcc,
-		OriginalVesting: originalVesting,
-		EndTime:         endTime,
-	}
-
 	dva := &DelayedVestingAccount{
-		BaseVestingAccount: *bva,
+		BaseVestingAccount: BaseVestingAccount{
+			BaseAccount:     *baseAcc,
+			VestingSchedule: schedule,
+		},
 	}
 
-	if err := dva.Validate(); err != nil {
+	if err := schedule.Validate(); err != nil {
 		return nil, err
 	}
 	return dva, nil
@@ -300,17 +294,11 @@ func (dva DelayedVestingAccount) GetVestingCoins(blockTime time.Time) Coins {
 }
 
 // LockedCoins returns the set of coins that are not spendable.
-// Without delegation, locked coins equal vesting coins.
 func (dva DelayedVestingAccount) LockedCoins(blockTime time.Time) Coins {
 	return dva.GetVestingCoins(blockTime)
 }
 
-// GetStartTime returns zero since delayed vesting has no start time.
+// GetStartTime returns zero: delayed vesting has no start time.
 func (dva DelayedVestingAccount) GetStartTime() int64 {
 	return 0
-}
-
-// Validate checks for errors on the account fields.
-func (dva DelayedVestingAccount) Validate() error {
-	return dva.BaseVestingAccount.Validate()
 }
