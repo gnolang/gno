@@ -282,7 +282,7 @@ var OriginCallerExtractor func(ctx any) string
 // `cur.Previous()` after the override surfaces what X_getRealm surfaces
 // as PreviousRealm of the override frame. Exposed for X_setContext.
 func BuildOverridePrevField(addr, pkgPath string) TypedValue {
-	return newRealmHIVPointer(fallbackAllocator, addr, pkgPath, TypedValue{})
+	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
 }
 
 // buildOriginRealm constructs a per-call origin realm matching what
@@ -321,7 +321,7 @@ func init() {
 	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
 
 	// Build the global placeholder origin realm now that types are wired.
-	gOriginRealmTV = newRealmHIVPointer(fallbackAllocator, "", "", TypedValue{})
+	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
 }
 
 // OriginRealmTV returns the typed-nil *.grealm used as the prev seed for
@@ -1137,18 +1137,23 @@ func makeUverseNode() {
 				}
 			case *MapType:
 				switch vargsl {
-				case 0:
+				case 0, 1:
+					// The optional size argument is an advisory hint.
+					// GnoVM ignores it: the map is created empty and
+					// grows on insertion, with each item charged then
+					// (via AllocateMapItem).
+					//
+					// This diverges from Go, which preallocates buckets
+					// sized to the hint (Go only forces a 0 hint when it
+					// is negative or large enough to overflow its size
+					// math). GnoVM skips that on purpose: the hint is not
+					// persisted across state recovery, and honoring it
+					// would either double-charge gas for the items or let
+					// a large hint trigger an unmetered Go-level
+					// preallocation. As in Go, no hint value ever panics.
 					m.PushValue(TypedValue{
 						T: tt,
-						V: m.Alloc.NewMap(tt, 0),
-					})
-					return
-				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
-					li := int(lv.ConvertGetInt())
-					m.PushValue(TypedValue{
-						T: tt,
-						V: m.Alloc.NewMap(tt, li),
+						V: m.Alloc.NewMap(tt),
 					})
 					return
 				default:
@@ -1161,6 +1166,9 @@ func makeUverseNode() {
 			}
 		},
 	)
+	// new(T) mints a fresh *HeapItemValue per call, including for
+	// zero-sized T — no runtime.zerobase folding. See the equality
+	// contract on PointerValue (values.go).
 	defNative("new",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
@@ -1546,7 +1554,117 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage(fallbackAllocator)
+	uverseValue = uverseNode.NewPackage(nil)
+
+	sealUverseTypes()
+}
+
+// sealUverseTypes pre-fills the lazily-memoized fields on the shared, process-
+// global uverse type singletons, single-threaded during package init, so they
+// are read-only afterward and the parallel test suites (and `gno test -p`) do
+// not race filling them on first concurrent access.
+//
+// Each Type kind caches metadata on first use — TypeID (and, for interfaces,
+// the in-place sort of the Methods slice that TypeID performs), FuncType.bound
+// (and its own TypeID, returned by method lookups via BoundType), Declared/
+// StructType.pkgID, Interface/StructType effective counts, StructType.comparable
+// (filled at runtime via isEql) — none of which is safe to fill from multiple
+// goroutines. Computing them here once makes the shared type graph immutable.
+// Per-store types are unaffected (each is preprocessed by a single goroutine).
+// DeclaredType.methodIndex is not pre-filled: it builds only past
+// methodIndexThreshold, which no uverse singleton reaches.
+//
+// The set of shared types is everything reachable from the uverse block — both
+// the named types installed via def() (any, error, the primitives, address,
+// realm, ...) and the signatures of the native builtins (whose parameter/result
+// types include shared interfaces like `any`) — plus a few roots not bound to a
+// name in the block (gConcreteRealmPtrType, gByteSliceType).
+func sealUverseTypes() {
+	seen := make(map[Type]bool)
+	var seal func(t Type)
+	seal = func(t Type) {
+		if t == nil || seen[t] {
+			return
+		}
+		seen[t] = true
+		switch ct := t.(type) {
+		case *PointerType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *SliceType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ArrayType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ChanType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *MapType:
+			ct.TypeID()
+			seal(ct.Key)
+			seal(ct.Value)
+		case *FuncType:
+			ct.TypeID()
+			if len(ct.Params) > 0 {
+				// Method lookups (DeclaredType.FindEmbeddedFieldType) return
+				// the bound type and TypeID it at runtime (VerifyImplementedBy),
+				// so seal the bound's own typeid too, not just create it.
+				ct.BoundType().TypeID()
+			}
+			for i := range ct.Params {
+				seal(ct.Params[i].Type)
+			}
+			for i := range ct.Results {
+				seal(ct.Results[i].Type)
+			}
+		case *StructType:
+			ct.TypeID()
+			ct.GetPkgID()
+			isComparable(ct) // fill the comparable tristate
+			effectiveStructSurface(ct, map[Type]struct{}{})
+			for i := range ct.Fields {
+				seal(ct.Fields[i].Type)
+			}
+		case *InterfaceType:
+			if ct.Generic != "" {
+				return // generic uverse type: no TypeID, never concurrently filled
+			}
+			ct.TypeID()
+			effectiveInterfaceMethods(ct, map[Type]struct{}{})
+			for i := range ct.Methods {
+				seal(ct.Methods[i].Type)
+			}
+		case *DeclaredType:
+			ct.TypeID()
+			ct.GetPkgID()
+			seal(ct.Base)
+			for i := range ct.Methods {
+				seal(ct.Methods[i].T)
+			}
+		default:
+			// PrimitiveType, PackageType, TypeType, etc.
+			ct.TypeID()
+		}
+	}
+	for _, t := range []Type{
+		gErrorType, gStringerType, gAddressType, gRealmType,
+		gConcreteRealmType, gConcreteRealmPtrType, gByteSliceType,
+		gPackageType, gTypeType,
+	} {
+		seal(t)
+	}
+	// Walk everything reachable from the uverse block: named types installed
+	// via def() (TypeValue) and the native builtin signatures (*FuncValue),
+	// whose parameter/result types include shared interfaces such as `any`.
+	for i := range uverseNode.Values {
+		switch v := uverseNode.Values[i].V.(type) {
+		case TypeValue:
+			seal(v.Type)
+		case *FuncValue:
+			seal(v.GetType(nil))
+		}
+	}
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

@@ -142,6 +142,18 @@ func EvilObjectWrite(o *launderpkg.Object) {
 	o.Field = "pwnd-via-apply-obj"
 }
 
+// StoredHook is a /p/attack package-level closure: a FuncLit evaluated
+// during /p/launderattack init, so its ObjectInfo.PkgID is stamped
+// /p/launderattack. Unlike a top-level FuncDecl (EvilWrite/EvilObjectWrite,
+// IsClosure=false), invoking a closure triggers PushFrameCall's borrow rule
+// #3, which borrows m.Realm to the closure's construction realm
+// (/p/launderattack). Used to probe rule #3: a write through it to a foreign
+// /r/ object must still be rejected. (If rule #3 ever regressed to a nil
+// borrow, m.Realm would go nil and the write would silently succeed.)
+var StoredHook = func(o *launderpkg.Object) {
+	o.Field = "pwnd-via-stored-closure"
+}
+
 // Tamperer is a stamped /p/attack value (constructed at init under
 // /p/attack's realm context, stamped /p/attack, persisted Frozen).
 // Methods on Tamperer get receiver-borrowed to /p/attack at call
