@@ -1,6 +1,10 @@
 id: current-guard
 title: cur.Previous without cur.IsCurrent
 rule: current_guard
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Check cur.IsCurrent before reading cur.Previous for authorization.
 fixtures:
   - name: vulnerable
     path: ../fixtures/current-guard/vulnerable

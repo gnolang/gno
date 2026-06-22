@@ -1,6 +1,10 @@
 id: payment-user-call
 title: OriginSend without IsUserCall guard
 rule: payment_user_call
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Guard OriginSend handling with cur.Previous().IsUserCall().
 fixtures:
   - name: vulnerable
     path: ../fixtures/payment-user-call/vulnerable

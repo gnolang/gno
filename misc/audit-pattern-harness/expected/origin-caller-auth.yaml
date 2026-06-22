@@ -1,6 +1,10 @@
 id: origin-caller-auth
 title: OriginCaller used as authorization identity
 rule: origin_caller_auth
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Authorize with cur.Previous after cur.IsCurrent instead of OriginCaller.
 fixtures:
   - name: vulnerable
     path: ../fixtures/origin-caller-auth/vulnerable
