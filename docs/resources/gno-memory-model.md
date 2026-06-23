@@ -88,12 +88,13 @@ has been updated.
 
 ### Pointer equality
 
-In Gno, two pointers are equal only when they denote the same slot. Distinct
-zero-sized slots are never equal, even where Go may report them equal:
+In Gno, two pointers are equal only when they point to the same variable. Two
+distinct zero-sized variables are never equal, even where Go may report them
+equal:
 
 ```go
-var a [2]struct{}
-_ = &a[0] == &a[1] // false in Gno; true in Go
+a, b := struct{}{}, struct{}{}
+_ = &a == &b // false in Gno; unspecified in Go
 ```
 
 The Go spec leaves equality of pointers to distinct zero-size variables
