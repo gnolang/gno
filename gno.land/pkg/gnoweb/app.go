@@ -184,8 +184,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux.Handle(assetsBase, http.StripPrefix(assetsBase, assetsHandler))
 
 	// Handle playground API endpoints
-	mux.Handle("/_/api/eval", handlerPlaygroundEval(logger, adpcli, cfg.Domain, cfg.NodeRemote))
-	mux.Handle("/_/api/funcs", handlerPlaygroundFuncs(logger, adpcli))
+	mux.Handle("/_/api/eval", httphandler.Playground.EvalHandler())
+	mux.Handle("/_/api/funcs", httphandler.Playground.FuncsHandler())
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))

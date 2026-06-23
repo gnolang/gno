@@ -1,7 +1,7 @@
 {{/* ===================================================================================
 UI - Run (maketx run) scratchpad
 =================================================================================== */}}
-{{ define "renderRun" }}
+{{ define "renderPage" }}
 <div class="b-run"
   data-controller="run"
   data-run-pkg-path-value="{{ .PkgPath }}"
@@ -26,8 +26,8 @@ UI - Run (maketx run) scratchpad
   </header>
   
   <!-- Code editor -->
-  <div class="b-playground-editor-area">
-    <div class="b-playground-editor" data-run-target="editor"></div>
+  <div class="b-code-editor-area">
+    <div class="b-code-editor" data-run-target="editor"></div>
   </div>
 
   <!-- Command settings -->

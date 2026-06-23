@@ -1,5 +1,5 @@
-import { CodeEditor, isDarkMode } from "./code-editor.js";
-import { BaseController } from "./controller.js";
+import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
+import { BaseController } from "@gnoweb/js/controller.js";
 
 export class RunController extends BaseController {
 	private declare pkgPath: string;
@@ -77,13 +77,25 @@ func main() {
 			`  -gas-fee ${gasFee}`,
 		];
 
-		if (send && send !== "0ugnot") parts.push(`  -send "${send}"`);
-		parts.push("  -broadcast");
-		if (dryRun) parts.push("  -simulate only");
-		if (this.chainId) parts.push(`  -chainid ${this.chainId}`);
-		if (this.remote) parts.push(`  -remote "${this.remote}"`);
-		parts.push(`  ${key} script.gno`);
+		if (send && send !== "0ugnot") {
+			parts.push(`  -send "${send}"`);
+		}
 
+		parts.push("  -broadcast");
+
+		if (dryRun) {
+			parts.push("  -simulate only");
+		}
+
+		if (this.chainId) {
+			parts.push(`  -chainid ${this.chainId}`);
+		}
+
+		if (this.remote) {
+			parts.push(`  -remote "${this.remote}"`);
+		}
+
+		parts.push(`  ${key} script.gno`);
 		return parts.join(" \\\n");
 	}
 

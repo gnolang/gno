@@ -14,6 +14,8 @@ import (
 type MockPackage struct {
 	Path      string
 	Domain    string
+	Remote    string
+	ChainId   string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
 }

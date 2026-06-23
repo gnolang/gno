@@ -5,12 +5,17 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/url"
 	"strings"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
 var html embed.FS
+
+// TemplatesFS exposes the embedded gnoweb component templates so features in
+// sub-packages can reuse shared partials (e.g. the "ui/copy" button icon).
+func TemplatesFS() fs.FS { return html }
 
 var funcMap = template.FuncMap{}
 
@@ -63,6 +68,6 @@ func init() {
 	var err error
 	tmpl, err = tmpl.ParseFS(html, "layouts/*.html", "ui/*.html", "views/*.html")
 	if err != nil {
-		panic("unable to parse embed tempalates: " + err.Error())
+		panic("unable to parse embed templates: " + err.Error())
 	}
 }

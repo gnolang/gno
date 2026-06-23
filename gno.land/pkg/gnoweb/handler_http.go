@@ -2,14 +2,11 @@ package gnoweb
 
 import (
 	"bytes"
-	"compress/flate"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"go/token"
 	"html/template"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -20,19 +17,14 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
 const ReadmeFileName = "README.md"
-
-const defaultPlaygroundCode = `package main
-
-func Render(path string) string {
-	return "Hello, Playground!"
-}
-`
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -106,6 +98,10 @@ type HTTPHandler struct {
 	Client   ClientAdapter
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
+
+	// Features
+	Playground *playground.Handler
+	Run        *run.Handler
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -120,6 +116,19 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Renderer: cfg.Renderer,
 		Aliases:  cfg.Aliases,
 		Logger:   logger,
+		Playground: playground.New(playground.Deps{
+			Client:  &playgroundClientAdapter{cfg.ClientAdapter},
+			Logger:  logger,
+			Domain:  cfg.Meta.Domain,
+			Remote:  cfg.Meta.RemoteHelp,
+			ChainId: cfg.Meta.ChainId,
+		}),
+		Run: run.New(run.Deps{
+			Logger:  logger,
+			Domain:  cfg.Meta.Domain,
+			Remote:  cfg.Meta.RemoteHelp,
+			ChainId: cfg.Meta.ChainId,
+		}),
 	}, nil
 }
 
@@ -272,8 +281,6 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	ctx := r.Context()
-
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// If the alias target exists and is a gnoweb path, replace the URL path with it.
@@ -300,10 +307,10 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		return h.GetMarkdownView(gnourl, indexData, aliasTarget.Value)
-	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser(), gnourl.IsPackageFork():
-		return h.GetPackageView(ctx, gnourl, indexData)
+	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
+		return h.GetPackageView(r, gnourl, indexData)
 	case gnourl.IsPlayground():
-		return h.GetPlaygroundView(gnourl, indexData)
+		return h.Playground.GetPlaygroundView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -334,7 +341,9 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, indexData *componen
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(r *http.Request, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	ctx := r.Context()
+
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -342,12 +351,12 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 
 	// Handle Fork page (fork source to playground)
 	if gnourl.WebQuery.Has("fork") {
-		return h.GetForkView(ctx, gnourl)
+		return h.Playground.GetForkView(ctx, gnourl)
 	}
 
 	// Handle Run page (maketx run scratchpad)
 	if gnourl.WebQuery.Has("run") {
-		return h.GetRunView(ctx, gnourl)
+		return h.Run.GetRunView(gnourl)
 	}
 
 	// Handle Source page
@@ -800,89 +809,6 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
-// GetPlaygroundView renders the standalone playground page.
-func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	indexData.HeadData.Title = "Playground — " + h.Static.Domain
-
-	// Check if we have initial code from query (e.g. shared snippet).
-	// Code can be given as a base64 encoded string or plaintext.
-	// When the "z" query flag is present the base64 payload is also deflate-compressed.
-	initialCode := gnourl.Query.Get("code")
-	decoded, err := base64.StdEncoding.DecodeString(initialCode)
-	if err == nil {
-		if gnourl.Query.Has("z") {
-			r := flate.NewReader(bytes.NewReader(decoded))
-			if plain, err := io.ReadAll(r); err == nil {
-				initialCode = string(plain)
-			}
-
-			r.Close()
-		} else {
-			initialCode = string(decoded)
-		}
-	}
-
-	// Use default code when no code is provided
-	if initialCode == "" {
-		initialCode = defaultPlaygroundCode
-	}
-
-	return http.StatusOK, components.PlaygroundView(components.PlaygroundData{
-		InitialCode: initialCode,
-		Remote:      h.Static.RemoteHelp,
-		ChainId:     h.Static.ChainId,
-		Domain:      h.Static.Domain,
-	})
-}
-
-// GetForkView loads all source files from a package and redirects to playground with the code.
-func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	pkgPath := gnourl.Path
-
-	files, err := h.Client.ListFiles(ctx, pkgPath)
-	if err != nil {
-		h.Logger.Warn("unable to list files for fork", "path", pkgPath, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
-	}
-
-	// Collect all .gno files
-	var allCode strings.Builder
-	for _, fileName := range files {
-		if !strings.HasSuffix(fileName, ".gno") && fileName != "gnomod.toml" {
-			continue
-		}
-		file, _, err := h.Client.File(ctx, pkgPath, fileName)
-		if err != nil {
-			continue
-		}
-		if allCode.Len() > 0 {
-			allCode.WriteString("\n// --- " + fileName + " ---\n\n")
-		} else {
-			allCode.WriteString("// --- " + fileName + " ---\n\n")
-		}
-		allCode.Write(file)
-	}
-
-	return http.StatusOK, components.PlaygroundView(components.PlaygroundData{
-		InitialCode: allCode.String(),
-		ForkFrom:    path.Join(h.Static.Domain, pkgPath),
-		Remote:      h.Static.RemoteHelp,
-		ChainId:     h.Static.ChainId,
-		Domain:      h.Static.Domain,
-		DefaultFile: gnourl.Query.Get("file"),
-	})
-}
-
-// GetRunView renders the maketx run scratchpad for a realm/package.
-func (h *HTTPHandler) GetRunView(_ context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	return http.StatusOK, components.RunView(components.RunData{
-		PkgPath: path.Join(h.Static.Domain, gnourl.Path),
-		Domain:  h.Static.Domain,
-		Remote:  h.Static.RemoteHelp,
-		ChainId: h.Static.ChainId,
-	})
-}
-
 // requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
 // Empty when no host is known; callers fall back to path-relative URLs.
 func requestOrigin(r *http.Request) string {
@@ -969,4 +895,29 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+var _ playground.ClientAdapter = (*playgroundClientAdapter)(nil)
+
+// playgroundClientAdapter adapts ClientAdapter for the playground feature by
+// removing the FileMeta type dependency to break circular dependencies with gnoweb.
+type playgroundClientAdapter struct {
+	client ClientAdapter
+}
+
+func (a *playgroundClientAdapter) ListFiles(ctx context.Context, p string) ([]string, error) {
+	return a.client.ListFiles(ctx, p)
+}
+
+func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) ([]byte, error) {
+	body, _, err := a.client.File(ctx, p, filename)
+	return body, err
+}
+
+func (a *playgroundClientAdapter) Doc(ctx context.Context, p string) (*doc.JSONDocumentation, error) {
+	return a.client.Doc(ctx, p)
+}
+
+func (a *playgroundClientAdapter) Eval(ctx context.Context, data string) ([]byte, error) {
+	return a.client.Eval(ctx, data)
 }

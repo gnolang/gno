@@ -1,7 +1,7 @@
 {{/* ===================================================================================
 LAYOUT - Playground view
 =================================================================================== */}}
-{{ define "renderPlayground" }}
+{{ define "renderPage" }}
 <!-- Playground Content -->
 <div class="b-playground" data-controller="playground"
   data-playground-remote-value="{{ .Remote }}"
@@ -47,7 +47,7 @@ LAYOUT - Playground view
   </header>
 
   <!-- Editor Area -->
-  <div class="b-playground-editor-area">
+  <div class="b-code-editor-area">
     <!-- File tabs -->
     <div class="b-playground-tabs-wrap" data-playground-target="tabs-wrap">
       <div class="b-playground-tabs" data-playground-target="tabs">
@@ -73,7 +73,7 @@ LAYOUT - Playground view
     </div>
 
     <!-- Code editor -->
-    <div class="b-playground-editor" data-playground-target="editor"></div>
+    <div class="b-code-editor" data-playground-target="editor"></div>
     <textarea data-playground-target="initial-code" hidden>{{ .InitialCode }}</textarea>
   </div>
 
