@@ -35,10 +35,19 @@ func (m *Machine) doOpValueDecl() {
 
 		if isUntyped(tv.T) {
 			if !s.Const {
-				if m.Stage != StagePre && rvs[i].T.Kind() != BoolKind {
-					panic("untyped conversion should not happen at runtime")
+				if m.Stage != StagePre {
+					// Only untyped bools (from comparisons) reach here
+					// at runtime; retype directly. This also keeps
+					// tv's address out of ConvertUntypedTo, which
+					// would otherwise make tv escape to the heap once
+					// per declaration executed.
+					if rvs[i].T.Kind() != BoolKind {
+						panic("untyped conversion should not happen at runtime")
+					}
+					tv.T = BoolType
+				} else {
+					tv = convertUntypedByValue(tv)
 				}
-				ConvertUntypedTo(&tv, nil)
 			}
 		} else if nt != nil {
 			// if nt.T is an interface, maintain tv.T as-is.
@@ -70,4 +79,12 @@ func (m *Machine) doOpTypeDecl() {
 	last := m.LastBlock()
 	ptr := last.GetPointerTo(m.Store, s.Path)
 	ptr.Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
+}
+
+// convertUntypedByValue performs the preprocess-stage (cold path) untyped
+// conversion for doOpValueDecl by value, so that the caller's hot-path
+// variable never has its address taken.
+func convertUntypedByValue(tv TypedValue) TypedValue {
+	ConvertUntypedTo(&tv, nil)
+	return tv
 }

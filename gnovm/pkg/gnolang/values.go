@@ -109,8 +109,12 @@ func (biv *BigintValue) UnmarshalAmino(s string) error {
 	return nil
 }
 
+// Copy returns biv itself: BigintValues are immutable at runtime (all
+// arithmetic allocates fresh results, conversions only read), so the
+// underlying *big.Int can be shared. No allocator charge was ever made
+// here, so sharing is gas-neutral.
 func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
-	return BigintValue{V: big.NewInt(0).Set(biv.V)}
+	return biv
 }
 
 // ----------------------------------------
@@ -138,13 +142,11 @@ func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 	return nil
 }
 
+// Copy returns bdv itself: like BigintValues, BigdecValues are immutable at
+// runtime (apd operations write into fresh receivers), so the underlying
+// *apd.Decimal can be shared. Gas-neutral: no allocator charge existed here.
 func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
-	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
-	if err != nil {
-		panic("should not happen")
-	}
-	return BigdecValue{V: cp}
+	return bdv
 }
 
 // ----------------------------------------
