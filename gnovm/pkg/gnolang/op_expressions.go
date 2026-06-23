@@ -240,7 +240,6 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -255,7 +254,7 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			err := it.VerifyImplementedBy(xt)
+			err := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt)
 			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
@@ -321,7 +320,6 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -332,7 +330,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := it.IsImplementedBy(xt)
+			impl := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt) == nil
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
