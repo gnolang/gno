@@ -216,9 +216,12 @@ func (m *Machine) doOpExec(op Op) {
 					m.pushPanic(typedString("runtime error: nil pointer dereference"))
 					return
 				}
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				if !ok {
+					iv := TypedValue{T: IntType}
+					iv.SetInt(int64(bs.ListIndex))
+					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				}
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
