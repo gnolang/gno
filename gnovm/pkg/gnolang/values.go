@@ -355,8 +355,20 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	var cp *ArrayValue
 	if av.Data == nil {
 		cp = alloc.NewListArray(t, len(av.List))
-		for i, tv := range av.List {
-			cp.List[i] = tv.Copy(alloc)
+		if at, ok := baseOf(t).(*ArrayType); ok && at.Elt != nil && at.Elt.Kind() == InterfaceKind {
+			// The elements are interface slots, whose contents are
+			// sealed: every write into an interface slot copies on
+			// entry, interface-held values are not addressable, and
+			// extracting one (type assertion) copies again. Share them
+			// instead of deep-copying — mirroring Go, where copying an
+			// array of interfaces copies the boxes' headers. This also
+			// keeps chains like `x = [1]any{x}` linear instead of
+			// quadratic.
+			copy(cp.List, av.List)
+		} else {
+			for i, tv := range av.List {
+				cp.List[i] = tv.Copy(alloc)
+			}
 		}
 	} else {
 		cp = alloc.NewDataArray(t, len(av.Data))
@@ -1070,6 +1082,11 @@ func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
 
+// Copy returns a value copy of tv, deep-copying array, struct and bigint
+// values. Contents held in interface-kind slots are shared rather than
+// deep-copied (see ArrayValue.Copy): they are sealed, since every write into
+// an interface slot copies on entry, interface-held values are not
+// addressable, and extraction (type assertion) copies again.
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	switch cv := tv.V.(type) {
 	case BigintValue:
