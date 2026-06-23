@@ -45,6 +45,8 @@ func TestVestingSchedule_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := tt.schedule.Validate()
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -89,6 +91,8 @@ func TestContinuousVestingAccount_GetVestedCoins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			vested := cva.GetVestedCoins(tt.blockTime)
 			gotAmt := vested.AmountOf("ugnot")
 			assert.Equal(t, tt.wantAmt, gotAmt, "vested amount mismatch")
