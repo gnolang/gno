@@ -2250,10 +2250,23 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 //     blocks; file blocks are referenced by FuncValue.Parent);
 //   - blocks captured as a pending Defer.Parent, which the garbage
 //     collector visits until the defer runs (see Block.setNoRecycle);
-//   - blocks attached to the realm (real or with an ObjectID), as
-//     insurance;
+//   - blocks with a finalized ObjectID (already persisted to realm
+//     state) or marked new-real (reachable from the realm graph and
+//     pending an ObjectID at finalize), as insurance against aliasing
+//     with live realm state;
 //   - anything discarded while a panic is unwinding (cheap conservatism;
 //     the exception path is cold).
+//
+// The finalized check (rather than !IsZero) is what lets the pool fire
+// during realm execution: stampPkgID sets PkgID at allocation, so every
+// realm-allocated block has a non-zero ObjectID, but only finalized
+// blocks (NewTime != 0) are actually persisted. The IsNewReal check
+// covers the mid-transaction window where a block has been marked
+// reachable from the realm graph but assignNewObjectID has not yet run
+// (GetIsReal is just IsFinalized, so it would not catch that window).
+// Runtime scope/call blocks never enter that state — they are not
+// reachable from realm storage (closures capture heap items, not blocks)
+// — so this is belt-and-suspenders, not a hot exclusion.
 func (m *Machine) releaseBlock(b *Block) {
 	if len(m.blockPool) >= blockPoolLimit || b.isNoRecycle() || m.Exception != nil {
 		return
@@ -2265,8 +2278,22 @@ func (m *Machine) releaseBlock(b *Block) {
 	if b.Source.GetStaticBlock().GetBlock() == b {
 		return
 	}
-	if oi := b.GetObjectInfo(); !oi.ID.IsZero() || oi.GetIsReal() {
+	if oi := b.GetObjectInfo(); oi.ID.IsFinalized() || oi.GetIsNewReal() {
 		return
+	}
+	if debugAssert {
+		// Core invariant: a recycled block is provably dead. The only
+		// stack-traveling reference that can outlive a pop is Defer.Parent,
+		// which setNoRecycle excludes. Guard against any future path that
+		// reaches here with that flag missing (a forgotten setNoRecycle, a
+		// new long-lived block reference, etc.).
+		for fi := range m.Frames {
+			for di := range m.Frames[fi].Defers {
+				if m.Frames[fi].Defers[di].Parent == b {
+					panic("releaseBlock: recycling a block still referenced as a pending Defer.Parent")
+				}
+			}
+		}
 	}
 	values := b.Values[:cap(b.Values)]
 	clear(values)
