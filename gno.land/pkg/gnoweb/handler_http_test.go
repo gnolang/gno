@@ -1470,6 +1470,135 @@ func TestGetHelpView_BackslashEscapingIssueFixed(t *testing.T) {
 	require.Contains(t, body, "`_`")
 }
 
+// TestHTTPHandler_MarkdownNegotiation verifies that an explicit Accept:
+// text/markdown yields the raw realm markdown (no HTML layout), while other
+// Accept values fall back to HTML. Vary: Accept is always present.
+func TestHTTPHandler_MarkdownNegotiation(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "hello" }`,
+		},
+		Functions: []*doc.JSONFunc{
+			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
+		},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name     string
+		accept   string
+		wantCT   string
+		markdown bool // true => raw markdown body (no HTML layout)
+	}{
+		{"explicit markdown", "text/markdown", "text/markdown; charset=utf-8", true},
+		{"x-markdown alias", "text/x-markdown", "text/markdown; charset=utf-8", true},
+		{"markdown with charset", "text/markdown; charset=utf-8", "text/markdown; charset=utf-8", true},
+		{"browser accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "text/html; charset=utf-8", false},
+		{"wildcard only", "*/*", "text/html; charset=utf-8", false},
+		{"markdown refused q0", "text/markdown;q=0", "text/html; charset=utf-8", false},
+		{"no accept header", "", "text/html; charset=utf-8", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, "/r/mock/path", nil)
+			require.NoError(t, err)
+			if tc.accept != "" {
+				req.Header.Set("Accept", tc.accept)
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			assert.Equal(t, tc.wantCT, rr.Header().Get("Content-Type"))
+			assert.Contains(t, rr.Header().Values("Vary"), "Accept")
+
+			body := rr.Body.String()
+			if tc.markdown {
+				assert.NotContains(t, body, "<!doctype html>")
+				assert.Contains(t, body, "[example.com]/r/mock/path") // from MockClient.Realm
+			} else {
+				assert.Contains(t, body, "<!doctype html>")
+			}
+		})
+	}
+}
+
+// TestHTTPHandler_MarkdownNegotiation_StaticAlias verifies a StaticMarkdown
+// alias is served verbatim under Accept: text/markdown.
+func TestHTTPHandler_MarkdownNegotiation_StaticAlias(t *testing.T) {
+	t.Parallel()
+
+	const md = "# About\n\nStatic markdown content.\n"
+	config := &gnoweb.HTTPHandlerConfig{
+		ClientAdapter: gnoweb.NewMockClient(),
+		Renderer:      &rawRenderer{},
+		Aliases: map[string]gnoweb.AliasTarget{
+			"/about": {Value: md, Kind: gnoweb.StaticMarkdown},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/about", nil)
+	require.NoError(t, err)
+	req.Header.Set("Accept", "text/markdown")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "text/markdown; charset=utf-8", rr.Header().Get("Content-Type"))
+	assert.Equal(t, md, rr.Body.String())
+}
+
+// TestHTTPHandler_MarkdownNegotiation_NoRenderFallsBackToHTML verifies that a
+// realm without a Render() function falls back to the HTML directory view even
+// when markdown is requested. This guards the ordering invariant: the markdown
+// short-circuit sits AFTER the fetch error-switch, not before it.
+func TestHTTPHandler_MarkdownNegotiation_NoRenderFallsBackToHTML(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/norender/path",
+		Files: map[string]string{
+			"a.gno":   `package main; func init() {}`,
+			"gno.mod": `module example.com/r/norender/path`,
+		},
+		Functions: []*doc.JSONFunc{}, // no Render
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/r/norender/path", nil)
+	require.NoError(t, err)
+	req.Header.Set("Accept", "text/markdown")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Fell back to the HTML directory view, NOT markdown.
+	assert.Equal(t, "text/html; charset=utf-8", rr.Header().Get("Content-Type"))
+	assert.Contains(t, rr.Body.String(), "<!doctype html>")
+}
+
 func TestHTTPHandler_ThemeCookie(t *testing.T) {
 	t.Parallel()
 

@@ -118,7 +118,9 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		// The same URL can return HTML or markdown depending on Accept.
+		w.Header().Set("Vary", "Accept")
 		h.Get(w, r)
 	case http.MethodPost:
 		h.Post(w, r)
@@ -195,8 +197,22 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
+	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
+
+	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+
+	// The realm and static-markdown paths return a markdown view; serve its
+	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
+	if bodyView.Type == components.MarkdownViewType {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.WriteHeader(status)
+		if err := bodyView.Render(w); err != nil {
+			h.Logger.Error("failed to render markdown view", "error", err)
+		}
+		return
+	}
+
+	indexData.BodyView = bodyView
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -258,7 +274,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
-func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	ctx := r.Context()
 
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
@@ -286,10 +302,13 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		if wantMarkdown {
+			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
+		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -318,7 +337,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -340,24 +359,40 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Ultimately get realm view
+	if wantMarkdown {
+		return h.GetMarkdownRealmView(ctx, gnourl, indexData)
+	}
 	return h.GetRealmView(ctx, gnourl, indexData)
 }
 
-// GetRealmView renders a realm page or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	// First fecth the realm
+// fetchRealm fetches a realm's raw Render() output. On success it returns the
+// bytes with ok=true and the status/fallback unset. When the realm cannot be
+// rendered it returns ok=false with the HTML fallback view and status to send as-is.
+func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) ([]byte, int, *components.View, bool) {
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
-	case err == nil: // ok
+	case err == nil:
+		return raw, 0, nil, true
 	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
-		return h.GetDirectoryView(ctx, gnourl, indexData)
+		status, view := h.GetDirectoryView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
-		return h.GetPathsListView(ctx, gnourl, indexData)
+		status, view := h.GetPathsListView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		status, view := GetClientErrorStatusPage(gnourl, err)
+		return nil, status, view, false
+	}
+}
+
+// GetRealmView renders a realm page as HTML, or returns an error/status if not available.
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
 	}
 
 	var content bytes.Buffer
@@ -379,6 +414,16 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		// sanitized before rendering
 		ComponentContent: components.NewReaderComponent(&content),
 	})
+}
+
+// GetMarkdownRealmView serves a realm's raw Render() output as text/markdown. It
+// falls back to the directory, paths-list, or error view when the realm cannot be fetched.
+func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
+	}
+	return http.StatusOK, components.MarkdownView(raw)
 }
 
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
