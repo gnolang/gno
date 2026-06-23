@@ -2,7 +2,7 @@
 // solitaire board game.
 // http://en.wikipedia.org/wiki/Peg_solitaire
 
-package main
+package testing
 
 import "fmt"
 
@@ -32,7 +32,7 @@ var board = []rune(
 // there is a single one; otherwise it is -1.
 var center int
 
-func init() {
+func initialize() {
 	n := 0
 	for pos, field := range board {
 		if field == '○' {
@@ -109,12 +109,13 @@ func solve() bool {
 	return false
 }
 
-func main() {
+func ExampleZSolitaire() {
+	initialize()
 	if !solve() {
 		fmt.Println("no solution found")
 	}
 	fmt.Println(moves, "moves tried")
-}
 
-// Output:
-// 391865 moves tried
+	// Output:
+	// 391865 moves tried
+}
