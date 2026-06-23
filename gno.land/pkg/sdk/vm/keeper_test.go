@@ -2381,7 +2381,7 @@ func GetParent() *Parent {
 	})
 
 	// Regression test: persisted slice with RefValue base should not panic
-	// This tests the fix for passing m.Store instead of nil to GetPointerAtIndexInt2
+	// This tests the fix for passing m.Store instead of nil to GetElementPointer
 	t.Run("persisted_slice_of_primitives", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/persisted12"
 		pkgBody := `package persisted12
