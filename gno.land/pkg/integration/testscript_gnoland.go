@@ -193,6 +193,12 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 				return
 			}
 
+			// Drop the node from the manager so it (and its in-memory store,
+			// which retains the per-node stdlib cache) becomes collectable once
+			// the script ends. Without this the manager — which lives for the
+			// whole TestTestdata run — pins every node, leaking ~50 MB/script.
+			nodesManager.Delete(sid)
+
 			if err := n.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				env.T().Fatal(err.Error())
@@ -262,6 +268,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
+			maxGas := fs.Int64("max-gas", 0, "override block max gas (0 = use default)")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -274,6 +281,9 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			}
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
+			if *maxGas > 0 {
+				cfg.Genesis.ConsensusParams.Block.MaxGas = *maxGas
+			}
 			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
