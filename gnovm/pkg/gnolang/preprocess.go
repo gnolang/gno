@@ -2893,8 +2893,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IncDecStmt:
-				xt := evalStaticTypeOf(store, last, n.X)
-				n.AssertCompatible(xt)
+				n.AssertCompatible(store, last)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
@@ -4299,10 +4298,10 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	// store.GetAllocator() may be nil here — store.BeginTransaction
-	// below forks alloc which propagates nil — and we need a non-nil
-	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
-	// is throwaway, never persisted.
-	pv := pn.NewPackage(fallbackAllocator) // throwaway
+	// below forks alloc which propagates nil — and that's fine: this
+	// PackageValue is a throwaway, never persisted, so a nil (no-op)
+	// allocator suffices.
+	pv := pn.NewPackage(nil) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4732,8 +4731,14 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
-		// e.g. int(1) == int8(1)
-		mustAssignableTo(n, cx.T, t)
+		// A nil t means "no destination type, just default-convert below"
+		// (the typeless `var x = <expr>` path and recursive untyped-operand
+		// calls). It must be guarded here: checkAssignableTo now panics on a
+		// nil dt rather than treating it as a no-op.
+		if t != nil {
+			// e.g. int(1) == int8(1)
+			mustAssignableTo(n, cx.T, t)
+		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		if debug {
@@ -4750,7 +4755,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
 			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
-		} else {
+		} else if t != nil {
 			mustAssignableTo(n, xt, t)
 		}
 		return
@@ -4797,7 +4802,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
-				mustAssignableTo(n, xt, t)
+				if t != nil {
+					mustAssignableTo(n, xt, t)
+				}
 
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
@@ -4922,8 +4929,8 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
 		// special-case in append-iface-nil at line ~1804). The
 		// conversion lands in a ConstExpr that isn't persisted directly,
-		// so use fallbackAllocator: no stamping needed.
-		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
+		// so use a nil (no-op) allocator: no stamping needed.
+		ConvertTo(nil, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }
@@ -6046,6 +6053,25 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							xt = pt.Elt
 						}
 						dt, ok := xt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
+					case VPField:
+						// VPField is struct-field access (s.F) or an unbound
+						// method expression (T.M, (*T).M). Only the latter
+						// evaluates n.X as a type, so ATTR_TYPE_VALUE holds
+						// the receiver type; struct fields lack it and break.
+						rt, ok := n.X.GetAttribute(ATTR_TYPE_VALUE).(Type)
+						if !ok {
+							break
+						}
+						// Unwrap a pointer receiver, covering both (*T).M and
+						// the pointer-alias form (`type P = *T; P.M`).
+						if pt, ok := rt.(*PointerType); ok {
+							rt = pt.Elt
+						}
+						dt, ok := rt.(*DeclaredType)
 						if !ok || dt.PkgPath != pn.PkgPath {
 							break
 						}

@@ -26,6 +26,10 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
+		if res, ok := xv.GetByteAtIndexInt(m.Store, int(iv.ConvertGetInt())); ok {
+			*xv = res // reuse as result
+			return
+		}
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
@@ -791,8 +795,7 @@ func (m *Machine) doOpConvert() {
 		} else if t.Kind() == StringKind {
 			// runes ([]int32) → string
 			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
-				sv := xv.V.(*SliceValue)
-				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(sv.GetLength()))
+				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
 			}
 		}
 	}
