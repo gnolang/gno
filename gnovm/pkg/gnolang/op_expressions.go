@@ -26,7 +26,7 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
-		if res, ok := xv.GetValueAtIntIndex(m.Store, int(iv.ConvertGetInt())); ok {
+		if res, ok := xv.GetByteAtIndexInt(m.Store, int(iv.ConvertGetInt())); ok {
 			*xv = res // reuse as result
 			return
 		}

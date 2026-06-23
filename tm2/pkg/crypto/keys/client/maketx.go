@@ -1,11 +1,13 @@
 package client
 
 import (
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -177,6 +179,7 @@ func SignAndBroadcastHandler(
 	nameOrBech32 string,
 	tx std.Tx,
 	pass string,
+	io commands.IO,
 ) (*types.ResultBroadcastTxCommit, error) {
 	baseopts := cfg.RootCfg
 	txopts := cfg
@@ -191,6 +194,15 @@ func SignAndBroadcastHandler(
 		return nil, err
 	}
 	accountAddr := info.GetAddress()
+
+	var maxGasCh chan consensusMaxGasResult
+	if cfg.Simulate != SimulateSkip {
+		maxGasCh = make(chan consensusMaxGasResult, 1)
+		go func() {
+			maxGas, err := fetchConsensusMaxGas(baseopts.Remote)
+			maxGasCh <- consensusMaxGasResult{maxGas: maxGas, err: err}
+		}()
+	}
 
 	// query for the account number and sequence
 	var accountNumber uint64
@@ -266,14 +278,17 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to add signature: %w", err)
 	}
 
+	maxGas := resolveMaxGas(maxGasCh, io)
+
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
 		tx:      &tx,
 
-		DryRun:       cfg.Simulate == SimulateOnly,
-		testSimulate: cfg.Simulate == SimulateTest,
-		GasFeeMargin: cfg.GasFeeMargin,
+		DryRun:         cfg.Simulate == SimulateOnly,
+		testSimulate:   cfg.Simulate == SimulateTest,
+		simulateMaxGas: maxGas,
+		GasFeeMargin:   cfg.GasFeeMargin,
 	}
 
 	return BroadcastHandler(bopts)
@@ -306,7 +321,7 @@ func ExecSignAndBroadcast(
 		return err
 	}
 
-	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
+	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass, io)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
@@ -314,9 +329,7 @@ func ExecSignAndBroadcast(
 		return errors.Wrapf(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		return handleDeliverResult(cfg.RootCfg, tx, bres, io)
 	}
 
 	if cfg.RootCfg.OnTxSuccess != nil {
@@ -333,4 +346,57 @@ func ExecSignAndBroadcast(
 	}
 
 	return nil
+}
+
+// handleDeliverResult handles a failed DeliverTx by invoking OnTxFailure or printing defaults.
+func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxCommit, io commands.IO) error {
+	if cfg.OnTxFailure != nil {
+		cfg.OnTxFailure(tx, bres)
+	} else {
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", bres.Height)
+		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	}
+	return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+}
+
+type consensusMaxGasResult struct {
+	maxGas int64
+	err    error
+}
+
+func resolveMaxGas(ch chan consensusMaxGasResult, io commands.IO) int64 {
+	if ch == nil {
+		return 0
+	}
+	res := <-ch
+	if res.err != nil {
+		io.ErrPrintfln("warning: could not fetch consensus max gas, simulated gas limit will be unbounded: %v", res.err)
+		return 0
+	}
+	return res.maxGas
+}
+
+func fetchConsensusMaxGas(remote string) (int64, error) {
+	if remote == "" {
+		return 0, errors.New("missing remote url")
+	}
+
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := cli.ConsensusParams(context.Background(), nil)
+	if err != nil {
+		return 0, err
+	}
+	if res == nil || res.ConsensusParams.Block == nil {
+		return 0, nil
+	}
+
+	return res.ConsensusParams.Block.MaxGas, nil
 }
