@@ -199,10 +199,11 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 				std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
 			return
 		}
+		res.Height = req.Height
 		res.Data = bz
 		return
 	case QuerySessions:
-		return ah.querySessions(ctx, addr)
+		return ah.querySessions(ctx, req, addr)
 	case QuerySessionAccount:
 		sessionB32 := fifthPart(req.Path)
 		sessionAddr, err := crypto.AddressFromBech32(sessionB32)
@@ -212,7 +213,7 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 					"invalid session query address " + sessionB32))
 			return
 		}
-		return ah.querySession(ctx, addr, sessionAddr)
+		return ah.querySession(ctx, req, addr, sessionAddr)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown account sub-query: " + subQuery))
@@ -221,7 +222,7 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 }
 
 // querySessions returns all session accounts for a master address.
-func (ah authHandler) querySessions(ctx sdk.Context, master crypto.Address) (res abci.ResponseQuery) {
+func (ah authHandler) querySessions(ctx sdk.Context, req abci.RequestQuery, master crypto.Address) (res abci.ResponseQuery) {
 	var sessions []std.Account
 	ah.acck.IterateSessions(ctx, master, func(acc std.Account) bool {
 		sessions = append(sessions, acc)
@@ -233,12 +234,13 @@ func (ah authHandler) querySessions(ctx sdk.Context, master crypto.Address) (res
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
 		return
 	}
+	res.Height = req.Height
 	res.Data = bz
 	return
 }
 
 // querySession returns a specific session account for a master address.
-func (ah authHandler) querySession(ctx sdk.Context, master, session crypto.Address) (res abci.ResponseQuery) {
+func (ah authHandler) querySession(ctx sdk.Context, req abci.RequestQuery, master, session crypto.Address) (res abci.ResponseQuery) {
 	acc := ah.acck.GetSessionAccount(ctx, master, session)
 	if acc == nil {
 		res = sdk.ABCIResponseQueryFromError(
@@ -251,6 +253,7 @@ func (ah authHandler) querySession(ctx sdk.Context, master, session crypto.Addre
 			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
 		return
 	}
+	res.Height = req.Height
 	res.Data = bz
 	return
 }
@@ -267,6 +270,7 @@ func (ah authHandler) queryGasPrice(ctx sdk.Context, req abci.RequestQuery) (res
 		return
 	}
 
+	res.Height = req.Height
 	res.Data = bz
 	return
 }
