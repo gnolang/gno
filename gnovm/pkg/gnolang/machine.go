@@ -2210,21 +2210,38 @@ func (m *Machine) PopBlock() (b *Block) {
 // nested scope pops; small enough that an idle machine pins little memory.
 const blockPoolLimit = 32
 
+// blockPoolValueCap is the uniform Values capacity newPooledBlock gives the
+// blocks it allocates, so a recycled block can serve most later acquires
+// without a too-small miss. It is sized to max out Go 1.26's 576-byte size
+// class: a scannable []TypedValue (40B/elem) over 512B gets an 8B malloc
+// header, so the 576 class yields 576-8=568 usable bytes = 14 slots. That
+// class is already forced by the size-13 cluster at the p99 of observed
+// runtime block sizes, so slots 13-14 cost no extra allocation, and cap 14
+// covers ~99.3% of blocks. Gas is unaffected: AllocateBlock charges
+// numNames, never capacity.
+const blockPoolValueCap = 14
+
 // acquireBlock returns a block recycled from the machine's pool when one
 // with sufficient capacity is available, and otherwise falls back to
-// Allocator.NewBlock. Both paths perform identical allocator (gas)
+// Allocator.newPooledBlock. Both paths perform identical allocator (gas)
 // accounting and heap item setup; pooling only avoids the Go heap
 // allocations. Used by the runtime ops creating scope and call blocks;
 // package, file and preprocess blocks do not go through here.
+//
+// Misses allocate via newPooledBlock, which over-sizes Values to
+// blockPoolValueCap so the resulting block can serve most later acquires
+// without a too-small miss (the pool is a LIFO stack and acquireBlock only
+// inspects the top block, so a too-small top forces a miss even when a
+// larger block sits deeper).
 func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
+	numNames := int(source.GetNumNames())
 	n := len(m.blockPool)
 	if n == 0 {
-		return m.Alloc.NewBlock(source, parent)
+		return m.Alloc.newPooledBlock(source, parent)
 	}
-	numNames := int(source.GetNumNames())
 	b := m.blockPool[n-1]
 	if cap(b.Values) < numNames {
-		return m.Alloc.NewBlock(source, parent)
+		return m.Alloc.newPooledBlock(source, parent)
 	}
 	m.blockPool[n-1] = nil
 	m.blockPool = m.blockPool[:n-1]

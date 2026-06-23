@@ -678,6 +678,15 @@ func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	return NewBlock(alloc, source, parent)
 }
 
+// newPooledBlock allocates a block for Machine.acquireBlock's pool, over-sizing
+// its Values capacity to blockPoolValueCap so it can later be recycled for most
+// block sizes without a too-small miss. Gas/alloc accounting is identical to
+// NewBlock — AllocateBlock charges numNames, never capacity.
+func (alloc *Allocator) newPooledBlock(source BlockNode, parent *Block) *Block {
+	alloc.AllocateBlock(int64(source.GetNumNames()))
+	return newBlockWithValueCap(alloc, source, parent, blockPoolValueCap)
+}
+
 func (alloc *Allocator) NewType(t Type) Type {
 	alloc.AllocateType()
 	return t

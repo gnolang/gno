@@ -2478,8 +2478,21 @@ func initHeapItems(alloc *Allocator, values []TypedValue, source BlockNode) {
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
-	numNames := source.GetNumNames()
-	values := make([]TypedValue, numNames)
+	return newBlockWithValueCap(alloc, source, parent, 0)
+}
+
+// newBlockWithValueCap is NewBlock with a minimum Values capacity, clamped up
+// to numNames (pass minCap 0 for an exact fit). The pool uses minCap to
+// over-allocate so recycled blocks serve most later acquires; see
+// blockPoolValueCap. The extra capacity is a Go-heap concern only — gas/alloc
+// accounting (AllocateBlock) is by numNames, independent of capacity.
+func newBlockWithValueCap(alloc *Allocator, source BlockNode, parent *Block, minCap int) *Block {
+	numNames := int(source.GetNumNames())
+	capacity := numNames
+	if minCap > capacity {
+		capacity = minCap
+	}
+	values := make([]TypedValue, numNames, capacity)
 	initHeapItems(alloc, values, source)
 	blk := &Block{
 		Source: source,
