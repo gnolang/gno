@@ -216,7 +216,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.pushPanic(typedString("runtime error: nil pointer dereference"))
 					return
 				}
-				ev, ok := xv.GetValueAtIntIndex(m.Store, bs.ListIndex)
+				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
 				if !ok {
 					iv := TypedValue{T: IntType}
 					iv.SetInt(int64(bs.ListIndex))

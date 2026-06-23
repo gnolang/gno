@@ -686,8 +686,10 @@ func makeUverseNode() {
 
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
-								// Per-element DidUpdate calls below are sufficient
-								// to mark arg0Base dirty; no top-level call needed.
+								// The list-source sub-branch marks arg0Base dirty via
+								// per-element DidUpdate; the data-source sub-branch must
+								// call DidUpdate itself, because copyDataToList writes raw
+								// bytes into arg0Base.List without going through Assign2.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
@@ -719,6 +721,9 @@ func makeUverseNode() {
 										)
 									}
 								} else {
+									// Mark arg0Base dirty before the raw copyDataToList
+									// write (see the branch comment above).
+									m.Realm.DidUpdate(m, arg0Base, nil, nil)
 									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copyDataToList(
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -890,23 +895,24 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// DidUpdate is required here even though Assign2 is called per
-				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
-				// returns a DataByteType pointer and Assign2 returns early for that
-				// case without calling DidUpdate. The top-level call ensures the
-				// backing array is always marked dirty in the realm store.
+				// The fast path below writes raw bytes straight into
+				// dstBase.Data, bypassing Assign2 — so this top-level DidUpdate
+				// is what marks the backing array dirty and enforces cross-realm
+				// write permissions (mirroring append). In the slow per-element
+				// path Assign2's DataByteType branch also calls DidUpdate, making
+				// this redundant but harmless there.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
-				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
+				// PointerValue.Assign2 fast-paths DataByteType: just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
 				if dstBase.Data != nil {
 					// Copy string bytes directly into the Data-backed
 					// destination, instead of materializing a heap-allocated
-					// pointer box per element (see GetPointerAtIndexInt2).
+					// pointer box per element (see GetElementPointer).
 					copy(dstBase.Data[dstv.Offset:dstv.Offset+minl], src.TV.GetString())
 				} else {
 					for i := range minl {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
 						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
@@ -932,7 +938,9 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// Same as above: DidUpdate is required for the DataByte case.
+				// Same as above: the Data-backed fast path bypasses Assign2, so
+				// this top-level DidUpdate marks the array dirty and enforces
+				// cross-realm write permissions.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
@@ -944,7 +952,7 @@ func makeUverseNode() {
 				if dstBase.Data != nil && srcBase.Data != nil {
 					// Copy bytes directly between Data-backed slices, instead
 					// of materializing two heap-allocated pointer boxes per
-					// element (see GetPointerAtIndexInt2). Go's copy is
+					// element (see GetElementPointer). Go's copy is
 					// overlap-safe in both directions.
 					copy(dstBase.Data[dstStart:dstStart+minl], srcBase.Data[srcStart:srcEnd])
 				} else {
@@ -959,8 +967,8 @@ func makeUverseNode() {
 						end = -1
 					}
 					for i := start; i != end; i += step {
-						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := srcv.GetElementPointer(m.Store, i, bst.Elt)
 						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 				}
