@@ -2488,10 +2488,7 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 // accounting (AllocateBlock) is by numNames, independent of capacity.
 func newBlockWithValueCap(alloc *Allocator, source BlockNode, parent *Block, minCap int) *Block {
 	numNames := int(source.GetNumNames())
-	capacity := numNames
-	if minCap > capacity {
-		capacity = minCap
-	}
+	capacity := max(minCap, numNames)
 	values := make([]TypedValue, numNames, capacity)
 	initHeapItems(alloc, values, source)
 	blk := &Block{

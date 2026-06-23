@@ -2214,11 +2214,7 @@ const blockPoolLimit = 32
 // blocks it allocates, so a recycled block can serve most later acquires
 // without a too-small miss. It is sized to max out Go 1.26's 576-byte size
 // class: a scannable []TypedValue (40B/elem) over 512B gets an 8B malloc
-// header, so the 576 class yields 576-8=568 usable bytes = 14 slots. That
-// class is already forced by the size-13 cluster at the p99 of observed
-// runtime block sizes, so slots 13-14 cost no extra allocation, and cap 14
-// covers ~99.3% of blocks. Gas is unaffected: AllocateBlock charges
-// numNames, never capacity.
+// header, so the 576 class yields 576-8=568 usable bytes = 14 slots.
 const blockPoolValueCap = 14
 
 // acquireBlock returns a block recycled from the machine's pool when one
@@ -2285,9 +2281,15 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // reachable from realm storage (closures capture heap items, not blocks)
 // — so this is belt-and-suspenders, not a hot exclusion.
 func (m *Machine) releaseBlock(b *Block) {
-	if len(m.blockPool) >= blockPoolLimit || b.isNoRecycle() || m.Exception != nil {
+	// exclusion conditions:
+	// pool over capacity, explicitly no-recycle, panicking or cap(values) below target.
+	if len(m.blockPool) >= blockPoolLimit ||
+		b.isNoRecycle() ||
+		m.Exception != nil ||
+		cap(b.Values) < blockPoolValueCap {
 		return
 	}
+	// exclude if we detect that block is stored
 	switch b.Source.(type) {
 	case nil, RefNode, *FileNode, *PackageNode:
 		return
@@ -2312,7 +2314,7 @@ func (m *Machine) releaseBlock(b *Block) {
 			}
 		}
 	}
-	values := b.Values[:cap(b.Values)]
+	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
 	clear(values)
 	*b = Block{Values: values[:0]}
 	m.blockPool = append(m.blockPool, b)
