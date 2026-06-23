@@ -411,10 +411,11 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 			}
 		} else {
 			// Query the session info
-			account, _, err = c.QuerySessionAccount(c.Signer.GetMaster(), signerInfo.GetAddress())
+			sessionAccount, _, err := c.QuerySessionAccount(c.Signer.GetMaster(), signerInfo.GetAddress())
 			if err != nil {
 				return nil, errors.Wrap(err, "query session account")
 			}
+			account = &sessionAccount.BaseSessionAccount.BaseAccount
 		}
 		accountNumber = account.AccountNumber
 		sequenceNumber = account.Sequence
