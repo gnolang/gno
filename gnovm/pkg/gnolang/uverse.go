@@ -882,8 +882,6 @@ func makeUverseNode() {
 					panic("should not happen")
 				}
 				// NOTE: this implementation is almost identical to the next one.
-				// note that in some cases optimization
-				// is possible if dstv.Data != nil.
 				dstl := dst.TV.GetLength()
 				srcl := src.TV.GetLength()
 				minl := min(srcl, dstl)
@@ -897,20 +895,27 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// DidUpdate is required here even though Assign2 is called per
-				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
-				// returns a DataByteType pointer and Assign2 returns early for that
-				// case without calling DidUpdate. The top-level call ensures the
-				// backing array is always marked dirty in the realm store.
+				// The fast path below writes raw bytes straight into
+				// dstBase.Data, bypassing Assign2 — so this top-level DidUpdate
+				// is what marks the backing array dirty and enforces cross-realm
+				// write permissions (mirroring append). In the slow per-element
+				// path Assign2's DataByteType branch also calls DidUpdate, making
+				// this redundant but harmless there.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
-				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
+				// PointerValue.Assign2 fast-paths DataByteType: just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
-				// TODO: consider an optimization if dstv.Data != nil.
-				for i := range minl {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil {
+					// Copy string bytes directly into the Data-backed
+					// destination, instead of materializing a heap-allocated
+					// pointer box per element (see GetElementPointer).
+					copy(dstBase.Data[dstv.Offset:dstv.Offset+minl], src.TV.GetString())
+				} else {
+					for i := range minl {
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -933,7 +938,9 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// Same as above: DidUpdate is required for the DataByte case.
+				// Same as above: the Data-backed fast path bypasses Assign2, so
+				// this top-level DidUpdate marks the array dirty and enforces
+				// cross-realm write permissions.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
@@ -941,21 +948,29 @@ func makeUverseNode() {
 				srcStart := srcv.Offset
 				srcEnd := srcStart + minl
 
-				step := 1
-				start := 0
-				end := minl
-				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
-				requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
-				if requiresBackwardCopy {
-					step = -1
-					start = minl - 1
-					end = -1
-				}
 				m.incrCPU(OpCPUSlopeCopyElement * int64(minl))
-				for i := start; i != end; i += step {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil && srcBase.Data != nil {
+					// Copy bytes directly between Data-backed slices, instead
+					// of materializing two heap-allocated pointer boxes per
+					// element (see GetElementPointer). Go's copy is
+					// overlap-safe in both directions.
+					copy(dstBase.Data[dstStart:dstStart+minl], srcBase.Data[srcStart:srcEnd])
+				} else {
+					step := 1
+					start := 0
+					end := minl
+					// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+					requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
+					if requiresBackwardCopy {
+						step = -1
+						start = minl - 1
+						end = -1
+					}
+					for i := start; i != end; i += step {
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := srcv.GetElementPointer(m.Store, i, bst.Elt)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
