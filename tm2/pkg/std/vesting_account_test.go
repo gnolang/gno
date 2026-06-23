@@ -327,7 +327,7 @@ func TestSpendableCoins_ZeroBalance(t *testing.T) {
 	baseAcc := NewBaseAccount(addr, NewCoins(), pubKey, 0, 0)
 
 	cva, err := NewContinuousVestingAccount(baseAcc, VestingSchedule{
-		OriginalVesting: Coins{NewCoin("ugnot", 500)},
+		OriginalVesting: Coins{},
 		StartTime:       100,
 		EndTime:         200,
 	})
@@ -335,6 +335,87 @@ func TestSpendableCoins_ZeroBalance(t *testing.T) {
 
 	spendable := SpendableCoins(cva, time.Unix(50, 0))
 	assert.True(t, spendable.IsZero())
+}
+
+func TestContinuousVestingAccount_PartialVesting(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+
+	// 1000 total, only 300 vesting. 700 should be immediately spendable.
+	baseAcc := NewBaseAccount(addr, Coins{NewCoin("ugnot", 1000)}, pubKey, 0, 0)
+
+	cva, err := NewContinuousVestingAccount(baseAcc, VestingSchedule{
+		OriginalVesting: Coins{NewCoin("ugnot", 300)},
+		StartTime:       100,
+		EndTime:         200,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1000), cva.GetCoins().AmountOf("ugnot"), "total balance")
+	assert.Equal(t, int64(300), cva.GetOriginalVesting().AmountOf("ugnot"), "vesting amount")
+
+	// Before start: all 300 locked, 700 spendable.
+	assert.Equal(t, int64(300), cva.LockedCoins(time.Unix(50, 0)).AmountOf("ugnot"))
+	assert.Equal(t, int64(700), SpendableCoins(cva, time.Unix(50, 0)).AmountOf("ugnot"))
+
+	// Halfway: 150 vested, 150 locked, 850 spendable.
+	assert.Equal(t, int64(150), cva.LockedCoins(time.Unix(150, 0)).AmountOf("ugnot"))
+	assert.Equal(t, int64(850), SpendableCoins(cva, time.Unix(150, 0)).AmountOf("ugnot"))
+
+	// After end: 0 locked, all 1000 spendable.
+	assert.True(t, cva.LockedCoins(time.Unix(300, 0)).IsZero())
+	assert.Equal(t, int64(1000), SpendableCoins(cva, time.Unix(300, 0)).AmountOf("ugnot"))
+}
+
+func TestContinuousVestingAccount_PartialVestingMultiDenom(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+
+	baseAcc := NewBaseAccount(addr, Coins{
+		NewCoin("uatom", 500),
+		NewCoin("ugnot", 1000),
+	}, pubKey, 0, 0)
+
+	cva, err := NewContinuousVestingAccount(baseAcc, VestingSchedule{
+		OriginalVesting: Coins{NewCoin("uatom", 200), NewCoin("ugnot", 300)},
+		StartTime:       100,
+		EndTime:         200,
+	})
+	require.NoError(t, err)
+
+	// Before start: ugnot locked=300 spendable=700, uatom locked=200 spendable=300.
+	spendable := SpendableCoins(cva, time.Unix(50, 0))
+	assert.Equal(t, int64(700), spendable.AmountOf("ugnot"))
+	assert.Equal(t, int64(300), spendable.AmountOf("uatom"))
+
+	// After end: everything spendable.
+	spendable = SpendableCoins(cva, time.Unix(300, 0))
+	assert.Equal(t, int64(1000), spendable.AmountOf("ugnot"))
+	assert.Equal(t, int64(500), spendable.AmountOf("uatom"))
+}
+
+func TestContinuousVestingAccount_RejectsVestingExceedingBalance(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+
+	// 500 total, 1000 vesting — should be rejected.
+	baseAcc := NewBaseAccount(addr, Coins{NewCoin("ugnot", 500)}, pubKey, 0, 0)
+
+	_, err := NewContinuousVestingAccount(baseAcc, VestingSchedule{
+		OriginalVesting: Coins{NewCoin("ugnot", 1000)},
+		StartTime:       100,
+		EndTime:         200,
+	})
+	assert.Error(t, err)
 }
 
 // -----------------------------------------------------------------------------

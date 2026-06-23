@@ -145,6 +145,13 @@ func NewContinuousVestingAccount(
 	baseAcc *BaseAccount,
 	schedule VestingSchedule,
 ) (*ContinuousVestingAccount, error) {
+	if !baseAcc.Coins.IsAllGTE(schedule.OriginalVesting) {
+		return nil, fmt.Errorf(
+			"original vesting (%s) exceeds account balance (%s)",
+			schedule.OriginalVesting, baseAcc.Coins,
+		)
+	}
+
 	cva := &ContinuousVestingAccount{
 		BaseVestingAccount: BaseVestingAccount{
 			BaseAccount:     *baseAcc,
@@ -240,6 +247,13 @@ func NewDelayedVestingAccount(
 	baseAcc *BaseAccount,
 	schedule VestingSchedule,
 ) (*DelayedVestingAccount, error) {
+	if !baseAcc.Coins.IsAllGTE(schedule.OriginalVesting) {
+		return nil, fmt.Errorf(
+			"original vesting (%s) exceeds account balance (%s)",
+			schedule.OriginalVesting, baseAcc.Coins,
+		)
+	}
+
 	dva := &DelayedVestingAccount{
 		BaseVestingAccount: BaseVestingAccount{
 			BaseAccount:     *baseAcc,
