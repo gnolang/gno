@@ -12,12 +12,20 @@ import (
 // VestingSchedule
 
 // VestingSchedule defines the parameters of a vesting schedule.
-// StartTime=0 means cliff/delayed vesting (all coins vest at EndTime).
 type VestingSchedule struct {
-	OriginalVesting Coins `json:"original_vesting" yaml:"original_vesting"`
-	StartTime       int64 `json:"start_time,omitempty" yaml:"start_time,omitempty"`
-	EndTime         int64 `json:"end_time" yaml:"end_time"`
+	OriginalVesting Coins               `json:"original_vesting" yaml:"original_vesting"`
+	StartTime       int64               `json:"start_time,omitempty" yaml:"start_time,omitempty"`
+	EndTime         int64               `json:"end_time" yaml:"end_time"`
+	Type            VestingScheduleType `json:"type,omitempty" yaml:"type,omitempty"` // empty or "continuous" = linear; "delayed" = cliff
 }
+
+// VestingScheduleType discriminates between linear (continuous) and cliff (delayed) vesting.
+type VestingScheduleType string
+
+const (
+	VestingContinuous VestingScheduleType = ""        // default — linear vesting
+	VestingDelayed    VestingScheduleType = "delayed" // cliff vesting
+)
 
 // Validate checks the schedule fields.
 func (vs VestingSchedule) Validate() error {

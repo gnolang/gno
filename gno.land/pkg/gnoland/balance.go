@@ -50,9 +50,9 @@ func (b *Balance) Verify() error {
 }
 
 func (b *Balance) Parse(entry string) error {
-	// Format: <address>=<coins> [;vesting=<coins>,<start_time>,<end_time>]
+	// Format: <address>=<coins> [;vesting=<coins>,<start>,<end> [;type=delayed]]
 	// The vesting suffix is optional.
-	parts := strings.SplitN(strings.TrimSpace(entry), ";", 2)
+	parts := strings.SplitN(strings.TrimSpace(entry), ";", 3)
 	balancePart := parts[0]
 
 	kv := strings.SplitN(balancePart, "=", 2)
@@ -73,7 +73,7 @@ func (b *Balance) Parse(entry string) error {
 	}
 
 	// Parse optional vesting suffix.
-	if len(parts) == 2 {
+	if len(parts) >= 2 {
 		vestingPart := parts[1]
 		if !strings.HasPrefix(vestingPart, "vesting=") {
 			return fmt.Errorf("malformed vesting option: %q", vestingPart)
@@ -99,6 +99,17 @@ func (b *Balance) Parse(entry string) error {
 		if err != nil {
 			return fmt.Errorf("invalid vesting end time %q: %w", fields[2], err)
 		}
+
+		// Parse optional type discriminator.
+		if len(parts) == 3 {
+			typePart := parts[2]
+			if typePart == "type=delayed" {
+				schedule.Type = std.VestingDelayed
+			} else {
+				return fmt.Errorf("unknown vesting type: %q", typePart)
+			}
+		}
+
 		b.Vesting = &schedule
 	}
 
@@ -121,6 +132,9 @@ func (b Balance) String() string {
 			b.Vesting.StartTime,
 			b.Vesting.EndTime,
 		)
+		if b.Vesting.Type == std.VestingDelayed {
+			s += ";type=delayed"
+		}
 	}
 	return s
 }

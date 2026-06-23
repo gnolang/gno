@@ -76,7 +76,7 @@ func TestBalance_VestingParse(t *testing.T) {
 			false,
 		},
 		{
-			"with vesting",
+			"with vesting (continuous)",
 			"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=100test;vesting=50test,100,200",
 			Balance{
 				Address: validAddress,
@@ -85,6 +85,20 @@ func TestBalance_VestingParse(t *testing.T) {
 					OriginalVesting: std.NewCoins(std.NewCoin("test", 50)),
 					StartTime:       100,
 					EndTime:         200,
+				},
+			},
+			false,
+		},
+		{
+			"with vesting (delayed)",
+			"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=100test;vesting=50test,0,200;type=delayed",
+			Balance{
+				Address: validAddress,
+				Amount:  std.NewCoins(std.NewCoin("test", 100)),
+				Vesting: &std.VestingSchedule{
+					OriginalVesting: std.NewCoins(std.NewCoin("test", 50)),
+					EndTime:         200,
+					Type:            std.VestingDelayed,
 				},
 			},
 			false,
