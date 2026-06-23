@@ -23,7 +23,10 @@ jobs:
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "gnovm"
-      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
+      # Coverage instrumentation costs ~1.24x on the interpreter-heavy
+      # tests, and since #5795 the percentages are only printed to the
+      # job log; skip it on gnovm's critical path.
+      coverage: false
   stdlibs:
     uses: ./.github/workflows/_ci-gno.yml
     with:

@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: ""
+      coverage:
+        description: "Collect coverage and print per-module percentages (the data is not uploaded anywhere; see #5795). Instrumentation slows interpreter-heavy tests measurably."
+        required: false
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -85,13 +90,24 @@ jobs:
         working-directory: ${{ inputs.modulepath }}
         env:
           SEQ_TS: ${{ inputs.tests-ts-seq }}
-          TXTARCOVERDIR: /tmp/txtarcoverdir
-          GOCOVERDIR: /tmp/gocoverdir
-          COVERDIR: /tmp/coverdir
+          # The coverage dir env vars also steer testscript-based suites
+          # (cmd/gno, gno.land integration): leave them unset without
+          # coverage so those suites skip coverage collection too.
+          TXTARCOVERDIR: ${{ inputs.coverage && '/tmp/txtarcoverdir' || '' }}
+          GOCOVERDIR: ${{ inputs.coverage && '/tmp/gocoverdir' || '' }}
+          COVERDIR: ${{ inputs.coverage && '/tmp/coverdir' || '' }}
           INPUTS_MODULEPATH: ${{ inputs.modulepath }}
           INPUTS_TESTS_EXTRA_ARGS: ${{ inputs.tests-extra-args }}
+          INPUTS_COVERAGE: ${{ inputs.coverage }}
         run: |
           set -x
+
+          if [ "$INPUTS_COVERAGE" != "true" ]; then
+            # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+            # shellcheck disable=SC2086
+            go test -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./...
+            exit 0
+          fi
 
           mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
