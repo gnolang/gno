@@ -1,0 +1,38 @@
+# A value-receiver method bound to a nil pointer through an interface
+# (`G = i.M`, i holding a typed-nil *T) must keep its call-time
+# nil-pointer-deref panic across a persist/reload, matching Go. The
+# receiver is stored as the nil *T itself (not a synthetic flag), so the
+# timing survives serialization: G() reloaded in a later tx still panics.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/myrealm -pkgpath gno.land/r/test/myrealm -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# bind G = i.M (i holds a nil *T) and persist it; binding itself must not panic.
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# later tx: G is reloaded from store; calling it still derefs the nil *T
+# and panics at call time (no "ZERO-RECEIVER", no OK!).
+! gnokey maketx call -pkgpath gno.land/r/test/myrealm -func CallLater -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stderr 'nil pointer dereference'
+
+-- myrealm/gnomod.toml --
+module = "gno.land/r/test/myrealm"
+gno = "0.9"
+
+-- myrealm/myrealm.gno --
+package myrealm
+
+type I interface{ M() string }
+
+type T struct{ x int }
+
+func (T) M() string { return "ZERO-RECEIVER" }
+
+var pt *T
+var G func() string
+
+func Bind(cur realm)             { var i I = pt; G = i.M }
+func CallLater(cur realm) string { return G() }
