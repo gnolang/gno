@@ -1139,7 +1139,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	return res, nil
 }
 
-var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
 // QueryPaths returns public facing function signatures.
 // XXX: Implement pagination

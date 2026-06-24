@@ -142,18 +142,19 @@ func (gnoURL GnoURL) EncodeFormURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
 
-// IsPure checks if the URL path represents a pure path.
+// IsPure checks if the URL path prefix represents a pure path.
 func (gnoURL GnoURL) IsPure() bool {
-	return strings.HasPrefix(gnoURL.Path, "/p/")
+	return strings.HasPrefix(gnoURL.Path, "/p/") && gnoURL.IsValidPath()
 }
 
-// IsRealm checks if the URL path represents a realm path.
+// IsRealm checks if the URL path prefix represents a realm path.
 func (gnoURL GnoURL) IsRealm() bool {
-	return strings.HasPrefix(gnoURL.Path, "/r/")
+	return strings.HasPrefix(gnoURL.Path, "/r/") && gnoURL.IsValidPath()
 }
 
+// IsUser checks if the URL path prefix represents a user path.
 func (gnoURL GnoURL) IsUser() bool {
-	return strings.HasPrefix(gnoURL.Path, "/u/")
+	return strings.HasPrefix(gnoURL.Path, "/u/") && gnoURL.IsValidPath()
 }
 
 // IsFile checks if the URL path represents a file.
@@ -163,25 +164,28 @@ func (gnoURL GnoURL) IsFile() bool {
 
 // IsDir checks if the URL path represents a directory.
 func (gnoURL GnoURL) IsDir() bool {
-	return !gnoURL.IsFile() &&
-		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
+	return !gnoURL.IsFile() && strings.HasSuffix(gnoURL.Path, "/")
 }
 
-// rePkgPath matches and validates a path.
-var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
+// reGnolandPath matches and validates a Gno.land URL path.
+// The minimum path allowed are the Gno.land prefixed ones so listing can be
+// implemented, for example in Gnoweb "/r/" or "/p/" would list the files or
+// directories within those paths.
+// Expression doesn't validate "//" because at this point the URL path should
+// have been validated or normalized by the Gno.land URL parser.
+var reGnolandPath = regexp.MustCompile(`^/[rpu]/([a-z][a-z0-9_/-]*)*$`)
 
-// reUserPath matches and validates a user path.
-var reUserPath = regexp.MustCompile(`^/u/[a-zA-Z0-9_]+$`)
-
+// IsValidPath checks that path is a valid Gno.land URL path.
+// It just validates that the path format can match with Gno.land URL paths, but
+// it doesn't validate semantics, like "/r/", "/p/", etc; Use `IsPure()`,
+// `IsRealm()` or similar methods to check for specific URL path cases.
 func (gnoURL GnoURL) IsValidPath() bool {
-	return rePkgPath.MatchString(gnoURL.Path) || reUserPath.MatchString(gnoURL.Path)
+	return reGnolandPath.MatchString(gnoURL.Path)
 }
 
-var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
-
-// Extract the package name from the path (e.g., "/r/test/foo" -> "test")
+// Extract the package name from the Gno.land URL path (e.g., "/r/test/foo" -> "test")
 func (gnoURL GnoURL) Namespace() string {
-	if !reNamespace.MatchString(gnoURL.Path) {
+	if !gnoURL.IsValidPath() {
 		return ""
 	}
 
@@ -201,6 +205,13 @@ func (gnoURL GnoURL) Username() string {
 
 	return gnoURL.Path[3:] // skip `/u/`
 }
+
+// reURLPath matches and validates a standard URL path compatible with Gno.land URL paths.
+// Expression considers that "/" is the minimum valid path allowed and then optionally
+// allows any characters allowed within different Gno.land URL paths.
+// Expression doesn't validate "//" matches for simplicity, this validation is done
+// separately when parsing the URL.
+var reURLPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`)
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
 func ParseFromURL(u *url.URL) (*GnoURL, error) {
@@ -233,7 +244,11 @@ func ParseFromURL(u *url.URL) (*GnoURL, error) {
 		}
 	}
 
-	if !rePkgPath.MatchString(upath) {
+	// Check that path contains valid characters or is the root "/" path.
+	// Also make sure it doesn't contain "//" which semantically are not
+	// considered valid within Gno.land package paths. The "//" is checked
+	// using contains to keep the URL path regexp simple.
+	if strings.Contains(upath, "//") || !reURLPath.MatchString(upath) {
 		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
 	}
 
