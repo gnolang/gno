@@ -2,6 +2,7 @@ package crossrealm
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/p/nt/ownable/v0"
@@ -52,7 +53,7 @@ func CallFooerFooCur(cur realm) {
 }
 
 func CallFooerFooCross(cur realm) {
-	fooer.Foo(cross)
+	fooer.Foo(cross(cur))
 }
 
 func CallFooerBar() {
@@ -89,7 +90,7 @@ func CallFooerGetterFooCur(cur realm) {
 }
 
 func CallFooerGetterFooCross(cur realm) {
-	fooerGetter().Foo(cross)
+	fooerGetter().Foo(cross(cur))
 }
 
 // This is a top function that does switch realms.
@@ -103,6 +104,17 @@ func Exec(cb func() string) string {
 }
 
 // ------------------------------------
+// SECURITY XXX: Closure and Closure2 below are exported package-level
+// function-typed vars that any foreign realm can set via SetClosure /
+// SetClosure2 and trigger via ExecuteClosure / ExecuteClosureCross.
+// Closure2's signature is `func(realm)`, which means whoever sets it
+// receives a realm value at invocation time — capability-bearing data
+// stored in an exported package var, then handed back to caller-supplied
+// code. THIS IS DELIBERATE VM-PARITY-TEST INFRASTRUCTURE — these vars
+// exist to exercise the VM's handling of stored closures and cross-
+// realm callbacks. DO NOT COPY THIS PATTERN IN PRODUCTION CODE. Real
+// /r/ realms must never expose `func(realm)` (or any function-typed
+// value capable of receiving cur) as an exported package var.
 var Closure func()
 
 func SetClosure(cur realm, f func()) {
@@ -119,13 +131,27 @@ func SetClosure2(cur realm, f func(realm)) {
 	Closure2 = f
 }
 func ExecuteClosureCross(cur realm) {
-	Closure2(cross)
+	Closure2(cross(cur))
+}
+
+// Closure3 mirrors Closure but for non-crossing-with-rlm closures —
+// `func(_ int, rlm realm)`. Whoever sets Closure3 receives cur as a
+// plain value (no realm boundary at invocation time), then can cross
+// internally via cross(rlm).
+var Closure3 func(_ int, rlm realm)
+
+func SetClosure3(cur realm, f func(_ int, rlm realm)) {
+	Closure3 = f
+}
+
+func ExecuteClosure3(cur realm) {
+	Closure3(0, cur)
 }
 
 // Closure -> FooUpdate
 func PrintRealms(cur realm) {
-	ufmt.Printf("current realm: %s\n", runtime.CurrentRealm())
-	ufmt.Printf("previous realm: %s\n", runtime.PreviousRealm())
+	ufmt.Printf("current realm: %s\n", unsafe.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", unsafe.PreviousRealm())
 }
 
 // -------------------------------------------------
@@ -140,33 +166,36 @@ func GetObject() any {
 }
 
 func EntryPoint() (noCros *ownable.Ownable) {
-	println("crossrealm  EntryPoint: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm  EntryPoint: " + runtime.PreviousRealm().Address())
+	println("crossrealm  EntryPoint: " + unsafe.PreviousRealm().PkgPath())
+	println("crossrealm  EntryPoint: " + unsafe.PreviousRealm().Address())
 	println()
 	return PrevRealmNoCrossing()
 }
 
-func EntryPointWithCrossing() (withCros *ownable.Ownable) {
-	return PrevRealmCrossing(cross)
+// EntryPointWithCrossing is a non-crossing helper that forwards into
+// the (cur realm)-crossing PrevRealmCrossing. Callers pass their own
+// live cur; `cross(rlm)` does the actual cross.
+func EntryPointWithCrossing(_ int, rlm realm) (withCros *ownable.Ownable) {
+	return PrevRealmCrossing(cross(rlm))
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {
-	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().Address())
-	return ownable.New()
+	println("crossrealm PreviousRealm no crossing: " + unsafe.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm no crossing: " + unsafe.PreviousRealm().Address())
+	return ownable.NewWithAddress(unsafe.CurrentRealm().Address())
 }
 
 func PrevRealmCrossing(cur realm) *ownable.Ownable {
-	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().Address())
-	return ownable.New()
+	println("crossrealm PreviousRealm with crossing: " + unsafe.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm with crossing: " + unsafe.PreviousRealm().Address())
+	return ownable.NewWithAddress(cur.Address())
 }
 
 func CurRealmNoCrossing() runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }
 func CurRealmCrossing(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }
 
 // call the package that returns current realm
@@ -176,5 +205,5 @@ func PkgCurRealmNoCrossing() runtime.Realm {
 
 // call the package that returns current realm
 func PkgCurRealmCrossing(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }

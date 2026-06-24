@@ -7,6 +7,7 @@ import (
 	gopath "path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +24,7 @@ type GnoURL struct {
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
 	File     string     // render.gno
+	Origin   string     // https://gno.land
 }
 
 // EncodeFlag is used to specify which URL components to encode.
@@ -141,6 +143,81 @@ func (gnoURL GnoURL) EncodeFormURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
 
+// Clone returns a deep copy with independent WebQuery and Query maps,
+// safe for mutation without aliasing the original. Slice values
+// inside the maps are *not* deep-copied — fine for our usage where
+// each value is a small `[]string` we treat as immutable.
+func (gnoURL GnoURL) Clone() GnoURL {
+	dup := gnoURL
+	dup.WebQuery = cloneValues(gnoURL.WebQuery)
+	dup.Query = cloneValues(gnoURL.Query)
+	return dup
+}
+
+// Height returns the historical block height the URL is pinned to,
+// reading from either WebQuery (gnoweb's native `$state&height=N`
+// syntax) or the standard Query (browser GET form produces
+// `?height=N`). WebQuery wins when both are set. Returns 0 when
+// missing/invalid/non-positive — i.e. "latest height".
+func (gnoURL GnoURL) Height() int64 {
+	if h := parseHeight(gnoURL.WebQuery.Get("height")); h > 0 {
+		return h
+	}
+	return parseHeight(gnoURL.Query.Get("height"))
+}
+
+// WithHeight returns a clone with the height parameter set in the
+// WebQuery (gnoweb-native form). When `h <= 0`, equivalent to
+// WithoutHeight (strips the parameter from both maps).
+func (gnoURL GnoURL) WithHeight(h int64) GnoURL {
+	clone := gnoURL.Clone()
+	delete(clone.Query, "height")
+	if h > 0 {
+		clone.WebQuery.Set("height", fmt.Sprintf("%d", h))
+	} else {
+		delete(clone.WebQuery, "height")
+	}
+	return clone
+}
+
+// WithoutHeight returns a clone with the height parameter stripped
+// from both WebQuery and Query. Used to build the "go back to live"
+// link when the page is pinned to a historical block.
+func (gnoURL GnoURL) WithoutHeight() GnoURL {
+	clone := gnoURL.Clone()
+	delete(clone.WebQuery, "height")
+	delete(clone.Query, "height")
+	return clone
+}
+
+func parseHeight(s string) int64 {
+	// Cap input length to int64's max digit count (19) so ParseInt's
+	// ErrRange catches overflows cleanly without the hand-rolled loop
+	// wrapping twice. Reject sign prefixes explicitly — only the bare
+	// digit form is valid for a block height.
+	if s == "" || len(s) > 19 || s[0] == '+' || s[0] == '-' {
+		return 0
+	}
+	h, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || h < 0 {
+		return 0
+	}
+	return h
+}
+
+func cloneValues(v url.Values) url.Values {
+	if v == nil {
+		return nil
+	}
+	dup := make(url.Values, len(v))
+	for k, list := range v {
+		clone := make([]string, len(list))
+		copy(clone, list)
+		dup[k] = clone
+	}
+	return dup
+}
+
 // IsPure checks if the URL path represents a pure path.
 func (gnoURL GnoURL) IsPure() bool {
 	return strings.HasPrefix(gnoURL.Path, "/p/")
@@ -202,14 +279,12 @@ func (gnoURL GnoURL) Username() string {
 }
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
+// Grammar: `<path>[:<args>][$<webargs>]`. The `$` split runs first so a
+// literal `:` inside webargs (e.g. ObjectID `<hash>:<n>`) stays in the
+// webargs and doesn't corrupt the path-args split.
 func ParseFromURL(u *url.URL) (*GnoURL, error) {
-	var webargs string
-	path, args, found := strings.Cut(u.EscapedPath(), ":")
-	if found {
-		args, webargs, _ = strings.Cut(args, "$")
-	} else {
-		path, webargs, _ = strings.Cut(path, "$")
-	}
+	pathArgs, webargs, _ := strings.Cut(u.EscapedPath(), "$")
+	path, args, _ := strings.Cut(pathArgs, ":")
 
 	upath, err := url.PathUnescape(path)
 	if err != nil {

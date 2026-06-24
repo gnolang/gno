@@ -183,9 +183,20 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			// `<path>:<args>$<webargs>` — `$` wins, so `:` and a second `$`
+			// inside webargs stay inside webargs (lets ObjectIDs round-trip).
 			Name:  "webquery-args-webquery",
 			Input: "https://gno.land/r/demo/aaa$bbb:CCC&DDD$EEE",
-			Err:   ErrURLInvalidPath, // `/r/demo/aaa$bbb` is an invalid path
+			Expected: &GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/aaa",
+				Args:   "",
+				WebQuery: url.Values{
+					"bbb:CCC": []string{""},
+					"DDD$EEE": []string{""},
+				},
+				Query: url.Values{},
+			},
 		},
 
 		{
