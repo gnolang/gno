@@ -678,12 +678,20 @@ func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	return NewBlock(alloc, source, parent)
 }
 
-// newPooledBlock allocates a block for Machine.acquireBlock's pool, over-sizing
-// its Values capacity to blockPoolValueCap so it can later be recycled for most
-// block sizes without a too-small miss. Gas/alloc accounting is identical to
-// NewBlock — AllocateBlock charges numNames, never capacity.
+// newPooledBlock allocates a block for Machine.acquireBlock's pool (the miss
+// path), over-sizing its Values capacity to blockPoolValueCap so it can later
+// be recycled for most block sizes without a too-small miss. It charges
+// allocation gas for that actual capacity (see below); the per-acquire setup
+// CPU is charged by acquireBlock's OpCPUAcquireBlock.
 func (alloc *Allocator) newPooledBlock(source BlockNode, parent *Block) *Block {
-	alloc.AllocateBlock(int64(source.GetNumNames()))
+	// Charge for the memory actually allocated: a pooled block's Values is
+	// sized to blockPoolValueCap, so a small block costs the same malloc as
+	// a 14-slot one (that is what is allocated under the hood).
+	items := int(source.GetNumNames())
+	if items < blockPoolValueCap {
+		items = blockPoolValueCap
+	}
+	alloc.AllocateBlock(int64(items))
 	return newBlockWithValueCap(alloc, source, parent, blockPoolValueCap)
 }
 

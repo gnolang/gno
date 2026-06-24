@@ -1404,7 +1404,8 @@ const (
 	OpCPUPrecallFunc         = 178  // function call
 	OpCPUPrecallBoundMethod  = 199  // bound method call
 	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
-	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
+	OpCPUCall                = 40   // 0 params/0 captures, sans block creation (now in acquireBlock); ~36-44 measured
+	OpCPUAcquireBlock        = 100  // block setup/recover in acquireBlock; ~91-102 measured (anchor Add_Int=81)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
 	OpCPUDefer               = 71
 	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
@@ -1524,7 +1525,7 @@ const (
 	OpCPURangeIterString   = 78  // flat (called once per rune)
 	OpCPURangeIterMap      = 73  // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 239
-	OpCPUReturnCallDefers  = 724 // base from fit; per-defer charging happens via sticky-op re-dispatch
+	OpCPUReturnCallDefers  = 215 // per-defer, sans block creation (now in acquireBlock); ~205-225 measured (was 724)
 
 	// Per-N slope constants for parameterized ops.
 	// Each value is the CPU gas cost per unit of the parameter N.
@@ -2217,20 +2218,27 @@ const blockPoolLimit = 32
 // header, so the 576 class yields 576-8=568 usable bytes = 14 slots.
 const blockPoolValueCap = 14
 
-// acquireBlock returns a block recycled from the machine's pool when one
-// with sufficient capacity is available, and otherwise falls back to
-// Allocator.newPooledBlock. Both paths perform identical allocator (gas)
-// accounting and heap item setup; pooling only avoids the Go heap
-// allocations. Used by the runtime ops creating scope and call blocks;
-// package, file and preprocess blocks do not go through here.
+// acquireBlock returns a block recycled from the machine's pool when one with
+// sufficient capacity is available, and otherwise falls back to
+// Allocator.newPooledBlock. Used by the runtime ops creating scope and call
+// blocks; package, file and preprocess blocks do not go through here.
 //
-// Misses allocate via newPooledBlock, which over-sizes Values to
-// blockPoolValueCap so the resulting block can serve most later acquires
-// without a too-small miss (the pool is a LIFO stack and acquireBlock only
-// inspects the top block, so a too-small top forces a miss even when a
-// larger block sits deeper).
+// Gas reflects the work actually done and differs by path — deterministically,
+// since the per-machine pool starts empty each run (Machine.Release):
+//   - both paths charge OpCPUAcquireBlock for block setup/recover, plus any
+//     heap items via initHeapItems;
+//   - only the miss path charges allocation gas (newPooledBlock → AllocateBlock),
+//     because a recycle reuses memory and performs no malloc.
+//
+// Misses over-size Values to blockPoolValueCap so the block can serve most
+// later acquires without a too-small miss — the pool is a LIFO stack and
+// acquireBlock only inspects the top block, so a too-small top would force a
+// miss even when a larger block sits deeper.
 func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 	numNames := int(source.GetNumNames())
+	// Block setup/recover CPU, charged on both paths. Formerly folded into
+	// the enclosing op (OpCPUCall); scope blocks never charged it at all.
+	m.incrCPU(OpCPUAcquireBlock)
 	n := len(m.blockPool)
 	if n == 0 {
 		return m.Alloc.newPooledBlock(source, parent)
@@ -2241,8 +2249,9 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 	}
 	m.blockPool[n-1] = nil
 	m.blockPool = m.blockPool[:n-1]
-	// Keep in sync with Allocator.NewBlock / NewBlock.
-	m.Alloc.AllocateBlock(int64(numNames))
+	// Recycled: no allocation gas — the block's memory is reused, so the
+	// malloc the allocator models never happens. Only the setup CPU above
+	// is charged (heap items, if any, are charged by initHeapItems).
 	values := b.Values[:numNames]
 	initHeapItems(m.Alloc, values, source)
 	b.Source = source
