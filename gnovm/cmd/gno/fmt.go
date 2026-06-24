@@ -260,9 +260,10 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 // formatOneFile routes file to the per-file formatter when it lives under a
 // known filetest root; otherwise lets the package-aware formatter handle it.
 //
-// A filetest that expects a compile/runtime error (an `// Error:` directive)
-// often leaves its imports "wrong" on purpose — e.g. a symbol left unimported
-// to trigger "undefined: x", or an import path the resolver can't reach.
+// A filetest that expects a compile/runtime error (an `// Error:` or
+// `// TypeCheckError:` directive) often leaves its imports "wrong" on purpose —
+// e.g. a symbol left unimported to trigger "undefined: x", an import path the
+// resolver can't reach, or an unused import asserted via TypeCheckError.
 // Resolving imports would defeat the test, so such files are formatted
 // layout-only (FormatSource); every other filetest still gets its imports
 // resolved (FormatImportFromSource).
@@ -282,7 +283,10 @@ func formatOneFile(p *gnofmt.Processor, file string, filetestRoots ...string) ([
 }
 
 // filetestExpectsError reports whether the filetest at path declares an
-// `// Error:` directive, i.e. it expects the program to fail to compile or run.
+// `// Error:` or `// TypeCheckError:` directive, i.e. it expects the program to
+// fail to compile, type-check, or run. Either case may rely on imports being
+// left untouched (e.g. an unused import asserted via TypeCheckError), so the
+// caller formats such files layout-only.
 func filetestExpectsError(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -294,7 +298,8 @@ func filetestExpectsError(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("unable to parse directives in %q: %w", path, err)
 	}
-	return dirs.First(test.DirectiveError) != nil, nil
+	return dirs.First(test.DirectiveError) != nil ||
+		dirs.First(test.DirectiveTypeCheckError) != nil, nil
 }
 
 // isUnderAnyRoot reports whether dir equals or is a descendant of any of
