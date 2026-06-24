@@ -16,6 +16,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/rogpeppe/go-internal/diff"
 )
@@ -234,29 +235,13 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 
 	p := gnofmt.NewProcessor(r)
 
-	// Fast path: files under gnovm/tests/{files,challenges} are filetests —
-	// each .gno is independent (different package names by design). Route
-	// them directly to per-file formatting to avoid paying the cost of a
-	// doomed package parse. FormatFile still falls back gracefully via
-	// ErrPackageConflict for any filetest-like dir we don't enumerate here.
+	// Files under gnovm/tests/{files,challenges} are filetests — each .gno is
+	// independent (different package names by design), so they cannot be parsed
+	// as a single package. Route them directly to per-file formatting; any
+	// other directory whose files disagree on package name is a genuine error,
+	// surfaced by FormatFile as ErrPackageConflict.
 	filetestsRoot := filepath.Join(gnoroot, "gnovm", "tests", "files")
 	challengesRoot := filepath.Join(gnoroot, "gnovm", "tests", "challenges")
-
-	// Under -v, surface conflict-dir fallbacks. The message is informational:
-	// end users can't fix this from the CLI (there is no flag), but a gno
-	// contributor reading the note can add the directory to the filetest
-	// roots above to skip the package probe on future runs.
-	if cfg.verbose {
-		p.OnPackageConflict = func(dir string) {
-			io.ErrPrintfln(
-				"note: %q has .gno files with different package names; "+
-					"formatting each file independently. "+
-					"To avoid the per-directory package probe, register this path "+
-					"in gnovm/cmd/gno/fmt.go's filetest roots.",
-				dir,
-			)
-		}
-	}
 
 	return func(file string, io commands.IO) []byte {
 		data, err := formatOneFile(p, file, filetestsRoot, challengesRoot)
@@ -274,11 +259,42 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 
 // formatOneFile routes file to the per-file formatter when it lives under a
 // known filetest root; otherwise lets the package-aware formatter handle it.
+//
+// A filetest that expects a compile/runtime error (an `// Error:` directive)
+// often leaves its imports "wrong" on purpose — e.g. a symbol left unimported
+// to trigger "undefined: x", or an import path the resolver can't reach.
+// Resolving imports would defeat the test, so such files are formatted
+// layout-only (FormatSource); every other filetest still gets its imports
+// resolved (FormatImportFromSource).
 func formatOneFile(p *gnofmt.Processor, file string, filetestRoots ...string) ([]byte, error) {
-	if isUnderAnyRoot(filepath.Dir(file), filetestRoots) {
-		return p.FormatImportFromSource(file, nil)
+	if !isUnderAnyRoot(filepath.Dir(file), filetestRoots) {
+		return p.FormatFile(file)
 	}
-	return p.FormatFile(file)
+
+	expectsError, err := filetestExpectsError(file)
+	if err != nil {
+		return nil, err
+	}
+	if expectsError {
+		return p.FormatSource(file, nil)
+	}
+	return p.FormatImportFromSource(file, nil)
+}
+
+// filetestExpectsError reports whether the filetest at path declares an
+// `// Error:` directive, i.e. it expects the program to fail to compile or run.
+func filetestExpectsError(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("unable to open %q: %w", path, err)
+	}
+	defer f.Close()
+
+	dirs, err := test.ParseDirectives(f)
+	if err != nil {
+		return false, fmt.Errorf("unable to parse directives in %q: %w", path, err)
+	}
+	return dirs.First(test.DirectiveError) != nil, nil
 }
 
 // isUnderAnyRoot reports whether dir equals or is a descendant of any of

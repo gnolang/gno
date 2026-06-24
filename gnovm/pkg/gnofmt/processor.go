@@ -2,7 +2,6 @@ package gnofmt
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -37,12 +36,6 @@ type Processor struct {
 
 	// cache for global parsed package
 	parsedPackage map[string]*parsedPackage // pkgdir -> parsed package
-
-	// OnPackageConflict, if set, is invoked at most once per directory whose
-	// files disagree on package name (ErrPackageConflict from ParsePackage).
-	// Callers can use this to surface a diagnostic — e.g., suggesting the
-	// directory be registered as a filetest root to skip the probe next time.
-	OnPackageConflict func(dir string)
 }
 
 func NewProcessor(r Resolver) *Processor {
@@ -71,6 +64,24 @@ func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, er
 	return p.processAndFormat(nodefile, filename, pkgDecls)
 }
 
+// FormatSource parses and formats the source from src for layout only: it
+// reformats the code and sorts existing import groups, but never resolves,
+// adds, or prunes imports. The type of the argument for the src parameter must
+// be string, []byte, or [io.Reader].
+//
+// Use this when a file's imports are intentional and must be preserved
+// verbatim — e.g. a filetest that expects a compile error and deliberately
+// leaves a symbol unimported. FormatImportFromSource, by contrast, resolves
+// imports against the resolver.
+func (p *Processor) FormatSource(filename string, src any) ([]byte, error) {
+	nodefile, err := p.parseFile(filename, src)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse source: %w", err)
+	}
+
+	return p.formatNode(nodefile, filename)
+}
+
 // FormatPackageFile processes a single Gno file from the given Package and filename.
 func (p *Processor) FormatPackageFile(pkg Package, filename string) ([]byte, error) {
 	// Process package files.
@@ -88,32 +99,26 @@ func (p *Processor) FormatPackageFile(pkg Package, filename string) ([]byte, err
 	return p.processAndFormat(nodefile, filename, pkgc.decls)
 }
 
-// FormatFile processes a single Gno file from the given file path.
+// FormatFile processes a single Gno file from the given file path, resolving
+// its imports against the other .gno files in the same directory (parsed as a
+// single package).
 //
-// If the directory contains .gno files whose package names disagree (e.g.
-// filetest directories such as gnovm/tests/files/), parsing as a package
-// returns ErrPackageConflict and FormatFile gracefully falls back to
-// per-file formatting. Callers that already know a file is independent
-// (e.g. a filetest) can skip this probe by calling FormatImportFromSource
-// directly.
+// If those files declare conflicting package names — as filetest directories
+// such as gnovm/tests/files/ do by design — they cannot be parsed as one
+// package and FormatFile returns ErrPackageConflict (wrapped). Callers that
+// format such independent files must detect them up front, by path or suffix,
+// and call FormatImportFromSource (or FormatSource, to leave imports untouched)
+// directly instead (see cmd/gno/fmt.go).
 //
-// Known limitation: directories whose files share a consistent package
-// name but are semantically independent (e.g. a directory full of
-// `package main` filetests each with their own func main) cannot be
-// detected here — they parse cleanly as a single package.
-//
-// When that happens, import resolution pools top-level declarations
-// across every file in the directory. A symbol used in file A but
-// top-level-declared in (unrelated) file B is treated as "already
-// resolved" by B, so FormatFile will silently skip adding the import
-// A needs — and may also prune imports A already had. The code layout
-// itself is still formatted correctly per-file; only the import list
-// becomes wrong.
-//
-// Such directories should be routed to per-file formatting by the
-// caller (see cmd/gno/fmt.go for how gno fmt enumerates the known
-// filetest roots under GNOROOT/gnovm/tests/). For any new directory
-// of this shape, add it to that enumeration.
+// Known limitation: directories whose files share a consistent package name
+// but are semantically independent (e.g. a directory of `package main`
+// filetests, each with its own func main) parse cleanly as a single package
+// and so are not caught here. Import resolution then pools top-level
+// declarations across every file: a symbol used in file A but declared in
+// (unrelated) file B is treated as already resolved, so the import A needs may
+// be dropped (and imports A already had may be pruned). Layout is still
+// formatted correctly per file; only the import list can be wrong. Such
+// directories must be routed to per-file formatting by the caller too.
 func (p *Processor) FormatFile(file string) ([]byte, error) {
 	filename := filepath.Base(file)
 	dir := filepath.Dir(file)
@@ -122,21 +127,14 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 	if !ok {
 		var err error
 		pkg, err = ParsePackage(p.fset, "", dir)
-		if errors.Is(err, ErrPackageConflict) {
-			// Independent .gno files (different package names) — cache
-			// nil to avoid re-parsing and fall through to per-file mode.
-			pkg = nil
-			if p.OnPackageConflict != nil {
-				p.OnPackageConflict(dir)
-			}
-		} else if err != nil {
+		if err != nil {
 			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
 		}
 		p.pkgdirCache[dir] = pkg
 	}
 
 	if pkg == nil {
-		// Per-file formatting (filetest dir or non-package dir).
+		// No package in dir (no .gno files); format the file on its own.
 		return p.FormatImportFromSource(file, nil)
 	}
 
@@ -182,7 +180,13 @@ func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls d
 	// Resolve unresolved declarations
 	p.resolve(file, unresolved)
 
-	// Process output
+	return p.formatNode(file, filename)
+}
+
+// formatNode prints the AST and runs it through go/imports in format-only mode:
+// it reformats the source and sorts existing import groups, without adding or
+// removing any import.
+func (p *Processor) formatNode(file *ast.File, filename string) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, p.fset, file); err != nil {
 		return nil, fmt.Errorf("unable to format file: %w", err)
