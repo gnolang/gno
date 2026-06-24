@@ -4,7 +4,7 @@
 by providing immediate feedback on code changes.
 
 Please note that this is a quick overview. For a more detailed guide, refer to the official documentation at
-[docs/builders/local-dev-with-gnodev.md](../../docs/builders/local-dev-with-gnodev.md).
+[docs/resources/gnodev.md](../../docs/resources/gnodev.md).
 
 ## Synopsis
 
