@@ -1,114 +1,100 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
-	"os"
-	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type PackageKind int
+// Kind classifies a package by where it lives.
+// KindUnknown is the zero value: a package was constructed without an
+// explicit Kind. FS packages are in a user workspace or extra root;
+// Remote packages are fetched from a chain (RPC or modcache) and aren't
+// user-editable.
+type Kind int
 
 const (
-	PackageKindOther  = iota
-	PackageKindRemote = iota
-	PackageKindFS
+	KindUnknown Kind = iota
+	KindFS
+	KindRemote
 )
 
+// Package is the simplified package type used by the native Loader.
 type Package struct {
-	std.MemPackage
-	Kind     PackageKind
-	Location string
+	ImportPath string
+	Dir        string
+	Kind       Kind
+	Name       string
+
+	// MissingGnoMod marks a package whose Dir holds no gnomod.toml — a dir
+	// deployed under a module path generated from its name. ToMemPackage
+	// synthesizes the file: chain-side AddPackage validation requires it.
+	MissingGnoMod bool
+
+	memPkg *std.MemPackage // set only for in-memory-backed test packages
 }
 
-func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
-	if !gnolang.IsUserlib(path) && !gnolang.IsStdlib(path) {
-		return nil, ErrResolverPackageSkip
+// ToMemPackage reads the package content. In-memory-backed packages return
+// the embedded MemPackage directly. Filesystem-backed packages are re-read
+// from disk on EVERY call — never memoize this: hot reload depends on each
+// genesis rebuild observing the current on-disk content.
+func (p *Package) ToMemPackage() (*std.MemPackage, error) {
+	if p.memPkg != nil {
+		return p.memPkg, nil
+	}
+	if p.Dir == "" {
+		return nil, fmt.Errorf("package %s has no directory", p.ImportPath)
 	}
 
-	mod, err := gnomod.ParseDir(dir)
-	switch {
-	case err == nil:
-		if mod.Ignore {
-			// Skip ignored package
-			// XXX: We could potentially do that in a middleware, but doing this
-			// here avoid to potentially parse broken files
-			return nil, ErrResolverPackageSkip
+	// Use MPUserProd / MPStdlibProd — the deployed package doesn't ship test
+	// files. gnodev is a dev-time tool so skipping tests is fine; including
+	// them (MPUserAll) triggers chain-side type-checks that fail when a
+	// test file imports a package whose own tests haven't been deployed yet.
+	mptype := gnolang.MPUserProd
+	if gnolang.IsStdlib(p.ImportPath) {
+		mptype = gnolang.MPStdlibProd
+	}
+	mp, err := gnolang.ReadMemPackage(p.Dir, p.ImportPath, mptype)
+	if err != nil {
+		return nil, fmt.Errorf("read package %s at %s: %w", p.ImportPath, p.Dir, err)
+	}
+	if p.MissingGnoMod && mp.GetFile("gnomod.toml") == nil {
+		mp.SetFile("gnomod.toml", gnolang.GenGnoModLatest(p.ImportPath))
+		mp.Sort()
+	}
+	return mp, nil
+}
+
+// Imports returns the package's declared chain-package imports (sorted,
+// deduplicated). Test files and stdlib imports are excluded: only imports
+// the chain must resolve at deploy time are reported.
+func (p *Package) Imports() ([]string, error) {
+	mp, err := p.ToMemPackage()
+	if err != nil {
+		return nil, err
+	}
+	imap, err := vmpackages.Imports(mp, nil)
+	if err != nil {
+		return nil, err
+	}
+	fimps := imap.Merge(vmpackages.FileKindPackageSource)
+	out := make([]string, 0, len(fimps))
+	for _, fi := range fimps {
+		if gnolang.IsStdlib(fi.PkgPath) {
+			continue
 		}
-	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile):
-		// gnomod.toml is not present, continue anyway
-	default:
-		return nil, err
+		out = append(out, fi.PkgPath)
 	}
+	return out, nil
+}
 
-	mempkg, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll)
-	switch {
-	case err == nil: // ok
-	case os.IsNotExist(err):
-		return nil, ErrResolverPackageNotFound
-	case mempkg == nil || mempkg.IsEmpty(): // XXX: should check an internal error instead
-		return nil, ErrResolverPackageSkip
-	default:
-		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
-	}
-
-	if err := validateMemPackage(fset, mempkg); err != nil {
-		return nil, err
-	}
-
+func packageFromMemPackage(mp *std.MemPackage) *Package {
 	return &Package{
-		MemPackage: *mempkg,
-		Location:   dir,
-		Kind:       PackageKindFS,
-	}, nil
-}
-
-func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
-	if isMemPackageEmpty(mempkg) {
-		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
+		ImportPath: mp.Path,
+		Name:       mp.Name,
+		Kind:       KindFS, // irrelevant for in-memory; classification happens at resolve time
+		memPkg:     mp,
 	}
-
-	// Validate package name
-	for _, file := range mempkg.Files {
-		if !isGnoFile(file.Name) {
-			continue
-		}
-
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.PackageClauseOnly)
-		if err != nil {
-			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
-		}
-
-		if strings.HasSuffix(file.Name, "_filetest.gno") {
-			continue
-		}
-
-		pname := strings.TrimSuffix(f.Name.Name, "_test")
-		if pname != mempkg.Name {
-			return fmt.Errorf("%q package name conflict, expected %q found %q",
-				mempkg.Path, mempkg.Name, f.Name.Name)
-		}
-	}
-
-	return nil
-}
-
-func isMemPackageEmpty(mempkg *std.MemPackage) bool {
-	if mempkg.IsEmpty() {
-		return true
-	}
-
-	for _, file := range mempkg.Files {
-		if isGnoFile(file.Name) || file.Name == "gnomod.toml" {
-			return false
-		}
-	}
-
-	return true
 }

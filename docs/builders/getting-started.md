@@ -347,6 +347,7 @@ GAS USED:   3456789
 HEIGHT:     12345
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The package is now live and browsable at

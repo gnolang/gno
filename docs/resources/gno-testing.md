@@ -55,6 +55,39 @@ $ gno run -expr "println(Add(2, 3))" .
 Pass `-debug` to start the GnoVM debugger. See this
 [blog post](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
+## Example tests
+
+`gno test` also supports example tests, [similar to Go](https://go.dev/blog/examples). An
+example test function takes no arguments and begins with the word `Example`. Like the test shown
+above, it must be in a file ending in `_test.gno`.
+The function prints output which is compared to the expected output in the `// Output:` comment.
+
+To try it, create a file `example_test.gno` which checks the expected value of the `Render` function:
+```
+touch example_test.gno
+```
+
+`example_test.gno`:
+```go
+package myrealm
+
+import (
+	"fmt"
+)
+
+func ExampleRender() {
+	count = 10
+	fmt.Println(Render(""))
+	// Output:
+	// Count: 10
+}
+```
+
+:::warning Reserved function name
+Your test file can have local helper functions, but `init()` is reserved for other types of tests.
+Use something like `initialize()` instead.
+:::
+
 ## Filetests
 
 Filetests are golden tests typically used to test realms. They execute a `main`

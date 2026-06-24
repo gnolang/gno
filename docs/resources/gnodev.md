@@ -32,14 +32,16 @@ help menu (see [Interactive controls](#interactive-controls)).
 ### Automatic deployment
 
 `gnodev` deploys the working directory's package to the built-in node
-automatically, with no `addpkg` step. It also deploys every package and
-realm in the monorepo's [`examples/`](https://github.com/gnolang/gno/tree/master/examples)
-folder so they're importable.
+automatically, with no `addpkg` step. Packages and realms in the monorepo's
+[`examples/`](https://github.com/gnolang/gno/tree/master/examples) folder are
+resolved on demand, the first time a query or transaction references them, so
+they're importable without deploying them yourself.
 
 Package path resolution:
 - If a `gnomod.toml` is present, the path inside is used.
-- Otherwise, `gnodev` reads the first `.gno` file's `package` declaration
-  and deploys it under `gno.land/r/dev/<pkgname>`.
+- Otherwise, `gnodev` derives the path from the directory name and deploys
+  under `gno.land/r/dev/<dirname>`, where `<dirname>` is sanitized to a valid
+  path segment (lowercase letters, digits, and underscores).
 
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
@@ -122,7 +124,7 @@ While `gnodev` is running, the following keys are bound (case-insensitive):
 | Flag | Purpose |
 |---|---|
 | `-deploy-key <name>` | Override the default deployer (`devtest`) |
-| `-resolver remote=<rpc>` | Resolve missing dependencies from a remote testnet (e.g. `https://rpc.staging.gno.land:443`) |
+| `-remote <domain>=<rpc>` | Fetch missing packages from a remote network, in the form `<domain>=<rpc>` (e.g. `gno.land=https://rpc.staging.gno.land:443`) |
 | `-genesis <file>` | Load a custom genesis file at startup |
 | `-no-watch` | Disable file watching |
 | `-no-replay` | Skip transaction replay across reloads |
