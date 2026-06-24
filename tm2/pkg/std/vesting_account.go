@@ -2,10 +2,10 @@ package std
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // -----------------------------------------------------------------------------
@@ -30,16 +30,16 @@ const (
 // Validate checks the schedule fields.
 func (vs VestingSchedule) Validate() error {
 	if vs.EndTime < 0 {
-		return fmt.Errorf("end time cannot be negative: %d", vs.EndTime)
+		return ErrInvalidVestingSchedule(fmt.Sprintf("end time cannot be negative: %d", vs.EndTime))
 	}
 	if vs.StartTime >= vs.EndTime {
-		return fmt.Errorf(
+		return ErrInvalidVestingSchedule(fmt.Sprintf(
 			"vesting start-time (%d) must be before end-time (%d)",
 			vs.StartTime, vs.EndTime,
-		)
+		))
 	}
 	if !vs.OriginalVesting.IsValid() && !vs.OriginalVesting.IsZero() {
-		return fmt.Errorf("invalid original vesting coins: %s", vs.OriginalVesting)
+		return ErrInvalidVestingSchedule(fmt.Sprintf("invalid original vesting coins: %s", vs.OriginalVesting))
 	}
 	return nil
 }
@@ -95,11 +95,6 @@ func SpendableCoins(va VestingAccount, blockTime time.Time) Coins {
 type BaseVestingAccount struct {
 	BaseAccount
 	VestingSchedule
-}
-
-// ProtoBaseVestingAccount returns a prototype for BaseVestingAccount.
-func ProtoBaseVestingAccount() Account {
-	return &BaseVestingAccount{}
 }
 
 // String implements fmt.Stringer.
@@ -173,11 +168,6 @@ func NewContinuousVestingAccount(
 	return cva, nil
 }
 
-// ProtoContinuousVestingAccount returns a prototype.
-func ProtoContinuousVestingAccount() Account {
-	return &ContinuousVestingAccount{}
-}
-
 // String implements fmt.Stringer.
 func (cva ContinuousVestingAccount) String() string {
 	var pubkey string
@@ -216,14 +206,9 @@ func (cva ContinuousVestingAccount) GetVestedCoins(blockTime time.Time) Coins {
 	totalDuration := cva.EndTime - cva.StartTime
 
 	for _, ovc := range cva.OriginalVesting {
-		product, ok := overflow.Mul(ovc.Amount, elapsed)
-		if !ok {
-			panic(fmt.Sprintf(
-				"vesting calculation overflow: amount=%d * elapsed=%d",
-				ovc.Amount, elapsed,
-			))
-		}
-		vestedAmt := product / totalDuration
+		amount := big.NewInt(ovc.Amount)
+		product := new(big.Int).Mul(amount, big.NewInt(elapsed))
+		vestedAmt := new(big.Int).Div(product, big.NewInt(totalDuration)).Int64()
 		if vestedAmt > 0 {
 			vestedCoins = append(vestedCoins, Coin{ovc.Denom, vestedAmt})
 		}
@@ -273,11 +258,6 @@ func NewDelayedVestingAccount(
 		return nil, err
 	}
 	return dva, nil
-}
-
-// ProtoDelayedVestingAccount returns a prototype.
-func ProtoDelayedVestingAccount() Account {
-	return &DelayedVestingAccount{}
 }
 
 // String implements fmt.Stringer.

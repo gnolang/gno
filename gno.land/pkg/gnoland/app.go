@@ -652,7 +652,11 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	if bal.IsVesting() {
-		baseAcc := std.NewBaseAccountWithAddress(bal.Address)
+		baseAcc := std.BaseAccount{
+			Address:       bal.Address,
+			Coins:         bal.Amount,
+			AccountNumber: cfg.acck.GetNextAccountNumber(ctx),
+		}
 		var acc std.Account
 		var err error
 		switch bal.Vesting.Type {
