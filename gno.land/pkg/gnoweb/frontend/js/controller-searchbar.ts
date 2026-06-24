@@ -20,9 +20,10 @@ const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
 
-// Matches Amino object IDs like "ff61a23bc5:12" or ":1" (cycle-break refs).
-// Format: `<hex>:<uint>` per ObjectID.MarshalAmino in gnovm/pkg/gnolang/ownership.go.
-const OID_PATTERN = /^[a-f0-9]*:\d+$/i;
+// Full Amino object ID: 40 hex + ":" + uint index (ObjectID.MarshalAmino).
+// Anchored to {40} to mirror the server's ValidateOID; shorter inputs fall
+// through to a normal text search.
+const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
 
 export class SearchbarController extends BaseController {
 	private realms: string[] = [];

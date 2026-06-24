@@ -120,7 +120,7 @@ func TestUpstreamPkgJSONShapeIsPlainJSON(t *testing.T) {
 
 func TestServeJSONPackageHappyPath(t *testing.T) {
 	// Wrapped response: Names + Values pass through unchanged, surrounded
-	// by the {pkg_path, height, total, offset, limit} envelope so clients
+	// by the {pkg_path, total, offset, limit} envelope so clients
 	// can paginate the rest of the realm without losing the qpkg_json
 	// shape they already decode.
 	h := newJSONHandler(&mockJSONClient{pkgBytes: buildManyTopLevelDeclsFixture(3)})

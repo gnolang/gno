@@ -195,7 +195,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r
 		ListHref:         template.URL(u.EncodeWebURL()), //nolint:gosec
 		DocIndexJSON:     docIndex,
 		ViewMode:         viewMode,
-		Pagination:       buildPagination(u.Path, viewMode, setTotal, offset, pageLimit),
+		Pagination:       buildPagination(u.Path, viewMode, search, setTotal, offset, pageLimit),
 		SearchQuery:      search,
 	}
 

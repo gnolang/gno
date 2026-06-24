@@ -10,7 +10,7 @@ import (
 )
 
 // pageTimeout bounds the page and JSON dispatch paths. The page path fans
-// out up to ~17 RPC calls; without a per-request ceiling it would inherit
+// out 2 RPC calls (StatePkg + Doc); without a per-request ceiling it would inherit
 // only the gnoweb-global timeout (which may be unset). Fragments keep their
 // own tighter fragmentTimeout (2 s) — see fragments.go.
 const pageTimeout = 10 * time.Second
@@ -24,6 +24,22 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 		ip := extractIP(r, h.deps.RateLimit.TrustedProxies)
 		if !h.limiter.Allow(ip) {
 			return writeRateLimited(w, r), nil
+		}
+	}
+	// State has no historical view, so reject a pinned ?height=N with 400
+	// instead of silently serving latest. Fragments are internal and never
+	// carry a user height, so they are exempt.
+	if !u.WebQuery.Has("frag") {
+		if ph, err := ValidateHeightFromURL(u); err != nil || ph > 0 {
+			msg := "historical state is not available"
+			if err != nil {
+				msg = "invalid height"
+			}
+			if u.WebQuery.Has("json") {
+				writeJSONError(w, http.StatusBadRequest, msg)
+				return http.StatusBadRequest, nil
+			}
+			return http.StatusBadRequest, components.StatusErrorComponent(msg)
 		}
 	}
 	switch {
@@ -51,6 +67,7 @@ func writeRateLimited(w http.ResponseWriter, r *http.Request) int {
 	}
 	w.Header().Set("Retry-After", "60")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusTooManyRequests)
 	_, _ = w.Write([]byte("rate limit exceeded\n"))
 	return http.StatusTooManyRequests

@@ -879,6 +879,21 @@ func getTypeID(t gno.Type) string {
 	return ""
 }
 
+// realmTypeID is the uverse realm type's TypeID, carried by the implicit
+// `cur realm` crossing parameter as a RefType across the RPC boundary.
+const realmTypeID = ".uverse.realm"
+
+// isCrossingParam reports whether the param at index i is the implicit
+// `cur realm` crossing parameter: first param with the uverse realm type.
+// Mirrors gnovm's FuncType.IsCrossing.
+func isCrossingParam(i int, t gno.Type) bool {
+	if i != 0 {
+		return false
+	}
+	rt, ok := t.(gno.RefType)
+	return ok && string(rt.ID) == realmTypeID
+}
+
 // funcSignature builds a human-readable signature, hiding the implicit
 // `cur realm` crossing parameter.
 func funcSignature(t gno.Type) string {
@@ -887,15 +902,12 @@ func funcSignature(t gno.Type) string {
 		return "func()"
 	}
 	params := make([]string, 0, len(ft.Params))
-	for _, p := range ft.Params {
-		// Hide implicit crossing param: cur-prefixed RefType.
-		name := string(p.Name)
-		if strings.HasPrefix(name, "cur") {
-			if _, isRef := p.Type.(gno.RefType); isRef {
-				continue
-			}
+	for i, p := range ft.Params {
+		if isCrossingParam(i, p.Type) {
+			continue
 		}
 		tn := typeName(p.Type)
+		name := string(p.Name)
 		if name != "" && !strings.HasPrefix(name, ".") {
 			params = append(params, name+" "+tn)
 		} else {

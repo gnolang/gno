@@ -116,7 +116,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 
 	t.Run("first page of three", func(t *testing.T) {
 		t.Parallel()
-		p := buildPagination("/r/foo", "pretty", 12, 0, 5)
+		p := buildPagination("/r/foo", "pretty", "", 12, 0, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 12, p.Total)
 		assert.Equal(t, 1, p.StartNumber)
@@ -132,7 +132,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 
 	t.Run("middle page", func(t *testing.T) {
 		t.Parallel()
-		p := buildPagination("/r/foo", "pretty", 12, 5, 5)
+		p := buildPagination("/r/foo", "pretty", "", 12, 5, 5)
 		require.NotNil(t, p)
 		assert.True(t, p.HasPrev)
 		assert.True(t, p.HasNext)
@@ -143,7 +143,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 
 	t.Run("last page", func(t *testing.T) {
 		t.Parallel()
-		p := buildPagination("/r/foo", "pretty", 12, 10, 5)
+		p := buildPagination("/r/foo", "pretty", "", 12, 10, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 11, p.StartNumber)
 		assert.Equal(t, 12, p.EndNumber)
@@ -155,12 +155,12 @@ func TestBuildPaginationHrefs(t *testing.T) {
 
 	t.Run("no pagination when total ≤ limit at offset 0", func(t *testing.T) {
 		t.Parallel()
-		assert.Nil(t, buildPagination("/r/foo", "pretty", 3, 0, 5))
+		assert.Nil(t, buildPagination("/r/foo", "pretty", "", 3, 0, 5))
 	})
 
 	t.Run("view preserved on every href", func(t *testing.T) {
 		t.Parallel()
-		p := buildPagination("/r/foo", "tree", 12, 0, 5)
+		p := buildPagination("/r/foo", "tree", "", 12, 0, 5)
 		require.NotNil(t, p)
 		assert.Contains(t, string(p.NextHref), "view=tree")
 		assert.Contains(t, string(p.LastHref), "view=tree")
@@ -168,11 +168,40 @@ func TestBuildPaginationHrefs(t *testing.T) {
 
 	t.Run("out-of-range offset still renders honest 0-0 summary", func(t *testing.T) {
 		t.Parallel()
-		p := buildPagination("/r/foo", "pretty", 12, 99, 5)
+		p := buildPagination("/r/foo", "pretty", "", 12, 99, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 0, p.StartNumber, "no rows shown → start collapses to 0")
 		assert.Equal(t, 12, p.EndNumber, "end clamped to total")
 	})
+
+	t.Run("active search is threaded into every page href", func(t *testing.T) {
+		t.Parallel()
+		// Every page href must carry search= so a filtered list stays filtered.
+		p := buildPagination("/r/foo", "pretty", "needle", 12, 5, 5)
+		require.NotNil(t, p)
+		assert.Contains(t, string(p.FirstHref), "search=needle")
+		assert.Contains(t, string(p.PrevHref), "search=needle")
+		assert.Contains(t, string(p.NextHref), "search=needle")
+		assert.Contains(t, string(p.LastHref), "search=needle")
+	})
+}
+
+// TestServePackageSearchPaginationKeepsFilter renders the package page under
+// a search spanning multiple pages and asserts the pagination footer keeps
+// search= so Next/Last stay filtered.
+func TestServePackageSearchPaginationKeepsFilter(t *testing.T) {
+	t.Parallel()
+
+	// 12 decls v0..v11 all match search "v"; limit 5 paginates the matches.
+	client := &pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)}
+	h := newPageHandler(client)
+	rec := servePageReq(t, h, url.Values{"search": {"v"}, "limit": {"5"}}, "/r/demo")
+	require.Equal(t, 200, rec.Code, "body=%s", rec.Body.String())
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "offset=5", "a Next page must render under search")
+	assert.Contains(t, body, "search=v",
+		"pagination hrefs must keep the active search (only page hrefs carry search= in the page body)")
 }
 
 // TestStatePageHrefOmitsDefaults confirms the canonical-URL discipline:
@@ -183,13 +212,14 @@ func TestStatePageHrefOmitsDefaults(t *testing.T) {
 	t.Parallel()
 
 	// Page 1, pretty → canonical (no offset, no limit, no view).
-	href := string(statePageHref("/r/foo", "pretty", 0, maxTopLevelDecls))
+	href := string(statePageHref("/r/foo", "pretty", "", 0, maxTopLevelDecls))
 	assert.NotContains(t, href, "offset=")
 	assert.NotContains(t, href, "limit=")
 	assert.NotContains(t, href, "view=")
 
 	// Non-default everything → all params surface.
-	href = string(statePageHref("/r/foo", "tree", 5, 3))
+	href = string(statePageHref("/r/foo", "tree", "search", 5, 3))
+	assert.Contains(t, href, "search=search")
 	assert.Contains(t, href, "offset=5")
 	assert.Contains(t, href, "limit=3")
 	assert.Contains(t, href, "view=tree")

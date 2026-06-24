@@ -49,7 +49,8 @@ func mapClientError(err error) (status int, message string) {
 // status. Consumers parse this without sniffing for HTML.
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	body, _ := json.Marshal(map[string]string{"error": message})
-	w.Write(body)
+	_, _ = w.Write(body)
 }

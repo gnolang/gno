@@ -66,6 +66,68 @@ func TestHandleDispatchesByQuery(t *testing.T) {
 	}
 }
 
+// TestHandleRejectsHeightPin locks the ?height=N policy: state has no
+// historical view, so the page and JSON surfaces must 400 on a pinned
+// height; fragments are exempt.
+func TestHandleRejectsHeightPin(t *testing.T) {
+	h := newTestHandler()
+	newReq := func() *http.Request {
+		return httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
+	}
+
+	t.Run("page surface 400s on a pinned height", func(t *testing.T) {
+		u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "height": {"5"}}}
+		rec := httptest.NewRecorder()
+		status, view := h.Handle(context.Background(), rec, newReq(), u)
+		if status != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400", status)
+		}
+		if view == nil {
+			t.Fatal("page surface must return a renderable error view")
+		}
+	})
+
+	t.Run("json surface 400s with the error envelope", func(t *testing.T) {
+		u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "json": {""}, "height": {"5"}}}
+		rec := httptest.NewRecorder()
+		status, view := h.Handle(context.Background(), rec, newReq(), u)
+		if status != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400", status)
+		}
+		if view != nil {
+			t.Fatal("json surface must write the body directly and return a nil view")
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+			t.Fatalf("Content-Type = %q, want application/json", ct)
+		}
+		if body := rec.Body.String(); !strings.Contains(body, "historical state is not available") {
+			t.Fatalf("body = %q, want the historical-state error", body)
+		}
+	})
+
+	t.Run("malformed height 400s", func(t *testing.T) {
+		u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "height": {"abc"}}}
+		rec := httptest.NewRecorder()
+		status, _ := h.Handle(context.Background(), rec, newReq(), u)
+		if status != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400 for malformed height", status)
+		}
+	})
+
+	t.Run("fragment ignores height (not rejected)", func(t *testing.T) {
+		u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{
+			"state": {""}, "frag": {"node"},
+			"oid":    {"abcdef0123456789abcdef0123456789abcdef01:1"},
+			"height": {"5"},
+		}}
+		rec := httptest.NewRecorder()
+		status, _ := h.Handle(context.Background(), rec, newReq(), u)
+		if status == http.StatusBadRequest {
+			t.Fatal("fragment path must not be rejected by the height guard")
+		}
+	})
+}
+
 // TestHandleEndToEndFragmentFromTemplateURL exercises the full
 // template→ParseFromURL→Handle path for a generated `hx-get` URL.
 // Regression coverage for the `?state` vs `$state` bug: if the template

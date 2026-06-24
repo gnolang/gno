@@ -434,6 +434,38 @@ func TestDecodeFuncRefValue(t *testing.T) {
 	assert.Contains(t, f.Type, "func(", "type display should include signature")
 }
 
+// TestFuncSignatureHidesOnlyCrossingParam: the implicit `cur realm` crossing
+// param (first param, realm type) is hidden, but user params like
+// `cursor avl.Tree` stay visible.
+func TestFuncSignatureHidesOnlyCrossingParam(t *testing.T) {
+	t.Parallel()
+
+	const fixture = `{
+		"names": ["Find"],
+		"values": [
+			{"T": {"@type": "/gno.FuncType",
+				"Params": [
+					{"Name": "cur", "Type": {"@type": "/gno.RefType", "ID": ".uverse.realm"}, "Embedded": false, "Tag": ""},
+					{"Name": "cursor", "Type": {"@type": "/gno.RefType", "ID": "gno.land/p/demo/avl.Tree"}, "Embedded": false, "Tag": ""},
+					{"Name": "key", "Type": {"@type": "/gno.PrimitiveType", "value": "16"}, "Embedded": false, "Tag": ""}
+				],
+				"Results": []},
+			 "V": {"@type": "/gno.RefValue", "ObjectID": "ffffffffffffffffffffffffffffffffffffffff:9"}}
+		]
+	}`
+
+	nodes, err := decodePkgJSON([]byte(fixture))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+
+	sig := nodes[0].Type
+	assert.Contains(t, sig, "func(", "type display should include signature")
+	assert.Contains(t, sig, "cursor", "user param `cursor` must stay visible")
+	assert.Contains(t, sig, "avl.Tree", "cursor's RefType must render")
+	assert.Contains(t, sig, "key", "trailing user param must stay visible")
+	assert.NotContains(t, sig, "realm", "implicit `cur realm` crossing param must be hidden")
+}
+
 // TestDecodeClosureWithCaptures mirrors TS testDecodeClosureWithCaptures:
 // FuncValue with non-empty Captures becomes kind="closure", with one child
 // per capture.

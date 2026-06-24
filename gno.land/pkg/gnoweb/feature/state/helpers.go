@@ -115,12 +115,16 @@ func stateRawJSONHref(pkgPath string) template.URL {
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
-// statePageHref builds the `<pkgPath>$state[&offset=N&limit=M&view=tree]`
-// permalink for the pagination footer. offset=0 and the default limit are
-// omitted to keep page-1 cache-key parity with the canonical
-// unparameterized state URL.
-func statePageHref(pkgPath, viewMode string, offset, limit int) template.URL {
+// statePageHref builds the
+// `<pkgPath>$state[&search=Q&offset=N&limit=M&view=tree]` permalink for the
+// pagination footer. search is stamped so a filtered list stays filtered
+// across pages. offset=0 and the default limit are omitted to keep page-1
+// cache-key parity with the canonical unparameterized state URL.
+func statePageHref(pkgPath, viewMode, search string, offset, limit int) template.URL {
 	wq := url.Values{"state": {""}}
+	if search != "" {
+		wq.Set("search", search)
+	}
 	if offset > 0 {
 		wq.Set("offset", strconv.Itoa(offset))
 	}
@@ -205,8 +209,9 @@ func computeAnchors(names []string) []string {
 // statePageAnchorHref returns statePageHref(...) with a `#fragment`
 // appended. The anchor is encoded as a literal fragment so links to
 // off-page decls land directly on the row after the cross-page hop.
+// Sidebar cross-page links only render outside search, so search is "".
 func statePageAnchorHref(pkgPath, viewMode string, offset, limit int, anchor string) template.URL {
-	base := string(statePageHref(pkgPath, viewMode, offset, limit))
+	base := string(statePageHref(pkgPath, viewMode, "", offset, limit))
 	if anchor == "" {
 		return template.URL(base) //nolint:gosec
 	}
@@ -215,8 +220,9 @@ func statePageAnchorHref(pkgPath, viewMode string, offset, limit int, anchor str
 
 // buildPagination computes the prev/next view-model from a paginated
 // DecodePackage result. Returns nil when total ≤ limit at offset 0.
-// Hrefs are gated on HasPrev/HasNext to skip work on edge pages.
-func buildPagination(pkgPath, viewMode string, total, offset, limit int) *Pagination {
+// Hrefs are gated on HasPrev/HasNext to skip work on edge pages. search
+// is threaded into every page href so a filtered result stays filtered.
+func buildPagination(pkgPath, viewMode, search string, total, offset, limit int) *Pagination {
 	if total <= limit && offset <= 0 {
 		return nil
 	}
@@ -230,12 +236,12 @@ func buildPagination(pkgPath, viewMode string, total, offset, limit int) *Pagina
 	}
 	if p.HasPrev {
 		prev := max(start-limit, 0)
-		p.FirstHref = statePageHref(pkgPath, viewMode, 0, limit)
-		p.PrevHref = statePageHref(pkgPath, viewMode, prev, limit)
+		p.FirstHref = statePageHref(pkgPath, viewMode, search, 0, limit)
+		p.PrevHref = statePageHref(pkgPath, viewMode, search, prev, limit)
 	}
 	if p.HasNext {
-		p.NextHref = statePageHref(pkgPath, viewMode, end, limit)
-		p.LastHref = statePageHref(pkgPath, viewMode, lastPageOffset(total, limit), limit)
+		p.NextHref = statePageHref(pkgPath, viewMode, search, end, limit)
+		p.LastHref = statePageHref(pkgPath, viewMode, search, lastPageOffset(total, limit), limit)
 	}
 	if end == start {
 		p.StartNumber = 0 // empty page → honest "Showing 0–0"

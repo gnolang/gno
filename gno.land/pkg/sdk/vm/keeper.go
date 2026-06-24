@@ -1711,7 +1711,9 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 	case *gno.Block:
 		return cv
 	case gno.RefValue:
-		obj := store.GetObject(cv.ObjectID)
+		// GetObjectSafe (not GetObject): degrade a missing ref to nil for the
+		// caller's guard instead of panicking. Mirrors resolveBlockNode.
+		obj := store.GetObjectSafe(cv.ObjectID)
 		if b, ok := obj.(*gno.Block); ok {
 			return b
 		}
