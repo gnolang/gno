@@ -946,10 +946,8 @@ func (m *Machine) doOpSwitchClause() {
 				break
 			}
 		}
-		m.PopStmt()  // pop switch stmt
-		m.PopValue() // pop switch tag value
-		m.PopValue() // pop clause case index
-		m.PopValue() // pop clause index
+		m.PopStmt()    // pop switch stmt
+		m.PopValues(3) // pop switch tag value, clause case index, clause index
 		if defaultIdx >= 0 {
 			cl := &ss.Clauses[defaultIdx]
 			b := m.LastBlock()
@@ -994,9 +992,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
-		m.PopValue()                    // pop switch tag value
-		m.PopValue()                    // pop clause case index
-		m.PopValue()                    // pop clause index
+		m.PopValues(3)                  // pop switch tag value, clause case index, clause index
 		// expand block size
 		clidx := cliv.GetInt()
 		cl := &ss.Clauses[clidx]
