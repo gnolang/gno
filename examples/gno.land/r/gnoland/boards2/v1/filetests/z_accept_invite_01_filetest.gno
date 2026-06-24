@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_accept_invite_01_filetest
+
+package z_accept_invite_01_filetest
 
 import (
 	"testing"
@@ -9,29 +11,29 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user  address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 
 	// Request an invite as a user that is not a member
 	testing.SetRealm(testing.NewUserRealm(user))
-	boards2.RequestInvite(cross, bid)
+	boards2.RequestInvite(cross(cur), bid)
 
 	// Add user as a member idependently of the invite request
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.InviteMember(cross, bid, user, boards2.RoleGuest)
+	boards2.InviteMember(cross(cur), bid, user, boards2.RoleGuest)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.AcceptInvite(cross, bid, user)
+	boards2.AcceptInvite(cross(cur), bid, user)
 }
 
 // Error:

@@ -1,0 +1,19 @@
+name: meta / gh / assign
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [ opened, reopened ]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  assign-author:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # to auto-assign the PR author
+    steps:
+      - uses: toshimaru/auto-author-assign@bdd7688cbf9e6d5683f02f8c7d8ae4062a254b6d # v3.0.2

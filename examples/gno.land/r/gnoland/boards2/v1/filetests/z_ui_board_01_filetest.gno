@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_01_filetest
+
 // Render board sorting threads from newest to oldest.
-package main
+package z_ui_board_01_filetest
 
 import (
 	"testing"
@@ -8,19 +10,19 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	boardName         = "TestBoard"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and then add 3 threads
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
 
-	boards2.CreateThread(cross, boardID, "A", "Body")
-	boards2.CreateThread(cross, boardID, "B", "Body")
-	boards2.CreateThread(cross, boardID, "C", "Body")
+	boards2.CreateThread(cross(cur), boardID, "A", "Body")
+	boards2.CreateThread(cross(cur), boardID, "B", "Body")
+	boards2.CreateThread(cross(cur), boardID, "C", "Body")
 }
 
 func main() {
@@ -30,20 +32,20 @@ func main() {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---
-// Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=asc)
+// Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?order=asc)
 //
 // ###### [C](/r/gnoland/boards2/v1:TestBoard/3)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `owner` on 2009-02-13 11:31pm UTC
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
 // ###### [B](/r/gnoland/boards2/v1:TestBoard/2)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `owner` on 2009-02-13 11:31pm UTC
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
 // ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
-// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) `owner` on 2009-02-13 11:31pm UTC
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**

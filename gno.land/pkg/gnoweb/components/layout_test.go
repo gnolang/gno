@@ -75,8 +75,10 @@ func TestIndexLayout(t *testing.T) {
 
 func TestEnrichFooterData(t *testing.T) {
 	data := FooterData{
-		Analytics:  true,
-		AssetsPath: "/assets",
+		Analytics: AnalyticsData{
+			Enabled:    true,
+			AssetsPath: "/assets",
+		},
 	}
 
 	enrichedData := EnrichFooterData(data)
@@ -112,7 +114,7 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 3, "expected dev links with Actions for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 4, "expected dev links with State and Actions for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -161,6 +163,22 @@ func TestIsActive(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "State active when state present",
+			query: url.Values{
+				"state": []string{""},
+			},
+			label:    "State",
+			expected: true,
+		},
+		{
+			name: "Content inactive when state present",
+			query: url.Values{
+				"state": []string{""},
+			},
+			label:    "Content",
+			expected: false,
+		},
+		{
 			name:     "Unknown label returns false",
 			query:    url.Values{},
 			label:    "Unknown",
@@ -185,11 +203,12 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm)
-	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	assert.Len(t, links, 4, "expected Content, State, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
-	assert.Equal(t, "Source", links[1].Label)
-	assert.Equal(t, "Actions", links[2].Label)
+	assert.Equal(t, "State", links[1].Label)
+	assert.Equal(t, "Source", links[2].Label)
+	assert.Equal(t, "Actions", links[3].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -200,10 +219,22 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage)
+	links := StaticHeaderDevLinks(u, ViewModePackage, false)
 	assert.Len(t, links, 2, "expected Content and Source links only")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	require.Len(t, links, 1, "static content should only have Content link")
+	assert.Equal(t, "Content", links[0].Label)
 }
 
 func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
@@ -214,7 +245,7 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
@@ -231,7 +262,7 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 3, "expected Content, Source, and Actions links")
+	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
@@ -353,6 +384,220 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
 			} else {
 				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
+		})
+	}
+}
+
+func TestNewBannerData(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name            string
+		input           string
+		globalURL       string
+		wantEnabled     bool
+		wantHasURL      bool
+		wantContains    string
+		wantNotContains string
+	}{
+		{
+			name:        "empty is disabled",
+			input:       "",
+			wantEnabled: false,
+		},
+		{
+			name:         "plain text",
+			input:        "Beta",
+			wantEnabled:  true,
+			wantContains: "Beta",
+		},
+		{
+			name:         "markdown link gets target blank",
+			input:        "[Beta](https://example.com)",
+			wantEnabled:  true,
+			wantContains: `<a href="https://example.com" target="_blank" rel="noopener noreferrer">Beta</a>`,
+		},
+		{
+			name:         "bold and italic",
+			input:        "This is **bold** and *italic*",
+			wantEnabled:  true,
+			wantContains: "<strong>bold</strong>",
+		},
+		{
+			name:         "content after newline discarded",
+			input:        "line one\nline two",
+			wantEnabled:  true,
+			wantContains: "line one",
+		},
+		{
+			name:        "truncated over max length",
+			input:       strings.Repeat("a", MaxBannerLength+50),
+			wantEnabled: true,
+		},
+		{
+			name:        "HTML block stripped",
+			input:       `<script>alert("xss")</script>`,
+			wantEnabled: false,
+		},
+		{
+			name:         "javascript URL sanitized",
+			input:        `[click](javascript:alert(1))`,
+			wantEnabled:  true,
+			wantContains: `href=""`,
+		},
+		{
+			name:            "global URL strips inline links",
+			input:           "[click](https://other.com)",
+			globalURL:       "https://gno.land",
+			wantEnabled:     true,
+			wantHasURL:      true,
+			wantContains:    "click",
+			wantNotContains: `href="https://other.com"`,
+		},
+		{
+			name:        "global javascript URL rejected",
+			input:       "Hello",
+			globalURL:   "javascript:alert(1)",
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+		{
+			name:        "global ftp URL rejected",
+			input:       "Hello",
+			globalURL:   "ftp://bad.com",
+			wantEnabled: true,
+			wantHasURL:  false,
+		},
+		{
+			name:        "heading block stripped",
+			input:       "# Big Heading",
+			wantEnabled: false,
+		},
+		{
+			name:        "blockquote stripped",
+			input:       "> quoted text",
+			wantEnabled: false,
+		},
+		{
+			name:        "thematic break stripped",
+			input:       "---",
+			wantEnabled: false,
+		},
+		{
+			name:        "list item stripped",
+			input:       "- list entry",
+			wantEnabled: false,
+		},
+		{
+			name:         "leading whitespace trimmed before parsing",
+			input:        "    code line",
+			wantEnabled:  true,
+			wantContains: "code line",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			banner, err := NewBannerData(tc.input, tc.globalURL)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantEnabled, banner.Enabled())
+			assert.Equal(t, tc.wantHasURL, banner.HasURL())
+
+			var buf strings.Builder
+			require.NoError(t, banner.Render(&buf))
+			rendered := buf.String()
+
+			if tc.wantContains != "" {
+				assert.Contains(t, rendered, tc.wantContains)
+			}
+			if tc.wantNotContains != "" {
+				assert.NotContains(t, rendered, tc.wantNotContains)
+			}
+			if banner.Enabled() {
+				assert.NotContains(t, rendered, "<p>")
+			}
+		})
+	}
+}
+
+func TestIndexLayout_Banner(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name            string
+		markdown        string
+		url             string
+		wantBanner      bool
+		wantContains    string
+		wantNotContains string
+	}{
+		{
+			name:       "no banner when empty",
+			markdown:   "",
+			wantBanner: false,
+		},
+		{
+			name:         "plain text renders in div",
+			markdown:     "Maintenance",
+			wantBanner:   true,
+			wantContains: "Maintenance",
+		},
+		{
+			name:         "markdown link renders inline",
+			markdown:     "[Beta](https://example.com)",
+			wantBanner:   true,
+			wantContains: `href="https://example.com"`,
+		},
+		{
+			name:         "global URL wraps banner in anchor",
+			markdown:     "Beta release",
+			url:          "https://gno.land",
+			wantBanner:   true,
+			wantContains: `<a href="https://gno.land"`,
+		},
+		{
+			name:            "global URL overrides inline links",
+			markdown:        "[click here](https://other.com)",
+			url:             "https://gno.land",
+			wantBanner:      true,
+			wantContains:    `<a href="https://gno.land"`,
+			wantNotContains: `href="https://other.com"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			banner, err := NewBannerData(tc.markdown, tc.url)
+			require.NoError(t, err)
+
+			data := IndexData{
+				HeadData: HeadData{Title: "Test"},
+				Mode:     ViewModeHome,
+				Banner:   banner,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			var buf strings.Builder
+			err = IndexLayout(data).Render(&buf)
+			require.NoError(t, err)
+
+			output := buf.String()
+			if !tc.wantBanner {
+				assert.NotContains(t, output, "b-banner")
+			} else {
+				assert.Contains(t, output, "b-banner")
+				assert.Contains(t, output, tc.wantContains)
+				if tc.wantNotContains != "" {
+					assert.NotContains(t, output, tc.wantNotContains)
+				}
 			}
 		})
 	}

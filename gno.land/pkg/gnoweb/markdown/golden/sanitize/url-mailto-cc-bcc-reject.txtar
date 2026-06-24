@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: URL
+// CONTEXT: [email](%s)
+-- input.md --
+mailto:victim@x?cc=evil@y&bcc=evil2@z
+-- output.md --
+
+-- output.html --
+<p><a href="">email</a></p>

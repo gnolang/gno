@@ -147,7 +147,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	cooldownLimiter := newRedisLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
 
 	// Start the IP throttler
-	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	st := newIPThrottler(cfg.rootCfg.rateLimitInterval, cfg.rootCfg.rateLimitCleanTimeout)
 	st.start(ctx)
 
 	rewarderCfg, err := parseRewarderConfig()
@@ -164,7 +164,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
-		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
+		ipMiddleware(logger, cfg.rootCfg.trustedProxyCount, st),
 		gitHubUsernameMiddleware(clientID, clientSecret, defaultGHExchange, logger, rdb),
 	}
 
