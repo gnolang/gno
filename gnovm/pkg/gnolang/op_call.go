@@ -568,10 +568,10 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
 	var fv *FuncValue
-	var recv TypedValue // frame receiver; zero for a plain func
+	var recv TypedValue // receiver for PushFrameCall: the bound receiver, or zero for a plain func
 	switch cv := dfr.Callable.(type) {
 	case *FuncValue:
-		fv = cv
+		fv = cv // plain func: no receiver, recv stays zero
 	case *BoundMethodValue:
 		// A lazy interface bind resolves its concrete method + receiver now, at
 		// the deferred call — Go's call-time dispatch on the operand's current
