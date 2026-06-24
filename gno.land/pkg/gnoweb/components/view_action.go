@@ -90,9 +90,9 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return url
 	}
 
-	funcs["buildHelpQR"] = func(data HelpData, fn *doc.JSONFunc) string {
+	funcs["buildHelpQR"] = func(data HelpData, fn HelpFunction) string {
 		// create and scale the QR code
-		buildHelpURL := funcs["buildHelpURL"].(func(HelpData, *doc.JSONFunc) string)
+		buildHelpURL := funcs["buildHelpURL"].(func(HelpData, HelpFunction) string)
 		url := buildHelpURL(data, fn)
 		qrCode, _ := qr.Encode(url, qr.M, qr.Auto)
 		qrCode, _ = barcode.Scale(qrCode, 200, 200)
