@@ -744,11 +744,7 @@ func (mv *MapValue) GetShallowSize() int64 {
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
-	// A resolved bmv whose method is a pre-loaded uverse native is size 0.
-	// A lazy interface bind has Func == nil (no PkgPath to test); it is a
-	// fresh runtime allocation, so it is counted at full size even though it
-	// may resolve to a uverse method (e.g. a boxed `cur realm`) — the wrapper
-	// is real, unlike the pre-loaded singleton, so full is correct.
+	// skip .uverse (Func == nil for an unresolved lazy interface bind)
 	if bmv.Func != nil && bmv.Func.PkgPath == ".uverse" {
 		return 0
 	}
