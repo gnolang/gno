@@ -744,10 +744,14 @@ func (mv *MapValue) GetShallowSize() int64 {
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
-	// skip .uverse (Func == nil for an unresolved lazy interface bind)
-	if bmv.Func != nil && bmv.Func.PkgPath == ".uverse" {
-		return 0
-	}
+	// A bound method is a runtime composite (Func + Receiver) allocated where it
+	// is formed; unlike PackageValue/Block/FuncValue it has no PkgPath of its
+	// own, so its size must not be keyed on the wrapped Func's package. Its
+	// shallow size is always allocBoundMethod — whether it counts toward a realm
+	// is decided by GC/persistence reachability. (Previously this returned 0 when
+	// Func.PkgPath == ".uverse", under-counting a real, dynamically-allocated
+	// wrapper of a uverse method — e.g. `g := addr.String`, a concrete
+	// value-method on the uverse `address` type — by allocBoundMethod.)
 	return allocBoundMethod
 }
 
