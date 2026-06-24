@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_thread_00_filetest
+
+package z_delete_thread_00_filetest
 
 import (
 	"testing"
@@ -9,7 +11,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	title         = "Test Thread"
 	body          = "Test body"
 )
@@ -19,16 +21,16 @@ var (
 	pid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	pid = boards2.CreateThread(cross, bid, title, body)
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	pid = boards2.CreateThread(cross(cur), bid, title, body)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.DeleteThread(cross, bid, pid)
+	boards2.DeleteThread(cross(cur), bid, pid)
 
 	// Ensure thread doesn't exist
 	println(boards2.Render("test-board/1"))

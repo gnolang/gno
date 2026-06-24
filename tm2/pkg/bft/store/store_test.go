@@ -197,9 +197,13 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
+			// An empty block store now accepts any height as the first block
+			// (supporting InitialHeight > 1 for chain upgrades).  The panic
+			// here is therefore NOT about contiguous blocks but about the nil
+			// seenCommit that gets marshaled.
 			block:     newBlock(header2, commitAtH10),
 			parts:     uncontiguousPartSet,
-			wantPanic: "only save contiguous blocks", // and incomplete and uncontiguous parts
+			wantPanic: "nil *Commit pointer",
 		},
 
 		{
@@ -213,14 +217,14 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			parts:             validPartSet,
 			seenCommit:        seenCommit1,
 			corruptCommitInDB: true, // Corrupt the DB's commit entry
-			wantPanic:         "unmarshal to types.Commit failed",
+			wantPanic:         "Error reading block commit",
 		},
 
 		{
 			block:            newBlock(header1, commitAtH10),
 			parts:            validPartSet,
 			seenCommit:       seenCommit1,
-			wantPanic:        "unmarshal to types.BlockMeta failed",
+			wantPanic:        "Error reading block meta",
 			corruptBlockInDB: true, // Corrupt the DB's block entry
 		},
 
@@ -239,7 +243,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			seenCommit: seenCommit1,
 
 			corruptSeenCommitInDB: true,
-			wantPanic:             "unmarshal to types.Commit failed",
+			wantPanic:             "Error reading block seen commit",
 		},
 
 		{
@@ -352,7 +356,7 @@ func TestLoadBlockPart(t *testing.T) {
 	db.Set(calcBlockPartKey(height, index), []byte("Tendermint"))
 	res, _, panicErr = doFn(loadPart)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.Part failed")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good block serialized and saved to the DB should be retrievable
 	db.Set(calcBlockPartKey(height, index), amino.MustMarshal(part1))
@@ -383,7 +387,7 @@ func TestLoadBlockMeta(t *testing.T) {
 	db.Set(calcBlockMetaKey(height), []byte("Tendermint-Meta"))
 	res, _, panicErr = doFn(loadMeta)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.BlockMeta")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good blockMeta serialized and saved to the DB should be retrievable
 	meta := &types.BlockMeta{}
@@ -421,6 +425,29 @@ func TestBlockFetchAtHeight(t *testing.T) {
 	require.Nil(t, blockAtHeightPlus2, "expecting an unsuccessful load of Height()+2")
 }
 
+func TestLoadBlockWithMissingPart(t *testing.T) {
+	t.Parallel()
+
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	partSet := block.MakePartSet(2)
+	seenCommit := makeTestCommit(10, tmtime.Now())
+	bs.SaveBlock(block, partSet, seenCommit)
+
+	// Delete a block part from the DB to simulate a missing part
+	height := block.Header.Height
+	require.True(t, partSet.Total() > 1, "need multiple parts for this test")
+
+	// Delete the second part key
+	bs.db.Delete(calcBlockPartKey(height, 1))
+
+	// LoadBlock should return nil when a part is missing
+	loaded := bs.LoadBlock(height)
+	require.Nil(t, loaded, "LoadBlock should return nil when a block part is missing")
+}
+
 func doFn(fn func() (any, error)) (res any, err error, panicErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -448,4 +475,56 @@ func newBlock(hdr types.Header, lastCommit *types.Commit) *types.Block {
 		Header:     hdr,
 		LastCommit: lastCommit,
 	}
+}
+
+// TestBlockStore_InitialHeight verifies that an empty BlockStore accepts a
+// block at any height >= 1.  This is required for chains that start at
+// InitialHeight > 1 (e.g. a chain upgraded from an older chain ID that
+// replays historical transactions at genesis).
+func TestBlockStore_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	state, _, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	const initialHeight = int64(50)
+
+	bs, _ := freshBlockStore()
+	require.Equal(t, int64(0), bs.Height())
+
+	genesisBlock := makeBlock(initialHeight, state, new(types.Commit))
+	parts := genesisBlock.MakePartSet(2)
+	sc := makeTestCommit(initialHeight, tmtime.Now())
+
+	assert.NotPanics(t, func() {
+		bs.SaveBlock(genesisBlock, parts, sc)
+	}, "empty store should accept first block at any height")
+	require.Equal(t, initialHeight, bs.Height())
+}
+
+// TestBlockStore_ContiguousAfterInitialHeight verifies that after the first
+// block is saved (possibly at InitialHeight > 1), subsequent saves must be
+// strictly contiguous.
+func TestBlockStore_ContiguousAfterInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	state, _, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	const initialHeight = int64(50)
+
+	bs, _ := freshBlockStore()
+	genesisBlock := makeBlock(initialHeight, state, new(types.Commit))
+	parts := genesisBlock.MakePartSet(2)
+	sc := makeTestCommit(initialHeight, tmtime.Now())
+	bs.SaveBlock(genesisBlock, parts, sc)
+
+	// Trying to save at a non-contiguous height (50+2=52, not 51) must panic.
+	skippedBlock := makeBlock(initialHeight+2, state, new(types.Commit))
+	skippedParts := skippedBlock.MakePartSet(2)
+	skippedSC := makeTestCommit(initialHeight+2, tmtime.Now())
+
+	assert.Panics(t, func() {
+		bs.SaveBlock(skippedBlock, skippedParts, skippedSC)
+	}, "non-contiguous height must still panic after InitialHeight is set")
 }

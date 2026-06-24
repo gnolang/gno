@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_10_filetest
+
+package z_create_reply_10_filetest
 
 import (
 	"testing"
@@ -9,7 +11,7 @@ import (
 )
 
 const (
-	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	comment         = "Second comment"
 )
 
@@ -18,20 +20,20 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross, bid, tid, 0, "Parent comment")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "Parent comment")
 
 	// Flag parent post so it's hidden
-	boards2.FlagReply(cross, bid, tid, rid, "Reason")
+	boards2.FlagReply(cross(cur), bid, tid, rid, "Reason")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateReply(cross, bid, tid, rid, "Sub comment")
+	boards2.CreateReply(cross(cur), bid, tid, rid, "Sub comment")
 }
 
 // Error:

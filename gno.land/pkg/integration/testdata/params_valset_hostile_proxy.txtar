@@ -1,0 +1,79 @@
+# Hostile realm proxy attack on valopers.UpdateSigningKey.
+#
+# valopers.UpdateSigningKey gates on v.Auth().AssertPreviousOnAuthList().
+# Per docs/resources/gno-interrealm.md, PreviousRealm() returns the
+# IMMEDIATE previous frame: when a hostile third realm cross-calls
+# UpdateSigningKey from its own crossing function, valopers sees the
+# proxy realm's pkgpath/address — NOT the original user's address.
+#
+# This is the foundational interrealm property the auth-list scheme
+# depends on. If broken, an attacker could trick a victim operator
+# into calling a "harmless" hostile realm function that ferries through
+# to UpdateSigningKey, stealing rotation authority. The auth check
+# must continue to refuse the proxy realm itself (which is never on a
+# legitimate operator's auth list).
+#
+# This test:
+#   1. Deploys /r/test/rotateproxy with a crossing wrapper around
+#      valopers.UpdateSigningKey.
+#   2. member (the operator) calls rotateproxy.WrapRotate themselves.
+#      The auth check must STILL reject — the proxy realm is the
+#      previous frame, not member directly.
+#   3. State must be unchanged: valoper profile still bound to P.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+
+gnoland start
+
+# Deploy the hostile proxy realm.
+gnokey maketx addpkg -pkgdir $WORK/rotateproxy -pkgpath gno.land/r/test/rotateproxy -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# member registers their valoper profile with pubKey P.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opMember -args 'member operator' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Snapshot valoper render (we'll cmp after the failed rotation).
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+cp stdout valoper_before.txt
+
+# Attack: member (the legitimate operator!) calls rotateproxy's
+# wrapper. valopers.UpdateSigningKey sees PreviousRealm =
+# /r/test/rotateproxy (the proxy realm's address), NOT member.
+# The proxy is not on member's auth list -> must reject.
+! gnokey maketx call -pkgpath gno.land/r/test/rotateproxy -func WrapRotate -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member
+stderr 'caller is not in authorized list'
+
+# State unchanged: valoper still bound to P.
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+cp stdout valoper_after.txt
+cmp valoper_before.txt valoper_after.txt
+
+-- rotateproxy/gnomod.toml --
+module = "gno.land/r/test/rotateproxy"
+gno = "0.9"
+
+-- rotateproxy/proxy.gno --
+package rotateproxy
+
+import (
+	"gno.land/r/gnops/valopers"
+)
+
+// WrapRotate is a hostile crossing function that ferries the call
+// to valopers.UpdateSigningKey via cross. The attacker hopes that
+// valopers' auth check will see the original user (member) as the
+// previous frame, and so accept the rotation.
+//
+// Per gno-interrealm.md, valopers actually sees /r/test/rotateproxy
+// as PreviousRealm — not member. The auth check must reject.
+func WrapRotate(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	const newPubKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
+	valopers.UpdateSigningKey(cross(cur), address(memberAddr), newPubKey)
+}

@@ -48,6 +48,16 @@ Example: `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` (A user's run
 
 For more details on ephemeral packages and the `maketx run` command, see [Interacting with gnokey](../users/interact-with-gnokey.md#run).
 
+### Import rules
+
+Not every package type can import every other. The rules:
+
+- **Pure packages (`/p/`)** can be imported by anything: realms, other pure packages, and ephemeral packages.
+- **Realms (`/r/`)** can be imported by other realms and by ephemeral packages, but **not by pure packages** (importing state into a stateless library is forbidden).
+- **Ephemeral packages (`/e/`)** **cannot be imported by anything**. They exist only during their own execution.
+
+Importing a realm gives access to its exported functions and interacts with that realm's persistent state. Importing a pure package gives access to its exported functions only, with no state persistence.
+
 ## Package Path Structure
 
 A package path is a unique identifier for any package that lives on the Gno.land
@@ -76,7 +86,7 @@ The components of these paths are:
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#derivepkgaddr)
+- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
 
 ## Namespaces
 
@@ -89,7 +99,7 @@ Initially, all users are granted a default namespace with their address - a
 pseudo-anonymous (PA) namespace - to which the associated address can
 deploy. This namespace has the following format:
 ```
-gno.land/{p,r}/{std.Address}/**
+gno.land/{p,r}/{address}/**
 ```
 
 For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the
@@ -214,5 +224,5 @@ This provides transparency and allows you to learn from existing code.
 
 For detailed instructions on creating your own packages:
 
-- For realms, see [Example Minisocial dApp](../builders/example-minisocial-dapp.md)
-- For deployment, see [Deploying Gno Packages](../builders/deploy-packages.md)
+- For a hands-on walkthrough, see [Getting started](../builders/getting-started.md)
+- For a full example, see [Tutorial: MiniSocial dApp](../builders/tutorial-minisocial.md)
