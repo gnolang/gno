@@ -692,19 +692,6 @@ func (bmv *BoundMethodValue) IsLazy() bool {
 	return bmv.Func == nil
 }
 
-// valueMethodReceiver forms the receiver for a value-receiver method from the
-// owner value: a fresh mutable copy with readonly cleared (a value receiver is
-// always a copy the method body may mutate without touching the original).
-func valueMethodReceiver(alloc *Allocator, owner TypedValue) TypedValue {
-	rtv := owner.Copy(alloc)
-	if rtv.V != nil {
-		// Clear readonly for receivers. Other rules still apply such as in
-		// DidUpdate. NOTE: rtv is a copy, the original is untouched.
-		rtv.N = [8]byte{}
-	}
-	return rtv
-}
-
 // resolveInterfaceTrail walks an interface-dispatch trail on the boxed concrete
 // value, returning the resolved bound-method pointer. The walk dereferences as
 // it goes, so running it at call time gives Go's call-time dispatch: nil derefs
@@ -2000,10 +1987,17 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("should not happen")
 			}
 		}
+		// A value receiver is a fresh copy the method body may mutate without
+		// touching the original; clear readonly on the copy (other rules still
+		// apply, e.g. in DidUpdate).
+		rtv := dtv.Copy(alloc)
+		if rtv.V != nil {
+			rtv.N = [8]byte{}
+		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
-			Receiver: valueMethodReceiver(alloc, *dtv),
+			Receiver: rtv,
 		}
 		// Bound method wrapper belongs to the realm doing the
 		// binding; the receiver carries its own PkgID independently.
