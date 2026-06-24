@@ -1,7 +1,8 @@
+// PKGPATH: gno.land/r/test/alloc_10c
 // MAXALLOC: 20000
 // SEND: 1000000ugnot
 
-package main
+package alloc_10c
 
 import (
 	"testing"
@@ -11,19 +12,19 @@ import (
 	users "gno.land/r/sys/users/init"
 )
 
-func main() {
+func main(cur realm) {
 	aliceAddr := testutils.TestAddress("alice_123")
 
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
-	users.RegisterUser(cross, "alice_123", aliceAddr)
+	users.RegisterUser(cross(cur), "alice_123", aliceAddr)
 
-	bid := boards.CreateBoard(cross, "testboard")
-	boards.CreateThread(cross, bid, "testthread", "testbody")
+	bid := boards.CreateBoard(cross(cur), "testboard")
+	boards.CreateThread(cross(cur), bid, "testthread", "testbody")
 	n := 5000
 	for i := 0; i < n; i++ {
-		boards.CreateReply(cross, bid, boards.PostID(1), boards.PostID(1), "reply")
+		boards.CreateReply(cross(cur), bid, boards.PostID(1), boards.PostID(1), "reply")
 	}
 	println("ok")
 }
@@ -31,4 +32,4 @@ func main() {
 // allocation limit exceeded during importing.
 
 // Error:
-// main/alloc_10c.gno:7:2-11: allocation limit exceeded
+// allocation limit exceeded
