@@ -208,4 +208,4 @@ This lazy-loading pattern avoids transferring the entire object graph upfront.
 ## See Also
 
 - [Interacting with gnokey](../users/interact-with-gnokey.md#querying-a-gnoland-network) — text-oriented query endpoints (`vm/qrender`, `vm/qfile`, `vm/qeval`, etc.)
-- [Connecting Clients and Applications](connect-clients-and-apps.md) — client library overview
+- [RPC clients](rpc-clients.md) — client library overview
