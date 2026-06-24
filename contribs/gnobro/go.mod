@@ -30,6 +30,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bmatsuo/lmdb-go v1.8.0 // indirect
+	github.com/boombuler/barcode v1.1.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
 	github.com/btcsuite/btcd/btcutil v1.2.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
