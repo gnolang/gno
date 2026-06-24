@@ -8,9 +8,9 @@
 		"@fullhuman/postcss-purgecss": "^7.0.2",
 		"chokidar-cli": "^3.0.0",
 		"cssnano": "^7.1.0",
-		"esbuild": "0.25.5",
-		"nodemon": "^3.1.10",
-		"postcss": "^8.5.6",
+		"esbuild": "0.28.1",
+		"nodemon": "^3.1.14",
+		"postcss": "^8.5.10",
 		"postcss-cli": "^11.0.1",
 		"postcss-import": "^16.1.1",
 		"postcss-preset-env": "^10.2.4"
