@@ -40,15 +40,31 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
-			Name:  "complex file path",
-			Input: "https://gno.land/r/simple/test///...gno",
+			Name:  "simple with hyphen",
+			Input: "https://gno.land/r/hyphen-simple/test",
 			Expected: &GnoURL{
 				Domain:   "gno.land",
-				Path:     "/r/simple/test//",
+				Path:     "/r/hyphen-simple/test",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
-				File:     "...gno",
 			},
+		},
+
+		{
+			Name:  "simple with multiple hyphens",
+			Input: "https://gno.land/r/-hyphen--simple/-test-",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/-hyphen--simple/-test-",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+		},
+
+		{
+			Name:  "simple with multiple slashes",
+			Input: "https://gno.land/r/hyphen-simple//test",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{
@@ -139,14 +155,26 @@ func TestParseGnoURL(t *testing.T) {
 
 		{
 			Name:  "empty path",
-			Input: "https://gno.land/r/",
+			Input: "https://gno.land",
+			Err:   ErrURLInvalidPath,
+		},
+
+		{
+			Name:  "root path",
+			Input: "https://gno.land/",
 			Expected: &GnoURL{
-				Path:     "/r/",
+				Path:     "/",
 				Args:     "",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
 				Domain:   "gno.land",
 			},
+		},
+
+		{
+			Name:  "root path with multiple slashes",
+			Input: "https://gno.land//",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{
@@ -290,7 +318,7 @@ func TestIsValidPath(t *testing.T) {
 		Path  string
 		Valid bool
 	}{
-		{Path: "/", Valid: true},
+		{Path: "/", Valid: false},
 		{Path: "/r/valid", Valid: true},
 		{Path: "/p/abc_123", Valid: true},
 		{Path: "/r/demo/users/", Valid: true},
@@ -301,7 +329,8 @@ func TestIsValidPath(t *testing.T) {
 		{Path: "/r/valid/path_with/underscores", Valid: true},
 		{Path: "/r/", Valid: true},
 		{Path: "/r/with space", Valid: false},
-		{Path: "/r/hyphen-invalid", Valid: false},
+		{Path: "/r/hyphen-valid", Valid: true},
+		{Path: "/p/hyphen-valid/path", Valid: true},
 	}
 
 	for _, tc := range testCases {
@@ -322,14 +351,14 @@ func TestNamespace(t *testing.T) {
 		{Path: "/p/another", Expected: "another"},
 		{Path: "/r/123invalid", Expected: ""},
 		{Path: "/r/TEST", Expected: ""},
-		{Path: "/x/ns", Expected: "ns"},
+		{Path: "/x/ns", Expected: ""},
 		{Path: "/r/a", Expected: "a"},
 		{Path: "/r/a1", Expected: "a1"},
 		{Path: "/r/a_b/c", Expected: "a_b"},
 		{Path: "/invalidpath", Expected: ""},
 		{Path: "/r/", Expected: ""},
-		{Path: "/r/a-b/c", Expected: ""},
-		{Path: "/r/valid-ns", Expected: ""},
+		{Path: "/r/a-b/c", Expected: "a-b"},
+		{Path: "/r/valid-ns", Expected: "valid-ns"},
 	}
 
 	for _, tc := range testCases {
