@@ -22,5 +22,9 @@ Gno.land networks expose several RPC endpoints that allow you to:
 
 All RPC endpoints for each network can be found in the [Networks documentation](../resources/gnoland-networks.md).
 
-<!-- XXX: move RPC doc from networks.md to this file. -->
-<!-- XXX: per-language examples should exist in their READMEs, not in the monorepo's docs/ folder -->
+### Query Endpoints
+
+There are two families of query endpoints:
+
+- **Text-oriented** (`vm/qrender`, `vm/qeval`, `vm/qfile`, etc.) — return human-readable strings, suitable for CLI tools like `gnokey`. See [Interacting with gnokey](../users/interact-with-gnokey.md#querying-a-gnoland-network).
+- **JSON/structured** (`vm/qeval_json`, `vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`) — return Amino JSON, suitable for programmatic access by frontends and tools. See [Querying On-Chain State (JSON APIs)](query-state-api.md).
