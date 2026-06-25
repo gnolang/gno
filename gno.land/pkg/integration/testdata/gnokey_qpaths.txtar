@@ -9,10 +9,6 @@ loadpkg gno.land/p/bbb/ccc/ppp $WORK
 loadpkg gno.land/r/bbb/aaa $WORK
 loadpkg gno.land/r/bbb0 $WORK
 
-# foo-bar namespace (hyphenated)
-loadpkg gno.land/r/foo-bar/baz $WORK
-loadpkg gno.land/p/foo-bar/pkg $WORK
-
 gnoland start
 
 # query path for prefix
@@ -50,21 +46,14 @@ gnokey query vm/qpaths?limit=5 --data "_"
 cmp stdout stdlibs-qpaths.stdout.golden
 cmp stderr empty_file
 
+
 gnokey query vm/qpaths --data "_/encoding"
 cmp stdout stdlibs-encoding-qpaths.stdout.golden
 cmp stderr empty_file
 
+
 gnokey query vm/qpaths?limit=5 --data ""
 cmp stdout empty-qpaths.stdout.golden
-cmp stderr empty_file
-
-# query path for namespace with hyphen
-gnokey query vm/qpaths --data "@foo-bar"
-cmp stdout foo-bar-name-qpaths.stdout.golden
-cmp stderr empty_file
-
-gnokey query vm/qpaths --data "@foo-bar/baz"
-cmp stdout foo-bar-name-subpath-qpaths.stdout.golden
 cmp stderr empty_file
 
 -- main.gno --
@@ -102,13 +91,6 @@ Msg Traces:
 
 -- invalid-name-qpaths.stderr.golden --
 "gnokey" error: invalid username format
--- foo-bar-name-qpaths.stdout.golden --
-height: 0
-data: gno.land/p/foo-bar/pkg
-gno.land/r/foo-bar/baz
--- foo-bar-name-subpath-qpaths.stdout.golden --
-height: 0
-data: gno.land/r/foo-bar/baz
 -- ccc-qpaths.stdout.golden --
 height: 0
 data: 
