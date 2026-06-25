@@ -727,7 +727,7 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 // through for a pointer receiver) — the machine's Run loop converts that to the
 // cooperative panic path, so both immediate and deferred calls behave correctly
 // without a separate nil signal here.
-func resolveLazyBound(alloc *Allocator, store Store, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
+func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
 	operand := bmv.Receiver
 	name := bmv.Method
 	// The method name is invariant across layers, so the operand pointer fully
@@ -736,16 +736,16 @@ func resolveLazyBound(alloc *Allocator, store Store, bmv *BoundMethodValue) (*Fu
 	// recur; value operands are finite copies.
 	var seen map[*TypedValue]struct{}
 	for {
+		// Charge per hop so the cost scales with embedded-interface depth rather
+		// than being flat per call.
+		m.incrCPU(OpCPULazyBoundResolve)
 		// The saved operand may be a pointer reloaded from the store with an
 		// unfilled TV; fill it so the walk can dereference it. This load of the
 		// live state is what lets field re-read / dynamic re-dispatch observe
 		// updates made after the bind.
-		fillValueTV(store, &operand)
+		fillValueTV(m.Store, &operand)
 		if pv, ok := operand.V.(PointerValue); ok && pv.TV != nil {
 			if _, dup := seen[pv.TV]; dup {
-				// Fatal: a raw panic is re-raised past the gno recover() boundary
-				// (machine.runOnce), so a broken program cannot swallow it, while
-				// the keeper/test harness still recovers it into a clean error.
 				panic("cyclic embedded interface in method-value dispatch")
 			}
 			if seen == nil {
@@ -754,7 +754,7 @@ func resolveLazyBound(alloc *Allocator, store Store, bmv *BoundMethodValue) (*Fu
 			seen[pv.TV] = struct{}{}
 		}
 		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
-		next := resolveInterfaceTrail(alloc, store, operand, tr).Deref().V.(*BoundMethodValue)
+		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
 			return next.Func, next.Receiver
 		}

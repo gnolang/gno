@@ -33,8 +33,7 @@ func (m *Machine) doOpPrecall() {
 		// dispatch). A resolved bind is used as-is. nil derefs raise within the
 		// walk (caught by the Run loop).
 		if fv.IsLazy() {
-			m.incrCPU(OpCPULazyBoundResolve)
-			fn, recv = resolveLazyBound(m.Alloc, m.Store, fv)
+			fn, recv = resolveLazyBound(m, fv)
 		}
 		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
@@ -578,8 +577,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		// value (nil derefs raise within the walk, caught by the Run loop). A
 		// resolved bind uses the receiver captured at the defer statement.
 		if cv.IsLazy() {
-			m.incrCPU(OpCPULazyBoundResolve)
-			fv, recv = resolveLazyBound(m.Alloc, m.Store, cv)
+			fv, recv = resolveLazyBound(m, cv)
 		} else {
 			fv, recv = cv.Func, dfr.Args[0]
 		}
