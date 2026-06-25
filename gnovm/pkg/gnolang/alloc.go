@@ -687,10 +687,7 @@ func (alloc *Allocator) newPooledBlock(source BlockNode, parent *Block) *Block {
 	// Charge for the memory actually allocated: a pooled block's Values is
 	// sized to blockPoolValueCap, so a small block costs the same malloc as
 	// a 14-slot one (that is what is allocated under the hood).
-	items := int(source.GetNumNames())
-	if items < blockPoolValueCap {
-		items = blockPoolValueCap
-	}
+	items := max(int(source.GetNumNames()), blockPoolValueCap)
 	alloc.AllocateBlock(int64(items))
 	return newBlockWithValueCap(alloc, source, parent, blockPoolValueCap)
 }

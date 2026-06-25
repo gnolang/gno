@@ -137,8 +137,11 @@ p99 = 13, max = 35`, with a distinct 8M-block cluster at exactly 13. That
 cluster forces the 576 class regardless, so cap 14 is the largest capacity
 "free" within it and covers ≈ 99.3% of blocks.
 
-The over-allocated Go heap (≤ `32 × 576 B ≈ 18 KB` for a full pool) is not
-charged as memory; the allocation *gas* it implies is — see below.
+A full pool pins ≤ `32 × 576 B ≈ 18 KB` of Go heap. `GarbageCollect` counts
+that against the alloc budget (each pooled block by its retained capacity),
+so parking a block in the pool does not appear to free its memory — the
+allocation *gas* of (re)creating it is also charged on the miss path; see
+below.
 
 ## Gas: recycling is cheaper than allocating
 
