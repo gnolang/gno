@@ -6,7 +6,7 @@ package main
 
 type T struct{ x int }
 
-func (t T) Show()  { println("show", t.x) }
+func (t T) Show()   { println("show", t.x) }
 func (t *T) PShow() { println("pshow", t.x) }
 
 type I interface{ Show() }
