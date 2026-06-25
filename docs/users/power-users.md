@@ -55,7 +55,7 @@ Ready to contribute? Here are pathways to level up your involvement:
 4. **Documentation** - Help improve these docs and educational content
 5. **Community Building** - Organize events or create content
 
-Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more
+Check out the [Contributor guide](../builders/contributor-guide.md) for more
 details on contributing to the ecosystem.
 
 Remember, the best power users eventually become builders. As you grow more
