@@ -11,7 +11,7 @@
 //
 // # Canonical pattern
 //
-//	src := banker.NewBanker(banker.BankerTypeRealmSend)
+//	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 //	al  := allowancesender.New(src, granterAddr,
 //	           chain.NewCoins(chain.NewCoin("ugnot", 1_000_000)))
 //	defer al.Close()

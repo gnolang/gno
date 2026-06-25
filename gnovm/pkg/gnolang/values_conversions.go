@@ -1150,7 +1150,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(nilAllocator, nil, tv, t, false)
+			ConvertTo(nil, nil, tv, t, false)
 		}
 	default:
 		panic(fmt.Sprintf(

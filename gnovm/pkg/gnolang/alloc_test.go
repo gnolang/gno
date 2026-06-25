@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"math"
 	"testing"
 	"unsafe"
 
@@ -312,6 +313,29 @@ func TestFork_ClonesStringRanges(t *testing.T) {
 	// Parent must be unaffected.
 	if got := len(parent.stringRanges); got != 1 {
 		t.Errorf("parent's ranges leaked to child: got %d, want 1", got)
+	}
+}
+
+// TestNewMapChargesHeaderOnly pins the map allocation model: creating a
+// map charges only the header (allocMap), never a per-hint preallocation
+// cost. Items are charged one allocMapItem each at insertion time. This
+// is what lets GnoVM ignore the make() size hint safely — there is no
+// allocMapItem*hint term to overflow or to double-charge against the
+// per-item charge.
+func TestNewMapChargesHeaderOnly(t *testing.T) {
+	t.Parallel()
+
+	mt := &MapType{Key: IntType, Value: IntType}
+	alloc := NewAllocator(math.MaxInt64)
+
+	alloc.NewMap(mt)
+	if _, b := alloc.Status(); b != allocMap {
+		t.Fatalf("NewMap charged %d bytes, want allocMap=%d", b, allocMap)
+	}
+
+	alloc.AllocateMapItem()
+	if _, b := alloc.Status(); b != allocMap+allocMapItem {
+		t.Fatalf("after one item charged %d bytes, want %d", b, allocMap+allocMapItem)
 	}
 }
 
