@@ -246,9 +246,9 @@ func BenchmarkNative_Banker_OriginSend(b *testing.B) {
 // Bench grid is 2-D: (nAttrs, perElemBytes). The fitter regresses
 // cost = base + α·nAttrs + β·totalBytes. Constant-byte benches isolate
 // the count slope (α); constant-count benches isolate the byte slope (β).
-// emit truncates each value to MaxEventAttrLen=1024, so per-element
-// payloads above that cap don't grow the marshal cost — we keep the
-// bytes-grid at ≤1024/element so β reflects real marshal work.
+// emit hard-caps each value at MaxEventAttrLen (4096) and panics above it;
+// the bytes-grid stays at ≤1024/element — well under the cap — so β
+// reflects real marshal work without tripping the panic.
 
 func benchChainEmit(b *testing.B, nAttrs, perElemBytes int) {
 	b.Helper()
@@ -279,8 +279,8 @@ func BenchmarkNative_Chain_Emit_100_1(b *testing.B) { benchChainEmit(b, 100, 1) 
 // 128 = MaxEventPairs * 2 — the new hard cap from emit_event.go.
 func BenchmarkNative_Chain_Emit_128_1(b *testing.B) { benchChainEmit(b, 128, 1) }
 
-// Bytes axis (nAttrs=2). 1024 is MaxEventAttrLen; above that emit truncates
-// silently so additional bytes don't grow the marshal slope.
+// Bytes axis (nAttrs=2). Grid tops out at 1024/element, well under
+// MaxEventAttrLen (4096, the hard cap above which emit panics).
 func BenchmarkNative_Chain_Emit_2_50(b *testing.B)   { benchChainEmit(b, 2, 50) }
 func BenchmarkNative_Chain_Emit_2_500(b *testing.B)  { benchChainEmit(b, 2, 500) }
 func BenchmarkNative_Chain_Emit_2_1024(b *testing.B) { benchChainEmit(b, 2, 1024) }
