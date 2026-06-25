@@ -145,6 +145,21 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	if debugAssert {
+		// Recycle-safety invariant: a pooled (released) block must be
+		// unreachable, so this recount must never visit one. Released blocks
+		// are zeroed (LastGCCycle == 0); the visitor stamps the current cycle
+		// on every object it reaches. So a pooled block carrying the current
+		// cycle was reached — i.e. some live reference outlived its pop (the
+		// hazard that removing Defer.Parent eliminated). Reference-path
+		// agnostic: fires for any future regression that re-pins a dead block.
+		for _, b := range m.blockPool {
+			if b.GetLastGCCycle() == m.GCCycle {
+				panic("GarbageCollect: recount reached a pooled block — a popped block is still GC-reachable (recycle-safety invariant violated)")
+			}
+		}
+	}
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -494,13 +509,6 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 			if stop {
 				return
 			}
-		}
-
-		if dfr.Parent != nil {
-			stop = vis(dfr.Parent)
-		}
-		if stop {
-			return
 		}
 	}
 

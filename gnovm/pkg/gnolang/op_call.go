@@ -671,11 +671,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 }
 
 func (m *Machine) doOpDefer() {
-	lb := m.LastBlock()
-	// lb is captured as Defer.Parent below, which the garbage collector
-	// visits for as long as the defer is pending — possibly well after
-	// this block is popped. Exclude it from block recycling.
-	lb.setNoRecycle()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
@@ -694,7 +689,6 @@ func (m *Machine) doOpDefer() {
 			Func:   fv,
 			Args:   args,
 			Source: ds,
-			Parent: lb,
 		})
 	case *BoundMethodValue:
 		fv := cv.Func
@@ -709,7 +703,6 @@ func (m *Machine) doOpDefer() {
 			IsBoundMethod: true,
 			Args:          args,
 			Source:        ds,
-			Parent:        lb,
 		})
 	case nil:
 		cfr.PushDefer(Defer{
