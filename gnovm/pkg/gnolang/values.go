@@ -716,7 +716,11 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 // So the deref, value snapshot, nil panic, field re-read and dynamic
 // re-dispatch all happen now, matching Go. Each iteration strips one interface
 // indirection (a nested embedded-interface field yields another lazy bind);
-// this converges since every step removes a VPInterface from the trail.
+// for a finite (acyclic) operand graph this converges. A cyclic embedded
+// interface (e.g. `s.IG = s`) would re-box the same operand forever, so the
+// loop detects a repeated pointer operand and raises a fatal (gno-unrecoverable)
+// panic instead of hanging — matching Go, which runs the same program as
+// recursion and fatally stack-overflows (uncatchable by recover()).
 //
 // nil derefs are raised by the walk itself (GetPointerToFromTV panics with a
 // runtime-error Exception for a value receiver on a nil pointer, and passes nil
@@ -726,12 +730,29 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 func resolveLazyBound(alloc *Allocator, store Store, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
 	operand := bmv.Receiver
 	name := bmv.Method
+	// The method name is invariant across layers, so the operand pointer fully
+	// identifies the loop state: a revisited pointer means the resolution can only
+	// repeat forever (a cyclic embed, e.g. `s.IG = s`). Only pointer operands can
+	// recur; value operands are finite copies.
+	var seen map[*TypedValue]struct{}
 	for {
 		// The saved operand may be a pointer reloaded from the store with an
 		// unfilled TV; fill it so the walk can dereference it. This load of the
 		// live state is what lets field re-read / dynamic re-dispatch observe
 		// updates made after the bind.
 		fillValueTV(store, &operand)
+		if pv, ok := operand.V.(PointerValue); ok && pv.TV != nil {
+			if _, dup := seen[pv.TV]; dup {
+				// Fatal: a raw panic is re-raised past the gno recover() boundary
+				// (machine.runOnce), so a broken program cannot swallow it, while
+				// the keeper/test harness still recovers it into a clean error.
+				panic("cyclic embedded interface in method-value dispatch")
+			}
+			if seen == nil {
+				seen = make(map[*TypedValue]struct{})
+			}
+			seen[pv.TV] = struct{}{}
+		}
 		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
 		next := resolveInterfaceTrail(alloc, store, operand, tr).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
