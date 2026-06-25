@@ -337,7 +337,7 @@ constraint.
 
 ```go
 func SetPaused(cur realm, next bool) {
-    if runtime.OriginCaller() != owner {
+    if OriginCaller() != owner {
         panic("owner only")
     }
     paused = next

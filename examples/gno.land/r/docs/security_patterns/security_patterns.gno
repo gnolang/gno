@@ -1,6 +1,6 @@
 package securitypatterns
 
-import "gno.land/p/moul/md"
+import "gno.land/p/nt/markdown/sanitize/v0"
 
 var (
 	admin   = address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -54,5 +54,5 @@ func assertAdmin(cur realm) bool {
 }
 
 func escapeRenderText(s string) string {
-	return md.EscapeText(s)
+	return sanitize.InlineText(s)
 }

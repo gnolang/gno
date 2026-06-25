@@ -87,7 +87,7 @@ Read [`docs/resources/gno-security-guide.md`](docs/resources/gno-security-guide.
 
 | Trigger | What to look for |
 |---------|-----------------|
-| Caller-identity checks | Use `cur.Previous().IsUserCall()`, not `IsUser()` or `OriginCaller()`, for auth |
+| Caller-identity checks | Authenticate the immediate caller with `cur.Previous()` under a `cur.IsCurrent()` guard; don't use `IsUser()` or `OriginCaller()` for auth (`IsUserCall()` is for the payment row only) |
 | Payment handling (`OriginSend`) | Guard must be `cur.Previous().IsUserCall()` — `IsUser()` accepts ephemeral realms and is unsafe |
 | Cross-realm access control | `PreviousRealm()` only shifts on `cross(...)` calls into crossing functions; a check in a non-crossing helper does NOT see the immediate caller |
 | `Render(path string)` output | Sanitize `path` before including it in output; raw path is an injection vector |
