@@ -13,6 +13,11 @@ official APIs. Treat them like dependencies:
 This page is not an endorsement list. It is a starting point for discovering
 patterns that may be useful when designing your own realm or package.
 
+Some packages below are marked **(quarantined)** — they currently live under
+`examples/quarantined/` and are not yet deployed on public networks. Treat them
+as design references; their import paths are not importable on-chain until they
+graduate out of quarantine.
+
 ## Markdown Helpers
 
 Start with the official markdown sanitizer for untrusted text when your target
@@ -79,7 +84,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   address set semantics.
 - [`gno.land/p/moul/fifo`](../../examples/gno.land/p/moul/fifo/fifo.gno):
   queue-like storage.
-- `gno.land/p/moul/collection`:
+- `gno.land/p/moul/collection` **(quarantined)**:
   indexed collection patterns built on tree storage and `seqid`.
 - [`gno.land/p/nt/avl/v0`](../../examples/gno.land/p/nt/avl/v0/README.md):
   general sorted key/value indexes with range and offset iteration.
@@ -87,7 +92,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   B+ tree storage variants for large sorted datasets and scan-heavy indexes.
 - [`gno.land/p/nt/seqid/v0`](../../examples/gno.land/p/nt/seqid/v0/README.md):
   sequential IDs encoded so they sort correctly as AVL keys.
-- `gno.land/p/jeronimoalbi/bitset`:
+- `gno.land/p/jeronimoalbi/bitset` **(quarantined)**:
   compact membership flags when IDs are dense numeric indexes.
 
 Use these as references for access-pattern-specific storage, not as a reason to
@@ -149,7 +154,7 @@ func IsClaimed(id uint64) bool {
 
 - [`gno.land/p/nt/ownable/v0`](../../examples/gno.land/p/nt/ownable/v0/README.md):
   owner-gated administration with explicit `cur realm` checks.
-- `gno.land/p/nt/pausable/v0`:
+- `gno.land/p/nt/pausable/v0` **(quarantined)**:
   pause switches layered on an `ownable.Ownable`.
 - [`gno.land/p/moul/authz`](../../examples/gno.land/p/moul/authz/authz.gno):
   authorization helper patterns worth studying when a single owner is not
@@ -181,7 +186,7 @@ func SetName(cur realm, name string) {
   and [`gno.land/p/onbloc/uint256`](../../examples/gno.land/p/onbloc/uint256/README.md):
   fixed-width integer helpers for domains that need larger arithmetic than the
   built-in integer types.
-- `gno.land/p/lou/query`:
+- `gno.land/p/lou/query` **(quarantined)**:
   query-string parsing helpers for `Render(path)` and URL-like inputs.
 
 Prefer explicit parsing over ad-hoc string splitting when the input format has
@@ -206,12 +211,12 @@ func DecodeTitle(input string) (string, bool) {
 
 ## Application Patterns
 
-- `gno.land/p/agherasie/forms`:
+- `gno.land/p/agherasie/forms` **(quarantined)**:
   form creation, typed answers, deadlines, and validation.
-- `gno.land/p/lou/blog`:
+- `gno.land/p/lou/blog` **(quarantined)**:
   a larger package split across posts, comments, moderation, rendering, and
   query helpers.
-- `gno.land/p/morgan/chess`:
+- `gno.land/p/morgan/chess` **(quarantined)**:
   domain-heavy package structure with tests around game rules.
 
 Use these as source-reading material for package boundaries and tests, not as

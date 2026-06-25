@@ -130,6 +130,32 @@ func TestRuleNormalizesFormatting(t *testing.T) {
 	}
 }
 
+// TestBraceInStringNoFalsePositive ensures a "}" inside a string literal does
+// not flip brace-depth tracking and flag a correctly guarded function.
+func TestBraceInStringNoFalsePositive(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"func F(cur realm) {\n" +
+		"\tif !cur.IsCurrent() {\n" +
+		"\t\tpanic(\"no\")\n" +
+		"\t}\n" +
+		"\tmsg := \"}\"\n" +
+		"\t_ = cur.Previous()\n" +
+		"\t_ = msg\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("guarded function flagged due to brace in string: %+v", hits)
+	}
+}
+
 func TestRenderMapIterationRule(t *testing.T) {
 	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
 }
@@ -173,6 +199,20 @@ func TestAgentPatternContract(t *testing.T) {
 		"render-map-iteration":  {"Render", "map iteration"},
 		"render-markdown":       {"Render(path)", "markdown/sanitize"},
 	}
+	// Every vulnerable hit must contain the rule's detection signal. Counting
+	// hits alone lets a rule be rewritten to flag a coincidental line (e.g. an
+	// import) while the suite stays green; this ties the hit to the construct
+	// the rule is supposed to detect.
+	wantHitContains := map[string]string{
+		"callback-param":        "func(",
+		"current-guard":         ".Previous()",
+		"exported-pointer-leak": "*",
+		"interface-realm-param": "realm",
+		"origin-caller-auth":    "OriginCaller()",
+		"payment-user-call":     "OriginSend()",
+		"render-map-iteration":  "range ",
+		"render-markdown":       "path",
+	}
 
 	corpus := readSpecCorpus(t, specFiles)
 	records := loadAllRecords(t, harnessRoot())
@@ -213,6 +253,13 @@ func TestAgentPatternContract(t *testing.T) {
 			}
 			if len(vulnerableHits) != vulnerable.WantPatternHits {
 				t.Fatalf("vulnerable hits: got %d, want %d: %+v", len(vulnerableHits), vulnerable.WantPatternHits, vulnerableHits)
+			}
+			if marker := wantHitContains[rec.ID]; marker != "" {
+				for _, h := range vulnerableHits {
+					if !strings.Contains(h.Text, marker) {
+						t.Fatalf("vulnerable hit %q does not contain rule signal %q; rule may be matching a coincidental line", h.Text, marker)
+					}
+				}
 			}
 
 			fixedHits, err := RunRule(rec.Rule, fixed.Path)

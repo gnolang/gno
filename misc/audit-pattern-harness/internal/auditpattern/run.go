@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/format"
+	"go/scanner"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -156,7 +158,8 @@ func currentGuardHits(dir string) ([]Hit, error) {
 		inFunc := false
 		braceDepth := 0
 		seenIsCurrent := false
-		for i, line := range strings.Split(string(data), "\n") {
+		orig := strings.Split(string(data), "\n")
+		for i, line := range codeLines(data) {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
@@ -171,7 +174,7 @@ func currentGuardHits(dir string) ([]Hit, error) {
 				seenIsCurrent = true
 			}
 			if strings.Contains(line, ".Previous()") && !seenIsCurrent {
-				hits = append(hits, newHit(dir, file, i+1, line))
+				hits = append(hits, newHit(dir, file, i+1, orig[i]))
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
@@ -196,7 +199,8 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 		}
 		inRender := false
 		braceDepth := 0
-		for i, line := range strings.Split(string(data), "\n") {
+		orig := strings.Split(string(data), "\n")
+		for i, line := range codeLines(data) {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func Render(") {
 				inRender = true
@@ -207,7 +211,7 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 				braceDepth -= strings.Count(line, "}")
 				lower := strings.ToLower(line)
 				if strings.Contains(line, "return") && strings.Contains(line, "path") && !strings.Contains(lower, "escape") {
-					hits = append(hits, newHit(dir, file, i+1, line))
+					hits = append(hits, newHit(dir, file, i+1, orig[i]))
 				}
 			}
 			if inRender && braceDepth <= 0 {
@@ -233,7 +237,8 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
 		inFunc := false
 		braceDepth := 0
 		seenUserCall := false
-		for i, line := range strings.Split(string(data), "\n") {
+		orig := strings.Split(string(data), "\n")
+		for i, line := range codeLines(data) {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
@@ -248,7 +253,7 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
 				seenUserCall = true
 			}
 			if strings.Contains(line, "OriginSend()") && !seenUserCall {
-				hits = append(hits, newHit(dir, file, i+1, line))
+				hits = append(hits, newHit(dir, file, i+1, orig[i]))
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
@@ -291,7 +296,8 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 		}
 		inInterface := false
 		braceDepth := 0
-		for i, line := range strings.Split(string(data), "\n") {
+		orig := strings.Split(string(data), "\n")
+		for i, line := range codeLines(data) {
 			trimmed := strings.TrimSpace(line)
 			if strings.Contains(trimmed, "interface {") {
 				inInterface = true
@@ -301,7 +307,7 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
 				if strings.Contains(line, "realm") {
-					hits = append(hits, newHit(dir, file, i+1, line))
+					hits = append(hits, newHit(dir, file, i+1, orig[i]))
 				}
 			}
 			if inInterface && braceDepth <= 0 {
@@ -343,7 +349,8 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 		}
 
 		mapVars := make(map[string]struct{})
-		lines := strings.Split(string(data), "\n")
+		orig := strings.Split(string(data), "\n")
+		lines := codeLines(data)
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "//") {
@@ -370,7 +377,7 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 					normalized := strings.Join(strings.Fields(line), " ")
 					for name := range mapVars {
 						if strings.Contains(normalized, "range "+name) {
-							hits = append(hits, newHit(dir, file, i+1, line))
+							hits = append(hits, newHit(dir, file, i+1, orig[i]))
 						}
 					}
 				}
@@ -395,9 +402,10 @@ func lineContainsHits(dir string, match func(string) bool) ([]Hit, error) {
 		if err != nil {
 			return nil, err
 		}
-		for i, line := range strings.Split(string(data), "\n") {
+		orig := strings.Split(string(data), "\n")
+		for i, line := range codeLines(data) {
 			if match(line) {
-				hits = append(hits, newHit(dir, file, i+1, line))
+				hits = append(hits, newHit(dir, file, i+1, orig[i]))
 			}
 		}
 	}
@@ -432,6 +440,43 @@ func readGnoSource(file string) ([]byte, error) {
 		return data, nil
 	}
 	return formatted, nil
+}
+
+// codeLines splits gno source into lines with the contents of string/char
+// literals and the bodies of comments blanked out (replaced with spaces),
+// leaving delimiters and line structure intact. The line-based matchers run
+// detection against this "code view" so that braces, keywords, or call
+// expressions appearing inside a string or comment cannot fool them — e.g. a
+// "}" in a string literal must not flip brace-depth tracking and turn a
+// correctly guarded function into a false positive. Hits are still reported
+// against the original source text. The returned slice has the same length as
+// strings.Split(data, "\n").
+func codeLines(data []byte) []string {
+	blanked := append([]byte(nil), data...)
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(data))
+	var s scanner.Scanner
+	s.Init(file, data, nil, scanner.ScanComments)
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok != token.COMMENT && tok != token.STRING && tok != token.CHAR {
+			continue
+		}
+		start := fset.Position(pos).Offset
+		lo, hi := start, start+len(lit)
+		if tok != token.COMMENT {
+			lo, hi = start+1, hi-1 // preserve the surrounding quotes/backticks
+		}
+		for i := lo; i < hi && i < len(blanked); i++ {
+			if blanked[i] != '\n' {
+				blanked[i] = ' '
+			}
+		}
+	}
+	return strings.Split(string(blanked), "\n")
 }
 
 func gnoFiles(dir string) ([]string, error) {
