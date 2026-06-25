@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -350,6 +351,107 @@ func TestAnteHandlerFees(t *testing.T) {
 
 	require.Equal(t, env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, feeCollector).GetCoins().AmountOf("atom"), int64(150))
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
+}
+
+// TestDeductFees_VestingLocked verifies that gas fees cannot be paid from
+// locked principal. A vesting account must cover fees from its
+// spendable coins only; otherwise locked value could leak out through gas.
+func TestDeductFees_VestingLocked(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	// Use a non-zero block time so vesting schedules can have valid
+	// EndTime values both before and after "now".
+	now := time.Unix(10000, 0)
+	ctx = ctx.WithBlockHeader(&bft.Header{
+		ChainID: ctx.ChainID(),
+		Height:  1,
+		Time:    now,
+	})
+	feeCollector := env.acck.FeeCollectorAddress(ctx)
+
+	blockTime := ctx.BlockTime().Unix()
+
+	makeVestingAcc := func(t *testing.T, total int64, schedule std.VestingSchedule) std.Account {
+		t.Helper()
+		pubKey := secp256k1.GenPrivKey().PubKey()
+		baseAcc := std.NewBaseAccount(
+			pubKey.Address(),
+			std.NewCoins(std.NewCoin("atom", total)),
+			pubKey, 0, 0,
+		)
+		var (
+			acc std.Account
+			err error
+		)
+		if schedule.Type == std.VestingDelayed {
+			acc, err = std.NewDelayedVestingAccount(baseAcc, schedule)
+		} else {
+			acc, err = std.NewContinuousVestingAccount(baseAcc, schedule)
+		}
+		require.NoError(t, err)
+		return acc
+	}
+
+	cases := []struct {
+		name     string
+		acc      std.Account
+		fee      int64
+		expectOK bool
+	}{
+		{
+			name: "fully locked delayed account cannot pay any fee",
+			acc: makeVestingAcc(t, 1000, std.VestingSchedule{
+				OriginalVesting: std.NewCoins(std.NewCoin("atom", 1000)),
+				EndTime:         blockTime + 1000,
+				Type:            std.VestingDelayed,
+			}),
+			fee:      1,
+			expectOK: false,
+		},
+		{
+			name: "fee exceeds spendable portion of partially vested account",
+			acc: makeVestingAcc(t, 1000, std.VestingSchedule{
+				OriginalVesting: std.NewCoins(std.NewCoin("atom", 1000)),
+				EndTime:         blockTime + 1000,
+				Type:            "", // continuous: ~half vested over [0, end]
+				StartTime:       blockTime - 1000,
+			}),
+			fee:      1000, // more than the vested half
+			expectOK: false,
+		},
+		{
+			name: "fully vested account can pay fee",
+			acc: makeVestingAcc(t, 1000, std.VestingSchedule{
+				OriginalVesting: std.NewCoins(std.NewCoin("atom", 1000)),
+				EndTime:         blockTime - 1, // vesting complete
+				Type:            std.VestingDelayed,
+			}),
+			fee:      1000,
+			expectOK: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Store the account so DummyBankKeeper.SendCoins can fetch it.
+			env.acck.SetAccount(ctx, tc.acc)
+
+			res := DeductFees(env.bankk, ctx, tc.acc, feeCollector,
+				std.NewCoins(std.NewCoin("atom", tc.fee)))
+
+			if tc.expectOK {
+				require.True(t, res.IsOK(), "expected fee deduction to succeed: %v", res.Log)
+			} else {
+				require.False(t, res.IsOK(), "expected fee deduction to be rejected")
+				require.IsType(t, std.InsufficientFundsError{}, sdk.ABCIError(res.Error))
+			}
+		})
+	}
 }
 
 // Test logic around memo gas consumption.

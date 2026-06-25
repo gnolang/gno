@@ -376,18 +376,25 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 //
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
+//
+// Fees must be payable from spendable coins. For a VestingAccount the locked
+// principal cannot leave the account — not even as gas — so the sufficiency
+// check uses the spendable (unlocked) balance rather than the total. This
+// mirrors Cosmos SDK's DeductFees and prevents locked value from leaking out
+// through gas.
 func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
-	coins := acc.GetCoins()
-
 	if !fees.IsValid() {
 		return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", fees)))
 	}
 
-	// verify the account has enough funds to pay for fees
-	diff := coins.SubUnsafe(fees)
-	if !diff.IsValid() {
+	// verify the account has enough spendable funds to pay for fees.
+	spendable := acc.GetCoins()
+	if va, ok := acc.(std.VestingAccount); ok {
+		spendable = std.SpendableCoins(va, ctx.BlockTime())
+	}
+	if !spendable.IsAllGTE(fees) {
 		return abciResult(std.ErrInsufficientFunds(
-			fmt.Sprintf("insufficient funds to pay for fees; %s < %s", coins, fees),
+			fmt.Sprintf("insufficient spendable funds to pay for fees; spendable %s < %s", spendable, fees),
 		))
 	}
 

@@ -167,7 +167,7 @@ func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAdd
 }
 
 // SendCoinsUnrestricted is used for paying gas.
-// It bypasses vesting and session-spend checks.
+// Unvested coins cannot be used.
 func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
 	_, err := bank.subtractCoinsUnrestricted(ctx, fromAddr, amt)
 	if err != nil {
