@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -148,7 +149,7 @@ func currentGuardHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +190,7 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -225,7 +226,7 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +285,7 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +337,7 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -390,7 +391,7 @@ func lineContainsHits(dir string, match func(string) bool) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		data, err := readGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
@@ -413,6 +414,24 @@ func newHit(dir, file string, line int, text string) Hit {
 		Line: line,
 		Text: strings.TrimSpace(text),
 	}
+}
+
+// readGnoSource reads a .gno file and returns its gofmt-normalized contents so
+// the line-based pattern matchers are not defeated by irregular spacing. For
+// example "func GetVault()*Vault{" is normalized to "func GetVault() *Vault {"
+// before scanning, which the matchers expect. .gno files use Go syntax, so
+// go/format applies. If the source cannot be parsed (e.g. intentionally broken
+// fixture), the raw bytes are returned unchanged.
+func readGnoSource(file string) ([]byte, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	formatted, err := format.Source(data)
+	if err != nil {
+		return data, nil
+	}
+	return formatted, nil
 }
 
 func gnoFiles(dir string) ([]string, error) {

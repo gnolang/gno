@@ -109,6 +109,27 @@ func TestExportedPointerLeakRule(t *testing.T) {
 	assertRuleCounts(t, "exported_pointer_leak", "exported-pointer-leak", 2, 0)
 }
 
+// TestRuleNormalizesFormatting ensures the gofmt pre-step lets matchers catch
+// badly-formatted source that would otherwise slip past spacing-sensitive
+// checks (e.g. "func GetVault()*Vault{" instead of "func GetVault() *Vault {").
+func TestRuleNormalizesFormatting(t *testing.T) {
+	dir := t.TempDir()
+	src := "package vault\n\n" +
+		"type Vault struct{ items []string }\n\n" +
+		"func GetVault()*Vault{\n\treturn &Vault{}\n}\n"
+	if err := os.WriteFile(filepath.Join(dir, "vault.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("exported_pointer_leak", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit after formatting normalization, got %d: %+v", len(hits), hits)
+	}
+}
+
 func TestRenderMapIterationRule(t *testing.T) {
 	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
 }
