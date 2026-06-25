@@ -115,12 +115,6 @@ The default test account is automatically imported when you run `gnodev`, making
 it immediately available for testing your realms and packages. This account is
 also used by default when deploying packages to the local node.
 
-### Security note
-
-Since the mnemonic for this account is publicly documented, it should only be
-used for local development and testing. Never send real assets to this address
-or use it on any public network.
-
 ## Practical example
 
 With the main features of `gnodev` out of the way, let's dive into a practical
