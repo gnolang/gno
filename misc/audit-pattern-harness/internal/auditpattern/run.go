@@ -365,8 +365,10 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
 				if strings.Contains(line, "range ") {
+					// Normalize to remove extra spaces: range     var -> range var
+					normalized := strings.Join(strings.Fields(line), " ")
 					for name := range mapVars {
-						if strings.Contains(line, "range "+name) {
+						if strings.Contains(normalized, "range "+name) {
 							hits = append(hits, newHit(dir, file, i+1, line))
 						}
 					}
