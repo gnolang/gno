@@ -1398,15 +1398,13 @@ const (
 	OpCPUPrecallFunc        = 178 // function call
 	OpCPUPrecallBoundMethod = 199 // bound method call
 	// OpCPULazyBoundResolve is the extra CPU on top of OpCPUPrecallBoundMethod
-	// when an interface method value is resolved at the call (resolveLazyBound
-	// walk). Flat: deep embedding / nested interfaces under-charge the CPU walk
-	// (unlike eager concrete dispatch, which decomposes into per-hop field
-	// selectors and so meters depth), but that is bounded by the static type
-	// structure (no DoS) and the per-iteration allocation is auto-metered.
-	// TODO(calibration), before the fork ships: (1) re-measure on the gas-table
+	// charged per hop of the resolveLazyBound walk (once per stripped interface
+	// layer), so deep/nested embedded-interface dispatch is metered by depth like
+	// the eager concrete path. Single-hop resolution (the common case) charges it
+	// once — gas-neutral with the prior per-call charge.
+	// TODO(calibration), before the fork ships: re-measure on the gas-table
 	// reference HW — 529 is ratio-scaled (lazy-vs-concrete bench delta against
-	// OpCPUPrecallBoundMethod's known value); (2) consider a per-trail-step slope
-	// so deep/nested dispatch is metered per hop, matching the eager path.
+	// OpCPUPrecallBoundMethod's known value) and reused as the per-hop cost.
 	OpCPULazyBoundResolve    = 529
 	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
