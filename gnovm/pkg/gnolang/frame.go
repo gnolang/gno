@@ -114,7 +114,6 @@ type Defer struct {
 	IsBoundMethod bool         // if true, args[0] is receiver
 	Args          []TypedValue // arguments
 	Source        *DeferStmt   // source
-	Parent        *Block
 }
 
 type StacktraceCall struct {

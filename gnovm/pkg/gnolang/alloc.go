@@ -82,7 +82,7 @@ const (
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
-	_allocBlock            = 536 // unsafe.Sizeof(Block{})
+	_allocBlock            = 528 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify

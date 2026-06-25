@@ -2261,8 +2261,6 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 //   - node-owned static blocks and long-lived file/package blocks, which
 //     also travel on the block stack (RunStatement/Eval flows push static
 //     blocks; file blocks are referenced by FuncValue.Parent);
-//   - blocks captured as a pending Defer.Parent, which the garbage
-//     collector visits until the defer runs (see Block.setNoRecycle);
 //   - blocks with a finalized ObjectID (already persisted to realm
 //     state) or marked new-real (reachable from the realm graph and
 //     pending an ObjectID at finalize), as insurance against aliasing
@@ -2280,11 +2278,15 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // Runtime scope/call blocks never enter that state — they are not
 // reachable from realm storage (closures capture heap items, not blocks)
 // — so this is belt-and-suspenders, not a hot exclusion.
+//
+// Deferred calls do not pin their origin block: a Defer records only its
+// FuncValue, args and source (it resolves its scope from FuncValue.GetParent
+// plus copied Captures at execution), so a popped block referenced by a
+// pending defer is provably dead like any other.
 func (m *Machine) releaseBlock(b *Block) {
 	// exclusion conditions:
-	// pool over capacity, explicitly no-recycle, panicking or cap(values) below target.
+	// pool over capacity, panicking or cap(values) below target.
 	if len(m.blockPool) >= blockPoolLimit ||
-		b.isNoRecycle() ||
 		m.Exception != nil ||
 		cap(b.Values) < blockPoolValueCap {
 		return
@@ -2299,20 +2301,6 @@ func (m *Machine) releaseBlock(b *Block) {
 	}
 	if oi := b.GetObjectInfo(); oi.ID.IsFinalized() || oi.GetIsNewReal() {
 		return
-	}
-	if debugAssert {
-		// Core invariant: a recycled block is provably dead. The only
-		// stack-traveling reference that can outlive a pop is Defer.Parent,
-		// which setNoRecycle excludes. Guard against any future path that
-		// reaches here with that flag missing (a forgotten setNoRecycle, a
-		// new long-lived block reference, etc.).
-		for fi := range m.Frames {
-			for di := range m.Frames[fi].Defers {
-				if m.Frames[fi].Defers[di].Parent == b {
-					panic("releaseBlock: recycling a block still referenced as a pending Defer.Parent")
-				}
-			}
-		}
 	}
 	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
 	clear(values)

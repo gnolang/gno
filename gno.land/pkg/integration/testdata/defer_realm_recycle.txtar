@@ -1,0 +1,70 @@
+# Regression: a defer mutating persisted realm state, across a restart. The
+# defer-origin block is recycled during realm execution (excluded from the
+# pool only if realm-attached via IsFinalized/IsNewReal); the deferred write
+# must still land in storage and survive reload.
+
+loadpkg gno.land/r/deferp $WORK/deferp
+
+gnoland start
+
+# Append uses a defer to push onto a persisted slice; deferred mutation must
+# land in realm storage (the defer-origin block recycling must not corrupt it).
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 10 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 20 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/deferp -func Dump -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout '\[10 20\]'
+
+gnoland restart
+
+# After restart: persisted state must still hold both deferred appends.
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 30 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/deferp -func Dump -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout '\[10 20 30\]'
+
+-- deferp/gnomod.toml --
+module = "gno.land/r/deferp"
+gno = "0.9"
+
+-- deferp/deferp.gno --
+package deferp
+
+var data []int
+
+func Append(cur realm, n int) {
+	defer func() { data = append(data, n) }()
+}
+
+func Dump(cur realm) string {
+	return sprint(data)
+}
+
+func sprint(xs []int) string {
+	s := "["
+	for i, x := range xs {
+		if i > 0 {
+			s += " "
+		}
+		s += itoa(x)
+	}
+	return s + "]"
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	b := []byte{}
+	for n > 0 {
+		b = append([]byte{byte('0' + n%10)}, b...)
+		n /= 10
+	}
+	if neg {
+		return "-" + string(b)
+	}
+	return string(b)
+}
