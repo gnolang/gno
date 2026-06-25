@@ -428,7 +428,7 @@ func EscapeText(text string) string {
 //	// Returns:
 //	// <gno-columns>
 //	// A
-//	// <gno-columns-sep>
+//	// <gno-columns-sep/>
 //	// B
 //	// </gno-columns>
 func Columns(contentByColumn []string, padded bool) string {
@@ -446,7 +446,7 @@ func Columns(contentByColumn []string, padded bool) string {
 
 	for i, column := range contentByColumn {
 		if i > 0 {
-			sb.WriteString("<gno-columns-sep>\n")
+			sb.WriteString("<gno-columns-sep/>\n")
 		}
 		sb.WriteString(column + "\n")
 	}
@@ -470,7 +470,7 @@ const maxColumnsPerRow = 4
 //	// Returns:
 //	// <gno-columns>
 //	// A
-//	// <gno-columns-sep>
+//	// <gno-columns-sep/>
 //	// B
 //	// </gno-columns>
 //	// <gno-columns>
