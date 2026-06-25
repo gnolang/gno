@@ -23,10 +23,13 @@ const (
 
 	// MaxEventAttrLen caps each attribute's byte length. Strings longer
 	// than this (or the type string) are truncated to MaxEventAttrLen +
-	// EventTruncMarker, deterministically. Chosen to fit any realistic
-	// short payload (addresses, IDs, short messages) while bounding the
-	// downstream encoding amplification per attr at ~1 KB.
-	MaxEventAttrLen = 1024
+	// EventTruncMarker, deterministically. Sized to hold a realistic
+	// binary payload after hex/base64 expansion (~2 KB of raw bytes once
+	// hex-encoded as 0x... doubles the length) — e.g. an IBC packet
+	// acknowledgement, membership proof, or packet-data chunk emitted by
+	// an on-chain bridge realm — while still bounding the downstream
+	// amino+JSON encoding amplification per attr at ~4 KB.
+	MaxEventAttrLen = 4096
 
 	// EventTruncMarker is appended to truncated strings; its 3 bytes are
 	// added on top of MaxEventAttrLen, so a truncated string is exactly
