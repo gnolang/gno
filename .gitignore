@@ -2,7 +2,7 @@
 .DS_Store
 .vscode
 .idea
-CLAUDE.md
+CLAUDE.local.md
 
 # Default node data
 gnoland-data
