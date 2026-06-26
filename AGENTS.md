@@ -63,6 +63,7 @@ make fmt                        # Format all code
   - `go-gno-compatibility.md` — what works and what doesn't vs Go
   - `gno-testing.md` — testing patterns for `.gno` files
   - `gno-packages.md` — package structure and conventions
+  - `gno-security-guide.md` — security patterns and known vulnerability families (see Security below)
 
 ### Go (.go)
 - Format: `gofmt`/`goimports`.
@@ -77,6 +78,24 @@ make fmt                        # Format all code
 - When merging `master` into your branch, review incoming changes carefully. If `CONTRIBUTING.md` or `AGENTS.md` was updated, re-read and follow the latest rules.
 - Be respectful and helpful in PR comments and reviews — optimize for the reviewer's time, especially human maintainers.
 - See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+
+## Security
+
+Read [`docs/resources/gno-security-guide.md`](docs/resources/gno-security-guide.md) **before writing or reviewing** any of the following:
+
+| Trigger | What to look for |
+|---------|-----------------|
+| Caller-identity checks | Authenticate the immediate caller with `cur.Previous()` under a `cur.IsCurrent()` guard; don't use `IsUser()` or `OriginCaller()` for auth (`IsUserCall()` is for the payment row only) |
+| Payment handling (`OriginSend`) | Guard must be `cur.Previous().IsUserCall()` — `IsUser()` accepts ephemeral realms and is unsafe |
+| Cross-realm access control | `PreviousRealm()` only shifts on `cross(...)` calls into crossing functions; a check in a non-crossing helper does NOT see the immediate caller |
+| `Render(path string)` output | Sanitize `path` before including it in output; raw path is an injection vector |
+| Exported state or pointer getters | Returning a pointer to mutable package-level state leaks write access |
+| Callback/function parameters | Accepting a caller-supplied `func()` lets callers inject arbitrary logic |
+| Interface methods with `cur realm` | Exposing `cur realm` in an interface signature lets callers impersonate realms |
+
+The audit pattern harness in `misc/audit-pattern-harness/` contains executable fixtures for each of these families. Run it against unfamiliar realm code as a quick sanity check.
 
 ---
 

@@ -1,0 +1,12 @@
+id: current-guard
+title: cur.Previous without cur.IsCurrent
+rule: current_guard
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/current-guard/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/current-guard/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0

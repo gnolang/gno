@@ -25,6 +25,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 - [Safe Objects](/r/docs/safeobjects) - A Gno-specific pattern allowing you to expose objects with admin privileges preserved.
+- [Security Patterns](/r/docs/security_patterns) - Compact examples for authenticated mutators and safe Render output.
 - [Calling non-primitive argument functions](/r/docs/complexargs) - Learn how to call functions that take in complex arguments.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
 - [Resolving usernames and addresses](/r/docs/resolveusers) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
