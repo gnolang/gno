@@ -50,7 +50,7 @@ stdout 'OK'
 ## fee is charged and sequence number increased
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "2"'
-stdout '"coins": "9999999788809ugnot"'
+stdout '"coins": "9999999786512ugnot"'
 
 -- hello/gnomod.toml --
 module = "gno.land/r/hello"
