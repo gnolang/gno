@@ -49,19 +49,20 @@ type Reactor struct {
 
 	discoveryInterval time.Duration
 
-	// store optionally persists discovered peers to disk.
-	// When set, peers are loaded on start and saved as they are discovered.
+	// store persists discovered peers to disk.
 	store *Store
 }
 
-// NewReactor creates a new peer discovery reactor
-func NewReactor(opts ...Option) *Reactor {
+// NewReactor creates a new peer discovery reactor.
+// The store is used to persist discovered peers across restarts.
+func NewReactor(store *Store, opts ...Option) *Reactor {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	r := &Reactor{
 		ctx:               ctx,
 		cancelFn:          cancelFn,
 		discoveryInterval: discoveryInterval,
+		store:             store,
 	}
 
 	r.BaseReactor = *p2p.NewBaseReactor("Reactor", r)
@@ -76,12 +77,10 @@ func NewReactor(opts ...Option) *Reactor {
 
 // OnStart runs the peer discovery protocol
 func (r *Reactor) OnStart() error {
-	// Dial peers loaded from the persistent store, if any.
+	// Dial peers loaded from the persistent store.
 	// This allows the node to reconnect to previously discovered peers
 	// without going through the full discovery process again.
-	if r.store != nil {
-		r.dialPersistedPeers()
-	}
+	r.dialPersistedPeers()
 
 	go func() {
 		ticker := time.NewTicker(r.discoveryInterval)
@@ -116,10 +115,8 @@ func (r *Reactor) OnStart() error {
 
 				// Persist any newly discovered peers to disk.
 				// Save is a no-op when the store hasn't changed.
-				if r.store != nil {
-					if err := r.store.Save(); err != nil {
-						r.Logger.Error("unable to save peer store", "err", err)
-					}
+				if err := r.store.Save(); err != nil {
+					r.Logger.Error("unable to save peer store", "err", err)
 				}
 			}
 		}
@@ -145,10 +142,8 @@ func (r *Reactor) OnStop() {
 	r.cancelFn()
 
 	// Flush the peer store to disk so discovered peers survive a restart
-	if r.store != nil {
-		if err := r.store.Flush(); err != nil {
-			r.Logger.Error("unable to save peer store", "err", err)
-		}
+	if err := r.store.Flush(); err != nil {
+		r.Logger.Error("unable to save peer store", "err", err)
 	}
 }
 
@@ -210,9 +205,7 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 		}
 	case *Response:
 		// Persist the discovered peers so they survive a restart
-		if r.store != nil {
-			r.store.AddPeers(msg.Peers...)
-		}
+		r.store.AddPeers(msg.Peers...)
 
 		// Make the peers available for dialing on the switch
 		r.Switch.DialPeers(msg.Peers...)

@@ -14,6 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newTestStore creates an empty peer store backed by a temp file.
+func newTestStore(t *testing.T) *Store {
+	t.Helper()
+
+	s, err := NewStore(filepath.Join(t.TempDir(), peerStoreFile))
+	require.NoError(t, err)
+
+	return s
+}
+
 func TestReactor_DiscoveryRequest(t *testing.T) {
 	t.Parallel()
 
@@ -48,7 +58,8 @@ func TestReactor_DiscoveryRequest(t *testing.T) {
 	)
 
 	r := NewReactor(
-		WithDiscoveryInterval(10 * time.Millisecond),
+		newTestStore(t),
+		WithDiscoveryInterval(10*time.Millisecond),
 	)
 
 	// Set the mock switch
@@ -128,7 +139,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		)
 
 		r := NewReactor(
-			WithDiscoveryInterval(10 * time.Millisecond),
+			newTestStore(t),
+			WithDiscoveryInterval(10*time.Millisecond),
 		)
 
 		// Set the mock switch
@@ -206,7 +218,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		)
 
 		r := NewReactor(
-			WithDiscoveryInterval(10 * time.Millisecond),
+			newTestStore(t),
+			WithDiscoveryInterval(10*time.Millisecond),
 		)
 
 		// Set the mock switch
@@ -279,7 +292,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		}
 
 		r := NewReactor(
-			WithDiscoveryInterval(10 * time.Millisecond),
+			newTestStore(t),
+			WithDiscoveryInterval(10*time.Millisecond),
 		)
 
 		// Set the mock switch
@@ -364,7 +378,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		)
 
 		r := NewReactor(
-			WithDiscoveryInterval(10 * time.Millisecond),
+			newTestStore(t),
+			WithDiscoveryInterval(10*time.Millisecond),
 		)
 
 		// Set the mock switch
@@ -431,7 +446,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		)
 
 		r := NewReactor(
-			WithDiscoveryInterval(10 * time.Millisecond),
+			newTestStore(t),
+			WithDiscoveryInterval(10*time.Millisecond),
 		)
 
 		// Set the mock switch
@@ -478,8 +494,8 @@ func TestReactor_Store_PersistsDiscoveredPeers(t *testing.T) {
 	require.NoError(t, err)
 
 	r := NewReactor(
+		store,
 		WithDiscoveryInterval(time.Hour), // avoid background discovery
-		WithStore(store),
 	)
 
 	r.SetSwitch(mockSwitch)
@@ -559,8 +575,8 @@ func TestReactor_Store_DialsPersistedPeersOnStart(t *testing.T) {
 	require.Equal(t, len(peers), loadedStore.Size())
 
 	r := NewReactor(
+		loadedStore,
 		WithDiscoveryInterval(time.Hour), // avoid background discovery
-		WithStore(loadedStore),
 	)
 
 	r.SetSwitch(mockSwitch)

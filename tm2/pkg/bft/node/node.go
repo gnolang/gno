@@ -524,9 +524,7 @@ func NewNode(config *cfg.Config,
 			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
 		}
 
-		discoveryReactor = discovery.NewReactor(
-			discovery.WithStore(discoveryStore),
-		)
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
