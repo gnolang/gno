@@ -406,7 +406,6 @@ func (ft FieldType) IsNamed() bool {
 
 type FieldTypeList []FieldType
 
-// FieldTypeList implements sort.Interface.
 func (l FieldTypeList) Len() int {
 	return len(l)
 }
@@ -427,23 +426,21 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return pkg + "." + string(ft.Name)
 }
 
-// FieldTypeList implements sort.Interface.
-func (l FieldTypeList) Less(i, j int) bool {
-	// Key on the package-qualified identity name so two same-named unexported
-	// methods from different packages (legal after flattening cross-package
-	// embeds) sort distinctly rather than tripping the duplicate guard.
-	ikey, jkey := l[i].idName(""), l[j].idName("")
-	if ikey == jkey {
-		panic(fmt.Sprintf("duplicate name found in field list: %s", l[i].Name))
+// sortForPackage sorts the methods by their package-qualified identity name
+// (idName with pkgPath as the fallback) — the SAME key TypeIDForPackage emits
+// with. Keying the sort and the emission identically means the order does not
+// depend on whether a method's PkgPath is stamped (fresh construction) or
+// empty (decoded from pre-flattening persisted state), so the same logical
+// interface always yields one TypeID. Panics on a duplicate qualified name.
+func (l FieldTypeList) sortForPackage(pkgPath string) {
+	sort.SliceStable(l, func(i, j int) bool {
+		return l[i].idName(pkgPath) < l[j].idName(pkgPath)
+	})
+	for i := 1; i < len(l); i++ {
+		if l[i].idName(pkgPath) == l[i-1].idName(pkgPath) {
+			panic(fmt.Sprintf("duplicate name found in field list: %s", l[i].idName(pkgPath)))
+		}
 	}
-	return ikey < jkey
-}
-
-// FieldTypeList implements sort.Interface.
-func (l FieldTypeList) Swap(i, j int) {
-	t := l[i]
-	l[i] = l[j]
-	l[j] = t
 }
 
 // User should call sort for interface methods.
@@ -1001,7 +998,10 @@ func (it *InterfaceType) TypeID() TypeID {
 		// included in field names that are not uppercase.
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
-		sort.Sort(ms)
+		// Sort with the same package fallback emission uses, so a fresh
+		// (PkgPath-stamped) and a legacy-decoded (PkgPath-empty) instance of
+		// the same interface produce one TypeID.
+		ms.sortForPackage(it.PkgPath)
 		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
 	return it.typeid
@@ -2715,6 +2715,20 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 // FieldType.PkgPath), so that an unexported method's (pkgpath, name) identity
 // — and the sealed-interface guarantee it backs — survives flattening.
 func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
+	// Fast path: the common interface (interface{}, or one with only direct
+	// methods) has nothing to flatten — return it as-is, skipping the dedup
+	// map and per-method key building. Direct unexported methods need no
+	// PkgPath stamp: idName falls back to the enclosing pkgPath at TypeID time.
+	hasEmbed := false
+	for i := range fts {
+		if embeddedInterface(fts[i].Type) != nil {
+			hasEmbed = true
+			break
+		}
+	}
+	if !hasEmbed {
+		return fts
+	}
 	out := make([]FieldType, 0, len(fts))
 	// keyed on the package-qualified identity name: two same-named unexported
 	// methods from different packages are distinct and must coexist.

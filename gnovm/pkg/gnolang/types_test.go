@@ -29,10 +29,24 @@ func TestFlattenInterfaceMethods(t *testing.T) {
 		want    []want
 	}{
 		{
-			desc:    "direct methods: exported keeps empty pkg, unexported stamped with enclosing pkg",
+			// No embed → fast path returns the slice unchanged: a direct
+			// unexported method is NOT stamped (idName falls back to the
+			// enclosing pkg at TypeID time), so PkgPath stays empty.
+			desc:    "no-embed interface returned unchanged (fast path)",
 			in:      []FieldType{mkMethod("M", fn), mkMethod("m", fn)},
 			pkgPath: "q",
-			want:    []want{{"M", ""}, {"m", "q"}},
+			want:    []want{{"M", ""}, {"m", ""}},
+		},
+		{
+			// With an embed present, the slow path runs and a direct
+			// unexported method IS stamped with the enclosing package.
+			desc: "direct unexported stamped with enclosing pkg when an embed is present",
+			in: []FieldType{
+				mkEmbed("p", mkMethod("E", fn)),
+				mkMethod("m", fn),
+			},
+			pkgPath: "q",
+			want:    []want{{"E", ""}, {"m", "q"}},
 		},
 		{
 			desc:    "embedded exported method flattens, pkg stays empty (package-independent identity)",
@@ -86,18 +100,45 @@ func TestFlattenInterfaceMethods(t *testing.T) {
 	}
 }
 
-// A same-name/same-package method with conflicting signatures is a
-// should-not-happen (go/types rejects it upstream); flatten guards with a panic.
+// Two embeds contributing the same method name with conflicting signatures is
+// a should-not-happen (go/types rejects it upstream); flatten's dedup guards
+// with a panic. (A pure direct-method duplicate takes the fast path and is
+// instead caught later by sortForPackage at TypeID time.)
 func TestFlattenInterfaceMethods_ConflictPanics(t *testing.T) {
 	t.Parallel()
 	fn := &FuncType{}
 	fn2 := &FuncType{Results: []FieldType{{Type: BoolType}}}
-	in := []FieldType{mkMethod("m", fn), mkMethod("m", fn2)}
+	in := []FieldType{
+		mkEmbed("p", mkMethod("M", fn)),
+		mkEmbed("p", mkMethod("M", fn2)),
+	}
 
 	defer func() {
 		if recover() == nil {
-			t.Fatal("expected panic on conflicting same-package method, got none")
+			t.Fatal("expected panic on conflicting embedded method, got none")
 		}
 	}()
 	flattenInterfaceMethods(in, "q")
+}
+
+// Regression for the sort/emit provenance mismatch (thehowl review): a fresh
+// interface (unexported method PkgPath-stamped) and the same interface decoded
+// from pre-flattening persisted state (PkgPath empty) must yield one TypeID.
+// Both the sort key and the emitted id qualify via the enclosing package, so
+// the order can't flip between the two representations.
+func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
+	t.Parallel()
+	fn := &FuncType{}
+	fresh := &InterfaceType{PkgPath: "p", Methods: []FieldType{
+		{Name: "M", Type: fn},
+		{Name: "z", Type: fn, PkgPath: "p"}, // stamped (fresh construction)
+	}}
+	legacy := &InterfaceType{PkgPath: "p", Methods: []FieldType{
+		{Name: "M", Type: fn},
+		{Name: "z", Type: fn}, // empty (decoded from old persisted state)
+	}}
+	if fresh.TypeID() != legacy.TypeID() {
+		t.Fatalf("stamped vs empty PkgPath gave different TypeIDs:\n fresh:  %s\n legacy: %s",
+			fresh.TypeID(), legacy.TypeID())
+	}
 }
