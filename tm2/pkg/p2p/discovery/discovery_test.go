@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -450,4 +451,132 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		// Make sure no peers were dialed
 		assert.Empty(t, capturedDials)
 	})
+}
+
+func TestReactor_Store_PersistsDiscoveredPeers(t *testing.T) {
+	t.Parallel()
+
+	var (
+		peers = mock.GeneratePeers(t, 5)
+
+		storePath = filepath.Join(t.TempDir(), peerStoreFile)
+
+		ps = &mockPeerSet{
+			listFn: func() []p2p.PeerConn {
+				return make([]p2p.PeerConn, 0)
+			},
+		}
+
+		mockSwitch = &mockSwitch{
+			peersFn: func() p2p.PeerSet {
+				return ps
+			},
+		}
+	)
+
+	store, err := NewStore(storePath)
+	require.NoError(t, err)
+
+	r := NewReactor(
+		WithDiscoveryInterval(time.Hour), // avoid background discovery
+		WithStore(store),
+	)
+
+	r.SetSwitch(mockSwitch)
+
+	// Prepare the discovered peer addresses
+	peerAddrs := make([]*types.NetAddress, 0, len(peers))
+	for _, p := range peers {
+		peerAddrs = append(peerAddrs, p.NodeInfo().DialAddress())
+	}
+
+	// Prepare and send a discovery Response
+	resp := &Response{Peers: peerAddrs}
+
+	preparedResp, err := amino.MarshalAny(resp)
+	require.NoError(t, err)
+
+	r.Receive(Channel, &mock.Peer{}, preparedResp)
+
+	// The store should now contain all discovered peers
+	assert.Equal(t, len(peers), store.Size())
+
+	// Stopping the reactor should flush to disk
+	r.OnStop()
+
+	// Reload the store from disk and verify persistence
+	reloaded, err := NewStore(storePath)
+	require.NoError(t, err)
+
+	assert.Equal(t, len(peers), reloaded.Size())
+}
+
+func TestReactor_Store_DialsPersistedPeersOnStart(t *testing.T) {
+	t.Parallel()
+
+	var (
+		peers = mock.GeneratePeers(t, 5)
+
+		storePath = filepath.Join(t.TempDir(), peerStoreFile)
+
+		notifCh = make(chan struct{}, 1)
+
+		ps = &mockPeerSet{
+			listFn: func() []p2p.PeerConn {
+				return make([]p2p.PeerConn, 0)
+			},
+		}
+
+		capturedDials []*types.NetAddress
+
+		mockSwitch = &mockSwitch{
+			peersFn: func() p2p.PeerSet {
+				return ps
+			},
+			dialPeersFn: func(addresses ...*types.NetAddress) {
+				capturedDials = append(capturedDials, addresses...)
+
+				notifCh <- struct{}{}
+			},
+		}
+	)
+
+	// Pre-populate the store with discovered peers
+	store, err := NewStore(storePath)
+	require.NoError(t, err)
+
+	peerAddrs := make([]*types.NetAddress, 0, len(peers))
+	for _, p := range peers {
+		peerAddrs = append(peerAddrs, p.NodeInfo().DialAddress())
+	}
+
+	store.AddPeers(peerAddrs...)
+	require.NoError(t, store.Save())
+
+	// Create a fresh store that loads from disk
+	loadedStore, err := NewStore(storePath)
+	require.NoError(t, err)
+	require.Equal(t, len(peers), loadedStore.Size())
+
+	r := NewReactor(
+		WithDiscoveryInterval(time.Hour), // avoid background discovery
+		WithStore(loadedStore),
+	)
+
+	r.SetSwitch(mockSwitch)
+
+	// OnStart should dial the persisted peers
+	require.NoError(t, r.OnStart())
+	t.Cleanup(func() {
+		r.OnStop()
+	})
+
+	select {
+	case <-notifCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for persisted peers to be dialed")
+	}
+
+	// All persisted peers should have been dialed
+	assert.Len(t, capturedDials, len(peers))
 }
