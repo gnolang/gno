@@ -22,6 +22,7 @@ jobs:
       matrix:
         # fixed list because we have some non go programs on that misc folder
         program:
+          - audit-pattern-harness
           - autocounterd
           - genproto
           - genstd

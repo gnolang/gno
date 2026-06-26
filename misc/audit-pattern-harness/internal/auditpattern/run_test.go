@@ -1,0 +1,451 @@
+package auditpattern
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"sort"
+	"strings"
+	"testing"
+)
+
+var exportedFuncRE = regexp.MustCompile(`(?m)^func\s+([A-Z]\w*)\s*\(`)
+
+// pkgDir is the directory containing this test file, resolved at init time via
+// runtime.Caller so that path computations work regardless of working directory.
+var pkgDir = func() string {
+	_, f, _, _ := runtime.Caller(0)
+	return filepath.Dir(f)
+}()
+
+func harnessRoot() string { return filepath.Clean(filepath.Join(pkgDir, "..", "..")) }
+func repoRoot() string    { return filepath.Clean(filepath.Join(harnessRoot(), "..", "..")) }
+func fixturesDir(name string) string {
+	return filepath.Join(harnessRoot(), "fixtures", name)
+}
+func expectedFile(name string) string {
+	return filepath.Join(harnessRoot(), "expected", name+".yaml")
+}
+
+func TestLoadRecordResolvesFixturePaths(t *testing.T) {
+	rec, err := LoadRecord(expectedFile("current-guard"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.ID != "current-guard" {
+		t.Fatalf("unexpected id %q", rec.ID)
+	}
+	if len(rec.Fixtures) != 2 {
+		t.Fatalf("expected 2 fixtures, got %d", len(rec.Fixtures))
+	}
+	if !filepath.IsAbs(rec.Fixtures[0].Path) {
+		t.Fatalf("fixture path is not absolute: %s", rec.Fixtures[0].Path)
+	}
+}
+
+func TestCurrentGuardRule(t *testing.T) {
+	base := fixturesDir("current-guard")
+
+	hits, err := RunRule("current_guard", filepath.Join(base, "vulnerable"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit, got %d", len(hits))
+	}
+	if hits[0].File != "admin.gno" || hits[0].Line != 6 {
+		t.Fatalf("unexpected hit: %+v", hits[0])
+	}
+
+	hits, err = RunRule("current_guard", filepath.Join(base, "fixed"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("expected no hits, got %d", len(hits))
+	}
+}
+
+func TestRenderMarkdownEscapeRule(t *testing.T) {
+	base := fixturesDir("render-markdown")
+
+	hits, err := RunRule("render_markdown_escape", filepath.Join(base, "vulnerable"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit, got %d", len(hits))
+	}
+	if hits[0].File != "echo.gno" {
+		t.Fatalf("unexpected hit: %+v", hits[0])
+	}
+
+	hits, err = RunRule("render_markdown_escape", filepath.Join(base, "fixed"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("expected no hits, got %d", len(hits))
+	}
+}
+
+func TestPaymentUserCallRule(t *testing.T) {
+	assertRuleCounts(t, "payment_user_call", "payment-user-call", 1, 0)
+}
+
+func TestOriginCallerAuthRule(t *testing.T) {
+	assertRuleCounts(t, "origin_caller_auth", "origin-caller-auth", 1, 0)
+}
+
+func TestCallbackParamRule(t *testing.T) {
+	assertRuleCounts(t, "callback_param", "callback-param", 1, 0)
+}
+
+func TestInterfaceRealmParamRule(t *testing.T) {
+	assertRuleCounts(t, "interface_realm_param", "interface-realm-param", 1, 0)
+}
+
+func TestExportedPointerLeakRule(t *testing.T) {
+	assertRuleCounts(t, "exported_pointer_leak", "exported-pointer-leak", 2, 0)
+}
+
+func TestRenderMapIterationRule(t *testing.T) {
+	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
+}
+
+func TestRunWithFakeGNO(t *testing.T) {
+	tmp := t.TempDir()
+	gno := filepath.Join(tmp, "gno")
+	if err := os.WriteFile(gno, []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, err := LoadRecord(expectedFile("current-guard"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(context.Background(), rec, Options{GNOBin: gno})
+	if !report.OK {
+		t.Fatalf("expected report to pass: %+v", report)
+	}
+	if len(report.Fixtures) != 2 {
+		t.Fatalf("expected 2 fixture results, got %d", len(report.Fixtures))
+	}
+}
+
+func TestAgentPatternContract(t *testing.T) {
+	specFiles := []string{
+		filepath.Join(harnessRoot(), "README.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "gno-security-guide.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "effective-gno.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "gno-data-structures.md"),
+		filepath.Join(repoRoot(), "docs", "resources", "community-packages.md"),
+	}
+	requiredTerms := map[string][]string{
+		"callback-param":        {"callback", "caller-supplied"},
+		"current-guard":         {"cur.Previous()", "cur.IsCurrent()"},
+		"exported-pointer-leak": {"exported pointer", "mutable state"},
+		"interface-realm-param": {"interface", "cur realm"},
+		"origin-caller-auth":    {"OriginCaller()", "authorization"},
+		"payment-user-call":     {"OriginSend()", "IsUserCall()"},
+		"render-map-iteration":  {"Render", "map iteration"},
+		"render-markdown":       {"Render(path)", "markdown/sanitize"},
+	}
+
+	corpus := readSpecCorpus(t, specFiles)
+	records := loadAllRecords(t, harnessRoot())
+	if len(records) < len(requiredTerms) {
+		t.Fatalf("expected at least %d records, got %d", len(requiredTerms), len(records))
+	}
+
+	for _, rec := range records {
+		t.Run(rec.ID, func(t *testing.T) {
+			for _, term := range requiredTerms[rec.ID] {
+				if !strings.Contains(corpus, term) {
+					t.Fatalf("spec corpus does not mention %q for %s", term, rec.ID)
+				}
+			}
+
+			fixtures := map[string]Fixture{}
+			for _, fixture := range rec.Fixtures {
+				fixtures[fixture.Name] = fixture
+			}
+			vulnerable, ok := fixtures["vulnerable"]
+			if !ok {
+				t.Fatalf("missing vulnerable fixture")
+			}
+			fixed, ok := fixtures["fixed"]
+			if !ok {
+				t.Fatalf("missing fixed fixture")
+			}
+			if vulnerable.WantPatternHits <= 0 {
+				t.Fatalf("vulnerable fixture must expect at least one pattern hit")
+			}
+			if fixed.WantPatternHits != 0 {
+				t.Fatalf("fixed fixture must expect zero pattern hits")
+			}
+
+			vulnerableHits, err := RunRule(rec.Rule, vulnerable.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(vulnerableHits) != vulnerable.WantPatternHits {
+				t.Fatalf("vulnerable hits: got %d, want %d: %+v", len(vulnerableHits), vulnerable.WantPatternHits, vulnerableHits)
+			}
+
+			fixedHits, err := RunRule(rec.Rule, fixed.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fixedHits) != 0 {
+				t.Fatalf("fixed fixture still has pattern hits: %+v", fixedHits)
+			}
+		})
+	}
+}
+
+func TestAgentPatternContractWithGNO(t *testing.T) {
+	gnoBin := os.Getenv("GNO_BIN")
+	if gnoBin == "" {
+		var err error
+		gnoBin, err = exec.LookPath("gno")
+		if err != nil {
+			t.Skip("set GNO_BIN or install gno in PATH to compile-check all agent contract fixtures")
+		}
+	}
+
+	for _, rec := range loadAllRecords(t, harnessRoot()) {
+		t.Run(rec.ID, func(t *testing.T) {
+			report := Run(context.Background(), rec, Options{GNOBin: gnoBin})
+			if !report.OK {
+				t.Fatalf("agent contract failed with %s: %+v", gnoBin, report)
+			}
+		})
+	}
+}
+
+func TestRepairContracts(t *testing.T) {
+	for _, rec := range loadAllRecords(t, harnessRoot()) {
+		t.Run(rec.ID, func(t *testing.T) {
+			from := fixtureByName(t, rec, rec.Repair.FromFixture)
+			to := fixtureByName(t, rec, rec.Repair.ToFixture)
+			if strings.TrimSpace(rec.Repair.Goal) == "" {
+				t.Fatalf("repair goal is empty")
+			}
+
+			fromHits, err := RunRule(rec.Rule, from.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fromHits) == 0 {
+				t.Fatalf("repair source %q must demonstrate at least one hit", from.Name)
+			}
+
+			toHits, err := RunRule(rec.Rule, to.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(toHits) != 0 {
+				t.Fatalf("repair target %q still has hits: %+v", to.Name, toHits)
+			}
+
+			fromFiles := gnoFileContents(t, from.Path)
+			toFiles := gnoFileContents(t, to.Path)
+			if !sameKeys(fromFiles, toFiles) {
+				t.Fatalf("repair fixtures must keep the same .gno file set: from=%v to=%v", sortedKeys(fromFiles), sortedKeys(toFiles))
+			}
+			if !anyChanged(fromFiles, toFiles) {
+				t.Fatalf("repair target must change at least one .gno file")
+			}
+
+			fromAPI := exportedFuncNames(fromFiles)
+			toAPI := exportedFuncNames(toFiles)
+			fromAPI = withoutStrings(fromAPI, rec.Repair.AllowRemovedExports)
+			if !sameStringSlices(fromAPI, toAPI) {
+				t.Fatalf("repair target should preserve exported top-level function names: from=%v to=%v", fromAPI, toAPI)
+			}
+		})
+	}
+}
+
+func assertRuleCounts(t *testing.T, rule, fixture string, vulnerable, fixed int) {
+	t.Helper()
+	base := fixturesDir(fixture)
+
+	hits, err := RunRule(rule, filepath.Join(base, "vulnerable"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != vulnerable {
+		t.Fatalf("expected %d vulnerable hits, got %d: %+v", vulnerable, len(hits), hits)
+	}
+
+	hits, err = RunRule(rule, filepath.Join(base, "fixed"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != fixed {
+		t.Fatalf("expected %d fixed hits, got %d: %+v", fixed, len(hits), hits)
+	}
+}
+
+func readSpecCorpus(t *testing.T, paths []string) string {
+	t.Helper()
+
+	var corpus strings.Builder
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read spec file %s: %v", path, err)
+		}
+		if len(strings.TrimSpace(string(data))) == 0 {
+			t.Fatalf("spec file %s is empty", path)
+		}
+		corpus.Write(data)
+		corpus.WriteByte('\n')
+	}
+	return corpus.String()
+}
+
+func loadAllRecords(t *testing.T, harnessRoot string) []Record {
+	t.Helper()
+
+	paths, err := filepath.Glob(filepath.Join(harnessRoot, "expected", "*.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		t.Fatalf("no expected records found")
+	}
+
+	seen := map[string]bool{}
+	records := make([]Record, 0, len(paths))
+	for _, path := range paths {
+		rec, err := LoadRecord(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if seen[rec.ID] {
+			t.Fatalf("duplicate record id %q", rec.ID)
+		}
+		seen[rec.ID] = true
+		records = append(records, rec)
+	}
+	return records
+}
+
+func fixtureByName(t *testing.T, rec Record, name string) Fixture {
+	t.Helper()
+
+	for _, fixture := range rec.Fixtures {
+		if fixture.Name == name {
+			return fixture
+		}
+	}
+	t.Fatalf("fixture %q not found in %s", name, rec.ID)
+	return Fixture{}
+}
+
+func gnoFileContents(t *testing.T, dir string) map[string]string {
+	t.Helper()
+
+	files, err := gnoFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, file := range files {
+		rel, err := filepath.Rel(dir, file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[filepath.ToSlash(rel)] = string(data)
+	}
+	if len(out) == 0 {
+		t.Fatalf("no .gno files under %s", dir)
+	}
+	return out
+}
+
+func exportedFuncNames(files map[string]string) []string {
+	seen := map[string]bool{}
+	for _, data := range files {
+		for _, match := range exportedFuncRE.FindAllStringSubmatch(data, -1) {
+			seen[match[1]] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sameKeys(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key := range left {
+		if _, ok := right[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func anyChanged(left, right map[string]string) bool {
+	for key, value := range left {
+		if right[key] != value {
+			return true
+		}
+	}
+	return false
+}
+
+func sameStringSlices(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func withoutStrings(values, remove []string) []string {
+	if len(remove) == 0 {
+		return values
+	}
+	blocked := map[string]bool{}
+	for _, value := range remove {
+		blocked[value] = true
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if !blocked[value] {
+			out = append(out, value)
+		}
+	}
+	return out
+}
