@@ -49,6 +49,45 @@ func main() {
 	require.Equal(t, expectedOutput, string(formatted))
 }
 
+func TestFormatSource(t *testing.T) {
+	t.Parallel()
+
+	mockResolver := newMockResolver()
+
+	mp := newMockedPackage("example.com/mypkg", "mypkg")
+	pkgcontent := `package mypkg
+
+func MyFunc(str string) string{
+	return "Hello: "+str
+}`
+	mp.AddFile("my.gno", []byte(pkgcontent))
+	mockResolver.AddPackage(mp)
+
+	// Deliberately uses mypkg without importing it, and is poorly formatted.
+	sourceCode := `package main
+
+func  main() {
+	str:="hello, world"
+	mypkg.MyFunc(str)
+}`
+
+	processor := NewProcessor(mockResolver)
+	formatted, err := processor.FormatSource("main.gno", sourceCode)
+	require.NoError(t, err)
+
+	// Layout is fixed, but the missing import is NOT resolved/added:
+	// FormatSource preserves imports verbatim, unlike FormatImportFromSource.
+	expectedOutput := `package main
+
+func main() {
+	str := "hello, world"
+	mypkg.MyFunc(str)
+}
+`
+
+	require.Equal(t, expectedOutput, string(formatted))
+}
+
 func TestFormatImportFromFile(t *testing.T) {
 	t.Parallel()
 
@@ -93,4 +132,42 @@ func main() {
 	require.NoError(t, err)
 
 	require.Equal(t, expectedOutput, string(formatted))
+}
+
+func TestFormatFileConflictingPackages(t *testing.T) {
+	t.Parallel()
+
+	mockResolver := newMockResolver()
+	processor := NewProcessor(mockResolver)
+
+	// Create a temp dir with two .gno files having different package names,
+	// simulating a filetest directory like gnovm/tests/files/.
+	dir := t.TempDir()
+
+	file1 := `package main
+
+func main() {
+	println("hello")
+}
+`
+	file2 := `package other
+
+func Foo() string {
+	return "foo"
+}
+`
+	err := os.WriteFile(filepath.Join(dir, "file1.gno"), []byte(file1), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(dir, "file2.gno"), []byte(file2), 0o644)
+	require.NoError(t, err)
+
+	// A directory whose files disagree on package name cannot be parsed as a
+	// single package: FormatFile must surface ErrPackageConflict rather than
+	// silently formatting per-file. Filetest directories are routed to per-file
+	// formatting by the caller (see cmd/gno/fmt.go) before reaching here.
+	_, err = processor.FormatFile(filepath.Join(dir, "file1.gno"))
+	require.ErrorIs(t, err, ErrPackageConflict)
+
+	_, err = processor.FormatFile(filepath.Join(dir, "file2.gno"))
+	require.ErrorIs(t, err, ErrPackageConflict)
 }
