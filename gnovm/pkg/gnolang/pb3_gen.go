@@ -1648,6 +1648,18 @@ func (goo *MapListItem) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 
 func (goo BoundMethodValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.Method != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Method))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
 	{
 		before := offset
 		offset, err = goo.Receiver.MarshalBinary2(cdc, buf, offset)
@@ -1720,6 +1732,9 @@ func (goo BoundMethodValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
+	if goo.Method != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Method))) + len(goo.Method)
+	}
 	return s, nil
 }
 
@@ -1778,6 +1793,16 @@ func (goo *BoundMethodValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 			if err := goo.Receiver.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
+		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Method = Name(v)
 		default:
 			return fmt.Errorf("unknown field number %d for BoundMethodValue", fnum)
 		}

@@ -2956,6 +2956,16 @@ func isGeneric(t Type) bool {
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
+//
+// Returns:
+//   - trail: the ValuePath steps from t down to n (embedded-field hops plus a
+//     final field/method step); nil if n is not found.
+//   - hasPtr: whether the trail crosses a pointer (a pointer field/receiver).
+//   - rcvr: for a method, its declared receiver type (T for a value receiver,
+//     *T for a pointer receiver); nil for a field.
+//   - ft: the type n resolves to — the field's type for a field, or the
+//     method's bound (receiver-stripped) function type for a method.
+//   - accessError: n was found but is unexported and inaccessible from callerPath.
 func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {

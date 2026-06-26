@@ -200,6 +200,11 @@ func (fv *FuncValue) String() string {
 }
 
 func (bmv *BoundMethodValue) String() string {
+	if bmv.IsLazy() {
+		// Unresolved interface bind: the concrete method is determined at call
+		// time; render from the saved operand type + selector name.
+		return fmt.Sprintf("<%s>.%s(?)(?)", bmv.Receiver.T.String(), bmv.Method)
+	}
 	name := bmv.Func.Name
 	var (
 		recvT   = "?"

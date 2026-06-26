@@ -71,3 +71,22 @@ func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
 			refNodeSize, expectedRefNodeSize, normalSize, allocRefNode)
 	}
 }
+
+func TestBoundMethodValueGetShallowSize(t *testing.T) {
+	// A bound method's shallow size is always allocBoundMethod, regardless of
+	// the wrapped Func's package (a bmv has no PkgPath of its own) — including a
+	// uverse-method wrapper (previously wrongly sized 0) and a lazy interface
+	// bind whose Func is nil.
+	for _, tc := range []struct {
+		name string
+		bmv  *BoundMethodValue
+	}{
+		{"uverse method wrapper", &BoundMethodValue{Func: &FuncValue{PkgPath: ".uverse"}}},
+		{"lazy interface bind", &BoundMethodValue{Func: nil}},
+		{"normal method", &BoundMethodValue{Func: &FuncValue{PkgPath: "gno.land/r/test/foo"}}},
+	} {
+		if got := tc.bmv.GetShallowSize(); got != allocBoundMethod {
+			t.Errorf("%s: GetShallowSize() = %d, want %d", tc.name, got, allocBoundMethod)
+		}
+	}
+}
