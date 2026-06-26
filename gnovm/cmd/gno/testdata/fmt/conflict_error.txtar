@@ -1,0 +1,30 @@
+# A directory whose .gno files declare different package names cannot be parsed
+# as a single package. gno fmt surfaces this as an error (ErrPackageConflict)
+# rather than silently formatting each file independently. The known filetest
+# roots (gnovm/tests/{files,challenges}) are routed to per-file formatting by
+# path before reaching the package-aware formatter, so they never hit this.
+
+# The error is reported regardless of which file in the directory is passed,
+# and regardless of the dir scan order (guards against ParsePackage ordering
+# sensitivity).
+! gno fmt file1.gno
+stderr 'package name conflict'
+
+! gno fmt file2.gno
+stderr 'package name conflict'
+
+! gno fmt file1.gno file2.gno
+stderr 'package name conflict'
+
+-- file1.gno --
+package main
+
+func main() {
+	println("hello")
+}
+-- file2.gno --
+package other
+
+func Foo() string {
+	return "foo"
+}
