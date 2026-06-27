@@ -121,24 +121,26 @@ func TestFlattenInterfaceMethods_ConflictPanics(t *testing.T) {
 	flattenInterfaceMethods(in, "q")
 }
 
-// Regression for the sort/emit provenance mismatch (thehowl review): a fresh
-// interface (unexported method PkgPath-stamped) and the same interface decoded
-// from pre-flattening persisted state (PkgPath empty) must yield one TypeID.
-// Both the sort key and the emitted id qualify via the enclosing package, so
-// the order can't flip between the two representations.
+// Regression for the sort/emit provenance mismatch (thehowl review). The same
+// interface in package p can hold an unexported method with PkgPath either
+// stamped to "p" (the method was hoisted from an embed — slow path) or empty
+// (the method was declared directly, so the no-embed fast path leaves it
+// unstamped; pre-flattening persisted state also decodes to empty). Both must
+// yield one TypeID: the sort key and the emitted id both qualify via the
+// enclosing package, so the order can't flip between the two representations.
 func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 	t.Parallel()
 	fn := &FuncType{}
-	fresh := &InterfaceType{PkgPath: "p", Methods: []FieldType{
+	stamped := &InterfaceType{PkgPath: "p", Methods: []FieldType{
 		{Name: "M", Type: fn},
-		{Name: "z", Type: fn, PkgPath: "p"}, // stamped (fresh construction)
+		{Name: "z", Type: fn, PkgPath: "p"}, // hoisted from an embed
 	}}
-	legacy := &InterfaceType{PkgPath: "p", Methods: []FieldType{
+	unstamped := &InterfaceType{PkgPath: "p", Methods: []FieldType{
 		{Name: "M", Type: fn},
-		{Name: "z", Type: fn}, // empty (decoded from old persisted state)
+		{Name: "z", Type: fn}, // declared directly, or legacy-decoded
 	}}
-	if fresh.TypeID() != legacy.TypeID() {
-		t.Fatalf("stamped vs empty PkgPath gave different TypeIDs:\n fresh:  %s\n legacy: %s",
-			fresh.TypeID(), legacy.TypeID())
+	if stamped.TypeID() != unstamped.TypeID() {
+		t.Fatalf("stamped vs empty PkgPath gave different TypeIDs:\n stamped:   %s\n unstamped: %s",
+			stamped.TypeID(), unstamped.TypeID())
 	}
 }
