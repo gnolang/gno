@@ -13,6 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// peerStoreFile is the default file name for the persisted discovered peer set.
+// Defined here because it is only used by tests.
+const peerStoreFile = "addrbook.json"
+
 // generateTestAddress builds a valid NetAddress with a random peer ID.
 func generateTestAddress(t *testing.T, host string, port uint16) *types.NetAddress {
 	t.Helper()
@@ -29,10 +33,9 @@ func generateTestAddress(t *testing.T, host string, port uint16) *types.NetAddre
 func TestStore_New_Empty(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	assert.Empty(t, s.GetPeers())
@@ -41,10 +44,9 @@ func TestStore_New_Empty(t *testing.T) {
 func TestStore_AddAndGetPeers(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr1 := generateTestAddress(t, "1.2.3.4", 26656)
@@ -63,10 +65,9 @@ func TestStore_AddAndGetPeers(t *testing.T) {
 func TestStore_AddPeers_NilSkipped(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr := generateTestAddress(t, "1.2.3.4", 26656)
@@ -76,14 +77,31 @@ func TestStore_AddPeers_NilSkipped(t *testing.T) {
 	assert.Equal(t, 1, s.Size())
 }
 
+func TestStore_AddPeers_SelfAddressFiltered(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), peerStoreFile)
+
+	self := generateTestAddress(t, "1.2.3.4", 26656)
+	other := generateTestAddress(t, "5.6.7.8", 26656)
+
+	s, err := NewStore(path, *self)
+	require.NoError(t, err)
+
+	s.AddPeers(self, other)
+
+	// Only the non-self address should be stored
+	assert.Equal(t, 1, s.Size())
+	assert.Contains(t, s.GetPeers(), other)
+}
+
 func TestStore_SaveAndReload(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
 	// Create and populate store
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr1 := generateTestAddress(t, "1.2.3.4", 26656)
@@ -97,7 +115,7 @@ func TestStore_SaveAndReload(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reload the store from the same file
-	s2, err := NewStore(path)
+	s2, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	reloaded := s2.GetPeers()
@@ -116,10 +134,9 @@ func TestStore_SaveAndReload(t *testing.T) {
 func TestStore_FileFormat_HumanReadable(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr := generateTestAddress(t, "1.2.3.4", 26656)
@@ -133,23 +150,22 @@ func TestStore_FileFormat_HumanReadable(t *testing.T) {
 	var raw storeJSON
 	require.NoError(t, json.Unmarshal(data, &raw))
 
-	require.Len(t, raw.Addrs, 1)
-	assert.Equal(t, addr.String(), raw.Addrs[0])
+	require.Len(t, raw.Peers, 1)
+	assert.Equal(t, addr.String(), raw.Peers[0].Addr)
 }
 
 func TestStore_Load_SkipsInvalidAddresses(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
 	validAddr := generateTestAddress(t, "1.2.3.4", 26656)
 
 	// Write a file with a mix of valid and invalid addresses
 	raw := storeJSON{
-		Addrs: []string{
-			validAddr.String(),
-			"not-a-valid-address",
+		Peers: []storeEntry{
+			{Addr: validAddr.String()},
+			{Addr: "not-a-valid-address"},
 		},
 	}
 
@@ -157,20 +173,39 @@ func TestStore_Load_SkipsInvalidAddresses(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	// Only the valid address should be loaded
 	assert.Equal(t, 1, s.Size())
 }
 
+func TestStore_Eviction_MaxSize(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), peerStoreFile)
+
+	s, err := NewStore(path, types.NetAddress{}, WithMaxPeers(3))
+	require.NoError(t, err)
+
+	// Add 5 peers
+	addrs := make([]*types.NetAddress, 5)
+	for i := range addrs {
+		addrs[i] = generateTestAddress(t, "1.2.3.4", uint16(1000+i))
+	}
+
+	s.AddPeers(addrs...)
+
+	// Should be trimmed to max size
+	assert.Equal(t, 3, s.Size())
+}
+
 func TestStore_Save_NoOpWhenNotDirty(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr := generateTestAddress(t, "1.2.3.4", 26656)
@@ -194,10 +229,9 @@ func TestStore_Save_NoOpWhenNotDirty(t *testing.T) {
 func TestStore_Flush_ForcesWrite(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	// Flush without any peers should still create the file
@@ -210,13 +244,12 @@ func TestStore_Flush_ForcesWrite(t *testing.T) {
 func TestStore_Load_CorruptFileTreatedAsEmpty(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
 	// Write corrupt JSON to the file
 	require.NoError(t, os.WriteFile(path, []byte("{not valid json"), 0o644))
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	// The store should start empty despite the corrupt file
@@ -228,7 +261,7 @@ func TestStore_Load_CorruptFileTreatedAsEmpty(t *testing.T) {
 	require.NoError(t, s.Flush())
 
 	// Reload should now work correctly
-	s2, err := NewStore(path)
+	s2, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, s2.Size())
 }
@@ -236,10 +269,9 @@ func TestStore_Load_CorruptFileTreatedAsEmpty(t *testing.T) {
 func TestStore_SaveAtomic_NoCorruptionOnConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, peerStoreFile)
+	path := filepath.Join(t.TempDir(), peerStoreFile)
 
-	s, err := NewStore(path)
+	s, err := NewStore(path, types.NetAddress{})
 	require.NoError(t, err)
 
 	addr := generateTestAddress(t, "1.2.3.4", 26656)

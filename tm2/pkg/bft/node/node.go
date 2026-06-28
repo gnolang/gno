@@ -519,7 +519,11 @@ func NewNode(config *cfg.Config,
 			return nil, fmt.Errorf("unable to create address book directory, %w", err)
 		}
 
-		discoveryStore, err := discovery.NewStore(addrBookPath)
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
 		}

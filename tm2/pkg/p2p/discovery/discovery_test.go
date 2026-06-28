@@ -18,7 +18,7 @@ import (
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
-	s, err := NewStore(filepath.Join(t.TempDir(), peerStoreFile))
+	s, err := NewStore(filepath.Join(t.TempDir(), peerStoreFile), types.NetAddress{})
 	require.NoError(t, err)
 
 	return s
@@ -490,7 +490,7 @@ func TestReactor_Store_PersistsDiscoveredPeers(t *testing.T) {
 		}
 	)
 
-	store, err := NewStore(storePath)
+	store, err := NewStore(storePath, types.NetAddress{})
 	require.NoError(t, err)
 
 	r := NewReactor(
@@ -521,7 +521,7 @@ func TestReactor_Store_PersistsDiscoveredPeers(t *testing.T) {
 	r.OnStop()
 
 	// Reload the store from disk and verify persistence
-	reloaded, err := NewStore(storePath)
+	reloaded, err := NewStore(storePath, types.NetAddress{})
 	require.NoError(t, err)
 
 	assert.Equal(t, len(peers), reloaded.Size())
@@ -558,7 +558,7 @@ func TestReactor_Store_DialsPersistedPeersOnStart(t *testing.T) {
 	)
 
 	// Pre-populate the store with discovered peers
-	store, err := NewStore(storePath)
+	store, err := NewStore(storePath, types.NetAddress{})
 	require.NoError(t, err)
 
 	peerAddrs := make([]*types.NetAddress, 0, len(peers))
@@ -570,7 +570,7 @@ func TestReactor_Store_DialsPersistedPeersOnStart(t *testing.T) {
 	require.NoError(t, store.Save())
 
 	// Create a fresh store that loads from disk
-	loadedStore, err := NewStore(storePath)
+	loadedStore, err := NewStore(storePath, types.NetAddress{})
 	require.NoError(t, err)
 	require.Equal(t, len(peers), loadedStore.Size())
 

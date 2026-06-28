@@ -3,55 +3,106 @@ package discovery
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net"
 	"os"
+	"sort"
 	"sync"
+	"time"
 
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
-// peerStoreFile is the default file name for the persisted discovered peer set
-const peerStoreFile = "addrbook.json"
+// defaultMaxPeers is the default maximum number of peers kept in the address book.
+const defaultMaxPeers = 1000
+
+// knownAddress wraps a peer address with metadata used for eviction.
+type knownAddress struct {
+	Addr     *types.NetAddress
+	LastSeen time.Time
+}
 
 // storeJSON is the on-disk representation of the peer store.
-// Addresses are serialized as "ID@IP:Port" strings to avoid
-// encoding/json's default []byte handling of net.IP.
 type storeJSON struct {
-	Addrs []string `json:"addrs"`
+	Peers []storeEntry `json:"peers"`
+}
+
+type storeEntry struct {
+	Addr     string `json:"addr"`
+	LastSeen int64  `json:"last_seen"`
+}
+
+// StoreOption configures the peer Store.
+type StoreOption func(*Store)
+
+// WithLogger sets the store logger.
+func WithLogger(logger *slog.Logger) StoreOption {
+	return func(s *Store) {
+		if logger != nil {
+			s.logger = logger
+		}
+	}
+}
+
+// WithMaxPeers sets the maximum number of peers the store keeps.
+// When the limit is reached, the oldest entries are evicted.
+func WithMaxPeers(max int) StoreOption {
+	return func(s *Store) {
+		if max > 0 {
+			s.maxPeers = max
+		}
+	}
 }
 
 // Store persists discovered peer addresses to disk so they survive node restarts.
 // It is safe for concurrent use.
 type Store struct {
-	mtx   sync.RWMutex
-	dirty bool
+	mtx sync.RWMutex
 
+	logger   *slog.Logger
 	filePath string
-	peers    map[string]*types.NetAddress // keyed by address string (ID@IP:Port)
+	self     types.NetAddress // own address, never stored
+	maxPeers int
+
+	dirty      bool
+	generation uint64
+
+	peers map[string]*knownAddress // keyed by address string (ID@IP:Port)
 }
 
 // NewStore creates a new peer store backed by the given file path.
+// self is the node's own address and is never stored.
 // Existing peers are loaded from disk on construction.
-func NewStore(filePath string) (*Store, error) {
+func NewStore(filePath string, self types.NetAddress, opts ...StoreOption) (*Store, error) {
 	s := &Store{
 		filePath: filePath,
-		peers:    make(map[string]*types.NetAddress),
+		self:     self,
+		maxPeers: defaultMaxPeers,
+		logger:   slog.Default(),
+		peers:    make(map[string]*knownAddress),
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	if err := s.load(); err != nil {
-		return nil, fmt.Errorf("unable to load peer store, %w", err)
+		return nil, err
 	}
 
 	return s, nil
 }
 
-// AddPeers adds the given peer addresses to the store, ignoring nil entries.
+// AddPeers adds the given peer addresses to the store.
+// The node's own address is ignored, as are nil entries.
+// When the store exceeds its capacity, the oldest entries are evicted.
 func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	for _, addr := range addrs {
-		if addr == nil {
+		if addr == nil || addr.Same(s.self) {
 			continue
 		}
 
@@ -60,8 +111,11 @@ func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 			s.dirty = true
 		}
 
-		s.peers[key] = addr
+		s.peers[key] = &knownAddress{Addr: addr, LastSeen: time.Now()}
+		s.generation++
 	}
+
+	s.evict()
 }
 
 // GetPeers returns a copy of all stored peer addresses.
@@ -70,8 +124,10 @@ func (s *Store) GetPeers() []*types.NetAddress {
 	defer s.mtx.RUnlock()
 
 	peers := make([]*types.NetAddress, 0, len(s.peers))
-	for _, addr := range s.peers {
-		peers = append(peers, addr)
+	for _, ka := range s.peers {
+		copied := *ka.Addr
+		copied.IP = append(net.IP(nil), ka.Addr.IP...)
+		peers = append(peers, &copied)
 	}
 
 	return peers
@@ -86,7 +142,7 @@ func (s *Store) Size() int {
 }
 
 // Save persists the peer store to disk atomically.
-// It is a no-op when the store has not changed since the last save.
+// It is a no-op when the store has not changed since the last successful save.
 func (s *Store) Save() error {
 	s.mtx.Lock()
 	if !s.dirty {
@@ -95,13 +151,18 @@ func (s *Store) Save() error {
 		return nil
 	}
 
-	addrs := make([]string, 0, len(s.peers))
-	for _, addr := range s.peers {
-		addrs = append(addrs, addr.String())
+	savedGeneration := s.generation
+
+	entries := make([]storeEntry, 0, len(s.peers))
+	for _, ka := range s.peers {
+		entries = append(entries, storeEntry{
+			Addr:     ka.Addr.String(),
+			LastSeen: ka.LastSeen.Unix(),
+		})
 	}
 	s.mtx.Unlock()
 
-	data, err := json.MarshalIndent(storeJSON{Addrs: addrs}, "", "\t")
+	data, err := json.MarshalIndent(storeJSON{Peers: entries}, "", "\t")
 	if err != nil {
 		return fmt.Errorf("unable to marshal peer store, %w", err)
 	}
@@ -110,8 +171,12 @@ func (s *Store) Save() error {
 		return fmt.Errorf("unable to write peer store, %w", err)
 	}
 
+	// Only clear dirty if no modifications happened since the snapshot.
+	// Otherwise the next Save will persist the newer peers.
 	s.mtx.Lock()
-	s.dirty = false
+	if s.generation == savedGeneration {
+		s.dirty = false
+	}
 	s.mtx.Unlock()
 
 	return nil
@@ -126,8 +191,33 @@ func (s *Store) Flush() error {
 	return s.Save()
 }
 
-// load reads the peer store from disk. A missing or corrupt file is not an error;
-// the store simply starts empty.
+// evict removes the oldest entries until the store fits within maxPeers.
+// Caller must hold the mutex.
+func (s *Store) evict() {
+	if len(s.peers) <= s.maxPeers {
+		return
+	}
+
+	entries := make([]*knownAddress, 0, len(s.peers))
+	for _, ka := range s.peers {
+		entries = append(entries, ka)
+	}
+
+	// Sort oldest first.
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].LastSeen.Before(entries[j].LastSeen)
+	})
+
+	toRemove := len(s.peers) - s.maxPeers
+	for i := 0; i < toRemove; i++ {
+		delete(s.peers, entries[i].Addr.String())
+	}
+
+	s.dirty = true
+}
+
+// load reads the peer store from disk. A missing file is not an error.
+// A corrupt file is logged and treated as empty.
 func (s *Store) load() error {
 	if _, err := os.Stat(s.filePath); os.IsNotExist(err) {
 		return nil
@@ -142,22 +232,36 @@ func (s *Store) load() error {
 
 	var raw storeJSON
 	if err := json.Unmarshal(data, &raw); err != nil {
-		// A corrupt file is treated as empty rather than failing startup.
-		// The next save will overwrite it with valid data.
+		s.logger.Warn("corrupt peer store file, starting empty", "file", s.filePath, "err", err)
+
 		return nil
 	}
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	for _, addrStr := range raw.Addrs {
-		addr, err := types.NewNetAddressFromString(addrStr)
+	now := time.Now()
+
+	for _, entry := range raw.Peers {
+		addr, err := types.NewNetAddressFromString(entry.Addr)
 		if err != nil {
 			// Skip invalid addresses rather than failing the whole load
 			continue
 		}
 
-		s.peers[addr.String()] = addr
+		if addr.Same(s.self) {
+			continue
+		}
+
+		lastSeen := time.Unix(entry.LastSeen, 0)
+		if lastSeen.IsZero() {
+			lastSeen = now
+		}
+
+		s.peers[addr.String()] = &knownAddress{
+			Addr:     addr,
+			LastSeen: lastSeen,
+		}
 	}
 
 	return nil
