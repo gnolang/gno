@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -43,6 +44,29 @@ func TestMeteredWriterNoDoubleChargeOnOOG(t *testing.T) {
 	// The deferred re-Flush after the panic must charge nothing more.
 	mw.Flush()
 	require.Equal(t, afterTrip, gm.GasConsumed(), "deferred re-Flush double-charged")
+}
+
+// TestWriteQuoteMatchesStrconv pins WriteQuote byte-identical to strconv.Quote
+// across both code paths: the in-place append (quoted form fits the buffer) and
+// the grow path (quoted form exceeds the 1 KiB buffer → AppendQuote allocates,
+// then WriteBytes copies it out, flushing).
+func TestWriteQuoteMatchesStrconv(t *testing.T) {
+	cases := []string{
+		"",
+		"simple",
+		"tab\tnl\nquote\"backslash\\ del\x7f",
+		"unicode 世界 café \U0001F600",
+		"invalid \xff\x80 utf8",
+		strings.Repeat("a\"b\n", 600), // quoted form > 1 KiB → grow path
+	}
+	for _, s := range cases {
+		var b bytes.Buffer
+		mw := newUnmeteredWriter(&b)
+		mw.WriteQuote(s)
+		mw.Flush()
+		mw.Release()
+		require.Equal(t, strconv.Quote(s), b.String(), "input %q", s)
+	}
 }
 
 // ─── fixture helpers ───
@@ -491,7 +515,7 @@ func TestSprintMatchesGolden(t *testing.T) {
 			gotOld := fx.tv.ProtectedString(newSeenValues())
 
 			var buf bytes.Buffer
-			mw := newMeteredWriter(&buf, nil)
+			mw := newUnmeteredWriter(&buf)
 			fx.tv.WriteProtected(mw, newSeenValues())
 			mw.Flush()
 			gotNew := buf.String()

@@ -79,7 +79,7 @@ func (dbv DataByteValue) String() string {
 // hint is needed (the debug paths pass no machine, so no gas is charged).
 func protectedStringOf(v protectedWriter, seen *seenValues) string {
 	var b bytes.Buffer
-	mw := newMeteredWriter(&b, nil)
+	mw := newUnmeteredWriter(&b)
 	defer mw.Release()
 	v.WriteProtected(mw, seen)
 	// Flush explicitly (not deferred): b is read below via b.String(), and a
@@ -234,7 +234,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
 	var b bytes.Buffer
-	mw := newMeteredWriter(&b, nil)
+	mw := newUnmeteredWriter(&b)
 	defer mw.Release()
 	writeProtectedSprint(mw, *tv, seen, considerDeclaredType)
 	mw.Flush() // explicit, not deferred — b is read below; see protectedStringOf.

@@ -78,20 +78,33 @@ type meteredWriter struct {
 // fresh Sprint doesn't heap-allocate its buffer each time.
 var meteredWriterPool = sync.Pool{New: func() any { return &meteredWriter{} }}
 
-// newMeteredWriter borrows a meteredWriter wrapping w so that flushed output
-// charges gas against m's gas meter. If m is nil (or its meter is nil, e.g.
-// query / debug / test paths) gas accounting is skipped. The caller owns the
-// writer and must return it with Release() once done (after the final Flush);
-// Release is a no-op-safe recycle, never required for correctness.
-func newMeteredWriter(w io.Writer, m *Machine) *meteredWriter {
+// newUnmeteredWriter borrows a meteredWriter wrapping w that charges NO gas —
+// for the debug / query / test rendering paths (String / ProtectedString, or
+// Sprint with no machine) where output is deliberately not metered. The caller
+// owns the writer and must Release() it once done (after the final Flush).
+func newUnmeteredWriter(w io.Writer) *meteredWriter {
 	mw := meteredWriterPool.Get().(*meteredWriter)
 	mw.parent = w
 	mw.n = 0
-	if m != nil {
-		mw.gasMeter = m.GasMeter
-	} else {
-		mw.gasMeter = nil
+	mw.gasMeter = nil
+	return mw
+}
+
+// newMeteredWriter borrows a meteredWriter wrapping w so that flushed output
+// charges gas against m's gas meter. m must be non-nil: a nil machine on a
+// metered path is a bug (use newUnmeteredWriter when there is legitimately no
+// machine), and requiring it here stops a caller from silently skipping gas by
+// passing nil. m.GasMeter may itself be nil — query / test machines are built
+// without a meter — in which case gas accounting is skipped. The caller owns
+// the writer and must Release() it once done (after the final Flush).
+func newMeteredWriter(w io.Writer, m *Machine) *meteredWriter {
+	if m == nil {
+		panic("newMeteredWriter: nil machine; use newUnmeteredWriter for unmetered rendering")
 	}
+	mw := meteredWriterPool.Get().(*meteredWriter)
+	mw.parent = w
+	mw.n = 0
+	mw.gasMeter = m.GasMeter
 	return mw
 }
 
@@ -209,8 +222,19 @@ func (mw *meteredWriter) WriteFloat(f float64, bitSize int) {
 
 // WriteQuote writes the Go-quoted form of s (fmt %q-equivalent), matching
 // ProtectedString's strconv.Quote post-step.
+//
+// AppendQuote appends straight into the buffer tail: in the common case the
+// quoted form fits and it writes in place (no allocation). It only grows — and
+// thus allocates a new backing array — when the result exceeds the buffer
+// size; detect that via len(b) and copy the produced bytes through WriteBytes
+// (which flushes as needed). Output is strconv.AppendQuote's, so byte-identical.
 func (mw *meteredWriter) WriteQuote(s string) {
-	mw.WriteBytes(strconv.AppendQuote(make([]byte, 0, len(s)+2), s))
+	b := strconv.AppendQuote(mw.buf[:mw.n], s)
+	if len(b) <= len(mw.buf) {
+		mw.n = len(b) // appended in place; no allocation
+		return
+	}
+	mw.WriteBytes(b[mw.n:]) // didn't fit: copy the quoted bytes out
 }
 
 // appendHexUpper appends the uppercase hex encoding of src to dst,
@@ -357,7 +381,11 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 func (tv *TypedValue) Fprint(w io.Writer, m *Machine) {
 	mw, ok := w.(*meteredWriter)
 	if !ok {
-		mw = newMeteredWriter(w, m)
+		if m == nil {
+			mw = newUnmeteredWriter(w) // debug/test Sprint with no machine
+		} else {
+			mw = newMeteredWriter(w, m)
+		}
 		// Deferred Flush: covers all of Fprint's early-return paths uniformly,
 		// and the caller reads w only after we return (so flush-on-exit is in
 		// time). Contrast protectedStringOf, which reads its buffer in-function

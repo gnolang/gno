@@ -52,7 +52,7 @@ func benchStreamOutputProduce(b *testing.B, n int) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mw := newMeteredWriter(io.Discard, nil)
+		mw := newUnmeteredWriter(io.Discard)
 		tv.Fprint(mw, nil)
 		mw.Flush()
 		mw.Release()
@@ -71,7 +71,7 @@ func BenchmarkStreamOutputProduce_Int10000(b *testing.B) { benchStreamOutputProd
 // the production benchmarks above are what set the constant.
 func BenchmarkStreamOutputFlushOnly(b *testing.B) {
 	full := bytes.Repeat([]byte("x"), meteredWriterBufSize)
-	mw := newMeteredWriter(io.Discard, nil)
+	mw := newUnmeteredWriter(io.Discard)
 	defer mw.Release()
 	b.ReportAllocs()
 	b.ResetTimer()
