@@ -11,6 +11,16 @@ the [installation guide](../builders/install.md).
 
 ## Quick start
 
+Run `gnodev` from a package directory that has a `gnomod.toml`. The
+`gnomod.toml` declares the path the package deploys under:
+
+```toml
+module = "gno.land/r/dev/counter"
+gno = "0.9"
+```
+
+Then start the node:
+
 ```sh
 gnodev .
 ```
@@ -18,22 +28,13 @@ gnodev .
 You should see output along these lines:
 
 ```
-Loader      ┃ W gnomod.toml not found, deploying under a generated module path dir={your_pwd} module=gno.land/r/dev/counter hint="create a gnomod.toml to set the module path explicitly"
-Loader      ┃ W no workspace (gnomod.toml / gnowork.toml) found in ./ or any parent.
-            ┃ running in discovery mode: packages resolve on-demand from examples, and from a chain RPC for domains passed via -remote.
-            ┃ to include local packages, pass -extra-root <dir> or cd into a workspace.
+Loader      ┃ I workspace detected root={your_pwd}
 Accounts    ┃ I default address imported name=devtest addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=native
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.4s
 ```
-
-The `W` lines appear because this directory has no `gnomod.toml` or workspace.
-With no module path to read, `gnodev` falls back to deriving one from the
-directory name, here `gno.land/r/dev/counter`, which still points at the realm
-you just deployed, not a bundled example. Add a `gnomod.toml` to set the path
-yourself and silence the warnings (see [Automatic deployment](#automatic-deployment)).
 
 Open `http://localhost:8888` to browse your realm via the built-in
 [gnoweb](../users/explore-with-gnoweb.md) (change the address with `-web-listener`).
@@ -73,7 +74,9 @@ Package path resolution:
 - If a `gnomod.toml` is present, the path inside is used.
 - Otherwise, `gnodev` derives the path from the directory name and deploys
   under `gno.land/r/dev/<dirname>`, where `<dirname>` is sanitized to a valid
-  path segment (lowercase letters, digits, and underscores).
+  path segment: lowercased, non-alphanumerics collapsed to underscores. A name
+  with no letters falls back to `app`, and a leading digit is prefixed with `d`
+  (the path must start with a letter).
 
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
