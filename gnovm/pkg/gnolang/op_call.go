@@ -729,7 +729,7 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 	}
 	numExceptions := m.Exception.NumExceptions()
 	// Collect exceptions in chronological (outer-to-inner) order, then
-	// stream them into a single strings.Builder. Each Exception.SprintTo
+	// stream them into a single strings.Builder. Each Exception.Fprint
 	// charges output gas per flushed chunk, so the per-tx gas budget
 	// bounds the total descriptor size.
 	ordered := make([]*Exception, numExceptions)
@@ -744,7 +744,7 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 		if i > 0 {
 			b.WriteString("\n\t")
 		}
-		ex.SprintTo(&b, m)
+		ex.Fprint(&b, m)
 	}
 	return UnhandledPanicError{
 		Descriptor: b.String(),

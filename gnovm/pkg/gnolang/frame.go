@@ -269,13 +269,11 @@ type Exception struct {
 	Next       *Exception
 }
 
-// SprintTo writes the exception's value to w via (*TypedValue).SprintTo,
-// so the output is metered against m's gas meter. Named SprintTo (not
-// WriteTo) to avoid shadowing io.WriterTo's WriteTo(io.Writer)
-// (int64, error) — the signature here differs and would only confuse
-// readers.
-func (e *Exception) SprintTo(w io.Writer, m *Machine) {
-	e.Value.SprintTo(w, m)
+// Fprint writes the exception's value to w via (*TypedValue).Fprint, so
+// the output is metered against m's gas meter. Named per the stdlib
+// convention: Fprint* writes to an io.Writer, Sprint* returns a string.
+func (e *Exception) Fprint(w io.Writer, m *Machine) {
+	e.Value.Fprint(w, m)
 }
 
 // StringWithStacktrace formats the exception as "panic: <value>\n<stacktrace>".
@@ -285,18 +283,18 @@ func (e *Exception) StringWithStacktrace(m *Machine) string {
 	var b strings.Builder
 	b.Grow(128)
 	b.WriteString("panic: ")
-	e.SprintTo(&b, m)
+	e.Fprint(&b, m)
 	b.WriteByte('\n')
 	b.WriteString(e.Stacktrace.String())
 	return b.String()
 }
 
 // Sprint returns the formatted exception value as a string. Thin
-// wrapper around SprintTo for legacy string-returning callers.
+// wrapper around Fprint for legacy string-returning callers.
 func (e *Exception) Sprint(m *Machine) string {
 	var b strings.Builder
 	b.Grow(64)
-	e.SprintTo(&b, m)
+	e.Fprint(&b, m)
 	return b.String()
 }
 

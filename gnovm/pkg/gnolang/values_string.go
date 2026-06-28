@@ -80,8 +80,12 @@ func (dbv DataByteValue) String() string {
 func protectedStringOf(v protectedWriter, seen *seenValues) string {
 	var b bytes.Buffer
 	mw := newMeteredWriter(&b, nil)
-	defer mw.free()
+	defer mw.Release()
 	v.WriteProtected(mw, seen)
+	// Flush explicitly (not deferred): b is read below via b.String(), and a
+	// deferred Flush would run only after the return value is evaluated,
+	// dropping the last buffered chunk. Streaming callers that hand the buffer
+	// to a downstream consumer (uversePrint, Fprint) defer Flush instead.
 	mw.Flush()
 	return b.String()
 }
@@ -224,16 +228,16 @@ func (tv *TypedValue) ImplError() bool {
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
 	var b bytes.Buffer
-	tv.SprintTo(&b, m)
+	tv.Fprint(&b, m)
 	return b.String()
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
 	var b bytes.Buffer
 	mw := newMeteredWriter(&b, nil)
-	defer mw.free()
+	defer mw.Release()
 	writeProtectedSprint(mw, *tv, seen, considerDeclaredType)
-	mw.Flush()
+	mw.Flush() // explicit, not deferred — b is read below; see protectedStringOf.
 	return b.String()
 }
 

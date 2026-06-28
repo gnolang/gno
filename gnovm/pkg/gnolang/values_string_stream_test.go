@@ -3,110 +3,128 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// TestMeteredWriterNoDoubleChargeOnOOG pins the Flush invariant that an
+// OutOfGas panic charges the tripping chunk exactly once. Flush resets n to 0
+// before ConsumeGas, so the deferred re-Flush that unwinds through
+// (*TypedValue).Fprint / Sprint (its `defer func(){ mw.Flush(); mw.Release() }`)
+// is a no-op instead of charging the same buffer a second time.
+func TestMeteredWriterNoDoubleChargeOnOOG(t *testing.T) {
+	chunk := streamOutputGas(meteredWriterBufSize)
+	// Budget for exactly one full-buffer flush; the second must trip.
+	gm := types.NewGasMeter(chunk + chunk/2)
+	mw := &meteredWriter{parent: io.Discard, gasMeter: gm}
+	full := bytes.Repeat([]byte("x"), meteredWriterBufSize)
+
+	// First flush succeeds and charges one chunk.
+	mw.WriteBytes(full)
+	mw.Flush()
+	require.Equal(t, chunk, gm.GasConsumed())
+
+	// Second flush trips OOG. basicGasMeter adds the charge before panicking
+	// (consumed -> 2*chunk), and Flush must have already reset n to 0.
+	mw.WriteBytes(full)
+	require.Panics(t, func() { mw.Flush() })
+	require.Zero(t, mw.n, "n must reset before charging so a re-Flush is a no-op")
+	afterTrip := gm.GasConsumed()
+	require.Equal(t, 2*chunk, afterTrip)
+
+	// The deferred re-Flush after the panic must charge nothing more.
+	mw.Flush()
+	require.Equal(t, afterTrip, gm.GasConsumed(), "deferred re-Flush double-charged")
+}
+
 // ─── fixture helpers ───
+// typedBool/typedInt/typedString live in values.go (shared test helpers);
+// the remaining typed* constructors below are specific to this file.
 
-func tvBool(b bool) TypedValue {
-	tv := TypedValue{T: BoolType}
-	tv.SetBool(b)
-	return tv
-}
-
-func tvInt(n int) TypedValue {
-	tv := TypedValue{T: IntType}
-	tv.SetInt(int64(n))
-	return tv
-}
-
-func tvInt8(n int8) TypedValue {
+func typedInt8(n int8) TypedValue {
 	tv := TypedValue{T: Int8Type}
 	tv.SetInt8(n)
 	return tv
 }
 
-func tvInt16(n int16) TypedValue {
+func typedInt16(n int16) TypedValue {
 	tv := TypedValue{T: Int16Type}
 	tv.SetInt16(n)
 	return tv
 }
 
-func tvInt32(n int32) TypedValue {
+func typedInt32(n int32) TypedValue {
 	tv := TypedValue{T: Int32Type}
 	tv.SetInt32(n)
 	return tv
 }
 
-func tvInt64(n int64) TypedValue {
+func typedInt64(n int64) TypedValue {
 	tv := TypedValue{T: Int64Type}
 	tv.SetInt64(n)
 	return tv
 }
 
-func tvUint(n uint) TypedValue {
+func typedUint(n uint) TypedValue {
 	tv := TypedValue{T: UintType}
 	tv.SetUint(uint64(n))
 	return tv
 }
 
-func tvUint8(n uint8) TypedValue {
+func typedUint8(n uint8) TypedValue {
 	tv := TypedValue{T: Uint8Type}
 	tv.SetUint8(n)
 	return tv
 }
 
-func tvUint16(n uint16) TypedValue {
+func typedUint16(n uint16) TypedValue {
 	tv := TypedValue{T: Uint16Type}
 	tv.SetUint16(n)
 	return tv
 }
 
-func tvUint32(n uint32) TypedValue {
+func typedUint32(n uint32) TypedValue {
 	tv := TypedValue{T: Uint32Type}
 	tv.SetUint32(n)
 	return tv
 }
 
-func tvUint64(n uint64) TypedValue {
+func typedUint64(n uint64) TypedValue {
 	tv := TypedValue{T: Uint64Type}
 	tv.SetUint64(n)
 	return tv
 }
 
-func tvFloat32(f float32) TypedValue {
+func typedFloat32(f float32) TypedValue {
 	tv := TypedValue{T: Float32Type}
 	tv.SetFloat32(math.Float32bits(f))
 	return tv
 }
 
-func tvFloat64(f float64) TypedValue {
+func typedFloat64(f float64) TypedValue {
 	tv := TypedValue{T: Float64Type}
 	tv.SetFloat64(math.Float64bits(f))
 	return tv
 }
 
-func tvString(s string) TypedValue {
-	return TypedValue{T: StringType, V: StringValue(s)}
-}
-
-// tvSlice builds a non-byte slice of the given elements with element
+// typedSlice builds a non-byte slice of the given elements with element
 // type eltT. All elements share eltT.
-func tvSlice(eltT Type, elems ...TypedValue) TypedValue {
+func typedSlice(eltT Type, elems ...TypedValue) TypedValue {
 	av := &ArrayValue{List: append([]TypedValue(nil), elems...)}
 	sv := &SliceValue{Base: av, Offset: 0, Length: len(elems), Maxcap: len(elems)}
 	return TypedValue{T: &SliceType{Elt: eltT}, V: sv}
 }
 
-// tvArray builds a non-byte array of the given elements with element type eltT.
-func tvArray(eltT Type, elems ...TypedValue) TypedValue {
+// typedArray builds a non-byte array of the given elements with element type eltT.
+func typedArray(eltT Type, elems ...TypedValue) TypedValue {
 	av := &ArrayValue{List: append([]TypedValue(nil), elems...)}
 	return TypedValue{
 		T: &ArrayType{Len: len(elems), Elt: eltT},
@@ -114,8 +132,8 @@ func tvArray(eltT Type, elems ...TypedValue) TypedValue {
 	}
 }
 
-// tvByteArray builds a byte-data array, exercising the hex path.
-func tvByteArray(data []byte) TypedValue {
+// typedByteArray builds a byte-data array, exercising the hex path.
+func typedByteArray(data []byte) TypedValue {
 	av := &ArrayValue{Data: append([]byte(nil), data...)}
 	return TypedValue{
 		T: &ArrayType{Len: len(data), Elt: Uint8Type},
@@ -123,8 +141,8 @@ func tvByteArray(data []byte) TypedValue {
 	}
 }
 
-// tvStruct builds a struct whose fields are typed value pairs.
-func tvStruct(fields ...TypedValue) TypedValue {
+// typedStruct builds a struct whose fields are typed value pairs.
+func typedStruct(fields ...TypedValue) TypedValue {
 	st := &StructType{}
 	for i, f := range fields {
 		st.Fields = append(st.Fields, FieldType{
@@ -136,21 +154,21 @@ func tvStruct(fields ...TypedValue) TypedValue {
 	return TypedValue{T: st, V: sv}
 }
 
-// tvByteSlice builds a byte-data slice (exercises the slice hex path,
+// typedByteSlice builds a byte-data slice (exercises the slice hex path,
 // distinct from the array hex path).
-func tvByteSlice(data []byte) TypedValue {
+func typedByteSlice(data []byte) TypedValue {
 	av := &ArrayValue{Data: append([]byte(nil), data...)}
 	sv := &SliceValue{Base: av, Offset: 0, Length: len(data), Maxcap: len(data)}
 	return TypedValue{T: &SliceType{Elt: Uint8Type}, V: sv}
 }
 
-// tvNilSlice builds a slice with Base == nil ("nil-slice" path).
-func tvNilSlice(eltT Type) TypedValue {
+// typedNilSlice builds a slice with Base == nil ("nil-slice" path).
+func typedNilSlice(eltT Type) TypedValue {
 	return TypedValue{T: &SliceType{Elt: eltT}, V: &SliceValue{}}
 }
 
-// tvMap builds a map fixture by walking pairs (k0, v0, k1, v1, ...).
-func tvMap(keyT, valT Type, kvPairs ...TypedValue) TypedValue {
+// typedMap builds a map fixture by walking pairs (k0, v0, k1, v1, ...).
+func typedMap(keyT, valT Type, kvPairs ...TypedValue) TypedValue {
 	mv := &MapValue{}
 	mv.MakeMap()
 	var prev *MapListItem
@@ -169,23 +187,23 @@ func tvMap(keyT, valT Type, kvPairs ...TypedValue) TypedValue {
 	return TypedValue{T: &MapType{Key: keyT, Value: valT}, V: mv}
 }
 
-// tvZeroMap returns the "zero-map" fixture (mv.List == nil).
-func tvZeroMap(keyT, valT Type) TypedValue {
+// typedZeroMap returns the "zero-map" fixture (mv.List == nil).
+func typedZeroMap(keyT, valT Type) TypedValue {
 	return TypedValue{T: &MapType{Key: keyT, Value: valT}, V: &MapValue{}}
 }
 
-// tvPtrTo wraps tv as a PointerValue whose TV points at it.
-func tvPtrTo(tv TypedValue) TypedValue {
+// typedPtrTo wraps tv as a PointerValue whose TV points at it.
+func typedPtrTo(tv TypedValue) TypedValue {
 	return TypedValue{T: &PointerType{Elt: tv.T}, V: PointerValue{TV: &tv}}
 }
 
-// tvNilPtr returns a pointer fixture with TV == nil ("&<nil>" path).
-func tvNilPtr(eltT Type) TypedValue {
+// typedNilPtr returns a pointer fixture with TV == nil ("&<nil>" path).
+func typedNilPtr(eltT Type) TypedValue {
 	return TypedValue{T: &PointerType{Elt: eltT}, V: PointerValue{}}
 }
 
-// tvBigint builds an untyped Bigint fixture.
-func tvBigint(s string) TypedValue {
+// typedBigint builds an untyped Bigint fixture.
+func typedBigint(s string) TypedValue {
 	v, ok := new(big.Int).SetString(s, 10)
 	if !ok {
 		panic("invalid bigint literal: " + s)
@@ -193,9 +211,9 @@ func tvBigint(s string) TypedValue {
 	return TypedValue{T: UntypedBigintType, V: BigintValue{V: v}}
 }
 
-// tvSelfReferentialSlice builds a 1-element slice whose only element is
+// typedSelfReferentialSlice builds a 1-element slice whose only element is
 // itself, exercising the seen.IndexOf "ref@N" cycle branch.
-func tvSelfReferentialSlice() TypedValue {
+func typedSelfReferentialSlice() TypedValue {
 	av := &ArrayValue{List: make([]TypedValue, 1)}
 	sv := &SliceValue{Base: av, Offset: 0, Length: 1, Maxcap: 1}
 	// Use a *SliceType where Elt is interface{}-like — the inner TV
@@ -206,8 +224,8 @@ func tvSelfReferentialSlice() TypedValue {
 	return tv
 }
 
-// tvBigdec builds an untyped Bigdec fixture.
-func tvBigdec(s string) TypedValue {
+// typedBigdec builds an untyped Bigdec fixture.
+func typedBigdec(s string) TypedValue {
 	v, _, err := apd.NewFromString(s)
 	if err != nil {
 		panic("invalid bigdec literal: " + s)
@@ -215,13 +233,13 @@ func tvBigdec(s string) TypedValue {
 	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: v}}
 }
 
-// tvNestedSlice nests depth levels of single-element []int slices,
+// typedNestedSlice nests depth levels of single-element []int slices,
 // exercising the nestedLimit "..." truncation when depth > nestedLimit.
-func tvNestedSlice(depth int) TypedValue {
-	inner := tvSlice(IntType, tvInt(0))
+func typedNestedSlice(depth int) TypedValue {
+	inner := typedSlice(IntType, typedInt(0))
 	for i := 1; i < depth; i++ {
 		t := inner.T
-		inner = tvSlice(t, inner)
+		inner = typedSlice(t, inner)
 	}
 	return inner
 }
@@ -236,119 +254,119 @@ type fixture struct {
 func fixtureCorpus() []fixture {
 	return []fixture{
 		// Primitives — bool
-		{"bool_true", tvBool(true)},
-		{"bool_false", tvBool(false)},
+		{"bool_true", typedBool(true)},
+		{"bool_false", typedBool(false)},
 
 		// Primitives — signed int
-		{"int_0", tvInt(0)},
-		{"int_42", tvInt(42)},
-		{"int_neg", tvInt(-42)},
-		{"int8_max", tvInt8(127)},
-		{"int8_min", tvInt8(-128)},
-		{"int16_max", tvInt16(32767)},
-		{"int32_max", tvInt32(2147483647)},
-		{"int64_max", tvInt64(9223372036854775807)},
-		{"int64_min", tvInt64(-9223372036854775808)},
+		{"int_0", typedInt(0)},
+		{"int_42", typedInt(42)},
+		{"int_neg", typedInt(-42)},
+		{"int8_max", typedInt8(127)},
+		{"int8_min", typedInt8(-128)},
+		{"int16_max", typedInt16(32767)},
+		{"int32_max", typedInt32(2147483647)},
+		{"int64_max", typedInt64(9223372036854775807)},
+		{"int64_min", typedInt64(-9223372036854775808)},
 
 		// Primitives — unsigned int
-		{"uint_0", tvUint(0)},
-		{"uint8_max", tvUint8(255)},
-		{"uint16_max", tvUint16(65535)},
-		{"uint32_max", tvUint32(4294967295)},
-		{"uint64_max", tvUint64(18446744073709551615)},
+		{"uint_0", typedUint(0)},
+		{"uint8_max", typedUint8(255)},
+		{"uint16_max", typedUint16(65535)},
+		{"uint32_max", typedUint32(4294967295)},
+		{"uint64_max", typedUint64(18446744073709551615)},
 
 		// Primitives — float edge cases
-		{"float32_zero", tvFloat32(0)},
-		{"float32_one", tvFloat32(1.0)},
-		{"float32_neg", tvFloat32(-1.5)},
-		{"float32_small", tvFloat32(0.1)},
-		{"float32_nan", tvFloat32(float32(math.NaN()))},
-		{"float32_pos_inf", tvFloat32(float32(math.Inf(1)))},
-		{"float32_neg_inf", tvFloat32(float32(math.Inf(-1)))},
-		{"float32_smallest", tvFloat32(math.SmallestNonzeroFloat32)},
-		{"float32_largest", tvFloat32(math.MaxFloat32)},
-		{"float64_zero", tvFloat64(0)},
-		{"float64_one", tvFloat64(1.0)},
-		{"float64_pi", tvFloat64(3.141592653589793)},
-		{"float64_nan", tvFloat64(math.NaN())},
-		{"float64_pos_inf", tvFloat64(math.Inf(1))},
-		{"float64_neg_inf", tvFloat64(math.Inf(-1))},
-		{"float64_smallest", tvFloat64(math.SmallestNonzeroFloat64)},
-		{"float64_largest", tvFloat64(math.MaxFloat64)},
+		{"float32_zero", typedFloat32(0)},
+		{"float32_one", typedFloat32(1.0)},
+		{"float32_neg", typedFloat32(-1.5)},
+		{"float32_small", typedFloat32(0.1)},
+		{"float32_nan", typedFloat32(float32(math.NaN()))},
+		{"float32_pos_inf", typedFloat32(float32(math.Inf(1)))},
+		{"float32_neg_inf", typedFloat32(float32(math.Inf(-1)))},
+		{"float32_smallest", typedFloat32(math.SmallestNonzeroFloat32)},
+		{"float32_largest", typedFloat32(math.MaxFloat32)},
+		{"float64_zero", typedFloat64(0)},
+		{"float64_one", typedFloat64(1.0)},
+		{"float64_pi", typedFloat64(3.141592653589793)},
+		{"float64_nan", typedFloat64(math.NaN())},
+		{"float64_pos_inf", typedFloat64(math.Inf(1))},
+		{"float64_neg_inf", typedFloat64(math.Inf(-1))},
+		{"float64_smallest", typedFloat64(math.SmallestNonzeroFloat64)},
+		{"float64_largest", typedFloat64(math.MaxFloat64)},
 
 		// Primitives — string
-		{"string_empty", tvString("")},
-		{"string_ascii", tvString("hello")},
-		{"string_unicode", tvString("héllo世界")},
-		{"string_special", tvString("line1\nline2\t\"quoted\"")},
+		{"string_empty", typedString("")},
+		{"string_ascii", typedString("hello")},
+		{"string_unicode", typedString("héllo世界")},
+		{"string_special", typedString("line1\nline2\t\"quoted\"")},
 
 		// Slices
-		{"slice_empty_int", tvSlice(IntType)},
-		{"slice_int_1", tvSlice(IntType, tvInt(42))},
-		{"slice_int_5", tvSlice(IntType, tvInt(1), tvInt(2), tvInt(3), tvInt(4), tvInt(5))},
-		{"slice_string_3", tvSlice(StringType, tvString("a"), tvString("b"), tvString("c"))},
-		{"slice_bool_2", tvSlice(BoolType, tvBool(true), tvBool(false))},
+		{"slice_empty_int", typedSlice(IntType)},
+		{"slice_int_1", typedSlice(IntType, typedInt(42))},
+		{"slice_int_5", typedSlice(IntType, typedInt(1), typedInt(2), typedInt(3), typedInt(4), typedInt(5))},
+		{"slice_string_3", typedSlice(StringType, typedString("a"), typedString("b"), typedString("c"))},
+		{"slice_bool_2", typedSlice(BoolType, typedBool(true), typedBool(false))},
 
 		// Arrays (non-byte)
-		{"array_empty_int", tvArray(IntType)},
-		{"array_int_3", tvArray(IntType, tvInt(10), tvInt(20), tvInt(30))},
+		{"array_empty_int", typedArray(IntType)},
+		{"array_int_3", typedArray(IntType, typedInt(10), typedInt(20), typedInt(30))},
 
 		// Byte arrays — hex path
-		{"array_bytes_small", tvByteArray([]byte{0xde, 0xad, 0xbe, 0xef})},
-		{"array_bytes_257", tvByteArray(bytes.Repeat([]byte{0xab}, 257))}, // over 256, triggers truncation
+		{"array_bytes_small", typedByteArray([]byte{0xde, 0xad, 0xbe, 0xef})},
+		{"array_bytes_257", typedByteArray(bytes.Repeat([]byte{0xab}, 257))}, // over 256, triggers truncation
 
 		// Structs
-		{"struct_empty", tvStruct()},
-		{"struct_int_field", tvStruct(tvInt(1))},
-		{"struct_mixed", tvStruct(tvInt(1), tvString("x"), tvBool(true))},
+		{"struct_empty", typedStruct()},
+		{"struct_int_field", typedStruct(typedInt(1))},
+		{"struct_mixed", typedStruct(typedInt(1), typedString("x"), typedBool(true))},
 
 		// Nested
-		{"slice_of_slice", tvSlice(
+		{"slice_of_slice", typedSlice(
 			&SliceType{Elt: IntType},
-			tvSlice(IntType, tvInt(1), tvInt(2)),
-			tvSlice(IntType, tvInt(3), tvInt(4)),
+			typedSlice(IntType, typedInt(1), typedInt(2)),
+			typedSlice(IntType, typedInt(3), typedInt(4)),
 		)},
-		{"struct_of_slice", tvStruct(tvSlice(IntType, tvInt(1), tvInt(2)))},
+		{"struct_of_slice", typedStruct(typedSlice(IntType, typedInt(1), typedInt(2)))},
 
 		// Byte slice (distinct from byte array — exercises the slice hex path)
-		{"slice_bytes_small", tvByteSlice([]byte{0xde, 0xad, 0xbe, 0xef})},
-		{"slice_bytes_257", tvByteSlice(bytes.Repeat([]byte{0xab}, 257))}, // slice >256: "slice[0x..(257)]"
+		{"slice_bytes_small", typedByteSlice([]byte{0xde, 0xad, 0xbe, 0xef})},
+		{"slice_bytes_257", typedByteSlice(bytes.Repeat([]byte{0xab}, 257))}, // slice >256: "slice[0x..(257)]"
 
 		// Multi-flush: >1024 bytes of output exercises the meteredWriter
 		// flush boundary inside WriteString chunking.
-		{"slice_int_300", tvSlice(IntType, func() []TypedValue {
+		{"slice_int_300", typedSlice(IntType, func() []TypedValue {
 			xs := make([]TypedValue, 300)
 			for i := range xs {
-				xs[i] = tvInt(i)
+				xs[i] = typedInt(i)
 			}
 			return xs
 		}()...)},
 
 		// Deep nesting beyond nestedLimit=10 → "..." truncation.
-		{"nested_over_limit", tvNestedSlice(12)},
+		{"nested_over_limit", typedNestedSlice(12)},
 
 		// Map
-		{"map_zero", tvZeroMap(StringType, IntType)},
-		{"map_2_entries", tvMap(
+		{"map_zero", typedZeroMap(StringType, IntType)},
+		{"map_2_entries", typedMap(
 			StringType, IntType,
-			tvString("a"), tvInt(1),
-			tvString("b"), tvInt(2),
+			typedString("a"), typedInt(1),
+			typedString("b"), typedInt(2),
 		)},
 
 		// Pointer
-		{"pointer_nil", tvNilPtr(IntType)},
-		{"pointer_to_int", tvPtrTo(tvInt(42))},
+		{"pointer_nil", typedNilPtr(IntType)},
+		{"pointer_to_int", typedPtrTo(typedInt(42))},
 
 		// Bigint / Bigdec (untyped)
-		{"bigint_zero", tvBigint("0")},
-		{"bigint_big", tvBigint("123456789012345678901234567890")},
-		{"bigdec_simple", tvBigdec("3.14159")},
+		{"bigint_zero", typedBigint("0")},
+		{"bigint_big", typedBigint("123456789012345678901234567890")},
+		{"bigdec_simple", typedBigdec("3.14159")},
 
 		// Recursive cycle (seen.IndexOf "ref@N" branch)
-		{"slice_self_referential", tvSelfReferentialSlice()},
+		{"slice_self_referential", typedSelfReferentialSlice()},
 
 		// Nil slice (Base == nil → "nil-slice")
-		{"slice_nil_base", tvNilSlice(IntType)},
+		{"slice_nil_base", typedNilSlice(IntType)},
 	}
 }
 

@@ -45,7 +45,7 @@ Receivers: `*ArrayValue`, `*SliceValue`, `*StructValue`, `*MapValue`,
 `PointerValue`, `TypedValue`. A `writeProtectedSprint` internal helper
 mirrors the bare-form recursion used by the existing
 `(*TypedValue).ProtectedSprint`. The public entry point for streaming
-callers is `func (tv *TypedValue) SprintTo(w io.Writer, m *Machine)` —
+callers is `func (tv *TypedValue) Fprint(w io.Writer, m *Machine)` —
 the analog of the old `tv.Sprint(m) string`, same recursion and same
 byte output, written directly into `w`.
 
@@ -75,13 +75,15 @@ func (mw *meteredWriter) Flush() {
     if mw.n == 0 {
         return
     }
+    n := mw.n
+    mw.n = 0 // reset before charging: a deferred re-Flush after an
+             // OutOfGas panic in ConsumeGas is then a no-op (charged once).
     if mw.gasMeter != nil {
-        mw.gasMeter.ConsumeGas(allocGas(int64(mw.n)), "stream output")
+        mw.gasMeter.ConsumeGas(streamOutputGas(n), "stream output")
     }
-    if _, err := mw.parent.Write(mw.buf[:mw.n]); err != nil {
+    if _, err := mw.parent.Write(mw.buf[:n]); err != nil {
         panic(...) // parents are bytes.Buffer / strings.Builder; never error
     }
-    mw.n = 0
 }
 ```
 
@@ -109,35 +111,36 @@ counts, all raised in review:
    counter (which `Allocate` bumps, and which a collection resets) is
    the wrong meter entirely.
 
-Buffering fixes (1) and (2): gas is charged in buffer-sized chunks that
-match what `allocGas` was calibrated to price, one charge per flush
-regardless of how many `WriteByte`/`WriteString` calls fed it.
+Buffering fixes (1) and (2): gas is charged in buffer-sized chunks, one
+charge per flush regardless of how many `WriteByte`/`WriteString` calls
+fed it.
 
-Charging `gasMeter.ConsumeGas(allocGas(n), "stream output")` directly —
-rather than through `m.Alloc` — fixes (3): the writer holds only a
-`store.GasMeter`, never an `*Allocator`, and never allocates. Output
-cannot count against, nor trigger, the per-tx allocator/GC budget,
-because the allocator does not own it. `allocGas(n)` is reused only as
-the per-byte cost *amount* (a package function), so the gas charged is
-unchanged from the prior `allocGas`-based scheme — this is a mechanism
-cleanup, not a gas-rate change. The writer's gas meter is taken from
-`m.GasMeter`, which on every machine-construction path is the same
-meter `m.Alloc` would have used.
+Charging `gasMeter.ConsumeGas(streamOutputGas(n), "stream output")`
+directly — rather than through `m.Alloc` — fixes (3): the writer holds
+only a `store.GasMeter`, never an `*Allocator`, and never allocates.
+Output cannot count against, nor trigger, the per-tx allocator/GC
+budget, because the allocator does not own it. The per-byte cost is
+`streamOutputGas`, a constant calibrated **separately** from `allocGas`
+(see "Consequences for gas economics"): output cost is ~linear in bytes
+(formatting + copy), whereas `allocGas` is the concave malloc curve, so
+reusing it under-charged the formatter ~16×. The writer's gas meter is
+taken from `m.GasMeter`, which on every machine-construction path is the
+same meter `m.Alloc` would have used.
 
 ### Migration of streaming-capable callers
 
 - **`uversePrint`** (`uverse.go`) streams each argument into
-  `newMeteredWriter(m.Output, m)` via `ev.SprintTo(mw, m)`, then
+  `newMeteredWriter(m.Output, m)` via `ev.Fprint(mw, m)`, then
   `mw.Flush()`. The placeholder per-char gas tier
   (`NativeCPUUversePrintCharsPerGas`) is gone; output cost is now the
-  per-flush `allocGas` charge. `formatUverseOutput` is kept because
+  per-flush `streamOutputGas` charge. `formatUverseOutput` is kept because
   benchmark instrumentation (`bm.NativeEnabled`, off in production)
   still references it.
-- **`Exception.SprintTo(w io.Writer, m *Machine)`** is added in
+- **`Exception.Fprint(w io.Writer, m *Machine)`** is added in
   `frame.go`; the string-returning helpers (`Sprint`,
   `StringWithStacktrace`) become thin `strings.Builder` wrappers.
 - **`Machine.makeUnhandledPanicError`** (`op_call.go`) and the debug
-  stacktrace exception line (`machine.go`) route through `SprintTo`,
+  stacktrace exception line (`machine.go`) route through `Fprint`,
   avoiding the format-then-copy double allocation a `bytes.Buffer`
   wrapper would impose on large panic values.
 
@@ -151,7 +154,7 @@ the buffer:
 func protectedStringOf(v protectedWriter, seen *seenValues) string {
     var b bytes.Buffer
     mw := newMeteredWriter(&b, nil)
-    defer mw.free()
+    defer mw.Release()
     v.WriteProtected(mw, seen)
     mw.Flush()
     return b.String()
@@ -167,7 +170,7 @@ chunk into the `bytes.Buffer`.
 ## What this addresses
 
 - **`print` / `println` output is now metered.** Wide-aggregate output
-  flushes through `gasMeter.ConsumeGas(allocGas(n), "stream output")`,
+  flushes through `gasMeter.ConsumeGas(streamOutputGas(n), "stream output")`,
   one charge per flushed chunk. Gas charges are monotonic, so the
   per-tx gas budget caps cumulative output and trips `OutOfGasError`
   mid-traversal for wide values. Empirical demonstration:
@@ -175,7 +178,7 @@ chunk into the `bytes.Buffer`.
   `upstream/master` the tx succeeds (no metering on the output path);
   on this branch, with `-gas-wanted` set above the slice-make cost
   (9 M), the print itself exhausts the budget:
-  `out of gas, gasUsed: 9000180 location: stream output`. Regression
+  `out of gas, gasUsed: 9003167 location: stream output`. Regression
   test:
   `gno.land/pkg/integration/testdata/print_wide_value_gas_metering.txtar`.
 - **Panic / stacktrace formatting output is metered too**, via the same
@@ -192,7 +195,7 @@ chunk into the `bytes.Buffer`.
   The writer charges gas but deliberately does not count output against
   `MaxAllocBytes` (the 500 MB per-tx allocator budget): output is not
   GC-owned, so it does not belong in that budget. Output size is
-  therefore bounded by gas alone (~`allocGas` rate). For the
+  therefore bounded by gas alone (~`streamOutputGas` rate). For the
   block-producing validator path this is moot — `vm.Output` is
   `io.Discard`, so output is streamed away and never accumulates (peak
   is the 1 KB buffer). The one path that *retains* output is
@@ -205,7 +208,7 @@ chunk into the `bytes.Buffer`.
   it is held — is a deliberate, separable follow-up: it is a
   consensus-semantics change in a different code path, out of scope for
   this formatting refactor.
-- **CPU pricing of deep-small-output trees.** With per-flush `allocGas`
+- **CPU pricing of deep-small-output trees.** With per-flush `streamOutputGas`
   as the only charge on the recursive path, a workload that recurses
   many times while producing few bytes is under-priced relative to the
   validator CPU it costs. A per-call CPU gas charge for `Protected*`
@@ -256,37 +259,56 @@ kilobyte buffer from a B/op regression into a net improvement.
 `gno.land/pkg/integration/testdata/print_wide_value_gas_metering.txtar`
 runs `println(make([]int, 1_000_000))` through a real `gnoland start` +
 `gnokey maketx run` with `-gas-wanted 9000000` (deliberately above the
-~7.2M slice-make cost so the make succeeds and the print is what trips)
-and asserts `out of gas | allocation limit exceeded`. On
+slice-make cost so the make succeeds and the print is what trips) and
+asserts `out of gas` (a gas trip on the output path, not an
+allocation-limit trip). On
 `upstream/master` the print is unmetered and completes; on this branch
-the ~8 MB of output flushes through `allocGas` and the tx aborts
-mid-print (`gasUsed: 9000180 location: stream output`).
+the ~8 MB of output flushes through `streamOutputGas` and the tx aborts
+mid-print (`gasUsed: 9003167 location: stream output`).
 
 ## Commit structure
 
-Four commits, each independently reviewable:
+Commits, each independently reviewable (the branch is squash-merged, so the
+split is for review, not bisect):
 
 | Commit | Action | Behavior change? |
 |---|---|---|
-| 1 | Add `WriteProtected` / `SprintTo` / `meteredWriter` + inline golden corpus + bench. | No — new code only; nothing calls it yet. |
+| 1 | Add `WriteProtected` / `Fprint` / `meteredWriter` + inline golden corpus + bench. | No — new code only; nothing calls it yet. |
 | 2 | Collapse old `String` / `Sprint` / `ProtectedString` / `ProtectedSprint` to wrappers around `WriteProtected`. | No — golden-verified. |
-| 3 | Migrate `uversePrint` + panic-path callers to stream via `SprintTo`; add the gas-metering regression test. | **Yes — output bytes are now metered per flushed chunk via `allocGas`.** |
+| 3 | Migrate `uversePrint` + panic-path callers to stream via `Fprint`; add the gas-metering regression test. | **Yes — output bytes are now metered per flushed chunk via `streamOutputGas`.** |
 | 4 | This ADR. | No — documentation. |
+| 5 | Address maintainer review: rename `SprintTo`→`Fprint` and `free`→`Release`; fix the OOG-path output-gas double-charge (reset `n` before charging) and the benchmark-build double-charge; calibrate a dedicated `streamOutputGas` (4 gas/byte) replacing the `allocGas` reuse; `defer mw.Flush()`; test-helper dedup. | **Yes — output gas rate is now `streamOutputGas` (≈4 gas/byte) instead of `allocGas` (≈0.24); OOG paths charge each chunk once.** |
 
 ## Consequences for gas economics
 
 `uversePrint`'s output-byte rate changes from the placeholder
-`NativeCPUUversePrintCharsPerGas = 10` (0.1 gas/byte) to `allocGas(n)`
-charged per flushed chunk (≈ 0.24 gas/byte at the 1 KB buffer size),
-`allocGas` being calibrated against malloc + zero-fill cost on the
-reference hardware per the framework in
-[PR #5629](https://github.com/gnolang/gno/pull/5629). Because `allocGas`
-is concave (sublinear), per-flush charging is deterministically cheaper
-than the prior per-write scheme for fragmented output (many small
-writes) and slightly dearer for one large contiguous write; the result
-is a deterministic gas-schedule change, consensus-safe but worth a
-maintainer's eye. The same per-flush charge applies to panic /
-stacktrace output, which previously paid no per-byte cost at all.
+`NativeCPUUversePrintCharsPerGas = 10` (0.1 gas/byte) to
+`streamOutputGas(n) = n × streamOutputGasPerByte` charged once per flushed
+chunk, with **`streamOutputGasPerByte = 4`**. This per-output-byte cost is
+calibrated **separately** from `allocGas` (the maintainer review asked for a
+dedicated benchmark rather than reusing the allocation table): output cost is
+~linear in the bytes produced — `strconv.Append*` formatting plus a copy, in
+native Go that no gno-opcode gas covers — whereas `allocGas` is the concave
+malloc curve. Reusing `allocGas` (its 1 KB chunk ≈ 0.24 gas/byte) under-charged
+the formatter ~16×.
+
+Calibration (1 gas = 1 ns on the reference box, per
+[PR #5629](https://github.com/gnolang/gno/pull/5629)): the format+flush path
+measures ~3.0 ns/byte asymptotically (`BenchmarkStreamOutputProduce_*` in
+`values_string_gas_test.go`), scaled to reference hardware via the
+1 KiB-alloc anchor (`allocGasTable[10] = 241` gas / ~196 ns local ≈ 1.23×) →
+~3.7 gas/byte, rounded up to 4. The result is a deterministic gas-schedule
+change — output is now ~16× dearer than the interim `allocGas` reuse and ~40×
+dearer than master's placeholder — consensus-safe but worth a maintainer's eye.
+The same charge applies to panic / stacktrace output, which previously paid no
+per-byte cost at all.
+
+The fixed per-call base, `NativeCPUUversePrintInit` (1376), is left unchanged in
+this PR — only the per-byte rate was in scope. It is now a conservative
+over-estimate (it was calibrated against the pre-refactor `fmt.Sprintf` code,
+which folded an element's formatting into the base; formatting now lives in
+`streamOutputGas`). Re-calibrating the base is a deliberate follow-up — see
+below.
 
 ## Follow-up work
 
@@ -302,6 +324,13 @@ stacktrace output, which previously paid no per-byte cost at all.
 - **Replace remaining `fmt.Sprintf` uses** in non-recursive `String()`
   methods (`*FuncType`, `TypeValue`, etc.) with the same
   `strconv.Append*` pattern. Performance cleanup.
+- **Re-calibrate `NativeCPUUversePrintInit`** (the fixed per-call print base).
+  It is still 1376 from the pre-refactor implementation, which over-estimates
+  the streaming base (now just pool get/put + `GetLength` + empty flush); the
+  per-byte cost moved to `streamOutputGas`. The re-calibration should use the
+  in-VM `benchmarkingnative` pipeline on the reference hardware (the basis for
+  the original 1376), not an off-box microbenchmark, so the base+slope split is
+  measured consistently. Conservative until then (over-, never under-charges).
 
 ## See also
 

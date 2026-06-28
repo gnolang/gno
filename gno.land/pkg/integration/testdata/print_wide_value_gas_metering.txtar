@@ -1,17 +1,21 @@
 # Asserts that println OUTPUT is metered against the per-tx gas budget.
-# A 1,000,000-element []int is allocated (~40MB, ~7.2M gas) and printed
-# (~8 MB of output). gas-wanted (9M) is set deliberately ABOVE the
-# slice-make cost so the make succeeds and the budget is then exhausted
-# by the print itself: the buffered meteredWriter charges allocGas per
-# flushed chunk (location "stream output"), tripping "out of gas"
-# mid-print. gasUsed lands just over gas-wanted — that small per-flush
-# overshoot is the signature of the print path, as opposed to the
-# make's single ~5.9M atomic allocation charge.
+# A 1,000,000-element []int is allocated (~6M gas) and printed (~7 MB of
+# output). gas-wanted (9M) is set deliberately ABOVE the slice-make cost
+# so the make succeeds and the remaining budget is then exhausted by the
+# print itself: the buffered meteredWriter charges streamOutputGas (the
+# separately-calibrated per-output-byte cost) once per flushed chunk
+# (location "stream output"), tripping "out of gas" partway through the
+# output. The small per-flush overshoot (gasUsed ~9003167, i.e. < one
+# 1 KiB buffer's charge over gas-wanted) is the signature of the print
+# path, as opposed to the make's single atomic allocation charge.
 
 gnoland start
 
+# Trips on OUT OF GAS (output metered by gas), not the allocator's
+# allocation-limit: a regression that routed output back through the
+# allocator would not match this and would fail the test.
 ! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 9000000 -chainid=tendermint_test test1 $WORK/script/script.gno
-stderr '(out of gas|allocation limit exceeded)'
+stderr 'out of gas'
 
 -- script/script.gno --
 package main

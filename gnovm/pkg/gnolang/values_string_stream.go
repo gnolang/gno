@@ -25,15 +25,37 @@ type protectedWriter interface {
 // Write calls.
 const meteredWriterBufSize = 1024
 
+// streamOutputGasPerByte is the gas charged per byte of formatted output
+// flushed by meteredWriter. It is calibrated SEPARATELY from allocGas:
+// allocGas prices a Go heap allocation (malloc + zero-fill, a concave curve),
+// whereas output cost is ~linear in bytes — the formatter runs
+// strconv.Append*/copy work proportional to the bytes produced, in native Go
+// that no gno-opcode (incrCPU) gas covers. Pricing output through allocGas
+// (its 1 KiB chunk ≈ 0.24 gas/byte) therefore under-charged the formatter by
+// ~16x.
+//
+// Reference convention: 1 gas = 1 ns on the calibration box (see
+// gnovm/cmd/calibrate). Measured ~3.0 ns/byte asymptotically for the
+// format+flush path (BenchmarkStreamOutputProduce_*), scaled to reference via
+// the 1 KiB-alloc anchor (241 gas / ~196 ns local ≈ 1.23x) → ~3.7 gas/byte,
+// rounded up to 4 for a small margin. See values_string_gas_test.go.
+const streamOutputGasPerByte = 4
+
+// streamOutputGas is the gas charged for flushing n bytes of formatted output.
+func streamOutputGas(n int) int64 {
+	return int64(n) * streamOutputGasPerByte
+}
+
 // meteredWriter is a bufio.Writer-style buffer that meters output gas
 // once per flush instead of once per write. Bytes accumulate in buf;
 // when it fills (or a formatter needs headroom it can't fit) the buffer
 // is flushed to parent and gas is charged for the flushed bytes —
-// allocGas(n) as the per-byte cost proxy — via the gas meter directly.
-// Charging per flush keeps the cost in line with allocGas (which prices
-// buffer-sized chunks, not individual byte writes) and removes the need
-// for a separate scratch array, since strconv.Append* formatters write
-// straight into the buffer tail after reserving space.
+// streamOutputGas(n), the separately-calibrated per-output-byte cost — via
+// the gas meter directly. Charging per flush (not per write) keeps the
+// accounting independent of how many small WriteByte/WriteString calls fed
+// the buffer, and removes the need for a separate scratch array, since
+// strconv.Append* formatters write straight into the buffer tail after
+// reserving space.
 //
 // The writer does NOT hold an *Allocator and never allocates: output is
 // a transient sink (bytes.Buffer / strings.Builder / io.Discard) the GC
@@ -59,8 +81,8 @@ var meteredWriterPool = sync.Pool{New: func() any { return &meteredWriter{} }}
 // newMeteredWriter borrows a meteredWriter wrapping w so that flushed output
 // charges gas against m's gas meter. If m is nil (or its meter is nil, e.g.
 // query / debug / test paths) gas accounting is skipped. The caller owns the
-// writer and must return it with free() once done (after the final Flush);
-// free is a no-op-safe recycle, never required for correctness.
+// writer and must return it with Release() once done (after the final Flush);
+// Release is a no-op-safe recycle, never required for correctness.
 func newMeteredWriter(w io.Writer, m *Machine) *meteredWriter {
 	mw := meteredWriterPool.Get().(*meteredWriter)
 	mw.parent = w
@@ -73,9 +95,9 @@ func newMeteredWriter(w io.Writer, m *Machine) *meteredWriter {
 	return mw
 }
 
-// free returns mw to the pool. Safe to call after a panic mid-format:
+// Release returns mw to the pool. Safe to call after a panic mid-format:
 // newMeteredWriter resets n, so a half-filled recycled buffer is harmless.
-func (mw *meteredWriter) free() {
+func (mw *meteredWriter) Release() {
 	mw.parent = nil
 	mw.gasMeter = nil
 	meteredWriterPool.Put(mw)
@@ -84,17 +106,26 @@ func (mw *meteredWriter) free() {
 // Flush writes the buffered bytes to parent and charges output gas for
 // them (which may panic OutOfGasError, propagating through the recursion
 // to the SDK's doRecover). A parent write error is fatal.
+//
+// n is reset to 0 BEFORE charging gas: if ConsumeGas panics OutOfGas, the
+// panic unwinds through callers whose deferred cleanup (e.g. Fprint's
+// `defer func(){ mw.Flush(); mw.Release() }`) calls Flush again. With n
+// already cleared that second Flush is a no-op, so the tripping chunk is
+// charged exactly once rather than twice. The buffered bytes (buf[:n]) are
+// dropped on OOG — the same outcome as before, since the parent.Write was
+// never reached on the failing flush.
 func (mw *meteredWriter) Flush() {
 	if mw.n == 0 {
 		return
 	}
+	n := mw.n
+	mw.n = 0
 	if mw.gasMeter != nil {
-		mw.gasMeter.ConsumeGas(allocGas(int64(mw.n)), "stream output")
+		mw.gasMeter.ConsumeGas(streamOutputGas(n), "stream output")
 	}
-	if _, err := mw.parent.Write(mw.buf[:mw.n]); err != nil {
+	if _, err := mw.parent.Write(mw.buf[:n]); err != nil {
 		panic(fmt.Sprintf("meteredWriter: parent write failed: %v", err))
 	}
-	mw.n = 0
 }
 
 // reserve flushes if fewer than need bytes remain free. need must be
@@ -144,7 +175,7 @@ func (mw *meteredWriter) WriteBytes(p []byte) {
 }
 
 // Write satisfies io.Writer so a *meteredWriter can be passed where an
-// io.Writer is expected (notably (*TypedValue).SprintTo's dispatch).
+// io.Writer is expected (notably (*TypedValue).Fprint's dispatch).
 // The error is always nil — buffering never fails; a parent failure
 // panics in Flush.
 func (mw *meteredWriter) Write(p []byte) (int, error) {
@@ -318,18 +349,22 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 	}
 }
 
-// SprintTo writes the formatted form of tv to w. It is the streaming
+// Fprint writes the formatted form of tv to w. It is the streaming
 // counterpart of (*TypedValue).Sprint(m). When w is not already a
 // *meteredWriter, it is wrapped (and flushed before returning); when it
 // already is one — the uversePrint case — it is used directly and the
 // caller owns the flush, avoiding double-wrapping.
-func (tv *TypedValue) SprintTo(w io.Writer, m *Machine) {
+func (tv *TypedValue) Fprint(w io.Writer, m *Machine) {
 	mw, ok := w.(*meteredWriter)
 	if !ok {
 		mw = newMeteredWriter(w, m)
+		// Deferred Flush: covers all of Fprint's early-return paths uniformly,
+		// and the caller reads w only after we return (so flush-on-exit is in
+		// time). Contrast protectedStringOf, which reads its buffer in-function
+		// and must flush explicitly.
 		defer func() {
 			mw.Flush()
-			mw.free()
+			mw.Release()
 		}()
 	}
 
