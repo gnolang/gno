@@ -118,7 +118,7 @@ func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 	s.evict()
 }
 
-// GetPeers returns a copy of all stored peer addresses.
+// GetPeers returns all stored peer addresses.
 func (s *Store) GetPeers() []*types.NetAddress {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
