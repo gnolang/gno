@@ -21,20 +21,20 @@ const (
 	// vector itself, and so downstream amino+JSON encoding is bounded.
 	MaxEventPairs = 64
 
-	// MaxEventAttrLen caps each attribute's byte length. Strings longer
-	// than this (or the type string) are truncated to MaxEventAttrLen +
-	// EventTruncMarker, deterministically. Sized to hold a realistic
-	// binary payload after hex/base64 expansion (~2 KB of raw bytes once
-	// hex-encoded as 0x... doubles the length) — e.g. an IBC packet
-	// acknowledgement, membership proof, or packet-data chunk emitted by
-	// an on-chain bridge realm — while still bounding the downstream
-	// amino+JSON encoding amplification per attr at ~4 KB.
+	// MaxEventAttrLen caps each attribute's byte length. The event type,
+	// every key, AND every value that exceeds this makes emit panic — it
+	// fails loudly instead of silently truncating. A silent cap would be a
+	// hidden invariant: each realm would have to pre-check its own value
+	// lengths to guarantee protocol correctness, and a truncated value
+	// (e.g. a hex-encoded IBC ack or membership proof) would corrupt
+	// downstream consumers with no on-chain signal.
+	//
+	// Sized to hold a realistic binary payload after hex/base64 expansion
+	// (~2 KB of raw bytes once hex-encoded as 0x... doubles the length) —
+	// e.g. an IBC packet acknowledgement, membership proof, or packet-data
+	// chunk emitted by an on-chain bridge realm — while still bounding the
+	// downstream amino+JSON encoding amplification per attr at ~4 KB.
 	MaxEventAttrLen = 4096
-
-	// EventTruncMarker is appended to truncated strings; its 3 bytes are
-	// added on top of MaxEventAttrLen, so a truncated string is exactly
-	// MaxEventAttrLen + len(EventTruncMarker) bytes long.
-	EventTruncMarker = "..."
 )
 
 func X_emit(m *gno.Machine, typ string, attrs []string) {
@@ -62,22 +62,6 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	ctx.EventLogger.EmitEvent(evt)
 }
 
-// truncateValue returns s if len(s) <= MaxEventAttrLen, otherwise the first
-// MaxEventAttrLen bytes followed by EventTruncMarker. Used only for attr
-// VALUES — keys and typ are hard-capped (panic on overflow) since they're
-// identifiers that downstream consumers filter on; silent truncation would
-// alias unrelated keys.
-//
-// Truncation is byte-wise, not rune-aware: an attr ending in a multi-byte
-// UTF-8 sequence may be cut mid-rune. Acceptable for opaque event payloads
-// consumed off-chain.
-func truncateValue(s string) string {
-	if len(s) <= MaxEventAttrLen {
-		return s
-	}
-	return s[:MaxEventAttrLen] + EventTruncMarker
-}
-
 // currentPkgPath retrieves the current package's pkgPath.
 // It's not a native binding; but is used within this package to clarify usage.
 func currentPkgPath(m *gno.Machine) (pkgPath string) {
@@ -91,13 +75,16 @@ func attrKeysAndValues(m *gno.Machine, attrs []string) ([]EventAttribute, error)
 	}
 	eventAttrs := make([]EventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
-		key := attrs[i]
+		key, value := attrs[i], attrs[i+1]
 		if len(key) > MaxEventAttrLen {
 			m.PanicString("event attribute key is too long")
 		}
+		if len(value) > MaxEventAttrLen {
+			m.PanicString("event attribute value is too long")
+		}
 		eventAttrs[i/2] = EventAttribute{
 			Key:   key,
-			Value: truncateValue(attrs[i+1]),
+			Value: value,
 		}
 	}
 	return eventAttrs, nil
