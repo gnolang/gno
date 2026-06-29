@@ -1593,11 +1593,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		return nilStr, false
 	}
-	// Statically uncomparable key types are rejected at preprocess, so any
-	// uncomparable tv.T here arrived via interface boxing. Match Go by
-	// naming the outer dynamic type — isComparable recurses, so a struct
-	// or array with an uncomparable field reports the enclosing type, not
-	// the leaf.
+	// Static uncomparable keys are rejected at preprocess; an uncomparable
+	// tv.T here came via interface boxing. isComparable recurses, so the
+	// panic names the outer dynamic type, matching Go.
 	if !isComparable(tv.T) {
 		panic(&Exception{Value: typedString(
 			"runtime error: hash of unhashable type " + tv.T.String())})
@@ -1694,11 +1692,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		bz = append(bz, '}')
 	default:
-		// Defensive fallback. The isComparable gate above already stops
-		// every uncomparable type before the switch: *SliceType,
-		// *MapType, *FuncType, FieldType, and any composite reaching here
-		// via interface boxing return false there (panicking with the
-		// message below), while *ChanType panics inside isComparable.
+		// Defensive fallback: the isComparable gate above already stops
+		// every uncomparable type (slices, maps, funcs, chans, ...) before
+		// the switch, so this is unreachable in practice.
 		panic(&Exception{Value: typedString(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
