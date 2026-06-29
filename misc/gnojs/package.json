@@ -1,0 +1,11 @@
+{
+  "name": "@gnojs/amino",
+  "version": "0.1.0",
+  "description": "JavaScript library for decoding Gno Amino JSON (TypedValues, Types, Objects)",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "license": "MIT"
+}

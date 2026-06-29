@@ -1,5 +1,5 @@
 // recover25b — OOB on a byte-array (the av.Data != nil branch of
-// ArrayValue.GetPointerAtIndexInt2) must be recoverable, just like recover25.
+// TypedValue.GetByteAtIndexInt) must be recoverable, just like recover25.
 
 package main
 
