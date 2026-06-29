@@ -117,3 +117,35 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
 - Consensus-breaking: `TypeID`s of anonymous interfaces that embed other
   interfaces change, and the `FieldType` serialization gains a field. Must
   land with a chain upgrade.
+
+## Follow-up: migrate persisted types, then assume "all flattened"
+
+The embedded-interface branches in `FindEmbeddedFieldType` / `VerifyImplementedBy`
+are retained only because **decode does not re-flatten** — an interface persisted
+by pre-flattening code comes back with embedded-interface entries in `Methods`,
+and those branches keep satisfaction correct for it. This is a half-measure:
+such a type's *identity* is already inconsistent after this change (its `TypeID`
+moved from the embed-name form to the flattened form), so any chain carrying old
+state across this upgrade already needs a migration.
+
+That migration is the natural place to **re-flatten every persisted interface
+type** (rewrite its `Methods` into flattened, `PkgPath`-stamped form). Once it
+guarantees that no unflattened `InterfaceType` can be decoded, the "all
+flattened" invariant holds at runtime and we can:
+
+1. Drop the embedded-interface recursion in `FindEmbeddedFieldType` /
+   `VerifyImplementedBy` (or replace it with a `debug`-gated assertion that
+   `Methods` contains no `InterfaceKind` entry).
+2. Treat a decoded unflattened interface as a hard error rather than handling
+   it — it should no longer occur.
+
+Do **not** make `VerifyImplementedBy` assume-flattened (drop/ignore the
+recursion) *before* that migration exists: without it, a decoded legacy
+interface yields silently wrong satisfaction (ignore) or halts the chain
+(panic). Sequencing is: ship this PR with the recursion retained → migration
+re-flattens persisted types on upgrade → then remove the recursion.
+
+Also deferred (orthogonal): the pure-VM `flattenInterfaceMethods` conflict path
+is a `panic`, relying on go/types rejecting same-name/different-signature embeds
+upstream. If a VM path can ever reach construction without that gate, convert it
+to a positioned preprocess error.
