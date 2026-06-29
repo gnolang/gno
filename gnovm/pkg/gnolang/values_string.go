@@ -71,7 +71,17 @@ func (biv BigintValue) String() string {
 }
 
 func (bdv BigdecValue) String() string {
-	return bdv.V.String()
+	s := bdv.V.FloatString(10)
+	// Trim trailing zeros after the decimal point, but keep at least one
+	// decimal digit so bigdec values are visually distinct from integers.
+	if strings.ContainsRune(s, '.') {
+		s = strings.TrimRight(s, "0")
+		// Keep at least one digit after the decimal point.
+		if s[len(s)-1] == '.' {
+			s += "0"
+		}
+	}
+	return s
 }
 
 func (dbv DataByteValue) String() string {
@@ -388,7 +398,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case UntypedBigintType:
 			return tv.V.(BigintValue).V.String()
 		case UntypedBigdecType:
-			return tv.V.(BigdecValue).V.String()
+			return tv.V.(BigdecValue).String()
 		default:
 			panic("should not happen")
 		}

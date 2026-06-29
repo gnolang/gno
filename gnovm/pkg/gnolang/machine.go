@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"path"
 	"reflect"
 	"runtime"
@@ -1338,11 +1339,25 @@ func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	}
 }
 
+// ratDigits estimates the decimal digit count of a *big.Rat from its bit-length.
+// 1 decimal digit ≈ 3.32 bits; we use /3 conservatively.
+func ratDigits(r *big.Rat) int64 {
+	if r == nil {
+		return 1
+	}
+	bits := r.Num().BitLen() + r.Denom().BitLen()
+	d := int64(bits) / 3
+	if d < 1 {
+		d = 1
+	}
+	return d
+}
+
 // incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
 func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits()
-		rb := rv.GetBigDec().NumDigits()
+		lb := ratDigits(lv.GetBigDec())
+		rb := ratDigits(rv.GetBigDec())
 		m.incrCPU(max(lb, rb) * slopePer100 / 100)
 	}
 }
@@ -1352,8 +1367,8 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 // safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits() / 10
-		rb := rv.GetBigDec().NumDigits() / 10
+		lb := ratDigits(lv.GetBigDec()) / 10
+		rb := ratDigits(rv.GetBigDec()) / 10
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
@@ -1369,7 +1384,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	if xv.T == UntypedBigdecType {
-		digits := xv.GetBigDec().NumDigits()
+		digits := ratDigits(xv.GetBigDec())
 		m.incrCPU(digits * slopePer100 / 100)
 	}
 }

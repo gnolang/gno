@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -57,7 +56,7 @@ func (m *Machine) doOpUneg() {
 		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	case UntypedBigdecType:
 		bdv := xv.V.(BigdecValue)
-		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bdv.V)}
+		xv.V = BigdecValue{V: new(big.Rat).Neg(bdv.V)}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		biv := xv.V.(BigintValue)

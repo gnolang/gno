@@ -1,15 +1,11 @@
 package gnolang
 
 import (
-	goerrors "errors"
 	"fmt"
-	"math"
 	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/cockroachdb/apd/v3"
 )
 
 var (
@@ -92,110 +88,25 @@ func (m *Machine) doOpEval() {
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
 			if reFloat.MatchString(x.Value) {
-				value := x.Value
-				bd, c, err := apd.NewFromString(value)
-				if err != nil {
-					panic(fmt.Sprintf(
-						"invalid decimal constant: %s",
-						x.Value))
+				r := new(big.Rat)
+				if _, ok := r.SetString(x.Value); !ok {
+					panic(fmt.Sprintf("invalid decimal constant: %s", x.Value))
 				}
-				if c.Inexact() {
-					panic(fmt.Sprintf(
-						"could not represent decimal exactly: %s",
-						x.Value))
-				}
+				ratGuard(r)
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: bd},
+					V: BigdecValue{V: r},
 				})
 				return
 			} else if reHexFloat.MatchString(x.Value) {
-				originalInput := x.Value
-				value := x.Value[2:]
-				var hexString string
-				var exp int64
-				eIndex := strings.IndexAny(value, "Pp")
-				if eIndex == -1 {
-					panic("should not happen")
+				r := new(big.Rat)
+				if _, ok := r.SetString(x.Value); !ok {
+					panic(fmt.Sprintf("invalid hex float constant: %s", x.Value))
 				}
-
-				// ----------------------------------------
-				// NewFromHexString()
-				// TODO: move this to another function.
-
-				// Step 1 get exp component.
-				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
-				if err != nil {
-					if e, ok := err.(*strconv.NumError); ok && goerrors.Is(e.Err, strconv.ErrRange) {
-						panic(fmt.Sprintf(
-							"can't convert %s to decimal: fractional part too long",
-							value))
-					}
-					panic(fmt.Sprintf(
-						"can't convert %s to decimal: exponent is not numeric",
-						value))
-				}
-				value = value[:eIndex]
-				exp = expInt
-				// Step 2 adjust exp from dot.
-				pIndex := -1
-				vLen := len(value)
-				for i := range vLen {
-					if value[i] == '.' {
-						if pIndex > -1 {
-							panic(fmt.Sprintf(
-								"can't convert %s to decimal: too many .s",
-								value))
-						}
-						pIndex = i
-					}
-				}
-				if pIndex == -1 {
-					// There is no decimal point, we can just parse the original string as
-					// a hex
-					hexString = value
-				} else {
-					if pIndex+1 < vLen {
-						hexString = value[:pIndex] + value[pIndex+1:]
-					} else {
-						hexString = value[:pIndex]
-					}
-					expInt := -len(value[pIndex+1:])
-					exp += int64(expInt)
-				}
-				bexp := apd.New(0, 0)
-				_, err = apd.BaseContext.WithPrecision(1024).Pow(
-					bexp,
-					apd.New(2, 0),
-					apd.New(exp, 0))
-				if err != nil {
-					panic(fmt.Sprintf("error computing exponent: %v", err))
-				}
-				// Step 3 make Decimal from mantissa and exp.
-				dValue := new(apd.BigInt)
-				_, ok := dValue.SetString(hexString, 16)
-				if !ok {
-					panic(fmt.Sprintf("can't convert %s to decimal", value))
-				}
-				if exp < math.MinInt32 || exp > math.MaxInt32 {
-					// NOTE(vadim): I doubt a string could realistically be this long
-					panic(fmt.Sprintf("can't convert %s to decimal: fractional part too long", originalInput))
-				}
-				res := apd.New(0, 0)
-				_, err = apd.BaseContext.WithPrecision(1024).Mul(
-					res,
-					apd.NewWithBigInt(dValue, 0),
-					bexp)
-				if err != nil {
-					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
-				}
-
-				// NewFromHexString() END
-				// ----------------------------------------
-
+				ratGuard(r)
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: res},
+					V: BigdecValue{V: r},
 				})
 				return
 			} else {

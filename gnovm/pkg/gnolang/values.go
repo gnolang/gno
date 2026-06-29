@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -117,34 +116,24 @@ func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
 // BigdecValue
 
 type BigdecValue struct {
-	V *apd.Decimal
+	V *big.Rat
 }
 
 func (bdv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bdv.V.MarshalText()
-	if err != nil {
-		return "", err
-	}
-	return string(bz), nil
+	return bdv.V.RatString(), nil
 }
 
 func (bdv *BigdecValue) UnmarshalAmino(s string) error {
-	vv := apd.New(0, 0)
-	err := vv.UnmarshalText([]byte(s))
-	if err != nil {
-		return err
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
 	}
-	bdv.V = vv
+	bdv.V = r
 	return nil
 }
 
 func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
-	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
-	if err != nil {
-		panic("should not happen")
-	}
-	return BigdecValue{V: cp}
+	return BigdecValue{V: new(big.Rat).Set(bdv.V)}
 }
 
 // ----------------------------------------
@@ -1521,7 +1510,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 	return tv.V.(BigintValue).V
 }
 
-func (tv *TypedValue) GetBigDec() *apd.Decimal {
+func (tv *TypedValue) GetBigDec() *big.Rat {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
