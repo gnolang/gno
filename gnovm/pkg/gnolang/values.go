@@ -119,6 +119,9 @@ type BigdecValue struct {
 }
 
 func (bdv BigdecValue) MarshalAmino() (string, error) {
+	if bdv.V == nil {
+		return "0", nil
+	}
 	return bdv.V.RatString(), nil
 }
 

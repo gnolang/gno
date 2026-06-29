@@ -68,7 +68,14 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped 2026-06-29: replacing cockroachdb/apd with math/big.Rat for
+// BigdecValue (untyped float constant representation). Amino serialization of
+// BigdecValue now emits rational form ("1/3") instead of the old decimal string
+// ("0.3333333333"), which shifts the iavlStore Merkle root for any realm state
+// containing bigdec constants. Behavior is unchanged for all typed values;
+// only the constant-folding arithmetic is corrected (fixes #5862).
+const expectedCrossrealm38Hash = "ad71a97d4c1957dfa0c9550f2eab96d5099167259e58212996640e012a1343db"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
