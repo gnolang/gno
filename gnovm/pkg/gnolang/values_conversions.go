@@ -11,13 +11,12 @@ import (
 )
 
 // runeStrFromInt64 converts an integer value to the string containing the
-// UTF-8 representation of the code point, per the Go spec: values that do not
-// fit in an int32 (rune) are necessarily outside the range of valid Unicode
-// code points and convert to "�". Values that do fit in an int32 are
-// handled by Go's native string(rune) conversion, which already maps
-// negatives, surrogates, and values > 0x10FFFF to "�".
+// UTF-8 representation of the code point, per the Go spec: values outside the
+// range of valid Unicode code points convert to "�". Values within
+// [0, utf8.MaxRune] are handled by Go's native string(rune) conversion, which
+// already maps the surrogate halves in that range to "�" as well.
 func runeStrFromInt64(v int64) string {
-	if v != int64(rune(v)) {
+	if v < 0 || v > utf8.MaxRune {
 		return string(utf8.RuneError)
 	}
 	return string(rune(v))

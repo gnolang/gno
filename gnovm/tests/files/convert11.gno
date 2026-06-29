@@ -5,9 +5,9 @@ package main
 // Values that do not fit in an int32 must NOT be truncated first.
 func main() {
 	// 64-bit values that would wrap to valid code points if truncated to int32.
-	println(string(0x100000041))         // NOT "A"
-	println(string(-4294967231))         // NOT "A" (== -(1<<32) + 65)
-	println(string(0x10001F600))         // NOT an emoji
+	println(string(0x100000041)) // NOT "A"
+	println(string(-4294967231)) // NOT "A" (== -(1<<32) + 65)
+	println(string(0x10001F600)) // NOT an emoji
 	var i64 int64 = 0x100000041
 	println(string(i64))
 	var i int = 0x100000041

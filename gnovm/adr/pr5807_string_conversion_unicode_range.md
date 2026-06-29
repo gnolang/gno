@@ -31,14 +31,14 @@ both paths.
 
 ## Decision
 
-Add two helpers, `runeStrFromInt64` and `runeStrFromUint64`, that check
-whether the value fits in an int32 before converting, and return
-`string(utf8.RuneError)` when it does not. Once a value fits in int32, Go's
-native `string(rune)` conversion already maps every invalid case (negative
-values, surrogate halves, values above 0x10FFFF) to `�`, so only the
-truncation hole needs plugging. The helpers are used at the four
-64-bit-capable conversion sites (`IntKind`, `Int64Kind`, `UintKind`,
-`Uint64Kind`).
+Add two helpers, `runeStrFromInt64` and `runeStrFromUint64`, that range-check
+the value against the valid Unicode code point range (`v < 0 || v > utf8.MaxRune`,
+and just `v > utf8.MaxRune` for the unsigned helper) before converting, and
+return `string(utf8.RuneError)` when it is out of range. Values within
+`[0, utf8.MaxRune]` are handed to Go's native `string(rune)` conversion, which
+already maps the surrogate halves in that range to `�`. The helpers are used
+at the four 64-bit-capable conversion sites (`IntKind`, `Int64Kind`,
+`UintKind`, `Uint64Kind`).
 
 The remaining integer kinds are intentionally unchanged:
 
@@ -51,9 +51,9 @@ The remaining integer kinds are intentionally unchanged:
 
 ## Alternatives considered
 
-- Range-checking against `0..0x10FFFF` directly in each case arm: equivalent
-  behavior, but duplicates the bound logic at four sites and re-implements
-  what `string(rune)` already does for the in-int32 cases.
+- Inlining the range check directly in each of the four case arms: equivalent
+  behavior, but duplicates the bound logic at four sites; the shared helpers
+  keep it in one place.
 - Rejecting out-of-range constant conversions at preprocess time: would
   diverge from Go, which accepts them and produces `"�"`.
 
@@ -63,6 +63,5 @@ The remaining integer kinds are intentionally unchanged:
   both runtime and constant evaluation paths.
 - Programs that (incorrectly) relied on the truncating behavior change
   output; such programs were already non-portable Go.
-- Covered by `gnovm/tests/files/str_conv_overflow.gno` (boundary table
-  including truncation-aliasing values, in-range values, and in-int32 invalid
-  values).
+- Covered by `gnovm/tests/files/convert11.gno` (boundary table including
+  truncation-aliasing values, in-range values, and in-int32 invalid values).
