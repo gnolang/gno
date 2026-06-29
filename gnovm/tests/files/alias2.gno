@@ -28,4 +28,5 @@ func main() {
 	}
 }
 func mustNot() { panic(badMsg) }
+
 const badMsg = "FAIL"
