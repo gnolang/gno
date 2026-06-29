@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"unsafe"
 
-
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
