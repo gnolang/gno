@@ -232,9 +232,8 @@ func (m *Machine) doOpTypeAssert1() {
 
 	if t.Kind() == InterfaceKind { // is interface assert
 		if xt == nil || xv.IsNilInterface() {
-			// TODO: default panic type?
 			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 
@@ -243,12 +242,11 @@ func (m *Machine) doOpTypeAssert1() {
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
-				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
 					xt.String(),
 					it.String())
-				m.pushPanic(typedString(ex))
+				m.pushPanic(typedRuntimeError(ex))
 				return
 			}
 
@@ -256,13 +254,12 @@ func (m *Machine) doOpTypeAssert1() {
 			// assert that x implements type.
 			err := it.VerifyImplementedBy(xt)
 			if err != nil {
-				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
 					xt.String(),
 					it.String(),
 					err.Error())
-				m.pushPanic(typedString(ex))
+				m.pushPanic(typedRuntimeError(ex))
 				return
 			}
 			// NOTE: consider ability to push an
@@ -274,7 +271,7 @@ func (m *Machine) doOpTypeAssert1() {
 	} else { // is concrete assert
 		if xt == nil {
 			ex := fmt.Sprintf("nil is not of type %s", t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 
@@ -283,12 +280,11 @@ func (m *Machine) doOpTypeAssert1() {
 		// assert that x is of type.
 		same := tid == xtid
 		if !same {
-			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
 				xt.String(),
 				t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 		// keep cxt as is.

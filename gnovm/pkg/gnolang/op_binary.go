@@ -466,7 +466,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	// Both sides share one dynamic type now. If we reached it through an
 	// interface and it is uncomparable, Go panics naming it.
 	if viaIface && !isComparable(lv.T) {
-		m.Panic(typedString(fmt.Sprintf(
+		m.Panic(typedRuntimeError(fmt.Sprintf(
 			"runtime error: comparing uncomparable type %s",
 			lv.T.String(),
 		)))
@@ -1331,7 +1331,7 @@ func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	shift := rv.GetUint()
@@ -1415,7 +1415,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	shift := rv.GetUint()

@@ -47,7 +47,7 @@ func (m *Machine) doOpPrecall() {
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
-				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+				m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
 			}
 		}
 		m.PushOp(OpConvert)
@@ -559,7 +559,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.pushPanic(typedString("defer called a nil function"))
+		m.pushPanic(typedRuntimeError("defer called a nil function"))
 		return
 	}
 

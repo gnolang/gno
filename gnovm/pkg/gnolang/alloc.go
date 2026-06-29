@@ -314,7 +314,7 @@ func (alloc *Allocator) Fork() *Allocator {
 // cannot recover() from). Scoped to slice/array allocators only.
 func allocMustFit(v int64, ok bool) int64 {
 	if !ok {
-		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+		panic(&Exception{Value: typedRuntimeError("runtime error: makeslice: len out of range")})
 	}
 	return v
 }
