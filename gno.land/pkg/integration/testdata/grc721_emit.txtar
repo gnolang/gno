@@ -40,13 +40,26 @@ import (
 	"gno.land/p/demo/tokens/grc721"
 )
 
+// metadataNFT is the subset of grc721's unexported *metadataNFT used by
+// this realm. The concrete type is unexported, so we bind it through an
+// interface to hold it in a package-level var.
+type metadataNFT interface {
+	Mint(to address, tid grc721.TokenID) error
+	Burn(tid grc721.TokenID) error
+	Approve(caller, to address, tid grc721.TokenID) error
+	SetApprovalForAll(caller, operator address, approved bool) error
+	TransferFrom(caller, from, to address, tid grc721.TokenID) error
+	SetTokenURI(caller address, tid grc721.TokenID, tURI grc721.TokenURI) (bool, error)
+	SetTokenMetadata(caller address, tid grc721.TokenID, metadata grc721.Metadata) error
+}
+
 var (
 	admin address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	foo   *grc721.BasicNFT
+	foo   metadataNFT
 )
 
 func init(cur realm) {
-	foo = grc721.NewBasicNFT(0, cur, "FooNFT", "FNFT")
+	foo = grc721.NewNFTWithMetadata(0, cur, "FooNFT", "FNFT")
 }
 
 // Setters
@@ -83,8 +96,8 @@ func SetTokenURI(cur realm, tid grc721.TokenID, uri string) {
 }
 
 func SetMetadata(cur realm, tid grc721.TokenID) {
-	meta := grc721.NewNFTWithMetadata(0, cur, "FooNFT", "FNFT")
-	if err := meta.SetTokenMetadata(tid, grc721.Metadata{}); err != nil {
+	caller := cur.Previous().Address()
+	if err := foo.SetTokenMetadata(caller, tid, grc721.Metadata{}); err != nil {
 		panic(err)
 	}
 }
