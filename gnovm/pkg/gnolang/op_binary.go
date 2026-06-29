@@ -540,8 +540,8 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
-			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
+			li := la.GetElementPointer(m.Store, i, et).Deref()
+			ri := ra.GetElementPointer(m.Store, i, et).Deref()
 			if !isEql(m, &li, &ri, elemIsIface) {
 				return false
 			}
