@@ -2,7 +2,7 @@
 // spelling (the struct rule), NOT the resolved interface — so struct{ SAlias }
 // (field "SAlias") is distinct from struct{ Stringer } (field "Stringer"),
 // even though SAlias = Stringer. This is the opposite of the interface-embed
-// rule (alias5/iface_embed_*), confirming the spelling-vs-flatten split is
+// rule (iface_embed_*), confirming the spelling-vs-flatten split is
 // dispatched by container kind, not by the embedded type's kind.
 package main
 
