@@ -27,6 +27,7 @@ func main() {
 	})
 	check("typeassert", func() { var v any = 1; _ = v.(string) })
 	check("defernil", func() { var g func(); defer g() })
+	check("unhashable", func() { m := map[any]int{}; m[map[int]int{}] = 1 })
 }
 
 // Output:
@@ -39,3 +40,4 @@ func main() {
 // uncomparable => error: runtime error: comparing uncomparable type []int
 // typeassert => error: int is not of type string
 // defernil => error: defer called a nil function
+// unhashable => error: runtime error: hash of unhashable type map[int]int

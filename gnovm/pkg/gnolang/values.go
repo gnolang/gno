@@ -1597,7 +1597,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	// tv.T here came via interface boxing. isComparable recurses, so the
 	// panic names the outer dynamic type, matching Go.
 	if !isComparable(tv.T) {
-		panic(&Exception{Value: typedString(
+		panic(&Exception{Value: typedRuntimeError(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	// General case.
@@ -1699,7 +1699,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		// Defensive fallback: the isComparable gate above already stops
 		// every uncomparable type (slices, maps, funcs, chans, ...) before
 		// the switch, so this is unreachable in practice.
-		panic(&Exception{Value: typedString(
+		panic(&Exception{Value: typedRuntimeError(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
