@@ -282,7 +282,7 @@ var OriginCallerExtractor func(ctx any) string
 // `cur.Previous()` after the override surfaces what X_getRealm surfaces
 // as PreviousRealm of the override frame. Exposed for X_setContext.
 func BuildOverridePrevField(addr, pkgPath string) TypedValue {
-	return newRealmHIVPointer(fallbackAllocator, addr, pkgPath, TypedValue{})
+	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
 }
 
 // buildOriginRealm constructs a per-call origin realm matching what
@@ -321,7 +321,7 @@ func init() {
 	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
 
 	// Build the global placeholder origin realm now that types are wired.
-	gOriginRealmTV = newRealmHIVPointer(fallbackAllocator, "", "", TypedValue{})
+	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
 }
 
 // OriginRealmTV returns the typed-nil *.grealm used as the prev seed for
@@ -686,8 +686,10 @@ func makeUverseNode() {
 
 							if arg0Base.Data == nil {
 								// append(*SliceValue.List, *SliceValue) ---------
-								// Per-element DidUpdate calls below are sufficient
-								// to mark arg0Base dirty; no top-level call needed.
+								// The list-source sub-branch marks arg0Base dirty via
+								// per-element DidUpdate; the data-source sub-branch must
+								// call DidUpdate itself, because copyDataToList writes raw
+								// bytes into arg0Base.List without going through Assign2.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
 									m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
@@ -719,6 +721,9 @@ func makeUverseNode() {
 										)
 									}
 								} else {
+									// Mark arg0Base dirty before the raw copyDataToList
+									// write (see the branch comment above).
+									m.Realm.DidUpdate(m, arg0Base, nil, nil)
 									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copyDataToList(
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -877,8 +882,6 @@ func makeUverseNode() {
 					panic("should not happen")
 				}
 				// NOTE: this implementation is almost identical to the next one.
-				// note that in some cases optimization
-				// is possible if dstv.Data != nil.
 				dstl := dst.TV.GetLength()
 				srcl := src.TV.GetLength()
 				minl := min(srcl, dstl)
@@ -892,20 +895,27 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// DidUpdate is required here even though Assign2 is called per
-				// element below: for byte slices (Data != nil), GetPointerAtIndexInt2
-				// returns a DataByteType pointer and Assign2 returns early for that
-				// case without calling DidUpdate. The top-level call ensures the
-				// backing array is always marked dirty in the realm store.
+				// The fast path below writes raw bytes straight into
+				// dstBase.Data, bypassing Assign2 — so this top-level DidUpdate
+				// is what marks the backing array dirty and enforces cross-realm
+				// write permissions (mirroring append). In the slow per-element
+				// path Assign2's DataByteType branch also calls DidUpdate, making
+				// this redundant but harmless there.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
-				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
+				// PointerValue.Assign2 fast-paths DataByteType: just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
-				// TODO: consider an optimization if dstv.Data != nil.
-				for i := range minl {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil {
+					// Copy string bytes directly into the Data-backed
+					// destination, instead of materializing a heap-allocated
+					// pointer box per element (see GetElementPointer).
+					copy(dstBase.Data[dstv.Offset:dstv.Offset+minl], src.TV.GetString())
+				} else {
+					for i := range minl {
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -928,7 +938,9 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot copy to readonly tainted slice"))
 				}
 				dstBase := dstv.GetBase(m.Store)
-				// Same as above: DidUpdate is required for the DataByte case.
+				// Same as above: the Data-backed fast path bypasses Assign2, so
+				// this top-level DidUpdate marks the array dirty and enforces
+				// cross-realm write permissions.
 				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
@@ -936,21 +948,29 @@ func makeUverseNode() {
 				srcStart := srcv.Offset
 				srcEnd := srcStart + minl
 
-				step := 1
-				start := 0
-				end := minl
-				// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
-				requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
-				if requiresBackwardCopy {
-					step = -1
-					start = minl - 1
-					end = -1
-				}
 				m.incrCPU(OpCPUSlopeCopyElement * int64(minl))
-				for i := start; i != end; i += step {
-					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
-					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+				if dstBase.Data != nil && srcBase.Data != nil {
+					// Copy bytes directly between Data-backed slices, instead
+					// of materializing two heap-allocated pointer boxes per
+					// element (see GetElementPointer). Go's copy is
+					// overlap-safe in both directions.
+					copy(dstBase.Data[dstStart:dstStart+minl], srcBase.Data[srcStart:srcEnd])
+				} else {
+					step := 1
+					start := 0
+					end := minl
+					// Overlap-safe copy: copy backward when dst starts after src to avoid clobbering.
+					requiresBackwardCopy := dstBase == srcBase && dstStart > srcStart && dstStart < srcEnd
+					if requiresBackwardCopy {
+						step = -1
+						start = minl - 1
+						end = -1
+					}
+					for i := start; i != end; i += step {
+						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
+						srcev := srcv.GetElementPointer(m.Store, i, bst.Elt)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					}
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -1137,18 +1157,23 @@ func makeUverseNode() {
 				}
 			case *MapType:
 				switch vargsl {
-				case 0:
+				case 0, 1:
+					// The optional size argument is an advisory hint.
+					// GnoVM ignores it: the map is created empty and
+					// grows on insertion, with each item charged then
+					// (via AllocateMapItem).
+					//
+					// This diverges from Go, which preallocates buckets
+					// sized to the hint (Go only forces a 0 hint when it
+					// is negative or large enough to overflow its size
+					// math). GnoVM skips that on purpose: the hint is not
+					// persisted across state recovery, and honoring it
+					// would either double-charge gas for the items or let
+					// a large hint trigger an unmetered Go-level
+					// preallocation. As in Go, no hint value ever panics.
 					m.PushValue(TypedValue{
 						T: tt,
-						V: m.Alloc.NewMap(tt, 0),
-					})
-					return
-				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
-					li := int(lv.ConvertGetInt())
-					m.PushValue(TypedValue{
-						T: tt,
-						V: m.Alloc.NewMap(tt, li),
+						V: m.Alloc.NewMap(tt),
 					})
 					return
 				default:
@@ -1161,6 +1186,9 @@ func makeUverseNode() {
 			}
 		},
 	)
+	// new(T) allocates a fresh *HeapItemValue per call, including for
+	// zero-sized T, so each result is a distinct pointer. See
+	// PointerValue (values.go).
 	defNative("new",
 		Flds( // params
 			"t", GenT("T.(type)", nil),
@@ -1546,7 +1574,117 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage(fallbackAllocator)
+	uverseValue = uverseNode.NewPackage(nil)
+
+	sealUverseTypes()
+}
+
+// sealUverseTypes pre-fills the lazily-memoized fields on the shared, process-
+// global uverse type singletons, single-threaded during package init, so they
+// are read-only afterward and the parallel test suites (and `gno test -p`) do
+// not race filling them on first concurrent access.
+//
+// Each Type kind caches metadata on first use — TypeID (and, for interfaces,
+// the in-place sort of the Methods slice that TypeID performs), FuncType.bound
+// (and its own TypeID, returned by method lookups via BoundType), Declared/
+// StructType.pkgID, Interface/StructType effective counts, StructType.comparable
+// (filled at runtime via isEql) — none of which is safe to fill from multiple
+// goroutines. Computing them here once makes the shared type graph immutable.
+// Per-store types are unaffected (each is preprocessed by a single goroutine).
+// DeclaredType.methodIndex is not pre-filled: it builds only past
+// methodIndexThreshold, which no uverse singleton reaches.
+//
+// The set of shared types is everything reachable from the uverse block — both
+// the named types installed via def() (any, error, the primitives, address,
+// realm, ...) and the signatures of the native builtins (whose parameter/result
+// types include shared interfaces like `any`) — plus a few roots not bound to a
+// name in the block (gConcreteRealmPtrType, gByteSliceType).
+func sealUverseTypes() {
+	seen := make(map[Type]bool)
+	var seal func(t Type)
+	seal = func(t Type) {
+		if t == nil || seen[t] {
+			return
+		}
+		seen[t] = true
+		switch ct := t.(type) {
+		case *PointerType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *SliceType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ArrayType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *ChanType:
+			ct.TypeID()
+			seal(ct.Elt)
+		case *MapType:
+			ct.TypeID()
+			seal(ct.Key)
+			seal(ct.Value)
+		case *FuncType:
+			ct.TypeID()
+			if len(ct.Params) > 0 {
+				// Method lookups (DeclaredType.FindEmbeddedFieldType) return
+				// the bound type and TypeID it at runtime (VerifyImplementedBy),
+				// so seal the bound's own typeid too, not just create it.
+				ct.BoundType().TypeID()
+			}
+			for i := range ct.Params {
+				seal(ct.Params[i].Type)
+			}
+			for i := range ct.Results {
+				seal(ct.Results[i].Type)
+			}
+		case *StructType:
+			ct.TypeID()
+			ct.GetPkgID()
+			isComparable(ct) // fill the comparable tristate
+			effectiveStructSurface(ct, map[Type]struct{}{})
+			for i := range ct.Fields {
+				seal(ct.Fields[i].Type)
+			}
+		case *InterfaceType:
+			if ct.Generic != "" {
+				return // generic uverse type: no TypeID, never concurrently filled
+			}
+			ct.TypeID()
+			effectiveInterfaceMethods(ct, map[Type]struct{}{})
+			for i := range ct.Methods {
+				seal(ct.Methods[i].Type)
+			}
+		case *DeclaredType:
+			ct.TypeID()
+			ct.GetPkgID()
+			seal(ct.Base)
+			for i := range ct.Methods {
+				seal(ct.Methods[i].T)
+			}
+		default:
+			// PrimitiveType, PackageType, TypeType, etc.
+			ct.TypeID()
+		}
+	}
+	for _, t := range []Type{
+		gErrorType, gStringerType, gAddressType, gRealmType,
+		gConcreteRealmType, gConcreteRealmPtrType, gByteSliceType,
+		gPackageType, gTypeType,
+	} {
+		seal(t)
+	}
+	// Walk everything reachable from the uverse block: named types installed
+	// via def() (TypeValue) and the native builtin signatures (*FuncValue),
+	// whose parameter/result types include shared interfaces such as `any`.
+	for i := range uverseNode.Values {
+		switch v := uverseNode.Values[i].V.(type) {
+		case TypeValue:
+			seal(v.Type)
+		case *FuncValue:
+			seal(v.GetType(nil))
+		}
+	}
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {
