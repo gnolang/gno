@@ -1650,8 +1650,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1695,12 +1693,12 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			}
 		}
 		bz = append(bz, '}')
-	case *ChanType:
-		panic("channel type is not yet supported")
 	default:
-		// Defensive fallback. The isComparable check above already
-		// catches *SliceType, *MapType, *FuncType, and any composite that
-		// reaches here via interface boxing.
+		// Defensive fallback. The isComparable gate above already stops
+		// every uncomparable type before the switch: *SliceType,
+		// *MapType, *FuncType, FieldType, and any composite reaching here
+		// via interface boxing return false there (panicking with the
+		// message below), while *ChanType panics inside isComparable.
 		panic(&Exception{Value: typedString(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
