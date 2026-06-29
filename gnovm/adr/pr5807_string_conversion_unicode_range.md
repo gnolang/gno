@@ -51,6 +51,14 @@ The remaining integer kinds are intentionally unchanged:
 
 ## Alternatives considered
 
+- Deferring the whole conversion to Go with a bare `string(v)` (no `rune`
+  cast), which would reproduce the spec behavior — including the
+  out-of-range → `�` mapping — for free. Not possible: `go vet`'s
+  `stringintconv` check rejects `string(<non-rune integer>)` ("conversion from
+  int64 to string yields a string of one rune, not a string of digits"), it
+  runs as part of `go test`, and there is no per-line way to dismiss it. The
+  code must therefore cast to `rune` first, which is exactly the int32
+  truncation this ADR fixes — hence the explicit range check.
 - Inlining the range check directly in each of the four case arms: equivalent
   behavior, but duplicates the bound logic at four sites; the shared helpers
   keep it in one place.
