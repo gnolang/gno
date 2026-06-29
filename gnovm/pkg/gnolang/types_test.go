@@ -144,3 +144,46 @@ func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 			stamped.TypeID(), unstamped.TypeID())
 	}
 }
+
+// The runtime interface-construction path (doOpInterfaceType) must flatten its
+// embeds just like the preprocess path. This path executes during filetests
+// (e.g. v.(interface{ Embed })) but its result is never observed for identity
+// there, so no filetest pins it; drive the op directly and assert the built
+// InterfaceType holds the embed's methods, with no embedded-interface entry.
+func TestDoOpInterfaceType_Flattens(t *testing.T) {
+	m := NewMachine("p", nil)
+	defer m.Release()
+
+	// Two embeds that overlap on B (a diamond): {A,B} and {B,C}. Flattening
+	// expands both and dedups B, so the result is exactly {A,B,C} — 3 methods.
+	// Without flattening the interface would instead hold 2 embedded-interface
+	// entries, so the count distinguishes real flatten+dedup from pass-through.
+	fnB := &FuncType{} // shared signature so the overlapping B dedups (not conflicts)
+	e1 := &InterfaceType{PkgPath: "p", Methods: []FieldType{{Name: "A", Type: &FuncType{}}, {Name: "B", Type: fnB}}}
+	e2 := &InterfaceType{PkgPath: "p", Methods: []FieldType{{Name: "B", Type: fnB}, {Name: "C", Type: &FuncType{}}}}
+
+	// interface{ e1; e2 }: doOpInterfaceType reads len(x.Methods) from the expr
+	// and pops one resolved type per method off the value stack.
+	m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(FieldType{Type: e1})})
+	m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(FieldType{Type: e2})})
+	m.PushExpr(&InterfaceTypeExpr{Methods: FieldTypeExprs{{}, {}}})
+
+	m.doOpInterfaceType()
+
+	it := m.PopValue().V.(TypeValue).Type.(*InterfaceType)
+	if len(it.Methods) != 3 {
+		t.Fatalf("expected 3 flattened+deduped methods (A,B,C), got %d: %+v", len(it.Methods), it.Methods)
+	}
+	got := map[Name]int{}
+	for _, ft := range it.Methods {
+		if ft.Type.Kind() == InterfaceKind {
+			t.Fatalf("embedded-interface entry survived flattening: %+v", ft)
+		}
+		got[ft.Name]++
+	}
+	for _, n := range []Name{"A", "B", "C"} {
+		if got[n] != 1 {
+			t.Fatalf("method %s appears %d times, want exactly 1: %+v", n, got[n], it.Methods)
+		}
+	}
+}
