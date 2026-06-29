@@ -25,7 +25,7 @@ func runeStrFromInt64(v int64) string {
 
 // runeStrFromUint64 is like runeStrFromInt64 for unsigned values.
 func runeStrFromUint64(v uint64) string {
-	if v > math.MaxInt32 {
+	if v > utf8.MaxRune {
 		return string(utf8.RuneError)
 	}
 	return string(rune(v))
