@@ -23,11 +23,9 @@ embedded-interface *name* — including an alias spelling — part of the
 | `interface{ Stringer }` vs `interface{ Str() string }` | **distinct** (entry named `Stringer` vs method `Str`) | identical |
 
 So on master the alias case was already correct; only embed-vs-explicit
-diverged. The alias case broke only transiently at 155f1a7, where the struct
-field-name fix switched embed naming from the resolved type to the written
-*spelling* (`SAlias` ≠ `Stringer`). No naming policy — resolved or spelled —
-can fix embed-vs-explicit, because the embed is still one named entry rather
-than its methods. Only flattening removes the embed name from identity.
+diverged. No naming policy — resolved or spelled — can fix embed-vs-explicit,
+because the embed is still one named entry rather than its methods. Only
+flattening removes the embed name from identity.
 
 Go computes interface identity from the **flattened method set**; embedding
 contributes methods, not a name. PR #5739 therefore flattens embedded
