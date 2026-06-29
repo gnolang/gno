@@ -176,3 +176,75 @@ func TestGetChanges_ClampsMaxInt64(t *testing.T) {
 	uassert.Equal(t, 1, len(result))
 	uassert.Equal(t, vals[0].Address, result[0].Address)
 }
+
+// TestSaveChange_DeduplicatesSameBlock verifies that saveChange overwrites
+// an existing entry for the same address within the same block (last-writer-wins).
+// This handles the cross-tx case: tx1 removes validator X, tx2 re-adds X in the same block.
+func TestSaveChange_DeduplicatesSameBlock(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Add both validators to the set
+	addValidator(vals[0])
+	addValidator(vals[1])
+
+	h := runtime.ChainHeight()
+
+	// Clear changes from the adds above
+	changes = avl.NewTree()
+
+	// Simulate tx1: remove vals[0]
+	removeValidator(vals[0].Address)
+
+	// Simulate tx2: re-add vals[0] with new power (same block, no SkipHeights)
+	addValidator(validators.Validator{
+		Address:     vals[0].Address,
+		PubKey:      vals[0].PubKey,
+		VotingPower: 30,
+	})
+
+	// Should have 1 entry for vals[0] (the re-add), not 2
+	chs := GetChanges(h, h)
+	uassert.Equal(t, 1, len(chs))
+	uassert.Equal(t, vals[0].Address, chs[0].Address)
+	uassert.Equal(t, uint64(30), chs[0].VotingPower)
+}
+
+func TestNewPropRequest_DuplicateAddressPanics(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Add v1 to the validator set so it can be removed
+	addValidator(vals[0])
+
+	// Proposal with duplicate address (remove v1 + re-add v1) should panic
+	uassert.PanicsWithMessage(t, "duplicate validator address in proposal: "+vals[0].Address.String(), func() {
+		NewPropRequest(func() []validators.Validator {
+			return []validators.Validator{
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 0},  // remove
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 20}, // re-add
+			}
+		}, "Update v1 power", "Change v1 voting power")
+	})
+}
+
+func TestNewPropRequest_DistinctAddressesSucceeds(t *testing.T) {
+	changes = avl.NewTree()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(2)
+
+	// Proposal with distinct addresses should not panic
+	uassert.NotPanics(t, func() {
+		NewPropRequest(func() []validators.Validator {
+			return []validators.Validator{
+				{Address: vals[0].Address, PubKey: vals[0].PubKey, VotingPower: 10},
+				{Address: vals[1].Address, PubKey: vals[1].PubKey, VotingPower: 20},
+			}
+		}, "Add two validators", "Add v1 and v2")
+	})
+}
