@@ -13,6 +13,22 @@ embedded-interface *name* — including an alias spelling — part of the
 - `interface{ SAlias }` (where `type SAlias = Stringer`) was not identical to
   `interface{ Stringer }`.
 
+**Precise behavior on master (verified):** master named the embed entry from the
+*resolved* type — `fillEmbeddedName` does `case *DeclaredType: ft.Name = ct.Name`
+— and never flattened. So the two divergences are not symmetric:
+
+| comparison | master | Go |
+|---|---|---|
+| `interface{ SAlias }` vs `interface{ Stringer }` | **identical** (alias resolves to the same `Stringer` entry name) | identical |
+| `interface{ Stringer }` vs `interface{ Str() string }` | **distinct** (entry named `Stringer` vs method `Str`) | identical |
+
+So on master the alias case was already correct; only embed-vs-explicit
+diverged. The alias case broke only transiently at 155f1a7, where the struct
+field-name fix switched embed naming from the resolved type to the written
+*spelling* (`SAlias` ≠ `Stringer`). No naming policy — resolved or spelled —
+can fix embed-vs-explicit, because the embed is still one named entry rather
+than its methods. Only flattening removes the embed name from identity.
+
 Go computes interface identity from the **flattened method set**; embedding
 contributes methods, not a name. PR #5739 therefore flattens embedded
 interfaces into their constituent methods at type construction
