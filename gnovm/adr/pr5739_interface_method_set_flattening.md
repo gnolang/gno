@@ -118,32 +118,37 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
   interfaces change, and the `FieldType` serialization gains a field. Must
   land with a chain upgrade.
 
-## Follow-up: migrate persisted types, then assume "all flattened"
+## Follow-up: can we assume "all flattened" and drop the recursion? (decision deferred)
 
-The embedded-interface branches in `FindEmbeddedFieldType` / `VerifyImplementedBy`
-are retained only because **decode does not re-flatten** — an interface persisted
-by pre-flattening code comes back with embedded-interface entries in `Methods`,
-and those branches keep satisfaction correct for it. This is a half-measure:
-such a type's *identity* is already inconsistent after this change (its `TypeID`
-moved from the embed-name form to the flattened form), so any chain carrying old
-state across this upgrade already needs a migration.
+Every `InterfaceType` is born one of three ways: **preprocess (AST)**,
+**runtime (`doOpInterfaceType`)**, or **decode**. The first two always flatten.
+Decode does not flatten — it faithfully reproduces the stored bytes. So an
+unflattened interface can reach runtime in **exactly one** situation: decode of
+bytes written by **pre-flattening** code. That gives a clean if/else:
 
-That migration is the natural place to **re-flatten every persisted interface
-type** (rewrite its `Methods` into flattened, `PkgPath`-stamped form). Once it
-guarantees that no unflattened `InterfaceType` can be decoded, the "all
-flattened" invariant holds at runtime and we can:
+- **If** no pre-flattening bytes can be decoded — i.e. a **fresh chain** (new
+  code from genesis; everything was flattened before it was ever serialized),
+  **or** an upgraded chain **after a migration that re-flattens** every
+  persisted interface type — then *all* interfaces at runtime are flattened.
+  The embedded-interface branches in `FindEmbeddedFieldType` /
+  `VerifyImplementedBy` are dead and can be **dropped** (or replaced with a
+  `debug`-gated assertion that `Methods` has no `InterfaceKind` entry); a
+  decoded unflattened interface becomes a hard error.
 
-1. Drop the embedded-interface recursion in `FindEmbeddedFieldType` /
-   `VerifyImplementedBy` (or replace it with a `debug`-gated assertion that
-   `Methods` contains no `InterfaceKind` entry).
-2. Treat a decoded unflattened interface as a hard error rather than handling
-   it — it should no longer occur.
+- **Else** — an **in-place upgrade** that keeps old bytes in storage with **no
+  migration** — those branches are load-bearing and must stay. (Note it's a
+  half-measure even then: such a type's *identity* already moved with this
+  change, so the chain needs a migration regardless.) Do **not** make
+  `VerifyImplementedBy` assume-flattened here: without the recursion a decoded
+  legacy interface gives silently-wrong satisfaction (ignore) or halts the
+  chain (panic).
 
-Do **not** make `VerifyImplementedBy` assume-flattened (drop/ignore the
-recursion) *before* that migration exists: without it, a decoded legacy
-interface yields silently wrong satisfaction (ignore) or halts the chain
-(panic). Sequencing is: ship this PR with the recursion retained → migration
-re-flattens persisted types on upgrade → then remove the recursion.
+**Decision (TBD):** which branch applies depends on how gnolang/gno ships this
+consensus break — genesis/fresh-gated, or in-place upgrade with a re-flatten
+migration. Both reach the same "all flattened" end-state and allow dropping the
+recursion; only the unmigrated in-place case requires keeping it. This PR ships
+with the recursion **retained** (safe under any choice); revisit removal once
+the rollout model is decided.
 
 Also deferred (orthogonal): the pure-VM `flattenInterfaceMethods` conflict path
 is a `panic`, relying on go/types rejecting same-name/different-signature embeds
