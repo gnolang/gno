@@ -18,6 +18,10 @@ REPO_ROOT="$(cd "${SCENARIO_LIB_DIR}/../../.." && pwd)"
 #     deterministic per-node ports and are supervised as background processes.
 # Build the local binaries with `make build-binaries`.
 RUNTIME="${RUNTIME:-docker}"
+case "$RUNTIME" in
+  docker|local) ;;
+  *) printf 'error: unknown RUNTIME=%s (expected docker or local)\n' "$RUNTIME" >&2; exit 1 ;;
+esac
 BIN_DIR="${BIN_DIR:-${SCENARIO_LIB_DIR}/../bin}"
 # Local-runtime binaries, produced by `make build-binaries` into BIN_DIR.
 GNOLAND_BIN="${BIN_DIR}/gnoland"
