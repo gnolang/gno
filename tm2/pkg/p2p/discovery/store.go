@@ -47,10 +47,10 @@ func WithLogger(logger *slog.Logger) StoreOption {
 
 // WithMaxPeers sets the maximum number of peers the store keeps.
 // When the limit is reached, the oldest entries are evicted.
-func WithMaxPeers(max int) StoreOption {
+func WithMaxPeers(maxPeers int) StoreOption {
 	return func(s *Store) {
-		if max > 0 {
-			s.maxPeers = max
+		if maxPeers > 0 {
+			s.maxPeers = maxPeers
 		}
 	}
 }
@@ -109,10 +109,10 @@ func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 		key := addr.String()
 		if _, exists := s.peers[key]; !exists {
 			s.dirty = true
+			s.generation++
 		}
 
 		s.peers[key] = &knownAddress{Addr: addr, LastSeen: time.Now()}
-		s.generation++
 	}
 
 	s.evict()
@@ -232,7 +232,13 @@ func (s *Store) load() error {
 
 	var raw storeJSON
 	if err := json.Unmarshal(data, &raw); err != nil {
-		s.logger.Warn("corrupt peer store file, starting empty", "file", s.filePath, "err", err)
+		corruptPath := s.filePath + ".corrupt"
+
+		if copyErr := os.WriteFile(corruptPath, data, 0o644); copyErr != nil {
+			s.logger.Warn("corrupt peer store file, failed to create backup", "file", s.filePath, "backup", corruptPath, "err", err, "copy_err", copyErr)
+		} else {
+			s.logger.Warn("corrupt peer store file, moved to backup", "file", s.filePath, "backup", corruptPath, "err", err)
+		}
 
 		return nil
 	}
@@ -254,7 +260,7 @@ func (s *Store) load() error {
 		}
 
 		lastSeen := time.Unix(entry.LastSeen, 0)
-		if lastSeen.IsZero() {
+		if entry.LastSeen == 0 {
 			lastSeen = now
 		}
 

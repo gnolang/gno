@@ -255,6 +255,11 @@ func TestStore_Load_CorruptFileTreatedAsEmpty(t *testing.T) {
 	// The store should start empty despite the corrupt file
 	assert.Equal(t, 0, s.Size())
 
+	// A backup of the corrupt file should have been created
+	corruptPath := path + ".corrupt"
+	_, err = os.Stat(corruptPath)
+	assert.NoError(t, err, "corrupt backup file should exist")
+
 	// Saving should work and overwrite the corrupt file with valid data
 	addr := generateTestAddress(t, "1.2.3.4", 26656)
 	s.AddPeers(addr)
