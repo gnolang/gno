@@ -891,6 +891,13 @@ wait_for_rpc() {
     if curl -fsS "$(node_rpc_url "$node")/status" >/dev/null 2>&1; then
       return 0
     fi
+    # In the local runtime the node is a background process we own. If it has
+    # already exited, waiting out the full timeout is pointless: fail fast and
+    # point at its log instead of dying 120s later with a generic message.
+    if [ "$RUNTIME" = "local" ] && [ -n "${NODE_PID[$node]:-}" ] \
+       && ! kill -0 "${NODE_PID[$node]}" 2>/dev/null; then
+      die "node ${node} exited before its rpc came up; see ${SCENARIO_DIR}/logs/${node}.log"
+    fi
     sleep 1
   done
   die "rpc for ${node} did not come up within ${timeout}s"
