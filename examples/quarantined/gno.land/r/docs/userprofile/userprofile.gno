@@ -3,6 +3,7 @@
 package userprofile
 
 import (
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/r/demo/profile"
 	"gno.land/r/sys/users"
 )
@@ -119,7 +120,7 @@ func renderUser(nameOrAddr string) string {
 	// Try to resolve the user
 	userData, _ := users.ResolveAny(nameOrAddr)
 	if userData == nil {
-		out += "User not found: `" + nameOrAddr + "`\n\n"
+		out += "User not found: `" + sanitize.InlineText(nameOrAddr) + "`\n\n"
 		out += "[Back to Home](/r/docs/userprofile)\n"
 		return out
 	}
@@ -133,7 +134,7 @@ func renderUser(nameOrAddr string) string {
 	out += "### Registry Data (r/sys/users)\n\n"
 	out += "| Field | Value |\n"
 	out += "|-------|-------|\n"
-	out += "| Username | @" + name + " |\n"
+	out += "| Username | @" + sanitize.TableCell(name) + " |\n"
 	out += "| Address | `" + addr.String() + "` |\n"
 	out += "| Profile Link | " + userData.RenderLink("") + " |\n"
 	out += "\n"
@@ -141,9 +142,9 @@ func renderUser(nameOrAddr string) string {
 	// Profile data
 	out += "### Profile Data (r/demo/profile)\n\n"
 
-	displayName := profile.GetStringField(addr, profile.DisplayName, "_not set_")
-	avatar := profile.GetStringField(addr, profile.Avatar, "_not set_")
-	bio := profile.GetStringField(addr, profile.Bio, "_not set_")
+	displayName := profileCell(profile.GetStringField(addr, profile.DisplayName, ""))
+	avatar := profileCell(profile.GetStringField(addr, profile.Avatar, ""))
+	bio := profileCell(profile.GetStringField(addr, profile.Bio, ""))
 
 	out += "| Field | Value |\n"
 	out += "|-------|-------|\n"
@@ -156,4 +157,13 @@ func renderUser(nameOrAddr string) string {
 	out += "[Back to Home](/r/docs/userprofile)\n"
 
 	return out
+}
+
+// profileCell sanitizes a profile field for a markdown table cell, keeping
+// the "_not set_" placeholder when the field is empty.
+func profileCell(v string) string {
+	if v == "" {
+		return "_not set_"
+	}
+	return sanitize.TableCell(v)
 }

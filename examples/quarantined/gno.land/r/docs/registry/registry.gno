@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // Service represents a registered service
@@ -155,7 +156,7 @@ func Render(path string) string {
 		name := parts[1]
 		service := Lookup(owner, name)
 		if service == nil {
-			return "# Service Not Found\n\nNo service with address `" + parts[0] + "` and name `" + name + "` is registered."
+			return "# Service Not Found\n\nNo service with address `" + sanitize.InlineText(parts[0]) + "` and name `" + sanitize.InlineText(name) + "` is registered."
 		}
 		return renderService(service)
 	}
@@ -243,7 +244,7 @@ services by name.
 			if !service.Active {
 				status = "❌"
 			}
-			out += "- " + status + " [" + service.Name + "](/r/docs/registry:" + key + ")\n"
+			out += "- " + status + " [" + sanitize.InlineText(service.Name) + "](/r/docs/registry:" + key + ")\n"
 			return false
 		})
 	}
@@ -274,15 +275,15 @@ func renderService(service *Service) string {
 		status = "Inactive ❌"
 	}
 
-	return `# Service: ` + service.Name + `
+	return `# Service: ` + sanitize.InlineText(service.Name) + `
 
 ## Details
 
 | Property | Value |
 |----------|-------|
 | Status | ` + status + ` |
-| Description | ` + service.Description + ` |
-| Endpoint | ` + service.Endpoint + ` |
+| Description | ` + sanitize.TableCell(service.Description) + ` |
+| Endpoint | ` + sanitize.TableCell(service.Endpoint) + ` |
 | Owner | ` + service.Owner.String() + ` |
 
 ---
