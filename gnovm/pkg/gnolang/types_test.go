@@ -38,15 +38,16 @@ func TestFlattenInterfaceMethods(t *testing.T) {
 			want:    []want{{"M", ""}, {"m", ""}},
 		},
 		{
-			// With an embed present, the slow path runs and a direct
-			// unexported method IS stamped with the enclosing package.
-			desc: "direct unexported stamped with enclosing pkg when an embed is present",
+			// On the slow path a same-package unexported method is still left
+			// unstamped (only cross-package methods are stamped), so it relies
+			// on idName's fallback — matching the fast path.
+			desc: "same-package unexported left unstamped even on the slow path",
 			in: []FieldType{
 				mkEmbed("p", mkMethod("E", fn)),
 				mkMethod("m", fn),
 			},
 			pkgPath: "q",
-			want:    []want{{"E", ""}, {"m", "q"}},
+			want:    []want{{"E", ""}, {"m", ""}},
 		},
 		{
 			desc:    "embedded exported method flattens, pkg stays empty (package-independent identity)",
@@ -70,13 +71,15 @@ func TestFlattenInterfaceMethods(t *testing.T) {
 			want:    []want{{"sec", "p"}},
 		},
 		{
+			// cross-package sec (stamped "p") and a same-package sec (left
+			// unstamped, qualified to "q" via fallback) are distinct and coexist.
 			desc: "same name, different package: distinct methods coexist",
 			in: []FieldType{
 				mkEmbed("p", FieldType{Name: "sec", Type: fn, PkgPath: "p"}),
 				mkMethod("sec", fn), // declared directly in enclosing q
 			},
 			pkgPath: "q",
-			want:    []want{{"sec", "p"}, {"sec", "q"}},
+			want:    []want{{"sec", "p"}, {"sec", ""}},
 		},
 	}
 

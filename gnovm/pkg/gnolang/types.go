@@ -406,24 +406,26 @@ func (ft FieldType) IsNamed() bool {
 
 type FieldTypeList []FieldType
 
-func (l FieldTypeList) Len() int {
-	return len(l)
+// originPkg returns the method's defining package: its stamped PkgPath, or
+// fallback (the enclosing interface's package) when unstamped. Same-package
+// methods are left unstamped, so the fallback is the common case.
+func (ft FieldType) originPkg(fallback string) string {
+	if ft.PkgPath != "" {
+		return ft.PkgPath
+	}
+	return fallback
 }
 
 // idName returns the field's identity name: an exported name is bare, an
-// unexported name is qualified by the method's origin package (ft.PkgPath
-// when set, otherwise fallbackPkg — the enclosing interface's package). This
-// keeps unexported-method identity package-scoped, matching Go, even after a
-// method has been flattened out of an embedded interface from another package.
+// unexported name is qualified by the method's origin package (see originPkg).
+// This keeps unexported-method identity package-scoped, matching Go, even
+// after a method has been flattened out of an embedded interface from another
+// package.
 func (ft FieldType) idName(fallbackPkg string) string {
 	if isUpper(string(ft.Name)) {
 		return string(ft.Name)
 	}
-	pkg := ft.PkgPath
-	if pkg == "" {
-		pkg = fallbackPkg
-	}
-	return pkg + "." + string(ft.Name)
+	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
 // sortForPackage sorts the methods by their package-qualified identity name
@@ -1104,14 +1106,10 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			}
 		}
 		// find method in field. Gate unexported-method access against the
-		// method's origin package (im.PkgPath when flattened out of another
+		// method's origin package (its stamp when flattened out of another
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
-		callerPath := im.PkgPath
-		if callerPath == "" {
-			callerPath = it.PkgPath
-		}
-		tr, hp, rt, ft, _ := findEmbeddedFieldType(callerPath, ot, im.Name, nil)
+		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name, nil)
 		if tr == nil { // not found.
 			return fmt.Errorf("missing method %s", im.Name)
 		}
@@ -2733,10 +2731,13 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	// keyed on the package-qualified identity name: two same-named unexported
 	// methods from different packages are distinct and must coexist.
 	seen := make(map[string]Type, len(fts))
-	add := func(name Name, typ Type, originPkg string) {
+	add := func(name Name, typ Type, origin string) {
 		ft := FieldType{Name: name, Type: typ}
-		if !isUpper(string(name)) {
-			ft.PkgPath = originPkg
+		// Stamp only cross-package unexported methods; same-package ones stay
+		// unstamped and rely on idName's fallback to the enclosing pkgPath,
+		// matching the fast path (so both construction routes agree).
+		if !isUpper(string(name)) && origin != pkgPath {
+			ft.PkgPath = origin
 		}
 		key := ft.idName(pkgPath)
 		if prev, ok := seen[key]; ok {
