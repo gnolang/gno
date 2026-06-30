@@ -2,7 +2,7 @@ package main
 
 func main() {
 	var s []int
-	for ; s[0] == 0; {
+	for s[0] == 0 {
 		println("ok")
 	}
 }

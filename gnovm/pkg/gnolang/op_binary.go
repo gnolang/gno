@@ -75,7 +75,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -88,14 +88,14 @@ func (m *Machine) doOpEql() {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
 	// set result in lv.
-	res := isEql(m, lv, rv)
+	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -105,10 +105,31 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv)
+	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
+}
+
+// isInterfaceCmp reports whether either operand of bx is statically an
+// interface. A true result tells isEql to apply Go's interface-comparison
+// rule, under which isEql panics on an uncomparable dynamic type.
+func isInterfaceCmp(bx *BinaryExpr) bool {
+	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
+}
+
+func hasInterfaceStaticType(x Expr) bool {
+	if x == nil {
+		return false
+	}
+	// cachedStaticTypeOf unwraps a single-result CallExpr's 1-element tuple,
+	// so a function call returning an interface is recognized as a boundary.
+	t := cachedStaticTypeOf(x)
+	if t == nil {
+		return false
+	}
+	_, ok := baseOf(t).(*InterfaceType)
+	return ok
 }
 
 func (m *Machine) doOpLss() {
@@ -420,8 +441,16 @@ func (m *Machine) doOpBandn() {
 // ----------------------------------------
 // logic functions
 
+// isEql reports whether lv and rv are equal. viaIface is true when the
+// comparison crosses an interface boundary: the operands are statically
+// interface-typed, or we recursed into an interface-typed field or element.
+// At such a boundary Go panics if the dynamic type is uncomparable. The check
+// uses isComparable, which is itself recursive, so it fires at the boundary
+// and names the dynamic type there (e.g. an enclosing struct) rather than the
+// uncomparable leaf reached by deeper recursion.
+//
 // TODO: can be much faster.
-func isEql(m *Machine, lv, rv *TypedValue) bool {
+func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -433,6 +462,14 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	}
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
+	}
+	// Both sides share one dynamic type now. If we reached it through an
+	// interface and it is uncomparable, Go panics naming it.
+	if viaIface && !isComparable(lv.T) {
+		m.Panic(typedString(fmt.Sprintf(
+			"runtime error: comparing uncomparable type %s",
+			lv.T.String(),
+		)))
 	}
 	switch lv.T.Kind() {
 	case BoolKind:
@@ -498,11 +535,14 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
+		// An interface-typed element is a fresh boundary: the recursive call
+		// gets viaIface=true and checks the element's own dynamic type.
+		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
-			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			if !isEql(m, &li, &ri) {
+			li := la.GetElementPointer(m.Store, i, et).Deref()
+			ri := ra.GetElementPointer(m.Store, i, et).Deref()
+			if !isEql(m, &li, &ri, elemIsIface) {
 				return false
 			}
 		}
@@ -510,8 +550,8 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
+		lt := baseOf(lv.T).(*StructType)
 		if debug {
-			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
@@ -524,31 +564,28 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
-			if !isEql(m, &lf, &rf) {
+			// An interface-typed field is a fresh boundary: the recursive call
+			// gets viaIface=true and checks the field's own dynamic type.
+			fieldIsIface := baseOf(lt.Fields[i].Type).Kind() == InterfaceKind
+			if !isEql(m, &lf, &rf, fieldIsIface) {
 				return false
 			}
 		}
 		return true
-	case MapKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("map can only be compared with `nil`")
+	case InterfaceKind:
+		// Dynamic types are unwrapped before reaching isEql, so T is
+		// InterfaceType only when both sides have no dynamic content.
+		if lv.V != nil || rv.V != nil {
+			if debug {
+				panic("isEql: unexpected non-nil InterfaceType (dynamic type should have been unwrapped)")
 			}
+			return false
 		}
-		return lv.V == rv.V
-	case SliceKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("slice can only be compared with `nil`")
-			}
-		}
-		return lv.V == rv.V
-	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
-		}
+		return true
+	case MapKind, SliceKind, FuncKind:
+		// Uncomparable kinds. A via-interface comparison of these is caught by
+		// the comparability check above before reaching here, so the only way
+		// in is `m == nil` (one side nil), which is a legal pointer compare.
 		return lv.V == rv.V
 	case PointerKind:
 		if lv.T != rv.T &&

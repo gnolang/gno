@@ -364,7 +364,7 @@ example Library Genesis:
 Some of these projects have or are working toward IPFS integration on top of
 BitTorrent; but for the value that global archiving provides not just today but
 also for all possible potential future timelines the number of seeders for many
-of the archival files [still hover in the single digits](https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
+of the archival files [still hover in the single digits](https://web.archive.org/web/20260228085850/https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
 
 More recently the US Department of Justice released millions of files of the
 "Epstein Files" many of which have also been made available for sharing (such

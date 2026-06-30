@@ -32,6 +32,11 @@ const defaultNodeDir = "gnoland-data"
 
 var errMissingGenesis = errors.New("missing genesis.json")
 
+var errLazyTmkmsListener = errors.New(
+	"-lazy cannot derive a genesis in tmkms_listener mode: tmkms holds the validator key " +
+		"and signs only votes/proposals, so the validator pubkey is not locally available. " +
+		"Provide an explicit genesis.json (see the gnogenesis tool) and start without -lazy")
+
 var startGraphic = strings.ReplaceAll(`
                     __             __
   ___ ____  ___    / /__ ____  ___/ /
@@ -216,6 +221,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if !osm.FileExists(genesisPath) {
 		if !c.lazyInit {
 			return errMissingGenesis
+		}
+
+		// tmkms_listener mode keeps the validator key in tmkms (it signs only
+		// votes/proposals), so the validator pubkey isn't locally available to
+		// seed a genesis validator set. Without this guard NewSignerFromConfig
+		// silently falls back to the local key and the node would come up as a
+		// non-validator. Fail loud and point at an explicit genesis instead.
+		if cfg.Consensus.PrivValidator.TmkmsListener.IsEnabled() {
+			return errLazyTmkmsListener
 		}
 
 		// Get the node key for signer init

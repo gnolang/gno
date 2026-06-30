@@ -26,7 +26,7 @@ jobs:
       programs: ${{ steps.set-matrix.outputs.programs }}
       go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -62,5 +62,3 @@ jobs:
     with:
       modulepath: contribs/${{ matrix.program }}
       go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}

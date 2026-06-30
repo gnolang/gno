@@ -167,7 +167,7 @@ Gno.land networks, similar to WalletConnect in Ethereum.
 ### gnodev
 A development tool which provides a local Gno.land node with hot-reloading,
 state preservation, and a `gnoweb` interface for testing.
-See [Local Development with gnodev](../builders/local-dev-with-gnodev.md).
+See [Local development with `gnodev`](./gnodev.md).
 
 ### gnokey
 The official command-line keychain and client for Gno.land, allowing keypair

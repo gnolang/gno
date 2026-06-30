@@ -43,6 +43,7 @@
 	/* Transitions */
 	--g-transition-duration: 150ms;
 	--g-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+	--g-transition-fast: var(--g-transition-duration) var(--g-transition-timing);
 	--g-transition-all: all var(--g-transition-duration)
 		var(--g-transition-timing);
 	--g-transition-colors:

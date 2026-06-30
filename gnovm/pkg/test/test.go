@@ -11,9 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -428,7 +431,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, gas, err := opts.runFiletest(
+			changed, gas, storageDiffs, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -440,12 +443,13 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
+			storageStr := fmtStorageDiffs(storageDiffs)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 			}
 
 			// XXX: add per-test metrics
@@ -453,6 +457,26 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	}
 
 	return errs
+}
+
+// enableDebugger attaches the interactive debugger to m. Source files are
+// resolved relative to the gno root, then the bundled stdlibs, then the
+// examples tree.
+func (opts *TestOptions) enableDebugger(m *gno.Machine) {
+	fileContent := func(ppath, name string) string {
+		p := filepath.Join(opts.RootDir, ppath, name)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+			b, err = os.ReadFile(p)
+		}
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "examples", ppath, name)
+			b, _ = os.ReadFile(p)
+		}
+		return string(b)
+	}
+	m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
 }
 
 // Runs *_test.go tests.
@@ -498,6 +522,10 @@ func (opts *TestOptions) runTestFiles(
 	}
 	pv := m.Package
 
+	testingpv := m.Store.GetPackage("testing", false)
+	testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
+	testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
 	// Load the test files into package and save.
 	// m.RunFiles(files.Files...)
 
@@ -514,9 +542,6 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing", false)
-		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
-		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
 
 		var runTestX gno.Expr
@@ -577,20 +602,7 @@ func (opts *TestOptions) runTestFiles(
 		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
-			fileContent := func(ppath, name string) string {
-				p := filepath.Join(opts.RootDir, ppath, name)
-				b, err := os.ReadFile(p)
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
-					b, err = os.ReadFile(p)
-				}
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, _ = os.ReadFile(p)
-				}
-				return string(b)
-			}
-			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+			opts.enableDebugger(m)
 		}
 
 		eval := m.Eval(gno.Call(
@@ -650,7 +662,6 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		if opts.Metrics {
-			// XXX: store changes
 			// XXX: max mem consumption
 			allocsVal := "n/a"
 			if m.Alloc != nil {
@@ -660,10 +671,85 @@ func (opts *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
+			storageStr := fmtStorageDiffs(m.Store.RealmStorageDiffs())
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s, allocs=%s%s\n",
 				prettySize(m.Cycles),
 				allocsVal,
+				storageStr,
 			)
+		}
+	}
+
+	examples := loadExampleTestFuncs(files)
+	filter := splitRegexp(opts.RunFlag)
+	// runExample runs a single example and reports whether it passed. It is a
+	// closure (rather than an inlined loop body) so that its `defer revert()`
+	// fires when the example finishes — restoring the output writer on every
+	// path, including a Go-level panic and the failfast early return below —
+	// instead of accumulating one deferred revert per example until runTestFiles
+	// itself returns.
+	runExample := func(fd *gno.FuncDecl) (passed bool) {
+		fname := string(fd.Name)
+
+		// Reset and start capturing stdout.
+		opts.filetestBuffer.Reset()
+		revert := opts.outWriter.tee(&opts.filetestBuffer)
+		defer revert()
+
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.Alloc = alloc.Reset()
+		m.SetActivePackage(pv)
+
+		runExampleTestX := gno.Sel(testingcx, "RunExampleTest")
+		runExampleTest := m.Eval(runExampleTestX)[0]
+		runExampleTestCX := gno.NewConstExpr(runExampleTestX, runExampleTest)
+
+		if opts.Debug {
+			opts.enableDebugger(m)
+		}
+
+		startedAt := time.Now()
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "=== RUN   %s\n", fname)
+		}
+		eval := m.Eval(gno.Call(
+			runExampleTestCX, // Call testing.RunExampleTest
+			gno.Nx(fname),
+		))
+		timeSpent := time.Since(startedAt)
+		panicked := eval[0].GetBool()
+		if panicked {
+			// Already printed the panic message and stacktrace
+			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", fname, fmtDuration(timeSpent))
+			passed = false
+		} else {
+			stdout := opts.filetestBuffer.String()
+			expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
+			unordered := fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED) == true
+			passed = opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
+		}
+		// Print gas after the PASS/FAIL line, matching the ordinary test loop above.
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
+		return passed
+	}
+
+	for _, fd := range examples {
+		fname := string(fd.Name)
+		if !shouldRun(filter, fname) {
+			continue
+		}
+		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			// Don't run examples with no output.
+			continue
+		}
+
+		if !runExample(fd) {
+			errs = multierr.Append(errs, fmt.Errorf("failed: %q", fname))
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 	}
 
@@ -702,6 +788,39 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 		}
 	}
 	return
+}
+
+func loadExampleTestFuncs(tfiles *gno.FileSet) (rt []*gno.FuncDecl) {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				if fd.IsMethod {
+					continue
+				}
+				if isExampleFunc(fd) {
+					rt = append(rt, fd)
+				}
+			}
+		}
+	}
+	return
+}
+
+// isExampleFunc checks if fd is a function with no args or return values and valid function name starting with "Example"
+func isExampleFunc(fd *gno.FuncDecl) bool {
+	const prefix = "Example"
+	name := string(fd.Name)
+	if fd.IsMethod || len(fd.Type.Params) != 0 || len(fd.Type.Results) != 0 {
+		return false
+	}
+	if !strings.HasPrefix(name, prefix) {
+		return false
+	}
+	if len(name) == len(prefix) {
+		return true
+	}
+	r, _ := utf8.DecodeRuneInString(name[len(prefix):])
+	return !unicode.IsLower(r)
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the mpkg.
@@ -770,4 +889,27 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+// fmtStorageDiffs formats storage diffs for display in test output.
+// Returns an empty string when there are no non-zero diffs, otherwise returns
+// a string like ", storage: gno.land/r/example:+31b gno.land/r/other:+42b".
+func fmtStorageDiffs(diffs gno.StorageDiffs) string {
+	keys := make([]string, 0, len(diffs))
+	for k, v := range diffs {
+		if v != 0 {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	sb.WriteString(", storage:")
+	for _, k := range keys {
+		fmt.Fprintf(&sb, " %s:%+db", k, diffs[k])
+	}
+	return sb.String()
 }

@@ -763,6 +763,14 @@ type StructType struct {
 	// interface's effective method count. Mirrors effectiveFields'
 	// caching rules. Not serialized.
 	effectiveMethods uint16
+
+	// comparable caches isComparable(this) as a tristate: 0 = not yet
+	// computed, 1 = comparable, 2 = uncomparable. Without it, comparing
+	// an interface whose dynamic type fans out (struct{a, b T}) re-walks
+	// the field graph exponentially on every comparison. Re-derived
+	// deterministically from Fields; not serialized, mirroring
+	// effectiveFields/effectiveMethods.
+	comparable uint8
 }
 
 func (st *StructType) Kind() Kind {

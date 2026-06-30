@@ -8,6 +8,5 @@ func main() {
 	println(s)
 }
 
-
 // Output:
 // slice[(2 int)]

@@ -1,12 +1,12 @@
 package main
 
 type A interface {
-    F()
+	F()
 }
 
 type B interface {
-    F()
-    G()
+	F()
+	G()
 }
 
 type T struct{}
@@ -16,11 +16,11 @@ func (T) F() {}
 func (T) G() {}
 
 func main() {
-    var a A = T{}
-    var b B = T{}
+	var a A = T{}
+	var b B = T{}
 
-    println(b == a)
-    println(a == b)
+	println(b == a)
+	println(a == b)
 }
 
 // Output:

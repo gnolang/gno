@@ -33,6 +33,7 @@ module.exports = (ctx) => {
 					here("../**/*.html"),
 					here("../**/*.go"),
 					here("./js/**/*.ts"),
+					here("../feature/**/*.ts"),
 				],
 				safelist: {
 					standard: [
@@ -44,8 +45,10 @@ module.exports = (ctx) => {
 						"dev-mode",
 						"u-sr-only",
 						"data-theme",
+						"b-tag",
+						"b-tag--secondary",
 					],
-					deep: [/c-realm-view\b/, /c-readme-view\b/],
+					deep: [/c-realm-view\b/, /c-readme-view\b/, /b-state-/],
 				},
 				dynamicAttributes: ["data-type"],
 				variables: true,

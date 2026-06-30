@@ -82,7 +82,7 @@ func TestErrorf(t *testing.T) {
 		wantText:   "%!w(<nil>)",
 		wantUnwrap: nil, // still nil
 	}} {
-		if got, want := errorUnwrap(test.err), test.wantUnwrap; got != want {
+		if got, want := errors.Unwrap(test.err), test.wantUnwrap; got != want {
 			t.Errorf("Formatted error: %v\nerrors.Unwrap() = %v, want %v", test.err, got, want)
 		}
 		if got, want := splitErr(test.err), test.wantSplit; !equalErrorSlices(got, want) {
@@ -104,14 +104,6 @@ func equalErrorSlices(e1, e2 []error) bool {
 		}
 	}
 	return true
-}
-
-// should eventually be errors.Unwrap
-func errorUnwrap(e error) error {
-	if e, ok := e.(interface{ Unwrap() error }); ok {
-		return e.Unwrap()
-	}
-	return nil
 }
 
 func splitErr(err error) []error {

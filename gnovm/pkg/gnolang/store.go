@@ -38,6 +38,9 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 // NativeResolver is a function which can retrieve native bodies of native functions.
 type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
+// StorageDiffs maps realm paths to their storage size difference (in bytes).
+type StorageDiffs = map[string]int64
+
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
@@ -65,7 +68,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
+	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -184,7 +187,7 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	realmStorageDiffs map[string]int64 // maps realm path to size diff
+	realmStorageDiffs StorageDiffs // maps realm path to size diff
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -215,7 +218,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		stdlibKeyBytes: make(map[string][]byte),
 
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -270,7 +273,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 	}
 	InitStoreCaches(ds2)
 
@@ -1160,7 +1163,7 @@ func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Stor
 }
 
 // It resturns storage changes per realm within message
-func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
+func (ds *defaultStore) RealmStorageDiffs() StorageDiffs {
 	return ds.realmStorageDiffs
 }
 
@@ -1172,7 +1175,7 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	// Lock-step reset cacheRealms.
 	ds.cacheRealms = make(map[PkgID]*Realm)
-	ds.realmStorageDiffs = make(map[string]int64)
+	ds.realmStorageDiffs = make(StorageDiffs)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
@@ -1212,7 +1215,7 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
-	if enabled {
+	if enabled.Load() {
 		ds.opslog = buf
 	} else {
 		ds.opslog = nil

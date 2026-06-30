@@ -5,6 +5,7 @@
 package csv
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -464,7 +465,7 @@ func TestRead(t *testing.T) {
 					t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
 				}
 				// ErrFieldCount is explicitly non-fatal.
-				if err != nil && !isErr(err, ErrFieldCount) {
+				if err != nil && !errors.Is(err, ErrFieldCount) {
 					if recNum < len(tt.Output) {
 						t.Fatalf("need more records; got %d want %d", recNum, len(tt.Output))
 					}
@@ -486,17 +487,6 @@ func TestRead(t *testing.T) {
 			}
 		})
 	}
-}
-
-// XXX: substitute for errors.Is
-func isErr(err, match error) bool {
-	if err == match {
-		return true
-	}
-	if w, ok := err.(interface{ Unwrap() error }); ok {
-		return isErr(w.Unwrap(), match)
-	}
-	return false
 }
 
 // XXX: substitute for reflect.DeepEqual

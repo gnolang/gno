@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 	"time"
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
@@ -47,9 +46,11 @@ func NewPackageWatcher(logger *slog.Logger, emitter emitter.Emitter) (*PackageWa
 	return p, nil
 }
 
-func (p *PackageWatcher) startWatching() {
-	const timeout = time.Millisecond * 500 // Debounce interval
+// debounceInterval batches FS events before emitting a package update.
+// Variable rather than const so tests can shrink it.
+var debounceInterval = 500 * time.Millisecond
 
+func (p *PackageWatcher) startWatching() {
 	errorsChan := make(chan error, 1)
 	pkgsUpdateChan := make(chan PackageUpdateList)
 
@@ -87,15 +88,18 @@ func (p *PackageWatcher) startWatching() {
 				filesList = []string{}
 				debounceTimer = nil
 			case evt := <-p.watcher.Events:
-				// Only handle write operations
-				if evt.Op != fsnotify.Write {
+				// React to any content-changing operation. Write covers
+				// in-place saves; Create/Rename cover atomic-rename saves
+				// (sed -i, most editors); Remove covers file deletion.
+				// Chmod-only events (touch, permission churn) are skipped.
+				if !evt.Op.Has(fsnotify.Write | fsnotify.Create | fsnotify.Rename | fsnotify.Remove) {
 					continue
 				}
 
 				filesList = append(filesList, evt.Name)
 
 				// Set up the debounce timer
-				debounceTimer = time.After(timeout)
+				debounceTimer = time.After(debounceInterval)
 			}
 		}
 
@@ -111,7 +115,7 @@ func (p *PackageWatcher) Stop() {
 	p.stop()
 }
 
-func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
+func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...*packages.Package) {
 	watchList := p.watcher.WatchList()
 
 	oldPkgs := make(map[string]struct{}, len(watchList))
@@ -121,13 +125,13 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
 
 	newPkgs := make(map[string]struct{}, len(pkgs))
 	for _, pkg := range pkgs {
-		if pkg.Kind != packages.PackageKindFS {
+		if pkg.Kind != packages.KindFS {
 			continue
 		}
 
-		dir, err := filepath.Abs(pkg.Location)
+		dir, err := filepath.Abs(pkg.Dir)
 		if err != nil {
-			p.logger.Error("Unable to get absolute path", "path", pkg.Location, "error", err)
+			p.logger.Error("Unable to get absolute path", "path", pkg.Dir, "error", err)
 			continue
 		}
 
@@ -150,36 +154,34 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
 }
 
 func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {
-	pkgsUpdate := []events.PackageUpdate{}
-
-	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
+	// Watches are per-directory (non-recursive), so a file belongs to the
+	// package whose directory directly contains it, or to none.
 	watchList := p.watcher.WatchList()
-	for _, file := range paths {
-		for _, watchDir := range watchList {
-			if len(watchDir) == len(file) {
-				continue // Skip if watchDir == file
-			}
-
-			// Check if a package directory contain our path directory
-			dir := filepath.Dir(file)
-			if !strings.HasPrefix(watchDir, dir) {
-				continue
-			}
-
-			// Accumulate file updates for each package
-			pkgu, ok := mpkgs[watchDir]
-			if !ok {
-				pkgsUpdate = append(pkgsUpdate, events.PackageUpdate{
-					PackageDir: watchDir,
-					Files:      []string{},
-				})
-				pkgu = &pkgsUpdate[len(pkgsUpdate)-1]
-			}
-
-			pkgu.Files = append(pkgu.Files, file)
-		}
+	watchDirs := make(map[string]struct{}, len(watchList))
+	for _, d := range watchList {
+		watchDirs[d] = struct{}{}
 	}
 
+	mpkgs := map[string]*events.PackageUpdate{} // PackageDir -> Update
+	order := []string{}                         // first-seen package order
+	for _, file := range paths {
+		dir := filepath.Dir(file)
+		if _, ok := watchDirs[dir]; !ok {
+			continue
+		}
+		pkgu, ok := mpkgs[dir]
+		if !ok {
+			pkgu = &events.PackageUpdate{PackageDir: dir, Files: []string{}}
+			mpkgs[dir] = pkgu
+			order = append(order, dir)
+		}
+		pkgu.Files = append(pkgu.Files, file)
+	}
+
+	pkgsUpdate := make(PackageUpdateList, 0, len(order))
+	for _, dir := range order {
+		pkgsUpdate = append(pkgsUpdate, *mpkgs[dir])
+	}
 	return pkgsUpdate
 }
 

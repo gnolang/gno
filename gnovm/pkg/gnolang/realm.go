@@ -1053,6 +1053,27 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 		// XXX anything else to do?
 	}
 
+	// Invariant: a realm's package block must be escaped when persisted.
+	// It holds the package-level variable bindings, and only escaped objects
+	// get their hash written to the iavl (consensus) store; a non-escaped
+	// package block would inline into the rootless, unescaped PackageValue,
+	// so its state would not be committed to the app hash. The block reaches
+	// refcount >= 2 structurally (PackageValue.Block + each file block's
+	// parent edge), so this holds for every realm — asserted here so a future
+	// change to the ownership/escape walk that broke it fails loudly under
+	// -tags debugAssert (make test.debugAssert) instead of silently dropping
+	// realm state from consensus.
+	if debugAssert {
+		if b, ok := oo.(*Block); ok {
+			if pn, ok := b.GetSource(store).(*PackageNode); ok && IsRealmPath(pn.PkgPath) {
+				if !b.GetIsEscaped() {
+					panic(fmt.Sprintf("realm package block %q persisted unescaped: "+
+						"package-level state would not be committed to the iavl store", pn.PkgPath))
+				}
+			}
+		}
+	}
+
 	// set object to store.
 	// NOTE: also sets the hash to object.
 	// sumDiff routing: foreign-owned objects accrue to the owner
@@ -1692,7 +1713,7 @@ func copyValueWithRefs(val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			key2 := refOrCopyValue(cur.Key)
 			val2 := refOrCopyValue(cur.Value)
-			list.Append(fallbackAllocator, key2).Value = val2
+			list.Append(nil, key2).Value = val2
 		}
 		return &MapValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),

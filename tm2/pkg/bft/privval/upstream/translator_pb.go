@@ -67,6 +67,12 @@ func PubKeyFromProto(p *upstreampb.PublicKey) (crypto.PubKey, error) {
 // ---- Vote ↔ upstreampb.Vote ----------------------------------------------
 
 // VoteToProto converts a tm2 types.Vote to upstreampb.Vote.
+//
+// Timestamp is ALWAYS emitted (even for the zero time, which becomes the
+// protobuf year-0001 timestamp) because tendermint-rs / tmkms reject a
+// SignVoteRequest with a missing Timestamp field. Both sides
+// canonicalize the year-0001 case to the same bytes, so the signature
+// still verifies.
 func VoteToProto(v *types.Vote) (*upstreampb.Vote, error) {
 	if v == nil {
 		return nil, nil
@@ -179,6 +185,11 @@ func ProposalFromProto(p *upstreampb.Proposal) (*types.Proposal, error) {
 // ---- Internal helpers ----------------------------------------------------
 
 func blockIDToProto(b types.BlockID) (*upstreampb.BlockID, error) {
+	// PartSetHeader is ALWAYS emitted (as Some(empty) for the zero
+	// case, not None). tendermint-rs's BlockId::TryFrom rejects a
+	// missing part_set_header field with `invalid part set header:
+	// part_set_header is None`. Upstream Go encodes nil PartSetHeader
+	// as Some(empty) for the same reason; we match that wire shape.
 	psh, err := partSetHeaderToProto(b.PartsHeader)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package validators
 import (
 	"chain/runtime"
 	"math"
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/bptree/v0"
@@ -152,6 +153,69 @@ func TestGetChanges_BoundedRange(t *testing.T) {
 
 	// Query beyond stored range returns empty
 	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
+}
+
+// TestRender_ShowsNewestWhenOverLimit verifies that Render displays the newest
+// maxDisplay buckets when there are more change buckets than maxDisplay.
+func TestRender_ShowsNewestWhenOverLimit(t *testing.T) {
+	changes = bptree.NewBPTree32()
+	vp = poa.NewPoA()
+
+	const total = 13
+	const maxDisplay = 10
+
+	vals := generateTestValidators(total)
+	base := runtime.ChainHeight()
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		changes.Set(getBlockID(h), []change{
+			{blockNum: h, validator: vals[i]},
+		})
+	}
+
+	output := Render("")
+
+	// Newest maxDisplay buckets must appear.
+	for i := total - maxDisplay; i < total; i++ {
+		h := base + int64(i)
+		uassert.True(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("expected block #%d in output", h))
+	}
+
+	// Oldest (total - maxDisplay) buckets must NOT appear.
+	for i := 0; i < total-maxDisplay; i++ {
+		h := base + int64(i)
+		uassert.False(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("block #%d should be absent from output", h))
+	}
+}
+
+// TestRender_ShowsAllWhenUnderLimit verifies that all buckets are displayed when
+// there are fewer than maxDisplay, and that no panic occurs from a negative offset.
+func TestRender_ShowsAllWhenUnderLimit(t *testing.T) {
+	changes = bptree.NewBPTree32()
+	vp = poa.NewPoA()
+
+	const total = 5 // less than maxDisplay=10
+
+	vals := generateTestValidators(total)
+	base := runtime.ChainHeight()
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		changes.Set(getBlockID(h), []change{
+			{blockNum: h, validator: vals[i]},
+		})
+	}
+
+	output := Render("")
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		uassert.True(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("expected block #%d in output", h))
+	}
 }
 
 func TestGetChanges_PanicsOnInvalidRange(cur realm, t *testing.T) {

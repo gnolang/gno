@@ -209,16 +209,19 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
 					m.pushPanic(typedString("runtime error: nil pointer dereference"))
 					return
 				}
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				if !ok {
+					iv := TypedValue{T: IntType}
+					iv.SetInt(int64(bs.ListIndex))
+					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				}
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
@@ -856,101 +859,102 @@ func (m *Machine) doOpTypeSwitch() {
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
 	// iterating over all clauses and cases here.
+	// The default clause matches only when no other clause does, so it is
+	// deferred to a second pass regardless of its textual position.
+	defaultIdx := -1
+	matchedIdx := -1
+matchLoop:
 	for i := range ss.Clauses {
-		match := false
 		cs := &ss.Clauses[i]
-		if len(cs.Cases) > 0 {
-			// see if any clause cases match.
-			for _, cx := range cs.Cases {
-				if debug {
-					if !isConstType(cx) {
-						panic(fmt.Sprintf(
-							"should not happen, expected const type expr for case(s) but got %s",
-							reflect.TypeOf(cx)))
-					}
-				}
-				ct := cx.(*constTypeExpr).Type
-				if ct == nil {
-					if xv.IsUndefined() {
-						// match nil type with undefined
-						match = true
-					}
-				} else if ct.Kind() == InterfaceKind {
-					gnot := ct
-					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
-						// match
-						match = true
-					}
-				} else {
-					ctid := TypeID("")
-					if ct != nil {
-						ctid = ct.TypeID()
-					}
-					if xtid == ctid {
-						// match
-						match = true
-					}
-				}
-			}
-		} else { // default
-			match = true
+		if len(cs.Cases) == 0 {
+			defaultIdx = i
+			continue
 		}
-		if match { // did match
-			if len(cs.Body) != 0 {
-				b := m.LastBlock()
-				// remember size (from init)
-				size := len(b.Values)
-				// expand block size
-				b.ExpandWith(m.Alloc, cs)
-				// define if varname
-				if ss.VarName != "" {
-					// NOTE: assumes the var is first after size.
-					vp := NewValuePath(
-						VPBlock, 1, uint16(size), ss.VarName)
-					// NOTE: GetPointerToMaybeHeapDefine not needed,
-					// because this type is in new type switch clause block.
-					ptr := b.GetPointerTo(m.Store, vp)
-					ptr.TV.Assign(m.Alloc, *xv, false)
+		for _, cx := range cs.Cases {
+			if debug {
+				if !isConstType(cx) {
+					panic(fmt.Sprintf(
+						"should not happen, expected const type expr for case(s) but got %s",
+						reflect.TypeOf(cx)))
 				}
-				// exec clause body
-				b.bodyStmt = bodyStmt{
-					Body:          cs.Body,
-					BodyLen:       len(cs.Body),
-					NextBodyIndex: -2,
-				}
-				m.PushOp(OpBody)
-				m.PushStmt(b.GetBodyStmt())
 			}
-			return // done!
+			ct := cx.(*constTypeExpr).Type
+			var match bool
+			switch {
+			case ct == nil:
+				match = xv.IsUndefined()
+			case ct.Kind() == InterfaceKind:
+				match = baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T)
+			default:
+				match = xtid == ct.TypeID()
+			}
+			if match {
+				matchedIdx = i
+				break matchLoop
+			}
 		}
 	}
+	if matchedIdx < 0 {
+		matchedIdx = defaultIdx
+	}
+	if matchedIdx < 0 {
+		return // no clause matched and no default
+	}
+	cs := &ss.Clauses[matchedIdx]
+	if len(cs.Body) == 0 {
+		return
+	}
+	b := m.LastBlock()
+	// remember size (from init)
+	size := len(b.Values)
+	// expand block size
+	b.ExpandWith(m.Alloc, cs)
+	// define if varname
+	if ss.VarName != "" {
+		// NOTE: assumes the var is first after size.
+		vp := NewValuePath(
+			VPBlock, 1, uint16(size), ss.VarName)
+		// NOTE: GetPointerToMaybeHeapDefine not needed,
+		// because this type is in new type switch clause block.
+		ptr := b.GetPointerTo(m.Store, vp)
+		ptr.TV.Assign(m.Alloc, *xv, false)
+	}
+	// exec clause body
+	b.bodyStmt = bodyStmt{
+		Body:          cs.Body,
+		BodyLen:       len(cs.Body),
+		NextBodyIndex: -2,
+	}
+	m.PushOp(OpBody)
+	m.PushStmt(b.GetBodyStmt())
 }
 
 func (m *Machine) doOpSwitchClause() {
 	ss := m.PeekStmt1().(*SwitchStmt)
 	// tv := m.PeekValue(1) // switch tag value
-	// caiv := m.PeekValue(2) // switch clause case index (reuse)
+	caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
-	idx := cliv.GetInt()
-	if int(idx) >= len(ss.Clauses) {
-		// no clauses matched: do nothing.
-		m.PopStmt()  // pop switch stmt
-		m.PopValue() // pop switch tag value
-		m.PopValue() // pop clause case index
-		m.PopValue() // pop clause index
-		// done!
-	} else {
-		cl := &ss.Clauses[idx]
-		if len(cl.Cases) == 0 {
-			// default clause
-			m.PopStmt()  // pop switch stmt
-			m.PopValue() // pop switch tag value
-			m.PopValue() // clause case index no longer needed
-			m.PopValue() // clause index no longer needed
-			// expand block size
+	// Skip default clauses during the matching pass: the default is only
+	// taken if no case matches, regardless of textual position.
+	idx := int(cliv.GetInt())
+	for idx < len(ss.Clauses) && len(ss.Clauses[idx].Cases) == 0 {
+		idx++
+	}
+	if idx >= len(ss.Clauses) {
+		// no case clauses matched: run the default clause if present.
+		defaultIdx := -1
+		for i := range ss.Clauses {
+			if len(ss.Clauses[i].Cases) == 0 {
+				defaultIdx = i
+				break
+			}
+		}
+		m.PopStmt()    // pop switch stmt
+		m.PopValues(3) // pop switch tag value, clause case index, clause index
+		if defaultIdx >= 0 {
+			cl := &ss.Clauses[defaultIdx]
 			b := m.LastBlock()
 			b.ExpandWith(m.Alloc, cl)
-			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
 				BodyLen:       len(cl.Body),
@@ -958,13 +962,17 @@ func (m *Machine) doOpSwitchClause() {
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
-		} else {
-			// try to match switch clause case(s).
-			m.PushOp(OpSwitchClauseCase)
-			// push first case expr
-			m.PushOp(OpEval)
-			m.PushExpr(cl.Cases[0])
 		}
+		// else: no default and no match, done.
+	} else {
+		caiv.SetInt(0)
+		cliv.SetInt(int64(idx))
+		cl := &ss.Clauses[idx]
+		// try to match switch clause case(s).
+		m.PushOp(OpSwitchClauseCase)
+		// push first case expr
+		m.PushOp(OpEval)
+		m.PushExpr(cl.Cases[0])
 	}
 }
 
@@ -978,13 +986,16 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m, cv, tv)
+	// A switch tag whose static type is an interface compares like an
+	// interface equality at runtime — uncomparable dynamic types panic.
+	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
+	ss := m.PeekStmt1().(*SwitchStmt)
+	viaIface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
+	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
-		m.PopValue()                    // pop switch tag value
-		m.PopValue()                    // pop clause case index
-		m.PopValue()                    // pop clause index
+		m.PopValues(3)                  // pop switch tag value, clause case index, clause index
 		// expand block size
 		clidx := cliv.GetInt()
 		cl := &ss.Clauses[clidx]

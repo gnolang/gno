@@ -32,7 +32,7 @@ Gno.land supports three types of packages:
   function call as with MsgCall.
 
 For an overview of the different package types in Gno (`/p/`, `/r/`, and
-`/e/`), see [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md).
+`/e/`), see [Gno Packages](./gno-packages.md#package-types).
 
 Interrealm programming refers to the ability of one realm to call functions
 in another realm. This can occur between:

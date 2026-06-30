@@ -519,78 +519,11 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": -5,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 6,
-        "y": 35
-      },
-      "id": 14,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "avg_over_time(dialing_peers_gauge{exported_instance=~\"${node}\"}[$__rate_interval])",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Average Dialing Peer Count - Node: ${node}",
-      "type": "stat"
-    },
-    {
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 35
       },
       "id": 9,
       "title": "Consensus",
@@ -624,7 +557,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 36
       },
       "id": 18,
       "options": {
@@ -690,7 +623,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 36
       },
       "id": 19,
       "options": {
@@ -764,7 +697,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 44
       },
       "id": 3,
       "options": {
@@ -837,7 +770,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 44
       },
       "id": 4,
       "options": {
@@ -903,7 +836,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 52
       },
       "id": 20,
       "options": {
@@ -990,7 +923,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 52
       },
       "id": 21,
       "options": {
@@ -1033,19 +966,6 @@
       "type": "stat"
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 68
-      },
-      "id": 8,
-      "panels": [],
-      "title": "Misc",
-      "type": "row"
-    },
-    {
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1070,15 +990,15 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "gnot"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 69
+        "x": 6,
+        "y": 60
       },
       "id": 2,
       "options": {
@@ -1107,7 +1027,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "sum(rate(broadcast_tx_hist_milliseconds_sum[$__rate_interval]))/sum(rate(broadcast_tx_hist_milliseconds_count[$__rate_interval]))",
+          "expr": "rate(block_gas_price_hist_token_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(block_gas_price_hist_token_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1117,7 +1037,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Transaction Broadcast Duration",
+      "title": "Average Gas Price",
       "type": "stat"
     },
     {
@@ -1126,7 +1046,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 68
       },
       "id": 7,
       "panels": [],
@@ -1170,7 +1090,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 69
       },
       "id": 5,
       "options": {
@@ -1199,7 +1119,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(http_request_time_hist_milliseconds_sum[$__rate_interval])/rate(http_request_time_hist_milliseconds_count[$__rate_interval])",
+          "expr": "rate(http_request_time_hist_milliseconds_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(http_request_time_hist_milliseconds_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -1250,7 +1170,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 69
       },
       "id": 6,
       "options": {

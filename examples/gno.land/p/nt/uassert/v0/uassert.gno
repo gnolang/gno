@@ -2,6 +2,7 @@
 package uassert
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -62,18 +63,13 @@ func False(t TestingT, value bool, msgs ...string) bool {
 	return true
 }
 
-// ErrorIs asserts the given error matches the target error
+// ErrorIs asserts the given error matches the target error using errors.Is,
+// which traverses the error chain looking for a match.
 func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	t.Helper()
 
-	if err == nil || target == nil {
-		return err == target
-	}
-
-	// XXX: if errors.Is(err, target) return true
-
-	if err.Error() != target.Error() {
-		return fail(t, msgs, "error mismatch, expected %s, got %s", target.Error(), err.Error())
+	if !errors.Is(err, target) {
+		return fail(t, msgs, "error mismatch, expected %s, got %s", target, err)
 	}
 
 	return true

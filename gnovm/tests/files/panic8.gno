@@ -4,7 +4,7 @@ func main() {
 	println("hello")
 	defer func() {
 		a := 0
-		b := 1/a
+		b := 1 / a
 	}()
 	println("world")
 }

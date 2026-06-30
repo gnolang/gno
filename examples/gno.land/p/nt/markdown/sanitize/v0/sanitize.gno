@@ -1055,7 +1055,9 @@ func HTMLEscape(s string) string {
 //
 // Allowlist:
 //   - http, https
-//   - mailto (rejected if contains ?body= or &body= — prefill phishing)
+//   - mailto (rejected if it carries any query: prefill phishing via
+//     body, subject, cc, etc. Both '?' and '&' are rejected; see
+//     linkSchemeAllowed for why '&' counts.)
 //   - any URL WITHOUT a scheme — relative paths (`/path`, `./rel`,
 //     `bare-path`), query-only (`?q=v`), fragment-only (`#anchor`).
 //     A `:` appearing inside the URL (e.g. `/path:foo`, `?q=a:b`) is
@@ -1622,8 +1624,14 @@ func linkSchemeAllowed(s string) bool {
 		return true
 	}
 	if strings.HasPrefix(s, "mailto:") {
-		// Reject prefill phishing via ?body= or &body=.
-		if strings.Contains(s, "?body=") || strings.Contains(s, "&body=") {
+		// Reject any query: RFC 6068 headers (body, subject, cc, bcc, ...)
+		// prefill the composed message and are a phishing vector. '?' opens
+		// the header section (covering percent-encoded names like ?%62ody=).
+		// '&' is rejected because gnoweb's renderer decodes HTML character
+		// references ('&#63;', '&#x3f;', '&quest;') back into '?' after this
+		// check, reconstituting a query. Percent-encoded '%3f' stays encoded
+		// and reads as a literal '?' in the address, so it's allowed.
+		if strings.ContainsAny(s, "?&") {
 			return false
 		}
 		return true

@@ -98,9 +98,8 @@ func (tx Tx) GetSigners() []crypto.Address {
 func (tx Tx) GetMemo() string { return tx.Memo }
 
 // GetSignatures returns the signature of signers who signed the Msg.
-// GetSignatures returns the signature of signers who signed the Msg.
 // CONTRACT: Length returned is same as length of
-// pubkeys returned from MsgKeySigners, and the order
+// addresses returned from GetSigners(), and the order
 // matches.
 // CONTRACT: If the signature is missing (ie the Msg is
 // invalid), then the corresponding signature is

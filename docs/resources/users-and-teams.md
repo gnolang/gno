@@ -36,4 +36,4 @@ For more information on users and namespaces, refer to:
 
 - [Gno Packages](./gno-packages.md) - Understand how namespaces work within the package system
 - [Realms](./realms.md) - Learn about stateful applications that can be deployed under your namespace
-- [Deploying Packages](../builders/deploy-packages.md) - Instructions for deploying code under your namespace
+- [Getting started](../builders/getting-started.md) - Instructions for deploying code under your namespace

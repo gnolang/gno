@@ -36,8 +36,6 @@ func main(cur realm) {
 // Output:
 // 2
 
-
-
 // Realm oplog legend (object IDs are from this run; package = crossrealm_f):
 //   :2  PackageValue (escaped, RefCount=2)
 //   :3  PackageBlock — holds the `entries` slice header

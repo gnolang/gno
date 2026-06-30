@@ -44,7 +44,8 @@ type ConcreteInfo struct {
 }
 
 type StructInfo struct {
-	Fields []FieldInfo // If a struct.
+	Fields   []FieldInfo // If a struct.
+	Reserved []uint32    // field numbers consumed by removed fields
 }
 
 type FieldInfo struct {
@@ -747,9 +748,21 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
+	nextFieldNum := uint32(1)
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		ftype := field.Type
+
+		// Handle blank-identifier reserved fields before the export check.
+		if field.Name == "_" {
+			if field.Tag.Get("amino") != "reserved" {
+				panic(fmt.Sprintf("blank identifier field at index %d must have amino:\"reserved\" tag", i))
+			}
+			sinfo.Reserved = append(sinfo.Reserved, nextFieldNum)
+			nextFieldNum++
+			continue
+		}
+
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -757,9 +770,8 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if skip {
 			continue // e.g. json:"-"
 		}
-		// NOTE: This is going to change a bit.
-		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fopts.BinFieldNum = nextFieldNum
+		nextFieldNum++
 		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
 		if err != nil {
 			panic(err)
@@ -807,7 +819,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		fieldInfo.ValidateBasic()
 		infos = append(infos, fieldInfo)
 	}
-	sinfo = StructInfo{infos}
+	sinfo = StructInfo{Fields: infos, Reserved: sinfo.Reserved}
 	return sinfo
 }
 
@@ -860,6 +872,9 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 	// Parse amino tags.
 	aminoTags := strings.Split(aminoTag, ",")
 	for _, aminoTag := range aminoTags {
+		if aminoTag == "reserved" {
+			panic(fmt.Sprintf("amino:\"reserved\" tag is only valid on blank identifier (_) fields, not %q", field.Name))
+		}
 		if aminoTag == "unsafe" {
 			fopts.Unsafe = true
 		}

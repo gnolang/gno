@@ -1,0 +1,1487 @@
+/* `display: contents` removes the element from layout while leaving
+   its children in place — used here as a scope for the controller. */
+.b-state-page {
+	display: contents;
+}
+
+body:has(.b-state-page) .b-content-h1 {
+	text-align: start;
+	word-break: break-word;
+}
+
+.b-content-h1 .back-link {
+	display: inline-flex;
+	align-items: center;
+	color: var(--s-color-text-tertiary);
+	text-decoration: none;
+	margin-inline-end: var(--g-space-2);
+	transition: color var(--g-transition-fast);
+
+	.c-icon {
+		width: 0.7em;
+		height: 0.7em;
+	}
+
+	&:hover {
+		color: var(--s-color-text-link);
+	}
+}
+
+body:has(.b-state-page)
+	:is(.b-content-header, .b-page-subheader, .b-sidebar, .b-state-explorer) {
+	align-self: start;
+}
+
+.b-state-view-toggle {
+	display: inline-flex;
+	align-items: stretch;
+	border-radius: var(--s-rounded-sm);
+	border: var(--s-border);
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	background-color: var(--s-color-bg-surface-secondary);
+
+	&:hover {
+		border-color: var(--s-color-border-tertiary);
+	}
+
+	label {
+		display: inline-flex;
+		align-items: center;
+		/* min-height keeps the segmented toggle a comfortable tap
+		   target without inflating the dense header row. */
+		min-height: var(--g-space-9);
+		padding-inline: var(--g-space-3);
+		cursor: pointer;
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		user-select: none;
+		transition:
+			background-color var(--g-transition-fast),
+			color var(--g-transition-fast);
+
+		&:hover {
+			background-color: var(--s-color-bg-surface-primary);
+		}
+	}
+
+	/* sr-only radios carry focus; surface it on the styled label. */
+	input:focus-visible + label {
+		outline: 2px solid var(--s-color-text-link);
+		outline-offset: -2px;
+	}
+
+	input:checked + label {
+		background-color: var(--s-color-bg-base-dev);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+	}
+}
+
+.b-state-explorer .view-tree {
+	display: none;
+	position: relative;
+}
+
+body:has(#state-view-tree:checked) .b-state-explorer .view-pretty {
+	display: none;
+}
+body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
+	display: block;
+}
+/* Tree view is its own first-class browser — kind tabs + search are
+   pretty-view affordances (per-card filtering by data-name). Same
+   CSS-only toggle pattern as the view-pretty/view-tree swap above. */
+body:has(#state-view-tree:checked) .b-page-subheader {
+	display: none;
+}
+
+/* ==========================================================================
+   State explorer: htmx fragment loading + error + permalinks
+   ========================================================================== */
+
+.b-state-node-body,
+.b-state-source-body {
+	/* htmx swaps default-block content into these slots. Constrain
+	   width + provide horizontal-scroll fallback so a long preview /
+	   wide source cannot bleed past the parent card and visually
+	   "leak under" the following declarations. */
+	display: block;
+	min-width: 0;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.b-state-node-body[aria-busy="true"] {
+	opacity: 0.5;
+}
+
+.b-state-node-body.htmx-request {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.b-state-node-body.htmx-request::after {
+	content: "loading…";
+	font-size: 0.85em;
+	margin-left: var(--g-space-2);
+	color: var(--s-color-text-tertiary);
+}
+
+.b-state-frag-error {
+	padding: var(--g-space-2) var(--g-space-3);
+	background: var(--s-color-bg-caution-weak);
+	border-left: 3px solid var(--s-color-text-caution);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-caution);
+}
+
+/* Doc-index hydration slot — hidden until controller-state.ts populates
+   it from #state-doc-index. */
+.b-state-doc:empty {
+	display: none;
+}
+
+.b-state-doc {
+	margin: 0 0 var(--g-space-1);
+	font-size: 0.9em;
+	color: var(--s-color-text-secondary);
+}
+
+.b-state-frag-error-icon {
+	font-weight: var(--g-font-semibold);
+	margin-right: var(--g-space-2);
+}
+
+.b-state-frag-error-hint {
+	display: block;
+	font-size: 0.85em;
+	margin-top: var(--g-space-1);
+	color: var(--s-color-text-tertiary);
+}
+
+/* "↗ Open" link rides at the row's right end (margin-auto) with a
+   right margin so it isn't flush against the edge. Pretty-view cards
+   don't render it — the card's own Open/Inspect buttons cover that. */
+.b-state-permalink {
+	flex-shrink: 0;
+	margin-inline: auto var(--g-space-2);
+	padding-inline-start: var(--g-space-2);
+	font-size: 0.85em;
+	color: var(--s-color-text-tertiary);
+	text-decoration: none;
+	transition: color var(--g-transition-fast);
+}
+
+.b-state-permalink:hover,
+.b-state-permalink:focus {
+	color: var(--s-color-text-link);
+}
+
+/* Pretty-view lazy <details> summaries need flex so the ↗ permalink
+   rides at the row end; tree-view summaries already get it via .row. */
+.b-state-lazy > summary:not(.row),
+.b-state-source-lazy > summary:not(.row) {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0 0.4em;
+	cursor: pointer;
+	list-style: none;
+
+	&::-webkit-details-marker {
+		display: none;
+	}
+
+	/* Disclosure affordance — same ▶ glyph + rotate-on-open as the
+	   tree's .row[data-shape="branch"], so a pretty-view lazy row
+	   reads as clickable. */
+	&::before {
+		content: "\25B6";
+		display: inline-block;
+		width: 1em;
+		margin-inline-end: 0.15em;
+		color: var(--s-color-text-secondary);
+		font-size: 0.85em;
+		transition: transform var(--g-transition-fast);
+	}
+}
+
+.b-state-lazy[open] > summary:not(.row)::before,
+.b-state-source-lazy[open] > summary:not(.row)::before {
+	transform: rotate(90deg);
+	color: var(--s-color-text-primary);
+}
+
+/* The whole expander — summary AND the swapped-in code body — indents
+   under its tree row via --depth, mirroring .row. On the <details> (not
+   the summary) so the body stays aligned with the summary, not just it. */
+.b-state-source-lazy {
+	padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+}
+
+.b-state-source-lazy > summary:not(.row) {
+	padding-block: 0.2rem;
+}
+
+/* Lazy-node summary: name leads, a muted "details" hint marks it as
+   expandable so a collapsed row never reads as a bare repeat of the
+   card header. */
+.b-state-lazy > summary .b-state-node-name {
+	font-family: var(--g-font-family-mono);
+	color: var(--s-color-text-primary);
+}
+
+.b-state-lazy > summary .b-state-node-hint {
+	color: var(--s-color-text-tertiary);
+}
+
+/* htmx swaps browser-default block flow into these slots; constrain both
+   axes so a wide preview/source can't bleed past the parent card. */
+.b-state-lazy > .b-state-node-body,
+.b-state-source-lazy > .b-state-source-body {
+	min-width: 0;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.b-state-decl :is(.fields-head, .value-section > .title, .scope),
+.b-state-stats dt.title {
+	font-family: var(--g-font-sans, inherit);
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--s-color-text-tertiary);
+}
+
+.b-state-decl .fields .field .value-copy,
+.b-state-decl .value-section .value-copy,
+.b-state-stats button.copy {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-tertiary);
+	cursor: pointer;
+	opacity: 0;
+	transition:
+		opacity var(--g-transition-fast),
+		background-color var(--g-transition-fast),
+		color var(--g-transition-fast);
+
+	.c-icon {
+		width: 0.85em;
+		height: 0.85em;
+	}
+
+	&:hover {
+		background-color: var(--s-color-bg-hover);
+		color: var(--s-color-text-primary);
+		opacity: 1;
+	}
+
+	&:focus-visible {
+		opacity: 1;
+		outline: 1px solid var(--s-color-text-link);
+		outline-offset: 1px;
+	}
+}
+
+/* Touch devices have no hover — keep copy affordances visible and give
+   them a 44px (--g-space-11) tap target. Hover-only reveal is a pointer
+   convenience, not a gate. */
+@media (hover: none) {
+	.b-state-decl .fields .field .value-copy,
+	.b-state-decl .value-section .value-copy,
+	.b-state-stats button.copy,
+	.b-state-explorer .oid {
+		opacity: 0.5;
+		min-width: var(--g-space-11);
+		min-height: var(--g-space-11);
+	}
+
+	.b-state-stats button.copy {
+		padding: var(--g-space-2);
+	}
+}
+
+/* ===== STATE DECLARATION CARD ===== */
+.b-state-decl {
+	/* `content-visibility: auto` skips layout + paint for off-screen
+	   children; `contain-intrinsic-size` reserves a placeholder height
+	   so the scrollbar stays accurate before the element is measured. */
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	content-visibility: auto;
+	contain-intrinsic-size: auto var(--g-space-80);
+}
+
+.b-state-decl {
+	.kind-glyph {
+		display: inline-block;
+		width: 1em;
+		height: 1em;
+		margin-inline-end: 0.4em;
+		color: var(--s-color-text-tertiary);
+		vertical-align: middle;
+
+		.c-icon {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+	}
+
+	& > header {
+		flex-wrap: nowrap;
+		gap: var(--g-space-2) var(--g-space-4);
+	}
+
+	.title {
+		min-width: 0;
+
+		h2 {
+			margin: 0;
+
+			.kind-glyph {
+				font-size: 1.05em;
+				color: var(--s-color-text-secondary);
+			}
+		}
+
+		.subtitle {
+			display: inline-flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: var(--g-space-1) var(--g-space-3);
+			min-width: 0;
+		}
+
+		& > .description {
+			flex: 0 0 100%;
+		}
+
+		.type {
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-100);
+			color: var(--s-color-text-secondary);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+		}
+
+		.meta {
+			color: var(--s-color-text-tertiary);
+			font-size: var(--g-font-size-100);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+		}
+
+		.srclink {
+			font-size: var(--g-font-size-100);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+		}
+	}
+
+	.b-btns {
+		flex-shrink: 0;
+	}
+
+	.content {
+		min-width: 0;
+		max-width: 100%;
+		margin-block-start: var(--g-space-3);
+		overflow-x: auto;
+
+		&:has(.fields-frame) {
+			background-color: var(--s-color-bg-base);
+			border-radius: var(--s-rounded-sm);
+			padding: var(--g-space-2) var(--g-space-4);
+			margin-block-start: var(--g-space-6);
+		}
+
+		.value {
+			margin: 0;
+		}
+
+		.preview {
+			margin: 0;
+			color: var(--s-color-text-secondary);
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-90);
+			font-style: italic;
+		}
+
+		.captures-label {
+			margin-block: var(--g-space-6) var(--g-space-1);
+			color: var(--s-color-text-info);
+			font-size: var(--g-font-size-90);
+			font-style: italic;
+		}
+	}
+
+	.fields-head {
+		display: grid;
+		grid-template-columns: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
+		gap: var(--g-space-2) var(--g-space-4);
+		padding: var(--g-space-2) 0;
+		border-block-end: var(--s-divider-strong);
+
+		.col {
+			min-width: 0;
+		}
+	}
+
+	.fields {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+
+		.field {
+			/* `minmax(0, ...)` lets grid columns shrink past min-content,
+			   so long values truncate via ellipsis instead of overflowing. */
+			--field-grid: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
+
+			display: grid;
+			grid-template-columns: var(--field-grid);
+			gap: var(--g-space-2) var(--g-space-4);
+			align-items: baseline;
+			padding: var(--g-space-3) 0;
+			border-block-end: var(--s-divider-weak);
+			transition: background-color var(--g-transition-fast);
+			min-width: 0;
+
+			&[data-shape="branch"] {
+				display: block;
+				padding: 0;
+			}
+
+			&:last-child {
+				border-block-end: none;
+			}
+
+			&:hover {
+				background-color: color-mix(in srgb, currentColor 3%, transparent);
+
+				.inspect .action {
+					color: var(--s-color-text-link-hover);
+				}
+			}
+
+			.name {
+				font-family: var(--g-font-family-mono);
+				font-weight: var(--g-font-semibold);
+				font-size: var(--g-font-size-100);
+				color: var(--s-color-text-primary);
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.type {
+				font-family: var(--g-font-family-mono);
+				font-style: italic;
+				font-size: var(--g-font-size-90);
+				color: var(--s-color-text-secondary);
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+
+				.meta {
+					margin-inline-start: var(--g-space-1);
+					color: var(--s-color-text-tertiary);
+					font-style: normal;
+					font-size: 0.85em;
+				}
+			}
+
+			.value-cell {
+				display: inline-flex;
+				align-items: baseline;
+				gap: var(--g-space-2);
+				min-width: 0;
+				justify-self: start;
+			}
+
+			.value-copy {
+				width: var(--g-space-5);
+				height: var(--g-space-5);
+			}
+
+			&:hover .value-copy {
+				opacity: 0.5;
+			}
+
+			.field-value {
+				justify-self: start;
+				background-color: transparent;
+				border: none;
+				padding: 0;
+				font-size: var(--g-font-size-100);
+				font-weight: var(--g-font-regular);
+				color: var(--s-color-text-primary);
+				font-family: var(--g-font-family-mono);
+				min-width: 0;
+				text-align: start;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.value-empty {
+				color: var(--s-color-text-tertiary);
+				font-family: var(--g-font-family-mono);
+			}
+
+			.inspect {
+				display: inline-flex;
+				align-items: baseline;
+				gap: var(--g-space-3);
+				min-width: 0;
+				color: var(--s-color-text-secondary);
+				text-decoration: none;
+				transition: color var(--g-transition-fast);
+
+				.preview {
+					flex: 1 1 0;
+					min-width: 0;
+					font-family: var(--g-font-family-mono);
+					font-size: var(--g-font-size-90);
+					font-style: italic;
+					color: var(--s-color-text-secondary);
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+
+				.action {
+					color: var(--s-color-text-link);
+					font-weight: var(--g-font-semibold);
+					font-size: var(--g-font-size-90);
+					white-space: nowrap;
+					flex-shrink: 0;
+					transition: color var(--g-transition-fast);
+				}
+
+				&:hover .action {
+					color: var(--s-color-text-link-hover);
+					text-decoration: underline;
+				}
+			}
+
+			.nested {
+				min-width: 0;
+				width: 100%;
+
+				summary {
+					display: grid;
+					grid-template-columns: var(--field-grid);
+					gap: var(--g-space-2) var(--g-space-4);
+					align-items: baseline;
+					padding: var(--g-space-3) 0;
+					border-block-end: var(--s-divider-weak);
+					cursor: pointer;
+					list-style: none;
+					min-width: 0;
+					color: var(--s-color-text-secondary);
+
+					&::-webkit-details-marker {
+						display: none;
+					}
+
+					.head {
+						display: inline-flex;
+						align-items: baseline;
+						gap: var(--g-space-2);
+						min-width: 0;
+					}
+
+					.preview {
+						flex: 1 1 0;
+						font-family: var(--g-font-family-mono);
+						font-size: var(--g-font-size-90);
+						font-style: italic;
+						min-width: 0;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+
+						&.muted {
+							color: var(--s-color-text-tertiary);
+						}
+					}
+
+					.disclose {
+						color: var(--s-color-text-secondary);
+						font-size: 0.95em;
+						padding-inline: var(--g-space-2);
+						padding-block: var(--g-space-1);
+						transition: transform var(--g-transition-fast);
+					}
+
+					.open-link {
+						flex-shrink: 0;
+						color: var(--s-color-text-link);
+						font-weight: var(--g-font-semibold);
+						font-size: var(--g-font-size-80);
+						text-decoration: none;
+						transition: color var(--g-transition-fast);
+
+						&:hover {
+							color: var(--s-color-text-link-hover);
+							text-decoration: underline;
+						}
+					}
+
+					&:hover {
+						color: var(--s-color-text-primary);
+
+						.disclose {
+							color: var(--s-color-text-primary);
+						}
+					}
+				}
+
+				&[open] > summary .disclose {
+					transform: rotate(90deg);
+				}
+
+				.nested-body {
+					margin-block-start: 0;
+					padding: 0 var(--g-space-3) var(--g-space-2);
+					border-inline-start: 2px solid
+						color-mix(in srgb, currentColor 14%, transparent);
+					margin-inline-start: var(--g-space-3);
+
+					.scope {
+						padding: var(--g-space-2) 0 var(--g-space-1);
+
+						.kw {
+							margin-inline-end: var(--g-space-1);
+						}
+
+						code {
+							font-family: var(--g-font-family-mono);
+							color: var(--s-color-text-secondary);
+							background-color: transparent;
+							font-weight: var(--g-font-semibold);
+							text-transform: none;
+							letter-spacing: 0;
+							font-size: var(--g-font-size-80);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	.cta {
+		align-self: end;
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-3);
+		margin-inline-start: auto;
+		font-size: var(--g-font-size-80);
+
+		.more {
+			padding: 0 var(--g-space-2);
+			background-color: color-mix(in srgb, currentColor 18%, transparent);
+			border-radius: var(--s-rounded-sm);
+			font-family: var(--g-font-family-mono);
+			font-size: 0.9em;
+			font-weight: var(--g-font-semibold);
+		}
+
+		.label {
+			color: inherit;
+			text-transform: capitalize;
+		}
+	}
+}
+
+.b-state-stats {
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-3) var(--g-space-6);
+
+	.stat {
+		min-width: 0;
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--g-space-2);
+	}
+
+	dt.title {
+		margin: 0;
+		flex-shrink: 0;
+	}
+
+	dd.value {
+		position: relative;
+		margin: 0;
+		color: var(--s-color-text-primary);
+		font-size: var(--g-font-size-100);
+		min-width: 0;
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--g-space-1);
+		white-space: nowrap;
+
+		&.mono {
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-90);
+			color: var(--s-color-text-secondary);
+		}
+
+		.text {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		a.text {
+			color: var(--s-color-text-link);
+			text-decoration: none;
+
+			&:hover {
+				text-decoration: underline;
+			}
+		}
+	}
+
+	/* Tooltip mounted on `dd.value` (no `overflow:hidden`, unlike
+	   `.text`) so the absolutely-positioned pseudo isn't clipped. */
+	dd.value[data-tooltip]:hover::after,
+	dd.value[data-tooltip]:focus-within::after {
+		content: attr(data-tooltip);
+		position: absolute;
+		z-index: var(--g-z-max);
+		top: calc(100% + var(--g-space-1));
+		left: 0;
+		padding: var(--g-space-1) var(--g-space-2);
+		background-color: var(--s-color-bg-base);
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded);
+		color: var(--s-color-text-secondary);
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-100);
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	button.copy {
+		padding: var(--g-space-px);
+	}
+
+	.stat:hover button.copy {
+		opacity: 0.55;
+	}
+}
+
+.b-state-decl .value,
+.b-state-explorer .val {
+	font-family: var(--g-font-family-mono);
+
+	&[data-type="bool"],
+	&[data-type="untyped bool"] {
+		display: inline-block;
+		padding: 0 var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-weight: var(--g-font-semibold);
+		font-family: var(--g-font-sans, inherit);
+		font-size: var(--g-font-size-80);
+		line-height: 1.6;
+		background-color: var(--s-color-bg-surface-tertiary);
+		color: var(--s-color-text-secondary);
+	}
+
+	&[data-type="string"],
+	&[data-type="untyped string"] {
+		color: var(--s-color-text-info);
+	}
+
+	&[data-type="int"],
+	&[data-type="int8"],
+	&[data-type="int16"],
+	&[data-type="int32"],
+	&[data-type="int64"],
+	&[data-type="uint"],
+	&[data-type="uint8"],
+	&[data-type="uint16"],
+	&[data-type="uint32"],
+	&[data-type="uint64"],
+	&[data-type="float32"],
+	&[data-type="float64"] {
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+	}
+}
+
+.b-state-decl .value[data-type="bool"][data-value="true"],
+.b-state-explorer .val[data-type="bool"][data-value="true"] {
+	background-color: var(
+		--s-color-bg-success-subtle,
+		var(--s-color-bg-surface-tertiary)
+	);
+	color: var(--s-color-text-success);
+}
+
+.b-state-decl .value[data-type="bool"][data-value="false"],
+.b-state-explorer .val[data-type="bool"][data-value="false"] {
+	background-color: var(
+		--s-color-bg-warning-subtle,
+		var(--s-color-bg-surface-tertiary)
+	);
+	color: var(--s-color-text-warning);
+}
+
+.b-state-decl .value-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+
+	.title {
+		margin: 0;
+	}
+
+	.b-code {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--g-space-3);
+		padding: var(--g-space-2) var(--g-space-3);
+		background-color: var(--s-color-bg-base);
+		border: var(--s-divider);
+		border-radius: var(--s-rounded-sm);
+	}
+
+	.value {
+		display: inline;
+		min-width: 0;
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-regular);
+		overflow-wrap: anywhere;
+	}
+
+	.value[data-type="string"],
+	.value[data-type="untyped string"] {
+		color: var(--s-color-text-info);
+	}
+
+	.value-copy {
+		width: var(--g-space-6);
+		height: var(--g-space-6);
+
+		.c-icon {
+			width: 0.9em;
+			height: 0.9em;
+		}
+	}
+
+	&:hover .value-copy {
+		opacity: 0.55;
+	}
+}
+
+/* ===== SIDEBAR AUDIT-META ===== */
+.b-state-meta {
+	margin: 0 0 var(--g-space-6) 0;
+	font-size: var(--g-font-size-90);
+	display: flex;
+	flex-direction: column;
+
+	dt.section {
+		&:first-child {
+			margin-block-start: 0;
+		}
+	}
+
+	.row {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: var(--g-space-3);
+		padding-block: var(--g-space-1);
+		min-width: 0;
+	}
+
+	dt.label {
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		flex-shrink: 0;
+	}
+
+	dd.value {
+		margin: 0;
+		color: var(--s-color-text-primary);
+		line-height: 1.4;
+		min-width: 0;
+		text-align: end;
+		overflow-wrap: anywhere;
+	}
+
+	.row.mono dd.value {
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-90);
+		color: var(--s-color-text-secondary);
+	}
+
+	.row.block {
+		flex-direction: column;
+		align-items: stretch;
+		gap: var(--g-space-px);
+	}
+
+	.row.block dd.value {
+		text-align: start;
+	}
+
+	dd.value a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
+
+	/* Meta copy ships as a bare <button>; reset UA chrome so it reads
+	   identical to the former <span>. */
+	dd.value [data-controller="copy"] {
+		appearance: none;
+		background: transparent;
+		border: none;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+		border-radius: var(--s-rounded-sm);
+		padding: 0 var(--g-space-1);
+		margin-inline-start: calc(-1 * var(--g-space-1));
+		transition: background-color var(--g-transition-fast);
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+			color: var(--s-color-text-primary);
+		}
+
+		&:focus-visible {
+			outline: 1px solid var(--s-color-text-link);
+			outline-offset: 1px;
+		}
+	}
+}
+
+.b-state-export {
+	margin-block-end: var(--g-space-3);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-page-subheader {
+	grid-column: 1 / -1;
+	align-self: start;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--g-space-3);
+	margin-block-end: var(--g-space-6);
+
+	@media (--md) {
+		position: sticky;
+		top: var(--g-space-14);
+		z-index: var(--g-z-1);
+		background-color: var(--s-color-bg-base-dev);
+		padding-block-start: var(--g-space-2);
+		padding-block-end: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+
+	@media (--lg) {
+		grid-column: span 7 / span 7;
+		grid-row: 2;
+	}
+}
+
+/* Subheader (search + kind-filter) stays visible in tree view —
+   dense tree data is exactly where filtering is needed. */
+
+/* Sidebar spans more rows than the layout produces so its height
+   stays out of auto-row track sizing (otherwise it would inflate
+   spanned cells when content is short). `1 / -1` doesn't work
+   without explicit `grid-template-rows`. */
+@media (--lg) {
+	body:has(.b-state-page) .b-sidebar {
+		grid-row: 1 / span 99;
+	}
+	body:has(.b-page-subheader) .b-state-explorer {
+		grid-row: 3;
+	}
+}
+
+.b-page-subheader
+	.packages-tabs
+	label
+	:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
+	display: inline-flex;
+}
+
+.b-page-subheader .state-search {
+	grid-column: span 4 / span 4;
+	width: 100%;
+
+	@media (--md) {
+		grid-column: span 2 / span 2;
+		justify-self: end;
+		max-width: var(--g-space-80);
+	}
+}
+
+/* Kind-filter: taxonomy lives server-side in `kindGroup` so CSS
+   matches one flat attribute, not stacked :not() chains. Targets
+   pretty-view cards AND tree-view top-level rows/<details> (both
+   carry data-kind-group) so the filter applies in either view. */
+body:has(#kf-state:checked) .b-state-decl:not([data-kind-group="state"]),
+body:has(#kf-code:checked) .b-state-decl:not([data-kind-group="code"]),
+body:has(#kf-types:checked) .b-state-decl:not([data-kind-group="types"]),
+body:has(#kf-state:checked)
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="state"]),
+body:has(#kf-code:checked)
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="code"]),
+body:has(#kf-types:checked)
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="types"]) {
+	display: none;
+}
+
+/* Kind-filter empty state. Search is server-side now (cards either
+   render or don't — no client-side hiding), so this only catches the
+   case where a non-All kind tab is selected and the visible set has
+   nothing in that bucket. */
+body:has(#kf-state:checked) .view-pretty
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="state"]))::before,
+body:has(#kf-code:checked)
+	.view-pretty
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="code"]))::before,
+body:has(#kf-types:checked)
+	.view-pretty
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="types"]))::before {
+	content: "No declarations in this category.";
+	display: block;
+	text-align: center;
+	color: var(--s-color-text-tertiary);
+	padding-block: var(--g-space-8);
+	font-family: var(--g-font-sans, inherit);
+	font-size: var(--g-font-size-100);
+}
+
+.b-state-meta dt.section,
+.b-state-meta-heading {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
+	font-size: var(--g-font-size-100);
+	margin-block: var(--g-space-4) var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-divider);
+}
+
+.b-state-toc {
+	small.type[data-kind] {
+		margin-inline-start: var(--g-space-2);
+		font-family: var(--g-font-family-mono);
+		font-style: italic;
+		font-size: 0.85em;
+		opacity: 0.75;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+	}
+
+	.label {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+	}
+}
+
+.b-state-toc-truncated {
+	margin-block-start: var(--g-space-2);
+	padding: var(--g-space-2) var(--g-space-3);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-80);
+	font-style: italic;
+}
+
+/* Flat selectors here — postcss's compat output mangles nested ones. */
+.b-state-toc .toc-tree {
+	display: none;
+}
+body:has(#state-view-tree:checked) .b-state-toc .toc-pretty {
+	display: none;
+}
+body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
+	display: inline-flex;
+}
+
+/* `scroll-margin-top` keeps anchor jumps clear of sticky chrome. */
+.b-state-explorer [id] {
+	scroll-margin-top: var(--g-space-24);
+}
+
+/* Deep-link focus mode: :target + :has() hides siblings of the matched
+   top-level entry. Two scoped blocks (one per view) — :target matches
+   across `display:none` ancestors, so a single union rule would blank
+   the inactive view on a cross-view hash. */
+.b-state-focus-exit {
+	display: none;
+	margin-block-end: var(--g-space-4);
+}
+
+.b-state-page:has(.view-pretty .b-state-decl[id]:target) {
+	.b-state-focus-exit {
+		display: inline-flex;
+	}
+
+	.b-state-pagination {
+		display: none;
+	}
+
+	.view-pretty .b-state-decl[id]:not(:target) {
+		display: none;
+	}
+
+	/* Viewport-tall scroll-margin clamps the scroll-to-anchor to 0 so
+	   the focus-mode chrome (back link, header, subheader) stays in view. */
+	.view-pretty .b-state-decl[id]:target {
+		scroll-margin-top: 100vh;
+	}
+}
+
+.b-state-page:has(.view-tree details[id]:target) {
+	.b-state-focus-exit {
+		display: inline-flex;
+	}
+
+	.b-state-pagination {
+		display: none;
+	}
+
+	.view-tree details[id]:not(:target) {
+		display: none;
+	}
+
+	.view-tree details[id]:target {
+		scroll-margin-top: 100vh;
+	}
+}
+
+/* ===== STATE EXPLORER ===== */
+.b-state-explorer {
+	margin-block-start: var(--g-space-4);
+	padding-block-start: 0;
+	padding-bottom: var(--g-space-24);
+	grid-column: 1 / -1;
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-90);
+	line-height: 1.4;
+	align-self: start;
+
+	@media (--lg) {
+		grid-column: span 7 / span 7;
+		margin-block-start: 0;
+		padding-block-start: 0;
+	}
+
+	.empty {
+		color: var(--s-color-text-secondary);
+		font-style: italic;
+	}
+
+	.tree,
+	.kids {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.view-tree > .tree > * + * {
+		margin-block-start: var(--g-space-1);
+	}
+
+	.view-tree > .tree {
+		background-color: var(--s-color-bg-surface-primary);
+		border: 1px solid var(--s-color-border-primary);
+		border-radius: var(--s-rounded);
+		padding: var(--g-space-3) var(--g-space-4);
+		overflow-x: auto;
+	}
+
+	.row {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: nowrap;
+		gap: 0 0.4em;
+		padding: 0.2rem 0;
+		padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+		border-radius: var(--s-rounded-sm);
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+		}
+	}
+
+	.row[data-shape="branch"],
+	.row[data-shape="ref"] {
+		cursor: pointer;
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		&::before {
+			content: "\25B6"; /* ▶ */
+			display: inline-block;
+			width: 1em;
+			margin-inline-end: 0.15em;
+			color: var(--s-color-text-secondary);
+			font-size: 0.85em;
+			transition:
+				transform var(--g-transition-fast),
+				color var(--g-transition-fast);
+		}
+
+		&:hover::before {
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	details[open] > .row[data-shape="branch"]::before,
+	details[open] > .row[data-shape="ref"]::before {
+		transform: rotate(90deg);
+		color: var(--s-color-text-primary);
+	}
+
+	.name {
+		font-weight: var(--g-font-semibold);
+		color: var(--s-color-text-primary);
+	}
+
+	.sep {
+		color: var(--s-color-text-tertiary);
+	}
+
+	.meta {
+		color: var(--s-color-text-secondary);
+		font-size: 0.85em;
+	}
+
+	.type {
+		font-style: italic;
+		color: var(--s-color-text-secondary);
+	}
+
+	.preview {
+		color: var(--s-color-text-secondary);
+		font-style: italic;
+		font-size: 0.9em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+		flex: 0 1 auto;
+	}
+
+	.view-tree .preview {
+		display: none;
+	}
+
+	.val {
+		word-break: break-all;
+
+		&[data-kind="primitive"] {
+			color: var(--s-color-text-info);
+		}
+		&[data-kind="nil"] {
+			color: var(--s-color-text-secondary);
+			font-style: italic;
+		}
+		&[data-kind="func"],
+		&[data-kind="closure"] {
+			color: var(--s-color-text-tip);
+		}
+		&[data-kind="package"] {
+			color: var(--s-color-text-link);
+			text-decoration: underline dotted;
+		}
+		&[data-kind="type"] {
+			color: var(--s-color-text-tertiary);
+			font-style: italic;
+		}
+	}
+
+	/* `.oid` ships as a bare <button>; reset UA chrome so it reads
+	   identical to the former <span>. */
+	.oid {
+		appearance: none;
+		background: transparent;
+		border: none;
+		padding: 0;
+		font: inherit;
+		font-size: 0.75em;
+		color: var(--s-color-text-tertiary);
+		opacity: 0;
+		cursor: pointer;
+		transition: opacity var(--g-transition-fast);
+
+		&:hover {
+			color: var(--s-color-text-link);
+			opacity: 1;
+			text-decoration: underline;
+		}
+
+		&:focus-visible {
+			opacity: 1;
+			outline: 1px solid var(--s-color-text-link);
+			outline-offset: 1px;
+		}
+	}
+
+	.row:hover .oid {
+		opacity: 0.5;
+	}
+
+	.source {
+		position: relative;
+		margin: var(--g-space-2) 0;
+		padding-inline-start: calc((var(--depth, 0) + 1) * 1.25rem);
+		font-size: var(--g-font-size-90);
+		line-height: 1.5;
+		tab-size: 4;
+
+		.code {
+			margin: 0;
+			padding: var(--g-space-5) var(--g-space-4);
+			overflow-x: auto;
+			background-color: var(--s-color-bg-base);
+			border: var(--s-divider);
+			border-radius: var(--s-rounded-sm);
+
+			pre {
+				margin: 0;
+				font-family: var(--g-font-family-mono);
+			}
+
+			.chroma-chroma {
+				background-color: transparent;
+			}
+		}
+
+		& > .srclink {
+			position: absolute;
+			top: var(--g-space-2);
+			right: var(--g-space-3);
+			z-index: var(--g-z-1);
+			font-size: var(--g-font-size-80);
+		}
+	}
+
+	.view-tree .source .code {
+		background-color: var(--s-color-bg-surface-secondary);
+		border: none;
+	}
+
+	.srclink {
+		font-size: var(--g-font-size-80);
+	}
+
+	.captures-label {
+		color: var(--s-color-text-info);
+		font-size: 0.85em;
+		font-style: italic;
+		padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+		margin-block: var(--g-space-6) var(--g-space-1);
+	}
+
+	.row:target,
+	details:target > summary.row {
+		background-color: var(--s-color-bg-selected);
+	}
+}
+
+/* Permalinking to a pretty-view card needs the same visual landing
+   confirmation the tree view's `.row:target` gives. */
+.b-state-decl[id]:target {
+	background-color: var(--s-color-bg-selected);
+	border-radius: var(--s-rounded-sm);
+}
+
+/* Pagination footer for the top-level decls listing. Shared between
+   pretty and tree modes (the article wrapper renders it once). Hidden
+   entirely when the handler returns nil .Pagination — Cube CSS block
+   layer (b-*), composed with the existing .b-btns utility. */
+.b-state-pagination {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	margin-block-start: var(--g-space-8);
+	padding-block: var(--g-space-4);
+	border-block-start: 1px solid var(--s-color-border-subtle);
+
+	@media (--md) {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.summary {
+		margin: 0;
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-90);
+	}
+
+	.summary strong {
+		color: var(--s-color-text-primary);
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+/* Hide the native × — live-debounced erase already commits the clear. */
+.state-search input[type="search"]::-webkit-search-cancel-button,
+.state-search input[type="search"]::-webkit-search-decoration {
+	-webkit-appearance: none;
+	appearance: none;
+}

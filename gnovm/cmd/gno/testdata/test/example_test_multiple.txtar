@@ -1,0 +1,41 @@
+# Test that multiple examples in one package each capture their own output.
+# This guards the per-example buffer reset + output-capture revert: if the
+# captured stdout leaked between examples, a later example would see an earlier
+# example's output prepended and fail the comparison.
+
+gno test -v .
+
+stderr '--- PASS: ExampleAlpha .+'
+stderr '--- PASS: ExampleBravo .+'
+stderr '--- PASS: ExampleCharlie .+'
+! stderr '--- FAIL:'
+
+-- multiple.gno --
+package multiple
+
+-- multiple_example_test.gno --
+package multiple
+
+import "fmt"
+
+func ExampleAlpha() {
+	fmt.Println("alpha")
+	// Output:
+	// alpha
+}
+
+func ExampleBravo() {
+	fmt.Println("bravo")
+	// Output:
+	// bravo
+}
+
+func ExampleCharlie() {
+	fmt.Println("charlie")
+	// Output:
+	// charlie
+}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/multiple_example_tst"
+gno = "0.9"

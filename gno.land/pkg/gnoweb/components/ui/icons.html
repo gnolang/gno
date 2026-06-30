@@ -139,6 +139,14 @@
     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" stroke-width="2" stroke="currentColor"
       fill="transparent" />
   </symbol>
+  <symbol id="ico-arrow-left" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6" stroke-width="2" stroke="currentColor"
+      fill="transparent" />
+  </symbol>
+  <symbol id="ico-arrow-right" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6" stroke-width="2" stroke="currentColor"
+      fill="transparent" />
+  </symbol>
   <symbol id="ico-warning" viewBox="0 0 24 24" fill="currentColor">
     <path
       d="M12.8659 3.00017L22.3922 19.5002C22.6684 19.9785 22.5045 20.5901 22.0262 20.8662C21.8742 20.954 21.7017 21.0002 21.5262 21.0002H2.47363C1.92135 21.0002 1.47363 20.5525 1.47363 20.0002C1.47363 19.8246 1.51984 19.6522 1.60761 19.5002L11.1339 3.00017C11.41 2.52187 12.0216 2.358 12.4999 2.63414C12.6519 2.72191 12.7782 2.84815 12.8659 3.00017ZM10.9999 16.0002V18.0002H12.9999V16.0002H10.9999ZM10.9999 9.00017V14.0002H12.9999V9.00017H10.9999Z" />
@@ -175,6 +183,12 @@
   <symbol id="ico-grid" viewBox="0 0 24 24" fill="currentColor">
     <path
       d="M22 12.999V20C22 20.5523 21.5523 21 21 21H13V12.999H22ZM11 12.999V21H3C2.44772 21 2 20.5523 2 20V12.999H11ZM11 3V10.999H2V4C2 3.44772 2.44772 3 3 3H11ZM21 3C21.5523 3 22 3.44772 22 4V10.999H13V3H21Z" />
+  </symbol>
+  <symbol id="ico-state" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <title>State</title>
+    <path d="M17 7 V4.5 A1.5 1.5 0 0 0 15.5 3 H4.5 A1.5 1.5 0 0 0 3 4.5 V15.5 A1.5 1.5 0 0 0 4.5 17 H7" />
+    <rect x="7" y="7" width="14" height="14" rx="1.5" />
   </symbol>
   <symbol id="ico-list" viewBox="0 0 24 24" fill="currentColor">
     <path
@@ -236,6 +250,84 @@
   <symbol id="ico-user-link" viewBox="0 0 24 24" fill="currentColor">
     <path
       d="M4 22C4 17.5817 7.58172 14 12 14C16.4183 14 20 17.5817 20 22H18C18 18.6863 15.3137 16 12 16C8.68629 16 6 18.6863 6 22H4ZM12 13C8.685 13 6 10.315 6 7C6 3.685 8.685 1 12 1C15.315 1 18 3.685 18 7C18 10.315 15.315 13 12 13ZM12 11C14.21 11 16 9.21 16 7C16 4.79 14.21 3 12 3C9.79 3 8 4.79 8 7C8 9.21 9.79 11 12 11Z" />
+  </symbol>
+
+  {{/* Two stacked chevrons pointing outward — semantic "expand all".
+       Rotated 180° via CSS when aria-pressed → reads as "collapse all". */}}
+  <symbol id="ico-unfold" viewBox="0 0 16 16">
+    <path d="M4 6 L8 2 L12 6 M4 10 L8 14 L12 10" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
+
+  {{/* Kind icons — one per data shape surfaced in the state explorer.
+       Shared 16x16 viewBox, 1.3 stroke, currentColor so they inherit
+       the parent's text color (kind-glyph wrapper, sidebar TOC, etc.). */}}
+  <symbol id="ico-kind-string" viewBox="0 0 16 16">
+    <title>String</title>
+    <path d="M3 3 L13 3 M8 3 L8 13" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-bool" viewBox="0 0 16 16">
+    <title>Boolean</title>
+    <circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <path d="M8 2 A 6 6 0 0 0 8 14 Z" fill="currentColor" />
+  </symbol>
+  <symbol id="ico-kind-number" viewBox="0 0 16 16">
+    <title>Number</title>
+    <path d="M6 2 L4 14 M12 2 L10 14 M2 6 L14 6 M2 11 L13 11" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-struct" viewBox="0 0 16 16">
+    <title>Struct</title>
+    <rect x="2" y="2" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="9" y="2" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="2" y="9" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <rect x="9" y="9" width="5" height="5" rx="0.6" stroke="currentColor" fill="none" stroke-width="1.3" />
+  </symbol>
+  <symbol id="ico-kind-map" viewBox="0 0 16 16">
+    <title>Map</title>
+    <path d="M2 4 L5 4 M8 4 L14 4 M2 8 L5 8 M8 8 L14 8 M2 12 L5 12 M8 12 L14 12" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-slice" viewBox="0 0 16 16">
+    <title>Slice</title>
+    <path d="M5 2 L2 2 L2 14 L5 14 M11 2 L14 2 L14 14 L11 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
+  <symbol id="ico-kind-pointer" viewBox="0 0 16 16">
+    <title>Pointer</title>
+    <circle cx="3" cy="8" r="1.3" fill="currentColor" />
+    <path d="M5 8 L13 8 M10 5 L13 8 L10 11" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
+  <symbol id="ico-kind-func" viewBox="0 0 16 16">
+    <title>Function</title>
+    <path d="M5 2 C 3 2, 3 6, 3 8 C 3 10, 3 14, 5 14 M11 2 C 13 2, 13 6, 13 8 C 13 10, 13 14, 11 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-closure" viewBox="0 0 16 16">
+    <title>Closure</title>
+    <path d="M3 2 L 13 14 M 9 8 L 3 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-ref" viewBox="0 0 16 16">
+    <title>Reference</title>
+    <path d="M8 2 L14 8 L8 14 L2 8 Z" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linejoin="round" />
+  </symbol>
+  <symbol id="ico-kind-nil" viewBox="0 0 16 16">
+    <title>Nil</title>
+    <circle cx="8" cy="8" r="5.5" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <path d="M3.5 12.5 L12.5 3.5" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-package" viewBox="0 0 16 16">
+    <title>Package</title>
+    <path d="M2 5 L8 2 L14 5 L14 11 L8 14 L2 11 Z M2 5 L8 8 L14 5 M8 8 L8 14" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  </symbol>
+  <symbol id="ico-kind-type" viewBox="0 0 16 16">
+    <title>Type</title>
+    <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" fill="none" stroke-width="1.3" />
+    <path d="M5 5 L11 5 M8 5 L8 11" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+  </symbol>
+  <symbol id="ico-kind-interface" viewBox="0 0 16 16">
+    <title>Interface</title>
+    <path d="M5 5 C 5 3 7 2 8 2 C 10 2 11 3 11 5 C 11 7 8 7 8 9.5" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" />
+    <circle cx="8" cy="13" r="0.8" fill="currentColor" />
+  </symbol>
+  <symbol id="ico-kind-unknown" viewBox="0 0 16 16">
+    <title>Unknown</title>
+    <circle cx="8" cy="8" r="1.5" fill="currentColor" />
   </symbol>
 </svg>
 {{ end }}

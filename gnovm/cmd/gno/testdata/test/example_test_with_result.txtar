@@ -1,0 +1,30 @@
+# Make sure that isExampleFunc in gnovm/pkg/test/test.go ignores a test func with a return type.
+
+gno test -v .
+
+! stderr '--- PASS: ExampleWithResult .+'
+stderr '--- PASS: ExampleTestPassing .+'
+
+-- passing_example_test.gno --
+package passing
+
+import "fmt"
+
+// This improper example test with a return value should be ignored
+func ExampleWithResult() int {
+	fmt.Println("hello")
+	return 1
+	// Output:
+	// hello
+}
+
+// The previous test func with a return value should be skipped, and this should pass
+func ExampleTestPassing() {
+	fmt.Println("hello2")
+	// Output:
+	// hello2
+}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/example_tst"
+gno = "0.9"

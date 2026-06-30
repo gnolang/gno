@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"path"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -12,6 +11,9 @@ import (
 type StagingAppConfig struct {
 	AppConfig
 }
+
+// stagingNoWorkspaceHint is staging mode's line in the no-workspace banner.
+const stagingNoWorkspaceHint = "staging eager-loads $GNOROOT/examples (unless -no-examples) and every -extra-root up front."
 
 var defaultStagingOptions = AppConfig{
 	chainId:                    "dev",
@@ -26,9 +28,9 @@ var defaultStagingOptions = AppConfig{
 	root:                       gnoenv.RootDir(),
 	interactive:                false,
 	unsafeAPI:                  false,
-	lazyLoader:                 false,
+	staging:                    true,
+	noWorkspaceHint:            stagingNoWorkspaceHint,
 	withoutQuarantinedExamples: true,
-	paths:                      path.Join(DefaultDomain, "/**"), // Load every package under the main domain
 	emptyBlocks:                false,
 	emptyBlocksInterval:        1,
 
@@ -50,7 +52,7 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 This mode is designed for stability and security, suitable for pre-deployment testing.
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
-Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
+Staging eager-loads the workspace, every -extra-root, and $GNOROOT/examples by default (use -no-examples to skip).
 
 Additionally, you can specify an additional package directory to load.
 `,
@@ -68,15 +70,8 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
-	// If no resolvers is defined, use gno example as root resolver
-	if len(cfg.AppConfig.resolvers) == 0 {
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, defaultBaseResolvers(gnoroot, cfg.AppConfig.withoutQuarantinedExamples)...)
-	}
-
+	// Staging eager-loads the workspace, every -extra-root, and examples
+	// (unless -no-examples is set) via Loader.LoadAll. staging=true
+	// in defaultStagingOptions triggers the eager path in app.Setup.
 	return runApp(&cfg.AppConfig, io, args...)
 }

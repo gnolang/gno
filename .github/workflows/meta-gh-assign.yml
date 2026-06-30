@@ -16,4 +16,4 @@ jobs:
     permissions:
       pull-requests: write # to auto-assign the PR author
     steps:
-      - uses: toshimaru/auto-author-assign@16f0022cf3d7970c106d8d1105f75a1165edb516 # v2.1.1
+      - uses: toshimaru/auto-author-assign@bdd7688cbf9e6d5683f02f8c7d8ae4062a254b6d # v3.0.2

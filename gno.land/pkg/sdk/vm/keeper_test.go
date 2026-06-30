@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2381,7 +2382,7 @@ func GetParent() *Parent {
 	})
 
 	// Regression test: persisted slice with RefValue base should not panic
-	// This tests the fix for passing m.Store instead of nil to GetPointerAtIndexInt2
+	// This tests the fix for passing m.Store instead of nil to GetElementPointer
 	t.Run("persisted_slice_of_primitives", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/persisted12"
 		pkgBody := `package persisted12
@@ -3180,4 +3181,188 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 	}
 
 	return searchFrom[start : start+end]
+}
+func TestQueryPkg(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qpkg-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qpkg"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "pkg.gno",
+			Body: `package qpkg
+
+type MyStruct struct {
+	Name string
+	Age  int
+}
+
+var (
+	myInt    int    = 42
+	myStr    string = "hello"
+	myStruct MyStruct
+)
+
+func init() {
+	myStruct = MyStruct{Name: "Alice", Age: 30}
+}
+
+func Render(path string) string { return "qpkg test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query via qpkg
+	res, err := env.vmk.QueryPkg(env.ctx, pkgPath)
+	require.NoError(t, err)
+	t.Logf("QueryPkg result:\n%s\n", res)
+
+	// Verify it's valid JSON with names and values
+	assert.Contains(t, res, `"names"`)
+	assert.Contains(t, res, `"values"`)
+	assert.Contains(t, res, `"myInt"`)
+	assert.Contains(t, res, `"myStr"`)
+	assert.Contains(t, res, `"myStruct"`)
+
+	// Parse and verify structure
+	var parsed struct {
+		Names  []string          `json:"names"`
+		Values []json.RawMessage `json:"values"`
+	}
+	err = json.Unmarshal([]byte(res), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, len(parsed.Names), len(parsed.Values))
+	assert.Contains(t, parsed.Names, "myInt")
+	assert.Contains(t, parsed.Names, "myStr")
+	assert.Contains(t, parsed.Names, "myStruct")
+
+	// Heap-allocated top-level vars must come through the unwrap as their
+	// inner inline shape, not as the heap wrapper. Regression guard: PR
+	// #5415 switched block.Values to store HeapItem cells via RefValue,
+	// which silently broke our unwrap (it only handled *HeapItemValue
+	// direct). Pin the inline contract so any future store-layout shift
+	// fails here instead of silently rendering as Unknown.
+	for i, name := range parsed.Names {
+		v := string(parsed.Values[i])
+		switch name {
+		case "myInt":
+			assert.Contains(t, v, `"@type":"/gno.PrimitiveType"`,
+				"top-level int must serialize as inline PrimitiveType, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level int must not leak the heap wrapper, got %s", v)
+		case "myStr":
+			assert.Contains(t, v, `"@type":"/gno.StringValue"`,
+				"top-level string must serialize as inline StringValue, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level string must not leak the heap wrapper, got %s", v)
+		}
+	}
+}
+
+func TestQueryPkgNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryPkg(env.ctx, "gno.land/r/nonexistent/pkg")
+	assert.Error(t, err)
+}
+
+func TestQueryType(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qtype-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qtype"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "types.gno",
+			Body: `package qtype
+
+type Board struct {
+	Name    string
+	Creator string
+	Posts   int
+}
+
+var board Board
+
+func init() {
+	board = Board{Name: "general", Creator: "alice", Posts: 5}
+}
+
+func Render(path string) string { return "qtype test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query type by TypeID
+	tidStr := pkgPath + ".Board"
+	res, err := env.vmk.QueryType(env.ctx, tidStr)
+	require.NoError(t, err)
+	t.Logf("QueryType result:\n%s\n", res)
+
+	// Verify it contains the type definition with field names
+	assert.Contains(t, res, `"typeid"`)
+	assert.Contains(t, res, tidStr)
+	assert.Contains(t, res, `"Name"`)
+	assert.Contains(t, res, `"Creator"`)
+	assert.Contains(t, res, `"Posts"`)
+}
+
+func TestQueryTypeNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryType(env.ctx, "gno.land/r/nonexistent.FakeType")
+	assert.Error(t, err)
+}
+
+// TestMarshalTypeJSON_ProducesValidJSONForControlCharNames — regression
+// guard: Go's `%q` quoting emits Go-only escapes like \v that are invalid
+// JSON. Jae's original PR fixed this for QueryObjectJSON by switching to
+// json.Marshal (see keeper.go ~line 1454); the QueryType/marshalTypeJSON
+// path must obey the same invariant.
+func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
+	st := &gnolang.StructType{
+		Fields: []gnolang.FieldType{
+			{Name: gnolang.Name("foo\v"), Type: gnolang.IntType},
+		},
+	}
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, st, 0)
+	var v any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
+		"output must be valid JSON; got %q", buf.String())
+}
+
+// TestQueryType_EnvelopeValidJSON — TypeID with a control byte must
+// still produce valid JSON at the envelope level. %q would emit `\v`
+// (Go-only escape, invalid in JSON); json.Marshal emits ``.
+func TestQueryType_EnvelopeValidJSON(t *testing.T) {
+	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
+	var v any
+	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
+		"envelope must be valid JSON; got %q", envelope)
 }

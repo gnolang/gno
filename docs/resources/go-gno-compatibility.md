@@ -75,44 +75,9 @@ Predeclared types that exist only in Gno, with no Go counterpart.
 
 ## Pointer equality for zero-sized types
 
-**Gno behavior.** `==` on pointers is pure identity: equal iff both denote the
-same slot (same `Base` + `Index`), uniformly for every element type. `new(T)`
-and `&CompositeLit{}` each mint a fresh `*HeapItemValue` (`Base` = that heap
-item, `Index` = 0), so two such pointers always differ in `Base` — unlike
-gc-Go, where a zero-sized allocation that escapes to the heap is folded onto
-the single shared `runtime.zerobase` address (non-escaping ones stay distinct;
-see the divergence note below).
-
-**Divergence.** For zero-sized `T`, Gno is always `false`; gc-Go varies:
-
-```go
-//                                           Gno   / gc-Go
-_ = new(T) == new(T)                      // false / unspecified*  (true only when both escape → runtime.zerobase)
-var x, y T; _ = &x == &y                  // false / unspecified*  (true only when escaped)
-var a [10]T; _ = &a[0] == &a[1]           // false / true          (offset arithmetic, address-identical)
-var s struct{ a, b T }; _ = &s.a == &s.b  // false / true          (offset arithmetic, address-identical)
-```
-
-`*` In gc-Go these two rows depend on escape analysis: `false` when the compiler
-keeps the allocations distinct (as the literals above do), `true` only when both
-escape to the heap and fold to `runtime.zerobase`. The offset-arithmetic rows
-reach `true` by a separate route — `&a[i]` / `&s.f` collapses to the base
-address when the element is zero-sized — with no escape analysis involved, so
-they are `true` unconditionally.
-
-Same-identity cases agree:
-
-```go
-//                                           Gno   / gc-Go
-var x T; _ = &x == &x                     // true  / true  (same variable)
-var a [10]T; _ = &a[3] == &a[3]           // true  / true  (same element)
-p := &x; q := p; _ = p == q               // true  / true  (same pointer)
-```
-
-**Rationale.** The Go spec leaves zero-sized pointer equality unspecified
-("Pointers to distinct zero-size variables may or may not be equal" — [Go spec,
-Comparison operators](https://go.dev/ref/spec#Comparison_operators)). Uniform
-identity is the simplest spec-compliant rule.
+Pointers to two distinct zero-sized variables are never equal in Gno, even where
+Go may report them equal. See [the memory
+model](gno-memory-model.md#pointer-equality).
 
 ## Stdlibs
 

@@ -1582,7 +1582,7 @@ func benchOpIndex1MapHit(b *testing.B, size int) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(size)
+	mv.MakeMap()
 	for i := range size {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
 		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
@@ -1623,7 +1623,7 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
 		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
@@ -1656,7 +1656,7 @@ func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
 
 	mt := &MapType{Key: StringType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		k := strings.Repeat("x", keyLen-1) + string(rune('A'+i))
 		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
@@ -1849,7 +1849,7 @@ func BenchmarkOpIndex2_MapHit(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
 		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
@@ -1886,7 +1886,7 @@ func BenchmarkOpIndex2_MapMiss(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
 		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)

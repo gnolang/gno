@@ -29,7 +29,7 @@ Explore Gno through our comprehensive documentation:
   manage accounts, and interact with the blockchain
 - **[For Builders](./docs#build-on-gnoland)** - Start writing smart contracts, 
   understand the Gno language, and deploy your applications  
-- **[Resources](./docs#resources)** - Technical specifications, best 
+- **[Reference](./docs#reference)** - Technical specifications, best 
   practices, and advanced topics
 
 Visit [gno.land](https://gno.land) to see live smart contracts in action.
@@ -86,7 +86,7 @@ repository.
   resources
 - [Gnoscan](https://gnoscan.io) - Blockchain explorer
 - [Gno Studio](https://gno.studio) - Web IDE for Gno development
-- [Become a Gnome](./docs/builders/become-a-gnome.md) - Join the contributor 
+- [Contributor guide](./docs/builders/contributor-guide.md) - Join the contributor 
   community
 
 **Connect & Get Help:**
@@ -114,14 +114,6 @@ repository.
   * [![tm2](https://github.com/gnolang/gno/actions/workflows/tm2.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/tm2.yml)
   * [![examples](https://github.com/gnolang/gno/actions/workflows/examples.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/examples.yml)
   * [![docker](https://github.com/gnolang/gno/actions/workflows/docker.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/docker.yml)
-
-  Codecov:
-
-  * General: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4)](https://codecov.io/gh/gnolang/gno)
-  * tm2: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=tm2)](https://codecov.io/gh/gnolang/gno/tree/master/tm2)
-  * gnovm: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=gnovm)](https://codecov.io/gh/gnolang/gno/tree/master/gnovm)
-  * gno.land: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=gno.land)](https://codecov.io/gh/gnolang/gno/tree/master/gno.land)
-  * examples: TODO
 
   Go Report Card:
 

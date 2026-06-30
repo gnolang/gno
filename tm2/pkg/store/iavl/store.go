@@ -8,7 +8,6 @@ import (
 
 	ics23 "github.com/cosmos/ics23/go"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -353,18 +352,16 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		res.Proof = &merkle.Proof{Ops: []merkle.ProofOp{types.NewIavlCommitmentOp(key, proof).ProofOp()}}
 
 	case "/subspace":
-		var KVs []types.KVPair
-
-		subspace := req.Data
-		res.Key = subspace
-
-		iterator := types.PrefixIterator(nil, st, subspace)
-		for ; iterator.Valid(); iterator.Next() {
-			KVs = append(KVs, types.KVPair{Key: iterator.Key(), Value: iterator.Value()})
-		}
-
-		iterator.Close()
-		res.Value = amino.MustMarshalSized(KVs)
+		// DISABLED. The legacy (cosmos-sdk-inherited) handler buffered every
+		// key/value pair under the prefix into memory — response size was
+		// bounded by state contents, not the request, with no cap at any
+		// layer — and the whole drain ran while holding the global ABCI
+		// mutex, stalling consensus for its duration. No in-repo client ever
+		// used it. To reintroduce it bounded (pinned-height snapshot +
+		// capped page + after-key resumption), see the recipe in
+		// tm2/pkg/store/bptree/store.go's /subspace branch.
+		res.Error = serrors.ErrUnknownRequest(
+			"/subspace queries are disabled (unbounded response) — use /key or an indexer")
 
 	default:
 		msg := fmt.Sprintf("Unexpected Query path: %v", req.Path)

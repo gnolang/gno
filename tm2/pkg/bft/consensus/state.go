@@ -1027,7 +1027,9 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 	if telemetry.MetricsEnabled() {
 		startTime := time.Now()
 		defer func(t time.Time) {
-			metrics.BuildBlockTimer.Record(context.Background(), time.Since(t).Milliseconds())
+			// Record as fractional milliseconds - otherwise the result will be truncated
+			durationMs := float64(time.Since(t).Microseconds()) / 1000.0
+			metrics.BuildBlockTimer.Record(context.Background(), int64(durationMs))
 		}(startTime)
 	}
 

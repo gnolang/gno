@@ -99,7 +99,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
+	changes.ReverseIterateByOffset(0, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {

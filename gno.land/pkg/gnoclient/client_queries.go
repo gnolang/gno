@@ -65,6 +65,33 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 	return &qret.BaseAccount, qres, nil
 }
 
+// QuerySessionAccount retrieves session account information for a given masterAddr and sessionAddr.
+func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*gnoland.GnoSessionAccount, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, nil, err
+	}
+
+	path := fmt.Sprintf("auth/accounts/%s/session/%s", crypto.AddressToBech32(masterAddr), crypto.AddressToBech32(sessionAddr))
+	data := []byte{}
+
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "query session account")
+	}
+	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
+		return nil, nil, std.ErrUnknownAddress("unknown master address: " + crypto.AddressToBech32(masterAddr) +
+			" or session address: " + crypto.AddressToBech32(sessionAddr))
+	}
+
+	qret := &gnoland.GnoSessionAccount{}
+	err = amino.UnmarshalJSON(qres.Response.Data, qret)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return qret, qres, nil
+}
+
 // QueryAppVersion retrieves information about the app version
 func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {

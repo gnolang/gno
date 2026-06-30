@@ -1,0 +1,23 @@
+# Test with a failing missing expected output example_test.gno file
+
+! gno test -v .
+
+stderr '--- FAIL: ExampleTestFailingNoOutput.+'
+stderr 'got:'
+stderr 'want:'
+stderr 'foo'
+
+-- example_failing.gno --
+package failing
+
+-- failing_example_test.gno --
+package failing
+
+func ExampleTestFailingNoOutput() {
+	// Output:
+	// foo
+}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_example_tst"
+gno = "0.9"

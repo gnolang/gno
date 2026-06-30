@@ -3,7 +3,7 @@ package main
 func main() {
 	x := 11
 	a := 1.0
-	y := a << x 
+	y := a << x
 	println(y)
 }
 

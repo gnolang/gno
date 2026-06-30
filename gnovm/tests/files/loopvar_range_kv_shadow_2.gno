@@ -2,10 +2,10 @@ package main
 
 func main() {
 	for i, v := range []int{10, 20, 30} {
-		i := i+1
-		v := v+1
-		println("inner i:", i) 
-		println("inner v:", v) 
+		i := i + 1
+		v := v + 1
+		println("inner i:", i)
+		println("inner v:", v)
 	}
 }
 

@@ -97,7 +97,7 @@ func buildGCGraph(nObjects int) Value {
 	// --- Create MapValues ---
 	for i := 0; i < nMap; i++ {
 		mv := &MapValue{}
-		mv.MakeMap(0)
+		mv.MakeMap()
 		nEntries := 2 + rng.Intn(2) // 2-3 entries
 		// We need a non-nil allocator for MapList.Append since it
 		// calls AllocateMapItem. Use a large-limit allocator.

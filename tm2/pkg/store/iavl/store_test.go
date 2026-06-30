@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -18,7 +17,7 @@ import (
 var (
 	cacheSize        = 100
 	numRecent  int64 = 5
-	storeEvery int64 = 3
+	storeEvery int64 = 0
 )
 
 var (
@@ -52,7 +51,7 @@ func TestGetImmutable(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
 	updated, err := tree.Set([]byte("hello"), []byte("adios"))
 	require.NoError(t, err)
@@ -86,7 +85,7 @@ func TestTestGetImmutableIterator(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
 	newStore, err := store.GetImmutable(cID.Version)
 	require.NoError(t, err)
@@ -388,52 +387,45 @@ func TestIAVLDefaultPruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 5, storeEvery = 3
+	// numRecent = 5, storeEvery = 0 (no waypoints)
+	// Each block prunes toRelease = previous - 5 when condition met.
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},
-		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},
-		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},
-		{[]int64{3, 4, 5, 6, 7, 8, 9}, []int64{1, 2}},
-		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},
-		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},
-		{[]int64{6, 7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5}},
-		{[]int64{8, 9, 10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7}},
-		{[]int64{9, 10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
-		{[]int64{9, 10, 11, 12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]int64{}, []int64{}},                                    // v0 (initial)
+		{[]int64{1}, []int64{}},                                   // v1
+		{[]int64{1, 2}, []int64{}},                                // v2
+		{[]int64{1, 2, 3}, []int64{}},                             // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                          // v4
+		{[]int64{1, 2, 3, 4, 5}, []int64{}},                       // v5
+		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},                    // v6: toRelease=0, 5<0 false
+		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},                   // v7: toRelease=1
+		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},                // v8: toRelease=2
+		{[]int64{4, 5, 6, 7, 8, 9}, []int64{1, 2, 3}},             // v9: toRelease=3
+		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},         // v10: toRelease=4
+		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},     // v11: toRelease=5
+		{[]int64{7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6}}, // v12: toRelease=6
 	}
-	testPruning(t, int64(5), int64(3), states)
+	testPruning(t, int64(5), int64(0), states)
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 3, storeEvery = 5
+	// numRecent = 3, storeEvery = 0 (no waypoints)
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{2, 3, 4, 5}, []int64{1}},
-		{[]int64{3, 4, 5, 6}, []int64{1, 2}},
-		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},
-		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},
-		{[]int64{5, 6, 7, 8, 9}, []int64{1, 2, 3, 4}},
-		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}},
-		{[]int64{8, 9, 10, 11}, []int64{1, 2, 3, 4, 5, 6, 7}},
-		{[]int64{9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
-		{[]int64{10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{[]int64{10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{[]int64{12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+		{[]int64{}, []int64{}},                            // v0
+		{[]int64{1}, []int64{}},                           // v1
+		{[]int64{1, 2}, []int64{}},                        // v2
+		{[]int64{1, 2, 3}, []int64{}},                     // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                  // v4: toRelease=0, 3<0 false
+		{[]int64{2, 3, 4, 5}, []int64{1}},                 // v5: toRelease=1
+		{[]int64{3, 4, 5, 6}, []int64{1, 2}},              // v6: toRelease=2
+		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},           // v7: toRelease=3
+		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},        // v8: toRelease=4
+		{[]int64{6, 7, 8, 9}, []int64{1, 2, 3, 4, 5}},     // v9: toRelease=5
+		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}}, // v10: toRelease=6
 	}
-	testPruning(t, int64(3), int64(5), states)
+	testPruning(t, int64(3), int64(0), states)
 }
 
 type pruneState struct {
@@ -511,28 +503,17 @@ func TestIAVLStoreQuery(t *testing.T) {
 	v3 := []byte("val3")
 
 	ksub := []byte("key")
-	KVs0 := []types.KVPair{}
-	KVs1 := []types.KVPair{
-		{Key: k1, Value: v1},
-		{Key: k2, Value: v2},
-	}
-	KVs2 := []types.KVPair{
-		{Key: k1, Value: v3},
-		{Key: k2, Value: v2},
-	}
-	valExpSubEmpty := amino.MustMarshalSized(KVs0)
-	valExpSub1 := amino.MustMarshalSized(KVs1)
-	valExpSub2 := amino.MustMarshalSized(KVs2)
 
 	cid := iavlStore.Commit()
 	ver := cid.Version
 	query := abci.RequestQuery{Path: "/key", Data: k1, Height: ver}
 	querySub := abci.RequestQuery{Path: "/subspace", Data: ksub, Height: ver}
 
-	// query subspace before anything set
+	// /subspace is disabled (unbounded response); it must return an error,
+	// never data.
 	qres := iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSubEmpty, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// set data
 	iavlStore.Set(nil, k1, v1)
@@ -555,10 +536,10 @@ func TestIAVLStoreQuery(t *testing.T) {
 	require.Nil(t, qres.Error)
 	require.Equal(t, v1, qres.Value)
 
-	// and for the subspace
+	// subspace stays disabled regardless of state
 	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub1, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// modify
 	iavlStore.Set(nil, k1, v3)
@@ -579,10 +560,6 @@ func TestIAVLStoreQuery(t *testing.T) {
 	qres = iavlStore.Query(query2)
 	require.Nil(t, qres.Error)
 	require.Equal(t, v2, qres.Value)
-	// and for the subspace
-	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub2, qres.Value)
 
 	// default (height 0) will show latest -1
 	query0 := abci.RequestQuery{Path: "/key", Data: k1}

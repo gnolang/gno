@@ -1,0 +1,30 @@
+# Test with a passing example_test.gno file
+
+gno test -v . -run ExampleTestPassing
+
+stderr '--- PASS: ExampleTestPassing .+'
+! stderr '--- FAIL: ExampleTestWouldFail'
+
+-- passing_example_test.gno --
+package passing
+
+import "fmt"
+
+func ExampleTestPassing() {
+	fmt.Println("foo")
+	fmt.Println("bar")
+	// Output:
+	// foo
+	// bar
+}
+
+// This test would fail, but we use go test with the -run flag to only run ExampleTestPassing
+func ExampleTestWouldFail() {
+	fmt.Println("foo")
+	// Output:
+	// bar
+}
+
+-- gnomod.toml --
+module = "gno.test/p/integ/example_tst"
+gno = "0.9"
