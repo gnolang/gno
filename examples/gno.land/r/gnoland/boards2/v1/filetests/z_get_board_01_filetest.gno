@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_get_board_01_filetest
+
+package z_get_board_01_filetest
 
 import (
 	"testing"
@@ -8,26 +10,21 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
-	admin address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
-)
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
-func main() {
-	testing.SetRealm(testing.NewUserRealm(admin))
+func main(cur realm) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/test"))
 
-	// Calling as a non owner member should fail
-	boards2.GetBoard(bid)
+	// Calling as a non Boards2 sub realm should fail
+	boards2.GetBoard(cross(cur), bid)
 }
 
 // Error:
-// forbidden
+// forbidden, caller should live within "gno.land/r/gnoland/boards2/" namespace

@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_members_00_filetest
+
 // Render board members view.
-package main
+package z_ui_board_members_00_filetest
 
 import (
 	"testing"
@@ -8,14 +10,14 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	boardName         = "BoardName"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross(cur), boardName, false, false)
 }
 
 func main() {
@@ -28,4 +30,4 @@ func main() {
 // ### These are the board members
 // | Member | Role | Actions |
 // | --- | --- | --- |
-// | [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq&role=) |
+// | [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh&role=) |

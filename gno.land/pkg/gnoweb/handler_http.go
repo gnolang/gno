@@ -3,11 +3,14 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
+	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path"
 	"slices"
 	"sort"
@@ -15,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -22,15 +26,39 @@ import (
 
 const ReadmeFileName = "README.md"
 
+// defaultRequestTimeout bounds every GET when no explicit Timeout is
+// configured, so r.Context() always carries a deadline (the page path
+// can fan out to many RPC calls — an unbounded request is a DoS vector).
+const defaultRequestTimeout = 30 * time.Second
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
-	Domain     string
-	AssetsPath string
-	ChromaPath string
-	RemoteHelp string
-	ChainId    string
-	Analytics  bool
-	BuildTime  string
+	Domain            string
+	AssetsPath        string
+	ChromaPath        string
+	RemoteHelp        string
+	ChainId           string
+	Analytics         bool
+	AnalyticsHostname string
+	BuildTime         string
+	Banner            components.BannerData
+}
+
+// RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
+// view is rendered outside IndexLayout, so the analytics fields must be
+// populated explicitly rather than derived from HeadData.
+func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
+	return components.AnalyticsData{
+		Enabled:    s.Analytics,
+		PageType:   "redirect",
+		ChainId:    s.ChainId,
+		AssetsPath: s.AssetsPath,
+		BuildTime:  s.BuildTime,
+		Hostname:   s.AnalyticsHostname,
+		// Path is left empty: redirect targets are server-controlled constants,
+		// and the client path-overwriter falls back to SA's default path for an
+		// empty data-sa-path.
+	}
 }
 
 type AliasKind int
@@ -52,7 +80,17 @@ type HTTPHandlerConfig struct {
 	Renderer      Renderer
 	Aliases       map[string]AliasTarget
 	Timeout       time.Duration
+	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
+	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
+	// burst. ADR-003 §Resource bounds.
+	StateRateLimitPerMinute int
+	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
+	StateRateLimitTrustedProxies []string
 }
+
+// defaultStateRateLimitPerMinute is the safe-by-default cap applied when
+// no explicit value is configured. Matches the ADR-003 §Resource bounds value.
+const defaultStateRateLimitPerMinute = 100
 
 // validate checks if the HTTPHandlerConfig is valid.
 func (cfg *HTTPHandlerConfig) validate() error {
@@ -75,6 +113,11 @@ type HTTPHandler struct {
 	Client   ClientAdapter
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
+	Timeout  time.Duration
+	// State is the feature/state handler that owns every ?state* URL.
+	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
+	// method call (ADR-003 §Architecture).
+	State *state.Handler
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -83,13 +126,47 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
-	return &HTTPHandler{
+	h := &HTTPHandler{
 		Client:   cfg.ClientAdapter,
 		Static:   cfg.Meta,
 		Renderer: cfg.Renderer,
 		Aliases:  cfg.Aliases,
+		Timeout:  cfg.Timeout,
 		Logger:   logger,
-	}, nil
+	}
+	rate := cfg.StateRateLimitPerMinute
+	if rate <= 0 {
+		rate = defaultStateRateLimitPerMinute
+	}
+	trustedProxies, err := state.ParseTrustedProxies(cfg.StateRateLimitTrustedProxies)
+	if err != nil {
+		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
+	}
+	h.State = state.New(state.Deps{
+		Client:      cfg.ClientAdapter,
+		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
+		FileFetcher: &clientFileFetcher{client: cfg.ClientAdapter},
+		Logger:      logger,
+		RateLimit: state.RateLimitConfig{
+			PerMinute:      rate,
+			Burst:          rate,
+			MaxIPs:         10_000,
+			TrustedProxies: trustedProxies,
+		},
+	})
+	return h, nil
+}
+
+// clientFileFetcher adapts ClientAdapter to components.FileFetcher (the
+// shape state.Deps consumes for frag=source). The state package cannot
+// import gnoweb directly (cycle), so the adapter lives here.
+type clientFileFetcher struct {
+	client ClientAdapter
+}
+
+func (f *clientFileFetcher) Fetch(ctx context.Context, pkgPath, fileName string, height int64) ([]byte, error) {
+	src, _, err := f.client.File(ctx, pkgPath, fileName, height)
+	return src, err
 }
 
 // ServeHTTP handles HTTP requests and only allows GET requests.
@@ -116,25 +193,56 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
+	timeout := h.Timeout
+	if timeout <= 0 {
+		timeout = defaultRequestTimeout
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+	r = r.WithContext(ctx)
+
+	// Theme cookie is embedded in the HTML before CSS loads to prevent FOUC.
+	theme := readWhitelistedCookie(r, "theme", "light", "dark")
+
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			BuildTime:         h.Static.BuildTime,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
+		Theme:  theme,
+		Banner: h.Static.Banner,
+	}
+
+	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
+	// dispatch (state, source, package view) needs to see the resolved
+	// path. Legacy did this inside prepareIndexBodyView, which the state
+	// branch below short-circuits, so an alias-mapped state URL would
+	// previously route to the unmapped path and 404.
+	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
+		r.URL.Path = alias.Value
 	}
 
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+
+		// A `$state&json` request must get a JSON envelope even when the
+		// URL fails to parse — honor the JSON-in/JSON-out contract instead
+		// of returning an HTML body the client can't decode.
+		if isStateJSONRequest(r.URL) {
+			writeJSONErrorResponse(w, http.StatusNotFound, "invalid path")
+			return
+		}
 
 		indexData.HeadData.Title = "gno.land — invalid path"
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
@@ -148,6 +256,36 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
+		return
+	}
+
+	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
+	// internally dispatches:
+	//   - ?state&json[&oid|&tid]  → JSON API path, writes body directly to w
+	//   - ?state&frag=*           → htmx HTML fragment, writes body directly to w
+	//   - ?state[&oid=X[&tid=Y]]  → HTML page path, returns *components.View
+	//                                so IndexLayout wraps it in gnoweb chrome
+	// ADR-003 §Architecture wire-in. Body-already-written paths return nil
+	// View; page path returns a non-nil View for chrome composition.
+	if gnourl.WebQuery.Has("state") {
+		status, view := h.State.Handle(r.Context(), w, r, gnourl)
+		if view == nil {
+			// Direct-write path (json or fragment): body and headers
+			// already on w; nothing else to render.
+			return
+		}
+		// Page path: wrap the state body in IndexLayout chrome. Set
+		// HeaderData/Title here (mirroring prepareIndexBodyView) so the
+		// global header — breadcrumb + Content/State/Source/Actions
+		// tabs — renders against this realm instead of inheriting zero
+		// values and pointing the tabs at empty URLs.
+		indexData.Mode = components.ViewModeRealm
+		h.setHeaderForRealm(&indexData, gnourl)
+		indexData.BodyView = view
+		w.WriteHeader(status)
+		if err := components.IndexLayout(indexData).Render(w); err != nil {
+			h.Logger.Error("failed to render state page", "error", err)
+		}
 		return
 	}
 
@@ -173,6 +311,11 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// maxPostFormBytes caps r.Body for the redirect form. The form carries
+// short fields (path, height, file); 64 KiB leaves plenty of headroom
+// while preventing a 32 MiB Go default from being weaponised.
+const maxPostFormBytes = 64 * 1024
+
 // Post processes a POST HTTP request.
 func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -182,7 +325,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Parse the form data
+	r.Body = http.MaxBytesReader(w, r.Body, maxPostFormBytes)
 	if err := r.ParseForm(); err != nil {
 		h.Logger.Error("failed to parse form", "error", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -241,18 +384,13 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
+	gnourl.Origin = requestOrigin(r)
 
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
-	indexData.HeaderData = components.HeaderData{
-		Breadcrumb: generateBreadcrumbPaths(gnourl),
-		RealmURL:   *gnourl,
-		ChainId:    h.Static.ChainId,
-		Remote:     h.Static.RemoteHelp,
-		Mode:       indexData.Mode,
-	}
+	h.setHeaderForRealm(indexData, gnourl)
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData)
@@ -274,7 +412,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -323,7 +461,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	var content bytes.Buffer
@@ -334,7 +472,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -347,11 +485,18 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 }
 
+// MaxUserContributions caps how many contributions /u/<user> renders.
+// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// an unbounded cap turns a single GET into a 10k-iteration amplifier.
+// Exported so external tests assert against the documented cap.
+// TODO: paginate via ?page= when a contributor exceeds this cap.
+const MaxUserContributions = 200
+
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
 func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
 	prefix := "@" + username
 
-	paths, err := h.Client.ListPaths(ctx, prefix, 10000)
+	paths, err := h.Client.ListPaths(ctx, prefix, MaxUserContributions)
 	if err != nil {
 		h.Logger.Error("unable to query contributions", "user", username, "error", err)
 		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
@@ -421,7 +566,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	contribs, realmCount, err := h.buildContributions(ctx, username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	// Compute package counts
@@ -450,10 +595,25 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 }
 
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+
+	// renderDoc renders a markdown documentation string to a Component.
+	// Returns nil for empty input; renderer errors degrade to escaped text.
+	renderDoc := func(src string) components.Component {
+		if strings.TrimSpace(src) == "" {
+			return nil
+		}
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+			h.Logger.Warn("render doc failed — falling back to escaped plain text",
+				"error", err)
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+		}
+		return components.NewReaderComponent(&buf)
 	}
 
 	// Get public non-method funcs
@@ -489,6 +649,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Wrap each function with its pre-rendered documentation Component.
+	functions := make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		functions = append(functions, components.HelpFunction{
+			JSONFunc:     fn,
+			DocComponent: renderDoc(fn.Doc),
+		})
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -499,15 +668,16 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Functions: functions,
+		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
+		Origin:    gnourl.Origin,
 	})
 }
 
 // renderReadme renders the README.md file and returns the component and the raw content
 func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
-	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName)
+	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName, 0)
 	if err != nil {
 		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
 		return nil, nil
@@ -527,11 +697,12 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 
 func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
+	height := gnourl.Height()
 
-	files, err := h.Client.ListFiles(ctx, pkgPath)
+	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusView(gnourl, err, height)
 	}
 
 	if len(files) == 0 {
@@ -580,10 +751,10 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	default:
 		// Fetch raw source file
-		file, meta, err := h.Client.File(ctx, pkgPath, fileName)
+		file, meta, err := h.Client.File(ctx, pkgPath, fileName, 0)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
-			return GetClientErrorStatusPage(gnourl, err)
+			return GetClientErrorStatusView(gnourl, err, 0)
 		}
 
 		var buff bytes.Buffer
@@ -623,7 +794,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
-		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
+		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
 
 	// Always use explorer mode for paths list
@@ -644,11 +815,12 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 // GetDirectoryView renders the directory view for a package, showing available files.
 func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	files, err := h.Client.ListFiles(ctx, pkgPath)
+	height := gnourl.Height()
+	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		if !errors.Is(err, ErrClientPackageNotFound) {
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
-			return GetClientErrorStatusPage(gnourl, err)
+			return GetClientErrorStatusView(gnourl, err, height)
 		}
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
@@ -674,6 +846,20 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	)
 }
 
+// rendererSnippetHighlighter adapts HTMLRenderer to SnippetHighlighter —
+// wraps chroma-backed RenderSource into a template.HTML producer.
+type rendererSnippetHighlighter struct {
+	renderer Renderer
+}
+
+func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (template.HTML, error) {
+	var buf bytes.Buffer
+	if err := h.renderer.RenderSource(&buf, fileName, source); err != nil {
+		return "", err
+	}
+	return template.HTML(buf.String()), nil //nolint:gosec
+}
+
 // ServeSourceDownload handles downloading a source file as plain text.
 func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
 	pkgPath := gnourl.Path
@@ -691,10 +877,10 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	// Get source file
-	source, _, err := h.Client.File(ctx, pkgPath, fileName)
+	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		status, _ := GetClientErrorStatusPage(gnourl, err)
+		status, _ := GetClientErrorStatusView(gnourl, err, 0)
 		http.Error(w, "not found", status)
 		return
 	}
@@ -706,22 +892,123 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
-func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
-	if err == nil {
-		return http.StatusOK, nil
+// readWhitelistedCookie returns the cookie's value when it matches one
+// of `allowed`; otherwise the empty string. Defends downstream code
+// against arbitrary cookie payloads.
+func readWhitelistedCookie(r *http.Request, name string, allowed ...string) string {
+	c, err := r.Cookie(name)
+	if err != nil {
+		return ""
+	}
+	if slices.Contains(allowed, c.Value) {
+		return c.Value
+	}
+	return ""
+}
+
+// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// Empty when no host is known; callers fall back to path-relative URLs.
+func requestOrigin(r *http.Request) string {
+	host := r.Host
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if h := strings.TrimSpace(first); h != "" {
+			host = h
+		}
+	}
+	if host == "" {
+		return ""
 	}
 
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "http" || proto == "https" {
+		scheme = proto
+	}
+
+	return scheme + "://" + host
+}
+
+// isStateJSONRequest reports whether u is a `$state&json` request, parsed
+// straight from the raw URL so it works even when weburl.ParseFromURL fails.
+// The webargs segment lives after `$` in the path; gnoweb's JSON state API
+// is keyed on the `state` + `json` web flags being present there.
+func isStateJSONRequest(u *url.URL) bool {
+	_, webargs, found := strings.Cut(u.EscapedPath(), "$")
+	if !found {
+		return false
+	}
+	q, err := url.ParseQuery(webargs)
+	if err != nil {
+		return false
+	}
+	return q.Has("state") && q.Has("json")
+}
+
+// writeJSONErrorResponse emits the `{"error":"…"}` envelope used by the
+// state JSON API, mirroring feature/state.writeJSONError so a JSON client
+// always gets a JSON body even on the gnoweb-side parse-failure path.
+func writeJSONErrorResponse(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+	body, _ := json.Marshal(map[string]string{"error": message})
+	_, _ = w.Write(body)
+}
+
+// clientErrorMessage classifies a client error into (status, friendly msg).
+// height > 0 short-circuits non-NotFound errors to "block height N is not
+// available" — the chain rejects out-of-range heights with a generic RPC
+// error that would otherwise surface as a confusing 500, while the height
+// is the actual cause and the user controls it via the URL. NotFound wins
+// regardless of height (a wrong path is wrong at any block).
+func clientErrorMessage(err error, height int64) (int, string) {
+	if err == nil {
+		return http.StatusOK, ""
+	}
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+		return http.StatusNotFound, err.Error()
+	}
+	if height > 0 {
+		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)
+	}
 	switch {
 	case errors.Is(err, ErrClientTimeout):
-		return http.StatusRequestTimeout, components.StatusErrorComponent(err.Error())
-	case errors.Is(err, ErrClientPackageNotFound):
-		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
+		return http.StatusRequestTimeout, err.Error()
 	case errors.Is(err, ErrClientBadRequest):
-		return http.StatusInternalServerError, components.StatusErrorComponent("bad request")
-	case errors.Is(err, ErrClientResponse):
-		fallthrough // XXX: for now fallback as internal error
+		return http.StatusBadRequest, "bad request"
 	default:
-		return http.StatusInternalServerError, components.StatusErrorComponent("internal error")
+		// ErrClientResponse + unknown errors. Hide internals.
+		return http.StatusInternalServerError, "internal error"
+	}
+}
+
+// GetClientErrorStatusView wraps clientErrorMessage into a renderable View.
+// `height` is the optional ?height=N pin from the URL — pass 0 when the
+// caller does not propagate it to the chain query.
+func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
+	status, msg := clientErrorMessage(err, height)
+	if msg == "" {
+		return status, nil
+	}
+	return status, components.StatusErrorComponent(msg)
+}
+
+// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
+// from the parsed realm URL. Shared by the state-page wire-in and the
+// generic prepareIndexBodyView path so the global header (breadcrumb +
+// Content/State/Source/Actions tabs) always renders against the same
+// realm. Mode must be set on indexData before calling.
+func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
+	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
+	indexData.HeaderData = components.HeaderData{
+		Breadcrumb: generateBreadcrumbPaths(gnourl),
+		RealmURL:   *gnourl,
+		ChainId:    h.Static.ChainId,
+		Remote:     h.Static.RemoteHelp,
+		Mode:       indexData.Mode,
 	}
 }
 

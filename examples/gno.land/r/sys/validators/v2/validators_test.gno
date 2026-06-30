@@ -2,14 +2,23 @@ package validators
 
 import (
 	"chain/runtime"
+	"math"
+	"strings"
 	"testing"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/poa/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 )
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 
 // generateTestValidators generates a dummy validator set
 func generateTestValidators(count int) []validators.Validator {
@@ -30,7 +39,7 @@ func generateTestValidators(count int) []validators.Validator {
 
 func TestValidators_AddRemove(t *testing.T) {
 	// Clear any changes
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 
 	var (
 		vals          = generateTestValidators(100)
@@ -49,7 +58,7 @@ func TestValidators_AddRemove(t *testing.T) {
 
 	for i := initialHeight; i < initialHeight+int64(len(vals)); i++ {
 		// Make sure the changes are saved
-		chs := GetChanges(i)
+		chs := GetChanges(i, initialHeight+int64(len(vals)))
 
 		// We use the funky index calculation to make sure
 		// changes are properly handled for each block span
@@ -69,7 +78,7 @@ func TestValidators_AddRemove(t *testing.T) {
 	initialRemoveHeight := runtime.ChainHeight()
 
 	// Clear any changes
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 
 	// Remove the validators
 	for _, val := range vals {
@@ -83,7 +92,7 @@ func TestValidators_AddRemove(t *testing.T) {
 
 	for i := initialRemoveHeight; i < initialRemoveHeight+int64(len(vals)); i++ {
 		// Make sure the changes are saved
-		chs := GetChanges(i)
+		chs := GetChanges(i, initialRemoveHeight+int64(len(vals)))
 
 		// We use the funky index calculation to make sure
 		// changes are properly handled for each block span
@@ -98,4 +107,136 @@ func TestValidators_AddRemove(t *testing.T) {
 			uassert.Equal(t, uint64(0), ch.VotingPower)
 		}
 	}
+}
+
+// TestGetChanges_BoundedRange verifies that GetChanges(from, to) correctly
+// returns only changes within the [from, to] block range.
+func TestGetChanges_BoundedRange(t *testing.T) {
+	changes = bptree.NewBPTree32()
+	vp = poa.NewPoA()
+
+	vals := generateTestValidators(3)
+
+	// Store additions at block h1
+	h1 := runtime.ChainHeight()
+	for _, val := range vals {
+		addValidator(val)
+	}
+	testing.SkipHeights(1)
+
+	// Store removals at block h2
+	h2 := runtime.ChainHeight()
+	for _, val := range vals {
+		removeValidator(val.Address)
+	}
+	testing.SkipHeights(1)
+
+	// Query spanning both blocks returns all changes
+	all := GetChanges(h1, h2)
+	uassert.Equal(t, 6, len(all))
+
+	// Query for h1 only returns additions
+	atH1 := GetChanges(h1, h1)
+	uassert.Equal(t, 3, len(atH1))
+	for i, ch := range atH1 {
+		uassert.Equal(t, vals[i].Address, ch.Address)
+		uassert.True(t, ch.VotingPower > 0)
+	}
+
+	// Query for h2 only returns removals
+	atH2 := GetChanges(h2, h2)
+	uassert.Equal(t, 3, len(atH2))
+	for i, ch := range atH2 {
+		uassert.Equal(t, vals[i].Address, ch.Address)
+		uassert.Equal(t, uint64(0), ch.VotingPower)
+	}
+
+	// Query beyond stored range returns empty
+	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
+}
+
+// TestRender_ShowsNewestWhenOverLimit verifies that Render displays the newest
+// maxDisplay buckets when there are more change buckets than maxDisplay.
+func TestRender_ShowsNewestWhenOverLimit(t *testing.T) {
+	changes = bptree.NewBPTree32()
+	vp = poa.NewPoA()
+
+	const total = 13
+	const maxDisplay = 10
+
+	vals := generateTestValidators(total)
+	base := runtime.ChainHeight()
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		changes.Set(getBlockID(h), []change{
+			{blockNum: h, validator: vals[i]},
+		})
+	}
+
+	output := Render("")
+
+	// Newest maxDisplay buckets must appear.
+	for i := total - maxDisplay; i < total; i++ {
+		h := base + int64(i)
+		uassert.True(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("expected block #%d in output", h))
+	}
+
+	// Oldest (total - maxDisplay) buckets must NOT appear.
+	for i := 0; i < total-maxDisplay; i++ {
+		h := base + int64(i)
+		uassert.False(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("block #%d should be absent from output", h))
+	}
+}
+
+// TestRender_ShowsAllWhenUnderLimit verifies that all buckets are displayed when
+// there are fewer than maxDisplay, and that no panic occurs from a negative offset.
+func TestRender_ShowsAllWhenUnderLimit(t *testing.T) {
+	changes = bptree.NewBPTree32()
+	vp = poa.NewPoA()
+
+	const total = 5 // less than maxDisplay=10
+
+	vals := generateTestValidators(total)
+	base := runtime.ChainHeight()
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		changes.Set(getBlockID(h), []change{
+			{blockNum: h, validator: vals[i]},
+		})
+	}
+
+	output := Render("")
+
+	for i := 0; i < total; i++ {
+		h := base + int64(i)
+		uassert.True(t, strings.Contains(output, ufmt.Sprintf("#%d:", h)),
+			ufmt.Sprintf("expected block #%d in output", h))
+	}
+}
+
+func TestGetChanges_PanicsOnInvalidRange(cur realm, t *testing.T) {
+	uassert.PanicsWithMessage(t, cur, "invalid range: from must be <= to", func() {
+		GetChanges(10, 5)
+	})
+}
+
+func TestGetChanges_ClampsMaxInt64(t *testing.T) {
+	changes = bptree.NewBPTree32()
+
+	vals := generateTestValidators(1)
+
+	// Simulate a validator change at block math.MaxInt64-1 (the boundary value).
+	changes.Set(getBlockID(math.MaxInt64-1), []change{
+		{blockNum: math.MaxInt64 - 1, validator: vals[0]},
+	})
+
+	// Passing math.MaxInt64 as "to" means "get all updates from here onwards".
+	// The clamp (to = MaxInt64-1) must still include the boundary block.
+	result := GetChanges(math.MaxInt64-1, math.MaxInt64)
+	uassert.Equal(t, 1, len(result))
+	uassert.Equal(t, vals[0].Address, result[0].Address)
 }

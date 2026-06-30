@@ -33,7 +33,7 @@ func setupTestEnv() testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
 	prmk := params.NewParamsKeeper(authCapKey)
-	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), std.ProtoBaseAccount)
+	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), std.ProtoBaseAccount, std.ProtoBaseSessionAccount)
 	bankk := NewBankKeeper(acck, prmk.ForModule(ModuleName))
 
 	prmk.Register(auth.ModuleName, acck)

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_board_06_filetest
+
+package z_create_board_06_filetest
 
 // SEND: 1000000ugnot
 
@@ -6,29 +8,26 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	uinit "gno.land/r/sys/users/init"
 )
 
 const (
-	owner  address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner  address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	member address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	name           = "test123"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	// Test1 is the boards owner and its address has a user already registered
-	// so a new member must register a user with the new board name.
-	boards2.InviteMember(cross, 0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
-
-	uinit.RegisterUser(cross, name, member)
+	// Operate on realm DAO members instead of individual boards
+	boards2.InviteMember(cross(cur), 0, member, boards2.RoleOwner)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(member))
 
-	bid := boards2.CreateBoard(cross, name, false, false)
+	// Create a board as an invited realm member
+	bid := boards2.CreateBoard(cross(cur), name, false, false)
 	println("ID =", bid)
 }
 

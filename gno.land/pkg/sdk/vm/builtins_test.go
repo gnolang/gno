@@ -77,42 +77,41 @@ func TestParamsKeeperSuccess(t *testing.T) {
 		{
 			name: "string test module vm",
 			testFunc: func() {
-				params.SetString("vm:p", "foo")
+				params.SetString("vm:p:chain_domain", "gno.land")
 
 				var actual string
-				params.pmk.GetString(env.ctx, "vm:p", &actual)
-				require.Equal(t, "foo", actual)
+				params.pmk.GetString(env.ctx, "vm:p:chain_domain", &actual)
+				require.Equal(t, "gno.land", actual)
 			},
 		},
 		{
-			name: "int64 test module vm",
+			name: "string test module vm storage_price",
 			testFunc: func() {
-				params.SetInt64("vm:p", int64(1))
+				params.SetString("vm:p:storage_price", "200ugnot")
+
+				var actual string
+				params.pmk.GetString(env.ctx, "vm:p:storage_price", &actual)
+				require.Equal(t, "200ugnot", actual)
+			},
+		},
+		{
+			name: "int64 test module auth max_memo_bytes",
+			testFunc: func() {
+				params.SetInt64("auth:p:max_memo_bytes", 512)
 
 				var actual int64
-				params.pmk.GetInt64(env.ctx, "vm:p", &actual)
-				require.Equal(t, int64(1), actual)
+				params.pmk.GetInt64(env.ctx, "auth:p:max_memo_bytes", &actual)
+				require.Equal(t, int64(512), actual)
 			},
 		},
 		{
-			name: "string test module auth",
+			name: "strings test module bank restricted_denoms",
 			testFunc: func() {
-				params.SetString("auth:p1", "foo")
+				params.SetStrings("bank:p:restricted_denoms", []string{"ugnot"})
 
-				var actual string
-				params.pmk.GetString(env.ctx, "auth:p1", &actual)
-				require.Equal(t, "foo", actual)
-			},
-		},
-
-		{
-			name: "string test module bank",
-			testFunc: func() {
-				params.SetString("bank:p1", "foo")
-
-				var actual string
-				params.pmk.GetString(env.ctx, "auth:p1", &actual)
-				require.Equal(t, "foo", actual)
+				var actual []string
+				params.pmk.GetStrings(env.ctx, "bank:p:restricted_denoms", &actual)
+				require.Equal(t, []string{"ugnot"}, actual)
 			},
 		},
 	}

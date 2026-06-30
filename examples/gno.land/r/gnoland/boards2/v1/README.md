@@ -9,26 +9,21 @@ Discussions happen within different boards, where each board is an independent s
 
 Boards2 allows users to create two types of boards, one is the invite only board where only invited users
 can create threads and comment, and where non invited users can only read the content and discussions; The
-other type of board is the open board where any user with a registered Gno.land username and a specific
-amount of GNOT in their account can create threads, repost and comment.
+other type of board is the open board where any user with a specific amount of GNOT in their account can
+create threads, repost and comment.
 
 ## Open Boards Quick Start
 
-If you don’t have a registered Gno.land username, or are new to Gno.land in general, the quick start guide
-below can help you get started.
+If you are new to Gno.land in general, the quick start guide below can help you get started.
 
-What you need to create threads and start commenting within open boards is a registered username and having
-a specific amount of GNOT in your Gno.land user account, which by default initially is 3000 GNOT. This
-initial GNOT amount could be changed over time to a different amount, so this requirement can change.
+What you need to create threads and start commenting within open boards is having a specific amount of GNOT
+in your Gno.land user account, which by default initially is 3000 GNOT. This initial GNOT amount could be
+changed over time to a different amount, so this requirement can change.
 
 ### How To Get a Gno.land Address
 
-To use Boards2 you'll need:
-
-1. A Gno.land address, and
-2. Some GNOT tokens to register a Gno.land username and to be able to interact with Boards2
-
-You can quickly setup your account using [Adena] or any Gno.land compatible wallet by following these steps:
+To use Boards2 you'll need a Gno.land address. You can quickly setup your account using [Adena] or any
+Gno.land compatible wallet by following these steps:
 
 - Download [Adena], or a Gno.land compatible wallet
 - Once installed, you have to create a new account or add an existing one following wallet's instructions
@@ -36,17 +31,10 @@ You can quickly setup your account using [Adena] or any Gno.land compatible wall
 
 For testing networks you can use the official [Faucet Hub] to receive GNOT in your account.
 
-### How to Register Your Username
-
-If you don't have it, to register a new Gno.land username visit the [users realm] and follow the steps
-described there.
-
-Once you register a username it will appear on all your threads, posts and comments.
-
 ### How to Start Using Open Boards
 
-Once you have a username and the required GNOT amount in your account you can start commenting, creating and
-reposting threads within any open board.
+Once you have the required GNOT amount in your account you can start commenting, creating and reposting
+threads within any open board.
 
 To comment and engage on an open board discussion visit a thread and click on the "Comment" link. You can
 also reply to any of the thread's comments by clicking on the "Reply" link.
@@ -215,7 +203,6 @@ func UnfreezeThread(_ realm, boardID, threadID boards.ID)
 ```
 
 
-[users realm]: https://gno.land/r/gnoland/users/v1
 [permissions file]: https://gno.land/r/gnoland/boards2/v1$source&file=permissions.gno
 [gno.land/r/gnoland/boards2/v1/permissions]: https://gno.land/r/gnoland/boards2/v1/permissions/
 [custom board]: #custom-boards

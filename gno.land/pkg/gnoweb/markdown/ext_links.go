@@ -69,6 +69,13 @@ type GnoLink struct {
 	*ast.Link
 	LinkType GnoLinkType
 	GnoURL   *weburl.GnoURL
+	// Untrusted marks a link parsed from a <gno-foreign> sandbox (the
+	// inner instance's context is flagged via markForeignOrigin). Such
+	// links render as user-generated content — rel="noopener nofollow
+	// ugc" and no first-party tx/internal trust icons — so foreign
+	// markdown cannot wear the host realm's link chrome. The href is
+	// still resolved normally; only the trust signals are stripped.
+	Untrusted bool
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -76,6 +83,9 @@ func (n *GnoLink) Dump(source []byte, level int) {
 	m["Destination"] = string(n.Destination)
 	m["Title"] = string(n.Title)
 	m["LinkType"] = n.LinkType.String()
+	if n.Untrusted {
+		m["Untrusted"] = "true"
+	}
 	ast.DumpHelper(n, source, level, m, nil)
 }
 
@@ -87,34 +97,71 @@ func (*GnoLink) Kind() ast.NodeKind {
 // linkTransformer implements ASTTransformer
 type linkTransformer struct{}
 
-// Transform replaces ast.Link nodes with GnoLink nodes in two passes.
+// Transform replaces ast.Link and ast.AutoLink nodes with GnoLink nodes.
 func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
 	orig, ok := getUrlFromContext(pc)
 	if !ok {
 		return
 	}
 
-	// Traverse through the document and transform link nodes to GnoLink nodes.
+	// Links parsed under a <gno-foreign> sandbox context render as
+	// untrusted (rel="ugc", no first-party trust icons). Read once.
+	untrusted := isForeignOrigin(pc)
+
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 
-		link, ok := node.(*ast.Link)
-		if !ok {
+		var (
+			gnoLink *GnoLink
+			rawDest []byte
+		)
+
+		// Per-node trust: ordinary links from a foreign sandbox are
+		// untrusted, but a mention is a system-resolved /u/<name>
+		// reference (not an author-chosen destination), so it keeps its
+		// first-party user chrome — see ext_mentions.go / mentionLinkAttr.
+		nodeUntrusted := untrusted
+
+		switch n := node.(type) {
+		case *ast.Link:
+			// Wrap the existing link node directly.
+			gnoLink = &GnoLink{Link: n}
+			rawDest = n.Destination
+			if _, isMention := n.Attribute(mentionLinkAttr); isMention {
+				nodeUntrusted = false
+			}
+
+		case *ast.AutoLink:
+			// Build a synthetic ast.Link so the existing renderGnoLink handles
+			// IsDangerousURL, rel attributes, and icons for autolinks too.
+			source := reader.Source()
+			rawURL := n.URL(source)
+			if n.AutoLinkType == ast.AutoLinkEmail {
+				rawDest = append([]byte("mailto:"), rawURL...)
+			} else {
+				rawDest = rawURL
+			}
+			link := ast.NewLink()
+			link.Destination = rawDest
+			labelNode := ast.NewString(n.Label(source))
+			labelNode.SetRaw(true)
+			link.AppendChild(link, labelNode)
+			gnoLink = &GnoLink{Link: link}
+
+		default:
 			return ast.WalkContinue, nil
 		}
+		gnoLink.Untrusted = nodeUntrusted
 
-		// Create a new GnoLink node wrapping the original link.
-		gnoLink := &GnoLink{Link: link}
-
-		// Replace the original link with the GnoLink wrapper.
+		// Replace the original node with the GnoLink wrapper.
 		parent, next := node.Parent(), node.NextSibling()
 		parent.RemoveChild(parent, node)
 		parent.InsertBefore(parent, next, gnoLink)
 
 		// Parse destination URL and check for validity.
-		dest, err := url.Parse(string(link.Destination))
+		dest, err := url.Parse(string(rawDest))
 		if err != nil {
 			gnoLink.LinkType = GnoLinkTypeInvalid
 			return ast.WalkContinue, nil
@@ -201,6 +248,17 @@ type linkTypeInfo struct {
 func getLinkIcons(n *GnoLink) []linkTypeInfo {
 	var icons []linkTypeInfo
 
+	// Untrusted (foreign-sandbox) links: suppress the first-party
+	// chrome (internal/user/tx icons) so sandboxed content cannot
+	// borrow the host realm's trust signals. The external-link icon is
+	// kept — it is a "leaves the page" safety hint, not a trust badge.
+	if n.Untrusted {
+		if n.LinkType == GnoLinkTypeExternal {
+			icons = append(icons, linkTypeInfo{tooltipExternalLink, iconExternalLink, classLinkExternal})
+		}
+		return icons
+	}
+
 	// Add type-specific icon (external/internal)
 	if n.LinkType != GnoLinkTypePackage {
 		switch n.LinkType {
@@ -242,9 +300,12 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		}
 		w.WriteByte('"')
 
-		// Prepare additional link attributes.
+		// Prepare additional link attributes. External links always
+		// carry the rel guard; untrusted (foreign-sandbox) links carry
+		// it regardless of type so internal/tx links from foreign
+		// content are still marked as user-generated.
 		attrs := []attr{}
-		if n.LinkType == GnoLinkTypeExternal {
+		if n.LinkType == GnoLinkTypeExternal || n.Untrusted {
 			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 		}
 		if n.Title != nil {

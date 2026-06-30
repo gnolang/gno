@@ -150,7 +150,7 @@ Realm B:
 │         EOA         │   │       Realm A        │   │       Realm B       │
 │                     │   │                      │   │                     │
 │  addr:              │   │  addr:               │   │  addr:              │
-│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g1rs...cm3v        │
+│  g1jg...sqf5        ├───►  g1dv...u2c6         ├───►  g1rs...cm3v        │
 │                     │   │                      │   │                     │
 │  pkgPath:           │   │  pkgPath:            │   │  pkgPath:           │
 │  ""                 │   │  gno.land/r/demo/a   │   │  gno.land/r/demo/b  │
@@ -195,5 +195,5 @@ see the [Package Path Structure](./gno-packages.md#package-path-structure)
 documentation.
 
 To learn how to develop your own realms, check out the
-[Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and
-[Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.
+[Getting started](../builders/getting-started.md) and
+[Tutorial: MiniSocial dApp](../builders/tutorial-minisocial.md) guides.

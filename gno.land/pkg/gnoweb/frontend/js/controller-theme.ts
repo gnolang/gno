@@ -1,4 +1,4 @@
-import { BaseController } from "./controller.js";
+import { BaseController, setPrefCookie } from "./controller.js";
 
 enum Preference {
 	System = "system",
@@ -7,6 +7,8 @@ enum Preference {
 }
 
 const STORAGE_KEY = "theme";
+const COOKIE_KEY = "theme";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
 const DEFAULT_PREFERENCE = Preference.System;
 const CYCLE_ORDER = [
 	Preference.System,
@@ -67,17 +69,25 @@ export class ThemeController extends BaseController {
 		}
 
 		this.applyTheme();
+		// Dispatch only from toggle(), not applyTheme(), so OS-level
+		// prefers-color-scheme changes that invoke applyTheme() are not
+		// reported as user toggles.
+		this.dispatch("theme:changed", { theme: this.preference });
+	}
+
+	private resolveTheme(): "light" | "dark" {
+		if (this.preference === Preference.System) {
+			return window.matchMedia("(prefers-color-scheme: dark)").matches
+				? "dark"
+				: "light";
+		}
+		return this.preference === Preference.Dark ? "dark" : "light";
 	}
 
 	private applyTheme(): void {
-		const theme =
-			this.preference === Preference.System
-				? window.matchMedia("(prefers-color-scheme: dark)").matches
-					? "dark"
-					: "light"
-				: this.preference;
-
+		const theme = this.resolveTheme();
 		document.documentElement.setAttribute("data-theme", theme);
+		setPrefCookie(COOKIE_KEY, theme, COOKIE_MAX_AGE);
 
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],

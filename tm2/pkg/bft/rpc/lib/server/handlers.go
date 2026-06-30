@@ -135,7 +135,9 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 		defer span.End()
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body")))
+			if werr := WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body"))); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
 			return
 		}
 		// if its an empty request (like from a browser),
@@ -145,18 +147,40 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			return
 		}
 
-		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of Requests ---
-		var requests types.RPCRequests
-		if err := json.Unmarshal(b, &requests); err == nil {
+		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of raw messages ---
+		var rawRequests []json.RawMessage
+		if err := json.Unmarshal(b, &rawRequests); err == nil {
 			var responses types.RPCResponses
-			for _, req := range requests {
-				if resp := processRequest(r, req, funcMap, logger); resp != nil {
+			for _, raw := range rawRequests {
+				var req types.RPCRequest
+				if err := json.Unmarshal(raw, &req); err != nil {
+					responses = append(responses, types.RPCInvalidRequestError(
+						types.JSONRPCStringID(""),
+						errors.Wrap(err, "error unmarshalling request"),
+					))
+					continue
+				}
+				resp, streamable := processRequest(r, req, funcMap, logger)
+				if streamable != nil {
+					// Streaming results cannot interleave inside a JSON-RPC
+					// array; emit an explicit error rather than silently
+					// dropping the slot. The client expects one response
+					// entry per batched request.
+					responses = append(responses, types.RPCInternalError(
+						req.ID,
+						errors.New("streaming results are not supported in batch JSON-RPC requests; send the method as a single request"),
+					))
+					continue
+				}
+				if resp != nil {
 					responses = append(responses, *resp)
 				}
 			}
 
 			if len(responses) > 0 {
-				WriteRPCResponseArrayHTTP(w, responses)
+				if werr := WriteRPCResponseArrayHTTP(w, responses); werr != nil {
+					logger.Error("failed to write RPC response", "err", werr)
+				}
 				return
 			}
 		}
@@ -164,40 +188,54 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 		// --- Branch 2: Attempt to Unmarshal as a Single Request ---
 		var request types.RPCRequest
 		if err := json.Unmarshal(b, &request); err == nil {
-			if resp := processRequest(r, request, funcMap, logger); resp != nil {
-				WriteRPCResponseHTTP(w, *resp)
+			resp, streamable := processRequest(r, request, funcMap, logger)
+			if streamable != nil {
+				if werr := WriteStreamingRPCResponseHTTP(r.Context(), w, request.ID, streamable); werr != nil {
+					logger.Error("failed to write RPC response", "err", werr)
+				}
+				return
+			}
+			if resp != nil {
+				if werr := WriteRPCResponseHTTP(w, *resp); werr != nil {
+					logger.Error("failed to write RPC response", "err", werr)
+				}
 				return
 			}
 		} else {
-			WriteRPCResponseHTTP(w, types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "error unmarshalling request")))
+			if werr := WriteRPCResponseHTTP(w, types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "error unmarshalling request"))); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
 			return
 		}
 	}
 }
 
-// processRequest checks and processes a single JSON-RPC request.
-// If the request should produce a response, it returns a pointer to that response.
-// Otherwise (e.g. if the request is a notification or fails validation), it returns nil.
-func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) *types.RPCResponse {
+// processRequest checks and processes a single JSON-RPC request. If the
+// request returns a StreamableResult, it is returned via the second return
+// value and the caller is expected to write the streaming envelope; in that
+// case the *RPCResponse is nil. Otherwise the *RPCResponse is the response
+// to write back, or nil for notifications and validation failures that
+// produce no response.
+func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) (*types.RPCResponse, types.StreamableResult) {
 	_, span := traces.Tracer().Start(r.Context(), "processRequest")
 	defer span.End()
 	// Skip notifications (an empty ID indicates no response should be sent)
 	if req.ID == types.JSONRPCStringID("") {
 		logger.Debug("Skipping notification (empty ID)")
-		return nil
+		return nil, nil
 	}
 
 	// Check that the URL path is valid (assume only "/" is acceptable)
 	if len(r.URL.Path) > 1 {
 		resp := types.RPCInvalidRequestError(req.ID, fmt.Errorf("invalid path: %s", r.URL.Path))
-		return &resp
+		return &resp, nil
 	}
 
 	// Look up the requested method in the function map.
 	rpcFunc, ok := funcMap[req.Method]
 	if !ok || rpcFunc.ws {
 		resp := types.RPCMethodNotFoundError(req.ID)
-		return &resp
+		return &resp, nil
 	}
 
 	ctx := &types.Context{JSONReq: &req, HTTPReq: r}
@@ -206,25 +244,29 @@ func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*R
 		fnArgs, err := jsonParamsToArgs(rpcFunc, req.Params)
 		if err != nil {
 			resp := types.RPCInvalidParamsError(req.ID, errors.Wrap(err, "error converting json params to arguments"))
-			return &resp
+			return &resp, nil
 		}
 		args = append(args, fnArgs...)
 	}
 
 	// Call the RPC function using reflection.
 	returns := rpcFunc.f.Call(args)
-	logger.Info("HTTPJSONRPC", "method", req.Method, "args", args, "returns", returns)
+	logger.Debug("HTTPJSONRPC", "method", req.Method)
 
 	// Convert the reflection return values into a result value for JSON serialization.
 	result, err := unreflectResult(returns)
 	if err != nil {
 		resp := types.RPCInternalError(req.ID, err)
-		return &resp
+		return &resp, nil
+	}
+
+	if streamable, ok := result.(types.StreamableResult); ok {
+		return nil, streamable
 	}
 
 	// Build and return a successful response.
 	resp := types.NewRPCSuccessResponse(req.ID, result)
-	return &resp
+	return &resp, nil
 }
 
 func handleInvalidJSONRPCPaths(next http.HandlerFunc) http.HandlerFunc {
@@ -332,7 +374,9 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// Exception for websocket endpoints
 	if rpcFunc.ws {
 		return func(w http.ResponseWriter, r *http.Request) {
-			WriteRPCResponseHTTP(w, types.RPCMethodNotFoundError(types.JSONRPCStringID("")))
+			if werr := WriteRPCResponseHTTP(w, types.RPCMethodNotFoundError(types.JSONRPCStringID(""))); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
 		}
 	}
 
@@ -347,26 +391,40 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 
 		fnArgs, err := httpParamsToArgs(rpcFunc, r)
 		if err != nil {
-			WriteRPCResponseHTTP(w, types.RPCInvalidParamsError(types.JSONRPCStringID(""), errors.Wrap(err, "error converting http params to arguments")))
+			if werr := WriteRPCResponseHTTP(w, types.RPCInvalidParamsError(types.JSONRPCStringID(""), errors.Wrap(err, "error converting http params to arguments"))); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
 			return
 		}
 		args = append(args, fnArgs...)
 
 		returns := rpcFunc.f.Call(args)
 
-		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
+		logger.Debug("HTTPRestRPC", "method", r.URL.Path)
 		result, err := unreflectResult(returns)
 		if err != nil {
 			var statusErr *types.HTTPStatusError
 			if goerrors.As(err, &statusErr) {
-				WriteRPCResponseHTTPError(w, statusErr.Code, types.RPCInternalError(types.JSONRPCStringID(""), err))
+				if werr := WriteRPCResponseHTTPError(w, statusErr.Code, types.RPCInternalError(types.JSONRPCStringID(""), err)); werr != nil {
+					logger.Error("failed to write RPC response", "err", werr)
+				}
 				return
 			}
 
-			WriteRPCResponseHTTP(w, types.RPCInternalError(types.JSONRPCStringID(""), err))
+			if werr := WriteRPCResponseHTTP(w, types.RPCInternalError(types.JSONRPCStringID(""), err)); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
 			return
 		}
-		WriteRPCResponseHTTP(w, types.NewRPCSuccessResponse(types.JSONRPCStringID(""), result))
+		if streamable, ok := result.(types.StreamableResult); ok {
+			if werr := WriteStreamingRPCResponseHTTP(r.Context(), w, types.JSONRPCStringID(""), streamable); werr != nil {
+				logger.Error("failed to write RPC response", "err", werr)
+			}
+			return
+		}
+		if werr := WriteRPCResponseHTTP(w, types.NewRPCSuccessResponse(types.JSONRPCStringID(""), result)); werr != nil {
+			logger.Error("failed to write RPC response", "err", werr)
+		}
 	}
 }
 
@@ -437,6 +495,13 @@ const (
 	defaultWSPingPeriod        = (defaultWSReadWait * 9) / 10
 )
 
+// wsStreamRequest carries a single streamable result to be written via
+// NextWriter so the body never accumulates in heap as a complete byte slice.
+type wsStreamRequest struct {
+	id     types.JSONRPCID
+	result types.StreamableResult
+}
+
 // A single websocket connection contains listener id, underlying ws
 // connection.
 //
@@ -447,6 +512,7 @@ type wsConnection struct {
 	remoteAddr string
 	baseConn   *websocket.Conn
 	writeChan  chan types.RPCResponses
+	streamChan chan wsStreamRequest
 
 	funcMap map[string]*RPCFunc
 
@@ -552,6 +618,7 @@ func ReadLimit(readLimit int64) func(*wsConnection) {
 // blocks until the connection closes.
 func (wsc *wsConnection) OnStart() error {
 	wsc.writeChan = make(chan types.RPCResponses, wsc.writeChanCapacity)
+	wsc.streamChan = make(chan wsStreamRequest, wsc.writeChanCapacity)
 
 	// Read subscriptions/unsubscriptions to events
 	go wsc.readRoutine()
@@ -649,7 +716,7 @@ func (wsc *wsConnection) readRoutine() {
 			_, in, err := wsc.baseConn.ReadMessage()
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					wsc.Logger.Info("Client closed the connection")
+					wsc.Logger.Debug("Client closed the connection")
 				} else {
 					wsc.Logger.Error("Failed to read request", "err", err)
 				}
@@ -664,10 +731,26 @@ func (wsc *wsConnection) readRoutine() {
 			var (
 				requests  types.RPCRequests
 				responses types.RPCResponses
+				isBatch   bool
 			)
 
-			// Try to unmarshal the requests as a batch
-			if err := json.Unmarshal(in, &requests); err != nil {
+			// Try to unmarshal as a batch of raw messages first, so that one
+			// malformed element does not prevent valid requests from being processed.
+			var rawRequests []json.RawMessage
+			if err := json.Unmarshal(in, &rawRequests); err == nil {
+				isBatch = true
+				for _, raw := range rawRequests {
+					var req types.RPCRequest
+					if err := json.Unmarshal(raw, &req); err != nil {
+						responses = append(responses, types.RPCInvalidRequestError(
+							types.JSONRPCStringID(""),
+							errors.Wrap(err, "error unmarshalling request"),
+						))
+						continue
+					}
+					requests = append(requests, req)
+				}
+			} else {
 				// Next, try to unmarshal as a single request
 				var request types.RPCRequest
 				if err := json.Unmarshal(in, &request); err != nil {
@@ -719,8 +802,7 @@ func (wsc *wsConnection) readRoutine() {
 
 				returns := rpcFunc.f.Call(args)
 
-				// TODO: Need to encode args/returns to string if we want to log them
-				wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+				wsc.Logger.Debug("WSJSONRPC", "method", request.Method)
 
 				result, err := unreflectResult(returns)
 				if err != nil {
@@ -729,18 +811,35 @@ func (wsc *wsConnection) readRoutine() {
 					continue
 				}
 
-				responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
-
-				if len(responses) > 0 {
-					wsc.WriteRPCResponses(responses)
-
-					// Log telemetry
-					if telemetryEnabled {
-						metrics.WSRequestTime.Record(
-							context.Background(),
-							time.Since(responseStart).Milliseconds(),
-						)
+				if streamable, ok := result.(types.StreamableResult); ok {
+					if isBatch {
+						// Streaming inside a batch response would require multiple
+						// frames for a single JSON array, violating JSON-RPC.
+						responses = append(responses, types.RPCInternalError(
+							request.ID,
+							errors.New("method returns a streaming result and cannot be served in a batch over WebSocket"),
+						))
+					} else {
+						// Single request: stream via NextWriter so the body never
+						// accumulates in heap as a complete byte slice.
+						wsc.streamChan <- wsStreamRequest{id: request.ID, result: streamable}
 					}
+
+					continue
+				}
+
+				responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
+			}
+
+			if len(responses) > 0 {
+				wsc.WriteRPCResponses(responses)
+
+				// Log telemetry
+				if telemetryEnabled {
+					metrics.WSRequestTime.Record(
+						context.Background(),
+						time.Since(responseStart).Milliseconds(),
+					)
 				}
 			}
 		}
@@ -781,6 +880,12 @@ func (wsc *wsConnection) writeRoutine() {
 				wsc.Stop()
 				return
 			}
+		case sr := <-wsc.streamChan:
+			if err := wsc.writeStreamingResponse(sr); err != nil {
+				wsc.Logger.Error("Failed to write streaming response", "err", err)
+				wsc.Stop()
+				return
+			}
 		case msgs := <-wsc.writeChan:
 			var writeData any
 
@@ -802,6 +907,38 @@ func (wsc *wsConnection) writeRoutine() {
 			return
 		}
 	}
+}
+
+// writeStreamingResponse writes a JSON-RPC success envelope around sr.result
+// using NextWriter so the body is written incrementally without buffering the
+// whole result in heap. Must only be called from writeRoutine (single writer).
+func (wsc *wsConnection) writeStreamingResponse(sr wsStreamRequest) error {
+	idBytes, err := json.Marshal(sr.id)
+	if err != nil {
+		return fmt.Errorf("unable to marshal JSON-RPC id: %w", err)
+	}
+
+	if err := wsc.baseConn.SetWriteDeadline(time.Now().Add(wsc.writeWait)); err != nil {
+		return err
+	}
+	w, err := wsc.baseConn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
+		w.Close()
+		return err
+	}
+	if err := sr.result.StreamJSON(wsc.Context(), w); err != nil {
+		w.Close()
+		return err
+	}
+	if _, err := io.WriteString(w, `}`); err != nil {
+		w.Close()
+		return err
+	}
+	return w.Close()
 }
 
 // All writes to the websocket must (re)set the write deadline.

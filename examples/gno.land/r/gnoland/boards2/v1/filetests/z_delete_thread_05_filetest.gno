@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_thread_05_filetest
+
 // Open board: Test deleting a thread as the non member user that created it
-package main
+package z_delete_thread_05_filetest
 
 // SEND: 1000000ugnot
 
@@ -10,11 +12,10 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	uinit "gno.land/r/sys/users/init"
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -23,25 +24,23 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, true)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
-	// Register a username which is required to be able to add
-	// a reply and then create a new reply as a non member user.
-	uinit.RegisterUser(cross, "user123", user)
+	// Create a new reply as a non member user
 	testing.SetRealm(testing.NewUserRealm(user))
-	tid = boards2.CreateThread(cross, bid, "Title", "Body")
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Delete the thread as the non member user that created it
-	boards2.DeleteThread(cross, bid, tid)
+	boards2.DeleteThread(cross(cur), bid, tid)
 
 	// Ensure reply doesn't exist
 	println(tid == 1)
