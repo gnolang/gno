@@ -38,7 +38,7 @@ data, _ := users.ResolveName("alice")
 addr := data.Addr()
 
 // Resolve an address to user data
-data, _ = users.ResolveAddress(someAddress)
+data = users.ResolveAddress(someAddress)
 name := data.Name()
 
 // Resolve either (smart detection)
