@@ -135,8 +135,7 @@ func Lookup(owner address, name string) (Service, bool) {
 	return *val.(*Service), true
 }
 
-// GetAllServices returns copies of all services. Copies, not the stored
-// pointers, keep callers from mutating registry state. See /r/docs/mistakes.
+// GetAllServices returns copies of all services, like Lookup.
 func GetAllServices() []Service {
 	var result []Service
 	services.Iterate("", "", func(key string, value any) bool {
@@ -211,8 +210,7 @@ func Register(cur realm, name, data string) {
     })
 }
 
-// Return a copy, not the stored *Entry, so callers can't mutate state
-// through the returned pointer (see /r/docs/mistakes).
+// Return a copy, not the stored *Entry.
 func Lookup(owner address, name string) (Entry, bool) {
     key := owner.String() + ":" + name
     val, ok := entries.Get(key)
