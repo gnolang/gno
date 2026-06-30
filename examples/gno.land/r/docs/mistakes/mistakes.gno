@@ -37,6 +37,9 @@ Returning an error doesn't revert state changes:
 var balances map[address]int64
 
 func Transfer(cur realm, to address, amount int64) error {
+    if !cur.IsCurrent() {
+        panic("spoofed realm")
+    }
     from := cur.Previous().Address()
     balances[from] -= amount
     if balances[from] < 0 {
@@ -54,6 +57,9 @@ Check conditions first, or use panic to revert:
 var balances map[address]int64
 
 func Transfer(cur realm, to address, amount int64) {
+    if !cur.IsCurrent() {
+        panic("spoofed realm")
+    }
     from := cur.Previous().Address()
     if balances[from] < amount {
         panic("insufficient balance")  // Reverts all changes
@@ -79,13 +85,18 @@ func Withdraw(_ realm, amount int64) {
 }
 ` + "```" + `
 
-Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks:
+Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks,
+guarded by ` + "`cur.IsCurrent()`" + ` so a non-crossing call can't pass a spoofed
+realm handle to forge the caller:
 
 ` + "```go" + `
 // SAFE
 var balances map[address]int64
 
 func Withdraw(cur realm, amount int64) {
+    if !cur.IsCurrent() {
+        panic("spoofed realm")
+    }
     caller := cur.Previous().Address()  // Returns immediate caller
     balances[caller] -= amount
 }

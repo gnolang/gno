@@ -26,6 +26,11 @@ func Clear(cur realm) {
 
 // assertAuthorized ensures only the composition realm can modify state
 func assertAuthorized(cur realm) {
+	// cur.IsCurrent() must hold before we trust cur.Previous() to name the
+	// caller; otherwise a non-crossing call could pass a spoofed realm handle.
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
 	caller := cur.Previous()
 	if caller.PkgPath() != allowedCaller {
 		panic("unauthorized: only " + allowedCaller + " can modify logger")

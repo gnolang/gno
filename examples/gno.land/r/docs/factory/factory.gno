@@ -107,6 +107,9 @@ var (
 
 // CreateFungibleToken creates a fungible token
 func CreateFungibleToken(cur realm, name string) string {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
 	caller := cur.Previous().Address()
 	token := CreateToken(Fungible, name, caller)
 	lastToken = token
@@ -115,6 +118,9 @@ func CreateFungibleToken(cur realm, name string) string {
 
 // CreateNFT creates a non-fungible token
 func CreateNFT(cur realm, name string) string {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
 	caller := cur.Previous().Address()
 	token := CreateToken(NonFungible, name, caller)
 	lastToken = token
@@ -123,6 +129,9 @@ func CreateNFT(cur realm, name string) string {
 
 // CreateSoulBound creates a soul-bound token
 func CreateSoulBound(cur realm, name string) string {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
 	caller := cur.Previous().Address()
 	token := CreateToken(SoulBound, name, caller)
 	lastToken = token

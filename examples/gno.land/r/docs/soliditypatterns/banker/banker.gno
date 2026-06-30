@@ -19,6 +19,11 @@ var deposits avl.Tree // address -> int64
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
 func Deposit(cur realm) {
+	// cur.IsCurrent() must hold before we trust cur.Previous().
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
+
 	// Require a direct user call so coins are credited to the real sender.
 	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
@@ -46,6 +51,11 @@ func Deposit(cur realm) {
 // Withdraw sends coins back to the caller
 // This is equivalent to Solidity's transfer() or call{value: x}()
 func Withdraw(cur realm, amount int64) {
+	// cur.IsCurrent() must hold before we trust cur.Previous().
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
+
 	// Require a direct user call so only the balance owner can withdraw.
 	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
@@ -131,6 +141,9 @@ import "chain/runtime/unsafe"
 var deposits map[address]int64
 
 func Deposit(cur realm) {
+    if !cur.IsCurrent() {
+        panic("spoofed realm")
+    }
     caller := cur.Previous().Address()
     sent := unsafe.OriginSend()
     
@@ -169,6 +182,9 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
+    if !cur.IsCurrent() {
+        panic("spoofed realm")
+    }
     caller := cur.Previous().Address()
 
     // Update state BEFORE sending (prevents reentrancy)

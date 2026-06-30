@@ -16,8 +16,12 @@ func init(cur realm) {
 }
 
 // PublicFunction's first parameter is a "cur realm", so the call crosses into
-// this realm. cur.Previous() is the idiomatic way to read the caller.
+// this realm. cur.Previous() is the idiomatic way to read the caller, but only
+// after cur.IsCurrent() confirms the handle is this frame's live realm.
 func PublicFunction(cur realm) string {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
 	caller := cur.Previous().Address()
 	return "Called by: " + caller.String()
 }
