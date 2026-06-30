@@ -11,9 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -100,20 +103,120 @@ func (o outputWithError) StderrWrite(p []byte) (int, error) { return o.errW.Writ
 
 // ----------------------------------------
 // testParams
+//
+// In-memory backing for the gno test runner's param store. Mirrors
+// the production keeper's missing-key semantics: a Get against an
+// absent key leaves the destination at its zero value (matches
+// tm2/pkg/sdk/params/keeper.go:getIfExists). Type safety is
+// per-method, so values are stored as any and asserted on read.
+//
+// State lifetime: a fresh testParams is constructed per top-level
+// Machine setup; t.Run subtests share the same map and must
+// explicitly seed/reset to isolate.
 
-type testParams struct{}
-
-func newTestParams() *testParams {
-	return &testParams{}
+type testParams struct {
+	values map[string]any
 }
 
-func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
-func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
-func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
+func newTestParams() *testParams {
+	return &testParams{values: map[string]any{}}
+}
+
+func (tp *testParams) SetBool(key string, val bool)        { tp.values[key] = val }
+func (tp *testParams) SetBytes(key string, val []byte)     { tp.values[key] = val }
+func (tp *testParams) SetInt64(key string, val int64)      { tp.values[key] = val }
+func (tp *testParams) SetUint64(key string, val uint64)    { tp.values[key] = val }
+func (tp *testParams) SetString(key string, val string)    { tp.values[key] = val }
+func (tp *testParams) SetStrings(key string, val []string) { tp.values[key] = val }
+
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) {
+	cur, _ := tp.values[key].([]string)
+	// Mirror production semantics in gno.land/pkg/sdk/vm/builtins.go: add
+	// dedupes against the existing set; remove drops any element listed.
+	existing := make(map[string]bool, len(cur))
+	for _, s := range cur {
+		existing[s] = true
+	}
+	if add {
+		for _, v := range val {
+			if !existing[v] {
+				cur = append(cur, v)
+				existing[v] = true
+			}
+		}
+	} else {
+		drop := make(map[string]bool, len(val))
+		for _, v := range val {
+			drop[v] = true
+		}
+		out := cur[:0]
+		for _, v := range cur {
+			if !drop[v] {
+				out = append(out, v)
+			}
+		}
+		cur = out
+	}
+	tp.values[key] = cur
+}
+
+// GetXxx return false on absent key OR present-with-wrong-type
+// (treated as not-present for this getter — same fail-safe shape as
+// the production keeper's amino-unmarshal would surface).
+
+func (tp *testParams) GetBool(key string, ptr *bool) bool {
+	v, ok := tp.values[key].(bool)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetBytes(key string, ptr *[]byte) bool {
+	v, ok := tp.values[key].([]byte)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetInt64(key string, ptr *int64) bool {
+	v, ok := tp.values[key].(int64)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetUint64(key string, ptr *uint64) bool {
+	v, ok := tp.values[key].(uint64)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetString(key string, ptr *string) bool {
+	v, ok := tp.values[key].(string)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetStrings(key string, ptr *[]string) bool {
+	v, ok := tp.values[key].([]string)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
 
 // ----------------------------------------
 // main test function
@@ -243,6 +346,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		Output:  opts.WriterForStore(),
 		Store:   tgs,
 		Context: Context("", mpkg.Path, nil),
+		// Force a non-nil allocator so interrealm v2 Phase 2 PkgID
+		// stamping fires during package load. With MaxAllocBytes=0,
+		// NewAllocator returns nil and Alloc.NewXxx allocations
+		// short-circuit the PkgID stamp — fresh objects keep
+		// ObjectInfo.PkgID zero, which makes the IsReadonly /
+		// borrow-rule paths misread cross-package ownership inside
+		// stdlib test runs.
+		MaxAllocBytes: math.MaxInt64,
 		// When testing examples we will find them, so pv, pn, file
 		// block nodes would otherwise become set, but for running
 		// tests on packages not known by the store, it will construct
@@ -320,7 +431,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, gas, err := opts.runFiletest(
+			changed, gas, storageDiffs, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -332,12 +443,13 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
+			storageStr := fmtStorageDiffs(storageDiffs)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d%s)\n", testName, dstr, gas, storageStr)
 			}
 
 			// XXX: add per-test metrics
@@ -345,6 +457,26 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	}
 
 	return errs
+}
+
+// enableDebugger attaches the interactive debugger to m. Source files are
+// resolved relative to the gno root, then the bundled stdlibs, then the
+// examples tree.
+func (opts *TestOptions) enableDebugger(m *gno.Machine) {
+	fileContent := func(ppath, name string) string {
+		p := filepath.Join(opts.RootDir, ppath, name)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+			b, err = os.ReadFile(p)
+		}
+		if err != nil {
+			p = filepath.Join(opts.RootDir, "examples", ppath, name)
+			b, _ = os.ReadFile(p)
+		}
+		return string(b)
+	}
+	m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
 }
 
 // Runs *_test.go tests.
@@ -371,10 +503,12 @@ func (opts *TestOptions) runTestFiles(
 
 	tests := loadTestFuncs(mpkg.Name, files)
 
-	var alloc *gno.Allocator
-	if opts.Metrics {
-		alloc = gno.NewAllocator(math.MaxInt64)
-	}
+	// Always allocate a hard-cap allocator so interrealm v2 Phase 2
+	// PkgID stamping fires during tests the same way it does in
+	// production. With a nil allocator, stampPkgID short-circuits and
+	// every fresh object's ObjectInfo.PkgID stays zero, which lets the
+	// borrow rule (recvOID.IsZero() short-circuit) mask interrealm bugs.
+	alloc := gno.NewAllocator(math.MaxInt64)
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(nil)
 
@@ -387,6 +521,10 @@ func (opts *TestOptions) runTestFiles(
 		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
 	}
 	pv := m.Package
+
+	testingpv := m.Store.GetPackage("testing", false)
+	testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
+	testingcx := &gno.ConstExpr{TypedValue: testingtv}
 
 	// Load the test files into package and save.
 	// m.RunFiles(files.Files...)
@@ -404,9 +542,6 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing", false)
-		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
-		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
 
 		var runTestX gno.Expr
@@ -432,7 +567,25 @@ func (opts *TestOptions) runTestFiles(
 			runTestX = gno.Nx("runTest_cur")
 			runTest = m.Eval(runTestX)[0]
 			runTestF = "F_cur"
-			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
+			// For realm test packages, cur represents the realm itself
+			// (addr=derived, pkgPath=mpkg.Path, prev=EOA origin) so test
+			// bodies can call `cur.Previous().Address()` and see the EOA.
+			// For non-realm (p/) test packages, p/ has no realm identity;
+			// seed cur as the EOA origin realm directly so methods called
+			// via `m.M(0, cur, ...)` see `cur.Previous()` panic at the
+			// chain boundary, matching production semantics where an EOA
+			// MsgCall path collapses to the origin at the p/ boundary.
+			//
+			// Both paths use NewOriginRealmTV to allocate a FRESH origin-
+			// shape struct rather than the singleton gOriginRealmTV —
+			// testing.SetRealm mutates fr.Cur's fields in place, so
+			// sharing the singleton would let one test's SetRealm corrupt
+			// every subsequent package's init cur.
+			if gno.IsRealmPath(mpkg.Path) {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(m.Alloc, mpkg.Path, gno.NewOriginRealmTV(m.Alloc)))
+			} else {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewOriginRealmTV(m.Alloc))
+			}
 			m.SetActivePackage(pv)
 		} else {
 			// The normal way to test if `cur` isn't needed such as
@@ -449,20 +602,7 @@ func (opts *TestOptions) runTestFiles(
 		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
-			fileContent := func(ppath, name string) string {
-				p := filepath.Join(opts.RootDir, ppath, name)
-				b, err := os.ReadFile(p)
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
-					b, err = os.ReadFile(p)
-				}
-				if err != nil {
-					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, _ = os.ReadFile(p)
-				}
-				return string(b)
-			}
-			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+			opts.enableDebugger(m)
 		}
 
 		eval := m.Eval(gno.Call(
@@ -522,7 +662,6 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		if opts.Metrics {
-			// XXX: store changes
 			// XXX: max mem consumption
 			allocsVal := "n/a"
 			if m.Alloc != nil {
@@ -532,10 +671,85 @@ func (opts *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
+			storageStr := fmtStorageDiffs(m.Store.RealmStorageDiffs())
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s, allocs=%s%s\n",
 				prettySize(m.Cycles),
 				allocsVal,
+				storageStr,
 			)
+		}
+	}
+
+	examples := loadExampleTestFuncs(files)
+	filter := splitRegexp(opts.RunFlag)
+	// runExample runs a single example and reports whether it passed. It is a
+	// closure (rather than an inlined loop body) so that its `defer revert()`
+	// fires when the example finishes — restoring the output writer on every
+	// path, including a Go-level panic and the failfast early return below —
+	// instead of accumulating one deferred revert per example until runTestFiles
+	// itself returns.
+	runExample := func(fd *gno.FuncDecl) (passed bool) {
+		fname := string(fd.Name)
+
+		// Reset and start capturing stdout.
+		opts.filetestBuffer.Reset()
+		revert := opts.outWriter.tee(&opts.filetestBuffer)
+		defer revert()
+
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.Alloc = alloc.Reset()
+		m.SetActivePackage(pv)
+
+		runExampleTestX := gno.Sel(testingcx, "RunExampleTest")
+		runExampleTest := m.Eval(runExampleTestX)[0]
+		runExampleTestCX := gno.NewConstExpr(runExampleTestX, runExampleTest)
+
+		if opts.Debug {
+			opts.enableDebugger(m)
+		}
+
+		startedAt := time.Now()
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "=== RUN   %s\n", fname)
+		}
+		eval := m.Eval(gno.Call(
+			runExampleTestCX, // Call testing.RunExampleTest
+			gno.Nx(fname),
+		))
+		timeSpent := time.Since(startedAt)
+		panicked := eval[0].GetBool()
+		if panicked {
+			// Already printed the panic message and stacktrace
+			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", fname, fmtDuration(timeSpent))
+			passed = false
+		} else {
+			stdout := opts.filetestBuffer.String()
+			expected := fd.Attributes.GetAttribute(gno.ATTR_EXAMPLE_OUTPUT).(string)
+			unordered := fd.Attributes.GetAttribute(gno.ATTR_OUTPUT_UNORDERED) == true
+			passed = opts.processExampleResult(fname, stdout, expected, timeSpent, unordered)
+		}
+		// Print gas after the PASS/FAIL line, matching the ordinary test loop above.
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
+		return passed
+	}
+
+	for _, fd := range examples {
+		fname := string(fd.Name)
+		if !shouldRun(filter, fname) {
+			continue
+		}
+		if !fd.Attributes.HasAttribute(gno.ATTR_EXAMPLE_OUTPUT) {
+			// Don't run examples with no output.
+			continue
+		}
+
+		if !runExample(fd) {
+			errs = multierr.Append(errs, fmt.Errorf("failed: %q", fname))
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 	}
 
@@ -574,6 +788,39 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 		}
 	}
 	return
+}
+
+func loadExampleTestFuncs(tfiles *gno.FileSet) (rt []*gno.FuncDecl) {
+	for _, tf := range tfiles.Files {
+		for _, d := range tf.Decls {
+			if fd, ok := d.(*gno.FuncDecl); ok {
+				if fd.IsMethod {
+					continue
+				}
+				if isExampleFunc(fd) {
+					rt = append(rt, fd)
+				}
+			}
+		}
+	}
+	return
+}
+
+// isExampleFunc checks if fd is a function with no args or return values and valid function name starting with "Example"
+func isExampleFunc(fd *gno.FuncDecl) bool {
+	const prefix = "Example"
+	name := string(fd.Name)
+	if fd.IsMethod || len(fd.Type.Params) != 0 || len(fd.Type.Results) != 0 {
+		return false
+	}
+	if !strings.HasPrefix(name, prefix) {
+		return false
+	}
+	if len(name) == len(prefix) {
+		return true
+	}
+	r, _ := utf8.DecodeRuneInString(name[len(prefix):])
+	return !unicode.IsLower(r)
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the mpkg.
@@ -642,4 +889,27 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+// fmtStorageDiffs formats storage diffs for display in test output.
+// Returns an empty string when there are no non-zero diffs, otherwise returns
+// a string like ", storage: gno.land/r/example:+31b gno.land/r/other:+42b".
+func fmtStorageDiffs(diffs gno.StorageDiffs) string {
+	keys := make([]string, 0, len(diffs))
+	for k, v := range diffs {
+		if v != 0 {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	sb.WriteString(", storage:")
+	for _, k := range keys {
+		fmt.Fprintf(&sb, " %s:%+db", k, diffs[k])
+	}
+	return sb.String()
 }

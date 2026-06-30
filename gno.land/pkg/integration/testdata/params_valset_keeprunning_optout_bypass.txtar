@@ -1,0 +1,134 @@
+# KeepRunning=false is a binding opt-out: no proposal shape can keep
+# an opted-out operator in the active set.
+#
+# Previously, the position-aware KR exemption let GovDAO bypass the
+# opt-out by submitting a [{op,0},{op,N}] power-update pair. That
+# bypass is now closed at the dedupe layer: each operator may appear
+# at most once per proposal, so the pair is rejected at create-time.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Register operator A with KeepRunning=true (default).
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Add A to valset at power=1 via a normal proposal.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Confirm A is in valset at power=1.
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+# Operator A signals opt-out: UpdateKeepRunning(A, false).
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateKeepRunning -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args false -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Sanity: a FRESH-add proposal {A, power=2} must reject at create
+# time per spec — KR=false, no remove pairing -> KR check fires.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/fresh_add_proposal.gno
+stderr 'KeepRunning=false'
+
+# A power-update pair [{A,0},{A,2}] is now a duplicate operator in
+# one proposal — must reject at create-time.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/power_update_pair.gno
+stderr 'duplicate operator in proposal'
+
+# valset:current must show A still at power=1 (the bypass attempt
+# never reached vote+execute).
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+-- run/add_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		cross(cur),
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
+		"baseline add",
+		"",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/fresh_add_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		cross(cur),
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 2)},
+		"fresh add of opted-out op (must reject)",
+		"",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/power_update_pair.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		cross(cur),
+		[]v3.ValoperChange{
+			v3.NewValoperChange(address(memberAddr), 0),
+			v3.NewValoperChange(address(memberAddr), 2),
+		},
+		"power update on opted-out operator (passes per current spec)",
+		"",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

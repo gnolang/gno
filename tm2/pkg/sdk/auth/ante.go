@@ -78,14 +78,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
 				case store.OutOfGasError:
-					log := fmt.Sprintf(
-						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
-						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
-					)
+					gasUsed := newCtx.GasMeter().GasConsumed()
+					maxGas := int64(-1)
+					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
+						maxGas = cp.Block.MaxGas
+					}
+					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
-					res.GasUsed = newCtx.GasMeter().GasConsumed()
+					res.GasUsed = gasUsed
 					abort = true
 				default:
 					panic(r)
@@ -473,11 +475,24 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	))
 }
 
+// SkipGasMeteringKey is a context key used to bypass gas metering for
+// historical tx replay during chain upgrades. When set on the context,
+// SetGasMeter installs an infinite gas meter even for non-genesis blocks.
+// Used by gnoland's GasReplayMode="source" during genesis replay to
+// preserve source-chain outcomes when gas requirements have changed.
+type SkipGasMeteringKey struct{}
+
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
 	if ctx.BlockHeight() == 0 {
+		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
+	}
+
+	// Historical tx replay in source-gas mode: bypass the new VM's gas meter
+	// so source-chain outcomes are preserved regardless of gas-metering changes.
+	if skip, _ := ctx.Value(SkipGasMeteringKey{}).(bool); skip {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
 

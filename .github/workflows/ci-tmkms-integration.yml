@@ -1,0 +1,74 @@
+name: ci / tmkms-integration
+
+# End-to-end test against a real tmkms binary on the privval listener
+# path. Heavyweight (builds tmkms from source via cargo, ~5 min on a
+# cold cache), so we run it only when the upstream privval code or
+# the workflow itself changes — not on every PR.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - tm2/pkg/bft/privval/upstream/**
+      - tm2/pkg/bft/privval/upstream_config.go
+      - tm2/pkg/p2p/conn/secret_connection.go
+      - go.mod
+      - .github/workflows/ci-tmkms-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tmkms-integration:
+    name: tmkms / softsign / v0.34 handshake
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      # Install Rust toolchain. tmkms isn't published as a pre-built
+      # binary, so we build it from source.
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # stable
+        with:
+          toolchain: stable
+
+      # Cache the cargo build between runs — tmkms compiles in
+      # ~5 minutes on a cold build, ~15 seconds incremental.
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/bin/tmkms
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # Pin a specific tmkms version. Bump intentionally to pick
+          # up upstream changes (and re-verify our compat at that
+          # version). 0.15.0 defaults to v0.38 but still accepts
+          # `protocol_version = "v0.34"` — see iqlusioninc/tmkms's
+          # config/validator.rs::ProtocolVersion.
+          key: tmkms-${{ runner.os }}-v0.15.0
+
+      - name: Install tmkms (softsign feature only)
+        run: |
+          if ! command -v tmkms >/dev/null 2>&1; then
+            cargo install tmkms --version 0.15.0 --features softsign --locked
+          fi
+          # tmkms uses the abscissa CLI framework: the version is printed
+          # via the `version` subcommand, not a `--version` flag.
+          tmkms version
+
+      - name: Run integration test
+        working-directory: tm2
+        run: |
+          go test -tags=tmkms_integration -count=1 -timeout 60s \
+            -run TestTmkmsIntegration \
+            ./pkg/bft/privval/upstream/...
