@@ -141,4 +141,4 @@ GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/ma
 
 - [Editor setup](./editor-setup.md): configure your editor with LSP support for `.gno` files
 - [Getting started](./getting-started.md): build, run, and deploy your first realm
-- [Interacting with gnokey](../users/interact-with-gnokey.md): manage keys and send transactions
+- [Interacting with gnokey](../users/using-gnokey.md): manage keys and send transactions

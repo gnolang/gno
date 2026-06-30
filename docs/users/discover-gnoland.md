@@ -20,7 +20,7 @@ discover what's available on Gno.land.
 To interact with Gno.land (sending transactions, deploying contracts, etc.),
 you'll need a wallet:
 
-- [gnokey](./interact-with-gnokey.md) - The official command-line wallet for Gno.land
+- [gnokey](./using-gnokey.md) - The official command-line wallet for Gno.land
 - [Third-party wallets](./third-party-wallets.md) - Browser extensions and other wallet options
 
 ### Useful Resources

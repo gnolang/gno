@@ -183,7 +183,7 @@ mnemonic for real funds.
 :::
 
 For key import, derivation, and the full keybase reference, see
-[Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
+[Interact with gnokey](../users/using-gnokey.md#managing-key-pairs).
 
 ### 5. Run a local chain
 
@@ -253,7 +253,7 @@ page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
 incrementing.
 
 For more options, see
-[Running a local dev node](../resources/gnodev.md).
+[Running a local dev node](../resources/gnodev-reference.md).
 
 ## Deploy to a shared network
 
@@ -360,7 +360,7 @@ Two optional flags are worth knowing about:
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
-[`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).
+[`addpkg` in Interact with gnokey](../resources/gnokey-reference.md#addpackage).
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 
@@ -402,7 +402,7 @@ gnokey query vm/qrender \
 
 This returns the `Render` output ("Count: 1"), a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
-reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
+reference, see [Interact with gnokey](../users/using-gnokey.md).
 
 ## Next steps
 
