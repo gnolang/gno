@@ -1693,6 +1693,13 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		return nilStr, false
 	}
+	// Static uncomparable keys are rejected at preprocess; an uncomparable
+	// tv.T here came via interface boxing. isComparable recurses, so the
+	// panic names the outer dynamic type, matching Go.
+	if !isComparable(tv.T) {
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
+	}
 	// General case.
 	bz := make([]byte, 0, 64)
 	// Charge per-byte for all bytes appended to bz in this call (TypeID
@@ -1741,8 +1748,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1768,8 +1773,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
-	case *SliceType:
-		panic(&Exception{Value: typedString("runtime error: slice type cannot be used as map key")})
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1788,12 +1791,12 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			}
 		}
 		bz = append(bz, '}')
-	case *ChanType:
-		panic("channel type is not yet supported")
 	default:
-		panic(fmt.Sprintf(
-			"unexpected map key type %s",
-			tv.T.String()))
+		// Defensive fallback: the isComparable gate above already stops
+		// every uncomparable type (slices, maps, funcs, chans, ...) before
+		// the switch, so this is unreachable in practice.
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
 }
