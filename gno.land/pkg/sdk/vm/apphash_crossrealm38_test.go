@@ -52,10 +52,25 @@ import (
 // Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
 // to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
 // PR is the test13 chain-upgrade vehicle, so the shift is intentional.
-// Hash bumped 2026-05-29: the strings stdlib source changed (explode no longer re-encodes
-// invalid UTF-8) and new strings test files were added. Stdlib sources, including _test.gno
-// files, are committed to genesis via MPStdlibAll, so any edit shifts the Merkle root.
-const expectedCrossrealm38Hash = "fb07264a5218ef4257ab2eeab3c0f231db98aadb9ee307f52f2aa6bd0bb90460"
+// Hash bumped 2026-06-01: this branch's foreign-markdown work changes the genesis
+// package set (notably the chain/markdown stdlib), which shifts the iavlStore Merkle
+// root — same class of change as the crypto-stdlib bump above. Verified this is NOT
+// the merged nil-realm write-gate fix (#5758): crossrealm38 still produces e37075fb
+// on a clean origin/master. Behavior is unchanged (the zrealm_crossrealm38.gno
+// filetest passes); only the genesis encoding shifted.
+// Hash bumped 2026-06-07: adding the errors stdlib (Unwrap/Is/Join) to the genesis
+// stdlib set shifts the iavlStore Merkle root. Behavior is unchanged (the
+// zrealm_crossrealm38.gno filetest still passes); only the genesis encoding shifted.
+//
+// Hash bumped again by the Example-test PR: editing
+// gnovm/stdlibs/math/rand/example_test.gno changes the math/rand stdlib
+// MemPackage that is committed into genesis state (stdlib MemPackages include
+// their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
+// is the only consensus-relevant change in that PR; verified by bisection that
+// no other change in the PR moves this hash. The shift is therefore expected.
+//
+// Hash bumped by #5749 (strings explode): strings stdlib source change shifts the genesis Merkle root.
+const expectedCrossrealm38Hash = "3fc3614afff86edb3b62f6981dc6a2571bdeba45c0c154902439cd8b164f9b6c"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

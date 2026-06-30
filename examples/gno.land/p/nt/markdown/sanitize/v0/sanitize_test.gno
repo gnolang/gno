@@ -1,6 +1,9 @@
 package sanitize
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStripBidiAndZeroWidthRe(t *testing.T) {
 	// Re-export sanity check.
@@ -36,11 +39,25 @@ func TestInlineText(t *testing.T) {
 }
 
 func TestBlock(t *testing.T) {
+	// Block wraps every non-empty output with "\n\n" — CM §4.8 blank
+	// lines — on BOTH sides, so user content is paragraph-isolated
+	// from any realm chrome that precedes OR follows it. Bounds CM
+	// §4.6 HTML block types 6/7 (`<div>`, `<table>`, …) which are not
+	// escaped in any mode and would otherwise consume appended chrome.
 	cases := []struct{ in, want string }{
-		{"hello world\n", "hello world\n"},
-		{"# heading\n", "\\# heading\n"},
-		{"> quote\n", "\\> quote\n"},
-		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
+		{"hello world\n", "\n\nhello world\n\n"},
+		{"# heading\n", "\n\n\\# heading\n\n"},
+		{"> quote\n", "\n\n\\> quote\n\n"},
+		{"| a | b |\n", "\n\n\\| a | b |\n\n"}, // GFM table-row escaped in strict mode
+		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
+		{"<script>x</script>\n", "\n\n\\<script>x</script>\n\n"},
+		{"<!-- comment -->\n", "\n\n\\<!-- comment -->\n\n"},
+		{"<?php x ?>\n", "\n\n\\<?php x ?>\n\n"},
+		{"<!DOCTYPE html>\n", "\n\n\\<!DOCTYPE html>\n\n"},
+		{"```\ncode\n", "\n\n```\ncode\n```\n\n"}, // fence auto-close at EOF
+		// Empty / strip-to-empty inputs short-circuit (no stray blank line).
+		{"[x]: y\n", ""},
+		{"", ""},
 	}
 	for _, c := range cases {
 		got := Block(c.in)
@@ -57,25 +74,39 @@ func TestBlock(t *testing.T) {
 }
 
 func TestBlockRich(t *testing.T) {
-	// BlockRich prepends "\n" to its output as part of the cross-
-	// boundary setext defense. Every expected output here includes
-	// that leading "\n".
+	// BlockRich wraps every non-empty output with "\n\n" — CM §4.8
+	// blank lines — on BOTH sides, so user content is paragraph-
+	// isolated from any realm chrome that precedes OR follows it.
 	cases := []struct{ in, want string }{
 		// Block-level markdown that Block escapes — preserved by BlockRich.
-		{"hello world\n", "\nhello world\n"},
-		{"# heading\n", "\n# heading\n"},
-		{"> quote\n", "\n> quote\n"},
-		{"- item\n", "\n- item\n"},
-		{"1. item\n", "\n1. item\n"},
-		{"---\n", "\n\\---\n"},           // first-line setext-h2 → escaped by qualifying-setext pre-pass
-		{"***\n", "\n***\n"},             // thematic break NOT setext-h2 — preserved
-		{"text\n===\n", "\ntext\n===\n"}, // deeper setext preserved (user-authored above)
+		{"hello world\n", "\n\nhello world\n\n"},
+		{"# heading\n", "\n\n# heading\n\n"},
+		{"> quote\n", "\n\n> quote\n\n"},
+		{"- item\n", "\n\n- item\n\n"},
+		{"1. item\n", "\n\n1. item\n\n"},
+		{"---\n", "\n\n\\---\n\n"},                       // first-line setext-h2 → escaped by qualifying-setext pre-pass
+		{"***\n", "\n\n***\n\n"},                         // thematic break NOT setext-h2 — preserved
+		{"text\n===\n", "\n\ntext\n===\n\n"},             // deeper setext preserved (user-authored above)
+		{"body\n===\nmore\n", "\n\nbody\n===\nmore\n\n"}, // cross-paragraph backward attack: realm `chrome\n\nbody\n===\nmore` keeps realm in its own paragraph
+		// GFM tables PRESERVED in Rich mode.
+		{"| a | b |\n", "\n\n| a | b |\n\n"},
+		{"| H |\n|---|\n| a |\n", "\n\n| H |\n|---|\n| a |\n\n"}, // full table renders as <table>
 		// Realm-binding defenses STILL ON.
-		{"<gno-card>\n", "\n\\<gno-card>\n"},
-		{"[t][l]\n", "\n\\[t\\]\\[l\\]\n"},
-		{"[^name]\n", "\n\\[^name\\]\n"},
-		{"[x]: y\n", "\n"}, // LRD stripped → BlockRich returns just the leading "\n"
-		{"```\ncode\n", "\n```\ncode\n```\n"},
+		{"<gno-card>\n", "\n\n\\<gno-card>\n\n"},
+		// CM §4.6 HTML block types 1-5 — escaped in Rich mode too
+		// (defense is mode-independent).
+		{"<script>x</script>\n", "\n\n\\<script>x</script>\n\n"},
+		{"<!-- comment -->\n", "\n\n\\<!-- comment -->\n\n"},
+		{"<?php x ?>\n", "\n\n\\<?php x ?>\n\n"},
+		{"<!DOCTYPE html>\n", "\n\n\\<!DOCTYPE html>\n\n"},
+		{"[t][l]\n", "\n\n\\[t\\]\\[l\\]\n\n"},
+		{"[^name]\n", "\n\n\\[^name\\]\n\n"},
+		// LRD-only input strips to nothing; empty-after-escape short-
+		// circuits to "" so realm concatenation doesn't leak a stray
+		// blank line.
+		{"[x]: y\n", ""},
+		{"", ""}, // empty input → empty output, no stray blank line
+		{"```\ncode\n", "\n\n```\ncode\n```\n\n"},
 	}
 	for _, c := range cases {
 		got := BlockRich(c.in)
@@ -88,6 +119,145 @@ func TestBlockRich(t *testing.T) {
 		if twice != got {
 			t.Errorf("BlockRich not idempotent for %q: BlockRich(once)=%q, BlockRich(twice)=%q", c.in, got, twice)
 		}
+	}
+}
+
+func TestBlockRich_LeadingBlankLineGuaranteed(t *testing.T) {
+	// Every non-empty result begins with "\n\n" so `chrome +
+	// BlockRich(user)` cannot place the user's first line in the same
+	// paragraph as the realm's last line (which would let a deeper
+	// `===` or `|---|` in user content retroactively promote realm
+	// chrome).
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j", "| a |\n|---|\n| 1 |"} {
+		got := BlockRich(in)
+		if got == "" {
+			continue
+		}
+		if !strings.HasPrefix(got, "\n\n") {
+			t.Errorf("BlockRich(%q) = %q; expected leading '\\n\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockRich_TrailingBlankLineGuaranteed(t *testing.T) {
+	// Every non-empty result ends with "\n\n" so `BlockRich(user) +
+	// chrome` cannot extend user's last paragraph into the realm's
+	// next line (CM §5.2 lazy continuation, or a realm-supplied
+	// `|---|` row retroactively promoting user's last line into a
+	// `<thead>` header).
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j", "| H |\n|---|\n| a |"} {
+		got := BlockRich(in)
+		if got == "" {
+			continue
+		}
+		if !strings.HasSuffix(got, "\n\n") {
+			t.Errorf("BlockRich(%q) = %q; expected trailing '\\n\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockquoteRich(t *testing.T) {
+	// BlockquoteRich strips BlockRich's leading "\n", line-prefixes
+	// each remaining line with "> ", and emits "\n" on both ends:
+	// leading "\n" prevents `chrome + BlockquoteRich(user)` from
+	// landing the first `>` mid-line; trailing "\n\n" (blank line)
+	// prevents `BlockquoteRich(user) + chrome` from pulling chrome
+	// into the quote via CM §5.2 lazy continuation.
+	cases := []struct{ name, in, want string }{
+		{"plain text", "hello world\n", "\n> hello world\n\n"},
+		{"atx heading preserved", "# heading\n", "\n> # heading\n\n"},
+		{"nested blockquote", "> nested\n", "\n> > nested\n\n"},
+		{"list item preserved", "- item\n", "\n> - item\n\n"},
+		{"ordered list preserved", "1. item\n", "\n> 1. item\n\n"},
+		{"first-line setext escaped", "---\n", "\n> \\---\n\n"},
+		{"deeper setext preserved", "text\n===\n", "\n> text\n> ===\n\n"},
+		{"thematic break asterisks preserved", "***\n", "\n> ***\n\n"},
+		// Realm-binding defenses still on.
+		{"gno extension escaped", "<gno-card>\n", "\n> \\<gno-card>\n\n"},
+		{"ref-link use escaped", "[t][l]\n", "\n> \\[t\\]\\[l\\]\n\n"},
+		{"footnote escaped", "[^name]\n", "\n> \\[^name\\]\n\n"},
+		// LRDs are stripped by BlockRich entirely; trimming the
+		// resulting bare "\n" leaves empty input and the helper
+		// returns "" without emitting a blockquote.
+		{"lrd alone strips to empty", "[x]: y\n", ""},
+		// Code fence autoclose at EOF lands inside the quote.
+		{"unclosed fence autoclosed", "```\ncode\n", "\n> ```\n> code\n> ```\n\n"},
+		// Multi-paragraph preserves the inner blank line (rendered
+		// as a quoted blank line `> \n`).
+		{"multi-paragraph preserves blank", "a\n\nb\n", "\n> a\n> \n> b\n\n"},
+		// Empty / blank-only input collapses cleanly to "".
+		{"empty input", "", ""},
+		// CRLF normalized through BlockRich.
+		{"crlf normalized", "a\r\nb\n", "\n> a\n> b\n\n"},
+		// NUL replaced with U+FFFD by BlockRich.
+		{"nul replaced", "x\x00y\n", "\n> x\uFFFDy\n\n"},
+		// Multiple trailing newlines collapse to the single trailing
+		// blank line shape — output never ends with more than `\n\n`.
+		{"multiple trailing newlines collapse", "foo\n\n\n", "\n> foo\n\n"},
+		// Internal tabs are preserved (BlockRich does not touch them).
+		{"internal tab preserved", "a\tb\n", "\n> a\tb\n\n"},
+		// Whitespace-only input still yields a blockquote (the user
+		// wrote literal spaces). The line-prefix loop emits `> ` plus
+		// the original two spaces.
+		{"whitespace-only input", "  ", "\n>   \n\n"},
+	}
+	for _, c := range cases {
+		got := BlockquoteRich(c.in)
+		if got != c.want {
+			t.Errorf("%s: BlockquoteRich(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}
+
+func TestBlockquoteRich_DoubleWrapNestsQuote(t *testing.T) {
+	// Not idempotent: calling twice nests the quote one level
+	// deeper. The aggressive TrimRight in BlockquoteRich also
+	// collapses the inner trailing blank line, so the second pass
+	// produces a clean `> > foo` nesting (no `> ` quoted blank in
+	// the middle) plus the outer trailing blank line.
+	once := BlockquoteRich("foo\n")
+	twice := BlockquoteRich(once)
+	if want := "\n> > foo\n\n"; twice != want {
+		t.Errorf("BlockquoteRich(BlockquoteRich(%q)) = %q, want %q", "foo\n", twice, want)
+	}
+}
+
+func TestBlockquoteRich_LeadingNewlineGuaranteed(t *testing.T) {
+	// Every non-empty result starts with "\n" so realm concatenation
+	// like `chrome + BlockquoteRich(user)` doesn't place `>` mid-line.
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j"} {
+		got := BlockquoteRich(in)
+		if got == "" {
+			continue
+		}
+		if got[0] != '\n' {
+			t.Errorf("BlockquoteRich(%q) = %q; expected leading '\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockquoteRich_TrailingBlankLineGuaranteed(t *testing.T) {
+	// Every non-empty result ends with "\n\n" so realm concatenation
+	// like `BlockquoteRich(user) + "more text"` doesn't pull "more
+	// text" into the quote via CM §5.2 lazy continuation.
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j", "para\n\nmore"} {
+		got := BlockquoteRich(in)
+		if got == "" {
+			continue
+		}
+		if !strings.HasSuffix(got, "\n\n") {
+			t.Errorf("BlockquoteRich(%q) = %q; expected trailing '\\n\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockquoteRich_NoStrayEmptyQuotedLine(t *testing.T) {
+	// BlockRich's own leading "\n" must be stripped before
+	// line-prefixing — otherwise the output would start with a
+	// useless `> \n` empty quoted line.
+	got := BlockquoteRich("foo\n")
+	if strings.HasPrefix(got, "\n> \n") {
+		t.Errorf("BlockquoteRich leaked BlockRich's leading '\\n' as `> \\n`: %q", got)
 	}
 }
 
@@ -163,10 +333,23 @@ func TestURL(t *testing.T) {
 		{"https://example.com/x", "https://example.com/x"},
 		{"http://example.com", "http://example.com"},
 		{"mailto:a@b.com", "mailto:a@b.com"},
-		{"mailto:a@b.com?body=phish", ""}, // prefill phishing rejected
-		{"//evil.com", ""},                // protocol-relative rejected
-		{"javascript:alert(1)", ""},       // bad scheme
-		{"/r/foo", "/r/foo"},              // relative
+		{"mailto:a@b.com?body=phish", ""},            // any query is a prefill-phishing vector
+		{"mailto:a@b.com?BODY=phish", ""},            // header name case is irrelevant
+		{"mailto:a@b.com?Body=phish", ""},            // mixed case
+		{"mailto:a@b.com?%62ody=phish", ""},          // percent-encoded header (%62 == b)
+		{"mailto:a@b.com?subject=hi&body=phish", ""}, // body as second param
+		{"mailto:a@b.com?subject=hi&BODY=phish", ""}, // mixed case second param
+		{"mailto:a@b.com?subject=hello", ""},         // subject alone still rejected
+		{"mailto:a@b.com?cc=x@y.com", ""},            // cc rejected
+		{"mailto:a@b.com?bcc=x@y.com", ""},           // bcc rejected
+		{"mailto:a@b.com?", ""},                      // bare trailing query marker rejected
+		{"mailto:a@b.com&#x3f;body=phish", ""},       // hex char-ref ? — renderer decodes to ?body=
+		{"mailto:a@b.com&#63;body=phish", ""},        // decimal char-ref ? — same bypass
+		{"mailto:a@b.com&quest;body=phish", ""},      // named char-ref ? — same bypass
+		{"mailto:a@b.com&body=phish", ""},            // bare & gateway rejected
+		{"//evil.com", ""},                           // protocol-relative rejected
+		{"javascript:alert(1)", ""},                  // bad scheme
+		{"/r/foo", "/r/foo"},                         // relative
 		{"./local", "./local"},
 		{"#section", "#section"}, // fragment-only
 		{"", ""},

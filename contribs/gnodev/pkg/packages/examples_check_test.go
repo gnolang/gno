@@ -1,0 +1,131 @@
+package packages
+
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCheckMissingExampleImports(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "myrealm")
+	writePkg(t, pkgDir, "gno.land/r/me/myrealm",
+		`package myrealm
+import "gno.land/r/demo/boards"
+var _ = boards.Render
+`)
+
+	// Empty fetcher + no examples + no extra root → demo/boards is unresolvable.
+	l := New(Config{
+		Examples: false,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	assert.Equal(t, []string{"gno.land/r/demo/boards"}, missing)
+}
+
+func TestCheckMissingExampleImports_AllResolved(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "alone")
+	writePkg(t, pkgDir, "gno.land/p/me/alone", "package alone\n")
+	_ = pkgDir
+
+	l := New(Config{
+		Examples: false,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	assert.Empty(t, missing)
+}
+
+// TestCheckMissingExampleImports_WorkspaceInternal: imports satisfied by
+// sibling packages inside the workspace itself must not be flagged — the
+// workspace eager-load resolves them regardless of -no-examples. Without
+// this, every multi-package workspace warns on its own internal imports.
+func TestCheckMissingExampleImports_WorkspaceInternal(t *testing.T) {
+	root := t.TempDir()
+	writePkg(t, filepath.Join(root, "lib"), "gno.land/p/me/lib",
+		"package lib\nfunc Hi() string { return \"hi\" }\n")
+	writePkg(t, filepath.Join(root, "realm"),
+		"gno.land/r/me/realm",
+		`package realm
+import "gno.land/p/me/lib"
+func Render(_ string) string { return lib.Hi() }
+`)
+
+	l := New(Config{
+		Examples: false,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	assert.Empty(t, missing, "workspace-internal imports are always resolvable")
+}
+
+func TestCheckMissingExampleImports_StdlibIgnored(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "uses-chain")
+	writePkg(t, pkgDir, "gno.land/p/me/usechain",
+		`package usechain
+import "chain"
+var _ = chain.ChainDomain
+`)
+	_ = pkgDir
+
+	l := New(Config{
+		Examples: false,
+		Fetcher:  pkgdownload.NewInMemoryFetcher(),
+		Logger:   testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	assert.Empty(t, missing, "stdlib imports must be ignored")
+}
+
+func TestCheckMissingExampleImports_EmptyWorkspace(t *testing.T) {
+	l := New(Config{Logger: testLogger()})
+	assert.Nil(t, CheckMissingExampleImports(l, ""))
+}
+
+// TestCheckMissingExampleImports_NoMutation asserts the contract that the
+// helper does not write to l.index or l.tracked: a diagnostic must not
+// observe-by-mutating. The workspace imports a package reachable via an
+// extra root, so the FS-hit code path is exercised — any path that mutates
+// the loader state on FS hit (e.g. l.Resolve) would fail this assertion.
+func TestCheckMissingExampleImports_NoMutation(t *testing.T) {
+	root := t.TempDir()
+	consumerDir := filepath.Join(root, "consumer")
+	writePkg(t, consumerDir, "gno.land/r/me/consumer",
+		`package consumer
+import "gno.land/p/demo/dep"
+var _ = dep.X
+`)
+
+	extra := t.TempDir()
+	depDir := filepath.Join(extra, "dep")
+	writePkg(t, depDir, "gno.land/p/demo/dep", "package dep\nvar X = 1\n")
+
+	l := New(Config{
+		Examples:   false,
+		ExtraRoots: []string{extra},
+		Fetcher:    pkgdownload.NewInMemoryFetcher(),
+		Logger:     testLogger(),
+	})
+
+	missing := CheckMissingExampleImports(l, root)
+	// Sanity: the dep is reachable via extra root, so the helper should not
+	// flag it as missing. This guarantees we exercise the FS-hit code path.
+	assert.Empty(t, missing, "dep is reachable via extra root")
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	assert.Empty(t, l.index, "CheckMissingExampleImports must not insert into l.index")
+	assert.Empty(t, l.tracked, "CheckMissingExampleImports must not insert into l.tracked")
+}
