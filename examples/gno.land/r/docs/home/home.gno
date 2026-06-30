@@ -32,7 +32,6 @@ Produce rich gnoweb pages and let users act from them.
 
 Persist data that grows, and make it observable.
 
-- [Pagination over AVL trees](/r/docs/avl_pager_params) — persist keyed data and page through it with path + query routing.
 - [Emitting Events](/r/docs/events) — expose state changes to off-chain consumers with ^chain.Emit^.
 
 ## Interrealm & Access Control
