@@ -65,8 +65,8 @@ avatar := profile.GetStringField(addr, profile.Avatar, "")
 bio := profile.GetStringField(addr, profile.Bio, "")
 
 // Set profile fields (for current user)
-profile.SetStringField(cross, profile.DisplayName, "Alice")
-profile.SetStringField(cross, profile.Bio, "Gno developer")
+profile.SetStringField(cross(cur), profile.DisplayName, "Alice")
+profile.SetStringField(cross(cur), profile.Bio, "Gno developer")
 ` + "```" + `
 
 ## Combined Usage Pattern
