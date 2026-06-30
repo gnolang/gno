@@ -19,7 +19,6 @@ var deposits avl.Tree // address -> int64
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
 func Deposit(cur realm) {
-	// cur.IsCurrent() must hold before we trust cur.Previous().
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}
@@ -51,7 +50,6 @@ func Deposit(cur realm) {
 // Withdraw sends coins back to the caller
 // This is equivalent to Solidity's transfer() or call{value: x}()
 func Withdraw(cur realm, amount int64) {
-	// cur.IsCurrent() must hold before we trust cur.Previous().
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}
@@ -141,7 +139,6 @@ import "chain/runtime/unsafe"
 var deposits map[address]int64
 
 func Deposit(cur realm) {
-    // Reject a non-current realm handle
     if !cur.IsCurrent() {
         panic("invalid realm")
     }
@@ -183,7 +180,6 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
-    // Reject a non-current realm handle
     if !cur.IsCurrent() {
         panic("invalid realm")
     }

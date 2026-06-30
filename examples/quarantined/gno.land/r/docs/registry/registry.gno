@@ -194,7 +194,6 @@ var (
 )
 
 func Register(cur realm, name, data string) {
-    // Reject a non-current realm handle
     if !cur.IsCurrent() {
         panic("invalid realm")
     }

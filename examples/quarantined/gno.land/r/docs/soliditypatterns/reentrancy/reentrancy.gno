@@ -41,7 +41,6 @@ Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity'
 
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
-    // Reject a non-current realm handle
     if !cur.IsCurrent() {
         panic("invalid realm")
     }

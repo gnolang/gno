@@ -26,8 +26,6 @@ func Clear(cur realm) {
 
 // assertAuthorized ensures only the composition realm can modify state
 func assertAuthorized(cur realm) {
-	// cur.IsCurrent() must hold before we trust cur.Previous() to name the
-	// caller; otherwise a non-crossing call could pass a non-current realm handle.
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}
