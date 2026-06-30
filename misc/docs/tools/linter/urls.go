@@ -48,7 +48,12 @@ func extractUrls(fileContent []byte) []string {
 				// archive.org subdomains rate-limit and intermittently 502
 				// from CI runners; the canonical Aaron Swartz Manifesto URL
 				// lives there and its reachability is not a CI concern.
-				!strings.Contains(url, "archive.org") {
+				!strings.Contains(url, "archive.org") &&
+				// YouTube blocks/rate-limits requests from data-center
+				// (CI) IPs, returning 404/429 even for live videos; its
+				// reachability is not a CI concern.
+				!strings.Contains(url, "youtube.com") &&
+				!strings.Contains(url, "youtu.be") {
 				urls = append(urls, url)
 			}
 		}
