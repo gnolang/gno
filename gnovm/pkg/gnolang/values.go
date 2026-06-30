@@ -1677,7 +1677,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
-		count := 0
+		var appendComma bool
 		for i := range sl {
 			if bt.Fields[i].Name == blankIdentifier {
 				continue
@@ -1688,12 +1688,13 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			if isNaN {
 				return "", true
 			}
-			if count > 0 {
+			if appendComma {
 				bz = append(bz, ',')
+			} else {
+				appendComma = true
 			}
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
-			count++
 		}
 		bz = append(bz, '}')
 	default:
