@@ -36,7 +36,7 @@ var balances map[address]int64
 
 func Transfer(cur realm, to address, amount int64) error {
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     from := cur.Previous().Address()
     balances[from] -= amount
@@ -56,7 +56,7 @@ var balances map[address]int64
 
 func Transfer(cur realm, to address, amount int64) {
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     from := cur.Previous().Address()
     if balances[from] < amount {
@@ -84,7 +84,7 @@ func Withdraw(_ realm, amount int64) {
 ` + "```" + `
 
 Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks,
-guarded by ` + "`cur.IsCurrent()`" + ` so a non-crossing call can't pass a spoofed
+guarded by ` + "`cur.IsCurrent()`" + ` so a non-crossing call can't pass a non-current
 realm handle to forge the caller:
 
 ` + "```go" + `
@@ -93,7 +93,7 @@ var balances map[address]int64
 
 func Withdraw(cur realm, amount int64) {
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     caller := cur.Previous().Address()  // Returns immediate caller
     balances[caller] -= amount

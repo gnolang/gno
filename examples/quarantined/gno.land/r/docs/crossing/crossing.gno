@@ -20,7 +20,7 @@ func init(cur realm) {
 // after cur.IsCurrent() confirms the handle is this frame's live realm.
 func PublicFunction(cur realm) string {
 	if !cur.IsCurrent() {
-		panic("spoofed realm")
+		panic("invalid realm")
 	}
 	caller := cur.Previous().Address()
 	return "Called by: " + caller.String()

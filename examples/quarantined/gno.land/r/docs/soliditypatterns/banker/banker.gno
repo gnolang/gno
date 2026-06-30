@@ -21,7 +21,7 @@ var deposits avl.Tree // address -> int64
 func Deposit(cur realm) {
 	// cur.IsCurrent() must hold before we trust cur.Previous().
 	if !cur.IsCurrent() {
-		panic("spoofed realm")
+		panic("invalid realm")
 	}
 
 	// Require a direct user call so coins are credited to the real sender.
@@ -53,7 +53,7 @@ func Deposit(cur realm) {
 func Withdraw(cur realm, amount int64) {
 	// cur.IsCurrent() must hold before we trust cur.Previous().
 	if !cur.IsCurrent() {
-		panic("spoofed realm")
+		panic("invalid realm")
 	}
 
 	// Require a direct user call so only the balance owner can withdraw.
@@ -141,9 +141,9 @@ import "chain/runtime/unsafe"
 var deposits map[address]int64
 
 func Deposit(cur realm) {
-    // Reject a spoofed (non-current) realm handle
+    // Reject a non-current realm handle
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     caller := cur.Previous().Address()
     sent := unsafe.OriginSend()
@@ -183,9 +183,9 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
-    // Reject a spoofed (non-current) realm handle
+    // Reject a non-current realm handle
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     caller := cur.Previous().Address()
 

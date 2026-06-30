@@ -32,9 +32,9 @@ func Reset(cur realm) {
 // assertAuthorized ensures only the composition realm can modify state
 func assertAuthorized(cur realm) {
 	// cur.IsCurrent() must hold before we trust cur.Previous() to name the
-	// caller; otherwise a non-crossing call could pass a spoofed realm handle.
+	// caller; otherwise a non-crossing call could pass a non-current realm handle.
 	if !cur.IsCurrent() {
-		panic("spoofed realm")
+		panic("invalid realm")
 	}
 	caller := cur.Previous()
 	if caller.PkgPath() != allowedCaller {

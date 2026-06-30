@@ -41,9 +41,9 @@ Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity'
 
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
-    // Reject a spoofed (non-current) realm handle
+    // Reject a non-current realm handle
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     // Require a direct user call so only the balance owner can withdraw.
     if !cur.Previous().IsUserCall() {
@@ -67,7 +67,7 @@ pattern keeps your code clear and maintainable:
 func Withdraw(cur realm, amount int64) {
     // 1. Checks - validate all preconditions
     if !cur.IsCurrent() {
-        panic("spoofed realm")
+        panic("invalid realm")
     }
     if !cur.Previous().IsUserCall() {
         panic("invalid non-user call")
