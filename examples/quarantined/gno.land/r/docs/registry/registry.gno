@@ -190,6 +190,7 @@ var (
 )
 
 func Register(cur realm, name, data string) {
+    // Reject a spoofed (non-current) realm handle
     if !cur.IsCurrent() {
         panic("spoofed realm")
     }

@@ -141,6 +141,7 @@ import "chain/runtime/unsafe"
 var deposits map[address]int64
 
 func Deposit(cur realm) {
+    // Reject a spoofed (non-current) realm handle
     if !cur.IsCurrent() {
         panic("spoofed realm")
     }
@@ -182,12 +183,13 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
+    // Reject a spoofed (non-current) realm handle
     if !cur.IsCurrent() {
         panic("spoofed realm")
     }
     caller := cur.Previous().Address()
 
-    // Update state BEFORE sending (prevents reentrancy)
+    // Update state before sending (checks-effects-interactions)
     deposits[caller] -= amount
 
     // Create banker with send capability
