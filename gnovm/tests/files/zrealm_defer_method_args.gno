@@ -28,4 +28,3 @@ func main(cur realm) {
 
 // Output:
 // about to return; defers will run LIFO
-
