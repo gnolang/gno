@@ -24,8 +24,6 @@ if !ok {
 }
 ` + "```" + `
 
-For very large numbers use [` + "`/p/onbloc/uint256`" + `](/p/onbloc/uint256).
-
 ---
 
 ## 2. Errors Don't Revert State
