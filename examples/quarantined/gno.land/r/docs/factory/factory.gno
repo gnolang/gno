@@ -159,7 +159,7 @@ type NonFungibleToken struct { name string }
 type SoulBoundToken struct { name string }
 
 // Factory function
-func CreateToken(tokenType int, name string) Token {
+func CreateToken(tokenType TokenType, name string) Token {
     switch tokenType {
     case Fungible:
         return &FungibleToken{name: name, amount: 1000}
