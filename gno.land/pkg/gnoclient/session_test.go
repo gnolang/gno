@@ -284,6 +284,18 @@ func TestQuerySessionAccount_Integration(t *testing.T) {
 	require.NotNil(t, qres)
 	require.NotNil(t, account)
 
+	// Check expected session info
+	require.Equal(t, []string{"*"}, account.AllowPaths)
+	require.Equal(t, masterInfo.GetAddress(), account.BaseSessionAccount.MasterAddress)
+	require.Equal(t, int64(0), account.BaseSessionAccount.ExpiresAt)
+	require.Equal(t, std.Coins{std.NewCoin("ugnot", 5000000)}, account.BaseSessionAccount.SpendLimit)
+	require.Equal(t, int64(0), account.BaseSessionAccount.SpendPeriod)
+	require.Nil(t, account.BaseSessionAccount.SpendUsed)
+	// SpendReset is a timestamp which is different every time. Just check greater than zero.
+	require.Greater(t, account.BaseSessionAccount.SpendReset, int64(0))
+	require.Equal(t, sessionInfo.GetAddress(), account.BaseSessionAccount.BaseAccount.Address)
+	require.Nil(t, account.BaseSessionAccount.BaseAccount.Coins)
+
 	// Query with an unknown session address — must return an error
 	unknown, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	_, _, err = client.QuerySessionAccount(masterInfo.GetAddress(), unknown)

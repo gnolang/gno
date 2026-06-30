@@ -184,12 +184,9 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc, it MUST stay
 // minimal for computational efficiency.
 //
-// Equality: PointerValues compare by whole-struct identity (lv.V == rv.V in
-// isEql); since TV is determined by (Base, Index), this reduces to same Base +
-// same Index. This holds uniformly for every element type — there is no
-// size-dependent folding (gc-Go's runtime.zerobase / offset-arithmetic collapse
-// for zero-sized types is not replicated). See
-// docs/resources/go-gno-compatibility.md § Pointer equality for zero-sized types.
+// Equality (isEql) reduces to (Base, Index): equal iff Base and Index match,
+// the same for every element type, with no zero-sized special case. For the
+// divergence from Go, see docs/resources/gno-memory-model.md § Pointer equality.
 type PointerValue struct {
 	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
@@ -298,7 +295,7 @@ func (av *ArrayValue) GetLength() int {
 }
 
 // et is only required for .List byte-arrays.
-func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
 	if ii < 0 {
 		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
 	}
@@ -316,7 +313,9 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	if ii >= len(av.Data) {
 		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
-	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
+	// heap alloc, so need to compare value rather than pointer.
+	// If you Deref the result, TypedValue.GetByteAtIndexInt is more efficient.
+	btv := &TypedValue{
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -400,7 +399,7 @@ func (sv *SliceValue) GetLength() int {
 }
 
 // et is only required for .List byte-slices.
-func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+func (sv *SliceValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		excpt := &Exception{
@@ -416,7 +415,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 		}
 		panic(excpt)
 	}
-	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
+	return sv.GetBase(store).GetElementPointer(store, sv.Offset+ii, et)
 }
 
 // ----------------------------------------
@@ -1594,6 +1593,13 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		return nilStr, false
 	}
+	// Static uncomparable keys are rejected at preprocess; an uncomparable
+	// tv.T here came via interface boxing. isComparable recurses, so the
+	// panic names the outer dynamic type, matching Go.
+	if !isComparable(tv.T) {
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
+	}
 	// General case.
 	bz := make([]byte, 0, 64)
 	// Charge per-byte for all bytes appended to bz in this call (TypeID
@@ -1625,7 +1631,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		} else {
 			pv := tv.V.(PointerValue)
 			if pv.TV != nil && pv.TV.T == DataByteType {
-				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// TV is freshly allocated per access (see GetElementPointer);
 				// so we cannot simply convert to uintptr.
 				// We instead use the pointer to Base + concat with Index.
 				// This causes a longer pointer value, but does not cause issues
@@ -1642,8 +1648,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1669,32 +1673,36 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
-	case *SliceType:
-		panic(&Exception{Value: typedString("runtime error: slice type cannot be used as map key")})
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
+		var appendComma bool
 		for i := range sl {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
+			if appendComma {
+				bz = append(bz, ',')
+			} else {
+				appendComma = true
+			}
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
-			if i != sl-1 {
-				bz = append(bz, ',')
-			}
 		}
 		bz = append(bz, '}')
-	case *ChanType:
-		panic("channel type is not yet supported")
 	default:
-		panic(fmt.Sprintf(
-			"unexpected map key type %s",
-			tv.T.String()))
+		// Defensive fallback: the isComparable gate above already stops
+		// every uncomparable type (slices, maps, funcs, chans, ...) before
+		// the switch, so this is unreachable in practice.
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
 }
@@ -1996,13 +2004,73 @@ func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) Poin
 	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
 }
 
+// GetByteAtIndexInt is a read-only fast path of GetPointerAtIndex for
+// strings and Data-backed (byte) arrays and slices: it returns the element
+// value directly instead of materializing a heap-allocated pointer box
+// (see GetElementPointer) that the caller immediately Derefs and
+// discards. ok is false when tv is none of those (maps, List-backed arrays
+// and slices), in which case the caller must use GetPointerAtIndex. Checks
+// and panics mirror GetPointerAtIndex: out-of-range indices raise explicit
+// Exceptions for strings, arrays and slices, so they stay recoverable rather
+// than escaping as un-recoverable Go panics (see #5738).
+func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok bool) {
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		if bt == StringType || bt == UntypedStringType {
+			sv := tv.GetString()
+			if ii >= len(sv) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+			}
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+			}
+			res = TypedValue{T: Uint8Type}
+			res.SetUint8(sv[ii])
+			return res, true
+		}
+	case *ArrayType:
+		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+			}
+			if ii >= len(av.Data) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+			}
+			res = TypedValue{T: bt.Elt}
+			res.SetUint8(av.Data[ii])
+			return res, true
+		}
+	case *SliceType:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+		}
+		if sv, sok := tv.V.(*SliceValue); sok {
+			if base := sv.GetBase(store); base.Data != nil {
+				if ii < 0 {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d", ii))})
+				} else if sv.Length <= ii {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d (len=%d)",
+						ii, sv.Length))})
+				}
+				res = TypedValue{T: bt.Elt}
+				res.SetUint8(base.Data[sv.Offset+ii])
+				return res, true
+			}
+		}
+	}
+	return TypedValue{}, false
+}
+
 func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			ii := int(iv.ConvertGetInt())
-			btv := &TypedValue{ // heap alloc
+			// heap alloc; GetByteAtIndexInt optimizes this if you Deref the result.
+			btv := &TypedValue{
 				T: Uint8Type,
 			}
 
@@ -2025,14 +2093,14 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := int(iv.ConvertGetInt())
-		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		return av.GetElementPointer(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
 		}
 		sv := tv.V.(*SliceValue)
 		ii := int(iv.ConvertGetInt())
-		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		return sv.GetElementPointer(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("runtime error: uninitialized map index")})
@@ -2792,7 +2860,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
+				epv := cbv.GetElementPointer(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
 				fpv := cbv.GetPointerToInt(store, cv.Index)
