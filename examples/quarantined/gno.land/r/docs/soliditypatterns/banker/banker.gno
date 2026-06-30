@@ -59,6 +59,11 @@ func Withdraw(cur realm, amount int64) {
 		panic("invalid non-user call")
 	}
 
+	// A negative amount would inflate the balance and send negative coins.
+	if amount <= 0 {
+		panic("amount must be positive")
+	}
+
 	caller := cur.Previous().Address()
 
 	// Get current balance
