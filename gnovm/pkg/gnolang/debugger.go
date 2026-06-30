@@ -207,9 +207,9 @@ loop:
 		m.Debugger.realms = append(m.Debugger.realms, m.Realm)
 	case OpReturn, OpReturnFromBlock:
 		if len(m.Debugger.call) > 0 {
-		  m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
-		  m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
-		  m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
+			m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+			m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
+			m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
 		}
 	}
 }
