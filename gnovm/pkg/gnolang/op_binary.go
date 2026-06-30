@@ -83,10 +83,6 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-	// Per-N CPU gas for BigInt equality.
-	if lv.T != nil && lv.T.Kind() == BigintKind {
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
-	}
 	// set result in lv.
 	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
@@ -103,7 +99,6 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-
 	// set result in lv.
 	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
@@ -141,8 +136,6 @@ func (m *Machine) doOpLss() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
-
-	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
 	res := isLss(m, lv, rv)
@@ -379,7 +372,7 @@ func (m *Machine) doOpShl() {
 	}
 
 	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
-	if lv.T == UntypedBigintType {
+	if baseOf(lv.T) == UntypedBigintType {
 		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
 	}
 
@@ -509,10 +502,12 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	case Float64Kind:
 		return softfloat.Feq64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) == 0
 	case BigdecKind:
+		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecEql)
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) == 0
@@ -643,10 +638,12 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Flt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) < 0
 	case BigdecKind:
+		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecCmp)
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) < 0
@@ -690,10 +687,12 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fle64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) <= 0
 	case BigdecKind:
+		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecCmp)
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) <= 0
@@ -737,10 +736,12 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fgt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) > 0
 	case BigdecKind:
+		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecCmp)
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) > 0
@@ -784,10 +785,12 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fge64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) >= 0
 	case BigdecKind:
+		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecCmp)
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
 		return lb.Cmp(rb) >= 0
