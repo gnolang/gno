@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
@@ -802,6 +801,14 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
+// ratGuard panics if r's denominator exceeds 4096 bits, matching Go's
+// behavior of rejecting constant expressions that exceed implementation limits.
+func ratGuard(r *big.Rat) {
+	if r.Denom().BitLen() > 4096 {
+		panic("constant expression result too large: denominator exceeds 4096 bits")
+	}
+}
+
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
@@ -844,14 +851,9 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: sum}
+		result := new(big.Rat).Add(lb, rb)
+		ratGuard(result)
+		lv.V = BigdecValue{V: result}
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -900,14 +902,9 @@ func subAssign(lv, rv *TypedValue) {
 	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		diff := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: diff}
+		result := new(big.Rat).Sub(lb, rb)
+		ratGuard(result)
+		lv.V = BigdecValue{V: result}
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -956,12 +953,9 @@ func mulAssign(lv, rv *TypedValue) {
 	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
-		prod := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
-		}
-		lv.V = BigdecValue{V: prod}
+		result := new(big.Rat).Mul(lb, rb)
+		ratGuard(result)
+		lv.V = BigdecValue{V: result}
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -1048,17 +1042,14 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+		rb := rv.GetBigDec()
+		if rb.Sign() == 0 {
 			return expt
 		}
 		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		quo := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec division error: %v", err))
-		}
-		lv.V = BigdecValue{V: quo}
+		result := new(big.Rat).Quo(lb, rb)
+		ratGuard(result)
+		lv.V = BigdecValue{V: result}
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",

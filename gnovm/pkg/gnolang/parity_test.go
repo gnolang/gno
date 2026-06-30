@@ -5,8 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
-
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/aminotest"
 )
@@ -44,10 +42,8 @@ func parityCasesGnolang() []struct {
 	bigintNeg := &BigintValue{V: big.NewInt(-9223372036854775808)}
 	bigintLarge := &BigintValue{V: new(big.Int).Lsh(big.NewInt(1), 200)} // 2^200
 
-	bigdec, _, err := apd.NewFromString("3.14159265358979323846")
-	if err != nil {
-		panic(err)
-	}
+	bigdec := new(big.Rat)
+	bigdec.SetString("3141592653589793238/1000000000000000000") // approx pi as a rational
 	bigdecVal := &BigdecValue{V: bigdec}
 
 	// ObjectID: AminoMarshaler returning "hex:time" string. Zero value

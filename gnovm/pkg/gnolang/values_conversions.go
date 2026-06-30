@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -1260,7 +1259,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = BigintValue{V: big.NewInt(int64(sv))}
 	case BigdecKind:
 		dst.ClearNum()
-		dst.V = BigdecValue{V: apd.New(int64(sv), 0)}
+		dst.V = BigdecValue{V: new(big.Rat).SetInt64(int64(sv))}
 	default:
 		panic(fmt.Sprintf("unexpected target %v", k))
 	}
@@ -1331,7 +1330,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		return // done
 	case BigdecKind:
 		dst.T = t
-		dst.V = BigdecValue{V: apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(bi), 0)}
+		dst.V = BigdecValue{V: new(big.Rat).SetInt(bi)}
 		return // done
 	default:
 		panic(fmt.Sprintf(
@@ -1403,47 +1402,42 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 
 func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
-	bd := bdv.V
+	r := bdv.V
 	switch k {
 	case BigintKind:
-		if !isDecimalInteger(bd) {
+		if !isRatInt(r) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bd.String(),
+				r.RatString(),
 			))
 		}
 		dst.T = t
-		dst.V = BigintValue{V: toBigInt(bd)}
-		return // done
+		dst.V = BigintValue{V: toRatBigInt(r)}
+		return
 	case BoolKind:
 		panic("cannot convert untyped bigdec to bool")
 	case InterfaceKind:
 		dst.T = Float64Type
 		dst.V = nil
-		f, _ := bd.Float64()
-		dst.SetFloat64(math.Float64bits(f))
+		f64, _ := r.Float64()
+		dst.SetFloat64(math.Float64bits(f64))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !isDecimalInteger(bd) {
+		if !isRatInt(r) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bd.String(),
+				r.RatString(),
 			))
 		}
-		ConvertUntypedBigintTo(dst, BigintValue{V: toBigInt(bd)}, t)
+		ConvertUntypedBigintTo(dst, BigintValue{V: toRatBigInt(r)}, t)
 		return
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, err := bd.Float64()
-		if err != nil {
-			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
-		}
-
-		bf := big.NewFloat(f64)
-		f32, _ := bf.Float32()
+		f64, _ := r.Float64()
+		f32 := float32(f64)
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
@@ -1452,10 +1446,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, err := bd.Float64()
-		if err != nil {
-			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
-		}
+		f64, _ := r.Float64()
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
@@ -1469,33 +1460,17 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 }
 
 // ----------------------------------------
-// apd.Decimal utility
+// big.Rat utility
 
-func isDecimalInteger(d *apd.Decimal) bool {
-	d2 := apd.New(0, 0)
-	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
-	if err != nil {
-		panic("should not happen")
-	}
-	integer := !res.Inexact()
-	return integer
+func isRatInt(r *big.Rat) bool {
+	return r.IsInt()
 }
 
-func toBigInt(d *apd.Decimal) *big.Int {
-	d2 := apd.New(0, 0)
-	_, err := apd.BaseContext.RoundToIntegralExact(d2, d)
-	if err != nil {
-		panic("should not happen")
+func toRatBigInt(r *big.Rat) *big.Int {
+	if !r.IsInt() {
+		panic(fmt.Sprintf("cannot convert non-integer rational %s to big.Int", r.RatString()))
 	}
-	d2s := d2.String()
-	bi := big.NewInt(0)
-	_, ok := bi.SetString(d2s, 10)
-	if !ok {
-		panic(fmt.Sprintf(
-			"invalid integer constant: %s",
-			d2s))
-	}
-	return bi
+	return new(big.Int).Set(r.Num())
 }
 
 // IsExactBigDec checks if v is a BigdecValue that can be represented
@@ -1503,7 +1478,7 @@ func toBigInt(d *apd.Decimal) *big.Int {
 // underlying value has no fractional component.
 func IsExactBigDec(v Value) bool {
 	if bd, ok := v.(BigdecValue); ok {
-		return isDecimalInteger(bd.V)
+		return isRatInt(bd.V)
 	}
 	return false
 }
