@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -1378,5 +1379,32 @@ func init() {
 		// contract is that the back-reference targets the first-assigned id.)
 		require.Contains(t, rep, `"ObjectID":":1"`,
 			"back-reference must target the first-visited ephemeral Object (:1); got:\n%s", rep)
+	})
+}
+
+func TestConvertFloatNegativeZeroFolded(t *testing.T) {
+	t.Parallel()
+
+	// A -0 float argument must arrive as +0, matching Go's -0.0 literal folding.
+	t.Run("literal", func(t *testing.T) {
+		t.Parallel()
+		for _, arg := range []string{"-0.0", "-0"} {
+			tv64 := convertArgToGno(arg, gnolang.Float64Type)
+			require.False(t, math.Signbit(math.Float64frombits(tv64.GetFloat64())),
+				"float64 %q: expected positive zero, got sign bit set", arg)
+
+			tv32 := convertArgToGno(arg, gnolang.Float32Type)
+			require.False(t, math.Signbit(float64(math.Float32frombits(tv32.GetFloat32()))),
+				"float32 %q: expected positive zero, got sign bit set", arg)
+		}
+	})
+
+	// "-1e-50" is a normal negative float64 but underflows to -0 at float32
+	// precision; the fold must clear that sign bit on the float32 path too.
+	t.Run("float32 underflow", func(t *testing.T) {
+		t.Parallel()
+		tv32 := convertArgToGno("-1e-50", gnolang.Float32Type)
+		require.False(t, math.Signbit(float64(math.Float32frombits(tv32.GetFloat32()))),
+			"float32 -1e-50: expected positive zero, got sign bit set")
 	})
 }

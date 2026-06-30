@@ -213,6 +213,13 @@ func convertFloat(value string, precision int) float64 {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
 	}
 
+	// Fold -0 to +0 to match Go's -0.0 literal folding: a Go source literal
+	// -0.0 is a constant that folds to +0, so a -0.0 argument arrives as +0
+	// too. strconv.ParseFloat keeps the sign bit, so clear it by reassigning.
+	if f64 == 0 {
+		f64 = 0
+	}
+
 	return f64
 }
 
