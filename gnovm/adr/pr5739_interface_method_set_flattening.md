@@ -164,7 +164,9 @@ recursion; only the unmigrated in-place case requires keeping it. This PR ships
 with the recursion **retained** (safe under any choice); revisit removal once
 the rollout model is decided.
 
-Also deferred (orthogonal): the pure-VM `flattenInterfaceMethods` conflict path
-is a `panic`, relying on go/types rejecting same-name/different-signature embeds
-upstream. If a VM path can ever reach construction without that gate, convert it
-to a positioned preprocess error.
+Conflict handling (same-name, different-signature embedded methods) needs no
+follow-up: `flattenInterfaceMethods` `panic`s, but during preprocessing that is
+wrapped into a positioned `*PreprocessError` (the same idiom as other type
+errors, e.g. "struct has no field"), so it surfaces as a matchable `// Error:`.
+go/types also rejects it as a `// TypeCheckError:`. Both are pinned by
+`iface_embed_conflict.gno`, matching Go's "duplicate method" compile error.
