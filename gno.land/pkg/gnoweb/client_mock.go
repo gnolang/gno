@@ -60,7 +60,7 @@ func (m *MockClient) Realm(ctx context.Context, path, args string) ([]byte, erro
 }
 
 // File fetches the source file from a given package path and filename, returning its content and metadata.
-func (m *MockClient) File(ctx context.Context, pkgPath, fileName string) ([]byte, FileMeta, error) {
+func (m *MockClient) File(ctx context.Context, pkgPath, fileName string, _ int64) ([]byte, FileMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, FileMeta{}, fmt.Errorf("context error: %w", err)
 	}
@@ -84,7 +84,7 @@ func (m *MockClient) File(ctx context.Context, pkgPath, fileName string) ([]byte
 }
 
 // ListFiles lists all source files available in a specified package path.
-func (m *MockClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+func (m *MockClient) ListFiles(ctx context.Context, path string, _ int64) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context error: %w", err)
 	}
@@ -128,7 +128,7 @@ func (m *MockClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 }
 
 // Doc retrieves the JSON documentation for a specified package path.
-func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDocumentation, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context error: %w", err)
 	}
@@ -143,6 +143,27 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 // Eval evaluates a Gno expression (mock implementation).
 func (m *MockClient) Eval(_ context.Context, data string) ([]byte, error) {
 	return []byte("(mock eval: " + data + ")"), nil
+}
+
+// StatePkg returns mock package state data for testing.
+func (m *MockClient) StatePkg(_ context.Context, path string, _ int64) ([]byte, error) {
+	_, exists := m.Packages[path]
+	if !exists {
+		return nil, ErrClientPackageNotFound
+	}
+	// Empty package shape matching what the keeper produces via amino.MarshalJSON.
+	return []byte(`{"names":[],"values":[]}`), nil
+}
+
+// StateObject returns mock object state data for testing.
+func (m *MockClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, error) {
+	// Empty StructValue — minimal valid shape for amino.UnmarshalJSON.
+	return []byte(`{"objectid":"","value":{"@type":"/gno.StructValue","Fields":[]}}`), nil
+}
+
+// StateType returns mock type data for testing.
+func (m *MockClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
+	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
 }
 
 // Helper: check if package has a Render(string) string function.

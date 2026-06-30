@@ -1,4 +1,4 @@
-import { BaseController } from "./controller.js";
+import { BaseController, setPrefCookie } from "./controller.js";
 
 enum Preference {
 	System = "system",
@@ -87,7 +87,7 @@ export class ThemeController extends BaseController {
 	private applyTheme(): void {
 		const theme = this.resolveTheme();
 		document.documentElement.setAttribute("data-theme", theme);
-		this.setCookie(theme, COOKIE_MAX_AGE);
+		setPrefCookie(COOKIE_KEY, theme, COOKIE_MAX_AGE);
 
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],
@@ -98,10 +98,5 @@ export class ThemeController extends BaseController {
 		}
 
 		this.dispatch("theme:changed", { theme });
-	}
-
-	private setCookie(value: string, maxAge: number): void {
-		const secure = location.protocol === "https:" ? ";Secure" : "";
-		document.cookie = `${COOKIE_KEY}=${value};path=/;max-age=${maxAge};SameSite=Lax${secure}`;
 	}
 }

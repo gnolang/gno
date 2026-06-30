@@ -69,3 +69,15 @@ export function makeCopyIcon(): SVGSVGElement {
 	svg.appendChild(checkUse);
 	return svg;
 }
+
+// setPrefCookie writes a SameSite=Lax preference cookie, adding Secure
+// on HTTPS. Used by controllers that mirror a JS preference to a cookie
+// so the server can stamp the right state on first paint.
+export function setPrefCookie(
+	name: string,
+	value: string,
+	maxAge: number,
+): void {
+	const secure = location.protocol === "https:" ? ";Secure" : "";
+	document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax${secure}`;
+}

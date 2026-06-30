@@ -17,8 +17,10 @@
 @import "./05-composition.css";
 @import "./06-blocks.css";
 /* Per-feature Block-layer CSS lives co-located with each feature module.
-   Pulled in here so they sit inside the Block layer slot (between
-   06-blocks and 07-utilities) — cascade order preserved. */
+   postcss-import requires @import at the top of a file, so we pull them
+   in here (still inside the Block layer slot, between 06-blocks and
+   07-utilities — cascade order preserved). */
+@import "../../feature/state/frontend/state.css";
 @import "../../feature/playground/frontend/playground.css";
 @import "../../feature/run/frontend/run.css";
 @import "./07-utilities.css";

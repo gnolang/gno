@@ -5,6 +5,7 @@ import {
 	findFirstInclusive,
 	makeCopyIcon,
 	makeIcon,
+	setPrefCookie,
 	toCamelCase,
 	toKebabCase,
 } from "./utils.js";
@@ -23,7 +24,9 @@ export abstract class BaseController {
 		this.init();
 	}
 
-	// connect and disconnect the controller
+	// connect runs during super() — i.e. BEFORE derived class-field
+	// initialisers. Use `declare` (no `=`) for fields assigned in
+	// connect(); a `= default` here would clobber the connect-time write.
 	protected abstract connect(): void;
 	protected disconnect?(): void;
 
@@ -33,6 +36,11 @@ export abstract class BaseController {
 			this.setupActions();
 			this.initialized = true;
 		}
+	}
+
+	// warn logs a console warning prefixed with the controller's class name.
+	protected warn(msg: string, ...args: unknown[]): void {
+		console.warn(`${this.constructor.name}: ${msg}`, ...args);
 	}
 
 	protected initializeDOM<
@@ -247,6 +255,7 @@ export {
 	findFirstInclusive,
 	makeCopyIcon,
 	makeIcon,
+	setPrefCookie,
 	toCamelCase,
 	toKebabCase,
 };
