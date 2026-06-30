@@ -864,10 +864,10 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 	} else {
 		m[st] = struct{}{}
 	}
-	// Search fields.
+	// A direct (depth-0) field shadows anything promoted from an
+	// embedded field, so search direct fields first.
 	for i := range st.Fields {
 		sf := &st.Fields[i]
-		// Maybe is a field of the struct.
 		if sf.Name == n {
 			// Ensure exposed or package match.
 			if !isUpper(string(n)) && st.PkgPath != callerPath {
@@ -876,24 +876,43 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 			vp := NewValuePathField(0, uint16(i), n)
 			return []ValuePath{vp}, false, nil, sf.Type, false
 		}
-		// Maybe is embedded within a field.
-		if sf.Embedded {
-			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
-			if accessError2 {
-				// XXX make test case and check against go
-				return nil, false, nil, nil, true
-			} else if trail2 != nil {
-				if trail != nil {
-					// conflict detected. return none.
-					return nil, false, nil, nil, false
-				} else {
-					// remember.
-					vp := NewValuePathField(0, uint16(i), sf.Name)
-					trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
-				}
-			}
+	}
+	// Then search embedded fields, applying Go's depth-based shadowing
+	// rule (Go spec, "Selectors"): the promoted field or method at the
+	// shallowest depth wins; if two or more are found at the same
+	// shallowest depth the selector is ambiguous and there is no match.
+	// trail length is the depth, so the shortest candidate trail wins.
+	var ambiguous bool
+	for i := range st.Fields {
+		sf := &st.Fields[i]
+		if !sf.Embedded {
+			continue
 		}
+		trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, sf.Type, n, m)
+		if accessError2 {
+			// XXX make test case and check against go
+			return nil, false, nil, nil, true
+		}
+		if trail2 == nil {
+			continue
+		}
+		vp := NewValuePathField(0, uint16(i), sf.Name)
+		cand := append([]ValuePath{vp}, trail2...)
+		switch {
+		case trail == nil || len(cand) < len(trail):
+			// First match, or a strictly shallower one shadows the
+			// previous candidate (resetting any earlier ambiguity).
+			trail, hasPtr, rcvr, field = cand, hasPtr2, rcvr2, field2
+			ambiguous = false
+		case len(cand) == len(trail):
+			// Two matches at the same shallowest depth: ambiguous.
+			ambiguous = true
+		}
+		// len(cand) > len(trail): deeper, shadowed; ignore.
+	}
+	if ambiguous {
+		// Ambiguous selector at the shallowest depth: no match.
+		return nil, false, nil, nil, false
 	}
 	return // may be found or nil.
 }
