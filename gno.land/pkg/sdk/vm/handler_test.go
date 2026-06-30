@@ -129,11 +129,12 @@ package hello
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"time"
 )
 
 var _ = time.RFC3339
-func caller() address { return runtime.OriginCaller() }
+func caller() address { return unsafe.OriginCaller() }
 var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
@@ -739,4 +740,32 @@ func Hello(msg string) (res string) { res = prefix+" "+msg; return }
 			}
 		})
 	}
+}
+
+func TestVmHandlerQuery_PkgJSON_NotFound(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qpkg_json",
+		Data: []byte("gno.land/r/nonexistent/pkg"),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Regexp(t, `invalid package path`, res.Error.Error())
+}
+
+func TestVmHandlerQuery_TypeJSON_NotFound(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qtype_json",
+		Data: []byte("gno.land/r/nonexistent.FakeType"),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Regexp(t, `invalid expression`, res.Error.Error())
 }

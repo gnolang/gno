@@ -64,13 +64,20 @@ rune := rune('a')
 
 Note: for determinism, converting a `string` to `[]byte` or `[]rune` produces a slice with `cap == len`.
 
-Additional builtin types:
+## Builtin types with no Go equivalent
 
-| type     | comment                                                                                    |
-|----------|--------------------------------------------------------------------------------------------|
-| `bigint` | Based on `math/big.Int`                                                                    |
-| `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
+Predeclared types that exist only in Gno, with no Go counterpart.
 
+| type      | comment                                                         |
+|-----------|-----------------------------------------------------------------|
+| `address` | Account/realm address, with `String()` and `IsValid()` methods. |
+| `realm`   | Type of the `cur realm` receiver in crossing functions.         |
+
+## Pointer equality for zero-sized types
+
+Pointers to two distinct zero-sized variables are never equal in Gno, even where
+Go may report them equal. See [the memory
+model](gno-memory-model.md#pointer-equality).
 
 ## Stdlibs
 
@@ -127,11 +134,11 @@ Legend:
 | crypto/ed25519                              | `part`[^3] |
 | crypto/elliptic                             | `tbd`    |
 | crypto/hmac                                 | `todo`   |
-| crypto/md5                                  | `test`[^4] |
+| crypto/md5                                  | `tbd`[^4]  |
 | crypto/rand                                 | `nondet` |
 | crypto/rc4                                  | `tbd`    |
 | crypto/rsa                                  | `tbd`    |
-| crypto/sha1                                 | `test`[^4] |
+| crypto/sha1                                 | `tbd`[^4]  |
 | crypto/sha256                               | `part`[^5] |
 | crypto/sha512                               | `tbd`    |
 | crypto/subtle                               | `part`[^6] |
@@ -274,22 +281,28 @@ Legend:
   but [all functions up to Go 1.17 exist](https://pkg.go.dev/builtin@go1.17),
   except for those relating to complex (real or imag) or channel types.
 [^2]: `crypto/cipher` provides the interfaces (`AEAD`, `Block`, `BlockMode`,
-  `Stream`, `StreamReader`, `StreamWriter`) but none of the mode constructors
-  (`NewCBCEncrypter`/`Decrypter`, `NewCTR`, `NewCFBEncrypter`/`Decrypter`,
-  `NewOFB`, `NewGCM` and friends). Practically unusable until a backing block
+  `Stream`) plus the `StreamReader`/`StreamWriter` structs, but none of the mode
+  constructors (`NewCBCEncrypter`/`Decrypter`, `NewCTR`,
+  `NewCFBEncrypter`/`Decrypter`, `NewOFB`, `NewGCM`). The two structs
+  are stubs: they lack the `Read`/`Write` methods that satisfy
+  `io.Reader`/`io.Writer` in Go. Practically unusable until a backing block
   cipher (`crypto/aes` is `todo`) lands together with these constructors.
 [^3]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^4]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
-  algorithms, widely considered unsafe for cryptographic hashing. Decision on
-  whether to include these as part of the official standard libraries is still
-  pending.
+[^4]: `crypto/sha1` and `crypto/md5` are "deprecated" hashing algorithms, widely
+  considered unsafe for cryptographic hashing. They are not currently available;
+  the decision on whether to include them as official standard libraries is
+  still pending.
 [^5]: `crypto/sha256` is currently only implemented for `Sum256`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^6]: `crypto/subtle` currently ships `XORBytes` only. The constant-time
-  comparison primitives (`ConstantTimeCompare`, `ConstantTimeEq`,
-  `ConstantTimeSelect`, `ConstantTimeByteEq`, `ConstantTimeCopy`,
-  `ConstantTimeLessOrEq`) are not yet implemented.
+[^6]: `crypto/subtle` ships `XORBytes` and `XORBytesUnsafe`, neither matching
+  Go's API. Go has a single `XORBytes(dst, x, y []byte) int` that writes into
+  `dst`. Gno's `XORBytes(x, y []byte) []byte` allocates and returns the result
+  instead, while the Gno-only `XORBytesUnsafe(dst, x, y []byte) int` keeps the
+  write-into-`dst` behaviour. The constant-time comparison primitives
+  (`ConstantTimeCompare`, `ConstantTimeEq`, `ConstantTimeSelect`,
+  `ConstantTimeByteEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`) are not yet
+  implemented.
 [^7]: `encoding/binary` only ships the varint family (`Varint`, `Uvarint`,
   `PutVarint`, `PutUvarint`, `AppendVarint`, `AppendUvarint`, `ReadVarint`,
   `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
@@ -309,33 +322,47 @@ Legend:
   Its functionality has been moved to packages `os` and `io`. The functions
   which have been moved in `io` are implemented in that package.
 [^12]: `math/rand` in Gno ports over Go's `math/rand/v2`. The v1 names
-  (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`,
-  global `Source` interface) are not available — use the v2 equivalents
-  (`Int32`, `Int32N`, `Int64`, `Int64N`, `IntN`, and the v2 constructors
-  `New`, `NewPCG`, `NewChaCha8`).
+  (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`)
+  are not available. Use the v2 equivalents (`Int32`, `Int32N`, `Int64`,
+  `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The `Source`
+  interface also changed: where v1 defined it with two methods (`Int63` and
+  `Seed`), v2 defines it with a single `Uint64() uint64`.
 [^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
-  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. You'll need to write
-  a bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`.
+  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. Implement
+  `sort.Interface` and call `sort.Sort` instead, which takes a bit of
+  boilerplate.
 [^14]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
 [^15]: `time.Now` returns the block time rather than the system time, for
   determinism. Anything that pauses or schedules execution is not implemented:
-  `Sleep`, `After`, `AfterFunc`, `Tick`, `NewTicker`, `NewTimer`, and the
+  `Sleep`, the top-level `After(d Duration) <-chan Time` (the `Time.After(u Time)
+  bool` method does exist), `AfterFunc`, `Tick`, `NewTicker`, `NewTimer`, and the
   associated `Ticker`/`Timer` types.
 
 ## Gno-only standard libraries
 
 The packages below are part of the Gno stdlib but have no Go counterpart.
 
-| package          | purpose                                                                   |
-|------------------|---------------------------------------------------------------------------|
-| `chain`          | Core chain types: `Address`, `Coin`, `Coins`, `Emit`/`Event`, helpers.    |
-| `chain/banker`   | Realm coin management (mint, burn, transfer, balance queries).            |
-| `chain/params`   | Chain-parameter accessors.                                                |
-| `chain/runtime`  | Runtime context accessors (`PreviousRealm`, current realm, height, …).    |
-| `sys/params`     | System-parameter setters (`SetSysParam{Bool,Bytes,Int64,String,...}`).    |
-| `crypto/bech32`  | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).   |
-| `crypto/chacha20`| ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                     |
+| package                  | purpose                                                                                         |
+|--------------------------|-------------------------------------------------------------------------------------------------|
+| `chain`                  | Core chain types and helpers: `Coin`, `Coins`, `Emit`, `PackageAddress`, `PubKeyAddress`.       |
+| `chain/banker`           | Realm coin management (mint, burn, transfer, balance queries).                                  |
+| `chain/markdown`         | Markdown escaping/sanitizing and the gno-foreign block sandbox (`MaxForeignBlocksPerConvert`).  |
+| `chain/params`           | Realm-local parameter setters (`SetString`, `SetBool`, `SetInt64`, …, `UpdateParamStrings`).    |
+| `chain/runtime`          | Chain context and the `Realm` type (`ChainHeight`, `AssertOriginCall`, `IsUserCall`, …).        |
+| `chain/runtime/unsafe`   | Caller/origin primitives (`PreviousRealm`, `CurrentRealm`, `OriginCaller`, `OriginSend`).       |
+| `crypto/bech32`          | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).                         |
+| `crypto/bn254`           | BN254 pairing-friendly curve ops (`G1Add`, `G1Mul`, `PairingCheck`).                            |
+| `crypto/chacha20`        | ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                                           |
+| `crypto/chacha20/chacha` | Low-level ChaCha20 primitives (`NewCipher`, `XORKeyStream`, `HChaCha20`).                       |
+| `crypto/chacha20/rand`   | ChaCha20-backed RNG (`New`, `Read`, `Bytes`, `Entropy256`, …).                                  |
+| `crypto/cometbls`        | CometBLS Groth16 light-header verification via a native binding (`VerifyZKP`).                  |
+| `crypto/cometblszk`      | Pure-Gno CometBLS Groth16 verifier on `bn254`/`keccak256`/`modexp` (`VerifyZKP`).               |
+| `crypto/keccak256`       | Keccak-256 hashing (`Sum256`).                                                                  |
+| `crypto/merkle`          | Merkle tree hashing and proofs (`HashFromByteSlices`, `LeafHash`, `VerifySimpleProof`).         |
+| `crypto/modexp`          | Big-integer modular exponentiation (`ModExp`).                                                  |
+| `math/overflow`          | Overflow-checked integer arithmetic (`Add`, `Sub`, `Mul`, `Div`, …).                            |
+| `sys/params`             | System-parameter setters and getters (`SetSysParam*`, `GetSysParam*`, `UpdateSysParamStrings`). |
 
 ## Tooling (`gno` binary)
 

@@ -74,13 +74,11 @@ func (r *RedisRewarder) GetReward(ctx context.Context, user string) (int, error)
 	return total, nil
 }
 
+// Apply increments the user's cumulative-rewarded counter atomically. The
+// IncrBy operation is single-step in Redis, so concurrent claims for the same
+// user cannot read a stale value and overwrite each other's debit.
 func (r *RedisRewarder) Apply(ctx context.Context, user string, amount int) error {
-	previouslyRewarded, err := r.getCount(ctx, userRewardedKey(user))
-	if err != nil {
-		return err
-	}
-
-	return r.redisClient.Set(ctx, userRewardedKey(user), amount+previouslyRewarded, 0).Err()
+	return r.redisClient.IncrBy(ctx, userRewardedKey(user), int64(amount)).Err()
 }
 
 func (r *RedisRewarder) getCount(ctx context.Context, key string) (int, error) {

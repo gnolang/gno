@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_6_a_filetest
+
 // Test getting flags from an unflagged thread
-package main
+package z_6_a_filetest
 
 import (
 	"testing"
@@ -15,15 +17,15 @@ var (
 	threadID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "test123", false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Title", "Body")
+	boardID = boards2.CreateBoard(cross(cur), "test123", false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(uint64(boardID), uint64(threadID), 0, 0, 1)
+	flags := hub.GetFlags(cross(cur), uint64(boardID), uint64(threadID), 0, 0, 1)
 	println(len(flags))
 }
 
