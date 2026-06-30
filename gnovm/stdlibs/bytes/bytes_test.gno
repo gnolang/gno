@@ -2017,3 +2017,100 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 		})
 	}
 }
+
+// -----------------------------------------------------------------------------
+// Tests ported from upstream go1.25.9 bytes_test.go.
+// Skipped: TestClone, TestContainsFunc, TestCut/TestCutPrefix/TestCutSuffix,
+// TestLines, TestIssue65571, TestNewBufferShallow, TestWriteAppend, related
+// Examples — APIs not present in Gno or require unsupported features.
+// -----------------------------------------------------------------------------
+
+// --- TestCountNearPageBoundary ---
+//
+// Upstream uses a syscall.Mmap-backed dangerousSlice to detect off-by-one
+// reads past a slice's last byte. Gno's boundary_test.gno already stubs
+// dangerousSlice as make([]byte, 4096); we mirror that pattern here.
+
+func nearPageBoundaryBuf() []byte { return make([]byte, 4096) }
+
+func TestCountNearPageBoundary(t *testing.T) {
+	b := nearPageBoundaryBuf()
+	for i := range b {
+		c := bytes.Count(b[i:], []byte{1})
+		if c != 0 {
+			t.Fatalf("Count(b[%d:], {1})=%d, want 0", i, c)
+		}
+		c = bytes.Count(b[:i], []byte{0})
+		if c != i {
+			t.Fatalf("Count(b[:%d], {0})=%d, want %d", i, c, i)
+		}
+	}
+}
+
+// --- Examples (NOT executed by TestStdlibs but provide compile-time coverage) ---
+
+func ExampleBuffer_Cap() {
+	buf1 := bytes.NewBuffer(make([]byte, 10))
+	buf2 := bytes.NewBuffer(make([]byte, 0, 10))
+	fmt.Println(buf1.Cap())
+	fmt.Println(buf2.Cap())
+	// Output:
+	// 10
+	// 10
+}
+
+func ExampleBuffer_Next() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s", b.Next(2))
+	// Output:
+	// ab
+	// cd
+	// e
+}
+
+func ExampleBuffer_Read() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	rdbuf := make([]byte, 1)
+	n, err := b.Read(rdbuf)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(n)
+	fmt.Println(b.String())
+	fmt.Println(string(rdbuf))
+	// Output:
+	// 1
+	// bcde
+	// a
+}
+
+func ExampleBuffer_ReadByte() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	c, err := b.ReadByte()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(c)
+	fmt.Println(b.String())
+	// Output:
+	// 97
+	// bcde
+}
+
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("abc"), []byte("�")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("a\xffb\xC0\xAFc\xff"), []byte("")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("\xed\xa0\x80"), []byte("abc")))
+	// Output:
+	// abc
+	// abc
+	// abc
+}
