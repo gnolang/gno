@@ -20,7 +20,6 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Test-Driven Development (TDD)](/r/docs/tdd) - Writing tests before code in Gno.
 
 ## Data & Serialization
-- [JSON](/r/docs/json) - Working with JSON data using ^/p/onbloc/json^.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 
