@@ -1,0 +1,44 @@
+# Value-containment fan-out routed through interface type-set unions: each I_n
+# unions two array types over I_{n-1}, so go/types' validType walk would double
+# per level. Interface type sets are a go1.18 feature Gno (go1.17) does not
+# support, so the package is rejected before go/types runs, NOT allowed to hang
+# the node.
+
+# start a new node
+gnoland start
+
+# adding the union fan-out package fails: interface type sets are unsupported
+! gnokey maketx addpkg -pkgdir $WORK/fanout -pkgpath gno.land/r/foobar/fanout -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'not supported'
+
+-- fanout/gnomod.toml --
+module = "gno.land/r/foobar/fanout"
+gno = "0.9"
+
+-- fanout/fanout.gno --
+package fanout
+
+type I0 interface{ m() }
+
+type I1 interface{ [0]I0 | [1]I0 }
+type I2 interface{ [0]I1 | [1]I1 }
+type I3 interface{ [0]I2 | [1]I2 }
+type I4 interface{ [0]I3 | [1]I3 }
+type I5 interface{ [0]I4 | [1]I4 }
+type I6 interface{ [0]I5 | [1]I5 }
+type I7 interface{ [0]I6 | [1]I6 }
+type I8 interface{ [0]I7 | [1]I7 }
+type I9 interface{ [0]I8 | [1]I8 }
+type I10 interface{ [0]I9 | [1]I9 }
+type I11 interface{ [0]I10 | [1]I10 }
+type I12 interface{ [0]I11 | [1]I11 }
+type I13 interface{ [0]I12 | [1]I12 }
+type I14 interface{ [0]I13 | [1]I13 }
+type I15 interface{ [0]I14 | [1]I14 }
+type I16 interface{ [0]I15 | [1]I15 }
+type I17 interface{ [0]I16 | [1]I16 }
+type I18 interface{ [0]I17 | [1]I17 }
+type I19 interface{ [0]I18 | [1]I18 }
+type I20 interface{ [0]I19 | [1]I19 }
+
+type Use struct{ x I20 }

@@ -1,0 +1,53 @@
+# Value-containment fan-out split across an import boundary. p0 is a depth-16
+# doubling chain that is under budget on its own and deploys fine. p1 is a tiny
+# 5-line package, but it embeds p0.T four times by value — and go/types' validType
+# walk re-expands imported types WITHOUT memoizing (golang/go#65711), so p1's true
+# expansion is ~4x p0's and exceeds the budget. The guard must follow the import
+# and reject p1, rather than score the imported type as a leaf and let the walk
+# double unchecked across a longer chain until the node hangs.
+
+# start a new node
+gnoland start
+
+# p0: a depth-16 doubling chain, under budget, deploys successfully
+gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+
+# p1: tiny, but its cross-package expansion exceeds the budget, so it is rejected
+! gnokey maketx addpkg -pkgdir $WORK/p1 -pkgpath gno.land/r/foobar/p1 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'denial-of-service'
+
+-- p0/gnomod.toml --
+module = "gno.land/r/foobar/p0"
+gno = "0.9"
+
+-- p0/p0.gno --
+package p0
+
+type t0 struct{ v int }
+type t1 struct{ a, b [0]t0 }
+type t2 struct{ a, b [0]t1 }
+type t3 struct{ a, b [0]t2 }
+type t4 struct{ a, b [0]t3 }
+type t5 struct{ a, b [0]t4 }
+type t6 struct{ a, b [0]t5 }
+type t7 struct{ a, b [0]t6 }
+type t8 struct{ a, b [0]t7 }
+type t9 struct{ a, b [0]t8 }
+type t10 struct{ a, b [0]t9 }
+type t11 struct{ a, b [0]t10 }
+type t12 struct{ a, b [0]t11 }
+type t13 struct{ a, b [0]t12 }
+type t14 struct{ a, b [0]t13 }
+type t15 struct{ a, b [0]t14 }
+type T struct{ a, b [0]t15 }
+
+-- p1/gnomod.toml --
+module = "gno.land/r/foobar/p1"
+gno = "0.9"
+
+-- p1/p1.gno --
+package p1
+
+import "gno.land/r/foobar/p0"
+
+type T struct{ a, b, c, d [0]p0.T }
