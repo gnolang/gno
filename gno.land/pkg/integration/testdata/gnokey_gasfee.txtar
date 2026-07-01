@@ -22,16 +22,17 @@ stdout '"sequence": "0"'
 stdout '"coins": "10000000000000ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-# gas-wanted slightly above the simulation estimate; gas-fee covers that budget at 1ugnot/1000gas.
-# Since simulation overestimates delivery gas, the actual tx always fits within the budget.
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 5_005_000 -gas-fee 5253ugnot -chainid tendermint_test test1
+# This is the documented simulate->broadcast workflow; the values on this
+# line MUST match the simulate output above (modulo a small gas-wanted
+# headroom).
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2_816_000 -gas-fee 2956ugnot -chainid tendermint_test test1
 stdout 'OK'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":206900\}.*\]'
 
 ## fee + storage deposit were charged; sequence number increased.
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
-stdout '"coins": "9999999787847ugnot"'
+stdout '"coins": "9999999790144ugnot"'
 
 # Tx Call -simulate only, estimate gas used and gas fee.
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_800_000 -gas-fee 180001ugnot -chainid tendermint_test -simulate only test1
@@ -41,7 +42,7 @@ stdout 'INFO:       estimated gas usage: 1271011 \(suggested, with 5% margin: 13
 ## No additional fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
-stdout '"coins": "9999999787847ugnot"'
+stdout '"coins": "9999999790144ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_335_000 -gas-fee 1335ugnot -chainid tendermint_test test1
@@ -50,7 +51,7 @@ stdout 'OK'
 ## fee is charged and sequence number increased
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "2"'
-stdout '"coins": "9999999786512ugnot"'
+stdout '"coins": "9999999788809ugnot"'
 
 -- hello/gnomod.toml --
 module = "gno.land/r/hello"
