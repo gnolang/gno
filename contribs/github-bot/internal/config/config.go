@@ -117,20 +117,6 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 			Teams: Teams{"core-contributors"},
 		},
-		{
-			Description: "Determine if infra needs to be updated before merging",
-			If: c.And(
-				c.BaseBranch("^master$"),
-				c.Or(
-					c.FileChanged(gh, `Dockerfile`),
-					c.FileChanged(gh, `^misc/deployments`),
-					c.FileChanged(gh, `^misc/docker-`),
-					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
-				),
-			),
-			Teams: Teams{"devops"},
-		},
 	}
 
 	// Check for duplicates in manual rule descriptions (needs to be unique for the bot operations).
