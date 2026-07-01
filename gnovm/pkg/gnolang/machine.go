@@ -3038,7 +3038,9 @@ func (m *Machine) String() string {
 	}
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
-		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
+		builder.WriteString("      ")
+		m.Exception.Fprint(builder, m)
+		builder.WriteByte('\n')
 	}
 	return builder.String()
 }
