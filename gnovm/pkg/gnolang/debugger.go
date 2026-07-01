@@ -719,7 +719,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			}
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name), nil)
+		tr, _, _, _, _ := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name))
 		if len(tr) == 0 {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
