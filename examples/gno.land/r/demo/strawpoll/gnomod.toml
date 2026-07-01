@@ -1,0 +1,5 @@
+module = "gno.land/r/demo/strawpoll"
+gno = "0.9"
+
+[addpkg]
+  creator = "g1vf2hyn5pvj9f6rs5zwjt60587f4t9lk0c7e350"
