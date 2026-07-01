@@ -2450,23 +2450,53 @@ type Block struct {
 	Parent   Value
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+
+	// noRecycle marks the block as ineligible for Machine.releaseBlock's
+	// pool because a reference to it may outlive its time on the machine's
+	// block stack (currently only Defer.Parent; see setNoRecycle). It is
+	// transient runtime state — not persisted, and zeroed when a block is
+	// recycled or freshly allocated.
+	noRecycle bool
 }
 
-// NOTE: for allocation, use *Allocator.NewBlock.
-func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
-	numNames := source.GetNumNames()
-	values := make([]TypedValue, numNames)
-	// Keep in sync with ExpandWith().
+// setNoRecycle marks the block as ineligible for Machine.releaseBlock's
+// pool, because a reference to it may outlive its time on the machine's
+// block stack (currently only Defer.Parent, which the garbage collector
+// visits until the defer runs).
+func (b *Block) setNoRecycle() { b.noRecycle = true }
+
+func (b *Block) isNoRecycle() bool { return b.noRecycle }
+
+// initHeapItems prepopulates the heap-item slots of a block's values per
+// source.GetHeapItems(); these slots must always hold heap items. Used by
+// NewBlock and Machine.acquireBlock. Keep in sync with ExpandWith().
+func initHeapItems(alloc *Allocator, values []TypedValue, source BlockNode) {
 	for i, isHeap := range source.GetHeapItems() {
 		if !isHeap {
 			continue
 		}
-		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
 			V: alloc.NewHeapItem(nil, TypedValue{}),
 		}
 	}
+}
+
+// NOTE: for allocation, use *Allocator.NewBlock.
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
+	return newBlockWithValueCap(alloc, source, parent, 0)
+}
+
+// newBlockWithValueCap is NewBlock with a minimum Values capacity, clamped up
+// to numNames (pass minCap 0 for an exact fit). The pool uses minCap to
+// over-allocate so recycled blocks serve most later acquires; see
+// blockPoolValueCap. The extra capacity is a Go-heap concern only — gas/alloc
+// accounting (AllocateBlock) is by numNames, independent of capacity.
+func newBlockWithValueCap(alloc *Allocator, source BlockNode, parent *Block, minCap int) *Block {
+	numNames := int(source.GetNumNames())
+	capacity := max(minCap, numNames)
+	values := make([]TypedValue, numNames, capacity)
+	initHeapItems(alloc, values, source)
 	blk := &Block{
 		Source: source,
 		Values: values,

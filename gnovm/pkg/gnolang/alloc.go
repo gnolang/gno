@@ -82,7 +82,7 @@ const (
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
-	_allocBlock            = 528 // unsafe.Sizeof(Block{})
+	_allocBlock            = 536 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
@@ -676,6 +676,20 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
+}
+
+// newPooledBlock allocates a block for Machine.acquireBlock's pool (the miss
+// path), over-sizing its Values capacity to blockPoolValueCap so it can later
+// be recycled for most block sizes without a too-small miss. It charges
+// allocation gas for that actual capacity (see below); the per-acquire setup
+// CPU is charged by acquireBlock's OpCPUAcquireBlock.
+func (alloc *Allocator) newPooledBlock(source BlockNode, parent *Block) *Block {
+	// Charge for the memory actually allocated: a pooled block's Values is
+	// sized to blockPoolValueCap, so a small block costs the same malloc as
+	// a 14-slot one (that is what is allocated under the hood).
+	items := max(int(source.GetNumNames()), blockPoolValueCap)
+	alloc.AllocateBlock(int64(items))
+	return newBlockWithValueCap(alloc, source, parent, blockPoolValueCap)
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
