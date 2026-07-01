@@ -631,8 +631,10 @@ Within seconds the node should advance through heights.
 
 softsign keeps the consensus key in a **file on the host** — fine for
 testnets and learning the wiring, but **not for real stake** (use Part B).
-The *connection* (transport, allowlist, peer-ID pin, `protocol_version`,
-verification) is identical to Part B; only key custody and genesis differ.
+The tmkms↔gnoland wiring follows Part B's pattern (provider block,
+`protocol_version` pin, listener config, verification); what differs is key
+custody and genesis — and, since this lab is UDS, there's no allowlist,
+peer-ID pin, or `secret_key` (A.3).
 
 This lab is a same-host **UDS** layout, so per A.1 it runs **both processes
 as your operator user** in local dirs (no system users). softsign-specific
@@ -1037,7 +1039,7 @@ go test -tags=tmkms_integration -count=1 -v ./tm2/pkg/bft/privval/upstream/...
 | gnoland panics at InitChainer: `failed loading stdlib "…": does not exist` | `GNOROOT` isn't a complete checkout, or its stdlibs don't match the binary | Point `GNOROOT` at a full checkout of the tree you built, at the same commit ([Prerequisites](#set-gnoroot-to-a-gno-checkout)) |
 | tmkms: `unknown field 'softsign', expected 'ledgertm'` | tmkms built without softsign | `cargo install tmkms --version 0.15.0 --features softsign --locked` |
 | gnoland: `allowed_kms_pubkeys must not be empty` | allowlist unset, or `listen_addr` set before the other fields | Set the four fields with `listen_addr` **last** (B.5) |
-| gnoland exits after ~60s waiting for connection | tmkms not running, can't reach `addr`, or pubkey not in allowlist | Start tmkms first; check `addr` vs `listen_addr`; confirm the hex in `allowed_kms_pubkeys` |
+| gnoland exits after ~60s waiting for connection | tmkms not running, can't reach `addr`, or (TCP) pubkey not in allowlist | Start tmkms first; check `addr` vs `listen_addr`; on TCP confirm the hex in `allowed_kms_pubkeys` |
 | `protocol_version` rejected at startup | a value other than `v0.34` | Use `v0.34` on both sides |
 | gnoland panics at boot: `PubKey does not match Signer address` | default `-lazy` genesis has example txs (softsign path) | Add `-skip-genesis-sig-verification` (C.3) |
 | Node never advances past height 1, no signing in tmkms log | `chain_id` mismatch across genesis / config.toml / tmkms.toml | Make all three identical and restart |
