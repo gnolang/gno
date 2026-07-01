@@ -46,6 +46,9 @@ jobs:
           # this check is pinned to it; build/test/lint keep the go.mod version.
           # Fixes are still gated by each module's go.mod `go` directive.
           GOTOOLCHAIN: go1.26.1
+          # Cover `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) so they
+          # are checked here and by `make fix` alike, not silently skipped.
+          CGO_ENABLED: "1"
         run: |
           # -omitzero=false: the omitzero modernizer strips `json:",omitempty"`
           # from struct-typed fields, assuming encoding/json semantics where it

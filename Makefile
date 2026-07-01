@@ -86,11 +86,14 @@ GO_FIX_FLAGS ?= -omitzero=false
 
 .PHONY: fix
 # Apply `go fix` across every Go module that CI checks (see the lint job).
+# CGO_ENABLED=1 so `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) are
+# covered, matching CI; otherwise those files are silently skipped here but
+# flagged by the CI check. Requires a C compiler.
 fix:
-	GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
+	CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
 	@for d in $(wildcard contribs/*/) misc/autocounterd/ misc/loop/; do \
 		echo "==> go fix $$d"; \
-		( cd "$$d" && GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
+		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
 	done
 
 .PHONY: lint
