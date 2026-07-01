@@ -1297,6 +1297,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
