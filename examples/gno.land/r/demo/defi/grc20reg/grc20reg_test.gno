@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -19,10 +20,8 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
-`
 	got := Render("")
-	urequire.True(t, strings.Contains(got, expected))
+	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/defi/grc20reg:gno.land/r/demo/foo)`))
 	// 404
 	invalidToken := Get("0xdeadbeef")
 	urequire.True(t, invalidToken == nil)
@@ -40,10 +39,10 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
 	got = Render("")
-	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)`))
-	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)`))
+	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/defi/grc20reg:gno.land/r/demo/foo)`))
+	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/defi/grc20reg:gno.land/r/demo/foo.mySlug)`))
 
-	expected = `# TestToken
+	expected := `# TestToken
 - symbol: **TST**
 - realm: [gno.land/r/demo/foo](/r/demo/foo).mySlug
 - decimals: 4
@@ -51,6 +50,26 @@ func TestRegistry(cur realm, t *testing.T) {
 `
 	got = Render("gno.land/r/demo/foo.mySlug")
 	urequire.Equal(t, expected, got)
+}
+
+func TestPagination(cur realm, t *testing.T) {
+	// Register 11 tokens to test pagination (default page size is 10)
+	for i := 0; i < 11; i++ {
+		realmPath := ufmt.Sprintf("gno.land/r/demo/token%02d", i)
+		testing.SetRealm(testing.NewCodeRealm(realmPath))
+		tokenName := ufmt.Sprintf("Token%02d", i)
+		tokenSymbol := ufmt.Sprintf("TK%02d", i)
+		token, _ := grc20.NewToken(0, cur, tokenName, tokenSymbol, 6)
+		Register(cross(cur), token, "")
+	}
+
+	// Test first page (default)
+	page1 := Render("")
+	urequire.True(t, strings.Contains(page1, "Page 1 of 2"), "expected page 1 of 2")
+
+	// Test second page
+	page2 := Render("?page=2")
+	urequire.True(t, strings.Contains(page2, "Page 2 of 2"), "expected page 2 of 2")
 }
 
 func TestValidateSlug(cur realm, t *testing.T) {
