@@ -20,12 +20,13 @@ Ordered real-stake-first:
 - **[Part D](#part-d--advanced-ledger-hardware-signer)** — Ledger hardware signer (advanced/low-stake).
 - **[Part E](#part-e--prove-it-with-the-repos-automated-test)** + [checklist](#secure-setup-checklist).
 
-> **Verified vs. derived.** The gnoland side of every path (listener,
-> allowlist, peer-ID pin, `v0.34` pin, signing) is covered by the repo's
-> real-tmkms test with softsign and a Ledger (Part E). Part B's YubiHSM
-> steps are derived from the review + tmkms/YubiHSM docs — verify the exact
-> tokens against your firmware; the policy they encode (non-exportable key,
-> audit on, minimal caps) is firm.
+> **Verified vs. derived.** The repo's automated test drives a real tmkms
+> (softsign) over **TCP**, exercising the gnoland side of the TCP path —
+> SecretConnection listener, allowlist, peer-ID pin, `v0.34` pin, signing
+> (Part E). The UDS listener path and the Ledger backend are verified by hand
+> (Parts C/D), not by that test. Part B's YubiHSM steps are derived from the
+> review + tmkms/YubiHSM docs — verify the exact tokens against your firmware;
+> the policy they encode (non-exportable key, audit on, minimal caps) is firm.
 
 ## The security model in one paragraph
 
@@ -1025,12 +1026,15 @@ Within a few seconds the node should advance through heights:
 
 # Part E — Prove it with the repo's automated test
 
-A build-tagged Go test drives a **real tmkms binary** (softsign + Ledger)
-through the full signing flow, exercising the gnoland side of every path:
+A build-tagged Go test drives a **real tmkms binary** (softsign, over TCP)
+through the full signing flow, exercising the gnoland side of the TCP path:
 
 ```sh
 go test -tags=tmkms_integration -count=1 -v ./tm2/pkg/bft/privval/upstream/...
 ```
+
+The test is softsign + TCP only; the UDS listener path and the Ledger backend
+are verified by hand (Parts C/D), not by this test.
 
 | Symptom | Cause | Fix |
 |---|---|---|
