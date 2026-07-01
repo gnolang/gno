@@ -22,27 +22,27 @@ type ClientCreator interface {
 // local proxy uses a mutex on an in-proc app
 
 type localClientCreator struct {
-	mtx      *sync.Mutex // shared by consensus and mempool connections
-	queryMtx *sync.Mutex // independent mutex for the query connection
+	mtx      sync.Mutex // shared by consensus and mempool connections
+	queryMtx sync.Mutex // independent mutex for the query connection
 	app      abci.Application
 }
 
 func NewLocalClientCreator(app abci.Application) ClientCreator {
 	return &localClientCreator{
-		mtx:      new(sync.Mutex),
-		queryMtx: new(sync.Mutex),
+		mtx:      sync.Mutex{},
+		queryMtx: sync.Mutex{},
 		app:      app,
 	}
 }
 
 func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
-	return abcicli.NewLocalClient(l.mtx, l.app), nil
+	return abcicli.NewLocalClient(&l.mtx, l.app), nil
 }
 
 // NewReadOnlyABCIClient returns a client backed by an independent mutex.
 // Query calls never contend with consensus or mempool operations.
 func (l *localClientCreator) NewReadOnlyABCIClient() (abcicli.Client, error) {
-	return abcicli.NewLocalClient(l.queryMtx, l.app), nil
+	return abcicli.NewLocalClient(&l.queryMtx, l.app), nil
 }
 
 //-----------------------------------------------------------------
