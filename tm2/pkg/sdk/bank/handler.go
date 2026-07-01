@@ -121,6 +121,7 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrInvalidAddress("invalid query address " + b32addr))
+		return
 	}
 
 	// get coins from addr.
