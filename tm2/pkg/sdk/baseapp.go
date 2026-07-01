@@ -66,7 +66,7 @@ type BaseApp struct {
 	// Thread-safe snapshot of the last block header.
 	// Updated atomically in setCheckState().
 	// Used by Simulate and query handlers that run outside the consensus mutex.
-	lastBlockHeader atomic.Value // stores headerSnapshot
+	lastBlockHeader atomic.Pointer[headerSnapshot]
 
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
@@ -253,7 +253,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
-	app.lastBlockHeader.Store(headerSnapshot{header: header})
+	app.lastBlockHeader.Store(&headerSnapshot{header: header})
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -272,7 +272,8 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 // It reads from an atomic.Value updated in setCheckState() and BeginBlock().
 // Returns nil if no header has been set yet.
 func (app *BaseApp) getLastBlockHeader() abci.Header {
-	if snap, ok := app.lastBlockHeader.Load().(headerSnapshot); ok {
+	snap := app.lastBlockHeader.Load()
+	if snap != nil {
 		return snap.header
 	}
 	return nil
