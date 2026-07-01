@@ -123,11 +123,7 @@ func deltaDecode(key, lastKey []byte) ([]byte, error) {
 func diffOffset(a, b []byte) int {
 	var off int
 	var l int
-	if len(a) < len(b) {
-		l = len(a)
-	} else {
-		l = len(b)
-	}
+	l = min(len(a), len(b))
 	for ; off < l; off++ {
 		if a[off] != b[off] {
 			break

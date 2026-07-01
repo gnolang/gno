@@ -531,13 +531,14 @@ func debugHelp(m *Machine, arg string) error {
 		fmt.Fprintln(m.Debugger.out, t)
 		return nil
 	}
-	t := "The following commands are available:\n\n"
+	var t strings.Builder
+	t.WriteString("The following commands are available:\n\n")
 	for _, name := range debugCmdNames {
 		c := debugCmds[name]
-		t += fmt.Sprintf("%-25s %s\n", c.usage, c.short)
+		t.WriteString(fmt.Sprintf("%-25s %s\n", c.usage, c.short))
 	}
-	t += "\nType help followed by a command for full documentation."
-	fmt.Fprintln(m.Debugger.out, t)
+	t.WriteString("\nType help followed by a command for full documentation.")
+	fmt.Fprintln(m.Debugger.out, t.String())
 	return nil
 }
 

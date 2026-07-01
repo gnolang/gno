@@ -100,9 +100,7 @@ func TestEventStoreService_Monitor(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Start a routine that asynchronously pushes events
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		timeout := time.After(defaultTimeout)
 
@@ -124,12 +122,10 @@ func TestEventStoreService_Monitor(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	// Start a routine that monitors received results
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		timeout := time.After(defaultTimeout)
 
@@ -143,7 +139,7 @@ func TestEventStoreService_Monitor(t *testing.T) {
 				}
 			}
 		}
-	}()
+	})
 
 	wg.Wait()
 

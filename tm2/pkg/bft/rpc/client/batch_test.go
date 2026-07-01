@@ -475,7 +475,6 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 
 		t.Run(testCase.method, func(t *testing.T) {
 			t.Parallel()

@@ -41,7 +41,7 @@ type File struct {
 	// AddPkg is the addpkg section of the gnomod.toml file.
 	// It is filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
-	AddPkg AddPkg `toml:"addpkg,omitempty" json:"addpkg,omitempty"`
+	AddPkg AddPkg `toml:"addpkg,omitempty" json:"addpkg"`
 }
 
 type AddPkg struct {

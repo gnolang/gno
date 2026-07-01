@@ -169,8 +169,8 @@ var (
 
 type ObjectInfo struct {
 	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	Hash     ValueHash // zero if dirty.
+	OwnerID  ObjectID  // parent in the ownership tree.
 	ModTime  uint64    // time last updated.
 	RefCount int       // for persistence. deleted/gc'd if 0.
 

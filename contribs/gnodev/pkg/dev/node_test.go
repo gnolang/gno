@@ -69,8 +69,7 @@ func resolvePaths(l *packages.Loader, paths []string) []*packages.Package {
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := log.NewTestingLogger(t)
 
@@ -89,8 +88,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_WithLoader(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pkg := std.MemPackage{
 		Name: "foobar",
@@ -584,7 +582,7 @@ func Render(_ string) string {
 
 	// Times list should be identical from the original list
 	require.Len(t, timesList2, len(timesList1))
-	for i := 0; i < len(timesList1); i++ {
+	for i := range timesList1 {
 		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
 		assert.Equal(t, t1nsec, t2nsec,
 			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)

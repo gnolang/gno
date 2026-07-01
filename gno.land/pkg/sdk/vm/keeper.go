@@ -795,18 +795,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
-	argslist := ""
+	var argslist strings.Builder
 	for i := range msg.Args {
 		if i > 0 {
-			argslist += ","
+			argslist.WriteString(",")
 		}
-		argslist += fmt.Sprintf("arg%d", i)
+		argslist.WriteString(fmt.Sprintf("arg%d", i))
 	}
 	var expr string
-	if argslist == "" {
+	if argslist.String() == "" {
 		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
 	} else {
-		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist.String())
 	}
 	// Make context.
 	// NOTE: if this is too expensive,

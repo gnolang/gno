@@ -445,11 +445,11 @@ func realmIsEphemeral(pkgPath string) bool {
 // ephemeral realm: pkgPath == "<domain>/e/<addr>/run". Mirrors
 // chain/runtime.Realm.IsUserRun.
 func realmIsUserRun(addr, pkgPath string) bool {
-	idx := strings.Index(pkgPath, "/")
-	if idx == -1 {
+	before, _, ok := strings.Cut(pkgPath, "/")
+	if !ok {
 		return false
 	}
-	return pkgPath == pkgPath[:idx]+"/e/"+addr+"/run"
+	return pkgPath == before+"/e/"+addr+"/run"
 }
 
 // ----------------------------------------

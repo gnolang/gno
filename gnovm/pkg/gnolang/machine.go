@@ -2157,7 +2157,7 @@ func (m *Machine) PopValues(n int) []TypedValue {
 func (m *Machine) PopCopyValues(res []TypedValue) {
 	n := len(res)
 	ptvs := m.PopValues(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		res[i] = ptvs[i].Copy(m.Alloc)
 	}
 }

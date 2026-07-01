@@ -72,6 +72,21 @@ fmt:
 	$(MAKE) --no-print-directory -C examples fmt
 	$(MAKE) --no-print-directory -C contribs fmt
 
+# `go fix` applies the Go 1.26+ modernizers. Pin the toolchain so `make fix`
+# matches CI regardless of the version in go.mod; override with
+# GO_FIX_TOOLCHAIN=local to use your installed Go. Bump when the repo's Go
+# version advances (keep in sync with .github/workflows/_ci-go.yml).
+GO_FIX_TOOLCHAIN ?= go1.26.1
+
+.PHONY: fix
+# Apply `go fix` across every Go module that CI checks (see the lint job).
+fix:
+	GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix ./...
+	@for d in $(wildcard contribs/*/) misc/autocounterd/ misc/loop/; do \
+		echo "==> go fix $$d"; \
+		( cd "$$d" && GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix ./... ); \
+	done
+
 .PHONY: lint
 lint:
 	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config .github/golangci.yml

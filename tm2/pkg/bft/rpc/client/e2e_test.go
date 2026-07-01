@@ -426,7 +426,6 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -438,7 +437,6 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			)
 
 			for _, clientCase := range clientTable {
-				clientCase := clientCase
 
 				t.Run(clientCase.name, func(t *testing.T) {
 					t.Parallel()

@@ -48,7 +48,7 @@ type GenesisDoc struct {
 	GenesisTime     time.Time            `json:"genesis_time"`
 	ChainID         string               `json:"chain_id"`
 	InitialHeight   int64                `json:"initial_height,omitempty"`
-	ConsensusParams abci.ConsensusParams `json:"consensus_params,omitempty"`
+	ConsensusParams abci.ConsensusParams `json:"consensus_params"`
 	Validators      []GenesisValidator   `json:"validators,omitempty"`
 	AppHash         []byte               `json:"app_hash"`
 	AppState        any                  `json:"app_state,omitempty"`

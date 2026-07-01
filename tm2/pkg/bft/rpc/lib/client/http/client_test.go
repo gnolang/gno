@@ -56,7 +56,6 @@ func TestClient_parseRemoteAddr(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 
 		t.Run(testCase.remoteAddr, func(t *testing.T) {
 			t.Parallel()

@@ -14,7 +14,7 @@ import (
 func TestPackage_ToMemPackage_FS(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "gnomod.toml"),
-		[]byte(fmt.Sprintf("module = %q\n", "gno.land/p/demo/foo")), 0o644))
+		fmt.Appendf(nil, "module = %q\n", "gno.land/p/demo/foo"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "foo.gno"),
 		[]byte("package foo\n"), 0o644))
 
