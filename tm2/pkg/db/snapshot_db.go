@@ -6,25 +6,17 @@ import "fmt"
 // All read operations delegate to the snapshot. Write operations panic.
 // Close is a no-op — the caller owns the snapshot lifecycle.
 type SnapshotDB struct {
-	snap Snapshot
+	Snapshot
 }
 
 var _ DB = (*SnapshotDB)(nil)
 
 // NewSnapshotDB returns a read-only DB backed by snap.
 func NewSnapshotDB(snap Snapshot) *SnapshotDB {
-	return &SnapshotDB{snap: snap}
+	return &SnapshotDB{snap}
 }
 
-func (s *SnapshotDB) Get(key []byte) ([]byte, error) { return s.snap.Get(key) }
-func (s *SnapshotDB) Has(key []byte) (bool, error)   { return s.snap.Has(key) }
-func (s *SnapshotDB) Iterator(start, end []byte) (Iterator, error) {
-	return s.snap.Iterator(start, end)
-}
-func (s *SnapshotDB) ReverseIterator(start, end []byte) (Iterator, error) {
-	return s.snap.ReverseIterator(start, end)
-}
-func (s *SnapshotDB) NewSnapshot() (Snapshot, error) { return s.snap, nil }
+func (s *SnapshotDB) NewSnapshot() (Snapshot, error) { return s, nil }
 func (s *SnapshotDB) Close() error                   { return nil }
 func (s *SnapshotDB) Print() error                   { fmt.Print("(snapshot) "); return nil }
 func (s *SnapshotDB) Stats() map[string]string       { return nil }
