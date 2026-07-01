@@ -78,13 +78,19 @@ fmt:
 # version advances (keep in sync with .github/workflows/_ci-go.yml).
 GO_FIX_TOOLCHAIN ?= go1.26.1
 
+# -omitzero=false disables the omitzero modernizer: it strips `json:",omitempty"`
+# from struct-typed fields (a no-op for encoding/json), but Amino honors omitempty
+# on struct fields, so removing it changes JSON output. Keep in sync with the CI
+# check in .github/workflows/_ci-go.yml.
+GO_FIX_FLAGS ?= -omitzero=false
+
 .PHONY: fix
 # Apply `go fix` across every Go module that CI checks (see the lint job).
 fix:
-	GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix ./...
+	GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
 	@for d in $(wildcard contribs/*/) misc/autocounterd/ misc/loop/; do \
 		echo "==> go fix $$d"; \
-		( cd "$$d" && GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix ./... ); \
+		( cd "$$d" && GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
 	done
 
 .PHONY: lint

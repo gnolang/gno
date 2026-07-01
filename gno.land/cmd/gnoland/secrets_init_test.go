@@ -153,7 +153,6 @@ func TestSecrets_Init_Single(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -209,7 +208,6 @@ func TestSecrets_Init_Single_Overwrite(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

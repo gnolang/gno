@@ -2690,9 +2690,9 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 // case .ObjectID cannot be set because it may not yet be real.
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  // If non-zero, PkgPath is empty
+	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
 	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
-	Hash     ValueHash // Set iff not escaped
+	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
 func RefValueFromPackage(pv *PackageValue) RefValue {

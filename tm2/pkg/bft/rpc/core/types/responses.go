@@ -247,7 +247,7 @@ type ResultTx struct {
 	Index    uint32                 `json:"index"`
 	TxResult abci.ResponseDeliverTx `json:"tx_result"`
 	Tx       types.Tx               `json:"tx"`
-	Proof    types.TxProof          `json:"proof"`
+	Proof    types.TxProof          `json:"proof,omitempty"`
 }
 
 // Result of searching for txs

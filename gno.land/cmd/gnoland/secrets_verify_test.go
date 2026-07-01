@@ -189,7 +189,6 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
