@@ -62,12 +62,13 @@ func ExampleLists() {
 }
 
 func ExampleBlocks() {
-	println(Paragraph("This is a paragraph."))
-	println(Blockquote("This is a blockquote\nSpanning multiple lines"))
+	print(Paragraph("This is a paragraph."))
+	// Blockquote adds multiple newlines which Output doesn't allow, so trim
+	println(strings.TrimSpace(Blockquote("This is a blockquote\nSpanning multiple lines")))
 
+	// Output:
 	// This is a paragraph.
 	//
-	// Output:
 	// > This is a blockquote
 	// > Spanning multiple lines
 }
