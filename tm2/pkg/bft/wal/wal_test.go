@@ -50,7 +50,6 @@ func TestWALWriterReader(t *testing.T) {
 	b := new(bytes.Buffer)
 
 	for _, msg := range msgs {
-
 		b.Reset()
 
 		enc := NewWALWriter(b, maxTestMsgSize)

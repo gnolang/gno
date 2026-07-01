@@ -74,7 +74,6 @@ func BenchmarkCMapConcurrentInsertsDeletesHas(b *testing.B) {
 		nCPU := runtime.NumCPU()
 		for j := range nCPU {
 			wg.Go(func() {
-
 				// Make sure that all the goroutines run at the
 				// exact same time for true concurrent tests.
 				<-semaCh

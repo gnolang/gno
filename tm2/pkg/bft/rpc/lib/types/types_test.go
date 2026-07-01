@@ -57,7 +57,6 @@ func TestJSONRPCID_Marshal_Unmarshal(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

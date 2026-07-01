@@ -101,7 +101,6 @@ func TestEventStoreService_Monitor(t *testing.T) {
 
 	// Start a routine that asynchronously pushes events
 	wg.Go(func() {
-
 		timeout := time.After(defaultTimeout)
 
 		for {
@@ -126,7 +125,6 @@ func TestEventStoreService_Monitor(t *testing.T) {
 
 	// Start a routine that monitors received results
 	wg.Go(func() {
-
 		timeout := time.After(defaultTimeout)
 
 		for {

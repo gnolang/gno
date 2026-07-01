@@ -769,7 +769,6 @@ func (wsc *wsConnection) readRoutine() {
 			}
 
 			for _, request := range requests {
-
 				// A Notification is a Request object without an "id" member.
 				// The Server MUST NOT reply to a Notification, including those that are within a batch request.
 				if request.ID == types.JSONRPCStringID("") {

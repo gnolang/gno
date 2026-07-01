@@ -57,7 +57,6 @@ func TestEvents_Subscribe(t *testing.T) {
 	var wg sync.WaitGroup
 
 	wg.Go(func() {
-
 		timeout := time.After(5 * time.Second)
 
 		for {

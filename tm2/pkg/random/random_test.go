@@ -82,7 +82,6 @@ func TestRngConcurrencySafety(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-
 			_ = RandUint64()
 			<-time.After(time.Millisecond * time.Duration(RandIntn(100)))
 			_ = RandPerm(3)

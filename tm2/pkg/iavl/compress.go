@@ -122,8 +122,7 @@ func deltaDecode(key, lastKey []byte) ([]byte, error) {
 // diffOffset returns the index of first byte that's different in two bytes slice.
 func diffOffset(a, b []byte) int {
 	var off int
-	var l int
-	l = min(len(a), len(b))
+	l := min(len(a), len(b))
 	for ; off < l; off++ {
 		if a[off] != b[off] {
 			break
