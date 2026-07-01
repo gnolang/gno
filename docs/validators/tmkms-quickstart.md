@@ -226,9 +226,11 @@ connects. Just create the dir:
 sudo install -d -o gnoland -g gnoland -m 700 /run/gnoland
 ```
 
-> On UDS the `allowed_kms_pubkeys` allowlist can't be crypto-checked — the
-> `0600` socket is the whole auth boundary. Set it anyway (gnoland requires
-> it non-empty), but it's belt-and-suspenders.
+> On UDS the `allowed_kms_pubkeys` allowlist is **ignored** — gnoland does no
+> SecretConnection on a unix socket, so there is no signer pubkey to check
+> against. Leave it empty; the `0600` socket permission is the whole auth
+> boundary. (If you set it anyway, gnoland logs that it is ignored.) The
+> allowlist is only required, and only enforced, on a `tcp://` listener.
 
 ### TCP, firewalled (auth by cryptography)
 
@@ -661,12 +663,13 @@ PY
 chmod 600 ./tmkms/secrets/consensus.key
 ```
 
-UDS layout, so **no peer-ID pin**. You still need tmkms's SecretConnection
-identity key (gnoland requires a non-empty allowlist even on a socket):
+UDS layout, so **no peer-ID pin** and **no allowlist** — gnoland ignores
+`allowed_kms_pubkeys` on a unix socket (A.3). tmkms still wants a
+`secret_key` file for its `[[validator]]` block, so generate one; its pubkey
+is not registered anywhere on UDS:
 
 ```sh
-ALLOW=$(tmkms-identity-keygen ./tmkms/secrets/kms-identity.key)   # operator-owned, no sudo
-echo "$ALLOW"   # goes into gnoland's allowed_kms_pubkeys (C.3)
+tmkms-identity-keygen ./tmkms/secrets/kms-identity.key >/dev/null   # operator-owned, no sudo
 ```
 
 ## C.2 tmkms.toml with the softsign provider
@@ -705,9 +708,9 @@ chmod 600 "$TMKMS_DIR/tmkms.toml"
 The key is on disk *and* registered locally, so `-lazy` can build genesis
 from `priv_validator_key.json`.
 
-Configure the listener — set the four `tmkms_listener` fields with `$ALLOW`
-from C.1 (non-empty allowlist required; on UDS it's belt-and-suspenders,
-the socket perms are the real boundary, A.3):
+Configure the listener. On UDS you set three `tmkms_listener` fields —
+`allowed_kms_pubkeys` stays empty because gnoland ignores it on a socket
+(the `0600` socket perms are the real boundary, A.3):
 
 ```sh
 export CHAIN_ID=gno-tmkms-test                 # must match C.2's [[chain]].id
@@ -723,7 +726,6 @@ gnoland config init -config-path "$CFG"
 ```sh
 gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
 gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
-gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
 # listen_addr LAST — this enables the mode:
 gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
 ```
@@ -813,13 +815,13 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland secrets init -data-dir /var/lib/g
 ```
 
 `priv_validator_key.json` doesn't sign (the Ledger does), and UDS has **no
-peer-ID pin**. You still need the identity key (allowlist must be
-non-empty); run `tmkms-identity-keygen` as `gnoland` so it lands
-gnoland-owned:
+peer-ID pin** and **no allowlist** (gnoland ignores `allowed_kms_pubkeys` on
+a socket, A.3). tmkms still wants a `secret_key` file for its
+`[[validator]]` block, so generate one as `gnoland` (its pubkey is not
+registered anywhere on UDS):
 
 ```sh
-ALLOW=$(sudo -u gnoland tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key)
-echo "$ALLOW"   # e.g. ed25519:4b6efade…b18a — used in D.5
+sudo -u gnoland tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key >/dev/null
 ```
 
 ## D.3 Write `tmkms.toml`
@@ -947,9 +949,8 @@ copy-paste slip right here.
 
 ## D.5 Configure gnoland's tmkms listener
 
-Set the four `tmkms_listener` fields with `$ALLOW` from D.2 (non-empty
-allowlist required; on UDS it's belt-and-suspenders, A.3). Run as the
-gnoland user:
+Set three `tmkms_listener` fields. On UDS `allowed_kms_pubkeys` stays empty
+because gnoland ignores it on a socket (A.3). Run as the gnoland user:
 
 ```sh
 export PRIVVAL_LISTEN="unix:///run/gnoland/privval.sock"   # gnoland listens on the socket from D.3
@@ -964,7 +965,6 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config init -config-path "$CFG"
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.chain_id "$CHAIN_ID"
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.protocol_version "v0.34"
-sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.allowed_kms_pubkeys "$ALLOW"
 # listen_addr LAST — this enables the mode:
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland config set -config-path "$CFG" consensus.priv_validator.tmkms_listener.listen_addr "$PRIVVAL_LISTEN"
 ```
@@ -1063,7 +1063,8 @@ item plainly states why it matters.
   without the pin tmkms signs for any impostor on the port.*
 - [ ] Listen port firewalled to the signer host only — *keeps strangers
   from knocking or probing your signer.*
-- [ ] `allowed_kms_pubkeys` is non-empty — *an empty list is fail-open.*
+- [ ] On TCP, `allowed_kms_pubkeys` is non-empty — *an empty list is
+  fail-open. (On UDS it's ignored; leave it empty and rely on socket perms.)*
 
 **Key custody (production)**
 - [ ] Consensus key generated **non-exportable** in a YubiHSM; never run
