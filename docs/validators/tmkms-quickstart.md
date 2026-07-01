@@ -38,7 +38,7 @@ mix them up:
 | Key | Lives in | Role |
 |---|---|---|
 | **consensus key** | the signer (YubiHSM / Ledger / softsign file) | signs votes & proposals; its pubkey is the validator's identity in genesis |
-| **kms-identity key** | tmkms `kms-identity.key` | tmkms's SecretConnection identity; its pubkey goes in gnoland's `allowed_kms_pubkeys` (TCP only) |
+| **kms-identity key** (TCP only) | tmkms `kms-identity.key` | tmkms's SecretConnection identity; its pubkey goes in gnoland's `allowed_kms_pubkeys`. Not used on UDS (no SecretConnection) |
 | **node key** | gnoland `node_key.json` | gnoland's SecretConnection identity; its peer ID (hex) is pinned in tmkms's `addr` (TCP only) |
 
 `chain_id` must be **identical** everywhere (gnoland genesis,
@@ -66,11 +66,17 @@ Two tiny **stdlib-only** Go helpers, compiled once. They build/run from
 any directory (Part B.3's `pkconv.go` is the exception — it imports gno
 crypto, run from the repo root; defined where it's used).
 
-> **Run helpers as `gnoland`.** In Parts B/D the secrets live under
-> `/var/lib` owned by `gnoland`; run each helper `sudo -u gnoland` (least
-> privilege, no copying the secret to your dir). That user has no home, so
-> the Go toolchain can't run as it: compile as yourself, run only the built
-> binary under sudo.
+> **Both helpers are only needed for the TCP transport (Part B).** They exist
+> to wire TCP's cryptographic auth: `nodeid-hex` produces the peer-ID pin and
+> `tmkms-identity-keygen` the `allowed_kms_pubkeys` entry. UDS setups (Parts
+> C/D) pin no peer ID and use no allowlist (A.3), so they need neither — you
+> can skip building them. UDS has no SecretConnection at all, so it needs no
+> `secret_key` listener identity either; there is nothing to generate.
+
+> **Run helpers as `gnoland`.** In Part B the secrets live under `/var/lib`
+> owned by `gnoland`; run each helper `sudo -u gnoland` (least privilege, no
+> copying the secret to your dir). That user has no home, so the Go toolchain
+> can't run as it: compile as yourself, run only the built binary under sudo.
 
 `nodeid-hex.go` — prints a gnoland node's peer ID in the hex form tmkms
 pins in its `addr` (TCP layouts):
@@ -673,13 +679,10 @@ chmod 600 ./tmkms/secrets/consensus.key
 ```
 
 UDS layout, so **no peer-ID pin** and **no allowlist** — gnoland ignores
-`allowed_kms_pubkeys` on a unix socket (A.3). tmkms still wants a
-`secret_key` file for its `[[validator]]` block, so generate one; its pubkey
-is not registered anywhere on UDS:
-
-```sh
-tmkms-identity-keygen ./tmkms/secrets/kms-identity.key >/dev/null   # operator-owned, no sudo
-```
+`allowed_kms_pubkeys` on a unix socket (A.3). tmkms does no SecretConnection
+over a unix socket, so it needs **no `secret_key`** either — there's no
+listener identity to generate here (verified against tmkms 0.15.0: it loads a
+UDS `[[validator]]` block with no `secret_key` and connects fine).
 
 ## C.2 tmkms.toml with the softsign provider
 
@@ -705,7 +708,7 @@ path = "$TMKMS_DIR/secrets/consensus.key"
 [[validator]]
 chain_id = "gno-tmkms-test"
 addr = "unix://$PRIVVAL_SOCK"   # same-host UDS; no peer-ID pin (A.3)
-secret_key = "$TMKMS_DIR/secrets/kms-identity.key"
+# no secret_key — UDS has no SecretConnection (A.3)
 protocol_version = "v0.34"
 reconnect = true
 TOML
@@ -814,10 +817,10 @@ You also need:
   sudo udevadm control --reload-rules && sudo udevadm trigger
   ```
 
-## D.2 Generate gnoland's node and listener identity
+## D.2 Generate gnoland's node identity
 
-The key is on the Ledger, but gnoland still needs a node identity and tmkms
-a SecretConnection identity key. Generate the node secrets:
+The key is on the Ledger, but gnoland still needs a node identity. Generate
+the node secrets:
 
 ```sh
 sudo -u gnoland env GNOROOT="$GNOROOT" gnoland secrets init -data-dir /var/lib/gnoland/secrets
@@ -825,13 +828,8 @@ sudo -u gnoland env GNOROOT="$GNOROOT" gnoland secrets init -data-dir /var/lib/g
 
 `priv_validator_key.json` doesn't sign (the Ledger does), and UDS has **no
 peer-ID pin** and **no allowlist** (gnoland ignores `allowed_kms_pubkeys` on
-a socket, A.3). tmkms still wants a `secret_key` file for its
-`[[validator]]` block, so generate one as `gnoland` (its pubkey is not
-registered anywhere on UDS):
-
-```sh
-sudo -u gnoland tmkms-identity-keygen /var/lib/tmkms/secrets/kms-identity.key >/dev/null
-```
+a socket, A.3). tmkms does no SecretConnection over a unix socket, so it
+needs **no `secret_key`** either — nothing more to generate here.
 
 ## D.3 Write `tmkms.toml`
 
@@ -858,7 +856,7 @@ chain_ids = ["${CHAIN_ID}"]
 [[validator]]
 chain_id = "${CHAIN_ID}"
 addr = "unix:///run/gnoland/privval.sock"                    # same-host UDS; no peer-ID pin (A.3)
-secret_key = "/var/lib/tmkms/secrets/kms-identity.key"
+# no secret_key — UDS has no SecretConnection (A.3)
 protocol_version = "v0.34"
 reconnect = true
 TOML
