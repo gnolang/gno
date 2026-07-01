@@ -1390,13 +1390,22 @@ const (
 	// See gnovm/cmd/calibrate/op_bench_analysis.txt for full derivation.
 
 	/* Control operators */
-	OpCPUInvalid             = 1
-	OpCPUHalt                = 1
-	OpCPUNoop                = 1
-	OpCPUExec                = 130
-	OpCPUPrecallTypeConv     = 72   // type conversion
-	OpCPUPrecallFunc         = 178  // function call
-	OpCPUPrecallBoundMethod  = 199  // bound method call
+	OpCPUInvalid            = 1
+	OpCPUHalt               = 1
+	OpCPUNoop               = 1
+	OpCPUExec               = 130
+	OpCPUPrecallTypeConv    = 72  // type conversion
+	OpCPUPrecallFunc        = 178 // function call
+	OpCPUPrecallBoundMethod = 199 // bound method call
+	// OpCPULazyBoundResolve is the extra CPU on top of OpCPUPrecallBoundMethod
+	// charged per hop of the resolveLazyBound walk (once per stripped interface
+	// layer), so deep/nested embedded-interface dispatch is metered by depth like
+	// the eager concrete path. Single-hop resolution (the common case) charges it
+	// once — gas-neutral with the prior per-call charge.
+	// TODO(calibration), before the fork ships: re-measure on the gas-table
+	// reference HW — 529 is ratio-scaled (lazy-vs-concrete bench delta against
+	// OpCPUPrecallBoundMethod's known value) and reused as the per-hop cost.
+	OpCPULazyBoundResolve    = 529
 	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
@@ -1457,7 +1466,7 @@ const (
 	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
-	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
+	OpCPUSelectorInterface   = 276 // base; VPInterface, per-method added in handler. Was 751 (eager dispatch walked the trail here); the walk moved to call time (OpCPULazyBoundResolve), so the bind only does the method lookup + lazy-bind alloc now. TODO(calibration): ratio-scaled re-fit (~140ns pure), re-measure on the reference HW with OpCPULazyBoundResolve before the fork ships.
 	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
 	OpCPUStar                = 102
 	OpCPURef                 = 210

@@ -663,14 +663,114 @@ type BoundMethodValue struct {
 	// Underlying unbound method function.
 	// The type without the receiver (since bound)
 	// is computed lazily if needed.
+	//
+	// nil for an interface-dispatched bind until the call: the concrete
+	// method is determined by dynamic dispatch on Receiver (the saved
+	// operand) and resolved at call time (see resolveLazyBound).
 	Func *FuncValue
 
 	// This becomes the first arg.
 	// The type is .Func.Type.Params[0].
+	//
+	// For an interface-dispatched bind (Func == nil) this holds the *saved
+	// operand* — the boxed value captured when the method value was formed (a
+	// copy for a value operand, the pointer as-is for a pointer operand), not
+	// the resolved receiver. The call walks it (via Method) to dispatch and
+	// form the receiver, matching Go: deref, value snapshot, nil panic, field
+	// re-read and dynamic re-dispatch all happen at the call.
 	Receiver TypedValue
+
+	// Method is the selector name for an interface-dispatched bind
+	// (Func == nil); the call re-derives the dispatch trail on Receiver's
+	// current value. Empty for a resolved (eager) bind.
+	Method Name
+}
+
+// IsLazy reports whether bmv is an unresolved interface-dispatched bind whose
+// concrete method + receiver are resolved at call time from the saved operand.
+func (bmv *BoundMethodValue) IsLazy() bool {
+	return bmv.Func == nil
+}
+
+// resolveInterfaceTrail walks an interface-dispatch trail on the boxed concrete
+// value, returning the resolved bound-method pointer. The walk dereferences as
+// it goes, so running it at call time gives Go's call-time dispatch: nil derefs
+// panic now (per the method's receiver kind — value receivers panic, pointer
+// receivers pass nil through), and a value receiver is a fresh snapshot of the
+// current pointee. A nested interface step yields another lazy bind, which
+// resolveLazyBound unwraps.
+func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath) PointerValue {
+	btv := boxed
+	for i, path := range tr {
+		ptr := btv.GetPointerToFromTV(alloc, store, path)
+		if i == len(tr)-1 {
+			return ptr
+		}
+		btv = ptr.Deref()
+	}
+	panic("should not happen")
+}
+
+// resolveLazyBound resolves an interface-dispatched (lazy) bind to its concrete
+// method + receiver at call time, walking the saved operand's *current* value.
+// So the deref, value snapshot, nil panic, field re-read and dynamic
+// re-dispatch all happen now, matching Go. Each iteration strips one interface
+// indirection (a nested embedded-interface field yields another lazy bind);
+// for a finite (acyclic) operand graph this converges. A cyclic embedded
+// interface (e.g. `s.IG = s`) would re-box the same operand forever, so the
+// loop detects a repeated pointer operand and raises a fatal (gno-unrecoverable)
+// panic instead of hanging — matching Go, which runs the same program as
+// recursion and fatally stack-overflows (uncatchable by recover()).
+//
+// nil derefs are raised by the walk itself (GetPointerToFromTV panics with a
+// runtime-error Exception for a value receiver on a nil pointer, and passes nil
+// through for a pointer receiver) — the machine's Run loop converts that to the
+// cooperative panic path, so both immediate and deferred calls behave correctly
+// without a separate nil signal here.
+func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
+	operand := bmv.Receiver
+	name := bmv.Method
+	// The method name is invariant across layers, so the operand pointer fully
+	// identifies the loop state: a revisited pointer means the resolution can only
+	// repeat forever (a cyclic embed, e.g. `s.IG = s`). Only pointer operands can
+	// recur; value operands are finite copies.
+	var seen map[*TypedValue]struct{}
+	for {
+		// Charge per hop so the cost scales with embedded-interface depth rather
+		// than being flat per call.
+		m.incrCPU(OpCPULazyBoundResolve)
+		// The saved operand may be a pointer reloaded from the store with an
+		// unfilled TV; fill it so the walk can dereference it. This load of the
+		// live state is what lets field re-read / dynamic re-dispatch observe
+		// updates made after the bind.
+		fillValueTV(m.Store, &operand)
+		if pv, ok := operand.V.(PointerValue); ok && pv.TV != nil {
+			if _, dup := seen[pv.TV]; dup {
+				panic("cyclic embedded interface in method-value dispatch")
+			}
+			if seen == nil {
+				seen = make(map[*TypedValue]struct{})
+			}
+			seen[pv.TV] = struct{}{}
+		}
+		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
+		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr).Deref().V.(*BoundMethodValue)
+		if !next.IsLazy() {
+			return next.Func, next.Receiver
+		}
+		operand, name = next.Receiver, next.Method
+	}
 }
 
 func (bmv *BoundMethodValue) IsCrossing() bool {
+	// A lazy interface bind has no concrete Func until call time; crossing-ness
+	// is a property of the resolved method, determined then. An interface
+	// method value is never itself a crossing entry point (crossing functions
+	// are not part of interface method sets in production code), so report
+	// false until resolved.
+	if bmv.IsLazy() {
+		return false
+	}
 	return bmv.Func.IsCrossing()
 }
 
@@ -1756,7 +1856,6 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("GetPointerToFromTV() on undefined value")
 		}
 	}
-
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
@@ -1773,6 +1872,12 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPSubrefField:
+		// A subref field access through a nil pointer is a nil-pointer deref
+		// (e.g. reaching a promoted pointer-receiver method's receiver via an
+		// embedded field of a nil *T). Matches Go; previously crashed the VM.
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+		}
 		switch path.Depth {
 		case 0:
 			dtv = tv.V.(PointerValue).TV
@@ -1820,6 +1925,11 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
+		// Concrete `pt.M`: Go snapshots the value receiver when the method
+		// value is formed, so a nil pointer derefs (panics) eagerly here.
+		// (Interface dispatch never reaches this at bind — VPInterface binds
+		// lazily and this runs at call time via resolveInterfaceTrail, where
+		// eager-deref is exactly Go's call-time semantics.)
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
 		}
@@ -1907,17 +2017,17 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("should not happen")
 			}
 		}
-		dtv2 := dtv.Copy(alloc)
-		if dtv2.V != nil {
-			// Clear readonly for receivers.
-			// Other rules still apply such as in DidUpdate.
-			// NOTE: dtv2 is a copy, orig is untouched.
-			dtv2.N = [8]byte{}
+		// A value receiver is a fresh copy the method body may mutate without
+		// touching the original; clear readonly on the copy (other rules still
+		// apply, e.g. in DidUpdate).
+		rtv := dtv.Copy(alloc)
+		if rtv.V != nil {
+			rtv.N = [8]byte{}
 		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
-			Receiver: dtv2,
+			Receiver: rtv,
 		}
 		// Bound method wrapper belongs to the realm doing the
 		// binding; the receiver carries its own PkgID independently.
@@ -1978,20 +2088,34 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("cannot resolve an interface path at static time")
 		}
 		callerPath := dtv.T.GetPkgPath()
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
+		tr, _, _, ift, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
 		}
-		btv := *dtv
-		for i, path := range tr {
-			ptr := btv.GetPointerToFromTV(alloc, store, path)
-			if i == len(tr)-1 {
-				return ptr // done
-			}
-			btv = ptr.Deref() // deref
+		// Lazy interface dispatch (matches Go): a method value formed through
+		// an interface saves the operand at formation; the concrete method and
+		// receiver are materialized inside the CALL. So bind a lazy method
+		// value holding the saved operand (the boxed value/pointer) + selector
+		// name, and resolve at call time via resolveLazyBound. This gives Go's
+		// call-time semantics on every facet — deref timing, value snapshot,
+		// nil panic, field re-read through a pointer, and dynamic re-dispatch —
+		// because the operand is re-walked live at the call. ift is the bound
+		// (receiver-stripped) method type, known statically from the interface.
+		alloc.AllocateBoundMethod()
+		bmv := &BoundMethodValue{
+			Func:     nil, // resolved at call (see resolveLazyBound)
+			Receiver: *dtv,
+			Method:   path.Name,
 		}
-		panic("should not happen")
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		return PointerValue{
+			TV: &TypedValue{
+				T: ift.(*FuncType),
+				V: bmv,
+			},
+			Base: nil,
+		}
 	default:
 		panic("should not happen")
 	}
