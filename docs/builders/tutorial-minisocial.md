@@ -9,7 +9,7 @@ Find the full app at [staging.gno.land/r/docs/minisocial/v1](https://staging.gno
 ## Prerequisites
 
 Complete [Getting started](./getting-started.md) first. See
-[`gnodev`](../resources/gnodev.md) for deeper local-node detail.
+[`gnodev`](../resources/gnodev-reference.md) for deeper local-node detail.
 
 ## Setup
 

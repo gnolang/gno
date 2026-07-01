@@ -38,7 +38,7 @@ request an invite from the creator on the board page.
 
 You can interact with Boards through the command line using `gnokey`. For
 detailed instructions on sending transactions to realms, see
-[Interacting with gnokey](./interact-with-gnokey.md).
+[Interacting with gnokey](./using-gnokey.md).
 
 ## Viewing Your Contributions
 

@@ -55,12 +55,12 @@ languages.
 
 EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
 phrase in a key management application, such as
-[gnokey](../users/interact-with-gnokey.md), and web wallets, such as
+[gnokey](../users/using-gnokey.md), and web wallets, such as
 [Adena](../users/third-party-wallets.md).
 
 Currently, EOAs are the only realms that can initiate a transaction. They can do
 this by calling any of the possible messages in gno.land, which can be
-found [here](../users/interact-with-gnokey.md#making-transactions).
+found [here](gnokey-reference.md#making-transactions).
 
 ### Working with Realms
 
