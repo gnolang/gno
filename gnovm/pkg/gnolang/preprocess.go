@@ -2207,11 +2207,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						if fv, ok := cx.V.(*FuncValue); ok {
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
 							fv2 := fv.Copy(store.GetAllocator())
 							fv2.Type = sft
 							cx.T = sft
 							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
 						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")

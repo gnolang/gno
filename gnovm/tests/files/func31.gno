@@ -2,8 +2,8 @@
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-// Issue 8047.  Stack copier shouldn't crash if there
-// is a nil defer.
+// Adapted from Go issue 8047 (a Go-runtime stack-copier bug, not a Gno issue).
+// Here it just checks that a deferred nil func panics and is recoverable.
 package main
 
 func stackit(n int) {
