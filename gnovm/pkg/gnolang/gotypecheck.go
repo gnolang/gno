@@ -324,15 +324,17 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	if mod != nil && mod.Private {
+	wtests := gimp.testing && gimp.pkgPath == pkgPath
+	if mod != nil && mod.Private && !wtests {
 		// If the package is private, we cannot import it.
+		// Exception: a package's own unit tests (xxx_test) may import it.
 		err := ImportPrivateError{PkgPath: pkgPath}
 		// NOTE: see comment above for ImportNotFoundError.
 		result.err = err
 		result.pending = false
 		return nil, err
 	}
-	wtests := gimp.testing && gimp.pkgPath == pkgPath
+
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
 		result.err = errs
