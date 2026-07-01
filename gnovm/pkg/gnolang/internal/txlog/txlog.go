@@ -32,37 +32,6 @@ type MapCommitter[K comparable, V any] interface {
 	Commit()
 }
 
-// GoMap is a simple implementation of [Map], which wraps the operations of
-// Go's map builtin to implement [Map].
-type GoMap[K comparable, V any] map[K]V
-
-// Get implements [Map].
-func (m GoMap[K, V]) Get(k K) (V, bool) {
-	v, ok := m[k]
-	return v, ok
-}
-
-// Set implements [Map].
-func (m GoMap[K, V]) Set(k K, v V) {
-	m[k] = v
-}
-
-// Delete implements [Map].
-func (m GoMap[K, V]) Delete(k K) {
-	delete(m, k)
-}
-
-// Iterate implements [Map].
-func (m GoMap[K, V]) Iterate() iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for k, v := range m {
-			if !yield(k, v) {
-				return
-			}
-		}
-	}
-}
-
 // Wrap wraps the map m into a data structure to keep a transaction log.
 // To write data to m, use MapCommitter.Commit.
 func Wrap[K comparable, V any](m Map[K, V]) MapCommitter[K, V] {

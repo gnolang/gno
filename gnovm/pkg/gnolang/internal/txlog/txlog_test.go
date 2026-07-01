@@ -14,10 +14,9 @@ func ExampleWrap() {
 		ID   int
 		Name string
 	}
-	m := GoMap[int, User](map[int]User{
-		1: {ID: 1, Name: "alice"},
-		2: {ID: 2, Name: "bob"},
-	})
+	m := NewSyncGoMap[int, User]()
+	m.Set(1, User{ID: 1, Name: "alice"})
+	m.Set(2, User{ID: 2, Name: "bob"})
 
 	// Wrap m in a transaction log.
 	txl := Wrap(m)
@@ -55,7 +54,7 @@ func Test_txLog(t *testing.T) {
 	type Value = struct{ b byte }
 
 	// Full "integration test" of the txLog + mapwrapper.
-	source := GoMap[int, *Value](map[int]*Value{})
+	source := NewSyncGoMap[int, *Value]()
 
 	// create 4 empty values (we'll just use the pointers)
 	vs := [...]*Value{
@@ -82,7 +81,7 @@ func Test_txLog(t *testing.T) {
 		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
 	}
 
-	saved := maps.Clone(source)
+	saved := maps.Collect(source.Iterate())
 	txm := Wrap(source).(*txLog[int, *Value])
 
 	{
@@ -118,8 +117,8 @@ func Test_txLog(t *testing.T) {
 		v, ok = source.Get(1)
 		assert.True(t, vs[1] == v)
 		assert.True(t, ok)
-		assert.Equal(t, saved, source)
-		assert.Equal(t, saved, txm.source)
+		assert.Equal(t, saved, maps.Collect(source.Iterate()))
+		assert.Equal(t, saved, maps.Collect(txm.source.Iterate()))
 
 		// double-check on the iterators.
 		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
@@ -132,7 +131,7 @@ func Test_txLog(t *testing.T) {
 		txm.Commit()
 		assert.Empty(t, txm.dirty)
 		assert.Equal(t, source, txm.source)
-		assert.NotEqual(t, saved, source)
+		assert.NotEqual(t, saved, maps.Collect(source.Iterate()))
 
 		v, ok := source.Get(3)
 		assert.True(t, vs[3] == v)
@@ -467,10 +466,10 @@ func Benchmark_txLogRead(b *testing.B) {
 	const maxValues = (1 << 10) * 9 // must be multiple of 9
 
 	var (
-		baseMap = make(map[int]int)        // all values filled
-		wrapped = GoMap[int, int](baseMap) // wrapper around baseMap
-		stack1  = Wrap(wrapped)            // n+1, n+4, n+7 values filled (n%9 == 0)
-		stack2  = Wrap(stack1)             // n'th values filled (n%9 == 0)
+		wrapped = NewSyncGoMap[int, int]() // all values filled
+		baseMap = wrapped.m
+		stack1  = Wrap(wrapped) // n+1, n+4, n+7 values filled (n%9 == 0)
+		stack2  = Wrap(stack1)  // n'th values filled (n%9 == 0)
 	)
 
 	for i := range maxValues {
@@ -518,7 +517,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 	_, _ = v, ok
 
 	b.Run("stack1", func(b *testing.B) {
-		src := GoMap[int, int](make(map[int]int))
+		src := NewSyncGoMap[int, int]()
 		st := Wrap(src)
 		b.ResetTimer()
 
@@ -536,7 +535,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 		}
 	})
 	b.Run("wrapped", func(b *testing.B) {
-		src := GoMap[int, int](make(map[int]int))
+		src := NewSyncGoMap[int, int]()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -548,7 +547,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 			v, ok = src.Get(k)
 
 			if k == maxValues-1 {
-				src = GoMap[int, int](make(map[int]int))
+				src = NewSyncGoMap[int, int]()
 			}
 		}
 	})
