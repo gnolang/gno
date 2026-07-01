@@ -2973,7 +2973,7 @@ func (m *Machine) Recover() *Exception {
 
 func (m *Machine) Println(args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -2985,7 +2985,7 @@ func (m *Machine) Println(args ...any) {
 
 func (m *Machine) Printf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)

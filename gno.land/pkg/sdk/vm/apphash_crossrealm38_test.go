@@ -61,7 +61,14 @@ import (
 // Hash bumped 2026-06-07: adding the errors stdlib (Unwrap/Is/Join) to the genesis
 // stdlib set shifts the iavlStore Merkle root. Behavior is unchanged (the
 // zrealm_crossrealm38.gno filetest still passes); only the genesis encoding shifted.
-const expectedCrossrealm38Hash = "332560ed578f35abfdf1bae5d696d470f14902a9d41ca05878f7f899013243ea"
+//
+// Hash bumped again by the Example-test PR: editing
+// gnovm/stdlibs/math/rand/example_test.gno changes the math/rand stdlib
+// MemPackage that is committed into genesis state (stdlib MemPackages include
+// their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
+// is the only consensus-relevant change in that PR; verified by bisection that
+// no other change in the PR moves this hash. The shift is therefore expected.
+const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

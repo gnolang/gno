@@ -10,11 +10,15 @@ func TestCheckAssignableTo(t *testing.T) {
 		xt        Type
 		dt        Type
 		wantError string
+		wantPanic bool
 	}{
 		{
-			name: "nil to nil",
-			xt:   nil,
-			dt:   nil,
+			// nil dt means a blank target; callers must skip the check
+			// instead of passing nil.
+			name:      "nil to nil",
+			xt:        nil,
+			dt:        nil,
+			wantPanic: true,
 		},
 		{
 			name: "nil and interface",
@@ -22,9 +26,10 @@ func TestCheckAssignableTo(t *testing.T) {
 			dt:   &InterfaceType{},
 		},
 		{
-			name: "interface to nil",
-			xt:   &InterfaceType{},
-			dt:   nil,
+			name:      "interface to nil",
+			xt:        &InterfaceType{},
+			dt:        nil,
+			wantPanic: true,
 		},
 		{
 			name:      "nil to non-nillable",
@@ -43,6 +48,13 @@ func TestCheckAssignableTo(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			if tt.wantPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("checkAssignableTo() should panic on nil dt")
+					}
+				}()
+			}
 			err := checkAssignableTo(nil, tt.xt, tt.dt)
 			if tt.wantError != "" {
 				if err.Error() != tt.wantError {
