@@ -372,6 +372,12 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
+		// Surface loadAppState errors on the logger before returning. The
+		// error is also propagated via ResponseInitChain.Error, but
+		// tendermint's handshake does not surface that field — operators
+		// otherwise see "Completed ABCI Handshake" with an empty appHash
+		// and no indication that genesis replay never happened.
+		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
 				Error: abci.StringError(err.Error()),
@@ -723,6 +729,16 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 			// gas metering changed.
 			if gasReplayMode == "source" && metadata.BlockHeight > 0 {
 				ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
+			}
+
+			// Patched txs have had their body rewritten via --patch-txs;
+			// the original signer's signature can no longer verify. The
+			// operator vouches for the new body via the genesis sha256 +
+			// the inline GnoTxMetadata.OriginalTx audit pointer. Skip
+			// signature verification for these txs only — unmodified
+			// historical txs still go through normal sig verification.
+			if metadata.Source == SourcePatched {
+				ctx = ctx.WithValue(auth.SkipSigVerificationKey{}, true)
 			}
 
 			return ctx

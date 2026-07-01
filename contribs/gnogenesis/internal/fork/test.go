@@ -262,6 +262,36 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
+			// Catch any incomplete InitChainer run: if the result handler
+			// fired fewer times than there were deliverable txs, the chain
+			// boot is silently broken. Two known reasons to land here:
+			//   - InitChainer returned a ResponseInitChain.Error before
+			//     the tx loop (e.g. validateSignerInfo rejected the
+			//     genesis) — processed stays at 0.
+			//   - InitChainer entered the loop but exited mid-flight
+			//     (StrictReplay path, future early-return regressions) —
+			//     processed lands between 0 and expected.
+			// Without this guard the test prints "PASS" while the chain
+			// has effectively zero / partial genesis state; the empty or
+			// truncated appHash is the only on-the-wire signal and is
+			// easy to miss. Fail loudly instead.
+			//
+			// Per-tx metadata.Failed entries are skipped by the InitChain
+			// loop (no handler call), so the deliverable count excludes
+			// them — degenerate genesises where every tx is
+			// metadata.Failed (expected=0) trivially pass the check.
+			expected := int64(countDeliverableTxs(appState.Txs))
+			if processed < expected {
+				return fmt.Errorf(
+					"FAIL: genesis replay delivered %d of %d expected txs — "+
+						"InitChainer either returned a ResponseInitChain.Error before the tx loop "+
+						"or exited the loop early; re-run a real `gnoland start` against the same "+
+						"genesis with --log-level debug to surface the underlying error (typically "+
+						"validateSignerInfo or InitialHeight mismatch)",
+					processed, expected,
+				)
+			}
+
 			if failures > 0 {
 				io.Println()
 				if cfg.skipFailingTxs {
@@ -303,4 +333,21 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 				cfg.timeout, processed, len(appState.Txs))
 		}
 	}
+}
+
+// countDeliverableTxs returns the number of txs whose result handler
+// would fire during loadAppState — i.e. everything except entries
+// flagged metadata.Failed=true (skipped in app.go:636-645). A genesis
+// with len(state.Txs)>0 but countDeliverableTxs==0 is degenerate but
+// legal — the zero-processed guard short-circuits in that case to
+// avoid a false-positive failure.
+func countDeliverableTxs(txs []gnoland.TxWithMetadata) int {
+	n := 0
+	for _, tx := range txs {
+		if tx.Metadata != nil && tx.Metadata.Failed {
+			continue
+		}
+		n++
+	}
+	return n
 }

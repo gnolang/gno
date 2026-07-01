@@ -534,6 +534,51 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 }
 
+// TestAnteHandlerSkipSigVerificationKey verifies that a tx whose signature
+// no longer matches its body (as happens when --patch-txs rewrites a
+// historical tx) is rejected by default but accepted when the context
+// carries SkipSigVerificationKey{}. The key is only ever set by gnoland's
+// InitChain-time replay wrapper, never on a regular block tx.
+func TestAnteHandlerSkipSigVerificationKey(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx.WithBlockHeader(&bft.Header{Height: 100}) // non-genesis block
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	// Sign over a sign-doc built with the WRONG sequence so the resulting
+	// signature won't verify against the tx-as-submitted (sequence at the
+	// ante is 0, but we signed for sequence 99). Mirrors the invalidation
+	// that --patch-txs causes when it rewrites a historical body —
+	// signature still parses but no longer matches the bytes the ante
+	// reconstructs.
+	msg := tu.NewTestMsg(addr)
+	fee := tu.NewTestFee()
+	signPayload, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      99, // signed over a sequence the ante won't reconstruct
+		Fee:           fee,
+		Msgs:          []std.Msg{msg},
+	})
+	require.NoError(t, err)
+	tx := tu.NewTestTxWithSignBytes([]std.Msg{msg}, []crypto.PrivKey{priv}, fee, signPayload, "")
+
+	// Baseline: without the context key, ante rejects the invalidated sig.
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+
+	// With the context key set (as gnoland's deliverGenesisTx wrapper does
+	// for metadata.Source == "patched"), the same tx passes.
+	ctxSkip := ctx.WithValue(SkipSigVerificationKey{}, true)
+	checkValidTx(t, anteHandler, ctxSkip, tx, false)
+}
+
 func TestAnteHandlerSetPubKey(t *testing.T) {
 	t.Parallel()
 
