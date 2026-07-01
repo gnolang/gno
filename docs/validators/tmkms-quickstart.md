@@ -49,6 +49,15 @@ mix them up:
 export CHAIN_ID=gno-tmkms-prod
 ```
 
+> **This is a per-validator setup: one tmkms instance, one consensus key, one
+> validator.** A signer holds exactly one consensus key per `chain_id`, and
+> that key *is* the validator's identity in genesis — two validators can't
+> share it (the validator set rejects duplicate keys, and two nodes signing
+> with the same key at the same height is a double-sign). A chain with N
+> validators therefore needs N tmkms instances, each with its own consensus
+> key. Horcrux and the YubiHSM/Ledger HA notes below are about failover for a
+> *single* validator's key, never sharing one signer across validators.
+
 ---
 
 # Prerequisites — build the helper tools
