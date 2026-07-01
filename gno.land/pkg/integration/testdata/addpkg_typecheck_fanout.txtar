@@ -1,0 +1,61 @@
+# Adding a package whose types form an exponential value-containment fan-out
+# must be rejected cleanly at type-check time, NOT hang the node. go/types'
+# validType walk is exponential on such types and runs unmetered at addpkg.
+
+# start a new node
+gnoland start
+
+# adding the fan-out package fails with a type-check denial-of-service rejection
+! gnokey maketx addpkg -pkgdir $WORK/fanout -pkgpath gno.land/r/foobar/fanout -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'denial-of-service'
+
+-- fanout/gnomod.toml --
+module = "gno.land/r/foobar/fanout"
+gno = "0.9"
+
+-- fanout/fanout.gno --
+package fanout
+
+type T0 struct{ v int }
+type T1 struct{ a, b [0]T0 }
+type T2 struct{ a, b [0]T1 }
+type T3 struct{ a, b [0]T2 }
+type T4 struct{ a, b [0]T3 }
+type T5 struct{ a, b [0]T4 }
+type T6 struct{ a, b [0]T5 }
+type T7 struct{ a, b [0]T6 }
+type T8 struct{ a, b [0]T7 }
+type T9 struct{ a, b [0]T8 }
+type T10 struct{ a, b [0]T9 }
+type T11 struct{ a, b [0]T10 }
+type T12 struct{ a, b [0]T11 }
+type T13 struct{ a, b [0]T12 }
+type T14 struct{ a, b [0]T13 }
+type T15 struct{ a, b [0]T14 }
+type T16 struct{ a, b [0]T15 }
+type T17 struct{ a, b [0]T16 }
+type T18 struct{ a, b [0]T17 }
+type T19 struct{ a, b [0]T18 }
+type T20 struct{ a, b [0]T19 }
+type T21 struct{ a, b [0]T20 }
+type T22 struct{ a, b [0]T21 }
+type T23 struct{ a, b [0]T22 }
+type T24 struct{ a, b [0]T23 }
+type T25 struct{ a, b [0]T24 }
+type T26 struct{ a, b [0]T25 }
+type T27 struct{ a, b [0]T26 }
+type T28 struct{ a, b [0]T27 }
+type T29 struct{ a, b [0]T28 }
+type T30 struct{ a, b [0]T29 }
+type T31 struct{ a, b [0]T30 }
+type T32 struct{ a, b [0]T31 }
+type T33 struct{ a, b [0]T32 }
+type T34 struct{ a, b [0]T33 }
+type T35 struct{ a, b [0]T34 }
+type T36 struct{ a, b [0]T35 }
+type T37 struct{ a, b [0]T36 }
+type T38 struct{ a, b [0]T37 }
+type T39 struct{ a, b [0]T38 }
+type T40 struct{ a, b [0]T39 }
+
+var Sink T40
