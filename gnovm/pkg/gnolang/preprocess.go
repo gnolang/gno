@@ -2425,27 +2425,40 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
 					if at.Vrd {
-						idx := 0
+						idx := int64(0)
 						for _, elt := range n.Elts {
+							// The implied length is the largest index + 1; an index of
+							// MaxInt64 overflows that to MaxInt64+1. Reject it as out of
+							// bounds (matching Go, whose largest valid index here is
+							// MaxInt64-1) so idx can't wrap negative past
+							// checkArrayAllocFits below.
 							if elt.Key == nil {
+								if idx == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", idx))
+								}
 								idx++
 							} else {
-								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
-								if idx <= k {
-									idx = k + 1
-								} else {
+								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								if idx > k {
 									panic("array lit key out of order")
 								}
+								if k == math.MaxInt64 {
+									panic(fmt.Sprintf("array index %d out of bounds [0:0]", k))
+								}
+								idx = k + 1
 							}
 						}
 						// update type
 						// (dontcare)
 						// at.Vrd = false
-						at.Len = idx
+						// Reject an oversized [...]T{idx: v} array, whose length
+						// is only known here, at compile time (see checkArrayAllocFits).
+						checkArrayAllocFits(at.Elt, idx)
+						at.Len = int(idx)
 						// Mutating Len invalidates the cached typeid.
 						at.typeid = ""
 						// update node
-						cx := constInt(n, int64(idx))
+						cx := constInt(n, idx)
 						unconst(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -2658,6 +2671,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					cx := evalConst(store, last, n.Len)
 					convertConst(store, last, n, cx, IntType)
 					n.Len = cx
+					// Reject an oversized fixed-size array at compile time (see
+					// checkArrayAllocFits). This covers [N]T and [N]T{...}; the
+					// [...]T{idx: v} form is measured and checked elsewhere.
+					checkArrayAllocFits(evalStaticType(store, last, n.Elt), cx.GetInt())
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
 				// with *constTypeExprs (as *ConstExprs are) because
@@ -2881,8 +2898,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IncDecStmt:
-				xt := evalStaticTypeOf(store, last, n.X)
-				n.AssertCompatible(xt)
+				n.AssertCompatible(store, last)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
@@ -4287,10 +4303,10 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	// store.GetAllocator() may be nil here — store.BeginTransaction
-	// below forks alloc which propagates nil — and we need a non-nil
-	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
-	// is throwaway, never persisted.
-	pv := pn.NewPackage(fallbackAllocator) // throwaway
+	// below forks alloc which propagates nil — and that's fine: this
+	// PackageValue is a throwaway, never persisted, so a nil (no-op)
+	// allocator suffices.
+	pv := pn.NewPackage(nil) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4720,8 +4736,14 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
-		// e.g. int(1) == int8(1)
-		mustAssignableTo(n, cx.T, t)
+		// A nil t means "no destination type, just default-convert below"
+		// (the typeless `var x = <expr>` path and recursive untyped-operand
+		// calls). It must be guarded here: checkAssignableTo now panics on a
+		// nil dt rather than treating it as a no-op.
+		if t != nil {
+			// e.g. int(1) == int8(1)
+			mustAssignableTo(n, cx.T, t)
+		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		if debug {
@@ -4738,7 +4760,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// Convert untyped to typed.
 			checkOrConvertType(store, last, n, &bx.Left, t)
 			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
-		} else {
+		} else if t != nil {
 			mustAssignableTo(n, xt, t)
 		}
 		return
@@ -4785,7 +4807,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
-				mustAssignableTo(n, xt, t)
+				if t != nil {
+					mustAssignableTo(n, xt, t)
+				}
 
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
@@ -4872,6 +4896,22 @@ func isNamedConversion(xt, t Type) bool {
 	return false
 }
 
+// checkArrayAllocFits rejects a fixed-size array of element type et and the given
+// length whose backing allocation would overflow int64, mirroring the runtime
+// allocator's allocMustFit guard (AllocateListArray/AllocateDataArray). Go's
+// compiler rejects such an array at compile time ("larger than address space");
+// go/types does not, so without this it would only fail at allocation time.
+// Called for every fixed-size array form: [N]T, [N]T{...}, and [...]T{idx: v}.
+func checkArrayAllocFits(et Type, length int64) {
+	if length <= 0 {
+		return // negative lengths are rejected earlier (go/types).
+	}
+	per := arrayItemAllocSize(et)
+	if length > (math.MaxInt64-allocArray)/per {
+		panic(fmt.Sprintf("type [%d]%s larger than address space", length, et.String()))
+	}
+}
+
 // like checkOrConvertType(last, x, nil)
 func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
@@ -4894,8 +4934,8 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
 		// special-case in append-iface-nil at line ~1804). The
 		// conversion lands in a ConstExpr that isn't persisted directly,
-		// so use fallbackAllocator: no stamping needed.
-		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
+		// so use a nil (no-op) allocator: no stamping needed.
+		ConvertTo(nil, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }
@@ -6018,6 +6058,25 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							xt = pt.Elt
 						}
 						dt, ok := xt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
+					case VPField:
+						// VPField is struct-field access (s.F) or an unbound
+						// method expression (T.M, (*T).M). Only the latter
+						// evaluates n.X as a type, so ATTR_TYPE_VALUE holds
+						// the receiver type; struct fields lack it and break.
+						rt, ok := n.X.GetAttribute(ATTR_TYPE_VALUE).(Type)
+						if !ok {
+							break
+						}
+						// Unwrap a pointer receiver, covering both (*T).M and
+						// the pointer-alias form (`type P = *T; P.M`).
+						if pt, ok := rt.(*PointerType); ok {
+							rt = pt.Elt
+						}
+						dt, ok := rt.(*DeclaredType)
 						if !ok || dt.PkgPath != pn.PkgPath {
 							break
 						}
