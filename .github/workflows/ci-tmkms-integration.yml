@@ -37,7 +37,7 @@ jobs:
 
       # Install Rust toolchain. tmkms isn't published as a pre-built
       # binary, so we build it from source.
-      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable
 
