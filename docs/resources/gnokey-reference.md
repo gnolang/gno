@@ -1,13 +1,35 @@
 # `gnokey` command reference
 
-`gnokey` is the official command-line client for Gno.land. This page is the full
-command and query reference: deploying packages, calling and scripting realms,
-signing transactions, multisig, and reading chain state.
+`gnokey` is the official command-line client for Gno.land. The full command and
+query reference covers deploying packages, calling and scripting realms, signing
+transactions, multisig, and reading chain state.
 
 For everyday wallet use, creating keys, checking balances, and sending coins, see
 [Using the `gnokey` wallet](../users/using-gnokey.md). For a guided first deploy, follow
 [Getting started](../builders/getting-started.md). If you don't have `gnokey` yet,
 see [Installation](../builders/install.md).
+
+## Contents
+
+- [Making transactions](#making-transactions)
+  - [`AddPackage`](#addpackage)
+  - [`Call`](#call)
+  - [`Run`](#run)
+- [Airgapped signing](#airgapped-signing)
+  - [Verifying a signature](#verifying-a-signature)
+- [Multisig (k-of-n)](#multisig-k-of-n)
+- [Building gnokey for an airgapped machine](#building-gnokey-for-an-airgapped-machine)
+- [Querying a Gno.land network](#querying-a-gnoland-network)
+  - [`auth/accounts`](#authaccounts)
+  - [`bank/balances`](#bankbalances)
+  - [`auth/gasprice`](#authgasprice)
+  - [`vm/qfuncs`](#vmqfuncs)
+  - [`vm/qfile`](#vmqfile)
+  - [`vm/qdoc`](#vmqdoc)
+  - [`vm/qeval`](#vmqeval)
+  - [`vm/qrender`](#vmqrender)
+  - [`vm/qpaths`](#vmqpaths)
+  - [`vm/qstorage`](#vmqstorage)
 
 ## Making transactions
 
@@ -20,9 +42,10 @@ Four message types change on-chain state:
 | `Send`       | transfer coins between addresses        |
 | `Run`        | execute a Gno script against the chain  |
 
-`Send` is the everyday wallet action, covered in
-[Using the `gnokey` wallet](../users/using-gnokey.md#sending-coins). The other three are
-developer messages, documented below.
+`Send` transfers coins and is covered in
+[Using the `gnokey` wallet](../users/using-gnokey.md#sending-coins). `AddPackage`,
+`Call`, and `Run` are documented below; of these, `Call` is the most common way to
+interact with realms.
 
 Every transaction pairs a base configuration with one or more messages. `gnokey`
 builds single-message transactions; for multi-message ones, use the

@@ -1,10 +1,26 @@
 # Local development with `gnodev`
 
-`gnodev` is a local Gno.land node bundled with [`gnoweb`](../users/explore-with-gnoweb.md),
-designed for a fast edit → save → reload loop. Use it instead of deploying
-to a network while you're still iterating on code.
+`gnodev` is the local development node for Gno.land, bundled with
+[`gnoweb`](../users/explore-with-gnoweb.md) for a fast edit → save → reload loop
+while iterating on code. The full reference covers automatic deployment,
+premining, hot reload, interactive controls, and flags.
 
 For a first-realm walkthrough, see [Getting started](../builders/getting-started.md).
+To interact with a live network instead of a local node, see the production
+client, [`gnokey`](./gnokey-reference.md).
+
+## Contents
+
+- [Quick start](#quick-start)
+- [Features](#features)
+  - [Automatic deployment](#automatic-deployment)
+  - [Premining](#premining)
+  - [Hot reload](#hot-reload)
+  - [Genesis and node tuning](#genesis-and-node-tuning)
+- [Calling your realm](#calling-your-realm)
+- [Interactive controls](#interactive-controls)
+- [Useful flags](#useful-flags)
+- [See also](#see-also)
 
 ## Quick start
 

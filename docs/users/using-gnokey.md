@@ -1,8 +1,12 @@
 # Using the `gnokey` wallet
 
-`gnokey` is the official command-line wallet for Gno.land. This page covers
+`gnokey` is the official command-line wallet for Gno.land. It covers
 everyday wallet use: creating and managing keys, checking balances, and sending
 coins.
+
+`gnokey` is the production client and does only what real networks require. For
+local development with hot reload and premined accounts, use
+[gnodev](../resources/gnodev-reference.md) instead.
 
 For deploying code, calling realms, scripting, signing workflows, and the full
 command and query reference, see the
@@ -76,7 +80,7 @@ height: 0
 data: "227984898927ugnot"
 ```
 
-You can also see balances visually in [gnoweb](./explore-with-gnoweb.md) or a block explorer.
+For a visual view of a balance, use a block explorer.
 
 ## Sending coins
 
@@ -96,10 +100,17 @@ gnokey maketx send \
 ```
 
 Sending costs gas, paid in GNOT. On a testnet, get some from the
-[Faucet Hub](https://faucet.gno.land) first. The `-chainid` and `-remote` flags
-pick the network and must match; find their values in
-[Network configuration](../resources/gnoland-networks.md). `-gas-wanted` and
-`-gas-fee` cap what you pay; see [Gas fees](../resources/gas-fees.md) to tune them.
+[Faucet Hub](https://faucet.gno.land) first.
+
+Two flags select the network, and both must refer to the same one: `-remote` is
+the node's RPC address, and `-chainid` is that network's identifier. Find the
+values for each network in
+[Network configuration](../resources/gnoland-networks.md).
+
+`-gas-wanted` and `-gas-fee` cap what you pay. To pay the right amount, let
+`gnokey` estimate the gas for you: `-simulate only` runs the transaction as a dry
+run without broadcasting and reports the real gas used, which you can then pass to
+`-gas-wanted`. See [Gas estimation](../resources/gas-fees.md#gas-estimation).
 
 For the full base configuration, the transaction output format, and the other
 message types, see the
@@ -107,6 +118,10 @@ message types, see the
 
 ## Next steps
 
+- Build a transaction that calls a realm function:
+  [gnokey command reference: call](../resources/gnokey-reference.md#call), with an
+  overview of transaction messages at
+  [Making transactions](../resources/gnokey-reference.md#making-transactions).
 - Deploy code, call realms, script transactions, sign offline, or read chain
   state: the [gnokey command reference](../resources/gnokey-reference.md).
 - Write and ship your first realm end to end:
