@@ -2,7 +2,7 @@ package db
 
 // DBs are goroutine safe.
 type DB interface {
-	// Get returns nil if key doesn't exist.
+	// Get returns nil iff key doesn't exist.
 	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Get([]byte) ([]byte, error)
@@ -146,7 +146,7 @@ type Iterator interface {
 // Snapshot is a read-only, point-in-time view of the DB.
 // Callers must call Close when done to release resources.
 type Snapshot interface {
-	// Get returns nil if key doesn't exist.
+	// Get returns nil iff key doesn't exist.
 	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Get([]byte) ([]byte, error)
