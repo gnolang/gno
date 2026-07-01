@@ -1,0 +1,5 @@
+-- input.md --
+This is clean content with no spam patterns.
+
+-- output.html --
+<p>This is clean content with no spam patterns.</p>

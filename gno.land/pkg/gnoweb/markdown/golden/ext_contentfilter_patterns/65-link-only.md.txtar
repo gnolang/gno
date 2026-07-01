@@ -1,0 +1,7 @@
+-- input.md --
+https://example.com
+
+Read more at https://example.com for the full story.
+-- output.html --
+<p>[link only]</p>
+<p>Read more at https://example.com for the full story.</p>

@@ -1,0 +1,5 @@
+-- input.md --
+Visit good-site.com for info.
+
+-- output.html --
+<p>Visit good-site.com for info.</p>
