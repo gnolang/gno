@@ -1,0 +1,125 @@
+{{/* Shared recursive node renderer — parsed into BOTH PageTemplate
+     (tree view) and FragNodeTemplate (htmx-loaded fragments) so a
+     fragment nests with the exact same .row / --depth / .kids markup
+     and CSS as the server-rendered tree. Defines: state/nodes,
+     state/node, state/source-details. */}}
+
+{{ define "state/nodes" }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ $top := .Toplevel }}
+  {{ $vm := .ViewMode }}
+  {{ range .Nodes }}
+    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top "ViewMode" $vm) }}
+  {{ end }}
+{{ end }}
+
+{{/* Tree-view row. data-shape ("ref" | "branch" | "leaf") comes from
+     StateNode.Shape() — the single Go-side classifier shared with the
+     pretty-card renderer, so the two views never diverge. Branches with
+     ObjectID get an htmx hx-get + sibling permalink so the tree-view
+     also benefits from lazy expansion. data-name + an empty
+     data-doc-slot let controller-state.ts project doc-comments from the
+     #state-doc-index island. */}}
+{{ define "state/node" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ $top := .Toplevel }}
+  {{ $vm := .ViewMode }}
+  {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
+  {{ $shape := $n.Shape }}
+  {{/* A plain func has no Children/ObjectID → Shape()==leaf, but it is
+       expandable to disclose its body — route it through the branch arm
+       so it gets the same lazy source expander closures get. Tree-only. */}}
+  {{ if and (eq $shape "leaf") (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}{{ $shape = "branch" }}{{ end }}
+
+  {{ if eq $shape "ref" }}
+    {{/* Ref leaf — htmx-lazy <details>. The ↗ permalink sits inside
+         <summary>: clicking it navigates (it's interactive content,
+         so it doesn't toggle the parent); clicking elsewhere in the
+         summary toggles + fires the hx-get. */}}
+    <details class="b-state-lazy" data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }} data-tree-key="{{ $n.ObjectID }}"
+             hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $depth $vm }}"
+             hx-trigger="toggle once"
+             hx-target="find .b-state-node-body"
+             hx-swap="innerHTML"
+             hx-disinherit="*">
+      <summary class="row" data-shape="{{ $shape }}" style="--depth: {{ $depth }};">
+        <span class="name">{{ $n.Name }}</span>{{ if eq $n.Kind "closure" }}<span class="b-tag">closure</span>{{ end }}
+        <span class="sep">:</span>
+        <span class="type">{{ $n.Type }}</span>
+        {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+        {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
+        <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
+           class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>
+      </summary>
+      {{/* Doc-comments stay scoped to the pretty card (state/decl). Tree
+           rows are the dense / scannable view by design — no description
+           paragraphs to keep the hierarchy readable. */}}
+      <div class="b-state-node-body" aria-busy="false"></div>
+    </details>
+
+  {{ else if eq $shape "branch" }}
+    {{/* Branch row — children pre-rendered. ↗ permalink inside <summary>
+         (same rationale as the ref leaf above). */}}
+    <details data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }}{{ if $n.ObjectID }} data-tree-key="{{ $n.ObjectID }}"{{ end }}{{ if lt $depth 1 }} open{{ end }}>
+      <summary class="row" data-shape="{{ $shape }}" style="--depth: {{ $depth }};">
+        <span class="name">{{ $n.Name }}</span>{{ if eq $n.Kind "closure" }}<span class="b-tag">closure</span>{{ end }}
+        <span class="sep">:</span>
+        <span class="type">{{ $n.Type }}</span>
+        {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+        {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
+        {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+        {{ if $n.ObjectID }}<button type="button" class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</button>{{ end }}
+        {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
+           class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>{{ end }}
+      </summary>
+      <div class="kids">
+        {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
+          {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Depth" (add $depth 1)) }}
+        {{ end }}
+        {{ if and (eq $n.Kind "closure") $n.Children }}
+          <div class="captures-label" style="--depth: {{ add $depth 1 }};">Captured variables:</div>
+        {{ end }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false "ViewMode" $vm) }}
+      </div>
+    </details>
+
+  {{ else }}
+    <div class="row" data-shape="{{ $shape }}" data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }} style="--depth: {{ $depth }};">
+      <span class="name">{{ $n.Name }}</span>{{ if eq $n.Kind "closure" }}<span class="b-tag">closure</span>{{ end }}
+      <span class="sep">:</span>
+      <span class="type">{{ $n.Type }}</span>
+      {{ if $n.Value }}<span class="sep">=</span><span class="val" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</span>{{ end }}
+      {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+      {{ if $n.ObjectID }}<button type="button" class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</button>{{ end }}
+    </div>
+  {{ end }}
+{{ end }}
+
+{{/* htmx-expandable details for a func/closure source body. Always
+     closed + lazy on toggle — the body is never auto-fetched on load,
+     since a page can carry N attacker-controlled funcs. The "See in
+     code" permalink points at the full ?source view. */}}
+{{ define "state/source-details" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ with $n.Source }}
+  <details class="b-state-source-lazy" style="--depth: {{ $depth }};"
+           hx-get="{{ stateFragSourceHref $pkg .File .StartLine .EndLine }}"
+           hx-trigger="toggle once"
+           hx-target="find .b-state-source-body"
+           hx-swap="innerHTML"
+           hx-disinherit="*">
+    <summary>
+      <span class="b-state-source-label">Source</span>
+      <small class="b-state-source-loc">{{ .File }}:{{ .StartLine }}-{{ .EndLine }}</small>
+      <a href="{{ sourceHref $pkg .File .StartLine }}"
+         class="b-state-permalink" aria-label="See {{ $n.Name }} in code">See in code</a>
+    </summary>
+    <div class="b-state-source-body" aria-busy="false"></div>
+  </details>
+  {{ end }}
+{{ end }}

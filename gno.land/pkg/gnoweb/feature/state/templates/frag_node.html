@@ -1,0 +1,43 @@
+{{/* frag_node.html — htmx fragment renderer.
+
+     Swapped into the parent <details>'s .b-state-node-body. Renders the
+     expanded node's content with the SAME recursive state/node markup
+     as the server-rendered tree (shared via _nodes.html) — so nested
+     children get .row / --depth / .kids styling and stay drillable.
+
+     A func/closure object is promoted to the root by serveFragNode: its
+     highlighted body shows directly, captured variables (closures) list
+     below it. Depth is the parent row's tree depth; children render at
+     depth+1 so they step in via the legacy --depth mechanism.
+
+     Input: feature/state.FragNodeData. */}}
+
+{{ define "fragNode" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $vm := .ViewMode }}
+  {{ $depth := .Depth }}
+  {{/* OOB tag injection — populates the empty slot in the pretty
+       card header when the fetched FuncValue carries captures. Zero
+       extra RPC: the fragment fetch is already happening for the
+       lazy hydration; this is just markup. */}}
+  {{ if and (eq $n.Kind "closure") .OID }}<span id="{{ oidTagSlotID .OID }}" hx-swap-oob="true"><span class="b-tag">closure</span></span>{{ end }}
+  <div class="b-state-frag b-state-frag-node">
+    {{/* func/closure object: highlighted body first, then captures. */}}
+    {{ if $n.SourceHTML }}
+      <div class="source" style="--depth: {{ $depth }};"><div class="code">{{ $n.SourceHTML }}</div></div>
+    {{ end }}
+    {{ if $n.Children }}
+      {{ if eq $n.Kind "closure" }}<div class="captures-label" style="--depth: {{ $depth }};">Captured variables:</div>{{ end }}
+      {{ if eq $vm "tree" }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "ViewMode" $vm) }}
+      {{ else }}
+        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Heading" (headingForKind $n.Kind)) }}
+      {{ end }}
+    {{ else if $n.Preview }}
+      <p class="b-state-frag-preview">{{ $n.Preview }}</p>
+    {{ else if not $n.SourceHTML }}
+      <p class="b-state-frag-empty">(empty)</p>
+    {{ end }}
+  </div>
+{{ end }}

@@ -66,7 +66,7 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 }
 
 // QuerySessionAccount retrieves session account information for a given masterAddr and sessionAddr.
-func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*gnoland.GnoSessionAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
 	}
@@ -83,13 +83,13 @@ func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*s
 			" or session address: " + crypto.AddressToBech32(sessionAddr))
 	}
 
-	var qret gnoland.GnoSessionAccount
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+	qret := &gnoland.GnoSessionAccount{}
+	err = amino.UnmarshalJSON(qres.Response.Data, qret)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return &qret.BaseSessionAccount.BaseAccount, qres, nil
+	return qret, qres, nil
 }
 
 // QueryAppVersion retrieves information about the app version
