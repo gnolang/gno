@@ -81,6 +81,9 @@ Package path resolution:
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
 
+The `devtest` account is automatically imported and pre-funded with locally usable GNOT.
+It is available for immediate use in development and testing.
+
 ### Premining
 
 Every key in your local `gnokey` keybase is prefunded on the built-in node.
@@ -219,4 +222,4 @@ Run `gnodev --help` for the full flag list.
 - [Editor setup](../builders/editor-setup.md): LSP integration with `gnopls`
 
 [^1]: `devtest` corresponds to address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`.
-Its mnemonic is **publicly known**. Never use it for real funds.
+Its mnemonic is **publicly known**. Never use it on production networks or for real funds.
