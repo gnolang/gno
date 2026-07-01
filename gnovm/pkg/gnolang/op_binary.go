@@ -561,6 +561,9 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 			}
 		}
 		for i := range ls.Fields {
+			if lt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
