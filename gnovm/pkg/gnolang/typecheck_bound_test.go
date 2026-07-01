@@ -130,6 +130,21 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 			"package x\nfunc f() {\n" + strings.TrimPrefix(fanOutSrc(30), "package x\n") + "}\n",
 			true,
 		},
+		{
+			// Interface type-set fan-out via multiple (`;`-separated) type elements
+			// rather than a union `|`: checkNoGenerics does not reject this shape
+			// (no `|`/`~`), so the bound must count both elements and catch it.
+			"multi-element interface value fan-out rejected",
+			func() string {
+				var b strings.Builder
+				b.WriteString("package x\ntype I0 interface{ m() }\n")
+				for i := 1; i <= 30; i++ {
+					fmt.Fprintf(&b, "type I%d interface{ [0]I%d; [1]I%d }\n", i, i-1, i-1)
+				}
+				return b.String()
+			}(),
+			true,
+		},
 	}
 
 	for _, tc := range tt {
@@ -150,38 +165,47 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 func TestCheckNoGenerics(t *testing.T) {
 	t.Parallel()
 
+	// wantMsg pins the exact rejection phrasing (empty => must be accepted). The
+	// message reaches the consensus-hashed tx result, so its wording is frozen
+	// once a rejection is committed; assert it verbatim, not just a substring.
 	tt := []struct {
 		name    string
 		src     string
-		wantErr bool
+		wantMsg string
 	}{
 		// go1.17 code that must NOT be rejected.
-		{"plain struct passes", "package x\ntype S struct{ a, b int }\n", false},
+		{"plain struct passes", "package x\ntype S struct{ a, b int }\n", ""},
 		{
 			"ordinary interface passes",
 			"package x\nimport \"io\"\ntype I interface{ Read([]byte) (int, error); io.Closer }\n",
-			false,
+			"",
 		},
 		{
 			// `|` as bitwise-or in an expression must not be mistaken for a union.
 			"bitwise-or expression passes",
 			"package x\nfunc f(a, b int) int { return a | b }\n",
-			false,
+			"",
 		},
 		{
 			// `x[i]` array indexing must not be mistaken for generic instantiation.
 			"array indexing passes",
 			"package x\nfunc f(a []int) int { return a[0] }\n",
-			false,
+			"",
 		},
 
 		// go1.18 generics syntax that must be rejected.
-		{"generic type declaration rejected", "package x\ntype W[P any] struct{ a P }\n", true},
-		{"generic function rejected", "package x\nfunc F[T any](x T) T { return x }\n", true},
-		{"generic fan-out (hole #1) rejected", genericFanOutSrc(40), true},
-		{"interface type union rejected", "package x\ntype N interface{ int | string }\n", true},
-		{"interface approximation rejected", "package x\ntype N interface{ ~int }\n", true},
-		{"union fan-out (hole #2) rejected", unionFanOutSrc(40), true},
+		{"generic type declaration rejected", "package x\ntype W[P any] struct{ a P }\n",
+			"generic type declarations are not supported (Gno targets go1.17)"},
+		{"generic function rejected", "package x\nfunc F[T any](x T) T { return x }\n",
+			"generic functions are not supported (Gno targets go1.17)"},
+		{"generic fan-out (hole #1) rejected", genericFanOutSrc(40),
+			"generic type declarations are not supported (Gno targets go1.17)"},
+		{"interface type union rejected", "package x\ntype N interface{ int | string }\n",
+			"interface type unions are not supported (Gno targets go1.17)"},
+		{"interface approximation rejected", "package x\ntype N interface{ ~int }\n",
+			"interface approximation (~) terms are not supported (Gno targets go1.17)"},
+		{"union fan-out (hole #2) rejected", unionFanOutSrc(40),
+			"interface type unions are not supported (Gno targets go1.17)"},
 	}
 
 	for _, tc := range tt {
@@ -189,9 +213,9 @@ func TestCheckNoGenerics(t *testing.T) {
 			t.Parallel()
 			fset, gofs := parseBoundSrc(t, tc.src)
 			err := checkNoGenerics(fset, gofs)
-			if tc.wantErr {
+			if tc.wantMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "not supported")
+				assert.Contains(t, err.Error(), tc.wantMsg)
 			} else {
 				assert.NoError(t, err)
 			}

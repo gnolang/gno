@@ -369,10 +369,14 @@ func checkNoGenerics(fset *token.FileSet, gofs []*ast.File) error {
 					note(t.Pos(), "generic functions")
 				}
 			case *ast.InterfaceType:
-				// A type-set term is an embedded element (no method name) that is
-				// a union or an approximation. `|` is only a type union in this
-				// position (elsewhere it is bitwise-or), and `~` is exclusively a
-				// type-approximation operator, so both are unambiguous here.
+				// Reject only the type-set terms the expansion bound cannot count:
+				// a union (`|`) and an approximation (`~`), which cost() treats as
+				// leaves. `|` is only a type union in this position (elsewhere it is
+				// bitwise-or) and `~` is exclusively type-approximation, so both are
+				// unambiguous here. Other type-set elements (a bare or `;`-separated
+				// type, also go1.18) are deliberately NOT rejected here: they are
+				// ordinary containment edges the bound already counts, so they cannot
+				// hang go/types — do not "fix" that by rejecting them.
 				for _, f := range t.Methods.List {
 					if len(f.Names) != 0 {
 						continue // a method, not a type-set term
