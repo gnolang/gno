@@ -1042,7 +1042,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
-								if len(n.Cases) == 1 {
+								if len(n.Cases) == 1 && ct != nil {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
@@ -1050,7 +1050,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										ss.VarName, anyValue(ct))
 								} else {
 									// If there are 2 or more
-									// cases, the type is the tag type.
+									// cases, or the sole case is nil,
+									// the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
 									last.Define(
 										ss.VarName, anyValue(tt))
