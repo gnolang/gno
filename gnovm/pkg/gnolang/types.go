@@ -1542,6 +1542,55 @@ func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredT
 	return dt
 }
 
+// fillTypeInPlace copies the contents of src into the existing dst pointer,
+// provided they are the same concrete kind. It is used to complete a base type
+// that was captured (by pointer) while still empty during mutual type-decl
+// recursion, e.g. `type T1 struct{Next *T2}; type T2 T1`: T2.Base aliases
+// T1.Base, so T1's underlying type must be filled in place rather than swapped
+// for a fresh pointer, otherwise T2 keeps observing the empty original.
+// Returns false (no copy) for value-kind bases such as PrimitiveType, which are
+// immutable and never suffer this staleness.
+func fillTypeInPlace(dst, src Type) bool {
+	switch dst := dst.(type) {
+	case *StructType:
+		if src, ok := src.(*StructType); ok {
+			*dst = *src
+			return true
+		}
+	case *ArrayType:
+		if src, ok := src.(*ArrayType); ok {
+			*dst = *src
+			return true
+		}
+	case *SliceType:
+		if src, ok := src.(*SliceType); ok {
+			*dst = *src
+			return true
+		}
+	case *MapType:
+		if src, ok := src.(*MapType); ok {
+			*dst = *src
+			return true
+		}
+	case *InterfaceType:
+		if src, ok := src.(*InterfaceType); ok {
+			*dst = *src
+			return true
+		}
+	case *FuncType:
+		if src, ok := src.(*FuncType); ok {
+			*dst = *src
+			return true
+		}
+	case *PointerType:
+		if src, ok := src.(*PointerType); ok {
+			*dst = *src
+			return true
+		}
+	}
+	return false
+}
+
 func BaseOf(t Type) Type {
 	return baseOf(t)
 }

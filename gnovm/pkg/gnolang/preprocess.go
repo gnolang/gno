@@ -3101,6 +3101,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// if !n.IsAlias { // not sure why this was here.
 						tmp2.Seal()
 						// }
+						// During mutual type-decl recursion (e.g.
+						// `type T1 struct{Next *T2}; type T2 T1`) a
+						// dependent's Base may alias dstT.Base, captured
+						// while still empty. Fill that original base in
+						// place and reuse it so the dependent observes the
+						// completed underlying type instead of an orphaned
+						// empty one.
+						if dstT.Base != nil && fillTypeInPlace(dstT.Base, tmp2.Base) {
+							tmp2.Base = dstT.Base
+						}
 						*dstT = *tmp2
 					}
 				case PrimitiveType:
@@ -5549,14 +5559,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
+					// t may be an unsealed *DeclaredType during
+					// mutual type-decl recursion (e.g.
+					// `type T1 struct{Next *T2}; type T2 T1`);
+					// TRANS_LEAVE seals it later via `tmp2.Seal()`.
 					t = tv.GetType()
-					if dt, ok := t.(*DeclaredType); ok {
-						if !dt.sealed {
-							// predefineRecursively should have
-							// already preprocessed dependent types!
-							panic("should not happen")
-						}
-					}
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
