@@ -110,7 +110,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	file := ast.MergePackageFiles(astpkg, 0)
+	file := ast.MergePackageFiles(astpkg, 0) //nolint:staticcheck // deprecated in Go 1.25, but no direct replacement available
 
 	jsonDoc := &JSONDocumentation{
 		PackagePath: d.pkgData.dir.dir,

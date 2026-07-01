@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_thread_04_filetest
+
 // Render thread repost of a deleted thread.
-package main
+package z_ui_thread_04_filetest
 
 import (
 	"testing"
@@ -10,26 +12,26 @@ import (
 )
 
 const (
-	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner        address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
 
 var repostThreadID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, srcBoardName, false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), srcBoardName, false, false)
+	threadID := boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
+	dstBoardID := boards2.CreateBoard(cross(cur), dstBoardName, false, false)
+	repostThreadID = boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "Bar", "Body2")
 
 	// Remove the original thread
-	boards2.DeleteThread(cross, boardID, threadID)
+	boards2.DeleteThread(cross(cur), boardID, threadID)
 }
 
 func main() {
@@ -41,8 +43,14 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Body2
+// </gno-foreign>
+//
+//
 //
 // > ⚠ Source post has been deleted
 //

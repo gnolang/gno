@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"strings"
 )
@@ -34,6 +35,12 @@ type Frame struct {
 	IsDefer       bool          // was func defer called
 	IsRevive      bool          // calling revive()
 	LastException *Exception    // previous m.exception
+
+	// Cur is the captured *.grealm pointer-typed TypedValue for crossing
+	// frames; zero TypedValue for non-crossing frames. Set by doOpPrecall
+	// when WithCross. Used by callingCurOrOrigin to walk the captured
+	// realm chain when building a new cur for the next cross-call.
+	Cur TypedValue
 
 	// test info
 	TestOverridden bool // bool if overridden by test SetContext.
@@ -86,13 +93,6 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	return
 }
 
-func (fr *Frame) SetWithCross() {
-	if fr.WithCross {
-		panic("fr.WithCross already set")
-	}
-	fr.WithCross = true
-}
-
 func (fr *Frame) SetDidCrossing() {
 	if fr.DidCrossing {
 		panic("fr.DidCrossing already set")
@@ -111,16 +111,24 @@ func (fr *Frame) SetIsRevive() {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func          *FuncValue   // function value
+	IsBoundMethod bool         // if true, args[0] is receiver
+	Args          []TypedValue // arguments
+	Source        *DeferStmt   // source
+	Parent        *Block
 }
 
 type StacktraceCall struct {
 	CallExpr *CallExpr
 	IsDefer  bool
 	FuncLoc  Location // func loc in which CallExpr is declared
+	// FuncName is a pre-rendered display name including receiver
+	// type prefix for methods (e.g. "Counter.Inc",
+	// "(*pkg.Counter).Inc"); empty for anonymous functions. Used
+	// only by the bounded stacktrace renderer
+	// (BoundedStacktrace) — Stacktrace.String() retains the
+	// existing toExprTrace-based output.
+	FuncName string
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall
@@ -261,13 +269,33 @@ type Exception struct {
 	Next       *Exception
 }
 
-func (e *Exception) StringWithStacktrace(m *Machine) string {
-	return "panic: " + e.Value.Sprint(m) + "\n" + e.Stacktrace.String()
+// Fprint writes the exception's value to w via (*TypedValue).Fprint, so
+// the output is metered against m's gas meter. Named per the stdlib
+// convention: Fprint* writes to an io.Writer, Sprint* returns a string.
+func (e *Exception) Fprint(w io.Writer, m *Machine) {
+	e.Value.Fprint(w, m)
 }
 
+// StringWithStacktrace formats the exception as "panic: <value>\n<stacktrace>".
+// Streams the value portion through the metered writer (charging output gas);
+// the stacktrace is appended afterward.
+func (e *Exception) StringWithStacktrace(m *Machine) string {
+	var b strings.Builder
+	b.Grow(128)
+	b.WriteString("panic: ")
+	e.Fprint(&b, m)
+	b.WriteByte('\n')
+	b.WriteString(e.Stacktrace.String())
+	return b.String()
+}
+
+// Sprint returns the formatted exception value as a string. Thin
+// wrapper around Fprint for legacy string-returning callers.
 func (e *Exception) Sprint(m *Machine) string {
-	res := e.Value.Sprint(m)
-	return res
+	var b strings.Builder
+	b.Grow(64)
+	e.Fprint(&b, m)
+	return b.String()
 }
 
 func (e *Exception) NumExceptions() int {

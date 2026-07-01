@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_repost_03_filetest
+
+package z_create_repost_03_filetest
 
 import (
 	"strings"
@@ -10,7 +12,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var (
 	srcBID boards.ID
@@ -18,19 +20,19 @@ var (
 	srcTID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross, "src-board", false, false)
-	dstBID = boards2.CreateBoard(cross, "dst-board", false, false)
+	srcBID = boards2.CreateBoard(cross(cur), "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "dst-board", false, false)
 
-	srcTID = boards2.CreateThread(cross, srcBID, "original title", "original text")
+	srcTID = boards2.CreateThread(cross(cur), srcBID, "original title", "original text")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Success case
-	tID := boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "repost title", "repost text")
+	tID := boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "repost title", "repost text")
 	p := ufmt.Sprintf("dst-board/%s", tID)
 	out := boards2.Render(p)
 

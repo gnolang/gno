@@ -1,0 +1,107 @@
+# Reusable workflow for Go modules: lint + build + test with coverage.
+on:
+  workflow_call:
+    inputs:
+      modulepath:
+        required: true
+        type: string
+      tests-extra-args:
+        required: false
+        type: string
+      tests-ts-seq:
+        required: false
+        type: boolean
+      go-version:
+        description: "Go version to use; defaults to the version in go.mod"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
+        with:
+          working-directory: ${{ inputs.modulepath }}
+          args: --config=${{ github.workspace }}/.github/golangci.yml
+          version: v2.11.4 # sync with misc/devdeps
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - name: Check generated files are up to date
+        working-directory: ${{ inputs.modulepath }}
+        run: |
+          if make -qp | grep -q '^generate:'; then
+            make generate
+            if [ "$(git status -s)" != "" ]; then
+              echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              git status -s
+              git diff
+              exit 1
+            fi
+          else
+            echo "'make generate' rule not found, skipping."
+          fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - name: Go test
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          SEQ_TS: ${{ inputs.tests-ts-seq }}
+          TXTARCOVERDIR: /tmp/txtarcoverdir
+          GOCOVERDIR: /tmp/gocoverdir
+          COVERDIR: /tmp/coverdir
+          INPUTS_MODULEPATH: ${{ inputs.modulepath }}
+          INPUTS_TESTS_EXTRA_ARGS: ${{ inputs.tests-extra-args }}
+        run: |
+          set -x
+
+          mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
+
+          export filter="-pkg=github.com/gnolang/gno/${INPUTS_MODULEPATH}/..."
+
+          # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          # shellcheck disable=SC2086
+          go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir="$GOCOVERDIR"
+
+          (set +x; echo 'go coverage results:')
+          go tool covdata percent "$filter" -i="$GOCOVERDIR"
+          (set +x; echo 'txtar coverage results:')
+          go tool covdata percent "$filter" -i="$TXTARCOVERDIR"

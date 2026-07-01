@@ -1,0 +1,60 @@
+name: ci / gnoland
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - examples/**
+      - go.mod
+      - .github/workflows/ci-dir-gnoland.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: "gno.land"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
+      # txtar integration tests run against in-memory nodes in parallel by
+      # default (see gno.land/pkg/integration). This replaces the old
+      # subprocess-per-node mode (cold stdlib reload every boot) and the
+      # sequential `tests-ts-seq` workaround, cutting this job from ~22m to
+      # a few minutes.
+
+  gnoweb_generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/Jod
+      - run: |
+          make -C gno.land/pkg/gnoweb fclean generate
+          git diff --exit-code || \
+             (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
+
+  gnoweb_front_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/Jod
+      - run: make -C gno.land/pkg/gnoweb/frontend lint.ci

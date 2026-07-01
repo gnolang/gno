@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gnolang/faucet"
@@ -22,7 +21,7 @@ import (
 
 const (
 	defaultGasFee        = "1000000ugnot"
-	defaultGasWanted     = "100000"
+	defaultGasWanted     = 100000
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "0.0.0.0:5050"
 )
@@ -54,9 +53,15 @@ type serveCfg struct {
 	maxSendAmount string
 	numAccounts   uint64
 
-	remote        string
-	isBehindProxy bool
-	logLevel      string
+	gasFee    string
+	gasWanted int64
+
+	remote            string
+	trustedProxyCount int
+	logLevel          string
+
+	rateLimitInterval     time.Duration
+	rateLimitCleanTimeout time.Duration
 }
 
 func newServeCmd() *commands.Command {
@@ -123,11 +128,25 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.BoolVar(
-		&c.isBehindProxy,
-		"is-behind-proxy",
-		false,
-		"use X-Forwarded-For IP for throttling",
+	fs.StringVar(
+		&c.gasFee,
+		"gas-fee",
+		defaultGasFee,
+		"the static gas fee for faucet transactions",
+	)
+
+	fs.Int64Var(
+		&c.gasWanted,
+		"gas-wanted",
+		defaultGasWanted,
+		"the static gas wanted for faucet transactions",
+	)
+
+	fs.IntVar(
+		&c.trustedProxyCount,
+		"trusted-proxy-count",
+		0,
+		"number of trusted reverse proxies between the internet and this server; client IP is selected from the right side of X-Forwarded-For (0 disables)",
 	)
 
 	fs.StringVar(
@@ -135,6 +154,20 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"log-level",
 		"info",
 		"log level (debug, info, warn, error)",
+	)
+
+	fs.DurationVar(
+		&c.rateLimitInterval,
+		"ratelimit-interval",
+		defaultRateLimitInterval,
+		"minimum interval between allowed requests from the same IP",
+	)
+
+	fs.DurationVar(
+		&c.rateLimitCleanTimeout,
+		"ratelimit-cleanup-timeout",
+		defaultCleanTimeout,
+		"how long an idle IP entry is kept before being removed",
 	)
 }
 
@@ -169,15 +202,28 @@ func serveFaucet(
 	logger *slog.Logger,
 	opts ...faucet.Option,
 ) error {
-	// Parse static gas values.
-	// It is worth noting that this is temporary,
-	// and will be removed once gas estimation is enabled
-	// on gno.land
-	gasFee := std.MustParseCoin(defaultGasFee)
+	if cfg.rateLimitInterval <= 0 {
+		return errors.New("ratelimit-interval must be greater than zero")
+	}
 
-	gasWanted, err := strconv.ParseInt(defaultGasWanted, 10, 64)
+	if cfg.rateLimitCleanTimeout <= 0 {
+		return errors.New("ratelimit-cleanup-timeout must be greater than zero")
+	}
+
+	if cfg.rateLimitCleanTimeout < cfg.rateLimitInterval {
+		return errors.New("ratelimit-cleanup-timeout must be >= ratelimit-interval, otherwise cleanup defeats the rate limit")
+	}
+
+	// Validate the static gas values. The fee only needs to parse as a coin —
+	// a zero fee is valid on chains with no minimum gas price — but gas wanted
+	// must be positive, since a non-positive limit always fails out-of-gas.
+	gasFee, err := std.ParseCoin(cfg.gasFee)
 	if err != nil {
-		return fmt.Errorf("invalid gas wanted, %w", err)
+		return fmt.Errorf("invalid gas fee, %w", err)
+	}
+
+	if cfg.gasWanted <= 0 {
+		return errors.New("gas wanted must be greater than zero")
 	}
 
 	// Parse the send amount
@@ -206,7 +252,7 @@ func serveFaucet(
 	// Create a new faucet with
 	// static gas estimation
 	f, err := faucet.NewFaucet(
-		static.New(gasFee, gasWanted),
+		static.New(gasFee, cfg.gasWanted),
 		cli,
 		faucetOpts...,
 	)

@@ -3,6 +3,7 @@ package rpcserver
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -40,7 +41,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		MaxOpenConnections: 0, // unlimited
 		ReadTimeout:        10 * time.Second,
-		WriteTimeout:       10 * time.Second,
+		WriteTimeout:       30 * time.Second,
 		MaxBodyBytes:       int64(5000000), // 5MB
 		MaxHeaderBytes:     1 << 20,        // same as the net/http default
 	}
@@ -93,44 +94,76 @@ func WriteRPCResponseHTTPError(
 	w http.ResponseWriter,
 	httpCode int,
 	res types.RPCResponse,
-) {
+) error {
 	jsonBytes, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpCode)
 	if _, err := w.Write(jsonBytes); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) {
+func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) error {
 	jsonBytes, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	if _, err := w.Write(jsonBytes); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
+}
+
+// WriteStreamingRPCResponseHTTP writes a successful JSON-RPC response whose
+// result body is produced incrementally by result.StreamJSON. The envelope
+// (jsonrpc / id) is written around the streamed body without buffering the
+// whole result in memory. Returns the first write error encountered (no
+// panics), mirroring the contract of WriteRPCResponseHTTP.
+//
+// ctx is forwarded to result.StreamJSON so that long streams can be aborted
+// when the client disconnects.
+func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
+	idBytes, err := json.Marshal(id)
+	if err != nil {
+		return fmt.Errorf("unable to marshal JSON-RPC id: %w", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
+		return err
+	}
+	if err := result.StreamJSON(ctx, w); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(`}`)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
 // can write arrays of responses for batched request/response interactions via
 // the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
+func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) error {
 	jsonBytes, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	if _, err := w.Write(jsonBytes); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -163,23 +196,29 @@ func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger) http.Handle
 			if e := recover(); e != nil {
 				switch e := e.(type) {
 				case types.RPCResponse:
-					WriteRPCResponseHTTP(rww, e)
+					if werr := WriteRPCResponseHTTP(rww, e); werr != nil {
+						logger.Error("failed to write RPC response", "err", werr)
+					}
 
 				case error:
 					logger.Error(
 						"Panic in RPC HTTP handler", "err", e, "stack",
 						string(debug.Stack()),
 					)
-					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
-						types.RPCInternalError(types.JSONRPCStringID(""), e))
+					if werr := WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
+						types.RPCInternalError(types.JSONRPCStringID(""), e)); werr != nil {
+						logger.Error("failed to write RPC response", "err", werr)
+					}
 
 				default: // handle string type and any other types
 					logger.Error(
 						"Panic in RPC HTTP handler", "err", e, "stack",
 						string(debug.Stack()),
 					)
-					WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
-						types.RPCInternalError(types.JSONRPCStringID(""), fmt.Errorf("%v", e)))
+					if werr := WriteRPCResponseHTTPError(rww, http.StatusInternalServerError,
+						types.RPCInternalError(types.JSONRPCStringID(""), fmt.Errorf("%v", e))); werr != nil {
+						logger.Error("failed to write RPC response", "err", werr)
+					}
 				}
 			}
 
@@ -188,7 +227,7 @@ func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger) http.Handle
 			if rww.Status == -1 {
 				rww.Status = 200
 			}
-			logger.Info("Served RPC HTTP response",
+			logger.Debug("Served RPC HTTP response",
 				"method", r.Method, "url", r.URL,
 				"status", rww.Status, "duration", durationMS,
 				"remoteAddr", r.RemoteAddr,

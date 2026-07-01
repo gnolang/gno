@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_repost_02_filetest
+
+package z_create_repost_02_filetest
 
 import (
 	"testing"
@@ -9,7 +11,7 @@ import (
 )
 
 const (
-	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -19,19 +21,19 @@ var (
 	srcTID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross, "src-board", false, false)
-	dstBID = boards2.CreateBoard(cross, "dst-board", false, false)
+	srcBID = boards2.CreateBoard(cross(cur), "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "dst-board", false, false)
 
-	srcTID = boards2.CreateThread(cross, srcBID, "Foo", "bar")
+	srcTID = boards2.CreateThread(cross(cur), srcBID, "Foo", "bar")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "foo", "bar")
+	boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "foo", "bar")
 }
 
 // Error:
-// unauthorized
+// unauthorized, user g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj doesn't have the required permission

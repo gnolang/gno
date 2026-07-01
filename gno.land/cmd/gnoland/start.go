@@ -22,7 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
@@ -31,6 +31,11 @@ import (
 const defaultNodeDir = "gnoland-data"
 
 var errMissingGenesis = errors.New("missing genesis.json")
+
+var errLazyTmkmsListener = errors.New(
+	"-lazy cannot derive a genesis in tmkms_listener mode: tmkms holds the validator key " +
+		"and signs only votes/proposals, so the validator pubkey is not locally available. " +
+		"Provide an explicit genesis.json (see the gnogenesis tool) and start without -lazy")
 
 var startGraphic = strings.ReplaceAll(`
                     __             __
@@ -148,7 +153,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.logLevel,
 		"log-level",
 		zapcore.DebugLevel.String(),
-		"log level for the gnoland node,",
+		"log level for the gnoland node (debug, info, warn, error)",
 	)
 
 	fs.StringVar(
@@ -218,6 +223,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			return errMissingGenesis
 		}
 
+		// tmkms_listener mode keeps the validator key in tmkms (it signs only
+		// votes/proposals), so the validator pubkey isn't locally available to
+		// seed a genesis validator set. Without this guard NewSignerFromConfig
+		// silently falls back to the local key and the node would come up as a
+		// non-validator. Fail loud and point at an explicit genesis instead.
+		if cfg.Consensus.PrivValidator.TmkmsListener.IsEnabled() {
+			return errLazyTmkmsListener
+		}
+
 		// Get the node key for signer init
 		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
 		if err != nil {
@@ -264,9 +278,18 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		cfg.Application,
 		evsw,
 		logger,
+		cfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
+	// Apply halt height from config to the application
+	if cfg.BaseConfig.HaltHeight > 0 {
+		if baseApp, ok := cfg.LocalApp.(*sdk.BaseApp); ok {
+			baseApp.SetHaltHeight(uint64(cfg.BaseConfig.HaltHeight))
+			logger.Info("Halt height configured", "height", cfg.BaseConfig.HaltHeight)
+		}
 	}
 
 	// Create a default node, with the given setup
@@ -274,7 +297,12 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if c.earlyStart {
 		opts = append(opts, node.WithEarlyStart())
 	}
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger, opts...)
+	// Stream the genesis file through an on-disk cache so peak memory stays
+	// bounded on multi-hundred-MB genesis files. The cache lives next to the
+	// chain DB so its lifetime tracks the node data directory.
+	genesisCacheRoot := filepath.Join(cfg.DBDir(), "genesis-cache")
+	genesisProvider := gnoland.StreamingGenesisProvider(genesisPath, genesisCacheRoot, logger)
+	gnoNode, err := node.DefaultNewNodeWithGenesisProvider(cfg, genesisProvider, evsw, logger, opts...)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
