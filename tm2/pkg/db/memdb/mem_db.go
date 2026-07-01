@@ -2,6 +2,7 @@ package memdb
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 
@@ -222,11 +223,7 @@ func (db *MemDB) NewSnapshot() (dbm.Snapshot, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	snap := &memSnapshot{db: make(map[string][]byte, len(db.db))}
-	for k, v := range db.db {
-		snap.db[k] = v
-	}
-	return snap, nil
+	return &memSnapshot{db: maps.Clone(db.db)}, nil
 }
 
 var _ dbm.Snapshot = (*memSnapshot)(nil)
