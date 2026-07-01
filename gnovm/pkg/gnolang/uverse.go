@@ -1735,7 +1735,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	defer mw.Release()
 	defer mw.Flush() // LIFO: runs before Release, after the loop (normal or panic).
 	xvl := xv.TV.GetLength()
-	for i := 0; i < xvl; i++ {
+	for i := range xvl {
 		if i != 0 {
 			mw.WriteByte(' ')
 		}
