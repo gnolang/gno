@@ -2797,7 +2797,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("runtime error: nil pointer dereference"))
+				m.Panic(typedRuntimeError("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
