@@ -5,6 +5,9 @@
     <div class="header-info">
       <span>{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages {{
         else }} Directory · {{ .FileCounter }} Files {{ end }}</span>
+      {{ if and .IsRealm (not .Mode.IsExplorer) }}
+      <a href="{{ .RenderURL }}" class="b-inline-btn">Render</a>
+      {{ end }}
     </div>
   </header>
 
