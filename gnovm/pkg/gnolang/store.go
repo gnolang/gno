@@ -937,24 +937,6 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
-	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
-	if ctrbz == nil {
-		nextbz := strconv.Itoa(1)
-		ds.baseStore.Set(ds.gctx, ctrkey, []byte(nextbz))
-		return 1
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		nextbz := strconv.Itoa(ctr + 1)
-		ds.baseStore.Set(ds.gctx, ctrkey, []byte(nextbz))
-		return uint64(ctr) + 1
-	}
-}
-
 // mptype is passed in as a redundant parameter as convenience to assert that
 // mpkg.Type is what is expected.
 // If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for
@@ -979,20 +961,51 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
-	idxkey := []byte(backendPackageIndexKey(ctr))
+	// Write order is intentional: body (iavlStore) first, then index slot
+	// (baseStore), then counter bump (baseStore). This minimises the damage
+	// of a mid-AddMemPackage SIGKILL:
+	//   - crash after body, before index: orphaned iavlStore body; no
+	//     baseStore entry sees it, so IterMemPackage never yields it.
+	//     Harmless (wasted bytes).
+	//   - crash after index, before counter: index slot written at N+1 but
+	//     counter still N, so IterMemPackage iterates 1..N and never reads
+	//     the dangling slot. On retry, counter increments to N+1 and the
+	//     slot is overwritten with the new (consistent) value.
+	//   - crash after counter: fully consistent.
+	// The previous order (counter → index → body) could leave a counter
+	// pointing at an index pointing at a missing body, crash-looping the
+	// node; see commit b15ffde6e and the defensive consumer in machine.go.
+	// WAL flush ordering across substores is still non-deterministic, so
+	// the consumer-side nil skip must be retained as belt-and-braces.
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	if trace.StoreGasEnabled {
 		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
 	}
+	// 1) body
 	ds.iavlStore.Set(ds.gctx, pathkey, bz)
 	if trace.StoreGasEnabled {
 		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
 	}
+	// 2) index slot — compute the new counter value without committing it
+	// so we can write the slot *before* bumping the counter.
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
+	var prevCtr uint64
+	if ctrbz != nil {
+		n, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		prevCtr = uint64(n)
+	}
+	ctr := prevCtr + 1
+	ds.baseStore.Set(ds.gctx, []byte(backendPackageIndexKey(ctr)), []byte(mpkg.Path))
+	// 3) counter bump — only now is the new package visible to
+	// IterMemPackage / NumMemPackages.
+	ds.baseStore.Set(ds.gctx, ctrkey, []byte(strconv.FormatUint(ctr, 10)))
 	size = len(bz)
 }
 
@@ -1075,32 +1088,56 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage iterates persisted mempackages in insertion order.
+//
+// Validation runs eagerly on the caller's goroutine: any inconsistency
+// (counter ahead of index, index without body) panics here, before the
+// channel is returned. With AddMemPackage's body→index→counter ordering
+// neither inconsistency should be reachable; if one is, the underlying
+// substores have diverged (e.g. DB-level WAL crash) and the only safe
+// recovery is to replay from a known-good snapshot. Refusing to boot
+// is preferable to feeding a nil mpkg to consumers — ParseMemPackage
+// would SIGSEGV on `nil.Type.(MemPackageType)` and the node would
+// crash-loop without surfacing the cause.
+//
+// The eager pass loads all mempackages into memory; for restart-time
+// iteration this is acceptable. Callers iterate in insertion order via
+// the returned (buffered) channel exactly as before.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
 	if ctrbz == nil {
 		return nil
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		ch := make(chan *std.MemPackage)
-		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
-				idxkey := []byte(backendPackageIndexKey(i))
-				path := ds.baseStore.Get(ds.gctx, idxkey)
-				if path == nil {
-					panic(fmt.Sprintf(
-						"missing package index %d", i))
-				}
-				mpkg := ds.GetMemPackage(string(path))
-				ch <- mpkg
-			}
-			close(ch)
-		}()
-		return ch
 	}
+	ctr, err := strconv.Atoi(string(ctrbz))
+	if err != nil {
+		panic(err)
+	}
+	pkgs := make([]*std.MemPackage, 0, ctr)
+	for i := uint64(1); i <= uint64(ctr); i++ {
+		idxkey := []byte(backendPackageIndexKey(i))
+		path := ds.baseStore.Get(ds.gctx, idxkey)
+		if path == nil {
+			panic(fmt.Sprintf(
+				"gnovm/store: corrupt package index at slot %d "+
+					"(counter=%d, slot empty); replay from a clean "+
+					"snapshot.", i, ctr))
+		}
+		mpkg := ds.GetMemPackage(string(path))
+		if mpkg == nil {
+			panic(fmt.Sprintf(
+				"gnovm/store: package index slot %d points at path %q "+
+					"but iavlStore has no body; substore divergence — "+
+					"replay from a clean snapshot.", i, string(path)))
+		}
+		pkgs = append(pkgs, mpkg)
+	}
+	ch := make(chan *std.MemPackage, len(pkgs))
+	for _, mpkg := range pkgs {
+		ch <- mpkg
+	}
+	close(ch)
+	return ch
 }
 
 func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
