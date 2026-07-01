@@ -8,7 +8,6 @@ type Boom struct {
 	D int
 }
 
-
 func main() {
 	keyMap := Boom{}
 	m := map[any]int{}

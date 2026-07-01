@@ -39,4 +39,3 @@ func main(cur realm) {
 // function: bare
 // method appended; tag now: x-mid
 // function: bare
-

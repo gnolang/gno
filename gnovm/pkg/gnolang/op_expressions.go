@@ -11,7 +11,6 @@ func (m *Machine) doOpIndex1() {
 	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -27,11 +26,14 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
+		if res, ok := xv.GetByteAtIndexInt(m.Store, int(iv.ConvertGetInt())); ok {
+			*xv = res // reuse as result
+			return
+		}
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
-	xv.SetReadonly(ro)
 }
 
 // NOTE: keep in sync with doOpIndex1.
@@ -39,7 +41,6 @@ func (m *Machine) doOpIndex2() {
 	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -60,7 +61,6 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
-	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
@@ -80,14 +80,12 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
-	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSlice() {
@@ -109,7 +107,6 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
-	ro := m.IsReadonly(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	// XXX fix this in precompile instead.
@@ -121,10 +118,6 @@ func (m *Machine) doOpSlice() {
 			return
 		}
 		*xv = xv.V.(PointerValue).Deref()
-		// check array also for ro.
-		if !ro {
-			ro = xv.IsReadonly()
-		}
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -133,10 +126,10 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		m.PushValue(sv.WithReadonly(ro))
+		m.PushValue(sv)
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		m.PushValue(sv.WithReadonly(ro))
+		m.PushValue(sv)
 	}
 }
 
@@ -171,8 +164,7 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			ro := m.IsReadonly(xv)
-			pvtv := (*pv.TV).WithReadonly(ro)
+			pvtv := *pv.TV
 			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
 				// When a pointer was converted to a different
 				// declared pointer type, the dereferenced value
@@ -206,9 +198,12 @@ func (m *Machine) doOpStar() {
 // var i interface{} = 42; &i must yield *interface{}, not *int.
 // ATTR_REF_ELEM_TYPE is set during preprocessing in
 // TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
+//
+// No size-dependent path here: zero-sized element types use the same
+// (Base, Index) route as any other. See PointerValue (values.go).
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	xv, ro := m.PopAsPointer2(rx.X)
+	xv, _ := m.PopAsPointer2(rx.X)
 	elt, ok := rx.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
 	if !ok {
 		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
@@ -217,7 +212,7 @@ func (m *Machine) doOpRef() {
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	}.WithReadonly(ro))
+	})
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -584,7 +579,7 @@ func (m *Machine) doOpMapLit() {
 	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(mt, 0)
+	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
@@ -726,8 +721,8 @@ func (m *Machine) doOpFuncLit() {
 	}
 	// Closures belong to wherever they were evaluated
 	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own.
-	m.Alloc.stampPkgID(&fv.ObjectInfo)
+	// declaring-realm semantics on its own — pass nil.
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
@@ -751,16 +746,16 @@ func (m *Machine) doOpConvert() {
 	// BEGIN conversion checks — protect against inter-realm
 	// conversion exploits.
 	//
-	// Case 1. Refuse conversion of a value stored in an external
-	// realm (foreign-readonly source). Without this, an attacker can
+	// Case 1. Refuse conversion of a value whose underlying object is
+	// stored in an external realm. Without this, an attacker can
 	// declare a parallel /p/-type with the same struct layout as a
 	// /p/-typed victim field plus extra mutator methods, then convert
 	// the victim's pointer to the parallel type and invoke the new
 	// mutator — borrow rule 2 routes m.Realm to victim's realm for
-	// the duration of the /p/-method, so the write succeeds under
-	// victim authority. The N_Readonly bit on the converted value
-	// catches direct writes (`p.Field = ...`) but not writes inside
-	// a borrowed /p/-method body. See zrealm_launder_g_typepun.gno.
+	// the duration of the /p/-method, so the write would succeed under
+	// victim authority. Blocking the conversion here (m.IsReadonly is
+	// the cross-realm ownership check) stops the launder before any
+	// method dispatch. See zrealm_launder_g_typepun.gno.
 	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
@@ -768,7 +763,14 @@ func (m *Machine) doOpConvert() {
 			// declared type — the converting realm already has
 			// write authority over its own values.
 		} else {
-			panic("illegal conversion of readonly or externally stored value")
+			sliceType, ok := baseOf(xv.T).(*SliceType)
+			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
+			if isBytesArray && t.Kind() == StringKind {
+				// Allow conversion from []byte to string
+				// As it does not modify the value stored in the slice.
+			} else {
+				panic("illegal conversion of readonly or externally stored value")
+			}
 		}
 	}
 
@@ -792,8 +794,7 @@ func (m *Machine) doOpConvert() {
 		} else if t.Kind() == StringKind {
 			// runes ([]int32) → string
 			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
-				sv := xv.V.(*SliceValue)
-				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(sv.GetLength()))
+				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
 			}
 		}
 	}

@@ -183,6 +183,10 @@ func (dbv DataByteValue) SetByte(b byte) {
 //
 // Since PointerValue is used internally for assignment etc, it MUST stay
 // minimal for computational efficiency.
+//
+// Equality (isEql) reduces to (Base, Index): equal iff Base and Index match,
+// the same for every element type, with no zero-sized special case. For the
+// divergence from Go, see docs/resources/gno-memory-model.md § Pointer equality.
 type PointerValue struct {
 	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
@@ -291,8 +295,14 @@ func (av *ArrayValue) GetLength() int {
 }
 
 // et is only required for .List byte-arrays.
-func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
+	if ii < 0 {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+	}
 	if av.Data == nil {
+		if ii >= len(av.List) {
+			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
+		}
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
 			TV:    ev,
@@ -300,7 +310,12 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
+	if ii >= len(av.Data) {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+	}
+	// heap alloc, so need to compare value rather than pointer.
+	// If you Deref the result, TypedValue.GetByteAtIndexInt is more efficient.
+	btv := &TypedValue{
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -316,12 +331,18 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-// Copy duplicates an existing ArrayValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewListArray/NewDataArray stands, so the
-// copy belongs to the realm doing the copying.
+// Copy duplicates an existing ArrayValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the array type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewListArray/NewDataArray stands, so the copy belongs to the
+// realm doing the copying.
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. That leaked foreign authority into /p/-typed copies
+// produced by value-assignments like `*z = *x` (e.g. uint256 Set), causing
+// `cannot directly modify readonly tainted object` panics when a /r/ realm
+// performed in-place arithmetic on a /p/-typed value handed in from another
+// /r/. See https://github.com/gnolang/gno/issues/5736.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
@@ -338,8 +359,8 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -378,7 +399,7 @@ func (sv *SliceValue) GetLength() int {
 }
 
 // et is only required for .List byte-slices.
-func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+func (sv *SliceValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		excpt := &Exception{
@@ -394,7 +415,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 		}
 		panic(excpt)
 	}
-	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
+	return sv.GetBase(store).GetElementPointer(store, sv.Offset+ii, et)
 }
 
 // ----------------------------------------
@@ -452,15 +473,17 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-// Copy duplicates an existing StructValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewStruct stands, so the copy belongs to
-// the realm doing the copying.
+// Copy duplicates an existing StructValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the struct type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewStruct stands, so the copy belongs to the realm doing the
+// copying.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. See ArrayValue.Copy for the issue (gh #5736) and rationale.
 func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
@@ -472,8 +495,8 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -744,9 +767,11 @@ type MapListItem struct {
 	Value TypedValue
 }
 
-func (mv *MapValue) MakeMap(c int) {
+// MakeMap initializes mv with no capacity hint: the make() size argument
+// is intentionally not honored (see the make() map case in uverse.go).
+func (mv *MapValue) MakeMap() {
 	mv.List = &MapList{}
-	mv.vmap = make(map[MapKey]*MapListItem, c)
+	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
 func (mv *MapValue) GetLength() int {
@@ -965,43 +990,6 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"`
 }
 
-// Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
-// readonly. This happens when subvalues are retrieved from an externally
-// stored realm value, such as external realm package vars, or slices or
-// pointers to.
-// NOTE: most of the code except copy methods do not consider N_Readonly.
-// Instead the op functions should with m.IsReadonly() and tv.SetReadonly() and
-// tv.WithReadonly().
-var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
-
-// Returns true if mutable .V is readonly "wrapped".
-func (tv *TypedValue) IsReadonly() bool {
-	return tv.N == N_Readonly && tv.V != nil
-}
-
-// Sets tv.N to N_Readonly if ro and tv is not already immutable.  If ro is
-// false does nothing. See also Type.IsImmutable().
-func (tv *TypedValue) SetReadonly(ro bool) {
-	if tv.V == nil {
-		return // do nothing
-	}
-	if tv.T.IsImmutable() {
-		return // do nothing
-	}
-	if ro {
-		tv.N = N_Readonly
-		return
-	} else {
-		return // preserve prior tv.N
-	}
-}
-
-// Convenience, makes readonly if ro is true.
-func (tv TypedValue) WithReadonly(ro bool) TypedValue {
-	tv.SetReadonly(ro)
-	return tv
-}
-
 func (tv *TypedValue) IsImmutable() bool {
 	return tv.T == nil || tv.T.IsImmutable()
 }
@@ -1087,11 +1075,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
 	default:
 		cp = tv
 	}
@@ -1103,7 +1089,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
-		cp = tv // preserve N_Readonly
+		cp = tv // start from the header (T, N); V is replaced below
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
@@ -1235,9 +1221,9 @@ func (tv *TypedValue) SetInt(n int64) {
 
 func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	// IntType-only conversion: no allocation occurs; fallbackAllocator
-	// is used purely to satisfy the *Allocator argument.
-	ConvertTo(fallbackAllocator, store, tv, IntType, false)
+	// IntType-only conversion: no allocation occurs, so pass a nil
+	// (no-op) allocator.
+	ConvertTo(nil, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
@@ -1607,6 +1593,13 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		return nilStr, false
 	}
+	// Static uncomparable keys are rejected at preprocess; an uncomparable
+	// tv.T here came via interface boxing. isComparable recurses, so the
+	// panic names the outer dynamic type, matching Go.
+	if !isComparable(tv.T) {
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
+	}
 	// General case.
 	bz := make([]byte, 0, 64)
 	// Charge per-byte for all bytes appended to bz in this call (TypeID
@@ -1638,7 +1631,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		} else {
 			pv := tv.V.(PointerValue)
 			if pv.TV != nil && pv.TV.T == DataByteType {
-				// TV is freshly allocated per access (see GetPointerAtIndexInt2);
+				// TV is freshly allocated per access (see GetElementPointer);
 				// so we cannot simply convert to uintptr.
 				// We instead use the pointer to Base + concat with Index.
 				// This causes a longer pointer value, but does not cause issues
@@ -1655,8 +1648,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1682,32 +1673,36 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
-	case *SliceType:
-		panic(&Exception{Value: typedString("runtime error: slice type cannot be used as map key")})
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
+		var appendComma bool
 		for i := range sl {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
+			if appendComma {
+				bz = append(bz, ',')
+			} else {
+				appendComma = true
+			}
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
-			if i != sl-1 {
-				bz = append(bz, ',')
-			}
 		}
 		bz = append(bz, '}')
-	case *ChanType:
-		panic("channel type is not yet supported")
 	default:
-		panic(fmt.Sprintf(
-			"unexpected map key type %s",
-			tv.T.String()))
+		// Defensive fallback: the isComparable gate above already stops
+		// every uncomparable type (slices, maps, funcs, chans, ...) before
+		// the switch, so this is unreachable in practice.
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
 }
@@ -1926,7 +1921,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 		// Bound method wrapper belongs to the realm doing the
 		// binding; the receiver carries its own PkgID independently.
-		alloc.stampPkgID(&bmv.ObjectInfo)
+		// Pass nil to stamp with currentRealmID.
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1965,7 +1961,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
 		// Bound method wrapper belongs to the realm doing the binding.
-		alloc.stampPkgID(&bmv.ObjectInfo)
+		// Pass nil to stamp with currentRealmID.
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1975,7 +1972,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
-			panic("interface method call on undefined value")
+			panic(&Exception{Value: typedString("runtime error: method selector on nil interface")})
 		}
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")
@@ -2004,7 +2001,66 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(m, nilRealm, fallbackAllocator, store, &iv)
+	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
+}
+
+// GetByteAtIndexInt is a read-only fast path of GetPointerAtIndex for
+// strings and Data-backed (byte) arrays and slices: it returns the element
+// value directly instead of materializing a heap-allocated pointer box
+// (see GetElementPointer) that the caller immediately Derefs and
+// discards. ok is false when tv is none of those (maps, List-backed arrays
+// and slices), in which case the caller must use GetPointerAtIndex. Checks
+// and panics mirror GetPointerAtIndex: out-of-range indices raise explicit
+// Exceptions for strings, arrays and slices, so they stay recoverable rather
+// than escaping as un-recoverable Go panics (see #5738).
+func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok bool) {
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		if bt == StringType || bt == UntypedStringType {
+			sv := tv.GetString()
+			if ii >= len(sv) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+			}
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+			}
+			res = TypedValue{T: Uint8Type}
+			res.SetUint8(sv[ii])
+			return res, true
+		}
+	case *ArrayType:
+		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+			}
+			if ii >= len(av.Data) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+			}
+			res = TypedValue{T: bt.Elt}
+			res.SetUint8(av.Data[ii])
+			return res, true
+		}
+	case *SliceType:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+		}
+		if sv, sok := tv.V.(*SliceValue); sok {
+			if base := sv.GetBase(store); base.Data != nil {
+				if ii < 0 {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d", ii))})
+				} else if sv.Length <= ii {
+					panic(&Exception{Value: typedString(fmt.Sprintf(
+						"runtime error: slice index out of bounds: %d (len=%d)",
+						ii, sv.Length))})
+				}
+				res = TypedValue{T: bt.Elt}
+				res.SetUint8(base.Data[sv.Offset+ii])
+				return res, true
+			}
+		}
+	}
+	return TypedValue{}, false
 }
 
 func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
@@ -2013,7 +2069,8 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			ii := int(iv.ConvertGetInt())
-			btv := &TypedValue{ // heap alloc
+			// heap alloc; GetByteAtIndexInt optimizes this if you Deref the result.
+			btv := &TypedValue{
 				T: Uint8Type,
 			}
 
@@ -2036,14 +2093,14 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := int(iv.ConvertGetInt())
-		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		return av.GetElementPointer(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
 		}
 		sv := tv.V.(*SliceValue)
 		ii := int(iv.ConvertGetInt())
-		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
+		return sv.GetElementPointer(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
 			panic(&Exception{Value: typedString("runtime error: uninitialized map index")})
@@ -2432,7 +2489,8 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	}
 	// Blocks belong to the executing realm (currentRealmID),
 	// representing a lexical scope inside that realm's running code.
-	alloc.stampPkgID(&blk.ObjectInfo)
+	// Pass nil to stamp with currentRealmID.
+	alloc.stampPkgID(&blk.ObjectInfo, nil)
 	return blk
 }
 
@@ -2817,7 +2875,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
+				epv := cbv.GetElementPointer(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
 				fpv := cbv.GetPointerToInt(store, cv.Index)

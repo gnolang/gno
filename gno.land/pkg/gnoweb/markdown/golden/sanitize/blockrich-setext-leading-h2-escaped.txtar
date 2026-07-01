@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+---
+body
+-- output.md --
+
+
+\---
+body
+
+-- output.html --
+<p>---
+body</p>
