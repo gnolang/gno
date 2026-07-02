@@ -331,7 +331,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// An indexed package with no production files (e.g. an
 			// xxx_test-only package) has no prod blob, so GetMemPackage
 			// returns nil. There are no production block nodes to build;
-			// its test files live under the #allbutprod sibling.
+			// its test files live under the #allbutprod sibling. On-chain
+			// this is unreachable — the vm keeper rejects prod-less packages
+			// at AddPackage (block-node state would otherwise depend on
+			// restart history) — so this skip is defensive, for non-chain
+			// stores.
 			continue
 		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)

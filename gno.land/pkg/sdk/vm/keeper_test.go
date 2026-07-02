@@ -22,6 +22,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
@@ -124,6 +125,38 @@ func Echo(cur realm) string {
 	store := env.vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.Nil(t, memFile)
+}
+
+// A package with no production .gno files (only _test.gno / _filetest.gno)
+// must be rejected: the storage split writes no prod blob for it, so a
+// restarted node would rebuild no PackageNode while a non-restarted node
+// still holds the deploy-time node in RAM (divergent call gas).
+func TestVMKeeperAddPackage_NoProdFiles(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/testonly"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "testonly_test.gno",
+			Body: `package testonly
+import "testing"
+func TestNothing(t *testing.T) {}`,
+		},
+	}
+
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+
+	require.Error(t, err)
+	assert.Equal(t, InvalidPackageError{}, tmerrors.Cause(err))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackageAll(pkgPath))
 }
 
 func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {

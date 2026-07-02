@@ -615,6 +615,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+	// Reject packages with no production .gno files (e.g. only _test.gno
+	// files). The storage split writes no prod blob for them (store.go
+	// splitProdAllButProd), so a restarted node would rebuild no PackageNode
+	// while a non-restarted node still holds the deploy-time node in RAM —
+	// making call gas depend on restart history.
+	if gno.MPFProd.FilterMemPackage(memPkg).IsEmpty() {
+		return ErrInvalidPackage("package has no production .gno files")
+	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
