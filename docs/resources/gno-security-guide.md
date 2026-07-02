@@ -615,8 +615,9 @@ Attackers cannot:
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
-- `misc/audit-pattern-harness` — audit pattern harness fixtures and expected records
-  that keep recurring audit lessons executable.
+- [`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md) —
+  audit pattern harness fixtures, expected records, and run instructions that
+  keep recurring audit lessons executable.
 - `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
   the four bypass tests demonstrating why seal is documentation, not
   defense.

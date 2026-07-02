@@ -17,6 +17,8 @@ import (
 )
 
 var exportedPointerVarRE = regexp.MustCompile(`^var\s+[A-Z]\w*\s+\*`)
+var exportedPointerFuncRE = regexp.MustCompile(`^func\s+([A-Z]\w*)\([^)]*\)\s+\*`)
+var freshConstructorReturnRE = regexp.MustCompile(`return\s+&[A-Z]\w*\s*\{`)
 var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 
 type Options struct {
@@ -269,7 +271,8 @@ func originCallerAuthHits(dir string) ([]Hit, error) {
 		trimmed := strings.TrimSpace(line)
 		return !strings.HasPrefix(trimmed, "//") &&
 			strings.Contains(line, "OriginCaller()") &&
-			!strings.Contains(line, "SetOriginCaller")
+			!strings.Contains(line, "SetOriginCaller") &&
+			(strings.Contains(line, "==") || strings.Contains(line, "!="))
 	})
 }
 
@@ -319,20 +322,55 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 }
 
 func exportedPointerLeakHits(dir string) ([]Hit, error) {
-	return lineContainsHits(dir, func(line string) bool {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "//") {
-			return false
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		data, err := readGnoSource(file)
+		if err != nil {
+			return nil, err
 		}
-		if exportedPointerVarRE.MatchString(trimmed) {
+		orig := strings.Split(string(data), "\n")
+		lines := codeLines(data)
+		for i := 0; i < len(lines); i++ {
+			line := lines[i]
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if exportedPointerVarRE.MatchString(trimmed) {
+				hits = append(hits, newHit(dir, file, i+1, orig[i]))
+				continue
+			}
+			match := exportedPointerFuncRE.FindStringSubmatch(trimmed)
+			if match == nil {
+				continue
+			}
+			if strings.HasPrefix(match[1], "New") && returnsFreshPointer(lines[i:]) {
+				continue
+			}
+			hits = append(hits, newHit(dir, file, i+1, orig[i]))
+		}
+	}
+	return hits, nil
+}
+
+func returnsFreshPointer(lines []string) bool {
+	braceDepth := 0
+	for i, line := range lines {
+		braceDepth += strings.Count(line, "{")
+		braceDepth -= strings.Count(line, "}")
+		if freshConstructorReturnRE.MatchString(line) {
 			return true
 		}
-		return strings.HasPrefix(trimmed, "func ") &&
-			strings.Contains(trimmed, ") *") &&
-			len(trimmed) > len("func ") &&
-			trimmed[len("func ")] >= 'A' &&
-			trimmed[len("func ")] <= 'Z'
-	})
+		if i > 0 && braceDepth <= 0 {
+			return false
+		}
+	}
+	return false
 }
 
 func renderMapIterationHits(dir string) ([]Hit, error) {

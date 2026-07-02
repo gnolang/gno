@@ -3,6 +3,7 @@ package hooks
 var afterUpdate func()
 var value int
 
+// Vulnerable: stores caller-supplied code that later runs inside this realm.
 func SetHook(cur realm, hook func()) {
 	afterUpdate = hook
 }

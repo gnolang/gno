@@ -9,6 +9,7 @@ import (
 var scores avl.Tree
 
 func init() {
+	// Fixed: tree iteration is sorted and deterministic for public Render output.
 	scores.Set("alice", 10)
 	scores.Set("bob", 7)
 	scores.Set("carol", 12)

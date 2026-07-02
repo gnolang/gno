@@ -53,7 +53,7 @@ func TestCurrentGuardRule(t *testing.T) {
 	if len(hits) != 1 {
 		t.Fatalf("expected 1 hit, got %d", len(hits))
 	}
-	if hits[0].File != "admin.gno" || hits[0].Line != 6 {
+	if hits[0].File != "admin.gno" || hits[0].Line != 7 {
 		t.Fatalf("unexpected hit: %+v", hits[0])
 	}
 
@@ -97,6 +97,26 @@ func TestOriginCallerAuthRule(t *testing.T) {
 	assertRuleCounts(t, "origin_caller_auth", "origin-caller-auth", 1, 0)
 }
 
+func TestOriginCallerBenignRead(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"import \"chain/runtime/unsafe\"\n\n" +
+		"func Log() {\n" +
+		"\temit(\"actor\", unsafe.OriginCaller().String())\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("origin_caller_auth", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("benign OriginCaller read flagged as auth: %+v", hits)
+	}
+}
+
 func TestCallbackParamRule(t *testing.T) {
 	assertRuleCounts(t, "callback_param", "callback-param", 1, 0)
 }
@@ -107,6 +127,26 @@ func TestInterfaceRealmParamRule(t *testing.T) {
 
 func TestExportedPointerLeakRule(t *testing.T) {
 	assertRuleCounts(t, "exported_pointer_leak", "exported-pointer-leak", 2, 0)
+}
+
+func TestExportedPointerLeakIgnoresFreshConstructor(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"type Vault struct{ B int }\n\n" +
+		"func NewVault() *Vault {\n" +
+		"\treturn &Vault{}\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("exported_pointer_leak", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("fresh constructor flagged as pointer leak: %+v", hits)
+	}
 }
 
 // TestRuleNormalizesFormatting ensures the gofmt pre-step lets matchers catch

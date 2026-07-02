@@ -5,6 +5,7 @@ import "chain/runtime/unsafe"
 var collected int64
 
 func Buy(cur realm) {
+	// Fixed: require a direct user call before trusting OriginSend().
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}

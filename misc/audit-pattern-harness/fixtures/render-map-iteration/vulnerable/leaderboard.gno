@@ -2,6 +2,7 @@ package leaderboard
 
 import "strconv"
 
+// Vulnerable: map iteration order is not a stable public rendering contract.
 var scores = map[string]int{
 	"alice": 10,
 	"bob":   7,

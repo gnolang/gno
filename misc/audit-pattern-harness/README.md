@@ -29,6 +29,17 @@ Emit JSON:
 go run ./cmd/auditpattern -format json ./expected/*.yaml
 ```
 
+Read the default markdown report as follows:
+
+- `status: PASS` means every fixture matched its expected compile/test result
+  and pattern-hit count.
+- `gno test: want pass|fail, ok true|false` compares the fixture's own Gno
+  tests with the expected outcome.
+- `pattern hits: got N, want N` compares the rule's text-scan matches with the
+  expected finding count.
+- listed `file:line` hits are the lines an auditor or agent should inspect
+  before deciding whether the finding is real or a heuristic false positive.
+
 Run the deterministic agent contract test:
 
 ```sh
@@ -109,6 +120,19 @@ Flags `return` statements inside `Render` that contain the `path` variable
 without the word `escape` on the same line. Patterns using intermediate
 variable names (e.g. `sanitized := md.EscapeText(path); return sanitized`)
 are not flagged even when unsafe.
+
+### origin_caller_auth
+
+Flags `OriginCaller()` only when it appears in a direct equality or inequality
+check. Benign logging reads are ignored, but an authorization check split across
+multiple lines or hidden behind a helper can be missed.
+
+### exported_pointer_leak
+
+Flags exported package-level pointer variables and exported pointer-returning
+functions. Constructors shaped like `NewX() *X { return &X{} }` are ignored as
+fresh allocations; manually inspect constructors that may return aliases to
+shared package state.
 
 ### Spec corpus test
 
