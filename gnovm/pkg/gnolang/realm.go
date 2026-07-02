@@ -1714,7 +1714,7 @@ func copyValueWithRefs(val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			key2 := refOrCopyValue(cur.Key)
 			val2 := refOrCopyValue(cur.Value)
-			list.Append(fallbackAllocator, key2).Value = val2
+			list.Append(nil, key2).Value = val2
 		}
 		return &MapValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),

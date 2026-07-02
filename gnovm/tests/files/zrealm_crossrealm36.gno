@@ -21,4 +21,3 @@ func main(cur realm) {
 // Output:
 // counter: 100
 // counter after: 0
-
