@@ -1474,7 +1474,6 @@ func makeUverseNode() {
 	)
 	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
 	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)
-	def("cross1", undefined)  // legacy sentinel form for migration; lowers to the same WithCross=true / .origin-shaped AST as compiler-synthesized .origin. Migrate cross1 → cross(rlm) as the in-scope realm becomes clear.
 	// cross(rlm) is the explicit cross-call form. It validates
 	// IsCurrent on rlm and returns it unchanged.
 	//

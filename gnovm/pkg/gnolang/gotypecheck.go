@@ -79,7 +79,6 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
-var cross1 realm // shim — legacy sentinel migration aid; lowers to .origin-shaped AST at preprocess
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
