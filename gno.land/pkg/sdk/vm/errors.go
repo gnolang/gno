@@ -24,10 +24,15 @@ type (
 	InvalidPackageError   struct{ abciError }
 	InvalidFileError      struct{ abciError }
 	ObjectNotFoundError   struct{ abciError }
-	TypeCheckError        struct {
-		abciError
-		Errors []string `json:"errors"`
-	}
+	// TypeCheckError deliberately carries no diagnostic strings: it is
+	// amino-encoded into ABCIResult.Error, which is merkle-hashed into the
+	// block's LastResultsHash, and raw go/types (and go/parser) messages
+	// vary in wording, count, and order across Go toolchains — hashing
+	// them would let two correctly-rejecting validators commit different
+	// result hashes. ErrTypeCheck carries the full messages on the error's
+	// msg trace instead, which reaches the user via the unhashed
+	// Result.Log.
+	TypeCheckError struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
@@ -39,12 +44,7 @@ func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e ObjectNotFoundError) Error() string   { return "object not found" }
-func (e TypeCheckError) Error() string {
-	var bld strings.Builder
-	bld.WriteString("invalid gno package; type check errors:\n")
-	bld.WriteString(strings.Join(e.Errors, "\n"))
-	return bld.String()
-}
+func (e TypeCheckError) Error() string { return "invalid gno package; type check failed" }
 
 func ErrPkgAlreadyExists(msg string) error {
 	return errors.Wrap(PkgExistError{}, msg)
@@ -78,11 +78,14 @@ func ErrObjectNotFound(msg string) error {
 	return errors.Wrap(ObjectNotFoundError{}, msg)
 }
 
+// ErrTypeCheck wraps err's full messages around the empty TypeCheckError
+// sentinel. Only the sentinel reaches the hashed tx result; the messages
+// ride the msg trace into the unhashed Result.Log (see TypeCheckError).
 func ErrTypeCheck(err error) error {
-	var tce TypeCheckError
 	errs := multierr.Errors(err)
-	for _, err := range errs {
-		tce.Errors = append(tce.Errors, err.Error())
+	msgs := make([]string, len(errs))
+	for i, err := range errs {
+		msgs[i] = err.Error()
 	}
-	return errors.NewWithData(tce).Stacktrace()
+	return errors.Wrap(TypeCheckError{}, strings.Join(msgs, "\n"))
 }

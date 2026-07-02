@@ -47,7 +47,6 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1;
 }
 
 message UnauthorizedUserError {
