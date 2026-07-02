@@ -1,0 +1,5 @@
+## Hot (1)
+- [#100](https://github.com/gnolang/gno/issues/100) [issue/2d] x (moul, +5c)
+
+## Depends on other core (1)
+- [#101](https://github.com/gnolang/gno/pull/101) [PR/1d/@thehowl] y (alice, +0c)
