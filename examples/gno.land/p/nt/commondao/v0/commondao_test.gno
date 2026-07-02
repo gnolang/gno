@@ -413,7 +413,7 @@ func TestCommonDAOTally(t *testing.T) {
 			status, err := dao.Tally(proposalID, tc.validate)
 
 			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
+				urequire.ErrorContains(t, err, tc.err.Error())
 				urequire.Empty(t, string(status))
 				return
 			}
@@ -502,7 +502,7 @@ func TestCommonDAOExecute(cur realm, t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dao := tc.setup()
 
-			err := dao.Execute(tc.proposalID, cross(cur))
+			err := dao.Execute(tc.proposalID, cur)
 
 			if tc.err != nil {
 				urequire.Error(t, err, "expected an error")

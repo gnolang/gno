@@ -74,9 +74,9 @@ func TestMemberGroupSetMeta(cur realm, t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, cross(cur), tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cur, tc.panicMsg, fn)
 			} else {
-				urequire.NotPanics(t, cross(cur), fn)
+				urequire.NotPanics(t, cur, fn)
 				uassert.True(t, g.GetMeta() == tc.wantMeta, "expect metadata to match")
 			}
 		})
@@ -132,9 +132,9 @@ func TestMemberGroupGetMeta(cur realm, t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, cross(cur), tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cur, tc.panicMsg, fn)
 			} else {
-				urequire.NotPanics(t, cross(cur), fn)
+				urequire.NotPanics(t, cur, fn)
 				uassert.True(t, got == tc.wantMeta, "expect metadata to match")
 			}
 		})

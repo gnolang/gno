@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-func TestMemberGroupingAdd(t *testing.T) {
+func TestMemberGroupingAdd(cur realm, t *testing.T) {
 	t.Run("defauls", func(t *testing.T) {
 		name := "Foo"
 		g := commondao.NewMemberGrouping()
@@ -45,7 +45,7 @@ func TestMemberGroupingAdd(t *testing.T) {
 		g := commondao.NewMemberGrouping()
 		g = g.Seal().(commondao.MemberGrouping)
 
-		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+		uassert.PanicsWithMessage(t, cur, "type is sealed so it can't be modified", func() {
 			g.Add("Foo")
 		}, "expect panic")
 	})
@@ -86,7 +86,7 @@ func TestMemberGroupingGet(t *testing.T) {
 	})
 }
 
-func TestMemberGroupingDelete(t *testing.T) {
+func TestMemberGroupingDelete(cur realm, t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		name := "Foo"
 		g := commondao.NewMemberGrouping()
@@ -103,7 +103,7 @@ func TestMemberGroupingDelete(t *testing.T) {
 		g := commondao.NewMemberGrouping()
 		g = g.Seal().(commondao.MemberGrouping)
 
-		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+		uassert.PanicsWithMessage(t, cur, "type is sealed so it can't be modified", func() {
 			g.Delete(name)
 		}, "expect panic")
 	})
