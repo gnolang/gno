@@ -17,19 +17,21 @@ import (
 type ViewMode int
 
 const (
-	ViewModeExplorer ViewMode = iota // For exploring packages and paths
-	ViewModeRealm                    // For realm content display
-	ViewModePackage                  // For package content display
-	ViewModeHome                     // For home page display
-	ViewModeUser                     // For user page display
+	ViewModeExplorer   ViewMode = iota // For exploring packages and paths
+	ViewModeRealm                      // For realm content display
+	ViewModePackage                    // For package content display
+	ViewModeHome                       // For home page display
+	ViewModeUser                       // For user page display
+	ViewModePlayground                 // For playground display
 )
 
 // View mode predicates
-func (m ViewMode) IsExplorer() bool { return m == ViewModeExplorer }
-func (m ViewMode) IsRealm() bool    { return m == ViewModeRealm }
-func (m ViewMode) IsPackage() bool  { return m == ViewModePackage }
-func (m ViewMode) IsUser() bool     { return m == ViewModeUser }
-func (m ViewMode) IsHome() bool     { return m == ViewModeHome }
+func (m ViewMode) IsExplorer() bool   { return m == ViewModeExplorer }
+func (m ViewMode) IsRealm() bool      { return m == ViewModeRealm }
+func (m ViewMode) IsPackage() bool    { return m == ViewModePackage }
+func (m ViewMode) IsUser() bool       { return m == ViewModeUser }
+func (m ViewMode) IsHome() bool       { return m == ViewModeHome }
+func (m ViewMode) IsPlayground() bool { return m == ViewModePlayground }
 
 // ShouldShowDevTools returns whether dev tools should be shown for this mode
 func (m ViewMode) ShouldShowDevTools() bool {
@@ -196,7 +198,7 @@ func IndexLayout(data IndexData) Component {
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
-	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType:
+	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, PlaygroundViewType, RunViewType:
 		dataLayout.IsDevmodView = true
 	}
 

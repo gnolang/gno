@@ -1,0 +1,62 @@
+/* ==========================================================================
+   RUN - maketx run scratchpad
+   ========================================================================== */
+.b-run {
+	display: flex;
+	flex-direction: column;
+	min-height: 70vh;
+	grid-column: 1 / -1;
+	padding-bottom: var(--g-space-24);
+}
+
+.b-run-settings {
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands h3 {
+	font-size: var(--g-font-size-400);
+}
+
+.b-run-settings-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+	margin-block-start: var(--g-space-4);
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+	}
+}
+
+.b-run-command-header {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin-block-end: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+}
+
+.b-run-command-label {
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-primary);
+}

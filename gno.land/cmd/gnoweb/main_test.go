@@ -83,7 +83,7 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true)
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -107,10 +107,9 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if !strings.Contains(csp, "https://assets.gnoteam.com") {
 		t.Errorf("Expected Content-Security-Policy to contain 'https://assets.gnoteam.com', got '%s'", csp)
 	}
-	// The search dropdown fetches the same-origin /search.json, so connect-src
-	// must allow 'self' in addition to the RPC node.
-	if !strings.Contains(csp, "connect-src 'self' http://example.com/abci_query") {
-		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self' and the RPC node, got '%s'", csp)
+	// The search dropdown fetches the same-origin /search.json, so connect-src must allow 'self'.
+	if !strings.Contains(csp, "connect-src 'self'") {
+		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self', got '%s'", csp)
 	}
 	if res.Header.Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Errorf("Expected Strict-Transport-Security 'max-age=31536000', got '%s'", res.Header.Get("Strict-Transport-Security"))
@@ -124,7 +123,7 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false)
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()

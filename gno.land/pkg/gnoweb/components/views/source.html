@@ -22,6 +22,14 @@ LAYOUT - Source component
         </svg>
         <span>Download</span>
       </a>
+      {{ with .FileEdit }}
+      <a href="{{ . }}" class="b-inline-btn c-with-icon">
+        <svg class="c-icon">
+          <use href="#ico-code"></use>
+        </svg>
+        <span>Edit</span>
+      </a>
+      {{ end }}
     </div>
   </div>
 </header>

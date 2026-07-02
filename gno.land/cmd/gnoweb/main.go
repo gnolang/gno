@@ -92,7 +92,8 @@ Environment variables:
 			}
 
 			return run()
-		})
+		},
+	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
@@ -280,7 +281,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
 
 	// Setup server
 	server := &http.Server{
@@ -337,7 +338,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// Build img-src CSP directive
 	imgSrc := "'self' data:"
 
@@ -349,9 +350,8 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
 		imgSrc,
-		remote,
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
