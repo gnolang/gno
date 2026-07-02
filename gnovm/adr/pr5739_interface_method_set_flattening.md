@@ -131,8 +131,10 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
 - Runtime **assumes flattened** interfaces. The legacy embedded-interface
   branches in `FindEmbeddedFieldType` / `VerifyImplementedBy` are dropped; an
   `InterfaceKind` entry in `Methods` (only possible by decoding
-  pre-flattening persisted bytes) is a **hard error** at method resolution,
-  satisfaction, and `TypeID` (see `panicUnflattened`).
+  pre-flattening persisted bytes) is a **hard error** (`panicUnflattened`):
+  unconditionally at `TypeID` (once per instance — the production choke), and
+  under `-tags debugAssert` at the hot per-lookup sites (method resolution,
+  satisfaction).
 
 ## Rollout: pre-flattening persisted state is unsupported (decided)
 

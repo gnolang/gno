@@ -152,11 +152,12 @@ func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 }
 
 // An InterfaceKind entry in Methods can only be pre-flattening persisted
-// state (every construction path flattens). Such state is unsupported —
-// interface identity already moved with flattening — so all three consumers
-// (method resolution, satisfaction, identity) must fail loudly instead of
-// resolving against a silently-split type. Pins the drop of the legacy
-// embedded-interface branches; see adr/pr5739.
+// state (every construction path flattens), which is unsupported — interface
+// identity already moved with flattening. TypeID rejects it unconditionally
+// (once per instance — the production choke); the per-lookup checks in
+// FindEmbeddedFieldType/VerifyImplementedBy are hot and only assert under
+// -tags debugAssert. Pins the drop of the legacy embedded-interface
+// branches; see adr/pr5739.
 func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 	t.Parallel()
 	embedded := &InterfaceType{PkgPath: "p", Methods: []FieldType{{Name: "M", Type: &FuncType{}}}}
@@ -164,11 +165,14 @@ func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 		{Name: "E", Type: embedded, Embedded: true}, // as decoded from pre-flattening bytes
 	}}
 
-	for name, use := range map[string]func(){
-		"FindEmbeddedFieldType": func() { legacy.FindEmbeddedFieldType("p", "M", nil) },
-		"VerifyImplementedBy":   func() { legacy.VerifyImplementedBy(embedded) },
-		"TypeID":                func() { legacy.TypeID() },
-	} {
+	uses := map[string]func(){
+		"TypeID": func() { legacy.TypeID() },
+	}
+	if debugAssert {
+		uses["FindEmbeddedFieldType"] = func() { legacy.FindEmbeddedFieldType("p", "M", nil) }
+		uses["VerifyImplementedBy"] = func() { legacy.VerifyImplementedBy(embedded) }
+	}
+	for name, use := range uses {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
 				r := recover()
