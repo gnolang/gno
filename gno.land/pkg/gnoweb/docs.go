@@ -61,7 +61,7 @@ func NewDocsHandler(logger *slog.Logger, static StaticMetadata, renderer Rendere
 }
 
 func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -140,7 +140,7 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Domain:  h.Static.Domain,
 	}); err != nil {
 		h.Logger.Error("docs render failed", "path", r.URL.Path, "error", err)
-		h.renderError(w, r, http.StatusInternalServerError, "render error")
+		h.renderError(w, r, http.StatusInternalServerError, "documentation page failed to render")
 		return
 	}
 
@@ -340,6 +340,14 @@ func buildSidebar(currentRel string) []components.DocsSidebarSection {
 // Submatch 1 is the kind, submatch 2 is the (optional) inline title.
 var admonitionOpenRE = regexp.MustCompile(`^:::(\w+)(?:\s+(.*))?$`)
 
+// admonitionKinds is the set of alert types recognised by GitHub Markdown
+// (and therefore by markdown/ext_alert.go). Unknown kinds are passed through
+// verbatim so they don't silently produce non-functional markup.
+var admonitionKinds = map[string]bool{
+	"NOTE": true, "TIP": true, "IMPORTANT": true,
+	"WARNING": true, "CAUTION": true, "INFO": true,
+}
+
 // transformAdmonitions rewrites Docusaurus-style admonitions
 //
 //	:::kind [title]
@@ -367,11 +375,6 @@ func transformAdmonitions(src []byte) []byte {
 		fenceChar byte
 		inAlert   bool
 	)
-
-	flushClose := func() {
-		// nothing structurally to write; the blockquote ends on the first
-		// non-`> ` line, which is what we emit after the closing ":::".
-	}
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -402,6 +405,15 @@ func transformAdmonitions(src []byte) []byte {
 		if !inAlert {
 			if m := admonitionOpenRE.FindStringSubmatch(trimmed); m != nil {
 				kind := strings.ToUpper(m[1])
+				if !admonitionKinds[kind] {
+					// Unknown kind — pass through verbatim rather than emitting
+					// non-functional GitHub alert markup.
+					out.WriteString(line)
+					if i < len(lines)-1 {
+						out.WriteByte('\n')
+					}
+					continue
+				}
 				title := strings.TrimSpace(m[2])
 				out.WriteString("> [!")
 				out.WriteString(kind)
@@ -425,7 +437,6 @@ func transformAdmonitions(src []byte) []byte {
 
 		// Inside an admonition.
 		if trimmed == ":::" {
-			flushClose()
 			inAlert = false
 			// Do not emit anything for the closer; the blockquote ends here.
 			// Preserve the blank-line cadence so following content is parsed

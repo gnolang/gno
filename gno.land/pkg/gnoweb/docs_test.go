@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/docs"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -35,6 +36,7 @@ func TestDocsHandlerRoutes(t *testing.T) {
 
 	cases := []struct {
 		name        string
+		method      string
 		route       string
 		wantStatus  int
 		wantSnippet string // substring expected in the rendered body
@@ -70,6 +72,17 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			wantSnippet: "",
 		},
 		{
+			name:       "HEAD request succeeds",
+			route:      "/docs",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "POST rejected with 405",
+			method:     http.MethodPost,
+			route:      "/docs",
+			wantStatus: http.StatusMethodNotAllowed,
+		},
+		{
 			// getting-started.md uses :::tip and :::warning admonitions;
 			// confirm the transform reaches the renderer and produces the
 			// gno-alert-* markup emitted by markdown/ext_alert.go.
@@ -102,7 +115,11 @@ func TestDocsHandlerRoutes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, tc.route, nil)
+			method := tc.method
+			if method == "" {
+				method = http.MethodGet
+			}
+			req := httptest.NewRequest(method, tc.route, nil)
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 
@@ -228,6 +245,19 @@ func TestTransformAdmonitions(t *testing.T) {
 			in:   ":::tip\nbefore\n:::\n```\nx\n```\n:::warning\nafter\n:::\n",
 			want: "> [!TIP]\n> before\n\n```\nx\n```\n> [!WARNING]\n> after\n\n",
 		},
+		{
+			// Unknown kinds are passed through verbatim; they would produce
+			// non-functional GitHub alert markup if converted.
+			name: "unknown kind passed through verbatim",
+			in:   ":::badtype\nbody\n:::\n",
+			want: ":::badtype\nbody\n:::\n",
+		},
+		{
+			// Unterminated admonition at EOF is flushed implicitly.
+			name: "unterminated admonition at EOF",
+			in:   ":::info\nline one\nline two",
+			want: "> [!INFO]\n> line one\n> line two",
+		},
 	}
 
 	for _, tc := range cases {
@@ -235,6 +265,43 @@ func TestTransformAdmonitions(t *testing.T) {
 			t.Parallel()
 			got := string(transformAdmonitions([]byte(tc.in)))
 			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestResolve unit-tests the path resolution logic directly without spinning
+// up a full HTTP server.
+func TestResolve(t *testing.T) {
+	t.Parallel()
+
+	h := &DocsHandler{fsys: docs.FS()}
+
+	cases := []struct {
+		rel         string
+		wantRelPath string // empty string means expect ok==false
+	}{
+		{"", "README.md"},
+		{".", "README.md"},
+		{"README.md", "README.md"},
+		{"builders/getting-started", "builders/getting-started.md"},
+		{"builders/getting-started.md", "builders/getting-started.md"},
+		// Path traversal must be rejected.
+		{"../../etc/passwd", ""},
+		{"../outside", ""},
+		// Non-existent page.
+		{"does-not-exist", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.rel, func(t *testing.T) {
+			t.Parallel()
+			_, gotRel, ok := h.resolve(tc.rel)
+			if tc.wantRelPath == "" {
+				assert.False(t, ok, "expected resolve(%q) to fail", tc.rel)
+			} else {
+				require.True(t, ok, "expected resolve(%q) to succeed", tc.rel)
+				assert.Equal(t, tc.wantRelPath, gotRel)
+			}
 		})
 	}
 }
