@@ -226,7 +226,7 @@ func TestVotingRecordGetVote(t *testing.T) {
 	}
 }
 
-func TestVotingRecordAddVote(t *testing.T) {
+func TestVotingRecordAddVote(cur realm, t *testing.T) {
 	cases := []struct {
 		name     string
 		setup    func() *commondao.VotingRecord
@@ -288,11 +288,11 @@ func TestVotingRecordAddVote(t *testing.T) {
 			}
 
 			if tc.panicMsg != "" {
-				uassert.PanicsWithMessage(t, tc.panicMsg, fn, "expect a panic")
+				uassert.PanicsWithMessage(t, cross(cur), tc.panicMsg, fn, "expect a panic")
 				return
 			}
 
-			uassert.NotPanics(t, fn, "expect no panic")
+			uassert.NotPanics(t, cross(cur), fn, "expect no panic")
 			urequire.Equal(t, updated, tc.updated, "expect vote to be updated")
 			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
 

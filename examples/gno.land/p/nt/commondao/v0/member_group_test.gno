@@ -28,7 +28,7 @@ func TestMemberGroupNew(cur realm, t *testing.T) {
 	})
 }
 
-func TestMemberGroupSetMeta(t *testing.T) {
+func TestMemberGroupSetMeta(cur realm, t *testing.T) {
 	cases := []struct {
 		name     string
 		wantMeta any
@@ -74,16 +74,16 @@ func TestMemberGroupSetMeta(t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cross(cur), tc.panicMsg, fn)
 			} else {
-				urequire.NotPanics(t, fn)
+				urequire.NotPanics(t, cross(cur), fn)
 				uassert.True(t, g.GetMeta() == tc.wantMeta, "expect metadata to match")
 			}
 		})
 	}
 }
 
-func TestMemberGroupGetMeta(t *testing.T) {
+func TestMemberGroupGetMeta(cur realm, t *testing.T) {
 	cases := []struct {
 		name     string
 		wantMeta any
@@ -132,9 +132,9 @@ func TestMemberGroupGetMeta(t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cross(cur), tc.panicMsg, fn)
 			} else {
-				urequire.NotPanics(t, fn)
+				urequire.NotPanics(t, cross(cur), fn)
 				uassert.True(t, got == tc.wantMeta, "expect metadata to match")
 			}
 		})
