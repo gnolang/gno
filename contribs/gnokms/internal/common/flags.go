@@ -18,18 +18,32 @@ type AuthFlags struct {
 	AuthKeysFile string
 }
 
-func defaultAuthKeysFile() string {
+func defaultConfigDir() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		var derr error
 		// Unable to get the user's config directory, fallback to the current directory.
 		if dir, derr = os.Getwd(); derr != nil {
-			panic("Unable to get any of the user or current directories: " + errors.Join(
-				err, derr,
-			).Error())
+			return "", errors.Join(err, derr)
 		}
 	}
+	return dir, nil
+}
+
+func defaultAuthKeysFile() string {
+	dir, err := defaultConfigDir()
+	if err != nil {
+		panic("Unable to get any of the user or current directories: " + err.Error())
+	}
 	return filepath.Join(dir, "gnokms/auth_keys.json")
+}
+
+func defaultStateFile() string {
+	dir, err := defaultConfigDir()
+	if err != nil {
+		panic("Unable to get any of the user or current directories: " + err.Error())
+	}
+	return filepath.Join(dir, "gnokms/signer_state.json")
 }
 
 func (f *AuthFlags) RegisterFlags(fs *flag.FlagSet) {
@@ -45,6 +59,7 @@ type ServerFlags struct {
 	AuthFlags
 
 	Listener        string
+	StateFile       string
 	KeepAlivePeriod time.Duration
 	ResponseTimeout time.Duration
 	LogLevel        string
@@ -67,6 +82,13 @@ func (f *ServerFlags) RegisterFlags(fs *flag.FlagSet) {
 		"listener",
 		defaultServerFlags.Listener,
 		"TCP (tcp://<ip>:<port>) or UNIX (unix://<path>) listener",
+	)
+
+	fs.StringVar(
+		&f.StateFile,
+		"state-file",
+		defaultStateFile(),
+		"path to the signer state file used to enforce monotonic (height, round, step)",
 	)
 
 	fs.DurationVar(
