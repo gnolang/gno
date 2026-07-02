@@ -85,6 +85,10 @@ type Store interface {
 	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	// Yields each indexed package's PROD mempackage (test/filetest files
+	// live under the #allbutprod sibling and are not included), in index
+	// order. A package with no production .gno files has no prod blob and
+	// is yielded as nil.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -1208,6 +1212,16 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 			// (only a sibling key). Prod and sibling keys for a path are
 			// adjacent in iavl order, so de-dup against the previous suffices.
 			key = strings.TrimSuffix(key, "#allbutprod")
+			// A prefix containing '#' (impossible in a valid package path,
+			// but reachable from raw query input, e.g. vm/qpaths) can range
+			// over a sibling key whose trimmed form no longer carries the
+			// requested prefix; don't yield such a path. Compared in key
+			// space (against startKey): stdlib paths decode without their
+			// "_/" key marker, so path-space comparison would wrongly drop
+			// legitimate stdlib matches.
+			if len(prefix) > 0 && !strings.HasPrefix(key, string(startKey)) {
+				continue
+			}
 			path := decodeBackendPackagePathKey(key)
 			if hasLast && path == last {
 				continue

@@ -159,6 +159,64 @@ func TestNothing(t *testing.T) {}`,
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackageAll(pkgPath))
 }
 
+// Structural companion to addpkg_import_testdep_gas.txtar: importing a
+// dependency that carries a _test.gno file must cost exactly the same gas as
+// importing one without, because the storage split keeps a dep's test bytes
+// in the #allbutprod sibling, which import-time type-checking never decodes.
+// The txtar pins two equal literals (which a bulk gas re-pin could silently
+// de-equalize); this asserts the equality itself.
+func TestVMKeeperAddPackage_ImportTestDepGasEqual(t *testing.T) {
+	env := setupTestEnv()
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	{
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+		env.vmk.CommitGnoTransactionStore(ctx)
+	}
+
+	// deploy runs msg in its own tx store with a fresh gas meter and
+	// returns the gas the deploy consumed.
+	deploy := func(pkgPath, libName, libBody string, extra ...*std.MemFile) int64 {
+		t.Helper()
+		files := append([]*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: libName, Body: libBody},
+		}, extra...)
+		gm := types.NewInfiniteGasMeter()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		env.vmk.CommitGnoTransactionStore(ctx)
+		return int64(gm.GasConsumed())
+	}
+
+	// depa and depb have byte-identical production code (a<->b only); depb
+	// additionally carries a _test.gno.
+	deploy("gno.land/p/demo/depa", "lib.gno",
+		"package depa\n\nfunc Hi() string { return \"hi\" }\n")
+	deploy("gno.land/p/demo/depb", "lib.gno",
+		"package depb\n\nfunc Hi() string { return \"hi\" }\n",
+		&std.MemFile{Name: "lib_test.gno", Body: `package depb
+
+// Test-only bytes: under the prod/test storage split these live in the
+// pkg:<path>#allbutprod sibling and must not affect importer gas.
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789
+func testPad() string { return Hi() }
+`})
+
+	// usea and useb are byte-identical apart from a<->b.
+	useaGas := deploy("gno.land/p/demo/usea", "lib.gno",
+		"package usea\n\nimport \"gno.land/p/demo/depa\"\n\nfunc Use() string { return depa.Hi() }\n")
+	usebGas := deploy("gno.land/p/demo/useb", "lib.gno",
+		"package useb\n\nimport \"gno.land/p/demo/depb\"\n\nfunc Use() string { return depb.Hi() }\n")
+
+	assert.Equal(t, useaGas, usebGas,
+		"importing a dep with test files must cost the same as importing one without")
+}
+
 func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)

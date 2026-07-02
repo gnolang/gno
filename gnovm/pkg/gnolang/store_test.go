@@ -280,4 +280,15 @@ func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
 		"gno.land/r/demo/beta",
 		"gno.land/r/demo/gamma",
 	}, got)
+
+	// A '#'-containing prefix (impossible in a valid package path, reachable
+	// from raw query input) ranges over alpha's #allbutprod sibling key; the
+	// trimmed path "gno.land/r/demo/alpha" does not carry the prefix and must
+	// not be yielded.
+	for _, prefix := range []string{"gno.land/r/demo/alpha#", "gno.land/r/demo/alpha#allbutprod"} {
+		store.FindPathsByPrefix(prefix)(func(p string) bool {
+			t.Fatalf("prefix %q must yield nothing, got %q", prefix, p)
+			return true
+		})
+	}
 }
