@@ -199,6 +199,20 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
+		// A map's O(N) MapList traversal (in VisitAssociated, below) is
+		// otherwise unmetered for entries whose key AND value are unboxed
+		// primitives — their data lives in TypedValue.N, so V == nil and vis
+		// is never called for them. Count one visit per such entry to reflect
+		// the real traversal cost. Boxed keys/values are already counted when
+		// vis reaches them, so they are not double-charged here.
+		if mv, ok := v.(*MapValue); ok {
+			for cur := mv.List.Head; cur != nil; cur = cur.Next {
+				if cur.Key.V == nil && cur.Value.V == nil {
+					*visitCount++
+				}
+			}
+		}
+
 		// Add object size to alloc.
 		size := v.GetShallowSize()
 
