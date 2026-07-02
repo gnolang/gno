@@ -33,21 +33,57 @@ func SplitPkgSubPath(p string) (host, subpath string, ok bool) {
 	return strings.Cut(p, ":")
 }
 
-// assertValidSubpath mirrors the Sub() native's subpath validation so
-// unmintable addresses cannot be derived by accident.
+// assertValidSubpath mirrors gnolang.subRealmPathError so
+// DerivePkgSubAddr can never derive an address that cur.Sub would
+// refuse to mint (which would strand funds). Keep in sync with
+// subRealmPathError / isValidSubpath in gnovm/pkg/gnolang/uverse.go.
 func assertValidSubpath(pkgpath, subpath string) {
 	switch {
 	case subpath == "":
 		panic("Sub: subpath cannot be empty")
-	case len(subpath) > 256:
-		panic("Sub: subpath too long (max 256 bytes)")
-	case strings.Contains(subpath, ":"):
-		panic("Sub: subpath cannot contain ':'")
-	case strings.Contains(subpath, "\x00"):
-		panic("Sub: subpath cannot contain NUL byte")
+	case len(pkgpath)+1+len(subpath) > 256:
+		panic("Sub: synthesized pkgpath too long (max 256 bytes)")
 	case strings.Contains(pkgpath, ":"):
 		panic("Sub: receiver pkgpath is already synthesized or invalid")
+	case !isValidSubpath(subpath):
+		panic("Sub: subpath must be '/'-separated segments of [a-z0-9], with '_.-' allowed inside a segment")
 	}
+}
+
+// isValidSubpath is segment ("/" segment)*, segment =
+// [a-z0-9] ([a-z0-9_.-]* [a-z0-9])?. Byte-for-byte transliteration of
+// gnolang.isValidSubpath.
+func isValidSubpath(s string) bool {
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '/' {
+			if !isValidSubpathSegment(s[start:i]) {
+				return false
+			}
+			start = i + 1
+		}
+	}
+	return true
+}
+
+func isValidSubpathSegment(seg string) bool {
+	if seg == "" {
+		return false
+	}
+	for i := 0; i < len(seg); i++ {
+		c := seg[i]
+		alnum := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		if i == 0 || i == len(seg)-1 {
+			if !alnum {
+				return false
+			}
+			continue
+		}
+		if !alnum && c != '_' && c != '.' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 func deriveStorageDepositAddr(string) string

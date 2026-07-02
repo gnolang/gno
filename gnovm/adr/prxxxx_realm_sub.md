@@ -275,11 +275,18 @@ methods are specified for v1 as follows:
 | `IsUserCall()` | false | A sub-token cross is realm-mediated, never a direct user call. |
 | `IsUserRun()` | false | Same reasoning. |
 | `IsEphemeral()` | false | Ephemeral hosts cannot mint subs (Sub() panics on `/e/` curs), so every sub-token's host is a persistent realm. |
-| `String()` | `realm{<synthesized>:<addr>}` | The existing format already uses `:` internally; sub-tokens render with an extra colon. Cosmetic; tooling parses via `SplitPkgSubPath`, not `String()`. |
+| `Subpath()` | the subpath (`""` for primaries) | The canonical "am I a sub, of what subpath" accessor. Derived from `PkgPath()` (substring after the first `:`), so it agrees with `chain.SplitPkgSubPath` for any realm value. Consumers should prefer it over string-parsing `PkgPath()`; the banker `RealmIssue`/`OriginSend` ban is the first consumer. |
+| `String()` | `realm{<synthesized>:<addr>}` | The existing format already uses `:` internally; sub-tokens render with an extra colon. Cosmetic; tooling parses via `SplitPkgSubPath`/`Subpath()`, not `String()`. |
 
 All user-ness predicates returning false is load-bearing: downstream
 guards like `Previous().IsUserCall()` (payment envelopes) must not
 treat a programmatic sub-identity as a user.
+
+`Subpath()` (not a `Host() realm` accessor) is deliberately the only
+new introspection: returning a host *realm value* would let any callee
+holding `cur.Previous()` reconstruct a host-shaped realm and construct
+a `RealmSend` banker over the host's primary treasury. The host
+pkgpath as a *string* is available via `SplitPkgSubPath`.
 
 ## Chain visibility and forensics
 
@@ -756,37 +763,39 @@ import the prefix-matching footgun — deliberately avoided.
 
 ## Subpath validation
 
-The `Sub()` native validates subpath at the top of the call:
+Subpaths follow a deliberately strict, **frozen-at-introduction**
+grammar (via `subRealmPathError`):
 
-```go
-if subpath == "" {
-    panic("Sub: subpath cannot be empty")
-}
-if len(subpath) > 256 {
-    panic("Sub: subpath too long (max 256 bytes)")
-}
-if strings.Contains(subpath, ":") {
-    panic("Sub: subpath cannot contain ':'")
-}
-if strings.Contains(subpath, "\x00") {
-    panic("Sub: subpath cannot contain NUL byte")
-}
+```
+subpath := segment ("/" segment)*
+segment := [a-z0-9] ( [a-z0-9_.-]* [a-z0-9] )?
+constraint: len(host) + 1 + len(subpath) <= 256
 ```
 
-The `:` exclusion ensures unambiguous parsing of synthesized pkgpaths.
-The 256-byte cap matches the existing pkgpath limit (`pkgPathLimit =
-256`, `tm2/pkg/std/memfile.go`), bounding the synthesized total at
-~513 bytes for the derivation hash. Note the synthesized form
-legitimately exceeds `pkgPathLimit` (it is never ingested as a package
-path), so tooling and downstream consumers must not assume `PkgPath()`
-fits in 256 bytes. The NUL exclusion is a defensive measure
-against C-string interop in downstream tooling.
+Lowercase-alphanumeric segments, `/`-separated, with `_`, `.`, `-`
+allowed only *inside* a segment. This excludes: uppercase, whitespace,
+control bytes, non-ASCII (so no NFC/NFD or RTL-override address
+ambiguity — two visually identical subpaths can't derive two
+addresses), `:` and NUL, empty segments (leading/trailing/double `/`),
+edge punctuation, and `..`/`.` traversal segments. Examples that pass:
+`dao/42`, `treasury`, `role_admin`, `v1.2`, `g1…` addresses. Examples
+that fail: `Dao`, `a b`, `../x`, `dao/`, `a//b`, `_x`.
 
-Beyond these rules, subpaths are opaque strings. Callers choose their
-own conventions — `"dao/42"`, `"treasury"`, `"role/admin"` — using
-`/` or `.` for internal structure, since `:` is reserved.
-`DerivePkgSubAddr` enforces the same rules, so unmintable addresses
-cannot be derived off-chain by accident.
+Why frozen: derived sub-addresses are permanent. Loosening the grammar
+later is additive (safe); **tightening it later would strand funds**
+already sent to addresses derived from a now-illegal subpath. So the
+narrow set is chosen up front.
+
+The **total** cap is on the synthesized `host:subpath` (≤ 256, the
+existing `pkgPathLimit`), not the subpath alone — this keeps every
+downstream pkgpath-sized buffer/field valid, rather than letting
+`PkgPath()` reach ~513 bytes.
+
+`chain.DerivePkgSubAddr` enforces the identical grammar (its
+`assertValidSubpath` mirrors `subRealmPathError` — a byte-for-byte
+transliteration, kept in sync by comment and by
+`TestIsValidSubpath`), so an address can never be derived off-chain
+that `cur.Sub` would refuse to mint.
 
 ## What this does NOT do
 

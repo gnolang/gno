@@ -48,6 +48,7 @@ type realm interface {
     IsEphemeral() bool
     IsCurrent() bool
     Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm

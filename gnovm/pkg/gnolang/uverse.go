@@ -166,6 +166,12 @@ var gRealmType = &DeclaredType{
 					}},
 				},
 			}, {
+				Name: "Subpath",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: StringType}},
+				},
+			}, {
 				// Seal marker: a dot-named method that user code cannot
 				// declare (Gno's parser rejects identifiers starting with
 				// `.`). Forces any concrete type that satisfies `realm`
@@ -450,32 +456,77 @@ func MakeRealmValue(alloc *Allocator, addr, pkgPath string, prev TypedValue) Typ
 }
 
 // subRealmPathError validates Sub()'s subpath rules plus the
-// derivation-safety asserts: the host must be colon-free (forecloses
-// nested synthesis through any unforeseen path) and the synthesized
-// path must not alias DerivePkgBech32Addr's run-path address-extraction
-// shortcut. Returns "" when valid. Mirrored by chain.DerivePkgSubAddr
-// on the .gno side (where the host-colon-free assert subsumes the
-// run-path one).
+// derivation-safety asserts. Returns "" when valid. The rules are
+// deliberately strict and frozen at introduction (loosening later is
+// additive; tightening later would strand funds at addresses derived
+// from now-legal subpaths):
+//
+//   - subpath matches segment ("/" segment)*, segment =
+//     [a-z0-9] ([a-z0-9_.-]* [a-z0-9])? — lowercase-alphanumeric
+//     segments, "/"-separated, with "_.-" allowed only inside a
+//     segment. This excludes uppercase, whitespace, control bytes,
+//     non-ASCII (so no NFC/NFD or RTL-override address ambiguity),
+//     ":" and NUL, empty segments (leading/trailing/double "/"), edge
+//     punctuation, and ".."/"." path-traversal segments.
+//   - the host is colon-free (forecloses nested synthesis).
+//   - the synthesized "host:subpath" is ≤ 256 bytes total (the pkgpath
+//     limit — keeps downstream pkgpath-sized buffers valid) and is not
+//     a DerivePkgBech32Addr run-path (defense in depth; unreachable
+//     while the run-path regex stays colon-free).
+//
+// Mirrored by chain.assertValidSubpath on the .gno side so
+// DerivePkgSubAddr can never derive an address cur.Sub would refuse.
 func subRealmPathError(host, subpath, synthesized string) string {
 	switch {
 	case subpath == "":
 		return "Sub: subpath cannot be empty"
-	case len(subpath) > 256:
-		return "Sub: subpath too long (max 256 bytes)"
-	case strings.Contains(subpath, ":"):
-		return "Sub: subpath cannot contain ':'"
-	case strings.Contains(subpath, "\x00"):
-		return "Sub: subpath cannot contain NUL byte"
+	case len(synthesized) > 256:
+		return "Sub: synthesized pkgpath too long (max 256 bytes)"
 	case strings.Contains(host, ":"):
 		return "Sub: receiver pkgpath is already synthesized or invalid"
+	case !isValidSubpath(subpath):
+		return "Sub: subpath must be '/'-separated segments of [a-z0-9], with '_.-' allowed inside a segment"
 	}
-	// Unreachable while the run-path regex stays colon-free (the two
-	// colon guards above ensure synthesized contains ':'); kept as a
-	// defense-in-depth assert against future regex relaxation.
 	if _, ok := IsGnoRunPath(synthesized); ok {
 		return "Sub: synthesized pkgpath must not be a run path"
 	}
 	return ""
+}
+
+// isValidSubpath reports whether s is segment ("/" segment)* per the
+// grammar in subRealmPathError. Kept byte-oriented (no regex) so the
+// .gno mirror is a straightforward transliteration.
+func isValidSubpath(s string) bool {
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '/' {
+			if !isValidSubpathSegment(s[start:i]) {
+				return false
+			}
+			start = i + 1
+		}
+	}
+	return true
+}
+
+func isValidSubpathSegment(seg string) bool {
+	if seg == "" {
+		return false
+	}
+	for i := 0; i < len(seg); i++ {
+		c := seg[i]
+		alnum := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		if i == 0 || i == len(seg)-1 {
+			if !alnum {
+				return false
+			}
+			continue
+		}
+		if !alnum && c != '_' && c != '.' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 // derefRealmStruct unwraps a realm TypedValue (pointer-typed *.grealm, or
@@ -1677,6 +1728,24 @@ func makeUverseNode() {
 				TypedValue{T: gConcreteRealmPtrType, V: recv.V}, // parent anchor
 			)
 			m.PushValue(sub)
+		},
+	)
+	// Subpath returns the sub-token's subpath, or "" for a primary cur.
+	// Derived from the pkgPath field (the substring after the first
+	// ":"), NOT the internal subpath field, so the answer stays
+	// consistent with chain.SplitPkgSubPath for any realm value —
+	// including test-built colon-bearing values whose internal field is
+	// empty. This is the canonical "am I a sub, and of what subpath"
+	// accessor; consumers should prefer it over parsing PkgPath().
+	defNativePtrMethod(".grealm", "Subpath",
+		nil,
+		Flds("", "string"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			path := sv.Fields[realmFieldPkgPath].GetString()
+			_, sub, _ := strings.Cut(path, ":")
+			m.PushValue(typedString(sub))
 		},
 	)
 	defNativePtrMethod(".grealm", "String",

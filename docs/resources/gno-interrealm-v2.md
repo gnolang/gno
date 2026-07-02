@@ -464,11 +464,19 @@ Semantics:
 - Classification: `IsCode()` true; `IsUser()`, `IsUserCall()`,
   `IsUserRun()`, `IsEphemeral()` all false. A sub-identity is
   programmatic, never a user.
+- `Subpath()` returns the subpath (`""` for a primary cur) — the
+  canonical "am I a sub, of what" accessor, consistent with
+  `SplitPkgSubPath`. Prefer it over string-parsing `PkgPath()`.
 - Ephemerality (§5.3) applies: sub-tokens cannot be persisted.
 
 Guards — `Sub()` panics unless all hold:
 
-1. subpath is non-empty, ≤ 256 bytes, and contains no `:` or NUL;
+1. subpath matches `segment ("/" segment)*`, `segment =
+   [a-z0-9]([a-z0-9_.-]*[a-z0-9])?` (lowercase-alnum, `/`-separated,
+   `_.-` only inside a segment; no uppercase/whitespace/non-ASCII/`..`),
+   and the synthesized `host:subpath` is ≤ 256 bytes. This grammar is
+   frozen at introduction — loosening later is safe, tightening would
+   strand funds;
 2. the receiver's own HIV is the topmost crossing frame's Cur —
    strictly stronger than `IsCurrent()`, so sub-tokens can never be
    `Sub()`d (no `host:a:b`);

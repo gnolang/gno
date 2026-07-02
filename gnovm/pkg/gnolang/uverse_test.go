@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -327,5 +328,51 @@ func TestRealmLegacyThreeFieldShape(t *testing.T) {
 	sub := newSubRealmHIVPointer(nil, "addr", "example.com/r/host:x", TypedValue{}, "x", TypedValue{})
 	if isOriginRealmHIV(realmHIV(&sub)) {
 		t.Fatal("nil-prev sub-token must not be persistence-exempt")
+	}
+}
+
+// isValidSubpath enforces the frozen sub-realm subpath grammar:
+// segment ("/" segment)*, segment = [a-z0-9] ([a-z0-9_.-]* [a-z0-9])?.
+// Freeze-critical: loosening later is additive, tightening later would
+// strand funds — so the accepted/rejected sets are pinned here.
+func TestIsValidSubpath(t *testing.T) {
+	t.Parallel()
+	valid := []string{
+		"a", "dao", "dao42", "dao/42", "v1.2", "role_admin",
+		"a/b/c", "g1abc", "a-b", "x.y-z_w", "0", "1/2/3",
+	}
+	invalid := []string{
+		"", "/", "//", "dao/", "/dao", "a//b", "Dao", "DAO",
+		"a b", "a\tb", "a\nb", "a:b", "a\x00b", "..", ".", "../x",
+		"_x", "x_", "-x", "x-", ".x", "x.", "café", "‮", "a/",
+		"/", "a/./b",
+	}
+	for _, s := range valid {
+		if !isValidSubpath(s) {
+			t.Errorf("isValidSubpath(%q) = false, want true", s)
+		}
+	}
+	for _, s := range invalid {
+		if isValidSubpath(s) {
+			t.Errorf("isValidSubpath(%q) = true, want false", s)
+		}
+	}
+}
+
+// subRealmPathError enforces the total-length cap over the synthesized
+// "host:subpath" (not the subpath alone), keeping downstream
+// pkgpath-sized buffers valid.
+func TestSubRealmPathErrorTotalCap(t *testing.T) {
+	t.Parallel()
+	host := "gno.land/r/x"
+	// host + ":" + subpath == 256 is OK; 257 is rejected.
+	okSub := strings.Repeat("a", 256-len(host)-1)
+	synth := host + ":" + okSub
+	if e := subRealmPathError(host, okSub, synth); e != "" {
+		t.Errorf("256-byte synthesized rejected: %s", e)
+	}
+	tooLong := okSub + "a"
+	if e := subRealmPathError(host, tooLong, host+":"+tooLong); e == "" {
+		t.Error("257-byte synthesized accepted, want rejected")
 	}
 }
