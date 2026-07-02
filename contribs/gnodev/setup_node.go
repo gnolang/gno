@@ -95,6 +95,10 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 	// loader's reload output — and from there, genesis.
 	loader.Track(paths...)
 
+	// A node reset returns to this seeded set, dropping packages the proxy
+	// resolved lazily during the session.
+	nodeConfig.ResetState = loader.ResetTracked
+
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 
