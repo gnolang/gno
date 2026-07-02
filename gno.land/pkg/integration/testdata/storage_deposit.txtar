@@ -10,7 +10,7 @@ gnoland start
 #   qstorage "storage/deposit" echoes the on-chain values
 #   TOTAL TX COST == gas-fee +/- STORAGE FEE/REFUND
 gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 380001ugnot -gas-wanted 3_800_000 -max-deposit 900000ugnot -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{\"bytes_delta\":5016,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":501600},\"pkg_path\":\"gno.land/r/foo\"}\]'
+stdout 'EVENTS:     .*{\"bytes_delta\":5016,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":501600},\"pkg_path\":\"gno.land/r/foo\"}'
 stdout 'STORAGE DELTA:  5016 bytes'
 stdout 'STORAGE FEE:    501600ugnot'
 stdout 'TOTAL TX COST:  881601ugnot'
@@ -50,7 +50,7 @@ stdout 'storage: 5014, deposit: 501400'
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 370001ugnot -gas-wanted 3_700_000 -max-deposit 500000ugnot -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[{\"bytes_delta\":2940,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":294000},\"pkg_path\":\"gno.land/p/foo\"}\]'
+stdout 'EVENTS:     .*{\"bytes_delta\":2940,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":294000},\"pkg_path\":\"gno.land/p/foo\"}'
 stdout 'STORAGE DELTA:  2940 bytes'
 stdout 'STORAGE FEE:    294000ugnot'
 stdout 'TOTAL TX COST:  664001ugnot'
