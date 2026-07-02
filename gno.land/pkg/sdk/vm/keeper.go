@@ -585,8 +585,8 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 // otherwise unmetered. AddPackage and Run call it immediately before their
 // type-check so an oversized package is rejected by the gas meter instead of
 // consuming unmetered validator CPU. Params.Validate rejects a non-positive
-// PreprocessGasPerByte, so a validated Params always charges; a legacy params
-// blob predating the field yields 0 and charges nothing.
+// PreprocessGasPerByte, and GetParams defaults the field when reading a
+// legacy params blob that predates it, so the charge is always active.
 func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
 	var srcBytes int64
 	for _, f := range mpkg.Files {

@@ -241,6 +241,29 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	}
 }
 
+// A vm params blob written before PreprocessGasPerByte existed decodes with
+// the field zero (simulated here by writing 0 directly, past Validate).
+// GetParams must default it so that (a) the type-check/preprocess charge
+// stays active on legacy state, and (b) WillSetParam's whole-struct
+// re-validation does not reject updates of unrelated params on such state.
+func TestGetParamsDefaultsPreprocessGasPerByte(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	legacy := DefaultParams()
+	legacy.PreprocessGasPerByte = 0
+	env.prmk.SetStruct(ctx, "vm:p", legacy) // direct write: no Validate, no hooks
+
+	assert.Equal(t, preprocessGasPerByteDefault, env.vmk.GetParams(ctx).PreprocessGasPerByte)
+
+	// The trap the defaulting closes: a params-keeper write of an unrelated
+	// param runs WillSetParam, which re-validates the whole struct read via
+	// GetParams and would panic on a zero PreprocessGasPerByte.
+	assert.NotPanics(t, func() {
+		env.prmk.SetString(ctx, "vm:p:chain_domain", "example.com")
+	})
+}
+
 func TestParamsValidate(t *testing.T) {
 	valid := DefaultParams()
 
