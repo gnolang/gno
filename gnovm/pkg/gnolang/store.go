@@ -82,6 +82,11 @@ type Store interface {
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
+	// Inert package storage: packages pending activation, stored without
+	// typechecking or execution and invisible to the normal package resolver.
+	AddInertPackage(mpkg *std.MemPackage)
+	GetInertPackage(path string) *std.MemPackage
+	DelInertPackage(path string)
 	FindPathsByPrefix(prefix string) iter.Seq[string]
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
@@ -1050,6 +1055,38 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
+// AddInertPackage stores a MemPackage in the inert key space without
+// typechecking or execution. The package is invisible to the normal resolver
+// until activated via EnablePackage.
+func (ds *defaultStore) AddInertPackage(mpkg *std.MemPackage) {
+	bz := amino.MustMarshal(mpkg)
+	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoEncodeDesc)
+	pathkey := []byte(backendInertPackagePathKey(mpkg.Path))
+	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+}
+
+// GetInertPackage retrieves the MemPackage from the inert key space.
+// Returns nil if no inert package exists at path.
+func (ds *defaultStore) GetInertPackage(path string) *std.MemPackage {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	bz := ds.iavlStore.Get(ds.gctx, pathkey)
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// DelInertPackage removes a package from the inert key space.
+func (ds *defaultStore) DelInertPackage(path string) {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	ds.iavlStore.Delete(ds.gctx, pathkey)
+}
+
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
@@ -1293,6 +1330,8 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+func backendInertPackagePathKey(path string) string { return "inert_pkg:" + path }
 
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")

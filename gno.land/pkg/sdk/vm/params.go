@@ -14,6 +14,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+// CodeSubmissionPolicy controls who may submit MsgAddPackage and MsgRun, and
+// how submitted packages are processed.
+type CodeSubmissionPolicy string
+
+const (
+	// CodeSubmissionPolicyPermissionless allows any address to submit code (default).
+	CodeSubmissionPolicyPermissionless CodeSubmissionPolicy = "permissionless"
+	// CodeSubmissionPolicyPermissioned restricts code submission to addresses
+	// listed in Params.CodeSubmitters.
+	CodeSubmissionPolicyPermissioned CodeSubmissionPolicy = "permissioned"
+	// CodeSubmissionPolicyInert accepts packages from any address but stores them
+	// without typechecking or execution (inert state). Packages become callable
+	// only after an approver sends MsgEnablePackage.
+	CodeSubmissionPolicyInert CodeSubmissionPolicy = "inert"
+)
+
 const (
 	sysNamesPkgDefault             = "gno.land/r/sys/names"
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
@@ -21,6 +37,7 @@ const (
 	depositDefault                 = "600000000ugnot"
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
+	codeSubmissionPolicyDefault    = CodeSubmissionPolicyPermissionless
 
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
@@ -51,6 +68,15 @@ type Params struct {
 	// "no floor / use tree estimate") because zero iter-step cost
 	// would effectively disable iteration gas charging.
 	IterNextCostFlat int64 `json:"iter_next_cost_flat" yaml:"iter_next_cost_flat"`
+
+	// CodeSubmissionPolicy controls who may submit MsgAddPackage/MsgRun and
+	// how packages are processed on arrival. Defaults to "permissionless".
+	CodeSubmissionPolicy CodeSubmissionPolicy `json:"code_submission_policy" yaml:"code_submission_policy"`
+	// CodeSubmitters is the allowlist used when CodeSubmissionPolicy == "permissioned".
+	CodeSubmitters []crypto.Address `json:"code_submitters" yaml:"code_submitters"`
+	// PkgApprovers may call MsgEnablePackage / MsgDisablePackage.
+	// Required when CodeSubmissionPolicy == "inert".
+	PkgApprovers []crypto.Address `json:"pkg_approvers" yaml:"pkg_approvers"`
 }
 
 // NewParams creates a new Params object
@@ -69,6 +95,7 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		FixedSetReadDepth100: minSetReadDepth100,
 		FixedWriteDepth100:   minWriteDepth100,
 		IterNextCostFlat:     iterNextCostFlat,
+		CodeSubmissionPolicy: codeSubmissionPolicyDefault,
 	}
 }
 
@@ -97,6 +124,9 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100))
 	sb.WriteString(fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100))
 	sb.WriteString(fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat))
+	sb.WriteString(fmt.Sprintf("CodeSubmissionPolicy: %q\n", p.CodeSubmissionPolicy))
+	sb.WriteString(fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters))
+	sb.WriteString(fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers))
 	return sb.String()
 }
 
@@ -158,6 +188,56 @@ func (p Params) Validate() error {
 	}
 	if p.IterNextCostFlat > maxIterNextCostFlat {
 		return fmt.Errorf("IterNextCostFlat must be <= %d, got %d", maxIterNextCostFlat, p.IterNextCostFlat)
+	}
+	switch p.CodeSubmissionPolicy {
+	case CodeSubmissionPolicyPermissionless, CodeSubmissionPolicyPermissioned,
+		CodeSubmissionPolicyInert:
+		// valid
+	case "":
+		// treat empty as permissionless (zero-value compat)
+	default:
+		return fmt.Errorf("invalid code_submission_policy %q", p.CodeSubmissionPolicy)
+	}
+	if err := validateAddressSlice("CodeSubmitters", p.CodeSubmitters); err != nil {
+		return err
+	}
+	if err := validateAddressSlice("PkgApprovers", p.PkgApprovers); err != nil {
+		return err
+	}
+	return nil
+}
+
+func mustParseAddressSlice(paramName string, value any) []crypto.Address {
+	s := sdkparams.MustParamString(paramName, value)
+	if s == "" {
+		return nil
+	}
+	var addrs []crypto.Address
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		addr, err := crypto.AddressFromString(part)
+		if err != nil {
+			panic(fmt.Sprintf("invalid %s address %q: %v", paramName, part, err))
+		}
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+func validateAddressSlice(name string, addrs []crypto.Address) error {
+	seen := make(map[string]struct{}, len(addrs))
+	for i, addr := range addrs {
+		if addr.IsZero() {
+			return fmt.Errorf("%s[%d] is a zero address", name, i)
+		}
+		key := addr.String()
+		if _, dup := seen[key]; dup {
+			return fmt.Errorf("%s contains duplicate address %s", name, key)
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }
@@ -261,6 +341,12 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.FixedWriteDepth100 = sdkparams.MustParamInt64("fixed_write_depth_100", value)
 	case "p:iter_next_cost_flat":
 		params.IterNextCostFlat = sdkparams.MustParamInt64("iter_next_cost_flat", value)
+	case "p:code_submission_policy":
+		params.CodeSubmissionPolicy = CodeSubmissionPolicy(sdkparams.MustParamString("code_submission_policy", value))
+	case "p:code_submitters":
+		params.CodeSubmitters = mustParseAddressSlice("code_submitters", value)
+	case "p:pkg_approvers":
+		params.PkgApprovers = mustParseAddressSlice("pkg_approvers", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
