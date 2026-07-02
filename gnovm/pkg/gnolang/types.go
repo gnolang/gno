@@ -896,7 +896,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 		// Maybe is a field of the struct.
 		if sf.Name == n {
 			// Ensure exposed or package match.
-			if !isUpper(string(n)) && st.PkgPath != callerPath {
+			if callerPath != dispatchPkgPath && !isUpper(string(n)) && st.PkgPath != callerPath {
 				return nil, false, nil, nil, true
 			}
 			vp := NewValuePathField(0, uint16(i), n)
@@ -1068,7 +1068,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			// origin package (its stamp when flattened out of another
 			// package), not the enclosing interface's — same rule as
 			// VerifyImplementedBy below.
-			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
+			if callerPath != dispatchPkgPath && !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
 				return nil, false, nil, nil, true
 			}
 			// match found.
@@ -2203,7 +2203,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	if i, ok := dt.lookupMethod(n); ok {
 		fv := dt.Methods[i].V.(*FuncValue)
 		// Ensure exposed or package match.
-		if !isUpper(string(n)) && dt.PkgPath != callerPath {
+		if callerPath != dispatchPkgPath && !isUpper(string(n)) && dt.PkgPath != callerPath {
 			return nil, false, nil, nil, true
 		}
 		// NOTE: makes code simple but requires preprocessor's
@@ -3016,11 +3016,22 @@ func isGeneric(t Type) bool {
 }
 
 // NOTE: runs at preprocess time but also runtime,
+// dispatchPkgPath is the pseudo caller package used by runtime dispatch
+// (VPInterface resolution): selector access was already checked against the
+// real caller package at preprocess time, so dispatch locates methods across
+// package boundaries with no access gate — matching Go, whose dynamic
+// dispatch is method-set lookup with no visibility check. Without it, a
+// cross-package unexported method promoted through an embedded interface
+// field is admitted by VerifyImplementedBy but unreachable at dispatch.
+// No real package path can equal it (NUL byte).
+const dispatchPkgPath = "\x00dispatch"
+
 // for dynamic interface lookups. m can be nil,
 // is used for recursion detection.
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
-// callerPath: the path of package where selector node was declared.
+// callerPath: the path of package where selector node was declared, or
+// dispatchPkgPath for runtime dispatch (skips unexported-access gates).
 func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {

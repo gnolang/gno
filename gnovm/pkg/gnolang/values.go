@@ -1977,8 +1977,12 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")
 		}
-		callerPath := dtv.T.GetPkgPath()
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
+		// Dispatch is method-set lookup with no access gate (Go itab
+		// semantics): access was checked against the real caller at
+		// preprocess time, and the concrete type's own package (the old
+		// callerPath here) can't reach unexported methods promoted from
+		// other packages through embedded interface fields.
+		tr, _, _, _, _ := findEmbeddedFieldType(dispatchPkgPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))

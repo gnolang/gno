@@ -400,7 +400,8 @@ func (m *Machine) doOpStaticTypeOf() {
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
+			// No access gate at dispatch; see values.go VPInterface.
+			_, _, _, ft, _ := findEmbeddedFieldType(dispatchPkgPath, dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		default:
 			panic(fmt.Sprintf(
