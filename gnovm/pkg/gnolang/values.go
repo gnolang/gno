@@ -821,16 +821,22 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 	return
 }
 
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) {
+// DeleteForKey removes the entry for key and returns the STORED key TypedValue
+// that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
+// DecRef this stored key's object, not the (possibly transient) argument key —
+// otherwise a non-primitive stored key object is orphaned in the store.
+func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
 	// if key is NaN, do nothing.
 	kmk, isNaN := key.ComputeMapKey(m, store, false)
 	if isNaN {
-		return
+		return nil
 	}
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
+		return &mli.Key
 	}
+	return nil
 }
 
 // ----------------------------------------

@@ -1013,12 +1013,15 @@ func makeUverseNode() {
 				if !ok {
 					return
 				}
-				// delete
-				mv.DeleteForKey(m, m.Store, &itv)
+				// delete; capture the STORED key that was removed. Detaching
+				// the argument key (itv) instead orphaned the stored key object
+				// in the store — it was never DecRef'd nor marked deleted.
+				delKey := mv.DeleteForKey(m, m.Store, &itv)
 
-				// mark key as deleted
-				keyObj := itv.GetFirstObject(m.Store)
-				m.Realm.DidUpdate(m, mv, keyObj, nil)
+				// mark the STORED key object as deleted (not the argument key)
+				if delKey != nil {
+					m.Realm.DidUpdate(m, mv, delKey.GetFirstObject(m.Store), nil)
+				}
 
 				// mark value as deleted
 				valObj := val.GetFirstObject(m.Store)
