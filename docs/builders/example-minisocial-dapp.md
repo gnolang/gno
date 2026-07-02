@@ -148,7 +148,8 @@ Let's start by running `gnodev` inside our `minisocial/` folder:
 
 ```
 ❯ gnodev
-Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I dev key imported name=dev addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I default address resolved from keybase name=dev addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 GnoWeb      ┃ I using default package path=gno.land/r/example/minisocial
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=local<threads-full>/root<examples>
 Node        ┃ I packages paths=[gno.land/r/example/minisocial]

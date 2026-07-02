@@ -138,11 +138,11 @@ The private side signs your transactions; the public side derives the
 anything that writes state — a deploy, a function call, a transfer.
 
 :::tip
-On a local chain, you can skip this entirely: `gnodev` auto-imports a
-`dev` key into your keybase on startup. The mnemonic is public and
-identical on every machine, so the key is throwaway — but you can sign
-transactions with `dev` immediately, no `gnokey add` needed. Pass
-`--no-dev-key` to opt out.
+On a local chain you can skip this entirely. `gnodev` auto-imports a
+`dev` key into your keybase on startup, so you can sign transactions with
+`dev` right away, no `gnokey add` needed. The mnemonic is public and
+identical on every machine, so the key is a throwaway for local use only.
+Pass `-no-dev-key` to opt out.
 :::
 
 Otherwise, create a fresh key:

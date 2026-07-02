@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestEnsureDevKey_EmptyKeybase(t *testing.T) {
 	logger, buf := newCaptureLogger()
 
 	cfg := &AppConfig{home: home}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	kb, err := keys.NewKeyBaseFromDir(home)
 	require.NoError(t, err)
@@ -51,7 +52,7 @@ func TestEnsureDevKey_AlreadyPresentMatchingAddress(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: home}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	info, err := kb.GetByName(DevKeyName)
 	require.NoError(t, err)
@@ -75,7 +76,7 @@ func TestEnsureDevKey_NamePresentConflictingAddress(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: home}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	info, err := kb.GetByName(DevKeyName)
 	require.NoError(t, err)
@@ -93,15 +94,15 @@ func TestEnsureDevKey_OptOut(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: home, noDevKey: true}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	kb, err := keys.NewKeyBaseFromDir(home)
 	require.NoError(t, err)
 	has, err := kb.HasByName(DevKeyName)
 	require.NoError(t, err)
-	assert.False(t, has, "--no-dev-key must not import the key")
+	assert.False(t, has, "-no-dev-key must not import the key")
 
-	assert.Contains(t, buf.String(), "--no-dev-key")
+	assert.Contains(t, buf.String(), "-no-dev-key")
 }
 
 func TestEnsureDevKey_NoHome(t *testing.T) {
@@ -109,7 +110,7 @@ func TestEnsureDevKey_NoHome(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: ""}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	assert.Contains(t, buf.String(), "home not specified")
 }
@@ -122,7 +123,7 @@ func TestEnsureDevKey_HomeMissing(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: missing}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	assert.False(t, osm.DirExists(missing),
 		"ensureDevKey must not materialize a missing -home")
@@ -139,7 +140,7 @@ func TestEnsureDevKey_DefaultHomeMissingIsCreated(t *testing.T) {
 
 	logger, buf := newCaptureLogger()
 	cfg := &AppConfig{home: fresh}
-	require.NoError(t, ensureDevKey(logger, cfg))
+	ensureDevKey(logger, cfg)
 
 	assert.True(t, osm.DirExists(fresh),
 		"default home must be materialized on first run")
@@ -186,4 +187,84 @@ func TestSetupAddressBook_NoDevKeyFallsBackInMemory(t *testing.T) {
 	assert.Contains(t, logs, "tracked in-memory only")
 	assert.NotContains(t, logs, DefaultDeployerSeed,
 		"fallback log must not echo the mnemonic")
+}
+
+// The deployer seed already imported under another name (commonly test1)
+// must be left untouched: gnodev detects the address is already signable and
+// skips the import, rather than letting CreateAccount rename the entry to dev.
+func TestEnsureDevKey_DeployerAddressUnderOtherNameIsPreserved(t *testing.T) {
+	t.Parallel()
+	home := t.TempDir()
+
+	kb, err := keys.NewKeyBaseFromDir(home)
+	require.NoError(t, err)
+	pre, err := kb.CreateAccount("test1", DefaultDeployerSeed, "", "", 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, defaultDeployerAddress, pre.GetAddress(),
+		"sanity: test1 must map to the deployer address")
+
+	logger, buf := newCaptureLogger()
+	ensureDevKey(logger, &AppConfig{home: home})
+
+	hasTest1, err := kb.HasByName("test1")
+	require.NoError(t, err)
+	assert.True(t, hasTest1, "existing test1 entry must be preserved")
+	hasDev, err := kb.HasByName(DevKeyName)
+	require.NoError(t, err)
+	assert.False(t, hasDev, "no second name must be added for an address already present")
+
+	assert.Contains(t, buf.String(), "already present")
+}
+
+// A keybase that cannot be read (here: a regular file where the leveldb dir is
+// expected) must not abort gnodev; ensureDevKey logs and returns.
+func TestEnsureDevKey_BrokenKeybaseDegradesGracefully(t *testing.T) {
+	t.Parallel()
+	home := t.TempDir()
+	// keys.NewKeyBaseFromDir opens <home>/data; a file there makes every
+	// keybase read fail with a "not a directory" error.
+	require.NoError(t, os.WriteFile(filepath.Join(home, "data"), []byte("x"), 0o600))
+
+	logger, buf := newCaptureLogger()
+	require.NotPanics(t, func() { ensureDevKey(logger, &AppConfig{home: home}) })
+
+	assert.Contains(t, buf.String(), "dev key skipped")
+}
+
+// When the default home does not exist and cannot be created (unwritable
+// parent), ensureDevKey skips rather than failing.
+func TestEnsureDevKey_CannotCreateDefaultHome(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+	parent := t.TempDir()
+	require.NoError(t, os.Chmod(parent, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	fresh := filepath.Join(parent, "gno")
+	t.Setenv("GNOHOME", fresh)
+	require.Equal(t, fresh, gnoenv.HomeDir(), "sanity: GNOHOME must drive gnoenv.HomeDir()")
+	require.False(t, osm.DirExists(fresh), "sanity: path must not exist")
+
+	logger, buf := newCaptureLogger()
+	ensureDevKey(logger, &AppConfig{home: fresh})
+
+	assert.False(t, osm.DirExists(fresh), "must not create the home under an unwritable parent")
+	assert.Contains(t, buf.String(), "cannot create default home")
+}
+
+// An existing but unwritable home makes keys.NewKeyBaseFromDir panic while
+// creating its data dir; ensureDevKey recovers and skips instead of crashing.
+func TestEnsureDevKey_UnwritableHomeDegradesGracefully(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+	home := t.TempDir()
+	require.NoError(t, os.Chmod(home, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(home, 0o700) })
+
+	logger, buf := newCaptureLogger()
+	require.NotPanics(t, func() { ensureDevKey(logger, &AppConfig{home: home}) })
+
+	assert.Contains(t, buf.String(), "cannot open keybase")
 }

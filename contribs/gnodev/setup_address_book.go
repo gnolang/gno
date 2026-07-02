@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -21,9 +22,9 @@ const DevKeyName = "dev"
 func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
 
-	if err := ensureDevKey(logger, cfg); err != nil {
-		return nil, err
-	}
+	// Best-effort convenience import; never fatal, so a degraded keybase can
+	// never stop gnodev from booting.
+	ensureDevKey(logger, cfg)
 
 	if cfg.home == "" {
 		logger.Warn("home not specified, no keybase will be loaded")
@@ -75,58 +76,90 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 	return book, nil
 }
 
-// ensureDevKey writes the well-known deployer mnemonic into the user's
-// local gnokey keybase under DevKeyName, unless opted out or already
-// present under that name with a different address.
-func ensureDevKey(logger *slog.Logger, cfg *AppConfig) error {
+// ensureDevKey writes the well-known deployer mnemonic into the user's local
+// gnokey keybase under DevKeyName, unless opted out, already available, or the
+// name is taken by a different address.
+//
+// Every failure degrades to a logged warning rather than an error: the import
+// is a convenience, and a missing, unwritable, locked, or corrupt keybase must
+// never prevent gnodev from starting. The deployer address is still tracked
+// in-memory by setupAddressBook's fallback when the import is skipped.
+func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
 	if cfg.noDevKey {
-		logger.Info("dev key skipped (--no-dev-key)")
-		return nil
+		logger.Info("dev key skipped (-no-dev-key)")
+		return
 	}
 	if cfg.home == "" {
 		logger.Warn("dev key skipped: home not specified, cannot write to keybase")
-		return nil
+		return
 	}
 	if !osm.DirExists(cfg.home) {
 		// Default home (~/.config/gno) doesn't exist on fresh installs;
 		// create it so the auto-import actually fires for first-time users,
 		// matching `gnokey add`'s behavior. A user-supplied -home that
-		// doesn't exist is likely a typo — refuse to materialize it.
-		if cfg.home != gnoenv.HomeDir() {
+		// doesn't exist is likely a typo, so refuse to materialize it.
+		// Clean both paths so a path-equivalent -home (e.g. a trailing slash)
+		// still counts as the default.
+		if filepath.Clean(cfg.home) != filepath.Clean(gnoenv.HomeDir()) {
 			logger.Warn("dev key skipped: home directory does not exist", "path", cfg.home)
-			return nil
+			return
 		}
 		if err := osm.EnsureDir(cfg.home, 0o700); err != nil {
 			logger.Warn("dev key skipped: cannot create default home", "path", cfg.home, "err", err)
-			return nil
+			return
 		}
 	}
 
-	kb, err := keys.NewKeyBaseFromDir(cfg.home)
+	kb, err := openKeybase(cfg.home)
 	if err != nil {
-		return fmt.Errorf("unable to open keybase at %q: %w", cfg.home, err)
+		logger.Warn("dev key skipped: cannot open keybase", "path", cfg.home, "err", err)
+		return
 	}
 
 	addr := defaultDeployerAddress.String()
-	info, err := kb.GetByName(DevKeyName)
-	switch {
+
+	// If the deployer address is already in the keybase under any name, it is
+	// already signable; do not add a second name. The keybase enforces one
+	// name per address, so importing `dev` here would silently drop the
+	// user's existing entry (commonly `test1`).
+	if has, err := kb.HasByAddress(defaultDeployerAddress); err != nil {
+		logger.Warn("dev key skipped: cannot read keybase", "err", err)
+		return
+	} else if has {
+		logger.Info("dev key already present in keybase, skipping", "addr", addr)
+		return
+	}
+
+	// The address is not present, but the name `dev` might belong to an
+	// unrelated key. Leave any such entry untouched.
+	switch info, err := kb.GetByName(DevKeyName); {
 	case err == nil:
-		if info.GetAddress() == defaultDeployerAddress {
-			logger.Info("dev key already present, skipping", "addr", addr)
-			return nil
-		}
-		logger.Warn("dev key exists in keybase with a different address, not overwriting",
+		logger.Warn("dev key name exists in keybase with a different address, not overwriting",
 			"existing", info.GetAddress().String(),
 			"expected", addr)
-		return nil
+		return
 	case keyerror.IsErrKeyNotFound(err):
 	default:
-		return fmt.Errorf("unable to read %q from keybase: %w", DevKeyName, err)
+		logger.Warn("dev key skipped: cannot read keybase", "name", DevKeyName, "err", err)
+		return
 	}
 
 	if _, err := kb.CreateAccount(DevKeyName, DefaultDeployerSeed, "", "", 0, 0); err != nil {
-		return fmt.Errorf("unable to import dev key: %w", err)
+		logger.Warn("dev key skipped: import failed", "err", err)
+		return
 	}
 	logger.Info("dev key imported", "name", DevKeyName, "addr", addr)
-	return nil
+}
+
+// openKeybase opens (creating the data dir if needed) the keybase at home.
+// keys.NewKeyBaseFromDir panics instead of returning an error when it cannot
+// create that dir (e.g. an unwritable home), so recover here and surface it as
+// a normal error for the best-effort caller.
+func openKeybase(home string) (kb keys.Keybase, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("cannot initialize keybase: %v", r)
+		}
+	}()
+	return keys.NewKeyBaseFromDir(home)
 }

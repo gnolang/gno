@@ -26,39 +26,54 @@ in-memory `address.Book`, it ensures an entry named `dev` exists in
 the user's gnokey keybase. Concretely, `ensureDevKey` in
 `setup_address_book.go` does:
 
-1. If `--no-dev-key` was passed, log `dev key skipped (--no-dev-key)`
+1. If `-no-dev-key` was passed, log `dev key skipped (-no-dev-key)`
    and return.
 2. If `cfg.home == ""`, log a warning and return (no keybase to write
    to; this only happens when `-home ""` is set explicitly).
 3. If `cfg.home` is set but the directory does not exist:
-   - If `cfg.home == gnoenv.HomeDir()` (the default), create it with
-     mode `0o700` so the auto-import fires on a fresh install. This
-     matches `gnokey add`'s behavior, which silently creates
-     `~/.config/gno/` on first use.
-   - Otherwise (user passed an explicit `-home <path>` that doesn't
-     exist — likely a typo), log a warning and return without writing.
-     We refuse to silently materialize an arbitrary path on disk.
-4. Open the keybase at `cfg.home` via `keys.NewKeyBaseFromDir`. This
+   - If it is the default home (compared with `filepath.Clean` on both
+     sides so a path-equivalent form such as a trailing slash still
+     counts), create it with mode `0o700` so the auto-import fires on a
+     fresh install. This matches `gnokey add`'s behavior, which silently
+     creates `~/.config/gno/` on first use.
+   - Otherwise (an explicit `-home <path>` that doesn't exist, likely a
+     typo), log a warning and return without writing. We refuse to
+     silently materialize an arbitrary path on disk.
+4. Open the keybase at `cfg.home` via `keys.NewKeyBaseFromDir`, which
    creates `cfg.home/data/` on disk if it does not exist (mode 0o700).
-5. Look up the name `dev`:
-   - **Not present** → import via
-     `kb.CreateAccount("dev", DefaultDeployerSeed, "", "", 0, 0)`
-     and log `dev key imported`.
-   - **Present, address matches** the well-known deployer address → log
-     `dev key already present, skipping`.
-   - **Present, address differs** (the user has another key they
-     happened to name `dev`) → log a one-line warning and leave it
-     alone.
+   That call panics rather than returning an error when it cannot create
+   the dir (e.g. an unwritable home), so the open is wrapped to recover
+   the panic and treat it as a normal failure.
+5. If the deployer address is already in the keybase under any name, it
+   is already signable: log `dev key already present in keybase,
+   skipping` and stop. This is the key guard. The keybase enforces one
+   name per address, so calling `CreateAccount("dev", ...)` for an
+   address already stored under another name (commonly `test1`) would
+   silently delete that other name. Skipping preserves the user's
+   existing entry.
+6. Otherwise, if the name `dev` belongs to a different address (the user
+   has an unrelated key they named `dev`), log a one-line warning and
+   leave it untouched.
+7. Otherwise import via
+   `kb.CreateAccount("dev", DefaultDeployerSeed, "", "", 0, 0)` and log
+   `dev key imported`.
+
+Every failure along the way (missing or unwritable home, locked or
+corrupt keybase, failed import) degrades to a logged warning, never an
+error. The import is a convenience, so a degraded keybase must never
+stop gnodev from starting; the deployer address is still tracked
+in-memory by `setupAddressBook`'s fallback when the import is skipped.
 
 The mnemonic is read from the existing `DefaultDeployerSeed` constant;
 no second copy is introduced. The startup no longer logs the mnemonic
-at all: the previous `default address created` banner is replaced by
-either `dev key imported` (happy path) or
-`default address tracked in-memory only; gnokey cannot sign with it`
-(opt-out / no keybase). Users who need the seed can read
-`integration.DefaultAccount_Seed` or run `gnokey export dev`.
+at all: the previous banner is replaced by either `dev key imported`
+(happy path) or `default address tracked in-memory only; gnokey cannot
+sign with it` (opt-out / no keybase). Users who need the mnemonic can
+read `integration.DefaultAccount_Seed` in the source; `gnokey export
+dev` produces an armored, password-encrypted private key, not the seed
+phrase.
 
-A new boolean flag `--no-dev-key` (matching gnodev's `no-web`,
+A new boolean flag `-no-dev-key` (matching gnodev's `no-web`,
 `no-watch`, `no-replay` naming convention) opts out of the import.
 
 ## Alternatives Considered
@@ -75,7 +90,7 @@ We chose default-on. Rationale:
   install` to signed transaction." A flag the user must remember
   defeats that.
 - Users who do not want gnodev mutating `~/.gnokey/` (CI runners,
-  shared dev boxes, security-conscious setups) can pass `--no-dev-key`.
+  shared dev boxes, security-conscious setups) can pass `-no-dev-key`.
 
 ### 2. Don't touch `~/.gnokey/`; let gnodev run its own keybase
 
@@ -102,14 +117,17 @@ zero-flag workflow.
 ### 3. Conflict policy: overwrite on name collision
 
 Considered always overwriting any pre-existing `dev` to enforce a
-canonical mapping. Rejected: silently replacing a user's named key —
-even one they happened to name `dev` for unrelated reasons — is
-worse than the inconvenience of a warning. The keybase's
-`CreateAccount` semantics already collapse same-address-different-name
-to a rename; the explicit address comparison here additionally protects
-against same-name-different-address. Since `dev` is a more plausible
-name for a real user key than something like `devtest`, this guard
-matters in practice.
+canonical mapping. Rejected: silently replacing a user's named key,
+even one they happened to name `dev` for unrelated reasons, is worse
+than the inconvenience of a warning. Two collision cases are guarded
+separately. Same name, different address (an unrelated key named `dev`)
+is left untouched after a warning. Same address, different name (the
+deployer seed already imported as, say, `test1`) is also left untouched:
+the keybase enforces one name per address and would delete the existing
+name if we imported `dev`, so gnodev detects the address up front and
+skips the import entirely. Since `dev` is a more plausible name for a
+real user key than something like `devtest`, the same-name guard matters
+in practice.
 
 ### 4. Naming: `test1`, `devtest`, or `dev`
 
@@ -136,7 +154,7 @@ address.
 ## Consequences
 
 - **`~/.gnokey/` is now mutated by gnodev** on first run, unless
-  `--no-dev-key` is set. Within an existing home directory, gnodev
+  `-no-dev-key` is set. Within an existing home directory, gnodev
   creates the `data/` subdir with the same permissions `gnokey add`
   would (`os.EnsureDir(..., 0o700)`). This is the first time gnodev
   produces persistent state outside its own data dir.
@@ -149,24 +167,29 @@ address.
 - Side effects are bounded: at most one new keybase entry, named
   `dev`, pointing at the well-known public address. Existing entries
   are never overwritten.
-- Users who already imported the same mnemonic under another name
-  (commonly `test1`) get *two* names for the same address. This is
-  benign — the chain genesis funds the address, not the name — but
-  worth knowing if you read `gnokey list` and see what looks like a
-  duplicate.
+- Users who already imported the same seed under another name (commonly
+  `test1`) keep that entry. gnodev sees the address is already present
+  and skips the import, so no `dev` entry is added for them and they go
+  on signing under their existing name. The keybase enforces one name
+  per address, so a single address can never carry both names at once.
 - Because `dev` is a plausible user-chosen key name, users who already
   have an *unrelated* key called `dev` will see the conflict warning
   and keep their existing entry untouched. They can either rename
-  their key or run gnodev with `--no-dev-key`.
+  their key or run gnodev with `-no-dev-key`.
+- A degraded keybase never blocks startup. A missing or unwritable home,
+  a locked or corrupt keybase, or a failed import each logs a warning
+  and falls back to in-memory tracking, matching the other
+  `ensureDevKey` branches; gnodev still boots.
 - The startup banner no longer logs the mnemonic. Tooling that scraped
   it from gnodev output will break; the same constant is available at
-  `integration.DefaultAccount_Seed` for code, or via
-  `gnokey export dev` for humans.
-- Test coverage in `contribs/gnodev/setup_address_book_test.go` covers
-  the three required keybase states (empty, present-matching,
-  present-conflicting), the `--no-dev-key`, `home==""`, and
-  missing-`home` branches of `ensureDevKey`, and two end-to-end
-  `setupAddressBook` paths asserting that the deployer address ends up
-  in the address book under name `dev` (auto-import) or under the
-  in-memory `_default#…` fallback (opt-out), and that the fallback log
-  no longer echoes the mnemonic.
+  `integration.DefaultAccount_Seed` in the source. `gnokey export dev`
+  produces an armored private key, not the seed phrase.
+- Test coverage in `contribs/gnodev/setup_address_book_test.go`
+  exercises the keybase states (empty, address-present-under-`dev`,
+  address-present-under-another-name, name-`dev`-with-conflicting-address),
+  the opt-out, `home==""`, missing-`home`, unwritable-default-home, and
+  broken or unwritable keybase branches of `ensureDevKey`, and two
+  end-to-end `setupAddressBook` paths asserting the deployer address ends
+  up in the address book under name `dev` (auto-import) or under the
+  in-memory `_default#…` fallback (opt-out), with the fallback log not
+  echoing the mnemonic.
