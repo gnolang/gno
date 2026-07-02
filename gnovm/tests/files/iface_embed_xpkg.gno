@@ -41,6 +41,11 @@ func main() {
 		}
 	}{}))
 	println("dup!=one:", !eq(dup, struct{ X interface{ ifaceext.Sec } }{}))
+	// sec stays selectable from within its origin package, even through
+	// main's re-spelled interface: the access gate keys on the method's
+	// origin (ifaceext), and main->ifaceext interface conversion passes it.
+	var s interface{ ifaceext.Sec } = ifaceext.SecImpl{}
+	println("origin-call:", ifaceext.UseSec(s))
 }
 
 // Output:
@@ -50,3 +55,4 @@ func main() {
 // local-ok: true
 // dup-coexist==self: true
 // dup!=one: true
+// origin-call: 7

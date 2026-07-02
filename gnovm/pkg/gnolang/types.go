@@ -1056,8 +1056,11 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 	// ...
 	for _, im := range it.Methods {
 		if im.Name == n {
-			// Ensure exposed or package match.
-			if !isUpper(string(n)) && it.PkgPath != callerPath {
+			// Ensure exposed or package match. Gate against the method's
+			// origin package (its stamp when flattened out of another
+			// package), not the enclosing interface's — same rule as
+			// VerifyImplementedBy below.
+			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
 				return nil, false, nil, nil, true
 			}
 			// a matched name cannot be an embedded interface.
