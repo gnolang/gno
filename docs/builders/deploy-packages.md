@@ -15,7 +15,7 @@ Before deploying, you need:
 
 In this tutorial, you will learn how to deploy Gno code to a Gno.land network
 via the CLI using `gnokey`. We will be reusing code from a
-[previous tutorial](anatomy-of-a-gno-package.md).
+the previous tutorial.
 
 ### A word about gas
 
@@ -177,6 +177,6 @@ a third-party web extension wallet, such as Adena.
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
 [^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Users can register a username using the [Gno.land user registry](https://gno.land/r/gnoland/users),
+users. Users can register a username using the [Gno.land user registry](https://staging.gno.land/r/sys/users),
 which will grant them access to a matching namespace for that specific network.
 [^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).
