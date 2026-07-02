@@ -1,29 +1,19 @@
 // freeze.gno — Phase A: manual validator freeze/unfreeze
 //
-// This is an early draft exploring what a freeze mechanism could look
-// like for gno.land's PoA validator set. The intent is to open a
-// discussion on authority, lifecycle, and liveness constraints before
-// settling on a final design.
+// Authority model:
 //
-// Design sketch (Phase A — manual only):
+//   Both FreezeValidator and UnfreezeValidator are callable by two paths:
 //
-//   FreezeValidator(addr, reason) — callable by freezeAdmin.
-//     Records the validator's current power, removes it from the
-//     effective valset, and emits a ValidatorFrozen event. The node
-//     drops out of consensus on the next block without any new
-//     consensus-level code.
+//   1. GovDAO proposal (always). Any GovDAO member can propose a freeze or
+//      unfreeze via NewFreezeProposalRequest / NewUnfreezeProposalRequest.
 //
-//   NewUnfreezeProposalRequest(...) — builds a GovDAO proposal that,
-//     when executed, restores the validator with its saved power and
-//     emits ValidatorUnfrozen.
+//   2. Direct call by an address in the freezeAdmins list. The list is
+//      managed exclusively by GovDAO (AddFreezeAdmin / RemoveFreezeAdmin).
+//      The list may be empty, in which case only path 1 is available.
 //
-//   SetFreezeAdmin(addr) — GovDAO-only; updates who can freeze.
-//
-// Open questions worth discussing before stabilising:
-//   - Should FreezeValidator be GovDAO-gated instead of admin-gated?
-//   - Auto-expiry: frozen entries could self-expire after N blocks.
-//   - Phase B: off-chain monitor + on-chain liveness floor; see ADR.
-//   - Slash: no bonded stake today; punitive mechanism deferred.
+// The liveness floor is count-based for this draft (≥2/3 of total
+// validators must remain live after a freeze). Phase B will switch to a
+// power-weighted floor.
 package validators
 
 import (
@@ -42,13 +32,14 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-// freezeAdmin is the address authorised to call FreezeValidator
-// without a GovDAO proposal. It is expected to be a multisig or
-// similarly guarded address. GovDAO can rotate it via SetFreezeAdmin.
+const govDAORealmPath = "gno.land/r/gov/dao"
+
+// freezeAdmins holds addresses authorised to call FreezeValidator or
+// UnfreezeValidator directly (without a GovDAO proposal). The set is
+// managed by GovDAO and may be empty.
 //
-// Set to the zero address by default so the feature is inert until
-// governance explicitly configures an admin.
-var freezeAdmin address
+// key: addr.String() → struct{}
+var freezeAdmins = avl.NewTree()
 
 // frozenEntry records the state of a frozen validator so it can be
 // restored on unfreeze.
@@ -63,66 +54,43 @@ type frozenEntry struct {
 // frozenSet maps signing address (string) → frozenEntry.
 var frozenSet = avl.NewTree()
 
-// FreezeValidator removes addr from the effective valset and records
-// its power so it can be restored later. Callable only by freezeAdmin.
+// ---- freeze/unfreeze --------------------------------------------------------
+
+// FreezeValidator removes addr from the effective valset and records its
+// power for later restore. Callable by any address in freezeAdmins, or
+// via a GovDAO executor (use NewFreezeProposalRequest for the latter).
 //
-// Panics if addr is not currently in the effective valset, if addr is
-// already frozen, or if the freeze would violate the liveness floor
-// (fewer than 2/3 of validators remaining — very conservative for now).
+// Panics if addr is not in the effective valset, if it is already frozen,
+// or if the freeze would violate the liveness floor.
 func FreezeValidator(cur realm, addr address, reason string) {
-	assertFreezeAdmin(cur)
-
-	key := addr.String()
-	if _, exists := frozenSet.Get(key); exists {
-		panic("validator is already frozen: " + key)
-	}
-
-	// Find addr in the effective valset.
-	effective := sysparams.GetValsetEffective()
-	var target *validators.Validator
-	for i := range effective {
-		if effective[i].Address == addr {
-			target = &effective[i]
-			break
-		}
-	}
-	if target == nil {
-		panic("validator not found in effective valset: " + key)
-	}
-
-	// Liveness floor: refuse if freezing would leave fewer than ⌈2/3⌉
-	// of total validators active. Kept intentionally conservative for
-	// this draft; Phase B will use a power-weighted floor instead.
-	live := len(effective) - frozenSet.Size() - 1 // -1 for the one we're about to freeze
-	if live*3 < len(effective)*2 {
-		panic(ufmt.Sprintf(
-			"freeze would drop live validators to %d/%d, violating the 2/3 floor",
-			live, len(effective),
-		))
-	}
-
-	// Record the frozen entry.
-	frozenSet.Set(key, frozenEntry{
-		Addr:        addr,
-		PubKey:      target.PubKey,
-		VotingPower: target.VotingPower,
-		Reason:      reason,
-		FrozenAt:    runtime.ChainHeight(),
-	})
-
-	// Publish the updated valset (addr removed, power=0).
-	publishValsetWithout(cur, addr)
-
-	chain.Emit(
-		"ValidatorFrozen",
-		"addr", key,
-		"reason", reason,
-		"height", strconv.FormatInt(runtime.ChainHeight(), 10),
-	)
+	assertFreezeOrAdmin(cur)
+	doFreeze(cur, addr, reason)
 }
 
-// NewUnfreezeProposalRequest builds a GovDAO proposal that, when
-// executed, restores addr to the effective valset with its saved power.
+// NewFreezeProposalRequest builds a GovDAO proposal that, when executed,
+// freezes addr. Use this when no admin is configured or when governance
+// sign-off is desired regardless.
+func NewFreezeProposalRequest(cur realm, addr address, reason string) dao.ProposalRequest {
+	title := "Freeze validator " + addr.String()
+	desc := "Proposal to remove validator " + addr.String() + " from the active set.\n\n**Reason:** " + reason + "\n"
+
+	callback := func(cur realm) error {
+		doFreeze(cur, addr, reason)
+		return nil
+	}
+	return dao.NewProposalRequest(title, desc, dao.NewSimpleExecutor(0, cur, callback, ""))
+}
+
+// UnfreezeValidator restores addr to the effective valset with its saved
+// power. Callable by any address in freezeAdmins, or via a GovDAO executor
+// (use NewUnfreezeProposalRequest for the latter).
+func UnfreezeValidator(cur realm, addr address, reason string) {
+	assertFreezeOrAdmin(cur)
+	doUnfreeze(cur, addr, reason)
+}
+
+// NewUnfreezeProposalRequest builds a GovDAO proposal that, when executed,
+// restores addr to the effective valset with its saved power.
 func NewUnfreezeProposalRequest(cur realm, addr address, reason string) dao.ProposalRequest {
 	key := addr.String()
 	raw, exists := frozenSet.Get(key)
@@ -145,51 +113,47 @@ func NewUnfreezeProposalRequest(cur realm, addr address, reason string) dao.Prop
 	desc.WriteString("\n")
 
 	callback := func(cur realm) error {
-		raw2, exists2 := frozenSet.Get(key)
-		if !exists2 {
-			panic("validator is not frozen at execution time: " + key)
-		}
-		e := raw2.(frozenEntry)
-		frozenSet.Remove(key)
-
-		// Re-add to the effective valset.
-		effective := sysparams.GetValsetEffective()
-		set := make(map[address]validators.Validator, len(effective)+1)
-		for _, v := range effective {
-			set[v.Address] = v
-		}
-		set[addr] = validators.Validator{
-			Address:     addr,
-			PubKey:      e.PubKey,
-			VotingPower: e.VotingPower,
-		}
-
-		publishValsetFromMap(cur, set)
-
-		chain.Emit(
-			"ValidatorUnfrozen",
-			"addr", key,
-			"reason", reason,
-			"height", strconv.FormatInt(runtime.ChainHeight(), 10),
-		)
+		doUnfreeze(cur, addr, reason)
 		return nil
 	}
-
 	return dao.NewProposalRequest(title, desc.String(), dao.NewSimpleExecutor(0, cur, callback, ""))
 }
 
-// SetFreezeAdmin updates the freeze admin address. Must be called via
-// a GovDAO proposal (enforced by assertGovDAOCaller).
-func SetFreezeAdmin(cur realm, addr address) {
+// ---- admin list management (GovDAO only) ------------------------------------
+
+// AddFreezeAdmin adds addr to the freeze admin list. GovDAO only.
+func AddFreezeAdmin(cur realm, addr address) {
 	assertGovDAOCaller(cur)
-	freezeAdmin = addr
-	chain.Emit("FreezeAdminUpdated", "addr", addr.String())
+	freezeAdmins.Set(addr.String(), struct{}{})
+	chain.Emit("FreezeAdminAdded", "addr", addr.String())
 }
 
-// GetFreezeAdmin returns the current freeze admin address.
-func GetFreezeAdmin() address {
-	return freezeAdmin
+// RemoveFreezeAdmin removes addr from the freeze admin list. GovDAO only.
+func RemoveFreezeAdmin(cur realm, addr address) {
+	assertGovDAOCaller(cur)
+	if _, removed := freezeAdmins.Remove(addr.String()); !removed {
+		panic("address not in freeze admin list: " + addr.String())
+	}
+	chain.Emit("FreezeAdminRemoved", "addr", addr.String())
 }
+
+// IsFreezeAdmin returns true if addr is in the freeze admin list.
+func IsFreezeAdmin(addr address) bool {
+	_, ok := freezeAdmins.Get(addr.String())
+	return ok
+}
+
+// GetFreezeAdmins returns all addresses in the freeze admin list.
+func GetFreezeAdmins() []address {
+	out := make([]address, 0, freezeAdmins.Size())
+	freezeAdmins.Iterate("", "", func(key string, _ any) bool {
+		out = append(out, address(key))
+		return false
+	})
+	return out
+}
+
+// ---- read helpers -----------------------------------------------------------
 
 // IsFrozen returns true if addr is currently frozen.
 func IsFrozen(addr address) bool {
@@ -208,42 +172,136 @@ func GetFrozenValidators() []address {
 	return out
 }
 
-// renderFrozen returns a markdown section listing frozen validators,
-// or an empty string if none are frozen. Called by Render.
+// ---- render -----------------------------------------------------------------
+
+// renderFrozen returns a markdown section listing frozen validators and
+// current freeze admins. Called by Render in validators.gno.
 func renderFrozen() string {
-	if frozenSet.Size() == 0 {
-		return ""
-	}
 	var sb strings.Builder
-	sb.WriteString("\n## Frozen Validators\n\n")
-	sb.WriteString("| Address | Reason | Frozen At |\n")
-	sb.WriteString("|---------|--------|----------|\n")
-	frozenSet.Iterate("", "", func(key string, raw any) bool {
-		e := raw.(frozenEntry)
-		sb.WriteString(ufmt.Sprintf("| %s | %s | %d |\n", key, e.Reason, e.FrozenAt))
-		return false
-	})
+
+	if frozenSet.Size() > 0 {
+		sb.WriteString("\n## Frozen Validators\n\n")
+		sb.WriteString("| Address | Reason | Frozen At |\n")
+		sb.WriteString("|---------|--------|----------|\n")
+		frozenSet.Iterate("", "", func(key string, raw any) bool {
+			e := raw.(frozenEntry)
+			sb.WriteString(ufmt.Sprintf("| %s | %s | %d |\n", key, e.Reason, e.FrozenAt))
+			return false
+		})
+	}
+
+	sb.WriteString("\n## Freeze Admins\n\n")
+	if freezeAdmins.Size() == 0 {
+		sb.WriteString("_(none — only GovDAO can freeze/unfreeze)_\n")
+	} else {
+		freezeAdmins.Iterate("", "", func(key string, _ any) bool {
+			sb.WriteString("- " + key + "\n")
+			return false
+		})
+	}
+
 	return sb.String()
 }
 
-// assertFreezeAdmin panics if the transaction origin caller is not freezeAdmin.
-func assertFreezeAdmin(_ realm) {
-	if freezeAdmin == address("") {
-		panic("freeze admin not configured; set via SetFreezeAdmin GovDAO proposal")
+// ---- internal helpers -------------------------------------------------------
+
+// doFreeze is the shared freeze implementation (auth already checked by caller).
+func doFreeze(cur realm, addr address, reason string) {
+	key := addr.String()
+	if _, exists := frozenSet.Get(key); exists {
+		panic("validator is already frozen: " + key)
+	}
+
+	effective := sysparams.GetValsetEffective()
+	var target *validators.Validator
+	for i := range effective {
+		if effective[i].Address == addr {
+			target = &effective[i]
+			break
+		}
+	}
+	if target == nil {
+		panic("validator not found in effective valset: " + key)
+	}
+
+	// Liveness floor: count-based for Phase A.
+	// Phase B will use a power-weighted floor (e.g. 80% of total power).
+	live := len(effective) - frozenSet.Size() - 1
+	if live*3 < len(effective)*2 {
+		panic(ufmt.Sprintf(
+			"freeze would drop live validators to %d/%d, violating the 2/3 floor",
+			live, len(effective),
+		))
+	}
+
+	frozenSet.Set(key, frozenEntry{
+		Addr:        addr,
+		PubKey:      target.PubKey,
+		VotingPower: target.VotingPower,
+		Reason:      reason,
+		FrozenAt:    runtime.ChainHeight(),
+	})
+
+	publishValsetWithout(cur, addr)
+
+	chain.Emit(
+		"ValidatorFrozen",
+		"addr", key,
+		"reason", reason,
+		"height", strconv.FormatInt(runtime.ChainHeight(), 10),
+	)
+}
+
+// doUnfreeze is the shared unfreeze implementation (auth already checked).
+func doUnfreeze(cur realm, addr address, reason string) {
+	key := addr.String()
+	raw, exists := frozenSet.Get(key)
+	if !exists {
+		panic("validator is not frozen: " + key)
+	}
+	e := raw.(frozenEntry)
+	frozenSet.Remove(key)
+
+	effective := sysparams.GetValsetEffective()
+	set := make(map[address]validators.Validator, len(effective)+1)
+	for _, v := range effective {
+		set[v.Address] = v
+	}
+	set[addr] = validators.Validator{
+		Address:     addr,
+		PubKey:      e.PubKey,
+		VotingPower: e.VotingPower,
+	}
+
+	publishValsetFromMap(cur, set)
+
+	chain.Emit(
+		"ValidatorUnfrozen",
+		"addr", key,
+		"reason", reason,
+		"height", strconv.FormatInt(runtime.ChainHeight(), 10),
+	)
+}
+
+// assertFreezeOrAdmin allows the call through if either:
+//   - the immediate calling realm is GovDAO (proposal executor path), or
+//   - the transaction origin caller is in freezeAdmins (direct admin path).
+func assertFreezeOrAdmin(cur realm) {
+	if cur.Previous().PkgPath() == govDAORealmPath {
+		return
 	}
 	caller := runtimeunsafe.OriginCaller()
-	if caller != freezeAdmin {
-		panic("caller " + caller.String() + " is not the freeze admin")
+	if _, ok := freezeAdmins.Get(caller.String()); ok {
+		return
 	}
+	panic("caller is not a freeze admin and this is not a GovDAO call; " +
+		"use NewFreezeProposalRequest or be added to the admin list via AddFreezeAdmin")
 }
 
 // assertGovDAOCaller panics if the immediate calling realm is not GovDAO.
-// Only used for SetFreezeAdmin.
-const govDAORealmPath = "gno.land/r/gov/dao"
-
 func assertGovDAOCaller(cur realm) {
 	if cur.Previous().PkgPath() != govDAORealmPath {
-		panic("SetFreezeAdmin must be called from " + govDAORealmPath)
+		panic("must be called from " + govDAORealmPath)
 	}
 }
 
