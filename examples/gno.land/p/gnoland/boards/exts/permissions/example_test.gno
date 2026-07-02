@@ -1,10 +1,9 @@
-package main
+package permissions
 
 import (
 	"errors"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/gnoland/boards/exts/permissions"
 )
 
 // Example user account
@@ -16,7 +15,7 @@ const RoleExample boards.Role = "example"
 // Define a permission
 const PermissionFoo boards.Permission = 42
 
-func main() {
+func ExamplePermission() {
 	// Define a custom foo permission validation function
 	validateFoo := func(_ boards.Permissions, args boards.Args) error {
 		// Check that the first argument is the string "bob"
@@ -27,7 +26,7 @@ func main() {
 	}
 
 	// Create a permissions instance and assign the custom validator to it
-	perms := permissions.New()
+	perms := New()
 	perms.ValidateFunc(PermissionFoo, validateFoo)
 
 	// Add foo permission to example role
@@ -41,7 +40,7 @@ func main() {
 	perms.WithPermission(user, PermissionFoo, args, func() {
 		println("Hello Bob!")
 	})
-}
 
-// Output:
-// Hello Bob!
+	// Output:
+	// Hello Bob!
+}

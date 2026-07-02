@@ -1677,18 +1677,24 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
+		var appendComma bool
 		for i := range sl {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
+			if appendComma {
+				bz = append(bz, ',')
+			} else {
+				appendComma = true
+			}
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
-			if i != sl-1 {
-				bz = append(bz, ',')
-			}
 		}
 		bz = append(bz, '}')
 	default:
@@ -2152,18 +2158,33 @@ func (tv *TypedValue) GetType() Type {
 	return tv.V.(TypeValue).Type
 }
 
+// GetFunc returns the *FuncValue, or nil for a typed-nil func variable
+// (e.g. `var f func()`). Panics if tv.V holds an unexpected type — most
+// notably *BoundMethodValue, which callers must reach via GetUnboundFunc.
 func (tv *TypedValue) GetFunc() *FuncValue {
-	return tv.V.(*FuncValue)
+	switch fv := tv.V.(type) {
+	case nil:
+		return nil
+	case *FuncValue:
+		return fv
+	default:
+		panic(fmt.Sprintf("expected *FuncValue or nil but got %T", tv.V))
+	}
 }
 
+// GetUnboundFunc returns the underlying *FuncValue for both plain funcs
+// and bound methods (stripping the receiver), or nil for a typed-nil
+// func/method variable. Panics on any other type.
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	switch fv := tv.V.(type) {
+	case nil:
+		return nil
 	case *FuncValue:
 		return fv
 	case *BoundMethodValue:
 		return fv.Func
 	default:
-		panic(fmt.Sprintf("expected function or bound method but got %T", tv.V))
+		panic(fmt.Sprintf("expected func/method or nil but got %T", tv.V))
 	}
 }
 
