@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2720,13 +2721,9 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	// methods) has nothing to flatten — return it as-is, skipping the dedup
 	// map and per-method key building. Direct unexported methods need no
 	// PkgPath stamp: idName falls back to the enclosing pkgPath at TypeID time.
-	hasEmbed := false
-	for i := range fts {
-		if embeddedInterface(fts[i].Type) != nil {
-			hasEmbed = true
-			break
-		}
-	}
+	hasEmbed := slices.ContainsFunc(fts, func(ft FieldType) bool {
+		return embeddedInterface(ft.Type) != nil
+	})
 	if !hasEmbed {
 		return fts
 	}
