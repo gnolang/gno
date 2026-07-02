@@ -174,6 +174,7 @@ func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 	}
 	for name, use := range uses {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel() // uses is read-only on the shared types; TypeID panics before its cache write
 			defer func() {
 				r := recover()
 				if r == nil {
