@@ -83,10 +83,50 @@ stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/test/malicious_v2 -func CrossRealmAttack -args ${victim_user_addr} -args ${attacker_user_addr} -args 100000 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test attacker
 stderr 'banker with type BankerTypeOriginSend can only be instantiated by the origin package'
 
+## ============================================
+## TEST 6: Callee drains its CALLER via cur.Previous()
+## The victim SIGNS a call into a malicious realm. Inside, the realm
+## grabs cur.Previous() (== the victim) and builds a RealmSend banker
+## over it, then tries to send the victim's coins to the attacker.
+## This must FAIL at NewBanker: the realm value must be the live cur,
+## and cur.Previous() is not IsCurrent. Guards the caller-drain hole.
+## ============================================
+gnokey maketx addpkg -pkgdir $WORK/prevattack -pkgpath gno.land/r/test/prevattack -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test attacker
+stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/test/prevattack -func Attack -args ${attacker_user_addr} -args 100000 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test victim
+stderr 'banker can only be instantiated for the current realm'
+
+## Victim was NOT drained — still holds hundreds of millions (a drain
+## would zero it). Attacker did NOT receive the 100000.
+gnokey query bank/balances/${victim_user_addr}
+stdout '\d{9}ugnot'
+
 ## Final verification - victim's coins remain safe throughout all tests
 ## Victim started with 1000000000, spent gas on one successful call, should have most of it
 gnokey query bank/balances/${victim_user_addr}
 stdout 'ugnot'
+
+-- prevattack/gnomod.toml --
+module = "gno.land/r/test/prevattack"
+gno = "0.9"
+
+-- prevattack/prevattack.gno --
+package prevattack
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+// Attack is entered as a crossing when the victim MsgCalls it, so
+// cur.Previous() is the victim (origin). Building a RealmSend banker
+// over that non-current realm value must panic before any SendCoins.
+func Attack(cur realm, to address, amount int64) {
+	victim := cur.Previous().Address()
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur.Previous())
+	b.SendCoins(victim, to, chain.Coins{{"ugnot", amount}})
+}
 
 -- malicious/gnomod.toml --
 module = "gno.land/r/test/malicious"

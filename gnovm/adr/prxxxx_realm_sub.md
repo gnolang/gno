@@ -547,38 +547,60 @@ A sub-token minted from a truly-nil-prev cur (test frames) would be
 wrongly exempt. The carve-out must gain a `subpath == ""` condition.
 One line, but load-bearing.
 
-## Banker compatibility (no native change needed)
+## Banker compatibility (one `.gno`-layer guard, no native change)
 
-The existing banker implementation handles sub-tokens correctly with
-**no changes to native code**. The stdlib banker
-(`gnovm/stdlibs/chain/banker/banker.gno`) accepts any `realm` interface
-value at `NewBanker(bt BankerType, rlm realm)`, stores `rlm.Address()`
-and `rlm.PkgPath()`, and authorizes `SendCoins(from, to address, amt
-chain.Coins)` via the existing `b.pkgAddr == from` check
-(`banker.gno:150`). The native `X_bankerSendCoins`
-(`banker.go:41-67`) delegates to the chain bank keeper with no auth
-check of its own — authorization lives entirely at the `.gno` layer.
-Because sub-tokens implement the `realm` interface and report the
-correct sub-address / synthesized pkgpath, the existing path Just
-Works:
+The stdlib banker (`gnovm/stdlibs/chain/banker/banker.gno`) accepts any
+`realm` value at `NewBanker(bt BankerType, rlm realm)`, stores
+`rlm.Address()`/`rlm.PkgPath()`, and authorizes `SendCoins(from, to,
+amt)` via `b.pkgAddr == from` (`banker.gno`). The native
+`X_bankerSendCoins` (`banker.go:41-67`) delegates to the chain bank
+keeper with no auth of its own — authorization lives entirely at the
+`.gno` layer. Sub-tokens implement `realm` and report the correct
+sub-address / synthesized pkgpath, so they flow through unchanged:
 
 ```go
-b := banker.NewBanker(banker.BankerTypeRealmSend, cur.Sub("dao/42"))
+sub := cur.Sub("dao/42")
+b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 // b.pkgAddr = chain.PackageAddress(synthesized pkgpath) = DAO sub-address
-// b.pkgPath = "gno.land/r/nt/commondao/v0:dao/42"
-b.SendCoins(cur.Sub("dao/42").Address(), dest, coins)
-// .gno-layer check: b.pkgAddr == from ✓
-// native X_bankerSendCoins: delegates to chain bank keeper, no auth check
+b.SendCoins(sub.Address(), dest, coins)   // .gno check: b.pkgAddr == from ✓
 ```
 
-The security model is **rlm-as-capability**: you can only hold an rlm
-whose Address represents authority you legitimately have, because rlm
-values are produced only by frame mechanics, `Sub()` (gated by the
-strict entry guard and caller-pkgpath check), and Previous() walks
-(gated by staleness checks). There is no rlm literal constructor. So
-if `NewBanker(bt, rlm)` is called, the caller must have legitimately
-come into possession of rlm — which is exactly the existing model.
-Sub-tokens slot in without extending it.
+### Prerequisite fix: NewBanker must require `IsCurrent()`
+
+The rlm-as-capability model — "you can only hold an rlm whose Address
+represents authority you legitimately have" — is only sound if
+`NewBanker` refuses realm values that are *not the live cur*. It did
+not: `cur.Previous()` hands every callee a realm value bearing its
+**caller's** address (`IsCurrent()==false`), and the old `NewBanker`
+had no `IsCurrent()` gate for `RealmSend`/`RealmIssue`. A callee could
+therefore build `NewBanker(RealmSend, cur.Previous())` (pkgAddr =
+caller) and `SendCoins(caller, attacker, …)` — the `pkgAddr == from`
+gate passes and the bank keeper moves the caller's coins. For a
+MsgCall, that means any realm could drain the user who called it. This
+is a **pre-existing base-v2 hole**, independent of sub-realms, but it
+is exactly the path this section relies on, so the fix lands here:
+
+```go
+// banker.gno NewBanker, before the type-specific checks:
+if !rlm.IsCurrent() {
+    panic("banker can only be instantiated for the current realm")
+}
+```
+
+Construction-time is the correct check point: the `banker` value holds
+no realm handle, so use-time re-checking is impossible, and the
+legitimate pattern is construct-from-live-cur-then-store/reuse (the
+treasury `/p/` wrappers, `banker_persistence.txtar`). Live sub-tokens
+pass (`IsCurrent` is parent-anchored for them), so the sub-token flow
+above is preserved. `docs/resources/gno-security.md` Class 2 ("never
+trust `rlm.Address()` without `IsCurrent()`") already prescribes this;
+`NewBanker` was an unfixed instance. Regression tests:
+`banker_security.txtar` TEST 6 (real-keeper drain blocked) and
+`zrealm_banker_previous.gno` (VM-level).
+
+With the gate, the rlm-as-capability invariant holds: `rlm` values are
+produced only by frame mechanics, `Sub()` (gated), and `Previous()`
+walks — and only the *live* one can mint a banker.
 
 ### Forbidden banker types for sub-tokens
 

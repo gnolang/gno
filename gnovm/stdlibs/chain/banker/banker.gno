@@ -93,6 +93,14 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
+	// rlm authorizes spending/issuing from rlm.Address(); require it to
+	// be the live cur. Without this, a callee could pass cur.Previous()
+	// (IsCurrent()==false, addr = caller) and the pkgAddr==from gate in
+	// SendCoins would then authorize draining the CALLER's balance. Live
+	// sub-tokens still pass (IsCurrent is parent-anchored for them).
+	if !rlm.IsCurrent() {
+		panic("banker can only be instantiated for the current realm")
+	}
 	// Sub-realm tokens (synthesized "host:subpath" pkgpath) may only
 	// construct RealmSend bankers: RealmIssue would mint denoms with a
 	// double-":" shape, and OriginSend's guard below is meaningless for
