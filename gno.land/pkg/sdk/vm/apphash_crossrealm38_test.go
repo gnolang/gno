@@ -68,7 +68,7 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28826f4b44d7faccb1eda98de29be903af1b3f9b5c8d4499f0028cc130c448a3"
+const expectedCrossrealm38Hash = "b1d841e9acebf4c51e564abab12ce43499bf4b1a3a87fbb10c22db781153b316"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

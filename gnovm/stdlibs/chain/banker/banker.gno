@@ -96,13 +96,12 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	// Sub-realm tokens (synthesized "host:subpath" pkgpath) may only
 	// construct RealmSend bankers: RealmIssue would mint denoms with a
 	// double-":" shape, and OriginSend's guard below is meaningless for
-	// a sub-address that never holds the origin-send envelope.
-	if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
-		switch bt {
-		case BankerTypeRealmIssue:
-			panic("BankerTypeRealmIssue not supported for sub-realm tokens")
-		case BankerTypeOriginSend:
-			panic("BankerTypeOriginSend not supported for sub-realm tokens")
+	// a sub-address that never holds the origin-send envelope. Gate on
+	// bt first (an int compare) so the common Readonly/RealmSend paths
+	// skip the pkgpath split; fail-closed for any future banker type.
+	if bt != BankerTypeRealmSend {
+		if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
+			panic(bt.String() + " not supported for sub-realm tokens")
 		}
 	}
 	if bt == BankerTypeOriginSend && !rlm.Previous().IsUserCall() {

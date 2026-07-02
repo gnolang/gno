@@ -234,14 +234,32 @@ var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
 // through this helper to keep the HIV+PointerValue construction in one
 // place.
 func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue) TypedValue {
-	return newSubRealmHIVPointer(alloc, addr, pkgPath, prevField, "", TypedValue{})
+	// Primaries carry the 3-field shape; only Sub() mints the 5-field
+	// form (see newSubRealmHIVPointer). This keeps the per-crossing
+	// mint lean, and readers of fields ≥3 go through
+	// realmSubpathOf/realmParentOf, which treat missing fields as zero.
+	return newRealmHIVFromFields(alloc, []TypedValue{
+		{T: gAddressType, V: StringValue(addr)},
+		{T: StringType, V: StringValue(pkgPath)},
+		prevField,
+	})
 }
 
-// newSubRealmHIVPointer is newRealmHIVPointer plus the sub-token fields.
-// subpath is non-empty only for tokens minted by Sub(); parentField then
-// carries the minting cur (stored like prev: a *.grealm-typed value whose
-// PointerValue base is the parent HIV).
+// newSubRealmHIVPointer is newRealmHIVPointer plus the sub-token fields:
+// subpath (non-empty by construction) and parentField, the minting cur
+// (stored like prev: a *.grealm-typed value whose PointerValue base is
+// the parent HIV).
 func newSubRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue, subpath string, parentField TypedValue) TypedValue {
+	return newRealmHIVFromFields(alloc, []TypedValue{
+		{T: gAddressType, V: StringValue(addr)},
+		{T: StringType, V: StringValue(pkgPath)},
+		prevField,
+		{T: StringType, V: StringValue(subpath)},
+		parentField,
+	})
+}
+
+func newRealmHIVFromFields(alloc *Allocator, fields []TypedValue) TypedValue {
 	// Realm-handle values are ephemeral and forbidden from
 	// persistence (see refusePersistRealmHIV). They never reach
 	// assignNewObjectID or saveObject — so deliberately don't
@@ -253,13 +271,7 @@ func newSubRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField Typ
 	// routes through cross-realm finalize. Inline-construct the
 	// HeapItemValue instead, doing accounting but no stamp.
 	alloc.AllocateHeapItem()
-	sv := &StructValue{Fields: []TypedValue{
-		{T: gAddressType, V: StringValue(addr)},
-		{T: StringType, V: StringValue(pkgPath)},
-		prevField,
-		{T: StringType, V: StringValue(subpath)},
-		parentField,
-	}}
+	sv := &StructValue{Fields: fields}
 	hiv := &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	return TypedValue{
 		T: gConcreteRealmPtrType,
@@ -437,21 +449,6 @@ func MakeRealmValue(alloc *Allocator, addr, pkgPath string, prev TypedValue) Typ
 	return newRealmHIVPointer(alloc, addr, pkgPath, prevField)
 }
 
-// RealmValueParts extracts (addr, pkgPath, prev) from a realm TypedValue,
-// with ok=false when tv isn't realm-shaped. prev is the raw prev field
-// (T == nil at the origin terminal). For execctx's identity-chain walker;
-// keeps .grealm field-layout knowledge inside this package.
-func RealmValueParts(tv TypedValue) (addr, pkgPath string, prev TypedValue, ok bool) {
-	sv := derefRealmStruct(&tv)
-	if sv == nil || len(sv.Fields) <= realmFieldPrev {
-		return "", "", TypedValue{}, false
-	}
-	return sv.Fields[realmFieldAddr].GetString(),
-		sv.Fields[realmFieldPkgPath].GetString(),
-		sv.Fields[realmFieldPrev],
-		true
-}
-
 // subRealmPathError validates Sub()'s subpath rules plus the
 // derivation-safety asserts: the host must be colon-free (forecloses
 // nested synthesis through any unforeseen path) and the synthesized
@@ -459,7 +456,7 @@ func RealmValueParts(tv TypedValue) (addr, pkgPath string, prev TypedValue, ok b
 // shortcut. Returns "" when valid. Mirrored by chain.DerivePkgSubAddr
 // on the .gno side (where the host-colon-free assert subsumes the
 // run-path one).
-func subRealmPathError(host, subpath string) string {
+func subRealmPathError(host, subpath, synthesized string) string {
 	switch {
 	case subpath == "":
 		return "Sub: subpath cannot be empty"
@@ -472,7 +469,10 @@ func subRealmPathError(host, subpath string) string {
 	case strings.Contains(host, ":"):
 		return "Sub: receiver pkgpath is already synthesized or invalid"
 	}
-	if _, ok := IsGnoRunPath(host + ":" + subpath); ok {
+	// Unreachable while the run-path regex stays colon-free (the two
+	// colon guards above ensure synthesized contains ':'); kept as a
+	// defense-in-depth assert against future regex relaxation.
+	if _, ok := IsGnoRunPath(synthesized); ok {
 		return "Sub: synthesized pkgpath must not be a run path"
 	}
 	return ""
@@ -539,27 +539,51 @@ func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
 	return topHIV != nil && topHIV == checkHIV
 }
 
-// topmostCrossingFrameCurHIV walks frames topmost-down and returns the
-// Cur HIV of the first crossing frame (WithCross or DidCrossing) that
-// carries one, or nil when no crossing frame is live. Non-crossing
-// frames — including the calling native's own — are skipped. Shared by
-// realmIsCurrentOnMachine (relaxed: parent-reference for sub-tokens)
-// and nativeSub's entry guard (strict: receiver HIV directly).
+// topmostCrossingFrameCurHIV returns the topmost crossing frame's Cur
+// HIV, or nil when no crossing frame is live (see Machine.topCrossingCur
+// for the walk). Shared by realmIsCurrentOnMachine (relaxed:
+// parent-reference for sub-tokens) and nativeSub's entry guard (strict:
+// receiver HIV directly).
 func topmostCrossingFrameCurHIV(m *Machine) *HeapItemValue {
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if !fr.IsCall() {
-			continue
-		}
-		if !(fr.WithCross || fr.DidCrossing) {
-			continue
-		}
-		if fr.Cur.T == nil {
-			continue
-		}
-		return realmHIV(&fr.Cur)
+	cur, ok := m.topCrossingCur()
+	if !ok {
+		return nil
 	}
-	return nil
+	return realmHIV(&cur)
+}
+
+// PresentedRealmAt returns the presented identity at the given height of
+// the live crossing chain: the topmost crossing frame's Cur at height 0,
+// then one .prev per height step. Each prev slot holds the realm value
+// presented at that crossing — cross(rlm) stores rlm verbatim, including
+// sub-realm tokens — which is what keeps unsafe.{Current,Previous}Realm
+// in agreement with cur/cur.Previous() for sub-identities. ok is false
+// when no crossing frame carries a Cur, when the value at the requested
+// height is the origin-shaped terminal (own prev truly-nil; the
+// stage-dependent boundary answers belong to the caller's legacy
+// fallback), or when a value in the chain is not realm-shaped.
+func PresentedRealmAt(m *Machine, height int) (addr, pkgPath string, ok bool) {
+	v, ok := m.topCrossingCur()
+	if !ok {
+		return "", "", false
+	}
+	for h := 0; h <= height; h++ {
+		sv := derefRealmStruct(&v)
+		if sv == nil || len(sv.Fields) <= realmFieldPrev {
+			return "", "", false // non-realm shape
+		}
+		prev := sv.Fields[realmFieldPrev]
+		if prev.T == nil {
+			return "", "", false // origin terminal
+		}
+		if h == height {
+			return sv.Fields[realmFieldAddr].GetString(),
+				sv.Fields[realmFieldPkgPath].GetString(),
+				true
+		}
+		v = prev
+	}
+	return "", "", false // unreachable
 }
 
 // realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
@@ -1615,17 +1639,15 @@ func makeUverseNode() {
 			recv := arg0.TV
 			subpath := arg1.TV.GetString()
 			sv := derefRealmStruct(recv)
-			host := ""
-			if sv != nil {
-				host = sv.Fields[realmFieldPkgPath].GetString()
-			}
+			host := sv.Fields[realmFieldPkgPath].GetString()
+			synthesized := host + ":" + subpath
 			// Charge before any work (mirroring chain.packageAddress's
 			// calibrated cost over the synthesized path) so failed
 			// calls pay too. A native_gas.go table entry would never
 			// fire here: uverse natives have NativePkg == "" and
 			// chargeNativeGas short-circuits to the flat body charge.
-			m.incrCPU(OpCPUSubRealmBase + OpCPUSubRealmSlope*int64(len(host)+1+len(subpath))/1024)
-			if err := subRealmPathError(host, subpath); err != "" {
+			m.incrCPU(OpCPUSubRealmBase + OpCPUSubRealmSlope*int64(len(synthesized))/1024)
+			if err := subRealmPathError(host, subpath, synthesized); err != "" {
 				m.PanicString(err)
 				return
 			}
@@ -1647,7 +1669,6 @@ func makeUverseNode() {
 				m.PanicString("Sub: caller is not operating in the receiver's namespace")
 				return
 			}
-			synthesized := host + ":" + subpath
 			sub := newSubRealmHIVPointer(m.Alloc,
 				string(DerivePkgBech32Addr(synthesized)),
 				synthesized,

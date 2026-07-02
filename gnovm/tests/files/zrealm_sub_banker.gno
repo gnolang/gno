@@ -11,7 +11,7 @@ import (
 // RealmSend banker constructed from the sub-token — no banker changes
 // needed. RealmIssue and OriginSend banker types are forbidden for
 // sub-tokens.
-func tryNewBanker(_ int, bt banker.BankerType, rlm realm) {
+func tryNewBanker(bt banker.BankerType, rlm realm) {
 	defer func() {
 		println("recovered:", recover())
 	}()
@@ -34,8 +34,8 @@ func main(cur realm) {
 	println("dest balance:", banker.NewReadonlyBanker().GetCoins(dest).String())
 
 	// Forbidden banker types for sub-tokens.
-	tryNewBanker(0, banker.BankerTypeRealmIssue, sub)
-	tryNewBanker(0, banker.BankerTypeOriginSend, sub)
+	tryNewBanker(banker.BankerTypeRealmIssue, sub)
+	tryNewBanker(banker.BankerTypeOriginSend, sub)
 }
 
 // Output:

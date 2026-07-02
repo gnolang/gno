@@ -68,23 +68,24 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-// innermostCrossingCur returns the topmost crossing frame's captured
-// Cur, if any. Keep in sync with execctx.innermostCrossingCur.
-func innermostCrossingCur(m *gno.Machine) (gno.TypedValue, bool) {
-	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if !fr.IsCall() {
-			continue
-		}
-		if !(fr.WithCross || fr.DidCrossing) {
-			continue
-		}
-		if fr.Cur.T == nil {
-			continue
-		}
-		return fr.Cur, true
+// anyLiveOverride reports whether any on-stack frame carries a live
+// testing.SetRealm override (map entry AND the frame's TestOverridden
+// flag, matching getOverride's validity rule). Stale map entries left
+// by popped frames don't count — they must not disable the identity
+// chain for the rest of the machine.
+func anyLiveOverride(m *gno.Machine, ctx *TestExecContext) bool {
+	if len(ctx.RealmFrames) == 0 {
+		return false
 	}
-	return gno.TypedValue{}, false
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		if !m.Frames[i].TestOverridden {
+			continue
+		}
+		if _, ok := ctx.RealmFrames[i]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
@@ -102,24 +103,15 @@ func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 
 	ctx := m.Context.(*TestExecContext)
 
-	// Identity-chain walk (keep in sync with execctx.GetRealm): serve
-	// presented identities — including sub-realm tokens — from the
-	// innermost crossing frame's Cur and its prev chain. Applied only
-	// when no testing.SetRealm overrides are active: overrides are
-	// frame-index-keyed and interleave with the legacy walk below.
-	if len(ctx.RealmFrames) == 0 {
-		if cur, ok := innermostCrossingCur(m); ok {
-			v := cur
-			for h := 0; h <= height; h++ {
-				a, p, prev, ok := gno.RealmValueParts(v)
-				if !ok || prev.T == nil {
-					break // terminal or non-realm shape: legacy fallback
-				}
-				if h == height {
-					return a, p
-				}
-				v = prev
-			}
+	// Identity-chain walk (see execctx.GetRealm / gno.PresentedRealmAt):
+	// serves presented identities, including sub-realm tokens. Applied
+	// only when no live testing.SetRealm override is on the stack:
+	// overrides are frame-index-keyed and interleave with the legacy
+	// walk below, and UserRealm overrides on non-crossing frames are
+	// invisible to the chain — the gate is load-bearing.
+	if !anyLiveOverride(m, ctx) {
+		if a, p, ok := gno.PresentedRealmAt(m, height); ok {
+			return a, p
 		}
 	}
 
