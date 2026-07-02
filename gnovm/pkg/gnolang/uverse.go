@@ -157,6 +157,14 @@ var gRealmType = &DeclaredType{
 					Params:  nil,
 					Results: []FieldType{{Type: BoolType}},
 				},
+			}, { // result type gets filled in init() below.
+				Name: "Sub",
+				Type: &FuncType{
+					Params: []FieldType{{Name: "subpath", Type: StringType}},
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
 			}, {
 				// Seal marker: a dot-named method that user code cannot
 				// declare (Gno's parser rejects identifiers starting with
@@ -191,11 +199,31 @@ var gConcreteRealmType = &DeclaredType{
 			// Type pointer-patched in init() below once
 			// gConcreteRealmPtrType is visible.
 			{Name: "prev", Type: nil},
+			// subpath/parent are set only on sub-tokens minted by
+			// Sub(). parent is *.grealm like prev (type patched in
+			// init() below); it anchors IsCurrent/cross staleness
+			// checks to the minting cur and is not exposed via
+			// Previous(). Values that predate these fields carry the
+			// legacy 3-field shape — read them only through
+			// realmSubpathOf/realmParentOf, which treat missing
+			// fields as zero.
+			{Name: "subpath", Type: StringType},
+			{Name: "parent", Type: nil},
 		},
 	},
 	sealed: true,
 	// methods defined in makeUverseNode()
 }
+
+// Field indices into the .grealm StructValue. Values constructed before
+// the sub-realm extension carry only the first three.
+const (
+	realmFieldAddr    = 0
+	realmFieldPkgPath = 1
+	realmFieldPrev    = 2
+	realmFieldSubpath = 3
+	realmFieldParent  = 4
+)
 
 // Singleton pointer type for *.grealm. Allocated once so TypeID memoization
 // is stable across the realm machinery.
@@ -206,6 +234,14 @@ var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
 // through this helper to keep the HIV+PointerValue construction in one
 // place.
 func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue) TypedValue {
+	return newSubRealmHIVPointer(alloc, addr, pkgPath, prevField, "", TypedValue{})
+}
+
+// newSubRealmHIVPointer is newRealmHIVPointer plus the sub-token fields.
+// subpath is non-empty only for tokens minted by Sub(); parentField then
+// carries the minting cur (stored like prev: a *.grealm-typed value whose
+// PointerValue base is the parent HIV).
+func newSubRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue, subpath string, parentField TypedValue) TypedValue {
 	// Realm-handle values are ephemeral and forbidden from
 	// persistence (see refusePersistRealmHIV). They never reach
 	// assignNewObjectID or saveObject — so deliberately don't
@@ -221,12 +257,32 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 		{T: gAddressType, V: StringValue(addr)},
 		{T: StringType, V: StringValue(pkgPath)},
 		prevField,
+		{T: StringType, V: StringValue(subpath)},
+		parentField,
 	}}
 	hiv := &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	return TypedValue{
 		T: gConcreteRealmPtrType,
 		V: PointerValue{TV: &hiv.Value, Base: hiv, Index: 0},
 	}
+}
+
+// realmSubpathOf returns the sub-token subpath, or "" for primary curs
+// and legacy 3-field values.
+func realmSubpathOf(sv *StructValue) string {
+	if sv == nil || len(sv.Fields) <= realmFieldSubpath {
+		return ""
+	}
+	return sv.Fields[realmFieldSubpath].GetString()
+}
+
+// realmParentOf returns the sub-token's internal parent HIV (the cur it
+// was minted from), or nil for primary curs and legacy 3-field values.
+func realmParentOf(sv *StructValue) *HeapItemValue {
+	if sv == nil || len(sv.Fields) <= realmFieldParent {
+		return nil
+	}
+	return realmHIV(&sv.Fields[realmFieldParent])
 }
 
 // gOriginRealmTV is the preprocess-time placeholder origin realm. It
@@ -256,7 +312,10 @@ func isOriginRealmHIV(hiv *HeapItemValue) bool {
 	if !ok || len(sv.Fields) < 3 {
 		return false
 	}
-	return sv.Fields[2].V == nil
+	// Sub-tokens are never origin-exempt, even with a truly-nil prev:
+	// the exemption exists only for the shared chain-root marker, and
+	// exempting a sub-token here would make it persistable.
+	return sv.Fields[realmFieldPrev].V == nil && realmSubpathOf(sv) == ""
 }
 
 // errPersistRealm is the shared panic message for realm-value persistence
@@ -322,8 +381,14 @@ func init() {
 	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
 	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
 
-	// Patch the prev field's type (forward reference; see field 2 above).
-	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
+	// Patch the prev and parent fields' types (forward references; see
+	// the field declarations above).
+	gConcreteRealmType.Base.(*StructType).Fields[realmFieldPrev].Type = gConcreteRealmPtrType
+	gConcreteRealmType.Base.(*StructType).Fields[realmFieldParent].Type = gConcreteRealmPtrType
+
+	// Patch Sub's result type (forward reference like Previous above).
+	gRealmSub := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Sub")
+	gRealmSub.Type.(*FuncType).Results[0].Type = gRealmType
 
 	// Build the global placeholder origin realm now that types are wired.
 	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
@@ -372,6 +437,47 @@ func MakeRealmValue(alloc *Allocator, addr, pkgPath string, prev TypedValue) Typ
 	return newRealmHIVPointer(alloc, addr, pkgPath, prevField)
 }
 
+// RealmValueParts extracts (addr, pkgPath, prev) from a realm TypedValue,
+// with ok=false when tv isn't realm-shaped. prev is the raw prev field
+// (T == nil at the origin terminal). For execctx's identity-chain walker;
+// keeps .grealm field-layout knowledge inside this package.
+func RealmValueParts(tv TypedValue) (addr, pkgPath string, prev TypedValue, ok bool) {
+	sv := derefRealmStruct(&tv)
+	if sv == nil || len(sv.Fields) <= realmFieldPrev {
+		return "", "", TypedValue{}, false
+	}
+	return sv.Fields[realmFieldAddr].GetString(),
+		sv.Fields[realmFieldPkgPath].GetString(),
+		sv.Fields[realmFieldPrev],
+		true
+}
+
+// subRealmPathError validates Sub()'s subpath rules plus the
+// derivation-safety asserts: the host must be colon-free (forecloses
+// nested synthesis through any unforeseen path) and the synthesized
+// path must not alias DerivePkgBech32Addr's run-path address-extraction
+// shortcut. Returns "" when valid. Mirrored by chain.DerivePkgSubAddr
+// on the .gno side (where the host-colon-free assert subsumes the
+// run-path one).
+func subRealmPathError(host, subpath string) string {
+	switch {
+	case subpath == "":
+		return "Sub: subpath cannot be empty"
+	case len(subpath) > 256:
+		return "Sub: subpath too long (max 256 bytes)"
+	case strings.Contains(subpath, ":"):
+		return "Sub: subpath cannot contain ':'"
+	case strings.Contains(subpath, "\x00"):
+		return "Sub: subpath cannot contain NUL byte"
+	case strings.Contains(host, ":"):
+		return "Sub: receiver pkgpath is already synthesized or invalid"
+	}
+	if _, ok := IsGnoRunPath(host + ":" + subpath); ok {
+		return "Sub: synthesized pkgpath must not be a run path"
+	}
+	return ""
+}
+
 // derefRealmStruct unwraps a realm TypedValue (pointer-typed *.grealm, or
 // value-receiver form) to its underlying *StructValue. Returns nil when
 // the TypedValue's shape doesn't match (no PointerValue/StructValue), so
@@ -416,6 +522,30 @@ func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
 	if recvHIV == nil {
 		return false
 	}
+	// Sub-tokens are current iff their minting cur is: a sub-token's
+	// own HIV is never a frame's Cur, so compare via the internal
+	// parent reference instead. This relaxation is safe because the
+	// synthesized pkgpath keeps pkgpath-keyed auth checks precise;
+	// Sub()'s own entry guard deliberately does NOT use it (see
+	// nativeSub).
+	checkHIV := recvHIV
+	if sv := derefRealmStruct(tv); realmSubpathOf(sv) != "" {
+		checkHIV = realmParentOf(sv)
+		if checkHIV == nil {
+			return false
+		}
+	}
+	topHIV := topmostCrossingFrameCurHIV(m)
+	return topHIV != nil && topHIV == checkHIV
+}
+
+// topmostCrossingFrameCurHIV walks frames topmost-down and returns the
+// Cur HIV of the first crossing frame (WithCross or DidCrossing) that
+// carries one, or nil when no crossing frame is live. Non-crossing
+// frames — including the calling native's own — are skipped. Shared by
+// realmIsCurrentOnMachine (relaxed: parent-reference for sub-tokens)
+// and nativeSub's entry guard (strict: receiver HIV directly).
+func topmostCrossingFrameCurHIV(m *Machine) *HeapItemValue {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if !fr.IsCall() {
@@ -427,9 +557,9 @@ func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
 		if fr.Cur.T == nil {
 			continue
 		}
-		return realmHIV(&fr.Cur) == recvHIV
+		return realmHIV(&fr.Cur)
 	}
-	return false
+	return nil
 }
 
 // realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
@@ -1452,6 +1582,80 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			m.PushValue(typedBool(realmIsCurrentOnMachine(m, arg0.TV)))
+		},
+	)
+	// Sub mints a sub-realm identity token: a realm value whose pkgpath
+	// is the synthesized "host:subpath" (":" is reserved — no real
+	// package path can contain it, see ValidateMemPackageAny) and whose
+	// address derives from that synthesized path. After
+	// cross(cur.Sub(x)) downstream callees see the sub-identity through
+	// the ordinary cur.Previous() idiom; the host is recoverable by
+	// splitting the pkgpath on ":" (chain.SplitPkgSubPath).
+	//
+	// The sub-token's prev is the receiver's prev (the host is not
+	// inserted as a chain step); the minting cur is held in the
+	// internal parent field, which anchors IsCurrent/cross staleness
+	// checks and is not exposed via Previous().
+	//
+	// The entry guard is strict pointer identity against the topmost
+	// crossing frame's Cur — deliberately NOT the relaxed
+	// realmIsCurrentOnMachine path — so sub-tokens (whose own HIV is
+	// never a frame's Cur) can never be Sub'd. The caller-pkgpath check
+	// (m.Realm.Path == host) forbids minting from a passed-around
+	// foreign cur. Ephemeral (/e/) hosts cannot mint sub-identities.
+	defNativePtrMethod(".grealm", "Sub",
+		Flds( // params
+			"subpath", "string",
+		),
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			arg0, arg1 := m.LastBlock().GetParams2(nil)
+			recv := arg0.TV
+			subpath := arg1.TV.GetString()
+			sv := derefRealmStruct(recv)
+			host := ""
+			if sv != nil {
+				host = sv.Fields[realmFieldPkgPath].GetString()
+			}
+			// Charge before any work (mirroring chain.packageAddress's
+			// calibrated cost over the synthesized path) so failed
+			// calls pay too. A native_gas.go table entry would never
+			// fire here: uverse natives have NativePkg == "" and
+			// chargeNativeGas short-circuits to the flat body charge.
+			m.incrCPU(OpCPUSubRealmBase + OpCPUSubRealmSlope*int64(len(host)+1+len(subpath))/1024)
+			if err := subRealmPathError(host, subpath); err != "" {
+				m.PanicString(err)
+				return
+			}
+			topHIV := topmostCrossingFrameCurHIV(m)
+			if topHIV == nil {
+				m.PanicString("Sub: no live crossing frame")
+				return
+			}
+			recvHIV := realmHIV(recv)
+			if recvHIV == nil || recvHIV != topHIV {
+				m.PanicString("Sub: receiver is not the live cur (stale, sibling, or a sub-token)")
+				return
+			}
+			if realmIsEphemeral(host) {
+				m.PanicString("Sub: ephemeral realms cannot mint sub-identities")
+				return
+			}
+			if m.Realm == nil || m.Realm.Path != host {
+				m.PanicString("Sub: caller is not operating in the receiver's namespace")
+				return
+			}
+			synthesized := host + ":" + subpath
+			sub := newSubRealmHIVPointer(m.Alloc,
+				string(DerivePkgBech32Addr(synthesized)),
+				synthesized,
+				sv.Fields[realmFieldPrev], // prev: the host is skipped, not a chain step
+				subpath,
+				TypedValue{T: gConcreteRealmPtrType, V: recv.V}, // parent anchor
+			)
+			m.PushValue(sub)
 		},
 	)
 	defNativePtrMethod(".grealm", "String",

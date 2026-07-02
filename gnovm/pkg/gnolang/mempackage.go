@@ -1066,6 +1066,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// ':' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, ":") {
+		return fmt.Errorf("invalid package/realm path %q: ':' is reserved for sub-realm derivation", mpkg.Path)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {

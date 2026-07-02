@@ -907,6 +907,35 @@ func main() {
 	assert.Equal(t, "hello world!\n", res)
 }
 
+// Ephemeral (/e/) run realms cannot mint sub-realm identities.
+func TestVMKeeperRunSubEphemeral(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "script.gno", Body: `
+package main
+
+func main(cur realm) {
+	cur.Sub("vault")
+}
+`},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgRun(addr, coins, files)
+	_, err := env.vmk.Run(ctx, msg2)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Sub: ephemeral realms cannot mint sub-identities")
+}
+
 // Call Run with stdlibs.
 func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	env := setupTestEnv()

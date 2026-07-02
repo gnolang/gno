@@ -300,3 +300,32 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 		})
 	}
 }
+
+// Legacy AST-persisted origin placeholders carry the 3-field .grealm
+// shape (predating the sub-realm fields); the sub-token accessors must
+// treat the missing fields as zero, and the origin persistence
+// exemption must keep covering them while never covering sub-tokens.
+func TestRealmLegacyThreeFieldShape(t *testing.T) {
+	sv := &StructValue{Fields: []TypedValue{
+		{T: gAddressType, V: StringValue("")},
+		{T: StringType, V: StringValue("")},
+		{}, // prev truly-nil: origin shape
+	}}
+	if got := realmSubpathOf(sv); got != "" {
+		t.Fatalf("realmSubpathOf(legacy) = %q, want empty", got)
+	}
+	if got := realmParentOf(sv); got != nil {
+		t.Fatalf("realmParentOf(legacy) = %v, want nil", got)
+	}
+	hiv := &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
+	if !isOriginRealmHIV(hiv) {
+		t.Fatal("legacy 3-field origin must remain persistence-exempt")
+	}
+
+	// A sub-token with a truly-nil prev must NOT be origin-exempt:
+	// exempting it would make the sub-token persistable.
+	sub := newSubRealmHIVPointer(nil, "addr", "example.com/r/host:x", TypedValue{}, "x", TypedValue{})
+	if isOriginRealmHIV(realmHIV(&sub)) {
+		t.Fatal("nil-prev sub-token must not be persistence-exempt")
+	}
+}

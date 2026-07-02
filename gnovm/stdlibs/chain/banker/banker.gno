@@ -93,6 +93,18 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
+	// Sub-realm tokens (synthesized "host:subpath" pkgpath) may only
+	// construct RealmSend bankers: RealmIssue would mint denoms with a
+	// double-":" shape, and OriginSend's guard below is meaningless for
+	// a sub-address that never holds the origin-send envelope.
+	if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
+		switch bt {
+		case BankerTypeRealmIssue:
+			panic("BankerTypeRealmIssue not supported for sub-realm tokens")
+		case BankerTypeOriginSend:
+			panic("BankerTypeOriginSend not supported for sub-realm tokens")
+		}
+	}
 	if bt == BankerTypeOriginSend && !rlm.Previous().IsUserCall() {
 		panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 	}
