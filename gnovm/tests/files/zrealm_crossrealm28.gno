@@ -56,8 +56,8 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "81bbed7e9373819775ba78c77b449e34411a0d1a",
-//     +                "Hash": "e996949245f6e4aeee7ed227417810c09d7639d6",
+//     -                "Hash": "cc740066e57cf339d47789a0a65be2e547386df5",
+//     +                "Hash": "a0d0fc341bf851d44366422fc274c3988cb7fe63",
 //                      "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:13"
 //                  }
 //              },

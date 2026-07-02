@@ -424,6 +424,81 @@ The two APIs differ only in shape: `runtime.CurrentRealm()` returns
 a struct, `cur realm` is the interface. They are **distinct types**
 — not assignable to each other — but surface the same identity.
 
+### 5.5 Sub-realm identities — `cur.Sub(subpath)`
+
+A realm can mint a **sub-realm token** for one of its internal actors
+(a DAO in a registry, an account in a ledger):
+
+```go
+sub := cur.Sub("dao/42")
+sub.PkgPath()  // "gno.land/r/nt/commondao/v0:dao/42"  (synthesized)
+sub.Address()  // chain.PackageAddress(sub.PkgPath())  (derived)
+```
+
+`:` is reserved: no real package path can contain it (rejected at
+package validation), so the synthesized form can never collide with a
+deployed package, and exact-match pkgpath auth is never silently
+broadened.
+
+The token is a first-class `realm` value. Cross with it (two-step —
+`cross(...)` takes a bare identifier) or hand it to token-style
+(`_ int, rlm realm`) APIs:
+
+```go
+sub := cur.Sub("dao/42")
+target.Foo(cross(sub), ...)   // callee: cur.Previous() = sub identity
+teller.Transfer(0, sub, to, amount)
+b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
+b.SendCoins(sub.Address(), to, coins)  // spend the sub-treasury
+```
+
+Semantics:
+
+- `sub.Previous() == cur.Previous()` — the host is **not** inserted as
+  a chain step; chain depth matches a non-sub crossing. The host is
+  recoverable from the pkgpath prefix (`chain.SplitPkgSubPath`).
+- `sub.IsCurrent()` is true while the minting cur is the live topmost
+  crossing cur; `cross(sub)` accepts under the same condition. §5.4
+  parity holds: `unsafe.{Current,Previous}Realm()` surface the sub
+  identity at the same positions `cur`/`cur.Previous()` do.
+- Classification: `IsCode()` true; `IsUser()`, `IsUserCall()`,
+  `IsUserRun()`, `IsEphemeral()` all false. A sub-identity is
+  programmatic, never a user.
+- Ephemerality (§5.3) applies: sub-tokens cannot be persisted.
+
+Guards — `Sub()` panics unless all hold:
+
+1. subpath is non-empty, ≤ 256 bytes, and contains no `:` or NUL;
+2. the receiver's own HIV is the topmost crossing frame's Cur —
+   strictly stronger than `IsCurrent()`, so sub-tokens can never be
+   `Sub()`d (no `host:a:b`);
+3. `m.Realm.Path` equals the receiver's pkgpath — foreign code holding
+   a passed-around cur cannot mint in the caller's namespace;
+4. the host is not ephemeral (`/e/` run realms cannot mint).
+
+Accepting sub-identities is **opt-in** for callees. Address-keyed auth
+works unchanged (sub-addresses are ordinary addresses). PkgPath-keyed
+auth must use the anchored idiom — a bare prefix also matches sibling
+and subdirectory packages:
+
+```go
+p := cur.Previous().PkgPath()
+ok := p == host || strings.HasPrefix(p, host+":")
+```
+
+Off-chain and cross-realm derivation without the host's cooperation:
+`chain.DerivePkgSubAddr(host, subpath)`; parse a synthesized path with
+`chain.SplitPkgSubPath(p) (host, subpath, ok)` — the `:` is the
+marker tooling should key on.
+
+Trust note: passing your live `cur` to `/p/` code already delegates
+your primary identity; with `Sub`, it also delegates every sub-address
+your namespace could ever mint (all are derivable off-chain). Audit
+`/p/` imports accordingly.
+
+Design rationale, alternatives, and the full guard analysis:
+`gnovm/adr/prxxxx_realm_sub.md`.
+
 ## 6. Realm Boundaries
 
 A **realm boundary** is a transition point in the call frame stack
