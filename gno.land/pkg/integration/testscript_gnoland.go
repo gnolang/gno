@@ -1,14 +1,11 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -51,7 +48,6 @@ const (
 	envKeyPkgsLoader
 	envKeyPrivValKey
 	envKeyExecCommand
-	envKeyExecBin
 	envKeyBase
 	envKeyStdinBuffer
 )
@@ -59,13 +55,9 @@ const (
 type commandkind int
 
 const (
-	// commandKindBin builds and uses an integration binary to run the testscript
-	// in a separate process. This should be used for any external package that
-	// wants to use test scripts.
-	commandKindBin commandkind = iota
 	// commandKindTesting uses the current testing binary to run the testscript
 	// in a separate process. This command cannot be used outside this package.
-	commandKindTesting
+	commandKindTesting commandkind = iota
 	// commandKindInMemory runs testscripts in memory.
 	commandKindInMemory
 )
@@ -131,9 +123,6 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	defaultPK, err := GeneratePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)
 
-	var buildOnce sync.Once
-	var gnolandBin string
-
 	// Store the original setup scripts for potential wrapping
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
@@ -144,24 +133,11 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			}
 		}
 
-		cmd, isSet := env.Values[envKeyExecCommand].(commandkind)
-		switch {
-		case !isSet:
-			cmd = commandKindBin // fallback on commandKindBin
-			fallthrough
-		case cmd == commandKindBin:
-			buildOnce.Do(func() {
-				t.Logf("building the gnoland integration node")
-				start := time.Now()
-				gnolandBin = buildGnoland(t, gnoRootDir)
-				t.Logf("time to build the node: %v", time.Since(start).String())
-			})
-
-			env.Values[envKeyExecBin] = gnolandBin
+		// Default to running nodes in-memory when the caller didn't pick a
+		// command kind. setupNode reads this later.
+		if _, isSet := env.Values[envKeyExecCommand].(commandkind); !isSet {
+			env.Values[envKeyExecCommand] = commandKindInMemory
 		}
-
-		// Store the resolved command kind so setupNode can read it later.
-		env.Values[envKeyExecCommand] = cmd
 
 		tmpdir, dbdir := t.TempDir(), t.TempDir()
 		gnoHomeDir := filepath.Join(tmpdir, "gno")
@@ -216,6 +192,12 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			if !exist {
 				return
 			}
+
+			// Drop the node from the manager so it (and its in-memory store,
+			// which retains the per-node stdlib cache) becomes collectable once
+			// the script ends. Without this the manager — which lives for the
+			// whole TestTestdata run — pins every node, leaking ~50 MB/script.
+			nodesManager.Delete(sid)
 
 			if err := n.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
@@ -286,6 +268,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
+			maxGas := fs.Int64("max-gas", 0, "override block max gas (0 = use default)")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -298,6 +281,9 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			}
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
+			if *maxGas > 0 {
+				cfg.Genesis.ConsensusParams.Block.MaxGas = *maxGas
+			}
 			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
@@ -832,15 +818,6 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 
 		return runTestingNodeProcess(&testingTS{ts}, ctx, pcfg)
 
-	case commandKindBin:
-		bin := ts.Value(envKeyExecBin).(string)
-		nodep, err := RunNodeProcess(ctx, pcfg, bin)
-		if err != nil {
-			ts.Fatalf("unable to start process node: %s", err)
-		}
-
-		return nodep
-
 	default:
 		ts.Fatalf("unknown command kind: %+v", cmd)
 	}
@@ -886,45 +863,6 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 		Address: address,
 		Amount:  coins,
 	}, nil
-}
-
-func buildGnoland(t *testing.T, rootdir string) string {
-	t.Helper()
-
-	bin := filepath.Join(t.TempDir(), "gnoland-test")
-
-	t.Log("building gnoland integration binary...")
-
-	// Build a fresh gno binary in a temp directory
-	gnoArgsBuilder := []string{"build", "-o", bin}
-
-	os.Executable()
-
-	// Forward `-covermode` settings if set
-	if coverMode := testing.CoverMode(); coverMode != "" {
-		gnoArgsBuilder = append(gnoArgsBuilder,
-			"-covermode", coverMode,
-		)
-	}
-
-	// Append the path to the gno command source
-	gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(rootdir,
-		"gno.land", "pkg", "integration", "process"))
-
-	t.Logf("build command: %s", strings.Join(gnoArgsBuilder, " "))
-
-	cmd := exec.Command("go", gnoArgsBuilder...)
-
-	var buff bytes.Buffer
-	cmd.Stderr, cmd.Stdout = &buff, &buff
-	defer buff.Reset()
-
-	if err := cmd.Run(); err != nil {
-		require.FailNowf(t, "unable to build binary", "%q\n%s",
-			err.Error(), buff.String())
-	}
-
-	return bin
 }
 
 // GeneratePrivKeyFromMnemonic generates a crypto.PrivKey from a mnemonic.
