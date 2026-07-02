@@ -73,7 +73,7 @@ import (
 // store production files under pkg:<path> (typed MP*Prod) and test/filetest files
 // under a pkg:<path>#allbutprod sibling, changing stored package bytes and the
 // iavlStore Merkle root. Behavior is unchanged; only the storage encoding shifted.
-const expectedCrossrealm38Hash = "ada686cf2b393e34dcacd0bff650ee50a12c159afcb14534e13fda0ca502e7dd"
+const expectedCrossrealm38Hash = "adef42a3fcc41839fb59faf81e0190fd1f51fe7afba82f717d4def275c84c977"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
