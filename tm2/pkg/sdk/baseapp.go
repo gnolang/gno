@@ -983,7 +983,11 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 
 	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
 	// The write to the DeliverTx state writes all state transitions to the root
-	// MultiStore (app.cms) so when Commit() is called is persists those values.
+	// MultiStore (app.cms) so when Commit() is called it persists those values.
+	//
+	// Order matters: MultiWrite MUST precede Commit — reversing it makes IAVL
+	// SaveVersion run against a stale tree (wrong app hash) and shifts dbadapter
+	// writes into the next block's batch.
 	app.deliverState.ms.MultiWrite()
 	commitID := app.cms.Commit()
 	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))

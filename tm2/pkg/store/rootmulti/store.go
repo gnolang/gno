@@ -68,6 +68,14 @@ type multiStore struct {
 	// It is swapped atomically by Commit() and read by query paths.
 	querySnapshot atomic.Pointer[refSnapshot]
 
+	// collector accumulates every sub-store write (dbadapter cache flush, IAVL
+	// SaveVersion, rootmulti metadata) during CommitAll. At the end of the
+	// commit it is drained into a single real batch and flushed with one
+	// WriteSync, giving cross-store atomicity across all write sites.
+	//
+	// nil on immutable multiStores built for queries — those never write.
+	collector *dbm.BatchCollector
+
 	// snapshotMu closes the TOCTOU gap between Load() and acquire().
 	//
 	// atomic.Pointer guarantees that each individual Load/Swap is atomic, but
@@ -100,6 +108,7 @@ func NewMultiStore(db dbm.DB) *multiStore {
 		storesParams: make(map[types.StoreKey]storeParams),
 		stores:       make(map[types.StoreKey]types.CommitStore),
 		keysByName:   make(map[string]types.StoreKey),
+		collector:    dbm.NewBatchCollector(),
 	}
 }
 
@@ -228,6 +237,15 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 }
 
 // Implements Committer/CommitStore.
+// Commit atomically persists every sub-store write plus rootmulti metadata in
+// a single WriteSync. Every write site — dbadapter, IAVL SaveVersion, IAVL
+// pruning, metadata — accumulates in ms.collector via CollectingDB, and
+// Commit drains it into one real batch. Either the whole block persists or
+// none of it does.
+//
+// Precondition: pending DeliverTx cache writes must be flushed via
+// MultiWrite() BEFORE calling Commit — otherwise SaveVersion sees a stale
+// tree and produces the wrong app hash.
 func (ms *multiStore) Commit() types.CommitID {
 	// Commit stores. For hardfork chains (InitialHeight > 1), the first commit
 	// must land at the chain's InitialHeight so multistore version equals
@@ -240,13 +258,19 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	commitInfo := commitStores(version, ms.stores)
 
-	// Need to update atomically.
-	batch := ms.db.NewBatch()
-	defer batch.Close()
-	setCommitInfo(batch, version, commitInfo)
-	setLatestVersion(batch, version)
-	err := batch.WriteSync()
-	if err != nil {
+	// Feed metadata into the same collector as IAVL/dbadapter writes so a
+	// single drain covers all four write sites.
+	metaBatch := ms.collector.NewBatch()
+	setCommitInfo(metaBatch, version, commitInfo)
+	setLatestVersion(metaBatch, version)
+
+	// Drain the collector into a real batch and flush atomically.
+	realBatch := ms.db.NewBatch()
+	defer realBatch.Close()
+	if err := ms.collector.Drain(realBatch); err != nil {
+		panic("rootmulti: Commit() drain failed: " + err.Error())
+	}
+	if err := realBatch.WriteSync(); err != nil {
 		panic("rootmulti: Commit() failed: " + err.Error())
 	}
 
@@ -482,17 +506,26 @@ func parsePath(path string) (storeName string, subpath string, err serrors.Error
 // ----------------------------------------
 
 func (ms *multiStore) constructStore(params storeParams) (store types.CommitStore, err error) {
-	var db dbm.DB
+	var raw dbm.DB
+	var prefix []byte
 	if params.db != nil {
-		db = dbm.NewPrefixDB(params.db, []byte("s/_/"))
+		raw = params.db
+		prefix = []byte("s/_/")
 	} else {
-		db = dbm.NewPrefixDB(ms.db, []byte("s/k:"+params.key.Name()+"/"))
+		raw = ms.db
+		prefix = []byte("s/k:" + params.key.Name() + "/")
 	}
+
+	// On the live multiStore, route sub-store writes through a CollectingDB so
+	// all four write sites (dbadapter cache flush, IAVL SaveVersion, pruning,
+	// rootmulti metadata) land in one batch that CommitAll drains atomically.
+	// Immutable multiStores (queries) skip this — they never write.
+	if !ms.storeOpts.Immutable && ms.collector != nil {
+		raw = dbm.NewCollectingDB(raw, ms.collector)
+	}
+	db := dbm.NewPrefixDB(raw, prefix)
 	opts := ms.storeOpts
 
-	// XXX: use these:
-	// return iavl.LoadStore(db, id, ms.pruningOpts, ms.lazyLoading)
-	// return commitDBStoreAdapter{dbadapter.Store{db}}, nil
 	store = params.constructor(db, opts)
 	return store, nil
 }

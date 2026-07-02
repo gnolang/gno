@@ -3,6 +3,7 @@ package rootmulti
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -405,6 +406,101 @@ func TestSnapshotConcurrentCommitAndQuery(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// countingDB wraps a real DB and counts calls to batch.WriteSync() so tests
+// can assert that a Commit produces exactly one atomic disk flush.
+type countingDB struct {
+	dbm.DB
+	writeSyncs *atomic.Int32
+}
+
+func (c *countingDB) NewBatch() dbm.Batch {
+	return &countingBatch{Batch: c.DB.NewBatch(), writeSyncs: c.writeSyncs}
+}
+
+func (c *countingDB) NewBatchWithSize(size int) dbm.Batch {
+	return &countingBatch{Batch: c.DB.NewBatchWithSize(size), writeSyncs: c.writeSyncs}
+}
+
+type countingBatch struct {
+	dbm.Batch
+	writeSyncs *atomic.Int32
+}
+
+func (b *countingBatch) WriteSync() error {
+	b.writeSyncs.Add(1)
+	return b.Batch.WriteSync()
+}
+
+// TestCommitAtomicBatchWithCacheFlush verifies that a full BaseApp-style block
+// commit — deliver cache flush (dbadapter writes), IAVL SaveVersion, IAVL
+// pruning, and rootmulti metadata — lands in exactly one batch.WriteSync()
+// call on the real DB. This is the core cross-store atomicity guarantee.
+func TestCommitAtomicBatchWithCacheFlush(t *testing.T) {
+	t.Parallel()
+
+	var writeSyncs atomic.Int32
+	db := &countingDB{DB: memdb.NewMemDB(), writeSyncs: &writeSyncs}
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	// Simulate a DeliverTx: writes buffered in a MultiCacheWrap of the live
+	// multiStore, exactly as BaseApp does.
+	cache := ms.MultiCacheWrap()
+	cache.GetStore(ms.keysByName["store1"]).Set(nil, []byte("k1"), []byte("v1"))
+	cache.GetStore(ms.keysByName["store2"]).Set(nil, []byte("k2"), []byte("v2"))
+
+	writeSyncs.Store(0)
+	// Mirror BaseApp.Commit(): flush the cache, then commit. Both share the
+	// same CollectingDB, so the two calls accumulate into one drained batch.
+	cache.MultiWrite()
+	cid := ms.Commit()
+	require.Equal(t, int64(1), cid.Version)
+
+	// Cache flush + IAVL SaveVersion + metadata must reach disk in exactly
+	// one WriteSync.
+	require.Equal(t, int32(1), writeSyncs.Load(),
+		"MultiWrite+Commit must produce exactly one atomic WriteSync")
+
+	// The collector must be empty afterwards — otherwise writes would leak
+	// into the next commit.
+	require.Equal(t, 0, ms.collector.Len(),
+		"collector must be drained after Commit")
+
+	// Reload from disk and verify all values are present — proves the single
+	// batch actually carried IAVL nodes AND rootmulti metadata to persistence.
+	reload := newMultiStoreWithMounts(db)
+	require.NoError(t, reload.LoadLatestVersion())
+	require.Equal(t, cid.Version, reload.lastCommitID.Version)
+	require.Equal(t, []byte("v1"),
+		reload.getStoreByName("store1").Get(nil, []byte("k1")))
+	require.Equal(t, []byte("v2"),
+		reload.getStoreByName("store2").Get(nil, []byte("k2")))
+}
+
+// TestCommitSingleAtomicBatch is the same as TestCommitAtomicBatchWithCacheFlush
+// but for the no-cache Commit() path used by tests and lower-level callers.
+func TestCommitSingleAtomicBatch(t *testing.T) {
+	t.Parallel()
+
+	var writeSyncs atomic.Int32
+	db := &countingDB{DB: memdb.NewMemDB(), writeSyncs: &writeSyncs}
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	// Direct sub-store writes (bypassing the cache path — writes go straight
+	// into IAVL's MutableTree).
+	ms.getStoreByName("store1").Set(nil, []byte("k"), []byte("v"))
+
+	writeSyncs.Store(0)
+	cid := ms.Commit()
+	require.Equal(t, int64(1), cid.Version)
+
+	require.Equal(t, int32(1), writeSyncs.Load(),
+		"Commit must produce exactly one atomic WriteSync")
+	require.Equal(t, 0, ms.collector.Len(),
+		"collector must be drained after Commit")
 }
 
 // -----------------------------------------------------------------------
