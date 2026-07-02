@@ -1,0 +1,46 @@
+# MsgRun-entry parity for realm.Sub sub-tokens.
+#
+# The ADR ("Sequencing" step 4) requires the cur.Previous-vs-unsafe.*
+# parity assertion to hold for BOTH MsgCall and MsgRun entry. The
+# filetest harness only ever enters via a MsgCall-style RunMainMaybeCrossing
+# (zrealm_sub1.gno covers that path), so the MsgRun-entry case — where the
+# outermost frame is a "/e/<addr>/run" ephemeral at StageRun — is otherwise
+# untested. This drives it end-to-end:
+#
+#   MsgRun main(cur)  ->  cross into subhost.ActAsSub  ->  mint cur.Sub("dao/5")
+#                     ->  cross with the sub into subhost.Observe
+#
+# Inside Observe, cur.Previous() is the sub-token and unsafe.PreviousRealm()
+# must read the SAME identity via the presented-identity chain. All parity
+# booleans must be true regardless of the StageRun origin.
+
+loadpkg gno.land/r/tests/vm/subhost
+
+## start a new node
+gnoland start
+
+## Enter via MsgRun: the ephemeral run realm crosses into the persistent
+## subhost realm, which mints a sub of its own cur and crosses on.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1 $WORK/run/parity.gno
+stdout 'OK!'
+
+## The sub presents its synthesized identity to the innermost callee...
+stdout 'observed prev.PkgPath: gno.land/r/tests/vm/subhost:dao/5'
+stdout 'observed prev.Subpath: dao/5'
+## ...IsUserCall is false (a sub-token cross is never a direct user call)...
+stdout 'observed prev.IsUserCall: false'
+## ...its address matches the off-chain-computable derivation...
+stdout 'prev.Address == DerivePkgSubAddr\(host, subpath\): true'
+## ...and unsafe.* agrees with cur.Previous()/cur at both heights (the
+## MsgRun-entry counterpart of zrealm_sub1.gno's MsgCall-entry parity).
+stdout 'unsafe prev parity: true'
+stdout 'unsafe cur parity: true'
+
+-- run/parity.gno --
+package main
+
+import "gno.land/r/tests/vm/subhost"
+
+func main(cur realm) {
+	subhost.ActAsSub(cross(cur), "dao/5")
+}

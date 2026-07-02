@@ -345,7 +345,7 @@ func TestIsValidSubpath(t *testing.T) {
 		"", "/", "//", "dao/", "/dao", "a//b", "Dao", "DAO",
 		"a b", "a\tb", "a\nb", "a:b", "a\x00b", "..", ".", "../x",
 		"_x", "x_", "-x", "x-", ".x", "x.", "café", "‮", "a/",
-		"/", "a/./b",
+		"a/./b",
 	}
 	for _, s := range valid {
 		if !isValidSubpath(s) {

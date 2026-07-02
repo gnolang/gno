@@ -13,8 +13,9 @@ table row, or sequencing step):
 
 - `unsafe.PreviousRealm()` parity is **upheld** by extending the frame
   walker to read the presented-identity chain (§ unsafe interaction).
-- `BankerTypeOriginSend` and `BankerTypeRealmIssue` are **forbidden**
-  for sub-tokens (defensive checks at `NewBanker`).
+- Sub-tokens may construct **only** `BankerTypeRealmSend` bankers —
+  every other type (OriginSend, RealmIssue, and any future type) is
+  refused at `NewBanker`, fail-closed.
 - `Sub()` on ephemeral `/e/` run realms is **forbidden**.
 - Subpath length cap is **256 bytes** (grounded in the existing pkgpath
   limit).
@@ -607,13 +608,14 @@ walks — and only the *live* one can mint a banker.
 Two defensive checks at `NewBanker`:
 
 ```go
-// banker.gno NewBanker additions
-if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
-    switch bt {
-    case BankerTypeRealmIssue:
-        panic("BankerTypeRealmIssue not supported for sub-tokens")
-    case BankerTypeOriginSend:
-        panic("BankerTypeOriginSend not supported for sub-tokens")
+// banker.gno NewBanker: sub-tokens may construct ONLY RealmSend.
+// Gate on bt first (fail-closed for any future banker type), and only
+// then pay the pkgpath split. Readonly panics earlier via its own
+// guard, so the reachable types here are {OriginSend, RealmSend,
+// RealmIssue}.
+if bt != BankerTypeRealmSend {
+    if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
+        panic(bt.String() + " not supported for sub-realm tokens")
     }
 }
 ```
@@ -631,8 +633,11 @@ if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
   origin-send banker whose `pkgAddr` is a sub-address holding none of
   the origin-send coins. Nonsensical; forbid.
 
-`BankerTypeRealmSend` (the treasury case) and `BankerTypeReadonly` are
-unaffected.
+`BankerTypeRealmSend` (the treasury case) is the sole type permitted
+for sub-tokens; `BankerTypeReadonly` takes the separate
+`NewReadonlyBanker` path (no realm capability). The guard is
+fail-closed: any future banker type is refused for sub-tokens until
+explicitly allowed.
 
 ### GRC20 / boards / treasury consumers
 
