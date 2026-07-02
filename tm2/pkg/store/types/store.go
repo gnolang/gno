@@ -158,8 +158,6 @@ type CommitMultiStore interface {
 	// reflect the same committed block. The caller must call the returned
 	// release func when done to free the snapshot reference.
 	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, func(), error)
-
-	QuerySnapshot() dbm.Snapshot
 }
 
 // CommitID contains the tree version number and its merkle root.
