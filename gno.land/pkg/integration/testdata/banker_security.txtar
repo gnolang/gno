@@ -21,7 +21,7 @@ gnokey query bank/balances/${attacker_user_addr}
 stdout '1000000000ugnot'
 
 ## Deploy the malicious realm that attempts to steal coins
-gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 380001ugnot -gas-wanted 3_800_000 -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 380001ugnot -gas-wanted 5_200_000 -chainid=tendermint_test attacker
 stdout OK!
 
 ## ============================================

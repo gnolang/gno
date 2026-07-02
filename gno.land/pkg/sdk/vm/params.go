@@ -28,6 +28,14 @@ const (
 	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
 	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
 	iterNextCostFlatDefault = int64(1_000)
+	// PreprocessGasPerByte: gas charged per .gno source byte at MsgAddPackage
+	// and MsgRun for the native type-check + preprocess passes, which are
+	// otherwise unmetered. Measured ~1250 gas/byte on realistic example
+	// realms/packages (type-check ~920 + preprocess ~330, own compile only —
+	// dependency re-type-checking excluded; 1 gas == 1ns on the reference
+	// machine, and the host-machine calibration factor is the dominant
+	// uncertainty).
+	preprocessGasPerByteDefault = int64(1_250)
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -51,10 +59,16 @@ type Params struct {
 	// "no floor / use tree estimate") because zero iter-step cost
 	// would effectively disable iteration gas charging.
 	IterNextCostFlat int64 `json:"iter_next_cost_flat" yaml:"iter_next_cost_flat"`
+	// PreprocessGasPerByte must be > 0; Validate rejects zero (like
+	// IterNextCostFlat) because a zero per-byte cost would silently disable
+	// the type-check/preprocess gas charge. Charged per .gno source byte at
+	// MsgAddPackage and MsgRun; it is NOT part of store.GasConfig (charged
+	// directly in the keeper), so it has no ApplyToGasConfig entry.
+	PreprocessGasPerByte int64 `json:"preprocess_gas_per_byte" yaml:"preprocess_gas_per_byte"`
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100, iterNextCostFlat int64) Params {
+func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100, iterNextCostFlat, preprocessGasPerByte int64) Params {
 	return Params{
 		SysNamesPkgPath:      namesPkgPath,
 		SysCLAPkgPath:        claPkgPath,
@@ -69,6 +83,7 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		FixedSetReadDepth100: minSetReadDepth100,
 		FixedWriteDepth100:   minWriteDepth100,
 		IterNextCostFlat:     iterNextCostFlat,
+		PreprocessGasPerByte: preprocessGasPerByte,
 	}
 }
 
@@ -77,7 +92,7 @@ func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
 		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)),
 		minGetReadDepth100Default, minSetReadDepth100Default, minWriteDepth100Default,
-		iterNextCostFlatDefault)
+		iterNextCostFlatDefault, preprocessGasPerByteDefault)
 }
 
 // String implements the stringer interface.
@@ -97,6 +112,7 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100))
 	sb.WriteString(fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100))
 	sb.WriteString(fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat))
+	sb.WriteString(fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte))
 	return sb.String()
 }
 
@@ -158,6 +174,16 @@ func (p Params) Validate() error {
 	}
 	if p.IterNextCostFlat > maxIterNextCostFlat {
 		return fmt.Errorf("IterNextCostFlat must be <= %d, got %d", maxIterNextCostFlat, p.IterNextCostFlat)
+	}
+	// Cap PreprocessGasPerByte at 100_000 (80x the default, far above the
+	// measured cost) to give governance headroom while preventing an absurd
+	// proposal from making deploys impossibly expensive.
+	const maxPreprocessGasPerByte = int64(100_000)
+	if p.PreprocessGasPerByte <= 0 {
+		return fmt.Errorf("PreprocessGasPerByte must be positive, got %d", p.PreprocessGasPerByte)
+	}
+	if p.PreprocessGasPerByte > maxPreprocessGasPerByte {
+		return fmt.Errorf("PreprocessGasPerByte must be <= %d, got %d", maxPreprocessGasPerByte, p.PreprocessGasPerByte)
 	}
 	return nil
 }
@@ -261,6 +287,8 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.FixedWriteDepth100 = sdkparams.MustParamInt64("fixed_write_depth_100", value)
 	case "p:iter_next_cost_flat":
 		params.IterNextCostFlat = sdkparams.MustParamInt64("iter_next_cost_flat", value)
+	case "p:preprocess_gas_per_byte":
+		params.PreprocessGasPerByte = sdkparams.MustParamInt64("preprocess_gas_per_byte", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))

@@ -579,6 +579,24 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 	return nil
 }
 
+// chargePreprocessGas charges PreprocessGasPerByte gas per byte of every .gno
+// source file (prod, _test, and _filetest) in mpkg: the native type-check
+// pass processes all of them and the preprocess pass the prod subset, both
+// otherwise unmetered. AddPackage and Run call it immediately before their
+// type-check so an oversized package is rejected by the gas meter instead of
+// consuming unmetered validator CPU. Params.Validate rejects a non-positive
+// PreprocessGasPerByte, so a validated Params always charges; a legacy params
+// blob predating the field yields 0 and charges nothing.
+func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
+	var srcBytes int64
+	for _, f := range mpkg.Files {
+		if strings.HasSuffix(f.Name, ".gno") {
+			srcBytes += int64(len(f.Body))
+		}
+	}
+	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Defense-in-depth spend check. MsgAddPackage is currently blocked
@@ -660,6 +678,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
+	// use the parameters before executing the message, as they may change during execution.
+	// The message should not fail due to parameter changes in the same transaction.
+	params := vm.GetParams(ctx)
+	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
@@ -767,11 +789,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
-	params := vm.GetParams(ctx)
 	m2.RunMemPackage(memPkg, true)
 
-	// use the parameters before executing the message, as they may change during execution.
-	// The message should not fail due to parameter changes in the same transaction.
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {
 		return err
@@ -1043,6 +1062,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
+	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter:     gnostore,

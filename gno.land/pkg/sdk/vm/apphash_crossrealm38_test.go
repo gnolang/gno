@@ -73,7 +73,10 @@ import (
 // store production files under pkg:<path> (typed MP*Prod) and test/filetest files
 // under a pkg:<path>#allbutprod sibling, changing stored package bytes and the
 // iavlStore Merkle root. Behavior is unchanged; only the storage encoding shifted.
-const expectedCrossrealm38Hash = "adef42a3fcc41839fb59faf81e0190fd1f51fe7afba82f717d4def275c84c977"
+// Hash bumped 2026-06-24: added the PreprocessGasPerByte vm param (default 1250); its
+// non-zero default is serialized into the genesis vm params state, shifting the
+// iavlStore Merkle root. Behavior is unchanged; only the genesis params encoding shifted.
+const expectedCrossrealm38Hash = "d10607d7236645c1b803ebdf1bde1d79db682d2026e42bb306c5f5830b65e50f"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
