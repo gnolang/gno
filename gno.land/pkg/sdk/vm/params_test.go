@@ -264,6 +264,27 @@ func TestGetParamsDefaultsPreprocessGasPerByte(t *testing.T) {
 	})
 }
 
+// A relaunch genesis exported by a binary predating PreprocessGasPerByte omits
+// the field, so it decodes as zero. ValidateGenesis and InitGenesis must
+// tolerate that (defaulting it) rather than rejecting the genesis — matching
+// GetParams' runtime behavior — while a genesis with an explicitly invalid
+// value still fails.
+func TestGenesisToleratesLegacyPreprocessGasPerByte(t *testing.T) {
+	legacy := DefaultParams()
+	legacy.PreprocessGasPerByte = 0 // field absent in a pre-field export
+	assert.NoError(t, ValidateGenesis(NewGenesisState(legacy)))
+
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	assert.NotPanics(t, func() { env.vmk.InitGenesis(ctx, NewGenesisState(legacy)) })
+	assert.Equal(t, preprocessGasPerByteDefault, env.vmk.GetParams(ctx).PreprocessGasPerByte)
+
+	// An explicitly out-of-range value is still rejected (not treated as legacy).
+	bad := DefaultParams()
+	bad.PreprocessGasPerByte = -1
+	assert.Error(t, ValidateGenesis(NewGenesisState(bad)))
+}
+
 func TestParamsValidate(t *testing.T) {
 	valid := DefaultParams()
 

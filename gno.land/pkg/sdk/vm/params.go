@@ -221,20 +221,25 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 	return nil
 }
 
+// applyLegacyDefaults fills fields absent from a params blob written before
+// they existed (GetStruct leaves an absent key zero; a genesis predating the
+// field decodes it as zero too). A zero PreprocessGasPerByte is otherwise
+// unrepresentable — Validate rejects it on every write path — so a zero here
+// can only mean pre-field legacy state. Defaulting it keeps the type-check/
+// preprocess charge active on legacy chains, keeps WillSetParam's whole-struct
+// re-validation from rejecting an unrelated param update on such state, and
+// lets a relaunch genesis that predates the field still pass ValidateGenesis.
+func (p Params) applyLegacyDefaults() Params {
+	if p.PreprocessGasPerByte == 0 {
+		p.PreprocessGasPerByte = preprocessGasPerByteDefault
+	}
+	return p
+}
+
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
 	vm.prmk.GetStruct(ctx, "vm:p", &params) // prmk is root.
-	// A params blob written before PreprocessGasPerByte existed has no
-	// vm:p:preprocess_gas_per_byte key, which GetStruct leaves zero. Zero is
-	// otherwise unrepresentable (Validate rejects it on every write path), so
-	// it can only mean pre-field legacy state: default it, keeping the
-	// type-check/preprocess charge active on legacy chains and keeping
-	// WillSetParam's whole-struct re-validation satisfied when an unrelated
-	// vm param is updated.
-	if params.PreprocessGasPerByte == 0 {
-		params.PreprocessGasPerByte = preprocessGasPerByteDefault
-	}
-	return params
+	return params.applyLegacyDefaults()
 }
 
 const (

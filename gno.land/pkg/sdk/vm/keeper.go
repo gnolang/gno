@@ -597,6 +597,22 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
 }
 
+// hasProdGnoFile reports whether mpkg contains at least one production
+// (non-test) .gno file. It applies MPFProd's own per-file predicate so it
+// cannot drift from what the storage split (store.go splitProdAllButProd)
+// treats as prod, but without allocating a filtered copy of the package.
+// FilterGno panics on non-.gno files and returns true to EXCLUDE a file, so a
+// prod .gno file is a .gno file it does not exclude.
+func hasProdGnoFile(mpkg *std.MemPackage) bool {
+	pname := gno.Name(mpkg.Name)
+	for _, f := range mpkg.Files {
+		if strings.HasSuffix(f.Name, ".gno") && !gno.MPFProd.FilterGno(f, pname) {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Defense-in-depth spend check. MsgAddPackage is currently blocked
@@ -638,7 +654,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// splitProdAllButProd), so a restarted node would rebuild no PackageNode
 	// while a non-restarted node still holds the deploy-time node in RAM —
 	// making call gas depend on restart history.
-	if gno.MPFProd.FilterMemPackage(memPkg).IsEmpty() {
+	if !hasProdGnoFile(memPkg) {
 		return ErrInvalidPackage("package has no production .gno files")
 	}
 
