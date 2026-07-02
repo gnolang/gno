@@ -251,7 +251,7 @@ func TestRegister_InvalidPayment(cur realm, t *testing.T) {
 	})
 }
 
-func TestRegister_NoPaymentExpected(t *testing.T) {
+func TestRegister_NoPaymentExpected(cur realm, t *testing.T) {
 	oldPrice := registerPrice
 	defer func() { registerPrice = oldPrice }()
 	registerPrice = 0 // registration is free
@@ -262,12 +262,12 @@ func TestRegister_NoPaymentExpected(t *testing.T) {
 	testing.SetOriginCaller(addr)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ufoo", 42))) // invalid: unexpected payment
 
-	uassert.AbortsContains(t, ErrNoPaymentExpected.Error(), func() {
-		Register(cross, "nym-yankee345")
+	uassert.AbortsContains(t, cur, ErrNoPaymentExpected.Error(), func() {
+		Register(cross(cur), "nym-yankee345")
 	})
 }
 
-func TestRegister_InvalidPaymentCoin(t *testing.T) {
+func TestRegister_InvalidPaymentCoin(cur realm, t *testing.T) {
 	oldPrice := registerPrice
 	defer func() { registerPrice = oldPrice }()
 	registerPrice = 42
@@ -282,8 +282,8 @@ func TestRegister_InvalidPaymentCoin(t *testing.T) {
 	testing.SetOriginCaller(addr)
 	testing.SetOriginSend(coins)
 
-	uassert.AbortsContains(t, ErrInvalidPaymentCoin.Error(), func() {
-		Register(cross, "nym-yankee345")
+	uassert.AbortsContains(t, cur, ErrInvalidPaymentCoin.Error(), func() {
+		Register(cross(cur), "nym-yankee345")
 	})
 }
 

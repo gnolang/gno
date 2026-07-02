@@ -56,14 +56,13 @@ func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 		panic("paused value is already " + strconv.FormatBool(newPausedValue))
 	}
 
-
 	cb := func(cur realm) error {
 		setPaused(cur, newPausedValue)
 		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
-	filter := govimpl.FilterByTier{Tier: memberstore.T1}
+	filter := govimpl.NewFilterByTier(memberstore.T1)
 
 	if newPausedValue {
 		return dao.NewProposalRequestWithFilter("User Registry V1: Pause", "", e, filter)
