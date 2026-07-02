@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -1169,6 +1170,30 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	for i := len(goo.CodeSubmitters) - 1; i >= 0; i-- {
+		repr, err := goo.CodeSubmitters[i].MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 15, amino.Typ3ByteLength)
+	}
+	if goo.CodeSubmissionPolicy != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.CodeSubmissionPolicy))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.IterNextCostFlat != 0 {
 		{
 			before := offset
@@ -1381,6 +1406,17 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.IterNextCostFlat != 0 {
 		s += 1 + amino.VarintSize(int64(goo.IterNextCostFlat))
 	}
+	if goo.CodeSubmissionPolicy != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.CodeSubmissionPolicy))) + len(goo.CodeSubmissionPolicy)
+	}
+	for _, elem := range goo.CodeSubmitters {
+		repr, err := elem.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
+		s += 1 + vs
+	}
 	return s, nil
 }
 
@@ -1533,6 +1569,55 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			}
 			bz = bz[n:]
 			goo.IterNextCostFlat = int64(v)
+		case 14:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 14: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.CodeSubmissionPolicy = CodeSubmissionPolicy(v)
+		case 15:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 15: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var addr crypto.Address
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := addr.UnmarshalAmino(string(v)); err != nil {
+				return err
+			}
+			goo.CodeSubmitters = append(goo.CodeSubmitters, addr)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 15 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 15: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var elem crypto.Address
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := elem.UnmarshalAmino(string(v)); err != nil {
+					return err
+				}
+				goo.CodeSubmitters = append(goo.CodeSubmitters, elem)
+			}
 		default:
 			return fmt.Errorf("unknown field number %d for Params", fnum)
 		}
