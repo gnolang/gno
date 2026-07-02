@@ -124,45 +124,42 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
 - Interface identity matches Go across embedding, aliasing, multi-level,
   diamond, order, mixed embed+direct, and cross-package (exported and
   unexported) method sets.
-- The embedded-interface branches retained in `FindEmbeddedFieldType` /
-  `VerifyImplementedBy` still serve interface types decoded from pre-change
-  persisted state (their `Methods` are unflattened); they are otherwise
-  unreachable for freshly-constructed types.
 - Consensus-breaking: `TypeID`s of anonymous interfaces that embed other
   interfaces change, and the `FieldType` serialization gains a field. Must
-  land with a chain upgrade.
+  land with a chain upgrade (same release class as #5737: coordinated
+  upgrade / fresh genesis).
+- Runtime **assumes flattened** interfaces. The legacy embedded-interface
+  branches in `FindEmbeddedFieldType` / `VerifyImplementedBy` are dropped; an
+  `InterfaceKind` entry in `Methods` (only possible by decoding
+  pre-flattening persisted bytes) is a **hard error** at method resolution,
+  satisfaction, and `TypeID` (see `panicUnflattened`).
 
-## Follow-up: can we assume "all flattened" and drop the recursion? (decision deferred)
+## Rollout: pre-flattening persisted state is unsupported (decided)
 
 Every `InterfaceType` is born one of three ways: **preprocess (AST)**,
-**runtime (`doOpInterfaceType`)**, or **decode**. The first two always flatten.
-Decode does not flatten — it faithfully reproduces the stored bytes. So an
-unflattened interface can reach runtime in **exactly one** situation: decode of
-bytes written by **pre-flattening** code. That gives a clean if/else:
+**runtime (`doOpInterfaceType`)**, or **decode**. The first two always flatten;
+decode faithfully reproduces stored bytes. So an unflattened interface can
+reach runtime in exactly one situation: decode of bytes written by
+**pre-flattening** code.
 
-- **If** no pre-flattening bytes can be decoded — i.e. a **fresh chain** (new
-  code from genesis; everything was flattened before it was ever serialized),
-  **or** an upgraded chain **after a migration that re-flattens** every
-  persisted interface type — then *all* interfaces at runtime are flattened.
-  The embedded-interface branches in `FindEmbeddedFieldType` /
-  `VerifyImplementedBy` are dead and can be **dropped** (or replaced with a
-  `debug`-gated assertion that `Methods` has no `InterfaceKind` entry); a
-  decoded unflattened interface becomes a hard error.
+Tolerating those bytes (the recursion branches this PR originally kept) was a
+half-measure: the type's *identity* already moved with this change, so
+resolution/satisfaction would "work" against a type whose equality, type-keyed
+store entries, and hashes are silently split from post-change construction.
+Silent-wrong loses to loud-fail on a chain, so the branches are **dropped**
+and a decoded unflattened interface **panics** with an actionable message.
 
-- **Else** — an **in-place upgrade** that keeps old bytes in storage with **no
-  migration** — those branches are load-bearing and must stay. (Note it's a
-  half-measure even then: such a type's *identity* already moved with this
-  change, so the chain needs a migration regardless.) Do **not** make
-  `VerifyImplementedBy` assume-flattened here: without the recursion a decoded
-  legacy interface gives silently-wrong satisfaction (ignore) or halts the
-  chain (panic).
+A network carrying pre-flattening state has two supported paths, both of which
+make unflattened bytes impossible (the panic is then a dead invariant check):
 
-**Decision (TBD):** which branch applies depends on how gnolang/gno ships this
-consensus break — genesis/fresh-gated, or in-place upgrade with a re-flatten
-migration. Both reach the same "all flattened" end-state and allow dropping the
-recursion; only the unmigrated in-place case requires keeping it. This PR ships
-with the recursion **retained** (safe under any choice); revisit removal once
-the rollout model is decided.
+- **Fresh genesis / tx replay** (how gno.land testnets regenesis): all state
+  is reconstructed through the new VM, flattened by construction. The only
+  pre-fork audit is source acceptance — historical txs must still preprocess
+  (this PR tightens one case: cross-package unexported-method selection).
+- **Re-flatten migration** (only if in-place state must survive): walk the
+  type table, flatten every `InterfaceType` (stamping origin `PkgPath`),
+  remap old→new `TypeID`s in all object refs, merge newly-colliding entries,
+  and verify no `InterfaceKind` entry remains.
 
 Conflict handling (same-name, different-signature embedded methods) needs no
 follow-up: `flattenInterfaceMethods` `panic`s, but during preprocessing that is

@@ -1,6 +1,9 @@
 package gnolang
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // ft builds a concrete (non-embedded) method entry.
 func mkMethod(name string, typ Type) FieldType {
@@ -128,9 +131,9 @@ func TestFlattenInterfaceMethods_ConflictPanics(t *testing.T) {
 // interface in package p can hold an unexported method with PkgPath either
 // stamped to "p" (the method was hoisted from an embed — slow path) or empty
 // (the method was declared directly, so the no-embed fast path leaves it
-// unstamped; pre-flattening persisted state also decodes to empty). Both must
-// yield one TypeID: the sort key and the emitted id both qualify via the
-// enclosing package, so the order can't flip between the two representations.
+// unstamped). Both must yield one TypeID: the sort key and the emitted id
+// both qualify via the enclosing package, so the order can't flip between
+// the two representations.
 func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 	t.Parallel()
 	fn := &FuncType{}
@@ -140,11 +143,44 @@ func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 	}}
 	unstamped := &InterfaceType{PkgPath: "p", Methods: []FieldType{
 		{Name: "M", Type: fn},
-		{Name: "z", Type: fn}, // declared directly, or legacy-decoded
+		{Name: "z", Type: fn}, // declared directly (fast path, unstamped)
 	}}
 	if stamped.TypeID() != unstamped.TypeID() {
 		t.Fatalf("stamped vs empty PkgPath gave different TypeIDs:\n stamped:   %s\n unstamped: %s",
 			stamped.TypeID(), unstamped.TypeID())
+	}
+}
+
+// An InterfaceKind entry in Methods can only be pre-flattening persisted
+// state (every construction path flattens). Such state is unsupported —
+// interface identity already moved with flattening — so all three consumers
+// (method resolution, satisfaction, identity) must fail loudly instead of
+// resolving against a silently-split type. Pins the drop of the legacy
+// embedded-interface branches; see adr/pr5739.
+func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
+	t.Parallel()
+	embedded := &InterfaceType{PkgPath: "p", Methods: []FieldType{{Name: "M", Type: &FuncType{}}}}
+	legacy := &InterfaceType{PkgPath: "p", Methods: []FieldType{
+		{Name: "E", Type: embedded, Embedded: true}, // as decoded from pre-flattening bytes
+	}}
+
+	for name, use := range map[string]func(){
+		"FindEmbeddedFieldType": func() { legacy.FindEmbeddedFieldType("p", "M", nil) },
+		"VerifyImplementedBy":   func() { legacy.VerifyImplementedBy(embedded) },
+		"TypeID":                func() { legacy.TypeID() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("expected panic on unflattened interface, got none")
+				}
+				if s, ok := r.(string); !ok || !strings.Contains(s, "unflattened embedded interface") {
+					t.Fatalf("expected unflattened-interface panic, got: %v", r)
+				}
+			}()
+			use()
+		})
 	}
 }
 

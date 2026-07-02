@@ -356,11 +356,12 @@ type FieldType struct {
 	// PkgPath is the defining package of an unexported interface method,
 	// recorded when flattenInterfaceMethods hoists a method out of an
 	// embedded interface (whose package may differ from the enclosing
-	// interface). Empty for exported methods, struct fields, and entries
-	// decoded from pre-flattening persisted state; an empty value falls back
-	// to the enclosing interface's PkgPath. Used to keep unexported-method
+	// interface). Empty for exported methods, struct fields, and same-package
+	// methods (direct or same-package embeds); an empty value falls back to
+	// the enclosing interface's PkgPath. Used to keep unexported-method
 	// identity package-qualified (see ms.TypeIDForPackage) and to gate
-	// interface satisfaction (see VerifyImplementedBy).
+	// unexported selection and interface satisfaction (see
+	// FindEmbeddedFieldType, VerifyImplementedBy).
 	PkgPath string
 }
 
@@ -432,9 +433,9 @@ func (ft FieldType) idName(fallbackPkg string) string {
 // sortForPackage sorts the methods by their package-qualified identity name
 // (idName with pkgPath as the fallback) — the SAME key TypeIDForPackage emits
 // with. Keying the sort and the emission identically means the order does not
-// depend on whether a method's PkgPath is stamped (fresh construction) or
-// empty (decoded from pre-flattening persisted state), so the same logical
-// interface always yields one TypeID. Panics on a duplicate qualified name.
+// depend on whether a method's PkgPath is stamped (cross-package hoist) or
+// empty (same-package fallback), so the same logical interface always yields
+// one TypeID. Panics on a duplicate qualified name.
 func (l FieldTypeList) sortForPackage(pkgPath string) {
 	sort.SliceStable(l, func(i, j int) bool {
 		return l[i].idName(pkgPath) < l[j].idName(pkgPath)
@@ -995,15 +996,23 @@ func (it *InterfaceType) TypeID() TypeID {
 		}
 	}
 	if it.typeid.IsZero() {
+		// Identity is the flattened method set; an embedded-interface entry
+		// would emit a nonsense TypeID, so reject pre-flattening state loudly
+		// here too (equality/store paths), not just at method resolution.
+		for i := range it.Methods {
+			if it.Methods[i].Type.Kind() == InterfaceKind {
+				it.panicUnflattened(it.Methods[i])
+			}
+		}
 		// NOTE Interface types expressed or declared in different
 		// packages may have the same TypeID if and only if
 		// neither have unexported fields.  pt.Path is only
 		// included in field names that are not uppercase.
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
-		// Sort with the same package fallback emission uses, so a fresh
-		// (PkgPath-stamped) and a legacy-decoded (PkgPath-empty) instance of
-		// the same interface produce one TypeID.
+		// Sort with the same package fallback emission uses, so stamped
+		// (cross-package hoist) and unstamped (same-package fallback) entries
+		// of the same interface always produce one TypeID.
 		ms.sortForPackage(it.PkgPath)
 		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
@@ -1046,16 +1055,15 @@ func (it *InterfaceType) IsNamed() bool {
 func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
-	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{it: (struct{}{})}
-	} else if _, exists := m[it]; exists {
-		return nil, false, nil, nil, false
-	} else {
-		m[it] = struct{}{}
-	}
-	// ...
+	// Methods is flattened at construction (flattenInterfaceMethods), so all
+	// entries are concrete methods and no recursion is needed. An
+	// InterfaceKind entry can only come from pre-flattening persisted state,
+	// which is unsupported (identity already moved with flattening) — fail
+	// loudly instead of resolving against it.
 	for _, im := range it.Methods {
+		if im.Type.Kind() == InterfaceKind {
+			it.panicUnflattened(im)
+		}
 		if im.Name == n {
 			// Ensure exposed or package match. Gate against the method's
 			// origin package (its stamp when flattened out of another
@@ -1064,35 +1072,25 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
 				return nil, false, nil, nil, true
 			}
-			// a matched name cannot be an embedded interface.
-			if im.Type.Kind() == InterfaceKind {
-				return nil, false, nil, nil, false
-			}
 			// match found.
 			tr := []ValuePath{NewValuePathInterface(n)}
-			hasPtr := false
-			rcvr := Type(nil)
-			ft := im.Type
-			return tr, hasPtr, rcvr, ft, false
+			return tr, false, nil, im.Type, false
 		}
-		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
-			// embedded interfaces must be recursively searched; only
-			// legacy unflattened interfaces from persisted state reach here.
-			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
-			if accessError {
-				// XXX make test case and check against go
-				return nil, false, nil, nil, true
-			} else if trail != nil {
-				if debug {
-					if len(trail) != 1 || trail[0].Type != VPInterface {
-						panic("should not happen")
-					}
-				}
-				return trail, hasPtr, rcvr, ft, false
-			} // else continue search.
-		} // else continue search.
 	}
 	return nil, false, nil, nil, false
+}
+
+// panicUnflattened reports an InterfaceKind entry in Methods: an embedded-
+// interface entry from pre-flattening persisted state. Construction always
+// flattens (flattenInterfaceMethods), and flattening moved interface
+// identity, so pre-flattening state is unsupported regardless — it requires
+// regenesis (tx replay) or a re-flatten migration. Failing loudly here beats
+// resolving against a type whose identity is already silently split.
+// See adr/pr5739_interface_method_set_flattening.md.
+func (it *InterfaceType) panicUnflattened(im FieldType) {
+	panic(fmt.Sprintf(
+		"unflattened embedded interface %q in %s: pre-flattening persisted state requires regenesis or a re-flatten migration",
+		im.Name, it.String()))
 }
 
 // For run-time type assertion.
@@ -1100,14 +1098,8 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
-			// field is embedded interface; only legacy unflattened
-			// interfaces from persisted state reach here.
-			im2 := baseOf(im.Type).(*InterfaceType)
-			if err := im2.VerifyImplementedBy(ot); err != nil {
-				return err
-			} else {
-				continue
-			}
+			// pre-flattening persisted state; see panicUnflattened.
+			it.panicUnflattened(im)
 		}
 		// find method in field. Gate unexported-method access against the
 		// method's origin package (its stamp when flattened out of another
