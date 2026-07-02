@@ -2,10 +2,12 @@ package sdk
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -60,6 +62,11 @@ type BaseApp struct {
 	// The minimum gas prices a validator is willing to accept for processing a
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices []GasPrice
+
+	// Thread-safe snapshot of the last block header.
+	// Updated atomically in setCheckState().
+	// Used by Simulate and query handlers that run outside the consensus mutex.
+	lastBlockHeader atomic.Pointer[headerSnapshot]
 
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
@@ -246,6 +253,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	app.lastBlockHeader.Store(&headerSnapshot{header: header})
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -258,6 +266,17 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
+}
+
+// getLastBlockHeader returns the last block header, safe for concurrent access.
+// It reads from an atomic.Value updated in setCheckState() and BeginBlock().
+// Returns nil if no header has been set yet.
+func (app *BaseApp) getLastBlockHeader() abci.Header {
+	snap := app.lastBlockHeader.Load()
+	if snap != nil {
+		return snap.header
+	}
+	return nil
 }
 
 // setConsensusParams memoizes the consensus params.
@@ -502,7 +521,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		return
 	}
 
-	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
 	if err != nil {
 		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
@@ -512,10 +531,11 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		))
 		return
 	}
+	defer release()
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
-	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	ctx := NewContext(RunTxModeCheck, cacheMS, app.getLastBlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
@@ -951,21 +971,26 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	header := app.deliverState.ctx.BlockHeader()
 
-	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
-	// The write to the DeliverTx state writes all state transitions to the root
-	// MultiStore (app.cms) so when Commit() is called is persists those values.
-	app.deliverState.ms.MultiWrite()
-	commitID := app.cms.Commit()
-	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
-
-	// Save this header.
-	baseStore := app.cms.GetStore(app.baseKey)
+	// Write block header into the deliver cache before flush,
+	// so it lands in the same batch as all other block state.
+	baseStore := app.deliverState.ms.GetStore(app.baseKey)
 	if baseStore == nil {
 		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'base' Store"))
 		return
 	}
 	headerBz := amino.MustMarshal(header)
 	baseStore.Set(nil, mainLastHeaderKey, headerBz)
+
+	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
+	// The write to the DeliverTx state writes all state transitions to the root
+	// MultiStore (app.cms) so when Commit() is called it persists those values.
+	//
+	// Order matters: MultiWrite MUST precede Commit — reversing it makes IAVL
+	// SaveVersion run against a stale tree (wrong app hash) and shifts dbadapter
+	// writes into the next block's batch.
+	app.deliverState.ms.MultiWrite()
+	commitID := app.cms.Commit()
+	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
 
 	// Reset the Check state to the latest committed.
 	//
@@ -992,6 +1017,14 @@ func (app *BaseApp) Close() error {
 		return nil
 	}
 
+	// Release any open query snapshot before closing the DB.
+	// The multiStore holds a snapshot with refs=1 that is normally released by
+	// the next Commit(). On shutdown that swap never happens, so we must drain
+	// it explicitly; otherwise PebbleDB reports "leaked snapshots" at Close time.
+	if closer, ok := app.cms.(io.Closer); ok {
+		closer.Close() //nolint:errcheck // multiStore.Close() always returns nil
+	}
+
 	app.logger.Info("Closing application.db")
 
 	if err := app.db.Close(); err != nil {
@@ -1007,6 +1040,12 @@ func (app *BaseApp) Close() error {
 type state struct {
 	ms  store.MultiStore
 	ctx Context
+}
+
+// headerSnapshot wraps an abci.Header for safe use with atomic.Value,
+// which requires a consistent concrete type on every Store call.
+type headerSnapshot struct {
+	header abci.Header
 }
 
 func (st *state) MultiCacheWrap() store.MultiStore {

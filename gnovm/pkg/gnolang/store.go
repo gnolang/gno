@@ -211,7 +211,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
-		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheNodes:   txlog.NewSyncGoMap[Location, BlockNode](),
 		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache

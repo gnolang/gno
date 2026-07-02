@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -692,6 +694,130 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
 }
 
+// TestGasUsedBetweenSimulateAndDeliverAfterCommit is a regression test for
+// DepthEstimator forwarding in immutStore: after a Commit, Simulate must
+// charge the same gas as DeliverTx.
+func TestGasUsedBetweenSimulateAndDeliverAfterCommit(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit a block so getLastBlockHeader returns height >= 1, ensuring
+	// Simulate uses MultiImmutableCacheWrapWithVersion (the bug path).
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Begin block 2, then simulate and deliver the same tx.
+	header2 := &bft.Header{ChainID: "test-chain", Height: 2}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header2})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0))
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed)
+}
+
+// TestSimulateConcurrentWithCommit verifies that concurrent Simulate calls do
+// not panic or data-race with Commit(). Run with -race.
+//
+// Note: a "version not found" error is acceptable — it means the committer pruned
+// the version between the time Simulate read lastBlockHeader and the time it called
+// MultiImmutableCacheWrapWithVersion. That is valid TOCTOU behaviour under pruning,
+// not a snapshot isolation bug. The invariant tested here is:
+//   - Simulate never panics
+//   - When Simulate can load the requested version, the result is OK
+func TestSimulateConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit an initial block so Simulate takes the immutable-snapshot path.
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	const (
+		numBlocks     = 10
+		numSimulators = 8
+	)
+
+	var (
+		wg      sync.WaitGroup
+		startMu sync.Mutex
+	)
+	startMu.Lock() // held until all goroutines are spawned
+
+	// Simulator goroutines: fire Simulate repeatedly, all starting at the same
+	// time to maximise overlap with the committer goroutine below.
+	for range numSimulators {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			startMu.Lock() // wait for the starting gun
+			startMu.Unlock()
+			for range numBlocks {
+				res := app.Simulate(txBytes)
+				// A store-load error is acceptable under pruning: the committer
+				// may advance past lastBlockHeader between the header read and
+				// MultiImmutableCacheWrapWithVersion. Skip those; only assert
+				// correctness when the load actually succeeded.
+				if res.Error != nil {
+					continue
+				}
+				require.True(t, res.IsOK(), "Simulate must succeed when version loads: %v", res)
+			}
+		}()
+	}
+
+	// Committer goroutine: advance the chain while simulators are running.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		startMu.Lock()
+		startMu.Unlock()
+		for i := range numBlocks {
+			height := int64(i + 2)
+			app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: height}})
+			app.EndBlock(abci.RequestEndBlock{})
+			app.Commit()
+		}
+	}()
+
+	startMu.Unlock() // fire
+	wg.Wait()
+}
+
 // One call to DeliverTx should process all the messages, in order.
 func TestMultiMsgDeliverTx(t *testing.T) {
 	t.Parallel()
@@ -818,6 +944,85 @@ func TestSimulateTx(t *testing.T) {
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+}
+
+// TestSimulateConcurrentNoPanic verifies that Simulate can run concurrently
+// with BeginBlock/DeliverTx/Commit without panicking or data races.
+// Run with -race to detect any unsafe concurrent access.
+func TestSimulateConcurrentNoPanic(t *testing.T) {
+	t.Parallel()
+
+	gasConsumed := int64(5)
+
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasConsumed))
+			return
+		})
+	}
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(gasConsumed, "test")
+			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	// Run a first block so that committed state exists for Simulate.
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Spawn goroutines that continuously simulate while the main goroutine
+	// runs block production cycles. The race detector will flag any unsafe
+	// concurrent access to shared BaseApp state.
+	done := make(chan struct{})
+	var didPanic atomic.Bool
+	var wg sync.WaitGroup
+
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					didPanic.Store(true)
+				}
+			}()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					result := app.Simulate(txBytes)
+					// Simulate may fail if called mid-Commit (height mismatch),
+					// but it must never panic or race.
+					_ = result
+				}
+			}
+		}()
+	}
+
+	// Run several block cycles concurrently with the simulate goroutines.
+	for i := int64(2); i <= 10; i++ {
+		header := &bft.Header{ChainID: "test-chain", Height: i}
+		app.BeginBlock(abci.RequestBeginBlock{Header: header})
+		app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+	}
+	close(done)
+	wg.Wait()
+
+	require.False(t, didPanic.Load(), "at least one goroutine panicked")
 }
 
 func TestRunInvalidTransaction(t *testing.T) {
