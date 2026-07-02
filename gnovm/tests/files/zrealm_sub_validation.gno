@@ -18,18 +18,18 @@ func try(_ int, rlm realm, sp string) {
 
 func main(cur realm) {
 	// Rejected.
-	try(0, cur, "")                        // empty
-	try(0, cur, "Dao")                     // uppercase
-	try(0, cur, "a b")                     // space
-	try(0, cur, "a:b")                     // colon
-	try(0, cur, "dao/")                    // trailing slash
-	try(0, cur, "/dao")                    // leading slash
-	try(0, cur, "a//b")                    // empty segment
-	try(0, cur, "..")                      // traversal segment
-	try(0, cur, "../x")                    // traversal
-	try(0, cur, "_x")                      // edge punctuation
-	try(0, cur, "x-")                      // edge punctuation
-	try(0, cur, strings.Repeat("a", 256))  // synthesized > 256 (host+':'+256)
+	try(0, cur, "")                       // empty
+	try(0, cur, "Dao")                    // uppercase
+	try(0, cur, "a b")                    // space
+	try(0, cur, "a:b")                    // colon
+	try(0, cur, "dao/")                   // trailing slash
+	try(0, cur, "/dao")                   // leading slash
+	try(0, cur, "a//b")                   // empty segment
+	try(0, cur, "..")                     // traversal segment
+	try(0, cur, "../x")                   // traversal
+	try(0, cur, "_x")                     // edge punctuation
+	try(0, cur, "x-")                     // edge punctuation
+	try(0, cur, strings.Repeat("a", 256)) // synthesized > 256 (host+':'+256)
 
 	// Accepted.
 	try(0, cur, "dao/42")

@@ -19,6 +19,7 @@ import (
 //   - IsUserCall() = false (a sub-token cross is never a direct user
 //     call — load-bearing so payment guards don't treat a programmatic
 //     sub-identity as a user)
+//
 // and unsafe.{Previous,Current}Realm() must agree at both heights.
 //
 // zrealm_sub1.gno covers the same parity but crossing WITHIN one
