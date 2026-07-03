@@ -57,14 +57,24 @@ const (
 // accumulateStorageDiffs reads per-message storage diffs and adds them to the
 // tx-level accumulator on PayStorageInfo. Must be called BEFORE the next
 // getGnoTransactionStore call (which clears diffs via ClearObjectCache).
-func accumulateStorageDiffs(ctx sdk.Context, gnostore gno.TransactionStore) {
-	diffs := gnostore.RealmStorageDiffs()
+func (vm *VMKeeper) accumulateStorageDiffs(ctx sdk.Context, gnostore gno.TransactionStore) {
 	psi := ctx.PayStorageInfo()
 	if psi == nil || psi.AccumulatedDiffs == nil {
 		return
 	}
-	for path, diff := range diffs {
+	for path, diff := range gnostore.RealmStorageDiffs() {
 		psi.AccumulatedDiffs[path] += diff
+	}
+	// Also account chain/params byte deltas, mirroring the per-message path
+	// (ProcessStorageDeposit merges ParamsRealmDiffs and flushes the meta-key).
+	// Deferred settlement runs on the end-of-tx ctx, which no longer carries this
+	// message's params accumulator, so flush each realm's meta-key baseline now.
+	// The whole SponsorStorage tx is atomic (endTxHook failure reverts the msg
+	// cache), so these meta-key writes revert together with the deferred deposit
+	// if settlement fails — keeping bank state and the baseline consistent.
+	for path, diff := range ParamsRealmDiffs(ctx) {
+		psi.AccumulatedDiffs[path] += diff
+		FlushParamsRealmAccum(ctx, vm.prmk, path)
 	}
 }
 
@@ -796,7 +806,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// Storage deposit: per-message or deferred depending on SponsorStorage.
 	if ctx.SponsorStorage() {
-		accumulateStorageDiffs(ctx, gnostore)
+		vm.accumulateStorageDiffs(ctx, gnostore)
 	} else {
 		err = vm.ProcessStorageDeposit(ctx, creator, msg.MaxDeposit, gnostore, params)
 		if err != nil {
@@ -957,7 +967,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 	// Storage deposit: per-message or deferred depending on SponsorStorage.
 	if ctx.SponsorStorage() {
-		accumulateStorageDiffs(ctx, gnostore)
+		vm.accumulateStorageDiffs(ctx, gnostore)
 	} else {
 		err = vm.ProcessStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
 		if err != nil {
@@ -1180,7 +1190,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	res = buf.String()
 	// Storage deposit: per-message or deferred depending on SponsorStorage.
 	if ctx.SponsorStorage() {
-		accumulateStorageDiffs(ctx, gnostore)
+		vm.accumulateStorageDiffs(ctx, gnostore)
 	} else {
 		err = vm.ProcessStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
 		if err != nil {
