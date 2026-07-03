@@ -4,6 +4,13 @@
 every `gnokey` command: key management, deploying packages, calling and
 scripting realms, signing transactions, multisig, and reading chain state.
 
+`gnokey` is a production tool and stays deliberately minimal: signing keys and
+talking to a live network, nothing more. Developer conveniences, for example a
+transaction template system or realm scaffolding, would belong in a development
+tool that could come in the future, the same way
+[`gnodev`](./gnodev-reference.md) exists so you can develop locally without
+driving a full node through the `gnoland` toolchain.
+
 For everyday wallet use, see
 [Using the `gnokey` wallet](../users/using-gnokey.md). For a guided first deploy,
 follow [Getting started](../builders/getting-started.md). If you don't have
