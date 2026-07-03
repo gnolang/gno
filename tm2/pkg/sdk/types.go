@@ -26,12 +26,14 @@ type PayGasInfo struct {
 	RealmPkgPath string         // pkg path of the realm that called PayGas
 	RealmAddr    crypto.Address // derived address of the realm
 	MaxFee       int64          // gas fee cap in ugnot (0 = PayGas not called)
+	Eligible     bool           // true only for 0-fee credit-window txs; PayGas is a no-op otherwise
 }
 
 type PayStorageInfo struct {
 	RealmPkgPath     string           // pkg path of the realm that called PayStorage
 	RealmAddr        crypto.Address   // derived address of the realm
 	MaxDeposit       int64            // storage deposit cap in ugnot (0 = PayStorage not called)
+	SpentDeposit     int64            // deposit already charged across prior messages (per-tx running total)
 	AccumulatedDiffs map[string]int64 // tx-level storage diff accumulator (when SponsorStorage=true)
 }
 
@@ -60,6 +62,16 @@ var (
 	ParseGasPrice  = std.ParseGasPrice
 	ParseGasPrices = std.ParseGasPrices
 )
+
+//----------------------------------------
+
+// VerifySignaturesContextKey, when set truthy on the context, forces the ante
+// handler to verify transaction signatures even while running in Simulate mode.
+// CheckTx sets it when it routes a 0-fee tx through Simulate mode (needed to
+// execute the tx's messages), so that a forged-signature tx cannot be admitted
+// to the mempool and gossiped. The RPC Simulate() gas-estimation path does not
+// set it, so simulating an unsigned tx still works.
+type VerifySignaturesContextKey struct{}
 
 //----------------------------------------
 

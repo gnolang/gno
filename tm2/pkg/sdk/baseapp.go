@@ -592,8 +592,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		return
 	}
 
-	// For 0-fee txs when allowed, use Simulate mode to run full VM execution.
-	// This validates that PayGas is called before accepting into mempool.
+	// For 0-fee txs when allowed, use Simulate mode to run full VM execution so
+	// that runTx can validate PayGas was called before accepting into the mempool
+	// (the PayGas-not-called rejection itself lives in runTx, for all modes).
 	mode := RunTxModeCheck
 	if tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs && app.consensusParams != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
@@ -601,16 +602,14 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 	}
 	ctx := app.getContextForTx(mode, req.Tx)
 
-	result := app.runTx(ctx, req.Tx)
-
-	// For 0-fee simulated txs, reject if simulation failed or PayGas was not called.
-	if mode == RunTxModeSimulate && tx.Fee.GasFee.IsZero() {
-		if !result.IsOK() || result.PayGasInfo == nil {
-			if result.Error == nil {
-				result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
-			}
-		}
+	// This is real mempool admission, not RPC gas estimation: force the ante
+	// handler to verify signatures even though the 0-fee path runs in Simulate
+	// mode, so a forged-signature tx cannot enter and be gossiped from the mempool.
+	if mode == RunTxModeSimulate {
+		ctx = ctx.WithValue(VerifySignaturesContextKey{}, true)
 	}
+
+	result := app.runTx(ctx, req.Tx)
 
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
@@ -931,13 +930,20 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 
 	runMsgCtx := ctx
 
+	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
+	// PayGas is only meaningful — and only permitted to move funds or resize the
+	// gas meter — for such txs; in a normal fee-paying tx it is a no-op.
+	zeroFeeCreditTx := tx.Fee.GasFee.IsZero() &&
+		app.consensusParams != nil && app.consensusParams.Block != nil &&
+		app.consensusParams.Block.MaxGasCreditPerTx > 0
+
 	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
 	psi := &PayStorageInfo{}
 	if runMsgCtx.SponsorStorage() {
 		psi.AccumulatedDiffs = make(map[string]int64)
 	}
 	runMsgCtx = runMsgCtx.
-		WithPayGasInfo(&PayGasInfo{}).
+		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
 		WithPayStorageInfo(psi)
 
 	if app.beginTxHook != nil {
@@ -950,6 +956,14 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// Propagate PayGasInfo from context to result.
 	if pgi := runMsgCtx.PayGasInfo(); pgi != nil && pgi.MaxFee > 0 {
 		result.PayGasInfo = pgi
+	}
+
+	// Enforce sponsorship for 0-fee txs in EVERY mode — including DeliverTx, so a
+	// block proposer cannot force-include a free tx that skips PayGas. A 0-fee tx
+	// that never called PayGas has no payer, so it must fail and have its msg
+	// writes discarded (below, result.IsOK() is false → WriteCheckpoint reverts).
+	if zeroFeeCreditTx && result.PayGasInfo == nil && result.IsOK() {
+		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 
 	// Simulate: return after msg execution. The outer CacheContext

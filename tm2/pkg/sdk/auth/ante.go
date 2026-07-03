@@ -287,7 +287,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, res, true
 			}
 
-			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+			// Verify signatures unless this is a pure gas-estimation simulate.
+			// CheckTx admission of 0-fee txs runs in Simulate mode but sets
+			// VerifySignaturesContextKey, so forged-signature txs are still
+			// rejected before entering the mempool.
+			forceSigVerify, _ := newCtx.Value(sdk.VerifySignaturesContextKey{}).(bool)
+			if (!simulate || forceSigVerify) && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
 			}
 

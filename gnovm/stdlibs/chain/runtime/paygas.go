@@ -39,6 +39,13 @@ func PayGas(m *gno.Machine, maxFee int64) {
 		m.Panic(typedString("PayGas: feature not available in this context"))
 		return
 	}
+	// PayGas only applies to 0-fee sponsored txs. In a normal fee-paying tx the
+	// signer already pays for gas, so calling PayGas is a no-op here — this
+	// prevents charging both the signer (ante fee) and the realm (settlement),
+	// and prevents shrinking the user's gas limit below their GasWanted.
+	if !ctx.PayGasInfo.Eligible {
+		return
+	}
 	if ctx.PayGasInfo.MaxFee > 0 {
 		m.Panic(typedString("PayGas: already called in this transaction"))
 		return
@@ -83,6 +90,14 @@ func PayGas(m *gno.Machine, maxFee int64) {
 		return
 	}
 	derivedLimit := product / ctx.GasPrice.Price.Amount
+
+	// Never raise the gas limit above the credit window the ante handler granted
+	// for this tx; PayGas may only tighten it to what maxFee affords. This keeps a
+	// single sponsored tx bounded by MaxGasCreditPerTx (and thus by Block.MaxGas),
+	// so a large maxFee cannot let one tx monopolize a whole block's compute.
+	if curLimit := m.GasMeter.Limit(); derivedLimit > curLimit {
+		derivedLimit = curLimit
+	}
 
 	// 9. Check budget not already exceeded
 	consumed := m.GasMeter.GasConsumed()

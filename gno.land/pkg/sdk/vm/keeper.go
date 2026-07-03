@@ -1804,11 +1804,19 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 		// this directly during a non-deliver phase doesn't lock funds.
 		return nil
 	}
-	// When PayStorage is active, the sponsoring realm pays storage deposits instead of the caller.
+	// When PayStorage is active, the sponsoring realm pays storage deposits
+	// instead of the caller. MaxDeposit is a per-TRANSACTION cap: track the spend
+	// so far on the shared PayStorageInfo so that an N-message tx cannot charge
+	// the realm up to the full budget on every message.
 	var maxStorageBudget int64 = math.MaxInt64
-	if psi := ctx.PayStorageInfo(); psi != nil && psi.MaxDeposit > 0 {
+	psi := ctx.PayStorageInfo()
+	sponsored := psi != nil && psi.MaxDeposit > 0
+	if sponsored {
 		caller = psi.RealmAddr
-		maxStorageBudget = psi.MaxDeposit
+		maxStorageBudget = psi.MaxDeposit - psi.SpentDeposit
+		if maxStorageBudget < 0 {
+			maxStorageBudget = 0
+		}
 	}
 
 	realmDiffs := gnostore.RealmStorageDiffs()
@@ -1875,6 +1883,11 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			depositAmt -= requiredDeposit
 			maxStorageBudget -= requiredDeposit
+			if sponsored {
+				// Persist the running spend so the next message in this tx
+				// sees the reduced remaining budget.
+				psi.SpentDeposit += requiredDeposit
+			}
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
 			evt := chain.StorageDepositEvent{
@@ -1950,7 +1963,15 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 // (for SponsorStorage=true txs where diffs are accumulated across all messages).
 func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypto.Address, diffs map[string]int64, maxBudget int64, gnostore gno.Store, params Params) error {
 	price := std.MustParseCoin(params.StoragePrice)
-	depositAmt := std.MustParseCoin(params.DefaultDeposit).Amount
+	// The deposit cap is the sponsor's committed budget (PayStorage maxDeposit),
+	// not DefaultDeposit. Using DefaultDeposit here would both reject legitimate
+	// sponsored writes larger than it and, when no budget was set, silently charge
+	// the payer up to DefaultDeposit. The endTxHook guarantees maxBudget > 0
+	// whenever there are diffs to settle; the fallback is purely defensive.
+	depositAmt := maxBudget
+	if depositAmt <= 0 {
+		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
+	}
 
 	sortedRealm := make([]string, 0, len(diffs))
 	for path := range diffs {

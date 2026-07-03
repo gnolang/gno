@@ -208,12 +208,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 					panic("PayGas settlement: gas price not available on context")
 				}
 				gasUsed := ctx.GasMeter().GasConsumed()
-				// Overflow-safe: actualCost = gasUsed * Price.Amount / Gas, capped by MaxFee
+				// Overflow-safe: actualCost = ceil(gasUsed * Price.Amount / Gas),
+				// capped by MaxFee. Ceiling (not floor) division so the realm is
+				// never undercharged the sub-unit remainder of real gas consumed.
 				product, ok := overflow.Mul(gasUsed, gasPrice.Price.Amount)
 				if !ok {
 					panic("PayGas settlement: gas cost calculation overflow")
 				}
 				actualCost := product / gasPrice.Gas
+				if product%gasPrice.Gas != 0 {
+					actualCost++
+				}
 				if actualCost > result.PayGasInfo.MaxFee {
 					actualCost = result.PayGasInfo.MaxFee
 				}
@@ -233,20 +238,23 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				}
 			}
 
-			// Storage deposit settlement.
+			// Storage deposit settlement (SponsorStorage txs).
 			if ctx.SponsorStorage() {
-				// SponsorStorage: settle accumulated diffs from all messages.
-				// Diffs were already accumulated per-message in accumulateStorageDiffs.
-				// No need to read final diffs again — handlers already captured them.
+				// SponsorStorage defers all messages' storage diffs to end-of-tx,
+				// expecting a realm to cover them via PayStorage. Diffs were
+				// accumulated per-message in accumulateStorageDiffs.
 				psi := ctx.PayStorageInfo()
-				storagePayer := ctx.TxCaller()
-				if psi != nil && psi.MaxDeposit > 0 {
-					storagePayer = psi.RealmAddr
-				}
-				if !storagePayer.IsZero() && psi != nil && len(psi.AccumulatedDiffs) > 0 {
+				if psi != nil && len(psi.AccumulatedDiffs) > 0 {
+					// If storage was used but no realm called PayStorage, there is
+					// no authorized payer or budget — the per-message MaxDeposit the
+					// signer set was never applied — so fail the tx rather than
+					// silently charge the caller up to DefaultDeposit.
+					if psi.MaxDeposit <= 0 {
+						panic("SponsorStorage tx used storage but no realm called PayStorage")
+					}
 					gnostore := vmk.GetGnoTransactionStoreReadOnly(ctx)
 					params := vmk.GetParams(ctx)
-					err := vmk.ProcessStorageDepositFromDiffs(ctx, storagePayer, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params)
+					err := vmk.ProcessStorageDepositFromDiffs(ctx, psi.RealmAddr, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params)
 					if err != nil {
 						panic(fmt.Sprintf("storage deposit settlement failed: %v", err))
 					}
