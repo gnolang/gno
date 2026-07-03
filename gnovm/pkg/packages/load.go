@@ -62,7 +62,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		if cpf, ok := conf.Fetcher.(pkgdownload.RPCPackageFetcher); ok {
 			cpf.OverrideDomainsRPCs(rpcOverrides)
 		} else {
-			fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it")
+			fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it\n")
 		}
 	}
 
