@@ -202,8 +202,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	feeCollectorAddr := crypto.AddressFromPreimage([]byte(auth.DefaultFeeCollectorName))
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
-			// PayGas settlement: deduct gas cost from realm balance.
-			if result.PayGasInfo != nil && result.PayGasInfo.MaxFee > 0 {
+			// PayGas settlement: deduct gas cost from realm balance. The PayGas
+			// state lives on the (in-process) context, not on result.
+			pgi := ctx.PayGasInfo()
+			if pgi != nil && pgi.MaxFee > 0 {
 				gasPrice, ok := ctx.Value(auth.GasPriceContextKey{}).(std.GasPrice)
 				if !ok || gasPrice.Gas <= 0 {
 					panic("PayGas settlement: gas price not available on context")
@@ -220,11 +222,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				if product%gasPrice.Gas != 0 {
 					actualCost++
 				}
-				if actualCost > result.PayGasInfo.MaxFee {
-					actualCost = result.PayGasInfo.MaxFee
+				if actualCost > pgi.MaxFee {
+					actualCost = pgi.MaxFee
 				}
 				if actualCost > 0 {
-					realmAddr := result.PayGasInfo.RealmAddr
+					realmAddr := pgi.RealmAddr
 					costCoins := std.NewCoins(std.NewCoin(gasPrice.Price.Denom, actualCost))
 					// Pre-check balance (same pattern as auth.DeductFees)
 					realmCoins := bankk.GetCoins(ctx, realmAddr)

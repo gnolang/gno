@@ -17,6 +17,7 @@ var _ reflect.Type
 
 func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Result)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*PayGasInfo)(nil)).Elem())
 }
 
 func (goo Result) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
@@ -131,6 +132,154 @@ func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			goo.GasUsed = int64(v)
 		default:
 			return fmt.Errorf("unknown field number %d for Result", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo PayGasInfo) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Eligible {
+		{
+			before := offset
+			offset = amino.PrependBool(buf, offset, bool(goo.Eligible))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.MaxFee != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.MaxFee))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	{
+		repr, err := goo.RealmAddr.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		if repr != "" {
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
+		}
+	}
+	if goo.RealmPkgPath != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.RealmPkgPath))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo PayGasInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.RealmPkgPath != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.RealmPkgPath))) + len(goo.RealmPkgPath)
+	}
+	{
+		repr, err := goo.RealmAddr.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
+	}
+	if goo.MaxFee != 0 {
+		s += 1 + amino.VarintSize(int64(goo.MaxFee))
+	}
+	if goo.Eligible {
+		s += 1 + 1
+	}
+	return s, nil
+}
+
+func (goo *PayGasInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PayGasInfo{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.RealmPkgPath = string(v)
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.RealmAddr.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.MaxFee = int64(v)
+		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeBool(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Eligible = bool(v)
+		default:
+			return fmt.Errorf("unknown field number %d for PayGasInfo", fnum)
 		}
 	}
 	return nil

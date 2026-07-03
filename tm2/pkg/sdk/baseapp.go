@@ -956,16 +956,16 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
-	// Propagate PayGasInfo from context to result.
-	if pgi := runMsgCtx.PayGasInfo(); pgi != nil && pgi.MaxFee > 0 {
-		result.PayGasInfo = pgi
-	}
+	// Whether a realm called PayGas is read from the (in-process) context, not
+	// carried on result — result must stay wire-compatible with ResponseDeliverTx.
+	pgi := runMsgCtx.PayGasInfo()
+	payGasCalled := pgi != nil && pgi.MaxFee > 0
 
 	// Enforce sponsorship for 0-fee txs in EVERY mode — including DeliverTx, so a
 	// block proposer cannot force-include a free tx that skips PayGas. A 0-fee tx
 	// that never called PayGas has no payer, so it must fail and have its msg
 	// writes discarded (below, result.IsOK() is false → WriteCheckpoint reverts).
-	if zeroFeeCreditTx && result.PayGasInfo == nil && result.IsOK() {
+	if zeroFeeCreditTx && !payGasCalled && result.IsOK() {
 		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 

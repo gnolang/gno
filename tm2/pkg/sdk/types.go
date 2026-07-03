@@ -38,11 +38,13 @@ type PayStorageInfo struct {
 }
 
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.
+// Its wire encoding must stay compatible with abci.ResponseDeliverTx (same
+// fields), so no PayGas/sponsorship state is carried here — that lives on the
+// (in-process) sdk.Context and is read directly from there in endTxHook.
 type Result struct {
 	abci.ResponseBase
-	GasWanted  int64
-	GasUsed    int64
-	PayGasInfo *PayGasInfo // set when a realm calls PayGas during execution
+	GasWanted int64
+	GasUsed   int64
 }
 
 // AnteHandler authenticates transactions, before their internal messages are handled.

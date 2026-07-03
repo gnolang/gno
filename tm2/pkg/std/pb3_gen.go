@@ -891,6 +891,18 @@ func (goo *Tx) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error
 
 func (goo Fee) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.SponsorStorage {
+		{
+			before := offset
+			offset = amino.PrependBool(buf, offset, bool(goo.SponsorStorage))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
 	{
 		repr, err := goo.GasFee.MarshalAmino()
 		if err != nil {
@@ -938,6 +950,9 @@ func (goo Fee) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 		}
 	}
+	if goo.SponsorStorage {
+		s += 1 + 1
+	}
 	return s, nil
 }
 
@@ -980,6 +995,16 @@ func (goo *Fee) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) erro
 			if err := goo.GasFee.UnmarshalAmino(repr); err != nil {
 				return err
 			}
+		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeBool(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.SponsorStorage = bool(v)
 		default:
 			return fmt.Errorf("unknown field number %d for Fee", fnum)
 		}
