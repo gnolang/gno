@@ -196,6 +196,9 @@ loop:
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
+	if len(m.Ops) == 0 {
+		return
+	}
 	op := m.Ops[len(m.Ops)-1]
 	switch op {
 	case OpCall:
@@ -203,9 +206,11 @@ loop:
 		m.Debugger.blocks = append(m.Debugger.blocks, m.LastBlock())
 		m.Debugger.realms = append(m.Debugger.realms, m.Realm)
 	case OpReturn, OpReturnFromBlock:
-		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
-		m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
-		m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
+		if len(m.Debugger.call) > 0 {
+			m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+			m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
+			m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
+		}
 	}
 }
 
@@ -824,7 +829,7 @@ func debugFrameFunc(m *Machine, n int) *FuncValue {
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
-	if n == 0 || len(m.Debugger.call) == 0 {
+	if n == 0 || n > len(m.Debugger.call) {
 		return m.Debugger.loc
 	}
 	if i := len(m.Debugger.call) - n; i > 0 {
