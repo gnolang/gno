@@ -50,7 +50,6 @@ Four message types change on-chain state:
 | `Send`       | transfer coins between addresses        |
 | `Run`        | execute a Gno script against the chain  |
 
-
 Each `maketx` command sends one message, signed with a key from your keybase (see
 [Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). Every
 command takes the same base-configuration flags:
@@ -80,7 +79,8 @@ values per network in [Network configuration](./gnoland-networks.md).
 State-changing calls cost gas paid in GNOT, so on testnets grab some from the
 [Faucet Hub](https://faucet.gno.land) first.
 
-Every successful transaction prints the same summary:
+Every successful transaction prints the same summary; a `Call` return value
+prints above the `OK!` line:
 
 ```console
 OK!
@@ -141,8 +141,8 @@ Run it from the package directory, publishing to a path under a
 gnokey maketx addpkg \
   -pkgpath "gno.land/p/examplenamespace/hello_world" \
   -pkgdir "." \
-  -gas-fee 10000000ugnot \
-  -gas-wanted 200000 \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 20000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   mykey
@@ -184,9 +184,6 @@ gnokey maketx call \
   mykey
 ```
 
-Any return value prints above the standard summary, and `EVENTS` carries whatever
-the function [emitted](./gno-stdlibs.md#events).
-
 :::info `Call` always uses gas
 
 `maketx call` spends gas even when the function only reads state. To read without
@@ -205,14 +202,15 @@ func Add(cur realm, nums ...int) int
 call it with any number of arguments:
 
 ```bash
-# Two variadic args
+# Two variadic args (base flags omitted)
 gnokey maketx call -pkgpath gno.land/r/tests/vm/variadic -func Add -args 10 -args 20 ...
 
 # Zero variadic args (omit -args entirely)
 gnokey maketx call -pkgpath gno.land/r/tests/vm/variadic -func Add ...
 ```
 
-Slice expansion (`...`) is not supported; pass each element as its own `-args`.
+Slice expansion (passing `nums...`) is not supported; pass each element as its
+own `-args`.
 
 ### `Run`
 
@@ -258,11 +256,9 @@ when a plain call can't express what you need:
 2. Calling realm functions repeatedly in a loop
 3. Calling methods on exported variables
 
-**1. Composite arguments.** Each `-args` value is a string, converted on chain
-to the parameter's declared type: booleans, integers, floats, strings, and
-`[]byte` (base64-encoded). Composite types such as structs, maps, and other
-slices cannot be passed. `Run` is full Gno code, so it can build those values
-directly:
+**1. Composite arguments.** `-args` only carries primitive values: booleans,
+numbers, strings, and base64-encoded `[]byte`. Structs, maps, and other slices
+cannot be passed. `Run` is full Gno code, so it can build them directly:
 
 ```go
 package main
@@ -296,12 +292,11 @@ func main() {
 ```
 
 This increments the counter five times in one transaction, printing each new
-value. With `Call`, the same would require five separate transactions.
+value.
 
-**3. Methods on exported variables.** `Call` can only invoke exported
-functions. `Run` can also call methods on exported variables, which `Call`
-cannot reach. For example, if a realm exposes `var Pool *Token` with a
-`Balance()` method:
+**3. Methods on exported variables.** `Call` only invokes exported functions;
+`Run` can also call methods on exported variables. For example, if a realm
+exposes `var Pool *Token` with a `Balance()` method:
 
 ```go
 package main
@@ -312,9 +307,6 @@ func main() {
 	println(myrealm.Pool.Balance())
 }
 ```
-
-This calls a method on an exported variable directly, which is impossible with
-`Call`.
 
 ## Session
 
@@ -379,10 +371,10 @@ gnokey maketx session revokeall \
 ## Airgapped signing
 
 `gnokey` can split a transaction's creation, signing, and broadcasting across two
-machines. Doing the signing on an
-[airgapped](https://en.wikipedia.org/wiki/Air_gap_(networking)) machine with no
-network keeps your private key away from internet-borne attacks; it never touches
-the online machine. The flow uses one online machine (`A`) and one offline (`B`):
+machines. Signing on an
+[airgapped](https://en.wikipedia.org/wiki/Air_gap_(networking)) machine keeps
+your private key away from internet-borne attacks; it never touches the online
+machine. The flow uses one online machine (`A`) and one offline (`B`):
 
 1. `A` (online): fetch account information from the chain
 2. `B` (offline): build the unsigned transaction
@@ -409,11 +401,12 @@ gnokey maketx call \
   mykey > counter.tx
 ```
 
-**3. Sign it.** `gnokey sign` fills in the signature, using the account number and
-sequence from step 1. It also takes `-output-document <file>` to write the
-signature to a separate file (used in [multisig](#multisig-k-of-n)), and
-`-session` to mark the signature as coming from a [session](#session) account,
-where the named key is the session key:
+**3. Sign it.** `gnokey sign` fills in the signature, using the account number
+and sequence from step 1. Optional flags:
+
+- `-output-document <file>` - write the signature to a separate file, used for
+  [multisig](#multisig-k-of-n) signing
+- `-session` - mark the named key as a [session](#session) key
 
 ```bash
 gnokey sign \
@@ -433,11 +426,14 @@ gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 
 ### Verifying a signature
 
-`gnokey verify` checks a signed transaction file before it goes out, letting the
-online machine confirm what came back from the offline one. It verifies against
-a key in the local keybase, passed by name or address; only the public key is
-used, so a watch-only entry added with [`add bech32`](#multisig-k-of-n) is
-enough. It takes:
+`gnokey verify` checks a transaction's signature without broadcasting it. The
+node runs the same check on broadcast, so `verify` is for the standalone cases:
+
+- confirming a signature file received from a [multisig](#multisig-k-of-n)
+  member before combining
+- proving a transaction file was signed by a given address
+
+Flags:
 
 - `-tx-path` - the transaction file to verify
 - `-sig-path` - a separate signature file, as written by `sign -output-document`
@@ -447,15 +443,17 @@ enough. It takes:
   used at signing. Any left unset are queried from `-remote`; offline, pass all
   three explicitly.
 
+The key argument is a name or address in the local keybase; a watch-only
+`add bech32` entry is enough.
+
 **Online** (unset flags queried from `-remote`):
 
 ```bash
 gnokey verify -tx-path counter.tx -remote https://rpc.staging.gno.land:443 mykey
 ```
 
-Relying on the query only works while the transaction is still pending:
-broadcasting bumps the account's sequence past the one that was signed, so an
-already-executed transaction verifies only with the original values passed
+Querying works only while the transaction is pending: broadcasting bumps the
+sequence, so an already-executed transaction needs the original values passed
 explicitly.
 
 **Offline, or after broadcast** (all values explicit):
@@ -484,14 +482,13 @@ is a 2-of-3 between Alice, Bob, and Charlie.
 :::info Same members, same address
 
 A multisig is defined by its **member keys and threshold**. `add multisig` sorts
-the members by address before deriving the multisig key, so every participant
-gets the same address as long as they use the same member set and threshold,
-regardless of the order they pass `--multisig` flags in. Passing `-nosort` keeps
-the supplied order instead; then every participant must use the identical order,
-or they derive different addresses.
+members by address before deriving the key, so the same member set and threshold
+give every participant the same address, whatever the `--multisig` flag order.
+With `-nosort`, the supplied order defines the key, and every participant must
+use the same one.
 
-Each signature is matched to its member by public key, so every signature must
-come from a defined member, but you may pass them to `multisign` in any order.
+Signatures are matched to members by public key: each must come from a defined
+member, and `multisign` accepts them in any order.
 
 :::
 
@@ -607,10 +604,9 @@ Flags:
 To run `gnokey` on an airgapped machine, build it on a trusted online machine,
 verify the binary, and carry it across offline.
 
-**Match the target's OS and arch.** Build for the same platform as the airgapped
-machine. Read the target with `uname -s` and `uname -m` (`x86_64` →
-`GOARCH=amd64`, `aarch64`/`arm64` → `GOARCH=arm64`), and set `GOOS`/`GOARCH` if
-your build machine differs.
+**Match the target's OS and arch.** Read the target with `uname -s` and
+`uname -m` (`x86_64` → `GOARCH=amd64`, `aarch64`/`arm64` → `GOARCH=arm64`), and
+set `GOOS`/`GOARCH` if your build machine differs.
 
 **Ledger needs CGO.** Ledger support requires `CGO_ENABLED=1`, which is off by
 default in this repo (see [#2737](https://github.com/gnolang/gno/issues/2737)).
@@ -689,7 +685,7 @@ Returns information about an address:
 gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: {
   "BaseAccount": {
@@ -706,16 +702,19 @@ data: {
 }
 ```
 
-`height` is a response field the module queries leave unset, so it is currently
-always `0`; the state itself is read at the latest block, or at `-height` if
-given. `data` holds a `BaseAccount`, the TM2 struct for account data:
+`height` is currently always `0`; module queries leave it unset. The state
+itself is read at the latest block, or at `-height` if given.
+
+In `data`, the `BaseAccount` object is the TM2 struct for account data, and
+gno.land adds an `attributes` field next to it:
 
 - `address` - the account's address
 - `coins` - the coins the account owns
 - `public_key` - the TM2 public key the address derives from
 - `account_number` - a unique identifier for the account on chain
 - `sequence` - a nonce, used to protect against replay attacks
-- `attributes` - gno.land account flags as a bitset; `"0"` when none are set
+- `attributes` - gno.land status flags as a bitset, such as frozen, validator
+  account, or token-lock whitelisted; `"0"` for a plain account
 
 ### `bank/balances`
 
@@ -725,7 +724,7 @@ Returns the [coin](./gno-stdlibs.md#coin) balances of an address:
 gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: "227984898927ugnot"
 ```
@@ -739,7 +738,7 @@ setting `-gas-fee`:
 gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: {
   "gas": "1000",
@@ -795,7 +794,7 @@ path, it lists the files:
 gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: gnomod.toml
 wugnot.gno
@@ -808,7 +807,7 @@ With a file name appended to the path, it returns that file's source:
 gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: package wugnot
 
@@ -884,7 +883,7 @@ realm renders its root path:
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: # wrapped GNOT ($wugnot)
 
@@ -916,7 +915,7 @@ no prefix, it lists every known path, including those from `stdlibs`:
 gnokey query vm/qpaths --data "gno.land/r/gnoland" -remote https://rpc.gno.land:443
 ```
 
-```bash
+```console
 height: 0
 data: gno.land/r/gnoland/blog
 gno.land/r/gnoland/coins
@@ -932,8 +931,8 @@ sub-packages:
 gnokey query vm/qpaths --data "@foo" -remote https://rpc.gno.land:443
 ```
 
-Append `?limit=<x>` to cap the number of results (default `1_000`; values above
-`10_000` are capped to `10_000`). Quote the whole query string so the shell keeps
+Append `?limit=<x>` to cap the number of results (default `1000`; values above
+`10000` are capped to `10000`). Quote the whole query string so the shell keeps
 it in one piece:
 
 ```bash
@@ -955,4 +954,4 @@ data: storage: 5025, deposit: 502500
 
 `storage` is the total bytes used; `deposit` is the total GNOT locked by the realm.
 Dividing the two gives the storage price (`502500/5025 = 100ugnot` per byte),
-without querying the params realm.
+without querying the chain parameters.
