@@ -22,7 +22,7 @@ stdout '\d+ugnot'
 cp stdout user_balance_before
 
 ## call the realm with 0 gas fee — realm pays via PayGas
-gnokey maketx call -pkgpath gno.land/r/test/sponsor -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/sponsor -func DoWork -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '"done" string'
 

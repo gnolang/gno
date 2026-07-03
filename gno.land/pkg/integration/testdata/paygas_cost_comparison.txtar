@@ -27,7 +27,7 @@ stdout OK!
 stdout 'GAS USED:   \d+'
 
 ## --- CALL 3: PayGas, same operation via wrapper ---
-gnokey maketx call -pkgpath gno.land/r/test/wrapper -func SponsoredSetValue -args "third" -gas-fee 0ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/wrapper -func SponsoredSetValue -args "third" -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS USED:   \d+'
 
@@ -63,5 +63,5 @@ import (
 func SponsoredSetValue(cur realm, val string) string {
 	runtime.PayGas(5000000)
 	runtime.PayStorage(500000)
-	return work.SetValue(cross, val)
+	return work.SetValue(cross(cur), val)
 }

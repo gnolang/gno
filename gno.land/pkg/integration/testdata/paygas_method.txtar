@@ -13,7 +13,7 @@ gnokey maketx send -send 10000000ugnot -to g1fpgk656qrfl4qmyx8z0dft2f5pwsy74nl4t
 stdout OK!
 
 ## call via method — should work, same realm
-gnokey maketx call -pkgpath gno.land/r/test/methodtest -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/methodtest -func DoWork -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '"method done" string'
 

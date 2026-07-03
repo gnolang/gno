@@ -58,7 +58,7 @@ import (
 
 // Attack tries to make the victim realm pay gas via a callback.
 func Attack(cur realm) {
-	victim.Execute(cross, func() {
+	victim.Execute(cross(cur), func() {
 		// This callback is defined in the attacker realm
 		// but executes in the victim realm's context.
 		// PayGas should panic: creator (attacker) != payer (victim).

@@ -21,7 +21,7 @@ gnokey query bank/balances/g1prhcv5xhvnje6hvmcxnwwa236m60asulp9erpn
 stdout '10000000ugnot'
 
 ## call realm A with 0 fee — A delegates to B which calls PayGas
-gnokey maketx call -pkgpath gno.land/r/test/caller -func CallSubRealm -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/caller -func CallSubRealm -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout '"sub-realm done" string'
 
@@ -53,5 +53,5 @@ package caller
 import "gno.land/r/test/subrealm"
 
 func CallSubRealm(cur realm) string {
-	return subrealm.SponsoredHelper(cross)
+	return subrealm.SponsoredHelper(cross(cur))
 }
