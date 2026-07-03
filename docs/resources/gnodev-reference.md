@@ -31,16 +31,16 @@ gnodev .
 You should see output along these lines:
 
 ```
-Loader      ┃ I guessing directory path path=gno.land/r/dev/counter dir={your_pwd}
-Accounts    ┃ I default address imported name=devtest addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Loader      ┃ W gnomod.toml not found, deploying under a generated module path dir={your_pwd} module=gno.land/r/dev/counter
+Accounts    ┃ W default address created name=_default#g1jg8m addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.391020125s
 ```
 
 Open `http://localhost:8888` to browse your realm via the built-in
-[gnoweb](../users/explore-with-gnoweb.md). The `devtest` account is preloaded
-with funds, so no faucet is needed. Press `h` at any time for the in-terminal
+[gnoweb](../users/explore-with-gnoweb.md). Every key in your `gnokey` keybase
+is preloaded with funds, so no faucet is needed. Press `h` at any time for the in-terminal
 help menu (see [Interactive controls](#interactive-controls)).
 
 ## Features
@@ -60,7 +60,8 @@ Package path resolution:
   path segment (lowercase letters, digits, and underscores).
 
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
-details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
+details. The default deployer is a well-known test account[^1]; override with
+`-deploy-key` (key name or Bech32 address).
 
 ### Premining
 
@@ -69,9 +70,9 @@ Press `A` while `gnodev` is running to list balances:
 
 ```
 Accounts    ┃ I (2) known keys
-            ┃   │ KeyName  Address                                   Balance
-            ┃   │ devtest  g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  10000000000000ugnot
-            ┃   │ MyKey    g1q4q3uegdnq9rsvf3xgxydr3yqd2v6w2tww5920  10000000000000ugnot
+            ┃   │ KeyName          Address                                   Balance
+            ┃   │ _default#g1jg8m  g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  10000000000000ugnot
+            ┃   │ MyKey            g1q4q3uegdnq9rsvf3xgxydr3yqd2v6w2tww5920  10000000000000ugnot
 ```
 
 This is local-only; on remote networks you still need the [faucet](https://faucet.gno.land).
@@ -101,7 +102,7 @@ gnokey maketx call \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
   -broadcast \
   -chainid dev -remote 127.0.0.1:26657 \
-  devtest
+  alice
 ```
 
 Response:
@@ -116,9 +117,9 @@ EVENTS:     []
 TX HASH:    k+WuKgPpoAg+EcR2EnzqxeWqUXB4KhOhg3l6zthSy0I=
 ```
 
-Refresh `http://localhost:8888` to see the updated `Render()` output. The
-`devtest` key works out of the box because it's premined (see above); swap it
-for any other key in your keybase.
+Refresh `http://localhost:8888` to see the updated `Render()` output. Any key
+in your keybase works as the signer because it's premined (see above); the
+example uses `alice` from [Getting started](../builders/getting-started.md).
 
 ## Interactive controls
 
@@ -139,7 +140,7 @@ While `gnodev` is running, the following keys are bound (case-insensitive):
 
 | Flag | Purpose |
 |---|---|
-| `-deploy-key <name>` | Override the default deployer (`devtest`) |
+| `-deploy-key <name>` | Override the default deployer (key name or Bech32 address) |
 | `-remote <domain>=<rpc>` | Fetch missing packages from a remote network, in the form `<domain>=<rpc>` (e.g. `gno.land=https://rpc.staging.gno.land:443`) |
 | `-genesis <file>` | Load a custom genesis file at startup |
 | `-no-watch` | Disable file watching |
@@ -152,5 +153,5 @@ Run `gnodev --help` for the full flag list.
 - [Getting started](../builders/getting-started.md): first-realm walkthrough
 - [Editor setup](../builders/editor-setup.md): LSP integration with `gnopls`
 
-[^1]: `devtest` corresponds to address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`.
+[^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`.
 Its mnemonic is **publicly known**. Never use it for real funds.

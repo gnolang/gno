@@ -44,19 +44,16 @@ Four message types change on-chain state:
 
 `Send` transfers coins and is covered in
 [Using the `gnokey` wallet](../users/using-gnokey.md#sending-coins). `AddPackage`,
-`Call`, and `Run` are documented below; of these, `Call` is the most common way to
-interact with realms.
+`Call`, and `Run` are documented below. `Call` is the most common way to interact
+with realms.
 
-Every transaction pairs a base configuration with one or more messages. `gnokey`
-builds single-message transactions; for multi-message ones, use the
-[gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient)
-package from Go. Signing uses a key from your keybase, so create or import one
-first (see [Managing key pairs](../users/using-gnokey.md#managing-key-pairs)).
-
-The base configuration is the same across every `maketx` command:
+Each `maketx` command sends one message, signed with a key from your keybase, so
+create or import one first (see
+[Managing key pairs](../users/using-gnokey.md#managing-key-pairs)). Every command
+takes the same base-configuration flags:
 
 - `-gas-wanted` - the maximum gas units the transaction may consume
-- `-gas-fee` - the price per unit, in `ugnot`
+- `-gas-fee` - the total fee paid for the transaction, in `ugnot`
 - `-chainid` and `-remote` - the network to target; the two must match
 - `-broadcast` - send the transaction to the chain (default `true`; set
   `-broadcast=false` to build and sign it without sending, as in
@@ -126,6 +123,7 @@ are:
 - `-func` - the function to call
 - `-args` - one argument (repeat the flag for more; see below)
 - `-send` - coins to send with the call (optional)
+- `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
 
 For example, calling `Deposit()` on the `gno.land/r/gnoland/wugnot` realm to wrap
 `1000ugnot` into the GRC20 token `wugnot`:
@@ -320,8 +318,9 @@ the signature to prevent replay, so signing needs them:
 gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
 ```
 
-**2. Build the unsigned transaction.** Any `maketx` with `-broadcast=false` writes
-the transaction, with a null `signature` field, to a file instead of sending it:
+**2. Build the unsigned transaction.** Any `maketx` with `-broadcast=false` prints
+the transaction, with a null `signature` field, to standard output instead of
+sending it; redirect the output to a file:
 
 ```bash
 gnokey maketx call \
@@ -350,7 +349,10 @@ gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 
 ### Verifying a signature
 
-`gnokey verify` checks a transaction's signature. Pass the document with
+`gnokey verify` checks a transaction's signature. Verification rebuilds the sign
+bytes from `-chainid`, `-account-number`, and `-account-sequence`, which must
+match the values used at signing; any left unset are queried from `-remote`, so
+pass all three explicitly on an offline machine. Pass the document with
 `-tx-path`; without `-sig-path`, it verifies the signature embedded in the
 transaction:
 
@@ -414,6 +416,7 @@ gnokey maketx send --home ./alice-kb \
   -chainid staging -send "100000ugnot" \
   -gas-fee 100000ugnot -gas-wanted 100000 \
   -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss \
+  -broadcast=false \
   multisig-abc > multisig-abc-send.json
 ```
 
@@ -596,7 +599,7 @@ gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```bash
 height: 0
 data: {
-  "gas": 1000,
+  "gas": "1000",
   "price": "100ugnot"
 }
 ```
@@ -761,7 +764,7 @@ Lists existing package paths that start with `--data=<prefix>`. With no prefix, 
 lists every known path, including those from `stdlibs`:
 
 ```bash
-gnokey query vm/qpaths --data "gno.land/r/gnoland"
+gnokey query vm/qpaths --data "gno.land/r/gnoland" -remote https://rpc.gno.land:443
 ```
 
 ```bash
@@ -777,15 +780,15 @@ A prefix can also be a `@username`, which lists that user's `/p` and `/r`
 sub-packages:
 
 ```bash
-gnokey query vm/qpaths --data "@foo"
+gnokey query vm/qpaths --data "@foo" -remote https://rpc.gno.land:443
 ```
 
-Append `?limit=<x>` to cap the number of results (`0` lifts the cap, up to a hard
-limit of `10_000`; the default is `1_000`). Quote the whole query string so the
-shell keeps it in one piece:
+Append `?limit=<x>` to cap the number of results (default `1_000`; values above
+`10_000` are capped to `10_000`). Quote the whole query string so the shell keeps
+it in one piece:
 
 ```bash
-gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
+gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland" -remote https://rpc.gno.land:443
 ```
 
 ### `vm/qstorage`
@@ -793,7 +796,7 @@ gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
 Returns the current storage usage and deposit of a realm:
 
 ```bash
-gnokey query vm/qstorage --data "gno.land/r/foo"
+gnokey query vm/qstorage --data "gno.land/r/foo" -remote https://rpc.gno.land:443
 ```
 
 ```
