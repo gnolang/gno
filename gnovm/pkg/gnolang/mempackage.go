@@ -95,6 +95,13 @@ func IsEphemeralPath(pkgPath string) bool {
 	return match != nil && match.Get("LETTER") == "e"
 }
 
+// IsSyntheticPath determines whether the given pkgPath is a compiler-internal
+// synthetic path (".uverse", ".dontcare", ...). Synthetic packages are never
+// persisted to the store and cannot appear in user source.
+func IsSyntheticPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, ".")
+}
+
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
 // DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
