@@ -21,10 +21,7 @@ Today, every transaction on Gno requires the signer to hold gnot to pay gas fees
 In Gno's current fee model, the **first signer always pays the gas fee** for all signers (`tm2/pkg/sdk/auth/ante.go`, the fee-deduction step). While not designed as a sponsorship mechanism, multi-signer txs could theoretically be used for gas sponsorship — though this is not done in practice today:
 
 ```go
-// fetch first signer, who's going to pay the fees
-signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
-// ...
-// deduct the fees
+// The first signer (signerAccs[0]) pays the gas fee for the whole tx:
 if !tx.Fee.GasFee.IsZero() {
     res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
 }
@@ -105,16 +102,17 @@ func PayGas(maxFee int64)
 
 **Behavior:**
 
+- **Only takes effect in a sponsored (0-fee credit-window) tx.** In a normal fee-paying tx the signer already pays gas, so `PayGas` is a **no-op** — this avoids charging both the signer and the realm, and avoids shrinking the user's gas limit below their `GasWanted`.
 - Can only be called **once** per transaction — the first realm to call it becomes the gas sponsor
 - Only **realms** can call it (not packages, not `main` in `MsgRun`)
 - **Function creator must match payer**: the function containing the `PayGas` call must be defined in the same realm that `CurrentRealm` identifies as the payer. If they differ, `PayGas` panics. This prevents cross-realm callback tricks.
 - `maxFee` is the maximum amount in ugnot the realm is willing to pay
-- The gas limit is **derived**: `gasLimit = maxFee / MinGasPrice` (both are consensus params, deterministic across all nodes)
+- The gas limit is **derived** from `maxFee` and the **current gas price** (the auth module's dynamic `LastGasPrice`, deterministic across all nodes — see §5.6). The derived limit is **capped at the credit window** (`MaxGasCreditPerTx`), so a large `maxFee` cannot let a single tx exceed the block gas limit.
 - On call: the system verifies the realm has sufficient gnot balance (`realm.balance >= maxFee`)
 - If the realm cannot cover the cost, `PayGas` panics (tx fails, no state changes)
 - Gas consumed **before** `PayGas` is called counts toward the derived gas limit
 
-**Why `maxFee` instead of `limitGas`:** Realm authors think in cost (ugnot), not gas units. Using `maxFee` protects the realm's budget against gas price governance changes — if `MinGasPrice` doubles, the realm gets less computation but never overspends. No code change needed.
+**Why `maxFee` instead of `limitGas`:** Realm authors think in cost (ugnot), not gas units. Using `maxFee` protects the realm's budget against gas price changes — if the gas price rises, the realm gets less computation but never overspends. No code change needed.
 
 **Call Rules:**
 
@@ -201,15 +199,17 @@ Without `PayStorage`, the caller pays storage deposits even when `PayGas` is act
 A **consensus parameter** that defines the maximum gas a 0-fee transaction can consume before `PayGas()` must be called:
 
 ```go
-// In ConsensusParams
-type GasParams struct {
+// In consensus BlockParams
+type BlockParams struct {
     MaxGas            int64
     MaxGasCreditPerTx int64 // NEW — credit window (e.g., 500,000)
-    MinGasPrice       Coin  // NEW — used for PayGas settlement and gas limit derivation
+    // ...
 }
 ```
 
-**Invariant:** `MinGasPrice > 0` is required when `MaxGasCreditPerTx > 0`. Otherwise `PayGas` gas limit derivation (`maxFee / MinGasPrice`) is a division by zero.
+Only `MaxGasCreditPerTx` is new. The gas price used for derivation and settlement is **not** a new consensus param — it is the auth module's existing dynamic gas price (`auth.GasPriceKeeper.LastGasPrice`); see §5.6.
+
+**Invariant:** the current gas price must be `> 0` when `MaxGasCreditPerTx > 0`. Otherwise `PayGas`'s gas-limit derivation (`maxFee` ÷ gas price) is a division by zero.
 
 - Applies only to transactions with `GasFee == 0`
 - Credit gas counts toward the block gas limit
@@ -248,13 +248,14 @@ Phase 1: Credit Phase
   - No payer yet
 
 Phase 2: Realm-Sponsored Phase (after PayGas called)
-  - Gas limit derived: maxFee / MinGasPrice
+  - Gas limit derived from maxFee and the current gas price,
+    capped at the credit window (MaxGasCreditPerTx)
   - GasMeter limit updated to derived gas limit
   - Gas already consumed in Phase 1 carries over
   - Realm balance is the backing
 
 Settlement (post-execution):
-  - Actual cost = gasUsed × MinGasPrice
+  - Actual cost = ceil(gasUsed × gas price)
   - Deducted from realm's gnot balance
   - On success: state + settlement committed
   - On failure: everything reverted (realm does NOT pay)
@@ -264,28 +265,30 @@ Settlement (post-execution):
 
 After transaction execution completes **successfully**:
 
-1. Calculate `actualCost = gasUsed × MinGasPrice`
-2. Deduct `actualCost` from the realm's gnot balance via `BankKeeper.SendCoins(realmAddr, feeCollectorAddr, actualCost)`
+1. Calculate `actualCost = ceil(gasUsed × gasPrice)`, capped at `maxFee` (ceiling division so the realm is never undercharged the sub-unit remainder)
+2. Deduct `actualCost` from the realm's gnot balance via `BankKeeper.SendCoinsUnrestricted(realmAddr, feeCollectorAddr, actualCost)`
 3. State committed (including settlement)
 
 **On failure after `PayGas`**: The realm does **not** pay. All state is reverted, including the settlement. This protects realm authors from griefing attacks where an attacker engineers a failure after `PayGas` to drain the realm's gnot while the realm gets nothing (e.g., USDC collection reverted but gnot deducted).
 
 **Why this is safe**: CheckTx simulation already validated that `PayGas` is called and the realm has funds. Failed txs in DeliverTx only occur on state divergence (another tx changed conditions between CheckTx and DeliverTx) — the same race condition that exists for all txs today. This is rare and bounded.
 
-**Gas price for 0-fee txs:** Normal txs derive gas price from `GasFee / GasWanted`. For 0-fee txs, this is `0/0` (undefined). Instead, the **consensus `MinGasPrice`** is used for settlement (see `GasParams` in Section 5.2).
+**Gas price for 0-fee txs:** Normal txs derive gas price from `GasFee / GasWanted`. For 0-fee txs, this is `0/0` (undefined). Instead, the auth module's dynamic gas price (`auth.GasPriceKeeper.LastGasPrice`, exposed on the context via `auth.GasPriceContextKey`) is used for both the derived gas limit and settlement.
 
-**Settlement context:** Settlement executes **inside** the cached message execution context (in `vm/keeper.go`, at the end of message execution). It is committed together with all other state changes only when the tx succeeds. On failure, everything reverts — message state and settlement. See Section 8.5.
+**Settlement context:** Gas settlement executes in the end-of-tx hook (`gno.land/pkg/gnoland/app.go`'s `endTxHook`), inside the cached tx context. It is committed together with all other state changes only when the tx succeeds; on failure, everything reverts — message state and settlement. (Storage-deposit settlement lives in `gno.land/pkg/sdk/vm/keeper.go`.) See Section 8.5.
 
 **VM → SDK communication:** The `PayGas` native function populates a `PayGasInfo` struct on the execution context:
 
 ```go
 type PayGasInfo struct {
-    RealmAddr crypto.Address // the realm that called PayGas
-    MaxFee    int64          // maxFee argument in ugnot
+    RealmPkgPath string         // pkg path of the realm that called PayGas
+    RealmAddr    crypto.Address // derived address of the realm
+    MaxFee       int64          // maxFee argument in ugnot
+    Eligible     bool           // true only for 0-fee credit-window txs (else PayGas is a no-op)
 }
 ```
 
-This is set by the GnoVM during execution and read by the SDK settlement logic in `runTx`. The execution context already flows between the VM and SDK layers, so no new plumbing is needed — just a new field on the context.
+This is set by the GnoVM during execution and read by the SDK settlement logic in `endTxHook`. `PayGasInfo` lives on the (in-process) `sdk.Context`, not on the tx `Result` — `Result` must stay wire-compatible with `abci.ResponseDeliverTx`. The execution context already flows between the VM and SDK layers, so no new plumbing is needed.
 
 ### 5.7 CheckTx Simulation
 
@@ -402,11 +405,13 @@ func Action() {
 | **Mempool spam with 0-fee txs** | Validator opt-in + CheckTx simulation filters invalid txs before mempool entry. Rate limiting can be added later. |
 | **Force nodes to simulate** | Only opt-in nodes simulate at CheckTx. Non-opt-in validators reject 0-fee txs immediately (zero cost). |
 | **Drain realm's gnot balance** | Realm author's responsibility — use whitelists, rate limits, or collect payment before `PayGas` |
-| **Exhaust credit window for free** | Credit gas is bounded by `MaxGasCreditPerTx`. Counts toward block gas limit. CheckTx simulation filters txs that don't call `PayGas`. |
+| **Exhaust credit window for free** | Credit gas is bounded by `MaxGasCreditPerTx` and counts toward the block gas limit. CheckTx simulation filters txs that don't call `PayGas`; **and DeliverTx also rejects a 0-fee tx that didn't call `PayGas`** (its state changes are discarded), so a proposer cannot force-include one. |
+| **Force-include a free tx (proposer)** | DeliverTx enforces "PayGas must be called" for 0-fee credit-window txs in every mode, not just CheckTx — so a malicious proposer cannot commit free state. |
+| **Call PayGas in a normal fee-paying tx** | No-op — `PayGas` only takes effect in a 0-fee credit-window tx, so the realm is never charged on top of the signer's fee. |
 | **Call PayGas from sub-realm** | Allowed — the calling realm explicitly consents by calling `PayGas`. Realm authors must validate before calling. |
 | **Unconditional PayGas in public function** | Realm author bug — any caller can drain the realm's gnot. Realm authors must guard `PayGas` with validation logic. |
 | **Call PayGas multiple times** | Only first call is valid; subsequent calls panic |
-| **Trigger failure after PayGas** | Realm does NOT pay on failure — all state reverts. Free execution is bounded by CheckTx simulation (only valid txs enter mempool). |
+| **Trigger failure after PayGas** | Realm does NOT pay on failure — all state reverts. Free execution is bounded by the credit window and the CheckTx/DeliverTx "PayGas was called" enforcement. |
 
 ### 7.2 Validator Cost Analysis
 
@@ -422,21 +427,22 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
 
 ### 8.1 Consensus Params
 
-- **File**: `tm2/pkg/bft/types/params.go`
-- **Change**: Add `MaxGasCreditPerTx int64` and `MinGasPrice Coin` to `GasParams`
+- **File**: `tm2/pkg/bft/types/params.go` (and the `BlockParams` proto/amino bindings)
+- **Change**: Add `MaxGasCreditPerTx int64` to `BlockParams`. (No new gas-price param — the auth module's dynamic gas price is reused; see §5.6.)
 
 ### 8.2 Native Function
 
-- **File**: `gnovm/stdlibs/std/native.go` (or equivalent)
+- **File**: `gnovm/stdlibs/chain/runtime/paygas.go`
 - **Change**: Register `runtime.PayGas(maxFee int64)` native function
 - **Behavior at call time**:
   1. Verify caller is a realm (not a package or `main`)
-  2. Verify `PayGas` not already called in this tx (check `PayGasInfo` on context)
-  3. Check `realm.balance >= maxFee`
-  4. Derive gas limit: `maxFee / MinGasPrice`
-  5. Verify `derivedLimit >= gasConsumed` (panic otherwise)
-  6. Update gas meter limit to derived value
-  7. Set `PayGasInfo{RealmAddr, MaxFee}` on execution context
+  2. If the tx is not a 0-fee credit-window tx, return (no-op)
+  3. Verify `PayGas` not already called in this tx (check `PayGasInfo` on context)
+  4. Check `realm.balance >= maxFee`
+  5. Derive gas limit from `maxFee` and the current gas price, **capped at the credit window**
+  6. Verify `derivedLimit >= gasConsumed` (panic otherwise)
+  7. Update gas meter limit to derived value
+  8. Set `PayGasInfo{RealmPkgPath, RealmAddr, MaxFee}` on execution context
   - **Note**: Realm balance is NOT debited at call time — final `gasUsed` is unknown. Debit happens at settlement (Section 8.5) after execution completes.
 
 ### 8.3 Ante Handler
@@ -454,8 +460,8 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
 
 ### 8.5 Settlement
 
-- **File**: `gno.land/pkg/sdk/vm/keeper.go`
-- **Change**: At the **end** of message execution (not at PayGas call time), if `PayGasInfo` is set on the context, deduct `gasUsed × MinGasPrice` from the realm's balance. This runs inside the cached execution context — on success it commits with all state, on failure it reverts with everything. See Section 5.5.
+- **File**: `gno.land/pkg/gnoland/app.go` (the `endTxHook`) for gas; `gno.land/pkg/sdk/vm/keeper.go` for storage deposits
+- **Change**: At the **end of the tx** (not at PayGas call time), if `PayGasInfo` is set on the context, deduct `ceil(gasUsed × gasPrice)` (capped at `maxFee`) from the realm's balance. This runs inside the cached tx context — on success it commits with all state, on failure it reverts with everything. See Section 5.5.
 
 ### 8.6 Validator Config
 
@@ -486,17 +492,17 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
 
 The following questions were raised during design and have been resolved:
 
-1. **`PayGas` covers all gas consumed in the tx** — including gas consumed before `PayGas` was called (credit phase). This simplifies the model: the realm pays for the entire tx, not a partial slice. The derived gas limit (`maxFee / MinGasPrice`) is the total cap.
+1. **`PayGas` covers all gas consumed in the tx** — including gas consumed before `PayGas` was called (credit phase). This simplifies the model: the realm pays for the entire tx, not a partial slice. The derived gas limit (from `maxFee` and the current gas price, capped at the credit window) is the total cap.
 
 2. **`gasUsed > derived gas limit`** — the tx fails with out-of-gas when the derived limit is reached, same as normal txs.
 
 3. **`derivedLimit < gasConsumed`** — `PayGas` panics immediately. The realm's budget at current gas price is already exceeded.
 
-4. **`PayGas` takes `maxFee` (ugnot), not `limitGas` (gas units)** — realm authors think in cost, not gas units. The gas limit is derived from `maxFee / MinGasPrice`. This protects the realm's budget against gas price governance changes: if `MinGasPrice` doubles, the realm gets less computation but never overspends.
+4. **`PayGas` takes `maxFee` (ugnot), not `limitGas` (gas units)** — realm authors think in cost, not gas units. The gas limit is derived from `maxFee` and the current gas price. This protects the realm's budget against gas price changes: if the gas price rises, the realm gets less computation but never overspends.
 
 5. **Multi-message txs** — supported. The first realm to call `PayGas` across all messages becomes the sponsor. All messages are atomic (all-or-nothing).
 
-6. **Gas price for 0-fee txs** — uses consensus `MinGasPrice` parameter. See Section 5.5.
+6. **Gas price for 0-fee txs** — uses the auth module's dynamic gas price (`LastGasPrice`), not a new consensus parameter. See Section 5.6.
 
 7. **CheckTx for 0-fee txs** — runs full simulation (not just signature check). Only accepts into mempool if `PayGas` is called and realm has funds. See Section 5.6.
 
@@ -533,16 +539,16 @@ Realm pays 1000 ugnot via PayGas
 A new consensus parameter:
 
 ```go
-type GasParams struct {
+type BlockParams struct {
     MaxGas               int64
     MaxGasCreditPerTx    int64
-    MinGasPrice          Coin
     ProposerFeeSharePct  int64 // NEW — e.g., 10 (= 10%)
+    // ...
 }
 ```
 
-At settlement:
-1. `actualCost = gasUsed × MinGasPrice`
+At settlement (using the current gas price, as in §5.6):
+1. `actualCost = ceil(gasUsed × gasPrice)`
 2. `proposerBonus = actualCost × ProposerFeeSharePct / 100`
 3. `feeCollectorAmount = actualCost - proposerBonus`
 4. Send `proposerBonus` to proposer address

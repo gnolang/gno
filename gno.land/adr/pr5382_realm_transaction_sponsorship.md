@@ -31,7 +31,7 @@ The realm decides **during execution** whether to sponsor. This allows running a
 
 ### 2. Credit window (`MaxGasCreditPerTx`)
 
-A consensus parameter defines how much gas a 0-fee tx can consume before `PayGas` is called. Execution starts on "credit" — if `PayGas` is never called, the tx fails. CheckTx simulation validates this before mempool entry.
+A consensus parameter defines how much gas a 0-fee tx can consume before `PayGas` is called. Execution starts on "credit" — if `PayGas` is never called, the tx fails. This is enforced in **both** CheckTx (so invalid 0-fee txs never enter the mempool) and DeliverTx (so a block proposer cannot force-include a free tx that skips `PayGas` — its state changes are discarded). Genesis txs are exempt.
 
 **Why a consensus param?** Validators must agree on the credit window size. It bounds the free execution validators absorb for invalid 0-fee txs.
 
@@ -61,7 +61,11 @@ Storage diffs are per-message (cleared between messages by `ClearObjectCache`). 
 
 ### 7. Gas price from existing auth module
 
-The gas price for settlement comes from `auth.GasPriceKeeper.LastGasPrice()`, not a new consensus parameter. This reuses the existing gas price system and avoids configuration duplication.
+The gas price for settlement comes from `auth.GasPriceKeeper.LastGasPrice()`, not a new consensus parameter. This reuses the existing gas price system and avoids configuration duplication. The derived gas limit and the settled cost both use this dynamic price; the settled cost uses ceiling division so the realm is never undercharged the sub-unit remainder.
+
+### 8. `PayGas`/`PayStorage` only take effect in sponsored txs
+
+`PayGas` applies only to a 0-fee credit-window tx. In a normal fee-paying tx the signer already pays gas, so calling `PayGas` is a **no-op** — this prevents charging both the signer (ante fee) and the realm (settlement), and prevents the realm from shrinking the user's gas limit below their `GasWanted`. The derived gas limit is additionally capped at the credit window, so a large `maxFee` cannot let a single tx exceed the block gas limit.
 
 ## Alternatives Considered
 
