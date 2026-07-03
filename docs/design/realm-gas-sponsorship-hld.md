@@ -321,7 +321,7 @@ package myapp
 
 import "chain/runtime"
 
-func DoSomething() {
+func DoSomething(cur realm) {
     // Realm pays gas for all callers, up to 500 ugnot
     runtime.PayGas(500)
 
@@ -351,15 +351,15 @@ The swap realm collects USDC and pays gas:
 package swap
 
 import (
-    "std"
+    "chain/runtime"
     "gno.land/r/demo/usdc"
 )
 
-func Swap(usdcAmount int64) {
-    caller := std.GetOrigCaller()
+func Swap(cur realm, usdcAmount int64) {
+    caller := runtime.PreviousRealm().Address()
 
     // Collect USDC from user (approved in the first MsgCall)
-    usdc.TransferFrom(caller, std.CurrentRealm().Addr(), usdcAmount)
+    usdc.TransferFrom(cross(cur), caller, cur.Address(), usdcAmount)
 
     // Now realm pays gas from its gnot balance, up to 1000 ugnot
     runtime.PayGas(1_000)
@@ -378,14 +378,18 @@ func Swap(usdcAmount int64) {
 ```go
 package premium
 
-import "chain/runtime"
+import (
+    "std"
+
+    "chain/runtime"
+)
 
 var whitelist = map[std.Address]bool{}
 
-func Register(addr std.Address) { /* admin only */ }
+func Register(cur realm, addr std.Address) { /* admin only */ }
 
-func Action() {
-    caller := std.GetOrigCaller()
+func Action(cur realm) {
+    caller := runtime.PreviousRealm().Address()
     if !whitelist[caller] {
         panic("not whitelisted")
     }
@@ -602,17 +606,18 @@ type Session struct {
 }
 
 // User calls this once with their main key
-func RegisterSession(sessionKey std.Address, expiry int64, maxCalls int) {
-    caller := std.GetOrigCaller()
+func RegisterSession(cur realm, sessionKey std.Address, expiry int64, maxCalls int) {
+    caller := runtime.PreviousRealm().Address()
     sessions[sessionKey] = Session{caller, expiry, maxCalls, 0}
 }
 
 // Session key holder calls this — has 0 gnot
-func GameAction(action string) {
-    sess := sessions[std.GetOrigCaller()]
-    if sess.Expiry < std.GetTimestamp() { panic("session expired") }
+func GameAction(cur realm, action string) {
+    holder := runtime.PreviousRealm().Address()
+    sess := sessions[holder]
+    if sess.Expiry < time.Now().Unix() { panic("session expired") }
     if sess.CallsUsed >= sess.MaxCalls { panic("call limit reached") }
-    sessions[std.GetOrigCaller()] = Session{
+    sessions[holder] = Session{
         sess.UserAddr, sess.Expiry, sess.MaxCalls, sess.CallsUsed + 1,
     }
 
