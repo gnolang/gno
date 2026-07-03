@@ -234,3 +234,48 @@ func TestDoOpInterfaceType_Flattens(t *testing.T) {
 		}
 	}
 }
+
+// The runtime struct-construction path (doOpStructType) must name embedded
+// fields from the source expr like the preprocess path (buildFieldTypesAST)
+// does. Nothing in the Files suite reaches this op with an embedded field
+// (verified by instrumentation), so drive the op directly: the popped
+// FieldType carries only the resolved type (the alias is gone), and the name
+// must come from the expr as written.
+func TestDoOpStructType_EmbedNames(t *testing.T) {
+	m := NewMachine("p", nil)
+	defer m.Release()
+
+	// struct{ Int; *MyInt; pkg.T; N int } — three embed spellings + one named
+	// field (must pass through untouched).
+	exprs := FieldTypeExprs{
+		{Type: Nx("Int")},                     // alias embed: resolved type int, spelled Int
+		{Type: &StarExpr{X: Nx("MyInt")}},     // pointer embed: name from elem
+		{Type: Sel(Nx("pkg"), "T")},           // qualified embed: name from selector
+		{NameExpr: *Nx("N"), Type: Nx("int")}, // named field: not an embed
+	}
+	fts := []FieldType{
+		{Type: IntType},
+		{Type: &PointerType{Elt: IntType}},
+		{Type: IntType},
+		{Name: "N", Type: IntType},
+	}
+	for _, ft := range fts {
+		m.PushValue(TypedValue{T: gTypeType, V: toTypeValue(ft)})
+	}
+	m.PushExpr(&StructTypeExpr{Fields: exprs})
+
+	m.doOpStructType()
+
+	st := m.PopValue().V.(TypeValue).Type.(*StructType)
+	want := []struct {
+		name  Name
+		embed bool
+	}{{"Int", true}, {"MyInt", true}, {"T", true}, {"N", false}}
+	for i, w := range want {
+		f := st.Fields[i]
+		if f.Name != w.name || f.Embedded != w.embed {
+			t.Fatalf("field %d: got (name=%s, embedded=%v), want (name=%s, embedded=%v)",
+				i, f.Name, f.Embedded, w.name, w.embed)
+		}
+	}
+}
