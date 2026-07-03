@@ -143,6 +143,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
@@ -232,6 +233,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
