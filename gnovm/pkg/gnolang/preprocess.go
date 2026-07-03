@@ -1297,6 +1297,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
@@ -1756,8 +1761,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2061,11 +2069,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`); fall
+									// through, runtime will panic with
+									// "call of nil function".
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
@@ -2201,11 +2212,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
@@ -4298,10 +4316,10 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	// store.GetAllocator() may be nil here — store.BeginTransaction
-	// below forks alloc which propagates nil — and we need a non-nil
-	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
-	// is throwaway, never persisted.
-	pv := pn.NewPackage(fallbackAllocator) // throwaway
+	// below forks alloc which propagates nil — and that's fine: this
+	// PackageValue is a throwaway, never persisted, so a nil (no-op)
+	// allocator suffices.
+	pv := pn.NewPackage(nil) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4929,8 +4947,8 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
 		// special-case in append-iface-nil at line ~1804). The
 		// conversion lands in a ConstExpr that isn't persisted directly,
-		// so use fallbackAllocator: no stamping needed.
-		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
+		// so use a nil (no-op) allocator: no stamping needed.
+		ConvertTo(nil, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }
@@ -6053,6 +6071,25 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							xt = pt.Elt
 						}
 						dt, ok := xt.(*DeclaredType)
+						if !ok || dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
+					case VPField:
+						// VPField is struct-field access (s.F) or an unbound
+						// method expression (T.M, (*T).M). Only the latter
+						// evaluates n.X as a type, so ATTR_TYPE_VALUE holds
+						// the receiver type; struct fields lack it and break.
+						rt, ok := n.X.GetAttribute(ATTR_TYPE_VALUE).(Type)
+						if !ok {
+							break
+						}
+						// Unwrap a pointer receiver, covering both (*T).M and
+						// the pointer-alias form (`type P = *T; P.M`).
+						if pt, ok := rt.(*PointerType); ok {
+							rt = pt.Elt
+						}
+						dt, ok := rt.(*DeclaredType)
 						if !ok || dt.PkgPath != pn.PkgPath {
 							break
 						}
