@@ -7,20 +7,6 @@ premining, hot reload, interactive controls, and flags.
 
 For a first-realm walkthrough, see [Getting started](../builders/getting-started.md).
 
-## Contents
-
-- [Quick start](#quick-start)
-- [Modes](#modes)
-- [Features](#features)
-  - [Automatic deployment](#automatic-deployment)
-  - [Premining](#premining)
-  - [Hot reload](#hot-reload)
-  - [Genesis and node tuning](#genesis-and-node-tuning)
-- [Calling your realm](#calling-your-realm)
-- [Interactive controls](#interactive-controls)
-- [Useful flags](#useful-flags)
-- [See also](#see-also)
-
 `gnodev` ships with the Gno toolchain. If `gnodev --help` fails, install it from
 the [installation guide](../builders/install.md).
 

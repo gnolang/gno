@@ -272,7 +272,7 @@ network dropdown and every `gnokey` command's `-remote` and
 |------------|------------|--------------------------------------------------------|
 | Local      | `dev`      | `http://localhost:26657`                               |
 | Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
-| Testnet    | `testN`    | `https://rpc.<testN>.testnets.gno.land:443`            |
+| Testnet    | `testN`    | `https://``rpc.<testN>.testnets.gno.land:443`            |
 
 Replace `testN` with the current testnet chainid. See
 [Networks](../resources/gnoland-networks.md) for the live list,
@@ -408,7 +408,8 @@ gnokey query vm/qrender \
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
-view of your realm's state. For the full `maketx call` and `gnokey`
+view of your realm's state. `-data` takes `<pkgpath>:<render path>`,
+where the trailing colon means the empty path. For the full `maketx call` and `gnokey`
 reference, see [Using the `gnokey` wallet](../users/using-gnokey.md).
 
 ## Next steps

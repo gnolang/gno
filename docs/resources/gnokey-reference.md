@@ -1,35 +1,36 @@
 # `gnokey` command reference
 
-`gnokey` is the official command-line client for Gno.land. The full command and
-query reference covers deploying packages, calling and scripting realms, signing
-transactions, multisig, and reading chain state.
+`gnokey` is the official command-line client for Gno.land. This reference covers
+every `gnokey` command: key management, deploying packages, calling and
+scripting realms, signing transactions, multisig, and reading chain state.
 
-For everyday wallet use, creating keys, checking balances, and sending coins, see
-[Using the `gnokey` wallet](../users/using-gnokey.md). For a guided first deploy, follow
-[Getting started](../builders/getting-started.md). If you don't have `gnokey` yet,
-see [Installation](../builders/install.md).
+For everyday wallet use, see
+[Using the `gnokey` wallet](../users/using-gnokey.md). For a guided first deploy,
+follow [Getting started](../builders/getting-started.md). If you don't have
+`gnokey` yet, see [Installation](../builders/install.md).
 
-## Contents
+## Commands
 
-- [Making transactions](#making-transactions)
-  - [`AddPackage`](#addpackage)
-  - [`Call`](#call)
-  - [`Run`](#run)
-- [Airgapped signing](#airgapped-signing)
-  - [Verifying a signature](#verifying-a-signature)
-- [Multisig (k-of-n)](#multisig-k-of-n)
-- [Building gnokey for an airgapped machine](#building-gnokey-for-an-airgapped-machine)
-- [Querying a Gno.land network](#querying-a-gnoland-network)
-  - [`auth/accounts`](#authaccounts)
-  - [`bank/balances`](#bankbalances)
-  - [`auth/gasprice`](#authgasprice)
-  - [`vm/qfuncs`](#vmqfuncs)
-  - [`vm/qfile`](#vmqfile)
-  - [`vm/qdoc`](#vmqdoc)
-  - [`vm/qeval`](#vmqeval)
-  - [`vm/qrender`](#vmqrender)
-  - [`vm/qpaths`](#vmqpaths)
-  - [`vm/qstorage`](#vmqstorage)
+| Command | What it does |
+|---------|-------------|
+| [`add`](../users/using-gnokey.md#managing-key-pairs) | create or import a key pair |
+| [`add bech32`](#multisig-k-of-n) | add a public key by bech32 address |
+| [`add multisig`](#multisig-k-of-n) | create a multisig key from member keys |
+| [`add ledger`](../users/using-gnokey.md#managing-key-pairs) | add a key from a Ledger device |
+| [`list`](../users/using-gnokey.md#managing-key-pairs) | list keys in a keybase |
+| [`delete`](../users/using-gnokey.md#managing-key-pairs) | delete a key |
+| [`export`](#exporting-and-importing-keys) | export a private key as encrypted armor |
+| [`import`](#exporting-and-importing-keys) | import an encrypted private key |
+| [`generate`](../users/using-gnokey.md#managing-key-pairs) | generate a BIP39 mnemonic |
+| [`rotate`](../users/using-gnokey.md#managing-key-pairs) | change a key's keybase password |
+| [`maketx`](#making-transactions) | build, sign, and broadcast transactions |
+| [`maketx session`](#session) | create, revoke, or revokeall session accounts |
+| [`query`](#querying-a-gnoland-network) | read chain state without spending gas |
+| [`sign`](#airgapped-signing) | sign an unsigned transaction |
+| [`broadcast`](#airgapped-signing) | broadcast a signed transaction |
+| [`verify`](#verifying-a-signature) | verify a transaction signature |
+| [`multisign`](#multisig-k-of-n) | combine multisig signatures |
+| `version` | print the `gnokey` binary version |
 
 ## Making transactions
 
@@ -42,22 +43,23 @@ Four message types change on-chain state:
 | `Send`       | transfer coins between addresses        |
 | `Run`        | execute a Gno script against the chain  |
 
-`Send` transfers coins and is covered in
-[Using the `gnokey` wallet](../users/using-gnokey.md#sending-coins). `AddPackage`,
-`Call`, and `Run` are documented below. `Call` is the most common way to interact
-with realms.
 
-Each `maketx` command sends one message, signed with a key from your keybase, so
-create or import one first (see
-[Managing key pairs](../users/using-gnokey.md#managing-key-pairs)). Every command
-takes the same base-configuration flags:
+Each `maketx` command sends one message, signed with a key from your keybase (see
+[Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). Every
+command takes the same base-configuration flags:
 
 - `-gas-wanted` - the maximum gas units the transaction may consume
 - `-gas-fee` - the total fee paid for the transaction, in `ugnot`
 - `-chainid` and `-remote` - the network to target; the two must match
 - `-broadcast` - send the transaction to the chain (default `true`; set
-  `-broadcast=false` to build and sign it without sending, as in
-  [Airgapped signing](#airgapped-signing))
+  `-broadcast=false` to build the unsigned transaction without sending it, as
+  in [Airgapped signing](#airgapped-signing))
+- `-memo` - arbitrary text attached to the transaction (optional)
+- `-simulate` - run the transaction without broadcasting: `test` (default,
+  simulates then broadcasts), `skip` (skip simulation), `only` (dry run, report
+  gas used and exit without broadcasting)
+- `-gas-fee-margin` - percentage added to the simulated gas fee (default `5`;
+  only used with `-simulate test`)
 
 `-gas-wanted` and `-gas-fee` together cap what you pay; see
 [Gas fees](./gas-fees.md) for estimating them. Find `-chainid` and `-remote`
@@ -84,6 +86,24 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 
 For an end-to-end deploy-and-call walkthrough, see
 [Getting started](../builders/getting-started.md).
+
+### `Send`
+
+`Send` transfers coins between two addresses with `gnokey maketx send`. Its own
+flags are:
+
+- `-to` - the recipient's bech32 address
+- `-send` - the amount to transfer, as `<amount><denom>` (e.g. `100ugnot`)
+
+```bash
+gnokey maketx send \
+  -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
+  -send 100000ugnot \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -chainid staging \
+  -remote "https://rpc.staging.gno.land:443" \
+  mykey
+```
 
 ### `AddPackage`
 
@@ -162,10 +182,10 @@ call it with any number of arguments:
 
 ```bash
 # Two variadic args
-gnokey maketx call -pkgpath gno.land/r/demo/math -func Add -args 10 -args 20 ...
+gnokey maketx call -pkgpath gno.land/r/tests/vm/variadic -func Add -args 10 -args 20 ...
 
 # Zero variadic args (omit -args entirely)
-gnokey maketx call -pkgpath gno.land/r/demo/math -func Add ...
+gnokey maketx call -pkgpath gno.land/r/tests/vm/variadic -func Add ...
 ```
 
 Slice expansion (`...`) is not supported; pass each element as its own `-args`.
@@ -174,7 +194,12 @@ Slice expansion (`...`) is not supported; pass each element as its own `-args`.
 
 `Run` executes a Gno script against on-chain code with `gnokey maketx run`. Write a
 `main` package; its `main()` function is detected and run, and any state changes
-are applied. For example, calling `Increment()` on the
+are applied. Its own flags are:
+
+- `-send` - coins to send with the run (optional)
+- `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
+
+For example, calling `Increment()` on the
 [Counter realm](https://staging.gno.land/r/demo/counter):
 
 ```go
@@ -204,97 +229,124 @@ return value.
 That example could just as easily have been a `maketx call`. `Run` earns its place
 when a plain call can't express what you need:
 
-1. Calling realm functions repeatedly in a loop
-2. Passing non-primitive arguments such as structs or slices, which `Call` cannot
+1. Constructing non-primitive arguments such as structs, slices, or maps, which
+   `Call` cannot pass
+2. Calling realm functions repeatedly in a loop
 3. Calling methods on exported variables
 
-The cases below run against this realm:
-
-```go
-package foo
-
-import "gno.land/p/nt/ufmt/v0"
-
-var (
-	MainFoo *Foo
-	foos    []*Foo
-)
-
-type Foo struct {
-	bar string
-	baz int
-}
-
-func init() {
-	MainFoo = &Foo{bar: "mainBar", baz: 0}
-}
-
-func (f *Foo) String() string {
-	return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
-}
-
-func NewFoo(bar string, baz int) *Foo {
-	return &Foo{bar: bar, baz: baz}
-}
-
-func AddFoos(multipleFoos []*Foo) {
-	foos = append(foos, multipleFoos...)
-}
-
-func Render(_ string) string {
-	var output string
-	for _, f := range foos {
-		output += f.String()
-	}
-	return output
-}
-```
-
-**1. Looping over a realm function:**
+**1. Non-primitive arguments.** `Call` only accepts primitive string arguments
+via `-args`. `Run` is full Gno code, so it can build structs, slices, and maps
+and pass them directly:
 
 ```go
 package main
 
-import "gno.land/r/docs/examples/foo"
+import "gno.land/r/myrealm"
+
+func main() {
+	post := myrealm.Post{
+		Title: "Hello",
+		Tags:  []string{"gno", "blockchain"},
+	}
+	myrealm.CreatePost(cross, post)
+}
+```
+
+**2. Looping over a realm function.** `Call` sends one transaction per call.
+`Run` batches multiple calls into a single transaction, saving gas and keeping
+the changes atomic. Using the [counter realm](https://staging.gno.land/r/demo/counter)
+from the example above:
+
+```go
+package main
+
+import "gno.land/r/demo/counter"
 
 func main() {
 	for i := 0; i < 5; i++ {
-		println(foo.Render(""))
+		println(counter.Increment(cross))
 	}
 }
 ```
 
-**2. Non-primitive arguments.** `Call` only accepts primitives, so `AddFoos`,
-which takes a `[]*Foo`, is reachable only through `Run`:
+This increments the counter five times in one transaction, printing each new
+value. With `Call`, the same would require five separate transactions.
+
+**3. Methods on exported variables.** `Call` can only invoke exported
+functions. `Run` can also call methods on exported variables, which `Call`
+cannot reach. For example, if a realm exposes `var Pool *Token` with a
+`Balance()` method:
 
 ```go
 package main
 
-import (
-	"strconv"
-
-	"gno.land/r/docs/examples/foo"
-)
+import "gno.land/r/myrealm"
 
 func main() {
-	var multipleFoos []*foo.Foo
-	for i := 0; i < 5; i++ {
-		multipleFoos = append(multipleFoos, foo.NewFoo("bar"+strconv.Itoa(i), i))
-	}
-	foo.AddFoos(multipleFoos)
+	println(myrealm.Pool.Balance())
 }
 ```
 
-**3. Methods on exported variables**, which `Call` cannot reach at all:
+This calls a method on an exported variable directly, which is impossible with
+`Call`.
 
-```go
-package main
+## Session
 
-import "gno.land/r/docs/examples/foo"
+`gnokey maketx session` manages session accounts, a type of subaccount that a
+master key authorizes to sign specific message types on its behalf. Session
+accounts are useful for agents and device-login flows where the master key
+should not sign every transaction.
 
-func main() {
-	println(foo.MainFoo.String())
-}
+### `session create`
+
+Creates a session account authorized by a master key. Its flags are:
+
+- `-pubkey` - the session subaccount's public key in bech32 format
+- `-expires-at` - session expiry: a duration (`24h`, `7d`, `4w`; max ~4y), a
+  unix timestamp, or `none` for no expiry (required)
+- `-allow-paths` - per-message restrictions (required, repeatable). Use `*` for
+  unrestricted, or list specific entries like `vm/exec:gno.land/r/foo`,
+  `vm/run`, `bank/send`
+- `-spend-limit` - max spend per period (optional; omitted = no spending)
+- `-spend-period` - seconds; `0` = lifetime cap
+
+```bash
+gnokey maketx session create \
+  -pubkey g1... \
+  -expires-at 24h \
+  -allow-paths "vm/exec:gno.land/r/myrealm" \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -chainid staging \
+  -remote "https://rpc.staging.gno.land:443" \
+  masterkey
+```
+
+The master key signs the creation message. `-master` cannot be used with
+`session create`; the master key must sign directly.
+
+### `session revoke`
+
+Revokes a single session account by its public key:
+
+```bash
+gnokey maketx session revoke \
+  -pubkey g1... \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -chainid staging \
+  -remote "https://rpc.staging.gno.land:443" \
+  masterkey
+```
+
+### `session revokeall`
+
+Revokes all session accounts for the master key:
+
+```bash
+gnokey maketx session revokeall \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -chainid staging \
+  -remote "https://rpc.staging.gno.land:443" \
+  masterkey
 ```
 
 ## Airgapped signing
@@ -331,7 +383,9 @@ gnokey maketx call \
 ```
 
 **3. Sign it.** `gnokey sign` fills in the signature, using the account number and
-sequence from step 1:
+sequence from step 1. It also takes `-output-document <file>` to write the
+signature to a separate file (used in [multisig](#multisig-k-of-n)), and
+`-session` to sign as a session account instead of the key itself:
 
 ```bash
 gnokey sign \
@@ -347,23 +401,38 @@ needed here, since the transaction is already signed:
 gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
+`broadcast` also takes `-dry-run` to simulate the broadcast without committing.
+
 ### Verifying a signature
 
-`gnokey verify` checks a transaction's signature. Verification rebuilds the sign
-bytes from `-chainid`, `-account-number`, and `-account-sequence`, which must
-match the values used at signing; any left unset are queried from `-remote`, so
-pass all three explicitly on an offline machine. Pass the document with
-`-tx-path`; without `-sig-path`, it verifies the signature embedded in the
-transaction:
+`gnokey verify` checks a transaction's signature. It takes:
+
+- `-tx-path` - the transaction file to verify
+- `-sig-path` - a separate signature file (optional; without it, verifies the
+  signature embedded in the transaction)
+- `-chainid`, `-account-number`, `-account-sequence` - must match the values
+  used at signing. Online, any left unset are queried from `-remote`; offline,
+  pass all three explicitly.
+
+**Online** (flags queried from `-remote`):
 
 ```bash
-gnokey verify -tx-path counter.tx mykey
+gnokey verify -tx-path counter.tx -remote https://rpc.staging.gno.land:443 mykey
 ```
 
-Add `-sig-path` to verify against a separate signature file instead:
+**Offline** (all flags explicit):
 
 ```bash
-gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
+gnokey verify -tx-path counter.tx \
+  -chainid "staging" -account-number 468 -account-sequence 0 \
+  mykey
+```
+
+With `-sig-path` instead of the embedded signature:
+
+```bash
+gnokey verify -tx-path counter.tx -sig-path counter-sig.json \
+  -remote https://rpc.staging.gno.land:443 mykey
 ```
 
 ## Multisig (k-of-n)
@@ -463,6 +532,34 @@ flowchart TD
   H --- E
 ```
 
+## Exporting and importing keys
+
+`gnokey export` writes a private key as encrypted armor, and `gnokey import`
+reads it back into a keybase. These are the key-transfer commands for airgapped
+workflows and keybase migration.
+
+### `export`
+
+```bash
+gnokey export -key mykey -output-path mykey-armor.txt
+```
+
+Flags:
+
+- `-key` - the key name or bech32 address to export
+- `-output-path` - where to write the encrypted armor file
+
+### `import`
+
+```bash
+gnokey import -name mykey -armor-path mykey-armor.txt
+```
+
+Flags:
+
+- `-name` - the name to store the imported key under
+- `-armor-path` - path to the encrypted armor file
+
 ## Building gnokey for an airgapped machine
 
 To run `gnokey` on an airgapped machine, build it on a trusted online machine,
@@ -478,30 +575,23 @@ default in this repo (see [#2737](https://github.com/gnolang/gno/issues/2737)).
 Cross-compiling with CGO is painful, so the simplest reliable path is to build on a
 machine matching the target's OS, arch, and glibc baseline.
 
-Build from a known commit, stamping the same version string the repo uses so the
-binary is reproducible:
+Build from a known commit. `make build.gnokey` stamps the version string
+automatically:
 
 ```bash
-git clone https://github.com/gnolang/gno.git && cd gno
-VERSION="$(git describe --tags --exact-match 2>/dev/null || \
-  echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")"
-
-go build \
-  -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}" \
-  -o build/gnokey \
-  ./gno.land/cmd/gnokey
-
-./build/gnokey version   # sanity-check the binary you just built
+git clone https://github.com/gnolang/gno.git && cd gno/gno.land
+git checkout <commit>
+make build.gnokey
+./build/gnokey version   # sanity-check
 ```
 
 Record what you built, checksum it, and bundle it for transfer:
 
 ```bash
 git rev-parse HEAD > build/gnokey.gitrev
-printf '%s\n' "$VERSION" > build/gnokey.version
 sha256sum build/gnokey > build/gnokey.sha256
 
-tar -czf gnokey-airgap.tgz -C build gnokey gnokey.sha256 gnokey.gitrev gnokey.version
+tar -czf gnokey-airgap.tgz -C build gnokey gnokey.sha256 gnokey.gitrev
 sha256sum gnokey-airgap.tgz > gnokey-airgap.tgz.sha256
 ```
 
@@ -618,7 +708,7 @@ Returns the exported functions of a package path, given with `-data`:
 gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
-```json
+```
 height: 0
 data: [
         {
@@ -689,7 +779,7 @@ the package itself and its functions, types, and values:
 gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.gno.land:443
 ```
 
-```json
+```
 height: 0
 data: {
   "package_path": "gno.land/r/gnoland/valopers/v2",
@@ -760,8 +850,8 @@ which ones it handles.
 
 ### `vm/qpaths`
 
-Lists existing package paths that start with `--data=<prefix>`. With no prefix, it
-lists every known path, including those from `stdlibs`:
+Lists existing package paths that start with the prefix given via `-data`. With
+no prefix, it lists every known path, including those from `stdlibs`:
 
 ```bash
 gnokey query vm/qpaths --data "gno.land/r/gnoland" -remote https://rpc.gno.land:443
