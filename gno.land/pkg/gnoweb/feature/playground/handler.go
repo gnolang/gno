@@ -32,6 +32,10 @@ const (
 	// against memory exhaustion from large or numerous on-chain package files.
 	maxForkCodeSize = 1 << 20 // 1 MiB
 
+	// maxEvalBodyBytes caps the eval request body to guard against memory
+	// exhaustion from oversized JSON payloads.
+	maxEvalBodyBytes = 1 << 20 // 1 MiB
+
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
 
@@ -211,6 +215,8 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusTooManyRequests, evalResponse{Error: "rate limit exceeded, please slow down"})
 		return
 	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxEvalBodyBytes)
 
 	var req evalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
