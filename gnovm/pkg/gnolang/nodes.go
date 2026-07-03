@@ -139,9 +139,11 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
-	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
-	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
-	ATTR_IFACE_CMP             GnoAttribute = "ATTR_IFACE_CMP"     // set true on a ==/!= BinaryExpr or non-type-switch SwitchStmt whose operand/tag is statically interface-typed; signals isEql to apply Go's interface-comparison rule (uncomparable dynamic types panic).
+	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"     // if name expr refers to package.
+	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
+	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
+	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_IFACE_CMP             GnoAttribute = "ATTR_IFACE_CMP"        // set true on a ==/!= BinaryExpr or non-type-switch SwitchStmt whose operand/tag is statically interface-typed; signals isEql to apply Go's interface-comparison rule (uncomparable dynamic types panic).
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )

@@ -47,9 +47,17 @@ func Example_rand() {
 	// Using a fixed seed will produce the same output on every run.
 	r := rand.New(rand.NewPCG(1, 2))
 
-	// XXX: Go uses tabwriter; we don't have it, so use stdout directly.
+	// XXX: Go uses tabwriter; we don't have it, so use stdout directly, and explicit pad to width w.
+	pad := func(format string, val any, w int) string {
+		s := fmt.Sprintf(format, val)
+		n := w - len(s)
+		if n < 1 {
+			n = 1
+		}
+		return s + strings.Repeat(" ", n)
+	}
 	show := func(name string, v1, v2, v3 any) {
-		fmt.Printf("%s\t%v\t%v\t%v\n", name, v1, v2, v3)
+		fmt.Printf("%s%s%s%v\n", pad("%s", name, 12), pad("%v", v1, 20), pad("%v", v2, 21), v3)
 	}
 
 	// Float32 and Float64 values are in [0, 1).

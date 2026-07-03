@@ -20,7 +20,7 @@ func init() {
 	}
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	root = InnerNode{
 		Key: "new",
 	}
