@@ -18,7 +18,7 @@ Today, every transaction on Gno requires the signer to hold gnot to pay gas fees
 
 ## 2. Current Fee Model: First-Signer Pays
 
-In Gno's current fee model, the **first signer always pays the gas fee** for all signers ([ante.go:117-125](tm2/pkg/sdk/auth/ante.go#L117-L125)). While not designed as a sponsorship mechanism, multi-signer txs could theoretically be used for gas sponsorship — though this is not done in practice today:
+In Gno's current fee model, the **first signer always pays the gas fee** for all signers (`tm2/pkg/sdk/auth/ante.go`, the fee-deduction step). While not designed as a sponsorship mechanism, multi-signer txs could theoretically be used for gas sponsorship — though this is not done in practice today:
 
 ```go
 // fetch first signer, who's going to pay the fees
@@ -144,7 +144,7 @@ func PayGas(maxFee int64)
 
 | Case | Behavior |
 |------|----------|
-| Derived gas limit < gas already consumed | `PayGas` panics immediately — the realm's budget is already exceeded at current gas price. Tx fails, no state changes. |
+| `derivedLimit < gasConsumed` | `PayGas` panics immediately — the realm's budget is already exceeded at current gas price. Tx fails, no state changes. |
 | `maxFee = 0` | `PayGas` panics — invalid argument. |
 | `maxFee < 0` | `PayGas` panics — invalid argument. |
 | Multi-message tx | All messages share a single gas meter. `PayGas` in any message covers gas for the **entire tx** (all messages). Messages are atomic — if any message fails, all state changes (including earlier messages) are reverted. |
@@ -209,7 +209,7 @@ type GasParams struct {
 }
 ```
 
-**Invariant:** `MinGasPrice` must be > 0 when `MaxGasCreditPerTx` > 0. Otherwise `PayGas` gas limit derivation (`maxFee / MinGasPrice`) is a division by zero.
+**Invariant:** `MinGasPrice > 0` is required when `MaxGasCreditPerTx > 0`. Otherwise `PayGas` gas limit derivation (`maxFee / MinGasPrice`) is a division by zero.
 
 - Applies only to transactions with `GasFee == 0`
 - Credit gas counts toward the block gas limit
@@ -434,7 +434,7 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
   2. Verify `PayGas` not already called in this tx (check `PayGasInfo` on context)
   3. Check `realm.balance >= maxFee`
   4. Derive gas limit: `maxFee / MinGasPrice`
-  5. Verify derived limit >= gas already consumed (panic otherwise)
+  5. Verify `derivedLimit >= gasConsumed` (panic otherwise)
   6. Update gas meter limit to derived value
   7. Set `PayGasInfo{RealmAddr, MaxFee}` on execution context
   - **Note**: Realm balance is NOT debited at call time — final `gasUsed` is unknown. Debit happens at settlement (Section 8.5) after execution completes.
@@ -490,7 +490,7 @@ The following questions were raised during design and have been resolved:
 
 2. **`gasUsed > derived gas limit`** — the tx fails with out-of-gas when the derived limit is reached, same as normal txs.
 
-3. **Derived gas limit < gas already consumed** — `PayGas` panics immediately. The realm's budget at current gas price is already exceeded.
+3. **`derivedLimit < gasConsumed`** — `PayGas` panics immediately. The realm's budget at current gas price is already exceeded.
 
 4. **`PayGas` takes `maxFee` (ugnot), not `limitGas` (gas units)** — realm authors think in cost, not gas units. The gas limit is derived from `maxFee / MinGasPrice`. This protects the realm's budget against gas price governance changes: if `MinGasPrice` doubles, the realm gets less computation but never overspends.
 
