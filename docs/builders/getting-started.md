@@ -407,11 +407,9 @@ gnokey query vm/qrender \
   -remote https://rpc.staging.gno.land:443
 ```
 
-`-data` takes `<pkgpath>:<render path>`; the trailing colon means the
-empty path. This returns the `Render` output ("Count: 1"), a free,
-read-only view of your realm's state. For the full `maketx call` reference, see the
-[gnokey command reference](../resources/gnokey-reference.md#call); for everyday
-wallet use, see [Using the `gnokey` wallet](../users/using-gnokey.md).
+This returns the `Render` output ("Count: 1"), a free, read-only
+view of your realm's state. For the full `maketx call` and `gnokey`
+reference, see [Using the `gnokey` wallet](../users/using-gnokey.md).
 
 ## Next steps
 

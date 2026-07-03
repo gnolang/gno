@@ -136,7 +136,7 @@ Requires Go **1.25+**: check with `go version`, upgrade from [go.dev/dl](https:/
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | GITHUB_TOKEN=<token> sh
+GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
 ## Next steps

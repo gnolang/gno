@@ -6,8 +6,6 @@ while iterating on code. The full reference covers automatic deployment,
 premining, hot reload, interactive controls, and flags.
 
 For a first-realm walkthrough, see [Getting started](../builders/getting-started.md).
-To interact with a live network instead of a local node, see the production
-client, [`gnokey`](./gnokey-reference.md).
 
 ## Contents
 
