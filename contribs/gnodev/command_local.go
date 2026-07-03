@@ -6,32 +6,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
 )
 
-const (
-	DefaultDomain = "gno.land"
+const DefaultDomain = "gno.land"
 
-	quarantinedSubdir = "quarantined"
-)
-
-// defaultBaseResolvers returns root resolvers for examples/ and, unless
-// withoutQuarantinedExamples is set, examples/quarantined/.
-func defaultBaseResolvers(gnoroot string, withoutQuarantinedExamples bool) []packages.Resolver {
-	exampleRoot := filepath.Join(gnoroot, "examples")
-	resolvers := []packages.Resolver{packages.NewRootResolver(exampleRoot)}
-	if !withoutQuarantinedExamples {
-		quarantinedRoot := filepath.Join(exampleRoot, quarantinedSubdir)
-		resolvers = append(resolvers, packages.NewRootResolver(quarantinedRoot))
-	}
-	return resolvers
-}
+// localNoWorkspaceHint is local mode's line in the no-workspace banner.
+const localNoWorkspaceHint = "running in discovery mode: packages resolve on-demand from examples, and from a chain RPC for domains passed via -remote."
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
 
@@ -53,7 +37,7 @@ var defaultLocalAppConfig = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
-	lazyLoader:          true,
+	noWorkspaceHint:     localNoWorkspaceHint,
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
@@ -76,7 +60,8 @@ This mode is optimized for realm development, providing an interactive and flexi
 It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
 The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
 
-By default, the current directory and the "example" folder from "gnoroot" will be used as the root resolver.
+By default, the workspace containing the current directory is loaded at startup;
+packages from "$GNOROOT/examples" are resolved on demand upon a query or transaction.
 `,
 			NoParentFlags: true,
 		},
@@ -105,40 +90,17 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		}
 	}
 
-	dir, err := os.Getwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// If no resolvers is defined, use gno example as root resolver
-	var baseResolvers []packages.Resolver
-
-	if len(cfg.resolvers) == 0 {
-		// Check if we are not in gnoroot
-		if !strings.HasPrefix(dir, filepath.Clean(cfg.root)+"/") {
-			// Add current dir as root resolvers
-			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
-		}
-
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot, cfg.withoutQuarantinedExamples)...)
-	}
-
-	// Check if current directory is a valid gno package
-	path := guessPath(&cfg.AppConfig, dir)
-	resolver := packages.NewLocalResolver(path, dir)
-	if resolver.IsValid() {
-		// Add current directory as local resolver
-		baseResolvers = append([]packages.Resolver{resolver}, baseResolvers...)
-		if len(cfg.paths) > 0 {
-			cfg.paths += ","
-		}
-		cfg.paths += resolver.Path
-	}
-	cfg.resolvers = append(baseResolvers, cfg.resolvers...)
-
-	return runApp(&cfg.AppConfig, cio) // else run app without any dir
+	// Explicit [package_dir...] args first, then the CWD; Setup absolutizes
+	// and deduplicates them, applies the same handling to each (gnomod.toml
+	// module path, or a generated one with a warning), and quietly skips
+	// the CWD when it holds no gno package.
+	dirs := make([]string, 0, len(args)+1)
+	dirs = append(dirs, args...)
+	dirs = append(dirs, cwd)
+	return runApp(&cfg.AppConfig, cio, dirs...)
 }

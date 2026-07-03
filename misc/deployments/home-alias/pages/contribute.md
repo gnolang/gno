@@ -27,7 +27,7 @@ If you are interested in contributing to Gno.land, you can jump in on our
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
+- [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 
@@ -38,7 +38,7 @@ If you are interested in contributing to Gno.land, you can jump in on our
 Two reasons prompted this pause:
 
 - **Focus on Mainnet.** The team is fully focused on the Gno.land Beta
-  Mainnet launch — the highest priority — as well as the critical post-beta
+  Mainnet launch, the highest priority, as well as the critical post-beta
   work required to deliver a complete Mainnet.
 - **Decline in submission quality.** The bounty program was created to
   encourage innovative, creative, and technical contributions that
