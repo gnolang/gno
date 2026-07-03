@@ -36,12 +36,12 @@ package oog
 import "chain/runtime"
 
 func SmallBudgetHeavyWork(cur realm) string {
-	// PayGas with small budget: 1000 ugnot / (1ugnot/1000gas) = 1000000 gas
-	// This succeeds (enough for the code before the loop).
-	// But the heavy work after exhausts the 1M gas limit.
-	runtime.PayGas(1000)
+	// PayGas with a small budget: 3000 ugnot / (1ugnot/1000gas) = 3000000 gas.
+	// This succeeds (enough for the tx setup + code before the loop), but the
+	// heavy work after it exhausts the 3M gas limit.
+	runtime.PayGas(3000)
 
-	// Heavy work that exceeds 200000 gas → OOG
+	// Heavy work that exceeds the derived gas limit → OOG.
 	s := ""
 	for i := 0; i < 100000; i++ {
 		s += "x"

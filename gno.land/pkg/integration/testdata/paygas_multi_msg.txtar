@@ -23,7 +23,7 @@ stdout '10000000ugnot'
 
 ## send multi-msg tx: first increment counter, then swap (which calls PayGas)
 ## Using MsgRun to bundle both calls
-gnokey maketx run -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1 $WORK/multi.gno
+gnokey maketx run -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1 $WORK/multi.gno
 stdout OK!
 
 ## check swap realm balance decreased (paid gas for entire tx)
@@ -65,7 +65,7 @@ import (
 	"gno.land/r/test/swap"
 )
 
-func main() {
-	counter.Increment(cross)
-	swap.Swap(cross)
+func main(cur realm) {
+	counter.Increment(cross(cur))
+	swap.Swap(cross(cur))
 }
