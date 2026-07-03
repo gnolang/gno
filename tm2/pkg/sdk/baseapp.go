@@ -933,7 +933,10 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
 	// PayGas is only meaningful — and only permitted to move funds or resize the
 	// gas meter — for such txs; in a normal fee-paying tx it is a no-op.
-	zeroFeeCreditTx := tx.Fee.GasFee.IsZero() &&
+	// Genesis (height 0) is exempt: genesis txs are trusted and never call PayGas,
+	// so they must not be subjected to the credit-window enforcement below.
+	zeroFeeCreditTx := ctx.BlockHeight() > 0 &&
+		tx.Fee.GasFee.IsZero() &&
 		app.consensusParams != nil && app.consensusParams.Block != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0
 

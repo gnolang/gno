@@ -1987,6 +1987,14 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypt
 			continue
 		}
 		rlm := gnostore.GetPackageRealm(rlmPath)
+		if rlm == nil {
+			// Defensive: mirror ProcessStorageDeposit's guard so an
+			// unresolvable realm path can't nil-deref in the branches below.
+			allErrs = goerrors.Join(allErrs, fmt.Errorf(
+				"storage diff for unknown realm %q (size=%d) — deposit skipped",
+				rlmPath, diff))
+			continue
+		}
 		if diff > 0 {
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
 			// Check budget (from PayStorage maxDeposit)

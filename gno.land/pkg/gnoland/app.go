@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -245,18 +246,36 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				// accumulated per-message in accumulateStorageDiffs.
 				psi := ctx.PayStorageInfo()
 				if psi != nil && len(psi.AccumulatedDiffs) > 0 {
-					// If storage was used but no realm called PayStorage, there is
-					// no authorized payer or budget — the per-message MaxDeposit the
-					// signer set was never applied — so fail the tx rather than
-					// silently charge the caller up to DefaultDeposit.
-					if psi.MaxDeposit <= 0 {
-						panic("SponsorStorage tx used storage but no realm called PayStorage")
-					}
 					gnostore := vmk.GetGnoTransactionStoreReadOnly(ctx)
 					params := vmk.GetParams(ctx)
-					err := vmk.ProcessStorageDepositFromDiffs(ctx, psi.RealmAddr, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params)
-					if err != nil {
-						panic(fmt.Sprintf("storage deposit settlement failed: %v", err))
+					grewStorage := false
+					for _, d := range psi.AccumulatedDiffs {
+						if d > 0 {
+							grewStorage = true
+							break
+						}
+					}
+					switch {
+					case psi.MaxDeposit > 0:
+						// A realm sponsored: it pays for storage growth up to its
+						// committed budget (and receives any refunds for freed storage).
+						err := vmk.ProcessStorageDepositFromDiffs(ctx, psi.RealmAddr, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params)
+						if err != nil {
+							panic(fmt.Sprintf("storage deposit settlement failed: %v", err))
+						}
+					case grewStorage:
+						// Storage grew but no realm called PayStorage: there is no
+						// authorized payer or budget (the signer's per-message
+						// MaxDeposit was never applied), so fail rather than silently
+						// charge the caller up to DefaultDeposit.
+						panic("SponsorStorage tx grew storage but no realm called PayStorage")
+					default:
+						// Only refunds (freed storage), which need no payer or
+						// authorization — return the freed deposit to the tx caller.
+						err := vmk.ProcessStorageDepositFromDiffs(ctx, ctx.TxCaller(), psi.AccumulatedDiffs, math.MaxInt64, gnostore, params)
+						if err != nil {
+							panic(fmt.Sprintf("storage deposit settlement failed: %v", err))
+						}
 					}
 				}
 			}
