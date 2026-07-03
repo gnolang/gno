@@ -41,11 +41,9 @@ type NodeConfig struct {
 	// (called once from Reset before any watcher event).
 	Reload func() ([]*packages.Package, error)
 
-	// ResetState, if set, is invoked at the start of Reset before Reload.
-	// gnodev wires it to drop packages lazily loaded during the session so a
-	// reset returns the package set to its initial state, matching every
-	// reset entry point (Ctrl+R and the /reset endpoint) without each having
-	// to remember to do it.
+	// ResetState, if set, is invoked at the start of Reset before Reload,
+	// so every reset entry point (Ctrl+R, /reset) returns the package set
+	// to its initial state. gnodev wires it to loader.ResetTracked.
 	ResetState func()
 
 	// DefaultCreator specifies the default address used for creating packages and transactions.

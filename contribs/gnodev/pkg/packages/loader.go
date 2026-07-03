@@ -320,18 +320,10 @@ func (l *Loader) Track(paths ...string) {
 }
 
 // ResetTracked restores the tracked set to the paths seeded at setup (via
-// Track / AddLocalPackage), dropping every path that grew the set through a
-// lazy Resolve during the session. A node reset wires this through
-// NodeConfig.ResetState so the deployed package set returns to its initial
-// state, matching the documented "reset to initial state" behavior, rather
-// than redeploying everything browsed since boot.
-//
-// Dropped paths are also evicted from the index: otherwise a browsed remote
-// package would stay cached there, and the next browse would hit Resolve's
-// index fast path and return without re-adding it to tracked, so a
-// tracked-driven Reload would never redeploy it. After eviction the next
-// browse misses the index, re-resolves through the fetcher / FS roots, and
-// re-enters tracked. Seeded paths and eager roots repopulate on demand.
+// Track / AddLocalPackage), dropping paths added by lazy Resolve during the
+// session, and evicts those dropped paths from the index so the next browse
+// re-resolves and re-enters tracked. Wired through NodeConfig.ResetState so
+// a reset returns the package set to its initial state.
 func (l *Loader) ResetTracked() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
