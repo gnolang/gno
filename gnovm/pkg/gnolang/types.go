@@ -1087,7 +1087,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // under -tags debugAssert.
 func (it *InterfaceType) panicUnflattened(im FieldType) {
 	panic(fmt.Sprintf(
-		"unflattened embedded interface %q in %s: state persisted before interface flattening is unsupported",
+		"unflattened embedded interface %q in %s",
 		im.Name, it.String()))
 }
 
