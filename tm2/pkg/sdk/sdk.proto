@@ -12,4 +12,11 @@ message Result {
 	abci.ResponseBase response_base = 1 [json_name = "ResponseBase"];
 	sint64 gas_wanted = 2 [json_name = "GasWanted"];
 	sint64 gas_used = 3 [json_name = "GasUsed"];
+	PayGasInfo pay_gas_info = 4 [json_name = "PayGasInfo"];
+}
+
+message PayGasInfo {
+	string realm_pkg_path = 1 [json_name = "RealmPkgPath"];
+	string realm_addr = 2 [json_name = "RealmAddr"];
+	sint64 max_fee = 3 [json_name = "MaxFee"];
 }

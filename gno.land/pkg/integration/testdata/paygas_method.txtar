@@ -1,0 +1,40 @@
+# Test that a struct method in the same realm can call PayGas.
+# Rule 2 allows this because function creator (realm) == payer (realm).
+
+## start a new node
+gnoland start
+
+## deploy realm with a struct method that calls PayGas
+gnokey maketx addpkg -pkgdir $WORK/methodtest -pkgpath gno.land/r/test/methodtest -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1fpgk656qrfl4qmyx8z0dft2f5pwsy74nl4t6lc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call via method — should work, same realm
+gnokey maketx call -pkgpath gno.land/r/test/methodtest -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"method done" string'
+
+-- methodtest/gnomod.toml --
+module = "methodtest"
+gno = "0.9"
+
+-- methodtest/methodtest.gno --
+package methodtest
+
+import "chain/runtime"
+
+type Router struct{}
+
+func (r *Router) Process() string {
+	runtime.PayGas(1000000)
+	return "method done"
+}
+
+var router = &Router{}
+
+func DoWork(cur realm) string {
+	return router.Process()
+}

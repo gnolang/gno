@@ -14,6 +14,7 @@ type MempoolConfig struct {
 	Size               int    `json:"size" toml:"size" comment:"Maximum number of transactions in the mempool"`
 	MaxPendingTxsBytes int64  `json:"max_pending_txs_bytes" toml:"max_pending_txs_bytes" comment:"Limit the total size of all txs in the mempool.\n This only accounts for raw transactions (e.g. given 1MB transactions and\n max_txs_bytes=5MB, mempool will only accept 5 transactions)."`
 	CacheSize          int    `json:"cache_size" toml:"cache_size" comment:"Size of the cache (used to filter transactions we saw earlier) in transactions"`
+	AllowZeroFeeTxs    bool   `json:"allow_zero_fee_txs" toml:"allow_zero_fee_txs" comment:"Accept 0-fee transactions into the mempool when realms sponsor gas via PayGas"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool

@@ -1,0 +1,67 @@
+# Compare gas consumed: normal tx vs PayGas tx for the exact same operation.
+# Both call the SAME function. Second realm wraps it with PayGas.
+
+## start a new node
+gnoland start
+
+## deploy base realm (the actual work)
+gnokey maketx addpkg -pkgdir $WORK/work -pkgpath gno.land/r/test/work -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy paygas wrapper realm
+gnokey maketx addpkg -pkgdir $WORK/wrapper -pkgpath gno.land/r/test/wrapper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund wrapper realm
+gnokey maketx send -send 10000000ugnot -to g14gpjewzuhfu7ag0luyuvdwszedm832y2elhhxc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## --- CALL 1: normal fee, direct call ---
+gnokey maketx call -pkgpath gno.land/r/test/work -func SetValue -args "first" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:   \d+'
+
+## --- CALL 2: normal fee, same operation (overwrite) ---
+gnokey maketx call -pkgpath gno.land/r/test/work -func SetValue -args "second" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:   \d+'
+
+## --- CALL 3: PayGas, same operation via wrapper ---
+gnokey maketx call -pkgpath gno.land/r/test/wrapper -func SponsoredSetValue -args "third" -gas-fee 0ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:   \d+'
+
+## Call 2 and Call 3 do the same base work (overwrite existing string).
+## Difference in GAS USED = PayGas + PayStorage + cross-realm call overhead.
+
+-- work/gnomod.toml --
+module = "work"
+gno = "0.9"
+
+-- work/work.gno --
+package work
+
+var Data string
+
+func SetValue(cur realm, val string) string {
+	Data = val
+	return "set:" + val
+}
+
+-- wrapper/gnomod.toml --
+module = "wrapper"
+gno = "0.9"
+
+-- wrapper/wrapper.gno --
+package wrapper
+
+import (
+	"chain/runtime"
+	"gno.land/r/test/work"
+)
+
+func SponsoredSetValue(cur realm, val string) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(500000)
+	return work.SetValue(cross, val)
+}

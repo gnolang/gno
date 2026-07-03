@@ -1,0 +1,57 @@
+# Test that a sub-realm can call PayGas and pay for the tx.
+# MsgCall targets realm A → A calls B.SponsoredHelper() → B calls PayGas → B pays.
+
+## start a new node
+gnoland start
+
+## deploy sub-realm B that has PayGas
+gnokey maketx addpkg -pkgdir $WORK/subrealm -pkgpath gno.land/r/test/subrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy caller realm A
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund sub-realm B (it will pay gas)
+gnokey maketx send -send 10000000ugnot -to g1prhcv5xhvnje6hvmcxnwwa236m60asulp9erpn -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check sub-realm balance before
+gnokey query bank/balances/g1prhcv5xhvnje6hvmcxnwwa236m60asulp9erpn
+stdout '10000000ugnot'
+
+## call realm A with 0 fee — A delegates to B which calls PayGas
+gnokey maketx call -pkgpath gno.land/r/test/caller -func CallSubRealm -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"sub-realm done" string'
+
+## check sub-realm balance decreased (B paid the gas)
+gnokey query bank/balances/g1prhcv5xhvnje6hvmcxnwwa236m60asulp9erpn
+! stdout '10000000ugnot'
+
+-- subrealm/gnomod.toml --
+module = "subrealm"
+gno = "0.9"
+
+-- subrealm/subrealm.gno --
+package subrealm
+
+import "chain/runtime"
+
+func SponsoredHelper(cur realm) string {
+	runtime.PayGas(1000000) // sub-realm pays gas
+	return "sub-realm done"
+}
+
+-- caller/gnomod.toml --
+module = "caller"
+gno = "0.9"
+
+-- caller/caller.gno --
+package caller
+
+import "gno.land/r/test/subrealm"
+
+func CallSubRealm(cur realm) string {
+	return subrealm.SponsoredHelper(cross)
+}

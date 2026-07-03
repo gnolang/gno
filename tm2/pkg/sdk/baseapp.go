@@ -61,6 +61,9 @@ type BaseApp struct {
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices []GasPrice
 
+	// Allow 0-fee txs when realms sponsor gas via PayGas.
+	allowZeroFeeTxs bool
+
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
 
@@ -583,8 +586,32 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 //
 // NOTE:CheckTx does not run the actual Msg handler function(s).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
-	ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+	var tx Tx
+	if err := amino.Unmarshal(req.Tx, &tx); err != nil {
+		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		return
+	}
+
+	// For 0-fee txs when allowed, use Simulate mode to run full VM execution.
+	// This validates that PayGas is called before accepting into mempool.
+	mode := RunTxModeCheck
+	if tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs && app.consensusParams != nil &&
+		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
+		mode = RunTxModeSimulate
+	}
+	ctx := app.getContextForTx(mode, req.Tx)
+
 	result := app.runTx(ctx, req.Tx)
+
+	// For 0-fee simulated txs, reject if simulation failed or PayGas was not called.
+	if mode == RunTxModeSimulate && tx.Fee.GasFee.IsZero() {
+		if !result.IsOK() || result.PayGasInfo == nil {
+			if result.Error == nil {
+				result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
+			}
+		}
+	}
+
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
 	res.GasUsed = result.GasUsed
@@ -903,12 +930,27 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	}()
 
 	runMsgCtx := ctx
+
+	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
+	psi := &PayStorageInfo{}
+	if runMsgCtx.SponsorStorage() {
+		psi.AccumulatedDiffs = make(map[string]int64)
+	}
+	runMsgCtx = runMsgCtx.
+		WithPayGasInfo(&PayGasInfo{}).
+		WithPayStorageInfo(psi)
+
 	if app.beginTxHook != nil {
 		runMsgCtx = app.beginTxHook(runMsgCtx)
 	}
 
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
+
+	// Propagate PayGasInfo from context to result.
+	if pgi := runMsgCtx.PayGasInfo(); pgi != nil && pgi.MaxFee > 0 {
+		result.PayGasInfo = pgi
+	}
 
 	// Simulate: return after msg execution. The outer CacheContext
 	// (from getContextForTx) discards everything.

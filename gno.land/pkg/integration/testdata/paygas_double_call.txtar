@@ -1,0 +1,31 @@
+# Test that calling PayGas twice in the same tx panics.
+
+## start a new node
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK/double -pkgpath gno.land/r/test/double -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1v65jpt0nf47k9828pkd693m92ezwxp76u6y480 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call realm — second PayGas should panic
+! gnokey maketx call -pkgpath gno.land/r/test/double -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'already called in this transaction'
+
+-- double/gnomod.toml --
+module = "double"
+gno = "0.9"
+
+-- double/double.gno --
+package double
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000)
+	runtime.PayGas(1000000) // second call should panic
+	return "done"
+}

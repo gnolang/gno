@@ -1,0 +1,50 @@
+# Test basic PayGas functionality: realm pays gas for a 0-fee transaction.
+# Verifies that the realm's balance decreases and the user's balance stays unchanged.
+
+## start a new node
+gnoland start
+
+## deploy a realm that calls PayGas
+gnokey maketx addpkg -pkgdir $WORK/sponsor -pkgpath gno.land/r/test/sponsor -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund the realm so it can pay gas (realm address for gno.land/r/test/sponsor)
+gnokey maketx send -send 10000000ugnot -to g1nkx5uhlfhdh74wd09npra8d2n0sq9zsfjdxazn -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check realm balance before PayGas call
+gnokey query bank/balances/g1nkx5uhlfhdh74wd09npra8d2n0sq9zsfjdxazn
+stdout '10000000ugnot'
+
+## check user balance before 0-fee call
+gnokey query bank/balances/$test1_user_addr
+stdout '\d+ugnot'
+cp stdout user_balance_before
+
+## call the realm with 0 gas fee — realm pays via PayGas
+gnokey maketx call -pkgpath gno.land/r/test/sponsor -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"done" string'
+
+## check realm balance decreased (gas was deducted by settlement)
+gnokey query bank/balances/g1nkx5uhlfhdh74wd09npra8d2n0sq9zsfjdxazn
+! stdout '10000000ugnot'
+
+## check user balance unchanged (user paid 0 gas)
+gnokey query bank/balances/$test1_user_addr
+cp stdout user_balance_after
+cmp user_balance_before user_balance_after
+
+-- sponsor/gnomod.toml --
+module = "sponsor"
+gno = "0.9"
+
+-- sponsor/sponsor.gno --
+package sponsor
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000) // realm pays up to 1000000 ugnot (1 gnot)
+	return "done"
+}

@@ -45,10 +45,11 @@ func DefaultConsensusParams() abci.ConsensusParams {
 
 func DefaultBlockParams() *abci.BlockParams {
 	return &abci.BlockParams{
-		MaxTxBytes:   MaxBlockTxBytes,
-		MaxDataBytes: MaxBlockDataBytes,
-		MaxGas:       MaxBlockMaxGas,
-		TimeIotaMS:   BlockTimeIotaMS,
+		MaxTxBytes:        MaxBlockTxBytes,
+		MaxDataBytes:      MaxBlockDataBytes,
+		MaxGas:            MaxBlockMaxGas,
+		TimeIotaMS:        BlockTimeIotaMS,
+		MaxGasCreditPerTx: 0, // feature disabled by default
 	}
 }
 
@@ -77,6 +78,11 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	if params.Block.TimeIotaMS <= 0 {
 		return errors.New("Block.TimeIotaMS must be greater than 0. Got %v",
 			params.Block.TimeIotaMS)
+	}
+
+	if params.Block.MaxGasCreditPerTx < 0 {
+		return errors.New("Block.MaxGasCreditPerTx must be >= 0. Got %d",
+			params.Block.MaxGasCreditPerTx)
 	}
 
 	if len(params.Validator.PubKeyTypeURLs) == 0 {
