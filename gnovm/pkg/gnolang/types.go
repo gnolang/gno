@@ -996,13 +996,14 @@ func (it *InterfaceType) TypeID() TypeID {
 		}
 	}
 	if it.typeid.IsZero() {
-		// Identity is the flattened method set; reject an embed-carrying
-		// Methods list rather than emit a nonsense TypeID. Ungated (unlike
-		// the debugAssert lookups): computed once per instance, and the one
-		// production check that trips on unsupported pre-flattening state.
-		for i := range it.Methods {
-			if it.Methods[i].Type.Kind() == InterfaceKind {
-				it.panicUnflattened(it.Methods[i])
+		// Identity is the flattened method set; an embed-carrying Methods
+		// list would emit a nonsense TypeID. Interior invariant only: the
+		// decode boundary (fillType) rejects such state ungated.
+		if debugAssert {
+			for i := range it.Methods {
+				if it.Methods[i].Type.Kind() == InterfaceKind {
+					it.panicUnflattened(it.Methods[i])
+				}
 			}
 		}
 		// NOTE Interface types expressed or declared in different
@@ -1080,11 +1081,13 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 
 // panicUnflattened reports an InterfaceKind entry in Methods — impossible
 // from any construction path (all flatten via flattenInterfaceMethods), so it
-// can only be decoded pre-flattening persisted state, which is unsupported;
-// see adr/pr5739_interface_method_set_flattening.md.
+// can only be state persisted by code that predates interface flattening,
+// which is unsupported; see adr/pr5739_interface_method_set_flattening.md.
+// Enforced ungated at the decode boundary (fillType); interior sites assert
+// under -tags debugAssert.
 func (it *InterfaceType) panicUnflattened(im FieldType) {
 	panic(fmt.Sprintf(
-		"unflattened embedded interface %q in %s: pre-flattening persisted state requires regenesis or a re-flatten migration",
+		"unflattened embedded interface %q in %s: state persisted before interface flattening requires regenesis or a re-flatten migration",
 		im.Name, it.String()))
 }
 

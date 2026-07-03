@@ -151,26 +151,29 @@ func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 	}
 }
 
-// An InterfaceKind entry in Methods can only be pre-flattening persisted
-// state (every construction path flattens), which is unsupported — interface
-// identity already moved with flattening. TypeID rejects it unconditionally
-// (once per instance — the production choke); the per-lookup checks in
-// FindEmbeddedFieldType/VerifyImplementedBy are hot and only assert under
-// -tags debugAssert. Pins the drop of the legacy embedded-interface
-// branches; see adr/pr5739.
+// An InterfaceKind entry in Methods can only be state persisted before
+// interface flattening (every construction path flattens), which is
+// unsupported — identity already moved. Store bytes are external input, so
+// the decode boundary (fillType, reached from both GetTypeSafe and
+// fillTypesOfValue) rejects it unconditionally; the interior sites
+// (FindEmbeddedFieldType/VerifyImplementedBy/TypeID) assume the invariant
+// and only assert under -tags debugAssert. Pins the drop of the legacy
+// embedded-interface branches; see adr/pr5739.
 func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 	t.Parallel()
 	embedded := &InterfaceType{PkgPath: "p", Methods: []FieldType{{Name: "M", Type: &FuncType{}}}}
 	legacy := &InterfaceType{PkgPath: "p", Methods: []FieldType{
-		{Name: "E", Type: embedded, Embedded: true}, // as decoded from pre-flattening bytes
+		{Name: "E", Type: embedded, Embedded: true}, // as decoded from bytes persisted before flattening
 	}}
 
 	uses := map[string]func(){
-		"TypeID": func() { legacy.TypeID() },
+		// no RefType inside, so a nil store never dereferences
+		"fillType": func() { fillType(nil, legacy) },
 	}
 	if debugAssert {
 		uses["FindEmbeddedFieldType"] = func() { legacy.FindEmbeddedFieldType("p", "M", nil) }
 		uses["VerifyImplementedBy"] = func() { legacy.VerifyImplementedBy(embedded) }
+		uses["TypeID"] = func() { legacy.TypeID() }
 	}
 	for name, use := range uses {
 		t.Run(name, func(t *testing.T) {

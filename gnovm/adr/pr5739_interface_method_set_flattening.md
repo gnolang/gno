@@ -47,7 +47,7 @@ in `VerifyImplementedBy` / `FindEmbeddedFieldType`.
 When flattening hoists an unexported method out of an interface defined in
 package `P` into an anonymous interface in package `Q`, that single-pkgpath
 encoding re-qualifies the method to `Q`. A `/challenge` pass reproduced two
-failures (both regressions vs the pre-flattening baseline, confirmed against a
+failures (both regressions vs the baseline before this change, confirmed against a
 real-Go oracle):
 
 1. **Identity over-collapse.** `interface{ p.Sec }` (with unexported `p.sec`)
@@ -113,7 +113,7 @@ worth the pathological case, Alternative A is the drop-in fallback: it closes
 the same security hole with no persisted-shape change. This ADR exists so that
 trade-off can be revisited.
 
-### Alternative B — keep the pre-flattening representation (rejected)
+### Alternative B — keep the embed-entry representation (rejected)
 
 Name embedded interfaces from the resolved type (the minimal fix that shipped
 first on this branch). Sound, but only equalizes alias-vs-target; leaves
@@ -131,18 +131,20 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
 - Runtime **assumes flattened** interfaces. The legacy embedded-interface
   branches in `FindEmbeddedFieldType` / `VerifyImplementedBy` are dropped; an
   `InterfaceKind` entry in `Methods` (only possible by decoding
-  pre-flattening persisted bytes) is a **hard error** (`panicUnflattened`):
-  unconditionally at `TypeID` (once per instance — the production choke), and
-  under `-tags debugAssert` at the hot per-lookup sites (method resolution,
-  satisfaction).
+  bytes persisted before this change) is a **hard error** (`panicUnflattened`),
+  enforced where the concern lives: ungated at the **decode boundary**
+  (`fillType`, reached from both type-entry decode and object loads — store
+  bytes are external input, so this check stays in production), and under
+  `-tags debugAssert` at the interior sites (method resolution, satisfaction,
+  `TypeID`), which may assume the invariant on a validated store.
 
-## Rollout: pre-flattening persisted state is unsupported (decided)
+## Rollout: state persisted before this change is unsupported (decided)
 
 Every `InterfaceType` is born one of three ways: **preprocess (AST)**,
 **runtime (`doOpInterfaceType`)**, or **decode**. The first two always flatten;
 decode faithfully reproduces stored bytes. So an unflattened interface can
-reach runtime in exactly one situation: decode of bytes written by
-**pre-flattening** code.
+reach runtime in exactly one situation: decoding bytes persisted **before
+this change**.
 
 Tolerating those bytes (the recursion branches this PR originally kept) was a
 half-measure: the type's *identity* already moved with this change, so
@@ -151,7 +153,7 @@ store entries, and hashes are silently split from post-change construction.
 Silent-wrong loses to loud-fail on a chain, so the branches are **dropped**
 and a decoded unflattened interface **panics** with an actionable message.
 
-A network carrying pre-flattening state has two supported paths, both of which
+A network carrying state persisted before this change has two supported paths, both of which
 make unflattened bytes impossible (the panic is then a dead invariant check):
 
 - **Fresh genesis / tx replay** (how gno.land testnets regenesis): all state
