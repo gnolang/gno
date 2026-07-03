@@ -47,3 +47,27 @@ In `pkg/gnolang/gotypecheck.go`, `TypeCheck*()` diverges at step 4 and terminate
 In `pkg/test/imports.go`, `_processMemPackage()` after loading when .PreprocessOnly:
   3. `GoParseMemPackage()`
   4. `PrepareGno0p9()`
+
+## Open question: fatal vs. normal type-check errors
+
+`TypeCheckMemPackage()` returns two kinds of errors that today are
+indistinguishable to callers:
+
+- **normal diagnostics** — ordinary `go/types` type errors ("constant overflows
+  uint16"). The Gno preprocessor re-checks the same code, so the filetest
+  harness deliberately runs both and pins both (`// TypeCheckError:` for
+  `go/types`, `// Error:` for preprocess) to cross-check them.
+- **fatal rejections** — the package uses an unsupported construct or trips a
+  DoS guard (generics/type-sets via `checkNoGenerics`, type-expansion fan-out
+  via `checkTypeExpansionBound`). Proceeding is meaningless: preprocess then
+  emits an unrelated secondary error (e.g. `name P not defined` for a type
+  parameter), so such filetests must pin two directives for no real benefit.
+
+The deploy path already stops on *any* type-check error (`AddPackage` →
+`ErrTypeCheck`), so this only affects the filetest harness. A future change could
+tag fatal rejections as a distinct error kind and have `runFiletest` stop before
+preprocess for them — but only as part of a deliberate definition of the
+"unsupported Gno subset" (which errors are fatal: these guards? `go1.18`
+version errors? all unsupported-feature rejections?), not a bolt-on. ~500
+existing filetests pin both directives, so the split must be introduced
+carefully.
