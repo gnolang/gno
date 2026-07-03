@@ -1021,6 +1021,7 @@ func (app *BaseApp) Close() error {
 	// The multiStore holds a snapshot with refs=1 that is normally released by
 	// the next Commit(). On shutdown that swap never happens, so we must drain
 	// it explicitly; otherwise PebbleDB reports "leaked snapshots" at Close time.
+	// any inflight query ongoing during shutdown will fail as the snapshot is released.
 	if closer, ok := app.cms.(io.Closer); ok {
 		closer.Close() //nolint:errcheck // multiStore.Close() always returns nil
 	}
