@@ -25,7 +25,7 @@ func New(remoteOverrides map[string]string) pkgdownload.PackageFetcher {
 	}
 }
 
-// FetchPackage implements pkgdownload.PackageFetcher.
+// FetchPackage implements [pkgdownload.PackageFetcher].
 func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
 	rpcURL, err := rpcURLFromPkgPath(pkgPath, gpf.remoteOverrides)
 	if err != nil {
@@ -57,19 +57,15 @@ func (gpf *gnoPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, erro
 	return res, nil
 }
 
-// OverrideDomainsRPCs implements pkgdownload.RPCPackageFetcher.
+// OverrideDomainsRPCs implements [pkgdownload.RPCPackageFetcher].
 func (gpf *gnoPackageFetcher) OverrideDomainsRPCs(values map[string]string) {
 	if len(values) == 0 {
 		return
 	}
 	if gpf.remoteOverrides == nil {
-		gpf.remoteOverrides = map[string]string{}
+		gpf.remoteOverrides = make(map[string]string, len(values))
 	}
 	for domain, rpc := range values {
-		if rpc == "" {
-			delete(gpf.remoteOverrides, domain)
-			continue
-		}
 		gpf.remoteOverrides[domain] = rpc
 	}
 }
