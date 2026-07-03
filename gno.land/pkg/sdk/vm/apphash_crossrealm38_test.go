@@ -68,7 +68,14 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped by the realm transaction sponsorship PR: adding the PayGas and
+// PayStorage natives to the chain/runtime stdlib changes that stdlib's committed
+// genesis MemPackage, which shifts the iavlStore Merkle root — same class of
+// change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
+// (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
+// shifted.
+const expectedCrossrealm38Hash = "cbb912776f085fe694814748f457e70e70085247da6b415842e7237748f455ea"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
