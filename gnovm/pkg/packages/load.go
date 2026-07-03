@@ -56,14 +56,9 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	// override rpcs if requested and possible
-	rpcOverrides := loaderCtx.Gnowork.rpcOverrides()
-	if len(rpcOverrides) != 0 {
-		if cpf, ok := conf.Fetcher.(pkgdownload.RPCPackageFetcher); ok {
-			cpf.OverrideDomainsRPCs(rpcOverrides)
-		} else {
-			fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it\n")
-		}
+	// apply per-domain rpc overrides from gnowork.toml, if any
+	if err := applyRPCOverrides(conf.Fetcher, loaderCtx.Gnowork.rpcOverrides()); err != nil {
+		return nil, err
 	}
 
 	// sanity assert
@@ -163,6 +158,22 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	return loaded, nil
+}
+
+// applyRPCOverrides pushes the per-domain rpc overrides declared in gnowork.toml
+// into the package fetcher. When overrides are requested but the configured
+// fetcher cannot honor them, it returns an error rather than silently fetching
+// package source from the default endpoints.
+func applyRPCOverrides(fetcher pkgdownload.PackageFetcher, overrides map[string]string) error {
+	if len(overrides) == 0 {
+		return nil
+	}
+	rpcFetcher, ok := fetcher.(pkgdownload.RPCPackageFetcher)
+	if !ok {
+		return fmt.Errorf("gnowork.toml requests rpc overrides but the configured package fetcher (%T) does not support them", fetcher)
+	}
+	rpcFetcher.OverrideDomainsRPCs(overrides)
+	return nil
 }
 
 type loaderContext struct {
