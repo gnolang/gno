@@ -14,7 +14,7 @@ follow [Getting started](../builders/getting-started.md). If you don't have
 | Command | What it does |
 |---------|-------------|
 | [`add`](../users/using-gnokey.md#managing-key-pairs) | create or import a key pair |
-| [`add bech32`](#multisig-k-of-n) | add a public key by bech32 address |
+| [`add bech32`](#multisig-k-of-n) | add a watch-only key from a bech32 public key |
 | [`add multisig`](#multisig-k-of-n) | create a multisig key from member keys |
 | [`add ledger`](../users/using-gnokey.md#managing-key-pairs) | add a key from a Ledger device |
 | [`list`](../users/using-gnokey.md#managing-key-pairs) | list keys in a keybase |
@@ -48,21 +48,27 @@ Each `maketx` command sends one message, signed with a key from your keybase (se
 [Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). Every
 command takes the same base-configuration flags:
 
-- `-gas-wanted` - the maximum gas units the transaction may consume
-- `-gas-fee` - the total fee paid for the transaction, in `ugnot`
+- `-gas-wanted` - the maximum gas units the transaction may consume (required)
+- `-gas-fee` - the fee paid for the transaction, as `<amount>ugnot`
+  (e.g. `1000000ugnot`; required)
 - `-chainid` and `-remote` - the network to target; the two must match
 - `-broadcast` - send the transaction to the chain (default `true`; set
   `-broadcast=false` to build the unsigned transaction without sending it, as
   in [Airgapped signing](#airgapped-signing))
 - `-memo` - arbitrary text attached to the transaction (optional)
-- `-simulate` - run the transaction without broadcasting: `test` (default,
-  simulates then broadcasts), `skip` (skip simulation), `only` (dry run, report
-  gas used and exit without broadcasting)
-- `-gas-fee-margin` - percentage added to the simulated gas fee (default `5`;
-  only used with `-simulate test`)
+- `-simulate` - simulation mode: `test` (default, simulate first, broadcast
+  only on success), `skip` (broadcast without simulating), `only` (dry run,
+  report gas used and exit without broadcasting)
+- `-gas-fee-margin` - percentage added to the estimated gas fee (default `5`;
+  only used with `-simulate only`)
+- `-master` - the master account's key name or address, when signing with a
+  session key (optional; see [Session](#session))
 
-`-gas-wanted` and `-gas-fee` together cap what you pay; see
-[Gas fees](./gas-fees.md) for estimating them. Find `-chainid` and `-remote`
+`-gas-wanted` and `-gas-fee` together cap what you pay; `gnokey` never fills
+them in for you. Run the transaction with `-simulate only` to get good values,
+as shown in [Gas estimation](./gas-fees.md#gas-estimation). The default
+`-simulate test` then guards them: a transaction that fails simulation is never
+broadcast, and no fee is spent. Find `-chainid` and `-remote`
 values per network in [Network configuration](./gnoland-networks.md).
 State-changing calls cost gas paid in GNOT, so on testnets grab some from the
 [Faucet Hub](https://faucet.gno.land) first.
@@ -75,6 +81,7 @@ GAS WANTED: 200000
 GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
+INFO:
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
@@ -82,7 +89,12 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 - `GAS USED` - the gas actually consumed
 - `HEIGHT` - the block the transaction landed in
 - `EVENTS` - any [Gno events](./gno-stdlibs.md#events) the call emitted
+- `INFO` - extra information from the message handler (usually empty)
 - `TX HASH` - the transaction's hash
+
+Transactions that change [storage deposits](./storage-deposit.md) add
+`STORAGE DELTA`, `STORAGE FEE` (or `STORAGE REFUND`), and `TOTAL TX COST`
+lines, and `addpkg` appends a `PKGPATH` line.
 
 For an end-to-end deploy-and-call walkthrough, see
 [Getting started](../builders/getting-started.md).
@@ -129,7 +141,8 @@ gnokey maketx addpkg \
   mykey
 ```
 
-`-pkgpath` must match the `module` declared in the package's `gnomod.toml`. For
+`-pkgpath` decides where the code lives on chain; on deploy it overwrites the
+`module` declared in the package's `gnomod.toml`, so keep the two in sync. For
 writing the package and declaring that path, see
 [Getting started](../builders/getting-started.md) and
 [Configuring Gno projects](./configuring-gno-projects.md#gnomodtoml).
@@ -144,6 +157,10 @@ are:
 - `-args` - one argument (repeat the flag for more; see below)
 - `-send` - coins to send with the call (optional)
 - `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
+
+`-func` must name an exported crossing function, one declared with a leading
+`cur realm` parameter. Non-crossing functions are rejected; read them with
+[`vm/qeval`](#vmqeval), or call them from [`Run`](#run).
 
 For example, calling `Deposit()` on the `gno.land/r/gnoland/wugnot` realm to wrap
 `1000ugnot` into the GRC20 token `wugnot`:
@@ -221,22 +238,24 @@ gnokey maketx run \
   mykey ./script.gno
 ```
 
-`println`, available only in the `Run` and testing context, lets you see the
-return value.
+`println` lets you see the return value: its output is surfaced only in `Run`
+and in tests, and discarded in a `Call`.
 
 #### When to use `Run` over `Call`
 
 That example could just as easily have been a `maketx call`. `Run` earns its place
 when a plain call can't express what you need:
 
-1. Constructing non-primitive arguments such as structs, slices, or maps, which
+1. Constructing composite arguments such as structs, maps, or slices, which
    `Call` cannot pass
 2. Calling realm functions repeatedly in a loop
 3. Calling methods on exported variables
 
-**1. Non-primitive arguments.** `Call` only accepts primitive string arguments
-via `-args`. `Run` is full Gno code, so it can build structs, slices, and maps
-and pass them directly:
+**1. Composite arguments.** Each `-args` value is a string, converted on chain
+to the parameter's declared type: booleans, integers, floats, strings, and
+`[]byte` (base64-encoded). Composite types such as structs, maps, and other
+slices cannot be passed. `Run` is full Gno code, so it can build those values
+directly:
 
 ```go
 package main
@@ -301,7 +320,8 @@ should not sign every transaction.
 
 Creates a session account authorized by a master key. Its flags are:
 
-- `-pubkey` - the session subaccount's public key in bech32 format
+- `-pubkey` - the session subaccount's public key in bech32 format (`gpub1...`,
+  not a `g1...` address)
 - `-expires-at` - session expiry: a duration (`24h`, `7d`, `4w`; max ~4y), a
   unix timestamp, or `none` for no expiry (required)
 - `-allow-paths` - per-message restrictions (required, repeatable). Use `*` for
@@ -312,7 +332,7 @@ Creates a session account authorized by a master key. Its flags are:
 
 ```bash
 gnokey maketx session create \
-  -pubkey g1... \
+  -pubkey gpub1... \
   -expires-at 24h \
   -allow-paths "vm/exec:gno.land/r/myrealm" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
@@ -330,7 +350,7 @@ Revokes a single session account by its public key:
 
 ```bash
 gnokey maketx session revoke \
-  -pubkey g1... \
+  -pubkey gpub1... \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
@@ -385,7 +405,8 @@ gnokey maketx call \
 **3. Sign it.** `gnokey sign` fills in the signature, using the account number and
 sequence from step 1. It also takes `-output-document <file>` to write the
 signature to a separate file (used in [multisig](#multisig-k-of-n)), and
-`-session` to sign as a session account instead of the key itself:
+`-session` to mark the signature as coming from a [session](#session) account,
+where the named key is the session key:
 
 ```bash
 gnokey sign \
@@ -405,22 +426,32 @@ gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 
 ### Verifying a signature
 
-`gnokey verify` checks a transaction's signature. It takes:
+`gnokey verify` checks a signed transaction file before it goes out, letting the
+online machine confirm what came back from the offline one. It verifies against
+a key in the local keybase, passed by name or address; only the public key is
+used, so a watch-only entry added with [`add bech32`](#multisig-k-of-n) is
+enough. It takes:
 
 - `-tx-path` - the transaction file to verify
-- `-sig-path` - a separate signature file (optional; without it, verifies the
-  signature embedded in the transaction)
+- `-sig-path` - a separate signature file, as written by `sign -output-document`
+  (optional; without it, verifies the first signature embedded in the
+  transaction)
 - `-chainid`, `-account-number`, `-account-sequence` - must match the values
-  used at signing. Online, any left unset are queried from `-remote`; offline,
-  pass all three explicitly.
+  used at signing. Any left unset are queried from `-remote`; offline, pass all
+  three explicitly.
 
-**Online** (flags queried from `-remote`):
+**Online** (unset flags queried from `-remote`):
 
 ```bash
 gnokey verify -tx-path counter.tx -remote https://rpc.staging.gno.land:443 mykey
 ```
 
-**Offline** (all flags explicit):
+Relying on the query only works while the transaction is still pending:
+broadcasting bumps the account's sequence past the one that was signed, so an
+already-executed transaction verifies only with the original values passed
+explicitly.
+
+**Offline, or after broadcast** (all values explicit):
 
 ```bash
 gnokey verify -tx-path counter.tx \
@@ -435,26 +466,33 @@ gnokey verify -tx-path counter.tx -sig-path counter-sig.json \
   -remote https://rpc.staging.gno.land:443 mykey
 ```
 
+A valid signature prints `Valid signature!` with the signing address, public
+key, and signature; anything else exits with an error.
+
 ## Multisig (k-of-n)
 
 A k-of-n multisig spends only when k of its n member keys sign. The example below
 is a 2-of-3 between Alice, Bob, and Charlie.
 
-:::warning Ordering is everything
+:::info Same members, same address
 
-A multisig is defined by its **ordered list of member keys**. Every participant
-must create it with the members in the **same order**, or they end up with
-different multisig addresses. The same ordering governs signing: each signature is
-matched to its member, so every signature must come from a defined member (though
-you may pass them to `multisign` in any order).
+A multisig is defined by its **member keys and threshold**. `add multisig` sorts
+the members by address before deriving the multisig key, so every participant
+gets the same address as long as they use the same member set and threshold,
+regardless of the order they pass `--multisig` flags in. Passing `-nosort` keeps
+the supplied order instead; then every participant must use the identical order,
+or they derive different addresses.
+
+Each signature is matched to its member by public key, so every signature must
+come from a defined member, but you may pass them to `multisign` in any order.
 
 :::
 
 ### 1. Each participant builds the multisig key
 
 In their own keybase, every signer needs their own private key, the other members'
-public keys (added as bech32 keys), and agreement on the threshold and member
-order. Using the order `alice, bob, charlie`, Alice's keybase looks like this:
+public keys (added as bech32 keys), and agreement on the member set and
+threshold. Alice's keybase looks like this:
 
 ```sh
 # Recover Alice's private key
@@ -464,7 +502,7 @@ echo "\n\n$ALICE_MNEMONIC" | gnokey add --recover alice --home ./alice-kb -insec
 gnokey add bech32 --home ./alice-kb -pubkey "$BOB_PUBKEY" multisig-bob
 gnokey add bech32 --home ./alice-kb -pubkey "$CHARLIE_PUBKEY" multisig-charlie
 
-# Create the multisig (order: alice, bob, charlie)
+# Create the 2-of-3 multisig
 gnokey add multisig --home ./alice-kb \
   --multisig alice --multisig multisig-bob --multisig multisig-charlie \
   -threshold 2 \
@@ -472,8 +510,8 @@ gnokey add multisig --home ./alice-kb \
 ```
 
 Bob and Charlie do the same in their own keybases, each holding their own private
-key where Alice holds a pubkey, but keeping the identical `alice, bob, charlie`
-order. All three then derive the same `multisig-abc` address.
+key where Alice holds a pubkey. All three then derive the same `multisig-abc`
+address.
 
 ### 2. Create the transaction and sign it
 
@@ -522,14 +560,11 @@ flowchart TD
   C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
   C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
   C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
-  D1 --> E[Combine signatures with gnokey multisign.<br/>Signature slots must match multisig member order]
+  D1 --> E[Combine signatures with gnokey multisign.<br/>Each signature is matched to its member by public key]
   D2 --> E
   D3 -. optional .-> E
   E --> F[Broadcast TX<br/>gnokey broadcast]
   F --> G[Done]
-
-  H[Critical rule: multisig member ordering] --- B
-  H --- E
 ```
 
 ## Exporting and importing keys
@@ -618,18 +653,26 @@ package process.
 ## Querying a Gno.land network
 
 `gnokey query` sends ABCI queries, which read network state without spending gas.
-Every query needs a `-remote` to read from. The available queries:
+Every query needs a `-remote` to read from; `-data` carries the query argument,
+and `-height` reads the state at a specific block instead of the latest one. The
+available queries:
 
 - `auth/accounts/{ADDRESS}` - account information
+- `auth/accounts/{ADDRESS}/sessions` - the [session](#session) accounts of an address
 - `auth/gasprice` - the current minimum gas price for transactions
 - `bank/balances/{ADDRESS}` - account balances
-- `vm/qfuncs` - the exported functions of a package path
+- `params/{MODULE}:{SUBMODULE}:{NAME}` - a module parameter, e.g.
+  `params/vm:gno.land/r/myrealm:foo`
+- `vm/qfuncs` - the exported functions of a realm
 - `vm/qfile` - the file list or file contents of a package path
 - `vm/qdoc` - the documentation of a package path, as JSON
 - `vm/qeval` - evaluate an expression in read-only mode
-- `vm/qrender` - shorthand for `vm/qeval Render("")` on a package path
+- `vm/qrender` - call a realm's `Render` function and return its output
 - `vm/qpaths` - list existing package paths
 - `vm/qstorage` - a realm's storage usage and locked deposit
+
+For the machine-readable variants (`vm/qeval_json`, `vm/qobject_json`, and
+friends), see [Query state API](../builders/query-state-api.md).
 
 ### `auth/accounts`
 
@@ -651,18 +694,21 @@ data: {
     },
     "account_number": "0",
     "sequence": "12"
-  }
+  },
+  "attributes": "0"
 }
 ```
 
-`height` is the block the query ran at (currently always `0`). `data` holds a
-`BaseAccount`, the TM2 struct for account data:
+`height` is a response field the module queries leave unset, so it is currently
+always `0`; the state itself is read at the latest block, or at `-height` if
+given. `data` holds a `BaseAccount`, the TM2 struct for account data:
 
 - `address` - the account's address
 - `coins` - the coins the account owns
 - `public_key` - the TM2 public key the address derives from
 - `account_number` - a unique identifier for the account on chain
 - `sequence` - a nonce, used to protect against replay attacks
+- `attributes` - gno.land account flags as a bitset; `"0"` when none are set
 
 ### `bank/balances`
 
@@ -702,7 +748,9 @@ minimum for new transactions. For a deeper explanation, see
 
 ### `vm/qfuncs`
 
-Returns the exported functions of a package path, given with `-data`:
+Returns the exported functions of a realm path, given with `-data`; package
+(`/p/`) paths are rejected. Crossing functions list their leading `cur realm`
+parameter:
 
 ```bash
 gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
@@ -789,15 +837,15 @@ data: {
       "name": "GetByAddr",
       "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
-      "params": [{ "Name": "address", "Type": "address" }],
-      "results": [{ "Name": "", "Type": "Valoper" }]
+      "params": [{ "name": "address", "type": "address", "doc": "" }],
+      "results": [{ "name": "", "type": "Valoper", "doc": "" }]
     }
     // other funcs
   ],
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct { ... }",
+      "type": "struct { ... }",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]
@@ -807,19 +855,23 @@ data: {
 
 ### `vm/qeval`
 
-Evaluates a call to an exported function in read-only mode, without using gas:
+Evaluates a Gno expression, typically a call to an exported function, in
+read-only mode without paying gas:
 
 ```bash
 gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
-This returns the `wugnot` balance of the address without spending gas. Quotation
-marks around string arguments must be escaped, and only primitive types are
-supported in expressions.
+This returns the `wugnot` balance of the address without a transaction.
+Quotation marks around string arguments must be escaped, and arguments must be
+literal expressions. Queries still run under an internal gas cap, so unbounded
+evaluations can fail.
 
 ### `vm/qrender`
 
-An alias for evaluating `Render("")` on a package path:
+Evaluates `Render(<renderpath>)` on a package path, given as
+`<pkgpath>:<renderpath>`. The colon is required; with nothing after it, the
+realm renders its root path:
 
 ```bash
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
@@ -890,7 +942,8 @@ gnokey query vm/qstorage --data "gno.land/r/foo" -remote https://rpc.gno.land:44
 ```
 
 ```
-storage: 5025, deposit: 502500
+height: 0
+data: storage: 5025, deposit: 502500
 ```
 
 `storage` is the total bytes used; `deposit` is the total GNOT locked by the realm.
