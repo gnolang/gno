@@ -398,9 +398,32 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 	return vm.gnoStore.BeginTransaction(base, iavl, gctx, gasMeter)
 }
 
+// typeCheckCacheHolder lazily clones the shared type-check cache the
+// first time a transaction actually needs it. Only AddPackage and Run
+// type-check; the common transactions (MsgCall, query eval) never do,
+// so they no longer pay for the per-tx maps.Clone. The clone is created
+// at most once per transaction and shared across a tx's messages, so
+// behaviour is identical to eager cloning.
+//
+// A holder belongs to a single transaction's context and, like the rest
+// of per-tx execution (store, allocator, gas meter), assumes one
+// goroutine drives that transaction. get() is therefore not internally
+// synchronized.
+type typeCheckCacheHolder struct {
+	base   gno.TypeCheckCache // shared, treated as read-only
+	cloned gno.TypeCheckCache // per-tx working copy; nil until first get
+}
+
+func (h *typeCheckCacheHolder) get() gno.TypeCheckCache {
+	if h.cloned == nil {
+		h.cloned = maps.Clone(h.base)
+	}
+	return h.cloned
+}
+
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 	return ctx.
-		WithValue(vmkContextKeyTypeCheckCache, maps.Clone(vm.typeCheckCache)).
+		WithValue(vmkContextKeyTypeCheckCache, &typeCheckCacheHolder{base: vm.typeCheckCache}).
 		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
 }
 
@@ -409,7 +432,7 @@ func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 }
 
 func (vm *VMKeeper) getTypeCheckCache(ctx sdk.Context) gno.TypeCheckCache {
-	return ctx.Value(vmkContextKeyTypeCheckCache).(gno.TypeCheckCache)
+	return ctx.Value(vmkContextKeyTypeCheckCache).(*typeCheckCacheHolder).get()
 }
 
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
