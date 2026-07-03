@@ -1,7 +1,6 @@
 package treasury
 
 import (
-	"chain/runtime"
 	"errors"
 	"strconv"
 
@@ -32,8 +31,18 @@ func (GRC20Banker) ID() string {
 }
 
 // Send implements Banker.
-func (gb *GRC20Banker) Send(p Payment) error {
-	if runtime.CurrentRealm().Address() != gb.owner {
+//
+// rlm must be the caller's own captured cur (i.e. the cur of the
+// immediate crossing-function caller). Sending with rlm = cur.Previous()
+// or any other realm value is rejected: rlm.IsCurrent() asserts pointer
+// identity against the topmost crossing frame. Combined with the
+// rlm.Address() == gb.owner check, this restricts Send to the owning
+// realm acting in its own frame.
+func (gb *GRC20Banker) Send(_ int, rlm realm, p Payment) error {
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+	if rlm.Address() != gb.owner {
 		return ErrCurrentRealmIsNotOwner
 	}
 
@@ -51,8 +60,8 @@ func (gb *GRC20Banker) Send(p Payment) error {
 		return ufmt.Errorf("%v: %s", ErrGRC20TokenNotFound, payment.tokenKey)
 	}
 
-	// Send the token.
-	return token.RealmTeller().Transfer(payment.toAddress, payment.amount)
+	// Send the token from the owner's balance.
+	return token.RealmTeller(0, rlm).Transfer(0, rlm, payment.toAddress, payment.amount)
 }
 
 // Balances implements Banker.
@@ -74,14 +83,6 @@ func (gb *GRC20Banker) Balances() []Balance {
 // Address implements Banker.
 func (gb *GRC20Banker) Address() string {
 	return gb.owner.String()
-}
-
-// NewGRC20Banker creates a new GRC20Banker with the current Realm's address
-// as the owner.
-func NewGRC20Banker(lister TokenListerFunc) (*GRC20Banker, error) {
-	owner := runtime.CurrentRealm().Address()
-
-	return NewGRC20BankerWithOwner(owner, lister)
 }
 
 // NewGRC20BankerWithOwner creates a new GRC20Banker with the given address.

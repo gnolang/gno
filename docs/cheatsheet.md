@@ -1,5 +1,7 @@
 # Gno Cheatsheet
 
+Minimal copy-paste commands. Each section links to the full guide for the details.
+
 ## Table of Contents
 
 ### User
@@ -56,7 +58,7 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.s
 
 ### Generate a Key
 
-> [Managing key pairs](users/interact-with-gnokey.md#managing-key-pairs)
+> [Generating a key pair](users/interact-with-gnokey.md#generating-a-key-pair)
 
 ```bash
 # create a new keypair
@@ -72,6 +74,8 @@ source bonus chronic canvas draft south burst lottery vacant surface solve popul
 ```
 
 ### Manage Keys
+
+> [Managing key pairs](users/interact-with-gnokey.md#managing-key-pairs)
 
 ```bash
 # delete a key
@@ -98,8 +102,6 @@ gnokey generate
 
 ### Query
 
-> [Using `gnokey`](users/interact-with-gnokey.md#querying-a-gnoland-network)
-
 ```bash
 # render the realm output
 gnokey query vm/qrender -data "gno.land/r/dev/counter:"
@@ -116,7 +118,7 @@ gnokey query auth/accounts/$ADDRESS
 
 ### Call a Function
 
-> [Using `gnokey`](users/interact-with-gnokey.md#call)
+> [`Call`](users/interact-with-gnokey.md#call)
 
 ```bash
 gnokey maketx call \
@@ -130,13 +132,14 @@ gnokey maketx call \
 
 ### Send Coins
 
+> [`Send`](users/interact-with-gnokey.md#send)
+
 ```bash
 gnokey maketx send \
   -send "1000000ugnot" \
   -to "$RECIPIENT_ADDR" \
   -gas-fee 1000000ugnot \
   -gas-wanted 2000000 \
-  -broadcast \
   -chainid "staging" \
   -remote "https://rpc.staging.gno.land:443" \
   MyKey
@@ -144,14 +147,15 @@ gnokey maketx send \
 
 ### Deploy a Package
 
+> [`AddPackage`](users/interact-with-gnokey.md#addpackage)
+
 ```bash
 # upload package files at ./counter to the chain
 gnokey maketx addpkg \
-  -pkgpath "gno.land/r/myuser/counter" \
+  -pkgpath "gno.land/r/<your_g1_address>/counter" \
   -pkgdir "./counter" \
   -gas-fee 1000000ugnot \
   -gas-wanted 20000000 \
-  -broadcast \
   -chainid "staging" \
   -remote "https://rpc.staging.gno.land:443" \
   MyKey
@@ -160,90 +164,63 @@ gnokey maketx addpkg \
 gnokey maketx run \
   -gas-fee 1000000ugnot \
   -gas-wanted 20000000 \
-  -broadcast \
   MyKey ./script.gno
 ```
 
 ### Multisig
 
-> [Multisig keys](users/interact-with-gnokey.md)
+> Full walkthrough: [using a k-of-n multisig](users/interact-with-gnokey.md#using-a-k-of-n-multisig)
+
+Members must be listed in the same fixed order in every signer's keybase.
 
 ```bash
-# 1. add a K-of-N multisig key from existing local keys (alice, bob, carol)
-gnokey add Multi \
-  --multisig alice --multisig bob --multisig carol \
-  --threshold 2
+# add a k-of-n multisig key (order matters, identical for every signer)
+gnokey add multisig \
+  -multisig alice -multisig bob -multisig charlie \
+  -threshold 2 \
+  multisig-abc
 
-# 2. craft an unsigned tx (any maketx subcommand) using the multisig address
-gnokey maketx call \
-  -pkgpath "gno.land/r/dev/counter" \
-  -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -broadcast=false \
-  Multi > tx.json
-
-# 3. each co-signer produces a partial signature
-gnokey sign \
-  -tx-path tx.json \
-  -chainid "staging" \
-  -account-number $N -account-sequence $S \
-  -output-document alice.sig \
-  alice
-
-gnokey sign \
-  -tx-path tx.json \
-  -chainid "staging" \
-  -account-number $N -account-sequence $S \
-  -output-document bob.sig \
-  bob
-
-# 4. assemble the partials into a fully signed tx
-gnokey multisign \
-  -tx-path tx.json \
-  -signature alice.sig -signature bob.sig \
-  Multi
-
-# 5. broadcast
-gnokey broadcast -remote "https://rpc.staging.gno.land:443" tx.json
+# each member signs the shared unsigned tx, then combine and broadcast
+gnokey multisign -tx-path tx.json -signature alice.sig -signature bob.sig multisig-abc
+gnokey broadcast tx.json
 ```
 
 ### Airgap Transaction
 
-> [Making an airgapped transaction](users/interact-with-gnokey.md#making-an-airgapped-transaction)
+> Full walkthrough: [making an airgapped transaction](users/interact-with-gnokey.md#making-an-airgapped-transaction)
+
+Build and sign offline, broadcast online. Fetch the account number and sequence online first.
 
 ```bash
-# 1. online machine: fetch account info
-gnokey query auth/accounts/$ADDRESS -remote "https://rpc.staging.gno.land:443"
-
-# 2. offline machine: create unsigned tx
+# offline: create the unsigned tx (-broadcast=false), then sign it
 gnokey maketx call \
-  -pkgpath "gno.land/r/demo/counter" \
+  -pkgpath "gno.land/r/dev/counter" \
   -func "Increment" \
   -gas-fee 1000000ugnot \
   -gas-wanted 2000000 \
   -broadcast=false \
-  mykey > counter.tx
+  MyKey > counter.tx
 
-# 3. offline machine: sign the tx
 gnokey sign \
   -tx-path counter.tx \
   -chainid "staging" \
-  -account-number <account-number-from-step-1> \
-  -account-sequence 0 \
-  mykey
+  -account-number <n> -account-sequence <s> \
+  MyKey
 
-# 4. online machine: broadcast the signed tx
+# online: broadcast the signed tx
 gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
 ### Verify a Signature
 
+> Full walkthrough: [verifying a signature](users/interact-with-gnokey.md#verifying-a-transactions-signature)
+
 ```bash
-# verify the signature embedded in tx.json against MyKey's pubkey
+# verify the signature embedded in a signed tx
 gnokey verify \
   -tx-path tx.json \
   -chainid "staging" \
-  -account-number $N -account-sequence $S \
+  -account-number <n> -account-sequence <s> \
   MyKey
 
 # verify a detached signature file instead
@@ -251,7 +228,7 @@ gnokey verify \
   -tx-path tx.json \
   -sig-path alice.sig \
   -chainid "staging" \
-  -account-number $N -account-sequence $S \
+  -account-number <n> -account-sequence <s> \
   MyKey
 ```
 
@@ -261,7 +238,7 @@ gnokey verify \
 
 ### Create a Realm
 
-> [Writing Gno code](builders/anatomy-of-a-gno-package.md)
+> [Gno packages](resources/gno-packages.md)
 
 ```bash
 mkdir counter && cd counter
@@ -272,7 +249,7 @@ gno mod init gno.land/r/example/counter
 
 ### Run Locally
 
-> [Local development with `gnodev`](builders/local-dev-with-gnodev.md)
+> [Local development with `gnodev`](resources/gnodev.md)
 
 ```bash
 # starts a local node + gnoweb on http://localhost:8888
@@ -287,7 +264,7 @@ gnodev -no-watch
 
 ### Test
 
-> [Testing Gno](resources/gno-testing.md)
+> [Running & testing Gno code](resources/gno-testing.md)
 
 ```bash
 # run tests for current package
@@ -306,7 +283,7 @@ gno lint .
 
 ### Create a Run Script
 
-> [Using `gnokey`](users/interact-with-gnokey.md#run)
+> [`Run`](users/interact-with-gnokey.md#run)
 
 ```bash
 # write run/create_proposal.gno, then run:
@@ -318,7 +295,7 @@ gnokey maketx run \
 
 ### Deploy to Staging
 
-> [Deploying packages](builders/deploy-packages.md) | [Networks](resources/gnoland-networks.md)
+> [Deploy to a shared network](builders/getting-started.md#deploy-to-a-shared-network) | [Networks](resources/gnoland-networks.md)
 
 ```bash
 # get testnet GNOT from https://faucet.gno.land
@@ -351,7 +328,7 @@ gnoland secrets verify -data-dir gnoland-data
 gnoland secrets get -data-dir gnoland-data validator_key
 ```
 
-### Register Valoper Profile (on-chain)
+### Register Valoper Profile
 
 > Realm: `gno.land/r/gnops/valopers`
 
@@ -381,7 +358,7 @@ gnokey maketx call \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
   MyKey
 
-# update description / server type / keep-running flag — same pattern with
+# update description / server type / keep-running flag: same pattern with
 # UpdateDescription, UpdateServerType, UpdateKeepRunning
 ```
 
@@ -417,7 +394,7 @@ make -C gno.land test
 
 ### Start a Local Chain
 
-> [Local development with `gnodev`](builders/local-dev-with-gnodev.md)
+> [Local development with `gnodev`](resources/gnodev.md)
 
 ```bash
 # lightweight in-memory node (recommended for dev)
@@ -432,7 +409,7 @@ gnoland start -genesis genesis.json -data-dir gnoland-data
 
 ### Update Golden Files
 
-> [Testing Gno](resources/gno-testing.md)
+> [Running & testing Gno code](resources/gno-testing.md)
 
 ```bash
 # update golden outputs for *_filetest.gno files in current package
