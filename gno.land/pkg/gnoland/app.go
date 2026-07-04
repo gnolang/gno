@@ -199,12 +199,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
-	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result, committed bool) error {
-		// PayGas gas settlement runs on BOTH the success and failure paths: a
-		// 0-fee tx that consumed gas owes it whether or not the tx succeeded,
-		// matching normal fee txs (fee deducted in the ante, kept on failure).
-		// On the failure path baseapp has already reverted the msg writes, so a
-		// realm balance PayGas verified is restored and this charge succeeds.
+	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) error {
+		// End-of-tx settlement runs ONLY on success — baseapp invokes this hook
+		// solely for a committed tx. On failure every message write reverts and a
+		// gas sponsor does NOT pay: free execution is instead bounded by the
+		// credit window and the "PayGas was called" enforcement. See the design
+		// note in docs/design/realm-gas-sponsorship-hld.md for the rationale.
 		//
 		// Settlement runs on a fresh infinite gas meter: it is deterministic
 		// protocol bookkeeping (like the ante's fee deduction), not user
@@ -253,12 +253,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 					return std.ErrInternal(fmt.Sprintf("PayGas settlement failed: %v", err))
 				}
 			}
-		}
-
-		// Storage settlement and the gno-store commit relate to state that a
-		// failed tx reverts, so they run only on the success (committed) path.
-		if !committed {
-			return nil
 		}
 
 		// Storage deposit settlement (SponsorStorage txs).

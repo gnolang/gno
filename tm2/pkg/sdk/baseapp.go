@@ -930,8 +930,8 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	}
 	cp := msCache.(store.Checkpointable)
 
-	// Set up the per-tx sponsorship context BEFORE the checkpoint and its defer,
-	// so the panic-path settlement (in the defer below) can read PayGasInfo.
+	// Set up the shared PayGas / PayStorage context before message execution, so
+	// the sponsorship pointers are visible to every message in the tx.
 	runMsgCtx := ctx
 
 	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
@@ -955,17 +955,12 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 
 	cp.Checkpoint()
 
-	// Flush ante writes on DeliverTx panic (e.g., OutOfGasError). Registered
-	// after existing defers so it runs first (LIFO). On the panic path this is
-	// the ONLY place the tx unwinds through, so a gas sponsor is settled here
-	// too: WriteCheckpoint first reverts the msg writes (restoring any balance
-	// the sponsoring realm spent in-tx), then settleFailedTx charges it for the
-	// gas actually consumed — parity with a normal fee tx, whose fee is taken in
-	// the ante and kept on failure.
+	// On a DeliverTx panic (e.g., OutOfGasError) discard the message writes and
+	// flush only the ante writes (notably the account sequence increment).
+	// Registered after the existing defers so it runs first (LIFO).
 	defer func() {
 		if mode == RunTxModeDeliver && cp.HasCheckpoint() {
 			cp.WriteCheckpoint()
-			app.settleFailedTx(runMsgCtx, &result, msCache)
 		}
 	}()
 
@@ -1005,11 +1000,12 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		return result
 	}
 
-	// End-of-tx settlement + commit. On success the hook settles obligations
-	// (sponsored gas + storage) and commits the app tx store; a settlement error
-	// fails the tx, which then takes the failure branch below.
+	// End-of-tx settlement + commit runs ONLY on success. On failure every
+	// message write reverts and a gas sponsor does NOT pay — see the design note
+	// in docs/design/realm-gas-sponsorship-hld.md. A settlement error fails the
+	// tx, which then takes the revert branch below.
 	if result.IsOK() && app.endTxHook != nil {
-		if err := app.endTxHook(runMsgCtx, result, true); err != nil {
+		if err := app.endTxHook(runMsgCtx, result); err != nil {
 			result.Error = ABCIError(err)
 		}
 	}
@@ -1017,40 +1013,11 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	if result.IsOK() {
 		msCache.MultiWrite()
 	} else {
-		// Revert msg writes (restoring an in-tx self-drain), then charge the
-		// sponsor for the gas the failed tx consumed and flush that charge.
+		// Failure: discard the message writes, keeping only the ante writes.
 		cp.WriteCheckpoint()
-		app.settleFailedTx(runMsgCtx, &result, msCache)
 	}
 
 	return result
-}
-
-// settleFailedTx charges a gas sponsor for the gas a failed DeliverTx consumed,
-// after the tx's msg writes have already been reverted (WriteCheckpoint). It is
-// a no-op unless a realm called PayGas, so normal (non-sponsored) txs are
-// unaffected. Settlement runs via the EndTxHook in failure mode (gas only, no
-// state commit); any error — e.g. the sponsor genuinely cannot pay — is logged
-// rather than propagated, since the tx has already failed. A recover guards
-// against a settlement bug re-panicking during unwind.
-func (app *BaseApp) settleFailedTx(ctx Context, result *Result, msCache store.MultiStore) {
-	if app.endTxHook == nil {
-		return
-	}
-	pgi := ctx.PayGasInfo()
-	if pgi == nil || pgi.MaxFee == 0 {
-		return
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			app.logger.Error("failed-tx gas settlement panicked", "err", r)
-		}
-	}()
-	if err := app.endTxHook(ctx, *result, false); err != nil {
-		app.logger.Error("failed-tx gas settlement", "err", err)
-		return
-	}
-	msCache.MultiWrite()
 }
 
 // EndBlock implements the ABCI interface.

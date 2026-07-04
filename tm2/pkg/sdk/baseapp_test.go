@@ -217,7 +217,7 @@ func TestOptionSetters(t *testing.T) {
 		{"SetEndBlocker", "endBlocker", func(Context, abci.RequestEndBlock) abci.ResponseEndBlock { panic("not implemented") }},
 		{"SetAnteHandler", "anteHandler", func(Context, Tx, bool) (Context, Result, bool) { panic("not implemented") }},
 		{"SetBeginTxHook", "beginTxHook", func(Context) Context { panic("not implemented") }},
-		{"SetEndTxHook", "endTxHook", func(Context, Result, bool) error { panic("not implemented") }},
+		{"SetEndTxHook", "endTxHook", func(Context, Result) error { panic("not implemented") }},
 	}
 
 	for _, tc := range tt {
@@ -720,12 +720,11 @@ func TestDeliverTx(t *testing.T) {
 	}
 }
 
-// TestDeliverTxEndTxHookSettlement exercises the EndTxHook's committed flag and
-// the charge-on-failure settlement path. The normal mempool flow rejects a
-// failing 0-fee tx at CheckTx, so this path (a failed DeliverTx that still
-// settles a gas sponsor) is only reachable via proposer force-inclusion or
-// check/deliver divergence — hence a direct baseapp test rather than a txtar.
-func TestDeliverTxEndTxHookSettlement(t *testing.T) {
+// TestDeliverTxEndTxHookRunsOnlyOnSuccess pins down that end-of-tx settlement
+// runs only when the tx SUCCEEDS. On failure every message write reverts and the
+// hook does not run, so a gas sponsor is not charged — the design decision
+// recorded in the realm-gas-sponsorship HLD ("realm does NOT pay on failure").
+func TestDeliverTxEndTxHookRunsOnlyOnSuccess(t *testing.T) {
 	t.Parallel()
 
 	anteKey := []byte("ante-key")
@@ -736,38 +735,32 @@ func TestDeliverTxEndTxHookSettlement(t *testing.T) {
 		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
 	}
 
-	// sponsorMaxFee simulates a realm having called PayGas during execution: the
-	// beginTxHook stamps it onto the shared PayGasInfo pointer, so settleFailedTx
-	// treats the tx as sponsored (MaxFee > 0).
-	var sponsorMaxFee int64
+	// Stamp MaxFee so the tx looks sponsored (a realm "called PayGas"); the hook
+	// must still not run on failure.
 	beginOpt := func(bapp *BaseApp) {
 		bapp.SetBeginTxHook(func(ctx Context) Context {
 			if pgi := ctx.PayGasInfo(); pgi != nil {
-				pgi.MaxFee = sponsorMaxFee
+				pgi.MaxFee = 100
 			}
 			return ctx
 		})
 	}
 
-	// committedLog records the committed flag for each EndTxHook invocation.
-	var committedLog []bool
+	var hookCalls int
 	endOpt := func(bapp *BaseApp) {
-		bapp.SetEndTxHook(func(ctx Context, result Result, committed bool) error {
-			committedLog = append(committedLog, committed)
+		bapp.SetEndTxHook(func(ctx Context, result Result) error {
+			hookCalls++
 			return nil
 		})
 	}
 
 	app := setupBaseApp(t, anteOpt, routerOpt, beginOpt, endOpt)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
 
-	header := &bft.Header{ChainID: "test-chain", Height: 1}
-	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-
-	deliver := func(txInt int64, fail bool, maxFee int64) abci.ResponseDeliverTx {
+	deliver := func(txInt int64, fail bool) abci.ResponseDeliverTx {
 		t.Helper()
-		sponsorMaxFee = maxFee
-		committedLog = nil
+		hookCalls = 0
 		tx := newTxCounter(txInt, txInt)
 		setFailOnHandler(&tx, fail)
 		txBytes, err := amino.Marshal(tx)
@@ -775,26 +768,77 @@ func TestDeliverTxEndTxHookSettlement(t *testing.T) {
 		return app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	}
 
-	// Success: the hook runs exactly once in commit mode. (txInt sequences the
-	// ante counter, which advances on every tx including failed ones below.)
-	res := deliver(0, false, 100)
+	// Success: the hook runs exactly once (settlement + commit). txInt sequences
+	// the ante counter, which advances on every tx including the failed one below.
+	res := deliver(0, false)
 	require.True(t, res.IsOK(), "%v", res)
-	require.Equal(t, []bool{true}, committedLog)
+	require.Equal(t, 1, hookCalls)
 
-	// Failure WITH a sponsor: the hook runs once in failure mode (committed=false)
-	// so the sponsor is charged for the gas the failed tx consumed.
-	res = deliver(1, true, 100)
+	// Failure: all state reverts and the hook does NOT run — the sponsor is not
+	// charged, even though a realm called PayGas.
+	res = deliver(1, true)
 	require.False(t, res.IsOK())
-	require.Equal(t, []bool{false}, committedLog)
-
-	// Failure WITHOUT a sponsor: settleFailedTx short-circuits, hook not called —
-	// normal (non-sponsored) txs are unaffected on the failure path.
-	res = deliver(2, true, 0)
-	require.False(t, res.IsOK())
-	require.Empty(t, committedLog)
+	require.Equal(t, 0, hookCalls)
 
 	app.EndBlock(abci.RequestEndBlock{})
 	app.Commit()
+}
+
+// TestDeliverTxPanicRevertsAllStateAndDoesNotCharge demonstrates the answer to
+// "if a user sends coins/tokens to a realm and it panics after PayGas, is anyone
+// charged?": on a DeliverTx panic every message write reverts AND no settlement
+// runs, so neither the user's transfer nor any sponsor charge is committed. It
+// drives DeliverTx directly (CheckTx would otherwise reject a deterministically
+// panicking tx) with a handler that writes a value standing in for the user's
+// coins landing in the realm, then panics with OutOfGasError.
+func TestDeliverTxPanicRevertsAllStateAndDoesNotCharge(t *testing.T) {
+	t.Parallel()
+
+	paymentKey := []byte("payment") // stands in for coins the user sent to the realm
+	chargeKey := []byte("charge")   // would be written by any end-of-tx settlement
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			setIntOnStore(ctx.Store(mainKey), nil, paymentKey, 5000)
+			panic(store.OutOfGasError{Descriptor: "boom after payment + PayGas"})
+		}))
+	}
+	beginOpt := func(bapp *BaseApp) {
+		bapp.SetBeginTxHook(func(ctx Context) Context {
+			if pgi := ctx.PayGasInfo(); pgi != nil {
+				pgi.MaxFee = 100
+			}
+			return ctx
+		})
+	}
+	endOpt := func(bapp *BaseApp) {
+		bapp.SetEndTxHook(func(ctx Context, result Result) error {
+			setIntOnStore(ctx.Store(mainKey), nil, chargeKey, 42)
+			return nil
+		})
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt, beginOpt, endOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.False(t, res.IsOK(), "tx must fail (out of gas)")
+
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	committed := app.checkState.ctx.Store(mainKey)
+	require.EqualValues(t, 0, getIntFromStore(committed, nil, paymentKey),
+		"the user's payment must be REVERTED on failure")
+	require.EqualValues(t, 0, getIntFromStore(committed, nil, chargeKey),
+		"no settlement must run on failure — the sponsor does not pay")
 }
 
 // Test that the gas used between Simulate and DeliverTx is the same.

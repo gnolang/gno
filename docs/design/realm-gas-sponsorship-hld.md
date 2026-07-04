@@ -273,6 +273,8 @@ After transaction execution completes **successfully**:
 
 **Why this is safe**: CheckTx simulation already validated that `PayGas` is called and the realm has funds. Failed txs in DeliverTx only occur on state divergence (another tx changed conditions between CheckTx and DeliverTx) — the same race condition that exists for all txs today. This is rare and bounded.
 
+**Why not charge for gas on failure (parity with normal fee txs)?** It was considered — a normal fee-paying tx keeps its fee on failure, so charging a sponsor on failure looks symmetric, and it would close a narrow "free block gas on a force-included failing tx" vector. It is rejected because it reintroduces the griefing attack above: settling gnot on a path where the realm's message-side collection (e.g. the USDC it was paid) reverts lets an attacker engineer a failure to drain the realm's gnot for nothing. The residual "free execution on failure" is already bounded by the credit window and is only reachable by a block proposer (who can waste their own block anyway) or a rare check/deliver divergence, so the atomic all-or-nothing rule (realm pays only when the whole tx — collection included — commits) is the safer choice.
+
 **Gas price for 0-fee txs:** Normal txs derive gas price from `GasFee / GasWanted`. For 0-fee txs, this is `0/0` (undefined). Instead, the auth module's dynamic gas price (`auth.GasPriceKeeper.LastGasPrice`, exposed on the context via `auth.GasPriceContextKey`) is used for both the derived gas limit and settlement.
 
 **Settlement context:** Gas settlement executes in the end-of-tx hook (`gno.land/pkg/gnoland/app.go`'s `endTxHook`), inside the cached tx context. It is committed together with all other state changes only when the tx succeeds; on failure, everything reverts — message state and settlement. (Storage-deposit settlement lives in `gno.land/pkg/sdk/vm/keeper.go`.) See Section 8.5.
@@ -294,7 +296,7 @@ This is set by the GnoVM during execution and read by the SDK settlement logic i
 
 Validators that opt-in **simulate** 0-fee txs at CheckTx time, before accepting them into the mempool. This ensures only validated 0-fee txs are gossiped to the network.
 
-**How it works:** For 0-fee txs, CheckTx runs the full VM execution (not just the ante handler) using the existing `RunTxModeSimulate` path with a cached context:
+**How it works:** For 0-fee txs, CheckTx runs the full VM execution (not just the ante handler) using a dedicated `RunTxModeCheckExecute` path. Unlike `RunTxModeSimulate` (whose throwaway cache would discard the ante's account-sequence increment, capping a sender to one in-flight sponsored tx per block), this mode persists the ante writes to `checkState` for an admitted tx while discarding the message writes, and verifies signatures normally:
 
 ```
 CheckTx for 0-fee tx:
