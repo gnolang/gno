@@ -224,7 +224,7 @@ Each validator configures locally whether to accept 0-fee transactions:
 
 ```toml
 # config.toml — per-validator configuration
-[mempool]
+[application]
 allow_zero_fee_txs = false          # default: false (conservative)
 ```
 
@@ -469,18 +469,18 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
 
 ### 8.6 Validator Config
 
-- **File**: `tm2/pkg/bft/config/config.go`
-- **Change**: Add `AllowZeroFeeTxs bool` to mempool config (default: `false`)
+- **File**: `tm2/pkg/sdk/config/config.go` (the `AppConfig`, `[application]` section)
+- **Change**: Add `AllowZeroFeeTxs bool` alongside `MinGasPrices` (default: `false`), and wire it through `gno.land/pkg/gnoland/app.go` `NewApp` into `AppOptions.AllowZeroFeeTxs`
 
 ### 8.7 CheckTx for 0-Fee Txs
 
 - **File**: `tm2/pkg/sdk/baseapp.go` (in `CheckTx` / `runTx`)
-- **Change**: When `GasFee == 0` and `AllowZeroFeeTxs == true`:
-  1. Switch mode from `RunTxModeCheck` to `RunTxModeSimulate` so message execution is NOT skipped
-  2. Run full tx (ante handler + messages) with credit gas meter
+- **Change**: When `GasFee == 0` and `AllowZeroFeeTxs == true` (and not a recheck):
+  1. Switch mode from `RunTxModeCheck` to `RunTxModeCheckExecute` so message execution is NOT skipped, while still persisting the ante's account-sequence increment to checkState (unlike `RunTxModeSimulate`, which would discard it)
+  2. Run full tx (ante handler + messages) with credit gas meter; signatures are verified normally
   3. After execution, check if `PayGasInfo` is set on context
-  4. If set and realm has funds → accept into mempool
-  5. If not set → reject (tx would fail in DeliverTx anyway)
+  4. If set and realm has funds → accept into mempool (ante writes flushed via `WriteCheckpoint`, message writes discarded)
+  5. If not set → reject (tx would fail in DeliverTx anyway); the sequence is not consumed
 
 ## 9. Alternatives Considered
 

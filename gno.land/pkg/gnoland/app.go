@@ -377,6 +377,7 @@ func NewApp(
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
 		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
+		AllowZeroFeeTxs:            appCfg.AllowZeroFeeTxs,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
