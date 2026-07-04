@@ -304,8 +304,20 @@ func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs 
 // used to follow value-containment edges into already-deployed dependencies.
 func (gimp *gnoImporter) expansionPkgResolver() pkgResolver {
 	return func(pkgPath string) []*ast.File {
-		// Stdlib source is fixed and bounded and no user chain can amplify it, so
-		// treat stdlib types as leaves rather than fetching and parsing them.
+		// Treat stdlib types as leaves (count 1) instead of fetching+parsing them.
+		// This is safe: the exponential vector is value-containment FAN-OUT, which
+		// lives in user types and is fully counted — a user chain doubling over a
+		// stdlib type still explodes the user-side count and trips the budget. A
+		// stdlib type cannot import user packages, so its own expansion is fixed
+		// and small (measured max ~29 across all stdlibs), independent of input.
+		//
+		// So this only under-counts by a bounded per-reference constant, never
+		// hides a fan-out. We deliberately do NOT fetch stdlib source: go/types
+		// serves stdlib imports from its result cache without a store read, so
+		// fetching here would add store gas the deploy otherwise never pays.
+		// (Counting stdlibs exactly is possible via a table precomputed at stdlib
+		// load — no per-deploy gas — but the cross-module plumbing isn't worth it
+		// for a leaf that is already bounded-safe. See adr/pr4264_lint_transpile.md.)
 		if IsStdlib(pkgPath) {
 			return nil
 		}
