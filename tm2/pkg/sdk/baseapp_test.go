@@ -593,6 +593,66 @@ func TestCheckTx(t *testing.T) {
 	require.Nil(t, storedBytes)
 }
 
+// TestCheckTxSponsoredSequencePersists verifies that CheckTx admission of a
+// 0-fee (PayGas-sponsored) tx via RunTxModeCheckExecute persists the ante
+// handler's writes — notably the account sequence increment — to checkState, so
+// successive sponsored txs from the same account are admitted within a block.
+//
+// The counter ante is a proxy for the account sequence: incrementingCounter
+// asserts the stored counter equals the tx's counter, which only holds if each
+// CheckTx's ante write persisted. This is a regression guard for the earlier
+// behavior where 0-fee CheckTx ran in Simulate mode and discarded ante writes,
+// capping a sender to one in-flight sponsored tx per block.
+func TestCheckTxSponsoredSequencePersists(t *testing.T) {
+	t.Parallel()
+
+	counterKey := []byte("counter-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
+	}
+	allowOpt := func(bapp *BaseApp) { bapp.SetAllowZeroFeeTxs(true) }
+
+	app := setupBaseApp(t, anteOpt, routerOpt, allowOpt)
+
+	// A non-zero MaxGasCreditPerTx enables the 0-fee credit window, so CheckTx
+	// routes 0-fee txs (newTxCounter has a zero-value Fee) through
+	// RunTxModeCheckExecute rather than plain RunTxModeCheck.
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:        1_000_000,
+				MaxGas:            10_000_000,
+				MaxGasCreditPerTx: 1_000_000,
+			},
+		},
+	})
+
+	nTxs := int64(5)
+	for i := int64(0); i < nTxs; i++ {
+		tx := newTxCounter(i, 0)
+		txBytes, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+		require.True(t, r.IsOK(), "tx %d: %v", i, r)
+	}
+
+	// The ante counter advanced once per admitted tx, proving CheckExecute
+	// persisted ante writes to checkState across successive CheckTx calls.
+	// (Under the old Simulate routing the writes were discarded and the ante's
+	// require.Equal would already have failed on the second tx.)
+	checkStateStore := app.checkState.ctx.Store(mainKey)
+	require.Equal(t, nTxs, getIntFromStore(checkStateStore, nil, counterKey))
+
+	// A committed block resets checkState, as for normal CheckTx.
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+	require.Nil(t, app.checkState.ctx.Store(mainKey).Get(nil, counterKey))
+}
+
 // TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error
 // (and does not panic) when given a transaction whose amino type_url contains
 // no slash — the bug that previously caused a consensus-halting panic.

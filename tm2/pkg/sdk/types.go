@@ -67,16 +67,6 @@ var (
 
 //----------------------------------------
 
-// VerifySignaturesContextKey, when set truthy on the context, forces the ante
-// handler to verify transaction signatures even while running in Simulate mode.
-// CheckTx sets it when it routes a 0-fee tx through Simulate mode (needed to
-// execute the tx's messages), so that a forged-signature tx cannot be admitted
-// to the mempool and gossiped. The RPC Simulate() gas-estimation path does not
-// set it, so simulating an unsigned tx still works.
-type VerifySignaturesContextKey struct{}
-
-//----------------------------------------
-
 // Enum mode for app.runTx
 type RunTxMode uint8
 
@@ -87,4 +77,13 @@ const (
 	RunTxModeSimulate RunTxMode = iota
 	// Deliver a transaction
 	RunTxModeDeliver RunTxMode = iota
+	// RunTxModeCheckExecute runs a transaction's messages during CheckTx
+	// admission (used for 0-fee PayGas txs, to validate that a realm called
+	// PayGas) while persisting the ante handler's writes — notably the account
+	// sequence increment — to checkState, and discarding the message writes.
+	// Unlike Simulate it does not wrap the context in a throwaway cache, so an
+	// admitted sponsored tx advances the mempool sequence; unlike Check it
+	// executes the messages. Signatures are verified normally (it is not a
+	// Simulate mode), so it needs no signature-verification override.
+	RunTxModeCheckExecute RunTxMode = iota
 )

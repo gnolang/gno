@@ -592,9 +592,14 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		return
 	}
 
-	// For 0-fee txs when allowed, use Simulate mode to run full VM execution so
-	// that runTx can validate PayGas was called before accepting into the mempool
-	// (the PayGas-not-called rejection itself lives in runTx, for all modes).
+	// For 0-fee txs when allowed, use RunTxModeCheckExecute to run full VM
+	// execution so that runTx can validate PayGas was called before accepting
+	// into the mempool (the PayGas-not-called rejection itself lives in runTx,
+	// for all modes). Unlike Simulate, this mode persists the ante's account
+	// sequence increment to checkState when the tx is admitted, so a subsequent
+	// sponsored tx from the same account (sequence+1) is accepted; and it
+	// verifies signatures normally (it is not Simulate), so no forged-signature
+	// tx can enter the mempool.
 	//
 	// Only do this on FIRST-TIME admission. A recheck (issued after every
 	// committed block for every still-pending tx) must NOT re-run the full VM:
@@ -604,18 +609,12 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 	// funding; DeliverTx independently re-enforces PayGas at inclusion time.
 	mode := RunTxModeCheck
 	if req.Type != abci.CheckTxTypeRecheck &&
-		tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs && app.consensusParams != nil &&
+		tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs &&
+		app.consensusParams != nil && app.consensusParams.Block != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
-		mode = RunTxModeSimulate
+		mode = RunTxModeCheckExecute
 	}
 	ctx := app.getContextForTx(mode, req.Tx)
-
-	// This is real mempool admission, not RPC gas estimation: force the ante
-	// handler to verify signatures even though the 0-fee path runs in Simulate
-	// mode, so a forged-signature tx cannot enter and be gossiped from the mempool.
-	if mode == RunTxModeSimulate {
-		ctx = ctx.WithValue(VerifySignaturesContextKey{}, true)
-	}
 
 	result := app.runTx(ctx, req.Tx)
 
@@ -737,7 +736,9 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 // Returns the applications's deliverState if app is in RunTxModeDeliver,
 // otherwise it returns the application's checkstate.
 func (app *BaseApp) getState(mode RunTxMode) *state {
-	if mode == RunTxModeCheck || mode == RunTxModeSimulate {
+	// Only DeliverTx runs against deliverState; Check, Simulate and CheckExecute
+	// (mempool admission) all operate on checkState.
+	if mode != RunTxModeDeliver {
 		return app.checkState
 	}
 
@@ -775,6 +776,8 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 			modeName = "simulate"
 		case RunTxModeDeliver:
 			modeName = "deliver"
+		case RunTxModeCheckExecute:
+			modeName = "check_execute"
 		}
 		// GasWanted isn't known until after the ante handler unmarshals
 		// the tx and reads the fee; log 0 here as a placeholder.
@@ -986,9 +989,19 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 
-	// Simulate: return after msg execution. The outer CacheContext
-	// (from getContextForTx) discards everything.
+	// Non-Deliver modes return after msg execution without committing message
+	// state. CheckExecute (0-fee mempool admission) additionally persists the
+	// ante writes — notably the account sequence increment — to checkState when
+	// the tx is ADMITTED (result OK), so a subsequent sponsored tx from the same
+	// account at sequence+1 is accepted. WriteCheckpoint flushes only the ante
+	// snapshot and discards the message writes (CheckTx must not commit state). A
+	// rejected tx flushes nothing, leaving the mempool sequence unadvanced, so it
+	// can be resubmitted. Simulate (RPC gas estimation) discards everything via
+	// the outer CacheContext.
 	if mode != RunTxModeDeliver {
+		if mode == RunTxModeCheckExecute && result.IsOK() {
+			cp.WriteCheckpoint()
+		}
 		return result
 	}
 
