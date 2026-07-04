@@ -230,14 +230,15 @@ func TestCheckNoGenerics(t *testing.T) {
 func TestCheckTypeExpansionBoundImports(t *testing.T) {
 	t.Parallel()
 
-	// p0: a depth-16 doubling chain, cost ~2^16, legitimately under budget.
+	// p0: a doubling chain whose count (~57k) is legitimately under budget on its
+	// own; p1 embeds p0.T four times, pushing the cross-package count over.
 	pkgs := map[string]string{}
 	var p0 strings.Builder
 	p0.WriteString("package p0\ntype t0 struct{ v int }\n")
-	for i := 1; i <= 15; i++ {
+	for i := 1; i <= 12; i++ {
 		fmt.Fprintf(&p0, "type t%d struct{ a, b [0]t%d }\n", i, i-1)
 	}
-	p0.WriteString("type T struct{ a, b [0]t15 }\n")
+	p0.WriteString("type T struct{ a, b [0]t12 }\n")
 	pkgs["gno.land/r/foobar/p0"] = p0.String()
 
 	// p1..p5: each embeds the previous package's T four times.

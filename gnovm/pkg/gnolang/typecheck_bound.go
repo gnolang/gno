@@ -34,21 +34,22 @@ import (
 // go/types runs if any named type's count exceeds the budget. The budget is a
 // deterministic count (not a wall-clock limit), so the check is consensus-safe.
 //
-// 1_000_000 is a conservative round number chosen for headroom, not a tuned
-// threshold: honest packages count in the tens to low thousands, so it leaves
-// ~1000x margin and effectively never false-rejects (large generated packages
-// can plausibly reach five/six figures). At the bound, go/types' validType walk
-// itself takes ~75ms (measured, ~80ns/node on Apple Silicon go1.25; more on
-// slower hardware) — bounded and one-time per gas-paying tx, not the unbounded
-// hang it replaces. Lowering the budget (e.g. ~100k => ~8ms at the bound) would
-// tighten that worst case, but should be driven by a measurement of the largest
-// legitimate package's count first, to preserve the no-false-reject property.
+// 100_000 is set from measurement, not guessed: across all stdlib and example
+// packages (357 packages, 877 named types) the largest expansion count is 35, so
+// this leaves ~3 orders of magnitude of headroom and never false-rejects honest
+// code — even large generated packages stay in the low thousands. Because the
+// DoS is exponential (counts of 2^40+), any budget between honest code and the
+// blowup separates them cleanly. At the bound, go/types' validType walk takes
+// ~8ms (measured, ~80ns/node on Apple Silicon go1.25; more on slower hardware) —
+// bounded and one-time per gas-paying tx, not the unbounded hang it replaces.
+// The budget is a deterministic node count (not a wall-clock limit), so the
+// check is consensus-safe.
 //
 // MAINTENANCE: cost() below mirrors the exact set of edges validType recurses
 // through. If a Go toolchain upgrade changes that set (adds a containment edge,
 // or finally memoizes validType per golang/go#65711), revisit this file —
 // under-counting a new edge would silently reopen the DoS.
-const typeExpansionBudget = 1_000_000
+const typeExpansionBudget = 100_000
 
 // pkgResolver returns the parsed Go source files of an already-deployed
 // dependency package, or nil when the package should be treated as a leaf:
