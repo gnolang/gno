@@ -34,9 +34,15 @@ import (
 // go/types runs if any named type's count exceeds the budget. The budget is a
 // deterministic count (not a wall-clock limit), so the check is consensus-safe.
 //
-// 1_000_000 leaves enormous headroom over honest packages (whose counts are in
-// the tens to low thousands) while keeping validType's actual run at the bound
-// well under ~10ms.
+// 1_000_000 is a conservative round number chosen for headroom, not a tuned
+// threshold: honest packages count in the tens to low thousands, so it leaves
+// ~1000x margin and effectively never false-rejects (large generated packages
+// can plausibly reach five/six figures). At the bound, go/types' validType walk
+// itself takes ~75ms (measured, ~80ns/node on Apple Silicon go1.25; more on
+// slower hardware) — bounded and one-time per gas-paying tx, not the unbounded
+// hang it replaces. Lowering the budget (e.g. ~100k => ~8ms at the bound) would
+// tighten that worst case, but should be driven by a measurement of the largest
+// legitimate package's count first, to preserve the no-false-reject property.
 //
 // MAINTENANCE: cost() below mirrors the exact set of edges validType recurses
 // through. If a Go toolchain upgrade changes that set (adds a containment edge,
