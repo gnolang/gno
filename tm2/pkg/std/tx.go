@@ -47,7 +47,12 @@ func (tx Tx) ValidateBasic() error {
 	if tx.Fee.GasWanted > maxGasWanted {
 		return ErrGasOverflow(fmt.Sprintf("invalid gas supplied; %d > %d", tx.Fee.GasWanted, maxGasWanted))
 	}
-	if !tx.Fee.GasFee.IsZero() && !tx.Fee.GasFee.IsValid() {
+	// A zero fee is permitted (0-fee / realm-sponsored txs), but a *malformed*
+	// fee coin must still be rejected. Accept a zero fee only in its canonical
+	// form — the empty zero-value Coin — or as an otherwise-valid coin; reject
+	// e.g. a bad denom carrying a zero amount, which the looser
+	// `!IsZero() && !IsValid()` check would have let through.
+	if !tx.Fee.GasFee.IsValid() && tx.Fee.GasFee != (Coin{}) {
 		return ErrInsufficientFee(fmt.Sprintf("invalid fee %s amount provided", tx.Fee.GasFee))
 	}
 	if len(stdSigs) == 0 {

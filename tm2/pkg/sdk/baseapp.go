@@ -595,8 +595,16 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 	// For 0-fee txs when allowed, use Simulate mode to run full VM execution so
 	// that runTx can validate PayGas was called before accepting into the mempool
 	// (the PayGas-not-called rejection itself lives in runTx, for all modes).
+	//
+	// Only do this on FIRST-TIME admission. A recheck (issued after every
+	// committed block for every still-pending tx) must NOT re-run the full VM:
+	// the tx already passed admission once, and re-executing every pending 0-fee
+	// tx each block is an unbounded CPU-amplification vector. On recheck we fall
+	// back to the cheap ante-only RunTxModeCheck, which re-validates sequence and
+	// funding; DeliverTx independently re-enforces PayGas at inclusion time.
 	mode := RunTxModeCheck
-	if tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs && app.consensusParams != nil &&
+	if req.Type != abci.CheckTxTypeRecheck &&
+		tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs && app.consensusParams != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
 		mode = RunTxModeSimulate
 	}
@@ -918,16 +926,9 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		ctx, msCache = app.cacheTxContext(ctx)
 	}
 	cp := msCache.(store.Checkpointable)
-	cp.Checkpoint()
 
-	// Flush ante writes on DeliverTx panic (e.g., OutOfGasError).
-	// Registered after existing defers so it runs first (LIFO).
-	defer func() {
-		if mode == RunTxModeDeliver && cp.HasCheckpoint() {
-			cp.WriteCheckpoint()
-		}
-	}()
-
+	// Set up the per-tx sponsorship context BEFORE the checkpoint and its defer,
+	// so the panic-path settlement (in the defer below) can read PayGasInfo.
 	runMsgCtx := ctx
 
 	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
@@ -948,6 +949,22 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	runMsgCtx = runMsgCtx.
 		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
 		WithPayStorageInfo(psi)
+
+	cp.Checkpoint()
+
+	// Flush ante writes on DeliverTx panic (e.g., OutOfGasError). Registered
+	// after existing defers so it runs first (LIFO). On the panic path this is
+	// the ONLY place the tx unwinds through, so a gas sponsor is settled here
+	// too: WriteCheckpoint first reverts the msg writes (restoring any balance
+	// the sponsoring realm spent in-tx), then settleFailedTx charges it for the
+	// gas actually consumed — parity with a normal fee tx, whose fee is taken in
+	// the ante and kept on failure.
+	defer func() {
+		if mode == RunTxModeDeliver && cp.HasCheckpoint() {
+			cp.WriteCheckpoint()
+			app.settleFailedTx(runMsgCtx, &result, msCache)
+		}
+	}()
 
 	if app.beginTxHook != nil {
 		runMsgCtx = app.beginTxHook(runMsgCtx)
@@ -975,17 +992,52 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		return result
 	}
 
-	if app.endTxHook != nil {
-		app.endTxHook(runMsgCtx, result)
+	// End-of-tx settlement + commit. On success the hook settles obligations
+	// (sponsored gas + storage) and commits the app tx store; a settlement error
+	// fails the tx, which then takes the failure branch below.
+	if result.IsOK() && app.endTxHook != nil {
+		if err := app.endTxHook(runMsgCtx, result, true); err != nil {
+			result.Error = ABCIError(err)
+		}
 	}
 
 	if result.IsOK() {
 		msCache.MultiWrite()
 	} else {
+		// Revert msg writes (restoring an in-tx self-drain), then charge the
+		// sponsor for the gas the failed tx consumed and flush that charge.
 		cp.WriteCheckpoint()
+		app.settleFailedTx(runMsgCtx, &result, msCache)
 	}
 
 	return result
+}
+
+// settleFailedTx charges a gas sponsor for the gas a failed DeliverTx consumed,
+// after the tx's msg writes have already been reverted (WriteCheckpoint). It is
+// a no-op unless a realm called PayGas, so normal (non-sponsored) txs are
+// unaffected. Settlement runs via the EndTxHook in failure mode (gas only, no
+// state commit); any error — e.g. the sponsor genuinely cannot pay — is logged
+// rather than propagated, since the tx has already failed. A recover guards
+// against a settlement bug re-panicking during unwind.
+func (app *BaseApp) settleFailedTx(ctx Context, result *Result, msCache store.MultiStore) {
+	if app.endTxHook == nil {
+		return
+	}
+	pgi := ctx.PayGasInfo()
+	if pgi == nil || pgi.MaxFee == 0 {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			app.logger.Error("failed-tx gas settlement panicked", "err", r)
+		}
+	}()
+	if err := app.endTxHook(ctx, *result, false); err != nil {
+		app.logger.Error("failed-tx gas settlement", "err", err)
+		return
+	}
+	msCache.MultiWrite()
 }
 
 // EndBlock implements the ABCI interface.

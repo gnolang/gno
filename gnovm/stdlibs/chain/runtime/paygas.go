@@ -67,9 +67,15 @@ func PayGas(m *gno.Machine, maxFee int64) {
 			break
 		}
 	}
-	// Account for existing PayStorage commitment (if called before PayGas)
+	// Account for an existing PayStorage commitment ONLY when it was made by
+	// this same realm. A different realm that called PayStorage pays its own
+	// deposit from its own balance (settlement charges each realm separately),
+	// so folding its MaxDeposit into this realm's required balance would raise a
+	// spurious "insufficient realm balance". PayStorage enforces the mirror
+	// same-realm rule against a pre-existing PayGas.
 	totalRequired := maxFee
-	if ctx.PayStorageInfo != nil && ctx.PayStorageInfo.MaxDeposit > 0 {
+	if ctx.PayStorageInfo != nil && ctx.PayStorageInfo.MaxDeposit > 0 &&
+		ctx.PayStorageInfo.RealmPkgPath == currentPkgPath {
 		sum, ok := overflow.Add(maxFee, ctx.PayStorageInfo.MaxDeposit)
 		if !ok {
 			m.Panic(typedString("PayGas: total commitment overflow"))

@@ -311,7 +311,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			newCtx = newCtx.WithValue(std.SessionAccountsContextKey{}, sessionAccounts)
 		}
 
-		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false
+		// Report GasWanted. For 0-fee txs the effective per-tx gas ceiling is the
+		// credit window (the meter was sized to MaxGasCreditPerTx above), NOT the
+		// client-supplied tx.Fee.GasWanted. The mempool sums the reported GasWanted
+		// against Block.MaxGas when packing a block, so reporting the credit window
+		// keeps block packing bounded by real worst-case consumption; reporting the
+		// client value (which can be 0) would let a proposer overfill the block.
+		reportedGasWanted := tx.Fee.GasWanted
+		if isZeroFeeTx {
+			reportedGasWanted = consParams.Block.MaxGasCreditPerTx
+		}
+		return newCtx, sdk.Result{GasWanted: reportedGasWanted}, false
 	}
 }
 

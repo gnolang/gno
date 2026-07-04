@@ -217,7 +217,7 @@ func TestOptionSetters(t *testing.T) {
 		{"SetEndBlocker", "endBlocker", func(Context, abci.RequestEndBlock) abci.ResponseEndBlock { panic("not implemented") }},
 		{"SetAnteHandler", "anteHandler", func(Context, Tx, bool) (Context, Result, bool) { panic("not implemented") }},
 		{"SetBeginTxHook", "beginTxHook", func(Context) Context { panic("not implemented") }},
-		{"SetEndTxHook", "endTxHook", func(Context, Result) { panic("not implemented") }},
+		{"SetEndTxHook", "endTxHook", func(Context, Result, bool) error { panic("not implemented") }},
 	}
 
 	for _, tc := range tt {
@@ -658,6 +658,83 @@ func TestDeliverTx(t *testing.T) {
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+}
+
+// TestDeliverTxEndTxHookSettlement exercises the EndTxHook's committed flag and
+// the charge-on-failure settlement path. The normal mempool flow rejects a
+// failing 0-fee tx at CheckTx, so this path (a failed DeliverTx that still
+// settles a gas sponsor) is only reachable via proposer force-inclusion or
+// check/deliver divergence — hence a direct baseapp test rather than a txtar.
+func TestDeliverTxEndTxHookSettlement(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	// sponsorMaxFee simulates a realm having called PayGas during execution: the
+	// beginTxHook stamps it onto the shared PayGasInfo pointer, so settleFailedTx
+	// treats the tx as sponsored (MaxFee > 0).
+	var sponsorMaxFee int64
+	beginOpt := func(bapp *BaseApp) {
+		bapp.SetBeginTxHook(func(ctx Context) Context {
+			if pgi := ctx.PayGasInfo(); pgi != nil {
+				pgi.MaxFee = sponsorMaxFee
+			}
+			return ctx
+		})
+	}
+
+	// committedLog records the committed flag for each EndTxHook invocation.
+	var committedLog []bool
+	endOpt := func(bapp *BaseApp) {
+		bapp.SetEndTxHook(func(ctx Context, result Result, committed bool) error {
+			committedLog = append(committedLog, committed)
+			return nil
+		})
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt, beginOpt, endOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	deliver := func(txInt int64, fail bool, maxFee int64) abci.ResponseDeliverTx {
+		t.Helper()
+		sponsorMaxFee = maxFee
+		committedLog = nil
+		tx := newTxCounter(txInt, txInt)
+		setFailOnHandler(&tx, fail)
+		txBytes, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		return app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	}
+
+	// Success: the hook runs exactly once in commit mode. (txInt sequences the
+	// ante counter, which advances on every tx including failed ones below.)
+	res := deliver(0, false, 100)
+	require.True(t, res.IsOK(), "%v", res)
+	require.Equal(t, []bool{true}, committedLog)
+
+	// Failure WITH a sponsor: the hook runs once in failure mode (committed=false)
+	// so the sponsor is charged for the gas the failed tx consumed.
+	res = deliver(1, true, 100)
+	require.False(t, res.IsOK())
+	require.Equal(t, []bool{false}, committedLog)
+
+	// Failure WITHOUT a sponsor: settleFailedTx short-circuits, hook not called —
+	// normal (non-sponsored) txs are unaffected on the failure path.
+	res = deliver(2, true, 0)
+	require.False(t, res.IsOK())
+	require.Empty(t, committedLog)
+
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
 }
 
 // Test that the gas used between Simulate and DeliverTx is the same.

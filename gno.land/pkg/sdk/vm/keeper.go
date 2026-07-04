@@ -2036,7 +2036,21 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypt
 			if rlm.Storage < uint64(released) {
 				panic(fmt.Sprintf("not enough storage to be released for realm %s", rlmPath))
 			}
-			depositUnlocked := overflow.Mulp(released, price.Amount)
+			// Proportional refund based on the realm's actual locked deposit, NOT
+			// released*current price. Mirrors ProcessStorageDeposit so that a
+			// governance StoragePrice change cannot (a) panic here when
+			// released*newPrice > the realm's locked deposit, or (b) orphan deposit
+			// by under-refunding after a price decrease.
+			var depositUnlocked int64
+			if rlm.Storage == uint64(released) {
+				// Freeing all storage: refund the entire deposit (avoids rounding loss).
+				depositUnlocked = int64(rlm.Deposit)
+			} else {
+				result := new(big.Int).SetUint64(rlm.Deposit)
+				result.Mul(result, big.NewInt(released))
+				result.Div(result, new(big.Int).SetUint64(rlm.Storage))
+				depositUnlocked = result.Int64()
+			}
 			if rlm.Deposit < uint64(depositUnlocked) {
 				panic(fmt.Sprintf("not enough deposit to be unlocked for realm %s", rlmPath))
 			}

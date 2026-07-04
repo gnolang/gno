@@ -85,6 +85,16 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 			params.Block.MaxGasCreditPerTx)
 	}
 
+	// The 0-fee credit window is a per-tx gas allowance that a single tx may
+	// consume before PayGas settlement. It must not exceed the per-block gas
+	// budget, or one sponsored tx could be sized larger than a whole block —
+	// it would always fail post-hoc on the block gas meter and could crowd out
+	// the block. (MaxGas == -1 means "no block gas bound", so no cap applies.)
+	if params.Block.MaxGas != -1 && params.Block.MaxGasCreditPerTx > params.Block.MaxGas {
+		return errors.New("Block.MaxGasCreditPerTx (%d) must not exceed Block.MaxGas (%d)",
+			params.Block.MaxGasCreditPerTx, params.Block.MaxGas)
+	}
+
 	if len(params.Validator.PubKeyTypeURLs) == 0 {
 		return errors.New("len(Validator.PubKeyTypeURLs) must be greater than 0")
 	}
