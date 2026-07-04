@@ -16,8 +16,8 @@ import (
 //
 // go/types validates that named types do not "expand" indefinitely
 // (src/go/types/validtype.go). Its walk follows value-containment edges only —
-// struct fields, array elements, interface embeddeds, union terms, and a named
-// type's underlying RHS — and crucially it does NOT memoize visited types (the
+// struct fields, array elements, interface embeddeds and type-set terms, and a
+// named type's underlying RHS — and crucially it does NOT memoize visited types (the
 // optimization is commented out as a workaround for golang/go#65711). As a
 // result the walk is exponential in the worst case: a "doubling" chain such as
 //
@@ -45,10 +45,15 @@ import (
 // The budget is a deterministic node count (not a wall-clock limit), so the
 // check is consensus-safe.
 //
-// MAINTENANCE: cost() below mirrors the exact set of edges validType recurses
-// through. If a Go toolchain upgrade changes that set (adds a containment edge,
-// or finally memoizes validType per golang/go#65711), revisit this file —
-// under-counting a new edge would silently reopen the DoS.
+// MAINTENANCE: cost() below mirrors validType's containment edges for the go1.17
+// subset Gno accepts. validType also walks two go1.18 edges — generic
+// instantiation (type-argument substitution) and interface type-set terms
+// (unions, ~T) — but cost() does NOT follow them: checkNoGenerics rejects those
+// constructs before this runs, so they never reach validType. Revisit this file
+// if a toolchain upgrade adds a go1.17-reachable edge, if validType is finally
+// memoized (golang/go#65711), or if Gno ever accepts generics/type-sets (they
+// would then have to be counted here, not rejected) — under-counting a live edge
+// would silently reopen the DoS.
 const typeExpansionBudget = 100_000
 
 // pkgResolver returns the parsed Go source files of an already-deployed
