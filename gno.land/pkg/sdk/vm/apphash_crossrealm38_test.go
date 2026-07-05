@@ -81,7 +81,14 @@ import (
 // "only in sponsored txs" rule in paygas.gno / paystorage.gno edits those
 // stdlib .gno source files, whose bytes are committed into the genesis
 // MemPackage — same class of encoding-only shift. Behavior is unchanged.
-const expectedCrossrealm38Hash = "cb8ea1acb9ccf39bd4d64b1938d1210d6d5b1d196be9b76981de4cf37aed4ba4"
+//
+// Hash bumped again when two-realm sponsorship was allowed: the paygas.gno /
+// paystorage.gno doc comments were updated (dropping "must be the same realm",
+// adding the "PayGas and PayStorage are independent" note), editing those stdlib
+// .gno source bytes in the genesis MemPackage — encoding-only. The native .go
+// change (allowing a different realm to sponsor storage) is not part of the
+// committed MemPackage and does not affect this hash.
+const expectedCrossrealm38Hash = "c36a01125f99f023edfb1781e2967d8c0d0e63fc42824df191c2b113031bf212"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

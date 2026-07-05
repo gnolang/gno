@@ -173,8 +173,10 @@ func PayStorage(maxDeposit int64)
 - Same call rules as `PayGas`: only realms, function creator must match payer, once per tx
 - `maxDeposit` caps the total storage deposit the realm will pay in ugnot
 - If total storage deposits exceed `maxDeposit`, the tx fails (storage budget exceeded)
-- If `PayGas` was already called, `PayStorage` must be called by the **same realm**
-- Can be called independently of `PayGas` (realm pays storage but not gas, or vice versa)
+- Independent of `PayGas`: a realm may pay storage but not gas, or vice versa, and one
+  realm may sponsor gas while a **different** realm sponsors storage in the same tx —
+  each realm pays only its own commitment from its own balance (settlement charges gas
+  from the `PayGas` realm and storage from the `PayStorage` realm, separately)
 
 **Storage deposit deferral:** Storage deposits are settled at the **end of the transaction** (in `endTxHook`), not per-message. This means:
 - In multi-message txs, `PayStorage` covers storage for ALL messages — including messages executed before `PayStorage` is called

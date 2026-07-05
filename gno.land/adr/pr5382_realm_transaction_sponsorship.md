@@ -43,9 +43,11 @@ Gas and storage settlement execute inside the cached message execution context. 
 
 ### 4. PayGas and PayStorage are independent
 
-A realm can call either or both. Gas and storage are separate concerns with separate budgets. A DeFi realm might sponsor gas (users pay in USDC) but not storage. A gaming realm might sponsor both.
+A realm can call either or both, and the two may even be called by **different** realms in the same tx (e.g. a shared gas-paymaster realm sponsors gas while an app realm sponsors its own storage). Gas and storage are separate concerns with separate budgets, and settlement charges each commitment from its own realm's balance — gas from the `PayGas` realm, storage from the `PayStorage` realm — so neither can consume the other's budget or drain the other realm. A DeFi realm might sponsor gas (users pay in USDC) but not storage. A gaming realm might sponsor both.
 
-**Why not one function?** Gas and storage have different economics (gas = computation, storage = persistent state). Separate caps prevent one from consuming the other's budget.
+**Why not one function?** Gas and storage have different economics (gas = computation, storage = persistent state). Separate caps and separate payers keep the two fully decoupled.
+
+**Why allow two realms?** The security invariants that matter — each native validates its own caller (creator == payer) and charges only its own realm's own capped commitment — hold per-call regardless of whether the same realm makes both calls. Requiring one realm would forbid the natural account-abstraction "paymaster" composition (a shared gas sponsor + app-owned storage) without adding any safety.
 
 ### 5. Function creator must match payer
 

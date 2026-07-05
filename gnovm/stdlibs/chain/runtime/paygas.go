@@ -51,16 +51,6 @@ func PayGas(m *gno.Machine, maxFee int64) {
 		return
 	}
 
-	// Mirror of PayStorage's same-realm rule: if PayStorage was already called by
-	// a DIFFERENT realm, reject. One transaction cannot have realm A sponsor gas
-	// while realm B sponsors storage — the documented contract (paystorage.gno).
-	// Enforcing it in both directions keeps the rule order-independent.
-	if ctx.PayStorageInfo != nil && ctx.PayStorageInfo.MaxDeposit > 0 &&
-		ctx.PayStorageInfo.RealmPkgPath != currentPkgPath {
-		m.Panic(typedString("PayGas: must be called by the same realm as PayStorage"))
-		return
-	}
-
 	// 6. Check gas price is set
 	if ctx.GasPrice.Gas <= 0 || ctx.GasPrice.Price.Amount <= 0 || ctx.GasPrice.Price.Denom == "" {
 		m.Panic(typedString("PayGas: gas price not set"))
@@ -77,11 +67,14 @@ func PayGas(m *gno.Machine, maxFee int64) {
 			break
 		}
 	}
-	// Fold this realm's own existing PayStorage commitment into the required
-	// balance so it must cover gas + storage together. The same-realm guard
-	// above guarantees any pre-existing PayStorage here is from this realm.
+	// Fold an existing PayStorage commitment into the required balance ONLY when
+	// this SAME realm made it — then one realm must cover gas + storage together.
+	// A different realm sponsoring storage pays from its own balance (settlement
+	// charges each realm separately), so its commitment must not inflate this
+	// realm's gas-affordability pre-check. (Two-realm sponsorship is supported.)
 	totalRequired := maxFee
-	if ctx.PayStorageInfo != nil && ctx.PayStorageInfo.MaxDeposit > 0 {
+	if ctx.PayStorageInfo != nil && ctx.PayStorageInfo.MaxDeposit > 0 &&
+		ctx.PayStorageInfo.RealmPkgPath == currentPkgPath {
 		sum, ok := overflow.Add(maxFee, ctx.PayStorageInfo.MaxDeposit)
 		if !ok {
 			m.Panic(typedString("PayGas: total commitment overflow"))

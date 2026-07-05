@@ -8,6 +8,9 @@ package runtime
 //   - Only realms can call PayStorage (not packages, not main).
 //   - The function containing PayStorage must be defined in the same realm that pays.
 //   - Can only be called once per transaction.
-//   - Must be called by the same realm as PayGas (if both are used).
 //   - Only takes effect in a 0-fee sponsored transaction (a no-op otherwise).
+//
+// PayGas and PayStorage are independent: one realm may sponsor gas while a
+// different realm sponsors storage in the same transaction. Each realm pays only
+// its own commitment from its own balance.
 func PayStorage(maxDeposit int64)

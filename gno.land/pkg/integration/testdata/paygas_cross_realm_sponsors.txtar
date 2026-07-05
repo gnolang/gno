@@ -1,29 +1,53 @@
-# Regression for the PayGas mirror same-realm guard: a single tx cannot have one
-# realm sponsor gas while a DIFFERENT realm sponsors storage. The rule is enforced
-# in BOTH directions. Here realm "stopayer" calls PayStorage, then cross-calls
-# realm "gaspayer" which calls PayGas — PayGas must reject the foreign pre-existing
-# PayStorage (previously this order was silently accepted).
+# Two-realm sponsorship: one realm sponsors gas while a DIFFERENT realm sponsors
+# storage in the same tx (the account-abstraction "paymaster" composition).
+# realm "stopayer" calls PayStorage and grows its own state; it cross-calls realm
+# "gaspayer" which calls PayGas. The tx SUCCEEDS, and each realm pays ONLY its own
+# commitment: stopayer's balance drops by the storage deposit, gaspayer's by the
+# gas cost. Neither is cross-charged.
 
 ## start a new node
 gnoland start
 
-## deploy gaspayer (calls PayGas)
+## deploy gaspayer (sponsors gas)
 gnokey maketx addpkg -pkgdir $WORK/gaspayer -pkgpath gno.land/r/test/gaspayer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## deploy stopayer (calls PayStorage then cross-calls gaspayer)
+## deploy stopayer (sponsors storage, grows state, cross-calls gaspayer)
 gnokey maketx addpkg -pkgdir $WORK/stopayer -pkgpath gno.land/r/test/stopayer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## fund both realms so a balance check is not the cause of failure
+## fund stopayer generously; fund gaspayer with only 6000000 — enough to cover its
+## OWN gas commitment (maxFee 5000000) but NOT maxFee+maxDeposit (10000000). This
+## makes the test also catch a regression where PayGas wrongly folds the other
+## realm's storage deposit into gaspayer's balance check (which would spuriously
+## reject here).
 gnokey maketx send -send 10000000ugnot -to g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-gnokey maketx send -send 10000000ugnot -to g164cs55tunylr9t455rk3lgkzlashyzkznxndcw -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx send -send 6000000ugnot -to g164cs55tunylr9t455rk3lgkzlashyzkznxndcw -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## 0-fee sponsored call: PayStorage(stopayer) then PayGas(gaspayer) -> guard rejects
-! gnokey maketx call -pkgpath gno.land/r/test/stopayer -func Run -gas-fee 0ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
-stderr 'must be called by the same realm as PayStorage'
+## balances before
+gnokey query bank/balances/g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu
+stdout '10000000ugnot'
+gnokey query bank/balances/g164cs55tunylr9t455rk3lgkzlashyzkznxndcw
+stdout '6000000ugnot'
+
+## 0-fee two-realm sponsored call: PayStorage(stopayer) + PayGas(gaspayer) -> succeeds
+gnokey maketx call -pkgpath gno.land/r/test/stopayer -func Run -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"grown" string'
+
+## stopayer paid ONLY storage: 10000000 - 40300 (403-byte write deposit) = 9959700.
+## Had it been cross-charged the gas too, it would be 9957118 — so this proves the
+## storage sponsor is NOT charged for gas.
+gnokey query bank/balances/g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu
+stdout '9959700ugnot'
+
+## gaspayer paid ONLY gas: 6000000 - 2582 (gas cost) = 5997418. Had it been
+## cross-charged the 40300 storage too, it would be 5957118 — so this proves the
+## gas sponsor is NOT charged for storage.
+gnokey query bank/balances/g164cs55tunylr9t455rk3lgkzlashyzkznxndcw
+stdout '5997418ugnot'
 
 -- gaspayer/gnomod.toml --
 module = "gaspayer"
@@ -35,7 +59,7 @@ package gaspayer
 import "chain/runtime"
 
 func SponsorGas(cur realm) string {
-	runtime.PayGas(1000000)
+	runtime.PayGas(5000000)
 	return "gas"
 }
 
@@ -51,7 +75,11 @@ import (
 	"gno.land/r/test/gaspayer"
 )
 
+var data []string
+
 func Run(cur realm) string {
-	runtime.PayStorage(1000000)
-	return gaspayer.SponsorGas(cross(cur))
+	runtime.PayStorage(5000000)
+	data = append(data, "grow the realm's storage")
+	_ = gaspayer.SponsorGas(cross(cur))
+	return "grown"
 }
