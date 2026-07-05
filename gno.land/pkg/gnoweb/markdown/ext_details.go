@@ -24,19 +24,29 @@ import (
 //	:::
 //
 // `:::details[open]` makes the block render in its open state. The closing
-// fence is a line containing exactly `:::`.
+// fence is a line of at least as many colons as the opening fence (minimum
+// three). Using more colons for an outer block lets it wrap content that
+// itself contains a `:::` line, such as a nested block or a code sample.
 
 var (
-	detailsFenceOpenPrefix = []byte(":::details")
-	detailsOpenFlag        = []byte("[open]")
-	detailsFenceClose      = []byte(":::")
+	detailsKeyword  = []byte("details")
+	detailsOpenFlag = []byte("[open]")
 )
+
+// minDetailsFence is the smallest number of leading colons a details fence
+// may use.
+const minDetailsFence = 3
 
 // DetailsBlock is the container node for a `:::details` block.
 type DetailsBlock struct {
 	ast.BaseBlock
 	// Open indicates the block should render with the `open` attribute.
 	Open bool
+	// Fence is the number of colons in the opening fence. The block closes
+	// only on a line of at least this many colons, so an outer block that
+	// uses more colons than its content is not closed early by a shorter
+	// inner fence.
+	Fence int
 }
 
 // KindDetailsBlock is the AST kind for DetailsBlock.
@@ -48,7 +58,8 @@ func (n *DetailsBlock) Kind() ast.NodeKind { return KindDetailsBlock }
 // Dump implements ast.Node.
 func (n *DetailsBlock) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, map[string]string{
-		"open": strconv.FormatBool(n.Open),
+		"open":  strconv.FormatBool(n.Open),
+		"fence": strconv.Itoa(n.Fence),
 	}, nil)
 }
 
@@ -72,23 +83,34 @@ func (n *DetailsSummary) Dump(source []byte, level int) {
 
 type detailsParser struct{}
 
+var defaultDetailsParser = &detailsParser{}
+
 // NewDetailsParser returns a goldmark block parser for `:::details` blocks.
-func NewDetailsParser() parser.BlockParser { return &detailsParser{} }
+func NewDetailsParser() parser.BlockParser { return defaultDetailsParser }
 
 // Trigger implements parser.BlockParser.
 func (p *detailsParser) Trigger() []byte { return []byte{':'} }
 
 // parseOpenFence inspects the given line (without leading indentation) and
-// returns whether it opens a details block, the `open` flag, and the summary
-// byte range inside the line (start, end). When the line does not match,
-// matched is false.
-func parseOpenFence(line []byte) (open bool, summaryStart, summaryEnd int, matched bool) {
+// returns the opening fence length, the `open` flag, and the summary byte
+// range inside the line (start, end). When the line does not open a details
+// block, matched is false.
+func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd int, matched bool) {
 	trimmed := bytes.TrimRight(line, "\r\n")
-	if !bytes.HasPrefix(trimmed, detailsFenceOpenPrefix) {
-		return false, 0, 0, false
+
+	// Count the run of leading colons; a valid fence has at least three.
+	n := 0
+	for n < len(trimmed) && trimmed[n] == ':' {
+		n++
 	}
-	rest := trimmed[len(detailsFenceOpenPrefix):]
-	consumed := len(detailsFenceOpenPrefix)
+	if n < minDetailsFence {
+		return 0, false, 0, 0, false
+	}
+	if !bytes.HasPrefix(trimmed[n:], detailsKeyword) {
+		return 0, false, 0, 0, false
+	}
+	rest := trimmed[n+len(detailsKeyword):]
+	consumed := n + len(detailsKeyword)
 
 	if bytes.HasPrefix(rest, detailsOpenFlag) {
 		open = true
@@ -100,10 +122,10 @@ func parseOpenFence(line []byte) (open bool, summaryStart, summaryEnd int, match
 	// be either empty or begin with a space/tab introducing the summary, so
 	// that identifiers like `:::detailsmore` are rejected.
 	if len(rest) == 0 {
-		return open, 0, 0, true
+		return n, open, 0, 0, true
 	}
 	if rest[0] != ' ' && rest[0] != '\t' {
-		return false, 0, 0, false
+		return 0, false, 0, 0, false
 	}
 
 	// Trim leading whitespace to locate summary start; trim trailing
@@ -117,15 +139,29 @@ func parseOpenFence(line []byte) (open bool, summaryStart, summaryEnd int, match
 		j--
 	}
 	if i == j {
-		return open, 0, 0, true
+		return n, open, 0, 0, true
 	}
-	return open, consumed + i, consumed + j, true
+	return n, open, consumed + i, consumed + j, true
 }
 
-// isCloseFence returns true when the given line is exactly the `:::` closing
-// fence (trailing whitespace and newline allowed).
-func isCloseFence(line []byte) bool {
-	return bytes.Equal(bytes.TrimRight(line, " \t\r\n"), detailsFenceClose)
+// isCloseFence returns true when the line is a run of at least min colons
+// followed only by whitespace. Up to three leading spaces are allowed, to
+// match the indentation tolerance of the opening fence.
+func isCloseFence(line []byte, min int) bool {
+	trimmed := bytes.TrimRight(line, " \t\r\n")
+	pos := 0
+	for pos < len(trimmed) && pos < 4 && trimmed[pos] == ' ' {
+		pos++
+	}
+	if pos == 4 {
+		return false
+	}
+	trimmed = trimmed[pos:]
+	n := 0
+	for n < len(trimmed) && trimmed[n] == ':' {
+		n++
+	}
+	return n >= min && n == len(trimmed)
 }
 
 // Open implements parser.BlockParser.
@@ -142,12 +178,12 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 	}
 	sub := line[pos:]
 
-	open, sStart, sEnd, ok := parseOpenFence(sub)
+	fence, open, sStart, sEnd, ok := parseOpenFence(sub)
 	if !ok {
 		return nil, parser.NoChildren
 	}
 
-	block := &DetailsBlock{Open: open}
+	block := &DetailsBlock{Open: open, Fence: fence}
 
 	if sEnd > sStart {
 		absStart := segment.Start + pos + sStart
@@ -162,8 +198,10 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 		block.AppendChild(block, sum)
 	}
 
-	// Consume the whole opening line so its content is not re-parsed.
-	reader.Advance(len(line))
+	// Consume the opening line up to its newline. The block loop advances
+	// past the newline itself, so the following line reaches Continue
+	// rather than being skipped.
+	reader.AdvanceToEOL()
 
 	return block, parser.HasChildren
 }
@@ -171,8 +209,10 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 // Continue implements parser.BlockParser.
 func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, _ := reader.PeekLine()
-	if isCloseFence(line) {
-		reader.Advance(len(line))
+	if isCloseFence(line, node.(*DetailsBlock).Fence) {
+		// Consume the fence up to its newline only; the block loop advances
+		// the newline. Advancing the whole line would swallow the next one.
+		reader.AdvanceToEOL()
 		return parser.Close
 	}
 	return parser.Continue | parser.HasChildren
