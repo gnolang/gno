@@ -24,19 +24,27 @@ arbitrary **markdown**
 :::
 ```
 
-- Opening fence: a line starting with `:::details`. An optional `[open]`
-  flag directly after `details` (e.g. `:::details[open]`) makes the block
-  render with the HTML `open` attribute. Anything after a single space is
-  treated as the summary, parsed as inline markdown.
-- Closing fence: a line containing exactly `:::`. If the fence is missing,
-  the block closes at the end of the document (matching CommonMark fenced
-  code behaviour).
+- Opening fence: a line starting with at least three colons followed by
+  `details` (`:::details`, `::::details`, …). An optional `[open]` flag
+  directly after `details` (e.g. `:::details[open]`) makes the block render
+  with the HTML `open` attribute. The summary follows after a space and is
+  parsed as inline markdown. A non-space character right after `details` or
+  the flag (e.g. `:::detailsmore`, `:::details[open]Changelog`) is not a
+  details fence and falls through to a normal paragraph.
+- Closing fence: a line of at least as many colons as the opening fence,
+  followed only by whitespace, indented up to three spaces. Matching the
+  opening fence length means an outer block opened with more colons than
+  its content is not closed early by a shorter `:::` line inside it, so a
+  nested block or a code sample containing `:::` can be wrapped with
+  `::::details … ::::`. If the closing fence is missing, the block closes
+  at the end of the document (matching CommonMark fenced code behaviour).
 - Rendered HTML:
-  `<details class="gno-details" [open]><summary><svg><use href="#ico-arrow"></use></svg>…inline
-  summary…</summary><div>…block content…</div></details>`. The chevron SVG
-  references the bundled `#ico-arrow` symbol; the body is wrapped in a
-  `<div>` to anchor padding without affecting margin collapse on the first
-  child paragraph.
+  `<details class="gno-details"><summary><svg><use href="#ico-arrow"></use></svg>…inline
+  summary…</summary><div>…block content…</div></details>`, with the `open`
+  attribute added on the `<details>` when the `[open]` flag is present. The
+  chevron SVG references the bundled `#ico-arrow` symbol; the body is
+  wrapped in a `<div>` to anchor padding without affecting margin collapse
+  on the first child paragraph.
 - When the opening fence has no summary, the renderer emits a default
   `<summary><svg/>Details</summary>` so the chevron and body wrapper still
   apply consistently.
@@ -74,9 +82,15 @@ existing Alerts documentation.
   fixtures are untouched.
 - **Trade-off:** `:::` fences introduce a new namespace in gnoweb
   markdown. Future extensions (`:::columns`, `:::warning`, …) should pick
-  a consistent grammar — the parser rejects `:::something` that does not
+  a consistent grammar — the parser rejects `:::<name>` that does not
   match `:::details`, falling through to default paragraph rendering, so
   adding new `:::<name>` blocks later is non-breaking.
+- **Trade-off:** nesting and embedding follow the pandoc convention that a
+  block closes on the first fence of at least its own colon count. A block
+  wrapping content that contains a bare `:::` line must open with more
+  colons (`::::details`); a same-length inner `:::` would close the outer
+  block early and leave the surplus fence as stray text. This keeps the
+  parser a single line-oriented pass with no fence stack.
 - **Styling shipped.** Project styles for `.gno-details` are added to
   `gno.land/pkg/gnoweb/frontend/css/06-blocks.css`, scoped under
   `.c-realm-view, .c-readme-view`: bordered, rounded, surface-coloured

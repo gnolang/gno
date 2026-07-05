@@ -1,0 +1,18 @@
+-- input.md --
+::::details Outer
+:::details Inner
+Nested body.
+:::
+::::
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Outer</summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Inner</summary>
+<div>
+<p>Nested body.</p>
+</div>
+</details>
+</div>
+</details>
