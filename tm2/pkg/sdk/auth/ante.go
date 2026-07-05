@@ -49,6 +49,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		consParams := ctx.ConsensusParams()
 		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
 
+		// Fee.SponsorStorage only applies to sponsored (0-fee) txs, where a realm
+		// covers deferred storage via PayStorage. Reject it on a normal fee-paying
+		// tx so the mistake surfaces at submission (CheckTx) rather than failing
+		// opaquely at inclusion (the deferred path would skip the signer's
+		// per-message deposit and then abort at end-of-tx). Genesis (height 0) is
+		// exempt — genesis txs are trusted and never sponsor.
+		if tx.Fee.SponsorStorage && !isZeroFeeTx && ctx.BlockHeight() > 0 {
+			res = abciResult(std.ErrUnauthorized("SponsorStorage requires a 0-fee sponsored transaction"))
+			return ctx, res, true
+		}
+
 		// Ensure that the gas wanted is not greater than the max allowed.
 		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
 		if !isZeroFeeTx {

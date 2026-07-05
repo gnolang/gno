@@ -352,6 +352,39 @@ func TestAnteHandlerFees(t *testing.T) {
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 
+// TestAnteHandlerRejectsSponsorStorageOnFeeTx verifies that Fee.SponsorStorage is
+// rejected on a normal fee-paying tx (it only applies to 0-fee sponsored txs).
+// The mistake must surface at the ante — CheckTx admission and DeliverTx — rather
+// than failing opaquely at end-of-tx inclusion. A tx without SponsorStorage is
+// unaffected.
+func TestAnteHandlerRejectsSponsorStorageOnFeeTx(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // block height 1
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 10000)))
+	env.acck.SetAccount(ctx, acc1)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr1)}
+	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+
+	// Fee-paying tx with SponsorStorage=true -> rejected (Unauthorized) before
+	// any state is touched.
+	feeSponsor := tu.NewTestFee()
+	feeSponsor.SponsorStorage = true
+	txReject := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, feeSponsor)
+	checkInvalidTx(t, anteHandler, ctx, txReject, false, std.UnauthorizedError{})
+
+	// The same fee-paying tx WITHOUT SponsorStorage is accepted — F4 must not
+	// over-reject ordinary txs.
+	txOK := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx, txOK, false)
+}
+
 // Test logic around memo gas consumption.
 func TestAnteHandlerMemoGas(t *testing.T) {
 	t.Parallel()

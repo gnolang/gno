@@ -39,6 +39,14 @@ func PayStorage(m *gno.Machine, maxDeposit int64) {
 		m.Panic(typedString("PayStorage: feature not available in this context"))
 		return
 	}
+	// PayStorage only applies to 0-fee sponsored txs — mirror of PayGas. In a
+	// normal fee-paying tx the signer pays their own storage deposit, so
+	// PayStorage is a no-op here; otherwise a realm exposing an unconditional
+	// PayStorage would silently pay the deposit for any caller's writes on an
+	// ordinary tx (a self-drain), contradicting the "only in sponsored txs" rule.
+	if !ctx.PayStorageInfo.Eligible {
+		return
+	}
 	if ctx.PayStorageInfo.MaxDeposit > 0 {
 		m.Panic(typedString("PayStorage: already called in this transaction"))
 		return

@@ -9,4 +9,5 @@ package runtime
 //   - The function containing PayStorage must be defined in the same realm that pays.
 //   - Can only be called once per transaction.
 //   - Must be called by the same realm as PayGas (if both are used).
+//   - Only takes effect in a 0-fee sponsored transaction (a no-op otherwise).
 func PayStorage(maxDeposit int64)

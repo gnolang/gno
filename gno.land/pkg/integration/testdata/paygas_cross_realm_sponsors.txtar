@@ -1,0 +1,57 @@
+# Regression for the PayGas mirror same-realm guard: a single tx cannot have one
+# realm sponsor gas while a DIFFERENT realm sponsors storage. The rule is enforced
+# in BOTH directions. Here realm "stopayer" calls PayStorage, then cross-calls
+# realm "gaspayer" which calls PayGas — PayGas must reject the foreign pre-existing
+# PayStorage (previously this order was silently accepted).
+
+## start a new node
+gnoland start
+
+## deploy gaspayer (calls PayGas)
+gnokey maketx addpkg -pkgdir $WORK/gaspayer -pkgpath gno.land/r/test/gaspayer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy stopayer (calls PayStorage then cross-calls gaspayer)
+gnokey maketx addpkg -pkgdir $WORK/stopayer -pkgpath gno.land/r/test/stopayer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund both realms so a balance check is not the cause of failure
+gnokey maketx send -send 10000000ugnot -to g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx send -send 10000000ugnot -to g164cs55tunylr9t455rk3lgkzlashyzkznxndcw -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## 0-fee sponsored call: PayStorage(stopayer) then PayGas(gaspayer) -> guard rejects
+! gnokey maketx call -pkgpath gno.land/r/test/stopayer -func Run -gas-fee 0ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test test1
+stderr 'must be called by the same realm as PayStorage'
+
+-- gaspayer/gnomod.toml --
+module = "gaspayer"
+gno = "0.9"
+
+-- gaspayer/gaspayer.gno --
+package gaspayer
+
+import "chain/runtime"
+
+func SponsorGas(cur realm) string {
+	runtime.PayGas(1000000)
+	return "gas"
+}
+
+-- stopayer/gnomod.toml --
+module = "stopayer"
+gno = "0.9"
+
+-- stopayer/stopayer.gno --
+package stopayer
+
+import (
+	"chain/runtime"
+	"gno.land/r/test/gaspayer"
+)
+
+func Run(cur realm) string {
+	runtime.PayStorage(1000000)
+	return gaspayer.SponsorGas(cross(cur))
+}

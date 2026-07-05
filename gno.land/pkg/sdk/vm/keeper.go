@@ -1839,6 +1839,13 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
 	}
+	if sponsored {
+		// The sponsoring realm's committed PayStorage budget is the deposit
+		// ceiling, not the caller's (often empty) MaxDeposit / DefaultDeposit —
+		// otherwise a legitimately large sponsored write is wrongly rejected as
+		// "not enough deposit". Mirrors ProcessStorageDepositFromDiffs.
+		depositAmt = maxStorageBudget
+	}
 	price := std.MustParseCoin(params.StoragePrice)
 
 	// Sort paths for determinism

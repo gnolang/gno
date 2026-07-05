@@ -75,7 +75,13 @@ import (
 // change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
 // (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
 // shifted.
-const expectedCrossrealm38Hash = "cbb912776f085fe694814748f457e70e70085247da6b415842e7237748f455ea"
+//
+// Hash bumped again by the review fixes on this PR: correcting the PayGas
+// documentation comment (MinGasPrice -> dynamic gas price) and noting the
+// "only in sponsored txs" rule in paygas.gno / paystorage.gno edits those
+// stdlib .gno source files, whose bytes are committed into the genesis
+// MemPackage — same class of encoding-only shift. Behavior is unchanged.
+const expectedCrossrealm38Hash = "cb8ea1acb9ccf39bd4d64b1938d1210d6d5b1d196be9b76981de4cf37aed4ba4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

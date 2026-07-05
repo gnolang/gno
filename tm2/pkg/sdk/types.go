@@ -35,6 +35,7 @@ type PayStorageInfo struct {
 	MaxDeposit       int64            // storage deposit cap in ugnot (0 = PayStorage not called)
 	SpentDeposit     int64            // deposit already charged across prior messages (per-tx running total)
 	AccumulatedDiffs map[string]int64 // tx-level storage diff accumulator (when SponsorStorage=true)
+	Eligible         bool             // true only for 0-fee credit-window txs; PayStorage is a no-op otherwise
 }
 
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.

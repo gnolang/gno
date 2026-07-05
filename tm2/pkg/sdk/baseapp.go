@@ -945,7 +945,7 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		app.consensusParams.Block.MaxGasCreditPerTx > 0
 
 	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
-	psi := &PayStorageInfo{}
+	psi := &PayStorageInfo{Eligible: zeroFeeCreditTx}
 	if runMsgCtx.SponsorStorage() {
 		psi.AccumulatedDiffs = make(map[string]int64)
 	}
