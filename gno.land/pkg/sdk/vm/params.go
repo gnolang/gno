@@ -25,9 +25,9 @@ const (
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
 	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
-	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
+	minWriteDepth100Default   = 440        // 4.4 write ops (batched)
 	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
-	iterNextCostFlatDefault = int64(1_000)
+	iterNextCostFlatDefault = 1_000
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -152,7 +152,7 @@ func (p Params) Validate() error {
 	// realistic per-step cost while far below the block gas limit
 	// (~3B) so that a single adversarial proposal can't make one
 	// iterator step drain an entire block's gas budget.
-	const maxIterNextCostFlat = int64(100_000)
+	const maxIterNextCostFlat = 100_000
 	if p.IterNextCostFlat <= 0 {
 		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
 	}
