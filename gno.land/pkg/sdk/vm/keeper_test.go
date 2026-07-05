@@ -189,7 +189,7 @@ func TestVMKeeperAddPackage_ImportTestDepGasEqual(t *testing.T) {
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
 		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
 		env.vmk.CommitGnoTransactionStore(ctx)
-		return int64(gm.GasConsumed())
+		return gm.GasConsumed()
 	}
 
 	// depa and depb have byte-identical production code (a<->b only); depb

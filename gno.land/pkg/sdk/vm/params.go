@@ -25,9 +25,9 @@ const (
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
 	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
-	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
+	minWriteDepth100Default   = 440        // 4.4 write ops (batched)
 	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
-	iterNextCostFlatDefault = int64(1_000)
+	iterNextCostFlatDefault = 1_000
 	// PreprocessGasPerByte: gas charged per .gno source byte at MsgAddPackage
 	// and MsgRun for the native type-check + preprocess passes, which are
 	// otherwise unmetered. Measured ~1250 gas/byte on realistic example
@@ -35,7 +35,7 @@ const (
 	// dependency re-type-checking excluded; 1 gas == 1ns on the reference
 	// machine, and the host-machine calibration factor is the dominant
 	// uncertainty).
-	preprocessGasPerByteDefault = int64(1_250)
+	preprocessGasPerByteDefault = 1_250
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -168,7 +168,7 @@ func (p Params) Validate() error {
 	// realistic per-step cost while far below the block gas limit
 	// (~3B) so that a single adversarial proposal can't make one
 	// iterator step drain an entire block's gas budget.
-	const maxIterNextCostFlat = int64(100_000)
+	const maxIterNextCostFlat = 100_000
 	if p.IterNextCostFlat <= 0 {
 		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
 	}
@@ -178,7 +178,7 @@ func (p Params) Validate() error {
 	// Cap PreprocessGasPerByte at 100_000 (80x the default, far above the
 	// measured cost) to give governance headroom while preventing an absurd
 	// proposal from making deploys impossibly expensive.
-	const maxPreprocessGasPerByte = int64(100_000)
+	const maxPreprocessGasPerByte = 100_000
 	if p.PreprocessGasPerByte <= 0 {
 		return fmt.Errorf("PreprocessGasPerByte must be positive, got %d", p.PreprocessGasPerByte)
 	}
