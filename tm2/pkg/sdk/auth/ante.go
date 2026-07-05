@@ -60,6 +60,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return ctx, res, true
 		}
 
+		// SponsorStorage defers all messages' storage diffs to end-of-tx, where
+		// the per-message caller identity is lost: the deferred settlement can
+		// attribute a freed-storage refund only to a single tx caller (the first
+		// signer). Restrict it to single-signer txs so that caller is unambiguous,
+		// avoiding routing one signer's refund to a co-signer. Genesis (height 0)
+		// is exempt.
+		if tx.Fee.SponsorStorage && len(tx.GetSigners()) > 1 && ctx.BlockHeight() > 0 {
+			res = abciResult(std.ErrUnauthorized("SponsorStorage is not supported for multi-signer transactions"))
+			return ctx, res, true
+		}
+
 		// Ensure that the gas wanted is not greater than the max allowed.
 		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
 		if !isZeroFeeTx {

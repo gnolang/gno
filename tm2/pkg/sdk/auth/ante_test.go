@@ -385,6 +385,40 @@ func TestAnteHandlerRejectsSponsorStorageOnFeeTx(t *testing.T) {
 	checkValidTx(t, anteHandler, ctx, txOK, false)
 }
 
+// TestAnteHandlerRejectsSponsorStorageMultiSigner verifies that SponsorStorage is
+// rejected on a multi-signer tx. Deferred storage settlement loses per-message
+// caller identity and can only refund freed storage to a single tx caller, so a
+// co-signer's refund would be misrouted; the ante rejects the ambiguity up front.
+func TestAnteHandlerRejectsSponsorStorageMultiSigner(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // block height 1
+	// Enable the credit window so a 0-fee tx is recognized as sponsored, and the
+	// fee-based SponsorStorage rejection does not shadow the multi-signer one.
+	cp := ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 1_000_000
+	ctx = ctx.WithConsensusParams(cp)
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	priv2, _, addr2 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	require.NoError(t, acc1.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc1)
+	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	require.NoError(t, acc2.SetAccountNumber(1))
+	env.acck.SetAccount(ctx, acc2)
+
+	// 0-fee (sponsored) tx with a two-signer message and SponsorStorage=true.
+	msg := tu.NewTestMsg(addr1, addr2)
+	fee := std.NewFee(1_000_000, std.NewCoin("ugnot", 0))
+	fee.SponsorStorage = true
+	privs, accnums, seqs := []crypto.PrivKey{priv1, priv2}, []uint64{0, 1}, []uint64{0, 0}
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee)
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
 // Test logic around memo gas consumption.
 func TestAnteHandlerMemoGas(t *testing.T) {
 	t.Parallel()
