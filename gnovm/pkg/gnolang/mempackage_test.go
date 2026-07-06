@@ -222,7 +222,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/r/_path/hey",
+				Path:  "gno.land/r/path/_path",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -233,7 +233,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/r/path_/hey",
+				Path:  "gno.land/r/path/path_",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -438,7 +438,7 @@ func TestIsVersionSuffix(t *testing.T) {
 		{"v3", true},
 		{"v10", true},
 		{"v99", true},
-		{"v0", false}, // v0 is NOT a version suffix
+		{"v0", true},  // v0 is a valid version suffix (e.g. gno.land/p/nt/avl/v0)
 		{"v", false},  // incomplete
 		{"v2beta", false},
 		{"2", false}, // missing v prefix
