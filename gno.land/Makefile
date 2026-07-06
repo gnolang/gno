@@ -84,14 +84,14 @@ test:
 	set -o pipefail; $(MAKE) test.inner 2>&1 | tee "$$log"; status=$$?; \
 	if [ $$status -ne 0 ]; then \
 		echo; echo "==== Failing tests ===="; \
-		grep -E '^(--- FAIL|FAIL\t|panic:)' "$$log" || true; \
+		grep -E '^(--- FAIL|[[:space:]]+--- FAIL|FAIL[[:space:]]|panic:|[[:space:]]+FAIL: testdata/)' "$$log" || true; \
 	fi; \
 	rm -f "$$log"; exit $$status
 
 test.inner: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 _test.help:
-	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing"
+	@echo "txtar integration tests run in-memory and in parallel; set \`SEQ_TS=true\` to run them sequentially (e.g. for debugging/profiling)"
 _test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
 _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey

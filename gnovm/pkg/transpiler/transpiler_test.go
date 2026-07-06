@@ -389,11 +389,12 @@ func otherFunc() {
 package runtime
 
 func ChainID()
-func originCaller() string
+func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)
 
 func testfunc() {
 	ChainID()
-	println(originCaller())
+	addr, _, _, _ := getSessionInfo()
+	println(addr)
 }
 `,
 			expectedOutput: `
@@ -404,7 +405,8 @@ package runtime
 
 func testfunc() {
 	ChainID(nil)
-	println(X_originCaller(nil))
+	addr, _, _, _ := X_getSessionInfo(nil)
+	println(addr)
 }
 `,
 		},

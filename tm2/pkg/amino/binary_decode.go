@@ -130,6 +130,12 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 				return
 			}
 			rv.SetInt(num)
+		} else if fopts.BinPlainVarint {
+			num, _n, err = DecodePlainVarint(bz)
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
+			rv.SetInt(num)
 		} else {
 			var u64 int64
 			u64, _n, err = DecodeVarint(bz)
@@ -144,6 +150,13 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		if fopts.BinFixed32 {
 			var num int32
 			num, _n, err = DecodeInt32(bz)
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
+			rv.SetInt(int64(num))
+		} else if fopts.BinPlainVarint {
+			var num int32
+			num, _n, err = DecodePlainVarint32(bz)
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -180,6 +193,12 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		var num int64
 		if fopts.BinFixed64 {
 			num, _n, err = DecodeInt64(bz)
+		} else if fopts.BinFixed32 {
+			var n32 int32
+			n32, _n, err = DecodeInt32(bz)
+			num = int64(n32)
+		} else if fopts.BinPlainVarint {
+			num, _n, err = DecodePlainVarint(bz)
 		} else {
 			num, _n, err = DecodeVarint(bz)
 		}
@@ -253,6 +272,10 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		var num uint64
 		if fopts.BinFixed64 {
 			num, _n, err = DecodeUint64(bz)
+		} else if fopts.BinFixed32 {
+			var n32 uint32
+			n32, _n, err = DecodeUint32(bz)
+			num = uint64(n32)
 		} else {
 			num, _n, err = DecodeUvarint(bz)
 		}
@@ -1001,6 +1024,35 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				frv.Set(defaultValue(frv.Type()))
 				continue // before sliding...
 			}
+			// Consume any wire fields with fnum < field.BinFieldNum.
+			// These correspond to fields removed from the struct (e.g. marked
+			// amino:"reserved") that are still present in older encoded data.
+			for fnum < field.BinFieldNum {
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if fnum <= lastFieldNum {
+					err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
+						fnum, lastFieldNum, bz)
+					return
+				}
+				lastFieldNum = fnum
+				_n, err = consumeAny(typ, bz)
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if len(bz) == 0 {
+					break
+				}
+				fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return
+				}
+			}
+			if fnum != field.BinFieldNum {
+				frv.Set(defaultValue(frv.Type()))
+				continue
+			}
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -1012,14 +1064,6 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			lastFieldNum = fnum
-			// NOTE: In the future, we'll support upgradeability.
-			// So in the future, this may not match,
-			// so we will need to remove this sanity check.
-			if field.BinFieldNum != fnum {
-				err = errors.New(fmt.Sprintf("expected field # %v of %v, got %v",
-					field.BinFieldNum, info.Type, fnum))
-				return
-			}
 			typWanted := finfo.GetTyp3(field.FieldOptions)
 			if typ != typWanted {
 				err = errors.New(fmt.Sprintf("expected field type %v for # %v of %v, got %v",

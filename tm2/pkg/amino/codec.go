@@ -44,7 +44,8 @@ type ConcreteInfo struct {
 }
 
 type StructInfo struct {
-	Fields []FieldInfo // If a struct.
+	Fields   []FieldInfo // If a struct.
+	Reserved []uint32    // field numbers consumed by removed fields
 }
 
 type FieldInfo struct {
@@ -62,7 +63,13 @@ type FieldOptions struct {
 	JSONOmitEmpty bool   // (JSON) omitempty
 	BinFixed64    bool   // (Binary) Encode as fixed64
 	BinFixed32    bool   // (Binary) Encode as fixed32
-	BinFieldNum   uint32 // (Binary) max 1<<29-1
+	// BinPlainVarint encodes a signed integer field as plain protobuf
+	// varint (proto wire-type 0, schema int64/int32) instead of the
+	// default zigzag varint (sint64/sint32). Required for wire-byte
+	// compatibility with upstream Tendermint canonical types and the
+	// privval socket protocol.
+	BinPlainVarint bool   // (Binary) Encode as plain varint, not zigzag
+	BinFieldNum    uint32 // (Binary) max 1<<29-1
 
 	Unsafe         bool // e.g. if this field is a float.
 	WriteEmpty     bool // write empty structs and lists (default false except for pointers)
@@ -160,13 +167,34 @@ func (finfo *FieldInfo) IsPtr() bool {
 }
 
 func (finfo *FieldInfo) ValidateBasic() {
+	// The three binary-encoding tags (fixed32, fixed64, varint) each
+	// select an encoding for the field; at most one may be set. Without
+	// this check, e.g. binary:"fixed32,fixed64" would silently set both
+	// flags and fall through to whichever branch runs first, producing
+	// a confusing "non-32bit type" panic for a 64-bit field — or, worse,
+	// a silent wire mismatch when the type happens to fit both branches.
+	set := 0
+	if finfo.BinFixed32 {
+		set++
+	}
+	if finfo.BinFixed64 {
+		set++
+	}
+	if finfo.BinPlainVarint {
+		set++
+	}
+	if set > 1 {
+		panic("binary tags are mutually exclusive: at most one of fixed32, fixed64, varint")
+	}
+
 	if finfo.BinFixed32 {
 		switch finfo.TypeInfo.GetUltimateElem().Type.Kind() {
-		case reflect.Int32, reflect.Uint32:
-			// ok
-		case reflect.Int, reflect.Uint:
-			// TODO error upon overflow/underflow during conversion.
-			panic("\"fixed32\" not yet supported for int/uint")
+		case reflect.Int32, reflect.Uint32, reflect.Int, reflect.Uint:
+			// ok — Int / Uint are encoded as 4 bytes via narrowing to
+			// int32 / uint32 by every code path (reflect encode/decode
+			// and genproto2 marshal/unmarshal/size). Range overflow at
+			// runtime is currently silent (the Go conversion truncates);
+			// only register fields that fit.
 		default:
 			panic("unexpected tag \"fixed32\" for non-32bit type")
 		}
@@ -177,6 +205,19 @@ func (finfo *FieldInfo) ValidateBasic() {
 			// ok
 		default:
 			panic("unexpected tag \"fixed64\" for non-64bit type")
+		}
+	}
+	if finfo.BinPlainVarint {
+		// Allowed only on signed integer kinds Int, Int32, Int64.
+		// Int8/Int16 use width-specific zigzag decoders today; supporting
+		// plain varint there would require parallel width-specific helpers
+		// that no real-world consumer needs. Unsigned ints already encode
+		// as plain varint by default; the tag is meaningless for them.
+		switch finfo.TypeInfo.GetUltimateElem().Type.Kind() {
+		case reflect.Int, reflect.Int32, reflect.Int64:
+			// ok
+		default:
+			panic("binary:\"varint\" only valid on int/int32/int64 fields")
 		}
 	}
 	if !finfo.Unsafe {
@@ -707,9 +748,21 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
+	nextFieldNum := uint32(1)
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		ftype := field.Type
+
+		// Handle blank-identifier reserved fields before the export check.
+		if field.Name == "_" {
+			if field.Tag.Get("amino") != "reserved" {
+				panic(fmt.Sprintf("blank identifier field at index %d must have amino:\"reserved\" tag", i))
+			}
+			sinfo.Reserved = append(sinfo.Reserved, nextFieldNum)
+			nextFieldNum++
+			continue
+		}
+
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -717,9 +770,8 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if skip {
 			continue // e.g. json:"-"
 		}
-		// NOTE: This is going to change a bit.
-		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fopts.BinFieldNum = nextFieldNum
+		nextFieldNum++
 		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
 		if err != nil {
 			panic(err)
@@ -767,7 +819,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		fieldInfo.ValidateBasic()
 		infos = append(infos, fieldInfo)
 	}
-	sinfo = StructInfo{infos}
+	sinfo = StructInfo{Fields: infos, Reserved: sinfo.Reserved}
 	return sinfo
 }
 
@@ -798,18 +850,31 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 		}
 	}
 
-	// Parse binary tags.
+	// Parse binary tags. Comma-split so multi-value tags like
+	// binary:"varint,fixed64" can be detected by mutual-exclusion validation
+	// in FieldInfo.ValidateBasic. Without comma-split, the entire string would
+	// fail the switch and silently set neither flag.
 	// NOTE: these get validated later, we don't have TypeInfo yet.
-	switch binTag {
-	case "fixed64":
-		fopts.BinFixed64 = true
-	case "fixed32":
-		fopts.BinFixed32 = true
+	for _, t := range strings.Split(binTag, ",") {
+		switch t {
+		case "fixed64":
+			fopts.BinFixed64 = true
+		case "fixed32":
+			fopts.BinFixed32 = true
+		case "varint":
+			fopts.BinPlainVarint = true
+		case "":
+			// empty token from split when binTag is empty or has trailing
+			// comma — ignore.
+		}
 	}
 
 	// Parse amino tags.
 	aminoTags := strings.Split(aminoTag, ",")
 	for _, aminoTag := range aminoTags {
+		if aminoTag == "reserved" {
+			panic(fmt.Sprintf("amino:\"reserved\" tag is only valid on blank identifier (_) fields, not %q", field.Name))
+		}
 		if aminoTag == "unsafe" {
 			fopts.Unsafe = true
 		}
@@ -887,10 +952,14 @@ func typeToTyp3(rt reflect.Type, opts FieldOptions) Typ3 {
 		return Typ3Varint
 
 	case reflect.Int, reflect.Uint:
-		// ValidateBasic allows BinFixed64 on bare int/uint; the body encoders
-		// write 8 fixed bytes in that case, so the field-key typ3 must match.
+		// ValidateBasic allows BinFixed64 / BinFixed32 on bare int/uint; the
+		// body encoders write 8 / 4 fixed bytes respectively, so the field-key
+		// typ3 must match the body width.
 		if opts.BinFixed64 {
 			return Typ38Byte
+		}
+		if opts.BinFixed32 {
+			return Typ34Byte
 		}
 		return Typ3Varint
 	case reflect.Int16, reflect.Int8,

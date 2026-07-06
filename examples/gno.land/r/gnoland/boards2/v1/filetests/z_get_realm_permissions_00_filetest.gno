@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_get_realm_permissions_00_filetest
+
+package z_get_realm_permissions_00_filetest
 
 import (
 	"testing"
@@ -6,9 +8,9 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	perms := boards2.GetRealmPermissions()
+	perms := boards2.GetRealmPermissions(cross(cur))
 	println(perms != nil)
 }
 
