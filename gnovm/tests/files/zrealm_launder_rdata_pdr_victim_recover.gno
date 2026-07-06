@@ -8,9 +8,9 @@ package launderrh_pdr_victim_recover
 // Surprising finding (verified): victim's recover() does NOT catch
 // the panic. Trace:
 //  1. main → m.Realm = attacker
-//  2. RecoverAndRetry → Rule 1 borrow → m.Realm = victim
+//  2. RecoverAndRetry → borrow rule #1 → m.Realm = victim
 //  3. RecoverAndRetry schedules a defer (its own /r/-victim closure)
-//  4. RecoverAndRetry calls h(gImm) → Rule 1 borrow → m.Realm = attacker
+//  4. RecoverAndRetry calls h(gImm) → borrow rule #1 → m.Realm = attacker
 //     (because h is /r/-attacker-declared)
 //  5. h body: i.Field = ... → readonly panic
 //  6. Unwind: at h's frame, LastRealm = victim, crlm = attacker →

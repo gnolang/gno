@@ -11,9 +11,9 @@ package launderrh3
 // Attacker /r/launderrh3 provides a callback that writes the field.
 // Trace:
 //   1. main → m.Realm = /r/launderrh3
-//   2. ApplyHook(fn) → Rule 1 → m.Realm = /r/launderrvictim
+//   2. ApplyHook(fn) → borrow rule #1 → m.Realm = /r/launderrvictim
 //   3. h(gImm) invokes fn (/r/launderrh3-declared closure)
-//   4. Closure body → Rule 1 → m.Realm = /r/launderrh3
+//   4. Closure body → borrow rule #1 → m.Realm = /r/launderrh3
 //   5. fn body: `i.Field = ...` writes /r/launderrvictim-stamped data
 //      under /r/launderrh3 authority → readonly check fires
 

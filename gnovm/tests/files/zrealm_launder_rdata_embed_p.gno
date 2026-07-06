@@ -13,9 +13,9 @@ package launderrh_embed
 //   2. we.Apply(EvilWrite) — promoted method, dispatches to
 //      (*Immutable).Apply on &we.Immutable.
 //      recv's base is the WithEmbed struct, /r/launderrvictim-stamped
-//      Rule 2 → m.Realm = /r/launderrvictim
+//      borrow rule #2 → m.Realm = /r/launderrvictim
 //   3. Inside Apply: fn(i) calls EvilWrite (top-level /p/ fn).
-//      No Rule 1 (not /r/), no Rule 2 (no receiver) → m.Realm stays
+//      No borrow rule #1 (not /r/), no borrow rule #2 (no receiver) → m.Realm stays
 //      /r/launderrvictim
 //   4. Inside EvilWrite: i.Field = "..." — write to
 //      /r/launderrvictim-stamped data under /r/launderrvictim
