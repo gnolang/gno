@@ -31,6 +31,7 @@ type HelpData struct {
 	PkgFullPath string
 	Doc         Component
 	Domain      string
+	Origin      string // request scheme+host; makes help URLs shareable
 }
 
 type HelpTocData struct {
@@ -68,7 +69,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := pkgPath + "$help&func=" + fn.Name
+		url := data.Origin + pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {

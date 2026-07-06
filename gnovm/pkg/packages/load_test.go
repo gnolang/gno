@@ -17,6 +17,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFindLoaderRoot(t *testing.T) {
+	t.Run("gnowork ancestor resolves to workspace root", func(t *testing.T) {
+		root := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), nil, 0o644))
+		child := filepath.Join(root, "a", "b")
+		require.NoError(t, os.MkdirAll(child, 0o755))
+
+		gotRoot, err := FindLoaderRoot(child)
+		require.NoError(t, err)
+		assert.Equal(t, root, gotRoot)
+	})
+
+	t.Run("bare gnomod in dir resolves to that dir", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "gnomod.toml"), nil, 0o644))
+
+		gotRoot, err := FindLoaderRoot(dir)
+		require.NoError(t, err)
+		assert.Equal(t, dir, gotRoot)
+	})
+
+	t.Run("bare gnomod in ancestor is not a context", func(t *testing.T) {
+		root := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(root, "gnomod.toml"), nil, 0o644))
+		child := filepath.Join(root, "sub")
+		require.NoError(t, os.MkdirAll(child, 0o755))
+
+		_, err := FindLoaderRoot(child)
+		assert.ErrorIs(t, err, ErrGnoContextNotFound)
+	})
+
+	t.Run("neither marker", func(t *testing.T) {
+		_, err := FindLoaderRoot(t.TempDir())
+		assert.ErrorIs(t, err, ErrGnoContextNotFound)
+	})
+}
+
 func TestListAndNonIgnoredPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
@@ -221,6 +258,7 @@ func TestDataLoad(t *testing.T) {
 	workspace1Abs := filepath.Join(cwd, "testdata", "workspace-1")
 	workspace2Abs := filepath.Join(cwd, "testdata", "workspace-2")
 	workspace3Abs := filepath.Join(cwd, "testdata", "workspace-3")
+	singlepkg1Abs := filepath.Join(cwd, "testdata", "singlepkg-1")
 
 	tcs := []struct {
 		name             string
@@ -432,6 +470,26 @@ func TestDataLoad(t *testing.T) {
 					Pos: PackageDir("gno.example.com/r/wspace3/subwork/subworkpkg"),
 					Msg: "query files list for pkg \"gno.example.com/r/wspace3/subwork/subworkpkg\": package \"gno.example.com/r/wspace3/subwork/subworkpkg\" is not available",
 				}},
+			}},
+		},
+		{
+			name:             "single-package-recursive",
+			workdir:          localFromSlash("./testdata/singlepkg-1"),
+			patterns:         []string{"./..."},
+			outShouldContain: "nested package(s) ignored: nested",
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/single/foo",
+				Name:       "foo",
+				Dir:        singlepkg1Abs,
+				Match:      []string{"./..."},
+				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
 			}},
 		},
 		{
