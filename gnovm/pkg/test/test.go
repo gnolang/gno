@@ -416,7 +416,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, "filetests", testFileName)
+			testFilePath := filetestPath(fsDir, testFileName)
 			// XXX consider this
 			testName := fsDir + "/" + testFileName
 			// testName := "file/" + testFileName
@@ -457,6 +457,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	}
 
 	return errs
+}
+
+func filetestPath(fsDir, testFileName string) string {
+	path := filepath.Join(fsDir, "filetests", testFileName)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return filepath.Join(fsDir, testFileName)
 }
 
 // enableDebugger attaches the interactive debugger to m. Source files are

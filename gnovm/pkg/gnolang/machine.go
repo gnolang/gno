@@ -2628,6 +2628,8 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	return nil
 }
 
+// Per-shape operand counts are mirrored in numStackValuesForPointer (below)
+// and consumed by resolvePointer — keep all three in sync.
 func (m *Machine) PushForPointer(lx Expr) {
 	switch lx := lx.(type) {
 	case *NameExpr:
@@ -2652,10 +2654,31 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
-		panic(fmt.Sprintf(
-			"illegal assignment X expression type %v",
-			reflect.TypeOf(lx)))
+		panicIllegalPointerLHS(lx)
 	}
+}
+
+// numStackValuesForPointer reports how many value-stack entries PushForPointer
+// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panicIllegalPointerLHS(lx)
+		return 0 // unreachable
+	}
+}
+
+// Outlined so the switches above stay within the inlining budget.
+func panicIllegalPointerLHS(lx Expr) {
+	panic(fmt.Sprintf(
+		"illegal assignment X expression type %v",
+		reflect.TypeOf(lx)))
 }
 
 // Pop a pointer (for writing only).
@@ -2761,10 +2784,13 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	return oid.PkgID != m.Realm.ID
 }
 
-// Returns ro = true if the base is readonly,
-// or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a composite lit expr.
-func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+// resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
+// PushForPointer evaluated for lx) rather than popping them off the value stack
+// itself — the caller supplies them, so this resolver has no stack side effects.
+// lhsOperands are in stack order, oldest first: for an IndexExpr lhsOperands[0]
+// is X and lhsOperands[1] is Index. ro reports a readonly/cross-realm violation.
+// Shared by PopAsPointer2 (the stack wrapper) and doOpAssign (reads in place).
+func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2779,11 +2805,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			panic("unexpected NameExpr in PopAsPointer")
+			panic("unexpected NameExpr in resolvePointer")
 		}
 	case *IndexExpr:
-		iv := m.PopValue()
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
+		iv := &lhsOperands[1]
 		if xv.T.Kind() == MapKind {
 			// For maps, GetPointerAtIndex unconditionally creates a new entry for
 			// missing keys. Check readonly before this mutation.
@@ -2798,11 +2824,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
@@ -2812,7 +2838,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
-		tv := *m.PopValue()
+		tv := lhsOperands[0]
 		// Heap-slot wrapper is anonymous; nil t skips the
 		// construction-time check. The contained composite literal
 		// was already construction-time-checked at its own allocation.
@@ -2827,6 +2853,12 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		panic("should not happen")
 	}
 	return
+}
+
+// Thin stack wrapper around resolvePointer: pops lx's operands off m.Values
+// and resolves from them.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	return m.resolvePointer(lx, m.PopValues(numStackValuesForPointer(lx)))
 }
 
 // for testing.
@@ -3047,7 +3079,9 @@ func (m *Machine) String() string {
 	}
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
-		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
+		builder.WriteString("      ")
+		m.Exception.Fprint(builder, m)
+		builder.WriteByte('\n')
 	}
 	return builder.String()
 }
