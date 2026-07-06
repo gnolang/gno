@@ -1167,7 +1167,7 @@ func (lts *localTypeSaver) saveType(t Type) {
 	}
 	switch ct := t.(type) {
 	case *DeclaredType:
-		if ct.ParentLoc.IsZero() {
+		if !ct.IsFuncLocal() {
 			// Package-level: persisted at addpkg, and a package-scope type
 			// declaration cannot reference a function-local type — prune.
 			return
