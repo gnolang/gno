@@ -1384,9 +1384,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	}
 }
 
-// posZero returns f with the sign bit cleared when f is zero. Constants have
-// no signed zero (golang/go#12621): a negative constant that underflows a
-// float type must convert to +0, not -0.
+// posZero returns f with the sign bit cleared when f is zero. Constant
+// conversions have no signed zero (golang/go#12621): any constant that
+// converts to zero — an underflowing negative or a literal -0.0 — yields +0.
 func posZero[F float32 | float64](f F) F {
 	if f == 0 {
 		return 0
