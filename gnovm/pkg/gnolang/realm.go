@@ -1111,8 +1111,7 @@ type localTypeSaver struct {
 }
 
 // saveObjectTypes walks the object's typed slots. Child objects are walked by
-// their own saveObject call during the save traversal, so like
-// assertObjectIsPublic this does not recurse into values.
+// their own saveObject call during the save traversal.
 func (lts *localTypeSaver) saveObjectTypes(oo Object) {
 	switch v := oo.(type) {
 	case *HeapItemValue:
@@ -1200,6 +1199,9 @@ func (lts *localTypeSaver) saveType(t Type) {
 		lts.saveType(ct.Key)
 		lts.saveType(ct.Value)
 	case *tupleType:
+		// Tuples are transient (multi-value expressions on the stack) and
+		// not currently persistable; walked rather than pruned so a future
+		// persistable route cannot silently skip local-type persistence.
 		for _, et := range ct.Elts {
 			lts.saveType(et)
 		}
