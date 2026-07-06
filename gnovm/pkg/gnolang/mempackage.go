@@ -212,10 +212,10 @@ func IsTestPkgPath(pkgPath string) bool {
 // Package name and path validation helpers.
 // See https://github.com/gnolang/gno/issues/1571
 
-// reVersionSuffix matches version suffixes (v1, v2, v3, v10, v11, ...).
+// reVersionSuffix matches version suffixes (v0, v1, v2, v3, v10, v11, ...).
 // Note: Go convention says v1 should not appear in paths, but Gno allows it
 // for backwards compatibility with existing versioned packages.
-var reVersionSuffix = regexp.MustCompile(`^v([1-9][0-9]*)$`)
+var reVersionSuffix = regexp.MustCompile(`^v(0|[1-9][0-9]*)$`)
 
 // isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
 func isVersionSuffix(s string) bool {
