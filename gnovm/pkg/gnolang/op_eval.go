@@ -17,12 +17,31 @@ var (
 	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
 )
 
+// bdParseFloat parses a reFloat-matched literal. Constants whose effective
+// exponent (explicit exponent minus fractional digits) is valid but below
+// apd's range round to 0, matching Go's representability rule: underflow
+// rounds to zero, overflow is an error. Exponents that do not fit in int32
+// stay errors, as in Go ("malformed constant"), and so do fraction-only
+// literals, which can underflow apd only past 100000 digits, a length Go
+// rejects as an excessively long constant.
 func bdParseFloat(s string) (*apd.Decimal, apd.Condition, error) {
 	bd, c, err := apd.NewFromString(s)
-	if err != nil {
-		if i := strings.Index(strings.ToLower(s), "e"); i != -1 && i+1 < len(s) && s[i+1] == '-' {
-			return apd.New(0, 0), 0, nil
-		}
+	if err == nil {
+		return bd, c, nil
+	}
+	i := strings.IndexAny(s, "eE")
+	if i == -1 {
+		return bd, c, err
+	}
+	exp, eerr := strconv.ParseInt(s[i+1:], 10, 32)
+	if eerr != nil {
+		return bd, c, err
+	}
+	if j := strings.IndexByte(s[:i], '.'); j != -1 {
+		exp -= int64(i - j - 1)
+	}
+	if exp < apd.MinExponent {
+		return apd.New(0, 0), 0, nil
 	}
 	return bd, c, err
 }
@@ -102,8 +121,7 @@ func (m *Machine) doOpEval() {
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
 			if reFloat.MatchString(x.Value) {
-				value := x.Value
-				bd, c, err := bdParseFloat(value)
+				bd, c, err := bdParseFloat(x.Value)
 				if err != nil {
 					panic(fmt.Sprintf(
 						"invalid decimal constant: %s",
@@ -179,6 +197,15 @@ func (m *Machine) doOpEval() {
 					apd.New(2, 0),
 					apd.New(exp, 0))
 				if err != nil {
+					if exp < 0 {
+						// 2^exp underflows apd's exponent range; the
+						// constant rounds to 0, as in Go.
+						m.PushValue(TypedValue{
+							T: UntypedBigdecType,
+							V: BigdecValue{V: apd.New(0, 0)},
+						})
+						return
+					}
 					panic(fmt.Sprintf("error computing exponent: %v", err))
 				}
 				// Step 3 make Decimal from mantissa and exp.
