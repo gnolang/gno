@@ -1199,9 +1199,10 @@ func (lts *localTypeSaver) saveType(t Type) {
 		lts.saveType(ct.Key)
 		lts.saveType(ct.Value)
 	case *tupleType:
-		// Tuples are transient (multi-value expressions on the stack) and
-		// not currently persistable; walked rather than pruned so a future
-		// persistable route cannot silently skip local-type persistence.
+		// Currently unreachable: tuple types are transient (multi-value
+		// expressions) and never persisted. Walked anyway — correct if they
+		// ever become persistable, whereas pruning would silently
+		// reintroduce dangling local-type refs.
 		for _, et := range ct.Elts {
 			lts.saveType(et)
 		}
