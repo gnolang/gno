@@ -19,8 +19,9 @@ const (
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
 	depositDefault                 = "600000000ugnot"
-	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
+	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
+
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
 	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
@@ -201,9 +202,11 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 const (
-	sysUsersPkgParamPath = "vm:p:sysnames_pkgpath"
-	sysCLAPkgParamPath   = "vm:p:syscla_pkgpath"
-	chainDomainParamPath = "vm:p:chain_domain"
+	moduleParamPrefix = "vm"
+
+	sysUsersPkgParamPath = moduleParamPrefix + ":p:sysnames_pkgpath"
+	sysCLAPkgParamPath   = moduleParamPrefix + ":p:syscla_pkgpath"
+	chainDomainParamPath = moduleParamPrefix + ":p:chain_domain"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {

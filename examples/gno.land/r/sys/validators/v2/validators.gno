@@ -4,7 +4,7 @@ import (
 	"chain"
 	"chain/runtime"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
@@ -12,7 +12,7 @@ import (
 
 var (
 	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
+	changes *bptree.BPTree            // changes holds any valset changes; seqid(block number) -> []change
 )
 
 // change represents a single valset change, tied to a specific block number
@@ -99,7 +99,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
+	changes.ReverseIterateByOffset(0, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {
