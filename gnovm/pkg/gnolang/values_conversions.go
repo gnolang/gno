@@ -998,6 +998,9 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			})
 
 			x := softfloat.F64to32(tv.GetFloat64())
+			if isConst && x == 1<<31 { // -0: constants have no signed zero
+				x = 0
+			}
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
@@ -1381,6 +1384,16 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	}
 }
 
+// posZero returns f with the sign bit cleared when f is zero. Constants have
+// no signed zero (golang/go#12621): a negative constant that underflows a
+// float type must convert to +0, not -0.
+func posZero[F float32 | float64](f F) F {
+	if f == 0 {
+		return 0
+	}
+	return f
+}
+
 func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
 	bd := bdv.V
@@ -1401,10 +1414,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		dst.T = Float64Type
 		dst.V = nil
 		f, _ := bd.Float64()
-		if f == 0 {
-			f = 0
-		}
-		dst.SetFloat64(math.Float64bits(f))
+		dst.SetFloat64(math.Float64bits(posZero(f)))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
@@ -1430,10 +1440,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
-		if f32 == 0 {
-			f32 = 0
-		}
-		dst.SetFloat32(math.Float32bits(f32))
+		dst.SetFloat32(math.Float32bits(posZero(f32)))
 		return
 	case Float64Kind:
 		dst.T = t
@@ -1445,10 +1452,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
-		if f64 == 0 {
-			f64 = 0
-		}
-		dst.SetFloat64(math.Float64bits(f64))
+		dst.SetFloat64(math.Float64bits(posZero(f64)))
 		return
 	default:
 		panic(fmt.Sprintf(

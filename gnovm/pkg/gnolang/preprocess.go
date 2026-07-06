@@ -1587,6 +1587,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
+						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
+							// Convert float-valued constants directly to the
+							// target type: constant conversion has no signed
+							// zero, so an underflowing constant rounds to +0,
+							// unlike the machine's runtime narrowing.
+							// Integer sources are excluded: they carry no -0
+							// and keep the default-type path below.
+							switch at.Kind() {
+							case BigdecKind, Float32Kind, Float64Kind:
+								convertConst(store, last, n, arg0, ct)
+								constConverted = true
+							}
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
 							case Uint8Kind, Int32Kind:
