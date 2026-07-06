@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +36,8 @@ type Loader struct {
 	mu                sync.RWMutex
 	fetcher           pkgdownload.PackageFetcher
 	index             map[string]*Package
-	tracked           map[string]struct{}          // paths added via Resolve, used by Reload
+	tracked           map[string]struct{}          // paths to re-resolve on every Reload: the seeded set plus every path a proxy Resolve has hit
+	seeded            map[string]struct{}          // paths declared at setup via Track / AddLocalPackage; ResetTracked restores tracked to this
 	rootIdx           map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
 	announced         map[string]struct{}          // roots already info-logged by loadEager
 	modcacheAnnounced map[string]struct{}          // modcache paths already info-logged by vmPkgListToPackages
@@ -61,6 +63,7 @@ func New(cfg Config) *Loader {
 		fetcher:           fetcher,
 		index:             make(map[string]*Package),
 		tracked:           make(map[string]struct{}),
+		seeded:            make(map[string]struct{}),
 		rootIdx:           make(map[string]map[string]string),
 		announced:         make(map[string]struct{}),
 		modcacheAnnounced: make(map[string]struct{}),
@@ -296,6 +299,7 @@ func (l *Loader) AddLocalPackage(importPath, dir string) {
 		MissingGnoMod: true,
 	}
 	l.tracked[importPath] = struct{}{}
+	l.seeded[importPath] = struct{}{}
 }
 
 // Track registers paths to re-resolve on every Reload / LoadAll, exactly
@@ -311,6 +315,23 @@ func (l *Loader) Track(paths ...string) {
 			continue
 		}
 		l.tracked[p] = struct{}{}
+		l.seeded[p] = struct{}{}
+	}
+}
+
+// ResetTracked restores the tracked set to the paths seeded at setup (via
+// Track / AddLocalPackage), dropping paths added by lazy Resolve during the
+// session, and evicts those dropped paths from the index so the next browse
+// re-resolves and re-enters tracked. Wired through NodeConfig.ResetState so
+// a reset returns the package set to its initial state.
+func (l *Loader) ResetTracked() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.tracked = maps.Clone(l.seeded)
+	for p := range l.index {
+		if _, ok := l.seeded[p]; !ok {
+			delete(l.index, p)
+		}
 	}
 }
 
@@ -656,7 +677,7 @@ func (l *Loader) kindForDir(dir string) Kind {
 // must stay consistent — every import filter goes through here.
 func filterSourceImports(p *vmpackages.Package, keep func(path string) bool) {
 	if imps := p.Imports[vmpackages.FileKindPackageSource]; len(imps) > 0 {
-		kept := imps[:0]
+		kept := make([]string, 0, len(imps))
 		for _, imp := range imps {
 			if keep(imp) {
 				kept = append(kept, imp)
@@ -665,7 +686,7 @@ func filterSourceImports(p *vmpackages.Package, keep func(path string) bool) {
 		p.Imports[vmpackages.FileKindPackageSource] = kept
 	}
 	if specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]; len(specs) > 0 {
-		kept := specs[:0]
+		kept := make([]*vmpackages.FileImport, 0, len(specs))
 		for _, sp := range specs {
 			if keep(sp.PkgPath) {
 				kept = append(kept, sp)

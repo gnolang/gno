@@ -826,6 +826,34 @@ func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder 
 	return node, emitter
 }
 
+// Reset must invoke NodeConfig.ResetState so every reset entry point (Ctrl+R
+// and the /reset endpoint) drops session-only state through the same hook;
+// gnodev wires it to loader.ResetTracked.
+func TestNode_Reset_InvokesResetState(t *testing.T) {
+	t.Parallel()
+
+	pkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{Name: "foo.gno", Body: "package foo\nfunc Render(_ string) string { return \"foo\" }\n"},
+		},
+	}
+
+	cfg, holder := newTestingNodeConfig(t, pkg)
+	var resets int
+	cfg.ResetState = func() { resets++ }
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, pkg.Path)
+
+	// The boot reset inside NewDevNode already fired the hook once.
+	require.Positive(t, resets)
+
+	before := resets
+	require.NoError(t, node.Reset(context.Background()))
+	assert.Equal(t, before+1, resets, "Reset must invoke ResetState exactly once")
+}
+
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {
 	t.Helper()
 
