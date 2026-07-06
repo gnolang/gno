@@ -28,6 +28,9 @@ func main() {
 	d := -math.SmallestNonzeroFloat64
 	println("runtime narrowing:", zero(float64(float32(d))))
 	println("runtime underflow:", zero(d/3))
+	// Nonzero constants are unaffected by the constant-space narrowing.
+	var v float32 = 0.3
+	println("nonzero conv:", float32(0.3) == v, float32(tiny) == 0)
 }
 
 // Output:
@@ -38,3 +41,4 @@ func main() {
 // interface: +0
 // runtime narrowing: -0
 // runtime underflow: -0
+// nonzero conv: true true

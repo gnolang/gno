@@ -998,7 +998,9 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			})
 
 			x := softfloat.F64to32(tv.GetFloat64())
-			if isConst && x == 1<<31 { // -0: constants have no signed zero
+			// Narrowing can underflow a nonzero negative to -0;
+			// constant conversions have no signed zero.
+			if isConst && x == 1<<31 {
 				x = 0
 			}
 			tv.T = t
