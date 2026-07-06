@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/float10.gno:7:10-32: invalid decimal constant: 1e-9999999999999999999
+// main/float9a.gno:7:10-32: invalid decimal constant: 1e-9999999999999999999
 
 // TypeCheckError:
-// main/float10.gno:7:10: malformed constant: 1e-9999999999999999999
+// main/float9a.gno:7:10: malformed constant: 1e-9999999999999999999
