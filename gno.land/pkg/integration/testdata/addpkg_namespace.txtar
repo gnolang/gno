@@ -1,12 +1,20 @@
 loadpkg gno.land/r/sys/names
-loadpkg gno.land/r/gnoland/users/v1
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
 
 adduser admin
-adduser gui
+adduserfrom gui 'relax garment load shy garden video prepare edge churn noodle frequent grass priority half merge honey cousin industry panda forward brand taste village verb'
+stdout 'g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen'
 
-patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $admin_user_addr # use our custom admin
 
 gnoland start
+
+# Initialize GovDAO members so test1 can drive user-registration proposals.
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
 
 # give gui user more tokens
 gnokey maketx send -send 1000000000ugnot -to $gui_user_addr  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
@@ -18,17 +26,17 @@ stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/one
-gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 600000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/one
-gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/randomname/one -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/randomname/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Enable `sys/names`
 # admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
@@ -57,14 +65,26 @@ stderr 'is not authorized to deploy packages to namespace'
 
 ## Test registered namespace
 
-# test gui register namespace
-# gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+# test gui register namespace via GovDAO -> r/sys/users
+# Create proposal to register @guigui123 -> gui's address
+gnokey maketx run -gas-fee 3300001ugnot -gas-wanted 36_000_000 -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
 stdout 'OK!'
+
+# Vote on the proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 22000000 -args 0 -args YES -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Execute the proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 30000000 -args 0 -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Confirm @guigui123 now resolves to gui's address
+gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"guigui123\")"
+stdout 'g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen'
 
 # Test gui publishing on guigui123/one
 # gui addpkg -> gno.land/r/guigui123/one
-gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK/one -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Test admin publishing on guigui123/two (should fail, different user)
@@ -99,4 +119,26 @@ package two
 
 func Render(path string) string {
     return "# Hello Two"
+}
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/create_register_user_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/users"
+)
+
+func main(cur realm) {
+	r := users.ProposeRegisterUser(cross(cur), "guigui123", address("g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen"))
+	dao.MustCreateProposal(cross(cur), r)
 }

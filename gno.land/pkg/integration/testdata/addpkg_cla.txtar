@@ -27,7 +27,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'true bool'
 
 # Alice should be able to addpkg when CLA is disabled
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -50,7 +50,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'false bool'
 
 # Alice tries to deploy without signing CLA - should FAIL
-! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test alice
+! gnokey maketx addpkg -pkgdir $WORK/pkg2 -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test alice
 stderr 'A Contributor License Agreement'
 
 # ============================================================
@@ -66,7 +66,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'true bool'
 
 # Now Alice should be able to deploy
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 710001ugnot -gas-wanted 7_100_000 -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg3 -pkgpath gno.land/r/$alice_user_addr/pkg3 -gas-fee 710001ugnot -gas-wanted 7_100_000 -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -89,7 +89,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'false bool'
 
 # Alice tries to deploy - should FAIL
-! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test alice
+! gnokey maketx addpkg -pkgdir $WORK/pkg4 -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test alice
 stderr 'A Contributor License Agreement'
 
 # Alice re-signs with new hash
@@ -97,7 +97,7 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -ga
 stdout 'OK!'
 
 # Now Alice can deploy again
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 710001ugnot -gas-wanted 7_100_000 -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg5 -pkgpath gno.land/r/$alice_user_addr/pkg5 -gas-fee 710001ugnot -gas-wanted 7_100_000 -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -120,7 +120,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user
 stdout 'true bool'
 
 # Any user can deploy when enforcement is disabled (even test1 who never signed)
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test test1
 stdout 'OK!'
 
 -- proposer/propose_cla1.gno --
@@ -181,12 +181,56 @@ func init(cur realm) {
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
--- pkg/gnomod.toml --
-module = "gno.land/r/mypkg"
+-- pkg1/gnomod.toml --
+module = "gno.land/r/pkg1"
 gno = "0.9"
 
--- pkg/one.gno --
-package one
+-- pkg1/pkg1.gno --
+package pkg1
+
+func Render(path string) string {
+    return "# Hello"
+}
+
+-- pkg2/gnomod.toml --
+module = "gno.land/r/pkg2"
+gno = "0.9"
+
+-- pkg2/pkg2.gno --
+package pkg2
+
+func Render(path string) string {
+    return "# Hello"
+}
+
+-- pkg3/gnomod.toml --
+module = "gno.land/r/pkg3"
+gno = "0.9"
+
+-- pkg3/pkg3.gno --
+package pkg3
+
+func Render(path string) string {
+    return "# Hello"
+}
+
+-- pkg4/gnomod.toml --
+module = "gno.land/r/pkg4"
+gno = "0.9"
+
+-- pkg4/pkg4.gno --
+package pkg4
+
+func Render(path string) string {
+    return "# Hello"
+}
+
+-- pkg5/gnomod.toml --
+module = "gno.land/r/pkg5"
+gno = "0.9"
+
+-- pkg5/pkg5.gno --
+package pkg5
 
 func Render(path string) string {
     return "# Hello"
