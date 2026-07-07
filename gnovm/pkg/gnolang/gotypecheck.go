@@ -559,7 +559,8 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 		// ignore methods and init functions
 		if !ok ||
 			fd.Recv != nil ||
-			fd.Name.Name == "init" {
+			fd.Name.Name == "init" ||
+			fd.Name.Name == "_" {
 			continue
 		}
 		// if declaration is duplicate, delete this one.
