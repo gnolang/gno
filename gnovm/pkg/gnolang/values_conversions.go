@@ -1437,11 +1437,13 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		dst.T = t
 		dst.V = nil
 		f64, _ := r.Float64()
-		f32 := float32(f64)
+		// Narrow via softfloat so the rounding is not hardware-dependent.
+		f32Bits := softfloat.F64to32(math.Float64bits(f64))
+		f32 := math.Float32frombits(f32Bits)
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
-		dst.SetFloat32(math.Float32bits(f32))
+		dst.SetFloat32(f32Bits)
 		return
 	case Float64Kind:
 		dst.T = t
