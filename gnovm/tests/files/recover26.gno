@@ -39,5 +39,5 @@ func main() {
 // slicebounds => error: runtime error: slice bounds out of range [1:5] with capacity 3
 // uncomparable => error: runtime error: comparing uncomparable type []int
 // typeassert => error: int is not of type string
-// defernil => error: defer called a nil function
+// defernil => error: runtime error: defer called a nil function
 // unhashable => error: runtime error: hash of unhashable type map[int]int
