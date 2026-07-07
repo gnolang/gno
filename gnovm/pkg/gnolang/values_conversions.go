@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
@@ -1408,7 +1409,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if !isRatInt(r) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				r.RatString(),
+				bigdecErrString(r),
 			))
 		}
 		dst.T = t
@@ -1428,7 +1429,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if !isRatInt(r) {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				r.RatString(),
+				bigdecErrString(r),
 			))
 		}
 		ConvertUntypedBigintTo(dst, BigintValue{V: toRatBigInt(r)}, t)
@@ -1470,9 +1471,41 @@ func isRatInt(r *big.Rat) bool {
 
 func toRatBigInt(r *big.Rat) *big.Int {
 	if !r.IsInt() {
-		panic(fmt.Sprintf("cannot convert non-integer rational %s to big.Int", r.RatString()))
+		panic(fmt.Sprintf("cannot convert non-integer rational %s to big.Int", bigdecErrString(r)))
 	}
 	return new(big.Int).Set(r.Num())
+}
+
+// bigdecErrString renders r for user-facing error messages. It returns the
+// minimal decimal form for terminating decimals (matching source literals
+// like 1.2 or 3.14), and falls back to the rational form a/b otherwise
+// (e.g. the result of 1.0/3.0). This preserves parity with the pre-branch
+// apd.Decimal.String() output, which could only ever produce decimal form.
+func bigdecErrString(r *big.Rat) string {
+	if r.IsInt() {
+		return r.Num().String()
+	}
+	// A rational a/b (in lowest terms) is a terminating decimal iff every
+	// prime factor of b is 2 or 5. Strip those factors from a copy of b.
+	d := new(big.Int).Set(r.Denom())
+	for d.Bit(0) == 0 {
+		d.Rsh(d, 1)
+	}
+	five := big.NewInt(5)
+	for new(big.Int).Mod(d, five).Sign() == 0 {
+		d.Quo(d, five)
+	}
+	if d.Cmp(big.NewInt(1)) != 0 {
+		return r.RatString()
+	}
+	// Terminating: bit-length of the original denominator is an ample upper
+	// bound on the fractional digits needed; trim trailing zeros.
+	s := r.FloatString(r.Denom().BitLen())
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimSuffix(s, ".")
+	}
+	return s
 }
 
 // IsExactBigDec checks if v is a BigdecValue that can be represented
