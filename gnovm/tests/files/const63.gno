@@ -1,9 +1,7 @@
 package main
 
 // Untyped float constant arithmetic must use exact rational semantics,
-// matching Go's math/big.Rat behavior. Each assertion below is verified
-// to also hold in Go (run: go run _verify/const63_go/main.go).
-
+// matching Go's math/big.Rat behavior.
 func main() {
 	// basic rational: 1/3 * 3 == 1 (fails with decimal arithmetic)
 	const a = (1.0 / 3.0) * 3.0
