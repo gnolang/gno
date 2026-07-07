@@ -38,16 +38,18 @@ func TestBigdecErrString(t *testing.T) {
 	}{
 		{"integer", 42, 1, "42"},
 		{"negative integer", -7, 1, "-7"},
-		{"one-decimal", 6, 5, "1.2"},               // 1.2
-		{"two-decimal", 157, 50, "3.14"},           // 3.14
-		{"tiny terminating", 1, 1000, "0.001"},     // 1/1000
-		{"eighth", 3, 8, "0.375"},                  // 3/8
-		{"negative decimal", -6, 5, "-1.2"},        // -1.2
-		{"non-terminating", 1, 3, "1/3"},           // 1.0/3.0 style: falls back
-		{"non-terminating 2", 22, 7, "22/7"},       // classic
+		{"one-decimal", 6, 5, "1.2"},           // 1.2
+		{"two-decimal", 157, 50, "3.14"},       // 3.14
+		{"tiny terminating", 1, 1000, "0.001"}, // 1/1000
+		{"eighth", 3, 8, "0.375"},              // 3/8
+		{"negative decimal", -6, 5, "-1.2"},    // -1.2
+		{"non-terminating", 1, 3, "1/3"},       // 1.0/3.0 style: falls back
+		{"non-terminating 2", 22, 7, "22/7"},   // classic
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			r := big.NewRat(tc.num, tc.den)
 			require.Equal(t, tc.want, bigdecErrString(r))
 		})
