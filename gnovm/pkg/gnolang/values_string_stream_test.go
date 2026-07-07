@@ -407,7 +407,7 @@ func fixtureCorpus() []fixture {
 var sliceInt300Golden = func() string {
 	var b strings.Builder
 	b.WriteString("(slice[")
-	for i := 0; i < 300; i++ {
+	for i := range 300 {
 		if i > 0 {
 			b.WriteByte(',')
 		}

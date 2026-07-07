@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -406,17 +407,17 @@ func (pool *BlockPool) debug() string {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	str := ""
+	var str strings.Builder
 	nextHeight := pool.height + pool.requestersLen()
 	for h := pool.height; h < nextHeight; h++ {
 		if pool.requesters[h] == nil {
-			str += fmt.Sprintf("H(%v):X ", h)
+			str.WriteString(fmt.Sprintf("H(%v):X ", h))
 		} else {
-			str += fmt.Sprintf("H(%v):", h)
-			str += fmt.Sprintf("B?(%v) ", pool.requesters[h].block != nil)
+			str.WriteString(fmt.Sprintf("H(%v):", h))
+			str.WriteString(fmt.Sprintf("B?(%v) ", pool.requesters[h].block != nil))
 		}
 	}
-	return str
+	return str.String()
 }
 
 // -------------------------------------

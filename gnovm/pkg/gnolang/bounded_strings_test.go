@@ -142,7 +142,7 @@ func TestBoundedSprintTV_NestedComposite_DepthCap(t *testing.T) {
 		{T: IntType}, // value 0
 	}}
 	cur := innermost
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		outer := &StructValue{Fields: []TypedValue{{V: cur}}}
 		cur = outer
 	}
@@ -154,7 +154,7 @@ func TestBoundedSprintTV_NestedComposite_DepthCap(t *testing.T) {
 
 func TestBoundedSprintTV_Map(t *testing.T) {
 	mv := &MapValue{List: &MapList{}}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		key := TypedValue{T: StringType, V: StringValue("k")}
 		val := TypedValue{T: IntType}
 		val.SetInt(int64(i))

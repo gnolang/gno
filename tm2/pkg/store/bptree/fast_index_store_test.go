@@ -44,9 +44,9 @@ func TestStore_FastIndexParity(t *testing.T) {
 
 	keys := [][]byte{[]byte("alpha"), []byte("beta"), []byte("gamma"), []byte("delta")}
 	var cid types.CommitID
-	for round := 0; round < 3; round++ {
+	for round := range 3 {
 		for i, k := range keys {
-			v := []byte(fmt.Sprintf("v%d.%d", round, i))
+			v := fmt.Appendf(nil, "v%d.%d", round, i)
 			stOn.Set(nil, k, v)
 			stOff.Set(nil, k, v)
 		}

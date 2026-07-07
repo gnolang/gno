@@ -268,11 +268,8 @@ func BoundedSprintException(e *Exception, m *Machine, lim int) string {
 func BoundedStacktrace(s Stacktrace, lim int) string {
 	w := newBoundedBuf(lim)
 	totalCalls := len(s.Calls)
-	visit := totalCalls
-	if visit > MaxStacktraceFrames {
-		visit = MaxStacktraceFrames
-	}
-	for i := 0; i < visit; i++ {
+	visit := min(totalCalls, MaxStacktraceFrames)
+	for i := range visit {
 		call := s.Calls[i]
 		var line int
 		if i == 0 {
@@ -472,10 +469,7 @@ func boundedSprintStringValue(w *boundedBuf, sv StringValue) {
 	// non-printable bytes (`\u00XX` = 6 bytes per source byte
 	// worst case). Pre-truncate to bound the intermediate.
 	const expandFactor = 6
-	preTruncCap := rem / expandFactor
-	if preTruncCap < 1 {
-		preTruncCap = 1
-	}
+	preTruncCap := max(rem/expandFactor, 1)
 	srcWasTruncated := false
 	if len(s) > preTruncCap {
 		s = s[:preTruncCap]
@@ -556,15 +550,9 @@ func boundedSprintArrayValue(w *boundedBuf, av *ArrayValue, depth int) {
 		rem := w.Remaining()
 		// "0x" prefix + 2 hex chars per byte + "...total N bytes" suffix
 		const suffixOverhead = 24 // generous — len("...total NNNNNN bytes") ≈ 22
-		previewBytes := MaxByteArrayBytes
-		if previewBytes > n {
-			previewBytes = n
-		}
+		previewBytes := min(MaxByteArrayBytes, n)
 		if previewBytes*2+2+suffixOverhead > rem {
-			previewBytes = (rem - 2 - suffixOverhead) / 2
-			if previewBytes < 0 {
-				previewBytes = 0
-			}
+			previewBytes = max((rem-2-suffixOverhead)/2, 0)
 		}
 		w.WriteString("0x")
 		for i := 0; i < previewBytes; i++ {
@@ -596,10 +584,7 @@ func boundedSprintSliceValue(w *boundedBuf, sv *SliceValue, depth int) {
 		}
 		// index range
 		from := sv.Offset
-		to := sv.Offset + sv.Length
-		if to > len(av.List) {
-			to = len(av.List)
-		}
+		to := min(sv.Offset+sv.Length, len(av.List))
 		if from < 0 {
 			from = 0
 		}
@@ -616,12 +601,9 @@ func boundedSprintList(w *boundedBuf, list []TypedValue, depth int, open, closer
 		w.WriteString(closer)
 		return
 	}
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString(open)
-	for i := 0; i < visit; i++ {
+	for i := range visit {
 		if i > 0 {
 			w.WriteString(", ")
 		}
@@ -668,10 +650,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 		return
 	}
 	n := mv.List.Size
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString("{")
 	cur := mv.List.Head
 	for i := 0; i < visit && cur != nil; i++ {
@@ -686,10 +665,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 			w.WriteString("}")
 			return
 		}
-		half := budget / 2
-		if half < 1 {
-			half = 1
-		}
+		half := max(budget/2, 1)
 		ksub := newBoundedBuf(half)
 		boundedSprintTV(ksub, cur.Key, depth+1)
 		w.WriteString(ksub.String())
