@@ -251,10 +251,7 @@ func (rm *readMeter) windows(maxW int) []window {
 	k := (len(segs) + maxW - 1) / maxW
 	var ws []window
 	for hi := len(segs); hi > 0; hi -= k {
-		lo := hi - k
-		if lo < 0 {
-			lo = 0
-		}
+		lo := max(hi-k, 0)
 		var w window
 		rates := make([]float64, 0, hi-lo)
 		for _, sg := range segs[lo:hi] {
@@ -386,10 +383,7 @@ func buildDiskFixture(tb testing.TB, tree TreeBench, from, to, batch uint64, lab
 	}
 
 	for i := from; i < to; {
-		end := i + batch
-		if end > to {
-			end = to
-		}
+		end := min(i+batch, to)
 		t0 := time.Now()
 		for ; i < end; i++ {
 			k := make([]byte, diskKeyLen)
@@ -650,7 +644,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			if *diskWarmupOps > 0 && b.N > 1 {
 				warm := mrand.New(mrand.NewSource(12))
 				for wb := (*diskWarmupOps + bs - 1) / bs; wb > 0; wb-- {
-					for j := 0; j < bs; j++ {
+					for j := range bs {
 						k := make([]byte, diskKeyLen)
 						v := make([]byte, diskValLen)
 						if warm.Float64() < *diskUpdateFrac {
@@ -685,7 +679,7 @@ func BenchmarkDiskBlockWrite(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ { // one iteration == one block
 				rm.snap(b)
-				for j := 0; j < bs; j++ {
+				for j := range bs {
 					k := make([]byte, diskKeyLen) // fresh per Set (IAVL retains key ref)
 					v := make([]byte, diskValLen)
 					if rng.Float64() < *diskUpdateFrac {
