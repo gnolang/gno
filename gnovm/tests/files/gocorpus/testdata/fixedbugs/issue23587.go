@@ -15,7 +15,11 @@ func _(x int) {
 }
 
 // GnoError:
+// line 10: checker for ILLEGAL does not exist
 // line 14: expected ';', found '~' (and 1 more errors)
 
 // GoTypeCheckError:
 // line 14: expected ';', found '~' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 10: checker for ILLEGAL does not exist

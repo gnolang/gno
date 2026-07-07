@@ -22,6 +22,7 @@ func main() {
 
 // GnoError:
 // line 17: struct type struct{} has no field X
+// line 19: cannot use untyped Bigint as StringKind
 
 // GoTypeCheckError:
 // line 17: unknown field X in struct literal of type T

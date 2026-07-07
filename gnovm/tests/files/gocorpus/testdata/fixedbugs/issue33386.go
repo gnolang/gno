@@ -28,10 +28,32 @@ func _() {
 	_ = []int{1, 2, 3 + } // ERROR "expected expression|expected operand"
 }
 
-// GnoStaticIncomplete: covered 1 of 5 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 16: expected operand, found '}' (and 5 more errors)
+// line 17: expected operand, found '}' (and 5 more errors)
+// line 19: expected '(', found _ (and 3 more errors)
+// line 20: expected operand, found 'defer' (and 4 more errors)
+// line 22: expected operand, found '}' (and 1 more errors)
+// line 23: expected operand, found '}' (and 1 more errors)
+// line 25: expected '(', found _ (and 3 more errors)
+// line 26: expected '==', found '=' (and 1 more errors)
+// line 27: expected '==', found '=' (and 1 more errors)
+// line 28: expected '==', found '=' (and 1 more errors)
+// line 29: expected operand, found '}' (and 1 more errors)
+// line 31: expected '(', found main
 
 // GoTypeCheckError:
 // line 16: expected operand, found '}' (and 5 more errors)
+// line 22: expected operand, found '}' (and 1 more errors)
+// line 26: expected '==', found '=' (and 1 more errors)
+// line 27: expected '==', found '=' (and 1 more errors)
+// line 28: expected '==', found '=' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 17: expected operand, found '}' (and 5 more errors)
+// line 19: expected '(', found _ (and 3 more errors)
+// line 20: expected operand, found 'defer' (and 4 more errors)
+// line 23: expected operand, found '}' (and 1 more errors)
+// line 25: expected '(', found _ (and 3 more errors)
+// line 29: expected operand, found '}' (and 1 more errors)
+// line 31: expected '(', found main

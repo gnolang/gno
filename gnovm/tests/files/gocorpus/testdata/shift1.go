@@ -248,8 +248,6 @@ func _() {
 	_, _, _ = x, y, z
 }
 
-// GnoStaticIncomplete: covered 62 of 105 markers (Gno preprocess: 58, go/types guard: 62); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 20: operator << not defined on: Float64Kind
 // line 21: operator << not defined on: Float32Kind
@@ -269,6 +267,8 @@ func _() {
 // line 65: operator << not defined on: Float64Kind
 // line 66: operator << not defined on: Float64Kind
 // line 67: operator << not defined on: Float32Kind
+// line 76: operator << not defined on: Float64Kind
+// line 77: operator << not defined on: StringKind
 // line 83: operator << not defined on: Float64Kind
 // line 84: operator << not defined on: Float64Kind
 // line 85: operator << not defined on: Float64Kind
@@ -309,6 +309,56 @@ func _() {
 // line 142: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
 // line 143: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
 // line 147: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 157: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 162: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 165: operator << not defined on: Float32Kind
+// line 167: operator << not defined on: Float32Kind
+// line 168: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 172: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 175: operator << not defined on: Float32Kind
+// line 176: operator << not defined on: Float32Kind
+// line 177: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 179: name complex not declared
+// line 180: name complex not declared
+// line 181: name complex not declared
+// line 182: name complex not declared
+// line 186: name complex not declared
+// line 187: name complex not declared
+// line 192: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 195: operator << not defined on: Float32Kind
+// line 196: operator << not defined on: Float32Kind
+// line 197: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 204: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 205: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 206: operator << not defined on: Float64Kind
+// line 207: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 208: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 211: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 212: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 213: operator << not defined on: Float64Kind
+// line 214: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 215: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 219: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 220: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 222: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 223: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 226: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 227: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 228: operator << not defined on: Float64Kind
+// line 229: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 230: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 233: operator << not defined on: Float32Kind
+// line 234: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 235: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 236: operator << not defined on: Float32Kind
+// line 237: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 238: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 240: name complex128 not defined in fileset with files [shift1.go]
+// line 242: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 243: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
+// line 244: operator << not defined on: Float64Kind
+// line 245: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 246: invalid operation: shifted operand (const (1.1 <untyped> bigdec)) (<untyped> bigdec) must be integer
 
 // GoTypeCheckError:
 // line 20: invalid operation: shifted operand 1.0 (type float64) must be integer
@@ -373,3 +423,56 @@ func _() {
 // line 142: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
 // line 143: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
 // line 147: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 157: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 162: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 165: invalid operation: shifted operand 1 (type float32) must be integer
+// line 167: invalid operation: shifted operand 1. (type float32) must be integer
+// line 168: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 172: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 175: invalid operation: shifted operand 1 (type float32) must be integer
+// line 176: invalid operation: shifted operand 1. (type float32) must be integer
+// line 177: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 179: invalid operation: shifted operand 1. (type float64) must be integer
+// line 180: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 181: invalid operation: shifted operand 1. (type float64) must be integer
+// line 182: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 186: invalid operation: shifted operand 1 (type float64) must be integer
+// line 187: invalid argument: arguments have type int, expected floating-point
+// line 192: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 195: invalid operation: shifted operand 1 (type float32) must be integer
+// line 196: invalid operation: shifted operand 1. (type float32) must be integer
+// line 197: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 205: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 206: invalid operation: shifted operand 1. (type float64) must be integer
+// line 207: invalid operation: shifted operand 1. (type float64) must be integer
+// line 208: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 212: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 213: invalid operation: shifted operand (1. << s) (untyped float value) must be integer
+// line 214: invalid operation: shifted operand (1. << s) (untyped float value) must be integer
+// line 215: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 220: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 223: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 227: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 230: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 233: invalid operation: shifted operand 1 (type float32) must be integer
+// line 234: invalid operation: shifted operand 1 (type float32) must be integer
+// line 235: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 236: invalid operation: shifted operand 1. (type float32) must be integer
+// line 237: invalid operation: shifted operand 1. (type float32) must be integer
+// line 238: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 241: invalid operation: shifted operand 1 (type complex128) must be integer
+// line 242: invalid operation: shifted operand 1 (type complex128) must be integer
+// line 243: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+// line 244: invalid operation: shifted operand (1. << s) (untyped float value) must be integer
+// line 245: invalid operation: shifted operand (1. << s) (untyped float value) must be integer
+// line 246: invalid operation: shifted operand 1.1 (untyped float constant) must be integer
+
+// GnoOverStrictError:
+// line 204: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 211: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 219: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 222: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 226: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 228: operator << not defined on: Float64Kind
+// line 229: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+// line 240: name complex128 not defined in fileset with files [shift1.go]

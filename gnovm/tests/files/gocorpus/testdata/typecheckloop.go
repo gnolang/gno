@@ -15,7 +15,6 @@ const C = A + B + 1
 
 // GnoError:
 // line 12: invalid recursive value: A -> B -> C -> A
-// line 13: name A not defined in fileset with files [typecheckloop.go]
 
 // GoTypeCheckError:
 // line 12: initialization cycle for A

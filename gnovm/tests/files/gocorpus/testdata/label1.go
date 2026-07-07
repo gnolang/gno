@@ -122,6 +122,42 @@ L5:
 }
 
 // GnoError:
+// line 20: select statements are not permitted
+// line 21: expected '}', found 'default' (and 1 more errors)
+// line 25: expected declaration, found '}'
+// line 40: select statements are not permitted
+// line 41: expected statement, found 'default' (and 1 more errors)
+// line 51: expected declaration, found 'for'
+// line 52: expected declaration, found 'if'
+// line 53: expected declaration, found 'continue'
+// line 54: expected declaration, found '}'
+// line 55: expected declaration, found '}'
+// line 57: expected declaration, found L3
+// line 58: expected declaration, found 'switch'
+// line 59: expected declaration, found 'case'
+// line 60: expected declaration, found 'if'
+// line 61: expected declaration, found 'break'
+// line 62: expected declaration, found '}'
+// line 63: expected declaration, found 'if'
+// line 64: expected declaration, found 'continue'
+// line 65: expected declaration, found '}'
+// line 66: expected declaration, found 'goto'
+// line 67: expected declaration, found '}'
+// line 69: expected declaration, found L4
+// line 70: expected declaration, found 'if'
+// line 71: expected declaration, found 'if'
+// line 72: expected declaration, found 'break'
+// line 73: expected declaration, found '}'
+// line 74: expected declaration, found 'if'
+// line 75: expected declaration, found 'continue'
+// line 76: expected declaration, found '}'
+// line 77: expected declaration, found 'if'
+// line 78: expected declaration, found 'goto'
+// line 79: expected declaration, found '}'
+// line 80: expected declaration, found '}'
+// line 82: expected declaration, found L5
+// line 83: expected declaration, found f2
+// line 84: expected declaration, found 'if'
 // line 108: label on undefined (and 1 more errors)
 // line 113: label dance undefined
 
@@ -141,3 +177,37 @@ L5:
 // line 108: invalid continue label on
 // line 111: break not in for, switch, or select statement
 // line 113: invalid break label dance
+
+// GnoOverStrictError:
+// line 20: select statements are not permitted
+// line 21: expected '}', found 'default' (and 1 more errors)
+// line 25: expected declaration, found '}'
+// line 40: select statements are not permitted
+// line 41: expected statement, found 'default' (and 1 more errors)
+// line 51: expected declaration, found 'for'
+// line 52: expected declaration, found 'if'
+// line 54: expected declaration, found '}'
+// line 55: expected declaration, found '}'
+// line 57: expected declaration, found L3
+// line 58: expected declaration, found 'switch'
+// line 59: expected declaration, found 'case'
+// line 60: expected declaration, found 'if'
+// line 61: expected declaration, found 'break'
+// line 62: expected declaration, found '}'
+// line 63: expected declaration, found 'if'
+// line 65: expected declaration, found '}'
+// line 66: expected declaration, found 'goto'
+// line 67: expected declaration, found '}'
+// line 69: expected declaration, found L4
+// line 70: expected declaration, found 'if'
+// line 71: expected declaration, found 'if'
+// line 73: expected declaration, found '}'
+// line 74: expected declaration, found 'if'
+// line 76: expected declaration, found '}'
+// line 77: expected declaration, found 'if'
+// line 78: expected declaration, found 'goto'
+// line 79: expected declaration, found '}'
+// line 80: expected declaration, found '}'
+// line 82: expected declaration, found L5
+// line 83: expected declaration, found f2
+// line 84: expected declaration, found 'if'

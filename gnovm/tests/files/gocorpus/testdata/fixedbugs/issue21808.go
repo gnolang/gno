@@ -25,4 +25,5 @@ func main() {
 // A
 // B
 
-// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence:
+// TODO: <category>: explain why this divergence is acceptable

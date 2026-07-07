@@ -19,6 +19,12 @@ func main() {}
 
 // GnoError:
 // line 10: circular dependency: a -> f -> c -> b
+// line 14: 2: [function "f" does not terminate]
+// line 16: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: initialization cycle for b
+
+// GnoOverStrictError:
+// line 14: 2: [function "f" does not terminate]
+// line 16: expected declaration, found '}'

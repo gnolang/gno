@@ -53,7 +53,31 @@ func foo6() (T, string) {
 }
 
 // GnoError:
+// line 9: 2: [function "foo" does not terminate]
 // line 10: expected 2 return values
+// line 11: expected declaration, found '}'
+// line 14: expected 0 return values
+// line 17: 2: [function "foo3" does not terminate]
+// line 18: expected declaration, found 'if'
+// line 19: expected 4 return values
+// line 20: expected declaration, found '}'
+// line 21: expected 4 return values
+// line 22: expected declaration, found '}'
+// line 27: expected 2 return values
+// line 29: expected 2 return values
+// line 31: expected 2 return values
+// line 41: 2: [function "foo5" does not terminate]
+// line 42: expected declaration, found 'if'
+// line 43: expected 3 return values
+// line 44: expected declaration, found '}'
+// line 45: expected declaration, found ptr
+// line 46: expected 3 return values
+// line 47: expected declaration, found '}'
+// line 48: imaginaries are not supported
+// line 49: expected declaration, found '}'
+// line 51: 2: [function "foo6" does not terminate]
+// line 52: expected 2 return values
+// line 53: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: not enough return values
@@ -89,3 +113,19 @@ func foo6() (T, string) {
 // line 52: too many return values
 // 	have (string, bool, bool)
 // 	want (T, string)
+
+// GnoOverStrictError:
+// line 9: 2: [function "foo" does not terminate]
+// line 11: expected declaration, found '}'
+// line 17: 2: [function "foo3" does not terminate]
+// line 18: expected declaration, found 'if'
+// line 20: expected declaration, found '}'
+// line 22: expected declaration, found '}'
+// line 41: 2: [function "foo5" does not terminate]
+// line 42: expected declaration, found 'if'
+// line 44: expected declaration, found '}'
+// line 45: expected declaration, found ptr
+// line 47: expected declaration, found '}'
+// line 49: expected declaration, found '}'
+// line 51: 2: [function "foo6" does not terminate]
+// line 53: expected declaration, found '}'

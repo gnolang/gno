@@ -21,7 +21,6 @@ func main() {
 // GnoError:
 // line 16: name init not declared
 // line 17: name runtime not declared
-// line 18: name init not defined in fileset with files [init.go]
 
 // GoTypeCheckError:
 // line 16: undefined: init

@@ -186,4 +186,5 @@ func fromBits(b uint64, x interface{}) interface{} {
 
 // GoOutput:
 
-// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence:
+// TODO: <category>: explain why this divergence is acceptable

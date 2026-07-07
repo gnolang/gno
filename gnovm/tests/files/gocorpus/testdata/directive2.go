@@ -57,4 +57,8 @@ func f() {
 // EOF
 //go:noinline // ERROR "misplaced compiler directive"
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// UncaughtError:
+// line 18: uncaught; gc expects: misplaced compiler directive
+// line 34: uncaught; gc expects: misplaced compiler directive
+// line 46: uncaught; gc expects: misplaced compiler directive
+// line 48: uncaught; gc expects: misplaced compiler directive

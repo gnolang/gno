@@ -30,10 +30,14 @@ func main() {
 	}
 }
 
-// GnoStaticIncomplete: covered 0 of 2 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 24: expected statement, found 'case'
+// line 26: expected statement, found 'default'
+
+// GoTypeCheckError:
+// line 23: label L0 declared and not used
+// line 25: label L1 declared and not used
 
 // GnoOverStrictError:
 // line 24: expected statement, found 'case'
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// line 26: expected statement, found 'default'

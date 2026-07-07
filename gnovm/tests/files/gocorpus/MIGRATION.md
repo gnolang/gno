@@ -9,13 +9,12 @@ do not edit by hand; re-run after `--update-golden-tests`.
 | Bucket | Count | Meaning |
 |---|--:|---|
 | 🔥 **Urgent KnownIssue** | 53 | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |
-| 🕳️ **Uncaught leak** | 1 | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |
-| 🟠 **Deferred KnownIssue** | 80 | static over-strict — Gno rejects code gc *and* go/types accept (caught at deploy; no inconsistent state); defer |
+| 🕳️ **Uncaught leak** | 21 | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |
+| 🟠 **Over-strict** | 158 | Gno rejects code gc *and* go/types accept (static; caught at deploy, no inconsistent state — fix deferred) |
 | 🔵 KnownDivergence | 47 | accepted run-mode difference (not a bug) |
-| 🟡 GnoStaticIncomplete | 21 | partial errorcheck marker coverage (static caveat) |
-| 🛡️ GuardOnly | 66 | rejected by the go/types guard alone — Gno preprocess flags nothing; holds in production, but is the native-coverage worklist for go/types removal |
-| ⚪ Unsupported | 810 | feature gap (unsupported import / language feature); skipped |
-| ✅ Clean | 990 | verified, no outstanding issue |
+| 🛡️ Permissive-GuardOnly | 62 | Gno preprocess accepts; the go/types guard alone rejects — holds in production, but is the native-coverage worklist for go/types removal |
+| ⚪ Unsupported | 822 | feature gap (unsupported import / language feature); skipped |
+| ✅ Clean | 905 | verified, no outstanding issue |
 | **Total migrated** | 2068 | |
 
 ## 🔥 Urgent KnownIssue — runtime divergence (fix now) (53)
@@ -76,96 +75,194 @@ Gno's run-mode result differs from Go's — a wrong value, or a panic where Go s
 - [`recover2.go`](testdata/recover2.go) — Runtime panics carry a bare string, so v.(error) fails ("string doesn't — 🚧 Fixing: PR #5732 (fix/5667, typedRuntimeError); partial on branch (wording gap at test4), broken on master; re-check after merge.
 - [`typeswitch1.go`](testdata/typeswitch1.go) — In `switch xx := x.(type)`, the `case nil:` clause fails to declare the — 🚧 Fixing: PR #5766 (fix/typeswitch1, case-nil tag-type handling); verified clean on branch, broken on master; re-golden after merge.
 
-## 🕳️ Uncaught leak — gc-invalid code deploys (1)
+## 🕳️ Uncaught leak — gc-invalid code deploys (21)
 
 Checkable (non-GC_ERROR) markers caught by neither Gno's preprocess nor the go/types guard: the whole stack accepts code gc rejects. Under-rejection — invalid packages deploy — so these rank with (arguably above) the urgent bucket.
 
-- [`convert2.go`](testdata/convert2.go) — line 46: uncaught; gc expects: cannot use .* in assignment|incompatible type
+- [`directive2.go`](testdata/directive2.go) — line 18: uncaught; gc expects: misplaced compiler directive
+- [`fixedbugs/bug195.go`](testdata/fixedbugs/bug195.go) — line 9: uncaught; gc expects: interface
+- [`fixedbugs/bug305.go`](testdata/fixedbugs/bug305.go) — line 24: uncaught; gc expects: cannot|incompatible
+- [`fixedbugs/issue10975.go`](testdata/fixedbugs/issue10975.go) — line 13: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type
+- [`fixedbugs/issue11610.go`](testdata/fixedbugs/issue11610.go) — line 13: uncaught; gc expects: unexpected keyword var|expected identifier|expected type
+- [`fixedbugs/issue11614.go`](testdata/fixedbugs/issue11614.go) — line 14: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type int requires
+- [`fixedbugs/issue13274.go`](testdata/fixedbugs/issue13274.go) — line 11: uncaught; gc expects: unexpected EOF|expected .*}.*
+- [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — line 10: uncaught; gc expects: 
+- [`fixedbugs/issue15611.go`](testdata/fixedbugs/issue15611.go) — line 11: uncaught; gc expects: newline in character literal|newline in rune literal
+- [`fixedbugs/issue18331.go`](testdata/fixedbugs/issue18331.go) — line 19: uncaught; gc expects: can only use //go:noescape with external func implementations
+- [`fixedbugs/issue18393.go`](testdata/fixedbugs/issue18393.go) — line 20: uncaught; gc expects: import path must be a string
+- [`fixedbugs/issue24339.go`](testdata/fixedbugs/issue24339.go) — line 20: uncaught; gc expects: unknown field foo
+- [`fixedbugs/issue28450.go`](testdata/fixedbugs/issue28450.go) — line 10: uncaught; gc expects: non-final parameter a|must be last parameter|can only use ... with final parameter
+- [`fixedbugs/issue32133.go`](testdata/fixedbugs/issue32133.go) — line 10: uncaught; gc expects: newline in string
+- [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — line 13: uncaught; gc expects: duplicate method M
+- [`fixedbugs/issue48097.go`](testdata/fixedbugs/issue48097.go) — line 12: uncaught; gc expects: can only use //go:noescape with external func implementations
+- [`fixedbugs/issue49368.go`](testdata/fixedbugs/issue49368.go) — line 10: uncaught; gc expects: 
+- [`fixedbugs/issue51531.go`](testdata/fixedbugs/issue51531.go) — line 11: uncaught; gc expects: 
+- [`fixedbugs/issue67141.go`](testdata/fixedbugs/issue67141.go) — line 13: uncaught; gc expects: cannot range over 10
+- [`mainsig.go`](testdata/mainsig.go) — line 9: uncaught; gc expects: func main must have no arguments and no return values
+- [`nowritebarrier.go`](testdata/nowritebarrier.go) — line 22: uncaught; gc expects: write barrier prohibited
 
-## 🟠 Deferred KnownIssue — static over-strictness (80)
+## 🟠 Over-strict — Gno-only static rejects (fix deferred) (158)
 
 Gno's preprocess rejects code that both gc (markers) and the go/types guard accept. Only over-rejects otherwise-valid packages (they can't deploy/call) — no inconsistent state — so deferred. Note = human verdict (compile KnownIssue) or the first over-strict line (errorcheck GnoOverStrictError).
 
+- [`blank1.go`](testdata/blank1.go) — line 17: expected declaration, found println
 - [`bombad.go`](testdata/bombad.go) — line 15: illegal byte order mark (and 2 more errors)
 - [`complit1.go`](testdata/complit1.go) — line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`const2.go`](testdata/const2.go) — line 25: invalid decimal constant: 1e+500000000
-- [`convlit1.go`](testdata/convlit1.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`escape_calls.go`](testdata/escape_calls.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`escape_slice.go`](testdata/escape_slice.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug086.go`](testdata/fixedbugs/bug086.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug107.go`](testdata/fixedbugs/bug107.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`convert2.go`](testdata/convert2.go) — line 319: cannot convert s<VPBlock(1,0)> (of type []uint8) to type [4]uint8
+- [`convlit1.go`](testdata/convlit1.go) — line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`declbad.go`](testdata/declbad.go) — line 45: expected 0 return values
+- [`errorcheck/blank1.go`](testdata/errorcheck/blank1.go) — line 17: expected declaration, found println
+- [`fixedbugs/bug015.go`](testdata/fixedbugs/bug015.go) — line 13: expected declaration, found '}'
+- [`fixedbugs/bug040.go`](testdata/fixedbugs/bug040.go) — line 11: expected ')', found '}'
+- [`fixedbugs/bug049.go`](testdata/fixedbugs/bug049.go) — line 13: expected declaration, found '}'
+- [`fixedbugs/bug050.go`](testdata/fixedbugs/bug050.go) — line 8: expected 'package', found '}'
+- [`fixedbugs/bug086.go`](testdata/fixedbugs/bug086.go) — line 9: 2: [function "f" does not terminate]
+- [`fixedbugs/bug104.go`](testdata/fixedbugs/bug104.go) — line 8: 2: [function "f" does not terminate]
+- [`fixedbugs/bug107.go`](testdata/fixedbugs/bug107.go) — line 9: name FileInfo not declared
+- [`fixedbugs/bug117.go`](testdata/fixedbugs/bug117.go) — line 18: 2: [function "fn" does not terminate]
+- [`fixedbugs/bug123.go`](testdata/fixedbugs/bug123.go) — line 13: expected declaration, found 'return'
+- [`fixedbugs/bug13343.go`](testdata/fixedbugs/bug13343.go) — line 14: 2: [function "f" does not terminate]
 - [`fixedbugs/bug137.go`](testdata/fixedbugs/bug137.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/bug200.go`](testdata/fixedbugs/bug200.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug228a.go`](testdata/fixedbugs/bug228a.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/bug182.go`](testdata/fixedbugs/bug182.go) — line 13: expected declaration, found '}'
+- [`fixedbugs/bug200.go`](testdata/fixedbugs/bug200.go) — line 15: 3: duplicate type func(int) in type switch
+- [`fixedbugs/bug209.go`](testdata/fixedbugs/bug209.go) — line 13: expected declaration, found '}'
+- [`fixedbugs/bug228.go`](testdata/fixedbugs/bug228.go) — line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/bug228a.go`](testdata/fixedbugs/bug228a.go) — line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/bug250.go`](testdata/fixedbugs/bug250.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/bug255.go`](testdata/fixedbugs/bug255.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug274.go`](testdata/fixedbugs/bug274.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug305.go`](testdata/fixedbugs/bug305.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug365.go`](testdata/fixedbugs/bug365.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug397.go`](testdata/fixedbugs/bug397.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/bug255.go`](testdata/fixedbugs/bug255.go) — line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/bug274.go`](testdata/fixedbugs/bug274.go) — line 24: expected statement, found 'case'
+- [`fixedbugs/bug298.go`](testdata/fixedbugs/bug298.go) — line 9: function Sum does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/bug299.go`](testdata/fixedbugs/bug299.go) — line 11: expected declaration, found x
+- [`fixedbugs/bug326.go`](testdata/fixedbugs/bug326.go) — line 21: 2: [function "i" does not terminate]
+- [`fixedbugs/bug349.go`](testdata/fixedbugs/bug349.go) — line 11: 2: [function "foo" does not terminate]
+- [`fixedbugs/bug353.go`](testdata/fixedbugs/bug353.go) — line 18: expected declaration, found 'for'
+- [`fixedbugs/bug365.go`](testdata/fixedbugs/bug365.go) — line 14: 2: name foo not defined in fileset with files [bug365.go]
+- [`fixedbugs/bug374.go`](testdata/fixedbugs/bug374.go) — line 16: gno.land/p/filetest/foo.T does not implement gno.land/p/filetest/foo.I (missing method m)
+- [`fixedbugs/bug388.go`](testdata/fixedbugs/bug388.go) — line 13: expected declaration, found println (and 4 more errors)
+- [`fixedbugs/bug397.go`](testdata/fixedbugs/bug397.go) — line 10: 2: cannot use untyped Bigint as StringKind
+- [`fixedbugs/bug398.go`](testdata/fixedbugs/bug398.go) — line 15: expected declaration, found F
 - [`fixedbugs/bug403.go`](testdata/fixedbugs/bug403.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/bug418.go`](testdata/fixedbugs/bug418.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/bug462.go`](testdata/fixedbugs/bug462.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/bug418.go`](testdata/fixedbugs/bug418.go) — line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/bug459.go`](testdata/fixedbugs/bug459.go) — line 25: expected declaration, found '}'
+- [`fixedbugs/bug462.go`](testdata/fixedbugs/bug462.go) — line 11: name Open not declared
+- [`fixedbugs/bug463.go`](testdata/fixedbugs/bug463.go) — line 15: invalid recursive value: X -> A -> B -> C -> D -> A
+- [`fixedbugs/bug487.go`](testdata/fixedbugs/bug487.go) — line 22: 2: [function "H" does not terminate]
 - [`fixedbugs/bug516.go`](testdata/fixedbugs/bug516.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue10975.go`](testdata/fixedbugs/issue10975.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/bug518.go`](testdata/fixedbugs/bug518.go) — line 11: 2: [function "F2" does not terminate]
 - [`fixedbugs/issue11699.go`](testdata/fixedbugs/issue11699.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue11737.go`](testdata/fixedbugs/issue11737.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue13274.go`](testdata/fixedbugs/issue13274.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue11737.go`](testdata/fixedbugs/issue11737.go) — line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue13273.go`](testdata/fixedbugs/issue13273.go) — line 16: channel receive is not permitted
+- [`fixedbugs/issue13319.go`](testdata/fixedbugs/issue13319.go) — line 10: name x not declared
 - [`fixedbugs/issue13337.go`](testdata/fixedbugs/issue13337.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue13415.go`](testdata/fixedbugs/issue13415.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue13587.go`](testdata/fixedbugs/issue13587.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue14540.go`](testdata/fixedbugs/issue14540.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue15611.go`](testdata/fixedbugs/issue15611.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue15898.go`](testdata/fixedbugs/issue15898.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue18231.go`](testdata/fixedbugs/issue18231.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue18331.go`](testdata/fixedbugs/issue18331.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue18393.go`](testdata/fixedbugs/issue18393.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue13415.go`](testdata/fixedbugs/issue13415.go) — line 13: select statements are not permitted
+- [`fixedbugs/issue14006.go`](testdata/fixedbugs/issue14006.go) — line 51: expected statement, found 'case' (and 3 more errors)
+- [`fixedbugs/issue14520a.go`](testdata/fixedbugs/issue14520a.go) — line 10: expected declaration, found bogus (and 1 more errors)
+- [`fixedbugs/issue14540.go`](testdata/fixedbugs/issue14540.go) — line 12: fallthrough statement out of place
+- [`fixedbugs/issue15898.go`](testdata/fixedbugs/issue15898.go) — line 10: 3: duplicate type nil in type switch
+- [`fixedbugs/issue16369.go`](testdata/fixedbugs/issue16369.go) — line 10: expected declaration, found M
+- [`fixedbugs/issue16439.go`](testdata/fixedbugs/issue16439.go) — line 15: imaginaries are not supported
+- [`fixedbugs/issue16949.go`](testdata/fixedbugs/issue16949.go) — line 22: imaginaries are not supported
+- [`fixedbugs/issue17328.go`](testdata/fixedbugs/issue17328.go) — line 13: expected declaration, found '}'
+- [`fixedbugs/issue17588.go`](testdata/fixedbugs/issue17588.go) — line 17: expected 'IDENT', found '{' (and 4 more errors)
+- [`fixedbugs/issue17758.go`](testdata/fixedbugs/issue17758.go) — line 14: expected declaration, found _
+- [`fixedbugs/issue18231.go`](testdata/fixedbugs/issue18231.go) — line 16: 2: types cannot be elided in composite literals for struct types
 - [`fixedbugs/issue18640.go`](testdata/fixedbugs/issue18640.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue19699b.go`](testdata/fixedbugs/issue19699b.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue20185.go`](testdata/fixedbugs/issue20185.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue20780.go`](testdata/fixedbugs/issue20780.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue23823.go`](testdata/fixedbugs/issue23823.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue24339.go`](testdata/fixedbugs/issue24339.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue26616.go`](testdata/fixedbugs/issue26616.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue26855.go`](testdata/fixedbugs/issue26855.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue18747.go`](testdata/fixedbugs/issue18747.go) — line 20: missing condition in if statement (and 1 more errors)
+- [`fixedbugs/issue18915.go`](testdata/fixedbugs/issue18915.go) — line 17: expected declaration, found '}'
+- [`fixedbugs/issue19667.go`](testdata/fixedbugs/issue19667.go) — line 15: expected '(', found main
+- [`fixedbugs/issue19699b.go`](testdata/fixedbugs/issue19699b.go) — line 9: 2: [function "f" does not terminate]
+- [`fixedbugs/issue19977.go`](testdata/fixedbugs/issue19977.go) — line 13: expected '}', found 'default'
+- [`fixedbugs/issue20185.go`](testdata/fixedbugs/issue20185.go) — line 15: name t not declared
+- [`fixedbugs/issue20232.go`](testdata/fixedbugs/issue20232.go) — line 11: invalid decimal constant: 1e-1000000000
+- [`fixedbugs/issue21979.go`](testdata/fixedbugs/issue21979.go) — line 44: name complex128 not declared
+- [`fixedbugs/issue22581.go`](testdata/fixedbugs/issue22581.go) — line 14: expected declaration, found '}'
+- [`fixedbugs/issue22794.go`](testdata/fixedbugs/issue22794.go) — line 20: expected declaration, found _
+- [`fixedbugs/issue22904.go`](testdata/fixedbugs/issue22904.go) — line 18: a<VPInvalid(0)> is not a type
+- [`fixedbugs/issue23587.go`](testdata/fixedbugs/issue23587.go) — line 10: checker for ILLEGAL does not exist
+- [`fixedbugs/issue23664.go`](testdata/fixedbugs/issue23664.go) — line 16: expected declaration, found '}'
+- [`fixedbugs/issue24470.go`](testdata/fixedbugs/issue24470.go) — line 14: name x not declared
+- [`fixedbugs/issue26616.go`](testdata/fixedbugs/issue26616.go) — line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue26855.go`](testdata/fixedbugs/issue26855.go) — line 22: 2: cannot use *gno.land/p/filetest/p.T as struct{}
 - [`fixedbugs/issue27267.go`](testdata/fixedbugs/issue27267.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue28085.go`](testdata/fixedbugs/issue28085.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue32133.go`](testdata/fixedbugs/issue32133.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue33460.go`](testdata/fixedbugs/issue33460.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue28085.go`](testdata/fixedbugs/issue28085.go) — line 9: 2: duplicate key (0 int) in map literal
+- [`fixedbugs/issue28926.go`](testdata/fixedbugs/issue28926.go) — line 17: expected '}', found e (and 1 more errors)
+- [`fixedbugs/issue33386.go`](testdata/fixedbugs/issue33386.go) — line 17: expected operand, found '}' (and 5 more errors)
+- [`fixedbugs/issue33460.go`](testdata/fixedbugs/issue33460.go) — line 31: 2: duplicate key ("a" string) in map literal
 - [`fixedbugs/issue38125.go`](testdata/fixedbugs/issue38125.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue3925.go`](testdata/fixedbugs/issue3925.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue4099.go`](testdata/fixedbugs/issue4099.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue43428.go`](testdata/fixedbugs/issue43428.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue4359.go`](testdata/fixedbugs/issue4359.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue44432.go`](testdata/fixedbugs/issue44432.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue38745.go`](testdata/fixedbugs/issue38745.go) — line 16: 2: [function "f2" does not terminate]
+- [`fixedbugs/issue3925.go`](testdata/fixedbugs/issue3925.go) — line 18: 2: cannot use untyped Bigint as StringKind
+- [`fixedbugs/issue41247.go`](testdata/fixedbugs/issue41247.go) — line 9: 2: [function "f" does not terminate]
+- [`fixedbugs/issue41575.go`](testdata/fixedbugs/issue41575.go) — line 10: expected declaration, found f2
+- [`fixedbugs/issue4215.go`](testdata/fixedbugs/issue4215.go) — line 9: 2: [function "foo" does not terminate]
+- [`fixedbugs/issue4283.go`](testdata/fixedbugs/issue4283.go) — line 11: 2: [function "F1" does not terminate]
+- [`fixedbugs/issue43428.go`](testdata/fixedbugs/issue43428.go) — line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+- [`fixedbugs/issue4359.go`](testdata/fixedbugs/issue4359.go) — line 12: 2: name T1 not defined in fileset with files [issue4359.go]
+- [`fixedbugs/issue44266.go`](testdata/fixedbugs/issue44266.go) — line 20: expected declaration, found T1
+- [`fixedbugs/issue44432.go`](testdata/fixedbugs/issue44432.go) — line 9: 2: cannot use untyped Bigint as StringKind
+- [`fixedbugs/issue4468.go`](testdata/fixedbugs/issue4468.go) — line 30: goroutines are not permitted
+- [`fixedbugs/issue4470.go`](testdata/fixedbugs/issue4470.go) — line 14: expected '}', found 'default'
 - [`fixedbugs/issue45665.go`](testdata/fixedbugs/issue45665.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue45804.go`](testdata/fixedbugs/issue45804.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue45804.go`](testdata/fixedbugs/issue45804.go) — line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue46556.go`](testdata/fixedbugs/issue46556.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
 - [`fixedbugs/issue46720.go`](testdata/fixedbugs/issue46720.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
 - [`fixedbugs/issue46907.go`](testdata/fixedbugs/issue46907.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue48471.go`](testdata/fixedbugs/issue48471.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue48558.go`](testdata/fixedbugs/issue48558.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue48835.go`](testdata/fixedbugs/issue48835.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue49003.go`](testdata/fixedbugs/issue49003.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue49005a.go`](testdata/fixedbugs/issue49005a.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue49005b.go`](testdata/fixedbugs/issue49005b.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue5358.go`](testdata/fixedbugs/issue5358.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue48471.go`](testdata/fixedbugs/issue48471.go) — line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue48558.go`](testdata/fixedbugs/issue48558.go) — line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue48834.go`](testdata/fixedbugs/issue48834.go) — line 9: 2: [function "._0" does not terminate]
+- [`fixedbugs/issue48835.go`](testdata/fixedbugs/issue48835.go) — line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue49003.go`](testdata/fixedbugs/issue49003.go) — line 9: 2: [function "f" does not terminate]
+- [`fixedbugs/issue49005a.go`](testdata/fixedbugs/issue49005a.go) — line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue49005b.go`](testdata/fixedbugs/issue49005b.go) — line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue50372.go`](testdata/fixedbugs/issue50372.go) — line 20: channels are not permitted
+- [`fixedbugs/issue5089.go`](testdata/fixedbugs/issue5089.go) — line 14: expected declaration, found 'return'
+- [`fixedbugs/issue5358.go`](testdata/fixedbugs/issue5358.go) — line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue56220.go`](testdata/fixedbugs/issue56220.go) — line 9: 2: [function "f" does not terminate]
 - [`fixedbugs/issue59169.go`](testdata/fixedbugs/issue59169.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
 - [`fixedbugs/issue63462.go`](testdata/fixedbugs/issue63462.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue67141.go`](testdata/fixedbugs/issue67141.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue7675.go`](testdata/fixedbugs/issue7675.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue7746.go`](testdata/fixedbugs/issue7746.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue63489a.go`](testdata/fixedbugs/issue63489a.go) — line 20: expected declaration, found '}'
+- [`fixedbugs/issue63489b.go`](testdata/fixedbugs/issue63489b.go) — line 20: expected declaration, found '}'
+- [`fixedbugs/issue6405.go`](testdata/fixedbugs/issue6405.go) — line 11: 2: [function "Open" does not terminate]
+- [`fixedbugs/issue6572.go`](testdata/fixedbugs/issue6572.go) — line 10: expected declaration, found 'return' (and 1 more errors)
+- [`fixedbugs/issue6671.go`](testdata/fixedbugs/issue6671.go) — line 23: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
+- [`fixedbugs/issue7675.go`](testdata/fixedbugs/issue7675.go) — line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 - [`fixedbugs/issue8042.go`](testdata/fixedbugs/issue8042.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`fixedbugs/issue8385.go`](testdata/fixedbugs/issue8385.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`fixedbugs/issue8836.go`](testdata/fixedbugs/issue8836.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`initloop.go`](testdata/initloop.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`nilcheck.go`](testdata/nilcheck.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
-- [`nilptr3.go`](testdata/nilptr3.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`fixedbugs/issue8385.go`](testdata/fixedbugs/issue8385.go) — line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue8507.go`](testdata/fixedbugs/issue8507.go) — line 15: T<VPInvalid(0)> is not a type
+- [`fixedbugs/issue8836.go`](testdata/fixedbugs/issue8836.go) — line 13: function foobar does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`fixedbugs/issue9432.go`](testdata/fixedbugs/issue9432.go) — line 13: expected declaration, found bar
+- [`func1.go`](testdata/func1.go) — line 18: expected declaration, found 'return'
+- [`func3.go`](testdata/func3.go) — line 20: function f4 does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`import5.go`](testdata/import5.go) — line 16: unknown import path go/parser
+- [`initloop.go`](testdata/initloop.go) — line 13: invalid recursive value: x -> a -> b -> c -> a
+- [`interface/embed2.go`](testdata/interface/embed2.go) — line 73: name Exit not declared
+- [`label.go`](testdata/label.go) — line 20: select statements are not permitted
+- [`label1.go`](testdata/label1.go) — line 20: select statements are not permitted
+- [`makemap.go`](testdata/makemap.go) — line 31: imaginaries are not supported
+- [`method1.go`](testdata/method1.go) — line 20: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`range2.go`](testdata/range2.go) — line 23: expected declaration, found '}'
 - [`reflectmethod8.go`](testdata/reflectmethod8.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
 - [`rune.go`](testdata/rune.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`switch7.go`](testdata/switch7.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`shift1.go`](testdata/shift1.go) — line 204: invalid operation: invalid shift count: (const (1 <untyped> bigdec)) << s<VPBlock(1,0)>
+- [`switch2.go`](testdata/switch2.go) — line 23: cannot use untyped Bigint as BoolKind
+- [`switch3.go`](testdata/switch3.go) — line 70: cannot use interface {} as string
+- [`switch4.go`](testdata/switch4.go) — line 34: cannot use interface {} as string
+- [`switch7.go`](testdata/switch7.go) — line 16: 3: duplicate type int in type switch
+- [`syntax/chan.go`](testdata/syntax/chan.go) — line 14: expected type, found '}' (and 1 more errors)
+- [`syntax/chan1.go`](testdata/syntax/chan1.go) — line 9: channels are not permitted
+- [`syntax/else.go`](testdata/syntax/else.go) — line 12: expected '}', found 'EOF'
+- [`syntax/if.go`](testdata/syntax/if.go) — line 17: expected declaration, found '}'
+- [`syntax/semi1.go`](testdata/syntax/semi1.go) — line 12: expected '}', found 'EOF'
+- [`syntax/semi2.go`](testdata/syntax/semi2.go) — line 12: expected '}', found 'EOF'
+- [`syntax/semi3.go`](testdata/syntax/semi3.go) — line 12: expected '}', found 'EOF'
+- [`syntax/semi4.go`](testdata/syntax/semi4.go) — line 12: expected operand, found 'EOF'
+- [`syntax/semi5.go`](testdata/syntax/semi5.go) — line 9: function main does not have a body but is not natively defined (did you build after pulling from the repository?)
+- [`syntax/semi7.go`](testdata/syntax/semi7.go) — line 10: name x not declared
+- [`syntax/typesw.go`](testdata/syntax/typesw.go) — line 11: expected '}', found 'default'
 - [`torture.go`](testdata/torture.go) — TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
-- [`typeswitch2.go`](testdata/typeswitch2.go) — TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+- [`typecheck.go`](testdata/typecheck.go) — line 17: expected declaration, found '}'
+- [`typeswitch2.go`](testdata/typeswitch2.go) — line 15: 3: duplicate type int in type switch
+- [`typeswitch3.go`](testdata/typeswitch3.go) — line 41: expected declaration, found '}' (and 4 more errors)
 
 ## 🔵 KnownDivergence — accepted run-mode differences (47)
 
@@ -219,40 +316,13 @@ Gno's output legitimately differs from Go's (formatting, map order, error wordin
 - [`typeparam/issue52124.go`](testdata/typeparam/issue52124.go) — compile-error-wording: both Gno and Go reject; wording/stage differ
 - [`zerosize.go`](testdata/zerosize.go) — see compatible doc.
 
-## 🟡 GnoStaticIncomplete — partial errorcheck coverage (21)
-
-Fewer than all gc markers covered (Gno preprocess OR go/types guard). Static-only (errorcheck files never run). The note's per-checker split shows whether Gno bailed early or is lenient. A runnable variant may exercise the rest.
-
-- [`fixedbugs/bug195.go`](testdata/fixedbugs/bug195.go) — covered 3 of 5 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/bug388.go`](testdata/fixedbugs/bug388.go) — covered 1 of 3 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/bug398.go`](testdata/fixedbugs/bug398.go) — covered 1 of 4 markers (Gno preprocess: 1, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue11610.go`](testdata/fixedbugs/issue11610.go) — covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue11614.go`](testdata/fixedbugs/issue11614.go) — covered 2 of 3 markers (Gno preprocess: 0, go/types guard: 2); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-- [`fixedbugs/issue14006.go`](testdata/fixedbugs/issue14006.go) — covered 4 of 7 markers (Gno preprocess: 4, go/types guard: 4); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue18747.go`](testdata/fixedbugs/issue18747.go) — covered 5 of 6 markers (Gno preprocess: 5, go/types guard: 5); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue18915.go`](testdata/fixedbugs/issue18915.go) — covered 2 of 3 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue22581.go`](testdata/fixedbugs/issue22581.go) — covered 2 of 6 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue28450.go`](testdata/fixedbugs/issue28450.go) — covered 1 of 6 markers (Gno preprocess: 0, go/types guard: 1); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-- [`fixedbugs/issue33386.go`](testdata/fixedbugs/issue33386.go) — covered 1 of 5 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue43384.go`](testdata/fixedbugs/issue43384.go) — covered 12 of 24 markers (Gno preprocess: 0, go/types guard: 12); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-- [`fixedbugs/issue48097.go`](testdata/fixedbugs/issue48097.go) — covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue48834.go`](testdata/fixedbugs/issue48834.go) — covered 1 of 4 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-- [`fixedbugs/issue50372.go`](testdata/fixedbugs/issue50372.go) — covered 4 of 5 markers (Gno preprocess: 4, go/types guard: 4); Gno bailed before the rest — a runnable variant may exercise more
-- [`inline_testingbloop.go`](testdata/inline_testingbloop.go) — covered 3 of 8 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
-- [`mainsig.go`](testdata/mainsig.go) — covered 2 of 4 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-- [`prove.go`](testdata/prove.go) — covered 2 of 239 markers (Gno preprocess: 2, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
-- [`shift1.go`](testdata/shift1.go) — covered 62 of 105 markers (Gno preprocess: 58, go/types guard: 62); Gno bailed before the rest — a runnable variant may exercise more
-- [`syntax/chan.go`](testdata/syntax/chan.go) — covered 2 of 3 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
-- [`syntax/chan1.go`](testdata/syntax/chan1.go) — covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
-## 🛡️ GuardOnly — gated by go/types alone (preprocess lenient) (66)
+## 🛡️ Permissive-GuardOnly — Gno accepts, go/types alone rejects (62)
 
 Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess (an empty Gno catch is synced as no GnoError block — absence means lenient, not unsynced). The rejection contract holds in production (guard runs at addpkg), but each file flips to silently-accepted the day the transitional guard is removed — this is the native type_check.go coverage worklist. Note shows the guard's first error.
 
 - [`append1.go`](testdata/append1.go) — line 16: invalid operation: not enough arguments for append() (expected 1, found 0)
 - [`errorcheck/append1.go`](testdata/errorcheck/append1.go) — line 16: invalid operation: not enough arguments for append() (expected 1, found 0)
 - [`fixedbugs/bug022.go`](testdata/fixedbugs/bug022.go) — line 12: cannot index digits (variable of type *string)
-- [`fixedbugs/bug117.go`](testdata/fixedbugs/bug117.go) — line 22: p.get undefined (type PS has no field or method get)
 - [`fixedbugs/bug165.go`](testdata/fixedbugs/bug165.go) — line 14: invalid map key type S
 - [`fixedbugs/bug181.go`](testdata/fixedbugs/bug181.go) — line 10: embedded field type cannot be a pointer
 - [`fixedbugs/bug186.go`](testdata/fixedbugs/bug186.go) — line 15: cannot use iota outside constant declaration
@@ -278,15 +348,14 @@ Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess
 - [`fixedbugs/issue23116.go`](testdata/fixedbugs/issue23116.go) — line 13: t declared and not used
 - [`fixedbugs/issue23732.go`](testdata/fixedbugs/issue23732.go) — line 28: too few values in struct literal of type Foo
 - [`fixedbugs/issue24159.go`](testdata/fixedbugs/issue24159.go) — line 14: duplicate case byte(0) (constant 0 of type byte) in expression switch
-- [`fixedbugs/issue24470.go`](testdata/fixedbugs/issue24470.go) — line 13: use of .(type) outside type switch
 - [`fixedbugs/issue28058.go`](testdata/fixedbugs/issue28058.go) — line 12: invalid map key type func()
 - [`fixedbugs/issue28268.go`](testdata/fixedbugs/issue28268.go) — line 19: field and method with the same name b
 - [`fixedbugs/issue29870b.go`](testdata/fixedbugs/issue29870b.go) — line 13: declared and not used: x
 - [`fixedbugs/issue35291.go`](testdata/fixedbugs/issue35291.go) — line 13: duplicate index 1 in array or slice literal
 - [`fixedbugs/issue4097.go`](testdata/fixedbugs/issue4097.go) — line 10: len(s[len(s) - 1]) (value of type int) is not constant
 - [`fixedbugs/issue4251.go`](testdata/fixedbugs/issue4251.go) — line 12: invalid slice indices: 1 < 2
+- [`fixedbugs/issue43384.go`](testdata/fixedbugs/issue43384.go) — line 40: p.Mv undefined (type P3 has no field or method Mv)
 - [`fixedbugs/issue4458.go`](testdata/fixedbugs/issue4458.go) — line 19: (**T).foo undefined (type **T has no field or method foo)
-- [`fixedbugs/issue4470.go`](testdata/fixedbugs/issue4470.go) — line 13: use of .(type) outside type switch
 - [`fixedbugs/issue4517a.go`](testdata/fixedbugs/issue4517a.go) — line 9: cannot declare init - must be func
 - [`fixedbugs/issue4517b.go`](testdata/fixedbugs/issue4517b.go) — line 9: cannot declare init - must be func
 - [`fixedbugs/issue4517c.go`](testdata/fixedbugs/issue4517c.go) — line 9: cannot declare init - must be func
@@ -305,18 +374,16 @@ Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess
 - [`fixedbugs/issue6703y.go`](testdata/fixedbugs/issue6703y.go) — line 23: initialization cycle for x
 - [`fixedbugs/issue6703z.go`](testdata/fixedbugs/issue6703z.go) — line 23: initialization cycle for x
 - [`fixedbugs/issue6772.go`](testdata/fixedbugs/issue6772.go) — line 10: a redeclared in this block
-- [`fixedbugs/issue6889.go`](testdata/fixedbugs/issue6889.go) — line 110: constant multiplication overflow
 - [`fixedbugs/issue7310.go`](testdata/fixedbugs/issue7310.go) — line 12: invalid copy: argument must be a slice
 - [`fixedbugs/issue9017.go`](testdata/fixedbugs/issue9017.go) — line 47: p.mS undefined (type P has no field or method mS)
 - [`float_lit3.go`](testdata/float_lit3.go) — line 32: cannot convert max32 + ulp32 / 2 (untyped float constant 3.40282e+38) to type float32
 - [`indirect1.go`](testdata/indirect1.go) — line 41: invalid argument: m1 (variable of type *map[string]int) for built-in len
-- [`interface/embed2.go`](testdata/interface/embed2.go) — line 33: embedded field type cannot be a pointer to an interface
 - [`method6.go`](testdata/method6.go) — line 21: cannot call pointer method g on A
 - [`switch5.go`](testdata/switch5.go) — line 15: duplicate case 0 (constant of type int) in expression switch
 - [`switch6.go`](testdata/switch6.go) — line 18: impossible type switch case: int
 - [`typeswitch2b.go`](testdata/typeswitch2b.go) — line 16: declared and not used: t
 
-## ⚪ Unsupported — feature gaps (skipped) (810)
+## ⚪ Unsupported — feature gaps (skipped) (822)
 
 Gno can't process the file (unsupported import or language feature). Skipped via t.Skip.
 
@@ -328,7 +395,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`atomicload.go`](testdata/atomicload.go) — channels not supported in Gno
 - [`bigalg.go`](testdata/bigalg.go) — channels not supported in Gno
 - [`blank.go`](testdata/blank.go) — unknown import path unsafe
-- [`bounds.go`](testdata/bounds.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`bounds.go`](testdata/bounds.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`chan/doubleselect.go`](testdata/chan/doubleselect.go) — channels not supported in Gno
 - [`chan/fifo.go`](testdata/chan/fifo.go) — channels not supported in Gno
 - [`chan/goroutines.go`](testdata/chan/goroutines.go) — channels not supported in Gno
@@ -370,37 +437,38 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`convT2X.go`](testdata/convT2X.go) — channels not supported in Gno
 - [`copy.go`](testdata/copy.go) — unsupported stdlib symbol in Gno: Exit
 - [`ddd1.go`](testdata/ddd1.go) — channels not supported in Gno
-- [`defererrcheck.go`](testdata/defererrcheck.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`defererrcheck.go`](testdata/defererrcheck.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`deferfin.go`](testdata/deferfin.go) — goroutines not supported in Gno
 - [`deferprint.go`](testdata/deferprint.go) — channels not supported in Gno
-- [`devirt.go`](testdata/devirt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`directive2.go`](testdata/directive2.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`devirt.go`](testdata/devirt.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`embedfunc.go`](testdata/embedfunc.go) — unknown import path embed
 - [`embedvers.go`](testdata/embedvers.go) — unknown import path embed
 - [`env.go`](testdata/env.go) — unsupported stdlib symbol in Gno: Getenv
 - [`errorcheck/issue51531.go`](testdata/errorcheck/issue51531.go) — generics not supported in Gno
-- [`escape_array.go`](testdata/escape_array.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_closure.go`](testdata/escape_closure.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_field.go`](testdata/escape_field.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_goto.go`](testdata/escape_goto.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_iface.go`](testdata/escape_iface.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_indir.go`](testdata/escape_indir.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_level.go`](testdata/escape_level.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_map.go`](testdata/escape_map.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_mutations.go`](testdata/escape_mutations.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_param.go`](testdata/escape_param.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`escape_array.go`](testdata/escape_array.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_calls.go`](testdata/escape_calls.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_closure.go`](testdata/escape_closure.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_field.go`](testdata/escape_field.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_goto.go`](testdata/escape_goto.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_iface.go`](testdata/escape_iface.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_indir.go`](testdata/escape_indir.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_level.go`](testdata/escape_level.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_map.go`](testdata/escape_map.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_mutations.go`](testdata/escape_mutations.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_param.go`](testdata/escape_param.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`escape_reflect.go`](testdata/escape_reflect.go) — channels not supported in Gno
 - [`escape_runtime_atomic.go`](testdata/escape_runtime_atomic.go) — unknown import path internal/runtime/atomic
-- [`escape_selfassign.go`](testdata/escape_selfassign.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_struct_param1.go`](testdata/escape_struct_param1.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_struct_param2.go`](testdata/escape_struct_param2.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`escape_struct_return.go`](testdata/escape_struct_return.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`escape_selfassign.go`](testdata/escape_selfassign.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_slice.go`](testdata/escape_slice.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_struct_param1.go`](testdata/escape_struct_param1.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_struct_param2.go`](testdata/escape_struct_param2.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`escape_struct_return.go`](testdata/escape_struct_return.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`escape_sync_atomic.go`](testdata/escape_sync_atomic.go) — unknown import path sync/atomic
 - [`escape_unsafe.go`](testdata/escape_unsafe.go) — unknown import path reflect
 - [`escape.go`](testdata/escape.go) — channels not supported in Gno
 - [`escape2.go`](testdata/escape2.go) — goroutines not supported in Gno
 - [`escape2n.go`](testdata/escape2n.go) — goroutines not supported in Gno
-- [`escape4.go`](testdata/escape4.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`escape4.go`](testdata/escape4.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`escape5.go`](testdata/escape5.go) — unknown import path unsafe
 - [`finprofiled.go`](testdata/finprofiled.go) — unknown import path unsafe
 - [`fixedbugs/bug006.go`](testdata/fixedbugs/bug006.go) — unsupported stdlib symbol in Gno: Exit
@@ -435,6 +503,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/bug243.go`](testdata/fixedbugs/bug243.go) — goroutines not supported in Gno
 - [`fixedbugs/bug246.go`](testdata/fixedbugs/bug246.go) — unknown import path unsafe
 - [`fixedbugs/bug249.go`](testdata/fixedbugs/bug249.go) — channels not supported in Gno
+- [`fixedbugs/bug251.go`](testdata/fixedbugs/bug251.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/bug257.go`](testdata/fixedbugs/bug257.go) — unknown import path crypto/md5
 - [`fixedbugs/bug260.go`](testdata/fixedbugs/bug260.go) — unsupported stdlib symbol in Gno: Args
 - [`fixedbugs/bug265.go`](testdata/fixedbugs/bug265.go) — unsupported stdlib symbol in Gno: Exit
@@ -469,6 +538,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/bug387.go`](testdata/fixedbugs/bug387.go) — unknown import path path/filepath
 - [`fixedbugs/bug390.go`](testdata/fixedbugs/bug390.go) — unknown import path unsafe
 - [`fixedbugs/bug401.go`](testdata/fixedbugs/bug401.go) — complex numbers not supported in Gno
+- [`fixedbugs/bug412.go`](testdata/fixedbugs/bug412.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/bug417.go`](testdata/fixedbugs/bug417.go) — channels not supported in Gno
 - [`fixedbugs/bug444.go`](testdata/fixedbugs/bug444.go) — unknown import path reflect
 - [`fixedbugs/bug458.go`](testdata/fixedbugs/bug458.go) — unknown import path unsafe
@@ -497,10 +567,10 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue11674.go`](testdata/fixedbugs/issue11674.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue11771.go`](testdata/fixedbugs/issue11771.go) — unknown import path io/ioutil
 - [`fixedbugs/issue11945.go`](testdata/fixedbugs/issue11945.go) — complex numbers not supported in Gno
-- [`fixedbugs/issue12006.go`](testdata/fixedbugs/issue12006.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue12006.go`](testdata/fixedbugs/issue12006.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue12108.go`](testdata/fixedbugs/issue12108.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue12525.go`](testdata/fixedbugs/issue12525.go) — complex numbers not supported in Gno
-- [`fixedbugs/issue12588.go`](testdata/fixedbugs/issue12588.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue12588.go`](testdata/fixedbugs/issue12588.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue12944.go`](testdata/fixedbugs/issue12944.go) — unknown import path unsafe
 - [`fixedbugs/issue13160.go`](testdata/fixedbugs/issue13160.go) — channels not supported in Gno
 - [`fixedbugs/issue13162.go`](testdata/fixedbugs/issue13162.go) — unsupported stdlib symbol in Gno: Exit
@@ -508,11 +578,12 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue13263.go`](testdata/fixedbugs/issue13263.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue13268.go`](testdata/fixedbugs/issue13268.go) — unknown import path io/ioutil
 - [`fixedbugs/issue13485.go`](testdata/fixedbugs/issue13485.go) — imaginary literals not supported in Gno
-- [`fixedbugs/issue13799.go`](testdata/fixedbugs/issue13799.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue13587.go`](testdata/fixedbugs/issue13587.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`fixedbugs/issue13799.go`](testdata/fixedbugs/issue13799.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`fixedbugs/issue14520.go`](testdata/fixedbugs/issue14520.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue14636.go`](testdata/fixedbugs/issue14636.go) — unknown import path log
 - [`fixedbugs/issue14646.go`](testdata/fixedbugs/issue14646.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue14729.go`](testdata/fixedbugs/issue14729.go) — unknown import path unsafe
-- [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue15002.go`](testdata/fixedbugs/issue15002.go) — unknown import path syscall
 - [`fixedbugs/issue15277.go`](testdata/fixedbugs/issue15277.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue15281.go`](testdata/fixedbugs/issue15281.go) — channels not supported in Gno
@@ -533,9 +604,10 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue16985.go`](testdata/fixedbugs/issue16985.go) — unknown import path sync/atomic
 - [`fixedbugs/issue17038.go`](testdata/fixedbugs/issue17038.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue17270.go`](testdata/fixedbugs/issue17270.go) — unknown import path unsafe
-- [`fixedbugs/issue17318.go`](testdata/fixedbugs/issue17318.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue17318.go`](testdata/fixedbugs/issue17318.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue17381.go`](testdata/fixedbugs/issue17381.go) — unknown import path unsafe
 - [`fixedbugs/issue17710.go`](testdata/fixedbugs/issue17710.go) — unsupported stdlib symbol in Gno: KeepAlive
+- [`fixedbugs/issue18092.go`](testdata/fixedbugs/issue18092.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue18149.go`](testdata/fixedbugs/issue18149.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue18459.go`](testdata/fixedbugs/issue18459.go) — errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness
 - [`fixedbugs/issue18636.go`](testdata/fixedbugs/issue18636.go) — channels not supported in Gno
@@ -553,16 +625,17 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue19799.go`](testdata/fixedbugs/issue19799.go) — uintptr type not supported in Gno
 - [`fixedbugs/issue20027.go`](testdata/fixedbugs/issue20027.go) — channels not supported in Gno
 - [`fixedbugs/issue20227.go`](testdata/fixedbugs/issue20227.go) — imaginary literals not supported in Gno
-- [`fixedbugs/issue20250.go`](testdata/fixedbugs/issue20250.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue20250.go`](testdata/fixedbugs/issue20250.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue20298.go`](testdata/fixedbugs/issue20298.go) — unknown import path crypto/x509
 - [`fixedbugs/issue20335.go`](testdata/fixedbugs/issue20335.go) — unknown import path sync/atomic
 - [`fixedbugs/issue20529.go`](testdata/fixedbugs/issue20529.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue20602.go`](testdata/fixedbugs/issue20602.go) — complex numbers not supported in Gno
+- [`fixedbugs/issue20780.go`](testdata/fixedbugs/issue20780.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue20923.go`](testdata/fixedbugs/issue20923.go) — channels not supported in Gno
 - [`fixedbugs/issue21221.go`](testdata/fixedbugs/issue21221.go) — unknown import path unsafe
 - [`fixedbugs/issue21317.go`](testdata/fixedbugs/issue21317.go) — unknown import path io/ioutil
 - [`fixedbugs/issue21576.go`](testdata/fixedbugs/issue21576.go) — unknown import path context
-- [`fixedbugs/issue21709.go`](testdata/fixedbugs/issue21709.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue21709.go`](testdata/fixedbugs/issue21709.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue21879.go`](testdata/fixedbugs/issue21879.go) — unsupported stdlib symbol in Gno: Frame
 - [`fixedbugs/issue22076.go`](testdata/fixedbugs/issue22076.go) — dot imports not supported in Gno
 - [`fixedbugs/issue22083.go`](testdata/fixedbugs/issue22083.go) — unknown import path runtime/debug
@@ -579,7 +652,8 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue22781.go`](testdata/fixedbugs/issue22781.go) — unknown import path runtime/debug
 - [`fixedbugs/issue22822.go`](testdata/fixedbugs/issue22822.go) — builtin shadowing not supported in Gno
 - [`fixedbugs/issue22881.go`](testdata/fixedbugs/issue22881.go) — channels not supported in Gno
-- [`fixedbugs/issue23521.go`](testdata/fixedbugs/issue23521.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue23521.go`](testdata/fixedbugs/issue23521.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`fixedbugs/issue23823.go`](testdata/fixedbugs/issue23823.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue24187.go`](testdata/fixedbugs/issue24187.go) — unknown import path unsafe
 - [`fixedbugs/issue24419.go`](testdata/fixedbugs/issue24419.go) — channels not supported in Gno
 - [`fixedbugs/issue24449.go`](testdata/fixedbugs/issue24449.go) — unknown import path sync/atomic
@@ -588,7 +662,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue24491b.go`](testdata/fixedbugs/issue24491b.go) — channels not supported in Gno
 - [`fixedbugs/issue24760.go`](testdata/fixedbugs/issue24760.go) — unknown import path unsafe
 - [`fixedbugs/issue24817.go`](testdata/fixedbugs/issue24817.go) — unsupported stdlib symbol in Gno: Exit
-- [`fixedbugs/issue25507.go`](testdata/fixedbugs/issue25507.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue25507.go`](testdata/fixedbugs/issue25507.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue25727.go`](testdata/fixedbugs/issue25727.go) — unknown import path net/http
 - [`fixedbugs/issue25897a.go`](testdata/fixedbugs/issue25897a.go) — goroutines not supported in Gno
 - [`fixedbugs/issue25897b.go`](testdata/fixedbugs/issue25897b.go) — channels not supported in Gno
@@ -600,11 +674,11 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue27356.go`](testdata/fixedbugs/issue27356.go) — builtin shadowing not supported in Gno
 - [`fixedbugs/issue27518a.go`](testdata/fixedbugs/issue27518a.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue27518b.go`](testdata/fixedbugs/issue27518b.go) — unsupported stdlib symbol in Gno: SetFinalizer
-- [`fixedbugs/issue27557.go`](testdata/fixedbugs/issue27557.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue27557.go`](testdata/fixedbugs/issue27557.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue27695.go`](testdata/fixedbugs/issue27695.go) — goroutines not supported in Gno
 - [`fixedbugs/issue27695b.go`](testdata/fixedbugs/issue27695b.go) — unknown import path reflect
 - [`fixedbugs/issue27695c.go`](testdata/fixedbugs/issue27695c.go) — unknown import path reflect
-- [`fixedbugs/issue27732a.go`](testdata/fixedbugs/issue27732a.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue27732a.go`](testdata/fixedbugs/issue27732a.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue28078.go`](testdata/fixedbugs/issue28078.go) — unknown import path unsafe
 - [`fixedbugs/issue28079a.go`](testdata/fixedbugs/issue28079a.go) — unknown import path unsafe
 - [`fixedbugs/issue28079b.go`](testdata/fixedbugs/issue28079b.go) — unknown import path unsafe
@@ -625,7 +699,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue30606.go`](testdata/fixedbugs/issue30606.go) — unknown import path reflect
 - [`fixedbugs/issue30606b.go`](testdata/fixedbugs/issue30606b.go) — unknown import path reflect
 - [`fixedbugs/issue30709.go`](testdata/fixedbugs/issue30709.go) — unknown import path unsafe
-- [`fixedbugs/issue30898.go`](testdata/fixedbugs/issue30898.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue30898.go`](testdata/fixedbugs/issue30898.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue30977.go`](testdata/fixedbugs/issue30977.go) — goroutines not supported in Gno
 - [`fixedbugs/issue31060.go`](testdata/fixedbugs/issue31060.go) — imaginary literals not supported in Gno
 - [`fixedbugs/issue31419.go`](testdata/fixedbugs/issue31419.go) — channels not supported in Gno
@@ -642,21 +716,21 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue33555.go`](testdata/fixedbugs/issue33555.go) — unknown import path io/ioutil
 - [`fixedbugs/issue33724.go`](testdata/fixedbugs/issue33724.go) — unknown import path runtime/debug
 - [`fixedbugs/issue34123.go`](testdata/fixedbugs/issue34123.go) — uintptr type not supported in Gno
-- [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`fixedbugs/issue34723.go`](testdata/fixedbugs/issue34723.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue34723.go`](testdata/fixedbugs/issue34723.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue35073b.go`](testdata/fixedbugs/issue35073b.go) — unknown import path reflect
-- [`fixedbugs/issue35518.go`](testdata/fixedbugs/issue35518.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue35518.go`](testdata/fixedbugs/issue35518.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue36437.go`](testdata/fixedbugs/issue36437.go) — unknown import path io/ioutil
 - [`fixedbugs/issue37716.go`](testdata/fixedbugs/issue37716.go) — unknown import path reflect
 - [`fixedbugs/issue38093.go`](testdata/fixedbugs/issue38093.go) — channels not supported in Gno
 - [`fixedbugs/issue38117.go`](testdata/fixedbugs/issue38117.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue38916.go`](testdata/fixedbugs/issue38916.go) — complex numbers not supported in Gno
-- [`fixedbugs/issue39292.go`](testdata/fixedbugs/issue39292.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue39292.go`](testdata/fixedbugs/issue39292.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue39505.go`](testdata/fixedbugs/issue39505.go) — channels not supported in Gno
 - [`fixedbugs/issue39541.go`](testdata/fixedbugs/issue39541.go) — channels not supported in Gno
 - [`fixedbugs/issue40629.go`](testdata/fixedbugs/issue40629.go) — channels not supported in Gno
 - [`fixedbugs/issue4085b.go`](testdata/fixedbugs/issue4085b.go) — unknown import path unsafe
 - [`fixedbugs/issue40954.go`](testdata/fixedbugs/issue40954.go) — unknown import path runtime/cgo
+- [`fixedbugs/issue4099.go`](testdata/fixedbugs/issue4099.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue4162.go`](testdata/fixedbugs/issue4162.go) — channels not supported in Gno
 - [`fixedbugs/issue41736.go`](testdata/fixedbugs/issue41736.go) — complex numbers not supported in Gno
 - [`fixedbugs/issue42032.go`](testdata/fixedbugs/issue42032.go) — unknown import path runtime/cgo
@@ -695,18 +769,16 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue49110.go`](testdata/fixedbugs/issue49110.go) — unknown import path reflect
 - [`fixedbugs/issue49240.go`](testdata/fixedbugs/issue49240.go) — goroutines not supported in Gno
 - [`fixedbugs/issue49282.go`](testdata/fixedbugs/issue49282.go) — uintptr type not supported in Gno
-- [`fixedbugs/issue49368.go`](testdata/fixedbugs/issue49368.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue49767.go`](testdata/fixedbugs/issue49767.go) — channels not supported in Gno
 - [`fixedbugs/issue49814.go`](testdata/fixedbugs/issue49814.go) — Gno rejects the 1<<50 array at runtime (makeslice: len out of range), not at compile time like gc; no compile-time error to pin.
 - [`fixedbugs/issue50672.go`](testdata/fixedbugs/issue50672.go) — generics not supported in Gno
 - [`fixedbugs/issue51401.go`](testdata/fixedbugs/issue51401.go) — uintptr type not supported in Gno
-- [`fixedbugs/issue51531.go`](testdata/fixedbugs/issue51531.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
 - [`fixedbugs/issue5172.go`](testdata/fixedbugs/issue5172.go) — goroutines not supported in Gno
 - [`fixedbugs/issue51733.go`](testdata/fixedbugs/issue51733.go) — unknown import path log
 - [`fixedbugs/issue52127.go`](testdata/fixedbugs/issue52127.go) — unknown import path os/exec
-- [`fixedbugs/issue52193.go`](testdata/fixedbugs/issue52193.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue52193.go`](testdata/fixedbugs/issue52193.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue52612.go`](testdata/fixedbugs/issue52612.go) — channels not supported in Gno
-- [`fixedbugs/issue52697.go`](testdata/fixedbugs/issue52697.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue52697.go`](testdata/fixedbugs/issue52697.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue52748.go`](testdata/fixedbugs/issue52748.go) — unknown import path unsafe
 - [`fixedbugs/issue52788.go`](testdata/fixedbugs/issue52788.go) — unknown import path reflect
 - [`fixedbugs/issue52788a.go`](testdata/fixedbugs/issue52788a.go) — unknown import path reflect
@@ -717,7 +789,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue53439.go`](testdata/fixedbugs/issue53439.go) — unknown import path unsafe
 - [`fixedbugs/issue53635.go`](testdata/fixedbugs/issue53635.go) — generics not supported in Gno
 - [`fixedbugs/issue5373.go`](testdata/fixedbugs/issue5373.go) — unsupported stdlib symbol in Gno: Exit
-- [`fixedbugs/issue54159.go`](testdata/fixedbugs/issue54159.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue54159.go`](testdata/fixedbugs/issue54159.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue54220.go`](testdata/fixedbugs/issue54220.go) — unknown import path sync/atomic
 - [`fixedbugs/issue54307.go`](testdata/fixedbugs/issue54307.go) — generics not supported in Gno
 - [`fixedbugs/issue54343.go`](testdata/fixedbugs/issue54343.go) — channels not supported in Gno
@@ -771,6 +843,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue68292.go`](testdata/fixedbugs/issue68292.go) — generics not supported in Gno
 - [`fixedbugs/issue6847.go`](testdata/fixedbugs/issue6847.go) — channels not supported in Gno
 - [`fixedbugs/issue6866.go`](testdata/fixedbugs/issue6866.go) — builtin shadowing not supported in Gno
+- [`fixedbugs/issue6889.go`](testdata/fixedbugs/issue6889.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue6902.go`](testdata/fixedbugs/issue6902.go) — unsupported stdlib symbol in Gno: Exit
 - [`fixedbugs/issue69110.go`](testdata/fixedbugs/issue69110.go) — unknown import path maps
 - [`fixedbugs/issue69434.go`](testdata/fixedbugs/issue69434.go) — unknown import path iter
@@ -783,12 +856,15 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue72063.go`](testdata/fixedbugs/issue72063.go) — generics not supported in Gno
 - [`fixedbugs/issue7272.go`](testdata/fixedbugs/issue7272.go) — channels not supported in Gno
 - [`fixedbugs/issue7525.go`](testdata/fixedbugs/issue7525.go) — unknown import path unsafe
+- [`fixedbugs/issue7525b.go`](testdata/fixedbugs/issue7525b.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
+- [`fixedbugs/issue7525c.go`](testdata/fixedbugs/issue7525c.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue7525d.go`](testdata/fixedbugs/issue7525d.go) — unknown import path unsafe
 - [`fixedbugs/issue7525e.go`](testdata/fixedbugs/issue7525e.go) — unknown import path unsafe
 - [`fixedbugs/issue7690.go`](testdata/fixedbugs/issue7690.go) — unsupported stdlib symbol in Gno: Stack
 - [`fixedbugs/issue7740.go`](testdata/fixedbugs/issue7740.go) — unsupported stdlib symbol in Gno: Compiler
+- [`fixedbugs/issue7746.go`](testdata/fixedbugs/issue7746.go) — only gc-specific (GC_ERROR) markers; not part of Gno's contract
 - [`fixedbugs/issue7760.go`](testdata/fixedbugs/issue7760.go) — unknown import path unsafe
-- [`fixedbugs/issue7921.go`](testdata/fixedbugs/issue7921.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fixedbugs/issue7921.go`](testdata/fixedbugs/issue7921.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue7997.go`](testdata/fixedbugs/issue7997.go) — channels not supported in Gno
 - [`fixedbugs/issue7998.go`](testdata/fixedbugs/issue7998.go) — channels not supported in Gno
 - [`fixedbugs/issue8004.go`](testdata/fixedbugs/issue8004.go) — unknown import path reflect
@@ -816,7 +892,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/notinheap2.go`](testdata/fixedbugs/notinheap2.go) — unknown import path runtime/cgo
 - [`fixedbugs/notinheap3.go`](testdata/fixedbugs/notinheap3.go) — unknown import path runtime/cgo
 - [`func5.go`](testdata/func5.go) — channels not supported in Gno
-- [`fuse.go`](testdata/fuse.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`fuse.go`](testdata/fuse.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`gc2.go`](testdata/gc2.go) — channels not supported in Gno
 - [`gcgort.go`](testdata/gcgort.go) — goroutines not supported in Gno
 - [`gcstring.go`](testdata/gcstring.go) — unsupported stdlib symbol in Gno: Sleep
@@ -827,15 +903,16 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`import1.go`](testdata/import1.go) — dot imports not supported in Gno
 - [`init1.go`](testdata/init1.go) — channels not supported in Gno
 - [`initialize.go`](testdata/initialize.go) — channels not supported in Gno
-- [`inline_big.go`](testdata/inline_big.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`inline_endian.go`](testdata/inline_endian.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`inline_big.go`](testdata/inline_big.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`inline_endian.go`](testdata/inline_endian.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`inline_literal.go`](testdata/inline_literal.go) — unknown import path log
-- [`inline_math_bits_rotate.go`](testdata/inline_math_bits_rotate.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`inline_math_bits_rotate.go`](testdata/inline_math_bits_rotate.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`inline_sync.go`](testdata/inline_sync.go) — unknown import path sync
-- [`inline_variadic.go`](testdata/inline_variadic.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`inline_testingbloop.go`](testdata/inline_testingbloop.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`inline_variadic.go`](testdata/inline_variadic.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`inline.go`](testdata/inline.go) — goroutines not supported in Gno
 - [`int_lit.go`](testdata/int_lit.go) — unsupported stdlib symbol in Gno: Exit
-- [`interface/assertinline.go`](testdata/interface/assertinline.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`interface/assertinline.go`](testdata/interface/assertinline.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`interface/bigdata.go`](testdata/interface/bigdata.go) — builtin shadowing not supported in Gno
 - [`interface/convert.go`](testdata/interface/convert.go) — builtin shadowing not supported in Gno
 - [`interface/embed.go`](testdata/interface/embed.go) — unsupported stdlib symbol in Gno: Exit
@@ -862,7 +939,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`live_uintptrkeepalive.go`](testdata/live_uintptrkeepalive.go) — unknown import path syscall
 - [`live.go`](testdata/live.go) — channels not supported in Gno
 - [`live2.go`](testdata/live2.go) — gc liveness/codegen analysis (-live) — the markers aren't type errors, so neither Gno nor the go/types guard can test them (even once the bodyless-func rejection at line 14 is fixed).
-- [`loopbce.go`](testdata/loopbce.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`loopbce.go`](testdata/loopbce.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`makechan.go`](testdata/makechan.go) — channels not supported in Gno
 - [`makeslice.go`](testdata/makeslice.go) — unknown import path unsafe
 - [`mallocfin.go`](testdata/mallocfin.go) — unsupported stdlib symbol in Gno: GOMAXPROCS
@@ -874,21 +951,23 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`named1.go`](testdata/named1.go) — channels not supported in Gno
 - [`newinline.go`](testdata/newinline.go) — goroutines not supported in Gno
 - [`nil.go`](testdata/nil.go) — channels not supported in Gno
+- [`nilcheck.go`](testdata/nilcheck.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`nilptr_aix.go`](testdata/nilptr_aix.go) — unknown import path unsafe
 - [`nilptr.go`](testdata/nilptr.go) — unknown import path unsafe
-- [`nilptr5_aix.go`](testdata/nilptr5_aix.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`nilptr5_wasm.go`](testdata/nilptr5_wasm.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`nilptr5.go`](testdata/nilptr5.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`nilptr3.go`](testdata/nilptr3.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`nilptr5_aix.go`](testdata/nilptr5_aix.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`nilptr5_wasm.go`](testdata/nilptr5_wasm.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`nilptr5.go`](testdata/nilptr5.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`noinit.go`](testdata/noinit.go) — channels not supported in Gno
 - [`nosplit.go`](testdata/nosplit.go) — unknown import path io/ioutil
-- [`nowritebarrier.go`](testdata/nowritebarrier.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`opt_branchlikely.go`](testdata/opt_branchlikely.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`opt_branchlikely.go`](testdata/opt_branchlikely.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`parentype.go`](testdata/parentype.go) — channels not supported in Gno
 - [`peano.go`](testdata/peano.go) — unsupported stdlib symbol in Gno: GOARCH
-- [`phiopt.go`](testdata/phiopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`phiopt.go`](testdata/phiopt.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`print.go`](testdata/print.go) — uintptr type not supported in Gno
-- [`prove_constant_folding.go`](testdata/prove_constant_folding.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`prove_invert_loop_with_unused_iterators.go`](testdata/prove_invert_loop_with_unused_iterators.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`prove_constant_folding.go`](testdata/prove_constant_folding.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`prove_invert_loop_with_unused_iterators.go`](testdata/prove_invert_loop_with_unused_iterators.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`prove.go`](testdata/prove.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`range.go`](testdata/range.go) — channels not supported in Gno
 - [`recover.go`](testdata/recover.go) — unknown import path reflect
 - [`recover1.go`](testdata/recover1.go) — unsupported stdlib symbol in Gno: Breakpoint
@@ -912,7 +991,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`sigchld.go`](testdata/sigchld.go) — unknown import path syscall
 - [`sizeof.go`](testdata/sizeof.go) — unknown import path unsafe
 - [`slicecap.go`](testdata/slicecap.go) — unknown import path unsafe
-- [`sliceopt.go`](testdata/sliceopt.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`sliceopt.go`](testdata/sliceopt.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`stack.go`](testdata/stack.go) — channels not supported in Gno
 - [`stackobj.go`](testdata/stackobj.go) — unsupported stdlib symbol in Gno: SetFinalizer
 - [`stackobj3.go`](testdata/stackobj3.go) — unsupported stdlib symbol in Gno: SetFinalizer
@@ -921,8 +1000,8 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`stringrange.go`](testdata/stringrange.go) — unsupported stdlib symbol in Gno: Exit
 - [`struct0.go`](testdata/struct0.go) — channels not supported in Gno
 - [`switch.go`](testdata/switch.go) — channels not supported in Gno
-- [`tailcall.go`](testdata/tailcall.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
-- [`tighten.go`](testdata/tighten.go) — Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+- [`tailcall.go`](testdata/tailcall.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`tighten.go`](testdata/tighten.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`tinyfin.go`](testdata/tinyfin.go) — channels not supported in Gno
 - [`typeparam/absdiff.go`](testdata/typeparam/absdiff.go) — generics not supported in Gno
 - [`typeparam/absdiff2.go`](testdata/typeparam/absdiff2.go) — generics not supported in Gno
@@ -1131,15 +1210,14 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`writebarrier.go`](testdata/writebarrier.go) — unknown import path unsafe
 - [`zerodivide.go`](testdata/zerodivide.go) — uintptr type not supported in Gno
 
-## ✅ Clean — verified (990)
+## ✅ Clean — verified (905)
 
-Gno's behavior is pinned and matches; no outstanding issue.
+Gno's behavior is pinned and matches; no outstanding issue. Composition (invariants re-checked at each regen): 351 run/both-silent, 20 run/matching-output, 224 errorcheck/full-marker-coverage-with-Gno, 306 compile/all-checkers-accept, 4 other modes.
 
 - [`alias.go`](testdata/alias.go)
 - [`alias1.go`](testdata/alias1.go)
 - [`align.go`](testdata/align.go)
 - [`armimm.go`](testdata/armimm.go)
-- [`blank1.go`](testdata/blank1.go)
 - [`cannotassign.go`](testdata/cannotassign.go)
 - [`char_lit1.go`](testdata/char_lit1.go)
 - [`closure1.go`](testdata/closure1.go)
@@ -1154,7 +1232,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`convert1.go`](testdata/convert1.go)
 - [`copy1.go`](testdata/copy1.go)
 - [`decl.go`](testdata/decl.go)
-- [`declbad.go`](testdata/declbad.go)
 - [`defer.go`](testdata/defer.go)
 - [`defernil.go`](testdata/defernil.go)
 - [`divide.go`](testdata/divide.go)
@@ -1162,7 +1239,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`empty.go`](testdata/empty.go)
 - [`eof.go`](testdata/eof.go)
 - [`eof1.go`](testdata/eof1.go)
-- [`errorcheck/blank1.go`](testdata/errorcheck/blank1.go)
 - [`errorcheck/canary.go`](testdata/errorcheck/canary.go)
 - [`errorcheck/cannotassign.go`](testdata/errorcheck/cannotassign.go)
 - [`escape3.go`](testdata/escape3.go)
@@ -1179,7 +1255,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug012.go`](testdata/fixedbugs/bug012.go)
 - [`fixedbugs/bug013.go`](testdata/fixedbugs/bug013.go)
 - [`fixedbugs/bug014.go`](testdata/fixedbugs/bug014.go)
-- [`fixedbugs/bug015.go`](testdata/fixedbugs/bug015.go)
 - [`fixedbugs/bug016.go`](testdata/fixedbugs/bug016.go)
 - [`fixedbugs/bug017.go`](testdata/fixedbugs/bug017.go)
 - [`fixedbugs/bug020.go`](testdata/fixedbugs/bug020.go)
@@ -1194,13 +1269,10 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug035.go`](testdata/fixedbugs/bug035.go)
 - [`fixedbugs/bug037.go`](testdata/fixedbugs/bug037.go)
 - [`fixedbugs/bug039.go`](testdata/fixedbugs/bug039.go)
-- [`fixedbugs/bug040.go`](testdata/fixedbugs/bug040.go)
 - [`fixedbugs/bug045.go`](testdata/fixedbugs/bug045.go)
 - [`fixedbugs/bug046.go`](testdata/fixedbugs/bug046.go)
 - [`fixedbugs/bug047.go`](testdata/fixedbugs/bug047.go)
 - [`fixedbugs/bug048.go`](testdata/fixedbugs/bug048.go)
-- [`fixedbugs/bug049.go`](testdata/fixedbugs/bug049.go)
-- [`fixedbugs/bug050.go`](testdata/fixedbugs/bug050.go)
 - [`fixedbugs/bug051.go`](testdata/fixedbugs/bug051.go)
 - [`fixedbugs/bug052.go`](testdata/fixedbugs/bug052.go)
 - [`fixedbugs/bug054.go`](testdata/fixedbugs/bug054.go)
@@ -1238,7 +1310,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug101.go`](testdata/fixedbugs/bug101.go)
 - [`fixedbugs/bug102.go`](testdata/fixedbugs/bug102.go)
 - [`fixedbugs/bug103.go`](testdata/fixedbugs/bug103.go)
-- [`fixedbugs/bug104.go`](testdata/fixedbugs/bug104.go)
 - [`fixedbugs/bug108.go`](testdata/fixedbugs/bug108.go)
 - [`fixedbugs/bug109.go`](testdata/fixedbugs/bug109.go)
 - [`fixedbugs/bug111.go`](testdata/fixedbugs/bug111.go)
@@ -1250,14 +1321,12 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug119.go`](testdata/fixedbugs/bug119.go)
 - [`fixedbugs/bug121.go`](testdata/fixedbugs/bug121.go)
 - [`fixedbugs/bug122.go`](testdata/fixedbugs/bug122.go)
-- [`fixedbugs/bug123.go`](testdata/fixedbugs/bug123.go)
 - [`fixedbugs/bug126.go`](testdata/fixedbugs/bug126.go)
 - [`fixedbugs/bug127.go`](testdata/fixedbugs/bug127.go)
 - [`fixedbugs/bug128.go`](testdata/fixedbugs/bug128.go)
 - [`fixedbugs/bug129.go`](testdata/fixedbugs/bug129.go)
 - [`fixedbugs/bug131.go`](testdata/fixedbugs/bug131.go)
 - [`fixedbugs/bug132.go`](testdata/fixedbugs/bug132.go)
-- [`fixedbugs/bug13343.go`](testdata/fixedbugs/bug13343.go)
 - [`fixedbugs/bug135.go`](testdata/fixedbugs/bug135.go)
 - [`fixedbugs/bug136.go`](testdata/fixedbugs/bug136.go)
 - [`fixedbugs/bug139.go`](testdata/fixedbugs/bug139.go)
@@ -1290,7 +1359,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug178.go`](testdata/fixedbugs/bug178.go)
 - [`fixedbugs/bug179.go`](testdata/fixedbugs/bug179.go)
 - [`fixedbugs/bug180.go`](testdata/fixedbugs/bug180.go)
-- [`fixedbugs/bug182.go`](testdata/fixedbugs/bug182.go)
 - [`fixedbugs/bug183.go`](testdata/fixedbugs/bug183.go)
 - [`fixedbugs/bug184.go`](testdata/fixedbugs/bug184.go)
 - [`fixedbugs/bug185.go`](testdata/fixedbugs/bug185.go)
@@ -1308,7 +1376,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug205.go`](testdata/fixedbugs/bug205.go)
 - [`fixedbugs/bug207.go`](testdata/fixedbugs/bug207.go)
 - [`fixedbugs/bug208.go`](testdata/fixedbugs/bug208.go)
-- [`fixedbugs/bug209.go`](testdata/fixedbugs/bug209.go)
 - [`fixedbugs/bug212.go`](testdata/fixedbugs/bug212.go)
 - [`fixedbugs/bug213.go`](testdata/fixedbugs/bug213.go)
 - [`fixedbugs/bug214.go`](testdata/fixedbugs/bug214.go)
@@ -1320,7 +1387,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug223.go`](testdata/fixedbugs/bug223.go)
 - [`fixedbugs/bug224.go`](testdata/fixedbugs/bug224.go)
 - [`fixedbugs/bug227.go`](testdata/fixedbugs/bug227.go)
-- [`fixedbugs/bug228.go`](testdata/fixedbugs/bug228.go)
 - [`fixedbugs/bug229.go`](testdata/fixedbugs/bug229.go)
 - [`fixedbugs/bug232.go`](testdata/fixedbugs/bug232.go)
 - [`fixedbugs/bug233.go`](testdata/fixedbugs/bug233.go)
@@ -1331,7 +1397,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug244.go`](testdata/fixedbugs/bug244.go)
 - [`fixedbugs/bug245.go`](testdata/fixedbugs/bug245.go)
 - [`fixedbugs/bug247.go`](testdata/fixedbugs/bug247.go)
-- [`fixedbugs/bug251.go`](testdata/fixedbugs/bug251.go)
 - [`fixedbugs/bug252.go`](testdata/fixedbugs/bug252.go)
 - [`fixedbugs/bug254.go`](testdata/fixedbugs/bug254.go)
 - [`fixedbugs/bug256.go`](testdata/fixedbugs/bug256.go)
@@ -1360,8 +1425,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug294.go`](testdata/fixedbugs/bug294.go)
 - [`fixedbugs/bug296.go`](testdata/fixedbugs/bug296.go)
 - [`fixedbugs/bug297.go`](testdata/fixedbugs/bug297.go)
-- [`fixedbugs/bug298.go`](testdata/fixedbugs/bug298.go)
-- [`fixedbugs/bug299.go`](testdata/fixedbugs/bug299.go)
 - [`fixedbugs/bug300.go`](testdata/fixedbugs/bug300.go)
 - [`fixedbugs/bug301.go`](testdata/fixedbugs/bug301.go)
 - [`fixedbugs/bug303.go`](testdata/fixedbugs/bug303.go)
@@ -1372,7 +1435,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug317.go`](testdata/fixedbugs/bug317.go)
 - [`fixedbugs/bug318.go`](testdata/fixedbugs/bug318.go)
 - [`fixedbugs/bug321.go`](testdata/fixedbugs/bug321.go)
-- [`fixedbugs/bug326.go`](testdata/fixedbugs/bug326.go)
 - [`fixedbugs/bug327.go`](testdata/fixedbugs/bug327.go)
 - [`fixedbugs/bug330.go`](testdata/fixedbugs/bug330.go)
 - [`fixedbugs/bug331.go`](testdata/fixedbugs/bug331.go)
@@ -1382,10 +1444,8 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug342.go`](testdata/fixedbugs/bug342.go)
 - [`fixedbugs/bug343.go`](testdata/fixedbugs/bug343.go)
 - [`fixedbugs/bug344.go`](testdata/fixedbugs/bug344.go)
-- [`fixedbugs/bug349.go`](testdata/fixedbugs/bug349.go)
 - [`fixedbugs/bug350.go`](testdata/fixedbugs/bug350.go)
 - [`fixedbugs/bug351.go`](testdata/fixedbugs/bug351.go)
-- [`fixedbugs/bug353.go`](testdata/fixedbugs/bug353.go)
 - [`fixedbugs/bug354.go`](testdata/fixedbugs/bug354.go)
 - [`fixedbugs/bug355.go`](testdata/fixedbugs/bug355.go)
 - [`fixedbugs/bug356.go`](testdata/fixedbugs/bug356.go)
@@ -1396,7 +1456,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug368.go`](testdata/fixedbugs/bug368.go)
 - [`fixedbugs/bug371.go`](testdata/fixedbugs/bug371.go)
 - [`fixedbugs/bug372.go`](testdata/fixedbugs/bug372.go)
-- [`fixedbugs/bug374.go`](testdata/fixedbugs/bug374.go)
 - [`fixedbugs/bug375.go`](testdata/fixedbugs/bug375.go)
 - [`fixedbugs/bug378.go`](testdata/fixedbugs/bug378.go)
 - [`fixedbugs/bug380.go`](testdata/fixedbugs/bug380.go)
@@ -1413,7 +1472,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug405.go`](testdata/fixedbugs/bug405.go)
 - [`fixedbugs/bug410.go`](testdata/fixedbugs/bug410.go)
 - [`fixedbugs/bug411.go`](testdata/fixedbugs/bug411.go)
-- [`fixedbugs/bug412.go`](testdata/fixedbugs/bug412.go)
 - [`fixedbugs/bug413.go`](testdata/fixedbugs/bug413.go)
 - [`fixedbugs/bug419.go`](testdata/fixedbugs/bug419.go)
 - [`fixedbugs/bug420.go`](testdata/fixedbugs/bug420.go)
@@ -1445,8 +1503,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug455.go`](testdata/fixedbugs/bug455.go)
 - [`fixedbugs/bug456.go`](testdata/fixedbugs/bug456.go)
 - [`fixedbugs/bug457.go`](testdata/fixedbugs/bug457.go)
-- [`fixedbugs/bug459.go`](testdata/fixedbugs/bug459.go)
-- [`fixedbugs/bug463.go`](testdata/fixedbugs/bug463.go)
 - [`fixedbugs/bug464.go`](testdata/fixedbugs/bug464.go)
 - [`fixedbugs/bug470.go`](testdata/fixedbugs/bug470.go)
 - [`fixedbugs/bug473.go`](testdata/fixedbugs/bug473.go)
@@ -1456,7 +1512,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug481.go`](testdata/fixedbugs/bug481.go)
 - [`fixedbugs/bug482.go`](testdata/fixedbugs/bug482.go)
 - [`fixedbugs/bug486.go`](testdata/fixedbugs/bug486.go)
-- [`fixedbugs/bug487.go`](testdata/fixedbugs/bug487.go)
 - [`fixedbugs/bug489.go`](testdata/fixedbugs/bug489.go)
 - [`fixedbugs/bug490.go`](testdata/fixedbugs/bug490.go)
 - [`fixedbugs/bug493.go`](testdata/fixedbugs/bug493.go)
@@ -1469,7 +1524,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/bug505.go`](testdata/fixedbugs/bug505.go)
 - [`fixedbugs/bug508.go`](testdata/fixedbugs/bug508.go)
 - [`fixedbugs/bug509.go`](testdata/fixedbugs/bug509.go)
-- [`fixedbugs/bug518.go`](testdata/fixedbugs/bug518.go)
 - [`fixedbugs/gcc101994.go`](testdata/fixedbugs/gcc101994.go)
 - [`fixedbugs/gcc61204.go`](testdata/fixedbugs/gcc61204.go)
 - [`fixedbugs/gcc61244.go`](testdata/fixedbugs/gcc61244.go)
@@ -1515,8 +1569,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue13261.go`](testdata/fixedbugs/issue13261.go)
 - [`fixedbugs/issue13262.go`](testdata/fixedbugs/issue13262.go)
 - [`fixedbugs/issue13266.go`](testdata/fixedbugs/issue13266.go)
-- [`fixedbugs/issue13273.go`](testdata/fixedbugs/issue13273.go)
-- [`fixedbugs/issue13319.go`](testdata/fixedbugs/issue13319.go)
 - [`fixedbugs/issue13365.go`](testdata/fixedbugs/issue13365.go)
 - [`fixedbugs/issue13471.go`](testdata/fixedbugs/issue13471.go)
 - [`fixedbugs/issue13480.go`](testdata/fixedbugs/issue13480.go)
@@ -1528,8 +1580,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue14136.go`](testdata/fixedbugs/issue14136.go)
 - [`fixedbugs/issue14321.go`](testdata/fixedbugs/issue14321.go)
 - [`fixedbugs/issue14405.go`](testdata/fixedbugs/issue14405.go)
-- [`fixedbugs/issue14520.go`](testdata/fixedbugs/issue14520.go)
-- [`fixedbugs/issue14520a.go`](testdata/fixedbugs/issue14520a.go)
 - [`fixedbugs/issue14553.go`](testdata/fixedbugs/issue14553.go)
 - [`fixedbugs/issue14651.go`](testdata/fixedbugs/issue14651.go)
 - [`fixedbugs/issue14652.go`](testdata/fixedbugs/issue14652.go)
@@ -1553,28 +1603,21 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue15992.go`](testdata/fixedbugs/issue15992.go)
 - [`fixedbugs/issue16193.go`](testdata/fixedbugs/issue16193.go)
 - [`fixedbugs/issue16249.go`](testdata/fixedbugs/issue16249.go)
-- [`fixedbugs/issue16369.go`](testdata/fixedbugs/issue16369.go)
 - [`fixedbugs/issue16428.go`](testdata/fixedbugs/issue16428.go)
-- [`fixedbugs/issue16439.go`](testdata/fixedbugs/issue16439.go)
 - [`fixedbugs/issue16733.go`](testdata/fixedbugs/issue16733.go)
 - [`fixedbugs/issue16741.go`](testdata/fixedbugs/issue16741.go)
 - [`fixedbugs/issue16804.go`](testdata/fixedbugs/issue16804.go)
-- [`fixedbugs/issue16949.go`](testdata/fixedbugs/issue16949.go)
 - [`fixedbugs/issue17005.go`](testdata/fixedbugs/issue17005.go)
 - [`fixedbugs/issue17039.go`](testdata/fixedbugs/issue17039.go)
 - [`fixedbugs/issue17111.go`](testdata/fixedbugs/issue17111.go)
 - [`fixedbugs/issue17194.go`](testdata/fixedbugs/issue17194.go)
-- [`fixedbugs/issue17328.go`](testdata/fixedbugs/issue17328.go)
 - [`fixedbugs/issue17551.go`](testdata/fixedbugs/issue17551.go)
-- [`fixedbugs/issue17588.go`](testdata/fixedbugs/issue17588.go)
 - [`fixedbugs/issue17631.go`](testdata/fixedbugs/issue17631.go)
 - [`fixedbugs/issue17640.go`](testdata/fixedbugs/issue17640.go)
 - [`fixedbugs/issue17645.go`](testdata/fixedbugs/issue17645.go)
 - [`fixedbugs/issue17752.go`](testdata/fixedbugs/issue17752.go)
-- [`fixedbugs/issue17758.go`](testdata/fixedbugs/issue17758.go)
 - [`fixedbugs/issue17918.go`](testdata/fixedbugs/issue17918.go)
 - [`fixedbugs/issue18089.go`](testdata/fixedbugs/issue18089.go)
-- [`fixedbugs/issue18092.go`](testdata/fixedbugs/issue18092.go)
 - [`fixedbugs/issue18392.go`](testdata/fixedbugs/issue18392.go)
 - [`fixedbugs/issue18410.go`](testdata/fixedbugs/issue18410.go)
 - [`fixedbugs/issue18595.go`](testdata/fixedbugs/issue18595.go)
@@ -1593,7 +1636,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue19515.go`](testdata/fixedbugs/issue19515.go)
 - [`fixedbugs/issue19555.go`](testdata/fixedbugs/issue19555.go)
 - [`fixedbugs/issue19632.go`](testdata/fixedbugs/issue19632.go)
-- [`fixedbugs/issue19667.go`](testdata/fixedbugs/issue19667.go)
 - [`fixedbugs/issue19671.go`](testdata/fixedbugs/issue19671.go)
 - [`fixedbugs/issue19678.go`](testdata/fixedbugs/issue19678.go)
 - [`fixedbugs/issue19679.go`](testdata/fixedbugs/issue19679.go)
@@ -1604,10 +1646,8 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue19880.go`](testdata/fixedbugs/issue19880.go)
 - [`fixedbugs/issue19911.go`](testdata/fixedbugs/issue19911.go)
 - [`fixedbugs/issue19947.go`](testdata/fixedbugs/issue19947.go)
-- [`fixedbugs/issue19977.go`](testdata/fixedbugs/issue19977.go)
 - [`fixedbugs/issue20097.go`](testdata/fixedbugs/issue20097.go)
 - [`fixedbugs/issue20145.go`](testdata/fixedbugs/issue20145.go)
-- [`fixedbugs/issue20232.go`](testdata/fixedbugs/issue20232.go)
 - [`fixedbugs/issue20233.go`](testdata/fixedbugs/issue20233.go)
 - [`fixedbugs/issue20245.go`](testdata/fixedbugs/issue20245.go)
 - [`fixedbugs/issue20333.go`](testdata/fixedbugs/issue20333.go)
@@ -1627,7 +1667,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue21882.go`](testdata/fixedbugs/issue21882.go)
 - [`fixedbugs/issue21887.go`](testdata/fixedbugs/issue21887.go)
 - [`fixedbugs/issue21934.go`](testdata/fixedbugs/issue21934.go)
-- [`fixedbugs/issue21979.go`](testdata/fixedbugs/issue21979.go)
 - [`fixedbugs/issue21988.go`](testdata/fixedbugs/issue21988.go)
 - [`fixedbugs/issue22063.go`](testdata/fixedbugs/issue22063.go)
 - [`fixedbugs/issue22164.go`](testdata/fixedbugs/issue22164.go)
@@ -1637,8 +1676,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue22327.go`](testdata/fixedbugs/issue22327.go)
 - [`fixedbugs/issue22389.go`](testdata/fixedbugs/issue22389.go)
 - [`fixedbugs/issue22429.go`](testdata/fixedbugs/issue22429.go)
-- [`fixedbugs/issue22794.go`](testdata/fixedbugs/issue22794.go)
-- [`fixedbugs/issue22904.go`](testdata/fixedbugs/issue22904.go)
 - [`fixedbugs/issue22921.go`](testdata/fixedbugs/issue22921.go)
 - [`fixedbugs/issue23093.go`](testdata/fixedbugs/issue23093.go)
 - [`fixedbugs/issue23094.go`](testdata/fixedbugs/issue23094.go)
@@ -1652,9 +1689,7 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue23545.go`](testdata/fixedbugs/issue23545.go)
 - [`fixedbugs/issue23546.go`](testdata/fixedbugs/issue23546.go)
 - [`fixedbugs/issue23586.go`](testdata/fixedbugs/issue23586.go)
-- [`fixedbugs/issue23587.go`](testdata/fixedbugs/issue23587.go)
 - [`fixedbugs/issue23609.go`](testdata/fixedbugs/issue23609.go)
-- [`fixedbugs/issue23664.go`](testdata/fixedbugs/issue23664.go)
 - [`fixedbugs/issue23719.go`](testdata/fixedbugs/issue23719.go)
 - [`fixedbugs/issue23734.go`](testdata/fixedbugs/issue23734.go)
 - [`fixedbugs/issue23780.go`](testdata/fixedbugs/issue23780.go)
@@ -1702,7 +1737,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue28445.go`](testdata/fixedbugs/issue28445.go)
 - [`fixedbugs/issue28616.go`](testdata/fixedbugs/issue28616.go)
 - [`fixedbugs/issue28797.go`](testdata/fixedbugs/issue28797.go)
-- [`fixedbugs/issue28926.go`](testdata/fixedbugs/issue28926.go)
 - [`fixedbugs/issue29013a.go`](testdata/fixedbugs/issue29013a.go)
 - [`fixedbugs/issue29013b.go`](testdata/fixedbugs/issue29013b.go)
 - [`fixedbugs/issue29215.go`](testdata/fixedbugs/issue29215.go)
@@ -1750,7 +1784,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue38496.go`](testdata/fixedbugs/issue38496.go)
 - [`fixedbugs/issue38690.go`](testdata/fixedbugs/issue38690.go)
 - [`fixedbugs/issue38698.go`](testdata/fixedbugs/issue38698.go)
-- [`fixedbugs/issue38745.go`](testdata/fixedbugs/issue38745.go)
 - [`fixedbugs/issue38746.go`](testdata/fixedbugs/issue38746.go)
 - [`fixedbugs/issue38905.go`](testdata/fixedbugs/issue38905.go)
 - [`fixedbugs/issue39459.go`](testdata/fixedbugs/issue39459.go)
@@ -1762,15 +1795,12 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue40746.go`](testdata/fixedbugs/issue40746.go)
 - [`fixedbugs/issue4085a.go`](testdata/fixedbugs/issue4085a.go)
 - [`fixedbugs/issue41239.go`](testdata/fixedbugs/issue41239.go)
-- [`fixedbugs/issue41247.go`](testdata/fixedbugs/issue41247.go)
 - [`fixedbugs/issue41440.go`](testdata/fixedbugs/issue41440.go)
 - [`fixedbugs/issue41500.go`](testdata/fixedbugs/issue41500.go)
-- [`fixedbugs/issue41575.go`](testdata/fixedbugs/issue41575.go)
 - [`fixedbugs/issue4167.go`](testdata/fixedbugs/issue4167.go)
 - [`fixedbugs/issue41680.go`](testdata/fixedbugs/issue41680.go)
 - [`fixedbugs/issue41780.go`](testdata/fixedbugs/issue41780.go)
 - [`fixedbugs/issue41872.go`](testdata/fixedbugs/issue41872.go)
-- [`fixedbugs/issue4215.go`](testdata/fixedbugs/issue4215.go)
 - [`fixedbugs/issue4232.go`](testdata/fixedbugs/issue4232.go)
 - [`fixedbugs/issue42568.go`](testdata/fixedbugs/issue42568.go)
 - [`fixedbugs/issue42587.go`](testdata/fixedbugs/issue42587.go)
@@ -1778,7 +1808,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue42727.go`](testdata/fixedbugs/issue42727.go)
 - [`fixedbugs/issue42784.go`](testdata/fixedbugs/issue42784.go)
 - [`fixedbugs/issue42790.go`](testdata/fixedbugs/issue42790.go)
-- [`fixedbugs/issue4283.go`](testdata/fixedbugs/issue4283.go)
 - [`fixedbugs/issue42876.go`](testdata/fixedbugs/issue42876.go)
 - [`fixedbugs/issue43112.go`](testdata/fixedbugs/issue43112.go)
 - [`fixedbugs/issue4316.go`](testdata/fixedbugs/issue4316.go)
@@ -1793,14 +1822,12 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue4396b.go`](testdata/fixedbugs/issue4396b.go)
 - [`fixedbugs/issue4399.go`](testdata/fixedbugs/issue4399.go)
 - [`fixedbugs/issue4405.go`](testdata/fixedbugs/issue4405.go)
-- [`fixedbugs/issue44266.go`](testdata/fixedbugs/issue44266.go)
 - [`fixedbugs/issue4429.go`](testdata/fixedbugs/issue4429.go)
 - [`fixedbugs/issue44344.go`](testdata/fixedbugs/issue44344.go)
 - [`fixedbugs/issue44378.go`](testdata/fixedbugs/issue44378.go)
 - [`fixedbugs/issue44383.go`](testdata/fixedbugs/issue44383.go)
 - [`fixedbugs/issue4448.go`](testdata/fixedbugs/issue4448.go)
 - [`fixedbugs/issue4452.go`](testdata/fixedbugs/issue4452.go)
-- [`fixedbugs/issue4468.go`](testdata/fixedbugs/issue4468.go)
 - [`fixedbugs/issue44739.go`](testdata/fixedbugs/issue44739.go)
 - [`fixedbugs/issue44823.go`](testdata/fixedbugs/issue44823.go)
 - [`fixedbugs/issue45175.go`](testdata/fixedbugs/issue45175.go)
@@ -1850,7 +1877,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue5056.go`](testdata/fixedbugs/issue5056.go)
 - [`fixedbugs/issue50671.go`](testdata/fixedbugs/issue50671.go)
 - [`fixedbugs/issue50854.go`](testdata/fixedbugs/issue50854.go)
-- [`fixedbugs/issue5089.go`](testdata/fixedbugs/issue5089.go)
 - [`fixedbugs/issue51101.go`](testdata/fixedbugs/issue51101.go)
 - [`fixedbugs/issue51437.go`](testdata/fixedbugs/issue51437.go)
 - [`fixedbugs/issue51475.go`](testdata/fixedbugs/issue51475.go)
@@ -1879,7 +1905,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue55242.go`](testdata/fixedbugs/issue55242.go)
 - [`fixedbugs/issue5607.go`](testdata/fixedbugs/issue5607.go)
 - [`fixedbugs/issue5609.go`](testdata/fixedbugs/issue5609.go)
-- [`fixedbugs/issue56220.go`](testdata/fixedbugs/issue56220.go)
 - [`fixedbugs/issue56727.go`](testdata/fixedbugs/issue56727.go)
 - [`fixedbugs/issue56768.go`](testdata/fixedbugs/issue56768.go)
 - [`fixedbugs/issue56777.go`](testdata/fixedbugs/issue56777.go)
@@ -1908,18 +1933,14 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue6269.go`](testdata/fixedbugs/issue6269.go)
 - [`fixedbugs/issue6298.go`](testdata/fixedbugs/issue6298.go)
 - [`fixedbugs/issue63436.go`](testdata/fixedbugs/issue63436.go)
-- [`fixedbugs/issue63489a.go`](testdata/fixedbugs/issue63489a.go)
-- [`fixedbugs/issue63489b.go`](testdata/fixedbugs/issue63489b.go)
 - [`fixedbugs/issue63490.go`](testdata/fixedbugs/issue63490.go)
 - [`fixedbugs/issue63505.go`](testdata/fixedbugs/issue63505.go)
 - [`fixedbugs/issue63657.go`](testdata/fixedbugs/issue63657.go)
 - [`fixedbugs/issue63955.go`](testdata/fixedbugs/issue63955.go)
 - [`fixedbugs/issue6399.go`](testdata/fixedbugs/issue6399.go)
-- [`fixedbugs/issue6405.go`](testdata/fixedbugs/issue6405.go)
 - [`fixedbugs/issue6406.go`](testdata/fixedbugs/issue6406.go)
 - [`fixedbugs/issue64715.go`](testdata/fixedbugs/issue64715.go)
 - [`fixedbugs/issue6500.go`](testdata/fixedbugs/issue6500.go)
-- [`fixedbugs/issue6572.go`](testdata/fixedbugs/issue6572.go)
 - [`fixedbugs/issue65808.go`](testdata/fixedbugs/issue65808.go)
 - [`fixedbugs/issue65893.go`](testdata/fixedbugs/issue65893.go)
 - [`fixedbugs/issue66066.go`](testdata/fixedbugs/issue66066.go)
@@ -1928,7 +1949,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue66261.go`](testdata/fixedbugs/issue66261.go)
 - [`fixedbugs/issue66575.go`](testdata/fixedbugs/issue66575.go)
 - [`fixedbugs/issue66585.go`](testdata/fixedbugs/issue66585.go)
-- [`fixedbugs/issue6671.go`](testdata/fixedbugs/issue6671.go)
 - [`fixedbugs/issue66873.go`](testdata/fixedbugs/issue66873.go)
 - [`fixedbugs/issue6703a.go`](testdata/fixedbugs/issue6703a.go)
 - [`fixedbugs/issue6703b.go`](testdata/fixedbugs/issue6703b.go)
@@ -1970,8 +1990,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue7346.go`](testdata/fixedbugs/issue7346.go)
 - [`fixedbugs/issue7366.go`](testdata/fixedbugs/issue7366.go)
 - [`fixedbugs/issue7405.go`](testdata/fixedbugs/issue7405.go)
-- [`fixedbugs/issue7525b.go`](testdata/fixedbugs/issue7525b.go)
-- [`fixedbugs/issue7525c.go`](testdata/fixedbugs/issue7525c.go)
 - [`fixedbugs/issue7538a.go`](testdata/fixedbugs/issue7538a.go)
 - [`fixedbugs/issue7538b.go`](testdata/fixedbugs/issue7538b.go)
 - [`fixedbugs/issue7547.go`](testdata/fixedbugs/issue7547.go)
@@ -1993,7 +2011,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue8325.go`](testdata/fixedbugs/issue8325.go)
 - [`fixedbugs/issue8438.go`](testdata/fixedbugs/issue8438.go)
 - [`fixedbugs/issue8440.go`](testdata/fixedbugs/issue8440.go)
-- [`fixedbugs/issue8507.go`](testdata/fixedbugs/issue8507.go)
 - [`fixedbugs/issue8613.go`](testdata/fixedbugs/issue8613.go)
 - [`fixedbugs/issue8620.go`](testdata/fixedbugs/issue8620.go)
 - [`fixedbugs/issue8745.go`](testdata/fixedbugs/issue8745.go)
@@ -2003,7 +2020,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`fixedbugs/issue9006.go`](testdata/fixedbugs/issue9006.go)
 - [`fixedbugs/issue9036.go`](testdata/fixedbugs/issue9036.go)
 - [`fixedbugs/issue9370.go`](testdata/fixedbugs/issue9370.go)
-- [`fixedbugs/issue9432.go`](testdata/fixedbugs/issue9432.go)
 - [`fixedbugs/issue9521.go`](testdata/fixedbugs/issue9521.go)
 - [`fixedbugs/issue9604.go`](testdata/fixedbugs/issue9604.go)
 - [`fixedbugs/issue9634.go`](testdata/fixedbugs/issue9634.go)
@@ -2014,8 +2030,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`floatcmp.go`](testdata/floatcmp.go)
 - [`for.go`](testdata/for.go)
 - [`func.go`](testdata/func.go)
-- [`func1.go`](testdata/func1.go)
-- [`func3.go`](testdata/func3.go)
 - [`func4.go`](testdata/func4.go)
 - [`func6.go`](testdata/func6.go)
 - [`func7.go`](testdata/func7.go)
@@ -2026,7 +2040,6 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`gno/optin_canary.gno`](testdata/gno/optin_canary.gno)
 - [`helloworld.go`](testdata/helloworld.go)
 - [`if.go`](testdata/if.go)
-- [`import5.go`](testdata/import5.go)
 - [`import6.go`](testdata/import6.go)
 - [`indirect.go`](testdata/indirect.go)
 - [`init.go`](testdata/init.go)
@@ -2071,17 +2084,12 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`ken/slicearray.go`](testdata/ken/slicearray.go)
 - [`ken/sliceslice.go`](testdata/ken/sliceslice.go)
 - [`ken/strvar.go`](testdata/ken/strvar.go)
-- [`label.go`](testdata/label.go)
-- [`label1.go`](testdata/label1.go)
 - [`literal.go`](testdata/literal.go)
 - [`live1.go`](testdata/live1.go)
-- [`makemap.go`](testdata/makemap.go)
 - [`makenew.go`](testdata/makenew.go)
-- [`method1.go`](testdata/method1.go)
 - [`method2.go`](testdata/method2.go)
 - [`nilptr2.go`](testdata/nilptr2.go)
 - [`printbig.go`](testdata/printbig.go)
-- [`range2.go`](testdata/range2.go)
 - [`recover5.go`](testdata/recover5.go)
 - [`run/alias1.go`](testdata/run/alias1.go)
 - [`run/canary.go`](testdata/run/canary.go)
@@ -2092,35 +2100,21 @@ Gno's behavior is pinned and matches; no outstanding issue.
 - [`shift2.go`](testdata/shift2.go)
 - [`simassign.go`](testdata/simassign.go)
 - [`slice3err.go`](testdata/slice3err.go)
-- [`switch2.go`](testdata/switch2.go)
-- [`switch3.go`](testdata/switch3.go)
-- [`switch4.go`](testdata/switch4.go)
 - [`syntax/composite.go`](testdata/syntax/composite.go)
 - [`syntax/ddd.go`](testdata/syntax/ddd.go)
-- [`syntax/else.go`](testdata/syntax/else.go)
-- [`syntax/if.go`](testdata/syntax/if.go)
 - [`syntax/import.go`](testdata/syntax/import.go)
 - [`syntax/initvar.go`](testdata/syntax/initvar.go)
-- [`syntax/semi1.go`](testdata/syntax/semi1.go)
-- [`syntax/semi2.go`](testdata/syntax/semi2.go)
-- [`syntax/semi3.go`](testdata/syntax/semi3.go)
-- [`syntax/semi4.go`](testdata/syntax/semi4.go)
-- [`syntax/semi5.go`](testdata/syntax/semi5.go)
 - [`syntax/semi6.go`](testdata/syntax/semi6.go)
-- [`syntax/semi7.go`](testdata/syntax/semi7.go)
 - [`syntax/topexpr.go`](testdata/syntax/topexpr.go)
-- [`syntax/typesw.go`](testdata/syntax/typesw.go)
 - [`syntax/vareq.go`](testdata/syntax/vareq.go)
 - [`syntax/vareq1.go`](testdata/syntax/vareq1.go)
 - [`turing.go`](testdata/turing.go)
-- [`typecheck.go`](testdata/typecheck.go)
 - [`typecheckloop.go`](testdata/typecheckloop.go)
 - [`typeparam/importtest.go`](testdata/typeparam/importtest.go)
 - [`typeparam/issue49611.go`](testdata/typeparam/issue49611.go)
 - [`typeparam/issue49875.go`](testdata/typeparam/issue49875.go)
 - [`typeparam/issue50417.go`](testdata/typeparam/issue50417.go)
 - [`typeparam/issue50417b.go`](testdata/typeparam/issue50417b.go)
-- [`typeswitch3.go`](testdata/typeswitch3.go)
 - [`undef.go`](testdata/undef.go)
 - [`utf.go`](testdata/utf.go)
 - [`varerr.go`](testdata/varerr.go)

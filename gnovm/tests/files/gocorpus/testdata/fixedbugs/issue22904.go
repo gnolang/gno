@@ -20,6 +20,10 @@ func f() {
 
 // GnoError:
 // line 12: invalid recursive type: a -> b -> a
+// line 18: a<VPInvalid(0)> is not a type
 
 // GoTypeCheckError:
 // line 12: invalid recursive type a
+
+// GnoOverStrictError:
+// line 18: a<VPInvalid(0)> is not a type

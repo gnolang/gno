@@ -13,7 +13,13 @@ func foo() (a, b, c int) {
 }
 
 // GnoError:
+// line 11: 2: [function "foo" does not terminate]
 // line 12: expected ';', found 2.01 (and 1 more errors)
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: expected ';', found 2.01 (and 1 more errors)
+
+// GnoOverStrictError:
+// line 11: 2: [function "foo" does not terminate]
+// line 13: expected declaration, found '}'

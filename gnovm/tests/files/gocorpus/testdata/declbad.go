@@ -68,8 +68,27 @@ func main() {
 
 // GnoError:
 // line 20: no new variables on left side of := (and 5 more errors)
+// line 26: StaticBlock.Define2(f) cannot change .T
+// line 32: StaticBlock.Define2(i) cannot change .T
 // line 38: no new variables on left side of := (and 4 more errors)
 // line 44: no new variables on left side of := (and 3 more errors)
+// line 45: expected 0 return values
+// line 49: expected declaration, found '{'
+// line 51: expected declaration, found i
+// line 52: expected declaration, found i
+// line 53: expected declaration, found _
+// line 54: expected declaration, found '}'
+// line 56: expected declaration, found '{'
+// line 57: expected declaration, found i
+// line 58: expected declaration, found i
+// line 59: expected declaration, found _
+// line 60: expected declaration, found '}'
+// line 61: expected declaration, found '{'
+// line 63: expected declaration, found i
+// line 64: expected declaration, found i
+// line 65: expected declaration, found _
+// line 66: expected declaration, found '}'
+// line 67: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 20: no new variables on left side of :=
@@ -80,3 +99,19 @@ func main() {
 // line 52: no new variables on left side of :=
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
+
+// GnoOverStrictError:
+// line 45: expected 0 return values
+// line 49: expected declaration, found '{'
+// line 51: expected declaration, found i
+// line 53: expected declaration, found _
+// line 54: expected declaration, found '}'
+// line 56: expected declaration, found '{'
+// line 57: expected declaration, found i
+// line 59: expected declaration, found _
+// line 60: expected declaration, found '}'
+// line 61: expected declaration, found '{'
+// line 63: expected declaration, found i
+// line 65: expected declaration, found _
+// line 66: expected declaration, found '}'
+// line 67: expected declaration, found '}'

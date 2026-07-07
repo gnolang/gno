@@ -55,8 +55,14 @@ func g() {
 	_ = t
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 39: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 40: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 41: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 43: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
+// line 45: gno.land/p/filetest/p.T4 does not implement gno.land/p/filetest/p.I (method M has pointer receiver)
+// line 54: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
 
 // GoTypeCheckError:
 // line 36: cannot use new(T) (value of type *T) as I value in argument to f: *T does not implement I (missing method M)
@@ -88,5 +94,5 @@ func g() {
 // 		want M(int)
 // line 54: cannot use i (variable of interface type I) as *T4 value in assignment: need type assertion
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

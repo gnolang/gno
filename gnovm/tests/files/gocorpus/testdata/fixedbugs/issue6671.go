@@ -30,7 +30,13 @@ func _(x, y int) {
 // GnoError:
 // line 17: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
 // line 19: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
+// line 23: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
+// line 24: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
 
 // GoTypeCheckError:
 // line 17: cannot use bool(true) (constant true of type bool) as mybool value in assignment
 // line 19: cannot use bool(true) && true (constant true of type bool) as mybool value in assignment
+
+// GnoOverStrictError:
+// line 23: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
+// line 24: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion

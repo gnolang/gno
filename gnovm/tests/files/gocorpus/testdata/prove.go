@@ -1723,8 +1723,4 @@ func useSlice(a []int) {
 func main() {
 }
 
-// GnoStaticIncomplete: covered 2 of 239 markers (Gno preprocess: 2, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
-
-// GnoError:
-// line 1674: name min not declared
-// line 1675: name min not declared
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

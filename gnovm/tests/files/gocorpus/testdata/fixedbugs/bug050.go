@@ -9,6 +9,10 @@ func main() {	// ERROR "package"
 
 // GnoError:
 // line 7: expected 'package', found 'func'
+// line 8: expected 'package', found '}'
 
 // GoTypeCheckError:
 // line 7: expected 'package', found 'func'
+
+// GnoOverStrictError:
+// line 8: expected 'package', found '}'

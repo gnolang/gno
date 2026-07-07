@@ -20,6 +20,10 @@ bug047.go:4: fatal error: stringpool: not string
 
 // GnoError:
 // line 10: invalid operation: (mismatched types <nil> and string)
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: invalid operation: s == nil (mismatched types string and untyped nil)
+
+// GnoOverStrictError:
+// line 13: expected declaration, found '}'

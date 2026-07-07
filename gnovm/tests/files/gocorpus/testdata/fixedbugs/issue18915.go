@@ -20,12 +20,20 @@ func _() {
 	}
 }
 
-// GnoStaticIncomplete: covered 2 of 3 markers (Gno preprocess: 2, go/types guard: 2); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)
 // line 16: expected declaration, found 'for'
+// line 17: expected declaration, found '}'
+// line 19: expected declaration, found 'switch'
+// line 20: expected declaration, found '}'
+// line 21: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)
 // line 16: expected declaration, found 'for'
+// line 19: expected declaration, found 'switch'
+
+// GnoOverStrictError:
+// line 17: expected declaration, found '}'
+// line 20: expected declaration, found '}'
+// line 21: expected declaration, found '}'

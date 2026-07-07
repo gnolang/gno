@@ -15,6 +15,7 @@ var x ...int;		// ERROR "[.][.][.]|syntax|type"
 type T ...int;		// ERROR "[.][.][.]|syntax|type"
 
 // GnoError:
+// line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 11: expected type, found ')' (and 2 more errors)
 // line 13: expected type, found '...' (and 1 more errors)
 // line 15: expected type, found '...'
@@ -23,3 +24,6 @@ type T ...int;		// ERROR "[.][.][.]|syntax|type"
 // line 11: expected type, found ')' (and 2 more errors)
 // line 13: expected type, found '...' (and 1 more errors)
 // line 15: expected type, found '...'
+
+// GnoOverStrictError:
+// line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

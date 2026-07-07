@@ -17,6 +17,14 @@ func Foo() {
 
 // GnoError:
 // line 12: name a not declared
+// line 13: expected '}', found 'default'
+// line 14: name x not declared
+// line 16: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: undefined: a
+
+// GnoOverStrictError:
+// line 13: expected '}', found 'default'
+// line 14: name x not declared
+// line 16: expected declaration, found '}'

@@ -10,7 +10,11 @@ func main()
 {	// ERROR "unexpected semicolon or newline before .?{.?"
 
 // GnoError:
+// line 9: function main does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 10: unexpected semicolon or newline before {
 
 // GoTypeCheckError:
 // line 10: unexpected semicolon or newline before {
+
+// GnoOverStrictError:
+// line 9: function main does not have a body but is not natively defined (did you build after pulling from the repository?)

@@ -12,11 +12,17 @@ func main() int { return 1 } // ERROR "func main must have no arguments and no r
 func init(int)  {}           // ERROR "func init must have no arguments and no return values"
 func init() int { return 1 } // ERROR "func init must have no arguments and no return values"
 
-// GnoStaticIncomplete: covered 2 of 4 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
+// line 7: 29: wrong argument count in call to init.1<VPBlock(2,1)>
 // line 10: main redeclared in this block
 // 	previous declaration at mainsig.go:9:6
 
 // GoTypeCheckError:
 // line 13: func init must have no arguments and no return values
+
+// GnoOverStrictError:
+// line 7: 29: wrong argument count in call to init.1<VPBlock(2,1)>
+
+// UncaughtError:
+// line 9: uncaught; gc expects: func main must have no arguments and no return values
+// line 12: uncaught; gc expects: func init must have no arguments and no return values

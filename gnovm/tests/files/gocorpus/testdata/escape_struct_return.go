@@ -73,4 +73,4 @@ func tB3() {
 	println(**u._spp)
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

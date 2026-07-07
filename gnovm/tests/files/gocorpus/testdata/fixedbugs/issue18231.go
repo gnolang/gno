@@ -19,11 +19,18 @@ var _ = T{
 	},
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 16: 2: types cannot be elided in composite literals for struct types
+// line 17: expected declaration, found f
+// line 18: expected declaration, found "a"
+// line 19: expected declaration, found '}'
+// line 20: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 17: missing type in composite literal
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 16: 2: types cannot be elided in composite literals for struct types
+// line 18: expected declaration, found "a"
+// line 19: expected declaration, found '}'
+// line 20: expected declaration, found '}'

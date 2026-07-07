@@ -23,10 +23,12 @@ var x     // error on line 24, not 30
 
 // ERROR "syntax error: unexpected newline, expecting type|expected type"
 
-// GnoStaticIncomplete: covered 0 of 2 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 19: import path must be a string (and 1 more errors)
 
 // GnoOverStrictError:
 // line 19: import path must be a string (and 1 more errors)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// UncaughtError:
+// line 20: uncaught; gc expects: import path must be a string
+// line 24: uncaught; gc expects: syntax error: unexpected newline, expecting type|expected type

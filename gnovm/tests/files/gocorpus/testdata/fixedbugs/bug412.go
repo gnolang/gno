@@ -15,9 +15,4 @@ func f(t *t) int {
 	return t.x
 }
 
-// GnoError:
-// line 11: x redeclared in this block
-// 	previous declaration at bug412.go:11:2
-
-// GoTypeCheckError:
-// line 11: x redeclared
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

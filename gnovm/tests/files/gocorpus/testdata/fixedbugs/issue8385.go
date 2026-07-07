@@ -41,8 +41,15 @@ func main() {
 	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 30: unknown *DeclaredType method named Foo
+// line 36: wrong argument count in call to f<VPBlock(3,1)>
+// line 37: wrong argument count in call to i<VPBlock(1,0)>.M
+// line 38: unknown *DeclaredType method named M
+// line 39: wrong argument count in call to t<VPBlock(1,1)>.M
+// line 40: wrong argument count in call to typeval{main.T}.M
+// line 41: wrong argument count in call to *(typeval{main.T}).M
 
 // GoTypeCheckError:
 // line 30: not enough arguments in call to Fooer.Foo
@@ -70,5 +77,5 @@ func main() {
 // 	have ()
 // 	want (*T, int)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)

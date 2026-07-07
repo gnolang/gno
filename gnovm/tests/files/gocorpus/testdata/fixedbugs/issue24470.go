@@ -15,5 +15,13 @@ func f(i interface{}) {
 	}
 }
 
+// GnoError:
+// line 14: name x not declared
+// line 16: expected declaration, found '}'
+
 // GoTypeCheckError:
 // line 13: use of .(type) outside type switch
+
+// GnoOverStrictError:
+// line 14: name x not declared
+// line 16: expected declaration, found '}'

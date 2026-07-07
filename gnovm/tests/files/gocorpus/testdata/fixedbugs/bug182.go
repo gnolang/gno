@@ -14,6 +14,10 @@ func main() {
 
 // GnoError:
 // line 11: 3: expected typed bool kind, but got IntKind
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: non-boolean condition in if statement
+
+// GnoOverStrictError:
+// line 13: expected declaration, found '}'

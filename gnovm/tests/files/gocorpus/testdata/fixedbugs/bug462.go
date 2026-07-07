@@ -20,11 +20,12 @@ func main() {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 11: name Open not declared
+// line 19: name File not declared
 
 // GoTypeCheckError:
 // line 19: invalid field name os.File in struct literal
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 11: name Open not declared

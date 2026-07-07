@@ -16,5 +16,15 @@ func main() {
 	_ = i
 }
 
+// GnoError:
+// line 14: expected '}', found 'default'
+// line 16: expected declaration, found _
+// line 17: expected declaration, found '}'
+
 // GoTypeCheckError:
 // line 13: use of .(type) outside type switch
+
+// GnoOverStrictError:
+// line 14: expected '}', found 'default'
+// line 16: expected declaration, found _
+// line 17: expected declaration, found '}'

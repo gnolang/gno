@@ -37,6 +37,19 @@ type w2 w // refer to the type loop again
 
 // GnoError:
 // line 9: 2: invalid recursive type: T1 -> T2 -> T1
+// line 10: expected declaration, found f2
+// line 11: expected declaration, found '}'
+// line 14: expected declaration, found f1
+// line 15: expected declaration, found '}'
+// line 21: invalid recursive type: d -> e -> f -> f
+// line 22: invalid recursive type: e -> f -> f
+// line 23: invalid recursive type: f -> f
+// line 25: 2: invalid recursive type: g -> g
+// line 26: expected declaration, found h
+// line 27: expected declaration, found g
+// line 28: expected declaration, found '}'
+// line 29: expected declaration, found '}'
+// line 31: invalid recursive type: w -> x -> y -> z -> x
 
 // GoTypeCheckError:
 // line 9: invalid recursive type T1
@@ -44,3 +57,16 @@ type w2 w // refer to the type loop again
 // line 23: invalid recursive type: f refers to itself
 // line 25: invalid recursive type: g refers to itself
 // line 32: invalid recursive type x
+
+// GnoOverStrictError:
+// line 10: expected declaration, found f2
+// line 11: expected declaration, found '}'
+// line 14: expected declaration, found f1
+// line 15: expected declaration, found '}'
+// line 21: invalid recursive type: d -> e -> f -> f
+// line 22: invalid recursive type: e -> f -> f
+// line 26: expected declaration, found h
+// line 27: expected declaration, found g
+// line 28: expected declaration, found '}'
+// line 29: expected declaration, found '}'
+// line 31: invalid recursive type: w -> x -> y -> z -> x

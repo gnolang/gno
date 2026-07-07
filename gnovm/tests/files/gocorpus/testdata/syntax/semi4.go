@@ -13,6 +13,10 @@ func main() {
 
 // GnoError:
 // line 11: expected operand, found '{' (and 1 more errors)
+// line 12: expected operand, found 'EOF'
 
 // GoTypeCheckError:
 // line 11: expected operand, found '{' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 12: expected operand, found 'EOF'

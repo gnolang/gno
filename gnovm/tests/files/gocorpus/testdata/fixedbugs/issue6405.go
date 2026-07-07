@@ -13,7 +13,13 @@ func Open() (int, error) {
 }
 
 // GnoError:
+// line 11: 2: [function "Open" does not terminate]
 // line 12: name OpenFile not declared
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: undefined: OpenFile
+
+// GnoOverStrictError:
+// line 11: 2: [function "Open" does not terminate]
+// line 13: expected declaration, found '}'

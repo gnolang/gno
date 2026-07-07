@@ -36,13 +36,34 @@ func whatis(x interface{}) string {
 	return ""
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 15: 3: duplicate type int in type switch
+// line 16: expected '}', found 'case' (and 1 more errors)
+// line 18: expected '}', found 'case' (and 1 more errors)
+// line 20: expected '}', found 'case' (and 1 more errors)
+// line 22: expected '}', found 'case' (and 1 more errors)
+// line 24: expected '}', found 'case' (and 1 more errors)
+// line 25: name r not declared
+// line 26: name w not declared
+// line 27: expected ';', found ':' (and 1 more errors)
+// line 29: expected '}', found 'case' (and 1 more errors)
+// line 32: expected ';', found ':' (and 1 more errors)
+// line 36: expected declaration, found 'return'
+// line 37: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 18: duplicate case int in type switch
 // line 22: duplicate case io.Reader in type switch
 // line 29: duplicate case interface{r()
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 15: 3: duplicate type int in type switch
+// line 16: expected '}', found 'case' (and 1 more errors)
+// line 20: expected '}', found 'case' (and 1 more errors)
+// line 24: expected '}', found 'case' (and 1 more errors)
+// line 25: name r not declared
+// line 26: name w not declared
+// line 27: expected ';', found ':' (and 1 more errors)
+// line 32: expected ';', found ':' (and 1 more errors)
+// line 36: expected declaration, found 'return'
+// line 37: expected declaration, found '}'

@@ -15,6 +15,12 @@ func fn(i int) int {
 
 // GnoError:
 // line 10: unexpected func type <untyped> bigint (gnolang.PrimitiveType)
+// line 13: expected declaration, found 'return'
+// line 14: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: invalid operation: cannot call F (untyped int constant 1): untyped int is not a function
+
+// GnoOverStrictError:
+// line 13: expected declaration, found 'return'
+// line 14: expected declaration, found '}'

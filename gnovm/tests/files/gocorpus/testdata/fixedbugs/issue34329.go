@@ -13,4 +13,5 @@ type _ interface {
 	I // ERROR "duplicate method M"
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// UncaughtError:
+// line 13: uncaught; gc expects: duplicate method M

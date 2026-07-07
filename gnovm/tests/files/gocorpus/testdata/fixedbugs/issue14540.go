@@ -19,12 +19,14 @@ func f(x int) {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 12: fallthrough statement out of place
+// line 15: fallthrough statement out of place
+// line 18: cannot fallthrough final case in switch
 
 // GoTypeCheckError:
 // line 15: fallthrough statement out of place
 // line 18: cannot fallthrough final case in switch
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 12: fallthrough statement out of place

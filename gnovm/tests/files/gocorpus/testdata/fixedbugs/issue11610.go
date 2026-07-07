@@ -15,10 +15,11 @@ var x int // ERROR "unexpected keyword var|expected identifier|expected type"
 func main() {
 }
 
-// GnoStaticIncomplete: covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 11: illegal character U+003F '?' (and 1 more errors)
 
 // GoTypeCheckError:
 // line 11: illegal character U+003F '?' (and 1 more errors)
+
+// UncaughtError:
+// line 13: uncaught; gc expects: unexpected keyword var|expected identifier|expected type

@@ -16,10 +16,16 @@ func main() {
 
 var _ = c <- v // ERROR "unexpected <-|send statement used as value"
 
-// GnoStaticIncomplete: covered 1 of 2 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
+// line 9: channels are not permitted
 // line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?) (and 1 more errors)
+// line 15: expected declaration, found '}' (and 1 more errors)
+// line 17: expected ';', found '<-'
 
 // GoTypeCheckError:
 // line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?) (and 1 more errors)
+// line 17: expected ';', found '<-'
+
+// GnoOverStrictError:
+// line 9: channels are not permitted
+// line 15: expected declaration, found '}' (and 1 more errors)

@@ -26,12 +26,34 @@ type I6 interface {
 	I5 // GCCGO_ERROR "interface"
 }
 
-// GnoStaticIncomplete: covered 3 of 5 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 14: 2: invalid recursive type: S -> S
+// line 15: expected declaration, found x
+// line 16: expected declaration, found '}'
+// line 17: 2: invalid recursive type: I4 -> I4
+// line 18: expected declaration, found I4
+// line 19: expected declaration, found '}'
+// line 21: 2: invalid recursive type: I5 -> I6 -> I5
+// line 22: expected declaration, found I6
+// line 23: expected declaration, found '}'
+// line 26: expected declaration, found I5
+// line 27: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 14: invalid recursive type: S refers to itself
 // line 17: invalid recursive type: I4 refers to itself
 // line 21: invalid recursive type I5
+
+// GnoOverStrictError:
+// line 15: expected declaration, found x
+// line 16: expected declaration, found '}'
+// line 18: expected declaration, found I4
+// line 19: expected declaration, found '}'
+// line 22: expected declaration, found I6
+// line 23: expected declaration, found '}'
+// line 26: expected declaration, found I5
+// line 27: expected declaration, found '}'
+
+// UncaughtError:
+// line 9: uncaught; gc expects: interface
+// line 12: uncaught; gc expects: interface

@@ -21,12 +21,19 @@ var _ = []string{
 	20, // ERROR "cannot use|incompatible type|cannot convert"
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 18: 2: cannot use untyped Bigint as StringKind
+// line 19: expected declaration, found "foo"
+// line 20: expected declaration, found "bar"
+// line 21: expected declaration, found 20
+// line 22: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 15: missing key in map literal
 // line 21: cannot use 20 (untyped int constant) as string value in array or slice literal
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 18: 2: cannot use untyped Bigint as StringKind
+// line 19: expected declaration, found "foo"
+// line 20: expected declaration, found "bar"
+// line 22: expected declaration, found '}'

@@ -24,8 +24,11 @@ func f() {
 	f2ddd(1, 2, 3)
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 10: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 11: function f2 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 12: function f2ddd does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
 // line 16: too many arguments in call to f0
@@ -50,5 +53,8 @@ func f() {
 // 	have (number)
 // 	want (int, int, ...int)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 10: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 11: function f2 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 12: function f2ddd does not have a body but is not natively defined (did you build after pulling from the repository?)

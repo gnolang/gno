@@ -21,11 +21,18 @@ func main() {
 	_ = s.Num // no error here please
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 14: 2: name foo not defined in fileset with files [bug365.go]
+// line 15: expected declaration, found err
+// line 16: expected declaration, found Num
+// line 17: expected declaration, found '}'
+// line 20: S<VPInvalid(0)> is not a type
 
 // GoTypeCheckError:
 // line 15: undefined: foo
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 14: 2: name foo not defined in fileset with files [bug365.go]
+// line 16: expected declaration, found Num
+// line 17: expected declaration, found '}'
+// line 20: S<VPInvalid(0)> is not a type

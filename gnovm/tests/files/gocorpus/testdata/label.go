@@ -65,9 +65,15 @@ L10:
 }
 
 // GnoError:
+// line 20: select statements are not permitted
 // line 31: L6 redeclared in this block
 // 	previous declaration at label.go:29:1 (and 1 more errors)
+// line 57: select statements are not permitted
+// line 58: expected statement, found 'default' (and 1 more errors)
+// line 59: cannot find branch label "L10"
+// line 62: expected declaration, found 'goto'
 // line 64: label go2 undefined
+// line 65: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 16: label L1 declared and not used
@@ -78,3 +84,11 @@ L10:
 // line 31: label L6 already declared
 // line 53: label defalt declared and not used
 // line 64: label go2 not declared
+
+// GnoOverStrictError:
+// line 20: select statements are not permitted
+// line 57: select statements are not permitted
+// line 58: expected statement, found 'default' (and 1 more errors)
+// line 59: cannot find branch label "L10"
+// line 62: expected declaration, found 'goto'
+// line 65: expected declaration, found '}'

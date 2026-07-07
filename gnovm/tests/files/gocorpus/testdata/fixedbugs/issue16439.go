@@ -20,9 +20,15 @@ var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|inde
 // GnoError:
 // line 10: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 13: invalid argument: index must not be negative: (-2.0 <untyped> bigdec)
+// line 15: imaginaries are not supported
+// line 16: imaginaries are not supported
+// line 18: type should be numeric
 
 // GoTypeCheckError:
 // line 10: invalid argument: index -1 (constant of type int) must not be negative
 // line 13: invalid argument: index -2.0 (constant -2 of type int) must not be negative
 // line 16: 3i (untyped complex constant (0 + 3i)) truncated to int
 // line 18: cannot convert "a" (untyped string constant) to type int
+
+// GnoOverStrictError:
+// line 15: imaginaries are not supported

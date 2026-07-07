@@ -46,4 +46,4 @@ func main() {
 	fmt.Printf("foo(f,3)=%d\n", int(i)) // ERROR "int\(i\) escapes to heap$" "... argument does not escape$"
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

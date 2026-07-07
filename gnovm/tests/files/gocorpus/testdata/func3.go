@@ -23,8 +23,12 @@ func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.
 // line 16: missing parameter name (and 2 more errors)
 // line 17: missing parameter name (and 1 more errors)
 // line 18: missing parameter name
+// line 20: function f4 does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
 // line 16: missing parameter name (and 2 more errors)
 // line 17: missing parameter name (and 1 more errors)
 // line 18: missing parameter name
+
+// GnoOverStrictError:
+// line 20: function f4 does not have a body but is not natively defined (did you build after pulling from the repository?)

@@ -32,12 +32,12 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// pin Go1.17.
-
 // GnoOutput:
 
 // GnoError:
 // main/issue67255.go:27:2-32:3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
 
 // GoOutput:
+
+// KnownDivergence:
+// pin Go1.17.

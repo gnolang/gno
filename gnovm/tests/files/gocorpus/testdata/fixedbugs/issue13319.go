@@ -18,9 +18,23 @@ func f(int, int) {
 }
 
 // GnoError:
+// line 10: name x not declared
+// line 11: expected '}', found 'case'
 // line 12: missing ',' before newline in argument list (and 2 more errors)
+// line 13: expected '}', found 'case'
+// line 14: wrong argument count in call to f<VPBlock(3,0)>
+// line 15: expected '}', found 'case'
 // line 16: missing ',' before newline in argument list (and 2 more errors)
+// line 18: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: missing ',' before newline in argument list (and 2 more errors)
 // line 16: missing ',' before newline in argument list (and 2 more errors)
+
+// GnoOverStrictError:
+// line 10: name x not declared
+// line 11: expected '}', found 'case'
+// line 13: expected '}', found 'case'
+// line 14: wrong argument count in call to f<VPBlock(3,0)>
+// line 15: expected '}', found 'case'
+// line 18: expected declaration, found '}'

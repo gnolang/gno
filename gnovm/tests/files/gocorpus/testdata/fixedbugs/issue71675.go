@@ -98,9 +98,6 @@ func main() {
 
 }
 
-// KnownDivergence:
-// Go1.17 pinned.
-
 // GnoOutput:
 
 // GnoError:
@@ -120,3 +117,6 @@ func main() {
 // h returned
 // I
 // i returned
+
+// KnownDivergence:
+// Go1.17 pinned.

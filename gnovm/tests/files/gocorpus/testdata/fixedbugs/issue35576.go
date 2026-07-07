@@ -21,4 +21,5 @@ func main() {
 // GoOutput:
 // -42+4.200000e+001x-42 +4.200000e+001 x
 
-// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence:
+// TODO: <category>: explain why this divergence is acceptable

@@ -13,6 +13,10 @@ func main() {
 
 // GnoError:
 // line 10: expected '{', found newline (and 2 more errors)
+// line 12: expected '}', found 'EOF'
 
 // GoTypeCheckError:
 // line 10: expected '{', found newline (and 2 more errors)
+
+// GnoOverStrictError:
+// line 12: expected '}', found 'EOF'

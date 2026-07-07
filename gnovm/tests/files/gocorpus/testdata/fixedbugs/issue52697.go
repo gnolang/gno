@@ -24,4 +24,4 @@ func main() { // GC_ERROR "stack frame too large"
 
 func f() {}
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

@@ -76,4 +76,4 @@ func j(s string, x byte) { // ERROR "s does not escape, mutate, or call"
 	p[20] = x
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

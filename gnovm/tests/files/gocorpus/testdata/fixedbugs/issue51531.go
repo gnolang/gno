@@ -12,4 +12,6 @@ type Foo[T empty] int // ERROR "type parameter requires go1\.18 or later \(-lang
 
 func Bar[T empty]() {} // ERROR "type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// UncaughtError:
+// line 11: uncaught; gc expects: 
+// line 13: uncaught; gc expects: 

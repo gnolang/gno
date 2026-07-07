@@ -12,7 +12,11 @@ func main() {
 }
 
 // GnoError:
+// line 10: name x not declared
 // line 11: expected statement, found 'else' (and 1 more errors)
 
 // GoTypeCheckError:
 // line 11: expected statement, found 'else' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 10: name x not declared

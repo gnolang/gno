@@ -16,11 +16,11 @@ func s(x interface{}) {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
 // line 15: invalid case f in switch on x (func can only be compared to nil)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

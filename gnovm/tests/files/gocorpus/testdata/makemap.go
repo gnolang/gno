@@ -39,6 +39,9 @@ func main() {
 // line 27: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
 // line 29: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
 // line 30: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
+// line 31: imaginaries are not supported
+// line 32: name complex64 not declared
+// line 33: name complex128 not declared
 
 // GoTypeCheckError:
 // line 18: invalid argument: index -1 (constant of type int) must not be negative
@@ -50,3 +53,6 @@ func main() {
 // line 30: invalid argument: index float64(1.0) (constant 1 of type float64) must be integer
 // line 32: invalid argument: index complex64(1 + 0i) (constant (1 + 0i) of type complex64) must be integer
 // line 33: invalid argument: index complex128(1 + 0i) (constant (1 + 0i) of type complex128) must be integer
+
+// GnoOverStrictError:
+// line 31: imaginaries are not supported

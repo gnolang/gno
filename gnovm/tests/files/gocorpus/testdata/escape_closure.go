@@ -192,4 +192,4 @@ func ClosureIndirect2() {
 
 func nopFunc2(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0"
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

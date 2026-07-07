@@ -95,4 +95,9 @@ func e2() {
 	x.f = y // ERROR "write barrier prohibited by caller"
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// UncaughtError:
+// line 22: uncaught; gc expects: write barrier prohibited
+// line 38: uncaught; gc expects: write barrier prohibited by caller
+// line 74: uncaught; gc expects: write barrier prohibited by caller
+// line 90: uncaught; gc expects: write barrier prohibited by caller
+// line 95: uncaught; gc expects: write barrier prohibited by caller

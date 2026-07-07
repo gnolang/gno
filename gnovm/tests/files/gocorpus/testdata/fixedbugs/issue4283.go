@@ -17,8 +17,19 @@ func F2() bool {
 }
 
 // GnoError:
+// line 11: 2: [function "F1" does not terminate]
 // line 12: <nil> is not comparable
+// line 13: expected declaration, found '}'
+// line 15: 2: [function "F2" does not terminate]
+// line 16: <nil> is not comparable
+// line 17: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: invalid operation: nil == nil (operator == not defined on untyped nil)
 // line 16: invalid operation: nil != nil (operator != not defined on untyped nil)
+
+// GnoOverStrictError:
+// line 11: 2: [function "F1" does not terminate]
+// line 13: expected declaration, found '}'
+// line 15: 2: [function "F2" does not terminate]
+// line 17: expected declaration, found '}'

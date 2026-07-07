@@ -21,6 +21,16 @@ func T(fn F) {
 
 // GnoError:
 // line 14: T<VPBlock(2,1)> is not a type
+// line 17: expected 'IDENT', found '{' (and 4 more errors)
+// line 18: expected declaration, found fn
+// line 19: expected declaration, found '}'
+// line 20: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 14: T is not a type
+
+// GnoOverStrictError:
+// line 17: expected 'IDENT', found '{' (and 4 more errors)
+// line 18: expected declaration, found fn
+// line 19: expected declaration, found '}'
+// line 20: expected declaration, found '}'

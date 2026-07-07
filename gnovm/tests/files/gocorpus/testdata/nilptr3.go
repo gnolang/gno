@@ -255,10 +255,4 @@ func f11(x []byte) {
 	_ = *q // ERROR "removed nil check"
 }
 
-// GnoStaticIncomplete: covered 0 of 65 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
-// GnoOverStrictError:
-// line 90: function fx10k does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

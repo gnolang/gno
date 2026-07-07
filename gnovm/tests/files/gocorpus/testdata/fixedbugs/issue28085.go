@@ -28,12 +28,25 @@ func _() {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: 2: duplicate key (0 int) in map literal
+// line 10: expected declaration, found 0
+// line 11: expected declaration, found 0
+// line 12: expected declaration, found '}'
+// line 14: 2: duplicate key (0 int) in map literal
+// line 15: expected declaration, found 'interface'
+// line 16: expected declaration, found 'interface'
+// line 17: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: duplicate key 0 in map literal
 // line 22: duplicate case 0 (constant of type int) in expression switch
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: 2: duplicate key (0 int) in map literal
+// line 10: expected declaration, found 0
+// line 12: expected declaration, found '}'
+// line 14: 2: duplicate key (0 int) in map literal
+// line 15: expected declaration, found 'interface'
+// line 16: expected declaration, found 'interface'
+// line 17: expected declaration, found '}'

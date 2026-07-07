@@ -23,7 +23,12 @@ func main() {
 
 // GnoError:
 // line 12: invalid recursive value: a -> a
+// line 15: invalid recursive value: X -> A -> B -> C -> D -> A
+// line 16: invalid recursive value: A -> B -> C -> D -> A
 
 // GoTypeCheckError:
 // line 12: initialization cycle: a refers to itself
 // line 16: initialization cycle for A
+
+// GnoOverStrictError:
+// line 15: invalid recursive value: X -> A -> B -> C -> D -> A

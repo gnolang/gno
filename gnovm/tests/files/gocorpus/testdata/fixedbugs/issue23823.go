@@ -15,11 +15,4 @@ type I2 interface { // GC_ERROR "invalid recursive type: I2 refers to itself"
 	I1 // GCCGO_ERROR "invalid recursive interface"
 }
 
-// GnoOverStrictError:
-// line 9: 2: invalid recursive type: I1 -> I2 -> I1
-
-// GoTypeCheckError:
-// line 14: invalid recursive type: I2 refers to itself
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

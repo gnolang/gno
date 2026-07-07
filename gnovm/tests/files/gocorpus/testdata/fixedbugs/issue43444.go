@@ -33,4 +33,5 @@ func main() { println() }
 // GoOutput:
 // e a b c d
 
-// KnownDivergence: TODO: <category>: explain why this divergence is acceptable
+// KnownDivergence:
+// TODO: <category>: explain why this divergence is acceptable

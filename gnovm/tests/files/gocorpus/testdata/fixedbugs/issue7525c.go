@@ -12,8 +12,4 @@ var z struct { // GC_ERROR "initialization cycle: z refers to itself"
 	e [cap(z.e)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }
 
-// GnoError:
-// line 11: 2: invalid recursive type: z -> z
-
-// GoTypeCheckError:
-// line 11: initialization cycle: z refers to itself
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

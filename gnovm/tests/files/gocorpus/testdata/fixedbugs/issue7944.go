@@ -39,12 +39,12 @@ func main() {
 	f(make([]byte, 100))
 }
 
-// KnownDivergence:
-// probaly runtime thing.
-
 // GnoOutput:
 
 // GnoError:
 // runtime error: invalid memory address or nil pointer dereference
 
 // GoOutput:
+
+// KnownDivergence:
+// probaly runtime thing.

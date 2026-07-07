@@ -20,9 +20,15 @@ func f2() (*t, error) {
 // GnoError:
 // line 12: missing field M in gno.land/p/filetest/p.t
 // line 13: missing field M in gno.land/p/filetest/p.t
+// line 16: 2: [function "f2" does not terminate]
 // line 17: missing field M in gno.land/p/filetest/p.t
+// line 18: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: t{}.M undefined (type t has no field or method M)
 // line 13: t{…}.M undefined (type t has no field or method M)
 // line 17: t{}.M undefined (type t has no field or method M)
+
+// GnoOverStrictError:
+// line 16: 2: [function "f2" does not terminate]
+// line 18: expected declaration, found '}'

@@ -74,6 +74,9 @@ func main() {
 	}
 }
 
+// GnoError:
+// line 73: name Exit not declared
+
 // GoTypeCheckError:
 // line 33: embedded field type cannot be a pointer to an interface
 // line 51: pti.M undefined (type *Inter is pointer to interface, not interface)
@@ -81,3 +84,6 @@ func main() {
 // line 61: pi.M undefined (type *Inter is pointer to interface, not interface)
 // line 65: pi.M undefined (type *Inter is pointer to interface, not interface)
 // line 69: pi.M undefined (type *Inter is pointer to interface, not interface)
+
+// GnoOverStrictError:
+// line 73: name Exit not declared

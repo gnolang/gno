@@ -24,8 +24,15 @@ var _ = []int{
 
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+// line 17: expected declaration, found T
+// line 18: expected declaration, found '('
+// line 19: expected declaration, found '('
+// line 21: expected declaration, found time
+// line 22: expected declaration, found '('
+// line 23: expected declaration, found '('
+// line 25: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 17: cannot use T.Mv (value of type func(T)) as int value in array or slice literal
@@ -35,5 +42,6 @@ var _ = []int{
 // line 22: cannot use (*time.Time).GobEncode (value of type func(*time.Time) ([]byte, error)) as int value in array or slice literal
 // line 23: cannot use (*time.Time).GobDecode (value of type func(t *time.Time, data []byte) error) as int value in array or slice literal
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+// line 25: expected declaration, found '}'

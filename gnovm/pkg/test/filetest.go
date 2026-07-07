@@ -410,7 +410,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				block: verdict,
 			})
 		}
-		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, "", sections)
+		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, sections)
 		return newContent, gas, err
 	}
 
@@ -442,6 +442,28 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			prependedLines, tgs, tcheck)
 		gas := m.GasMeter.GasConsumed()
 
+		// gc optimization-diagnostic tests (`errorcheck -0 -m …`,
+		// `errorcheckwithauto`): their ERROR markers assert compiler
+		// diagnostics (inlining, escape analysis, prove/BCE debug), not
+		// invalid code — no Gno checker can or should match them.
+		// Route to Unsupported instead of counting them as leaks.
+		if firstLine := strings.SplitN(string(originalSource), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
+			flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
+			isDiag := len(flags) > 0 && flags[0] == "errorcheckwithauto"
+			for _, fl := range flags[1:] {
+				if fl == "-0" || fl == "-m" {
+					isDiag = true
+					break
+				}
+			}
+			if isDiag {
+				reason := "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+				if opts.Sync {
+					return writeUnsupportedDirective(originalSource, reason), gas, nil
+				}
+				return "", gas, &SkipError{Reason: reason}
+			}
+		}
 		// checkable = the markers that are part of Gno's contract.
 		// GC_ERROR markers are gc-implementation diagnostics (backend
 		// limits, pragma checks) — catching them is fine, missing them
@@ -517,10 +539,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// KnownIssue verdicts errorcheck files used to carry.
 			{name: DirectiveKnownIssue, block: ""},
 		}
-		// incompleteNote is retired: the leak information lives in the
-		// per-line UncaughtError verdict; passing "" scrubs legacy
-		// GnoStaticIncomplete tags on sync.
-		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, "", sections)
+		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, sections)
 		return newContent, gas, err
 	}
 
@@ -688,10 +707,11 @@ type goldenSection struct {
 // Returns (newContent, err): newContent is non-empty only when sync
 // rewrote the file. Non-sync failures report the first diff / missing
 // block.
-func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Directives, incompleteNote string, sections []goldenSection) (string, error) {
-	inc := dirs.First(DirectiveGnoStaticIncomplete)
-	allOK := (incompleteNote == "") == (inc == nil) &&
-		(inc == nil || strings.TrimRight(inc.Content, "\n") == incompleteNote)
+func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
+	// GnoStaticIncomplete is a retired legacy tag: never written anymore,
+	// but still recognized (allDirectives/goldenRegionStarts) so a stray
+	// one is scrubbed on sync rather than absorbed as file body.
+	allOK := dirs.First(DirectiveGnoStaticIncomplete) == nil
 	for _, s := range sections {
 		d := dirs.First(s.name)
 		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
@@ -701,7 +721,7 @@ func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Dir
 		return "", nil
 	}
 	if opts.Sync {
-		return writeErrorcheckGolden(originalSource, incompleteNote, sections), nil
+		return writeErrorcheckGolden(originalSource, sections), nil
 	}
 	for _, s := range sections {
 		d := dirs.First(s.name)
@@ -717,7 +737,7 @@ func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Dir
 		}
 	}
 	// Only the tag differs.
-	return "", fmt.Errorf("errorcheck: `// GnoStaticIncomplete:` tag inconsistent with coverage; re-run with --update-golden-tests")
+	return "", fmt.Errorf("errorcheck: stale legacy `// GnoStaticIncomplete:` tag; re-run with --update-golden-tests")
 }
 
 // writeUnsupportedDirective returns originalSource (golden region
@@ -735,7 +755,7 @@ func writeUnsupportedDirective(originalSource []byte, reason string) string {
 // trailing golden region appended — an optional `// GnoStaticIncomplete:`
 // tag followed by each non-empty section, blank-line separated. Any
 // existing trailing golden region is replaced rather than duplicated.
-func writeErrorcheckGolden(originalSource []byte, incompleteNote string, sections []goldenSection) string {
+func writeErrorcheckGolden(originalSource []byte, sections []goldenSection) string {
 	// Capture triage state marker lines before stripping so a golden
 	// refresh never drops manual triage status.
 	var stateLines []string
@@ -756,13 +776,6 @@ func writeErrorcheckGolden(originalSource []byte, incompleteNote string, section
 	for _, ln := range stateLines {
 		sb.WriteString("\n")
 		sb.WriteString(ln)
-		sb.WriteString("\n")
-	}
-	if incompleteNote != "" {
-		sb.WriteString("\n// ")
-		sb.WriteString(DirectiveGnoStaticIncomplete)
-		sb.WriteString(": ")
-		sb.WriteString(incompleteNote)
 		sb.WriteString("\n")
 	}
 	for _, s := range sections {

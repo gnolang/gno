@@ -15,7 +15,13 @@ func F2(a int32) bool {
 const C = uint32(34)
 
 // GnoError:
+// line 11: 2: [function "F2" does not terminate]
 // line 12: invalid operation: (mismatched types int32 and uint32)
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: invalid operation: a == C (mismatched types int32 and uint32)
+
+// GnoOverStrictError:
+// line 11: 2: [function "F2" does not terminate]
+// line 13: expected declaration, found '}'

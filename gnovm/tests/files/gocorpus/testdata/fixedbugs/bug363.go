@@ -22,6 +22,7 @@ func main() {
 
 // GnoError:
 // line 13: operator << not defined on: BigdecKind
+// line 16: operator << not defined on: BigdecKind
 
 // GoTypeCheckError:
 // line 13: invalid operation: shifted operand 1 (type float64) must be integer

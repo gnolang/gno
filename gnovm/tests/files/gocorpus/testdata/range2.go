@@ -26,7 +26,13 @@ func test() {
 // GnoError:
 // line 20: 3: range iteration requires map, string, array, slice, or pointer to array
 // line 22: expected declaration, found 'for'
+// line 23: expected declaration, found '}'
+// line 24: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 20: cannot range over T.M (value of type func(T)): func must be func(yield func(...) bool): argument is not func
 // line 22: cannot range over (*T).PM (value of type func(*T)): func must be func(yield func(...) bool): argument is not func
+
+// GnoOverStrictError:
+// line 23: expected declaration, found '}'
+// line 24: expected declaration, found '}'

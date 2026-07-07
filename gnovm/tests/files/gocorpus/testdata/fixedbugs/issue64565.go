@@ -14,9 +14,6 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// Go1.17 pin.
-
 // GnoOutput:
 
 // GnoError:
@@ -26,3 +23,6 @@ func main() {
 // 3
 // 3
 // 3
+
+// KnownDivergence:
+// Go1.17 pin.

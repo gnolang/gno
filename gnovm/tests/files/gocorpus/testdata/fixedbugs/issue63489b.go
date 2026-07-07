@@ -21,6 +21,10 @@ func f() {
 
 // GnoError:
 // line 18: 3: range iteration requires map, string, array, slice, or pointer to array
+// line 20: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 18: cannot range over 10 (untyped int constant): requires go1.22 or later
+
+// GnoOverStrictError:
+// line 20: expected declaration, found '}'

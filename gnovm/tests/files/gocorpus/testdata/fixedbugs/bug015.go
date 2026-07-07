@@ -14,6 +14,10 @@ func main() {
 
 // GnoError:
 // line 11: bigint overflows target kind
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: (1 << 64) - 1 (untyped int constant 18446744073709551615) overflows int64
+
+// GnoOverStrictError:
+// line 13: expected declaration, found '}'

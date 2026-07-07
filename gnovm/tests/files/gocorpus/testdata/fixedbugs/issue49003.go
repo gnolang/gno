@@ -11,11 +11,16 @@ func f(s string) int {
 	}
 } // ERROR "missing return"
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: 2: [function "f" does not terminate]
+// line 10: expected declaration, found 'for'
+// line 11: expected declaration, found '}'
+// line 12: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: missing return
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+// line 10: expected declaration, found 'for'
+// line 11: expected declaration, found '}'

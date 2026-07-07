@@ -24,6 +24,7 @@ func main() {
 // GnoError:
 // line 15: 2: name b not defined in fileset with files [typecheck.go]
 // line 16: expected declaration, found 'return'
+// line 17: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 15: undefined: b
@@ -34,3 +35,6 @@ func main() {
 // line 21: not enough arguments in call to mine
 // 	have ()
 // 	want (unknown type)
+
+// GnoOverStrictError:
+// line 17: expected declaration, found '}'

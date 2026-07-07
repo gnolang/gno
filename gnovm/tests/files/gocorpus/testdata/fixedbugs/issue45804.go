@@ -18,12 +18,16 @@ func f() {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 10: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 19: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 16: invalid operation: operator ! not defined on did (variable of type int)
 // line 17: undefined: x
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 10: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 19: expected declaration, found '}'

@@ -27,6 +27,7 @@ import 3.14  // ERROR "import path must be a string"
 import 0.25i // ERROR "import path must be a string"
 
 // GnoError:
+// line 16: unknown import path go/parser
 // line 24: import path must be a string (and 3 more errors)
 // line 25: import path must be a string (and 2 more errors)
 // line 26: import path must be a string (and 1 more errors)
@@ -37,3 +38,6 @@ import 0.25i // ERROR "import path must be a string"
 // line 25: import path must be a string (and 2 more errors)
 // line 26: import path must be a string (and 1 more errors)
 // line 27: import path must be a string
+
+// GnoOverStrictError:
+// line 16: unknown import path go/parser

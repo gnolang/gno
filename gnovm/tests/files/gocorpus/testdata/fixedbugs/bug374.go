@@ -20,7 +20,15 @@ func (T) m(buf []byte) (a int, b xxxx) {  // ERROR "xxxx"
 }
 
 // GnoError:
+// line 16: gno.land/p/filetest/foo.T does not implement gno.land/p/filetest/foo.I (missing method m)
 // line 18: 2: name xxxx not defined in fileset with files [bug374.go]
+// line 19: expected declaration, found 'return'
+// line 20: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 18: undefined: xxxx
+
+// GnoOverStrictError:
+// line 16: gno.land/p/filetest/foo.T does not implement gno.land/p/filetest/foo.I (missing method m)
+// line 19: expected declaration, found 'return'
+// line 20: expected declaration, found '}'

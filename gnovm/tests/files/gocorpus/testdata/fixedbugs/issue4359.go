@@ -18,11 +18,14 @@ func f() {
 	_ = t.x
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 12: 2: name T1 not defined in fileset with files [issue4359.go]
+// line 13: expected declaration, found x (and 1 more errors)
+// line 14: expected declaration, found '}' (and 1 more errors)
 
 // GoTypeCheckError:
 // line 13: undefined: T1
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 12: 2: name T1 not defined in fileset with files [issue4359.go]
+// line 14: expected declaration, found '}' (and 1 more errors)

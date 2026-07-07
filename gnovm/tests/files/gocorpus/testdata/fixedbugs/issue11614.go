@@ -25,8 +25,9 @@ func m() {
 func main() {
 }
 
-// GnoStaticIncomplete: covered 2 of 3 markers (Gno preprocess: 0, go/types guard: 2); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
 // GoTypeCheckError:
 // line 18: (I) (type) is not an expression
 // line 22: (interface{int}) (type) is not an expression
+
+// UncaughtError:
+// line 14: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type int requires

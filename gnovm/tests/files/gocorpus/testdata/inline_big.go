@@ -1028,4 +1028,4 @@ func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "functio
 	return x + y
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

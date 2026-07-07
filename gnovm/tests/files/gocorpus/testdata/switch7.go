@@ -33,8 +33,23 @@ func f4(e interface{}) {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 16: 3: duplicate type int in type switch
+// line 17: expected '}', found 'case'
+// line 18: expected '}', found 'case'
+// line 19: expected '}', found 'case'
+// line 20: expected '}', found 'case'
+// line 21: expected '}', found 'case'
+// line 22: expected '}', found 'case'
+// line 23: expected '}', found 'case'
+// line 24: expected '}', found 'case'
+// line 25: expected ';', found int (and 1 more errors)
+// line 26: expected ';', found ':'
+// line 27: expected '}', found 'case'
+// line 28: expected ';', found int (and 1 more errors)
+// line 29: expected ';', found ':'
+// line 30: expected '}', found 'case'
+// line 31: expected ';', found int (and 1 more errors)
 
 // GoTypeCheckError:
 // line 18: duplicate case int in type switch
@@ -42,5 +57,16 @@ func f4(e interface{}) {
 // line 23: duplicate case fmt.Stringer in type switch
 // line 30: duplicate case struct{i int "tag1"} in type switch
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 16: 3: duplicate type int in type switch
+// line 17: expected '}', found 'case'
+// line 19: expected '}', found 'case'
+// line 20: expected '}', found 'case'
+// line 22: expected '}', found 'case'
+// line 24: expected '}', found 'case'
+// line 25: expected ';', found int (and 1 more errors)
+// line 26: expected ';', found ':'
+// line 27: expected '}', found 'case'
+// line 28: expected ';', found int (and 1 more errors)
+// line 29: expected ';', found ':'
+// line 31: expected ';', found int (and 1 more errors)

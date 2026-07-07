@@ -19,10 +19,15 @@ func groot()
 func hey() { // ERROR "can only use //go:noescape with external func implementations"
 }
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 10: function foo does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function bar does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: function groot does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GnoOverStrictError:
 // line 10: function foo does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function bar does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: function groot does not have a body but is not natively defined (did you build after pulling from the repository?)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// UncaughtError:
+// line 19: uncaught; gc expects: can only use //go:noescape with external func implementations

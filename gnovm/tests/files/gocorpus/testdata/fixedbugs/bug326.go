@@ -39,9 +39,15 @@ func ii() (int, error) {
 }
 
 // GnoError:
+// line 21: 2: [function "i" does not terminate]
 // line 22: expected 2 return values
+// line 23: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 22: not enough return values
 // 	have ()
 // 	want (int, error)
+
+// GnoOverStrictError:
+// line 21: 2: [function "i" does not terminate]
+// line 23: expected declaration, found '}'

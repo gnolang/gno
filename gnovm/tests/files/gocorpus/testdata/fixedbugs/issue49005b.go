@@ -14,12 +14,12 @@ var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X do
 
 type X struct{}
 
-// GnoOverStrictError:
+// GnoError:
 // line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
 // line 13: impossible type assertion: F().(*X)
 // 	*X does not implement T (missing method M)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)

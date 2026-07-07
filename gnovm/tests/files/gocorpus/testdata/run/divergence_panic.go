@@ -25,4 +25,5 @@ func main() {
 // GoOutput:
 // recovered: runtime error: index out of range [5] with length 3
 
-// KnownDivergence: error-wording: same kind of out-of-range panic, different wording in the recovered value.
+// KnownDivergence:
+// error-wording: same kind of out-of-range panic, different wording in the recovered value.

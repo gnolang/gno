@@ -25,6 +25,7 @@ func f() int {
 
 // GnoError:
 // line 12: assignment mismatch: 2 variables but f<VPBlock(3,2)> returns 1 values
+// line 18: assignment mismatch: 2 variables but f<VPBlock(3,2)> returns 1 values
 
 // GoTypeCheckError:
 // line 12: assignment mismatch: 2 variables but f returns 1 value

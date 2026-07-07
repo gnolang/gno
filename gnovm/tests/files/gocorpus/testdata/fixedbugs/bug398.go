@@ -43,7 +43,29 @@ func f() bool {
        return v1 == v2
 }
 
-// GnoStaticIncomplete: covered 1 of 4 markers (Gno preprocess: 1, go/types guard: 0); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 14: 2: invalid recursive type: I1 -> I1
+// line 15: expected declaration, found F
+// line 16: expected declaration, found '}'
+// line 18: 2: invalid recursive type: I2 -> I2
+// line 19: expected declaration, found F
+// line 20: expected declaration, found '}'
+// line 31: 2: invalid recursive type: i1 -> i1
+// line 32: expected declaration, found F
+// line 33: expected declaration, found '}'
+// line 35: 2: invalid recursive type: i2 -> i2
+// line 36: expected declaration, found F
+// line 37: expected declaration, found '}'
+
+// GoTypeCheckError:
+// line 14: undefined: V1
+
+// GnoOverStrictError:
+// line 15: expected declaration, found F
+// line 16: expected declaration, found '}'
+// line 19: expected declaration, found F
+// line 20: expected declaration, found '}'
+// line 32: expected declaration, found F
+// line 33: expected declaration, found '}'
+// line 36: expected declaration, found F
+// line 37: expected declaration, found '}'

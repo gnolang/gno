@@ -82,12 +82,12 @@ func newInt(n int64) *int64 {
 
 var escape *int64
 
-// KnownDivergence:
-// runtime...
-
 // GnoOutput:
 
 // GnoError:
 // runtime error: invalid memory address or nil pointer dereference
 
 // GoOutput:
+
+// KnownDivergence:
+// runtime...

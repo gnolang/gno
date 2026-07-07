@@ -57,6 +57,7 @@ func noninterface() {
 
 // GnoError:
 // line 39: no new variables on left side of :=
+// line 41: expected declaration, found '}' (and 4 more errors)
 
 // GoTypeCheckError:
 // line 24: impossible type switch case: string
@@ -64,3 +65,6 @@ func noninterface() {
 // line 39: no new variable on left side of :=
 // line 45: i (variable of type int) is not an interface
 // line 54: s (variable of struct type S) is not an interface
+
+// GnoOverStrictError:
+// line 41: expected declaration, found '}' (and 4 more errors)

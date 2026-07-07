@@ -19,7 +19,9 @@ func main() {
 	if f < 1 { }	// ERROR "conver|incompatible|invalid"
 }
 
-// GnoOverStrictError:
+// GnoError:
+// line 12: cannot use untyped string as IntKind
+// line 13: unexpected composite lit type int
 // line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
@@ -27,5 +29,5 @@ func main() {
 // line 13: invalid composite literal type int
 // line 19: cannot convert 1 (untyped int constant) to type func() int
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

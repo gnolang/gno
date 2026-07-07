@@ -26,12 +26,12 @@ func main() {
 	shouldPanic(f)
 }
 
-// KnownDivergence:
-// see also 29190.
-
 // GnoOutput:
 
 // GnoError:
 // multiplication overflow
 
 // GoOutput:
+
+// KnownDivergence:
+// see also 29190.

@@ -10,10 +10,11 @@ package p
 
 var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 13: expected '(', found main
 
 // GnoOverStrictError:
 // line 13: expected '(', found main
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// UncaughtError:
+// line 11: uncaught; gc expects: unexpected EOF|expected .*}.*

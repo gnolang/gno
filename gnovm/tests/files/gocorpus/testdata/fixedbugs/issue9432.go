@@ -16,6 +16,14 @@ type foo struct { // ERROR "invalid recursive type|cycle"
 
 // GnoError:
 // line 12: 2: invalid recursive type: foo -> foo
+// line 13: expected declaration, found bar
+// line 14: expected declaration, found blah
+// line 15: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: invalid recursive type: foo refers to itself
+
+// GnoOverStrictError:
+// line 13: expected declaration, found bar
+// line 14: expected declaration, found blah
+// line 15: expected declaration, found '}'

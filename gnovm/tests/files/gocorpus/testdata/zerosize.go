@@ -32,9 +32,6 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// see compatible doc.
-
 // GnoOutput:
 // p= &(array[] [0]int)  q= &(array[] [0]int)  p==q =  false
 
@@ -42,3 +39,6 @@ func main() {
 // FAIL
 
 // GoOutput:
+
+// KnownDivergence:
+// see compatible doc.

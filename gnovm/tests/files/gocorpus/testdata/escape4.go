@@ -58,4 +58,4 @@ func f6() *byte { // ERROR "can inline f6"
 	return &t.x.y
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

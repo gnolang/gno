@@ -29,6 +29,9 @@ func h() {
 
 // GnoError:
 // line 9: invalid recursive type: T0 -> T0
+// line 12: invalid recursive type: T1 -> T1
+// line 16: invalid recursive type: T2 -> T2
+// line 21: invalid recursive type: T3 -> T3
 
 // GoTypeCheckError:
 // line 9: invalid recursive type: T0 refers to itself

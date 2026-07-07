@@ -17,6 +17,10 @@ func f() {
 
 // GnoError:
 // line 12: invalid recursive type: T -> T
+// line 15: T<VPInvalid(0)> is not a type
 
 // GoTypeCheckError:
 // line 12: invalid recursive type: T refers to itself
+
+// GnoOverStrictError:
+// line 15: T<VPInvalid(0)> is not a type

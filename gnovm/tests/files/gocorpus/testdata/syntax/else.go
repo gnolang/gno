@@ -13,6 +13,10 @@ func main() {
 
 // GnoError:
 // line 11: expected if statement or block, found ';'
+// line 12: expected '}', found 'EOF'
 
 // GoTypeCheckError:
 // line 11: expected if statement or block, found ';'
+
+// GnoOverStrictError:
+// line 12: expected '}', found 'EOF'

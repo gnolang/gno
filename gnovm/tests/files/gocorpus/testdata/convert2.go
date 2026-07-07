@@ -369,6 +369,53 @@ func _() {
 
 // GoTypeCheckError:
 // line 25: cannot use t (variable of struct type T) as S value in assignment
+// line 45: cannot use t (variable of struct type T) as S value in assignment
+// line 46: cannot use u (variable of type struct{x int "bar"}) as S value in assignment
+// line 50: cannot use u (variable of type struct{x int "bar"}) as T value in assignment
+// line 66: cannot use t (variable of struct type T) as S value in assignment
+// line 67: cannot use u (variable of type struct{x E "bar"}) as S value in assignment
+// line 71: cannot use u (variable of type struct{x E "bar"}) as T value in assignment
+// line 94: cannot use t (variable of struct type T) as S value in assignment
+// line 95: cannot use u (variable of type struct{x struct{x int "bar"} "bar"}) as S value in assignment
+// line 99: cannot use u (variable of type struct{x struct{x int "bar"} "bar"}) as T value in assignment
+// line 120: cannot use t (variable of struct type T) as S value in assignment
+// line 121: cannot use u (variable of type struct{x E2 "bar"}) as S value in assignment
+// line 123: cannot convert t (variable of struct type T) to type S
+// line 124: cannot convert u (variable of type struct{x E2 "bar"}) to type S
+// line 125: cannot use u (variable of type struct{x E2 "bar"}) as T value in assignment
+// line 145: cannot use t (variable of struct type T) as S value in assignment
+// line 146: cannot use u (variable of type struct{f func(E)}) as S value in assignment
+// line 149: cannot convert u (variable of type struct{f func(E)}) to type S
+// line 150: cannot use u (variable of type struct{f func(E)}) as T value in assignment
+// line 151: cannot convert u (variable of type struct{f func(E)}) to type T
+// line 163: cannot use t (variable of type *T) as *S value in assignment
+// line 164: cannot use u (variable of type *struct{}) as *S value in assignment
+// line 168: cannot use u (variable of type *struct{}) as *T value in assignment
+// line 183: cannot use t (variable of type *T) as *S value in assignment
+// line 184: cannot use u (variable of type *struct{x int "bar"}) as *S value in assignment
+// line 188: cannot use u (variable of type *struct{x int "bar"}) as *T value in assignment
+// line 204: cannot use t (variable of type *T) as *S value in assignment
+// line 205: cannot use u (variable of type *struct{x E "bar"}) as *S value in assignment
+// line 209: cannot use u (variable of type *struct{x E "bar"}) as *T value in assignment
+// line 232: cannot use t (variable of type *T) as *S value in assignment
+// line 233: cannot use u (variable of type *struct{x struct{x int "bar"} "bar"}) as *S value in assignment
+// line 237: cannot use u (variable of type *struct{x struct{x int "bar"} "bar"}) as *T value in assignment
+// line 258: cannot use t (variable of type *T) as *S value in assignment
+// line 259: cannot use u (variable of type *struct{x E2 "bar"}) as *S value in assignment
+// line 261: cannot convert t (variable of type *T) to type *S
+// line 262: cannot convert u (variable of type *struct{x E2 "bar"}) to type *S
+// line 263: cannot use u (variable of type *struct{x E2 "bar"}) as *T value in assignment
+// line 283: cannot use t (variable of type *T) as *S value in assignment
+// line 284: cannot use u (variable of type *struct{f func(E)}) as *S value in assignment
+// line 287: cannot convert u (variable of type *struct{f func(E)}) to type *S
+// line 288: cannot use u (variable of type *struct{f func(E)}) as *T value in assignment
+// line 289: cannot convert u (variable of type *struct{f func(E)}) to type *T
+// line 308: cannot use t (variable of type *T) as *S value in assignment
+// line 309: cannot use u (variable of type *struct{f func(E)}) as *S value in assignment
+// line 312: cannot convert u (variable of type *struct{f func(E)}) to type *S
+// line 313: cannot use u (variable of type *struct{f func(E)}) as *T value in assignment
+// line 314: cannot convert u (variable of type *struct{f func(E)}) to type *T
+// line 328: cannot convert s (variable of type []byte) to type *P
 
 // GnoOverStrictError:
 // line 319: cannot convert s<VPBlock(1,0)> (of type []uint8) to type [4]uint8
@@ -376,21 +423,3 @@ func _() {
 // line 323: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].A
 // line 324: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].A
 // line 327: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].P
-
-// UncaughtError:
-// line 46: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 50: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 67: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 71: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 95: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 99: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 125: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 164: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 168: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 184: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 188: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 205: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 209: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 233: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 237: uncaught; gc expects: cannot use .* in assignment|incompatible type
-// line 263: uncaught; gc expects: cannot use .* in assignment|incompatible type

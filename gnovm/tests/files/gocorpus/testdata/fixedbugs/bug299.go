@@ -29,11 +29,23 @@ func (p (*(T))) i() {}
 func ((T),) j() {}
 
 // GnoError:
+// line 11: expected declaration, found x
+// line 12: expected declaration, found y
+// line 13: expected declaration, found int
+// line 14: expected declaration, found '*'
 // line 16: cannot parenthesize embedded type (and 2 more errors)
 // line 17: cannot parenthesize embedded type (and 1 more errors)
 // line 18: cannot parenthesize embedded type
+// line 19: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 16: cannot parenthesize embedded type (and 2 more errors)
 // line 17: cannot parenthesize embedded type (and 1 more errors)
 // line 18: cannot parenthesize embedded type
+
+// GnoOverStrictError:
+// line 11: expected declaration, found x
+// line 12: expected declaration, found y
+// line 13: expected declaration, found int
+// line 14: expected declaration, found '*'
+// line 19: expected declaration, found '}'

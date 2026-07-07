@@ -18,11 +18,16 @@ func main() {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 15: 3: duplicate type func(int) in type switch
+// line 16: expected '}', found 'case'
+// line 17: expected '}', found 'case'
+// line 19: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 17: duplicate case func(f int) in type switch
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 15: 3: duplicate type func(int) in type switch
+// line 16: expected '}', found 'case'
+// line 19: expected declaration, found '}'

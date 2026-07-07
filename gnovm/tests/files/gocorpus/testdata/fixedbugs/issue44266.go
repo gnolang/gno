@@ -24,6 +24,16 @@ type T3 struct { // ERROR "invalid recursive type: T3 refers to itself"
 
 // GnoError:
 // line 19: 2: invalid recursive type: T3 -> T3
+// line 20: expected declaration, found T1
+// line 21: expected declaration, found T2
+// line 22: expected declaration, found parent
+// line 23: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 19: invalid recursive type: T3 refers to itself
+
+// GnoOverStrictError:
+// line 20: expected declaration, found T1
+// line 21: expected declaration, found T2
+// line 22: expected declaration, found parent
+// line 23: expected declaration, found '}'

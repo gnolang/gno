@@ -31,12 +31,12 @@ func main() {
 	}()
 }
 
-// KnownDivergence:
-// runtime thing.
-
 // GnoOutput:
 
 // GnoError:
 // runtime error: invalid memory address or nil pointer dereference
 
 // GoOutput:
+
+// KnownDivergence:
+// runtime thing.

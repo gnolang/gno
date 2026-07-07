@@ -10,8 +10,4 @@ func f(x int /* // GC_ERROR "unexpected newline"
 
 */) // GCCGO_ERROR "expected .*\).*|expected declaration"
 
-// GnoError:
-// line 9: missing ',' before newline in parameter list
-
-// GoTypeCheckError:
-// line 9: missing ',' before newline in parameter list
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

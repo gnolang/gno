@@ -28,10 +28,22 @@ func main() {
 	bar(1969)
 }
 
-// GnoStaticIncomplete: covered 1 of 3 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 12: missing parameter name (and 2 more errors)
+// line 13: expected declaration, found println (and 4 more errors)
+// line 14: expected declaration, found '}' (and 4 more errors)
+// line 17: expected type, found '.' (and 1 more errors)
+// line 18: unexpected selector expression type *gnolang.FuncType
+// line 22: expected type, found '.'
+// line 28: name bar not declared
 
 // GoTypeCheckError:
 // line 12: missing parameter name (and 2 more errors)
+// line 17: expected type, found '.' (and 1 more errors)
+// line 22: expected type, found '.'
+
+// GnoOverStrictError:
+// line 13: expected declaration, found println (and 4 more errors)
+// line 14: expected declaration, found '}' (and 4 more errors)
+// line 18: unexpected selector expression type *gnolang.FuncType
+// line 28: name bar not declared

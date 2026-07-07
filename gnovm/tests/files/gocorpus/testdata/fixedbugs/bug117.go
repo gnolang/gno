@@ -28,5 +28,13 @@ func main() {
 	}
 }
 
+// GnoError:
+// line 18: 2: [function "fn" does not terminate]
+// line 23: expected declaration, found '}'
+
 // GoTypeCheckError:
 // line 22: p.get undefined (type PS has no field or method get)
+
+// GnoOverStrictError:
+// line 18: 2: [function "fn" does not terminate]
+// line 23: expected declaration, found '}'

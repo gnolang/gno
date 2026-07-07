@@ -36,12 +36,4 @@ func test(b *testing.B) { // ERROR "leaking param: b"
 	}
 }
 
-// GnoStaticIncomplete: covered 3 of 8 markers (Gno preprocess: 1, go/types guard: 3); Gno bailed before the rest — a runnable variant may exercise more
-
-// GnoError:
-// line 22: missing field Loop in *testing.B
-
-// GoTypeCheckError:
-// line 22: b.Loop undefined (type *testing.B has no field or method Loop)
-// line 28: b.Loop undefined (type *testing.B has no field or method Loop)
-// line 34: b.Loop undefined (type *testing.B has no field or method Loop)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

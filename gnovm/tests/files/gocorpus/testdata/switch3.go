@@ -74,6 +74,7 @@ func good() {
 // GnoError:
 // line 21: string does not implement main.I (missing method M)
 // line 25: cannot use main.I as string without explicit conversion
+// line 70: cannot use interface {} as string
 
 // GoTypeCheckError:
 // line 21: invalid case s in switch on i (mismatched types string and I)
@@ -83,3 +84,6 @@ func good() {
 // line 45: invalid case f1 in switch on f (func can only be compared to nil)
 // line 50: cannot switch on ar (variable of type [4]func()) ([4]func() is not comparable)
 // line 56: cannot switch on st (variable of type struct{f func()}) (struct{f func()} is not comparable)
+
+// GnoOverStrictError:
+// line 70: cannot use interface {} as string

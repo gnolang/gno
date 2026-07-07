@@ -13,11 +13,20 @@ func f() bool {
 	}
 } // ERROR "missing return( at end of function)?"
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: 2: [function "f" does not terminate]
+// line 10: expected declaration, found 'if'
+// line 11: expected declaration, found '}'
+// line 12: expected declaration, found 'return'
+// line 13: expected declaration, found '}'
+// line 14: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 14: missing return
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+// line 10: expected declaration, found 'if'
+// line 11: expected declaration, found '}'
+// line 12: expected declaration, found 'return'
+// line 13: expected declaration, found '}'

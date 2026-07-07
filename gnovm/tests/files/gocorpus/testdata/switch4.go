@@ -37,6 +37,10 @@ func good() {
 
 // GnoError:
 // line 21: cannot fallthrough final case in switch
+// line 34: cannot use interface {} as string
 
 // GoTypeCheckError:
 // line 21: cannot fallthrough final case in switch
+
+// GnoOverStrictError:
+// line 34: cannot use interface {} as string

@@ -37,6 +37,7 @@ func bad() {
 // line 25: cannot use _ as value or type
 // line 27: cannot use _ as value or type
 // line 31: cannot use _ as value or type
+// line 33: cannot use _ as value or type
 
 // GoTypeCheckError:
 // line 25: unknown field _ in struct literal of type T

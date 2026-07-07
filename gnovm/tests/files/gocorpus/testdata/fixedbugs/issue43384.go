@@ -123,8 +123,6 @@ func _() {
 	}
 }
 
-// GnoStaticIncomplete: covered 12 of 24 markers (Gno preprocess: 0, go/types guard: 12); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
 // GoTypeCheckError:
 // line 40: p.Mv undefined (type P3 has no field or method Mv)
 // line 41: (&p).Mv undefined (type *P3 has no field or method Mv)
@@ -138,3 +136,15 @@ func _() {
 // line 61: p.Mp undefined (type P4 has no field or method Mp)
 // line 62: (&p).Mp undefined (type *P4 has no field or method Mp)
 // line 63: (*&p).Mp undefined (type P4 has no field or method Mp)
+// line 96: p.Mv undefined (type P7 has no field or method Mv)
+// line 97: (&p).Mv undefined (type *P7 has no field or method Mv)
+// line 98: (*&p).Mv undefined (type P7 has no field or method Mv)
+// line 102: p.Mp undefined (type P7 has no field or method Mp)
+// line 103: (&p).Mp undefined (type *P7 has no field or method Mp)
+// line 104: (*&p).Mp undefined (type P7 has no field or method Mp)
+// line 111: p.Mv undefined (type P8 has no field or method Mv)
+// line 112: (&p).Mv undefined (type *P8 has no field or method Mv)
+// line 113: (*&p).Mv undefined (type P8 has no field or method Mv)
+// line 117: p.Mp undefined (type P8 has no field or method Mp)
+// line 118: (&p).Mp undefined (type *P8 has no field or method Mp)
+// line 119: (*&p).Mp undefined (type P8 has no field or method Mp)

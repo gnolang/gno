@@ -36,6 +36,10 @@ func (f *FlagSet) setErrorHandling(b bool) {
 
 // GnoError:
 // line 12: circular dependency: commandLine -> NewFlagSet -> FlagSet.setErrorHandling -> FlagSet.failf -> FlagSet.usage -> commandLine
+// line 25: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 12: initialization cycle for commandLine
+
+// GnoOverStrictError:
+// line 25: expected declaration, found '}'

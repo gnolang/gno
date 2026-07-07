@@ -69,12 +69,12 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// ...
-
 // GnoOutput:
 
 // GnoError:
 // main/issue29312.go:64:497-517: type [][][][][][][][]*(typeval{main.pwn}) nesting depth 9 exceeds max 8
 
 // GoOutput:
+
+// KnownDivergence:
+// ...

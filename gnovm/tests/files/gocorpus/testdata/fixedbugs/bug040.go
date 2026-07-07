@@ -13,6 +13,10 @@ func f (x,		// GCCGO_ERROR "previous"
 // GnoError:
 // line 10: x redeclared in this block
 // 	previous declaration at bug040.go:9:9
+// line 11: expected ')', found '}'
 
 // GoTypeCheckError:
 // line 10: x redeclared in this block
+
+// GnoOverStrictError:
+// line 11: expected ')', found '}'

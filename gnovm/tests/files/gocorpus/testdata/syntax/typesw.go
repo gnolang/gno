@@ -14,6 +14,12 @@ func main() {
 
 // GnoError:
 // line 10: no new variables on left side of :=
+// line 11: expected '}', found 'default'
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: invalid syntax tree: incorrect form of type switch guard
+
+// GnoOverStrictError:
+// line 11: expected '}', found 'default'
+// line 13: expected declaration, found '}'

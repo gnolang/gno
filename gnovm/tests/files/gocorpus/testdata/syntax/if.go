@@ -20,7 +20,13 @@ func main() {
 // GnoError:
 // line 13: missing condition in if statement (and 1 more errors)
 // line 16: expected declaration, found 'if'
+// line 17: expected declaration, found '}'
+// line 18: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 13: missing condition in if statement (and 1 more errors)
 // line 16: expected declaration, found 'if'
+
+// GnoOverStrictError:
+// line 17: expected declaration, found '}'
+// line 18: expected declaration, found '}'

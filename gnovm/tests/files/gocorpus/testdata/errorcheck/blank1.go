@@ -33,6 +33,11 @@ func main() {
 
 // GnoError:
 // line 10: invalid package name _
+// line 17: expected declaration, found println
+// line 18: expected declaration, found '}'
+// line 25: cannot use _ as value or type
+// line 26: cannot use _ as value or type
+// line 31: main.T is not comparable
 
 // GoTypeCheckError:
 // line 10: invalid package name _
@@ -41,3 +46,7 @@ func main() {
 // line 26: cannot use _ as value or type
 // line 28: t._ undefined (type struct{_ int} has no field or method _)
 // line 31: invalid operation: v1 == v2 (struct containing []int cannot be compared)
+
+// GnoOverStrictError:
+// line 17: expected declaration, found println
+// line 18: expected declaration, found '}'

@@ -546,12 +546,12 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// Gno behavior.
-
 // GnoOutput:
 
 // GnoError:
 // block node depth reached maximum MaxUint8
 
 // GoOutput:
+
+// KnownDivergence:
+// Gno behavior.

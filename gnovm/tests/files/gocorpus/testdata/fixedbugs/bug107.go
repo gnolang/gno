@@ -15,11 +15,12 @@ func f() (os int) {
 	 return 0
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 9: name FileInfo not declared
+// line 13: unexpected selector expression type gnolang.PrimitiveType
 
 // GoTypeCheckError:
 // line 13: os.Open undefined (type int has no field or method Open)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 9: name FileInfo not declared

@@ -21,12 +21,12 @@ func main() {
 	}
 }
 
-// KnownDivergence:
-// Gno intentional.
-
 // GnoOutput:
 
 // GnoError:
 // main/issue29264.go:16:189-210: type [][][][][][][][][](const-type int) nesting depth 9 exceeds max 8
 
 // GoOutput:
+
+// KnownDivergence:
+// Gno intentional.

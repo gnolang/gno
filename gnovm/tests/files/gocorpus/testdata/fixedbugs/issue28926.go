@@ -25,8 +25,16 @@ func main() {
 
 // GnoError:
 // line 16: name G not declared
+// line 17: expected '}', found e (and 1 more errors)
+// line 18: name E not declared
+// line 19: expected '}', found e (and 1 more errors)
+// line 22: name T not declared
 
 // GoTypeCheckError:
 // line 16: undefined: G
 // line 18: undefined: E
 // line 22: undefined: T
+
+// GnoOverStrictError:
+// line 17: expected '}', found e (and 1 more errors)
+// line 19: expected '}', found e (and 1 more errors)

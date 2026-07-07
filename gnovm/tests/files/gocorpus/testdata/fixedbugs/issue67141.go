@@ -14,10 +14,11 @@ func _() {
 	}
 }
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 12: 0: range iteration requires map, string, array, slice, or pointer to array
 
 // GnoOverStrictError:
 // line 12: 0: range iteration requires map, string, array, slice, or pointer to array
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// UncaughtError:
+// line 13: uncaught; gc expects: cannot range over 10

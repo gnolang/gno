@@ -14,6 +14,10 @@ func main() {
 
 // GnoError:
 // line 11: expected '{', found ')' (and 1 more errors)
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: expected '{', found ')' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 13: expected declaration, found '}'

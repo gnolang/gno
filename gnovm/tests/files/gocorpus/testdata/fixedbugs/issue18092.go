@@ -14,8 +14,4 @@ func _() {
 	}           // GC_ERROR "expected :"
 }
 
-// GnoError:
-// line 14: expected ':', found newline (and 1 more errors)
-
-// GoTypeCheckError:
-// line 14: expected ':', found newline (and 1 more errors)
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

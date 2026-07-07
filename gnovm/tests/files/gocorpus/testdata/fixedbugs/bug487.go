@@ -25,7 +25,9 @@ func H() (int, int) {
 
 // GnoError:
 // line 17: assignment mismatch: 2 variables but G<VPBlock(3,0)> returns 3 values
-// line 18: name a not declared
+// line 22: 2: [function "H" does not terminate]
+// line 23: expected 2 return values
+// line 24: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 17: assignment mismatch: 2 variables but G returns 3 values
@@ -33,3 +35,7 @@ func H() (int, int) {
 // line 23: too many return values
 // 	have (int, int, int)
 // 	want (int, int)
+
+// GnoOverStrictError:
+// line 22: 2: [function "H" does not terminate]
+// line 24: expected declaration, found '}'

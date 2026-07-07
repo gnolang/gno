@@ -180,10 +180,4 @@ func setupTestData() {
 		}...)
 }
 
-// GnoStaticIncomplete: covered 0 of 30 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
-// GnoOverStrictError:
-// line 105: cannot convert x<VPBlock(1,0)> (of type []int) to type *[1]int
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

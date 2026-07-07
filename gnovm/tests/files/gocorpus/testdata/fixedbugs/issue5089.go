@@ -16,6 +16,12 @@ func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
 
 // GnoError:
 // line 13: 2: redeclaration of method Reader.Buffered
+// line 14: expected declaration, found 'return'
+// line 15: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 13: cannot define new methods on non-local type bufio.Reader
+
+// GnoOverStrictError:
+// line 14: expected declaration, found 'return'
+// line 15: expected declaration, found '}'

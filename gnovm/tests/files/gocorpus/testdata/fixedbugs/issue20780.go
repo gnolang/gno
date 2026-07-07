@@ -24,10 +24,4 @@ func f() { // GC_ERROR "stack frame too large"
 func g(Big, Big)
 func h() Big
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
-
-// GnoOverStrictError:
-// line 24: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

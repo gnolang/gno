@@ -13,7 +13,12 @@ const _ = 1e+1000000000 // ERROR "malformed constant: 1e\+1000000000"
 
 // GnoError:
 // line 9: invalid decimal constant: 6e5518446744
+// line 11: invalid decimal constant: 1e-1000000000
+// line 12: invalid decimal constant: 1e+1000000000
 
 // GoTypeCheckError:
 // line 9: malformed constant: 6e5518446744
 // line 12: malformed constant: 1e+1000000000
+
+// GnoOverStrictError:
+// line 11: invalid decimal constant: 1e-1000000000

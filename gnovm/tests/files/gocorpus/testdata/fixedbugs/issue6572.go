@@ -23,8 +23,19 @@ func main() {
 
 // GnoError:
 // line 9: 2: name T not defined in fileset with files [issue6572.go]
+// line 10: expected declaration, found 'return' (and 1 more errors)
+// line 11: expected declaration, found '}' (and 1 more errors)
+// line 13: 2: name T not defined in fileset with files [issue6572.go]
+// line 14: expected declaration, found 'return' (and 1 more errors)
+// line 15: expected declaration, found '}' (and 1 more errors)
 
 // GoTypeCheckError:
 // line 9: undefined: T
 // line 13: undefined: T
 // line 20: cannot use bar() (value of type string) as int value in assignment
+
+// GnoOverStrictError:
+// line 10: expected declaration, found 'return' (and 1 more errors)
+// line 11: expected declaration, found '}' (and 1 more errors)
+// line 14: expected declaration, found 'return' (and 1 more errors)
+// line 15: expected declaration, found '}' (and 1 more errors)

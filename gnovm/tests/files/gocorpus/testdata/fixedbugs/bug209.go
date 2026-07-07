@@ -19,6 +19,10 @@ bug209.go:5: Bus error
 
 // GnoError:
 // line 11: 3: expected typed bool kind, but got IntKind
+// line 13: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: non-boolean condition in for statement
+
+// GnoOverStrictError:
+// line 13: expected declaration, found '}'

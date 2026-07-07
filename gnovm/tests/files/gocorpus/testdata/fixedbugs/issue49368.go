@@ -10,4 +10,5 @@ type _ interface {
 	int // ERROR "embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// UncaughtError:
+// line 10: uncaught; gc expects: 

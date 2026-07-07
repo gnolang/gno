@@ -12,6 +12,10 @@ bogus`
 // GnoError:
 // line 9: 7: unknown import path 
 // bogus
+// line 10: expected declaration, found bogus (and 1 more errors)
 
 // GoTypeCheckError:
 // line 9: invalid import path (invalid character U+000A)
+
+// GnoOverStrictError:
+// line 10: expected declaration, found bogus (and 1 more errors)

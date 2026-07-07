@@ -24,12 +24,12 @@ func G() {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 15: name t not declared
 
 // GoTypeCheckError:
 // line 13: nil is not an interface
 // line 22: x (untyped int constant 1) is not an interface
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 15: name t not declared

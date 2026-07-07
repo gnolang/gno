@@ -38,6 +38,7 @@ func F() {
 // line 25: expression in defer must not be parenthesized (and 2 more errors)
 // line 26: expression in go must not be parenthesized (and 1 more errors)
 // line 27: expression in defer must not be parenthesized
+// line 30: goroutines are not permitted
 
 // GoTypeCheckError:
 // line 22: expression in go must be function call (and 5 more errors)
@@ -46,3 +47,6 @@ func F() {
 // line 25: expression in defer must not be parenthesized (and 2 more errors)
 // line 26: expression in go must not be parenthesized (and 1 more errors)
 // line 27: expression in defer must not be parenthesized
+
+// GnoOverStrictError:
+// line 30: goroutines are not permitted

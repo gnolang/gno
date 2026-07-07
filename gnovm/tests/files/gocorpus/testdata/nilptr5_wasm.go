@@ -31,4 +31,4 @@ func f8(t *[8]int) [8]int {
 	return *t // ERROR "generated nil check"
 }
 
-// Unsupported: Gno accepts this file but gc rejects it (leniency divergence; no Gno error to pin)
+// Unsupported: gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors

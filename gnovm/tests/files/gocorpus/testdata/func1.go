@@ -21,6 +21,12 @@ func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition|re
 // GnoError:
 // line 17: a redeclared in this block
 // 	previous declaration at func1.go:17:9
+// line 18: expected declaration, found 'return'
+// line 19: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 17: a redeclared in this block
+
+// GnoOverStrictError:
+// line 18: expected declaration, found 'return'
+// line 19: expected declaration, found '}'

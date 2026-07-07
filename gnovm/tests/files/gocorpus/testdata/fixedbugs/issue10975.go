@@ -17,10 +17,15 @@ func New() I {
 	return struct{}{}
 }
 
-// GnoStaticIncomplete: covered 0 of 1 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
+// GnoError:
+// line 16: 2: [function "New" does not terminate]
+// line 17: struct{} does not implement main.I (missing method int)
+// line 18: expected declaration, found '}'
 
 // GnoOverStrictError:
+// line 16: 2: [function "New" does not terminate]
 // line 17: struct{} does not implement main.I (missing method int)
+// line 18: expected declaration, found '}'
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// UncaughtError:
+// line 13: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type

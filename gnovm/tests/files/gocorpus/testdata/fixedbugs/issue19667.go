@@ -14,6 +14,10 @@ func f() {
 
 // GnoError:
 // line 13: expected operand, found '}' (and 1 more errors)
+// line 15: expected '(', found main
 
 // GoTypeCheckError:
 // line 13: expected operand, found '}' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 15: expected '(', found main

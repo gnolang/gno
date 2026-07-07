@@ -17,12 +17,22 @@ func f(e interface{}) {
 	}
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 10: 3: duplicate type nil in type switch
+// line 11: expected '}', found 'case' (and 2 more errors)
+// line 14: expected declaration, found 'switch' (and 1 more errors)
+// line 15: expected declaration, found 'case'
+// line 16: expected declaration, found 'case'
+// line 17: expected declaration, found '}'
+// line 18: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 11: duplicate case nil in type switch
 // line 16: duplicate case nil in type switch
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 10: 3: duplicate type nil in type switch
+// line 14: expected declaration, found 'switch' (and 1 more errors)
+// line 15: expected declaration, found 'case'
+// line 17: expected declaration, found '}'
+// line 18: expected declaration, found '}'

@@ -66,16 +66,23 @@ func g() {
 	}
 }
 
-// GnoStaticIncomplete: covered 4 of 7 markers (Gno preprocess: 4, go/types guard: 4); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 24: illegal label declaration (and 9 more errors)
 // line 30: illegal label declaration (and 7 more errors)
 // line 37: illegal label declaration (and 6 more errors)
 // line 43: illegal label declaration (and 4 more errors)
+// line 51: expected statement, found 'case' (and 3 more errors)
+// line 64: labelname redeclared in this block
+// 	previous declaration at issue14006.go:59:3
 
 // GoTypeCheckError:
 // line 24: illegal label declaration (and 7 more errors)
 // line 30: illegal label declaration (and 5 more errors)
 // line 37: illegal label declaration (and 4 more errors)
 // line 43: illegal label declaration (and 2 more errors)
+// line 50: label labelname declared and not used
+// line 59: other declaration of labelname
+// line 64: label labelname already declared
+
+// GnoOverStrictError:
+// line 51: expected statement, found 'case' (and 3 more errors)

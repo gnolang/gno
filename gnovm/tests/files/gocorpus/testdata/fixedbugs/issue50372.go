@@ -28,16 +28,28 @@ func _(s chan int) {
         for i, j, k, l = range s {} // ERROR "range over .* permits only one iteration variable"
 }
 
-// GnoStaticIncomplete: covered 4 of 5 markers (Gno preprocess: 4, go/types guard: 4); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 16: expected at most 2 expressions (and 3 more errors)
 // line 17: expected at most 2 expressions (and 2 more errors)
+// line 20: channels are not permitted
+// line 22: expected declaration, found _
+// line 24: expected declaration, found 'for'
+// line 25: expected declaration, found 'for'
+// line 26: expected declaration, found 'for'
 // line 27: expected at most 2 expressions (and 1 more errors)
 // line 28: expected at most 2 expressions
+// line 29: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 16: expected at most 2 expressions (and 3 more errors)
 // line 17: expected at most 2 expressions (and 2 more errors)
+// line 26: range over s (variable of type chan int) permits only one iteration variable
 // line 27: expected at most 2 expressions (and 1 more errors)
 // line 28: expected at most 2 expressions
+
+// GnoOverStrictError:
+// line 20: channels are not permitted
+// line 22: expected declaration, found _
+// line 24: expected declaration, found 'for'
+// line 25: expected declaration, found 'for'
+// line 29: expected declaration, found '}'

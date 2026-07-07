@@ -110,5 +110,4 @@ const (
 	f99 = f98 * 99 // GC_ERROR "overflow"
 )
 
-// GoTypeCheckError:
-// line 110: constant multiplication overflow
+// Unsupported: only gc-specific (GC_ERROR) markers; not part of Gno's contract

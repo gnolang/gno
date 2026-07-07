@@ -19,3 +19,9 @@ func main() {}
 // GnoError:
 // line 13: foo redeclared in this block
 // 	previous declaration at issue17758.go:9:6
+// line 14: expected declaration, found _
+// line 15: expected declaration, found '}'
+
+// GnoOverStrictError:
+// line 14: expected declaration, found _
+// line 15: expected declaration, found '}'

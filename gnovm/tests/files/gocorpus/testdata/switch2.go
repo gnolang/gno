@@ -41,7 +41,10 @@ func f() {
 // GnoError:
 // line 14: expected ':', found ';' (and 5 more errors)
 // line 18: expected ':', found ';' (and 4 more errors)
+// line 23: cannot use untyped Bigint as BoolKind
+// line 27: cannot use untyped Bigint as BoolKind
 // line 28: expected ';', found 'case' (and 3 more errors)
+// line 32: cannot use untyped Bigint as BoolKind
 // line 33: expected ';', found 'default' (and 2 more errors)
 // line 37: expected '}', found 'if' (and 1 more errors)
 
@@ -51,3 +54,8 @@ func f() {
 // line 28: expected ';', found 'case' (and 3 more errors)
 // line 33: expected ';', found 'default' (and 2 more errors)
 // line 37: expected '}', found 'if' (and 1 more errors)
+
+// GnoOverStrictError:
+// line 23: cannot use untyped Bigint as BoolKind
+// line 27: cannot use untyped Bigint as BoolKind
+// line 32: cannot use untyped Bigint as BoolKind

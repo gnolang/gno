@@ -11,7 +11,13 @@ func f() [2]int {
 }
 
 // GnoError:
+// line 9: 2: [function "f" does not terminate]
 // line 10: cannot use [3]int as [2]int
+// line 11: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 10: cannot use [...]int{…} (value of type [3]int) as [2]int value in return statement
+
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+// line 11: expected declaration, found '}'

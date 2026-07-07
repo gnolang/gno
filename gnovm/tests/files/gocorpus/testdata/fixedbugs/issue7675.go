@@ -23,8 +23,9 @@ func main() {
 	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments|truncated to integer"
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoTypeCheckError:
 // line 16: not enough arguments in call to f
@@ -43,5 +44,6 @@ func main() {
 // 	have (number, number, string, number, number)
 // 	want (string, int, float64, string)
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)

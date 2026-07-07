@@ -34,6 +34,12 @@ func main() {
 // line 16: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
 // line 19: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
 // line 20: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
+// line 22: imaginaries are not supported
+// line 23: name complex64 not declared
+// line 24: name complex128 not declared
+// line 26: imaginaries are not supported
+// line 27: name complex64 not declared
+// line 28: name complex128 not declared
 
 // GoTypeCheckError:
 // line 15: invalid argument: index float32(1.0) (constant 1 of type float32) must be integer
@@ -44,3 +50,7 @@ func main() {
 // line 24: invalid argument: index complex128(1 + 0i) (constant (1 + 0i) of type complex128) must be integer
 // line 27: invalid argument: index complex64(1 + 0i) (constant (1 + 0i) of type complex64) must be integer
 // line 28: invalid argument: index complex128(1 + 0i) (constant (1 + 0i) of type complex128) must be integer
+
+// GnoOverStrictError:
+// line 22: imaginaries are not supported
+// line 26: imaginaries are not supported

@@ -60,7 +60,7 @@ for f in $(find "$root" -name '*.go' -o -name '*.gno' | sort); do
     # verdict: Gno rejects lines outside markers ∪ go/types) — is deferred.
     if grep -q '^// GnoOutput:' "$f"; then urgent+=("$f"); else deferred+=("$f"); fi
   elif grep -q '^// KnownDivergence:' "$f"; then divergence+=("$f")
-  elif grep -q '^// GnoStaticIncomplete:' "$f"; then incomplete+=("$f")
+  elif grep -q '^// GnoStaticIncomplete:' "$f"; then incomplete+=("$f")  # legacy; should be empty
   elif grep -q '^// Unsupported:' "$f"; then unsupported+=("$f")
   # Guard-only: go/types catches everything, Gno preprocess flags nothing
   # (an empty Gno catch is synced as NO GnoError/GnoPreprocessError block,
@@ -105,14 +105,16 @@ emit_section() { # $1=title $2=blurb $3=directive(for note) $4..=files
   echo "|---|--:|---|"
   echo "| 🔥 **Urgent KnownIssue** | ${#urgent[@]} | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |"
   echo "| 🕳️ **Uncaught leak** | ${#uncaught[@]} | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |"
-  echo "| 🟠 **Deferred KnownIssue** | ${#deferred[@]} | static over-strict — Gno rejects code gc *and* go/types accept (caught at deploy; no inconsistent state); defer |"
+  echo "| 🟠 **Over-strict** | ${#deferred[@]} | Gno rejects code gc *and* go/types accept (static; caught at deploy, no inconsistent state — fix deferred) |"
   echo "| 🔵 KnownDivergence | ${#divergence[@]} | accepted run-mode difference (not a bug) |"
-  echo "| 🟡 GnoStaticIncomplete | ${#incomplete[@]} | partial errorcheck marker coverage (static caveat) |"
-  echo "| 🛡️ GuardOnly | ${#guardonly[@]} | rejected by the go/types guard alone — Gno preprocess flags nothing; holds in production, but is the native-coverage worklist for go/types removal |"
+  echo "| 🛡️ Permissive-GuardOnly | ${#guardonly[@]} | Gno preprocess accepts; the go/types guard alone rejects — holds in production, but is the native-coverage worklist for go/types removal |"
   echo "| ⚪ Unsupported | ${#unsupported[@]} | feature gap (unsupported import / language feature); skipped |"
   echo "| ✅ Clean | ${#clean[@]} | verified, no outstanding issue |"
   echo "| **Total migrated** | ${total} | |"
 } >"$out"
+if [ "${#incomplete[@]:-0}" -gt 0 ]; then
+  echo "⚠ ${#incomplete[@]} files still carry legacy // GnoStaticIncomplete: — re-sync them" >>"$out"
+fi
 
 emit_section "🔥 Urgent KnownIssue — runtime divergence (fix now)" \
   "Gno's run-mode result differs from Go's — a wrong value, or a panic where Go succeeds (e.g. bug446: init-order panic). Unlike static rejects (caught at deploy), these ship and break in production, so they're the must-fix subset. Read each file's pinned // GnoOutput:/// GnoError: vs // GoOutput: to identify the bug. Many files share a root cause; sub-triage (engine panic vs semantic bug vs misrouted feature-gap) is done by reading the behavior." \
@@ -120,23 +122,66 @@ emit_section "🔥 Urgent KnownIssue — runtime divergence (fix now)" \
 emit_section "🕳️ Uncaught leak — gc-invalid code deploys" \
   "Checkable (non-GC_ERROR) markers caught by neither Gno's preprocess nor the go/types guard: the whole stack accepts code gc rejects. Under-rejection — invalid packages deploy — so these rank with (arguably above) the urgent bucket." \
   UncaughtError ${uncaught[@]+"${uncaught[@]}"}
-emit_section "🟠 Deferred KnownIssue — static over-strictness" \
+emit_section "🟠 Over-strict — Gno-only static rejects (fix deferred)" \
   "Gno's preprocess rejects code that both gc (markers) and the go/types guard accept. Only over-rejects otherwise-valid packages (they can't deploy/call) — no inconsistent state — so deferred. Note = human verdict (compile KnownIssue) or the first over-strict line (errorcheck GnoOverStrictError)." \
   "KnownIssue GnoOverStrictError" ${deferred[@]+"${deferred[@]}"}
 emit_section "🔵 KnownDivergence — accepted run-mode differences" \
   "Gno's output legitimately differs from Go's (formatting, map order, error wording, …); pinned and blessed, not a bug." \
   KnownDivergence ${divergence[@]+"${divergence[@]}"}
-emit_section "🟡 GnoStaticIncomplete — partial errorcheck coverage" \
-  "Fewer than all gc markers covered (Gno preprocess OR go/types guard). Static-only (errorcheck files never run). The note's per-checker split shows whether Gno bailed early or is lenient. A runnable variant may exercise the rest." \
-  GnoStaticIncomplete ${incomplete[@]+"${incomplete[@]}"}
-emit_section "🛡️ GuardOnly — gated by go/types alone (preprocess lenient)" \
+emit_section "🛡️ Permissive-GuardOnly — Gno accepts, go/types alone rejects" \
   "Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess (an empty Gno catch is synced as no GnoError block — absence means lenient, not unsynced). The rejection contract holds in production (guard runs at addpkg), but each file flips to silently-accepted the day the transitional guard is removed — this is the native type_check.go coverage worklist. Note shows the guard's first error." \
   GoTypeCheckError ${guardonly[@]+"${guardonly[@]}"}
 emit_section "⚪ Unsupported — feature gaps (skipped)" \
   "Gno can't process the file (unsupported import or language feature). Skipped via t.Skip." \
   Unsupported ${unsupported[@]+"${unsupported[@]}"}
+# Clean-section audit (standing invariants, re-derived each regen —
+# hardened from the 2026-07 one-off audit that caught 15 run files never
+# both-sides compared and 3 pragma-marker errorcheck files never checked):
+#   - run:        must pin BOTH // GnoOutput: and // GoOutput: (content
+#                 equality is enforced by the harness at test time)
+#   - compile:    must have NO pins (all checkers accept)
+#   - errorcheck: must have // GnoError: (else it belongs to GuardOnly)
+# Violations are listed inline as ⚠ ANOMALY — a Clean bucket with
+# anomalies is not clean.
+clean_run_empty=0; clean_run_out=0; clean_ec=0; clean_compile=0; clean_other=0
+declare -a clean_anomalies
+for f in ${clean[@]+"${clean[@]}"}; do
+  mode=$(head -1 "$f" | sed 's|^// ||;s/ .*//')
+  case "$mode" in
+    run)
+      if ! grep -q '^// GnoOutput:' "$f" || ! grep -q '^// GoOutput:' "$f"; then
+        clean_anomalies+=("$f — run-mode Clean but missing GnoOutput/GoOutput pins (never both-sides compared)")
+      elif awk '/^\/\/ GoOutput:$/{p=1;next} p&&/^\/\/ /{n++;next} p{exit} END{exit n==0}' "$f"; then
+        clean_run_out=$((clean_run_out+1))
+      else
+        clean_run_empty=$((clean_run_empty+1))
+      fi ;;
+    compile)
+      if grep -qE '^// (GnoError|GnoOutput|GoOutput|GnoPreprocessError|GoBuildError|GoTypeCheckError):' "$f"; then
+        clean_anomalies+=("$f — compile Clean but carries pins")
+      else
+        clean_compile=$((clean_compile+1))
+      fi ;;
+    errorcheck)
+      if ! grep -q '^// GnoError:' "$f"; then
+        clean_anomalies+=("$f — errorcheck Clean without GnoError (should be GuardOnly or Unsupported)")
+      else
+        clean_ec=$((clean_ec+1))
+      fi ;;
+    *) clean_other=$((clean_other+1)) ;;
+  esac
+done
+clean_blurb="Gno's behavior is pinned and matches; no outstanding issue. Composition (invariants re-checked at each regen): ${clean_run_empty} run/both-silent, ${clean_run_out} run/matching-output, ${clean_ec} errorcheck/full-marker-coverage-with-Gno, ${clean_compile} compile/all-checkers-accept, ${clean_other} other modes."
+if [ "${#clean_anomalies[@]}" -gt 0 ]; then
+  clean_blurb="$clean_blurb
+**⚠ ${#clean_anomalies[@]} ANOMALIES (unverified files counted Clean — fix the pins or the harness):**"
+  for a in ${clean_anomalies[@]+"${clean_anomalies[@]}"}; do
+    clean_blurb="$clean_blurb
+- \`${a#testdata/}\`"
+  done
+fi
 emit_section "✅ Clean — verified" \
-  "Gno's behavior is pinned and matches; no outstanding issue." \
+  "$clean_blurb" \
   "" ${clean[@]+"${clean[@]}"}
 
 echo "wrote $out ($total files)"

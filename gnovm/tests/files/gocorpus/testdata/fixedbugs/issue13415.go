@@ -18,11 +18,18 @@ func f() {
     }
 }
 
-// GnoOverStrictError:
+// GnoError:
 // line 13: select statements are not permitted
+// line 14: expected '}', found 'case' (and 1 more errors)
+// line 15: channels are not permitted
+// line 17: expected ';', found '('
+// line 19: expected declaration, found '}'
 
 // GoTypeCheckError:
 // line 14: x repeated on left side of :=
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)
+// GnoOverStrictError:
+// line 13: select statements are not permitted
+// line 15: channels are not permitted
+// line 17: expected ';', found '('
+// line 19: expected declaration, found '}'

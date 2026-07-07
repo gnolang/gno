@@ -14,3 +14,13 @@ type T interface { // ERROR "invalid recursive type: anonymous interface refers 
 
 // GnoError:
 // line 9: 2: invalid recursive type: T -> T
+// line 10: expected declaration, found M
+// line 11: expected declaration, found T
+// line 12: expected declaration, found '}'
+// line 13: expected declaration, found '}'
+
+// GnoOverStrictError:
+// line 10: expected declaration, found M
+// line 11: expected declaration, found T
+// line 12: expected declaration, found '}'
+// line 13: expected declaration, found '}'

@@ -66,6 +66,9 @@ func f() {
 // line 40: imaginaries are not supported
 // line 42: name complex128 not declared
 // line 43: name complex128 not declared
+// line 44: name complex128 not declared
+// line 45: name complex128 not declared
+// line 46: name complex128 not declared
 
 // GoTypeCheckError:
 // line 10: cannot convert "" (untyped string constant) to type bool
@@ -87,3 +90,8 @@ func f() {
 // line 40: cannot convert -4 + 2i (untyped complex constant (-4 + 2i)) to type float64
 // line 42: cannot convert "" (untyped string constant) to type complex128
 // line 43: cannot convert true (untyped bool constant) to type complex128
+
+// GnoOverStrictError:
+// line 44: name complex128 not declared
+// line 45: name complex128 not declared
+// line 46: name complex128 not declared
