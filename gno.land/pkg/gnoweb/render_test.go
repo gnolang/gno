@@ -149,7 +149,6 @@ func TestRenderer_WriteChromaCSS(t *testing.T) {
 		{"success: default config outputs light and dark CSS", true, true, true},
 		{"success: nil dark style outputs light CSS only", false, true, false},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
