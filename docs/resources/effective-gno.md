@@ -891,7 +891,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken(0, cur, "Foo Token", "FOO", 4)
+	Token, privateLedger = grc20.NewToken(0, cur, "FOO", "Foo Token", "FOO", 4)
 	UserTeller = Token.CallerTeller()
 }
 

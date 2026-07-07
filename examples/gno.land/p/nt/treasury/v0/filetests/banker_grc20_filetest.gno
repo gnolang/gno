@@ -15,7 +15,7 @@ const amount = int64(1000)
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(0, rlm, name, symbol, 0)
+	token, ledger := grc20.NewToken(0, rlm, symbol, name, symbol, 0)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)

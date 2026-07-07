@@ -11,7 +11,7 @@ import (
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := cur.PkgPath()
-	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
+	token, ledger := grc20.NewToken(0, cur, "TST", "TestToken", "TST", 4)
 	ledger.Mint(cur.Address(), 1234567)
 	// register
 	Register(cross(cur), token, "")

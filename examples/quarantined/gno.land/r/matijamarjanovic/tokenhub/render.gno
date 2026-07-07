@@ -65,7 +65,7 @@ import (
 // context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
 	// GRC20 token
-	myToken, myLedger := grc20.NewToken(0, cur, "My Token", "MTK", 6)
+	myToken, myLedger := grc20.NewToken(0, cur, "MTK", "My Token", "MTK", 6)
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT

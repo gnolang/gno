@@ -12,7 +12,7 @@ import (
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol.
+// origRealm. Token.ID() returns origRealm + "." + id.
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
@@ -20,11 +20,11 @@ import (
 //
 // Typical call from a realm's init(cur realm) or other crossing function:
 //
-//	Token, ledger := grc20.NewToken(0, cur, "Foo", "FOO", 4)
+//	Token, ledger := grc20.NewToken(0, cur, "FOO", "Foo", "FOO", 4)
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross, Token, slug).
-func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+func NewToken(_ int, rlm realm, id, name, symbol string, decimals int) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -35,6 +35,9 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	if !validName(name) {
 		panic(ErrInvalidName)
 	}
+	if !validSymbol(id) {
+		panic(ErrInvalidID)
+	}
 	if !validSymbol(symbol) {
 		panic(ErrInvalidSymbol)
 	}
@@ -43,6 +46,7 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	}
 	ledger := &PrivateLedger{}
 	token := &Token{
+		id:        id,
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
@@ -69,15 +73,13 @@ func validName(name string) bool {
 	return true
 }
 
-// validSymbol reports whether symbol is a valid token symbol: non-empty,
-// within MaxSymbolLen, and consists only of [A-Za-z0-9_-]. Matches
-// grc20reg.validateSlug so the symbol round-trips cleanly through
-// Token.ID() and any registry binding.
-func validSymbol(symbol string) bool {
-	if symbol == "" || len(symbol) > MaxSymbolLen {
+// validSymbol reports whether s is valid slug-compatible metadata: non-empty,
+// within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
+func validSymbol(s string) bool {
+	if s == "" || len(s) > MaxSymbolLen {
 		return false
 	}
-	for _, c := range symbol {
+	for _, c := range s {
 		if !isAlnum(c) && c != '_' && c != '-' {
 			return false
 		}
@@ -105,9 +107,9 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // ID returns the Identifier of the token.
-// It is composed of the original realm and the provided symbol.
+// It is composed of the original realm and the provided ID.
 func (tok *Token) ID() string {
-	return tok.origRealm + "." + tok.symbol
+	return tok.origRealm + "." + tok.id
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
