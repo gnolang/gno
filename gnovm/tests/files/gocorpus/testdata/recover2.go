@@ -84,6 +84,9 @@ func test7() {
 	println(x / y)
 }
 
+
+// Fixing: PR #5732 (fix/5667, typedRuntimeError); partial on branch (wording gap at test4), broken on master; re-check after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -93,4 +96,8 @@ func test7() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Runtime panics carry a bare string, so v.(error) fails ("string doesn't
+// implement interface"). Same root cause as fixedbugs/issue19040.go. On PR
+// #5732 tests 1-3 pass but test4 still fails on wording: the assertion
+// message ("int is not of type float32") lacks Go's "interface conversion"
+// substring — wording-only residue, like fixedbugs/issue26094.go.

@@ -17,10 +17,16 @@ func main() {
 	println("hi﻿ there") // and here	// ERROR "BOM"
 }
 
-// GnoStaticIncomplete: covered 1 of 3 markers (Gno preprocess: 1, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 14: illegal byte order mark (and 4 more errors)
+// line 15: illegal byte order mark (and 2 more errors)
+// line 16: illegal byte order mark (and 1 more errors)
+// line 17: illegal byte order mark
 
 // GoTypeCheckError:
 // line 14: illegal byte order mark (and 4 more errors)
+// line 16: illegal byte order mark (and 1 more errors)
+// line 17: illegal byte order mark
+
+// GnoOverStrictError:
+// line 15: illegal byte order mark (and 2 more errors)

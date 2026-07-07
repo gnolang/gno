@@ -15,5 +15,11 @@ func F() {
 	_ = ok
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 14: want bool type got interface {}
+
+// GoBuildError:
+// line 13: predeclared any requires go1.18 or later (-lang was set to go1.17
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

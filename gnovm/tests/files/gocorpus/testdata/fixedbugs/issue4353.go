@@ -18,6 +18,9 @@ func main() {
 	_ = paib[i64]
 }
 
+
+// Fixed: master PR #5738 (1da3a0ff7); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -26,4 +29,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Out-of-range index on a pointer-to-array (paib[i64]) escaped as an
+// unrecoverable VM panic instead of a recoverable runtime panic, so
+// recover() never fired. Same root cause as fixedbugs/issue15252.go.

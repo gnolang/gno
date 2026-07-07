@@ -86,6 +86,9 @@ func _() {
 
 // GnoStaticIncomplete: covered 6 of 27 markers (Gno preprocess: 0, go/types guard: 6); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
+// GnoOverStrictError:
+// line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 11: assignment mismatch: 1 variable but 2 values
 // line 12: assignment mismatch: 1 variable but 3 values
@@ -95,4 +98,4 @@ func _() {
 // line 19: assignment mismatch: 3 variables but 2 values
 
 // KnownIssue:
-// line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

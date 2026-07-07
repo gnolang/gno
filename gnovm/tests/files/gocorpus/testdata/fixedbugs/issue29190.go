@@ -43,5 +43,10 @@ func shouldPanic(str string, f func()) {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// KnownDivergence:
+// gc's make limit is byte-based and zero-sized elements cost 0 bytes, so
+// make([]T, maxInt) is legal there. GnoVM boxes every element as a
+// TypedValue (NewListArray: make([]TypedValue, n)), so zero-sized types
+// aren't free and the per-element cap IS its allocatable-size limit —
+// spec-permitted. Since #5723 the panic is recoverable with the Go-style
+// "makeslice: len out of range" message. KnownDivergence candidate.

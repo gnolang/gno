@@ -27,9 +27,12 @@ var _ = P{
 	f: T{}, // ERROR "cannot use T{}|incompatible type"
 }
 
+// GnoOverStrictError:
+// line 22: 2: cannot use *gno.land/p/filetest/p.T as struct{}
+
 // GoTypeCheckError:
 // line 23: cannot use &T{} (value of type *T) as T value in struct literal
 // line 27: cannot use T{} (value of struct type T) as *T value in struct literal
 
 // KnownIssue:
-// line 22: 2: cannot use *gno.land/p/filetest/p.T as struct{}
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

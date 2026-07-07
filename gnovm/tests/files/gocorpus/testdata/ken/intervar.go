@@ -67,3 +67,7 @@ main() {
 		panic(r + " != " + expected)
 	}
 }
+
+// GnoOutput:
+
+// GoOutput:

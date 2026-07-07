@@ -14,5 +14,12 @@ type I2 interface {
 	int | any
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 10: operator | not defined on: TypeKind
+
+// GoBuildError:
+// line 10: predeclared any requires go1.18 or later (-lang was set to go1.17
+// line 14: predeclared any requires go1.18 or later (-lang was set to go1.17
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

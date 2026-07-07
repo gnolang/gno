@@ -22,8 +22,11 @@ uetli:~/Source/go1/usr/gri/gosrc gri$ 6g bug.go && 6l bug.6 && 6.out
 4882
 */
 
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+
 // GoTypeCheckError:
 // line 14: missing return
 
 // KnownIssue:
-// line 9: 2: [function "f" does not terminate]
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

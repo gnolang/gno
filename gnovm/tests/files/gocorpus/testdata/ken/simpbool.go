@@ -105,3 +105,7 @@ main() {
 	if !(a || !b) { panic(93); }
 	if a || b { panic(94); }
 }
+
+// GnoOutput:
+
+// GoOutput:

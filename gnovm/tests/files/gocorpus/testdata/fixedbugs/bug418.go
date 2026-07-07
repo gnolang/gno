@@ -21,9 +21,12 @@ func Recursive() (x interface{}, y int) {
 	return Recursive(), 0 // ERROR "single-value context|2\-valued"
 }
 
+// GnoOverStrictError:
+// line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 16: multiple-value Two() (value of type (a int, b int)) in single-value context
 // line 21: multiple-value Recursive() (value of type (x interface{}, y int)) in single-value context
 
 // KnownIssue:
-// line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

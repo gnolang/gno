@@ -328,8 +328,6 @@ func _() {
 	_ = (*P)(s) // ERROR "cannot convert"
 }
 
-// GnoStaticIncomplete: covered 31 of 48 markers (Gno preprocess: 31, go/types guard: 1); Gno bailed before the rest — a runnable variant may exercise more
-
 // GnoError:
 // line 25: cannot use main[main/convert2.go:18:1-32:2].T as main[main/convert2.go:18:1-32:2].S without explicit conversion
 // line 45: cannot use main[main/convert2.go:34:1-52:2].T as main[main/convert2.go:34:1-52:2].S without explicit conversion
@@ -362,6 +360,37 @@ func _() {
 // line 312: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].S
 // line 313: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 // line 314: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].T
+// line 319: cannot convert s<VPBlock(1,0)> (of type []uint8) to type [4]uint8
+// line 320: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *[4]uint8
+// line 323: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].A
+// line 324: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].A
+// line 327: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].P
+// line 328: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].P
 
 // GoTypeCheckError:
 // line 25: cannot use t (variable of struct type T) as S value in assignment
+
+// GnoOverStrictError:
+// line 319: cannot convert s<VPBlock(1,0)> (of type []uint8) to type [4]uint8
+// line 320: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *[4]uint8
+// line 323: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].A
+// line 324: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].A
+// line 327: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].P
+
+// UncaughtError:
+// line 46: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 50: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 67: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 71: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 95: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 99: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 125: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 164: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 168: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 184: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 188: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 205: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 209: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 233: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 237: uncaught; gc expects: cannot use .* in assignment|incompatible type
+// line 263: uncaught; gc expects: cannot use .* in assignment|incompatible type

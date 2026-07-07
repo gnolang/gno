@@ -39,6 +39,9 @@ func shouldPanic(f func()) {
 	f()
 }
 
+
+// Fixed: master PR #5713 (5d889b083); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -47,4 +50,6 @@ func shouldPanic(f func()) {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Comparing interface values with uncomparable dynamic types (map, func,
+// struct containing a slice) returned false instead of panicking at
+// runtime. Same root cause as fixedbugs/issue8606.go.

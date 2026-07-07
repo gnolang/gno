@@ -86,6 +86,11 @@ type InlineError struct {
 	// Patterns lists the quoted regex strings on the marker, in
 	// declaration order. Empty for a bare `// ERROR` with no patterns.
 	Patterns []string
+	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	// diagnostic (backend limit, pragma check, …) that is NOT part of
+	// Gno's contract. GcOnly markers are excluded from leak accounting —
+	// catching one is fine, missing one is not an uncaught error.
+	GcOnly bool
 }
 
 // HasInlineErrorMarkers reports whether source contains any
@@ -150,7 +155,8 @@ func ParseInlineErrors(source []byte) []InlineError {
 			}
 		}
 		patterns := extractQuotedStrings(text[idx:])
-		out = append(out, InlineError{Line: lineNo, Patterns: patterns})
+		gcOnly := strings.Contains(text[:idx], "GC_ERROR")
+		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
 	}
 	return out
 }
@@ -298,8 +304,11 @@ func PrependPkgPathIfNeeded(source []byte) []byte {
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
-// funcMainRe matches `func main()` at line start, with optional whitespace before `()`.
-var funcMainRe = regexp.MustCompile(`(?m)^func main\s*\(\)`)
+// funcMainRe matches `func main()` at line start. Whitespace — including
+// a newline — is allowed between `func` and `main` (ancient corpus files
+// like ken/*.go and fixedbugs/bug203.go write `func\nmain()`; missing
+// them silently downgraded run-mode files to preprocess-only checking).
+var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
 
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking

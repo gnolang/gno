@@ -132,8 +132,11 @@ func main() {
 	println(c100 / c100)
 }
 
+// GnoOverStrictError:
+// line 40: multiplication overflow
+
 // GoTypeCheckError:
 // line 13: constant multiplication overflow
 
 // KnownIssue:
-// line 40: multiplication overflow
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

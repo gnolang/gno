@@ -34,6 +34,9 @@ func main() {
 	}
 }
 
+
+// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
+
 // GnoOutput:
 
 // GnoError:
@@ -42,4 +45,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Mixed-receiver method expressions are unsupported: (*T).Len(&t) with a
+// value-receiver method mistypes the receiver ("cannot use *main.T as
+// []int"). Same root cause as method.go and fixedbugs/issue29304.go.

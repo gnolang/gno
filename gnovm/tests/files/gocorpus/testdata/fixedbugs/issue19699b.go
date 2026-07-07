@@ -13,8 +13,11 @@ func f() bool {
 	}
 } // ERROR "missing return( at end of function)?"
 
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+
 // GoTypeCheckError:
 // line 14: missing return
 
 // KnownIssue:
-// line 9: 2: [function "f" does not terminate]
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

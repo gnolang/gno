@@ -14,5 +14,8 @@ func Get(ss []string) *[2]string {
 	return (*[2]string)(ss)
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 14: cannot convert ss<VPBlock(1,0)> (of type []string) to type *[2]string
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

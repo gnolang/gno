@@ -21,8 +21,11 @@ const (
 
 // GnoStaticIncomplete: covered 1 of 4 markers (Gno preprocess: 0, go/types guard: 1); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
+// GnoOverStrictError:
+// line 10: rune literal not terminated (and 4 more errors)
+
 // GoTypeCheckError:
 // line 15: illegal rune literal (and 4 more errors)
 
 // KnownIssue:
-// line 10: rune literal not terminated (and 4 more errors)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

@@ -65,5 +65,8 @@ L4:
 L5:
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 60: select statements are not permitted
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

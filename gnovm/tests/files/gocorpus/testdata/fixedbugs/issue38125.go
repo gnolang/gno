@@ -21,5 +21,8 @@ func F() {
 	_ = struct { I }.M
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 20: unexpected selector expression type value struct{I gno.land/p/filetest/p.I}
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

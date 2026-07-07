@@ -31,6 +31,9 @@ func main() {
 	}
 }
 
+
+// Fixing: PR #5737 (fix/defer12, call-time dispatch); verified clean on branch, broken on master; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -39,4 +42,7 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// defer i.M() on an interface holding nil *T panics when the defer is
+// registered instead of at call time, so r = 1 never runs and f() returns
+// 0 (Go dispatches interface-bound method values at call time; the panic
+// then fires inside the deferred call and is recovered).

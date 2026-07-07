@@ -25,5 +25,8 @@ func f() {
 	I.Method(m, 42)
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 24: unknown *DeclaredType method named MethodByName
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

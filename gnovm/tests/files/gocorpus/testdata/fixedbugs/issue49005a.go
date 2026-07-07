@@ -12,8 +12,11 @@ func F() T
 
 var _ = F().(*X) // ERROR "undefined: X"
 
+// GnoOverStrictError:
+// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 13: undefined: X
 
 // KnownIssue:
-// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

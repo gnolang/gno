@@ -17,5 +17,8 @@ func join(elems []string, sep string) string {
 	return ""
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 10: 3: cannot convert b.loopvar<VPBlock(1,0)> (of type <untyped> bool) to type bool
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

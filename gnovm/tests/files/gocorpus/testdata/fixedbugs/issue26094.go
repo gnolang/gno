@@ -48,6 +48,9 @@ func main() {
 	F2() // check that X is not F2's T
 }
 
+
+// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified on branch (wording gap remains), broken on master; reclassify KnownDivergence after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -56,4 +59,8 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Local-type identity is already correct (the assertion fails as it
+// should); the bug is the panic value: runtime panics are bare strings, so
+// recover().(error) yields nil and scopes() re-panics nil ("undefined").
+// Same root cause as fixedbugs/issue19040.go. On PR #5732 the remaining gap
+// is message wording only (no "different scopes") — KnownDivergence then.

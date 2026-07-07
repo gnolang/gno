@@ -25,5 +25,8 @@ var x     // error on line 24, not 30
 
 // GnoStaticIncomplete: covered 0 of 2 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
-// KnownIssue:
+// GnoOverStrictError:
 // line 19: import path must be a string (and 1 more errors)
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

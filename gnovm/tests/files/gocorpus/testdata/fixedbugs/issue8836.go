@@ -23,8 +23,11 @@ func main() {
 	)
 }
 
+// GnoOverStrictError:
+// line 13: function foobar does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 22: cannot use 42 (untyped int constant) as *Cint value in argument to foobar
 
 // KnownIssue:
-// line 13: function foobar does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

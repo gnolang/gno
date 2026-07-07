@@ -54,5 +54,9 @@ func main() {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// KnownDivergence:
+// Untyped float constants are backed by apd.Decimal, whose exponent is
+// capped at ±100000, so 1e646456992 is unrepresentable (op_eval.go FLOAT).
+// Spec only requires 16-bit constant exponents (1e32767 works on master),
+// so this is a permitted implementation limit — same class as gccgo, which
+// this test also skips.

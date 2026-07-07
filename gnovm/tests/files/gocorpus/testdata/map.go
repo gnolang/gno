@@ -683,6 +683,9 @@ func testnan() {
 	}
 }
 
+
+// Tracked: issue #5910; broken on master, no PR yet.
+
 // GnoOutput:
 
 // GnoError:
@@ -691,4 +694,8 @@ func testnan() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Map composite-literal keys don't resolve variables declared by an
+// enclosing for-loop: M{i: i+1} inside `for i := ...` fails preprocess
+// with "name i not declared" (key position only — the value resolves, and
+// the same literal at function scope works). Minimal repro:
+// for i := 0; i < 3; i++ { m := map[int]int{i: i + 1}; _ = m }.

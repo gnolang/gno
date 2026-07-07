@@ -35,6 +35,9 @@ func main() {
 	i.F()
 }
 
+
+// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified clean on branch, broken on master; tracks issue #5667; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -44,4 +47,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Runtime panics carry a bare string, so recover().(error) fails — Go
+// runtime panics implement error (runtime.Error). The nil-receiver wrapper
+// panic text also differs from gc's.

@@ -36,6 +36,9 @@ var _ = map[string]int{
 	"b": 4, // GC_ERROR "previous key at LINE-3|duplicate key.*in map literal"
 }
 
+// GnoOverStrictError:
+// line 31: 2: duplicate key ("a" string) in map literal
+
 // GoTypeCheckError:
 // line 21: duplicate case one (constant 1 of type int) in expression switch
 // line 24: duplicate case 3 (constant of type int) in expression switch
@@ -45,4 +48,4 @@ var _ = map[string]int{
 // line 36: duplicate key "b" in map literal
 
 // KnownIssue:
-// line 31: 2: duplicate key ("a" string) in map literal
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

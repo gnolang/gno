@@ -345,5 +345,8 @@ func ChainCap() {
 	}
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 342: select statements are not permitted
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

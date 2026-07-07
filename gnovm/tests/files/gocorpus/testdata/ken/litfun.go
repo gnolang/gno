@@ -21,3 +21,7 @@ main() {
 	};
 	if x(3) != 3+5+7+11 { panic(x(3)); }
 }
+
+// GnoOutput:
+
+// GoOutput:

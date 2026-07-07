@@ -22,5 +22,8 @@ func F(p *S) bool {
 	return true
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 19: name a not declared
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

@@ -18,8 +18,11 @@ func f() {
     }
 }
 
+// GnoOverStrictError:
+// line 13: select statements are not permitted
+
 // GoTypeCheckError:
 // line 14: x repeated on left side of :=
 
 // KnownIssue:
-// line 13: select statements are not permitted
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

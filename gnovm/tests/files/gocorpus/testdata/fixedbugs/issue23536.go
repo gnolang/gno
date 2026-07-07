@@ -21,6 +21,9 @@ func main() {
 	_ = string(z)
 }
 
+
+// Fixed: master PR #5780 (5d7ec8679); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -29,4 +32,5 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Converting a nil slice of a named byte/rune type to string crashed the
+// VM: the nil slice's Value was asserted to *SliceValue without a nil check.

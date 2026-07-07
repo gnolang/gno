@@ -34,6 +34,9 @@ func main() {
 	shouldPanic(nilInterfaceDeferCall)
 }
 
+
+// Fixed: master PR #5715 (df91bada8); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -42,4 +45,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Deferred nil-interface method call escaped as an unrecoverable VM error
+// instead of a recoverable runtime panic, so recover() never fired. Same
+// root cause as fixedbugs/issue15975.go and issue16760.go.

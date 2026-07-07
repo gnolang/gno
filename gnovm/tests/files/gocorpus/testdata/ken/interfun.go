@@ -57,3 +57,7 @@ main() {
 	g = i2.(*S);		// convert I2 to S
 	if g != s { panic(32); }
 }
+
+// GnoOutput:
+
+// GoOutput:

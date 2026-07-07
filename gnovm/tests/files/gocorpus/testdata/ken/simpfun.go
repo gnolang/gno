@@ -24,3 +24,7 @@ fun(ia,ib,ic int)int {
 	if o != 60 { panic(o); }
 	return o;
 }
+
+// GnoOutput:
+
+// GoOutput:

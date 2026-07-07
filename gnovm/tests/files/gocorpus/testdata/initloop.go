@@ -16,8 +16,11 @@ var (
 	c int = a
 )
 
+// GnoOverStrictError:
+// line 13: invalid recursive value: x -> a -> b -> c -> a
+
 // GoTypeCheckError:
 // line 14: initialization cycle for a
 
 // KnownIssue:
-// line 13: invalid recursive value: x -> a -> b -> c -> a
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

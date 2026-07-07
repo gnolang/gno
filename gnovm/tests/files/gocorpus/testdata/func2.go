@@ -32,5 +32,18 @@ func f11(t1 string) string {
 	return t1
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 16: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoBuildError:
+// line 16: missing function body
+// ./main.go:17:6: missing function body
+// ./main.go:18:6: missing function body
+// ./main.go:19:6: missing function body
+// ./main.go:20:6: missing function body
+// ./main.go:21:6: missing function body
+// ./main.go:22:6: missing function body
+// ./main.go:23:6: missing function body
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

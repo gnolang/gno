@@ -21,8 +21,11 @@ func main() {
 	_ = s.Num // no error here please
 }
 
+// GnoOverStrictError:
+// line 14: 2: name foo not defined in fileset with files [bug365.go]
+
 // GoTypeCheckError:
 // line 15: undefined: foo
 
 // KnownIssue:
-// line 14: 2: name foo not defined in fileset with files [bug365.go]
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

@@ -15,5 +15,8 @@ type C interface {
 	B
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 13: 2: unexpected field type interface {}
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

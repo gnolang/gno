@@ -16,3 +16,7 @@ init() {
 func
 main() {
 }
+
+// GnoOutput:
+
+// GoOutput:

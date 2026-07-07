@@ -33,6 +33,9 @@ func f4(e interface{}) {
 	}
 }
 
+// GnoOverStrictError:
+// line 16: 3: duplicate type int in type switch
+
 // GoTypeCheckError:
 // line 18: duplicate case int in type switch
 // line 21: duplicate case error in type switch
@@ -40,4 +43,4 @@ func f4(e interface{}) {
 // line 30: duplicate case struct{i int "tag1"} in type switch
 
 // KnownIssue:
-// line 16: 3: duplicate type int in type switch
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

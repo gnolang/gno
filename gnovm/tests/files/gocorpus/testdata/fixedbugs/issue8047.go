@@ -28,6 +28,9 @@ func main() {
 	stackit(1000)
 }
 
+
+// Fixed: master PR #5722 (49af0f55c); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -36,4 +39,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Deferring a typed-nil func value crashed the VM host-side: the nil
+// Value was asserted to *FuncValue without a nil check, instead of a
+// recoverable "nil function" panic at call time.

@@ -12,8 +12,11 @@ var m = map[string]int{
 	1:     2, // ERROR "cannot use 1.*as type string in map key|incompatible type|cannot convert|cannot use"
 }
 
+// GnoOverStrictError:
+// line 10: 2: cannot use untyped Bigint as StringKind
+
 // GoTypeCheckError:
 // line 12: cannot use 1 (untyped int constant) as string value in map literal
 
 // KnownIssue:
-// line 10: 2: cannot use untyped Bigint as StringKind
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

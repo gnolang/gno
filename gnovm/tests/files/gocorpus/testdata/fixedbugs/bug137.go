@@ -30,5 +30,8 @@ bug137.go:9: break label is not defined: L2
 bug137.go:15: break label is not defined: L4
 */
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 14: cannot find branch label "L2"
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

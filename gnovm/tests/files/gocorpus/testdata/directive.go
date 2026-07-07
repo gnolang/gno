@@ -65,7 +65,18 @@ func f() {
 // main:0:0: name main not declared
 
 // GoOutput:
-// go: go.mod file not found in current directory or any parent directory; see 'go help modules'
+// # gnofiletest
+// ./main.go:9:3: misplaced compiler directive
+// ./main.go:11:3: misplaced compiler directive
+// ./main.go:21:3: misplaced compiler directive
+// ./main.go:23:3: misplaced compiler directive
+// ./main.go:26:3: misplaced compiler directive
+// ./main.go:29:3: misplaced compiler directive
+// ./main.go:33:4: misplaced compiler directive
+// ./main.go:35:4: misplaced compiler directive
+// ./main.go:46:4: misplaced compiler directive
+// ./main.go:50:4: misplaced compiler directive
+// ./main.go:50:4: too many errors
 
 // KnownIssue:
 // TODO: explain the Gno bug (Gno errors where Go runs clean)

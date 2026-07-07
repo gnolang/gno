@@ -18,8 +18,11 @@ func main() {
 	}
 }
 
+// GnoOverStrictError:
+// line 15: 3: duplicate type func(int) in type switch
+
 // GoTypeCheckError:
 // line 17: duplicate case func(f int) in type switch
 
 // KnownIssue:
-// line 15: 3: duplicate type func(int) in type switch
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

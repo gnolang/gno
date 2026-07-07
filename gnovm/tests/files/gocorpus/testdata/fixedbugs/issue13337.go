@@ -29,5 +29,8 @@ type S13 struct{ S12 }
 var _ = S13{}.f
 var _ = S13.m
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 23: type <anonymous struct> embed depth 9 exceeds max 8
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

@@ -66,6 +66,9 @@ func main() {
 	}
 }
 
+
+// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
+
 // GnoOutput:
 
 // GnoError:
@@ -74,4 +77,8 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Method expressions beyond plain named-value-receiver form are
+// unsupported: I.m(S{}) fails preprocess ("unknown *DeclaredType method
+// named m"); the file also exercises literal receiver types
+// (interface{...}.m1, struct{T}.m2) and promoted (*Outer).M. Same root
+// cause as method.go, method3.go, fixedbugs/issue29304.go, issue4495.go.

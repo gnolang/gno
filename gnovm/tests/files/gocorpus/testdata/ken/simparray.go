@@ -48,3 +48,7 @@ main() {
 
 	if s3 != 4950 { panic(s3); }
 }
+
+// GnoOutput:
+
+// GoOutput:

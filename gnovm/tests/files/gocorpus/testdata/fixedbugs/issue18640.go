@@ -45,5 +45,8 @@ type (
 )
 */
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 10: invalid recursive type: a -> b -> a
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

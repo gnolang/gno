@@ -112,6 +112,9 @@ func check(want, got int) {
 	}
 }
 
+
+// Fixed: master PR #5790 (7b2888c3b); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -120,4 +123,6 @@ func check(want, got int) {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Tuple assignment didn't follow Go's order: LHS operands must be resolved
+// in-place before assigning left-to-right, so a panicking operand (nil map
+// write, nil deref) must not prevent earlier assignments from landing.

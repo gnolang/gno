@@ -45,6 +45,9 @@ func main() {
 	}
 }
 
+
+// Fixing: PR #5721 (fix/method40, BFS lookup); verified clean on branch, broken on master; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -53,4 +56,7 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Embedded method lookup mishandles shadowing across depths: Buffer's
+// promoted String (depth 1) should shadow mystruct's (depth 2), but Gno
+// rejects the selector outright ("missing field String"). Same root cause
+// as fixedbugs/bug485.go.

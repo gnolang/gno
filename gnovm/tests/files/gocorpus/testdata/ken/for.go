@@ -17,3 +17,7 @@ main() {
 	}
 	if t != 50*99  { panic(t); }
 }
+
+// GnoOutput:
+
+// GoOutput:

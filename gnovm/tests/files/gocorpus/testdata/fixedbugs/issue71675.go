@@ -98,6 +98,9 @@ func main() {
 
 }
 
+// KnownDivergence:
+// Go1.17 pinned.
+
 // GnoOutput:
 
 // GnoError:
@@ -117,6 +120,3 @@ func main() {
 // h returned
 // I
 // i returned
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)

@@ -27,12 +27,13 @@ func main() {
 // TypeCheckError:
 // main/issue7419.go:20:6: undefined: os.Exit; main/issue7419.go:23:6: undefined: os.Exit
 
+
+// KnownDivergence:
+// probaly fix/float9, not representable by apd.
+
 // GnoOutput:
 
 // GnoError:
 // main/issue7419.go:15:9-18: invalid decimal constant: 1e-779137
 
 // GoOutput:
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)

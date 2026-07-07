@@ -318,6 +318,9 @@ func main() {
 	}
 }
 
+
+// Fixing: PR #5721 (fix/method40, BFS lookup); verified clean on branch, broken on master; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -326,4 +329,7 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Promoted-field lookup through embedded (pointer) structs fails at
+// preprocess: p.a on *Subp can't see the field promoted from its embedded
+// SubpSubp ("missing field a"). Same root cause as fixedbugs/bug485.go
+// and issue24547.go.

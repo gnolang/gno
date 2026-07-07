@@ -25,3 +25,7 @@ main() {
 	x = x+y;
 	if(x != 40) { panic(x); }
 }
+
+// GnoOutput:
+
+// GoOutput:

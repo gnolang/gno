@@ -10,5 +10,8 @@ func f(b []byte) []byte {
 	return (*[32]byte)(b[:32])[:]
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 10: cannot convert b<VPBlock(1,0)>[:(const (32 int))] (of type []uint8) to type *[32]uint8
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

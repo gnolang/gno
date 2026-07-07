@@ -11,3 +11,5 @@ package main
 //go:nowritebarrier // ERROR "//go:nowritebarrier only allowed in runtime"
 func main() {
 }
+
+// Unsupported: errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness

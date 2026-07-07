@@ -41,6 +41,9 @@ func main() {
 	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
 }
 
+// GnoOverStrictError:
+// line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 30: not enough arguments in call to Fooer.Foo
 // 	have (number, number)
@@ -68,4 +71,4 @@ func main() {
 // 	want (*T, int)
 
 // KnownIssue:
-// line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

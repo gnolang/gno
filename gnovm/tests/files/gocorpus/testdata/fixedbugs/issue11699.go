@@ -11,5 +11,8 @@ package p
 func _()
 func _()
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 11: function ._0 does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

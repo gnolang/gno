@@ -2022,5 +2022,12 @@ func f(x int, b bool) int {
 	return 0
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 13: name max not declared
+
+// GoBuildError:
+// line 13: built-in max requires go1.21 or later (-lang was set to go1.17
+// line 16: built-in max requires go1.21 or later (-lang was set to go1.17
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

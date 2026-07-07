@@ -11,3 +11,5 @@ package main
 //go:cgo_ldflag // ERROR "usage: //go:cgo_ldflag"
 func main() {
 }
+
+// Unsupported: errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness

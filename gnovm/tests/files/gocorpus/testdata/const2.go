@@ -31,6 +31,9 @@ const _ = MaxInt512 + 1  // ERROR "constant addition overflow"
 const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
 const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 
+// GnoError:
+// line 25: invalid decimal constant: 1e+500000000
+
 // GoTypeCheckError:
 // line 14: missing init expr for B
 // line 19: constant multiplication overflow
@@ -40,5 +43,5 @@ const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 // line 31: constant bitwise XOR overflow
 // line 32: constant bitwise complement overflow
 
-// KnownIssue:
+// GnoOverStrictError:
 // line 25: invalid decimal constant: 1e+500000000

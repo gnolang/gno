@@ -16,9 +16,12 @@ func f(err error) {
 	}
 }
 
+// GnoPreprocessError:
+// line 13: name PathError not declared
+
 // GoTypeCheckError:
 // line 13: undefined: os.PathError
 // line 14: undefined: os.ErrNotExist
 
-// KnownIssue:
-// line 13: name PathError not declared
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

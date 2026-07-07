@@ -29,6 +29,9 @@ var list = []func(){
 	},
 }
 
+
+// Fixed: master PR #5764 (98f4db57c); verified 1/2/3 output, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -40,4 +43,6 @@ var list = []func(){
 // 3
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// for _, fn = range (blank key, assignment to an outer var) crashed
+// preprocess with a nil-type deref on the blank operand — the nil-iff-blank
+// range-operand handling. Same root cause as fixedbugs/bug406.go.

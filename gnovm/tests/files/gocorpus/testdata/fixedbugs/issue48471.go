@@ -55,6 +55,9 @@ func g() {
 	_ = t
 }
 
+// GnoOverStrictError:
+// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 36: cannot use new(T) (value of type *T) as I value in argument to f: *T does not implement I (missing method M)
 // line 39: cannot use new(T) (value of type *T) as I value in assignment: *T does not implement I (missing method M)
@@ -86,4 +89,4 @@ func g() {
 // line 54: cannot use i (variable of interface type I) as *T4 value in assignment: need type assertion
 
 // KnownIssue:
-// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

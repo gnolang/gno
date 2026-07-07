@@ -24,6 +24,9 @@ var _ = []int{
 
 }
 
+// GnoOverStrictError:
+// line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+
 // GoTypeCheckError:
 // line 17: cannot use T.Mv (value of type func(T)) as int value in array or slice literal
 // line 18: cannot use (*T).Mv (value of type func(*T)) as int value in array or slice literal
@@ -33,4 +36,4 @@ var _ = []int{
 // line 23: cannot use (*time.Time).GobDecode (value of type func(t *time.Time, data []byte) error) as int value in array or slice literal
 
 // KnownIssue:
-// line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

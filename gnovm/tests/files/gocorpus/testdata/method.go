@@ -306,6 +306,9 @@ func promotion() {
 	c.g()
 }
 
+
+// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
+
 // GnoOutput:
 
 // GnoError:
@@ -314,4 +317,7 @@ func promotion() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Mixed-receiver method expressions are unsupported: (*S).val(&s) with a
+// value-receiver method mistypes the receiver ("cannot use *main.S as
+// string"); the file also exercises the interface form Val.val(i) further
+// down. Same root cause as fixedbugs/issue29304.go and issue4495.go.

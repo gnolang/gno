@@ -84,6 +84,9 @@ func main() {
 	check(nil, "nil <nil>")
 }
 
+
+// Fixing: PR #5766 (fix/typeswitch1, case-nil tag-type handling); verified clean on branch, broken on master; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -92,4 +95,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// In `switch xx := x.(type)`, the `case nil:` clause fails to declare the
+// type-switch variable, so `xx` is "not declared" there — preprocess's
+// single-case branch mishandles a nil case type.

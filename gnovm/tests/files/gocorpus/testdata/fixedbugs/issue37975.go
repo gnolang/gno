@@ -53,6 +53,9 @@ func shouldPanic(str string, f func()) {
 	f()
 }
 
+
+// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified clean on branch, broken on master; re-golden after merge.
+
 // GnoOutput:
 
 // GnoError:
@@ -62,4 +65,6 @@ func shouldPanic(str string, f func()) {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// The makeslice panic messages already match Go, but the panic value is a
+// bare string, so recover().(error) fails ("string doesn't implement
+// interface"). Same root cause as fixedbugs/issue19040.go.

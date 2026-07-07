@@ -69,6 +69,9 @@ func shouldPanic(x func()) {
 	x()
 }
 
+
+// Fixed: master PR #5711 (a7e4c34b0, bisected); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -77,4 +80,6 @@ func shouldPanic(x func()) {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Calling a nil func value (h(nil, nil)) raised an unrecoverable host
+// nil-pointer dereference instead of a recoverable Gno panic, so
+// shouldPanic's recover() never fired.

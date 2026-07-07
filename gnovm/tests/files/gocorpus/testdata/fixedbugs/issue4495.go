@@ -27,6 +27,9 @@ func main() {
 	}
 }
 
+
+// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
+
 // GnoOutput:
 
 // GnoError:
@@ -35,4 +38,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Method expressions on interface types are unsupported: I.m(t) is
+// rejected at preprocess ("unknown *DeclaredType method named m"). Same
+// root cause as fixedbugs/issue29304.go.

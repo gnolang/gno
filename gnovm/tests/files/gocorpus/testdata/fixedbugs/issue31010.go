@@ -23,5 +23,12 @@ func d() (int, error) {
 	return c(b())
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 14: function a does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoBuildError:
+// line 14: missing function body
+// ./main.go:21:6: missing function body
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

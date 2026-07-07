@@ -18,6 +18,9 @@ func f() {
 
 func three() (int, int, int)
 
+// GnoOverStrictError:
+// line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
+
 // GoTypeCheckError:
 // line 9: multiple-value three() (value of type (int, int, int)) in single-value context
 // line 12: multiple-value three() (value of type (int, int, int)) in single-value context
@@ -26,4 +29,4 @@ func three() (int, int, int)
 // line 15: assignment mismatch: 1 variable but three returns 3 values
 
 // KnownIssue:
-// line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

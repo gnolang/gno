@@ -18,5 +18,8 @@ var i1 I1 = i2
 var i2 I2
 var i2a I2 = i1
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 9: 2: invalid recursive type: I1 -> I2 -> I1
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

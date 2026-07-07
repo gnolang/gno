@@ -44,5 +44,8 @@ func _() {
 
 // GnoStaticIncomplete: covered 0 of 7 markers (Gno preprocess: 0, go/types guard: 0); Gno's own preprocess flags none (lenient); the rest are caught by neither — a runnable variant may exercise more
 
-// KnownIssue:
+// GnoOverStrictError:
 // line 9: string literal not terminated (and 7 more errors)
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

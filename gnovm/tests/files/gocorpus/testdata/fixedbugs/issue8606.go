@@ -105,6 +105,9 @@ func shouldPanic(name string, f func()) {
 	f()
 }
 
+
+// Fixed: master PR #5713 (5d889b083); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -113,4 +116,6 @@ func shouldPanic(name string, f func()) {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Comparing composites holding uncomparable dynamic values (e.g. A{b, 1}
+// == A{b, 2} with b []byte at index 0) returned false instead of
+// panicking — uncomparable interface elements must panic at runtime.

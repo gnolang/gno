@@ -49,12 +49,12 @@ func f(t *T, i, j uint) {
 	// (it points past the end of t's allocation).
 }
 
+// KnownDivergence:
+// runtime thing.
+
 // GnoOutput:
 
 // GnoError:
 // runtime error: invalid memory address or nil pointer dereference
 
 // GoOutput:
-
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)

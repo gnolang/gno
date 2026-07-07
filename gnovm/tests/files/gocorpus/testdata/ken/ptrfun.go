@@ -43,3 +43,7 @@ func g(p *C)int {
 	if v != 6 { panic(v); }
 	return p.a;
 }
+
+// GnoOutput:
+
+// GoOutput:

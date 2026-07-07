@@ -36,10 +36,13 @@ func whatis(x interface{}) string {
 	return ""
 }
 
+// GnoOverStrictError:
+// line 15: 3: duplicate type int in type switch
+
 // GoTypeCheckError:
 // line 18: duplicate case int in type switch
 // line 22: duplicate case io.Reader in type switch
 // line 29: duplicate case interface{r()
 
 // KnownIssue:
-// line 15: 3: duplicate type int in type switch
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

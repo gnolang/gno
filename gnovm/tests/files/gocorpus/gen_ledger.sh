@@ -29,7 +29,7 @@ root=testdata
 out=MIGRATION.md
 
 # Collect files per bucket (highest priority wins).
-declare -a urgent deferred divergence incomplete unsupported clean
+declare -a urgent uncaught deferred divergence incomplete guardonly unsupported clean
 note_of() { # $1=file $2=directive -> inline content, else first content line
   awk -v d="$2" '
     index($0, "// " d ":") == 1 {
@@ -41,14 +41,35 @@ note_of() { # $1=file $2=directive -> inline content, else first content line
     p { exit }
   ' "$1"
 }
+status_of() { # $1=file -> triage status marker (✅ Fixed / 🚧 Fixing / 📌 Tracked), if any
+  local f=$1 m c e
+  for m in Fixed Fixing Tracked; do
+    c=$(awk -v d="$m" 'index($0, "// " d ":") == 1 { rest = $0; sub("^// " d ": *", "", rest); print rest; exit }' "$f")
+    if [ -n "$c" ]; then
+      case $m in Fixed) e="✅";; Fixing) e="🚧";; Tracked) e="📌";; esac
+      printf '%s %s: %s' "$e" "$m" "$c"; return
+    fi
+  done
+}
 for f in $(find "$root" -name '*.go' -o -name '*.gno' | sort); do
-  if grep -q '^// KnownIssue:' "$f"; then
+  if grep -q '^// UncaughtError:' "$f"; then uncaught+=("$f")
+  elif grep -qE '^// (KnownIssue|GnoOverStrictError):' "$f"; then
     # Urgency derived: run-mode KnownIssue (pins // GnoOutput:) is a runtime
-    # divergence (urgent); else a static over-strict reject (deferred).
+    # divergence (urgent); a static over-strict reject — compile-mode
+    # KnownIssue or errorcheck GnoOverStrictError (derived set-relation
+    # verdict: Gno rejects lines outside markers ∪ go/types) — is deferred.
     if grep -q '^// GnoOutput:' "$f"; then urgent+=("$f"); else deferred+=("$f"); fi
   elif grep -q '^// KnownDivergence:' "$f"; then divergence+=("$f")
   elif grep -q '^// GnoStaticIncomplete:' "$f"; then incomplete+=("$f")
   elif grep -q '^// Unsupported:' "$f"; then unsupported+=("$f")
+  # Guard-only: go/types catches everything, Gno preprocess flags nothing
+  # (an empty Gno catch is synced as NO GnoError/GnoPreprocessError block,
+  # so absence here means "lenient", not "not synced"). Distinct from
+  # GnoStaticIncomplete (partial coverage): rejection contract holds in
+  # production via the guard, but is the native-coverage worklist for the
+  # go/types removal plan.
+  elif grep -q '^// GoTypeCheckError:' "$f" && \
+       ! grep -qE '^// (GnoError|GnoPreprocessError):' "$f"; then guardonly+=("$f")
   else clean+=("$f"); fi
 done
 
@@ -58,10 +79,15 @@ emit_section() { # $1=title $2=blurb $3=directive(for note) $4..=files
   printf '\n## %s (%d)\n\n%s\n\n' "$title" "$#" "$blurb" >>"$out"
   [ "$#" -eq 0 ] && { printf '_none_\n' >>"$out"; return; }
   for f in "$@"; do
-    local note=""
-    [ -n "$directive" ] && note=$(note_of "$f" "$directive")
+    local note="" status="" d
+    for d in $directive; do  # space-separated fallback list
+      note=$(note_of "$f" "$d")
+      [ -n "$note" ] && break
+    done
+    status=$(status_of "$f")
     printf -- '- [`%s`](%s)' "${f#testdata/}" "$f" >>"$out"
     [ -n "$note" ] && printf -- ' — %s' "$note" >>"$out"
+    [ -n "$status" ] && printf -- ' — %s' "$status" >>"$out"
     printf '\n' >>"$out"
   done
 }
@@ -78,9 +104,11 @@ emit_section() { # $1=title $2=blurb $3=directive(for note) $4..=files
   echo "| Bucket | Count | Meaning |"
   echo "|---|--:|---|"
   echo "| 🔥 **Urgent KnownIssue** | ${#urgent[@]} | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |"
+  echo "| 🕳️ **Uncaught leak** | ${#uncaught[@]} | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |"
   echo "| 🟠 **Deferred KnownIssue** | ${#deferred[@]} | static over-strict — Gno rejects code gc *and* go/types accept (caught at deploy; no inconsistent state); defer |"
   echo "| 🔵 KnownDivergence | ${#divergence[@]} | accepted run-mode difference (not a bug) |"
   echo "| 🟡 GnoStaticIncomplete | ${#incomplete[@]} | partial errorcheck marker coverage (static caveat) |"
+  echo "| 🛡️ GuardOnly | ${#guardonly[@]} | rejected by the go/types guard alone — Gno preprocess flags nothing; holds in production, but is the native-coverage worklist for go/types removal |"
   echo "| ⚪ Unsupported | ${#unsupported[@]} | feature gap (unsupported import / language feature); skipped |"
   echo "| ✅ Clean | ${#clean[@]} | verified, no outstanding issue |"
   echo "| **Total migrated** | ${total} | |"
@@ -89,15 +117,21 @@ emit_section() { # $1=title $2=blurb $3=directive(for note) $4..=files
 emit_section "🔥 Urgent KnownIssue — runtime divergence (fix now)" \
   "Gno's run-mode result differs from Go's — a wrong value, or a panic where Go succeeds (e.g. bug446: init-order panic). Unlike static rejects (caught at deploy), these ship and break in production, so they're the must-fix subset. Read each file's pinned // GnoOutput:/// GnoError: vs // GoOutput: to identify the bug. Many files share a root cause; sub-triage (engine panic vs semantic bug vs misrouted feature-gap) is done by reading the behavior." \
   KnownIssue ${urgent[@]+"${urgent[@]}"}
+emit_section "🕳️ Uncaught leak — gc-invalid code deploys" \
+  "Checkable (non-GC_ERROR) markers caught by neither Gno's preprocess nor the go/types guard: the whole stack accepts code gc rejects. Under-rejection — invalid packages deploy — so these rank with (arguably above) the urgent bucket." \
+  UncaughtError ${uncaught[@]+"${uncaught[@]}"}
 emit_section "🟠 Deferred KnownIssue — static over-strictness" \
-  "Gno's preprocess rejects code that both gc (markers) and the go/types guard accept. Only over-rejects otherwise-valid packages (they can't deploy/call) — no inconsistent state — so deferred. Each note is Gno's over-strict error." \
-  KnownIssue ${deferred[@]+"${deferred[@]}"}
+  "Gno's preprocess rejects code that both gc (markers) and the go/types guard accept. Only over-rejects otherwise-valid packages (they can't deploy/call) — no inconsistent state — so deferred. Note = human verdict (compile KnownIssue) or the first over-strict line (errorcheck GnoOverStrictError)." \
+  "KnownIssue GnoOverStrictError" ${deferred[@]+"${deferred[@]}"}
 emit_section "🔵 KnownDivergence — accepted run-mode differences" \
   "Gno's output legitimately differs from Go's (formatting, map order, error wording, …); pinned and blessed, not a bug." \
   KnownDivergence ${divergence[@]+"${divergence[@]}"}
 emit_section "🟡 GnoStaticIncomplete — partial errorcheck coverage" \
   "Fewer than all gc markers covered (Gno preprocess OR go/types guard). Static-only (errorcheck files never run). The note's per-checker split shows whether Gno bailed early or is lenient. A runnable variant may exercise the rest." \
   GnoStaticIncomplete ${incomplete[@]+"${incomplete[@]}"}
+emit_section "🛡️ GuardOnly — gated by go/types alone (preprocess lenient)" \
+  "Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess (an empty Gno catch is synced as no GnoError block — absence means lenient, not unsynced). The rejection contract holds in production (guard runs at addpkg), but each file flips to silently-accepted the day the transitional guard is removed — this is the native type_check.go coverage worklist. Note shows the guard's first error." \
+  GoTypeCheckError ${guardonly[@]+"${guardonly[@]}"}
 emit_section "⚪ Unsupported — feature gaps (skipped)" \
   "Gno can't process the file (unsupported import or language feature). Skipped via t.Skip." \
   Unsupported ${unsupported[@]+"${unsupported[@]}"}

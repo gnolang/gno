@@ -52,3 +52,7 @@ main() {
 
 	if(x != 121) { panic(x); }
 }
+
+// GnoOutput:
+
+// GoOutput:

@@ -22,5 +22,12 @@ func f() (a, b M) {
 bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
 */
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 14: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoBuildError:
+// line 10: missing function body
+// ./main.go:15:6: missing function body
+
+// KnownDivergence:
+// compile-error-wording: both Gno and Go reject; wording/stage differ

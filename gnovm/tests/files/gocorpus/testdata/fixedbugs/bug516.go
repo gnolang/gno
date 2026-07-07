@@ -12,5 +12,8 @@ func F(b []byte, i int) {
 	*(*[1]byte)(b[i*2:]) = [1]byte{}
 }
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 12: cannot convert b<VPBlock(1,0)>[i<VPBlock(1,1)> * (const (2 int)):] (of type []uint8) to type *[1]uint8
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

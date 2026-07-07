@@ -119,3 +119,7 @@ init() {
 	uans[index(2,2,0)] =      0;
 	uans[index(2,2,1)] =      0;
 }
+
+// GnoOutput:
+
+// GoOutput:

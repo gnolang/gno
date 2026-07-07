@@ -20,3 +20,7 @@ func
 simple(ia,ib,ic int) (oa,ob int) {
 	return ia+5, ib+ic;
 }
+
+// GnoOutput:
+
+// GoOutput:

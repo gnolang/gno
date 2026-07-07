@@ -92,5 +92,11 @@ type m interface {
 
 // GoOutput:
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// Unsupported: unsupported stdlib symbol in Gno: Error
+
+// Gno's runtime package has no Error type (v.(runtime.Error) rejected by
+// both preprocess and the go/types guard — see pins). Manually routed here
+// per the stdlib-symbol-gap rule; `Error` stays OFF reStdlibSymbolGap's
+// allowlist (too common a user identifier). Natural follow-up to PR #5732
+// (typedRuntimeError): export runtime.Error and implement it; then drop
+// this directive and re-sync (recover2.go benefits too).

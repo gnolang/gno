@@ -17,9 +17,12 @@ func f(e interface{}) {
 	}
 }
 
+// GnoOverStrictError:
+// line 10: 3: duplicate type nil in type switch
+
 // GoTypeCheckError:
 // line 11: duplicate case nil in type switch
 // line 16: duplicate case nil in type switch
 
 // KnownIssue:
-// line 10: 3: duplicate type nil in type switch
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

@@ -14,5 +14,8 @@ func f() {
 //go:noinline
 func g(*[24]byte) {}
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 11: cannot convert nonce<VPBlock(1,0)> (of type []uint8) to type *[24]uint8
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

@@ -60,6 +60,9 @@ func main() {
 	_ = []myRune(myString("🌐")) // []myRune{0x1f310}
 }
 
+
+// Fixed: master PR #5780 (5d7ec8679); verified clean, broken at parent; re-golden after rebase.
+
 // GnoOutput:
 
 // GnoError:
@@ -68,4 +71,6 @@ func main() {
 // GoOutput:
 
 // KnownIssue:
-// TODO: explain the Gno bug (Gno errors where Go runs clean)
+// string([]byte(nil)) / string([]rune(nil)) crashed the VM: the nil slice's
+// Value was asserted to *SliceValue without a nil check. Same root cause as
+// fixedbugs/issue23536.go; the rest of the spec-example conversions pass.

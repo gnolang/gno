@@ -11,8 +11,11 @@ func f(s string) int {
 	}
 } // ERROR "missing return"
 
+// GnoOverStrictError:
+// line 9: 2: [function "f" does not terminate]
+
 // GoTypeCheckError:
 // line 12: missing return
 
 // KnownIssue:
-// line 9: 2: [function "f" does not terminate]
+// TODO: explain the Gno bug (Gno rejects lines gc + go/types accept)

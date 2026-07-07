@@ -46,5 +46,8 @@ var (
 	b = []bool{b0}
 )
 
-// KnownIssue:
+// GnoPreprocessError:
 // line 22: cannot use int as int32
+
+// KnownIssue:
+// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
