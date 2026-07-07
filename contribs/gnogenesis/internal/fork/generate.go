@@ -674,10 +674,10 @@ func loadGnoPackageFiles(srcDir string) ([]*std.MemFile, error) {
 // file. Returns "" if not found. (Intentionally lightweight — avoids pulling
 // in the gnovm parser.)
 func gnoPackageNameFromFileBody(_ string, body string) string {
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		l := strings.TrimSpace(line)
-		if strings.HasPrefix(l, "package ") {
-			rest := strings.TrimPrefix(l, "package ")
+		if after, ok := strings.CutPrefix(l, "package "); ok {
+			rest := after
 			if i := strings.IndexAny(rest, " \t/"); i >= 0 {
 				rest = rest[:i]
 			}

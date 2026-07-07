@@ -131,7 +131,7 @@ func TestMultistoreCommitLoad(t *testing.T) {
 
 	// Make a few commits and check them.
 	nCommits := int64(3)
-	for i := int64(0); i < nCommits; i++ {
+	for i := range nCommits {
 		commitID = store.Commit()
 		expectedCommitID := getExpectedCommitID(store, i+1)
 		checkStore(t, store, expectedCommitID, commitID)

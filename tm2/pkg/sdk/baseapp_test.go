@@ -570,7 +570,7 @@ func TestCheckTx(t *testing.T) {
 	nTxs := int64(5)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	for i := int64(0); i < nTxs; i++ {
+	for i := range nTxs {
 		tx := newTxCounter(i, 0)
 		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)
