@@ -255,8 +255,8 @@ gno mod init gno.land/r/example/counter
 # starts a local node + gnoweb on http://localhost:8888
 gnodev
 
-# with remote resolver (for missing dependencies)
-gnodev -resolver remote=https://rpc.staging.gno.land:443
+# fetch missing dependencies from a remote chain (<domain>=<rpc>)
+gnodev -remote gno.land=https://rpc.staging.gno.land:443
 
 # without hot reload
 gnodev -no-watch
@@ -420,7 +420,7 @@ gno test --update-golden-tests .
 go test ./gnovm/pkg/gnolang/files_test.go -test.short --update-golden-tests
 
 # update examples golden files
-make -C examples test GOLDEN=1
+make -C examples test.sync
 ```
 
 ### Lint & Format Go
