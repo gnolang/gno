@@ -1,7 +1,14 @@
-// Constant expressions have no signed zero: negating a zero constant
-// (untyped or typed) or multiplying one by -1 yields +0; only runtime
-// negation of a zero variable yields -0. Mirrors Go corpus
-// fixedbugs/bug434.go.
+// Verbatim from the Go corpus: go/test/fixedbugs/bug434.go.
+// Keep byte-identical to the source below; add new cases elsewhere.
+
+// run
+
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test that typed and untyped negative zero floating point constants
+// are treated as equivalent to zero constants.
 
 package main
 
@@ -9,30 +16,20 @@ import "math"
 
 const zero = 0.0
 
-const zt float64 = 0.0
-
-func bits(f float64) string {
-	switch math.Float64bits(f) {
-	case 0:
-		return "+0"
-	case 1 << 63:
-		return "-0"
-	}
-	return "nonzero"
-}
-
 func main() {
 	x := -zero
-	println("untyped -zero:", bits(x))
+	b := math.Float64bits(x)
+	if b != 0 {
+		panic(b)
+	}
 	x = -float64(zero)
-	println("typed -conv:", bits(x))
+	b = math.Float64bits(x)
+	if b != 0 {
+		panic(b)
+	}
 	v := x
-	println("runtime -v:", bits(-v))
-	println("typed const arith:", bits(zt*-1), bits(-1*zt))
+	b = math.Float64bits(-v)
+	if b != 0x8000000000000000 {
+		panic(b)
+	}
 }
-
-// Output:
-// untyped -zero: +0
-// typed -conv: +0
-// runtime -v: -0
-// typed const arith: +0 +0

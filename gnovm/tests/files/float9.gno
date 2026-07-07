@@ -37,6 +37,9 @@ func main() {
 	// Rounding down to MaxFloat32 is legal; only overflow to ±Inf errors.
 	const nearMax float64 = 3.4028235e38
 	println("round to max:", float32(nearMax) == math.MaxFloat32)
+	// Typed-constant arithmetic folds with no signed zero either.
+	const zt float64 = 0.0
+	println("const neg arith:", zero(zt*-1), zero(-1*zt), zero(-zt))
 }
 
 // Output:
@@ -50,3 +53,4 @@ func main() {
 // nonzero conv: true true
 // subnormal kept: true true
 // round to max: true
+// const neg arith: +0 +0 +0
