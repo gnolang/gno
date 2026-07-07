@@ -40,7 +40,7 @@ func TestPackage_ToMemPackage_InMemory(t *testing.T) {
 func TestPackage_ToMemPackage_FS_RereadsOnEachCall(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "gnomod.toml"),
-		[]byte(fmt.Sprintf("module = %q\n", "gno.land/p/demo/foo")), 0o644))
+		fmt.Appendf(nil, "module = %q\n", "gno.land/p/demo/foo"), 0o644))
 	foo := filepath.Join(dir, "foo.gno")
 	require.NoError(t, os.WriteFile(foo, []byte("package foo\nfunc A() {}\n"), 0o644))
 
