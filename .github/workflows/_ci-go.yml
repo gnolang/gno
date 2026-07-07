@@ -39,6 +39,28 @@ jobs:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
           version: v2.11.4 # sync with misc/devdeps
+      - name: Verify 'go fix' has been applied
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          # The modernizer-based `go fix` requires the Go 1.26+ toolchain. Only
+          # this check is pinned to it; build/test/lint keep the go.mod version.
+          # Fixes are still gated by each module's go.mod `go` directive.
+          GOTOOLCHAIN: go1.26.1
+          # Cover `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) so they
+          # are checked here and by `make fix` alike, not silently skipped.
+          CGO_ENABLED: "1"
+        run: |
+          # -omitzero=false: the omitzero modernizer strips `json:",omitempty"`
+          # from struct-typed fields, assuming encoding/json semantics where it
+          # is a no-op. Amino (used pervasively here) DOES honor omitempty on
+          # struct fields, so removing it changes JSON output. Keep it disabled,
+          # mirroring the modernizer's own carve-out for kubebuilder types.
+          changes="$(go fix -omitzero=false -diff ./...)"
+          if [ -n "$changes" ]; then
+            echo "::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result."
+            printf '%s\n' "$changes"
+            exit 1
+          fi
 
   build:
     name: build

@@ -9,7 +9,7 @@ import (
 // ----------------------------------------
 // Constants
 
-var errorType = reflect.TypeOf(new(error)).Elem()
+var errorType = reflect.TypeFor[error]()
 
 // ----------------------------------------
 // encode: see binary-encode.go and json-encode.go
@@ -38,7 +38,7 @@ func slide(bz *[]byte, n *int, _n int) bool {
 // isPtr: whether rv.Kind() == reflect.Ptr.
 // isNilPtr: whether a nil pointer at any level.
 func maybeDerefValue(rv reflect.Value) (drv reflect.Value, rvIsPtr bool, rvIsNilPtr bool) {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rvIsPtr = true
 		if rv.IsNil() {
 			rvIsNilPtr = true
@@ -52,14 +52,14 @@ func maybeDerefValue(rv reflect.Value) (drv reflect.Value, rvIsPtr bool, rvIsNil
 
 // Dereference-and-construct pointers.
 func maybeDerefAndConstruct(rv reflect.Value) reflect.Value {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			newPtr := reflect.New(rv.Type().Elem())
 			rv.Set(newPtr)
 		}
 		rv = rv.Elem()
 	}
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		panic("unexpected pointer pointer")
 	}
 	return rv
@@ -77,7 +77,7 @@ func isNonstructDefaultValue(rv reflect.Value) (isDefault bool) {
 	}
 	// general cae
 	switch rv.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rv.IsNil() {
 			return true
 		} else {
@@ -115,10 +115,10 @@ func isNonstructDefaultValue(rv reflect.Value) (isDefault bool) {
 // absent in binary encoding.
 func defaultValue(rt reflect.Type) (rv reflect.Value) {
 	switch rt.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// Dereference all the way and see if it's a time type.
 		ert := rt.Elem()
-		if ert.Kind() == reflect.Ptr {
+		if ert.Kind() == reflect.Pointer {
 			panic("nested pointers not allowed")
 		}
 		if ert == timeType {
@@ -154,7 +154,7 @@ func defaultValue(rt reflect.Type) (rv reflect.Value) {
 // otherwise supported by Amino.  For future?
 func isNil(rv reflect.Value) bool {
 	switch rv.Kind() {
-	case reflect.Interface, reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Interface, reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice:
 		return rv.IsNil()
 	default:
 		return false
@@ -225,7 +225,7 @@ func marshalAminoReprType(rm reflect.Method) (rrt reflect.Type) {
 		panic(fmt.Sprintf("MarshalAmino should have second output parameter of error type, got %v", out))
 	}
 	rrt = rm.Type.Out(0)
-	if rrt.Kind() == reflect.Ptr {
+	if rrt.Kind() == reflect.Pointer {
 		panic(fmt.Sprintf("Representative objects cannot be pointers; got %v", rrt))
 	}
 	return
@@ -236,7 +236,7 @@ func unmarshalAminoReprType(rm reflect.Method) (rrt reflect.Type) {
 	if rm.Type.NumIn() != 2 {
 		panic(fmt.Sprintf("UnmarshalAmino should have 2 input parameters (including receiver); got %v", rm.Type))
 	}
-	if in1 := rm.Type.In(0); in1.Kind() != reflect.Ptr {
+	if in1 := rm.Type.In(0); in1.Kind() != reflect.Pointer {
 		panic(fmt.Sprintf("UnmarshalAmino first input parameter should be pointer type but got %v", in1))
 	}
 	if rm.Type.NumOut() != 1 {
@@ -246,7 +246,7 @@ func unmarshalAminoReprType(rm reflect.Method) (rrt reflect.Type) {
 		panic(fmt.Sprintf("UnmarshalAmino should have first output parameter of error type, got %v", out))
 	}
 	rrt = rm.Type.In(1)
-	if rrt.Kind() == reflect.Ptr {
+	if rrt.Kind() == reflect.Pointer {
 		panic(fmt.Sprintf("Representative objects cannot be pointers; got %v", rrt))
 	}
 	return
