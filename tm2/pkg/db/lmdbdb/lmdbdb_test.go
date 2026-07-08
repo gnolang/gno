@@ -722,7 +722,7 @@ func TestLMDBIteratorCloseReleasesResources(t *testing.T) {
 
 	require.NoError(t, db.Set([]byte("a"), []byte("1")))
 
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		itr, err := db.Iterator(nil, nil)
 		require.NoError(t, err)
 		require.NoError(t, itr.Close())
@@ -892,18 +892,18 @@ func TestLMDBConcurrentReads(t *testing.T) {
 	t.Parallel()
 	db := newTestDB(t)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		k := fmt.Sprintf("key%03d", i)
 		v := fmt.Sprintf("val%03d", i)
 		require.NoError(t, db.Set([]byte(k), []byte(v)))
 	}
 
 	var wg sync.WaitGroup
-	for g := 0; g < 10; g++ {
+	for g := range 10 {
 		wg.Add(1)
 		go func(g int) {
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for i := range 100 {
 				k := fmt.Sprintf("key%03d", i)
 				v := fmt.Sprintf("val%03d", i)
 				got, err := db.Get([]byte(k))
@@ -925,15 +925,13 @@ func TestLMDBConcurrentIterators(t *testing.T) {
 	t.Parallel()
 	db := newTestDB(t)
 
-	for i := 0; i < 50; i++ {
-		require.NoError(t, db.Set([]byte(fmt.Sprintf("k%03d", i)), []byte(fmt.Sprintf("v%03d", i))))
+	for i := range 50 {
+		require.NoError(t, db.Set(fmt.Appendf(nil, "k%03d", i), fmt.Appendf(nil, "v%03d", i)))
 	}
 
 	var wg sync.WaitGroup
-	for g := 0; g < 5; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 5 {
+		wg.Go(func() {
 			itr, err := db.Iterator(nil, nil)
 			if err != nil {
 				t.Errorf("Iterator error: %v", err)
@@ -949,7 +947,7 @@ func TestLMDBConcurrentIterators(t *testing.T) {
 			if count != 50 {
 				t.Errorf("expected 50 keys, got %d", count)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -959,11 +957,11 @@ func TestLMDBConcurrentWrites(t *testing.T) {
 	db := newTestDB(t)
 
 	var wg sync.WaitGroup
-	for g := 0; g < 5; g++ {
+	for g := range 5 {
 		wg.Add(1)
 		go func(g int) {
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for i := range 100 {
 				k := fmt.Sprintf("g%d_k%03d", g, i)
 				v := fmt.Sprintf("g%d_v%03d", g, i)
 				if err := db.Set([]byte(k), []byte(v)); err != nil {
@@ -976,8 +974,8 @@ func TestLMDBConcurrentWrites(t *testing.T) {
 	wg.Wait()
 
 	// Verify all writes landed.
-	for g := 0; g < 5; g++ {
-		for i := 0; i < 100; i++ {
+	for g := range 5 {
+		for i := range 100 {
 			k := fmt.Sprintf("g%d_k%03d", g, i)
 			v := fmt.Sprintf("g%d_v%03d", g, i)
 			got, err := db.Get([]byte(k))
@@ -1023,7 +1021,7 @@ func TestLMDBManyKeys(t *testing.T) {
 	db := newTestDB(t)
 
 	const n = 10000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		k := fmt.Sprintf("key%06d", i)
 		v := fmt.Sprintf("val%06d", i)
 		require.NoError(t, db.Set([]byte(k), []byte(v)))
@@ -1049,7 +1047,7 @@ func TestLMDBManyKeysBatch(t *testing.T) {
 
 	const n = 5000
 	batch := db.NewBatch()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		k := fmt.Sprintf("bk%06d", i)
 		v := fmt.Sprintf("bv%06d", i)
 		require.NoError(t, batch.Set([]byte(k), []byte(v)))
@@ -1057,7 +1055,7 @@ func TestLMDBManyKeysBatch(t *testing.T) {
 	require.NoError(t, batch.Write())
 	require.NoError(t, batch.Close())
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		k := fmt.Sprintf("bk%06d", i)
 		v := fmt.Sprintf("bv%06d", i)
 		got, err := db.Get([]byte(k))
@@ -1082,7 +1080,7 @@ func TestLMDBMapFull(t *testing.T) {
 	// Write enough data to exceed the map.
 	bigVal := make([]byte, pageSize)
 	var writeErr error
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		k := fmt.Sprintf("key%04d", i)
 		writeErr = db.Set([]byte(k), bigVal)
 		if writeErr != nil {
@@ -1166,7 +1164,8 @@ func collectKeys(itr interface {
 	Valid() bool
 	Next()
 	Key() []byte
-}) []string {
+},
+) []string {
 	var keys []string
 	for ; itr.Valid(); itr.Next() {
 		keys = append(keys, string(itr.Key()))

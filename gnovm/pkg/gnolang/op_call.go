@@ -470,7 +470,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
@@ -559,7 +559,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.pushPanic(typedString("defer called a nil function"))
+		m.pushPanic(typedString("runtime error: defer called a nil function"))
 		return
 	}
 
@@ -728,14 +728,26 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 		}
 	}
 	numExceptions := m.Exception.NumExceptions()
-	exs := make([]string, numExceptions)
+	// Collect exceptions in chronological (outer-to-inner) order, then
+	// stream them into a single strings.Builder. Each Exception.Fprint
+	// charges output gas per flushed chunk, so the per-tx gas budget
+	// bounds the total descriptor size.
+	ordered := make([]*Exception, numExceptions)
 	last := m.Exception
-	for i := 0; i < numExceptions; i++ {
-		exs[numExceptions-1-i] = last.Sprint(m)
+	for i := range numExceptions {
+		ordered[numExceptions-1-i] = last
 		last = last.Previous
 	}
+	var b strings.Builder
+	b.Grow(128)
+	for i, ex := range ordered {
+		if i > 0 {
+			b.WriteString("\n\t")
+		}
+		ex.Fprint(&b, m)
+	}
 	return UnhandledPanicError{
-		Descriptor: strings.Join(exs, "\n\t"),
+		Descriptor: b.String(),
 	}
 }
 
