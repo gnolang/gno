@@ -43,7 +43,7 @@ func checkInvalidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, 
 
 	require.Equal(t, reflect.TypeOf(err), reflect.TypeOf(sdk.ABCIError(result.Error)), fmt.Sprintf("Expected %v, got %v", err, result))
 
-	if reflect.TypeOf(err) == reflect.TypeOf(std.OutOfGasError{}) {
+	if reflect.TypeOf(err) == reflect.TypeFor[std.OutOfGasError]() {
 		// GasWanted set correctly
 		require.Equal(t, tx.Fee.GasWanted, result.GasWanted, "Gas wanted not set correctly")
 		require.True(t, result.GasUsed > result.GasWanted, "GasUsed not greated than GasWanted")
@@ -620,7 +620,6 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -698,7 +697,6 @@ func TestCountSubkeys(t *testing.T) {
 		{"multi level multikey", args{multiLevelMultiKey}, 11},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
