@@ -10,7 +10,7 @@ func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
-		m.Panic(typedString("runtime error: call of nil function"))
+		m.Panic(typedRuntimeError("runtime error: call of nil function"))
 	}
 
 	switch fv := v.(type) {
@@ -47,7 +47,7 @@ func (m *Machine) doOpPrecall() {
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
-				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+				m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
 			}
 		}
 		m.PushOp(OpConvert)
@@ -559,7 +559,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.pushPanic(typedString("runtime error: defer called a nil function"))
+		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
 	}
 
