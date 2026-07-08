@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -1593,14 +1594,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								constConverted = true
 							}
 						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
-							// Convert float-valued constants directly to the
-							// target type: constant conversion has no signed
-							// zero, so an underflowing constant rounds to +0,
-							// unlike the machine's runtime narrowing.
-							// Integer sources are excluded: they carry no -0
-							// and keep the default-type path below.
+							// Convert float-valued and untyped-int constants
+							// directly to the target type: constant conversion
+							// has no signed zero, so an underflowing constant
+							// rounds to +0, unlike the machine's runtime
+							// narrowing; and an untyped int may exceed int64
+							// (e.g. float64(1<<100)) yet be representable in
+							// the float target, so it must not take the
+							// default-type (int) path below.
 							switch at.Kind() {
-							case BigdecKind, Float32Kind, Float64Kind:
+							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
@@ -4434,11 +4437,11 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		if cv.T != nil {
 			switch cv.T.Kind() {
 			case Float32Kind:
-				if cv.GetFloat32() == 1<<31 {
+				if cv.GetFloat32() == softfloat.NegZero32 {
 					cv.SetFloat32(0)
 				}
 			case Float64Kind:
-				if cv.GetFloat64() == 1<<63 {
+				if cv.GetFloat64() == softfloat.NegZero64 {
 					cv.SetFloat64(0)
 				}
 			}

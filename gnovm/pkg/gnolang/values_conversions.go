@@ -1016,13 +1016,13 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				// subnormals or MaxFloat32), but must not overflow to
 				// ±Inf. Check the rounded result, either sign.
 				r := softfloat.F64to32(tv.GetFloat64())
-				return r&^(1<<31) != math.Float32bits(float32(math.Inf(1)))
+				return r&^softfloat.NegZero32 != softfloat.Inf32
 			})
 
 			x := softfloat.F64to32(tv.GetFloat64())
 			// Narrowing can underflow a nonzero negative to -0;
 			// constant conversions have no signed zero.
-			if isConst && x == 1<<31 {
+			if isConst && x == softfloat.NegZero32 {
 				x = 0
 			}
 			tv.T = t
@@ -1313,10 +1313,12 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 24 for float32
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
-		if bf.IsInf() {
+		f32, acc := bf.Float32()
+		// A big.Float made from a big.Int is never Inf; overflow shows
+		// up in the rounded result.
+		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
 		}
-		f32, acc := bf.Float32()
 		if f32 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float32 (too close to zero)")
 		}
@@ -1327,10 +1329,10 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 53 for float64
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
-		if bf.IsInf() {
+		f64, acc := bf.Float64()
+		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
 		}
-		f64, acc := bf.Float64()
 		if f64 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float64 (too close to zero)")
 		}
