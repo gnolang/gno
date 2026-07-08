@@ -1,0 +1,31 @@
+# Test vm/qeval_json on a lazy interface-bound method value (BoundMethodValue
+# with Func == nil, resolved at call time). Regression: exportCopyValue used to
+# nil-deref on the typed-nil Func and drop the Method selector.
+
+loadpkg gno.land/r/test/lz $WORK/realm
+
+gnoland start
+
+gnokey query vm/qeval_json --data "gno.land/r/test/lz.GetG()"
+cmp stdout getg.stdout.golden
+
+-- getg.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.FuncType","Params":[],"Results":[{"Name":".res.0","Type":{"@type":"/gno.PrimitiveType","value":"32"},"Embedded":false,"Tag":""}]},"V":{"@type":"/gno.BoundMethodValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Func":null,"Receiver":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/lz.Impl"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}},"Method":"Get"}}]}
+-- realm/gnomod.toml --
+module = "gno.land/r/test/lz"
+gno = "0.9"
+
+-- realm/realm.gno --
+package lz
+
+type IG interface{ Get() int }
+
+type Impl struct{ x int }
+
+func (i Impl) Get() int { return i.x }
+
+func GetG() func() int {
+	var o IG = Impl{x: 1}
+	return o.Get
+}
