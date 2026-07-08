@@ -3,7 +3,7 @@
 Gno.land exposes a set of ABCI query endpoints that return structured JSON
 representations of on-chain state. These are designed for programmatic access
 by frontends, explorers, and developer tools — as opposed to the text-oriented
-endpoints documented in [Interacting with gnokey](../resources/gnokey-reference.md#querying-a-gnoland-network).
+endpoints documented in [`gnokey` command reference](../resources/gnokey-reference.md#querying-a-gnoland-network).
 
 All endpoints are accessed via `ABCIQuery` with path `vm/<endpoint>` and a
 `-data` payload. They return Amino JSON, the standard encoding used by Gno's
@@ -207,5 +207,5 @@ This lazy-loading pattern avoids transferring the entire object graph upfront.
 
 ## See Also
 
-- [Interacting with gnokey](../resources/gnokey-reference.md#querying-a-gnoland-network) — text-oriented query endpoints (`vm/qrender`, `vm/qfile`, `vm/qeval`, etc.)
+- [`gnokey` command reference](../resources/gnokey-reference.md#querying-a-gnoland-network) — text-oriented query endpoints (`vm/qrender`, `vm/qfile`, `vm/qeval`, etc.)
 - [RPC clients](rpc-clients.md) — client library overview

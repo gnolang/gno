@@ -46,7 +46,7 @@ Ephemeral packages are temporary, user-executed code that:
 
 Example: `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` (A user's run script)
 
-For more details on ephemeral packages and the `maketx run` command, see [Interacting with gnokey](gnokey-reference.md#run).
+For more details on ephemeral packages and the `maketx run` command, see [`gnokey` command reference](gnokey-reference.md#run).
 
 ### Import rules
 

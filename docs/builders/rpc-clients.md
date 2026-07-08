@@ -26,5 +26,5 @@ All RPC endpoints for each network can be found in the [Networks documentation](
 
 There are two families of query endpoints:
 
-- **Text-oriented** (`vm/qrender`, `vm/qeval`, `vm/qfile`, etc.) — return human-readable strings, suitable for CLI tools like `gnokey`. See [Interacting with gnokey](../resources/gnokey-reference.md#querying-a-gnoland-network).
+- **Text-oriented** (`vm/qrender`, `vm/qeval`, `vm/qfile`, etc.) — return human-readable strings, suitable for CLI tools like `gnokey`. See [`gnokey` command reference](../resources/gnokey-reference.md#querying-a-gnoland-network).
 - **JSON/structured** (`vm/qeval_json`, `vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`) — return Amino JSON, suitable for programmatic access by frontends and tools. See [Querying On-Chain State (JSON APIs)](query-state-api.md).

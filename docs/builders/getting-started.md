@@ -272,7 +272,7 @@ network dropdown and every `gnokey` command's `-remote` and
 |------------|------------|--------------------------------------------------------|
 | Local      | `dev`      | `http://localhost:26657`                               |
 | Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
-| Testnet    | `testN`    | `https://``rpc.<testN>.testnets.gno.land:443`            |
+| Testnet    | `testN`    | `https://`​`rpc.<testN>.testnets.gno.land:443`            |
 
 Replace `testN` with the current testnet chainid. See
 [Networks](../resources/gnoland-networks.md) for the live list,
@@ -366,7 +366,7 @@ Two optional flags are worth knowing about:
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
-[`addpkg` in Interact with gnokey](../resources/gnokey-reference.md#addpackage).
+[`addpkg` in the `gnokey` command reference](../resources/gnokey-reference.md#addpackage).
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 

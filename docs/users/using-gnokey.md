@@ -138,7 +138,7 @@ send; adjust `-to` and `-send` for your transfer.
 [Realms](../resources/realms.md), Gno.land's smart contracts, expose functions
 you invoke with `gnokey maketx call`. Set `-pkgpath` (the realm's on-chain path)
 and `-func` (the function), pass any arguments with `-args`, and add the base
-flags. Calling `Deposit` on the `wugnot` realm to wrap `1000ugnot`. `Deposit`
+flags. This calls `Deposit` on the `wugnot` realm to wrap `1000ugnot`. `Deposit`
 takes no `-args`. The `-send` flag attaches the coins the call deposits:
 
 ```bash
