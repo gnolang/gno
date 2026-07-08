@@ -29,7 +29,7 @@ func TestPushPop_RoundTrip(t *testing.T) {
 
 func TestPush_AtCap(t *testing.T) {
 	pc := parser.NewContext()
-	for i := 0; i < MaxGnoNestDepth; i++ {
+	for i := range MaxGnoNestDepth {
 		if !Push(pc) {
 			t.Fatalf("Push %d returned false; expected true within cap", i+1)
 		}

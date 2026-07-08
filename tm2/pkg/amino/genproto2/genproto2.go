@@ -36,7 +36,7 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 	// Determine the target package path from the first non-interface type.
 	ctx.targetPkgPath = ""
 	for _, rt := range rtz {
-		if rt.Kind() == reflect.Ptr {
+		if rt.Kind() == reflect.Pointer {
 			rt = rt.Elem()
 		}
 		if rt.Kind() != reflect.Interface && rt.PkgPath() != "" {
@@ -114,8 +114,8 @@ func (ctx *P3Context2) GenerateProtobuf3ForTypes(pkg string, rtz ...reflect.Type
 	}
 	isThirdParty := func(p string) bool {
 		first := p
-		if i := strings.Index(p, "/"); i >= 0 {
-			first = p[:i]
+		if before, _, ok := strings.Cut(p, "/"); ok {
+			first = before
 		}
 		return strings.Contains(first, ".")
 	}
@@ -212,10 +212,10 @@ func pathBase(p string) string {
 // qualifying cross-package types and accumulating imports as needed.
 func (ctx *P3Context2) goTypeName(rt reflect.Type) string {
 	// Handle well-known types that need package qualification.
-	if rt == reflect.TypeOf(time.Time{}) {
+	if rt == reflect.TypeFor[time.Time]() {
 		return "time.Time"
 	}
-	if rt == reflect.TypeOf(time.Duration(0)) {
+	if rt == reflect.TypeFor[time.Duration]() {
 		return "time.Duration"
 	}
 
@@ -229,7 +229,7 @@ func (ctx *P3Context2) goTypeName(rt reflect.Type) string {
 	}
 
 	switch rt.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return "*" + ctx.goTypeName(rt.Elem())
 	case reflect.Slice:
 		return "[]" + ctx.goTypeName(rt.Elem())
@@ -295,10 +295,10 @@ func usesTime(cdc *amino.Codec, rt reflect.Type) bool {
 }
 
 func _usesTime(cdc *amino.Codec, rt reflect.Type, visited map[reflect.Type]bool) bool {
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		rt = rt.Elem()
 	}
-	if rt == reflect.TypeOf(time.Time{}) || rt == reflect.TypeOf(time.Duration(0)) {
+	if rt == reflect.TypeFor[time.Time]() || rt == reflect.TypeFor[time.Duration]() {
 		return true
 	}
 	if rt.Kind() != reflect.Struct {
@@ -314,10 +314,10 @@ func _usesTime(cdc *amino.Codec, rt reflect.Type, visited map[reflect.Type]bool)
 	}
 	for _, f := range info.Fields {
 		ft := f.Type
-		if ft.Kind() == reflect.Ptr {
+		if ft.Kind() == reflect.Pointer {
 			ft = ft.Elem()
 		}
-		if ft == reflect.TypeOf(time.Time{}) || ft == reflect.TypeOf(time.Duration(0)) {
+		if ft == reflect.TypeFor[time.Time]() || ft == reflect.TypeFor[time.Duration]() {
 			return true
 		}
 		if ft.Kind() == reflect.Struct {

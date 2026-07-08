@@ -138,7 +138,7 @@ func TestChargeNativeGas_NumCallFrames(t *testing.T) {
 	defer cleanup()
 	m := stubMachine(nil)
 	// Add 10 call frames (Func != nil).
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		m.Frames = append(m.Frames, Frame{Func: &FuncValue{}})
 	}
 	m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})

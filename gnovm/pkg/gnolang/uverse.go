@@ -462,11 +462,11 @@ func realmIsEphemeral(pkgPath string) bool {
 // ephemeral realm: pkgPath == "<domain>/e/<addr>/run". Mirrors
 // chain/runtime.Realm.IsUserRun.
 func realmIsUserRun(addr, pkgPath string) bool {
-	idx := strings.Index(pkgPath, "/")
-	if idx == -1 {
+	before, _, ok := strings.Cut(pkgPath, "/")
+	if !ok {
 		return false
 	}
-	return pkgPath == pkgPath[:idx]+"/e/"+addr+"/run"
+	return pkgPath == before+"/e/"+addr+"/run"
 }
 
 // ----------------------------------------
@@ -1758,7 +1758,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	defer mw.Release()
 	defer mw.Flush() // LIFO: runs before Release, after the loop (normal or panic).
 	xvl := xv.TV.GetLength()
-	for i := 0; i < xvl; i++ {
+	for i := range xvl {
 		if i != 0 {
 			mw.WriteByte(' ')
 		}
