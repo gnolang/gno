@@ -470,7 +470,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
@@ -734,7 +734,7 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 	// bounds the total descriptor size.
 	ordered := make([]*Exception, numExceptions)
 	last := m.Exception
-	for i := 0; i < numExceptions; i++ {
+	for i := range numExceptions {
 		ordered[numExceptions-1-i] = last
 		last = last.Previous
 	}
