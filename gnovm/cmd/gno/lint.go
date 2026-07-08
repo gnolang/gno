@@ -169,6 +169,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return commands.ExitCodeError(1)
 		}
 
+		// Skip processing for ignored modules
+		if mod.Ignore {
+			if cmd.verbose {
+				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+			}
+			continue
+		}
+
 		// See adr/pr4264_lint_transpile.md
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
@@ -193,14 +201,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 			io.ErrPrintln(issue)
 			hasError = true
-			continue
-		}
-
-		// Skip processing for ignored modules
-		if mod.Ignore {
-			if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignored, skipping", dir)
-			}
 			continue
 		}
 

@@ -96,6 +96,12 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/package_name_mismatch_ignore",
+			simulateExternalRepo: true,
+			// The module is ignored, so the name/path mismatch is not reported.
+		},
+		{
+			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_invalid1",
 			simulateExternalRepo: true,
 			stderrShouldBe:       "gno.land/r/test/render_invalid1/main.gno:5: invalid signature for the realm's Render function; must be `func Render(string) string` or `func Render(cur realm, string) string` (code=gnoLintError)\n",
