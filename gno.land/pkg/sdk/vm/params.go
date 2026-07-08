@@ -311,7 +311,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		addrs := sdkparams.MustParamString("code_submitters", value)
 		params.CodeSubmitters = nil
 		if addrs != "" {
-			for _, s := range strings.Split(addrs, ",") {
+			for s := range strings.SplitSeq(addrs, ",") {
 				s = strings.TrimSpace(s)
 				if s == "" {
 					continue
