@@ -84,9 +84,27 @@ The components of these paths are:
 - `demo`, `gnoland`, etc., represent namespaces as described below.
 - `home`, `hof`, `avl`, `run`, etc., represent the package name found at the path.
 
-Two important facts about package paths:
+Important facts about package paths:
 - The maximum length of a package path is `256` characters.
 - A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
+- **The package name in your source code must match the last element of the path.** For example, `gno.land/r/demo/counter` requires `package counter`.
+- Because package names are identifiers of the form `[a-z][a-z0-9_]+`, the
+  last element of a deployable path must also have that form: lowercase
+  letters, digits and underscores, starting with a letter, and at least two
+  characters long. In particular, hyphens are allowed in intermediate path
+  elements (e.g. namespaces like `gno.land/r/my-team/counter`) but not in the
+  last element, since no package name could match it.
+
+### Version Suffixes
+
+Package paths can include version suffixes for versioned packages:
+
+- `gno.land/r/demo/mylib/v1` → package name should be `mylib`
+- `gno.land/r/demo/mylib/v2` → package name should be `mylib`
+- `gno.land/p/demo/utils/v10` → package name should be `utils`
+
+A path may end in at most one version suffix: paths ending in consecutive
+version suffixes (e.g. `gno.land/r/demo/mylib/v2/v3`) are rejected.
 
 ## Namespaces
 

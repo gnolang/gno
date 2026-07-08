@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"io"
-	"path"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -165,7 +164,7 @@ func TestFindByPrefix(t *testing.T) {
 
 	// Add pkgs
 	for _, pkg := range pkgs {
-		name := path.Base(pkg)
+		name := LastPathElement(pkg)
 		store.AddMemPackage(&std.MemPackage{
 			Type: MPUserProd,
 			Name: name,
