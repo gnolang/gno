@@ -106,9 +106,9 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Title:      h.Static.Domain + " - " + r.URL.Path,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Theme:  theme,
 		Banner: h.Static.Banner,
@@ -198,9 +198,9 @@ func (h *DocsHandler) renderError(w http.ResponseWriter, r *http.Request, status
 			Title:      h.Static.Domain + " - " + msg,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Banner:   h.Static.Banner,
 		Mode:     components.ViewModeRealm,
