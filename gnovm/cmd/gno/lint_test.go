@@ -91,7 +91,7 @@ func TestLintApp(t *testing.T) {
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/package_name_mismatch",
 			simulateExternalRepo: true,
-			stderrShouldContain:  `package name "hello" does not match path element "goodbye" (code=gnoPackageNameMismatch)`,
+			stderrShouldContain:  `package name "hello" does not match path element "goodbye" (code=gnoPackageNameMismatchError)`,
 			errShouldBe:          "exit code: 1",
 		},
 		{

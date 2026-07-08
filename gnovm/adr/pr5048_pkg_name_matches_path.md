@@ -30,7 +30,7 @@ mismatched or versioned packages).
     main`) would always mismatch.
   - `MP*Test`/`MPFiletests` packages have their own naming rules
     (`*_test`, arbitrary filetest names).
-- `gno lint` reports mismatches with a dedicated `gnoPackageNameMismatch`
+- `gno lint` reports mismatches with a dedicated `gnoPackageNameMismatchError`
   code, after the `ignore = true` module skip (ignored modules are opted out
   of lint processing entirely; deployment remains protected by
   `ValidateMemPackageAny`).

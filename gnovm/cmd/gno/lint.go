@@ -194,13 +194,15 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// See https://github.com/gnolang/gno/issues/1571
 		if err := gno.ValidatePkgNameMatchesPath(gno.Name(mpkg.Name), mpkg.Path); err != nil {
 			issue := gnoIssue{
-				Code:       gnoPackageNameMismatch,
+				Code:       gnoPackageNameMismatchError,
 				Confidence: 1,
 				Location:   dir,
 				Msg:        err.Error(),
 			}
 			io.ErrPrintln(issue)
 			hasError = true
+			// Skip the remaining lint steps: type-checking would only
+			// cascade-fail on the same mismatched package name.
 			continue
 		}
 
