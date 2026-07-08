@@ -220,10 +220,7 @@ func sumSliceInnerLen(tv *TypedValue, store Store) int64 {
 		if base.Data != nil {
 			return int64(v.Length)
 		}
-		end := v.Offset + v.Length
-		if end > len(base.List) {
-			end = len(base.List)
-		}
+		end := min(v.Offset+v.Length, len(base.List))
 		list = base.List[v.Offset:end]
 	default:
 		return 0

@@ -423,18 +423,18 @@ func (l FieldTypeList) Swap(i, j int) {
 // XXX how though?
 func (l FieldTypeList) TypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
 		if ft.Name == "" {
-			s += ft.Type.TypeID().String()
+			s.WriteString(ft.Type.TypeID().String())
 		} else {
-			s += string(ft.Name) + " " + ft.Type.TypeID().String()
+			s.WriteString(string(ft.Name) + " " + ft.Type.TypeID().String())
 		}
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 // For use in fields of packages, structs, and interfaces, where any
@@ -442,19 +442,19 @@ func (l FieldTypeList) TypeID() TypeID {
 // types.
 func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
 		fn := ft.Name
 		if isUpper(string(fn)) {
-			s += string(fn) + " " + ft.Type.TypeID().String()
+			s.WriteString(string(fn) + " " + ft.Type.TypeID().String())
 		} else {
-			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
+			s.WriteString(pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String())
 		}
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) HasUnexported() bool {
@@ -502,14 +502,14 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 // used for function parameters and results.
 func (l FieldTypeList) UnnamedTypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
-		s += ft.Type.TypeID().String()
+		s.WriteString(ft.Type.TypeID().String())
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) Types() []Type {
@@ -2409,30 +2409,32 @@ func (tt *tupleType) Kind() Kind {
 func (tt *tupleType) TypeID() TypeID {
 	if tt.typeid.IsZero() {
 		ell := len(tt.Elts)
-		s := "("
+		var s strings.Builder
+		s.WriteString("(")
 		for i, et := range tt.Elts {
-			s += et.TypeID().String()
+			s.WriteString(et.TypeID().String())
 			if i != ell-1 {
-				s += ","
+				s.WriteString(",")
 			}
 		}
-		s += ")"
-		tt.typeid = typeid(s)
+		s.WriteString(")")
+		tt.typeid = typeid(s.String())
 	}
 	return tt.typeid
 }
 
 func (tt *tupleType) String() string {
 	ell := len(tt.Elts)
-	s := "("
+	var s strings.Builder
+	s.WriteString("(")
 	for i, et := range tt.Elts {
-		s += et.String()
+		s.WriteString(et.String())
 		if i != ell-1 {
-			s += ","
+			s.WriteString(",")
 		}
 	}
-	s += ")"
-	return s
+	s.WriteString(")")
+	return s.String()
 }
 
 func (tt *tupleType) Elem() Type {
