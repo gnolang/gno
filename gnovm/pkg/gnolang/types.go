@@ -895,20 +895,22 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 		sf := &st.Fields[i]
 		// Maybe is a field of the struct.
 		if sf.Name == n {
-			// Ensure exposed or package match.
-			if !isUpper(string(n)) && st.PkgPath != callerPath {
-				return nil, false, nil, nil, true
+			// Ensure exposed or package match. A same-spelled unexported
+			// name from another package is a distinct identity: skip it and
+			// keep searching embedded fields for an accessible one.
+			if isUpper(string(n)) || st.PkgPath == callerPath {
+				vp := NewValuePathField(0, uint16(i), n)
+				return []ValuePath{vp}, false, nil, sf.Type, false
 			}
-			vp := NewValuePathField(0, uint16(i), n)
-			return []ValuePath{vp}, false, nil, sf.Type, false
+			accessError = true
 		}
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
 			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
 			if accessError2 {
-				// XXX make test case and check against go
-				return nil, false, nil, nil, true
+				// A gated match somewhere below: remember, keep scanning.
+				accessError = true
 			} else if trail2 != nil {
 				if trail != nil {
 					// conflict detected. return none.
@@ -921,6 +923,9 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 			}
 		}
 	}
+	// A sibling gated match may have set accessError even though an
+	// accessible one was found; the findEmbeddedFieldType dispatcher
+	// clamps it (trail != nil implies accessError == false).
 	return // may be found or nil.
 }
 
@@ -1067,16 +1072,19 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			// Ensure exposed or package match. Gate against the method's
 			// origin package (its stamp when flattened out of another
 			// package), not the enclosing interface's — same rule as
-			// VerifyImplementedBy below.
+			// VerifyImplementedBy below. A same-spelled unexported method
+			// from another package is a distinct method: skip it and keep
+			// scanning for one with a matching identity.
 			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
-				return nil, false, nil, nil, true
+				accessError = true
+				continue
 			}
 			// match found.
 			tr := []ValuePath{NewValuePathInterface(n)}
 			return tr, false, nil, im.Type, false
 		}
 	}
-	return nil, false, nil, nil, false
+	return nil, false, nil, nil, accessError
 }
 
 // panicUnflattened reports an InterfaceKind entry in Methods — impossible
@@ -2200,30 +2208,32 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 		m[dt] = struct{}{}
 	}
 	// Search direct methods via O(1) name lookup.
+	gated := false
 	if i, ok := dt.lookupMethod(n); ok {
-		fv := dt.Methods[i].V.(*FuncValue)
 		// Ensure exposed or package match.
-		if !isUpper(string(n)) && dt.PkgPath != callerPath {
-			return nil, false, nil, nil, true
+		if isUpper(string(n)) || dt.PkgPath == callerPath {
+			fv := dt.Methods[i].V.(*FuncValue)
+			// NOTE: makes code simple but requires preprocessor's
+			// Store to pre-load method types.
+			mt := fv.GetType(nil)
+			rt := mt.Params[0].Type
+			var vp ValuePath
+			if _, isPtr := rt.(*PointerType); isPtr {
+				vp = NewValuePathPtrMethod(i, n)
+			} else {
+				vp = NewValuePathValMethod(i, n)
+			}
+			return []ValuePath{vp}, false, rt, mt.BoundType(), false
 		}
-		// NOTE: makes code simple but requires preprocessor's
-		// Store to pre-load method types.
-		rt := fv.GetType(nil).Params[0].Type
-		var vp ValuePath
-		if _, isPtr := rt.(*PointerType); isPtr {
-			vp = NewValuePathPtrMethod(i, n)
-		} else {
-			vp = NewValuePathValMethod(i, n)
-		}
-		// NOTE: makes code simple but requires preprocessor's
-		// Store to pre-load method types.
-		bt := fv.GetType(nil).BoundType()
-		return []ValuePath{vp}, false, rt, bt, false
+		// A same-spelled unexported method from another package is a
+		// distinct method: fall through to the base search for one with
+		// a matching identity.
+		gated = true
 	}
 	// Otherwise, search base.
 	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
 	if trail == nil {
-		return nil, false, nil, nil, accessError
+		return nil, false, nil, nil, accessError || gated
 	}
 	switch trail[0].Type {
 	case VPInterface:
@@ -3021,21 +3031,27 @@ func isGeneric(t Type) bool {
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
+// Contract: trail != nil implies accessError == false — a same-spelled
+// unexported name from another package is a distinct identity, so a gated
+// candidate is skipped, not an error, when an accessible match exists.
+// Callers rely on this (they check accessError before trail).
 func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	switch ct := t.(type) {
 	case *DeclaredType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *PointerType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *StructType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *InterfaceType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
 	default:
 		return nil, false, nil, nil, false
 	}
+	accessError = accessError && trail == nil // enforce the contract above.
+	return
 }
 
 // GetPkgID returns the cached PkgID for this DeclaredType, computing

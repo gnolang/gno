@@ -80,7 +80,7 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
+	res := xv.getPointerToFromTV(m.Alloc, m.Store, sx.Path, m.Package.PkgPath).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
