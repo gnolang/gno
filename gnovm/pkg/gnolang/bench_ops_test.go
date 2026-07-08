@@ -482,10 +482,7 @@ func benchOpQuo_BigInt(b *testing.B, bits int) {
 	expr := &BinaryExpr{}
 	// dividend: bits-wide; divisor: bits/2-wide (min 32)
 	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
-	divisorBits := bits / 2
-	if divisorBits < 32 {
-		divisorBits = 32
-	}
+	divisorBits := max(bits/2, 32)
 	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
@@ -582,10 +579,7 @@ func benchOpRem_BigInt(b *testing.B, bits int) {
 	expr := &BinaryExpr{}
 	// dividend: bits-wide; divisor: bits/2-wide (min 32)
 	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
-	divisorBits := bits / 2
-	if divisorBits < 32 {
-		divisorBits = 32
-	}
+	divisorBits := max(bits/2, 32)
 	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
@@ -3182,10 +3176,7 @@ func benchOpQuo_BigDec(b *testing.B, digits int) {
 	expr := &BinaryExpr{}
 	bv1 := makeBigDec(digits)
 	// Divisor: smaller but non-trivial
-	divisorDigits := digits / 2
-	if divisorDigits < 5 {
-		divisorDigits = 5
-	}
+	divisorDigits := max(digits/2, 5)
 	bv2 := makeBigDec(divisorDigits)
 
 	bm.InitMeasure()
@@ -3421,7 +3412,7 @@ func benchOpEql_ByteArray(b *testing.B, n int) {
 	at := &ArrayType{Elt: Uint8Type, Len: n}
 	av1 := m.Alloc.NewDataArray(nil, n)
 	av2 := m.Alloc.NewDataArray(nil, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		av1.Data[i] = byte(i % 256)
 		av2.Data[i] = byte(i % 256)
 	}
@@ -4737,10 +4728,7 @@ func benchOpTypeAssert2_Interface(b *testing.B, nMethods int, shouldMatch bool) 
 
 	nImpl := nMethods
 	if !shouldMatch {
-		nImpl = nMethods - 1
-		if nImpl < 0 {
-			nImpl = 0
-		}
+		nImpl = max(nMethods-1, 0)
 	}
 	iface, dt, sv := benchInterfaceAndImpl(m.Alloc, nMethods, nImpl)
 
