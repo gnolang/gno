@@ -730,11 +730,14 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
 	operand := bmv.Receiver
 	name := bmv.Method
-	// The method name is invariant across layers, so the operand pointer fully
-	// identifies the loop state: a revisited pointer means the resolution can only
-	// repeat forever (a cyclic embed, e.g. `s.IG = s`). Only pointer operands can
-	// recur; value operands are finite copies.
-	var seen map[*TypedValue]struct{}
+	// The method name is invariant across layers, so the operand's identity
+	// fully identifies the loop state: a revisited identity means the resolution
+	// can only repeat forever (a cyclic embed, e.g. `s.IG = s`). Identity is the
+	// pointee for a pointer operand and the heap object for a struct operand (an
+	// interface field re-read yields the same *StructValue each hop, so a cycle
+	// routed through a boxed struct value recurs by pointer identity too). Other
+	// shapes cannot embed fields and so cannot yield another lazy hop.
+	var seen map[any]struct{}
 	for {
 		// Charge per hop so the cost scales with embedded-interface depth rather
 		// than being flat per call.
@@ -744,14 +747,23 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 		// live state is what lets field re-read / dynamic re-dispatch observe
 		// updates made after the bind.
 		fillValueTV(m.Store, &operand)
-		if pv, ok := operand.V.(PointerValue); ok && pv.TV != nil {
-			if _, dup := seen[pv.TV]; dup {
+		var id any
+		switch v := operand.V.(type) {
+		case PointerValue:
+			if v.TV != nil {
+				id = v.TV
+			}
+		case *StructValue:
+			id = v
+		}
+		if id != nil {
+			if _, dup := seen[id]; dup {
 				panic("cyclic embedded interface in method-value dispatch")
 			}
 			if seen == nil {
-				seen = make(map[*TypedValue]struct{})
+				seen = make(map[any]struct{})
 			}
-			seen[pv.TV] = struct{}{}
+			seen[id] = struct{}{}
 		}
 		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
 		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr).Deref().V.(*BoundMethodValue)
