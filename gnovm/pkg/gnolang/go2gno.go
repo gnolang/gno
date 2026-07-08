@@ -1034,26 +1034,22 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 	return
 }
 
-// NOTE: moves the default clause to last.
+// Preserves textual clause order. Source order matters for `fallthrough`,
+// which jumps to the next textual clause regardless of whether it is a
+// default clause. The default's "match only when no case matched" semantics
+// are handled at evaluation time in doOpSwitchClause / doOpTypeSwitch.
 func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 	res := make([]SwitchClauseStmt, 0, len(csz))
-	var dclause *SwitchClauseStmt
+	sawDefault := false
 	for _, cs := range csz {
 		clause := toSwitchClauseStmt(fs, cs.(*ast.CaseClause))
 		if len(clause.Cases) == 0 {
-			if dclause != nil {
+			if sawDefault {
 				panic("duplicate default clause")
 			}
-			dclause = &clause
-		} else {
-			res = append(res, clause)
+			sawDefault = true
 		}
-	}
-	if dclause != nil {
-		res = append(res, *dclause)
-	}
-	if len(res) != len(csz) {
-		panic("should not happen")
+		res = append(res, clause)
 	}
 	return res
 }

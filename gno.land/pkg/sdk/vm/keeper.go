@@ -795,18 +795,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
-	argslist := ""
+	var argslist strings.Builder
 	for i := range msg.Args {
 		if i > 0 {
-			argslist += ","
+			argslist.WriteString(",")
 		}
-		argslist += fmt.Sprintf("arg%d", i)
+		argslist.WriteString(fmt.Sprintf("arg%d", i))
 	}
 	var expr string
-	if argslist == "" {
+	if argslist.String() == "" {
 		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
 	} else {
-		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist.String())
 	}
 	// Make context.
 	// NOTE: if this is too expensive,
@@ -1139,7 +1139,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	return res, nil
 }
 
-var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
 // QueryPaths returns public facing function signatures.
 // XXX: Implement pagination
@@ -1238,6 +1238,9 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			continue // must be function
 		}
 		fv := tv.GetFunc()
+		if fv == nil {
+			continue // typed-nil func variable, no signature to expose
+		}
 		if fv.IsMethod {
 			continue // cannot be method
 		}

@@ -1593,6 +1593,13 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		}
 		return nilStr, false
 	}
+	// Static uncomparable keys are rejected at preprocess; an uncomparable
+	// tv.T here came via interface boxing. isComparable recurses, so the
+	// panic names the outer dynamic type, matching Go.
+	if !isComparable(tv.T) {
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
+	}
 	// General case.
 	bz := make([]byte, 0, 64)
 	// Charge per-byte for all bytes appended to bz in this call (TypeID
@@ -1641,8 +1648,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1668,32 +1673,36 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
-	case *SliceType:
-		panic(&Exception{Value: typedString("runtime error: slice type cannot be used as map key")})
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
+		var appendComma bool
 		for i := range sl {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
+			if appendComma {
+				bz = append(bz, ',')
+			} else {
+				appendComma = true
+			}
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
-			if i != sl-1 {
-				bz = append(bz, ',')
-			}
 		}
 		bz = append(bz, '}')
-	case *ChanType:
-		panic("channel type is not yet supported")
 	default:
-		panic(fmt.Sprintf(
-			"unexpected map key type %s",
-			tv.T.String()))
+		// Defensive fallback: the isComparable gate above already stops
+		// every uncomparable type (slices, maps, funcs, chans, ...) before
+		// the switch, so this is unreachable in practice.
+		panic(&Exception{Value: typedString(
+			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
 }
@@ -2149,18 +2158,33 @@ func (tv *TypedValue) GetType() Type {
 	return tv.V.(TypeValue).Type
 }
 
+// GetFunc returns the *FuncValue, or nil for a typed-nil func variable
+// (e.g. `var f func()`). Panics if tv.V holds an unexpected type — most
+// notably *BoundMethodValue, which callers must reach via GetUnboundFunc.
 func (tv *TypedValue) GetFunc() *FuncValue {
-	return tv.V.(*FuncValue)
+	switch fv := tv.V.(type) {
+	case nil:
+		return nil
+	case *FuncValue:
+		return fv
+	default:
+		panic(fmt.Sprintf("expected *FuncValue or nil but got %T", tv.V))
+	}
 }
 
+// GetUnboundFunc returns the underlying *FuncValue for both plain funcs
+// and bound methods (stripping the receiver), or nil for a typed-nil
+// func/method variable. Panics on any other type.
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	switch fv := tv.V.(type) {
+	case nil:
+		return nil
 	case *FuncValue:
 		return fv
 	case *BoundMethodValue:
 		return fv.Func
 	default:
-		panic(fmt.Sprintf("expected function or bound method but got %T", tv.V))
+		panic(fmt.Sprintf("expected func/method or nil but got %T", tv.V))
 	}
 }
 
