@@ -497,6 +497,11 @@ func TestValidatePkgNameMatchesPath(t *testing.T) {
 		{"stdlib_match", "json", "encoding/json", ""},
 		{"stdlib_mismatch", "xml", "encoding/json", "does not match path element"},
 		{"empty_path", "foo", "", ""},
+		{"consecutive_version_suffixes", "v2", "gno.land/r/demo/foo/v2/v3", "consecutive version suffixes"},
+		{"consecutive_version_suffixes_any_name", "foo", "gno.land/r/demo/foo/v1/v2", "consecutive version suffixes"},
+		{"consecutive_version_suffixes_only", "v2", "v1/v2", "consecutive version suffixes"},
+		{"version_suffix_under_namespace", "demo", "gno.land/r/demo/v2", ""},
+		{"version_suffix_single_element", "v2", "v2", ""}, // degenerate, not consecutive
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

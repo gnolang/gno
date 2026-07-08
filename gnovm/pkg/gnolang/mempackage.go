@@ -248,6 +248,14 @@ func LastPathElement(pkgPath string) string {
 // For versioned paths (v1, v2, ...), the package name must match the element before
 // the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
 func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
+	// Reject paths ending in consecutive version suffixes (e.g.
+	// "gno.land/r/demo/foo/v2/v3"): no sensible expected name exists for them.
+	if pos := strings.LastIndexByte(pkgPath, '/'); pos >= 0 && isVersionSuffix(pkgPath[pos+1:]) {
+		rest := pkgPath[:pos]
+		if isVersionSuffix(rest[strings.LastIndexByte(rest, '/')+1:]) {
+			return fmt.Errorf("package path %q must not end with consecutive version suffixes", pkgPath)
+		}
+	}
 	expectedName := LastPathElement(pkgPath)
 	if expectedName == "" {
 		return nil
