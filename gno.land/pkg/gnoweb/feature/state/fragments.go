@@ -202,10 +202,7 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 	if endLine > 0 {
 		startLine = line
 	} else {
-		startLine = line - fragSourceContextLines
-		if startLine < 1 {
-			startLine = 1
-		}
+		startLine = max(line-fragSourceContextLines, 1)
 		endLine = line + fragSourceContextLines
 	}
 	slice := sliceLines(content, startLine, endLine)
