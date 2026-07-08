@@ -308,20 +308,24 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	case "p:code_submission_policy":
 		params.CodeSubmissionPolicy = CodeSubmissionPolicy(sdkparams.MustParamString("code_submission_policy", value))
 	case "p:code_submitters":
-		addrs := sdkparams.MustParamString("code_submitters", value)
-		params.CodeSubmitters = nil
-		if addrs != "" {
-			for s := range strings.SplitSeq(addrs, ",") {
-				s = strings.TrimSpace(s)
-				if s == "" {
-					continue
-				}
-				addr, err := crypto.AddressFromString(s)
-				if err != nil {
-					panic(fmt.Sprintf("invalid code_submitters address %q: %v", s, err))
-				}
-				params.CodeSubmitters = append(params.CodeSubmitters, addr)
+		// code_submitters is a repeated (string-array) param, set via the
+		// strings param path (params.NewSysParamStringsPropRequest /
+		// SetStrings). The keeper stores the raw string array and GetParams
+		// decodes it element-wise back into the typed []crypto.Address field,
+		// so each entry must be a valid address VERBATIM. We validate strictly
+		// (no trimming, no skipping of empty entries) precisely so that this
+		// validation matches what GetParams will later decode: any entry
+		// accepted here must round-trip, otherwise a value could pass
+		// validation yet make every subsequent GetParams panic. A comma-
+		// separated single string does NOT round-trip and is unsupported.
+		ss := sdkparams.MustParamStrings("code_submitters", value)
+		params.CodeSubmitters = make([]crypto.Address, 0, len(ss))
+		for _, s := range ss {
+			addr, err := crypto.AddressFromString(s)
+			if err != nil {
+				panic(fmt.Sprintf("invalid code_submitters address %q: %v", s, err))
 			}
+			params.CodeSubmitters = append(params.CodeSubmitters, addr)
 		}
 	default:
 		if strings.HasPrefix(key, "p:") {
