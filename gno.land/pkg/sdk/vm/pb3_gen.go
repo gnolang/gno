@@ -1171,15 +1171,12 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	for i := len(goo.CodeSubmitters) - 1; i >= 0; i-- {
-		repr, err := goo.CodeSubmitters[i].MarshalAmino()
+		elem := goo.CodeSubmitters[i]
+		er, err := elem.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-		} else {
-			offset = amino.PrependByte(buf, offset, 0x00)
-		}
+		offset = amino.PrependString(buf, offset, string(er))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 15, amino.Typ3ByteLength)
 	}
 	if goo.CodeSubmissionPolicy != "" {
@@ -1410,11 +1407,11 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 		s += 1 + amino.UvarintSize(uint64(len(goo.CodeSubmissionPolicy))) + len(goo.CodeSubmissionPolicy)
 	}
 	for _, elem := range goo.CodeSubmitters {
-		repr, err := elem.MarshalAmino()
+		er, err := elem.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
+		vs := amino.UvarintSize(uint64(len(er))) + len(er)
 		s += 1 + vs
 	}
 	return s, nil
@@ -1583,16 +1580,18 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 15: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
 			}
-			var addr crypto.Address
+			var ev crypto.Address
+			var rv string
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
 				return err
 			}
 			bz = bz[n:]
-			if err := addr.UnmarshalAmino(string(v)); err != nil {
+			rv = string(v)
+			if err := ev.UnmarshalAmino(rv); err != nil {
 				return err
 			}
-			goo.CodeSubmitters = append(goo.CodeSubmitters, addr)
+			goo.CodeSubmitters = append(goo.CodeSubmitters, ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
 				var nextTyp3 amino.Typ3
@@ -1607,16 +1606,18 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 					return fmt.Errorf("field 15: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
-				var elem crypto.Address
+				var ev crypto.Address
+				var rv string
 				v, n, err := amino.DecodeString(bz)
 				if err != nil {
 					return err
 				}
 				bz = bz[n:]
-				if err := elem.UnmarshalAmino(string(v)); err != nil {
+				rv = string(v)
+				if err := ev.UnmarshalAmino(rv); err != nil {
 					return err
 				}
-				goo.CodeSubmitters = append(goo.CodeSubmitters, elem)
+				goo.CodeSubmitters = append(goo.CodeSubmitters, ev)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for Params", fnum)
