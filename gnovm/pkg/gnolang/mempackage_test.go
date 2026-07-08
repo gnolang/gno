@@ -438,8 +438,8 @@ func TestIsVersionSuffix(t *testing.T) {
 		{"v3", true},
 		{"v10", true},
 		{"v99", true},
-		{"v0", true},  // v0 is a valid version suffix (e.g. gno.land/p/nt/avl/v0)
-		{"v", false},  // incomplete
+		{"v0", true}, // v0 is a valid version suffix (e.g. gno.land/p/nt/avl/v0)
+		{"v", false}, // incomplete
 		{"v2beta", false},
 		{"2", false}, // missing v prefix
 		{"", false},

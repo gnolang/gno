@@ -6,13 +6,13 @@ import (
 	"gno.land/r/tests/vm/tests_foo"
 )
 
-func init() {
-	tests_foo.AddFooStringer("one")
-	tests_foo.AddFooStringer("two")
+func init(cur realm) {
+	tests_foo.AddFooStringer(0, cur, "one")
+	tests_foo.AddFooStringer(0, cur, "two")
 }
 
 func main(cur realm) {
-	tests_foo.AddFooStringer("three")
+	tests_foo.AddFooStringer(0, cur, "three")
 	println(tests.Render(""))
 	println("end")
 }
