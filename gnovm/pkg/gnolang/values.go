@@ -2311,6 +2311,10 @@ func (tv *TypedValue) GetFunc() *FuncValue {
 // GetUnboundFunc returns the underlying *FuncValue for both plain funcs
 // and bound methods (stripping the receiver), or nil for a typed-nil
 // func/method variable. Panics on any other type.
+//
+// A lazy interface bind (BoundMethodValue.IsLazy()) also returns nil — its
+// concrete func doesn't exist until call time — so callers must not read nil
+// as "typed-nil func" without checking the value shape.
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	switch fv := tv.V.(type) {
 	case nil:
