@@ -1,0 +1,181 @@
+# End-to-end test for the vm code_submission_policy param.
+#
+# When policy is "permissioned", only addresses in code_submitters may submit
+# MsgAddPackage / MsgRun. The check runs in the ante handler, so unauthorized
+# submissions are rejected before execution.
+#
+# Ordering matters: we add test1 to code_submitters FIRST (while still
+# permissionless), THEN flip the policy to permissioned. Doing it the other way
+# would gate test1's own governance `maketx run` txs and deadlock the chain.
+
+# An extra funded account that is NOT on the allowlist.
+adduser unauthorized
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Baseline: default policy is permissionless.
+gnokey query params/vm:p:code_submission_policy
+stdout 'data: "permissionless"$'
+
+# --- Proposal 0: add test1 to code_submitters (while permissionless) ---
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_submitters.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote0.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec0.gno
+stdout OK!
+
+gnokey query params/vm:p:code_submitters
+stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+
+# --- Proposal 1: flip policy to permissioned ---
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_policy.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote1.gno
+stdout OK!
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec1.gno
+stdout OK!
+
+gnokey query params/vm:p:code_submission_policy
+stdout 'data: "permissioned"$'
+
+# --- Authorized: test1 is on the allowlist ---
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test1
+stdout OK!
+
+# --- Unauthorized: the extra account is not on the allowlist ---
+! gnokey maketx addpkg -pkgdir $WORK/hello2 -pkgpath gno.land/r/$unauthorized_user_addr/hello -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test unauthorized
+stderr 'not authorized to submit code'
+
+# MsgRun is gated too: unauthorized run is rejected...
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test unauthorized $WORK/run/hello.gno
+stderr 'not authorized to submit code'
+
+# ...while an authorized run succeeds.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/run/hello.gno
+stdout OK!
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3)) // member address
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}
+
+-- run/submit_submitters.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringsPropRequest(cross(cur), "vm", "p", "code_submitters",
+		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/submit_policy.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "code_submission_policy", "permissioned")
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/vote0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+}
+
+-- run/exec0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+}
+
+-- run/vote1.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+}
+
+-- run/exec1.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(1))
+}
+
+-- run/hello.gno --
+package main
+
+func main() {
+	println("hello from run")
+}
+
+-- hello/gnomod.toml --
+module = "gno.land/r/hello"
+
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello
+
+func Hello() string {
+	return "hello"
+}
+
+-- hello2/gnomod.toml --
+module = "gno.land/r/hello2"
+
+gno = "0.9"
+
+-- hello2/hello.gno --
+package hello
+
+func Hello() string {
+	return "hello"
+}
