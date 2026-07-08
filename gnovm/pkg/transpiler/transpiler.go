@@ -134,10 +134,10 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 	if err != nil {
 		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
 	}
-	if strings.HasPrefix(absFilename, stdlibPrefix) {
+	if after, ok := strings.CutPrefix(absFilename, stdlibPrefix); ok {
 		// this is a standard library. Mark it in the options so the native
 		// bindings resolve correctly.
-		path := strings.TrimPrefix(absFilename, stdlibPrefix)
+		path := after
 		path = filepath.ToSlash(filepath.Dir(path))
 		path = strings.TrimLeft(path, "/")
 
