@@ -335,7 +335,7 @@ func exportedPointerLeakHits(dir string) ([]Hit, error) {
 		}
 		orig := strings.Split(string(data), "\n")
 		lines := codeLines(data)
-		for i := 0; i < len(lines); i++ {
+		for i := range lines {
 			line := lines[i]
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "//") {
