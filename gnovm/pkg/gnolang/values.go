@@ -766,6 +766,14 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			seen[id] = struct{}{}
 		}
 		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
+		if len(tr) == 0 {
+			// Mirrors the bind-site guard (GetPointerToFromTV, VPInterface).
+			// The call-time operand type is the same one that passed that
+			// guard, so this should be unreachable; guard anyway rather than
+			// fall into resolveInterfaceTrail's "should not happen".
+			panic(fmt.Sprintf("method %s not found in type %s",
+				name, operand.T.String()))
+		}
 		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
 			return next.Func, next.Receiver
