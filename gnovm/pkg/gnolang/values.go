@@ -1648,8 +1648,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				bz = append(bz, ptrBytes[:]...)
 			}
 		}
-	case FieldType:
-		panic(&Exception{Value: typedRuntimeError("runtime error: field (pseudo)type cannot be used as map key")})
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1675,8 +1673,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
-	case *SliceType:
-		panic(&Exception{Value: typedRuntimeError("runtime error: slice type cannot be used as map key")})
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
