@@ -1,10 +1,12 @@
 // PKGPATH: gno.land/r/test/deferfix0
 package deferfix0
 
-// Test 1: Core fix. defer-method on a struct that's been persisted in
-// another realm must perform the implicit borrow-realm switch (just like
-// inline method calls do). Pre-fix this panicked with "cannot directly
-// modify readonly tainted object". Post-fix, the mutation succeeds.
+// Test 1: defer-method on a struct constructed in the caller's realm
+// and then handed to another realm for storage. Storage is authority
+// and is stamped at construction, so the struct's PkgID stays at the
+// constructor's realm. Direct field mutation from that same realm
+// succeeds — no readonly-tainted panic, regardless of where the
+// object is currently persisted.
 
 import (
 	crossrealm "gno.land/r/tests/vm/crossrealm"
@@ -20,7 +22,7 @@ func (c *Counter) Inc() {
 
 func main(cur realm) {
 	c := &Counter{N: 0}
-	crossrealm.SetObject(cross, c)
+	crossrealm.SetObject(cross(cur), c)
 
 	defer c.Inc()
 	println("before defer fires, c.N =", c.N)
@@ -28,5 +30,3 @@ func main(cur realm) {
 
 // Output:
 // before defer fires, c.N = 0
-
-// Realm:

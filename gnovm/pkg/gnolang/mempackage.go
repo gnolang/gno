@@ -141,11 +141,40 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for PkgID classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
 	match := ReGnoStdPkgPath.Match(pkgPath)
 	return match != nil
+}
+
+// isImmutableLibraryPath reports whether pkgPath is a /p/ or stdlib library
+// package that should carry a frozen, immutable realm. That realm is a
+// runtime borrow target for the cross-realm write gate, so a /p/- or
+// stdlib-stamped receiver's method runs with m.Realm set (not nil).
+//
+// External _test overlays are excluded: they are transient test
+// scaffolding, never deployed, and granting one a realm makes a stdlib's
+// own self-tests (e.g. strconv_test) execute under a foreign realm, which
+// breaks legitimate same-package reads/writes of the stdlib's own state.
+// /p/ and /r/ _test overlays already self-exclude (IsPPackagePath /
+// IsRealmPath reject the _test suffix); only stdlib's dot-free _test
+// names slip through IsStdlib, so guard against the suffix here.
+func isImmutableLibraryPath(pkgPath string) bool {
+	if strings.HasSuffix(pkgPath, "_test") {
+		return false
+	}
+	return IsPPackagePath(pkgPath) || IsStdlib(pkgPath)
 }
 
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
@@ -157,6 +186,25 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
+// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
+// package — one whose purpose is to host VM-test fixtures, exploit
+// probes, and other test-only support code. Test-namespace packages
+// are allowed to use the `cross` keyword and may be imported only
+// from other test-namespace packages or from test files
+// (_test.gno / _filetest.gno).
+//
+// The set is currently hand-listed (rather than a single prefix like
+// gno.land/p/testing/) so the migration can be staged: rules can be
+// enforced now without moving the packages. A future cleanup will
+// collapse the list as packages move under a single namespace.
+func IsTestPkgPath(pkgPath string) bool {
+	return pkgPath == "gno.land/p/demo/tests" ||
+		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
+		pkgPath == "gno.land/r/tests/vm" ||
+		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
 }
 
 //----------------------------------------

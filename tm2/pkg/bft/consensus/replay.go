@@ -459,10 +459,7 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 	// When the chain starts at InitialHeight > 1 (e.g. a hardfork upgrade),
 	// heights in [1, InitialHeight-1] are phantom — they never had a block.
 	// Clamp the replay cursor so we don't try to LoadBlock on those heights.
-	startHeight := appBlockHeight + 1
-	if h.genDoc.InitialHeight > startHeight {
-		startHeight = h.genDoc.InitialHeight
-	}
+	startHeight := max(h.genDoc.InitialHeight, appBlockHeight+1)
 	for i := startHeight; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)

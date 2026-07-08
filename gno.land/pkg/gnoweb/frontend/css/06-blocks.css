@@ -705,13 +705,17 @@
 		color: var(--s-color-text-tertiary);
 		font-size: var(--g-font-size-100);
 	}
+}
 
-	.b-inline-btn > span {
-		display: none;
+/* Responsive label-hide for `.b-inline-btn` toolbars: icon-only on
+   small screens, full label at xl+. Used by source page header
+   (Copy/Download) and the state explorer tree toolbar. */
+.b-content-header .b-inline-btn > span,
+.tree-toolbar .b-inline-btn > span {
+	display: none;
 
-		@media (--xl) {
-			display: inline;
-		}
+	@media (--xl) {
+		display: inline;
 	}
 }
 
@@ -721,6 +725,10 @@
 	font-weight: var(--g-font-bold);
 	color: var(--s-color-text-primary);
 	text-align: center;
+	/* Prefer wrapping that avoids leaving the trailing `.b-tag`
+	   ("state" / "package") alone on its own line. `pretty` is
+	   the modern algorithm; falls back to normal where unsupported. */
+	text-wrap: pretty;
 }
 
 .b-content-h2 {
@@ -759,8 +767,52 @@
 	}
 }
 
-.b-btn--secondary:hover {
-	background-color: var(--s-color-bg-surface-primary);
+.b-btn--secondary {
+	background-color: var(--s-color-bg-surface-secondary);
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+}
+
+/* Input-style footprint — same width floor, content distribution and
+   hover border as `.b-input` (action-page select). For btn-like
+   triggers that need to read iso a form control. */
+.b-btn--input {
+	min-width: var(--g-space-48);
+	justify-content: space-between;
+
+	&:hover {
+		border-color: var(--s-color-border-tertiary);
+	}
+}
+
+/* Ghost variant — transparent + link-coloured text/border. Calmer
+   than `b-btn--secondary` so the primary affordance still wins focus
+   on the same surface. For navigation CTAs / escape hatches. */
+.b-btn--ghost {
+	background-color: transparent;
+	border-color: var(--s-color-border-primary);
+	color: var(--s-color-text-link);
+	text-decoration: none;
+	font-weight: var(--g-font-medium);
+	transition:
+		background-color var(--g-transition-fast),
+		border-color var(--g-transition-fast);
+
+	&:hover {
+		background-color: color-mix(
+			in srgb,
+			var(--s-color-text-link) 8%,
+			transparent
+		);
+		border-color: var(--s-color-text-link);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--s-color-text-link);
+		outline-offset: 2px;
+	}
 }
 
 .b-inline-btn {
@@ -769,6 +821,21 @@
 
 	&:hover {
 		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* Muted link variant — tertiary at rest, link+underline on hover.
+   For navigational hints (source links, "back to latest"). Cube CSS
+   variant pattern: standalone modifier, no `.b-link` base needed
+   (anchors get default styling from the cascade). */
+.b-link--muted {
+	color: var(--s-color-text-tertiary);
+	text-decoration: none;
+	transition: color var(--g-transition-fast);
+
+	&:hover {
+		color: var(--s-color-text-link);
+		text-decoration: underline;
 	}
 }
 
@@ -861,17 +928,16 @@
 		background-color: var(--s-color-bg-surface-secondary);
 	}
 
+	/* Padding for `& > select, & > input` lives in the shared
+	   "header form-control" register below — same padding applies
+	   to `.b-state-view-toggle label` so all header chrome reads
+	   as one size class. */
 	& > select,
 	& > input {
 		display: flex;
 		width: 100%;
-		padding: var(--g-space-1-5) var(--g-space-3);
 		outline: none;
 		color: inherit;
-
-		@media (--lg) {
-			padding: var(--g-space-1-5) var(--g-space-2);
-		}
 	}
 
 	& > select {
@@ -891,6 +957,19 @@
 
 	& > label + input {
 		border-left: var(--s-border);
+	}
+}
+
+/* Shared header form-control padding — `.b-input > input/select`,
+   Pretty/Tree toggle pills. One edit moves all header controls in
+   lockstep. */
+.b-input > select,
+.b-input > input,
+.b-state-view-toggle label {
+	padding: var(--g-space-1-5) var(--g-space-3);
+
+	@media (--lg) {
+		padding: var(--g-space-1-5) var(--g-space-2);
 	}
 }
 
@@ -1057,7 +1136,13 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		&:has(.inner):not(:has(nav li)) {
+		/* Hide the sidebar wrapper when its `<nav>` has no content
+		   at all. Source page emits `<nav><ul><li>...` (TOC) — the
+		   `nav > *` check passes. State emits `<nav><dl>...</dl>
+		   <ul>...</ul></nav>` and possibly `<nav><dl>...</dl></nav>`
+		   on object pages without TOC entries — both pass. Only a
+		   genuinely empty `<nav>` triggers the hide. */
+		&:has(.inner):not(:has(nav > *)) {
 			display: none;
 		}
 
@@ -1067,9 +1152,14 @@
 	}
 
 	.inner {
-		max-height: 100vh;
-		overflow: scroll;
-		scrollbar-width: none;
+		/* Wrapper is `sticky; top: --g-space-14`, so a full `100vh`
+		   pushes the tail below the fold with no way to scroll to it.
+		   Subtract the sticky offset + a bottom breathing margin. */
+		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+		overflow-y: auto;
+		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
+		   templates already carry — wheel/touch scrolling stays
+		   reachable, the bar just doesn't render. */
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-surface-primary);
 
@@ -1303,28 +1393,51 @@ main.dev-mode .b-toc a {
 	}
 }
 
-.b-action-function {
+/* Shared card-panel chrome — `.b-action-function` and `.b-state-decl`
+   render the same artefact (header + structured payload). Each block
+   adds its own specifics afterwards (action: `.params`/`.b-alert`;
+   state: outer column flow, audit chips, fields, footer CTA). */
+.b-action-function,
+.b-state-decl {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
 	margin-block-end: var(--g-space-3);
+}
 
+.b-action-function > header,
+.b-state-decl > header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	margin-block-end: var(--g-space-4);
+	font-size: var(--g-font-size-100);
+}
+
+.b-action-function .title,
+.b-state-decl .title {
+	display: flex;
+	gap: var(--g-space-1) var(--g-space-4);
+	align-items: baseline;
+	flex-wrap: wrap;
+}
+
+.b-action-function > header h2,
+.b-state-decl > header h2 {
+	font-size: var(--g-font-size-300);
+	font-weight: var(--g-font-semibold);
+	line-height: var(--g-line-height-tight);
+	color: var(--s-color-text-primary);
+}
+
+.b-action-function {
+	/* Action's `.title` is a small header above h2 (carries .signature). */
 	.title {
-		display: flex;
-		gap: var(--g-space-1) var(--g-space-4);
-		align-items: baseline;
-		flex-wrap: wrap;
 		font-size: var(--g-font-size-50);
 		margin-block-end: var(--g-space-1);
 	}
 
 	& > header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-block-end: var(--g-space-4);
-		font-size: var(--g-font-size-100);
-
 		.signature {
 			& > code {
 				color: var(--s--text-secondary);
@@ -1334,18 +1447,6 @@ main.dev-mode .b-toc a {
 				font-size: var(--g-font-size-50);
 			}
 		}
-
-		h2 {
-			font-size: var(--g-font-size-300);
-			font-weight: var(--g-font-semibold);
-			line-height: var(--g-line-height-tight);
-			color: var(--s-color-text-primary);
-		}
-	}
-
-	.description {
-		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-200);
 	}
 
 	.params {
@@ -1398,6 +1499,23 @@ main.dev-mode .b-toc a {
 			margin-block-start: var(--g-space-4);
 		}
 	}
+}
+
+/* Shared lead-paragraph register for cards. Any card type can opt
+   in via `<p class="description">…</p>`. */
+.b-action-function > .description,
+.b-state-decl > .description,
+.b-state-decl .title > .description {
+	margin: 0 0 var(--g-space-4) 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+	line-height: 1.5;
+}
+
+/* Folded inside `.title` (state-decl shape) — hug the heading group. */
+.b-state-decl .title > .description {
+	margin-block-end: var(--g-space-2);
+	margin-block-start: var(--g-space-2);
 }
 
 .b-code {
@@ -1462,51 +1580,9 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	.packages-tabs {
-		display: flex;
-		grid-column: span 4 / span 4;
-		gap: var(--g-space-4);
-		font-weight: var(--g-font-semibold);
-		color: var(--s-color-text-tertiary);
-		font-size: var(--g-font-size-200);
-		width: auto;
-		border-block-end: var(--s-border);
-		padding-block-end: var(--g-space-2);
-
-		@media (--md) {
-			grid-column: span 2 / span 2;
-			font-size: var(--g-font-size-100);
-			width: 100%;
-			border-block-end: none;
-			padding-block-end: 0;
-		}
-
-		@media (--xl) {
-			gap: var(--g-space-6);
-			width: 100%;
-			margin-inline-start: 0;
-		}
-
-		label {
-			position: relative;
-			display: flex;
-			gap: var(--g-space-1);
-			align-items: center;
-			cursor: pointer;
-
-			&:hover {
-				color: var(--s-color-text-tertiary-hover);
-			}
-
-			.b-tag--secondary {
-				display: none;
-
-				@media (--xl) {
-					display: inline;
-				}
-			}
-		}
-	}
+	/* `.packages-tabs` block lives at top level (below `.b-packages`)
+	   so the same chrome can be reused by other pages (state explorer
+	   sub-header). */
 
 	.packages-filters {
 		grid-column: span 2 / span 2;
@@ -1698,21 +1774,8 @@ main.dev-mode .b-toc a {
 		display: flex;
 	}
 
-	label:has(input:checked) {
-		color: var(--s-color-text-tertiary);
-
-		&::after {
-			content: "";
-			position: absolute;
-			bottom: calc(var(--g-space-1) * -2);
-			left: 0;
-			width: 100%;
-			height: var(--g-space-1);
-			background-color: var(--s-color-bg-brand-default);
-			border-top-left-radius: var(--s-rounded-sm);
-			border-top-right-radius: var(--s-rounded-sm);
-		}
-	}
+	/* Active-label underline now scoped to `.packages-tabs label:has(input:checked)`
+	   at top level (lifted to be reusable). See PACKAGES-TABS COMPONENT block. */
 
 	/* realms not found */
 	&:has(input[value="realms"]:checked) {
@@ -1844,6 +1907,80 @@ main.dev-mode .b-toc a {
 	}
 }
 
+/* Filter-tabs row — lifted out of `.b-packages` to be reusable
+   (state explorer subheader composes it via `class="packages-tabs"`). */
+.packages-tabs {
+	display: flex;
+	grid-column: span 4 / span 4;
+	gap: var(--g-space-4);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-200);
+	width: auto;
+	border-block-end: var(--s-border);
+	padding-block-end: var(--g-space-2);
+
+	@media (--md) {
+		grid-column: span 2 / span 2;
+		font-size: var(--g-font-size-100);
+		width: 100%;
+		border-block-end: none;
+		padding-block-end: 0;
+	}
+
+	@media (--xl) {
+		gap: var(--g-space-6);
+		width: 100%;
+		margin-inline-start: 0;
+	}
+
+	label {
+		position: relative;
+		display: flex;
+		gap: var(--g-space-1);
+		align-items: center;
+		cursor: pointer;
+
+		&:hover {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		/* Radios are `u-sr-only` — surface their focus on the label
+		   so keyboard users can see the active tab. */
+		&:has(input:focus-visible) {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+		}
+
+		:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
+			display: none;
+
+			@media (--xl) {
+				display: inline;
+			}
+		}
+	}
+
+	/* Active-label underline — on `.packages-tabs` directly so it
+	   carries to any page using the class. */
+	label:has(input:checked) {
+		color: var(--s-color-text-tertiary);
+
+		&::after {
+			content: "";
+			position: absolute;
+			bottom: calc(var(--g-space-1) * -2);
+			left: 0;
+			width: 100%;
+			height: var(--g-space-1);
+			background-color: var(--s-color-bg-brand-default);
+			border-top-left-radius: var(--s-rounded-sm);
+			border-top-right-radius: var(--s-rounded-sm);
+		}
+	}
+}
+
 /* ===== ICON COMPONENT ===== */
 .b-icon-action {
 	flex-shrink: 0;
@@ -1915,8 +2052,15 @@ main.dev-mode .b-toc a {
 
 /* ===== TAG COMPONENT ===== */
 .b-tag,
-.b-tag--secondary {
-	display: flex;
+.b-tag--secondary,
+.b-tag--tertiary {
+	/* `inline-flex` keeps the pill on the same baseline as
+	   surrounding text (h1 title etc.) — flex would make it
+	   block-level and force it onto its own line on narrow
+	   viewports. `white-space: nowrap` keeps the single-word
+	   label intact (no mid-word wrap). */
+	display: inline-flex;
+	white-space: nowrap;
 	align-items: center;
 	gap: var(--g-space-2);
 	font-size: var(--g-font-size-50);
@@ -1933,9 +2077,52 @@ main.dev-mode .b-toc a {
 	color: var(--s-color-text-primary);
 }
 
+/* Tertiary variant — bg-surface-secondary (one notch lighter than
+   secondary's surface-primary). Useful inside a sub-header that
+   itself sits on `bg-surface-primary` so the pill stays readable
+   without competing with the wrapper. */
+.b-tag--tertiary {
+	border-color: transparent;
+	background-color: var(--s-color-bg-surface-secondary);
+	color: var(--s-color-text-primary);
+}
+
 /* ===== GNO REALM VIEW COMPONENT ===== */
 .c-realm-view,
 .c-readme-view {
+	/* ===== FOREIGN COMPONENT ===== */
+	.gno-foreign {
+		display: block;
+		position: relative;
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-3) var(--g-space-4);
+		margin-block: var(--g-space-4);
+		background-color: var(--s-color-bg-surface-primary);
+		/* CSS containment so foreign-controlled content can't escape its
+		   layout/paint sandbox onto sibling page content. */
+		contain: layout paint;
+	}
+
+	.gno-foreign__label {
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		color: var(--s-color-text-tertiary);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-block-end: var(--g-space-2);
+	}
+
+	.gno-foreign__body {
+		& > :first-child {
+			margin-block-start: 0;
+		}
+
+		& > :last-child {
+			margin-block-end: 0;
+		}
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
 		display: flex;
@@ -2539,6 +2726,12 @@ main.dev-mode .b-toc a {
 	}
 }
 
+/* State-explorer Block-layer CSS lives co-located with its module under
+   feature/state/frontend/state.css and is pulled into this layer via an
+   @import at the top of main.css. The block originally sat at this
+   position; cascade order is preserved (no rule below this point targets
+   `.b-state-*`, and the rules above remain untouched). */
+
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering
    ========================================================================== */
@@ -2570,4 +2763,121 @@ main.dev-mode .b-toc a {
 		font-size: var(--g-font-size-100);
 		overflow-x: auto;
 	}
+}
+
+/* ===== OMNISEARCH DROPDOWN ===== */
+.b-omnisearch {
+	position: absolute;
+	inset-inline: 0;
+	top: calc(100% - var(--g-space-px));
+	z-index: var(--g-z-max);
+	max-height: 70vh;
+	overflow-y: auto;
+	padding: var(--g-space-1);
+	font-size: var(--g-font-size-100);
+	background-color: var(--s-color-bg-surface-secondary);
+	border: var(--s-border);
+	border-block-start: none;
+	border-radius: 0 0 var(--s-rounded) var(--s-rounded);
+
+	&[hidden] {
+		display: none;
+	}
+
+	.b-omnisearch-section + .b-omnisearch-section {
+		margin-block-start: var(--g-space-1);
+		padding-block-start: var(--g-space-1);
+		border-block-start: var(--s-border);
+	}
+
+	.b-omnisearch-label {
+		display: block;
+		padding: var(--g-space-1) var(--g-space-2);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		text-transform: uppercase;
+		color: var(--s-color-text-tertiary);
+	}
+
+	.b-omnisearch-empty {
+		padding: var(--g-space-2);
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-100);
+	}
+
+	.b-omnisearch-item {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
+		width: 100%;
+		text-align: start;
+		padding: var(--g-space-1-5) var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		color: var(--s-color-text-secondary);
+		cursor: pointer;
+
+		& mark {
+			background-color: transparent;
+			color: var(--s-color-text-primary);
+			font-weight: var(--g-font-semibold);
+		}
+
+		&:hover,
+		&[aria-selected="true"] {
+			background-color: var(--s-color-bg-base);
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	.b-omnisearch-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+	}
+
+	.b-omnisearch-tag {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: var(--g-space-4);
+		height: var(--g-space-4);
+		padding-inline: var(--g-space-1);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-bold);
+		text-transform: uppercase;
+		background-color: var(--s-color-bg-surface-tertiary);
+		color: var(--s-color-text-secondary);
+
+		&[data-type="r"] {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+		}
+
+		&[data-type="u"] {
+			background-color: var(--s-color-bg-surface-quaternary);
+			color: var(--s-color-text-base);
+		}
+
+		&[data-type="p"] {
+			background-color: var(--s-color-bg-info-default);
+			color: var(--s-color-text-base);
+		}
+	}
+}
+
+/* When the omnisearch dropdown is open, square the bar's bottom corners so the
+   bar and the results read as one continuous surface extending downward. */
+.b-main-navigation:has(> .b-omnisearch:not([hidden])) > .inner {
+	border-end-start-radius: 0;
+	border-end-end-radius: 0;
+}
+
+/* Transient highlight wrapped around an in-page match */
+.b-omnisearch-hl {
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+	border-radius: var(--s-rounded-sm);
 }

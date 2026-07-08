@@ -49,37 +49,25 @@ import (
 
 const txAddr = address("${TX_ADDRESS}")
 
-func main() {
+func main(cur realm) {
 	// Register val4's consensus key with TX_ADDRESS as operator so v3's
 	// valoperCache is populated before the proposal.
-	valopers.Register(cross, "val4", "val4 test validator", "cloud", txAddr, "${VAL4_PUBKEY}")
+	valopers.Register(cross(cur), "val4", "val4 test validator", "cloud", txAddr, "${VAL4_PUBKEY}")
 
 	// The scenario genesis leaves allowedDAOs empty, so the local transaction
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
-	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
-	// Disable the 24h cooldown so the remove proposal later in this
-	// scenario isn't blocked. Mainnet keeps cooldown=24h; this scenario
-	// specifically exercises back-to-back add+remove and uses the
-	// governance-configurable cooldown to enable that.
-	disableReq := valr.NewCooldownPropRequest(0, "disable cooldown for e2e scenario 18", "")
-	disablePid := dao.MustCreateProposal(cross, disableReq)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: disablePid})
-	dao.ExecuteProposal(cross, disablePid)
-
-	r := valr.NewValidatorProposalRequest(
+	r := valr.NewValidatorProposalRequest(cross(cur),
 		[]valr.ValoperChange{
-			{
-				OperatorAddress: txAddr,
-				Power:           ${VAL4_POWER},
-			},
+			valr.NewValoperChange(txAddr, ${VAL4_POWER}),
 		},
 		"Add validator val4 with validators v3",
 		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER} through r/sys/validators/v3",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.ExecuteProposal(cross(cur), pid)
 }
 
 func must(err error) {
@@ -118,20 +106,17 @@ import (
 	valr "gno.land/r/sys/validators/v3"
 )
 
-func main() {
-	r := valr.NewValidatorProposalRequest(
+func main(cur realm) {
+	r := valr.NewValidatorProposalRequest(cross(cur), 
 		[]valr.ValoperChange{
-			{
-				OperatorAddress: address("${TX_ADDRESS}"),
-				Power:           0,
-			},
+			valr.NewValoperChange(address("${TX_ADDRESS}"), 0),
 		},
 		"Remove validator val4 with validators v3",
 		"Remove val4 (${VAL4_ADDR}) from the validator set through r/sys/validators/v3",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GNOEOF
 
