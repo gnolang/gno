@@ -8,7 +8,7 @@ import (
 )
 
 // SidebarSection is one top-level category in the docs navigation (a `## …`
-// heading in README.md, e.g. "Use Gno.land", "Build on Gno.land", "Resources").
+// heading in README.md, e.g. "Use Gno.land", "Build on Gno.land", "References").
 type SidebarSection struct {
 	Title string
 	Items []SidebarItem

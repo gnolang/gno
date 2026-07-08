@@ -57,7 +57,7 @@ func TestSidebarFromReadme(t *testing.T) {
 	// The real README.md must yield the three canonical categories. If a
 	// category is renamed in README, update this test (and the gnoweb
 	// component that depends on the labels).
-	want := []string{"Use Gno.land", "Build on Gno.land", "Resources"}
+	want := []string{"Use Gno.land", "Build on Gno.land", "References"}
 	got := Sidebar()
 	if len(got) != len(want) {
 		t.Fatalf("want %d sections, got %d", len(want), len(got))
