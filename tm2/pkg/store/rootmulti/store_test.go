@@ -372,21 +372,17 @@ func TestSnapshotConcurrentCommitAndQuery(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Writer goroutine: commits numCommits blocks.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for i := range numCommits {
 			ms.getStoreByName("store1").Set(nil, key, []byte{byte(i + 1)})
 			ms.Commit()
 		}
-	}()
+	})
 
 	// Reader goroutines: each repeatedly acquires a snapshot at the seed version
 	// and reads from it, then releases. Must never panic or data-race.
 	for range numReaders {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range numCommits {
 				snap, release, err := ms.MultiImmutableCacheWrapWithVersion(seedCID.Version)
 				if err != nil {
@@ -402,7 +398,7 @@ func TestSnapshotConcurrentCommitAndQuery(t *testing.T) {
 					"snapshot at seed version must return seed value, not a later write")
 				release()
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

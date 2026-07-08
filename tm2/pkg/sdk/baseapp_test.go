@@ -781,9 +781,7 @@ func TestSimulateConcurrentWithCommit(t *testing.T) {
 	// Simulator goroutines: fire Simulate repeatedly, all starting at the same
 	// time to maximise overlap with the committer goroutine below.
 	for range numSimulators {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			startMu.Lock() // wait for the starting gun
 			startMu.Unlock()
 			for range numBlocks {
@@ -797,13 +795,11 @@ func TestSimulateConcurrentWithCommit(t *testing.T) {
 				}
 				require.True(t, res.IsOK(), "Simulate must succeed when version loads: %v", res)
 			}
-		}()
+		})
 	}
 
 	// Committer goroutine: advance the chain while simulators are running.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		startMu.Lock()
 		startMu.Unlock()
 		for i := range numBlocks {
@@ -812,7 +808,7 @@ func TestSimulateConcurrentWithCommit(t *testing.T) {
 			app.EndBlock(abci.RequestEndBlock{})
 			app.Commit()
 		}
-	}()
+	})
 
 	startMu.Unlock() // fire
 	wg.Wait()
@@ -989,9 +985,7 @@ func TestSimulateConcurrentNoPanic(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range 4 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer func() {
 				if r := recover(); r != nil {
 					didPanic.Store(true)
@@ -1008,7 +1002,7 @@ func TestSimulateConcurrentNoPanic(t *testing.T) {
 					_ = result
 				}
 			}
-		}()
+		})
 	}
 
 	// Run several block cycles concurrently with the simulate goroutines.
