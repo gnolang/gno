@@ -568,7 +568,7 @@ func TestCheckTx(t *testing.T) {
 	nTxs := int64(5)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	for i := int64(0); i < nTxs; i++ {
+	for i := range nTxs {
 		tx := newTxCounter(i, 0)
 		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)
@@ -1063,6 +1063,88 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 }
 
+func TestOOGLogBeyondGasWanted(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(200)
+	gasWanted := int64(100)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = gasWanted
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasWanted))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(gasWanted+1, "burn beyond tx gas wanted")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "gas used")
+	assert.Contains(t, res.Log, "exceeds tx's gas wanted (100)")
+	assert.Contains(t, res.Log, "simulate with consensus maximum (200) to get real transaction usage")
+}
+
+func TestOOGLogUsesMaxBlockGas(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(50)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = maxGas
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(maxGas+1, "burn beyond consensus maxGas")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "exceeds max block gas (50)")
+	assert.NotContains(t, res.Log, "simulate with consensus maximum")
+}
+
 func TestBaseAppAnteHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1350,4 +1432,75 @@ func TestSetHaltHeight(t *testing.T) {
 
 	app.SetHaltHeight(0)
 	require.Equal(t, uint64(0), app.haltHeight)
+}
+
+// TestInitChain_SetsInitialVersion verifies that BaseApp.InitChain with
+// req.InitialHeight > 1 propagates SetInitialVersion to the multistore so
+// the next Commit lands at version=InitialHeight (multistore version =
+// chain height; no offset).
+func TestInitChain_SetsInitialVersion(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(100)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
+
+	// First block at InitialHeight.
+	app.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+	})
+	app.EndBlock(abci.RequestEndBlock{Height: initialHeight})
+	app.deliverState.ctx = app.deliverState.ctx.WithBlockHeader(&bft.Header{
+		ChainID: "test-chain",
+		Height:  initialHeight,
+	})
+	app.Commit()
+
+	assert.Equal(t, initialHeight, app.LastBlockHeight(),
+		"LastBlockHeight should equal InitialHeight after first Commit")
+}
+
+// TestBeginBlock_NoStatelessContiguityGuard documents that BaseApp no
+// longer rejects non-contiguous BeginBlock heights at the stateless
+// SDK layer (validateHeight was removed in the version-parity refactor).
+// Contiguity is now an upstream invariant enforced by the consensus
+// engine via state.ValidateBlock and the BlockStore.
+//
+// This test pins the resulting BaseApp behavior: a caller that reaches
+// BeginBlock with a non-contiguous header is accepted at the SDK layer.
+// If that ever needs to change (e.g., as belt-and-suspenders against
+// a non-cometbft consensus engine, or fuzzers driving BaseApp directly),
+// this test is the canary that flips first.
+func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(1000)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
+
+	// First block at InitialHeight is the documented happy path.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+		})
+	})
+	app.EndBlock(abci.RequestEndBlock{Height: initialHeight})
+	app.deliverState.ctx = app.deliverState.ctx.WithBlockHeader(&bft.Header{
+		ChainID: "test-chain",
+		Height:  initialHeight,
+	})
+	app.Commit()
+
+	// A non-contiguous next BeginBlock (skipping +10 instead of +1) is
+	// NOT rejected by BaseApp. Documented behavior post-validateHeight
+	// removal: consensus is the source of contiguity. If a future
+	// refactor reintroduces a stateless guard at the SDK layer, this
+	// expectation flips and the test breaks loudly — that's the point.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 10},
+		})
+	})
 }

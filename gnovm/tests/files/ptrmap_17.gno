@@ -15,7 +15,7 @@ func init() {
 	m[&arr[index]] = "first key"
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	println(m[&arr[index]])
 }
 

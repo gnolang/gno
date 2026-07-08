@@ -27,6 +27,7 @@ type (
 	GasContext             = types.GasContext
 	DepthEstimator         = types.DepthEstimator
 	Checkpointable         = types.Checkpointable
+	InitialVersionSetter   = types.InitialVersionSetter
 )
 
 var (
@@ -36,6 +37,7 @@ var (
 	NewGasMeter            = types.NewGasMeter
 	NewInfiniteGasMeter    = types.NewInfiniteGasMeter
 	NewPassthroughGasMeter = types.NewPassthroughGasMeter
+	OutOfGasLog            = types.OutOfGasLog
 	DefaultGasConfig       = types.DefaultGasConfig
 	PrefixIterator         = types.PrefixIterator
 	ReversePrefixIterator  = types.ReversePrefixIterator
