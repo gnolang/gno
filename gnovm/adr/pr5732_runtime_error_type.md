@@ -11,16 +11,19 @@ code ported from Go broke (#5667).
 ## Decision
 
 Add a hidden uverse type `.runtimeError` — a sealed `DeclaredType` over
-`struct { msg string }` with a native `Error() string` method — and switch
-every VM runtime-panic site from `typedString` to `typedRuntimeError`, which
-wraps the message in a `.runtimeError` value.
+`StringType` with a native `Error() string` method, the same shape as Go's
+`runtime.plainError` — and switch every VM runtime-panic site from
+`typedString` to `typedRuntimeError`, which wraps the message in a
+`.runtimeError` value.
 
 - The leading dot makes the type unnameable from user code (same convention as
   `.grealm`), so there is no identifier collision; user code reaches it only
   through the `error` interface.
 - It follows the exact pattern of the existing `address` uverse type: sealed
-  literal + `defNativeMethod` in `makeUverseNode`. `InitStoreCaches` caches all
-  uverse `DeclaredType`s, so persisted values resolve by TypeID on reload.
+  string-based literal + `defNativeMethod` in `makeUverseNode`. `InitStoreCaches`
+  caches all uverse `DeclaredType`s, so persisted values resolve by TypeID on
+  reload; the `StringValue` payload persists inline, engaging no object-store
+  machinery.
 - Nil value-receiver method calls (`VPDerefValMethod`) now panic with Go's
   wrapper message `value method PKG.T.M called using nil *T pointer` when the
   pointee is a declared type. Go only emits this text on the non-inlined
@@ -38,6 +41,11 @@ wraps the message in a `.runtimeError` value.
   contract (`recover().(error)`) is what user code actually relies on.
 - **Making `typedString` values implement `error`** — would change the type of
   every user `panic("...")` too, a much larger behavior change.
+- **A `struct { msg string }` base** (the shape Go uses for its richer
+  `boundsError`) — works identically at the language surface, but the
+  `StructValue` is a heap Object (ObjectInfo, GC visit, object-store
+  persistence) and the structured fields would be unobservable anyway since
+  the type is unnameable; the string base is strictly leaner.
 
 ## Consequences
 

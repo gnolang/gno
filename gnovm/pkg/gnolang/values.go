@@ -2849,7 +2849,7 @@ func typedString(s string) TypedValue {
 func typedRuntimeError(msg string) TypedValue {
 	return TypedValue{
 		T: gRuntimeErrorType,
-		V: &StructValue{Fields: []TypedValue{typedString(msg)}},
+		V: StringValue(msg),
 	}
 }
 

@@ -30,17 +30,13 @@ const (
 
 // gRuntimeErrorType is the VM-internal type used for runtime panics (nil
 // pointer dereference, nil interface method call, etc.). It implements the
-// Gno error interface so that recover().(error) works as in Go.
+// Gno error interface so that recover().(error) works as in Go, whose
+// runtime uses the same shape (`type plainError string` in runtime/error.go).
 var gRuntimeErrorType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    ".runtimeError",
-	Base: &StructType{
-		PkgPath: uversePkgPath,
-		Fields: []FieldType{
-			{Name: "msg", Type: StringType},
-		},
-	},
-	sealed: true,
+	Base:    StringType,
+	sealed:  true,
 	// Error() method defined in makeUverseNode()
 }
 
@@ -577,8 +573,7 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			sv := arg0.TV.V.(*StructValue)
-			m.PushValue(typedString(sv.Fields[0].GetString()))
+			m.PushValue(typedString(arg0.TV.GetString()))
 		},
 	)
 
