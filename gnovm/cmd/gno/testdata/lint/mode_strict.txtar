@@ -1,0 +1,19 @@
+# Test --mode=strict: warnings become errors
+
+! gno lint --mode=strict .
+
+stderr 'error'
+stderr 'GLOBAL001'
+
+-- main.gno --
+package main
+
+var Counter int
+
+func Render(path string) string {
+	return ""
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test/modestrict"
+gno = "0.9"
