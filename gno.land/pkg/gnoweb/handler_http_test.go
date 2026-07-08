@@ -359,7 +359,6 @@ func TestHTTPHandler_GetSourceDownload(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
 			t.Parallel()
 			t.Logf("input: %+v", tc)
@@ -517,7 +516,6 @@ func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -707,7 +705,6 @@ func TestHTTPHandler_GetClientErrorStatusView(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -830,7 +827,6 @@ func TestHTTPHandler_CreateUsernameFromBech32(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

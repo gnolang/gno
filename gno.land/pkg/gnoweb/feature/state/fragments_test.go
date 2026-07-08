@@ -143,7 +143,7 @@ func serveFragReq(t *testing.T, h *Handler, q url.Values) *httptest.ResponseReco
 // fragStructBody returns a minimal valid qobject_json struct payload with
 // two int32 fields named for the test assertions.
 func fragStructBody(oid string) []byte {
-	return []byte(fmt.Sprintf(`{
+	return fmt.Appendf(nil, `{
 		"objectid": %q,
 		"value": {
 			"@type": "/gno.StructValue",
@@ -152,7 +152,7 @@ func fragStructBody(oid string) []byte {
 				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AgAAAAAAAAA="}
 			]
 		}
-	}`, oid))
+	}`, oid)
 }
 
 const fragOID = "abcdef0123456789abcdef0123456789abcdef01:1"
@@ -219,7 +219,7 @@ func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
 	// the tree stays recursively drillable, one level (one StateObject RPC)
 	// per click. view=tree because the lazy <details> is tree-view markup.
 	const innerOID = "ffffffffffffffffffffffffffffffffffffffff:9"
-	parent := []byte(fmt.Sprintf(`{
+	parent := fmt.Appendf(nil, `{
 		"objectid": %q,
 		"value": {
 			"@type": "/gno.StructValue",
@@ -228,7 +228,7 @@ func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
 				 "V": {"@type": "/gno.RefValue", "ObjectID": %q}}
 			]
 		}
-	}`, fragOID, innerOID))
+	}`, fragOID, innerOID)
 	client := &fragMockClient{objBodies: map[string][]byte{
 		fragOID:  parent,
 		innerOID: fragStructBody(innerOID), // resolvable — an eager fetch WOULD succeed
@@ -254,7 +254,7 @@ func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
 // fragMapBody returns a qobject_json MapValue payload with two string→int
 // entries — the pretty-view fragment must render these as a fields table.
 func fragMapBody(oid string) []byte {
-	return []byte(fmt.Sprintf(`{
+	return fmt.Appendf(nil, `{
 		"objectid": %q,
 		"value": {
 			"@type": "/gno.MapValue",
@@ -266,7 +266,7 @@ func fragMapBody(oid string) []byte {
 				 "Value": {"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AgAAAAAAAAA="}}
 			]}
 		}
-	}`, oid, oid))
+	}`, oid, oid)
 }
 
 // Regression: a frag=node request for a pretty-view card (no view=tree) must
@@ -360,7 +360,7 @@ func fragFuncBody(oid string) []byte {
 }
 
 func fragFuncBodyWithFile(oid, file string) []byte {
-	return []byte(fmt.Sprintf(`{
+	return fmt.Appendf(nil, `{
 		"objectid": %q,
 		"value": {
 			"@type": "/gno.FuncValue",
@@ -369,13 +369,13 @@ func fragFuncBodyWithFile(oid, file string) []byte {
 			"Source": {"@type": "/gno.RefNode",
 				"Location": {"PkgPath": "gno.land/r/demo", "File": %q,
 					"Span": {"Pos": {"Line": "2", "Column": "1"}, "End": {"Line": "4", "Column": "1"}, "Num": "0"}}}}
-	}`, oid, file))
+	}`, oid, file)
 }
 
 // fragClosureBody returns a qobject_json payload whose value is a FuncValue
 // with one captured primitive — funcKind() classifies it as closure.
 func fragClosureBody(oid string) []byte {
-	return []byte(fmt.Sprintf(`{
+	return fmt.Appendf(nil, `{
 		"objectid": %q,
 		"value": {
 			"@type": "/gno.FuncValue",
@@ -387,7 +387,7 @@ func fragClosureBody(oid string) []byte {
 			"Source": {"@type": "/gno.RefNode",
 				"Location": {"PkgPath": "gno.land/r/demo", "File": "f.gno",
 					"Span": {"Pos": {"Line": "2", "Column": "1"}, "End": {"Line": "4", "Column": "1"}, "Num": "0"}}}}
-	}`, oid))
+	}`, oid)
 }
 
 // Regression: expanding a func/closure via frag=node must show the actual
@@ -540,7 +540,7 @@ func TestFragNodeDepthCap(t *testing.T) {
 	// applies via DefaultFragmentRenderConfig.
 	cur := StateNode{Children: root.Children}
 	hitSentinel := false
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		if cur.Kind == KindTruncated && cur.Type == "(too deep)" {
 			hitSentinel = true
 			break

@@ -51,12 +51,12 @@ func (m *MockClient) Realm(ctx context.Context, path, args string) ([]byte, erro
 	}
 	// Simulate output: [domain]/path:args
 	header := fmt.Sprintf("# [%s]/%s:%s\n\n", pkg.Domain, strings.Trim(path, "/"), args)
-	var body string
+	var body strings.Builder
 	for name, content := range pkg.Files {
-		body += fmt.Sprintf("# %s\n```\n%s\n```\n\n", name, content)
+		body.WriteString(fmt.Sprintf("# %s\n```\n%s\n```\n\n", name, content))
 	}
 
-	return []byte(header + body), nil
+	return []byte(header + body.String()), nil
 }
 
 // File fetches the source file from a given package path and filename, returning its content and metadata.

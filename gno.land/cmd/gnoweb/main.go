@@ -281,7 +281,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
 
 	// Setup server
 	server := &http.Server{
@@ -338,20 +338,22 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
 	// Build img-src CSP directive
-	imgSrc := "'self' data:"
+	var imgSrc strings.Builder
+	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
-		imgSrc += " " + host
+		imgSrc.WriteString(" " + host)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
-		imgSrc,
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
+		imgSrc.String(),
+		remote,
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
