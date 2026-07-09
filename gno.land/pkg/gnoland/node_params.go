@@ -204,12 +204,12 @@ func parseGnolandVersion(v string) (major, minor int, ok bool) {
 		return 0, 0, false
 	}
 	rest := v[len(prefix):]
-	dot := strings.IndexByte(rest, '.')
-	if dot < 0 {
+	before, after, ok0 := strings.Cut(rest, ".")
+	if !ok0 {
 		return 0, 0, false
 	}
-	maj, err1 := strconv.Atoi(rest[:dot])
-	mnr, err2 := strconv.Atoi(rest[dot+1:])
+	maj, err1 := strconv.Atoi(before)
+	mnr, err2 := strconv.Atoi(after)
 	if err1 != nil || err2 != nil {
 		return 0, 0, false
 	}

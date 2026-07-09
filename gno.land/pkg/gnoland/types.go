@@ -126,7 +126,9 @@ func (ga *GnoAccount) GetBaseAccount() *std.BaseAccount {
 }
 
 // GnoSessionAccount extends BaseSessionAccount with gno.land-specific
-// session fields (AllowPaths for realm path restriction).
+// session fields. AllowPaths is the per-session msg-type/path allow-list
+// using the typed grammar "*" or "<route>/<type>[:<path>]" (see
+// allow_paths.go). Required at create-time; empty is rejected.
 type GnoSessionAccount struct {
 	std.BaseSessionAccount
 	AllowPaths []string `json:"allow_paths,omitempty" yaml:"allow_paths,omitempty"`
@@ -138,6 +140,14 @@ func (gsa *GnoSessionAccount) SetAllowPaths(paths []string) {
 
 func (gsa *GnoSessionAccount) GetAllowPaths() []string {
 	return gsa.AllowPaths
+}
+
+// ValidateAllowPaths checks that every entry conforms to the typed grammar.
+// Implements the auth handler's local allowPathsValidator interface, called
+// from handleMsgCreateSession before SetAllowPaths.
+func (gsa *GnoSessionAccount) ValidateAllowPaths(paths []string) error {
+	_, err := parseAllowPaths(paths)
+	return err
 }
 
 func ProtoGnoSessionAccount() std.Account {

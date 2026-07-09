@@ -17,14 +17,14 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # register the tokens and fund the treasury address
-gnokey maketx run -gas-fee 2000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
 
 # verify no balances are found even though the treasury address got tokens
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
 stdout 'No balances found.'
 
 # add the tokens update proposal
-gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 41_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 45_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the tokens update proposal was created
@@ -35,11 +35,11 @@ stdout '- gno.land/r/demo/defi/grc20factory.TOKEN2'
 stdout '- gno.land/r/demo/defi/grc20factory.TOKEN3'
 
 # vote on the tokens update proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # call tokens update proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 26_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # verify the balances associated with the tokens update proposal
@@ -58,13 +58,13 @@ import (
 	factory "gno.land/r/demo/defi/grc20factory"
 )
 
-func main() {
-	factory.New(cross, "Token1", "TOKEN1", 3, 0, 0)
-	factory.New(cross, "Token2", "TOKEN2", 3, 0, 0)
-	factory.New(cross, "Token3", "TOKEN3", 3, 0, 0)
+func main(cur realm) {
+	factory.New(cross(cur), "Token1", "TOKEN1", 3, 0, 0)
+	factory.New(cross(cur), "Token2", "TOKEN2", 3, 0, 0)
+	factory.New(cross(cur), "Token3", "TOKEN3", 3, 0, 0)
 
 	factory.Mint(
-		cross,
+		cross(cur),
 		"TOKEN1",
 		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
 		42,
@@ -78,19 +78,20 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	tureq := impl.NewTreasuryGRC20TokensUpdate(
+		cross(cur),
 		[]string{
 			"gno.land/r/demo/defi/grc20factory.TOKEN1",
 			"gno.land/r/demo/defi/grc20factory.TOKEN2",
 			"gno.land/r/demo/defi/grc20factory.TOKEN3",
 		},
 	)
-	dao.MustCreateProposal(cross, tureq)
+	dao.MustCreateProposal(cross(cur), tureq)
 }
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
@@ -98,19 +99,16 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(
+	memberstore.Get(0, cur).SetMember(
 		memberstore.T1,
 		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
-		&memberstore.Member{InvitationPoints: 3},
+		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

@@ -1,9 +1,6 @@
 package boards2
 
 import (
-	"chain/runtime"
-	"strings"
-
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
@@ -11,10 +8,15 @@ import (
 	"gno.land/p/nt/bptree/v0"
 )
 
+const (
+	realmPkgPath = "gno.land/r/gnoland/boards2/v1"
+	gRealmPath   = "/r/gnoland/boards2/v1"
+)
+
 var (
 	// RealmLink contains Boards2 realm link.
 	// It can be used to generate board TX links from other realms.
-	RealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
+	RealmLink = txlink.Realm(realmPkgPath)
 
 	// RequiredAccountAmount contains the required account amount for open board interactions.
 	// The amount requirement is not applied to members that were invited to an open board.
@@ -42,7 +44,6 @@ var (
 var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
-	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
 )
 

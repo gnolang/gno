@@ -23,7 +23,7 @@ gnoland start
 # tx1: granter installs outer recover-defer FIRST, then defer al.Close()
 # (so Close runs first on unwind, then outer recover catches if needed).
 # Callee persists the pointer. Outcome under test.
-gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4900000 -chainid=tendermint_test user1
 
 # tx2: inspect the persisted state. With the fix, Close ran cleanly
 # (no panic) and the persisted struct is closed.
@@ -82,7 +82,7 @@ package outerrecovergranter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -105,11 +105,11 @@ func GrantWithOuterRecover(cur realm) {
 		}
 	}()
 
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	outerrecovercallee.Store(cross, al)
+	outerrecovercallee.Store(cross(cur), al)
 }

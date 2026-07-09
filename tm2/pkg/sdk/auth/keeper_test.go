@@ -223,7 +223,7 @@ func TestNewAccountWithUncheckedNumber_DoesNotLowerCounter(t *testing.T) {
 
 	// Create some accounts to advance the counter
 	for i := range 5 {
-		addr := crypto.AddressFromPreimage([]byte(fmt.Sprintf("addr-%d", i)))
+		addr := crypto.AddressFromPreimage(fmt.Appendf(nil, "addr-%d", i))
 		acc := env.acck.NewAccountWithAddress(env.ctx, addr)
 		env.acck.SetAccount(env.ctx, acc)
 	}
@@ -299,8 +299,8 @@ func TestIterateAccountsChargesGas(t *testing.T) {
 
 	// Populate a handful of accounts.
 	const n = 5
-	for i := 0; i < n; i++ {
-		addr := crypto.AddressFromPreimage([]byte(fmt.Sprintf("addr-%d", i)))
+	for i := range n {
+		addr := crypto.AddressFromPreimage(fmt.Appendf(nil, "addr-%d", i))
 		acc := env.acck.NewAccountWithAddress(env.ctx, addr)
 		env.acck.SetAccount(env.ctx, acc)
 	}

@@ -19,11 +19,11 @@ var (
 	whitelistedCallerAddr = chain.PackageAddress(initControllerPath)
 )
 
-func TestRegister(t *testing.T) {
+func TestRegister(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_registration", func(t *testing.T) {
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -36,45 +36,45 @@ func TestRegister(t *testing.T) {
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 
-		uassert.ErrorContains(t, RegisterUser(cross, "", aliceAddr), ErrEmptyUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, alice, ""), ErrInvalidAddress.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, alice, "invalidaddress"), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "", aliceAddr), ErrEmptyUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), alice, ""), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), alice, "invalidaddress"), ErrInvalidAddress.Error())
 
-		uassert.ErrorContains(t, RegisterUser(cross, "username with a space", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "username with a space", aliceAddr), ErrInvalidUsername.Error())
 		uassert.ErrorContains(t,
-			RegisterUser(cross, "verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
+			RegisterUser(cross(cur), "verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
 			ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "namewith^&()", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "namewith^&()", aliceAddr), ErrInvalidUsername.Error())
 
 		// Lowercase-only enforcement (closes case-confusable squatting via
 		// Alice/alice/ALICE registering as distinct names — see TO_REVIEW
 		// adversarial review). reName mirrors gno's mempackage Re_name shape.
-		uassert.ErrorContains(t, RegisterUser(cross, "Alice", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "ALICE", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "aLice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "Alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "ALICE", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "aLice", aliceAddr), ErrInvalidUsername.Error())
 
 		// Must start with a lowercase letter. Names starting with a digit,
 		// underscore, or hyphen are rejected.
-		uassert.ErrorContains(t, RegisterUser(cross, "1alice", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "9", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "_alice", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "-alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "1alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "9", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "_alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "-alice", aliceAddr), ErrInvalidUsername.Error())
 
 		// Cannot end with a separator either (the new mempackage-aligned
 		// regex requires the final char to be in [a-z0-9]).
-		uassert.ErrorContains(t, RegisterUser(cross, "alice_", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "alice-", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice_", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice-", aliceAddr), ErrInvalidUsername.Error())
 
 		// Cannot have consecutive separators in the middle either.
 		// Each separator MUST be followed by at least one alphanumeric.
-		uassert.ErrorContains(t, RegisterUser(cross, "alice--bob", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "alice__bob", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "alice-_bob", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "alice_-bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice--bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice__bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice-_bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "alice_-bob", aliceAddr), ErrInvalidUsername.Error())
 
 		// Length cap of exactly 64 — boundary cases.
 		exactly65 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 65 chars
-		uassert.ErrorContains(t, RegisterUser(cross, exactly65, aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), exactly65, aliceAddr), ErrInvalidUsername.Error())
 	})
 
 	t.Run("valid_edge_cases", func(t *testing.T) {
@@ -83,24 +83,24 @@ func TestRegister(t *testing.T) {
 		// in [a-z0-9]. The hyphen support is what enables the namereg/v1
 		// `nym-...` prefix shape.
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross,
+		urequire.NoError(t, RegisterUser(cross(cur),
 			"nym-alice123",
 			testutils.TestAddress("u_nym_alice")))
 
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross,
+		urequire.NoError(t, RegisterUser(cross(cur),
 			"a_b_c",
 			testutils.TestAddress("u_underscore")))
 
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross,
+		urequire.NoError(t, RegisterUser(cross(cur),
 			"a",
 			testutils.TestAddress("u_singlechar")))
 
 		cleanStore(t)
 		// 64 chars exactly (length cap is inclusive).
 		exactly64 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-		urequire.NoError(t, RegisterUser(cross,
+		urequire.NoError(t, RegisterUser(cross(cur),
 			exactly64,
 			testutils.TestAddress("u_64")))
 	})
@@ -108,54 +108,54 @@ func TestRegister(t *testing.T) {
 	t.Run("addr_already_registered", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		// Try registering again
-		uassert.ErrorContains(t, RegisterUser(cross, "othername", aliceAddr), ErrAlreadyHasName.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "othername", aliceAddr), ErrAlreadyHasName.Error())
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		// Try registering alice's name with bob's address
-		uassert.ErrorContains(t, RegisterUser(cross, alice, bobAddr), ErrNameTaken.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), alice, bobAddr), ErrNameTaken.Error())
 	})
 
 	t.Run("user_deleted", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		urequire.NoError(t, data.Delete())
+		urequire.NoError(t, data.Delete(0, cur))
 
 		// Try re-registering after deletion
-		uassert.ErrorContains(t, RegisterUser(cross, "newname", aliceAddr), ErrDeletedUser.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "newname", aliceAddr), ErrDeletedUser.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
 		cleanStore(t)
 
 		// Address as username
-		uassert.ErrorContains(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
 		// Beginning of address as username
-		uassert.ErrorContains(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
-		uassert.NoError(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
+		uassert.ErrorContains(t, RegisterUser(cross(cur), "g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, RegisterUser(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
 }
 
-func TestUpdateName(t *testing.T) {
+func TestUpdateName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.NoError(t, data.UpdateName("alice1"))
+			uassert.NoError(t, data.UpdateName(0, cur, "alice1"))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -163,12 +163,12 @@ func TestUpdateName(t *testing.T) {
 	t.Run("valid_double_alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.NoError(t, data.UpdateName("alice2"))
-			uassert.NoError(t, data.UpdateName("alice3"))
+			uassert.NoError(t, data.UpdateName(0, cur, "alice2"))
+			uassert.NoError(t, data.UpdateName(0, cur, "alice3"))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 		uassert.Equal(t, ResolveAddress(aliceAddr).username, "alice3")
@@ -177,32 +177,32 @@ func TestUpdateName(t *testing.T) {
 	t.Run("name_taken", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		data := ResolveAddress(aliceAddr)
-		uassert.Error(t, data.UpdateName(alice), ErrNameTaken.Error())
+		uassert.Error(t, data.UpdateName(0, cur, alice), ErrNameTaken.Error())
 	})
 
 	t.Run("alias_before_name", func(t *testing.T) {
 		cleanStore(t)
 		data := ResolveAddress(aliceAddr) // not registered
 
-		uassert.ErrorContains(t, data.UpdateName(alice), ErrUserNotExistOrDeleted.Error())
+		uassert.ErrorContains(t, data.UpdateName(0, cur, alice), ErrUserNotExistOrDeleted.Error())
 	})
 
 	t.Run("alias_after_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
-			urequire.NoError(t, data.Delete())
+			urequire.NoError(t, data.Delete(0, cur))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 
 		data = ResolveAddress(aliceAddr)
 		{
-			uassert.ErrorContains(t, data.UpdateName("newalice"), ErrUserNotExistOrDeleted.Error())
+			uassert.ErrorContains(t, data.UpdateName(0, cur, "newalice"), ErrUserNotExistOrDeleted.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -215,7 +215,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("alias_with_cached_pointer_after_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		// Cache the pointer BEFORE deletion (simulating a controller that
 		// resolved earlier and held the reference).
 		cached := ResolveAddress(aliceAddr)
@@ -224,7 +224,7 @@ func TestUpdateName(t *testing.T) {
 		// Delete via a fresh resolve.
 		data := ResolveAddress(aliceAddr)
 		{
-			urequire.NoError(t, data.Delete())
+			urequire.NoError(t, data.Delete(0, cur))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 
@@ -238,7 +238,7 @@ func TestUpdateName(t *testing.T) {
 		// AND unregisterable.
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.ErrorContains(t, cached.UpdateName("squattedname"), ErrUserNotExistOrDeleted.Error())
+			uassert.ErrorContains(t, cached.UpdateName(0, cur, "squattedname"), ErrUserNotExistOrDeleted.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 
@@ -249,16 +249,16 @@ func TestUpdateName(t *testing.T) {
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.ErrorContains(t, data.UpdateName(""), ErrEmptyUsername.Error())
-			uassert.ErrorContains(t, data.UpdateName("username with a space"), ErrInvalidUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName(0, cur, ""), ErrEmptyUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName(0, cur, "username with a space"), ErrInvalidUsername.Error())
 			uassert.ErrorContains(t,
-				data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1"),
+				data.UpdateName(0, cur, "verylongusernameverylongusernameverylongusernameverylongusername1"),
 				ErrInvalidUsername.Error())
-			uassert.ErrorContains(t, data.UpdateName("namewith^&()"), ErrInvalidUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName(0, cur, "namewith^&()"), ErrInvalidUsername.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -266,46 +266,46 @@ func TestUpdateName(t *testing.T) {
 	t.Run("address_lookalike", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
 		{
 			// Address as username
-			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), ErrNameLikeAddress.Error())
+			uassert.ErrorContains(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), ErrNameLikeAddress.Error())
 			// Beginning of address as username
-			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
-			uassert.NoError(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
+			uassert.ErrorContains(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
+			uassert.NoError(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
 }
 
-func TestDelete(t *testing.T) {
+func TestDelete(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("non_existent_user", func(t *testing.T) {
 		cleanStore(t)
 
 		data := ResolveAddress(testutils.TestAddress("unregistered"))
-		uassert.ErrorContains(t, data.Delete(), ErrUserNotExistOrDeleted.Error())
+		uassert.ErrorContains(t, data.Delete(0, cur), ErrUserNotExistOrDeleted.Error())
 	})
 
 	t.Run("double_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		urequire.NoError(t, data.Delete())
+		urequire.NoError(t, data.Delete(0, cur))
 		data = ResolveAddress(aliceAddr)
-		uassert.ErrorContains(t, data.Delete(), ErrUserNotExistOrDeleted.Error())
+		uassert.ErrorContains(t, data.Delete(0, cur), ErrUserNotExistOrDeleted.Error())
 	})
 
 	t.Run("valid_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		uassert.NoError(t, data.Delete())
+		uassert.NoError(t, data.Delete(0, cur))
 
 		resolved1, _ := ResolveName(alice)
 		uassert.Equal(t, nil, resolved1)
@@ -313,13 +313,13 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestRegisterNotWhitelisted(t *testing.T) {
+func TestRegisterNotWhitelisted(cur realm, t *testing.T) {
 	t.Run("register_not_whitelisted", func(t *testing.T) {
-		uassert.ErrorContains(t, RegisterUser(cross, alice, aliceAddr), "does not exist in whitelist")
+		uassert.ErrorContains(t, RegisterUser(cross(cur), alice, aliceAddr), "does not exist in whitelist")
 	})
 }
 
-func TestCanonicalize(t *testing.T) {
+func TestCanonicalize(cur realm, t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
@@ -357,7 +357,7 @@ func TestCanonicalize(t *testing.T) {
 	}
 }
 
-func TestCanonicalize_NonASCIIPassthrough(t *testing.T) {
+func TestCanonicalize_NonASCIIPassthrough(cur realm, t *testing.T) {
 	// ASCII-only contract: the function passes non-ASCII bytes through
 	// unchanged. Locks the documented contract — registration paths
 	// reject non-ASCII upstream via validateName, so this code path is
@@ -366,16 +366,16 @@ func TestCanonicalize_NonASCIIPassthrough(t *testing.T) {
 	uassert.Equal(t, "naïve", Canonicalize("naïve"))
 }
 
-func TestRegisterUser_CanonicalCollision(t *testing.T) {
+func TestRegisterUser_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("non_bypass_blocks", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 		// Different exact name, same canonical form → ErrCanonicalCollision.
 		uassert.ErrorContains(t,
-			RegisterUser(cross, "vital1k", bobAddr),
+			RegisterUser(cross(cur), "vital1k", bobAddr),
 			ErrCanonicalCollision.Error(),
 		)
 	})
@@ -383,9 +383,9 @@ func TestRegisterUser_CanonicalCollision(t *testing.T) {
 	t.Run("non_bypass_blocks_with_separator_strip", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "xyz-com", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "xyz-com", aliceAddr))
 		uassert.ErrorContains(t,
-			RegisterUser(cross, "xyz_com", bobAddr),
+			RegisterUser(cross(cur), "xyz_com", bobAddr),
 			ErrCanonicalCollision.Error(),
 		)
 	})
@@ -394,33 +394,33 @@ func TestRegisterUser_CanonicalCollision(t *testing.T) {
 		cleanStore(t)
 
 		// Same alpha stem, different digits-after-canonicalization → no collision.
-		urequire.NoError(t, RegisterUser(cross, "nym-foolbar000", aliceAddr))
-		urequire.NoError(t, RegisterUser(cross, "nym-foolbar999",
+		urequire.NoError(t, RegisterUser(cross(cur), "nym-foolbar000", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "nym-foolbar999",
 			testutils.TestAddress("foolbar999")))
 	})
 
 	t.Run("exact_name_taken_takes_precedence", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 		// Same exact name → ErrNameTaken (NOT ErrCanonicalCollision).
 		// The nameStore.Has check precedes the canonical check.
 		uassert.ErrorContains(t,
-			RegisterUser(cross, "vitalik", bobAddr),
+			RegisterUser(cross(cur), "vitalik", bobAddr),
 			ErrNameTaken.Error(),
 		)
 	})
 }
 
-func TestRegisterUserIgnoreCanonical(t *testing.T) {
+func TestRegisterUserIgnoreCanonical(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("bypass_succeeds_on_canonical_collision", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 		// Bypass succeeds even though canonical collides.
-		urequire.NoError(t, RegisterUserIgnoreCanonical(cross, "vital1k", bobAddr))
+		urequire.NoError(t, RegisterUserIgnoreCanonical(cross(cur), "vital1k", bobAddr))
 
 		// Both names resolve.
 		res, _ := ResolveName("vitalik")
@@ -433,13 +433,13 @@ func TestRegisterUserIgnoreCanonical(t *testing.T) {
 		cleanStore(t)
 
 		// First registration writes canonical entry.
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 		existing, taken := IsCanonicalTaken("vital1k")
 		urequire.True(t, taken)
 		uassert.Equal(t, "vitalik", existing)
 
 		// Bypass write overwrites the canonical entry (decision #14).
-		urequire.NoError(t, RegisterUserIgnoreCanonical(cross, "vital1k", bobAddr))
+		urequire.NoError(t, RegisterUserIgnoreCanonical(cross(cur), "vital1k", bobAddr))
 		existing, taken = IsCanonicalTaken("vitalik")
 		urequire.True(t, taken)
 		uassert.Equal(t, "vital1k", existing)
@@ -448,23 +448,23 @@ func TestRegisterUserIgnoreCanonical(t *testing.T) {
 	t.Run("bypass_still_blocks_exact_taken", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 		// Same exact name still blocked, even via the bypass path.
 		uassert.ErrorContains(t,
-			RegisterUserIgnoreCanonical(cross, "vitalik", bobAddr),
+			RegisterUserIgnoreCanonical(cross(cur), "vitalik", bobAddr),
 			ErrNameTaken.Error(),
 		)
 	})
 }
 
-func TestUpdateName_CanonicalCollision(t *testing.T) {
+func TestUpdateName_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("self_collision_blocks_per_decision_15", func(t *testing.T) {
 		cleanStore(t)
 
 		// Alice registers vital1k. Canonical store maps "vitaiik" → "vital1k".
-		urequire.NoError(t, RegisterUser(cross, "vital1k", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vital1k", aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
 		// Alice attempts to rename to a confusable variant of HER OWN name.
@@ -472,7 +472,7 @@ func TestUpdateName_CanonicalCollision(t *testing.T) {
 		// non-bypass path.
 		testing.SetOriginCaller(whitelistedCallerAddr)
 		uassert.ErrorContains(t,
-			data.UpdateName("vitalik"),
+			data.UpdateName(0, cur, "vitalik"),
 			ErrCanonicalCollision.Error(),
 		)
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
@@ -481,13 +481,13 @@ func TestUpdateName_CanonicalCollision(t *testing.T) {
 	t.Run("different_user_collision_blocks", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
-		urequire.NoError(t, RegisterUser(cross, "bob", bobAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "bob", bobAddr))
 
 		data := ResolveAddress(bobAddr)
 		testing.SetOriginCaller(whitelistedCallerAddr)
 		uassert.ErrorContains(t,
-			data.UpdateName("vital1k"),
+			data.UpdateName(0, cur, "vital1k"),
 			ErrCanonicalCollision.Error(),
 		)
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
@@ -496,12 +496,12 @@ func TestUpdateName_CanonicalCollision(t *testing.T) {
 	t.Run("bypass_allows_self_collision_rename", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, "vital1k", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vital1k", aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
 		// Bypass path allows the rename (DAO grant scenario).
 		testing.SetOriginCaller(whitelistedCallerAddr)
-		urequire.NoError(t, data.UpdateNameIgnoreCanonical("vitalik"))
+		urequire.NoError(t, data.UpdateNameIgnoreCanonical(0, cur, "vitalik"))
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 
 		// Both names point to alice; latest is "vitalik".
@@ -513,15 +513,15 @@ func TestUpdateName_CanonicalCollision(t *testing.T) {
 	})
 }
 
-func TestCanonicalEntry_Persists_After_Delete(t *testing.T) {
+func TestCanonicalEntry_Persists_After_Delete(cur realm, t *testing.T) {
 	// Decision #5: Delete does NOT remove the canonical entry. Mirrors
 	// the existing tombstone behavior (anti-revival policy).
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+	urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 	data := ResolveAddress(aliceAddr)
-	urequire.NoError(t, data.Delete())
+	urequire.NoError(t, data.Delete(0, cur))
 
 	// Canonical entry retained.
 	existing, taken := IsCanonicalTaken("vitalik")
@@ -531,21 +531,21 @@ func TestCanonicalEntry_Persists_After_Delete(t *testing.T) {
 	// A different user CANNOT register a confusable variant — the deleted
 	// user's canonical claim still stands.
 	uassert.ErrorContains(t,
-		RegisterUser(cross, "vital1k", bobAddr),
+		RegisterUser(cross(cur), "vital1k", bobAddr),
 		ErrCanonicalCollision.Error(),
 	)
 }
 
-func TestCanonicalEntry_Persists_After_UpdateName(t *testing.T) {
+func TestCanonicalEntry_Persists_After_UpdateName(cur realm, t *testing.T) {
 	// Decision #4: UpdateName keeps the OLD canonical entry. Mirrors the
 	// existing nameStore alias retention (anti-rename-squat policy).
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, "alice", aliceAddr))
+	urequire.NoError(t, RegisterUser(cross(cur), "alice", aliceAddr))
 	data := ResolveAddress(aliceAddr)
 	testing.SetOriginCaller(whitelistedCallerAddr)
-	urequire.NoError(t, data.UpdateName("alice2"))
+	urequire.NoError(t, data.UpdateName(0, cur, "alice2"))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 
 	// Both old and new canonical entries exist.

@@ -7,7 +7,7 @@ adduser regular1
 gnoland start
 
 # Add user as a member for govdao
-gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 # add a valoper with a bad operator address (not the caller's). The
 # post-genesis squat guard rejects: OriginCaller (test1) != addr.
@@ -54,7 +54,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'new instructions'
 
 # make a proposal for updating minimum fee
-gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -chainid=tendermint_test test1 $WORK/run/new_minfee_proposal.gno
+gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 39_000_000 -chainid=tendermint_test test1 $WORK/run/new_minfee_proposal.gno
 stdout OK!
 
 # see the instructions in gov/dao proposition Render. minFee
@@ -69,8 +69,8 @@ package main
 
 import i "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+func main(cur realm) {
+	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/new_proposal_bad.gno --
 package main
@@ -80,9 +80,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
-	pr := proposal.NewValidatorProposalRequest(cross, address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
-	pid := dao.MustCreateProposal(cross, pr)
+func main(cur realm) {
+	pr := proposal.NewValidatorProposalRequest(cross(cur), address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
+	pid := dao.MustCreateProposal(cross(cur), pr)
 	println(pid.String())
 }
 -- run/new_proposal_good.gno --
@@ -93,9 +93,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
-	pr := proposal.NewValidatorProposalRequest(cross, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	pid := dao.MustCreateProposal(cross, pr)
+func main(cur realm) {
+	pr := proposal.NewValidatorProposalRequest(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	pid := dao.MustCreateProposal(cross(cur), pr)
 	println(pid.String())
 }
 -- run/new_instructions_proposal.gno --
@@ -106,9 +106,9 @@ import (
   "gno.land/r/gnops/valopers/proposal"
 )
 
-func main() {
-  pr := proposal.ProposeNewInstructionsProposalRequest(cross, "new instructions")
-  pid := dao.MustCreateProposal(cross, pr)
+func main(cur realm) {
+  pr := proposal.ProposeNewInstructionsProposalRequest(cross(cur), "new instructions")
+  pid := dao.MustCreateProposal(cross(cur), pr)
   println(pid.String())
 }
 
@@ -120,8 +120,8 @@ import (
   "gno.land/r/gnops/valopers/proposal"
 )
 
-func main() {
-  pr := proposal.ProposeNewMinFeeProposalRequest(cross, 1000000)
-  pid := dao.MustCreateProposal(cross, pr)
+func main(cur realm) {
+  pr := proposal.ProposeNewMinFeeProposalRequest(cross(cur), 1000000)
+  pid := dao.MustCreateProposal(cross(cur), pr)
   println(pid.String())
 }

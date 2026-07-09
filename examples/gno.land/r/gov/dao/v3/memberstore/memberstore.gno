@@ -1,7 +1,6 @@
 package memberstore
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/svg"
@@ -173,9 +172,18 @@ func Render(path string) string {
 	return sb.String()
 }
 
-// Get gets the Members store
-func Get() MembersByTier {
-	currealm := runtime.CurrentRealm().PkgPath()
+// Get gets the Members store.
+//
+// rlm is the cur of an in-scope crossing frame, threaded by the caller.
+// The IsCurrent() check rejects stale or stashed realm values — a
+// malicious realm cannot replay an old cur to claim allowed-DAO
+// identity. After the check, rlm.PkgPath() is the authentic immediate
+// caller's realm.
+func Get(_ int, rlm realm) MembersByTier {
+	if !rlm.IsCurrent() {
+		panic("memberstore.Get: rlm is not the caller's live cur (stale capture or sibling frame)")
+	}
+	currealm := rlm.PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

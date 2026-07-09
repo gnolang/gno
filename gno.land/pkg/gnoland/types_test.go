@@ -308,7 +308,7 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 	require.NotEmpty(t, bz)
 
 	// Unmarshal
-	var got interface{}
+	var got any
 	err = amino.UnmarshalAny(bz, &got)
 	require.NoError(t, err)
 

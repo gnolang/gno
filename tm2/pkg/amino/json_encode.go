@@ -33,7 +33,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	}
 
 	// Dereference value if pointer.
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			err = writeStr(w, `null`)
 			return
@@ -258,7 +258,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		for i := range length {
 			// Get dereferenced element value and info.
 			erv := rv.Index(i)
-			if erv.Kind() == reflect.Ptr &&
+			if erv.Kind() == reflect.Pointer &&
 				erv.IsNil() {
 				// then
 				err = writeStr(w, `null`)

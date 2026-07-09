@@ -126,15 +126,15 @@ profiles:
 > is: to what extent are we susceptible to such behavioural manipulation?" -
 > Joe Westby
 
-Trust in our institutions is at an all-time low. CIA director William Casey
-was accused of saying that "we’ll know our disinformation program is complete
-when everything the American public believes is false." by Barbara Honegger,
-assistant to the chief domestic policy advisor to President Reagan. 
-The [quote is contested](https://truthstreammedia.com/2015/01/13/cia-flashback-well-know-our-disinformation-program-is-complete-when-everything-the-american-public-believes-is-false/) but we know now about illegal mass mind control
-projects like MKUltra (by the CIA), and also that the Smith-Mundt Modernization
-Act of 2013 lifted the ban on domestic dissemination of propaganda in the US,
-reversing the original Smith-Mundt Act of 1948. Whether the quote is true or
-not, the substance is clearly true today.
+Trust in our institutions is at an all-time low. CIA director William Casey was
+accused of saying that "we’ll know our disinformation program is complete when
+everything the American public believes is false." by Barbara Honegger,
+assistant to the chief domestic policy advisor to President Reagan.  While the
+quote is contested we now know about illegal mass mind control projects like
+MKUltra (by the CIA), and also that the Smith-Mundt Modernization Act of 2013
+lifted the ban on domestic dissemination of propaganda in the US, reversing the
+original Smith-Mundt Act of 1948. Whether the quote is true or not, the
+substance is clearly true today.
 
 ### Health Sovereignty
 
@@ -364,7 +364,7 @@ example Library Genesis:
 Some of these projects have or are working toward IPFS integration on top of
 BitTorrent; but for the value that global archiving provides not just today but
 also for all possible potential future timelines the number of seeders for many
-of the archival files [still hover in the single digits](https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
+of the archival files [still hover in the single digits](https://web.archive.org/web/20260228085850/https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
 
 More recently the US Department of Justice released millions of files of the
 "Epstein Files" many of which have also been made available for sharing (such
@@ -541,9 +541,9 @@ incomplete or primitive message-passing agent architecture; such interop
 function calls generally do not share the same call-stack nor memory space.
 Solidity's implicit `msg.sender` changes on external calls have caused billions
 of dollars in exploits (reentrancy, confused-deputy attacks). In Gno the
-programmer writes `cross` at each call site that changes the realm-context,
-making every trust boundary visible in the source code and checkable by the
-compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
+programmer writes `cross(rlm)` at each call site that changes the
+realm-context, making every trust boundary visible in the source code and
+checkable by the compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
 Aptos) improves on Solidity with a linear type system that prevents reentrancy,
 but at the cost of a bespoke language unfamiliar to most developers and without
 a shared persistent object graph; inter-module calls in Move still pass values
@@ -1117,8 +1117,8 @@ interactivity.
  * **Gno2.** A future major revision of the Gno language incorporating
    lessons learned from production use. Potential additions include a
    `readonly` modifier for function return types, native syntax for
-   `cross` and `cur realm` (replacing the current overloaded function
-   argument convention), and further language-level support for
+   `cross(rlm)` and `cur realm` (replacing the current overloaded
+   function argument convention), and further language-level support for
    multi-user patterns that emerge from ecosystem usage.
 
  * **Open hardware.** Memristor-based memory systems eliminate the

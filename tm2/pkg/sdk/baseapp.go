@@ -776,22 +776,25 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
-				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
-					gasWanted,
-					ctx.GasMeter().GasConsumed(),
-					ex.Descriptor,
-				)
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				if trace.StoreGasEnabled {
 					trace.TxEnd(result.GasUsed)
 				}
 				return
 			default:
-				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
+				// Defense in depth: clip in case `r` carries
+				// adversarial content from a code path that bypassed
+				// keeper-level bounding.
+				log := clipLog(fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack())))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted

@@ -3,22 +3,22 @@
 # MUST update them here — this is the regression signal that the test's
 # name ("restart_gas") implies.
 #
-# `foo` (pre-restart, same content as bar but different pkgpath) and
+# `foo` (pre-restart, same shape as bar but different pkgpath/name) and
 # `baz` (post-restart, same shape) should stay close; a large divergence
 # between them indicates restart-dependent gas, which is a bug.
 
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2820971'
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout 'GAS USED: +2780212'
 
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2823300'
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout 'GAS USED: +2782531'
 
 gnoland restart
 
-gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2823314'
+gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout 'GAS USED: +2782558'
 
 -- bar/gnomod.toml --
 module = "bar"
@@ -27,10 +27,10 @@ gno = "0.9"
 -- bar/hello.gno --
 package bar
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func PreviousRealm(cur realm) string {
-	return runtime.PreviousRealm().String()
+	return unsafe.PreviousRealm().String()
 }
 
 -- baz/gnomod.toml --
@@ -40,10 +40,10 @@ gno = "0.9"
 -- baz/hello.gno --
 package baz
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func PreviousRealm(cur realm) string {
-	return runtime.PreviousRealm().String()
+	return unsafe.PreviousRealm().String()
 }
 
 -- foo/gnomod.toml --
@@ -53,8 +53,8 @@ gno = "0.9"
 -- foo/hello.gno --
 package foo
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func PreviousRealm(cur realm) string {
-	return runtime.PreviousRealm().String()
+	return unsafe.PreviousRealm().String()
 }
