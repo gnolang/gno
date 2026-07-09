@@ -1346,10 +1346,7 @@ func ratDigits(r *big.Rat) int64 {
 		return 1
 	}
 	bits := r.Num().BitLen() + r.Denom().BitLen()
-	d := int64(bits) / 3
-	if d < 1 {
-		d = 1
-	}
+	d := max(int64(bits)/3, 1)
 	return d
 }
 
