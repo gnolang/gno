@@ -1,5 +1,8 @@
 # Gas Refactor: Charge at the Store Boundary
 
+> Store backend and depth-gas defaults superseded by
+> [prxxxx_mount_bptree_store.md](prxxxx_mount_bptree_store.md) (bptree mount).
+
 **Status: Implemented**
 
 ## Problem

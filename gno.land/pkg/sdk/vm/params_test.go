@@ -287,3 +287,25 @@ func TestParamsValidate(t *testing.T) {
 		})
 	}
 }
+
+// TestDefaultParams pins the depth-gas defaults for the mounted reference
+// store (B+32 + fast index) and guards a keeper SetParams→GetParams
+// round-trip of the exact default values.
+func TestDefaultParams(t *testing.T) {
+	p := DefaultParams()
+
+	assert.Equal(t, int64(100), p.FixedGetReadDepth100, "GET pinned: 1.0 flat read via the fast index")
+	assert.Equal(t, int64(200), p.FixedSetReadDepth100, "SET-read pinned at the measured-with-cache descent")
+	assert.Equal(t, int64(540), p.FixedWriteDepth100, "WRITE pinned: 4.4 batched COW + 1.0 index write")
+	assert.Equal(t, p.FixedGetReadDepth100, p.MinGetReadDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, p.FixedSetReadDepth100, p.MinSetReadDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, p.FixedWriteDepth100, p.MinWriteDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, int64(1_000), p.IterNextCostFlat)
+	assert.NoError(t, p.Validate())
+
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	env.vmk.SetParams(ctx, p)
+	got := env.vmk.GetParams(ctx)
+	assert.Equal(t, p, got, "defaults must round-trip through the params keeper unchanged")
+}
