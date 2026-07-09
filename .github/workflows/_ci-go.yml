@@ -16,9 +16,6 @@ on:
         required: false
         type: string
         default: ""
-    secrets:
-      codecov-token:
-        required: true
 
 permissions: {}
 
@@ -30,18 +27,40 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
-      - uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
           version: v2.11.4 # sync with misc/devdeps
+      - name: Verify 'go fix' has been applied
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          # The modernizer-based `go fix` requires the Go 1.26+ toolchain. Only
+          # this check is pinned to it; build/test/lint keep the go.mod version.
+          # Fixes are still gated by each module's go.mod `go` directive.
+          GOTOOLCHAIN: go1.26.1
+          # Cover `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) so they
+          # are checked here and by `make fix` alike, not silently skipped.
+          CGO_ENABLED: "1"
+        run: |
+          # -omitzero=false: the omitzero modernizer strips `json:",omitempty"`
+          # from struct-typed fields, assuming encoding/json semantics where it
+          # is a no-op. Amino (used pervasively here) DOES honor omitempty on
+          # struct fields, so removing it changes JSON output. Keep it disabled,
+          # mirroring the modernizer's own carve-out for kubebuilder types.
+          changes="$(go fix -omitzero=false -diff ./...)"
+          if [ -n "$changes" ]; then
+            echo "::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result."
+            printf '%s\n' "$changes"
+            exit 1
+          fi
 
   build:
     name: build
@@ -50,10 +69,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
@@ -77,10 +96,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
@@ -108,15 +127,3 @@ jobs:
           go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
           go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
-
-          go tool covdata textfmt -v 1 "$filter" -i="$GOCOVERDIR,$TXTARCOVERDIR" -o gocoverage.out
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
-        with:
-          disable_search: true
-          fail_ci_if_error: true
-          files: ${{ inputs.modulepath }}/gocoverage.out
-          flags: ${{ inputs.modulepath }}
-          token: ${{ secrets.codecov-token }} # zizmor: ignore[secrets-outside-env]
-          verbose: true

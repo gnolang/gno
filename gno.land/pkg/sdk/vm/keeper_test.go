@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -213,7 +214,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -378,7 +379,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -515,18 +516,18 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -572,21 +573,21 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-     admin = runtime.OriginCaller()
+     admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -632,17 +633,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -682,17 +683,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 1000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -736,17 +737,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -781,7 +782,7 @@ func TestVMKeeperParams(t *testing.T) {
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
-package params
+package myrealm
 
 import "chain/params"
 
@@ -839,20 +840,20 @@ package test
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-	admin = runtime.OriginCaller()
+	admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }
@@ -934,10 +935,10 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 		{Name: "script.gno", Body: `
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	addr := runtime.OriginCaller()
+	addr := unsafe.OriginCaller()
 	println("hello world!", addr)
 }
 `},
@@ -997,8 +998,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1053,8 +1054,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1335,7 +1336,7 @@ import "gno.land/r/foo"
 var Msg string
 func Echo(cur realm, msg string){
 	Msg = msg
-	foo.Bar(cross, msg)
+	foo.Bar(cross(cur), msg)
 }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPathTest)},
 	}
@@ -1426,12 +1427,12 @@ func UpdateStorage(cur realm, n int) {
 		masterPath := "gno.land/r/test/master"
 
 		// Build imports and calls dynamically
-		imports := ""
-		calls := ""
+		var imports strings.Builder
+		var calls strings.Builder
 		for _, realmPath := range realms {
 			alias := path.Base(realmPath)
-			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
-			calls += fmt.Sprintf("\t%s.UpdateStorage(cross, 500)\n", alias)
+			imports.WriteString(fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath))
+			calls.WriteString(fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias))
 		}
 
 		masterCode := fmt.Sprintf(`package master
@@ -1440,7 +1441,7 @@ import (
 %s)
 
 func UpdateAll(cur realm) {
-%s}`, imports, calls)
+%s}`, imports.String(), calls.String())
 
 		masterFiles := []*std.MemFile{
 			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(masterPath)},
@@ -1495,6 +1496,215 @@ func UpdateAll(cur realm) {
 	t.Logf("SUCCESS: All %d runs produced identical results, confirming deterministic behavior", numRuns)
 }
 
+// TestStorageDepositPriceIncrease verifies that increasing StoragePrice via
+// governance does NOT prevent realms from releasing storage. The proportional
+// refund ensures users get back what they deposited regardless of price changes.
+func TestStorageDepositPriceIncrease(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000_000)))
+
+	// Step 1: Deploy realm at default StoragePrice (100 ugnot/byte).
+	const pkgPath = "gno.land/r/test/priceup"
+	files := storageRealmFiles("priceup", pkgPath)
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	// Record base storage from package deployment.
+	info, err := env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	baseStorage, baseDeposit := parseStorageInfo(t, info)
+	require.True(t, baseStorage > 0, "package deployment should use storage")
+	require.Equal(t, baseStorage*100, baseDeposit, "deposit should equal storage * price(100)")
+
+	// Step 2: Allocate 500KB of data.
+	callMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Allocate", []string{"500000"})
+	callMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(5_000_000_000))
+	_, err = env.vmk.Call(ctx, callMsg)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageAfterAlloc, depositAfterAlloc := parseStorageInfo(t, info)
+	require.True(t, storageAfterAlloc > baseStorage+400000, "storage should grow by ~500KB")
+
+	// Step 3: Increase StoragePrice to 1000 ugnot/byte (10x increase).
+	params := env.vmk.GetParams(ctx)
+	params.StoragePrice = "1000ugnot"
+	err = env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	// Verify price change doesn't affect stored realm state.
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageUnchanged, depositUnchanged := parseStorageInfo(t, info)
+	require.Equal(t, storageAfterAlloc, storageUnchanged, "price change should not affect storage")
+	require.Equal(t, depositAfterAlloc, depositUnchanged, "price change should not affect deposit")
+
+	// Step 4: Free data after price increase
+	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
+	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
+	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
+	_, err = env.vmk.Call(ctx, freeMsg)
+	require.NoError(t, err, "Free should succeed after price increase with proportional refund")
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageFinal, depositFinal := parseStorageInfo(t, info)
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+
+	require.True(t, storageFinal < storageAfterAlloc, "storage should decrease after free")
+	require.True(t, depositFinal < depositAfterAlloc, "deposit should decrease after free")
+	require.True(t, refund > 0, "user should receive proportional refund")
+
+	// Core of the fix: freed bytes are refunded at the price they were LOCKED
+	// at (100), not the current price (1000). Pricing the unlock at the current
+	// price would refund 10x, drain the deposit, and panic — the original bug.
+	// Since every lock happened at price 100, deposit == storage*100 throughout
+	// and the proportional refund is exactly released*100 with no rounding.
+	released := int64(storageAfterAlloc - storageFinal)
+	require.Equal(t, released*100, refund,
+		"refund must price freed bytes at the lock-time price, not the current price")
+
+	// Conservation: the realm's deposit drops by exactly the refund, and the
+	// per-realm deposit address holds exactly the realm's remaining deposit.
+	require.Equal(t, int64(depositAfterAlloc)-refund, int64(depositFinal),
+		"deposit must decrease by exactly the refund")
+	depositAddr := env.bankk.GetCoins(ctx, depAddr)
+	require.Equal(t, int64(depositFinal), depositAddr.AmountOf(ugnot.Denom),
+		"deposit address must hold exactly the realm's remaining deposit")
+
+	// The proportional refund preserves the deposit/storage ratio, so the
+	// retained storage is still valued at the original lock price.
+	require.Equal(t, int64(storageFinal)*100, int64(depositFinal),
+		"residual deposit must value retained storage at the lock price")
+}
+
+// TestStorageDepositPriceDecrease verifies that decreasing StoragePrice via
+// governance does NOT cause permanent fund loss. The proportional refund
+// ensures users get back what they deposited regardless of price changes.
+func TestStorageDepositPriceDecrease(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000_000)))
+
+	// Step 1: Set high price and deploy realm at StoragePrice=1000.
+	params := env.vmk.GetParams(ctx)
+	params.StoragePrice = "1000ugnot"
+	err := env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	const pkgPath = "gno.land/r/test/pricedown"
+	files := storageRealmFiles("pricedown", pkgPath)
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err = env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	info, err := env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	baseStorage, baseDeposit := parseStorageInfo(t, info)
+	require.Equal(t, baseStorage*1000, baseDeposit, "deposit should equal storage * price(1000)")
+
+	// Step 2: Allocate 500KB of data.
+	callMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Allocate", []string{"500000"})
+	callMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(5_000_000_000))
+	_, err = env.vmk.Call(ctx, callMsg)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageAfterAlloc, depositAfterAlloc := parseStorageInfo(t, info)
+
+	// Step 3: Decrease StoragePrice to 100 ugnot/byte (10x decrease).
+	params.StoragePrice = "100ugnot"
+	err = env.vmk.SetParams(ctx, params)
+	require.NoError(t, err)
+
+	// Step 4: Free data after price decrease.
+	userBalanceBefore := env.bankk.GetCoins(ctx, addr)
+	freeMsg := NewMsgCall(addr, std.Coins{}, pkgPath, "Free", []string{})
+	freeMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(1_000_000))
+	_, err = env.vmk.Call(ctx, freeMsg)
+	require.NoError(t, err, "Free should succeed after price decrease")
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageFinal, depositFinal := parseStorageInfo(t, info)
+	userBalanceAfter := env.bankk.GetCoins(ctx, addr)
+	refund := userBalanceAfter.AmountOf(ugnot.Denom) - userBalanceBefore.AmountOf(ugnot.Denom)
+	require.True(t, refund > 0, "user should receive proportional refund")
+
+	// The fix: freed bytes are refunded at the price they were LOCKED at (1000),
+	// not the current price (100). Pricing the unlock at the current price would
+	// orphan 90% of the deposit in the deposit address forever — the original bug.
+	// Since every lock happened at price 1000, deposit == storage*1000 throughout
+	// and the proportional refund is exactly released*1000 with no rounding.
+	released := int64(storageAfterAlloc - storageFinal)
+	require.Equal(t, released*1000, refund,
+		"refund must price freed bytes at the lock-time price, not the current price")
+
+	// Conservation: the realm's deposit drops by exactly the refund, and the
+	// per-realm deposit address holds exactly the realm's remaining deposit
+	// (no funds orphaned).
+	require.Equal(t, int64(depositAfterAlloc)-refund, int64(depositFinal),
+		"deposit must decrease by exactly the refund")
+	depositAddr := env.bankk.GetCoins(ctx, depAddr)
+	require.Equal(t, int64(depositFinal), depositAddr.AmountOf(ugnot.Denom),
+		"deposit address must hold exactly the realm's remaining deposit")
+
+	// The proportional refund preserves the deposit/storage ratio, so the
+	// retained storage is still valued at the original lock price.
+	require.Equal(t, int64(storageFinal)*1000, int64(depositFinal),
+		"residual deposit must value retained storage at the lock price")
+}
+
+// parseStorageInfo parses the "storage: X, deposit: Y" string from QueryStorage
+// into storage and deposit values.
+func parseStorageInfo(t *testing.T, info string) (storage uint64, deposit uint64) {
+	t.Helper()
+	_, err := fmt.Sscanf(info, "storage: %d, deposit: %d", &storage, &deposit)
+	require.NoError(t, err, "failed to parse storage info: %s", info)
+	return
+}
+
+// storageRealmFiles returns the .gno files for a test realm that can allocate
+// and free a byte slice. Used by storage deposit price change tests.
+func storageRealmFiles(pkgName, pkgPath string) []*std.MemFile {
+	return []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "store.gno",
+			Body: fmt.Sprintf(`package %s
+
+var data []byte
+
+func Allocate(cur realm, size int) {
+	data = make([]byte, size)
+}
+
+func Free(cur realm) {
+	data = nil
+}`, pkgName),
+		},
+	}
+}
+
 // TestVMKeeperCLASignature tests CLA enforcement during package deployment.
 // Uses a minimal inline CLA realm to test the keeper's CLA check mechanism
 // without requiring the full govdao dependency chain.
@@ -1522,7 +1732,7 @@ func TestVMKeeperCLASignature(t *testing.T) {
 	claFiles := []*std.MemFile{
 		{Name: "cla.gno", Body: `package cla
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 var (
 	requiredHash string
@@ -1540,7 +1750,7 @@ func Sign(cur realm, hash string) {
 	if hash != requiredHash {
 		panic("hash does not match required CLA hash")
 	}
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	signatures[caller] = true
 }
 
@@ -2172,7 +2382,7 @@ func GetParent() *Parent {
 	})
 
 	// Regression test: persisted slice with RefValue base should not panic
-	// This tests the fix for passing m.Store instead of nil to GetPointerAtIndexInt2
+	// This tests the fix for passing m.Store instead of nil to GetElementPointer
 	t.Run("persisted_slice_of_primitives", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/persisted12"
 		pkgBody := `package persisted12
@@ -2971,4 +3181,188 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 	}
 
 	return searchFrom[start : start+end]
+}
+func TestQueryPkg(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qpkg-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qpkg"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "pkg.gno",
+			Body: `package qpkg
+
+type MyStruct struct {
+	Name string
+	Age  int
+}
+
+var (
+	myInt    int    = 42
+	myStr    string = "hello"
+	myStruct MyStruct
+)
+
+func init() {
+	myStruct = MyStruct{Name: "Alice", Age: 30}
+}
+
+func Render(path string) string { return "qpkg test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query via qpkg
+	res, err := env.vmk.QueryPkg(env.ctx, pkgPath)
+	require.NoError(t, err)
+	t.Logf("QueryPkg result:\n%s\n", res)
+
+	// Verify it's valid JSON with names and values
+	assert.Contains(t, res, `"names"`)
+	assert.Contains(t, res, `"values"`)
+	assert.Contains(t, res, `"myInt"`)
+	assert.Contains(t, res, `"myStr"`)
+	assert.Contains(t, res, `"myStruct"`)
+
+	// Parse and verify structure
+	var parsed struct {
+		Names  []string          `json:"names"`
+		Values []json.RawMessage `json:"values"`
+	}
+	err = json.Unmarshal([]byte(res), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, len(parsed.Names), len(parsed.Values))
+	assert.Contains(t, parsed.Names, "myInt")
+	assert.Contains(t, parsed.Names, "myStr")
+	assert.Contains(t, parsed.Names, "myStruct")
+
+	// Heap-allocated top-level vars must come through the unwrap as their
+	// inner inline shape, not as the heap wrapper. Regression guard: PR
+	// #5415 switched block.Values to store HeapItem cells via RefValue,
+	// which silently broke our unwrap (it only handled *HeapItemValue
+	// direct). Pin the inline contract so any future store-layout shift
+	// fails here instead of silently rendering as Unknown.
+	for i, name := range parsed.Names {
+		v := string(parsed.Values[i])
+		switch name {
+		case "myInt":
+			assert.Contains(t, v, `"@type":"/gno.PrimitiveType"`,
+				"top-level int must serialize as inline PrimitiveType, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level int must not leak the heap wrapper, got %s", v)
+		case "myStr":
+			assert.Contains(t, v, `"@type":"/gno.StringValue"`,
+				"top-level string must serialize as inline StringValue, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level string must not leak the heap wrapper, got %s", v)
+		}
+	}
+}
+
+func TestQueryPkgNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryPkg(env.ctx, "gno.land/r/nonexistent/pkg")
+	assert.Error(t, err)
+}
+
+func TestQueryType(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qtype-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qtype"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "types.gno",
+			Body: `package qtype
+
+type Board struct {
+	Name    string
+	Creator string
+	Posts   int
+}
+
+var board Board
+
+func init() {
+	board = Board{Name: "general", Creator: "alice", Posts: 5}
+}
+
+func Render(path string) string { return "qtype test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query type by TypeID
+	tidStr := pkgPath + ".Board"
+	res, err := env.vmk.QueryType(env.ctx, tidStr)
+	require.NoError(t, err)
+	t.Logf("QueryType result:\n%s\n", res)
+
+	// Verify it contains the type definition with field names
+	assert.Contains(t, res, `"typeid"`)
+	assert.Contains(t, res, tidStr)
+	assert.Contains(t, res, `"Name"`)
+	assert.Contains(t, res, `"Creator"`)
+	assert.Contains(t, res, `"Posts"`)
+}
+
+func TestQueryTypeNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryType(env.ctx, "gno.land/r/nonexistent.FakeType")
+	assert.Error(t, err)
+}
+
+// TestMarshalTypeJSON_ProducesValidJSONForControlCharNames — regression
+// guard: Go's `%q` quoting emits Go-only escapes like \v that are invalid
+// JSON. Jae's original PR fixed this for QueryObjectJSON by switching to
+// json.Marshal (see keeper.go ~line 1454); the QueryType/marshalTypeJSON
+// path must obey the same invariant.
+func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
+	st := &gnolang.StructType{
+		Fields: []gnolang.FieldType{
+			{Name: gnolang.Name("foo\v"), Type: gnolang.IntType},
+		},
+	}
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, st, 0)
+	var v any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
+		"output must be valid JSON; got %q", buf.String())
+}
+
+// TestQueryType_EnvelopeValidJSON — TypeID with a control byte must
+// still produce valid JSON at the envelope level. %q would emit `\v`
+// (Go-only escape, invalid in JSON); json.Marshal emits ``.
+func TestQueryType_EnvelopeValidJSON(t *testing.T) {
+	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
+	var v any
+	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
+		"envelope must be valid JSON; got %q", envelope)
 }

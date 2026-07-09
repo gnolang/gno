@@ -101,7 +101,7 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	// member's address — used as the OPERATOR address of the valoper
 	// profile (squat guard requires OriginCaller == operator addr).
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
@@ -114,21 +114,22 @@ func main() {
 	// Step 1: register the valoper profile so v3.valoperCache has
 	// the (operator -> signing pubkey) binding the executor will
 	// resolve at execution time.
-	valopers.Register(cross, "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
+	valopers.Register(cross(cur), "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
 
 	// Step 2: build the operator-keyed proposal. v3's executor reads
 	// valoperCache for op=member at execution time and publishes the
 	// signing pubkey it finds there.
 	pr := v3.NewValidatorProposalRequest(
-		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 1}},
+		cross(cur),
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add e2e-test-validator",
 		"regression for v3 propagation",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"
@@ -136,15 +137,12 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

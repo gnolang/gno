@@ -19,7 +19,7 @@ const (
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
 	depositDefault                 = "600000000ugnot"
-	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
+	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
 
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.

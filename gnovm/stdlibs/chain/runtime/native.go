@@ -39,14 +39,6 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
-func X_originCaller(m *gno.Machine) string {
-	return string(execctx.GetContext(m).OriginCaller)
-}
-
-func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
-	return execctx.GetRealm(m, height)
-}
-
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
 // Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
 // gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;

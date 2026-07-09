@@ -422,18 +422,18 @@ func (l FieldTypeList) Swap(i, j int) {
 // XXX how though?
 func (l FieldTypeList) TypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
 		if ft.Name == "" {
-			s += ft.Type.TypeID().String()
+			s.WriteString(ft.Type.TypeID().String())
 		} else {
-			s += string(ft.Name) + " " + ft.Type.TypeID().String()
+			s.WriteString(string(ft.Name) + " " + ft.Type.TypeID().String())
 		}
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 // For use in fields of packages, structs, and interfaces, where any
@@ -441,19 +441,19 @@ func (l FieldTypeList) TypeID() TypeID {
 // types.
 func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
 		fn := ft.Name
 		if isUpper(string(fn)) {
-			s += string(fn) + " " + ft.Type.TypeID().String()
+			s.WriteString(string(fn) + " " + ft.Type.TypeID().String())
 		} else {
-			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
+			s.WriteString(pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String())
 		}
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) HasUnexported() bool {
@@ -501,14 +501,14 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 // used for function parameters and results.
 func (l FieldTypeList) UnnamedTypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
-		s += ft.Type.TypeID().String()
+		s.WriteString(ft.Type.TypeID().String())
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) Types() []Type {
@@ -744,6 +744,12 @@ type StructType struct {
 
 	typeid TypeID
 
+	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
+	// on first GetPkgID() call. Used by the allocator's
+	// construction-time check via getDeclaredPkgID. Not serialized
+	// (unexported, re-derived deterministically from PkgPath).
+	pkgID PkgID
+
 	// effectiveFields caches the field-side accessible-name count:
 	// direct fields + promoted fields through embedded structs (and
 	// through DeclaredType.Base when the base is a struct). Sentinel
@@ -757,6 +763,14 @@ type StructType struct {
 	// interface's effective method count. Mirrors effectiveFields'
 	// caching rules. Not serialized.
 	effectiveMethods uint16
+
+	// comparable caches isComparable(this) as a tristate: 0 = not yet
+	// computed, 1 = comparable, 2 = uncomparable. Without it, comparing
+	// an interface whose dynamic type fans out (struct{a, b T}) re-walks
+	// the field graph exponentially on every comparison. Re-derived
+	// deterministically from Fields; not serialized, mirroring
+	// effectiveFields/effectiveMethods.
+	comparable uint8
 }
 
 func (st *StructType) Kind() Kind {
@@ -1471,6 +1485,11 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+
+	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
+	// on first GetPkgID() call. Used by the allocator's
+	// construction-time check via getDeclaredPkgID. Not serialized.
+	pkgID PkgID
 
 	// methodIndex maps method Name → its position in Methods for O(1)
 	// lookup once len(Methods) exceeds methodIndexThreshold. Holds both
@@ -2329,30 +2348,32 @@ func (tt *tupleType) Kind() Kind {
 func (tt *tupleType) TypeID() TypeID {
 	if tt.typeid.IsZero() {
 		ell := len(tt.Elts)
-		s := "("
+		var s strings.Builder
+		s.WriteString("(")
 		for i, et := range tt.Elts {
-			s += et.TypeID().String()
+			s.WriteString(et.TypeID().String())
 			if i != ell-1 {
-				s += ","
+				s.WriteString(",")
 			}
 		}
-		s += ")"
-		tt.typeid = typeid(s)
+		s.WriteString(")")
+		tt.typeid = typeid(s.String())
 	}
 	return tt.typeid
 }
 
 func (tt *tupleType) String() string {
 	ell := len(tt.Elts)
-	s := "("
+	var s strings.Builder
+	s.WriteString("(")
 	for i, et := range tt.Elts {
-		s += et.String()
+		s.WriteString(et.String())
 		if i != ell-1 {
-			s += ","
+			s.WriteString(",")
 		}
 	}
-	s += ")"
-	return s
+	s.WriteString(")")
+	return s.String()
 }
 
 func (tt *tupleType) Elem() Type {
@@ -2951,5 +2972,48 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{
 		return ct.FindEmbeddedFieldType(callerPath, n, m)
 	default:
 		return nil, false, nil, nil, false
+	}
+}
+
+// GetPkgID returns the cached PkgID for this DeclaredType, computing
+// it lazily on first call from PkgPath.
+func (dt *DeclaredType) GetPkgID() PkgID {
+	if dt.pkgID.IsZero() {
+		dt.pkgID = PkgIDFromPkgPath(dt.PkgPath)
+	}
+	return dt.pkgID
+}
+
+// GetPkgID returns the cached PkgID for this StructType, computing
+// it lazily on first call from PkgPath. Returns zero PkgID for
+// anonymous structs declared in PkgPath="" contexts.
+func (st *StructType) GetPkgID() PkgID {
+	if st.PkgPath == "" {
+		return PkgID{}
+	}
+	if st.pkgID.IsZero() {
+		st.pkgID = PkgIDFromPkgPath(st.PkgPath)
+	}
+	return st.pkgID
+}
+
+// getDeclaredPkgID walks Pointer/Declared/Struct type wrappers to
+// find the outermost named type's PkgID via cached lookups.
+// Returns zero PkgID for unnamed composites and PkgPath=""
+// anonymous types. Used by the allocator's construction-time check
+// (Allocator.checkConstructionTime).
+func getDeclaredPkgID(t Type) PkgID {
+	for {
+		switch tt := t.(type) {
+		case *PointerType:
+			t = tt.Elt
+			continue
+		case *DeclaredType:
+			return tt.GetPkgID()
+		case *StructType:
+			return tt.GetPkgID()
+		default:
+			return PkgID{}
+		}
 	}
 }

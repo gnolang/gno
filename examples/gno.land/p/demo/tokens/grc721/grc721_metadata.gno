@@ -1,10 +1,14 @@
 package grc721
 
-import "gno.land/p/nt/avl/v0"
+import (
+	"chain"
+
+	"gno.land/p/nt/avl/v0"
+)
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
-	*basicNFT            // Embedded basicNFT struct for basic NFT functionality
+	*BasicNFT
 	extensions *avl.Tree // AVL tree for storing metadata extensions
 }
 
@@ -12,21 +16,35 @@ type metadataNFT struct {
 var _ IGRC721MetadataOnchain = (*metadataNFT)(nil)
 
 // NewNFTWithMetadata creates a new basic NFT with metadata extensions.
-func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
-	// Create a new basic NFT
-	nft := NewBasicNFT(name, symbol)
-
-	// Return a metadataNFT with basicNFT embedded and an empty AVL tree for extensions
+func NewNFTWithMetadata(_ int, rlm realm, name, symbol string) *metadataNFT {
 	return &metadataNFT{
-		basicNFT:   nft,
+		BasicNFT:   NewBasicNFT(0, rlm, name, symbol),
 		extensions: avl.NewTree(),
 	}
 }
 
-// SetTokenMetadata sets metadata for a given token ID.
-func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
+// SetTokenMetadata sets metadata for a given token ID. The token must exist and
+// caller must equal its owner; the owning realm's wrapper derives caller from
+// rlm.Previous().Address() under IsCurrent (mirrors SetTokenRoyalty).
+func (s *metadataNFT) SetTokenMetadata(caller address, tid TokenID, metadata Metadata) error {
+	// Check that the token exists and the caller is its owner.
+	owner, err := s.OwnerOf(tid)
+	if err != nil {
+		return err
+	}
+	if caller != owner {
+		return ErrCallerIsNotOwner
+	}
+
 	// Set the metadata for the token ID in the extensions AVL tree
 	s.extensions.Set(tid.String(), metadata)
+
+	chain.Emit(
+		MetadataUpdateEvent,
+		"token", s.ID(),
+		"tokenId", tid.String(),
+	)
+
 	return nil
 }
 
@@ -41,72 +59,72 @@ func (s *metadataNFT) TokenMetadata(tid TokenID) (Metadata, error) {
 	return metadata.(Metadata), nil
 }
 
-// Basic NFT methods forwarded to embedded basicNFT
+// Basic NFT methods forwarded to embedded BasicNFT
 
 func (s *metadataNFT) Name() string {
-	return s.basicNFT.Name()
+	return s.BasicNFT.Name()
 }
 
 func (s *metadataNFT) Symbol() string {
-	return s.basicNFT.Symbol()
+	return s.BasicNFT.Symbol()
 }
 
 func (s *metadataNFT) TokenCount() int64 {
-	return s.basicNFT.TokenCount()
+	return s.BasicNFT.TokenCount()
 }
 
 func (s *metadataNFT) BalanceOf(addr address) (int64, error) {
-	return s.basicNFT.BalanceOf(addr)
+	return s.BasicNFT.BalanceOf(addr)
 }
 
 func (s *metadataNFT) OwnerOf(tid TokenID) (address, error) {
-	return s.basicNFT.OwnerOf(tid)
+	return s.BasicNFT.OwnerOf(tid)
 }
 
 func (s *metadataNFT) TokenURI(tid TokenID) (string, error) {
-	return s.basicNFT.TokenURI(tid)
+	return s.BasicNFT.TokenURI(tid)
 }
 
-func (s *metadataNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
-	return s.basicNFT.SetTokenURI(tid, tURI)
+func (s *metadataNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
+	return s.BasicNFT.SetTokenURI(caller, tid, tURI)
 }
 
 func (s *metadataNFT) IsApprovedForAll(owner, operator address) bool {
-	return s.basicNFT.IsApprovedForAll(owner, operator)
+	return s.BasicNFT.IsApprovedForAll(owner, operator)
 }
 
-func (s *metadataNFT) Approve(to address, tid TokenID) error {
-	return s.basicNFT.Approve(to, tid)
+func (s *metadataNFT) Approve(caller, to address, tid TokenID) error {
+	return s.BasicNFT.Approve(caller, to, tid)
 }
 
 func (s *metadataNFT) GetApproved(tid TokenID) (address, error) {
-	return s.basicNFT.GetApproved(tid)
+	return s.BasicNFT.GetApproved(tid)
 }
 
-func (s *metadataNFT) SetApprovalForAll(operator address, approved bool) error {
-	return s.basicNFT.SetApprovalForAll(operator, approved)
+func (s *metadataNFT) SetApprovalForAll(caller, operator address, approved bool) error {
+	return s.BasicNFT.SetApprovalForAll(caller, operator, approved)
 }
 
-func (s *metadataNFT) SafeTransferFrom(from, to address, tid TokenID) error {
-	return s.basicNFT.SafeTransferFrom(from, to, tid)
+func (s *metadataNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
+	return s.BasicNFT.SafeTransferFrom(caller, from, to, tid)
 }
 
-func (s *metadataNFT) TransferFrom(from, to address, tid TokenID) error {
-	return s.basicNFT.TransferFrom(from, to, tid)
+func (s *metadataNFT) TransferFrom(caller, from, to address, tid TokenID) error {
+	return s.BasicNFT.TransferFrom(caller, from, to, tid)
 }
 
 func (s *metadataNFT) Mint(to address, tid TokenID) error {
-	return s.basicNFT.Mint(to, tid)
+	return s.BasicNFT.Mint(to, tid)
 }
 
 func (s *metadataNFT) SafeMint(to address, tid TokenID) error {
-	return s.basicNFT.SafeMint(to, tid)
+	return s.BasicNFT.SafeMint(to, tid)
 }
 
 func (s *metadataNFT) Burn(tid TokenID) error {
-	return s.basicNFT.Burn(tid)
+	return s.BasicNFT.Burn(tid)
 }
 
 func (s *metadataNFT) RenderHome() string {
-	return s.basicNFT.RenderHome()
+	return s.BasicNFT.RenderHome()
 }

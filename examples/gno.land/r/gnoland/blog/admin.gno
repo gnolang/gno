@@ -1,7 +1,7 @@
-package gnoblog
+package blog
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
@@ -43,9 +43,9 @@ func AdminRemoveModerator(_ realm, addr address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
-	caller := runtime.PreviousRealm().Address()
-	e := dao.NewSimpleExecutor(
+func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := cur.Previous().Address()
+	e := dao.NewSimpleExecutor(0, cur,
 		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)
 
@@ -63,7 +63,7 @@ func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors
 
 func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
@@ -127,14 +127,14 @@ func isCommenter(addr address) bool {
 }
 
 func assertIsAdmin() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if !isAdmin(caller) {
 		panic(errNotAdmin.Error())
 	}
 }
 
 func assertIsModerator() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
@@ -142,7 +142,7 @@ func assertIsModerator() {
 }
 
 func assertIsCommenter() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

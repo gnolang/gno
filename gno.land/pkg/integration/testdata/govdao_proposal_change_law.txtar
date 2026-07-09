@@ -36,13 +36,13 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
-	preq := impl.NewChangeLawRequest(cross, impl.Law{Supermajority:50})
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := impl.NewChangeLawRequest(cross(cur), impl.NewLaw(50))
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
@@ -50,15 +50,12 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

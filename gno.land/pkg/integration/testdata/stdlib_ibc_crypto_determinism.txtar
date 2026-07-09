@@ -1,0 +1,95 @@
+# Determinism test for the IBC crypto stdlibs added in the same commit as this
+# file (crypto/bn254, crypto/keccak256, crypto/merkle, crypto/modexp).
+#
+# The new natives bridge to non-trivial Go libraries: gnark-crypto for BN254,
+# golang.org/x/crypto/sha3 for Keccak, and Go's big.Int for ModExp. Each of
+# these has been a non-determinism source historically (map iteration in
+# pairing precomputation, accumulator reuse across calls, big.Int aliasing).
+# This test pins gas consumption across a node restart so any future
+# regression that triggers different code paths cold-vs-warm (e.g. caching
+# tables on first call) trips an EXACT_GAS mismatch in CI.
+#
+# Pattern mirrors stdlib_restart_compare.txtar: same input, identical state,
+# expect identical GAS USED before and after a restart.
+
+env ADDPKG_GAS=10_000_000
+env CALL_GAS=10_000_000
+env EXACT_GAS=2739422
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/ibccrypto -pkgpath gno.land/r/test/ibccrypto -gas-fee 1000001ugnot -gas-wanted $ADDPKG_GAS -chainid=tendermint_test test1
+stdout OK!
+
+# Sanity: verify Compute returns the expected pinned digest. The output is a
+# concatenation of (keccak256, bn254 g1Add, modexp, merkle leafHash) results
+# encoded as hex. Mismatch means one of the natives changed its output, which
+# is itself a determinism regression.
+gnokey maketx call -pkgpath gno.land/r/test/ibccrypto -func Compute -args 'hello' -gas-fee 1000001ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stdout OK!
+stdout '\("1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd315ed738c0e0a7c92e7845f96b2ae9c0a68a6a449e3538fc7ff3ebf7a5a18a2c4000000000000000000000000000000000000000000000000000000000000000c8a2a5c9b768827de5a9552c38a044c66959c68f6d2f21b5260af54d2f87db827" string\)'
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+gnoland restart
+
+# After restart the gnovm rebuilds package state from the committed store.
+# If any native introduces a cold-vs-warm code path (lazy table init, lookup
+# cache, etc.) the gas charge here will diverge from EXACT_GAS.
+gnokey maketx call -pkgpath gno.land/r/test/ibccrypto -func Compute -args 'hello' -gas-fee 1000001ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+-- ibccrypto/gnomod.toml --
+module = "gno.land/r/test/ibccrypto"
+gno = "0.9"
+
+-- ibccrypto/ibccrypto.gno --
+package ibccrypto
+
+import (
+	"crypto/bn254"
+	"crypto/keccak256"
+	"crypto/merkle"
+	"crypto/modexp"
+)
+
+// Compute runs each new IBC native against a deterministic input and returns
+// the concatenated hex of every output. Used by the determinism txtar to pin
+// both the bytes-out and the gas-charge across a gnoland restart.
+func Compute(cur realm, seed string) string {
+	// 1. keccak256: 32 bytes
+	kHash := keccak256.Sum256([]byte(seed))
+
+	// 2. bn254 G1Add: G + G = 2G (a fixed, well-known curve point).
+	addIn := make([]byte, 128)
+	addIn[31] = 1
+	addIn[63] = 2
+	addIn[95] = 1
+	addIn[127] = 2
+	addOut := bn254.G1Add(addIn)
+
+	// 3. modexp: 2^10 mod 0xfd over 32-byte modulus (padded).
+	base := make([]byte, 32)
+	exp := make([]byte, 32)
+	mod := make([]byte, 32)
+	base[31] = 2
+	exp[31] = 10
+	mod[31] = 0xfd
+	mxOut := modexp.ModExp(base, exp, mod)
+
+	// 4. merkle leafHash on the seed.
+	mh := merkle.LeafHash([]byte(seed))
+
+	return hex(kHash[:]) + hex(addOut) + hex(mxOut) + hex(mh)
+}
+
+const hexTable = "0123456789abcdef"
+
+func hex(b []byte) string {
+	out := make([]byte, len(b)*2)
+	for i, x := range b {
+		out[i*2] = hexTable[x>>4]
+		out[i*2+1] = hexTable[x&0x0f]
+	}
+	return string(out)
+}

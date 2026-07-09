@@ -891,9 +891,15 @@ import (
 )
 
 var (
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4)
-	UserTeller           = Token.CallerTeller()
+	Token         *grc20.Token
+	privateLedger *grc20.PrivateLedger
+	UserTeller    grc20.Teller
 )
+
+func init(cur realm) {
+	Token, privateLedger = grc20.NewToken(0, cur, "Foo Token", "FOO", 4)
+	UserTeller = Token.CallerTeller()
+}
 
 func MyBalance(_ realm) int64 {
 	caller := runtime.PreviousRealm().Address()
