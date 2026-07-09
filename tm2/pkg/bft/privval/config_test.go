@@ -411,7 +411,7 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		// Listener must be released so we can re-bind the same port.
 		// Loop briefly because port release is async on some kernels.
 		var rebound net.Listener
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			rebound, err = net.Listen("tcp", addr)
 			if err == nil {
 				break
