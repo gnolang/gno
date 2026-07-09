@@ -341,7 +341,9 @@ UI - Function symbol card
 UI - Type symbol card (with nested methods)
 =================================================================================== */}}
 {{ define "ui/pkg_type" }}
-<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}">
+{{/* Method names are folded into data-name so the symbol filter can match a nested
+     method card — hiding the type card would otherwise hide the method with it. */}}
+<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}{{ range .Methods }} {{ .Name }}{{ end }}">
   <header class="b-pkg-symbol__header">
     {{ template "ui/pkg_symbol_head" (dict "Prefix" "type" "Name" .Name "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
     <span class="b-tag">{{ .Kind }}</span>

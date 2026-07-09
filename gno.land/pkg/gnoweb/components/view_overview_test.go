@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -31,4 +32,29 @@ func TestOverviewView_BuildsFullPayload(t *testing.T) {
 
 	view := OverviewView(data)
 	require.Equal(t, OverviewViewType, view.Type)
+}
+
+// TestOverviewView_TypeCardFoldsMethodNamesIntoDataName guards the symbol filter:
+// method cards are nested inside their type card, which is what the filter hides,
+// so the type card's data-name must also carry its method names to stay matchable.
+func TestOverviewView_TypeCardFoldsMethodNamesIntoDataName(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	data := BuildOverview(OverviewInput{
+		URL:   u,
+		Files: []string{"foo.gno"},
+		Doc: &doc.JSONDocumentation{
+			Types: []*doc.JSONType{{Name: "Config", Type: "type Config struct{}", Kind: "struct"}},
+			Funcs: []*doc.JSONFunc{{Name: "Load", Signature: "func (c *Config) Load() error", Type: "Config"}},
+		},
+		DocRenderer: noopRenderer{},
+		Domain:      "gno.land",
+	})
+
+	var buf bytes.Buffer
+	require.NoError(t, OverviewView(data).Render(&buf))
+	require.Contains(t, buf.String(), `data-name="Config Load"`,
+		"type card data-name must fold in method names so the filter can find methods")
 }
