@@ -859,12 +859,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 
 // isApprover reports whether addr is in the approvers list.
 func isApprover(approvers []crypto.Address, addr crypto.Address) bool {
-	for _, a := range approvers {
-		if a == addr {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(approvers, addr)
 }
 
 // DisablePackage moves an active package back to inert state.
