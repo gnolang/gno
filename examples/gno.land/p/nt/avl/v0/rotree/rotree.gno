@@ -120,6 +120,8 @@ func (roTree *ReadOnlyTree) Has(key string) bool {
 
 // Get retrieves the value associated with the given key, converted to a safe format.
 // It returns the value if the key exists, or nil if it doesn't.
+// Note that a key stored with a nil value is indistinguishable
+// from an absent key; use Has to check for existence.
 func (roTree *ReadOnlyTree) Get(key string) any {
 	value := roTree.tree.Get(key)
 	if value == nil {

@@ -76,7 +76,7 @@ func (m *Memeland) Upvote(_ int, rlm realm, id string) string {
 	}
 
 	voterKey := rlm.Previous().Address().String()
-	if post.UpvoteTracker.Get(voterKey) != nil {
+	if post.UpvoteTracker.Has(voterKey) {
 		panic("user has already upvoted this post")
 	}
 	post.UpvoteTracker.Set(voterKey, struct{}{})

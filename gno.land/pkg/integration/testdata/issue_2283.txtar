@@ -359,11 +359,11 @@ func GrantInvites(cur realm, invites string) {
 		// give invites.
 		userI := name2User.Get(name)
 		if userI == nil {
-		// maybe address.
-		userI = addr2User.Get(name)
-		if userI == nil {
-			panic("invalid user " + name)
-		}
+			// maybe address.
+			userI = addr2User.Get(name)
+			if userI == nil {
+				panic("invalid user " + name)
+			}
 		}
 		user := userI.(*users.User)
 		user.Invites += invites

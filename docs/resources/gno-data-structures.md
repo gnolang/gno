@@ -50,6 +50,8 @@ if value != nil {
 }
 
 // Has (check if a key exists without retrieving the value)
+// Note: a key stored with a nil value is indistinguishable from an
+// absent key when using Get; use Has to check for existence.
 if users.Has("alice") {
     // key exists
 }

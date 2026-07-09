@@ -48,6 +48,8 @@ func (tree *Tree) Has(key string) (has bool) {
 
 // Get retrieves the value associated with the given key.
 // It returns the value if the key exists, or nil if it doesn't.
+// Note that a key stored with a nil value is indistinguishable
+// from an absent key; use Has to check for existence.
 // This allows for a simpler usage pattern with type assertions:
 //
 //	if value, ok := tree.Get("key").(MyType); ok {
