@@ -213,7 +213,7 @@ func mustParseAddressSlice(paramName string, value any) []crypto.Address {
 		return nil
 	}
 	var addrs []crypto.Address
-	for _, part := range strings.Split(s, ",") {
+	for part := range strings.SplitSeq(s, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
