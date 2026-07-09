@@ -175,7 +175,7 @@ func TestContinuousVestingAccount_AminoRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var got interface{}
+	var got any
 	err = amino.UnmarshalAny(bz, &got)
 	require.NoError(t, err)
 
@@ -259,7 +259,7 @@ func TestDelayedVestingAccount_AminoRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bz)
 
-	var got interface{}
+	var got any
 	err = amino.UnmarshalAny(bz, &got)
 	require.NoError(t, err)
 
