@@ -873,7 +873,7 @@ func TestVMKeeperParams(t *testing.T) {
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
-package params
+package myrealm
 
 import "chain/params"
 
@@ -1518,12 +1518,12 @@ func UpdateStorage(cur realm, n int) {
 		masterPath := "gno.land/r/test/master"
 
 		// Build imports and calls dynamically
-		imports := ""
-		calls := ""
+		var imports strings.Builder
+		var calls strings.Builder
 		for _, realmPath := range realms {
 			alias := path.Base(realmPath)
-			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
-			calls += fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias)
+			imports.WriteString(fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath))
+			calls.WriteString(fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias))
 		}
 
 		masterCode := fmt.Sprintf(`package master
@@ -1532,7 +1532,7 @@ import (
 %s)
 
 func UpdateAll(cur realm) {
-%s}`, imports, calls)
+%s}`, imports.String(), calls.String())
 
 		masterFiles := []*std.MemFile{
 			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(masterPath)},

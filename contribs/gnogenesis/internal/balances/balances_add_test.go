@@ -257,7 +257,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		var referenceBalances []gnoland.Balance
 
-		for run := 0; run < nRuns; run++ {
+		for run := range nRuns {
 			// Create a fresh genesis file
 			tempGenesis, cleanupGen := testutils.NewTestFile(t)
 			t.Cleanup(cleanupGen)
