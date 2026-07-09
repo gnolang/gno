@@ -70,7 +70,7 @@ func Echo(cur realm, msg string) string {
 	// It must not be callable while inert: the package has no executable node,
 	// so the VM cannot resolve it (on-chain this surfaces as a failed message).
 	assert.Panics(t, func() {
-		env.vmk.Call(ctx, NewMsgCall(submitter, nil, pkgPath, "Echo", []string{"hi"}))
+		_, _ = env.vmk.Call(ctx, NewMsgCall(submitter, nil, pkgPath, "Echo", []string{"hi"}))
 	}, "inert package must not be callable")
 
 	// ---- 2. Only an approver may enable --------------------------------------
