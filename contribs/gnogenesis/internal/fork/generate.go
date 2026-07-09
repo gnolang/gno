@@ -469,6 +469,7 @@ func buildHardforkGenesis(
 		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
 		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
 		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
+		appState.VM.Params.PreprocessGasPerByte = defaults.PreprocessGasPerByte
 	}
 
 	// Append historical txs after existing genesis-mode txs
