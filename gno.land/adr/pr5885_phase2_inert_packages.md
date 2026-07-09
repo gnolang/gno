@@ -45,6 +45,22 @@ not yet implemented. Returns an error until a follow-up PR delivers it.
 These keys are disjoint from `pkg:<path>` so normal `GetPackage` / `GetMemPackage`
 never see inert packages.
 
+## Testing
+
+`gno.land/pkg/sdk/vm/keeper_inert_test.go` exercises the full oracle-activation
+flow end-to-end:
+
+- **`TestVMKeeperInertPackageLifecycle`** — policy `inert` + one approver: an
+  untrusted user submits a package (stored inert, not resolvable, not callable),
+  a non-approver is rejected, enabling an unknown path fails, then the approver
+  (oracle) enables it — the chain typechecks + executes, the package becomes
+  resolvable and callable, and the inert copy is removed.
+- **`TestVMKeeperEnablePackageRejectsInvalidCode`** — "the oracle proposes, the
+  chain enforces": ill-typed code is accepted inert but rejected on-chain at
+  enable time, so it never becomes callable.
+- **`TestVMKeeperDisablePackageNotImplemented`** — `MsgDisablePackage` is
+  approver-gated but returns an error pending the follow-up PR.
+
 ## Consequences
 
 - **Permissionless submission, deferred typechecking**: the DoS surface from the
