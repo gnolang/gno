@@ -56,13 +56,13 @@ func Cyan(args ...any) string {
 }
 
 func ColoredBytes(data []byte, textColor, bytesColor func(...any) string) string {
-	s := ""
+	var s strings.Builder
 	for _, b := range data {
 		if 0x21 <= b && b < 0x7F {
-			s += textColor(string(b))
+			s.WriteString(textColor(string(b)))
 		} else {
-			s += bytesColor(fmt.Sprintf("%02X", b))
+			s.WriteString(bytesColor(fmt.Sprintf("%02X", b)))
 		}
 	}
-	return s
+	return s.String()
 }

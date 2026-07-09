@@ -28,6 +28,18 @@ const (
 // ----------------------------------------
 // non-primitive builtin types
 
+// gRuntimeErrorType is the VM-internal type used for runtime panics (nil
+// pointer dereference, nil interface method call, etc.). It implements the
+// Gno error interface so that recover().(error) works as in Go, whose
+// runtime uses the same shape (`type plainError string` in runtime/error.go).
+var gRuntimeErrorType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    ".runtimeError",
+	Base:    StringType,
+	sealed:  true,
+	// Error() method defined in makeUverseNode()
+}
+
 var gErrorType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "error",
@@ -655,11 +667,11 @@ func realmIsEphemeral(pkgPath string) bool {
 // ephemeral realm: pkgPath == "<domain>/e/<addr>/run". Mirrors
 // chain/runtime.Realm.IsUserRun.
 func realmIsUserRun(addr, pkgPath string) bool {
-	idx := strings.Index(pkgPath, "/")
-	if idx == -1 {
+	before, _, ok := strings.Cut(pkgPath, "/")
+	if !ok {
 		return false
 	}
-	return pkgPath == pkgPath[:idx]+"/e/"+addr+"/run"
+	return pkgPath == before+"/e/"+addr+"/run"
 }
 
 // ----------------------------------------
@@ -758,6 +770,17 @@ func makeUverseNode() {
 	def("uint64", asValue(Uint64Type))
 	def("error", asValue(gErrorType))
 	def("any", asValue(&InterfaceType{}))
+	def(".runtimeError", asValue(gRuntimeErrorType))
+	defNativeMethod(Name(".runtimeError"), "Error",
+		nil, // no params beyond receiver
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			m.PushValue(typedString(arg0.TV.GetString()))
+		},
+	)
 
 	// Values
 	def("true", untypedBool(true))
@@ -1280,7 +1303,7 @@ func makeUverseNode() {
 					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(nil, li)
@@ -1315,13 +1338,13 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if ci < 0 {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 					if ci < li {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -2028,7 +2051,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	defer mw.Release()
 	defer mw.Flush() // LIFO: runs before Release, after the loop (normal or panic).
 	xvl := xv.TV.GetLength()
-	for i := 0; i < xvl; i++ {
+	for i := range xvl {
 		if i != 0 {
 			mw.WriteByte(' ')
 		}

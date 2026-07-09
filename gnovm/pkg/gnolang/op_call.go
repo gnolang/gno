@@ -10,7 +10,7 @@ func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
-		m.Panic(typedString("runtime error: call of nil function"))
+		m.Panic(typedRuntimeError("runtime error: call of nil function"))
 	}
 
 	switch fv := v.(type) {
@@ -47,7 +47,7 @@ func (m *Machine) doOpPrecall() {
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
-				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+				m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
 			}
 		}
 		m.PushOp(OpConvert)
@@ -491,7 +491,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
@@ -580,7 +580,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.pushPanic(typedString("runtime error: defer called a nil function"))
+		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
 	}
 
@@ -755,7 +755,7 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 	// bounds the total descriptor size.
 	ordered := make([]*Exception, numExceptions)
 	last := m.Exception
-	for i := 0; i < numExceptions; i++ {
+	for i := range numExceptions {
 		ordered[numExceptions-1-i] = last
 		last = last.Previous
 	}
