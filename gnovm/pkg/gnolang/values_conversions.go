@@ -1011,15 +1011,14 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
+			x := softfloat.F64to32(tv.GetFloat64())
 			validate(Float64Kind, Float32Kind, func() bool {
 				// Constant float conversions may round (including to
 				// subnormals or MaxFloat32), but must not overflow to
 				// ±Inf. Check the rounded result, either sign.
-				r := softfloat.F64to32(tv.GetFloat64())
-				return r&^softfloat.NegZero32 != softfloat.Inf32
+				return x&^softfloat.NegZero32 != softfloat.Inf32
 			})
 
-			x := softfloat.F64to32(tv.GetFloat64())
 			// Narrowing can underflow a nonzero negative to -0;
 			// constant conversions have no signed zero.
 			if isConst && x == softfloat.NegZero32 {
