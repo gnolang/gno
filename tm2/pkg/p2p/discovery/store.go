@@ -209,7 +209,7 @@ func (s *Store) evict() {
 	})
 
 	toRemove := len(s.peers) - s.maxPeers
-	for i := 0; i < toRemove; i++ {
+	for i := range toRemove {
 		delete(s.peers, entries[i].Addr.String())
 	}
 

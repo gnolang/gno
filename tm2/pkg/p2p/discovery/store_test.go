@@ -285,13 +285,11 @@ func TestStore_SaveAtomic_NoCorruptionOnConcurrentAccess(t *testing.T) {
 
 	// Concurrently add peers and flush (forced save) to disk
 	for range 20 {
-		wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			s.AddPeers(addr)
 			_ = s.Flush()
-		}()
+		})
 	}
 
 	wg.Wait()
