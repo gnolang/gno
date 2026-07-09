@@ -68,7 +68,14 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped 2026-07-09 (bptree mount PR), two coinciding causes: (1) the
+// test env's main store switched from IAVL to the B+32 bptree store
+// (different commitment structure — every multistore hash moves); (2) the
+// depth gas defaults committed into "vm:p" changed (FixedGet 300→100,
+// FixedSet/FixedWrite 200/440→0, MinGet 300→100, MinWrite 440→540).
+// Behavior is unchanged (the zrealm_crossrealm38.gno filetest still passes).
+const expectedCrossrealm38Hash = "5eb09954139b5e463c0ce94c573d57177b813dae083f2b00d8771d4264c499ae"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

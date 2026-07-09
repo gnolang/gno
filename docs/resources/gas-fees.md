@@ -12,6 +12,10 @@ on:
 1. The complexity of the operation being performed
 2. The amount of data being stored
 3. The current network conditions
+4. The total size of chain state: storage writes are priced against the
+   state tree's depth, so the same transaction costs slightly more gas as
+   total chain state grows (stepwise, at powers of two of the key count).
+   Re-estimate with `-simulate only` rather than reusing cached gas values.
 
 Gas serves several important purposes:
 - Prevents spam and denial-of-service attacks

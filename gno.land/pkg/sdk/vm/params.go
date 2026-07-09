@@ -22,10 +22,28 @@ const (
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
 
-	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
-	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
-	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
-	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
+	// Depth defaults for the reference store: B+32 mounted with the fast
+	// index (storebptree.FastStoreConstructor), calibrated at 100M items,
+	// 10K node cache, batched 1000-mutation blocks. Provenance:
+	// tm2/pkg/bptree/PERFORMANCE.md and benchmarks/BENCHMARKS.md.
+	//
+	// GET is PINNED (Fixed=100): a present-key Get on committed state is one
+	// flat DB read via the fast index, independent of tree size. SET/WRITE
+	// are ESTIMATED (Fixed=0 → the store's live estimate, expectedDepth100
+	// in tm2/pkg/store/bptree: bits.Len64(size)×20) with Min floors: the SET
+	// floor binds below 512 keys, the WRITE floor until the estimator
+	// strictly exceeds it at 2^27 ≈ 134M keys.
+	//
+	// Accepted imprecisions (absent-key reads, index byte duplication,
+	// iterator step cost) and full rationale:
+	// gno.land/adr/prxxxx_mount_bptree_store.md.
+	//
+	// Changing these defaults requires a new legacy fingerprint in
+	// contribs/gnogenesis/internal/fork/generate.go (fork repricing).
+	fixedGetReadDepth100Default = int64(100) // 1.0 flat read (fast-index hit)
+	minGetReadDepth100Default   = int64(100) // no-op floor: the estimator's own floor is 100
+	minSetReadDepth100Default   = int64(200) // 2.0 SET read ops (descent, batched calibration)
+	minWriteDepth100Default     = int64(540) // 4.4 batched COW writes + 1.0 fast-index write
 	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
 	iterNextCostFlatDefault = int64(1_000)
 )
@@ -56,28 +74,31 @@ type Params struct {
 // NewParams creates a new Params object
 func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100, iterNextCostFlat int64) Params {
 	return Params{
-		SysNamesPkgPath:      namesPkgPath,
-		SysCLAPkgPath:        claPkgPath,
-		ChainDomain:          chainDomain,
-		DefaultDeposit:       defaultDeposit,
-		StoragePrice:         storagePrice,
-		StorageFeeCollector:  storageFeeCollector,
-		MinGetReadDepth100:   minGetReadDepth100,
-		MinSetReadDepth100:   minSetReadDepth100,
-		MinWriteDepth100:     minWriteDepth100,
-		FixedGetReadDepth100: minGetReadDepth100,
-		FixedSetReadDepth100: minSetReadDepth100,
-		FixedWriteDepth100:   minWriteDepth100,
-		IterNextCostFlat:     iterNextCostFlat,
+		SysNamesPkgPath:     namesPkgPath,
+		SysCLAPkgPath:       claPkgPath,
+		ChainDomain:         chainDomain,
+		DefaultDeposit:      defaultDeposit,
+		StoragePrice:        storagePrice,
+		StorageFeeCollector: storageFeeCollector,
+		MinGetReadDepth100:  minGetReadDepth100,
+		MinSetReadDepth100:  minSetReadDepth100,
+		MinWriteDepth100:    minWriteDepth100,
+		// Fixed depths left zero: 0 = "use the live tree estimate, floored
+		// by Min". Callers that want a pinned depth set the Fixed field
+		// explicitly.
+		IterNextCostFlat: iterNextCostFlat,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
+	p := NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
 		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)),
 		minGetReadDepth100Default, minSetReadDepth100Default, minWriteDepth100Default,
 		iterNextCostFlatDefault)
+	// Pin GET (see the const block); SET/WRITE stay estimated.
+	p.FixedGetReadDepth100 = fixedGetReadDepth100Default
+	return p
 }
 
 // String implements the stringer interface.
