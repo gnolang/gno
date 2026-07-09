@@ -35,7 +35,7 @@ const (
 	// dependency re-type-checking excluded; 1 gas == 1ns on the reference
 	// machine, and the host-machine calibration factor is the dominant
 	// uncertainty).
-	preprocessGasPerByteDefault = 1_250
+	preprocessGasPerByteDefault = int64(1_250)
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
