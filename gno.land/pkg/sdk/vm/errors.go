@@ -44,7 +44,7 @@ func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e ObjectNotFoundError) Error() string   { return "object not found" }
-func (e TypeCheckError) Error() string { return "invalid gno package; type check failed" }
+func (e TypeCheckError) Error() string        { return "invalid gno package; type check failed" }
 
 func ErrPkgAlreadyExists(msg string) error {
 	return errors.Wrap(PkgExistError{}, msg)
