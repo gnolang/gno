@@ -368,6 +368,15 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 
 	oid := ObjectIDFromPkgPath(pkgPath)
+	// Synthetic packages are never persisted: check only the cache — a
+	// backend read would be a guaranteed miss charged as a full I/O
+	// read, and the pkgGetter cannot resolve them either.
+	if IsSyntheticPath(pkgPath) {
+		if oo, exists := ds.cacheObjects[oid]; exists {
+			return oo.(*PackageValue)
+		}
+		return nil
+	}
 	// Get package from cache or baseStore
 	oo := ds.GetObjectSafe(oid)
 	if oo != nil {

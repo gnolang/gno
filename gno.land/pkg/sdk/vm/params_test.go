@@ -232,7 +232,7 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	const format = "unknown vm param key: %q"
 	assert.Equal(t, fmt.Sprintf(format, "p:doesnotexist"), call("p:doesnotexist"))
 
-	typ := reflect.TypeOf(Params{})
+	typ := reflect.TypeFor[Params]()
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")

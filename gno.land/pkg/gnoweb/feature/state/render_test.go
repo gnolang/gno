@@ -105,11 +105,11 @@ func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 	const depth = 30
 	var v strings.Builder
 	v.WriteString(`{"@type":"/gno.StructValue","Fields":[`)
-	for i := 0; i < depth-1; i++ {
+	for range depth - 1 {
 		v.WriteString(`{"T":{"@type":"/gno.StructType","Fields":[]},"V":{"@type":"/gno.StructValue","Fields":[`)
 	}
 	v.WriteString(`{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}`)
-	for i := 0; i < depth-1; i++ {
+	for range depth - 1 {
 		v.WriteString(`]}}`)
 	}
 	v.WriteString(`]}`)
