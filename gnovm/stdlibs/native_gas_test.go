@@ -18,11 +18,11 @@ func TestSubRealmGasMirrorsPackageAddress(t *testing.T) {
 	for _, e := range calibratedNativeGas {
 		if e.Pkg == "chain" && e.Fn == "packageAddress" {
 			found = true
-			if int64(e.Base) != gno.OpCPUSubRealmBase {
+			if e.Base != gno.OpCPUSubRealmBase {
 				t.Errorf("OpCPUSubRealmBase = %d, packageAddress Base = %d — recalibration drifted; update the const",
 					gno.OpCPUSubRealmBase, e.Base)
 			}
-			if int64(e.Slope) != gno.OpCPUSubRealmSlope {
+			if e.Slope != gno.OpCPUSubRealmSlope {
 				t.Errorf("OpCPUSubRealmSlope = %d, packageAddress Slope = %d — recalibration drifted; update the const",
 					gno.OpCPUSubRealmSlope, e.Slope)
 			}
