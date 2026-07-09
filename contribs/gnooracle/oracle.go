@@ -35,6 +35,10 @@ type oracle struct {
 	testgs gno.Store
 	cache  gno.TypeCheckCache
 
+	// rpc resolves on-chain-only imports the disk store can't (falls back to
+	// vm/qfile queries against the watched node).
+	rpc *rpcGetter
+
 	// seen dedupes packages already processed in this run.
 	seen map[string]struct{}
 }
@@ -79,6 +83,7 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		testbs:   testbs,
 		testgs:   testgs,
 		cache:    make(gno.TypeCheckCache),
+		rpc:      newRPCGetter(rpc),
 		seen:     make(map[string]struct{}),
 	}, nil
 }
@@ -194,9 +199,11 @@ func (o *oracle) typecheck(mpkg *std.MemPackage) (err error) {
 		return o.testgs.BeginTransaction(cw, cw, nil, nil)
 	}
 
+	// Wrap the disk getters with an RPC fallback so imports of on-chain-only
+	// packages (not present under examples/) still resolve.
 	_, errs := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-		Getter:     newProdGnoStore(),
-		TestGetter: newTestGnoStore(),
+		Getter:     hybridGetter{disk: newProdGnoStore(), rpc: o.rpc},
+		TestGetter: hybridGetter{disk: newTestGnoStore(), rpc: o.rpc},
 		Mode:       gno.TCLatestStrict,
 		Cache:      o.cache,
 	})

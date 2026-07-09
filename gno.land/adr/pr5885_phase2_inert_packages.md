@@ -54,7 +54,9 @@ A reference approver implementation ships as a small daemon in
 2. Amino-decodes each block tx and extracts `vm.MsgAddPackage` messages.
 3. Runs the Gno typechecker off-chain on the submitted `MemPackage`, using a
    disk-backed store (stdlibs + `examples/`) exactly as `gno lint` does
-   (`test.StoreWithOptions` + `TypeCheckMemPackage`, `TCLatestStrict`).
+   (`test.StoreWithOptions` + `TypeCheckMemPackage`, `TCLatestStrict`), with an
+   RPC (`vm/qfile`) fallback getter so imports of on-chain-only packages resolve
+   against the node's current state.
 4. On success, builds and signs a `MsgEnablePackage` with an approver key and
    broadcasts it via `gnoclient` (`SignTx` + `BroadcastTxCommit`).
 

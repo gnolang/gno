@@ -13,7 +13,9 @@ sends `MsgEnablePackage`.
 1. **Watches** new blocks over RPC.
 2. **Extracts** `MsgAddPackage` transactions from each block.
 3. **Typechecks** the submitted package off-chain (same typechecker the chain
-   uses, resolving stdlibs and `examples/` from disk).
+   uses). Imports resolve from the local disk store (stdlibs + `examples/`)
+   first, falling back to `vm/qfile` RPC queries against the watched node for
+   on-chain-only packages.
 4. If it passes, **broadcasts** a `MsgEnablePackage` signed by the approver key,
    activating the package on-chain.
 
@@ -55,9 +57,9 @@ must be `inert`, otherwise the `MsgEnablePackage` transactions are rejected.
 - **Dev-grade key handling**: the approver key is supplied as a raw mnemonic
   (flag or `$GNOORACLE_MNEMONIC`). For production, back the signer with an
   encrypted on-disk keybase instead.
-- **Import resolution is disk-based**: packages that import other *on-chain-only*
-  packages (not present under `examples/`) will fail the local typecheck and not
-  be approved. Such packages remain inert until approved by a more capable
-  approver. A future version can resolve imports via `vm/qfile` RPC queries.
+- **RPC import cache is per-run**: on-chain packages fetched via `vm/qfile` are
+  cached for the process lifetime, so a dependency updated mid-run is not
+  re-fetched. This only affects the oracle's *proposal*; the chain re-typechecks
+  against current state at enable time.
 - **No catch-up persistence**: `--start-height` lets you replay from a given
   height, but the oracle keeps no on-disk cursor between runs.
