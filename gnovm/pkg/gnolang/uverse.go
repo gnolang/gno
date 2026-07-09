@@ -8,20 +8,37 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
 	// NativeCPUUversePrintInit is the base gas cost for the Print function.
 	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
+	//
+	// NOTE: this was calibrated against the pre-refactor fmt.Sprintf/strings.Join
+	// implementation (measured at ~1 element, folding that element's formatting
+	// into the base). After the streaming refactor, per-byte formatting is priced
+	// separately by streamOutputGas, so the true fixed base is much smaller and
+	// 1376 is now a conservative over-estimate. Re-calibrating it — via the
+	// benchmarkingnative pipeline on the reference hardware, not an off-box
+	// microbenchmark — is a deliberate follow-up (see the ADR).
 	NativeCPUUversePrintInit = 1376
-	// NativeCPUUversePrintPerChar is now chars per gas unit.
-	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
 // non-primitive builtin types
+
+// gRuntimeErrorType is the VM-internal type used for runtime panics (nil
+// pointer dereference, nil interface method call, etc.). It implements the
+// Gno error interface so that recover().(error) works as in Go, whose
+// runtime uses the same shape (`type plainError string` in runtime/error.go).
+var gRuntimeErrorType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    ".runtimeError",
+	Base:    StringType,
+	sealed:  true,
+	// Error() method defined in makeUverseNode()
+}
 
 var gErrorType = &DeclaredType{
 	PkgPath: uversePkgPath,
@@ -445,11 +462,11 @@ func realmIsEphemeral(pkgPath string) bool {
 // ephemeral realm: pkgPath == "<domain>/e/<addr>/run". Mirrors
 // chain/runtime.Realm.IsUserRun.
 func realmIsUserRun(addr, pkgPath string) bool {
-	idx := strings.Index(pkgPath, "/")
-	if idx == -1 {
+	before, _, ok := strings.Cut(pkgPath, "/")
+	if !ok {
 		return false
 	}
-	return pkgPath == pkgPath[:idx]+"/e/"+addr+"/run"
+	return pkgPath == before+"/e/"+addr+"/run"
 }
 
 // ----------------------------------------
@@ -548,6 +565,17 @@ func makeUverseNode() {
 	def("uint64", asValue(Uint64Type))
 	def("error", asValue(gErrorType))
 	def("any", asValue(&InterfaceType{}))
+	def(".runtimeError", asValue(gRuntimeErrorType))
+	defNativeMethod(Name(".runtimeError"), "Error",
+		nil, // no params beyond receiver
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			m.PushValue(typedString(arg0.TV.GetString()))
+		},
+	)
 
 	// Values
 	def("true", untypedBool(true))
@@ -1070,7 +1098,7 @@ func makeUverseNode() {
 					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(nil, li)
@@ -1105,13 +1133,13 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if li < 0 {
-						m.Panic(typedString("runtime error: makeslice: len out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
 					}
 					if ci < 0 {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 					if ci < li {
-						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+						m.Panic(typedRuntimeError("runtime error: makeslice: cap out of range"))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -1225,7 +1253,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
-				ncode := bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false)))
+				ncode := benchNativePrintCode(m, arg0)
 				old := bm.StartNative(ncode)
 				prevOutput := m.Output
 				m.Output = io.Discard
@@ -1247,7 +1275,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
-				ncode := bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false)))
+				ncode := benchNativePrintCode(m, arg0)
 				old := bm.StartNative(ncode)
 				prevOutput := m.Output
 				m.Output = io.Discard
@@ -1715,13 +1743,53 @@ func consumeGas(m *Machine, amount types.Gas) {
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
+//
+// Output streams into a buffered meteredWriter, which charges gas via
+// streamOutputGas once per flushed buffer rather than once per write. The
+// cumulative output cost is therefore bounded by the per-tx gas budget,
+// in proportion to the bytes produced, instead of being a single
+// after-the-fact charge on the joined Go string.
+//
+// formatUverseOutput is preserved because the benchmark-only length sample
+// (benchNativePrintCode, under bm.NativeEnabled) still uses it.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	consumeGas(m, NativeCPUUversePrintInit)
-	output := formatUverseOutput(m, xv, newline)
-	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
-	// For debugging:
-	// fmt.Println(colors.Cyan(string(output)))
-	m.Output.Write(output)
+	mw := newMeteredWriter(m.Output, m)
+	defer mw.Release()
+	defer mw.Flush() // LIFO: runs before Release, after the loop (normal or panic).
+	xvl := xv.TV.GetLength()
+	for i := range xvl {
+		if i != 0 {
+			mw.WriteByte(' ')
+		}
+		ev := xv.TV.GetPointerAtIndexInt(m, m.Store, i).Deref()
+		ev.Fprint(mw, m)
+	}
+	if newline {
+		mw.WriteByte('\n')
+	}
+}
+
+// benchNativePrintCode samples the printed length to choose a native-print
+// benchmark bucket WITHOUT charging gas. formatUverseOutput re-renders the
+// args (and for Stringer/Error values re-runs their gno method via m.Eval),
+// which would otherwise double-count the output gas uversePrint already
+// charges. Both settable meters are nilled for the sample and restored.
+//
+// Caveat: store I/O gas charged inside an m.Eval'd Stringer/Error method
+// cannot be suppressed here (the store's gas meter has no setter), so such a
+// sample still leaks store gas into the bench measurement. This whole path is
+// build-tag-gated (bm.NativeEnabled) instrumentation and never runs in
+// consensus, so the residual is a calibration nuance, not a correctness issue.
+func benchNativePrintCode(m *Machine, arg0 PointerValue) bm.NativeOp {
+	gm, am := m.GasMeter, m.Alloc.GetGasMeter()
+	m.GasMeter = nil
+	m.Alloc.SetGasMeter(nil)
+	defer func() {
+		m.GasMeter = gm
+		m.Alloc.SetGasMeter(am)
+	}()
+	return bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false)))
 }
 
 func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {

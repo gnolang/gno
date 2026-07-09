@@ -431,7 +431,7 @@ func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 
 	keys := make([]crypto.PrivKey, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := getDummyKey(t)
 		keys = append(keys, key)
 	}
@@ -2419,7 +2419,6 @@ func TestMeetsMinVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
 			t.Parallel()
 			got := meetsMinVersion(tc.binary, tc.minVer)
@@ -2448,7 +2447,6 @@ func TestParseGnolandVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			major, minor, ok := parseGnolandVersion(tc.input)

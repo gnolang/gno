@@ -219,9 +219,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			return
 		}
 		f := map[Name]bool{}
-		for k, v := range parent {
-			f[k] = v
-		}
+		maps.Copy(f, parent)
 		if modify != nil {
 			modify(f)
 		}
@@ -1297,6 +1295,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
@@ -1756,8 +1759,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2061,11 +2067,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`); fall
+									// through, runtime will panic with
+									// "call of nil function".
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
@@ -2201,11 +2210,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
@@ -3091,7 +3107,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(dstTV)))
+						reflect.TypeFor[*TypedValue]()))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
