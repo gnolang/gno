@@ -171,12 +171,61 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
 	require.Equal(t, int64(0), newGasPrice.Price.Amount)
 
-	// Test with gasUsed as 0 (should not change the last price)
+	// Test with gasUsed as 0 (empty block): the price must decay (issue #5906)
+	// instead of staying flat, floored at the initial gas price (0 here).
+	// target = 5000, decrease = (5000-0)*100/5000/2 = 50, so 100 - 50 = 50.
 	params.TargetGasRatio = 50
 	lastGasPrice.Price.Amount = 100
 	gasUsed = 0
 	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
-	require.Equal(t, int64(100), newGasPrice.Price.Amount)
+	require.Equal(t, int64(50), newGasPrice.Price.Amount)
+}
+
+// TestCalcBlockGasPriceRatchet is a regression test for issue #5906: the gas
+// price could rise under congestion but never fall again, because the decrease
+// branch rounded any sub-unit adjustment down to 0 via integer division while
+// the increase branch floored at +1. The fix makes the decrease symmetric
+// ("decrease at least 1"), clamped at the initial gas price.
+func TestCalcBlockGasPriceRatchet(t *testing.T) {
+	gk := GasPriceKeeper{}
+
+	// Mirror test13's live params: MaxGas 3B, TargetGasRatio 70 (target 2.1B),
+	// GasPricesChangeCompressor 10, and a price stuck at the compressor value.
+	maxGas := int64(3_000_000_000)
+	params := Params{
+		TargetGasRatio:            70,
+		GasPricesChangeCompressor: 10,
+		InitialGasPrice: std.GasPrice{
+			Gas:   1000,
+			Price: std.Coin{Amount: 1, Denom: "ugnot"},
+		},
+	}
+	price := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+	}
+
+	// A block well under the 70% target (14%, as observed on block 727618)
+	// must lower the price, not leave it stuck at 10.
+	gasUsed := int64(0.14 * 3_000_000_000)
+	next := gk.calcBlockGasPrice(price, gasUsed, maxGas, params)
+	require.Equal(t, int64(9), next.Price.Amount, "under-target block must decrease the price")
+
+	// Repeatedly applying under-target blocks must drive the price all the way
+	// back down to the initial gas price and never below it.
+	for range 100 {
+		next = gk.calcBlockGasPrice(next, gasUsed, maxGas, params)
+	}
+	require.Equal(t, int64(1), next.Price.Amount, "price must decay to the initial gas price")
+
+	// Once at the floor it stays there.
+	next = gk.calcBlockGasPrice(next, gasUsed, maxGas, params)
+	require.Equal(t, int64(1), next.Price.Amount, "price must not drop below the initial gas price")
+
+	// An empty block (gasUsed == 0) also decays the price.
+	price.Price.Amount = 10
+	next = gk.calcBlockGasPrice(price, 0, maxGas, params)
+	require.Equal(t, int64(9), next.Price.Amount, "empty block must decrease the price")
 }
 
 func TestNewAccountWithUncheckedNumber(t *testing.T) {
