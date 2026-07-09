@@ -2329,8 +2329,9 @@ func TestAVLCrossValidation(t *testing.T) {
 				t.Fatalf("op %d: Remove(%q) value avl=%v bpt=%v", i, key, aVal, bVal)
 			}
 		case 2: // Get
-			aVal, aOk := at.Get(key)
+			aVal := at.Get(key)
 			bVal, bOk := bt.Get(key)
+			aOk := at.Has(key)
 			if aOk != bOk {
 				t.Fatalf("op %d: Get(%q) avl=%v bpt=%v", i, key, aOk, bOk)
 			}
