@@ -769,8 +769,6 @@ func (wsc *wsConnection) readRoutine() {
 			}
 
 			for _, request := range requests {
-				request := request
-
 				// A Notification is a Request object without an "id" member.
 				// The Server MUST NOT reply to a Notification, including those that are within a batch request.
 				if request.ID == types.JSONRPCStringID("") {
@@ -1048,15 +1046,16 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 
 	buf.WriteString("<br>Endpoints that require arguments:<br>")
 	for _, name := range argNames {
-		link := fmt.Sprintf("//%s/%s?", r.Host, name)
+		var link strings.Builder
+		link.WriteString(fmt.Sprintf("//%s/%s?", r.Host, name))
 		funcData := funcMap[name]
 		for i, argName := range funcData.argNames {
-			link += argName + "=_"
+			link.WriteString(argName + "=_")
 			if i < len(funcData.argNames)-1 {
-				link += "&"
+				link.WriteString("&")
 			}
 		}
-		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
+		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link.String(), link.String())
 	}
 	buf.WriteString("</body></html>")
 	w.Header().Set("Content-Type", "text/html")

@@ -41,7 +41,7 @@ func Example() {
 	// amino.RegisterPackage registers globally.
 	amino.RegisterPackage(
 		amino.NewPackage(
-			reflect.TypeOf(bcMessage{}).PkgPath(),
+			reflect.TypeFor[bcMessage]().PkgPath(),
 			"amino_test",
 			amino.GetCallersDirname(),
 		).
