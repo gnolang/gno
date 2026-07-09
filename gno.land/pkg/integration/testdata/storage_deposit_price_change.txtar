@@ -72,7 +72,7 @@ gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "9999854'
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"

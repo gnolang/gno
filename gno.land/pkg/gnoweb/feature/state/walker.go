@@ -159,12 +159,9 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string, cfg R
 		bt := baseType(t)
 		if st, ok := bt.(*gno.StructType); ok {
 			total := len(sv.Fields)
-			shown := total
-			if shown > childCap {
-				shown = childCap
-			}
+			shown := min(total, childCap)
 			children := make([]StateNode, shown, shown+1)
-			for i := 0; i < shown; i++ {
+			for i := range shown {
 				name := strconv.Itoa(i)
 				if i < len(st.Fields) && st.Fields[i].Name != "" {
 					name = string(st.Fields[i].Name)
@@ -393,12 +390,9 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 
 	case *gno.StructValue:
 		total := len(cv.Fields)
-		shown := total
-		if shown > childCap {
-			shown = childCap
-		}
+		shown := min(total, childCap)
 		nodes := make([]StateNode, shown, shown+1)
-		for i := 0; i < shown; i++ {
+		for i := range shown {
 			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.Fields[i])
 		}
 		if total > shown {
@@ -414,12 +408,9 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 			}}
 		}
 		total := len(cv.List)
-		shown := total
-		if shown > childCap {
-			shown = childCap
-		}
+		shown := min(total, childCap)
 		nodes := make([]StateNode, shown, shown+1)
-		for i := 0; i < shown; i++ {
+		for i := range shown {
 			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.List[i])
 		}
 		if total > shown {
@@ -434,12 +425,9 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 			offset, end := clampSliceWindow(cv.Offset, cv.Length, len(av.List))
 			window := av.List[offset:end]
 			total := len(window)
-			shown := total
-			if shown > childCap {
-				shown = childCap
-			}
+			shown := min(total, childCap)
 			nodes := make([]StateNode, shown, shown+1)
-			for i := 0; i < shown; i++ {
+			for i := range shown {
 				nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), window[i])
 			}
 			if total > shown {
@@ -486,12 +474,9 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 		return []StateNode{inner}
 	case *gno.Block:
 		total := len(cv.Values)
-		shown := total
-		if shown > childCap {
-			shown = childCap
-		}
+		shown := min(total, childCap)
 		nodes := make([]StateNode, shown, shown+1)
-		for i := 0; i < shown; i++ {
+		for i := range shown {
 			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.Values[i])
 		}
 		if total > shown {
@@ -561,12 +546,9 @@ func decodePrimitive(name, tName string, pt gno.PrimitiveType, tv gno.TypedValue
 func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
 	fieldNames := structFieldNames(bt)
 	total := len(sv.Fields)
-	shown := total
-	if shown > maxChildrenPerNode {
-		shown = maxChildrenPerNode
-	}
+	shown := min(total, maxChildrenPerNode)
 	children := make([]StateNode, shown, shown+1)
-	for i := 0; i < shown; i++ {
+	for i := range shown {
 		var fname string
 		if i < len(fieldNames) && fieldNames[i] != "" {
 			fname = fieldNames[i]
@@ -601,12 +583,9 @@ func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 		return node
 	}
 	total := len(av.List)
-	visible := total
-	if visible > maxChildrenPerNode {
-		visible = maxChildrenPerNode
-	}
+	visible := min(total, maxChildrenPerNode)
 	children := make([]StateNode, visible, visible+1)
-	for i := 0; i < visible; i++ {
+	for i := range visible {
 		children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), av.List[i])
 	}
 	if total > visible {
@@ -640,12 +619,9 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 		offset, end := clampSliceWindow(sv.Offset, length, len(av.List))
 		window := av.List[offset:end]
 		total := len(window)
-		shown := total
-		if shown > maxChildrenPerNode {
-			shown = maxChildrenPerNode
-		}
+		shown := min(total, maxChildrenPerNode)
 		children := make([]StateNode, shown, shown+1)
-		for i := 0; i < shown; i++ {
+		for i := range shown {
 			children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), window[i])
 		}
 		if total > shown {
@@ -731,12 +707,9 @@ func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 	if total := len(fv.Captures); total > 0 {
 		// Same cap as struct/array/map/slice: chain-supplied captures
 		// are attacker-controlled, surplus collapses to one sentinel.
-		shown := total
-		if shown > maxChildrenPerNode {
-			shown = maxChildrenPerNode
-		}
+		shown := min(total, maxChildrenPerNode)
 		children := make([]StateNode, shown, shown+1)
-		for i := 0; i < shown; i++ {
+		for i := range shown {
 			children[i] = decodeTypedValueAt(depth+1, "value", fv.Captures[i])
 		}
 		if total > shown {
@@ -1065,11 +1038,8 @@ func buildChildrenPreview(children []StateNode) string {
 		return ""
 	}
 	parts := make([]string, 0, inlinePreviewMaxFields)
-	limit := len(children)
-	if limit > inlinePreviewMaxFields {
-		limit = inlinePreviewMaxFields
-	}
-	for i := 0; i < limit; i++ {
+	limit := min(len(children), inlinePreviewMaxFields)
+	for i := range limit {
 		parts = append(parts, children[i].Name+": "+previewChildValue(children[i]))
 	}
 	if len(children) > inlinePreviewMaxFields {

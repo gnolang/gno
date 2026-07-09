@@ -60,7 +60,7 @@ func TestVersionedRandomTree(t *testing.T) {
 
 	// Create a tree of size 1000 with 100 versions.
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			k := []byte(iavlrand.RandStr(8))
 			v := []byte(iavlrand.RandStr(8))
 			tree.Set(k, v)
@@ -132,8 +132,8 @@ func TestTreeHash(t *testing.T) { //nolint: dupl
 	tree := NewMutableTree(memdb.NewMemDB(), 0, false, NewNopLogger())
 
 	keys := make([][]byte, 0, versionOps)
-	for i := 0; i < versions; i++ {
-		for j := 0; j < versionOps; j++ {
+	for i := range versions {
+		for range versionOps {
 			key := make([]byte, keySize)
 			value := make([]byte, valueSize)
 
@@ -185,7 +185,7 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 	keysPerVersion := 50
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			k := []byte(iavlrand.RandStr(1))
 			v := []byte(iavlrand.RandStr(8))
@@ -214,7 +214,7 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 	require.Len(nodes, singleVersionTree.nodeSize())
 
 	// Try getting random keys.
-	for i := 0; i < keysPerVersion; i++ {
+	for range keysPerVersion {
 		val, err := tree.Get([]byte(iavlrand.RandStr(1)))
 		require.NoError(err)
 		require.NotNil(val)
@@ -233,7 +233,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	keysPerVersion := 50
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			k := []byte(iavlrand.RandStr(1))
 			v := []byte(iavlrand.RandStr(8))
@@ -262,7 +262,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	require.Len(nodes, singleVersionTree.nodeSize())
 
 	// Try getting random keys.
-	for i := 0; i < keysPerVersion; i++ {
+	for range keysPerVersion {
 		val, err := tree.Get([]byte(iavlrand.RandStr(1)))
 		require.NoError(err)
 		require.NotNil(val)
@@ -1032,7 +1032,7 @@ func TestVersionedTreeEfficiency(t *testing.T) {
 
 	keysAdded := 0
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			tree.Set([]byte(iavlrand.RandStr(1)), []byte(iavlrand.RandStr(8)))
 		}
@@ -1158,7 +1158,7 @@ func TestOrphans(t *testing.T) {
 	NUMVERSIONS := 100
 	NUMUPDATES := 100
 
-	for i := 0; i < NUMVERSIONS; i++ {
+	for range NUMVERSIONS {
 		for j := 1; j < NUMUPDATES; j++ {
 			tree.Set(iavlrand.RandBytes(2), iavlrand.RandBytes(2))
 		}
@@ -1269,8 +1269,8 @@ func TestLoadVersion(t *testing.T) {
 	require.NoError(t, err, "unexpected error")
 	require.Equal(t, version, int64(0), "expected latest version to be zero")
 
-	for i := 0; i < maxVersions; i++ {
-		tree.Set([]byte(fmt.Sprintf("key_%d", i+1)), []byte(fmt.Sprintf("value_%d", i+1)))
+	for i := range maxVersions {
+		tree.Set(fmt.Appendf(nil, "key_%d", i+1), fmt.Appendf(nil, "value_%d", i+1))
 
 		_, _, err = tree.SaveVersion()
 		require.NoError(t, err, "SaveVersion should not fail")
@@ -1281,18 +1281,18 @@ func TestLoadVersion(t *testing.T) {
 	require.NoError(t, err, "unexpected error when lazy loading version")
 	require.Equal(t, version, int64(maxVersions))
 
-	value, err := tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions)))
+	value, err := tree.Get(fmt.Appendf(nil, "key_%d", maxVersions))
 	require.NoError(t, err)
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions)), "unexpected value")
+	require.Equal(t, value, fmt.Appendf(nil, "value_%d", maxVersions), "unexpected value")
 
 	// require the ability to load an older version
 	version, err = tree.LoadVersion(int64(maxVersions - 1))
 	require.NoError(t, err, "unexpected error when loading version")
 	require.Equal(t, version, int64(maxVersions))
 
-	value, err = tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions-1)))
+	value, err = tree.Get(fmt.Appendf(nil, "key_%d", maxVersions-1))
 	require.NoError(t, err)
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions-1)), "unexpected value")
+	require.Equal(t, value, fmt.Appendf(nil, "value_%d", maxVersions-1), "unexpected value")
 
 	// require the inability to load a non-valid version
 	version, err = tree.LoadVersion(int64(maxVersions + 1))
@@ -1445,7 +1445,7 @@ func BenchmarkTreeLoadAndDelete(b *testing.B) {
 
 	tree := NewMutableTree(d, 0, false, NewNopLogger())
 	for v := 1; v < numVersions; v++ {
-		for i := 0; i < numKeysPerVersion; i++ {
+		for range numKeysPerVersion {
 			tree.Set([]byte(iavlrand.RandStr(16)), iavlrand.RandBytes(32))
 		}
 		tree.SaveVersion()
@@ -1480,21 +1480,21 @@ func TestLoadVersionForOverwritingCase2(t *testing.T) {
 
 	tree := NewMutableTree(memdb.NewMemDB(), 0, false, NewNopLogger())
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Set([]byte{i}, []byte{i})
 	}
 
 	_, _, err := tree.SaveVersion()
 	require.NoError(err, "SaveVersion should not fail")
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Set([]byte{i}, []byte{i + 1})
 	}
 
 	_, _, err = tree.SaveVersion()
 	require.NoError(err, "SaveVersion should not fail with the same key")
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Set([]byte{i}, []byte{i + 2})
 	}
 	tree.SaveVersion()
@@ -1512,7 +1512,7 @@ func TestLoadVersionForOverwritingCase2(t *testing.T) {
 	err = tree.LoadVersionForOverwriting(1)
 	require.NoError(err, "LoadVersionForOverwriting should not fail")
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		v, err := tree.Get([]byte{i})
 		require.NoError(err)
 		require.Equal([]byte{i}, v)
@@ -1542,13 +1542,13 @@ func TestLoadVersionForOverwritingCase3(t *testing.T) {
 
 	tree := NewMutableTree(memdb.NewMemDB(), 0, false, NewNopLogger())
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Set([]byte{i}, []byte{i})
 	}
 	_, _, err := tree.SaveVersion()
 	require.NoError(err)
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Set([]byte{i}, []byte{i + 1})
 	}
 	_, _, err = tree.SaveVersion()
@@ -1564,7 +1564,7 @@ func TestLoadVersionForOverwritingCase3(t *testing.T) {
 		}
 	}
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		tree.Remove([]byte{i})
 	}
 	_, _, err = tree.SaveVersion()
@@ -1578,7 +1578,7 @@ func TestLoadVersionForOverwritingCase3(t *testing.T) {
 		require.False(has, "LoadVersionForOverwriting should remove useless nodes")
 	}
 
-	for i := byte(0); i < 20; i++ {
+	for i := range byte(20) {
 		v, err := tree.Get([]byte{i})
 		require.NoError(err)
 		require.Equal([]byte{i}, v)
@@ -1673,7 +1673,7 @@ func Benchmark_GetWithIndex(b *testing.B) {
 
 	keys := make([][]byte, 0, numKeyVals)
 
-	for i := 0; i < numKeyVals; i++ {
+	for range numKeyVals {
 		key := iavlrand.RandBytes(10)
 		keys = append(keys, key)
 		t.Set(key, iavlrand.RandBytes(10))
@@ -1721,7 +1721,7 @@ func Benchmark_GetByIndex(b *testing.B) {
 
 	t := NewMutableTree(db, numKeyVals, false, NewNopLogger())
 
-	for i := 0; i < numKeyVals; i++ {
+	for range numKeyVals {
 		key := iavlrand.RandBytes(10)
 		t.Set(key, iavlrand.RandBytes(10))
 	}
@@ -1788,13 +1788,12 @@ func TestNodeCacheStatisic(t *testing.T) {
 	}
 
 	for name, tc := range testcases {
-		tc := tc
 		t.Run(name, func(_ *testing.T) {
 			stat := &Statistics{}
 			db := memdb.NewMemDB()
 			mt := NewMutableTree(db, tc.cacheSize, false, NewNopLogger(), StatOption(stat))
 
-			for i := 0; i < numKeyVals; i++ {
+			for i := range numKeyVals {
 				key := []byte(strconv.Itoa(i))
 				_, err := mt.Set(key, iavlrand.RandBytes(10))
 				require.NoError(t, err)
@@ -1803,7 +1802,7 @@ func TestNodeCacheStatisic(t *testing.T) {
 			it, err := mt.GetImmutable(ver)
 			require.NoError(t, err)
 
-			for i := 0; i < numKeyVals; i++ {
+			for i := range numKeyVals {
 				key := []byte(strconv.Itoa(i))
 				val, err := it.Get(key)
 				require.NoError(t, err)
@@ -1828,7 +1827,7 @@ func TestEmptyVersionDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	toVersion := 10
-	for i := 0; i < toVersion; i++ {
+	for range toVersion {
 		_, _, err = tree.SaveVersion()
 		require.NoError(t, err)
 	}

@@ -1,4 +1,4 @@
-package foo20
+package grc20factory
 
 import (
 	"gno.land/p/demo/tokens/grc20"
