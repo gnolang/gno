@@ -11,17 +11,24 @@ import (
 const PathSeparator = "/"
 
 var (
-	ErrExecutionNotAllowed  = errors.New("proposal must pass before execution")
+	ErrExecutionNotAllowed  = errors.New("execution not allowed, proposal status must be active, passed or rejected")
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
 	ErrProposalNotFound     = errors.New("proposal not found")
+	ErrRealmIsNotCaller     = errors.New("rlm is not the caller realm")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
 	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
 )
 
-// CommonDAO defines a DAO.
+// CommonDAO defines a DAO (Decentralized Autonomous Organization).
+//
+// IMPORTANT: This type intentionally exposes mutable references so a consumer
+// can compose low-level operations, so all instances of this type must be kept
+// private to avoid exposing mutable references like ActiveProposals, Members,
+// Children, or to avoid exposing methods that return mutable references like
+// Propose() or GetProposal().
 type CommonDAO struct {
 	id                         uint64
 	slug                       string
@@ -35,10 +42,50 @@ type CommonDAO struct {
 	finishedProposals          ProposalStorage
 	deleted                    bool // Soft delete
 	disableVotingDeadlineCheck bool
+	disableCanonicalCheck      bool
 }
 
 // New creates a new common DAO.
+// It panics if non-canonical member or proposal storage are assigned.
+// The returned CommonDAO must never be public because it contains methods
+// that expose internal references that could be modified by an external realm.
 func New(options ...Option) *CommonDAO {
+	dao := NewUnsafe(options...)
+
+	// Check that all interface based types are the canonical ones defined
+	// by this package. CommonDAO options allow using custom implementations,
+	// so these checks are done to make sure the returned DAO instace is safe.
+	if !IsCanonicalMemberStorage(dao.members) {
+		panic("DAO member storage is not canonical")
+	}
+
+	if !IsCanonicalProposalStorage(dao.activeProposals) {
+		panic("DAO active proposals storage is not canonical")
+	}
+
+	if !IsCanonicalProposalStorage(dao.finishedProposals) {
+		panic("DAO finished proposals storage is not canonical")
+	}
+
+	return dao
+}
+
+// NewUnsafe creates a new common DAO with the checks for canonical types disabled.
+// Unsafe CommonDAO allows using custom member or proposal storage implementaions.
+//
+// Canonical types are types like MemberStorage or ProposalStorage which are interface
+// based types defined by `commondao` package. These types are checked by default, for
+// security, to avoid an attacker from using malicious types that implement interfaces
+// defined within the `commondao` package.
+//
+// The returned CommonDAO must never be public because it contains methods that expose
+// internal references that could be modified by an external realm.
+//
+// IMPORTANT: Use unsafe CommonDAO if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If checks are disabled
+// it's highly recommended to use the `IsCanonical` functions before calling a method
+// on these interface based types if they are provided by an external caller.
+func NewUnsafe(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
 		children:          &list.List{},
 		members:           NewMemberStorage(),
@@ -72,10 +119,10 @@ func (dao CommonDAO) Description() string {
 }
 
 // Path returns the full path to the DAO.
-// Paths are normally used when working with hierarchical
-// DAOs and is created by concatenating DAO slugs.
+// Paths are normally used when working with hierarchical DAOs and is created
+// by concatenating DAO slugs. Method doesn't validate that DAOs have a slug,
+// is up to the caller to make sure all DAOs within a path have a valid slug.
 func (dao CommonDAO) Path() string {
-	// NOTE: Path could be a value but there might be use cases where dynamic path is useful (?)
 	parent := dao.Parent()
 	if parent != nil {
 		prefix := parent.Path()
@@ -118,7 +165,7 @@ func (dao CommonDAO) ActiveProposals() ProposalStorage {
 	return dao.activeProposals
 }
 
-// FinishedProposalsi returns finished DAO proposals.
+// FinishedProposals returns finished DAO proposals.
 func (dao CommonDAO) FinishedProposals() ProposalStorage {
 	return dao.finishedProposals
 }
@@ -134,6 +181,11 @@ func (dao *CommonDAO) SetDeleted(deleted bool) {
 }
 
 // Propose creates a new DAO proposal.
+//
+// IMPORTANT: It's recommended to ensure that any externally-supplied proposal
+// definitions comes from a trusted source, and when possible check that given
+// definitions are canonical. Never accept a proposal definitions from an
+// arbitrary external input.
 func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal, error) {
 	id, ok := dao.genID.TryNext()
 	if !ok {
@@ -168,8 +220,7 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Withdraw withdraws a proposal that has no votes.
-// Only proposals without votes can be withdrawn, and once
-// withdrawn they are considered finished.
+// Only proposals without votes can be withdrawn, and once withdrawn they are considered finished.
 func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
@@ -181,8 +232,7 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	}
 
 	p.status = StatusWithdrawn
-	dao.activeProposals.Remove(p.id)
-	dao.finishedProposals.Add(p)
+	dao.finishProposal(p)
 	return nil
 }
 
@@ -217,9 +267,40 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 	return nil
 }
 
+// Tally counts votes and updates proposal status with the current outcome.
+// Proposal status is updated to "passed" when proposal is approved
+// or to "rejected" if proposal doesn't pass.
+//
+// It optionally can validate the proposal to verify potential issues with the
+// current state when the proposal type supports validation.
+func (dao *CommonDAO) Tally(proposalID uint64, validate bool) (ProposalStatus, error) {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
+		return "", ErrProposalNotFound
+	}
+
+	if p.status != StatusActive && p.status != StatusPassed && p.status != StatusRejected {
+		return "", ErrTallyNotAllowed
+	}
+
+	if validate {
+		if err := p.Validate(); err != nil {
+			return "", err
+		}
+	}
+
+	if err := p.tally(dao.members); err != nil {
+		return "", err
+	}
+	return p.status, nil
+}
+
 // Execute executes a proposal.
 //
-// By default active proposals can only be executed after their voting deadline passes.
+// It first validates the proposal, then tallies the votes and finally executes the proposal.
+// Proposal is stored as finished after execution, independently of the final status.
+//
+// By default proposals can only be executed after their voting deadline passes.
 // DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 //
 // rlm is the realm authority threaded into the executor via cross(rlm).
@@ -227,13 +308,19 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 // parameter slot) because /p/ production code cannot declare crossing
 // functions — callers pass `cur` directly as the rlm argument.
 func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrRealmIsNotCaller
+	}
+
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
 	}
 
-	// Proposal must be active or have passed to be executed
-	if p.status != StatusActive && p.status != StatusPassed {
+	// Check that current proposal status is valid for execution. Proposals can be tallied
+	// before execution, so its status can change before execution, depending on how the
+	// commondao package caller implements the DAO realm.
+	if p.status != StatusActive && p.status != StatusPassed && p.status != StatusRejected {
 		return ErrExecutionNotAllowed
 	}
 
@@ -250,18 +337,19 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 
 	// Tally votes and update proposal status to "passed" or "rejected"
 	if err == nil {
-		err = p.Tally(dao.Members())
+		err = p.tally(dao.Members())
 		if err == nil && p.Status() == StatusRejected {
-			// Don't try to execute proposal if it's been rejected
+			// Don't execute proposal if it's been rejected
+			dao.finishProposal(p)
 			return nil
 		}
 	}
 
 	// Execute proposal only if it's executable
 	if err == nil {
-		if e, ok := p.Definition().(Executable); ok {
+		if e, ok := p.definition.(Executable); ok {
 			if fn := e.Executor(); fn != nil {
-				err = fn(cross(rlm))
+				err = fn(rlm.PkgPath())
 			}
 		}
 	}
@@ -274,9 +362,12 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 		p.status = StatusExecuted
 	}
 
-	// Whichever the outcome of the validation, tallying
-	// and execution consider the proposal finished.
+	// Whichever the outcome consider the proposal finished
+	dao.finishProposal(p)
+	return nil
+}
+
+func (dao *CommonDAO) finishProposal(p *Proposal) {
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
-	return nil
 }

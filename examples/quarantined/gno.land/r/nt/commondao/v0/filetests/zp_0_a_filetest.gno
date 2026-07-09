@@ -44,9 +44,9 @@ func main(cur realm) {
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == "Members Update")
+	println(p.Title() == "Members Update")
 	println("")
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:

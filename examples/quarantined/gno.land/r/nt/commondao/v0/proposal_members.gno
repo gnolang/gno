@@ -103,8 +103,9 @@ func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, err
 		return ctx.VotingRecord.VoteCount(commondao.ChoiceYes) > 0, nil
 	}
 
-	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, memberCount, ctx.VotingRecord) {
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
@@ -118,7 +119,7 @@ func (p membersUpdatePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p membersUpdatePropDefinition) execute(realm) error {
+func (p membersUpdatePropDefinition) execute(string) error {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {

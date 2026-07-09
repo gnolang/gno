@@ -9,27 +9,27 @@ import (
 
 const (
 	StatusActive    ProposalStatus = "active"
-	StatusPassed                   = "passed"
-	StatusRejected                 = "rejected"
-	StatusExecuted                 = "executed"
-	StatusFailed                   = "failed"
-	StatusWithdrawn                = "withdrawn"
+	StatusPassed    ProposalStatus = "passed"
+	StatusRejected  ProposalStatus = "rejected"
+	StatusExecuted  ProposalStatus = "executed"
+	StatusFailed    ProposalStatus = "failed"
+	StatusWithdrawn ProposalStatus = "withdrawn"
 )
 
 const (
 	ChoiceNone       VoteChoice = ""
-	ChoiceYes                   = "YES"
-	ChoiceNo                    = "NO"
-	ChoiceNoWithVeto            = "NO WITH VETO"
-	ChoiceAbstain               = "ABSTAIN"
+	ChoiceYes        VoteChoice = "YES"
+	ChoiceNo         VoteChoice = "NO"
+	ChoiceNoWithVeto VoteChoice = "NO WITH VETO"
+	ChoiceAbstain    VoteChoice = "ABSTAIN"
 )
 
 const (
 	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
-	QuorumMoreThanHalf         = 0.51
-	QuorumTwoThirds            = 0.66
-	QuorumThreeFourths         = 0.75
-	QuorumFull                 = 1
+	QuorumMoreThanHalf float64 = 0.51
+	QuorumTwoThirds    float64 = 0.66
+	QuorumThreeFourths float64 = 0.75
+	QuorumFull         float64 = 1
 )
 
 // MaxCustomVoteChoices defines the maximum number of custom
@@ -39,9 +39,9 @@ const MaxCustomVoteChoices = 10
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
+	ErrProposalDefinitionPanicked = errors.New("proposal definition panicked")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrNoQuorum                   = errors.New("no quorum")
-	ErrStatusIsNotActive          = errors.New("proposal status is not active")
+	ErrTallyNotAllowed            = errors.New("tally not allowed, proposal status must be active, passed or rejected")
 )
 
 type (
@@ -52,7 +52,10 @@ type (
 	VoteChoice string
 
 	// ExecFunc defines a type for functions that executes proposals.
-	ExecFunc func(realm) error
+	// The package path argument can be used within the function to check who's
+	// the caller executing the proposal. The `chain.PackageAddress()` stdlib
+	// function can be used to derive the caller realm address.
+	ExecFunc func(pkgPath string) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
@@ -70,6 +73,11 @@ type (
 	// ProposalDefinition defines an interface for custom proposal definitions.
 	// These definitions define proposal content and behavior, they esentially
 	// allow the definition for different proposal types.
+	//
+	// IMPORTANT: When creating proposals ensure that any externally-supplied
+	// proposal definition comes from a trusted source, and when possible check
+	// that given definitions are canonical. Never accept a proposal definitions
+	// from an arbitrary external input.
 	ProposalDefinition interface {
 		// Title returns the proposal title.
 		Title() string
@@ -81,7 +89,7 @@ type (
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// It is used to calculate the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creation date.
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
@@ -113,38 +121,6 @@ type (
 		CustomVoteChoices() []VoteChoice
 	}
 )
-
-// MustValidate validates that a proposal is valid for the current state or panics on error.
-func MustValidate(v Validable) {
-	if v == nil {
-		panic("validable proposal definition is nil")
-	}
-
-	if err := v.Validate(); err != nil {
-		panic(err)
-	}
-}
-
-// MustExecute executes an executable proposal or panics on error.
-//
-// rlm is the realm authority threaded into the executor via cross(rlm).
-// MustExecute itself is not a crossing function (rlm sits in a non-first
-// parameter slot) because /p/ production code cannot declare crossing
-// functions — callers pass `cur` directly as the rlm argument.
-func MustExecute(e Executable, rlm realm) {
-	if e == nil {
-		panic("executable proposal definition is nil")
-	}
-
-	fn := e.Executor()
-	if fn == nil {
-		return
-	}
-
-	if err := fn(cross(rlm)); err != nil {
-		panic(err)
-	}
-}
 
 // NewProposal creates a new DAO proposal.
 func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
@@ -188,15 +164,24 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 	return p, nil
 }
 
-// ID returns the unique proposal identifies.
+// ID returns the unique proposal identifier.
 func (p Proposal) ID() uint64 {
 	return p.id
 }
 
-// Definition returns the proposal definition.
-// Proposal definitions define proposal content and behavior.
-func (p Proposal) Definition() ProposalDefinition {
-	return p.definition
+// Title returns proposal's title.
+func (p Proposal) Title() string {
+	return p.definition.Title()
+}
+
+// Body returns proposal's body.
+func (p Proposal) Body() string {
+	return p.definition.Body()
+}
+
+// VotingPeriod returns the period where votes are allowed after proposal creation.
+func (p Proposal) VotingPeriod() time.Duration {
+	return p.definition.VotingPeriod()
 }
 
 // Status returns the current proposal status.
@@ -214,13 +199,14 @@ func (p Proposal) CreatedAt() time.Time {
 	return p.createdAt
 }
 
-// VotingRecord returns a record that contains all the votes submitted for the proposal.
+// VotingRecord returns a sealed (readonly) record that contains all the votes
+// submitted for the proposal.
 func (p Proposal) VotingRecord() *VotingRecord {
-	return p.record
+	return p.record.Seal().(*VotingRecord)
 }
 
 // StatusReason returns an optional reason that lead to the current proposal status.
-// Reason is mostyl useful when a proposal fails.
+// Reason is mostly useful when a proposal fails.
 func (p Proposal) StatusReason() string {
 	return p.statusReason
 }
@@ -246,12 +232,8 @@ func (p Proposal) HasVotingDeadlinePassed() bool {
 }
 
 // Validate validates that a proposal is valid for the current state.
-// Validation is done when proposal status is active and when the definition supports validation.
+// Validation is done when the definition supports validation.
 func (p Proposal) Validate() error {
-	if p.status != StatusActive {
-		return nil
-	}
-
 	if v, ok := p.definition.(Validable); ok {
 		return v.Validate()
 	}
@@ -263,16 +245,45 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
-// Tally counts votes and updates proposal status with the current outcome.
-// Proposal status is updated to "passed" when proposal is approved
-// or to "rejected" if proposal doesn't pass.
-func (p *Proposal) Tally(members MemberStorage) error {
-	if p.status != StatusActive {
-		return ErrStatusIsNotActive
+// IsQuorumReached checks if a participation quorum is reached.
+func IsQuorumReached(quorum float64, memberCount int, r VotingRecord) bool {
+	if memberCount <= 0 || quorum <= 0 {
+		return false
 	}
 
+	var totalCount int
+	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
+		// Don't count explicit abstentions or invalid votes
+		if c != ChoiceNone && c != ChoiceAbstain {
+			totalCount += voteCount
+		}
+		return false
+	})
+
+	percentage := float64(totalCount) / float64(memberCount)
+	return percentage >= quorum
+}
+
+func (p *Proposal) tally(members MemberStorage) (err error) {
+	// Make sure to handle proposal definition Tally() call panics
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		switch v := r.(type) {
+		case string:
+			err = errors.New(v)
+		case error:
+			err = v
+		default:
+			err = ErrProposalDefinitionPanicked
+		}
+	}()
+
 	ctx := MustNewVotingContext(p.VotingRecord(), members)
-	passes, err := p.Definition().Tally(ctx)
+	passes, err := p.definition.Tally(ctx)
 	if err != nil {
 		return err
 	}
@@ -283,23 +294,4 @@ func (p *Proposal) Tally(members MemberStorage) error {
 		p.status = StatusRejected
 	}
 	return nil
-}
-
-// IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
-	if members.Size() <= 0 || quorum <= 0 {
-		return false
-	}
-
-	var totalCount int
-	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
-		// Don't count explicit abstentions or invalid votes
-		if c != ChoiceNone && c != ChoiceAbstain {
-			totalCount += r.VoteCount(c)
-		}
-		return false
-	})
-
-	percentage := float64(totalCount) / float64(members.Size())
-	return percentage >= quorum
 }

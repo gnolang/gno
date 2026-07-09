@@ -14,6 +14,8 @@ type (
 	// Member grouping can be used by implementations that require grouping users
 	// by roles or by tiers for example.
 	MemberGrouping interface {
+		Sealable
+
 		// Size returns the number of groups that grouping contains.
 		Size() int
 
@@ -35,6 +37,16 @@ type (
 	}
 )
 
+// IsCanonicalMemberGrouping checks wether a member grouping is the canonical
+// one, created using the NewMemberGrouping function defined within this package.
+//
+// Use this function at any public entry point that accepts a MemberGrouping
+// from an external caller before invoking any of its methods.
+func IsCanonicalMemberGrouping(g MemberGrouping) bool {
+	_, ok := g.(*memberGrouping)
+	return ok
+}
+
 // NewMemberGrouping creates a new members grouping.
 func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
 	g := &memberGrouping{
@@ -47,9 +59,47 @@ func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
 	return g
 }
 
+// NewUnsafeMemberGrouping creates a new member grouping with the checks for canonical
+// types disabled. Unsafe member groupings allow using a factory that returns custom
+// non-canonical member storage implementations.
+//
+// The returned unsafe member grouping is unsafe because, if configured, a custom
+// factory function could be used to create the underlying member storage for each
+// new group. If this function is assigned by an untrusted caller it could be used
+// to return a malicious MemberStorage implementation.
+//
+// IMPORTANT: Use unsafe member grouping if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If checks are disabled
+// it's highly recommended to use the `IsCanonical` functions before calling a method
+// on any group created within the unsafe grouping.
+func NewUnsafeMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
+	disableCanonicalCheck := func(g MemberGrouping) {
+		grouping := g.(*memberGrouping)
+		grouping.disableCanonicalCheck = true
+	}
+
+	options = append([]MemberGroupingOption{disableCanonicalCheck}, options...)
+	return NewMemberGrouping(options...)
+}
+
 type memberGrouping struct {
-	groups        bptree.BPTree // string(name) -> MemberGroup
-	createStorage func(group string) MemberStorage
+	groups                bptree.BPTree // string(name) -> MemberGroup
+	createStorage         func(group string) MemberStorage
+	sealed                bool
+	disableCanonicalCheck bool
+}
+
+// Seal returns a sealed copy of the grouping.
+// No further changes are accepted on the returned copy once sealed.
+// The original member grouping remains mutable.
+func (g memberGrouping) Seal() Sealable {
+	g.sealed = true
+	return &g
+}
+
+// IsSealed checks if grouping is sealed.
+func (g memberGrouping) IsSealed() bool {
+	return g.sealed
 }
 
 // Size returns the number of groups that grouping contains.
@@ -62,15 +112,27 @@ func (g memberGrouping) Has(name string) bool {
 	return g.groups.Has(name)
 }
 
-// Add adds an new member group if it doesn't exists.
+// Add adds a new member group if it doesn't exist.
+// It panics when grouping is sealed.
+// It also panics if the storage factory returns a non-canonical MemberStorage,
+// unless the grouping was created with NewUnsafeMemberGrouping.
 func (g *memberGrouping) Add(name string) (MemberGroup, error) {
+	assertNotSealed(g)
+
 	if g.groups.Has(name) {
 		return nil, errors.New("member group already exists: " + name)
 	}
 
-	mg, err := NewMemberGroup(name, g.createStorage(name))
-	if err != nil {
-		return nil, err
+	storage := g.createStorage(name)
+	if !g.disableCanonicalCheck {
+		assertGroupingMemberStorageIsCanonical(storage)
+	}
+
+	var mg MemberGroup
+	if g.disableCanonicalCheck {
+		mg = NewUnsafeMemberGroup(name, storage)
+	} else {
+		mg = NewMemberGroup(name, storage)
 	}
 
 	g.groups.Set(name, mg)
@@ -83,11 +145,13 @@ func (g memberGrouping) Get(name string) (_ MemberGroup, found bool) {
 	if !found {
 		return nil, false
 	}
-	return v.(MemberGroup), true
+	return g.trySealGroup(v.(MemberGroup)), true
 }
 
 // Delete deletes a member group.
+// It panics when grouping is sealed.
 func (g *memberGrouping) Delete(name string) error {
+	assertNotSealed(g)
 	g.groups.Remove(name)
 	return nil
 }
@@ -95,68 +159,41 @@ func (g *memberGrouping) Delete(name string) error {
 // IterateByOffset iterates all member groups.
 func (g memberGrouping) IterateByOffset(offset, count int, fn MemberGroupIterFn) bool {
 	return g.groups.IterateByOffset(offset, count, func(_ string, v any) bool {
-		return fn(v.(MemberGroup))
+		return fn(g.trySealGroup(v.(MemberGroup)))
 	})
 }
 
-// NewReadonlyMemberGrouping creates a new grouping if member.
-func NewReadonlyMemberGrouping(g MemberGrouping) (*ReadonlyMemberGrouping, error) {
-	if g == nil {
-		return nil, errors.New("member grouping is required")
+func (g memberGrouping) trySealGroup(mg MemberGroup) MemberGroup {
+	if g.sealed {
+		// A factory can be used to create custom member groups, so make sure
+		// that Seal() is actually returning a MemberGroup implementation.
+		mg, _ = mg.Seal().(MemberGroup)
+		if mg == nil {
+			panic("expected custom member group to return a sealed copy")
+		}
 	}
-	return &ReadonlyMemberGrouping{g}, nil
+	return mg
 }
 
-// MustNewReadonlyMemberGrouping creates a new grouping if member or panics on error.
-func MustNewReadonlyMemberGrouping(g MemberGrouping) *ReadonlyMemberGrouping {
-	grouping, err := NewReadonlyMemberGrouping(g)
-	if err != nil {
-		panic(err)
+// GetMemberGroups returns the groups that a member belongs to.
+func GetMemberGroups(s MemberStorage, member address) []string {
+	grouping := s.Grouping()
+	if grouping == nil {
+		return nil
 	}
-	return grouping
-}
 
-// ReadonlyMemberGrouping defines a type for storing multiple readonly member groups.
-type ReadonlyMemberGrouping struct {
-	grouping MemberGrouping
-}
-
-// Size returns the number of groups that grouping contains.
-func (g ReadonlyMemberGrouping) Size() int {
-	if g.grouping == nil {
-		return 0
-	}
-	return g.grouping.Size()
-}
-
-// Has checks if a group exists.
-func (g ReadonlyMemberGrouping) Has(name string) bool {
-	if g.grouping == nil {
+	var groups []string
+	grouping.IterateByOffset(0, grouping.Size(), func(g MemberGroup) bool {
+		if g.Members().Has(member) {
+			groups = append(groups, g.Name())
+		}
 		return false
-	}
-	return g.grouping.Has(name)
-}
-
-// Get returns a member group.
-func (g ReadonlyMemberGrouping) Get(name string) (_ *ReadonlyMemberGroup, found bool) {
-	if g.grouping == nil {
-		return nil, false
-	}
-
-	group, found := g.grouping.Get(name)
-	if !found {
-		return nil, false
-	}
-	return MustNewReadonlyMemberGroup(group), true
-}
-
-// IterateByOffset iterates all member groups.
-func (g ReadonlyMemberGrouping) IterateByOffset(offset, count int, fn func(*ReadonlyMemberGroup) bool) bool {
-	if g.grouping == nil {
-		return false
-	}
-
-	return g.grouping.IterateByOffset(offset, count, func(group MemberGroup) bool {
-		return fn(MustNewReadonlyMemberGroup(group))
 	})
+	return groups
+}
+
+func assertGroupingMemberStorageIsCanonical(s MemberStorage) {
+	if !IsCanonicalMemberStorage(s) {
+		panic("member storage for grouping is not canonical")
+	}
 }

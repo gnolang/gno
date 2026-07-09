@@ -1,8 +1,7 @@
-// PKGPATH: gno.land/r/definition/test
-package test
+// PKGPATH: gno.land/r/test/readme
+package readme
 
 import (
-	"chain/runtime/unsafe"
 	"errors"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 var dao = commondao.New()
 
 // CreateMemberProposal creates a new example proposal to add a DAO member.
-func CreateMemberProposal(member address) uint64 {
+func CreateMemberProposal(cur realm, member address) uint64 {
 	if !member.IsValid() {
 		panic("invalid member address")
 	}
@@ -32,7 +31,7 @@ func CreateMemberProposal(member address) uint64 {
 	}
 
 	// Define an executor to add the new member to the DAO
-	executor := func(realm) error {
+	executor := func(pkgPath string) error {
 		dao.Members().Add(member)
 		return nil
 	}
@@ -48,12 +47,12 @@ func CreateMemberProposal(member address) uint64 {
 	)
 
 	// Create a new proposal
-	p := dao.MustPropose(unsafe.PreviousRealm().Address(), def)
+	p := dao.MustPropose(cur.Previous().Address(), def)
 	return p.ID()
 }
 
-func main() {
-	proposalID := CreateMemberProposal("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	proposalID := CreateMemberProposal(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	println(proposalID)
 }
 

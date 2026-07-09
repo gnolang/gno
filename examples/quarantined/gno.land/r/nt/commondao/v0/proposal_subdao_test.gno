@@ -71,10 +71,10 @@ func TestSubDAOPropDefinitionTally(cur realm, t *testing.T) {
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 		{
-			name: "no quorum",
+			name: "fail with no quorum",
 			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -86,7 +86,7 @@ func TestSubDAOPropDefinitionTally(cur realm, t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 	}
 
@@ -136,7 +136,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 	name := "Bar"
 	p := newSubDAOPropDefinition(parentDAO, name, &members)
 	fn := p.Executor()
-	err := fn(cross(cur))
+	err := fn(cur.PkgPath())
 	urequire.NoError(t, err, "expected no execution error")
 
 	// Expect SubDAO to be created
@@ -221,10 +221,10 @@ func TestDissolvePropDefinitionTally(cur realm, t *testing.T) {
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 		{
-			name: "no quorum",
+			name: "fail with no quorum",
 			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -236,7 +236,7 @@ func TestDissolvePropDefinitionTally(cur realm, t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 	}
 
@@ -278,7 +278,7 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 
 	p := newDissolvePropDefinition(dao)
 	fn := p.Executor()
-	err := fn(cross(cur))
+	err := fn(cur.PkgPath())
 	urequire.NoError(t, err, "expected no execution error")
 
 	uassert.True(t, dao.IsDeleted(), "expected DAO to be soft deleted")

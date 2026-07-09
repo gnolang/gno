@@ -62,8 +62,9 @@ func (p TextPropDefinition) Body() string                { return p.body }
 func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
 func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(p.quorum, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(p.quorum, memberCount, ctx.VotingRecord) {
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceByPlurality(ctx.VotingRecord)

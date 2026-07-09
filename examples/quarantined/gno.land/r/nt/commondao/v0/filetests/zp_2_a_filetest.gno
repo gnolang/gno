@@ -45,9 +45,9 @@ func main(cur realm) {
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == ("New SubDAO: " + name))
+	println(p.Title() == ("New SubDAO: " + name))
 	println(p.VotingDeadline())
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:

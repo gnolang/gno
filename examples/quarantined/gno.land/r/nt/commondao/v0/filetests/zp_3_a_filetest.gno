@@ -42,9 +42,9 @@ func main(cur realm) {
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == ("Dissolve DAO: " + dao.Name()))
+	println(p.Title() == ("Dissolve DAO: " + dao.Name()))
 	println(p.VotingDeadline())
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:

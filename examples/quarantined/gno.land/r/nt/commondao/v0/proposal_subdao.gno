@@ -80,8 +80,9 @@ func (p subDAOPropDefinition) Validate() (err error) {
 }
 
 func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumFull, memberCount, ctx.VotingRecord) {
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
@@ -95,7 +96,7 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p subDAOPropDefinition) execute(realm) error {
+func (p subDAOPropDefinition) execute(string) error {
 	subDAO := createSubDAO(p.parent, p.name, nil)
 
 	if p.members != nil {
@@ -143,8 +144,9 @@ func (p dissolvePropDefinition) Validate() (err error) {
 }
 
 func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumFull, memberCount, ctx.VotingRecord) {
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
@@ -158,7 +160,7 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p dissolvePropDefinition) execute(realm) error {
+func (p dissolvePropDefinition) execute(string) error {
 	p.dao.SetDeleted(true)
 	return nil
 }
