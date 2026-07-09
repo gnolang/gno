@@ -83,15 +83,21 @@ func Render(path string) string {
 	}
 }
 
-const registerEvent = "register"
+const (
+	registerEvent = "register"
+	maxSlugLen    = 128
+)
 
 func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
 }
 
-// validateSlug panics if the slug contains non-alphanumeric characters.
+// validateSlug panics if the slug is too long or contains non-alphanumeric characters.
 // Only letters, digits, dashes, and underscores are allowed.
 func validateSlug(slug string) {
+	if len(slug) > maxSlugLen {
+		panic("grc20reg: slug too long")
+	}
 	for _, c := range slug {
 		if !isAlphanumeric(c) && c != '_' && c != '-' {
 			panic("grc20reg: invalid slug character: " + string(c))
