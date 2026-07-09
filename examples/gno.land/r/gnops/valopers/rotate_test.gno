@@ -63,7 +63,7 @@ func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
 
 	// New entry active in registry.
 	rawNew := signingRegistry.Get(newSigningAddr.String())
-	urequire.NotEqual(t, nil, rawNew, "new signing addr in registry")
+	urequire.NotNil(t, rawNew, "new signing addr in registry")
 	newEntry := rawNew.(regEntry)
 	uassert.Equal(t, info.Address, newEntry.OperatorAddress)
 	uassert.Equal(t, int64(0), newEntry.RetiredAtHeight)
@@ -72,7 +72,7 @@ func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
 	oldSigningAddr, err := chain.PubKeyAddress(info.PubKey)
 	urequire.NoError(t, err)
 	rawOld := signingRegistry.Get(oldSigningAddr.String())
-	urequire.NotEqual(t, nil, rawOld, "old signing addr retained as retired")
+	urequire.NotNil(t, rawOld, "old signing addr retained as retired")
 	oldEntry := rawOld.(regEntry)
 	uassert.Equal(t, info.Address, oldEntry.OperatorAddress)
 	uassert.True(t, oldEntry.RetiredAtHeight > 0, "old entry must be retired (RetiredAtHeight > 0)")

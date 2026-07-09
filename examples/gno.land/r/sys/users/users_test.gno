@@ -132,7 +132,7 @@ func TestROStores(cur realm, t *testing.T) {
 	t.Run("get user data", func(t *testing.T) {
 		// Name store
 		aliceDataRaw := roNS.Get(alice)
-		urequire.NotEqual(t, aliceDataRaw, nil)
+		urequire.NotNil(t, aliceDataRaw)
 
 		roData, ok := aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
@@ -144,7 +144,7 @@ func TestROStores(cur realm, t *testing.T) {
 
 		// Addr store
 		aliceDataRaw = roAS.Get(aliceAddr.String())
-		urequire.NotEqual(t, aliceDataRaw, nil)
+		urequire.NotNil(t, aliceDataRaw)
 
 		roData, ok = aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
