@@ -41,9 +41,10 @@ Replace `BigdecValue.V *apd.Decimal` with `BigdecValue.V *big.Rat` throughout
 
 `apd` is correct for financial decimal arithmetic (where `0.1 + 0.2 = 0.3`
 exactly). It is wrong for constant-expression semantics, which require rational
-arithmetic. `big.Rat`'s denominators can grow with repeated operations, but
-a 4096-bit denominator guard is added to reject pathological inputs with a
-clear error (matching Go's implementation-defined limit ≥ 256 bits per spec).
+arithmetic. `big.Rat`'s numerator and denominator can grow with repeated
+operations, so a symmetric 4096-bit guard is added on both components to
+reject pathological inputs with a clear error (matching Go's
+implementation-defined limit ≥ 256 bits per spec).
 
 ### Literal parsing
 
@@ -53,12 +54,18 @@ manual hex-float parsing block in `op_eval.go` (≈107 lines of code) is replace
 by a single `r.SetString(x.Value)` call, eliminating significant complexity
 and regex-based parsing.
 
-### Denominator guard
+### Numerator and denominator guard
 
-After every arithmetic operation on `UntypedBigdecType`, a guard function
-`ratGuard` checks `r.Denom().BitLen() > 4096`. If triggered it panics with:
+After every arithmetic operation on `UntypedBigdecType`, and at literal-parse
+time, `ratGuard` checks both `r.Num().BitLen()` and `r.Denom().BitLen()`
+against a 4096-bit ceiling. Bounding only the denominator is insufficient:
+integer-valued rationals have `Denom() == 1`, so a huge literal like
+`1e10000` or its repeated squaring at const-fold time would slip through and
+allocate arbitrary memory during preprocess. When triggered, `ratGuard`
+panics with one of:
 
 ```
+constant expression result too large: numerator exceeds 4096 bits
 constant expression result too large: denominator exceeds 4096 bits
 ```
 
@@ -96,7 +103,7 @@ are trimmed for cleaner output.
 
 - `(1.0/3.0)*3.0 == 1.0` is now `true` in Gno, matching Go.
 - All untyped float constant arithmetic is exact for rational inputs.
-- Constant expressions with denominator > 4096 bits are rejected with a clear error.
+- Constant expressions with numerator or denominator > 4096 bits are rejected with a clear error.
 - `cockroachdb/apd` is no longer imported by `gnovm/pkg/gnolang` (it remains
   in `go.mod` — used by `gno.land/pkg/sdk/vm/convert.go`).
 - Amino serialization format for `BigdecValue` changes from decimal string to

@@ -801,9 +801,15 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
-// ratGuard panics if r's denominator exceeds 4096 bits, matching Go's
+// ratGuard panics if either component of r exceeds 4096 bits, matching Go's
 // behavior of rejecting constant expressions that exceed implementation limits.
+// The numerator must be bounded too: an integer-valued big.Rat has Denom() == 1,
+// so a denominator-only check would let arbitrarily large integer constants
+// through (e.g. 1e10000, or repeated squaring of such a value).
 func ratGuard(r *big.Rat) {
+	if r.Num().BitLen() > 4096 {
+		panic("constant expression result too large: numerator exceeds 4096 bits")
+	}
 	if r.Denom().BitLen() > 4096 {
 		panic("constant expression result too large: denominator exceeds 4096 bits")
 	}
