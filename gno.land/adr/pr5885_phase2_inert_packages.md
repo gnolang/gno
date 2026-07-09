@@ -45,6 +45,25 @@ not yet implemented. Returns an error until a follow-up PR delivers it.
 These keys are disjoint from `pkg:<path>` so normal `GetPackage` / `GetMemPackage`
 never see inert packages.
 
+### Off-chain oracle (`contribs/gnooracle`)
+
+A reference approver implementation ships as a small daemon in
+`contribs/gnooracle/`. It embodies the "oracle proposes, chain enforces" split:
+
+1. Polls the node for new blocks (`RPCClient.Status` / `Block`).
+2. Amino-decodes each block tx and extracts `vm.MsgAddPackage` messages.
+3. Runs the Gno typechecker off-chain on the submitted `MemPackage`, using a
+   disk-backed store (stdlibs + `examples/`) exactly as `gno lint` does
+   (`test.StoreWithOptions` + `TypeCheckMemPackage`, `TCLatestStrict`).
+4. On success, builds and signs a `MsgEnablePackage` with an approver key and
+   broadcasts it via `gnoclient` (`SignTx` + `BroadcastTxCommit`).
+
+The oracle is untrusted: it never widens what the chain accepts (the validator
+re-typechecks at enable time), it only chooses which pending packages to propose
+and keeps the typechecker off the block-execution critical path. Its key must be
+in `PkgApprovers`. Limitations (dev-grade mnemonic handling, disk-only import
+resolution) are documented in `contribs/gnooracle/README.md`.
+
 ## Testing
 
 `gno.land/pkg/sdk/vm/keeper_inert_test.go` exercises the full oracle-activation
