@@ -471,9 +471,9 @@ Semantics:
 
 Guards — `Sub()` panics unless all hold:
 
-1. subpath matches `segment ("/" segment)*`, `segment =
-   [a-z0-9]([a-z0-9_.-]*[a-z0-9])?` (lowercase-alnum, `/`-separated,
-   `_.-` only inside a segment; no uppercase/whitespace/non-ASCII/`..`),
+1. subpath matches `segment ("/" segment)*`, where a `segment` is
+   `[a-z0-9]` optionally followed by `[a-z0-9_.-]*[a-z0-9]` (lowercase-alnum,
+   `/`-separated, `_.-` only inside a segment; no uppercase/whitespace/non-ASCII/`..`),
    and the synthesized `host:subpath` is ≤ 256 bytes. This grammar is
    frozen at introduction — loosening later is safe, tightening would
    strand funds;
