@@ -97,6 +97,13 @@ warm (lower) to cold-started-tail (upper).
   (fast index only covers the latest version), proof generation (needs the full
   tree path regardless), and it avoids the fast node's doubled value storage and
   its extra write per SET.
+- **Update (clean-working-tree fast path):** the B+32 columns above measure the
+  index-free tree. With `FastIndexOption(true)`, `MutableTree.Get` now serves
+  point reads from the fast index whenever the session is clean (see
+  fast_index.go), so index-on B+32 matches IAVL+fast at ~1 read for
+  latest-version point GETs of present keys; misses, dirty-session reads, and
+  versioned/proof reads still walk. The B+32 columns remain the honest
+  index-OFF baseline.
 
 ### IAVL sustained-write plateau
 
