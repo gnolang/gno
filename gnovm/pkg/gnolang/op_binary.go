@@ -466,7 +466,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	// Both sides share one dynamic type now. If we reached it through an
 	// interface and it is uncomparable, Go panics naming it.
 	if viaIface && !isComparable(lv.T) {
-		m.Panic(typedString(fmt.Sprintf(
+		m.Panic(typedRuntimeError(fmt.Sprintf(
 			"runtime error: comparing uncomparable type %s",
 			lv.T.String(),
 		)))
@@ -540,8 +540,8 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
-			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
+			li := la.GetElementPointer(m.Store, i, et).Deref()
+			ri := ra.GetElementPointer(m.Store, i, et).Deref()
 			if !isEql(m, &li, &ri, elemIsIface) {
 				return false
 			}
@@ -561,6 +561,9 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 			}
 		}
 		for i := range ls.Fields {
+			if lt.Fields[i].Name == blankIdentifier {
+				continue
+			}
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
@@ -970,7 +973,7 @@ func mulAssign(lv, rv *TypedValue) {
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("runtime error: division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1069,7 +1072,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("runtime error: division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1331,7 +1334,7 @@ func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	shift := rv.GetUint()
@@ -1415,7 +1418,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
 	shift := rv.GetUint()

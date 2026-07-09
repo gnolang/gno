@@ -20,6 +20,11 @@ const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
 
+// Full Amino object ID: 40 hex + ":" + uint index (ObjectID.MarshalAmino).
+// Anchored to {40} to mirror the server's ValidateOID; shorter inputs fall
+// through to a normal text search.
+const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
+
 export class SearchbarController extends BaseController {
 	private realms: string[] = [];
 	private packages: string[] = [];
@@ -55,8 +60,23 @@ export class SearchbarController extends BaseController {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		const raw = input?.value.trim();
 		if (!raw) return;
+
+		// OID-shaped input redirects to the state view for that object.
+		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
+			const realmPath = this.currentRealmPath();
+			if (realmPath) {
+				window.location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}`;
+				return;
+			}
+		}
+
 		const target = SearchbarController.resolveTarget(raw);
 		if (target) window.location.href = target;
+	}
+
+	private currentRealmPath(): string | null {
+		const match = window.location.pathname.match(/^(\/r\/[^$]+)/);
+		return match ? match[1] : null;
 	}
 
 	// keynav moves through results, opens the active one, or closes the list.

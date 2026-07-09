@@ -795,18 +795,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
-	argslist := ""
+	var argslist strings.Builder
 	for i := range msg.Args {
 		if i > 0 {
-			argslist += ","
+			argslist.WriteString(",")
 		}
-		argslist += fmt.Sprintf("arg%d", i)
+		argslist.WriteString(fmt.Sprintf("arg%d", i))
 	}
 	var expr string
-	if argslist == "" {
+	if argslist.String() == "" {
 		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
 	} else {
-		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist.String())
 	}
 	// Make context.
 	// NOTE: if this is too expensive,
@@ -1139,7 +1139,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	return res, nil
 }
 
-var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
 // QueryPaths returns public facing function signatures.
 // XXX: Implement pagination
@@ -1238,6 +1238,9 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			continue // must be function
 		}
 		fv := tv.GetFunc()
+		if fv == nil {
+			continue // typed-nil func variable, no signature to expose
+		}
 		if fv.IsMethod {
 			continue // cannot be method
 		}
@@ -1479,9 +1482,6 @@ func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string,
 		return "", err
 	}
 
-	// Build the envelope via json.Marshal rather than fmt.Sprintf %q so
-	// the objectid string is JSON-escaped (not Go-escaped). %q can emit
-	// \v and other Go-only escapes that are invalid JSON.
 	envelope := struct {
 		ObjectID string          `json:"objectid"`
 		Value    json.RawMessage `json:"value"`
@@ -1502,6 +1502,228 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 	}
 
 	return amino.MarshalAny(exported)
+}
+
+// QueryPkg returns the named block variables of a package as Amino JSON.
+// This is the entry point for the state explorer: given a package path,
+// return variable names alongside their exported Amino JSON values.
+func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv == nil {
+		return "", ErrInvalidPkgPath(fmt.Sprintf("package not found: %s", pkgPath))
+	}
+
+	block := resolveBlock(gnostore, pv.Block)
+	if block == nil {
+		return "", fmt.Errorf("package block not found for %s", pkgPath)
+	}
+
+	// Resolve Source: it may be a RefNode (lazy reference to the PackageNode).
+	source := resolveBlockNode(gnostore, block.Source)
+	if source == nil {
+		return "", fmt.Errorf("block source not found for %s", pkgPath)
+	}
+	sb := source.GetStaticBlock()
+	names := sb.Names
+
+	// Collect variable names and their exported values.
+	varNames := make([]string, 0, len(block.Values))
+	varValues := make([]gno.TypedValue, 0, len(block.Values))
+	for i, tv := range block.Values {
+		if i >= len(names) {
+			break
+		}
+		name := string(names[i])
+		if name == "" || name == "_" {
+			continue
+		}
+		// Unwrap heap items. Top-level mutable vars live in dedicated
+		// HeapItem cells; since #5415 the block stores them as RefValue
+		// (lazy fill) so we resolve via the store before unwrapping.
+		// GetObjectSafe: a stale ref must degrade to "render this var as
+		// a ref" rather than 500 the whole page.
+		if tv.T != nil && tv.T.Kind() == gno.HeapItemKind {
+			if rv, ok := tv.V.(gno.RefValue); ok {
+				if hiv, ok := gnostore.GetObjectSafe(rv.ObjectID).(*gno.HeapItemValue); ok {
+					tv = hiv.Value
+				}
+			}
+		}
+		varNames = append(varNames, name)
+		varValues = append(varValues, tv)
+	}
+
+	// Export values (replace persisted objects with RefValues, etc.)
+	exported := gno.ExportValues(varValues)
+
+	valuesJSON, err := amino.MarshalJSON(exported)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal values: %w", err)
+	}
+	namesJSON, err := amino.MarshalJSON(varNames)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal names: %w", err)
+	}
+	return buildPkgJSONEnvelope(namesJSON, valuesJSON), nil
+}
+
+// buildPkgJSONEnvelope assembles {"names":…,"values":…} from already-serialized
+// JSON fragments. Trusts its inputs — both are produced by amino.MarshalJSON.
+func buildPkgJSONEnvelope(namesJSON, valuesJSON []byte) string {
+	var buf bytes.Buffer
+	buf.Grow(len(namesJSON) + len(valuesJSON) + 20)
+	buf.WriteString(`{"names":`)
+	buf.Write(namesJSON)
+	buf.WriteString(`,"values":`)
+	buf.Write(valuesJSON)
+	buf.WriteByte('}')
+	return buf.String()
+}
+
+// QueryType retrieves a type by TypeID and returns its Amino JSON representation.
+// This resolves RefType references in exported values: given a TypeID like
+// "gno.land/r/demo/boards.Board", return the full type definition with field names.
+func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	tid := gno.TypeID(tidStr)
+	tt := gnostore.GetTypeSafe(tid)
+	if tt == nil {
+		return "", ErrInvalidExpr(fmt.Sprintf("type not found: %s", tidStr))
+	}
+
+	// Use a custom serializer instead of amino.MarshalJSON to avoid fatal
+	// stack overflow from circular type references (e.g. time.Time).
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, tt, 0)
+	return buildTypeJSONEnvelope(tidStr, buf.Bytes()), nil
+}
+
+// buildTypeJSONEnvelope assembles {"typeid":…,"type":…} with the TypeID
+// passed through json.Marshal so any control character is JSON-escaped
+// (matches the invariant Jae's original PR fixed for QueryObjectJSON).
+func buildTypeJSONEnvelope(tidStr string, typeJSON []byte) string {
+	tidJSON, _ := json.Marshal(tidStr)
+	var buf bytes.Buffer
+	buf.Grow(len(tidJSON) + len(typeJSON) + 20)
+	buf.WriteString(`{"typeid":`)
+	buf.Write(tidJSON)
+	buf.WriteString(`,"type":`)
+	buf.Write(typeJSON)
+	buf.WriteByte('}')
+	return buf.String()
+}
+
+// writeJSONString writes s as a JSON string literal into buf using
+// encoding/json's escaping rules — never Go's `%q`.
+func writeJSONString(buf *bytes.Buffer, s string) {
+	b, _ := json.Marshal(s)
+	buf.Write(b)
+}
+
+const maxTypeDepth = 8
+
+// marshalTypeJSON writes a safe JSON representation of a gno.Type.
+// It limits recursion depth to avoid stack overflow from circular references.
+func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
+	if t == nil || depth > maxTypeDepth {
+		buf.WriteString("null")
+		return
+	}
+	switch ct := t.(type) {
+	case gno.PrimitiveType:
+		fmt.Fprintf(buf, `{"@type":"/gno.PrimitiveType","value":"%d"}`, int(ct))
+	case *gno.PointerType:
+		buf.WriteString(`{"@type":"/gno.PointerType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.ArrayType:
+		fmt.Fprintf(buf, `{"@type":"/gno.ArrayType","Len":"%d","Elt":`, ct.Len)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.SliceType:
+		buf.WriteString(`{"@type":"/gno.SliceType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	case *gno.StructType:
+		buf.WriteString(`{"@type":"/gno.StructType","Fields":[`)
+		for i, f := range ct.Fields {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			buf.WriteString(`{"Name":`)
+			writeJSONString(buf, string(f.Name))
+			buf.WriteString(`,"Type":`)
+			marshalTypeJSON(buf, f.Type, depth+1)
+			buf.WriteByte('}')
+		}
+		buf.WriteString("]}")
+	case *gno.MapType:
+		buf.WriteString(`{"@type":"/gno.MapType","Key":`)
+		marshalTypeJSON(buf, ct.Key, depth+1)
+		buf.WriteString(`,"Value":`)
+		marshalTypeJSON(buf, ct.Value, depth+1)
+		buf.WriteByte('}')
+	case *gno.FuncType:
+		buf.WriteString(`{"@type":"/gno.FuncType"}`)
+	case *gno.InterfaceType:
+		buf.WriteString(`{"@type":"/gno.InterfaceType"}`)
+	case *gno.DeclaredType:
+		buf.WriteString(`{"@type":"/gno.DeclaredType","PkgPath":`)
+		writeJSONString(buf, ct.PkgPath)
+		buf.WriteString(`,"Name":`)
+		writeJSONString(buf, string(ct.Name))
+		buf.WriteString(`,"Base":`)
+		marshalTypeJSON(buf, ct.Base, depth+1)
+		buf.WriteByte('}')
+	case *gno.PackageType:
+		buf.WriteString(`{"@type":"/gno.PackageType"}`)
+	case *gno.ChanType:
+		buf.WriteString(`{"@type":"/gno.ChanType","Elt":`)
+		marshalTypeJSON(buf, ct.Elt, depth+1)
+		buf.WriteByte('}')
+	default:
+		// RefType or unknown — emit type ID if available
+		buf.WriteString(`{"@type":"/gno.RefType","ID":`)
+		writeJSONString(buf, string(t.TypeID()))
+		buf.WriteByte('}')
+	}
+}
+
+// resolveBlockNode resolves a BlockNode that may be a RefNode (lazy reference).
+func resolveBlockNode(store gno.Store, bn gno.BlockNode) gno.BlockNode {
+	if bn == nil {
+		return nil
+	}
+	if _, ok := bn.(gno.RefNode); ok {
+		loc := bn.GetLocation()
+		return store.GetBlockNodeSafe(loc)
+	}
+	return bn
+}
+
+// resolveBlock extracts a *Block from a Value which may be a RefValue.
+func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
+	switch cv := v.(type) {
+	case *gno.Block:
+		return cv
+	case gno.RefValue:
+		// GetObjectSafe (not GetObject): degrade a missing ref to nil for the
+		// caller's guard instead of panicking. Mirrors resolveBlockNode.
+		obj := store.GetObjectSafe(cv.ObjectID)
+		if b, ok := obj.(*gno.Block); ok {
+			return b
+		}
+		return nil
+	default:
+		return nil
+	}
 }
 
 // processStorageDeposit processes storage deposit adjustments for package realms based on

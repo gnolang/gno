@@ -6,7 +6,7 @@ func main() {
 	var s int = 1
 	var y int
 	{
-		y = 1.2 << s 
+		y = 1.2 << s
 	}
 	sink = y
 	println(sink)

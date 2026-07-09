@@ -26,6 +26,10 @@ func (m *Machine) doOpIndex1() {
 			}
 		}
 	default:
+		if res, ok := xv.GetByteAtIndexInt(m.Store, int(iv.ConvertGetInt())); ok {
+			*xv = res // reuse as result
+			return
+		}
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
 		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
@@ -110,7 +114,7 @@ func (m *Machine) doOpSlice() {
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		if xv.V == nil {
-			m.pushPanic(typedString("runtime error: nil pointer dereference"))
+			m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 			return
 		}
 		*xv = xv.V.(PointerValue).Deref()
@@ -149,7 +153,7 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		if xv.V == nil {
-			m.pushPanic(typedString("runtime error: nil pointer dereference"))
+			m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 			return
 		}
 
@@ -195,9 +199,8 @@ func (m *Machine) doOpStar() {
 // ATTR_REF_ELEM_TYPE is set during preprocessing in
 // TRANS_LEAVE *RefExpr and at each synthetic RefExpr site.
 //
-// No size-dependent path here: zero-sized element types take the
-// same (Base, Index) route as any other. See the equality contract
-// on PointerValue (values.go).
+// No size-dependent path here: zero-sized element types use the same
+// (Base, Index) route as any other. See PointerValue (values.go).
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
 	xv, _ := m.PopAsPointer2(rx.X)
@@ -229,9 +232,8 @@ func (m *Machine) doOpTypeAssert1() {
 
 	if t.Kind() == InterfaceKind { // is interface assert
 		if xt == nil || xv.IsNilInterface() {
-			// TODO: default panic type?
 			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 
@@ -240,12 +242,11 @@ func (m *Machine) doOpTypeAssert1() {
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
-				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
 					xt.String(),
 					it.String())
-				m.pushPanic(typedString(ex))
+				m.pushPanic(typedRuntimeError(ex))
 				return
 			}
 
@@ -253,13 +254,12 @@ func (m *Machine) doOpTypeAssert1() {
 			// assert that x implements type.
 			err := it.VerifyImplementedBy(xt)
 			if err != nil {
-				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
 					xt.String(),
 					it.String(),
 					err.Error())
-				m.pushPanic(typedString(ex))
+				m.pushPanic(typedRuntimeError(ex))
 				return
 			}
 			// NOTE: consider ability to push an
@@ -271,7 +271,7 @@ func (m *Machine) doOpTypeAssert1() {
 	} else { // is concrete assert
 		if xt == nil {
 			ex := fmt.Sprintf("nil is not of type %s", t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 
@@ -280,12 +280,11 @@ func (m *Machine) doOpTypeAssert1() {
 		// assert that x is of type.
 		same := tid == xtid
 		if !same {
-			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
 				xt.String(),
 				t.String())
-			m.pushPanic(typedString(ex))
+			m.pushPanic(typedRuntimeError(ex))
 			return
 		}
 		// keep cxt as is.
@@ -576,7 +575,7 @@ func (m *Machine) doOpMapLit() {
 	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(mt, 0)
+	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
@@ -791,8 +790,7 @@ func (m *Machine) doOpConvert() {
 		} else if t.Kind() == StringKind {
 			// runes ([]int32) → string
 			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
-				sv := xv.V.(*SliceValue)
-				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(sv.GetLength()))
+				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
 			}
 		}
 	}
