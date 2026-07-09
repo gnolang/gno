@@ -16,8 +16,17 @@ func TestComputeStats(t *testing.T) {
 		Funcs: []*doc.JSONFunc{
 			{Name: "Hello"}, {Name: "internal"}, {Name: "WithCross", Crossing: true},
 		},
-		Types:  []*doc.JSONType{{Name: "Config"}, {Name: "State"}},
-		Values: []*doc.JSONValueDecl{{Const: true}, {Const: false}, {Const: true}},
+		// "hidden" is unexported: it must not be counted (the page only lists
+		// exported types), matching the render path's filter.
+		Types: []*doc.JSONType{{Name: "Config"}, {Name: "State"}, {Name: "hidden"}},
+		// Const/var counts follow the exported inner names, so the unexported
+		// "secret" var group is excluded — sidebar totals match the sections shown.
+		Values: []*doc.JSONValueDecl{
+			{Const: true, Values: []*doc.JSONValue{{Name: "MaxN"}}},
+			{Const: true, Values: []*doc.JSONValue{{Name: "MinN"}}},
+			{Const: false, Values: []*doc.JSONValue{{Name: "Cache"}}},
+			{Const: false, Values: []*doc.JSONValue{{Name: "secret"}}},
+		},
 	}
 	imports := []ImportLink{{Path: "strings"}, {Path: "gno.land/p/demo/avl"}}
 	got := computeStats(files, jdoc, imports)
@@ -33,6 +42,20 @@ func TestComputeStats(t *testing.T) {
 		ImportCount:   2,
 		CrossingCount: 1,
 	}, got)
+}
+
+func TestBugsNotInDoc(t *testing.T) {
+	t.Parallel()
+	// A BUG note whose text is already in the package doc (go/doc keeps it there
+	// when the note lives in the package comment) is dropped to avoid a double
+	// render; a floating note absent from the doc is kept.
+	got := bugsNotInDoc(
+		[]string{"thing A is broken", "thing B is broken"},
+		"Package foo does things.\n\nBUG(alice): thing A is broken\n",
+	)
+	require.Equal(t, []string{"thing B is broken"}, got)
+
+	require.Nil(t, bugsNotInDoc(nil, "anything"))
 }
 
 func TestDeriveQuality(t *testing.T) {

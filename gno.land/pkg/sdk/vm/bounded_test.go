@@ -103,7 +103,7 @@ func TestBoundedString_DepthLimit(t *testing.T) {
 	// Build a wrap chain that re-wraps repeatedly. cmnError.Wrap of
 	// itself will cause deep recursion in boundedString via Unwrap.
 	var err error = cmnerrors.New("base")
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		err = cmnerrors.Wrap(err, "layer")
 	}
 	got := boundedString(err, 0)

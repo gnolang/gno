@@ -35,7 +35,7 @@ LAYOUT - Overview
 UI - Package metadata (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_meta" }}
-<dl class="b-state-meta" aria-label="Package info">
+<dl class="b-pkg-meta" aria-label="Package info">
   <dt class="section">Package Info</dt>
   <div class="row"><dt class="label">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
   <div class="row mono"><dt class="label">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
@@ -64,7 +64,7 @@ UI - Package quality (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_metadata" }}
 <section class="b-pkg-metadata" aria-label="Package metadata">
-  <h3 class="b-state-meta-heading">Metadata</h3>
+  <h3 class="b-pkg-meta-heading">Metadata</h3>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
     {{ if .Info.Draft }}<li class="b-tag b-tag--draft">draft</li>{{ else }}<li class="b-tag b-tag--published">published</li>{{ end }}
@@ -87,7 +87,7 @@ UI - Package quality (sidebar card)
 UI - Section nav: sticky anchor links (with count pills) + client-side symbol search
 =================================================================================== */}}
 {{ define "ui/pkg_nav" }}
-<nav class="b-page-subheader" aria-label="Package sections" data-controller="observer">
+<nav class="b-pkg-subheader" aria-label="Package sections" data-controller="observer">
   <div class="packages-tabs">
     {{/* Grouped jumps (Readme+Overview, Consts+Vars) keep the bar from overflowing;
          the sidebar Package Index still lists each section separately. */}}
@@ -329,10 +329,10 @@ UI - Function symbol card
     </a>
     {{ end }}
   </header>
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
 </article>
 {{ end }}
 
@@ -347,10 +347,10 @@ UI - Type symbol card (with nested methods)
     <span class="b-tag">{{ .Kind }}</span>
     {{ template "ui/pkg_anchor" .AnchorID }}
   </header>
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
   {{ with .Methods }}
   <div class="b-pkg-symbol__methods">
     <h4 class="u-sr-only">Methods on {{ $.Name }}</h4>
@@ -370,9 +370,9 @@ UI - Value group card (const / var)
     {{ template "ui/pkg_symbol_head" (dict "Prefix" .Kind "Name" .Names "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
     {{ template "ui/pkg_anchor" .AnchorID }}
   </header>
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
+  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
 </article>
 {{ end }}

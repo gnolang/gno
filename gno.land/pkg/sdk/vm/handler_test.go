@@ -143,6 +143,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
@@ -232,6 +233,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
@@ -748,4 +750,32 @@ func Hello(msg string) (res string) { res = prefix+" "+msg; return }
 			}
 		})
 	}
+}
+
+func TestVmHandlerQuery_PkgJSON_NotFound(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qpkg_json",
+		Data: []byte("gno.land/r/nonexistent/pkg"),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Regexp(t, `invalid package path`, res.Error.Error())
+}
+
+func TestVmHandlerQuery_TypeJSON_NotFound(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qtype_json",
+		Data: []byte("gno.land/r/nonexistent.FakeType"),
+	}
+
+	res := vmHandler.Query(env.ctx, req)
+	assert.False(t, res.IsOK(), "should have an error")
+	assert.Regexp(t, `invalid expression`, res.Error.Error())
 }

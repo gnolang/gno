@@ -11,6 +11,24 @@ import (
 )
 
 // computeStats derives numeric counters from the file list and qdoc payload.
+// bugsNotInDoc returns the BUG notes not already visible in the rendered package
+// doc. go/doc leaves a note's body in Doc when the note lives inside the package
+// comment, so without this the same text would render both inline and in the
+// dedicated Bugs section. Floating BUG notes (absent from PackageDoc) are kept.
+func bugsNotInDoc(bugs []string, packageDoc string) []string {
+	if len(bugs) == 0 {
+		return nil
+	}
+	var out []string
+	for _, b := range bugs {
+		if strings.Contains(packageDoc, strings.TrimSpace(b)) {
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
 func computeStats(files []string, jdoc *doc.JSONDocumentation, imports []ImportLink) PackageStats {
 	s := PackageStats{
 		FileCount:   len(files),
@@ -38,8 +56,18 @@ func computeStats(files []string, jdoc *doc.JSONDocumentation, imports []ImportL
 			s.CrossingCount++
 		}
 	}
-	s.TypeCount = len(jdoc.Types)
+	// Types/consts/vars count only exported declarations, matching the render
+	// path (buildSymbols/buildValues drop unexported), so the sidebar totals
+	// agree with the sections actually shown on the page.
+	for _, t := range jdoc.Types {
+		if token.IsExported(t.Name) {
+			s.TypeCount++
+		}
+	}
 	for _, v := range jdoc.Values {
+		if !isExportedValueDecl(v) {
+			continue
+		}
 		if v.Const {
 			s.ConstCount++
 		} else {
@@ -286,7 +314,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 
 	var bugs []string
 	if in.Doc != nil {
-		bugs = in.Doc.Bugs
+		bugs = bugsNotInDoc(in.Doc.Bugs, in.Doc.PackageDoc)
 	}
 
 	return OverviewData{

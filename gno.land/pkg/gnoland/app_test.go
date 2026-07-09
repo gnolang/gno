@@ -431,7 +431,7 @@ func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 
 	keys := make([]crypto.PrivKey, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := getDummyKey(t)
 		keys = append(keys, key)
 	}
@@ -1291,11 +1291,17 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Keeper bookkeeping reads run unmetered: the test's price math
+			// asserts exact values, so block gas consumed must equal the
+			// counter values exactly — calibrated store-read costs would
+			// otherwise blow the small block budget and skew the economics.
+			readCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
+
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(readCtx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(readCtx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -2413,7 +2419,6 @@ func TestMeetsMinVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
 			t.Parallel()
 			got := meetsMinVersion(tc.binary, tc.minVer)
@@ -2442,7 +2447,6 @@ func TestParseGnolandVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			major, minor, ok := parseGnolandVersion(tc.input)

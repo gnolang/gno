@@ -1,4 +1,4 @@
-package tests
+package vm
 
 import (
 	"chain/runtime"

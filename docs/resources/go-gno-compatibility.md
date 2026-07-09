@@ -73,6 +73,11 @@ Predeclared types that exist only in Gno, with no Go counterpart.
 | `address` | Account/realm address, with `String()` and `IsValid()` methods. |
 | `realm`   | Type of the `cur realm` receiver in crossing functions.         |
 
+## Pointer equality for zero-sized types
+
+Pointers to two distinct zero-sized variables are never equal in Gno, even where
+Go may report them equal. See [the memory
+model](gno-memory-model.md#pointer-equality).
 
 ## Stdlibs
 
