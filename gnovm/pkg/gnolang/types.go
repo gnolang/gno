@@ -515,6 +515,13 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(sep)
 		}
 		if withName {
+			// Only cross-package unexported interface methods carry a stamp
+			// (see flattenInterfaceMethods); qualify them so two same-spelled
+			// methods print distinguishably.
+			if ft.PkgPath != "" {
+				bld.WriteString(ft.PkgPath)
+				bld.WriteByte('.')
+			}
 			bld.WriteString(string(ft.Name))
 			bld.WriteByte(' ')
 		}
@@ -1112,6 +1119,11 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// satisfy another package's sealed interface.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name, nil)
 		if tr == nil { // not found.
+			// Qualify a stamped cross-package method so it is
+			// distinguishable from a same-spelled local one.
+			if im.PkgPath != "" {
+				return fmt.Errorf("missing method %s.%s", im.PkgPath, im.Name)
+			}
 			return fmt.Errorf("missing method %s", im.Name)
 		}
 		if mt, ok := ft.(*FuncType); ok {

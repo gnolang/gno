@@ -171,6 +171,12 @@ Pinned by `iface_embed_sel_order.gno` (order-independent selector),
 `iface_embed_field_shadow.gno` (field vs promoted method, static + runtime),
 each verified against real Go first.
 
+Diagnostics qualify stamped methods by origin package (`FieldTypeList.string`,
+`VerifyImplementedBy`'s "missing method"), so such an interface no longer
+prints as `interface {sec func() int; sec func() int}` with two
+indistinguishable entries. Directly-declared unexported methods are unstamped
+and print unchanged.
+
 ## Rollout: state persisted before this change is unsupported (decided)
 
 Every `InterfaceType` is born one of three ways: **preprocess (AST)**,
