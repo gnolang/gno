@@ -1742,9 +1742,17 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	return tv.getPointerToFromTV(alloc, store, path, "")
+}
+
+// callerPath is the package of the code executing the selector; VPInterface
+// resolution needs it to pick the right same-spelled unexported method
+// (identity is package-qualified). Empty falls back to the dynamic type's
+// package, which is only correct when no such collision exists (debugger).
+func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
-			panic("GetPointerToFromTV() on undefined value")
+			panic("getPointerToFromTV() on undefined value")
 		}
 	}
 
@@ -1976,7 +1984,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")
 		}
-		callerPath := dtv.T.GetPkgPath()
+		if callerPath == "" {
+			callerPath = dtv.T.GetPkgPath()
+		}
 		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
@@ -1984,7 +1994,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 		btv := *dtv
 		for i, path := range tr {
-			ptr := btv.GetPointerToFromTV(alloc, store, path)
+			ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
 			if i == len(tr)-1 {
 				return ptr // done
 			}

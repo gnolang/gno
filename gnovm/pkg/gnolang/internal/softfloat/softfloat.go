@@ -25,6 +25,16 @@ const (
 	bias  = 1023
 )
 
+// Bit patterns from runtime_softfloat64.go: +Inf and the sign bit
+// (equivalently, negative zero).
+const (
+	Inf32 uint32 = inf32
+	Inf64 uint64 = inf64
+
+	NegZero32 uint32 = neg32
+	NegZero64 uint64 = neg64
+)
+
 func Fadd64(f, g uint64) uint64 { return fadd64(f, g) }
 func Fsub64(f, g uint64) uint64 { return fsub64(f, g) }
 func Fmul64(f, g uint64) uint64 { return fmul64(f, g) }
