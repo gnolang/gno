@@ -16,17 +16,39 @@ package gnolang
 // version (GnoVerLatest) is registered and every field is current
 // behavior, so consulting Semantics changes nothing — it is dormant.
 //
+// SOURCE OF THE VERSION — NO NEW PERSISTED FIELD NEEDED. The gno
+// language version is ALREADY persisted with every package: addpkg
+// writes gnomod.toml into the stored MemPackage (vm keeper), and the
+// store can read it back at load via GetMemFile(path, "gnomod.toml").
+// So the real design is to SOURCE PackageNode.LangVersion from that
+// existing stored gnomod.toml at package load — not to add a new
+// serialized field. This keeps the consensus-visible stored form
+// unchanged (the version is already inside the hashed MemPackage), the
+// same way EVM freezes semantics into the immutable deployed artifact.
+// (LangVersion below is a WIP non-serialized default until that wiring
+// lands; it is dormant, so the default is a no-op today.)
+//
 // WHAT IS DELIBERATELY NOT DONE YET (the real follow-up work):
-//   - PERSISTENCE. PackageNode.LangVersion below is NOT serialized. For
-//     pinning to be sound the version MUST be persisted with the realm
-//     package (PackageValue / the amino stored form) and restored on
-//     reload — otherwise a reloaded old package would default to the
-//     latest semantics, defeating the pin. That stored-form change is
-//     consensus-visible and must land before any second version is
-//     registered here.
+//   - LOAD-TIME WIRING: populate LangVersion by reading the stored
+//     gnomod.toml when a package is loaded, instead of defaulting.
+//   - STOP FORCING LATEST AT DEPLOY: addpkg currently overwrites
+//     gm.Gno = GnoVerLatest (vm keeper). That is harmless with one
+//     version but DEFEATS future pinning — an old package must keep its
+//     deploy-time version in its stored gnomod so it still runs under
+//     old semantics after the VM advances. Must record the real
+//     deploy-time version instead.
 //   - PER-FRAME DISPATCH across a mixed call stack (v1 package calling a
 //     v2 package): Semantics must be scoped per executing package, with
-//     defined conversion rules at the boundary.
+//     defined conversion rules at the boundary. NOTE: only semantics
+//     changes that are INVISIBLE across the import/call boundary are
+//     pinnable this way; a change observable at the boundary (shared
+//     type identity / value representation / serialization) is
+//     shared-substrate and must go through a re-genesis epoch, not a pin.
+//   - Path versioning (xxx/yy/v2) is ORTHOGONAL: it lets an author ship
+//     new CODE that dependents opt into by import path. It does NOT pin
+//     semantics — an unchanged deployed package at its old path still
+//     runs on whatever VM is live, so it cannot protect that package
+//     from a VM behavior change. Pinning is what does that.
 //   - GAS is out of scope: the gas schedule is a chain-wide resource,
 //     height-versioned, never per-package (see 3b).
 

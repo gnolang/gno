@@ -1318,10 +1318,9 @@ type PackageNode struct {
 
 	// LangVersion is the gno language version this package's semantics
 	// are pinned to (see semantics.go / [PackageNode.Semantics]).
-	// WIP: NOT serialized yet — defaults to GnoVerLatest, so it is a
-	// dormant no-op today. Sound per-package pinning requires persisting
-	// this with the realm package (a consensus-visible stored-form
-	// change) before a second version is registered.
+	// WIP: defaults to GnoVerLatest (dormant no-op). The real design
+	// sources this at load from the package's already-persisted
+	// gnomod.toml — NOT a new serialized field. See semantics.go header.
 	LangVersion string
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
