@@ -35,6 +35,7 @@ type generateCfg struct {
 	output          string
 	txsOutput       string
 	patchRealms     patchRealmList
+	patchTxs        stringList
 	migrationTxs    stringList
 	skipTxs         bool
 	noVerify        bool
@@ -228,6 +229,14 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
 		"before writing the hardfork genesis. Use this to deliver realm upgrades "+
 		"as part of the fork (e.g. adding a new .gno file to an existing realm).")
+	fs.Var(&c.patchTxs, "patch-txs", "patch historical txs in place: repeatable, PATH to a "+
+		".jsonl file of AnnotatedTx entries. Each entry is matched against the "+
+		"fetched source-tx stream by (block_height, signer_info[0].address, "+
+		"signer_info[0].sequence); the source tx body is replaced by the patch "+
+		"body, the original tx is preserved on metadata.original_tx, and "+
+		"metadata.note / metadata.source are populated from the patch. Fails "+
+		"fast on duplicate keys across files and on patch keys that match no "+
+		"source tx.")
 	fs.BoolVar(&c.skipTxs, "skip-txs", false, "skip tx export (only copy genesis structure — useful for quick preview)")
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
@@ -312,12 +321,21 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 
 		io.Printf("  Fetched %d successful transactions\n", len(txs))
 
-		// Write txs to separate file if requested
+		// Write txs to separate file if requested — pre-patch, for audit.
 		if cfg.txsOutput != "" {
 			if err := writeTxsJSONL(cfg.txsOutput, txs); err != nil {
 				return fmt.Errorf("writing txs output: %w", err)
 			}
 			io.Printf("  Txs written to: %s\n", cfg.txsOutput)
+		}
+
+		// Annotate historical txs first; --patch-txs below will override to
+		// SourcePatched on matched entries.
+		annotateSource(txs, gnoland.SourceHistorical)
+
+		// Apply --patch-txs rewrites on historical txs (in-memory only).
+		if _, err := applyPatchTxs(txs, cfg.patchTxs, io); err != nil {
+			return fmt.Errorf("--patch-txs: %w", err)
 		}
 	} else {
 		io.Println("Step 2/4: Skipping tx export (--skip-txs)")
@@ -357,10 +375,11 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// so they go through the genesis-mode path (chain-id via PastChainIDs[0],
 	// sig verify skipped under --skip-genesis-sig-verification).
 	for _, path := range cfg.migrationTxs {
-		migTxs, err := readMigrationTxs(path)
+		migTxs, err := loadMigrationTxs(path)
 		if err != nil {
 			return fmt.Errorf("migration-tx %s: %w", path, err)
 		}
+		annotateSource(migTxs, gnoland.SourceMigration)
 		appState.Txs = append(appState.Txs, migTxs...)
 		io.Printf("  appended %d migration tx(s) from %s\n", len(migTxs), path)
 	}
@@ -471,6 +490,10 @@ func buildHardforkGenesis(
 		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
 	}
 
+	// Tag base-genesis txs (SourceBase) before the historical stream is
+	// appended; historical and patched txs already carry their own Source.
+	annotateSource(appState.Txs, gnoland.SourceBase)
+
 	// Append historical txs after existing genesis-mode txs
 	// Genesis-mode txs (no metadata or BlockHeight==0): package deploys, setup
 	// Historical txs (BlockHeight > 0): replayed with original chain ID context
@@ -503,35 +526,6 @@ func writeGenesis(path string, genDoc *bftypes.GenesisDoc) error {
 		return fmt.Errorf("renaming %s -> %s: %w", tmp, path, err)
 	}
 	return nil
-}
-
-// readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
-// BlockHeight is forced to 0 so each line is treated as a genesis-mode tx
-// when replayed (uses PastChainIDs[0] for chain-id; sig verify skipped under
-// --skip-genesis-sig-verification). Blank lines and # comments are ignored.
-func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	out := make([]gnoland.TxWithMetadata, 0, len(lines))
-	for i, line := range lines {
-		trim := strings.TrimSpace(line)
-		if trim == "" || strings.HasPrefix(trim, "#") {
-			continue
-		}
-		var tx gnoland.TxWithMetadata
-		if err := amino.UnmarshalJSON([]byte(line), &tx); err != nil {
-			return nil, fmt.Errorf("line %d: %w", i+1, err)
-		}
-		if tx.Metadata == nil {
-			tx.Metadata = &gnoland.GnoTxMetadata{}
-		}
-		tx.Metadata.BlockHeight = 0 // always genesis-mode
-		out = append(out, tx)
-	}
-	return out, nil
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
@@ -674,10 +668,10 @@ func loadGnoPackageFiles(srcDir string) ([]*std.MemFile, error) {
 // file. Returns "" if not found. (Intentionally lightweight — avoids pulling
 // in the gnovm parser.)
 func gnoPackageNameFromFileBody(_ string, body string) string {
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		l := strings.TrimSpace(line)
-		if strings.HasPrefix(l, "package ") {
-			rest := strings.TrimPrefix(l, "package ")
+		if after, ok := strings.CutPrefix(l, "package "); ok {
+			rest := after
 			if i := strings.IndexAny(rest, " \t/"); i >= 0 {
 				rest = rest[:i]
 			}

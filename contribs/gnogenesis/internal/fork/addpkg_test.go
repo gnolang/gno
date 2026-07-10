@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -53,16 +52,17 @@ func TestAddpkg_HappyPath(t *testing.T) {
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	require.Len(t, lines, 1)
 
-	var tx gnoland.TxWithMetadata
-	require.NoError(t, amino.UnmarshalJSON([]byte(lines[0]), &tx))
-	require.Len(t, tx.Tx.Msgs, 1)
-	msg, ok := tx.Tx.Msgs[0].(vm.MsgAddPackage)
+	var at AnnotatedTx
+	require.NoError(t, amino.UnmarshalJSON([]byte(lines[0]), &at))
+	require.Len(t, at.Tx.Msgs, 1)
+	msg, ok := at.Tx.Msgs[0].(vm.MsgAddPackage)
 	require.True(t, ok, "msg is MsgAddPackage")
 	assert.Equal(t, "gno.land/r/test/foo", msg.Package.Path)
 	assert.Equal(t, defaultDeployerAddr, msg.Creator.String())
-	require.NotNil(t, tx.Metadata)
-	assert.Equal(t, int64(0), tx.Metadata.BlockHeight)
-	assert.Empty(t, tx.Tx.Signatures, "signatures stripped (consumer skips sig verification)")
+	require.NotNil(t, at.Metadata)
+	assert.Equal(t, int64(0), at.Metadata.BlockHeight)
+	assert.Empty(t, at.Tx.Signatures, "signatures stripped (consumer skips sig verification)")
+	assert.Equal(t, "addpkg: gno.land/r/test/foo", at.Reason)
 }
 
 func TestAddpkg_MultiplePackages(t *testing.T) {

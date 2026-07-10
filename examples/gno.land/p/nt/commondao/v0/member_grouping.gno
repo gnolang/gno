@@ -79,8 +79,8 @@ func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 
 // Get returns a member group.
 func (g memberGrouping) Get(name string) (_ MemberGroup, found bool) {
-	v, found := g.groups.Get(name)
-	if !found {
+	v := g.groups.Get(name)
+	if v == nil {
 		return nil, false
 	}
 	return v.(MemberGroup), true

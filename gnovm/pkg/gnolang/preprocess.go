@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -219,9 +220,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			return
 		}
 		f := map[Name]bool{}
-		for k, v := range parent {
-			f[k] = v
-		}
+		maps.Copy(f, parent)
 		if modify != nil {
 			modify(f)
 		}
@@ -1297,6 +1296,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
@@ -1587,6 +1591,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
+						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
+							// Convert float-valued and untyped-int constants
+							// directly to the target type: constant conversion
+							// has no signed zero, so an underflowing constant
+							// rounds to +0, unlike the machine's runtime
+							// narrowing; and an untyped int may exceed int64
+							// (e.g. float64(1<<100)) yet be representable in
+							// the float target, so it must not take the
+							// default-type (int) path below.
+							switch at.Kind() {
+							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
+								convertConst(store, last, n, arg0, ct)
+								constConverted = true
+							}
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
 							case Uint8Kind, Int32Kind:
@@ -1756,8 +1774,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2061,11 +2082,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`); fall
+									// through, runtime will panic with
+									// "call of nil function".
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
@@ -2201,11 +2225,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
@@ -3091,7 +3122,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(dstTV)))
+						reflect.TypeFor[*TypedValue]()))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
@@ -4135,9 +4166,13 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
+		pkgPath := packageOf(last).PkgPath
 		it := &InterfaceType{
-			PkgPath: packageOf(last).PkgPath,
-			Methods: buildFieldTypesAST(store, last, x.Methods, true),
+			PkgPath: pkgPath,
+			// Build without embed naming (embed=false): flattenInterfaceMethods
+			// expands embedded interfaces into their method set, making identity
+			// the method set rather than the embedded-interface (alias) spelling.
+			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
@@ -4149,8 +4184,9 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 
 // buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
 // mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
-// embed=true mirrors doOpStructType/doOpInterfaceType which call
-// fillEmbeddedName per field; embed=false mirrors doOpFuncType which does not.
+// embed=true mirrors doOpStructType, which names embedded fields per field;
+// embed=false mirrors doOpFuncType and the interface path (which leaves embeds
+// unnamed and flattens them via flattenInterfaceMethods).
 func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
 	fts := make([]FieldType, len(fxs))
 	for i := range fxs {
@@ -4163,7 +4199,7 @@ func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed b
 			ft.Tag = Tag(evalConst(store, last, fx.Tag).GetString())
 		}
 		if embed {
-			fillEmbeddedName(&ft)
+			fillEmbeddedName(&ft, fx.Type)
 		}
 		fts[i] = ft
 	}
@@ -4398,6 +4434,21 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		})
 		cv := m.EvalStatic(last, x)
 		m.Release()
+		// The machine computes with runtime (IEEE) semantics, but a folded
+		// expression is a constant, and constants have no signed zero: a
+		// float -0 result (e.g. from negation) becomes +0.
+		if cv.T != nil {
+			switch cv.T.Kind() {
+			case Float32Kind:
+				if cv.GetFloat32() == softfloat.NegZero32 {
+					cv.SetFloat32(0)
+				}
+			case Float64Kind:
+				if cv.GetFloat64() == softfloat.NegZero64 {
+					cv.SetFloat64(0)
+				}
+			}
+		}
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

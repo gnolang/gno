@@ -25,7 +25,6 @@ func TestCodecParity_Gnolang(t *testing.T) {
 	cdc.Seal()
 
 	for i, c := range parityCasesGnolang() {
-		c := c
 		name := fmt.Sprintf("%d/%s", i, c.name)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -163,5 +162,22 @@ func parityCasesGnolang() []struct {
 
 		// SliceValue referring to no backing Value.
 		{"SliceValue/empty", &SliceValue{Base: nil, Offset: 0, Length: 0, Maxcap: 0}},
+
+		// FieldType.PkgPath (wire field 5) — set on an unexported method that
+		// was flattened out of an interface in package "p". Guards the
+		// genproto2/reflect parity of that field: without the hand-added
+		// field-5 marshal in pb3_gen.go, the reflect codec emits PkgPath while
+		// the fast path drops it, and this case fails.
+		{"FieldType/unexported-pkgpath", &FieldType{Name: "sec", PkgPath: "p", Type: &FuncType{}}},
+		{"FieldType/exported-empty-pkgpath", &FieldType{Name: "M", Type: &FuncType{}}},
+		// InterfaceType carrying both an exported (empty PkgPath) and a
+		// stamped unexported method — the realistic persisted shape.
+		{"InterfaceType/stamped-unexported", &InterfaceType{
+			PkgPath: "q",
+			Methods: []FieldType{
+				{Name: "M", Type: &FuncType{}},
+				{Name: "sec", PkgPath: "p", Type: &FuncType{}},
+			},
+		}},
 	}
 }

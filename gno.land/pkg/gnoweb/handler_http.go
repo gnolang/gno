@@ -15,13 +15,16 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"golang.org/x/sync/errgroup"
 )
 
 const ReadmeFileName = "README.md"
@@ -428,9 +431,12 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Source page
+	// Handle Source page: with a file -> source code view; without -> package overview.
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourceView(ctx, gnourl)
+		if gnourl.IsFile() || gnourl.WebQuery.Get("file") != "" {
+			return h.GetSourceView(ctx, gnourl)
+		}
+		return h.GetOverviewView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -517,7 +523,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: path.Base(raw),
+			Title: displayPackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -540,6 +546,18 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username
+}
+
+// displayPackageName returns versioned name for a package path.
+// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
+func displayPackageName(pkgPath string) string {
+	base := path.Base(pkgPath)
+	name := gno.LastPathElement(pkgPath)
+	if name != base {
+		// Versioned path: show "name/vN".
+		return name + "/" + base
+	}
+	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL.
@@ -658,7 +676,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
-	realmName := path.Base(gnourl.Path)
+	realmName := displayPackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
@@ -710,22 +728,12 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	var fileName string
-	if gnourl.IsFile() { // check path file from path first
+	// GetSourceView is only reached with an explicit file (see GetPackageView):
+	// a no-file $source routes to the overview, which owns the file-preference
+	// landing behaviour. Resolve the file from the path (preferred) or ?file=.
+	fileName := gnourl.WebQuery.Get("file")
+	if gnourl.IsFile() {
 		fileName = gnourl.File
-	} else if file := gnourl.WebQuery.Get("file"); file != "" {
-		fileName = file
-	} else {
-		// Prefer README.md, then .gno files, otherwise first file
-		i := slices.IndexFunc(files, func(f string) bool {
-			return f == "README.md" || strings.HasSuffix(f, ".gno")
-		})
-
-		if i >= 0 {
-			fileName = files[i] // prefer .gno files and README.md
-		} else {
-			fileName = files[0] // fallback to first file - might be a .toml file
-		}
 	}
 
 	// Standard file rendering
@@ -1054,4 +1062,122 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+// GetOverviewView renders the package overview landing page at /r/<pkg>$source.
+// It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
+// a pure OverviewData that the template renders.
+func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	pkgPath := gnourl.Path
+	height := gnourl.Height()
+
+	var (
+		files    []string
+		sources  map[string][]byte
+		jdoc     *doc.JSONDocumentation
+		readme   components.Component
+		subpaths []string
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		if files, err = h.Client.ListFiles(gctx, pkgPath, height); err != nil {
+			return err
+		}
+		// Fetch gnomod.toml + LICENSE as soon as the file list is known so they
+		// download in parallel with the Doc/README/paths queries below.
+		sources = h.fetchMetaFiles(gctx, pkgPath, files, height)
+		return nil
+	})
+	g.Go(func() error {
+		d, err := h.Client.Doc(gctx, pkgPath, height)
+		if err != nil {
+			h.Logger.Warn("overview: qdoc failed — degraded mode", "path", pkgPath, "error", err)
+			jdoc = &doc.JSONDocumentation{}
+			return nil
+		}
+		jdoc = d
+		return nil
+	})
+	g.Go(func() error {
+		// A missing or unrenderable README must not fail the whole overview;
+		// the error is intentionally dropped so the page degrades to no README.
+		readme, _ = h.renderReadme(gctx, gnourl, pkgPath)
+		return nil
+	})
+	g.Go(func() error {
+		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
+		// Match GetPathsListView's cap so a package with many descendants
+		// doesn't silently drop direct children from the Subpackages section.
+		paths, err := h.Client.ListPaths(gctx, prefix, 1_000)
+		if err != nil {
+			return nil
+		}
+		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar").
+		// buildSubpackages works on domain-relative paths.
+		subpaths = make([]string, 0, len(paths))
+		for _, p := range paths {
+			subpaths = append(subpaths, strings.TrimPrefix(p, h.Static.Domain))
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return GetClientErrorStatusView(gnourl, err, height)
+	}
+
+	data := components.BuildOverview(components.OverviewInput{
+		URL:         gnourl,
+		Files:       files,
+		Doc:         jdoc,
+		Sources:     sources,
+		Subpaths:    subpaths,
+		Readme:      readme,
+		Domain:      h.Static.Domain,
+		DocRenderer: h.Renderer,
+	})
+	return http.StatusOK, components.OverviewView(data)
+}
+
+// fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.
+// deriveInfo needs gnomod.toml; deriveLicense needs the LICENSE body to
+// identify the license kind. Imports are supplied by vm/qdoc, so no .gno
+// source is fetched here. Per-file errors are silent (best-effort).
+func (h *HTTPHandler) fetchMetaFiles(ctx context.Context, pkgPath string, files []string, height int64) map[string][]byte {
+	targets := filterMetaFiles(files)
+	if len(targets) == 0 {
+		return nil
+	}
+
+	var mu sync.Mutex
+	results := make(map[string][]byte, len(targets))
+
+	var wg sync.WaitGroup
+	for _, f := range targets {
+		wg.Add(1)
+		go func(file string) {
+			defer wg.Done()
+			content, _, err := h.Client.File(ctx, pkgPath, file, height)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results[file] = content
+			mu.Unlock()
+		}(f)
+	}
+	wg.Wait()
+	return results
+}
+
+// filterMetaFiles returns the metadata files the overview fetches: gnomod.toml
+// and any LICENSE file.
+func filterMetaFiles(files []string) []string {
+	out := make([]string, 0, 2)
+	for _, f := range files {
+		if f == "gnomod.toml" || components.ClassifyFile(f).IsLicense {
+			out = append(out, f)
+		}
+	}
+	return out
 }

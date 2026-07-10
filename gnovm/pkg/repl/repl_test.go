@@ -233,7 +233,6 @@ var fixtures = []struct {
 
 func TestRepl(t *testing.T) {
 	for _, fix := range fixtures {
-		fix := fix
 		t.Run(fix.Name, func(t *testing.T) {
 			outbuf := new(bytes.Buffer)
 			errbuf := new(bytes.Buffer)
