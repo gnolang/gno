@@ -170,9 +170,9 @@ func checkSame(at, bt Type, msg string) error {
 	if debug {
 		debug.Printf("checkSame, at: %v bt: %v \n", at, bt)
 	}
-	if at.TypeID() != bt.TypeID() {
+	if !identicalTypes(at, bt) {
 		return errors.New("incompatible types %v and %v %s",
-			at.TypeID(), bt.TypeID(), msg)
+			at.String(), bt.String(), msg)
 	}
 	return nil
 }
@@ -561,7 +561,14 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(n, pt.Elt, cdt.Elt)
+			err := checkSame(pt.Elt, cdt.Elt, "")
+			if err != nil {
+				return errors.New(
+					"cannot use %s as %s",
+					pt.String(),
+					cdt.String())
+			}
+			return nil
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -604,6 +611,13 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 					mt.String(),
 					cdt.String()).Stacktrace()
 			}
+			err = checkSame(mt.Value, cdt.Value, "")
+			if err != nil {
+				return errors.New(
+					"cannot use %s as %s",
+					mt.String(),
+					cdt.String()).Stacktrace()
+			}
 			return nil
 		}
 	case *InterfaceType:
@@ -611,7 +625,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	case *DeclaredType:
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
-		if xt.TypeID() == cdt.TypeID() {
+		if identicalTypes(xt, cdt) {
 			return nil // ok
 		}
 	default:
@@ -1000,7 +1014,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				// check when both typed
 				if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
 					if lt != nil && rt != nil {
-						if lt.TypeID() != rt.TypeID() {
+						if !identicalTypes(lt, rt) {
 							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", lt, rt))
 						}
 					}

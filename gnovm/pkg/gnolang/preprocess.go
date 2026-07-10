@@ -1562,7 +1562,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
 					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
-					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
+					// NOTE: must be exact identity (tags included): a
+					// tag-changing conversion must not be elided, or the
+					// value would keep the old (tagged) type both
+					// statically and at runtime.
+					if at != nil && identicalTypes(ct, at) && !isUntyped(at) {
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n.Args[0], TRANS_CONTINUE
 					}
@@ -1742,7 +1746,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 					if apt, ok := atBase.(*PointerType); ok {
 						if cpt, ok := ctBase.(*PointerType); ok {
-							if baseOf(apt.Elem()).TypeID() != baseOf(cpt.Elem()).TypeID() {
+							if !identicalTypesIgnoreTags(baseOf(apt.Elem()), baseOf(cpt.Elem())) {
 								panic(fmt.Sprintf("cannot convert %v (of type %v) to type %v",
 									arg0, at, ct))
 							} else {
@@ -1757,7 +1761,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (TYPE) CALL EXPR GENERAL CASE:
 					//----------------------------------------
 
-					if ctBase.TypeID() != atBase.TypeID() {
+					if !identicalTypesIgnoreTags(ctBase, atBase) {
 						panic(fmt.Sprintf("cannot convert %v (of type %v) to type %v",
 							arg0, at, ct))
 					}
@@ -5757,7 +5761,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			if !ft.IsZero() {
 				// redefining function.
 				// make sure the type is the same.
-				if ft.TypeID() != ft2.TypeID() {
+				if !identicalTypes(ft, ft2) {
 					panic(fmt.Sprintf(
 						"Redefinition (%s) cannot change .T; was %v, new %v",
 						d, ft, ft2))

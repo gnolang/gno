@@ -460,7 +460,10 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	} else if rvu {
 		return false
 	}
-	if err := checkSame(lv.T, rv.T, ""); err != nil {
+	// NOTE: runtime value type identity is TypeID-based: struct tags and
+	// other distinctions TypeID ignores are enforced statically only.
+	// See gnovm/adr/pr5785_type_identity.md and gnolang/gno#5817.
+	if lv.T.TypeID() != rv.T.TypeID() {
 		return false
 	}
 	// Both sides share one dynamic type now. If we reached it through an
