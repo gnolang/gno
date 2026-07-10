@@ -430,13 +430,9 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
-// diagName returns the name to print: bare, unless the method carries a stamp,
-// in which case it is qualified by its origin package. Only cross-package
-// unexported interface methods are stamped (see flattenInterfaceMethods), and
-// only such a method can sit beside a same-spelled one and need telling apart.
-// Unlike idName it leaves a same-package unexported method bare. Both the
-// interface stringer and the diagnostics use it, so an error names a method
-// exactly as the interface printed beside it spells it.
+// diagName qualifies a stamped method by its origin package, so a message can
+// tell two same-spelled unexported methods apart. Unlike idName, a same-package
+// unexported method stays bare.
 func (ft FieldType) diagName() string {
 	if ft.PkgPath == "" {
 		return string(ft.Name)
@@ -1125,8 +1121,6 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name, nil)
-		// Qualify a stamped cross-package method so it is distinguishable
-		// from a same-spelled local one, in every diagnostic below.
 		mname := im.diagName()
 		if tr == nil { // not found.
 			return fmt.Errorf("missing method %s", mname)
