@@ -23,6 +23,12 @@ type txKey struct {
 // keyOf derives a txKey from metadata. Returns false if any required field is
 // missing — historical txs from the source stream and patch entries must both
 // carry block_height + at least one SignerInfo entry.
+//
+// The key uses SignerInfo[0] only, so the identity is (block_height, first
+// signer, first signer's sequence). This is unambiguous for the single-signer
+// txs that make up historical chain activity; two distinct multi-signer txs
+// sharing the same first signer, sequence, and height would collide on one key
+// (and applyPatchTxs would reject the collision as a duplicate source key).
 func keyOf(meta *gnoland.GnoTxMetadata) (txKey, bool) {
 	if meta == nil || meta.BlockHeight == 0 || len(meta.SignerInfo) == 0 {
 		return txKey{}, false
