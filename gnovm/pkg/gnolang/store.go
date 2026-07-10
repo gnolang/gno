@@ -617,10 +617,10 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	o2 := copyValueWithRefs(oo)
 	if debugAssert {
 		// Invariant: every function-local declared type referenced by the
-		// persist-copy must have been SetType'd within this transaction (the
-		// save path runs localTypeSaver just before SetObject), so it must be
-		// in cacheTypes. A miss means some save path minted a RefType the
-		// store cannot resolve on reload — the object would be persisted
+		// persist-copy must be known to the store — SetType'd at addpkg
+		// (saveFuncLocalTypes) or loaded via GetType — so it must be in
+		// cacheTypes. A miss means a RefType was minted that the store
+		// cannot resolve on reload — the object would be persisted
 		// permanently unreadable.
 		ds.assertNoDanglingLocalTypeRef(o2)
 	}
@@ -924,10 +924,21 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 		// RefTypes only wrap declared types ("path.Name" or "path[loc].Name",
 		// see refOrCopyType), so a bracket identifies a function-local type.
 		if strings.Contains(ct.ID.String(), "[") {
-			if _, exists := ds.cacheTypes[ct.ID]; !exists {
-				panic(fmt.Sprintf(
-					"dangling function-local type ref %s in persisted value", ct.ID))
+			if _, exists := ds.cacheTypes[ct.ID]; exists {
+				return
 			}
+			// Not in this transaction's cache: the type must already be in
+			// the backend, written at addpkg by saveFuncLocalTypes. Raw key
+			// probe (not GetTypeSafe) so the debug-only assert has no amino
+			// decode cost and no cache side effects.
+			if ds.baseStore != nil {
+				key := backendTypeKey(ct.ID)
+				if ds.baseStore.Get(ds.gctx, []byte(key)) != nil {
+					return
+				}
+			}
+			panic(fmt.Sprintf(
+				"dangling function-local type ref %s in persisted value", ct.ID))
 		}
 	case *DeclaredType:
 		ds.assertNoDanglingLocalTypeRefType(ct.Base)

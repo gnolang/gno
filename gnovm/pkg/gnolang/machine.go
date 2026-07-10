@@ -867,6 +867,11 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
+	// Save function-local declared types before the realm finalization
+	// below: a file-level var initializer may already hold a value of one,
+	// and FinalizeRealmTransaction persists such values (SetObject asserts
+	// resolvability of their type refs under -tags debugAssert).
+	m.saveFuncLocalTypes(pv)
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
@@ -894,6 +899,50 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		}
 	}
 	return
+}
+
+// saveFuncLocalTypes persists every function-local declared type in the
+// package (`type S ...` inside a function or closure body, DeclaredType
+// with ParentLoc set). A value of such a type can be persisted by any
+// later transaction — assigned to an interface-typed package var, captured
+// by a closure — and its serialized RefType ("pkg[loc].Name") must resolve
+// on reload. Persisting the types here, like package-level types, puts the
+// entire cost at addpkg with the deployer and keeps transaction saves free
+// of type writes.
+//
+// Local DeclaredTypes are materialized at preprocess time (declareWith),
+// so walking the fileset AST enumerates them completely; no recursion
+// through Base is needed because any local type reachable from another's
+// Base is itself declared by a *TypeDecl in the same package.
+func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
+	bv, ok := pv.Block.(*Block)
+	if !ok {
+		return
+	}
+	pn, ok := bv.GetSource(m.Store).(*PackageNode)
+	if !ok || pn.FileSet == nil {
+		return
+	}
+	for _, fn := range pn.FileSet.Files {
+		Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			td, ok := n.(*TypeDecl)
+			if !ok || td.IsAlias {
+				return n, TRANS_CONTINUE
+			}
+			// After preprocessing td.Type is a *constTypeExpr holding the
+			// declared type (blank decls are skipped by the assertions).
+			if cte, ok := td.Type.(*constTypeExpr); ok {
+				if dt, ok := cte.Type.(*DeclaredType); ok &&
+					dt.IsFuncLocal() && dt.PkgPath == pv.PkgPath {
+					m.Store.SetType(dt)
+				}
+			}
+			return n, TRANS_CONTINUE
+		})
+	}
 }
 
 // Resave any changes to realm after init calls.
