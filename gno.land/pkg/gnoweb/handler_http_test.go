@@ -76,6 +76,10 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 	return nil, errors.New("stubClient: ListPaths not implemented")
 }
 
+func (s *stubClient) Eval(_ context.Context, data string) ([]byte, error) {
+	return []byte("(stub eval: " + data + ")"), nil
+}
+
 func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`{"names":[],"values":[]}`), nil
 }
@@ -111,8 +115,12 @@ func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTT
 
 	return &gnoweb.HTTPHandlerConfig{
 		ClientAdapter: client,
-		Renderer:      &rawRenderer{},
-		Aliases:       map[string]gnoweb.AliasTarget{},
+		Meta: gnoweb.StaticMetadata{
+			RemoteHelp: "http://localhost:26657",
+			ChainId:    "test",
+		},
+		Renderer: &rawRenderer{},
+		Aliases:  map[string]gnoweb.AliasTarget{},
 	}
 }
 
@@ -1421,7 +1429,11 @@ func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnow
 			ClientAdapter: client,
 			Renderer:      renderer,
 			Aliases:       map[string]gnoweb.AliasTarget{},
-			Meta:          gnoweb.StaticMetadata{Domain: "gno.land"},
+			Meta: gnoweb.StaticMetadata{
+				Domain:     "gno.land",
+				RemoteHelp: "http://localhost:26657",
+				ChainId:    "test",
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -1582,6 +1594,67 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHTTPHandler_PlaygroundPage tests the /_/play standalone playground route.
+func TestHTTPHandler_PlaygroundPage(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, &stubClient{})
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		path    string
+		contain string
+	}{
+		{"default playground", "/_/play", "Playground"},
+		{"with initial code", "/_/play?code=package+main", "package main"},
+		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D", "package main"},
+		{"with compressed encoded code", "/_/play?code=KkhMzk5MT1XITczM4wIEAAD%2F%2Fw%3D%3D&z", "package main"},
+		{"with fork param", "/_/play?from=gno.land/r/demo/foo", "gno.land/r/demo/foo"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.contain)
+		})
+	}
+}
+
+// TestHTTPHandler_ForkView tests the ?fork query on a package page.
+func TestHTTPHandler_ForkView(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/p/demo/foo",
+		Files: map[string]string{
+			"foo.gno": `package foo`,
+			"bar.gno": `package foo`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/p/demo/foo$fork", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "foo.gno")
+	assert.Contains(t, body, "package foo")
 }
 
 // TestHTTPHandler_UserView_ListPathsLimitBounded — a single GET /u/<name>

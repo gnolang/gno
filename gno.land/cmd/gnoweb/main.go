@@ -92,7 +92,8 @@ Environment variables:
 			}
 
 			return run()
-		})
+		},
+	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }

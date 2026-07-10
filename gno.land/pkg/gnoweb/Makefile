@@ -21,8 +21,8 @@ biome := $(node_modules)/.bin/biome
 css_config_path := frontend/css/main.css
 
 # main css config — includes per-feature CSS pulled into the Cube CSS Block
-# layer via @import from frontend/css/06-blocks.css (postcss-import resolves
-# at compile time, so the final bundle and layer order are unchanged).
+# layer via @import from frontend/css/main.css (postcss-import resolves at
+# compile time, so the final bundle and layer order are unchanged).
 main_css_files := $(shell find frontend/css feature -name '*.css' 2>/dev/null)
 output_maincss := $(PUBLIC_DIR)/main.css
 
@@ -53,9 +53,15 @@ shared_js := $(src_dir_js)/controller.ts
 controller_js := $(filter-out $(shared_js),$(input_js))
 # Flatten: any .ts (legacy or feature) → $(out_dir_js)/<basename>.js.
 output_js := $(addprefix $(out_dir_js)/,$(patsubst %.ts,%.js,$(notdir $(input_js))))
-# Tell make where to look for .ts sources so the %.js pattern rule
-# below resolves both legacy and feature-local controllers.
+# Tell make where to look for .ts sources so the %.js pattern rule below
+# resolves both legacy and feature-local controllers.
 vpath %.ts $(src_dir_js) $(shell find feature -path 'feature/*/frontend' -type d 2>/dev/null)
+
+# Alias so controllers outside frontend/js/ (per-feature controllers under
+# feature/<name>/frontend/) can import shared modules as @gnoweb/js/... instead
+# of brittle ../../../frontend/js/ relative paths. Resolved relative to esbuild's
+# working directory (this Makefile's dir).
+esbuild_alias := --alias:@gnoweb/js=./frontend/js
 
 # cache
 cache_dir := .cache
@@ -106,7 +112,7 @@ node_path := $(node_modules)
 ts: $(esbuild) $(output_js)
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
-	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify $(esbuild_alias)
 
 # sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
 # parsing until executed and guarantees window.sa_metadata is set before SA's
@@ -118,7 +124,7 @@ $(out_dir_js)/sa-bootstrap.js: $(src_dir_js)/sa-bootstrap.ts $(esbuild)
 # prerequisite lets `vpath` resolve sources from frontend/js/ OR from
 # feature/<name>/frontend/ (set above). $< is the path Make found.
 $(out_dir_js)/%.js: %.ts $(out_dir_js)/controller.js
-	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js $(esbuild_alias)
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -152,7 +158,7 @@ dev.maincss: generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	NODE_ENV=development NODE_PATH=$(node_path) $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
+	NODE_ENV=development NODE_PATH=$(node_path) $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch $(esbuild_alias) \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools

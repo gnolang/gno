@@ -1,0 +1,106 @@
+{{/* ===================================================================================
+UI - Run (maketx run) scratchpad
+=================================================================================== */}}
+{{ define "renderPage" }}
+<div class="b-run"
+  data-controller="run"
+  data-run-pkg-path-value="{{ .PkgPath }}"
+  data-run-pkg-alias-value="{{ .PkgAlias }}"
+  data-run-remote-value="{{ .Remote }}"
+  data-run-chain-id-value="{{ .ChainId }}">
+
+  <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+    <h1 class="title b-content-h1">Run Script</h1>
+    <div class="header-info">
+      <div class="b-btns">
+        <button class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
+          <svg class="c-icon"><use href="#ico-code"></use></svg>
+          <span>Reset</span>
+        </button>
+        <button class="b-inline-btn c-with-icon" data-action="click->run#downloadCode" title="Download script as .gno file">
+          <svg class="c-icon"><use href="#ico-ddl"></use></svg>
+          <span>Download</span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Code editor -->
+  <div class="b-code-editor-area">
+    <div class="b-code-editor" data-run-target="editor"></div>
+  </div>
+
+  <!-- Command settings -->
+  <div class="b-run-settings">
+    <h2 class="b-content-h2">Command Settings</h2>
+    <div class="b-run-settings-grid">
+      <div class="b-input">
+        <label for="run-key">Key name or address</label>
+        <input type="text" id="run-key" data-run-target="key"
+          placeholder="mykey" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-wanted">Gas wanted</label>
+        <input type="text" id="run-gas-wanted" data-run-target="gasWanted"
+          value="2000000" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-fee">Gas fee</label>
+        <input type="text" id="run-gas-fee" data-run-target="gasFee"
+          value="1000000ugnot" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-send">Send coins (optional)</label>
+        <input type="text" id="run-send" data-run-target="send"
+          placeholder="0ugnot" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Generated commands -->
+  <div class="b-run-commands">
+    <h3 class="b-content-h3">Generated Commands</h3>
+    <p class="u-color-muted">
+      Save the code above as <code class="u-font-mono">script.gno</code> using
+      the <strong>Download</strong> link above, then run one of these commands:
+    </p>
+
+    <!-- Dry run -->
+    <div class="b-run-command-block">
+      <div class="b-run-command-header">
+        <h4 class="b-run-command-label">Dry Run</h4>
+        <span class="u-color-muted u-text-sm">simulates without broadcasting</span>
+      </div>
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="run-dry-run-cmd" class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        <pre><code><span class="u-font-mono" data-copy-target="run-dry-run-cmd" data-run-target="dryRunCmd"></span></code></pre>
+      </div>
+    </div>
+
+    <!-- Execute -->
+    <div class="b-run-command-block">
+      <div class="b-run-command-header">
+        <h4 class="b-run-command-label">Execute</h4>
+        <span class="u-color-muted u-text-sm">broadcasts and runs on-chain</span>
+      </div>
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="run-execute-cmd" class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        <pre><code><span class="u-font-mono" data-copy-target="run-execute-cmd" data-run-target="executeCmd"></span></code></pre>
+      </div>
+    </div>
+  </div>
+
+</div>
+{{ end }}

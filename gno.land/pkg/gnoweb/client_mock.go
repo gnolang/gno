@@ -14,6 +14,8 @@ import (
 type MockPackage struct {
 	Path      string
 	Domain    string
+	Remote    string
+	ChainId   string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
 }
@@ -136,6 +138,11 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		return nil, ErrClientPackageNotFound
 	}
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
+}
+
+// Eval evaluates a Gno expression (mock implementation).
+func (m *MockClient) Eval(_ context.Context, data string) ([]byte, error) {
+	return []byte("(mock eval: " + data + ")"), nil
 }
 
 // StatePkg returns mock package state data for testing.

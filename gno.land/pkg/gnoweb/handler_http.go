@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -115,6 +117,10 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
+
+	// Features
+	Playground *playground.Handler
+	Run        *run.Handler
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -134,6 +140,19 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
+		Playground: playground.New(playground.Deps{
+			Client:  &playgroundClientAdapter{cfg.ClientAdapter},
+			Logger:  logger,
+			Domain:  cfg.Meta.Domain,
+			Remote:  cfg.Meta.RemoteHelp,
+			ChainId: cfg.Meta.ChainId,
+		}),
+		Run: run.New(run.Deps{
+			Logger:  logger,
+			Domain:  cfg.Meta.Domain,
+			Remote:  cfg.Meta.RemoteHelp,
+			ChainId: cfg.Meta.ChainId,
+		}),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -298,6 +317,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModePackage
 	case gnourl.IsUser():
 		indexData.Mode = components.ViewModeUser
+	case gnourl.IsPlayground():
+		indexData.Mode = components.ViewModePlayground
 	default:
 		indexData.Mode = components.ViewModeRealm
 	}
@@ -371,8 +392,6 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	ctx := r.Context()
-
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// If the alias target exists and is a gnoweb path, replace the URL path with it.
@@ -391,10 +410,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
-		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+		return h.GetMarkdownView(gnourl, indexData, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(r, gnourl, indexData)
+	case gnourl.IsPlayground():
+		return h.Playground.GetPlaygroundView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -402,7 +422,9 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, indexData *components.IndexData, mdContent string) (int, *components.View) {
+	indexData.HeaderData.Static = true
+
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
@@ -423,10 +445,22 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(r *http.Request, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	ctx := r.Context()
+
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
+	}
+
+	// Handle Fork page (fork source to playground)
+	if gnourl.WebQuery.Has("fork") {
+		return h.Playground.GetForkView(ctx, gnourl)
+	}
+
+	// Handle Run page (maketx run scratchpad)
+	if gnourl.WebQuery.Has("run") {
+		return h.Run.GetRunView(gnourl)
 	}
 
 	// Handle Source page
@@ -783,6 +817,14 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
+	var fileEdit string
+	if strings.HasSuffix(fileName, ".gno") {
+		editURL := *gnourl
+		editURL.WebQuery = url.Values{"fork": {""}}
+		editURL.Query = url.Values{"file": {fileName}}
+		fileEdit = editURL.EncodeWebURL()
+	}
+
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
@@ -791,6 +833,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileEdit:     fileEdit,
 		FileSource:   fileSource,
 	})
 }
@@ -1067,4 +1110,29 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+var _ playground.ClientAdapter = (*playgroundClientAdapter)(nil)
+
+// playgroundClientAdapter adapts ClientAdapter for the playground feature by
+// removing the FileMeta type dependency to break circular dependencies with gnoweb.
+type playgroundClientAdapter struct {
+	client ClientAdapter
+}
+
+func (a *playgroundClientAdapter) ListFiles(ctx context.Context, p string) ([]string, error) {
+	return a.client.ListFiles(ctx, p, 0)
+}
+
+func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) ([]byte, error) {
+	body, _, err := a.client.File(ctx, p, filename, 0)
+	return body, err
+}
+
+func (a *playgroundClientAdapter) Doc(ctx context.Context, p string) (*doc.JSONDocumentation, error) {
+	return a.client.Doc(ctx, p, 0)
+}
+
+func (a *playgroundClientAdapter) Eval(ctx context.Context, data string) ([]byte, error) {
+	return a.client.Eval(ctx, data)
 }

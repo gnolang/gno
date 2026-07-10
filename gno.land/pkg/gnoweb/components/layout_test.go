@@ -46,6 +46,11 @@ func TestIndexLayout(t *testing.T) {
 			mode:     ViewModePackage,
 			viewType: DirectoryViewType,
 		},
+		{
+			name:     "Playground view",
+			mode:     ViewModePlayground,
+			viewType: "test-view",
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,7 +119,7 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 4, "expected dev links with State and Actions for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 6, "expected dev links with State, Actions, Fork, Run for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -203,11 +208,13 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 
 	// Test realm mode (default case)
 	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
-	assert.Len(t, links, 4, "expected Content, State, Source, and Actions links")
+	assert.Len(t, links, 6, "expected Content, State, Source, Actions, Fork, Run links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "State", links[1].Label)
 	assert.Equal(t, "Source", links[2].Label)
 	assert.Equal(t, "Actions", links[3].Label)
+	assert.Equal(t, "Fork", links[4].Label)
+	assert.Equal(t, "Run", links[5].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -219,9 +226,10 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 
 	// Test package mode
 	links := StaticHeaderDevLinks(u, ViewModePackage, false)
-	assert.Len(t, links, 2, "expected Content and Source links only")
+	assert.Len(t, links, 3, "expected Content, Source, Fork links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+	assert.Equal(t, "Fork", links[2].Label)
 }
 
 func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
@@ -248,6 +256,18 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
+func TestStaticHeaderDevLinks_WithPlaygroundMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/_/play",
+	}
+
+	// Test playground mode
+	links := StaticHeaderDevLinks(u, ViewModePlayground, false)
+	assert.Empty(t, links, "expected no links in playground mode")
+}
+
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	t.Parallel()
 
@@ -261,7 +281,7 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
+	assert.Len(t, enriched.Links.Dev, 6, "expected Content, State, Source, Actions, Fork, Run links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
@@ -282,13 +302,14 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 
 func TestViewModePredicates(t *testing.T) {
 	cases := []struct {
-		mode         ViewMode
-		name         string
-		wantExplorer bool
-		wantRealm    bool
-		wantPackage  bool
-		wantHome     bool
-		wantUser     bool
+		mode           ViewMode
+		name           string
+		wantExplorer   bool
+		wantRealm      bool
+		wantPackage    bool
+		wantHome       bool
+		wantUser       bool
+		wantPlayground bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -315,6 +336,11 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "User",
 			wantUser: true,
 		},
+		{
+			mode:           ViewModePlayground,
+			name:           "Playground",
+			wantPlayground: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -324,6 +350,7 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+			assert.Equal(t, tc.wantPlayground, tc.mode.IsPlayground(), "IsPlayground")
 		})
 	}
 }
