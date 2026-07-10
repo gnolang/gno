@@ -171,15 +171,11 @@ Pinned by `iface_embed_sel_order.gno` (order-independent selector),
 `iface_embed_field_shadow.gno` (field vs promoted method, static + runtime),
 each verified against real Go first.
 
-Diagnostics qualify stamped methods by origin package, so such an interface no
-longer prints as `interface {sec func() int; sec func() int}` with two
-indistinguishable entries. `FieldTypeList.string` qualifies the method list, and
-`FieldType.diagName` qualifies the method named by every `VerifyImplementedBy`
-error and by the duplicate-method panic in `flattenInterfaceMethods`. A message
-therefore never names a bare `sec` beside an interface that prints two distinct
-ones. Directly-declared unexported methods are unstamped and print unchanged,
-which is why `diagName` qualifies only on a stamp while `idName` qualifies every
-unexported name.
+Diagnostics qualify stamped methods by origin package (`FieldTypeList.string`,
+`VerifyImplementedBy`'s "missing method"), so such an interface no longer
+prints as `interface {sec func() int; sec func() int}` with two
+indistinguishable entries. Directly-declared unexported methods are unstamped
+and print unchanged.
 
 ## Rollout: state persisted before this change is unsupported (decided)
 
