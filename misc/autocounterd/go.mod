@@ -5,7 +5,6 @@ go 1.25.9
 require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 
 require (
-	dario.cat/mergo v1.0.2 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect

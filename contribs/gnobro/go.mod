@@ -20,7 +20,6 @@ require (
 )
 
 require (
-	dario.cat/mergo v1.0.2 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/alecthomas/chroma/v2 v2.26.1 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
