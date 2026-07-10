@@ -144,7 +144,7 @@ func benchBankerSendCoins(b *testing.B, n int) {
 	b.Helper()
 	denoms := make([]string, n)
 	amounts := make([]int64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		denoms[i] = fmt.Sprintf("d%05d", i)
 		amounts[i] = 1
 	}
@@ -174,7 +174,7 @@ func benchBankerGetCoins(b *testing.B, n int) {
 	bk, _ := addContextAndFrames(m, "gno.land/r/x")
 	addr := crypto.Bech32Address("g1ownr")
 	cs := make(std.Coins, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		cs[i] = std.Coin{Denom: fmt.Sprintf("d%05d", i), Amount: int64(i + 1)}
 	}
 	bk.coins[addr] = cs
@@ -544,7 +544,7 @@ func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) {
 
 // ---- sys/params: flat setters (Bool/Int64/Uint64) ----
 
-func newSysParamsFlatSetBench(b *testing.B, fn gno.Name, val interface{}) *dispatchHarness {
+func newSysParamsFlatSetBench(b *testing.B, fn gno.Name, val any) *dispatchHarness {
 	b.Helper()
 	m := newDispatchMachine(4)
 	addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
