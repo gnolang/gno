@@ -28,7 +28,7 @@
 # model change shifts it, update this value (and re-verify calls 2 and 3
 # still match each other, which is the actual property under test).
 
-env EXACT_GAS=1900550
+env EXACT_GAS=1841550
 
 gnoland start
 
