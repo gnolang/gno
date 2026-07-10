@@ -33,7 +33,7 @@ const (
 	// cache-aware. Until then the pins drift gradually underpriced past the
 	// calibration point (write pin ~-13% at 1.6G keys) and are re-tuned by
 	// governance. Provenance: tm2/pkg/bptree/PERFORMANCE.md; rationale and
-	// accepted imprecisions: gno.land/adr/prxxxx_mount_bptree_store.md.
+	// accepted imprecisions: gno.land/adr/pr5938_mount_bptree_store.md.
 	//
 	// Changing these defaults requires a new legacy fingerprint in
 	// contribs/gnogenesis/internal/fork/generate.go (fork repricing).

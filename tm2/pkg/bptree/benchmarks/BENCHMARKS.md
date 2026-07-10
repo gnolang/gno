@@ -4,7 +4,7 @@
 at **~101M keys has since been measured**; see `../PERFORMANCE.md` ("Measured
 Results"), the empirical basis for the mounted store's gas params. Remaining
 gaps are tracked in the mount ADR's follow-ups
-(`gno.land/adr/prxxxx_mount_bptree_store.md`). The 33M data below remains
+(`gno.land/adr/pr5938_mount_bptree_store.md`). The 33M data below remains
 valid history.
 **Date:** 2026-06-07 · **Backend:** pebbledb (production-tuned: 500 MB block
 cache + bloom) · **Node LRU:** `-disk-node-cache=10000`.
@@ -190,7 +190,7 @@ The measured B+32 counts are the index-OFF tree. With `FastIndexOption(true)`,
 `MutableTree.Get` serves clean-working-tree point reads from the fast index
 (~1 read for present keys), at the cost of one extra index write per
 Set/Remove and doubled value bytes on disk; misses still walk. The mount PR
-repriced accordingly (see `gno.land/adr/prxxxx_mount_bptree_store.md` and
+repriced accordingly (see `gno.land/adr/pr5938_mount_bptree_store.md` and
 `gno.land/pkg/sdk/vm/params.go` for the live values).
 
 **If gno.land used IAVL instead**, the params must change — and two of them can
