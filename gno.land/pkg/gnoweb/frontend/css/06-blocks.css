@@ -731,6 +731,24 @@
 	text-wrap: pretty;
 }
 
+/* Back arrow prepended to the source file title, links to the package overview.
+   Sized relative to the title so it scales with it. */
+.b-content-h1__back {
+	display: inline-flex;
+	vertical-align: middle;
+	margin-inline-end: var(--g-space-2);
+	color: var(--s-color-text-tertiary);
+
+	&:hover {
+		color: var(--s-color-text-link-hover);
+	}
+
+	.c-icon {
+		width: 0.7em;
+		height: 0.7em;
+	}
+}
+
 .b-content-h2 {
 	font-size: var(--g-font-size-400);
 	font-weight: var(--g-font-bold);
@@ -1270,8 +1288,12 @@
 .b-source-code {
 	font-family: var(--g-font-mono);
 
-	> pre {
+	/* Qualified with .chroma-chroma to outrank chroma's own light-theme
+	   background rule, so the code sits on the surface (white in light) with a
+	   visible border, like the overview frame — not blended into the page. */
+	> pre.chroma-chroma {
 		background-color: var(--s-color-bg-base);
+		border: var(--s-divider);
 		overflow: scroll;
 		border-radius: var(--s-rounded);
 		padding: var(--g-space-4) var(--g-space-1);
@@ -1346,6 +1368,10 @@ main.dev-mode .b-toc a {
 }
 
 .b-source-toc {
+	& > .b-source-toc__overview {
+		margin-block-end: var(--g-space-4);
+	}
+
 	& > .b-toc {
 		margin-block-end: var(--g-space-4);
 	}
@@ -2940,7 +2966,9 @@ main.dev-mode > section:has(.c-overview-view) {
 	@media (--md) {
 		position: sticky;
 		top: var(--g-space-14);
-		z-index: var(--g-z-1);
+		/* Above the code blocks' absolute .srcactions (g-z-1) so their Copy/source
+		   buttons scroll under the sticky bar instead of over it. */
+		z-index: var(--g-z-2);
 		background-color: var(--s-color-bg-base-dev, var(--s-color-bg-base));
 		padding-block: var(--g-space-2);
 		border-block-end: var(--s-border);
@@ -3207,6 +3235,14 @@ main.dev-mode > section:has(.c-overview-view) {
 		.chroma-chroma {
 			background-color: transparent;
 		}
+	}
+
+	/* Signature snippets are one or two lines; the chroma line-number gutter and
+	   its anchor add noise with no navigation value here. The $source file view
+	   keeps its linkable line numbers — this rule is scoped to the overview. */
+	.chroma-ln,
+	.chroma-lnlinks {
+		display: none;
 	}
 
 	/* Buttons reuse .b-inline-btn (like the file view); the wrapper composes

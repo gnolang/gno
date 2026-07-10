@@ -53,6 +53,7 @@ module.exports = (ctx) => {
 						/c-readme-view\b/,
 						/c-overview-view\b/,
 						/c-doc-view\b/,
+						/b-source-code\b/,
 						/b-state-/,
 					],
 				},
