@@ -79,15 +79,15 @@ func RenderUser(nameOrAddr string) string {
     if userData == nil {
         return "User not found"
     }
-    
+
     addr := userData.Addr()
     name := userData.Name()
-    
+
     // Then, get their profile
     displayName := profile.GetStringField(addr, profile.DisplayName, name)
     avatar := profile.GetStringField(addr, profile.Avatar, "")
     bio := profile.GetStringField(addr, profile.Bio, "No bio")
-    
+
     // Render combined info
     out := "# " + displayName + "\n"
     if avatar != "" {
@@ -96,7 +96,7 @@ func RenderUser(nameOrAddr string) string {
     out += bio + "\n"
     out += "\nUsername: @" + name + "\n"
     out += "Address: " + addr.String() + "\n"
-    
+
     return out
 }
 ` + "```" + `

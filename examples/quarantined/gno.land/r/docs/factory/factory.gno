@@ -193,7 +193,5 @@ if err := token.Transfer(recipientAddr, 100); err != nil {
 		out += "**Info:** " + lastToken.GetInfo() + "\n\n"
 	}
 
-	out += `
-`
 	return out
 }

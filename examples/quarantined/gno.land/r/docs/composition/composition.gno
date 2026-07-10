@@ -74,9 +74,9 @@ func ModifyState(cur realm) {
 }
 ` + "```" + `
 
-**Alternative**: If components don't need their own persistent state, 
-use pure packages (` + "`/p/...`" + `) instead of realms (` + "`/r/...`" + `). 
-Packages are stateless libraries that can only be imported, so all state 
+**Alternative**: If components don't need their own persistent state,
+use pure packages (` + "`/p/...`" + `) instead of realms (` + "`/r/...`" + `).
+Packages are stateless libraries that can only be imported, so all state
 lives in the parent realm, eliminating bypass concerns entirely.
 
 ## This Example

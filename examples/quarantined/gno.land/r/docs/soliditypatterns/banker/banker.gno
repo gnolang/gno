@@ -150,7 +150,7 @@ func Deposit(cur realm) {
     }
     caller := cur.Previous().Address()
     sent := unsafe.OriginSend()
-    
+
     // Unlike Solidity's single msg.value, Gno supports multiple coin types
     // A user can send ugnot, custom tokens, or both in one transaction
     amount := sent.AmountOf("ugnot")
@@ -158,7 +158,7 @@ func Deposit(cur realm) {
 }
 ` + "```" + `
 
-> **Note:** This example uses a map for simplicity. In production, prefer an AVL tree 
+> **Note:** This example uses a map for simplicity. In production, prefer an AVL tree
 > for better performance. See [source code](/r/docs/soliditypatterns/banker$source).
 
 ---
@@ -196,7 +196,7 @@ func Withdraw(cur realm, amount int64) {
 
     // Create banker with send capability
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-    
+
     // Send coins
     realmAddr := cur.Address()
     bnk.SendCoins(realmAddr, caller, chain.Coins{chain.NewCoin("ugnot", amount)})

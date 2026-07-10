@@ -198,11 +198,11 @@ func Register(cur realm, name, data string) {
     }
     caller := cur.Previous().Address()
     key := caller.String() + ":" + name
-    
+
     if entries.Has(key) {
         panic("you already have an entry with this name")
     }
-    
+
     entries.Set(key, &Entry{
         Name:  name,
         Owner: caller,
@@ -246,7 +246,7 @@ services by name.
 			if !service.Active {
 				status = "❌"
 			}
-			out += "- " + status + " [" + sanitize.InlineText(service.Name) + "](/r/docs/registry:" + key + ")\n"
+			out += "- " + status + " [" + sanitize.InlineText(service.Name) + "](" + sanitize.URL("/r/docs/registry:"+key) + ")\n"
 			return false
 		})
 	}

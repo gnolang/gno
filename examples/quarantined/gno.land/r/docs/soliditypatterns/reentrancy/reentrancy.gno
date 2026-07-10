@@ -14,7 +14,7 @@ updates complete. The infamous DAO hack used this to drain $60M.
 ` + "```solidity" + `
 contract VulnerableVault {
     mapping(address => uint) balances;
-    
+
     function withdraw() public {
         uint amount = balances[msg.sender];
         msg.sender.call{value: amount}("");  // 1. Sends ETH, triggering attacker's receive()
@@ -24,7 +24,7 @@ contract VulnerableVault {
 
 contract Attacker {
     VulnerableVault vault;
-    
+
     receive() external payable {
         if (address(vault).balance >= 1 ether) {
             vault.withdraw();  // 2. Re-enters withdraw() while balance is still non-zero
@@ -35,8 +35,8 @@ contract Attacker {
 
 ## Why Gno is Safe
 
-Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity's 
-` + "`receive()`" + ` and ` + "`fallback()`" + ` hooks, Gno realm code only runs through explicit 
+Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity's
+` + "`receive()`" + ` and ` + "`fallback()`" + ` hooks, Gno realm code only runs through explicit
 ` + "`cross`" + ` function calls—eliminating the reentrancy attack vector entirely.
 
 ` + "```go" + `
@@ -53,13 +53,13 @@ func Withdraw(cur realm, amount int64) {
 
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
     bnk.SendCoins(cur.Address(), caller, chain.Coins{chain.NewCoin("ugnot", amount)})  // No code executes on recipient
-    deposits[caller] = 0  // Safe - no reentrancy possible
+    deposits[caller] -= amount  // Safe - no reentrancy possible
 }
 ` + "```" + `
 
 ## Best Practice: Checks-Effects-Interactions
 
-Even though Gno prevents reentrancy attacks, following the **Checks-Effects-Interactions** 
+Even though Gno prevents reentrancy attacks, following the **Checks-Effects-Interactions**
 pattern keeps your code clear and maintainable:
 
 ` + "```go" + `
@@ -87,7 +87,7 @@ func Withdraw(cur realm, amount int64) {
 }
 ` + "```" + `
 
-This pattern remains a best practice for code clarity and future-proofing, even when 
+This pattern remains a best practice for code clarity and future-proofing, even when
 reentrancy isn't a concern.
 
 ---
