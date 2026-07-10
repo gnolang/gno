@@ -35,7 +35,7 @@ func AdminAddModerator(_ realm, addr address) {
 
 func AdminRemoveModerator(_ realm, addr address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), false) // XXX: delete instead?
+	moderatorList.Set(addr.String(), false) // entry kept as a revocation record; isModerator checks the value
 }
 
 func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
@@ -64,8 +64,10 @@ func isAdmin(addr address) bool {
 }
 
 func isModerator(addr address) bool {
-	_, found := moderatorList.Get(addr.String())
-	return found
+	// Removed moderators stay in the list with a false value, so the
+	// stored value must be checked, not just key presence.
+	active, _ := moderatorList.Get(addr.String()).(bool)
+	return active
 }
 
 func assertIsAdmin() {
