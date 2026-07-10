@@ -79,11 +79,12 @@ func Update(cur realm, name, description, endpoint string) {
 	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
-	service, ok := services.Get(key).(*Service)
-	if !ok {
+	val := services.Get(key)
+	if val == nil {
 		panic("service not found")
 	}
 
+	service := val.(*Service)
 	service.Description = description
 	service.Endpoint = endpoint
 	services.Set(key, service)
@@ -97,11 +98,12 @@ func Deactivate(cur realm, name string) {
 	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
-	service, ok := services.Get(key).(*Service)
-	if !ok {
+	val := services.Get(key)
+	if val == nil {
 		panic("service not found")
 	}
 
+	service := val.(*Service)
 	service.Active = false
 	services.Set(key, service)
 }
@@ -126,11 +128,11 @@ func Delete(cur realm, name string) {
 // through the returned pointer. See /r/docs/mistakes.
 func Lookup(owner address, name string) (Service, bool) {
 	key := owner.String() + ":" + name
-	service, ok := services.Get(key).(*Service)
-	if !ok {
+	val := services.Get(key)
+	if val == nil {
 		return Service{}, false
 	}
-	return *service, true
+	return *val.(*Service), true
 }
 
 // GetAllServices returns copies of all services, like Lookup.
@@ -211,11 +213,11 @@ func Register(cur realm, name, data string) {
 // Return a copy, not the stored *Entry.
 func Lookup(owner address, name string) (Entry, bool) {
     key := owner.String() + ":" + name
-    entry, ok := entries.Get(key).(*Entry)
-    if !ok {
+    val := entries.Get(key)
+    if val == nil {
         return Entry{}, false
     }
-    return *entry, true
+    return *val.(*Entry), true
 }
 ` + "```" + `
 
