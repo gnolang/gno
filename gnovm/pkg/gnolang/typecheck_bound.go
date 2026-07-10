@@ -356,8 +356,9 @@ func satMul(a, b uint64) uint64 {
 }
 
 // checkNoGenerics rejects go1.18 generics syntax before the package reaches
-// go/types. Gno targets go1.17 and does not support generics (the interpreter
-// rejects them too, e.g. go2gno.go), but the go/types pass runs first and would
+// go/types. Gno targets go1.17 and does not support generics (Go2Gno would
+// silently drop TypeParams — see the NOTE there; if go/types is ever removed,
+// this rejection moves into that traversal), but go/types runs first and would
 // still form and validate generic types. That matters for the DoS defense: a
 // generic instantiation fans out via type-argument substitution and interface
 // type sets fan out via their union terms, both of which drive go/types'

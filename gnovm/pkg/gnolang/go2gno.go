@@ -325,6 +325,11 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
 	}
 
+	// NOTE: go1.18 generics syntax (TypeSpec/FuncType.TypeParams, interface
+	// type-set terms) is not handled below — this switch would silently drop
+	// TypeParams. It never arrives here because checkNoGenerics
+	// (typecheck_bound.go) rejects it before go/types runs. If go/types is
+	// ever removed, that rejection must move into this traversal.
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
