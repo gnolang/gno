@@ -45,10 +45,10 @@ not yet implemented. Returns an error until a follow-up PR delivers it.
 These keys are disjoint from `pkg:<path>` so normal `GetPackage` / `GetMemPackage`
 never see inert packages.
 
-### Off-chain oracle (`contribs/gnooracle`)
+### Off-chain oracle (`contribs/gpao`)
 
 A reference approver implementation ships as a small daemon in
-`contribs/gnooracle/`. It embodies the "oracle proposes, chain enforces" split:
+`contribs/gpao/`. It embodies the "oracle proposes, chain enforces" split:
 
 1. Polls the node for new blocks (`RPCClient.Status` / `Block`).
 2. Amino-decodes each block tx and extracts `vm.MsgAddPackage` messages.
@@ -62,9 +62,11 @@ A reference approver implementation ships as a small daemon in
 
 The oracle is untrusted: it never widens what the chain accepts (the validator
 re-typechecks at enable time), it only chooses which pending packages to propose
-and keeps the typechecker off the block-execution critical path. Its key must be
-in `PkgApprovers`. Limitations (dev-grade mnemonic handling, disk-only import
-resolution) are documented in `contribs/gnooracle/README.md`.
+and keeps the typechecker off the block-execution critical path. Its approver
+key is loaded from a local gnokey keystore (a `$GPAO_MNEMONIC` dev fallback
+exists); consensus KMSes like tmkms/gnokms are not applicable, as they sign
+consensus votes rather than application transactions. Limitations are documented
+in `contribs/gpao/README.md`.
 
 ## Testing
 

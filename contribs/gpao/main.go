@@ -1,5 +1,5 @@
-// gnooracle is a small off-chain package-approval oracle for gno.land chains
-// running with the "inert" code-submission policy (see PR #5888).
+// gpao (gno package-approver oracle) is a small off-chain approval daemon for
+// gno.land chains running with the "inert" code-submission policy (PR #5888).
 //
 // It watches new blocks, extracts MsgAddPackage transactions, runs the Gno
 // typechecker on each submitted package off-chain, and — if the package is
@@ -7,7 +7,7 @@
 // key to activate the package on-chain.
 //
 // The oracle is untrusted for correctness: the chain re-runs the typechecker
-// at MsgEnablePackage time and rejects ill-typed code. The oracle only decides
+// at MsgEnablePackage time and rejects ill-typed code. gpao only decides
 // *which* pending packages get proposed for activation, and *when*.
 package main
 
@@ -37,13 +37,14 @@ func main() {
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "gnooracle",
-			ShortUsage: "gnooracle [flags]",
+			Name:       "gpao",
+			ShortUsage: "gpao [flags]",
 			ShortHelp:  "watch a chain, typecheck submitted packages, and approve the good ones",
-			LongHelp: "gnooracle watches new blocks for MsgAddPackage transactions on a gno.land " +
-				"chain running the \"inert\" code-submission policy, typechecks each submitted " +
-				"package off-chain, and broadcasts a MsgEnablePackage transaction (signed by an " +
-				"approver key) to activate packages that pass. The chain re-verifies on enable.",
+			LongHelp: "gpao (gno package-approver oracle) watches new blocks for MsgAddPackage " +
+				"transactions on a gno.land chain running the \"inert\" code-submission policy, " +
+				"typechecks each submitted package off-chain, and broadcasts a MsgEnablePackage " +
+				"transaction (signed by an approver key) to activate packages that pass. The chain " +
+				"re-verifies on enable.",
 		},
 		cfg,
 		func(ctx context.Context, _ []string) error {
@@ -60,9 +61,17 @@ func main() {
 
 // config holds the oracle's runtime configuration.
 type config struct {
-	remote       string
-	chainID      string
-	mnemonic     string
+	remote  string
+	chainID string
+
+	// Signing: the approver key is loaded from the local gnokey keystore
+	// (home + key). The key's address must be in the chain's PkgApprovers param.
+	home string
+	key  string
+	// mnemonic is a dev-only fallback read from $GPAO_MNEMONIC; prefer the
+	// keystore. When set it takes precedence over home/key.
+	mnemonic string
+
 	gnoRoot      string
 	gasFee       string
 	gasWanted    int64
@@ -75,8 +84,10 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 		"RPC address of the gno.land node to watch")
 	fs.StringVar(&c.chainID, "chain-id", "",
 		"chain ID used to sign approval transactions (required)")
-	fs.StringVar(&c.mnemonic, "mnemonic", os.Getenv("GNOORACLE_MNEMONIC"),
-		"BIP39 mnemonic of the approver key (defaults to $GNOORACLE_MNEMONIC); "+
+	fs.StringVar(&c.home, "home", gnoenv.HomeDir(),
+		"gnokey keystore directory holding the approver key")
+	fs.StringVar(&c.key, "key", "",
+		"name or bech32 address of the approver key in the keystore; "+
 			"its address must be listed in the chain's vm PkgApprovers param")
 	fs.StringVar(&c.gnoRoot, "gno-root", gnoenv.RootDir(),
 		"path to the gno repository root, used to resolve stdlibs and examples for typechecking")
@@ -94,8 +105,8 @@ func (c *config) validate() error {
 	if c.chainID == "" {
 		return fmt.Errorf("--chain-id is required")
 	}
-	if c.mnemonic == "" {
-		return fmt.Errorf("--mnemonic (or $GNOORACLE_MNEMONIC) is required")
+	if c.mnemonic == "" && c.key == "" {
+		return fmt.Errorf("--key is required (name or address of the approver key in --home)")
 	}
 	if c.gnoRoot == "" {
 		return fmt.Errorf("--gno-root is required (could not auto-detect the gno root)")
@@ -107,6 +118,9 @@ func (c *config) validate() error {
 }
 
 func execOracle(ctx context.Context, cfg *config, io commands.IO) error {
+	// Dev-only signing fallback: a mnemonic via env avoids needing a keystore.
+	cfg.mnemonic = os.Getenv("GPAO_MNEMONIC")
+
 	if err := cfg.validate(); err != nil {
 		return err
 	}
@@ -116,7 +130,7 @@ func execOracle(ctx context.Context, cfg *config, io commands.IO) error {
 		return err
 	}
 
-	io.Println("gnooracle: approver", oracle.approver.String(),
+	io.Println("gpao: approver", oracle.approver.String(),
 		"watching", cfg.remote, "chain", cfg.chainID)
 
 	return oracle.run(ctx)

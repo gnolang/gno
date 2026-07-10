@@ -1,4 +1,4 @@
-module github.com/gnolang/gno/contribs/gnooracle
+module github.com/gnolang/gno/contribs/gpao
 
 go 1.25.9
 

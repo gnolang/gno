@@ -7,7 +7,7 @@ install:
 
 .PHONY: build
 build:
-	go build -o build/gnooracle .
+	go build -o build/gpao .
 
 lint:
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...

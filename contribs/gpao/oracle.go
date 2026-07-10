@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -15,6 +16,7 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -44,9 +46,9 @@ type oracle struct {
 }
 
 func newOracle(cfg config, io commands.IO) (*oracle, error) {
-	signer, err := gnoclient.SignerFromBip39(cfg.mnemonic, cfg.chainID, "", 0, 0)
+	signer, err := buildSigner(cfg, io)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build signer: %w", err)
+		return nil, err
 	}
 	if err := signer.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid signer: %w", err)
@@ -88,6 +90,43 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}, nil
 }
 
+// buildSigner constructs the transaction signer. It prefers the local gnokey
+// keystore (home + key), which keeps the approver key encrypted on disk and
+// only unlocked at startup — the recommended setup. As a dev-only fallback, a
+// mnemonic supplied via $GPAO_MNEMONIC is used instead.
+//
+// Note: consensus KMSes such as tmkms or gnokms are NOT usable here — they sign
+// consensus votes over the privval protocol, not application transactions.
+func buildSigner(cfg config, io commands.IO) (gnoclient.Signer, error) {
+	if cfg.mnemonic != "" {
+		signer, err := gnoclient.SignerFromBip39(cfg.mnemonic, cfg.chainID, "", 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build signer from mnemonic: %w", err)
+		}
+		return signer, nil
+	}
+
+	kb, err := keys.NewKeyBaseFromDir(cfg.home)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open keystore %q: %w", cfg.home, err)
+	}
+	// The password unlocks the key. Prefer $GPAO_PASSWORD for unattended/service
+	// deployments; otherwise prompt once at startup.
+	password := os.Getenv("GPAO_PASSWORD")
+	if password == "" {
+		password, err = io.GetPassword(fmt.Sprintf("enter password for key %q: ", cfg.key), true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read key password: %w", err)
+		}
+	}
+	return gnoclient.SignerFromKeybase{
+		Keybase:  kb,
+		Account:  cfg.key,
+		Password: password,
+		ChainID:  cfg.chainID,
+	}, nil
+}
+
 // run polls the node for new blocks and processes each one, until ctx is done.
 func (o *oracle) run(ctx context.Context) error {
 	height := o.cfg.startHeight
@@ -105,21 +144,21 @@ func (o *oracle) run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			o.io.Println("gnooracle: shutting down")
+			o.io.Println("gpao: shutting down")
 			return nil
 		case <-ticker.C:
 		}
 
 		status, err := o.client.RPCClient.Status(ctx, nil)
 		if err != nil {
-			o.io.ErrPrintfln("gnooracle: status query failed: %v", err)
+			o.io.ErrPrintfln("gpao: status query failed: %v", err)
 			continue
 		}
 		latest := status.SyncInfo.LatestBlockHeight
 
 		for ; height <= latest; height++ {
 			if err := o.processBlock(ctx, height); err != nil {
-				o.io.ErrPrintfln("gnooracle: block %d processing failed: %v", height, err)
+				o.io.ErrPrintfln("gpao: block %d processing failed: %v", height, err)
 			}
 		}
 	}
@@ -137,7 +176,7 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 	for _, raw := range res.Block.Data.Txs {
 		var tx std.Tx
 		if err := amino.Unmarshal(raw, &tx); err != nil {
-			o.io.ErrPrintfln("gnooracle: skipping undecodable tx at height %d: %v", height, err)
+			o.io.ErrPrintfln("gpao: skipping undecodable tx at height %d: %v", height, err)
 			continue
 		}
 		for _, msg := range tx.Msgs {
@@ -160,18 +199,18 @@ func (o *oracle) handleCandidate(mpkg *std.MemPackage) {
 	}
 	o.seen[path] = struct{}{}
 
-	o.io.Printfln("gnooracle: typechecking %q", path)
+	o.io.Printfln("gpao: typechecking %q", path)
 	if err := o.typecheck(mpkg); err != nil {
-		o.io.Printfln("gnooracle: %q rejected, not approving: %v", path, err)
+		o.io.Printfln("gpao: %q rejected, not approving: %v", path, err)
 		return
 	}
 
-	o.io.Printfln("gnooracle: %q passed typecheck, broadcasting approval", path)
+	o.io.Printfln("gpao: %q passed typecheck, broadcasting approval", path)
 	if err := o.enable(path); err != nil {
-		o.io.ErrPrintfln("gnooracle: failed to approve %q: %v", path, err)
+		o.io.ErrPrintfln("gpao: failed to approve %q: %v", path, err)
 		return
 	}
-	o.io.Printfln("gnooracle: %q approved and enabled", path)
+	o.io.Printfln("gpao: %q approved and enabled", path)
 }
 
 // typecheck runs the Gno typechecker on a candidate package, mirroring the
