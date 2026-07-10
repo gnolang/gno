@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -74,7 +73,7 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	// because "g1c0j..." < "g1jg8...".
 	require.True(t, opAddrB < opAddrA, "fixture ordering assumption")
 
-	var first gnoland.TxWithMetadata
+	var first AnnotatedTx
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[0]), &first))
 	require.Len(t, first.Tx.Msgs, 1)
 	msg, ok := first.Tx.Msgs[0].(vm.MsgCall)
@@ -88,8 +87,10 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	assert.Equal(t, validPubKeyB, msg.Args[4])
 	require.NotNil(t, first.Metadata)
 	assert.Equal(t, int64(0), first.Metadata.BlockHeight)
+	assert.Contains(t, first.Reason, "valoper-seed: register "+opAddrB)
+	assert.Contains(t, first.Reason, "bob-validator")
 
-	var second gnoland.TxWithMetadata
+	var second AnnotatedTx
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[1]), &second))
 	msg2 := second.Tx.Msgs[0].(vm.MsgCall)
 	assert.Equal(t, opAddrA, msg2.Caller.String())

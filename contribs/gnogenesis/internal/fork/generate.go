@@ -357,7 +357,7 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// so they go through the genesis-mode path (chain-id via PastChainIDs[0],
 	// sig verify skipped under --skip-genesis-sig-verification).
 	for _, path := range cfg.migrationTxs {
-		migTxs, err := readMigrationTxs(path)
+		migTxs, err := loadMigrationTxs(path)
 		if err != nil {
 			return fmt.Errorf("migration-tx %s: %w", path, err)
 		}
@@ -503,35 +503,6 @@ func writeGenesis(path string, genDoc *bftypes.GenesisDoc) error {
 		return fmt.Errorf("renaming %s -> %s: %w", tmp, path, err)
 	}
 	return nil
-}
-
-// readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
-// BlockHeight is forced to 0 so each line is treated as a genesis-mode tx
-// when replayed (uses PastChainIDs[0] for chain-id; sig verify skipped under
-// --skip-genesis-sig-verification). Blank lines and # comments are ignored.
-func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	out := make([]gnoland.TxWithMetadata, 0, len(lines))
-	for i, line := range lines {
-		trim := strings.TrimSpace(line)
-		if trim == "" || strings.HasPrefix(trim, "#") {
-			continue
-		}
-		var tx gnoland.TxWithMetadata
-		if err := amino.UnmarshalJSON([]byte(line), &tx); err != nil {
-			return nil, fmt.Errorf("line %d: %w", i+1, err)
-		}
-		if tx.Metadata == nil {
-			tx.Metadata = &gnoland.GnoTxMetadata{}
-		}
-		tx.Metadata.BlockHeight = 0 // always genesis-mode
-		out = append(out, tx)
-	}
-	return out, nil
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
