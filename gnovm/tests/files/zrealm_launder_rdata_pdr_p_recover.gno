@@ -6,11 +6,11 @@ package launderrh_pdr_p_recover
 //
 // Trace:
 //  1. main → m.Realm = attacker
-//  2. inner.RecoverApply(closure) → Rule 2 receiver-borrow on
+//  2. inner.RecoverApply(closure) → borrow rule #2 receiver-borrow on
 //     *launderpkg.Immutable (victim-stamped) → m.Realm = victim
 //  3. RecoverApply schedules defer { recover() } in /p/-frame
 //  4. RecoverApply calls fn(i): fn is /r/-attacker-declared closure
-//     → Rule 1 → m.Realm = attacker
+//     → borrow rule #1 → m.Realm = attacker
 //  5. fn body: i.Field = ... → readonly check fires (storage is
 //     victim, m.Realm = attacker)
 //  6. Unwind fn's frame: LastRealm = victim, crlm = attacker →

@@ -106,12 +106,12 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 				// For pointer element type, declare elem as the value type to
 				// give UnmarshalAmino a valid receiver, then append &elem.
 				elemType := ert
-				if ert.Kind() == reflect.Ptr {
+				if ert.Kind() == reflect.Pointer {
 					elemType = ert.Elem()
 				}
 				fmt.Fprintf(sb, "\t\t\tvar elem %s\n", ctx.goTypeName(elemType))
 				sb.WriteString("\t\t\tif err := elem.UnmarshalAmino(b); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-				if ert.Kind() == reflect.Ptr {
+				if ert.Kind() == reflect.Pointer {
 					sb.WriteString("\t\t\trepr = append(repr, &elem)\n")
 				} else {
 					sb.WriteString("\t\t\trepr = append(repr, elem)\n")
@@ -129,12 +129,12 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 				ctx.writePrimitiveDecodeFrom(sb, "rv", einfo.ReprType, fopts, "\t\t\t", "fbz")
 				// Pointer element: declare elem as value type for UnmarshalAmino.
 				elemType := ert
-				if ert.Kind() == reflect.Ptr {
+				if ert.Kind() == reflect.Pointer {
 					elemType = ert.Elem()
 				}
 				fmt.Fprintf(sb, "\t\t\tvar elem %s\n", ctx.goTypeName(elemType))
 				sb.WriteString("\t\t\tif err := elem.UnmarshalAmino(rv); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-				if ert.Kind() == reflect.Ptr {
+				if ert.Kind() == reflect.Pointer {
 					sb.WriteString("\t\t\trepr = append(repr, &elem)\n")
 				} else {
 					sb.WriteString("\t\t\trepr = append(repr, elem)\n")
@@ -242,11 +242,11 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	// not 0001) — overrides the zero `time.Time{}` left by the reset above.
 	for _, field := range info.Fields {
 		ft := field.Type
-		if ft.Kind() == reflect.Ptr {
+		if ft.Kind() == reflect.Pointer {
 			continue
 		}
 		rinfo := field.TypeInfo.ReprType
-		if rinfo.Type == reflect.TypeOf(time.Time{}) {
+		if rinfo.Type == reflect.TypeFor[time.Time]() {
 			fmt.Fprintf(sb, "\t%s.%s = time.Unix(0, 0).UTC()\n", recv, field.Name)
 		}
 	}
@@ -269,7 +269,7 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 		fnum := field.BinFieldNum
 		fopts := field.FieldOptions
 		ftype := field.Type
-		isPtr := ftype.Kind() == reflect.Ptr
+		isPtr := ftype.Kind() == reflect.Pointer
 
 		accessor := fmt.Sprintf("%s.%s", recv, fname)
 		fmt.Fprintf(sb, "\t\tcase %d:\n", fnum)
@@ -316,6 +316,33 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 		}
 	}
 
+	// Generate skip stubs for reserved field numbers.
+	// Without these, old wire bytes carrying a removed field would hit the
+	// default: error case and break backward compatibility.
+	for _, rnum := range info.Reserved {
+		fmt.Fprintf(sb, "\t\tcase %d:\n", rnum)
+		sb.WriteString("\t\t\tswitch typ3 {\n")
+		sb.WriteString("\t\t\tcase amino.Typ3Varint:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeVarint(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ38Byte:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeInt64(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ3ByteLength:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeByteSlice(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tcase amino.Typ34Byte:\n")
+		sb.WriteString("\t\t\t\t_, n, err := amino.DecodeInt32(bz)\n")
+		sb.WriteString("\t\t\t\tif err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n")
+		sb.WriteString("\t\t\t\tbz = bz[n:]\n")
+		sb.WriteString("\t\t\tdefault:\n")
+		fmt.Fprintf(sb, "\t\t\t\treturn fmt.Errorf(\"invalid typ3 %%v for reserved field %d\", typ3)\n", rnum)
+		sb.WriteString("\t\t\t}\n")
+	}
+
 	sb.WriteString("\t\tdefault:\n")
 	fmt.Fprintf(sb, "\t\t\treturn fmt.Errorf(\"unknown field number %%d for %s\", fnum)\n", info.Type.Name())
 	sb.WriteString("\t\t}\n")
@@ -328,12 +355,12 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	//   *<non-struct> → new(T) (non-nil pointer to zero value)
 	for _, field := range info.Fields {
 		ft := field.Type
-		if ft.Kind() != reflect.Ptr {
+		if ft.Kind() != reflect.Pointer {
 			continue
 		}
 		ert := ft.Elem()
 		accessor := fmt.Sprintf("%s.%s", recv, field.Name)
-		if ert == reflect.TypeOf(time.Time{}) {
+		if ert == reflect.TypeFor[time.Time]() {
 			fmt.Fprintf(sb, "\tif %s == nil {\n\t\tv := time.Unix(0, 0).UTC()\n\t\t%s = &v\n\t}\n", accessor, accessor)
 		} else if ert.Kind() != reflect.Struct {
 			fmt.Fprintf(sb, "\tif %s == nil {\n\t\t%s = new(%s)\n\t}\n", accessor, accessor, ctx.goTypeName(ert))
@@ -346,7 +373,7 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 	rt := rinfo.Type
 
 	switch {
-	case rt == reflect.TypeOf(time.Time{}):
+	case rt == reflect.TypeFor[time.Time]():
 		fmt.Fprintf(sb, "%s// time.Time (ByteLength)\n", indent)
 		fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
@@ -354,7 +381,7 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 		fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeTime(fbz)\n", indent, accessor)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 
-	case rt == reflect.TypeOf(time.Duration(0)):
+	case rt == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%s// time.Duration (ByteLength)\n", indent)
 		fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
@@ -427,18 +454,18 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 					// UnmarshalAmino has a valid (non-nil) receiver; later we
 					// append &elem to the pointer-slice accessor.
 					elemType := ert
-					if ert.Kind() == reflect.Ptr {
+					if ert.Kind() == reflect.Pointer {
 						elemType = ert.Elem()
 					}
 					fmt.Fprintf(sb, "%s\tvar elem %s\n", indent, ctx.goTypeName(elemType))
 					fmt.Fprintf(sb, "%s\tif err := elem.UnmarshalAmino(b); err != nil {\n%s\t\treturn err\n%s\t}\n", indent, indent, indent)
-				} else if ert.Kind() == reflect.Ptr {
+				} else if ert.Kind() == reflect.Pointer {
 					fmt.Fprintf(sb, "%s\tev := %s(b)\n", indent, ctx.goTypeName(ert.Elem()))
 				} else {
 					fmt.Fprintf(sb, "%s\tev := %s(b)\n", indent, ctx.goTypeName(ert))
 				}
 				if einfo.IsAminoMarshaler {
-					if ert.Kind() == reflect.Ptr {
+					if ert.Kind() == reflect.Pointer {
 						// Slice is []*T; store &elem.
 						if isArray {
 							fmt.Fprintf(sb, "%s\t%s[idx] = &elem\n%s\tidx++\n", indent, accessor, indent)
@@ -452,7 +479,7 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 							fmt.Fprintf(sb, "%s\t%s = append(%s, elem)\n", indent, accessor, accessor)
 						}
 					}
-				} else if ert.Kind() == reflect.Ptr {
+				} else if ert.Kind() == reflect.Pointer {
 					if isArray {
 						fmt.Fprintf(sb, "%s\t%s[idx] = &ev\n%s\tidx++\n", indent, accessor, indent)
 					} else {
@@ -472,7 +499,7 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 				} else {
 					fmt.Fprintf(sb, "%sfor len(fbz) > 0 {\n", indent)
 				}
-				if ert.Kind() == reflect.Ptr {
+				if ert.Kind() == reflect.Pointer {
 					fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
 					ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
 					if isArray {
@@ -554,7 +581,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 		} else {
 			fmt.Fprintf(sb, "%sfor len(fbz) > 0 {\n", indent)
 		}
-		if ert.Kind() == reflect.Ptr {
+		if ert.Kind() == reflect.Pointer {
 			fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
 			ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
 			fmt.Fprintf(sb, "%s\tevp := &ev\n", indent)
@@ -569,7 +596,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 		// Unpacked: this single field entry contains one element.
 		// TypeInfo invariant: einfo.Elem is non-nil for list types; match
 		// reflect (binary_encode.go:400) which derefs without a nil guard.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
@@ -591,7 +618,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 		} else if ertIsPointer {
 			rt := einfo.ReprType.Type
 			isStructLike := rt.Kind() == reflect.Struct ||
-				rt == reflect.TypeOf(time.Duration(0)) ||
+				rt == reflect.TypeFor[time.Duration]() ||
 				(isListType(rt) && rt.Elem().Kind() != reflect.Uint8)
 			if fopts.NilElements {
 				if writeImplicit || isStructLike {
@@ -648,7 +675,7 @@ func (ctx *P3Context2) writeByteSliceElementDecode(sb *strings.Builder, accessor
 	rt := rinfo.Type
 
 	isNestedList := isListType(rt) && rt.Elem().Kind() != reflect.Uint8
-	if rt.Kind() == reflect.Struct || rt == reflect.TypeOf(time.Duration(0)) || isNestedList {
+	if rt.Kind() == reflect.Struct || rt == reflect.TypeFor[time.Duration]() || isNestedList {
 		// Struct-like elements (including time.Time, time.Duration, nested lists):
 		// read length-prefixed data, then decode from fbz.
 		fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
@@ -683,10 +710,10 @@ func (ctx *P3Context2) writeByteSliceElementPayloadDecode(sb *strings.Builder, a
 
 	isNestedList := isListType(rt) && rt.Elem().Kind() != reflect.Uint8
 	switch {
-	case rt == reflect.TypeOf(time.Time{}):
+	case rt == reflect.TypeFor[time.Time]():
 		fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeTime(%s)\n", indent, accessor, srcVar)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
-	case rt == reflect.TypeOf(time.Duration(0)):
+	case rt == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeDuration(%s)\n", indent, accessor, srcVar)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 	case isNestedList:
@@ -727,7 +754,7 @@ func (ctx *P3Context2) writeImplicitStructPayloadDecode(sb *strings.Builder, acc
 	innerEinfo := einfo.Elem
 	if einfo.Type.Kind() == reflect.Array {
 		length := einfo.Type.Len()
-		for i := 0; i < length; i++ {
+		for i := range length {
 			elemAccessor := fmt.Sprintf("%s[%d]", accessor, i)
 			fmt.Fprintf(sb, "%s\t{\n", indent)
 			ctx.writePrimitiveDecodeFrom(sb, elemAccessor, innerEinfo, fopts, indent+"\t\t", "_inner")
@@ -789,6 +816,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint32(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -799,6 +828,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}
@@ -811,6 +842,8 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt64(%s)\n", indent, srcVar)
 		} else if fopts.BinFixed32 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeInt32(%s)\n", indent, srcVar)
+		} else if fopts.BinPlainVarint {
+			fmt.Fprintf(sb, "%sv, n, err := amino.DecodePlainVarint(%s)\n", indent, srcVar)
 		} else {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeVarint(%s)\n", indent, srcVar)
 		}

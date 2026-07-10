@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+note [^name] here
+-- output.md --
+
+
+note \[^name\] here
+
+-- output.html --
+<p>note [^name] here</p>

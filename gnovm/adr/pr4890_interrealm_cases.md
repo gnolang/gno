@@ -19,7 +19,7 @@ for historical comparison; the affirmative-coverage v2 test suite lives in
 case is labelled `ExecPreviouslyGood` for the path that earlier
 designs would have allowed.
 
-Under Rule 3 of `PushFrameCall`, a closure carries the authority of its
+Under borrow rule #3 of `PushFrameCall`, a closure carries the authority of its
 minter. The closure was minted while `m.Realm = /r/main`, so it cannot
 write `/r/alice` — alice's execution does not raise the closure's
 authority. Both `ExecPreviouslyGood` and `ExecBad` fail with the
@@ -28,7 +28,7 @@ readonly-taint error. To get a closure that writes `/r/A`'s state,
 
 The two key v2 semantics changes relative to v1:
 
-1. **Layer 1 (declaring-realm borrow) fires uniformly** for every /r/-declared
+1. **borrow rule #1 (declaring-realm borrow) fires uniformly** for every /r/-declared
    callable — function, method on any receiver shape, closure whose
    construction site was /r/X, or interface dispatch to an /r/X-declared
    method.  m.Realm shifts to /r/X for the call duration.  v1 fired this only
@@ -61,13 +61,13 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 ## fn is declared /r/realm:
 
  * fn is (non-crossing) function declared in /r/realm:
-   - CASE rA1: function declared at package level                   -- Layer 1 borrows (succeeds)
-   - CASE rA2: function declared in func(...) (non-crossing)        -- Layer 1 borrows (succeeds)
-   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- Layer 1 borrows (succeeds)
+   - CASE rA1: function declared at package level                   -- borrow rule #1 borrows (succeeds)
+   - CASE rA2: function declared in func(...) (non-crossing)        -- borrow rule #1 borrows (succeeds)
+   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- borrow rule #1 borrows (succeeds)
 
  * fn is method declared in /r/realm (nil or unreal receiver):
-   - CASE rB1: method has nil receiver                              -- Layer 1 borrows (succeeds)
-   - CASE rB2: method has nil receiver (external)                   -- Layer 1 borrows (succeeds)
+   - CASE rB1: method has nil receiver                              -- borrow rule #1 borrows (succeeds)
+   - CASE rB2: method has nil receiver (external)                   -- borrow rule #1 borrows (succeeds)
    - CASE rB3: method has unreal receiver (inline)                  -- construction-time panic
    - CASE rB4: method has unreal receiver (var)                     -- construction-time panic
 
@@ -90,21 +90,21 @@ Note that the test cases in interrealm_v2.txtar are similar but modified to
 account for the difference between realm and pure package.
 
  * fn is function declared in /p/package:
-   - CASE pA1: function declared at package level                   -- Layer 1 borrows at write site
-   - CASE pA2: function declared in func(...) (non-crossing)        -- Layer 1 borrows at write site
+   - CASE pA1: function declared at package level                   -- borrow rule #1 borrows at write site
+   - CASE pA2: function declared in func(...) (non-crossing)        -- borrow rule #1 borrows at write site
    - CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function (static)
 
  * fn is method declared in /p/package (nil or unreal receiver):
-   - CASE pB1: method has nil receiver                              -- Layer 1 borrows at write site
-   - CASE pB2: method has nil receiver (external)                   -- Layer 1 borrows at write site
-   - CASE pB3: method has unreal receiver (inline)                  -- Layer 1 borrows at write site
-   - CASE pB4: method has unreal receiver (var)                     -- Layer 1 borrows at write site
+   - CASE pB1: method has nil receiver                              -- borrow rule #1 borrows at write site
+   - CASE pB2: method has nil receiver (external)                   -- borrow rule #1 borrows at write site
+   - CASE pB3: method has unreal receiver (inline)                  -- borrow rule #1 borrows at write site
+   - CASE pB4: method has unreal receiver (var)                     -- borrow rule #1 borrows at write site
 
  * fn is method declared in /p/package:
-   - CASE pC1: method has real receiver                             -- Layer 2 + Layer 1 borrow (succeeds)
-   - CASE pC2: method has real receiver (external)                  -- Layer 2 + Layer 1 borrow (succeeds)
-   - CASE pC3: method has real receiver via closure                 -- Layer 2 + Layer 1 borrow (succeeds)
-   - CASE pC4: method has real receiver via closure (external)      -- Layer 2 + Layer 1 borrow (succeeds)
+   - CASE pC1: method has real receiver                             -- borrow rule #2 + borrow rule #1 (succeeds)
+   - CASE pC2: method has real receiver (external)                  -- borrow rule #2 + borrow rule #1 (succeeds)
+   - CASE pC3: method has real receiver via closure                 -- borrow rule #2 + borrow rule #1 (succeeds)
+   - CASE pC4: method has real receiver via closure (external)      -- borrow rule #2 + borrow rule #1 (succeeds)
 
 ----------------------------------------
 ## NOTEs
@@ -118,15 +118,15 @@ account for the difference between realm and pure package.
  * Function values are never parents except for the function's captured names.
  * TODO verify all of the above.
 
- * Under v2, "Layer 1 borrows (succeeds)" means: m.Realm shifts to the
+ * Under v2, "borrow rule #1 borrows (succeeds)" means: m.Realm shifts to the
    declaring realm for the call duration; any write to the declaring realm's
    own state from inside the body lands cleanly.  For the /r/ cases, the
    write site is the called fn's body directly; for the /p/ cases, the called
-   fn invokes `bob.PrivateFunc` (which is /r/bob-declared), and Layer 1 fires
+   fn invokes `bob.PrivateFunc` (which is /r/bob-declared), and borrow rule #1 fires
    at THAT inner call — hence "at write site."
- * "Layer 2 + Layer 1 borrow (succeeds)" describes /p/-methods invoked on a
-   defined foreign receiver: Layer 2 first shifts m.Realm to the receiver's
-   authoring realm, then the inner `bob.PrivateFunc` call fires Layer 1 to
+ * "borrow rule #2 + borrow rule #1 (succeeds)" describes /p/-methods invoked on a
+   defined foreign receiver: borrow rule #2 first shifts m.Realm to the receiver's
+   authoring realm, then the inner `bob.PrivateFunc` call fires borrow rule #1 to
    /r/bob where the write lands.
  * "construction-time panic" replaces the v1 "FAIL: caller != bob" outcome for
    cases that use `new(alice.Object)`.  The construction is rejected before
@@ -136,10 +136,10 @@ account for the difference between realm and pure package.
 	
 The pseudocode walkthrough below is the **v1** trace.  Under v2 the
 storage-realm annotations would be different — every /r/-declared callable
-pushes its own realm onto the storage stack (Layer 1), so e.g. in `bob.Do`
+pushes its own realm onto the storage stack (borrow rule #1), so e.g. in `bob.Do`
 the storage would be `[bob]` rather than `[]`, and inside `alice.TopFunc` it
 would be `[bob,alice]`.  The "FAIL: caller != bob" labels on rA1/rA2/rA3/rB1/rB2
-become SUCCESS because Layer 1 routes the inner `bob.PrivateFunc` write back
+become SUCCESS because borrow rule #1 routes the inner `bob.PrivateFunc` write back
 to `/r/bob`; the rB3/rB4/rC1-rC4 labels become "PANIC: cannot allocate
 gno.land/r/alice.Object in realm gno.land/r/caller" at the `new(alice.Object)`
 line (construction-time enforcement).  The walkthrough is preserved as-is

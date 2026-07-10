@@ -169,6 +169,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return commands.ExitCodeError(1)
 		}
 
+		// Skip processing for ignored modules
+		if mod.Ignore {
+			if cmd.verbose {
+				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+			}
+			continue
+		}
+
 		// See adr/pr4264_lint_transpile.md
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
@@ -180,11 +188,21 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Skip processing for ignored modules
-		if mod.Ignore {
-			if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+		// Check package name matches path element.
+		// This is also enforced in ValidateMemPackageAny, but we check here
+		// to provide a specific lint error code before other processing.
+		// See https://github.com/gnolang/gno/issues/1571
+		if err := gno.ValidatePkgNameMatchesPath(gno.Name(mpkg.Name), mpkg.Path); err != nil {
+			issue := gnoIssue{
+				Code:       gnoPackageNameMismatchError,
+				Confidence: 1,
+				Location:   dir,
+				Msg:        err.Error(),
 			}
+			io.ErrPrintln(issue)
+			hasError = true
+			// Skip the remaining lint steps: type-checking would only
+			// cascade-fail on the same mismatched package name.
 			continue
 		}
 
@@ -330,9 +348,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						hasError = true
 						continue
 					}
+					// A filetest may assert a preprocess-time failure
+					// via // Error:; in that case, swallow any panic
+					// here. Exact-message verification is `gno test`'s
+					// job — lint just needs to not flag the expected
+					// failure as a lint error.
+					expectsErr, derr := hasErrorDirective(mfile.Body)
+					if derr != nil {
+						io.ErrPrintln(derr)
+						hasError = true
+						continue
+					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
-					ppkg.AddFileTest(pn, fset)
+					func() {
+						if expectsErr {
+							defer func() { _ = recover() }()
+						}
+						pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
+						ppkg.AddFileTest(pn, fset)
+					}()
 				}
 			}
 

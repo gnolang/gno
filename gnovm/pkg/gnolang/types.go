@@ -353,6 +353,16 @@ type FieldType struct {
 	Type     Type
 	Embedded bool
 	Tag      Tag
+	// PkgPath is the defining package of an unexported interface method,
+	// recorded when flattenInterfaceMethods hoists a method out of an
+	// embedded interface (whose package may differ from the enclosing
+	// interface). Empty for exported methods, struct fields, and same-package
+	// methods (direct or same-package embeds); an empty value falls back to
+	// the enclosing interface's PkgPath. Used to keep unexported-method
+	// identity package-qualified (see ms.TypeIDForPackage) and to gate
+	// unexported selection and interface satisfaction (see
+	// FindEmbeddedFieldType, VerifyImplementedBy).
+	PkgPath string
 }
 
 func (ft FieldType) Kind() Kind {
@@ -398,43 +408,61 @@ func (ft FieldType) IsNamed() bool {
 
 type FieldTypeList []FieldType
 
-// FieldTypeList implements sort.Interface.
-func (l FieldTypeList) Len() int {
-	return len(l)
-}
-
-// FieldTypeList implements sort.Interface.
-func (l FieldTypeList) Less(i, j int) bool {
-	iname, jname := l[i].Name, l[j].Name
-	if iname == jname {
-		panic(fmt.Sprintf("duplicate name found in field list: %s", iname))
+// originPkg returns the method's defining package: its stamped PkgPath, or
+// fallback (the enclosing interface's package) when unstamped. Same-package
+// methods are left unstamped, so the fallback is the common case.
+func (ft FieldType) originPkg(fallback string) string {
+	if ft.PkgPath != "" {
+		return ft.PkgPath
 	}
-	return iname < jname
+	return fallback
 }
 
-// FieldTypeList implements sort.Interface.
-func (l FieldTypeList) Swap(i, j int) {
-	t := l[i]
-	l[i] = l[j]
-	l[j] = t
+// idName returns the field's identity name: an exported name is bare, an
+// unexported name is qualified by the method's origin package (see originPkg).
+// This keeps unexported-method identity package-scoped, matching Go, even
+// after a method has been flattened out of an embedded interface from another
+// package.
+func (ft FieldType) idName(fallbackPkg string) string {
+	if isUpper(string(ft.Name)) {
+		return string(ft.Name)
+	}
+	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
+}
+
+// sortForPackage sorts the methods by their package-qualified identity name
+// (idName with pkgPath as the fallback) — the SAME key TypeIDForPackage emits
+// with. Keying the sort and the emission identically means the order does not
+// depend on whether a method's PkgPath is stamped (cross-package hoist) or
+// empty (same-package fallback), so the same logical interface always yields
+// one TypeID. Panics on a duplicate qualified name.
+func (l FieldTypeList) sortForPackage(pkgPath string) {
+	sort.SliceStable(l, func(i, j int) bool {
+		return l[i].idName(pkgPath) < l[j].idName(pkgPath)
+	})
+	for i := 1; i < len(l); i++ {
+		if l[i].idName(pkgPath) == l[i-1].idName(pkgPath) {
+			panic(fmt.Sprintf("duplicate name found in field list: %s", l[i].idName(pkgPath)))
+		}
+	}
 }
 
 // User should call sort for interface methods.
 // XXX how though?
 func (l FieldTypeList) TypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
 		if ft.Name == "" {
-			s += ft.Type.TypeID().String()
+			s.WriteString(ft.Type.TypeID().String())
 		} else {
-			s += string(ft.Name) + " " + ft.Type.TypeID().String()
+			s.WriteString(string(ft.Name) + " " + ft.Type.TypeID().String())
 		}
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 // For use in fields of packages, structs, and interfaces, where any
@@ -442,19 +470,16 @@ func (l FieldTypeList) TypeID() TypeID {
 // types.
 func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
-		fn := ft.Name
-		if isUpper(string(fn)) {
-			s += string(fn) + " " + ft.Type.TypeID().String()
-		} else {
-			s += pkgPath + "." + string(fn) + " " + ft.Type.TypeID().String()
-		}
+		// idName qualifies an unexported method by its origin package
+		// (ft.PkgPath when flattened out of another package, else pkgPath).
+		s.WriteString(ft.idName(pkgPath) + " " + ft.Type.TypeID().String())
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) HasUnexported() bool {
@@ -490,6 +515,13 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(sep)
 		}
 		if withName {
+			// Only cross-package unexported interface methods carry a stamp
+			// (see flattenInterfaceMethods); qualify them so two same-spelled
+			// methods print distinguishably.
+			if ft.PkgPath != "" {
+				bld.WriteString(ft.PkgPath)
+				bld.WriteByte('.')
+			}
 			bld.WriteString(string(ft.Name))
 			bld.WriteByte(' ')
 		}
@@ -502,14 +534,14 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 // used for function parameters and results.
 func (l FieldTypeList) UnnamedTypeID() TypeID {
 	ll := len(l)
-	s := ""
+	var s strings.Builder
 	for i, ft := range l {
-		s += ft.Type.TypeID().String()
+		s.WriteString(ft.Type.TypeID().String())
 		if i != ll-1 {
-			s += ";"
+			s.WriteString(";")
 		}
 	}
-	return typeid(s)
+	return typeid(s.String())
 }
 
 func (l FieldTypeList) Types() []Type {
@@ -726,6 +758,14 @@ type StructType struct {
 	// interface's effective method count. Mirrors effectiveFields'
 	// caching rules. Not serialized.
 	effectiveMethods uint16
+
+	// comparable caches isComparable(this) as a tristate: 0 = not yet
+	// computed, 1 = comparable, 2 = uncomparable. Without it, comparing
+	// an interface whose dynamic type fans out (struct{a, b T}) re-walks
+	// the field graph exponentially on every comparison. Re-derived
+	// deterministically from Fields; not serialized, mirroring
+	// effectiveFields/effectiveMethods.
+	comparable uint8
 }
 
 func (st *StructType) Kind() Kind {
@@ -874,13 +914,26 @@ func (it *InterfaceType) TypeID() TypeID {
 		}
 	}
 	if it.typeid.IsZero() {
+		// Identity is the flattened method set; an embed-carrying Methods
+		// list would emit a nonsense TypeID. Interior invariant only: the
+		// decode boundary (fillType) rejects such state ungated.
+		if debugAssert {
+			for i := range it.Methods {
+				if it.Methods[i].Type.Kind() == InterfaceKind {
+					it.panicUnflattened(it.Methods[i])
+				}
+			}
+		}
 		// NOTE Interface types expressed or declared in different
 		// packages may have the same TypeID if and only if
 		// neither have unexported fields.  pt.Path is only
 		// included in field names that are not uppercase.
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
-		sort.Sort(ms)
+		// Sort with the same package fallback emission uses, so stamped
+		// (cross-package hoist) and unstamped (same-package fallback) entries
+		// of the same interface always produce one TypeID.
+		ms.sortForPackage(it.PkgPath)
 		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
 	return it.typeid
@@ -922,67 +975,61 @@ func (it *InterfaceType) IsNamed() bool {
 func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
-	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{it: (struct{}{})}
-	} else if _, exists := m[it]; exists {
-		return nil, false, nil, nil, false
-	} else {
-		m[it] = struct{}{}
-	}
-	// ...
+	// Methods is flattened at construction (flattenInterfaceMethods): every
+	// entry is a concrete method (FuncType), so lookup is a flat scan.
 	for _, im := range it.Methods {
+		if debugAssert && im.Type.Kind() == InterfaceKind {
+			it.panicUnflattened(im)
+		}
 		if im.Name == n {
-			// Ensure exposed or package match.
-			if !isUpper(string(n)) && it.PkgPath != callerPath {
-				return nil, false, nil, nil, true
-			}
-			// a matched name cannot be an embedded interface.
-			if im.Type.Kind() == InterfaceKind {
-				return nil, false, nil, nil, false
+			// Ensure exposed or package match. Gate against the method's
+			// origin package (its stamp when flattened out of another
+			// package), not the enclosing interface's — same rule as
+			// VerifyImplementedBy below. A same-spelled unexported method
+			// from another package is a distinct method: skip it and keep
+			// scanning for one with a matching identity.
+			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
+				accessError = true
+				continue
 			}
 			// match found.
 			tr := []ValuePath{NewValuePathInterface(n)}
-			hasPtr := false
-			rcvr := Type(nil)
-			ft := im.Type
-			return tr, hasPtr, rcvr, ft, false
+			return tr, false, nil, im.Type, false
 		}
-		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
-			// embedded interfaces must be recursively searched.
-			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
-			if accessError {
-				// XXX make test case and check against go
-				return nil, false, nil, nil, true
-			} else if trail != nil {
-				if debug {
-					if len(trail) != 1 || trail[0].Type != VPInterface {
-						panic("should not happen")
-					}
-				}
-				return trail, hasPtr, rcvr, ft, false
-			} // else continue search.
-		} // else continue search.
 	}
-	return nil, false, nil, nil, false
+	return nil, false, nil, nil, accessError
+}
+
+// panicUnflattened reports an InterfaceKind entry in Methods — impossible
+// from any construction path (all flatten via flattenInterfaceMethods), so it
+// can only be state persisted by code that predates interface flattening,
+// which is unsupported; see adr/pr5739_interface_method_set_flattening.md.
+// Enforced ungated at the decode boundary (fillType); interior sites assert
+// under -tags debugAssert.
+func (it *InterfaceType) panicUnflattened(im FieldType) {
+	panic(fmt.Sprintf(
+		"unflattened embedded interface %q in %s",
+		im.Name, it.String()))
 }
 
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
-		if im.Type.Kind() == InterfaceKind {
-			// field is embedded interface...
-			im2 := baseOf(im.Type).(*InterfaceType)
-			if err := im2.VerifyImplementedBy(ot); err != nil {
-				return err
-			} else {
-				continue
-			}
+		if debugAssert && im.Type.Kind() == InterfaceKind {
+			it.panicUnflattened(im)
 		}
-		// find method in field.
-		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name)
+		// find method in field. Gate unexported-method access against the
+		// method's origin package (its stamp when flattened out of another
+		// package), not the enclosing interface's — otherwise a type could
+		// satisfy another package's sealed interface.
+		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
 		if tr == nil { // not found.
+			// Qualify a stamped cross-package method so it is
+			// distinguishable from a same-spelled local one.
+			if im.PkgPath != "" {
+				return fmt.Errorf("missing method %s.%s", im.PkgPath, im.Name)
+			}
 			return fmt.Errorf("missing method %s", im.Name)
 		}
 		if mt, ok := ft.(*FuncType); ok {
@@ -2064,9 +2111,6 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 		n))
 }
 
-// Searches embedded fields to find matching field or method.
-// This function is slow.
-// TODO: consider memoizing for successful matches.
 // The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
 // OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
@@ -2198,30 +2242,32 @@ func (tt *tupleType) Kind() Kind {
 func (tt *tupleType) TypeID() TypeID {
 	if tt.typeid.IsZero() {
 		ell := len(tt.Elts)
-		s := "("
+		var s strings.Builder
+		s.WriteString("(")
 		for i, et := range tt.Elts {
-			s += et.TypeID().String()
+			s.WriteString(et.TypeID().String())
 			if i != ell-1 {
-				s += ","
+				s.WriteString(",")
 			}
 		}
-		s += ")"
-		tt.typeid = typeid(s)
+		s.WriteString(")")
+		tt.typeid = typeid(s.String())
 	}
 	return tt.typeid
 }
 
 func (tt *tupleType) String() string {
 	ell := len(tt.Elts)
-	s := "("
+	var s strings.Builder
+	s.WriteString("(")
 	for i, et := range tt.Elts {
-		s += et.String()
+		s.WriteString(et.String())
 		if i != ell-1 {
-			s += ","
+			s.WriteString(",")
 		}
 	}
-	s += ")"
-	return s
+	s.WriteString(")")
+	return s.String()
 }
 
 func (tt *tupleType) Elem() Type {
@@ -2487,59 +2533,99 @@ func defaultTypeOf(t Type) Type {
 	}
 }
 
-func fillEmbeddedName(ft *FieldType) {
+func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	if ft.Name != "" {
 		return
 	}
-	switch ct := ft.Type.(type) {
-	case *PointerType:
-		// dereference one level
-		switch ct := ct.Elt.(type) {
-		case *DeclaredType:
-			ft.Name = ct.Name
-		default:
-			// should not happen,
-			panic("should not happen")
+	// Derive the field name from the source expr, not ft.Type: an alias
+	// (type Int = int) resolves away, so ft.Type would yield "int" instead
+	// of the written "Int". An embedded field is always a (qualified/pointer)
+	// type name, so unwrapping const/pointer layers lands on the NameExpr or
+	// SelectorExpr that carries the name as written.
+	x := nameSrc
+	for {
+		switch e := x.(type) {
+		case *constTypeExpr, *ConstExpr:
+			x = unconst(x)
+			continue
+		case *StarExpr:
+			x = e.X
+			continue
+		case *NameExpr:
+			ft.Name = e.Name
+		case *SelectorExpr:
+			ft.Name = e.Sel
 		}
-	case *DeclaredType:
-		ft.Name = ct.Name
-	case PrimitiveType:
-		switch ct {
-		case BoolType:
-			ft.Name = Name("bool")
-		case StringType:
-			ft.Name = Name("string")
-		case IntType:
-			ft.Name = Name("int")
-		case Int8Type:
-			ft.Name = Name("int8")
-		case Int16Type:
-			ft.Name = Name("int16")
-		case Int32Type:
-			ft.Name = Name("int32")
-		case Int64Type:
-			ft.Name = Name("int64")
-		case UintType:
-			ft.Name = Name("uint")
-		case Uint8Type:
-			ft.Name = Name("uint8")
-		case Uint16Type:
-			ft.Name = Name("uint16")
-		case Uint32Type:
-			ft.Name = Name("uint32")
-		case Uint64Type:
-			ft.Name = Name("uint64")
-		case Float32Type:
-			ft.Name = Name("float32")
-		case Float64Type:
-			ft.Name = Name("float64")
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected field type %s",
-			ft.Type.String()))
+		break
+	}
+	if ft.Name == "" {
+		panic(fmt.Sprintf("cannot derive embedded name for field type %s", ft.Type.String()))
 	}
 	ft.Embedded = true
+}
+
+// flattenInterfaceMethods expands embedded interfaces into their methods so
+// Methods holds only concrete methods. Interface identity then equals the
+// flattened method set (matching Go): the embed/alias spelling no longer
+// leaks into the TypeID. Diamond embeds dedup; a same-name/different-type
+// conflict can't reach here (go/types rejects it first), so the panic is a
+// should-not-happen guard. Bounded: sources are already flattened+capped.
+// pkgPath is the enclosing interface's package, used to qualify the identity
+// of directly-declared unexported methods. Methods hoisted from an embedded
+// interface keep their own origin package (the embed's PkgPath, or, if the
+// embed is itself from another package, the method's already-stamped
+// FieldType.PkgPath), so that an unexported method's (pkgpath, name) identity
+// — and the sealed-interface guarantee it backs — survives flattening.
+func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
+	// Fast path: the common interface (interface{}, or one with only direct
+	// methods) has nothing to flatten — return it as-is, skipping the dedup
+	// map and per-method key building. Direct unexported methods need no
+	// PkgPath stamp: idName falls back to the enclosing pkgPath at TypeID time.
+	hasEmbed := slices.ContainsFunc(fts, func(ft FieldType) bool {
+		return embeddedInterface(ft.Type) != nil
+	})
+	if !hasEmbed {
+		return fts
+	}
+	out := make([]FieldType, 0, len(fts))
+	// keyed on the package-qualified identity name: two same-named unexported
+	// methods from different packages are distinct and must coexist.
+	seen := make(map[string]Type, len(fts))
+	add := func(name Name, typ Type, origin string) {
+		ft := FieldType{Name: name, Type: typ}
+		// Stamp only cross-package unexported methods; same-package ones stay
+		// unstamped and rely on idName's fallback to the enclosing pkgPath,
+		// matching the fast path (so both construction routes agree).
+		if !isUpper(string(name)) && origin != pkgPath {
+			ft.PkgPath = origin
+		}
+		key := ft.idName(pkgPath)
+		if prev, ok := seen[key]; ok {
+			if prev.TypeID() != typ.TypeID() {
+				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", name))
+			}
+			return
+		}
+		seen[key] = typ
+		out = append(out, ft)
+	}
+	for i := range fts {
+		if et := embeddedInterface(fts[i].Type); et != nil {
+			for j := range et.Methods {
+				m := et.Methods[j]
+				// origin pkg: the method's own stamp (if already hoisted from
+				// another package) else the embedded interface's package.
+				origin := m.PkgPath
+				if origin == "" {
+					origin = et.PkgPath
+				}
+				add(m.Name, m.Type, origin)
+			}
+			continue
+		}
+		add(fts[i].Name, fts[i].Type, pkgPath)
+	}
+	return out
 }
 
 func IsImplementedBy(it Type, ot Type) bool {
@@ -2815,6 +2901,12 @@ func isGeneric(t Type) bool {
 // O(paths), even for diamond-shaped or cyclic embedding. This keeps the
 // MaxStructFields/MaxEmbedDepth walk-size analysis valid (see DEGEN9
 // WideEmbed).
+//
+// Contract: trail != nil implies status == embedLookupFound — a
+// same-spelled unexported name from another package is a distinct
+// identity, so a gated candidate is skipped, never resolved; the walk
+// reports embedLookupAccessError only when gated sightings were the
+// only ones.
 func findEmbeddedFieldType(callerPath string, t Type, n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, status embedLookupStatus,
 ) {
@@ -2880,24 +2972,31 @@ type embedLookupEntry struct {
 
 // lookupShallowestEmbedded walks the embedding graph of root breadth-
 // first, one level per embedded struct field traversed, and reports how
-// n resolves: the unique shallowest provider's hops (embedded-field
-// indices from root), ambiguity when the shallowest providing level has
-// more than one provider (Go spec §Selectors), or an access error when
-// a name at that level is unexported and foreign to callerPath. A
-// global seen set skips types already reached at a shallower level —
-// any match through a deeper occurrence is shadowed anyway — which
-// bounds the walk to O(reachable types) and guards embedding cycles.
+// n resolves: the unique shallowest accessible provider's hops
+// (embedded-field indices from root), or ambiguity when the shallowest
+// providing level has more than one provider (Go spec §Selectors).
+// Same-spelled unexported names from other packages are distinct
+// identities: they never occupy a depth (an accessible match at the
+// same or a deeper level still resolves), but if the walk ends with
+// only gated sightings the result is an access error. A global seen set
+// skips types already reached at a shallower level — any match through
+// a deeper occurrence is shadowed anyway — which bounds the walk to
+// O(reachable types) and guards embedding cycles.
 func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, embedLookupStatus) {
+	notFound := func(gated bool) embedLookupStatus {
+		if gated {
+			return embedLookupAccessError
+		}
+		return embedLookupNone
+	}
 	// Depth 0: the root provides n directly — the common case; no BFS
 	// state is allocated for it.
-	hit, restricted, rootSt := resolveEmbedNode(callerPath, root, n)
+	hit, sawGated, rootSt := resolveEmbedNode(callerPath, root, n)
 	switch {
-	case hit && restricted:
-		return nil, embedLookupAccessError
 	case hit:
 		return nil, embedLookupFound
 	case rootSt == nil:
-		return nil, embedLookupNone
+		return nil, notFound(sawGated)
 	}
 	seen := map[Type]struct{}{root: {}}
 	cur := []embedLookupEntry{{typ: root}}
@@ -2946,18 +3045,18 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 			}
 		}
 		if len(next) == 0 {
-			return nil, embedLookupNone
+			return nil, notFound(sawGated)
 		}
-		// Scan the new level for direct providers of n.
+		// Scan the new level for accessible providers of n.
 		found := false
 		ambiguous := false
-		restricted := false
 		var winner []uint16
 		structs = make([]*StructType, len(next))
 		for i := range next {
 			e := &next[i]
-			hit, restr, st := resolveEmbedNode(callerPath, e.typ, n)
+			hit, gated, st := resolveEmbedNode(callerPath, e.typ, n)
 			structs[i] = st
+			sawGated = sawGated || gated
 			if !hit {
 				continue
 			}
@@ -2965,24 +3064,16 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 			// two same-depth paths — makes n ambiguous (Go spec
 			// §Selectors: not exactly one f at the shallowest depth).
 			ambiguous = ambiguous || found || e.multiples
-			restricted = restricted || restr
 			if !found {
 				winner = e.hops
 			}
 			found = true
 		}
 		if found {
-			switch {
-			case restricted:
-				// XXX check against go: go/types treats foreign
-				// unexported names as invisible rather than as
-				// access errors occupying a depth.
-				return nil, embedLookupAccessError
-			case ambiguous:
+			if ambiguous {
 				return nil, embedLookupAmbiguous
-			default:
-				return winner, embedLookupFound
 			}
+			return winner, embedLookupFound
 		}
 		cur = next
 	}
@@ -3008,11 +3099,12 @@ func canonEmbeddedType(t Type) Type {
 // resolveEmbedNode reports whether node typ provides n at its own depth
 // — as a method on a declared type along its wrapper spine, a direct
 // struct field, or an interface method — without traversing any
-// embedded field. restricted is set when the matching name is
-// unexported and declared in a package other than callerPath. When typ
-// does not provide n, st is the underlying struct to expand one
-// embedding level deeper (nil when there is none).
-func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, restricted bool, st *StructType) {
+// embedded field. A same-spelled unexported name from another package
+// is a distinct identity: it is not a hit but sets gated, and the walk
+// keeps going so an accessible match elsewhere (same spine or deeper)
+// can still resolve. When typ does not provide n, st is the underlying
+// struct to expand one embedding level deeper (nil when there is none).
+func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st *StructType) {
 	// A cycle along the wrapper spine must revisit a *DeclaredType
 	// (the Base of a DeclaredType is never another DeclaredType), so
 	// tracking those suffices to guard degenerate wrapper cycles like
@@ -3025,34 +3117,42 @@ func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, restricted bool
 		switch ct := t.(type) {
 		case *DeclaredType:
 			if slices.Contains(seenDecls, ct) {
-				return false, false, nil
+				return false, gated, nil
 			}
 			seenDecls = append(seenDecls, ct)
 			// Search direct methods via O(1) name lookup.
 			if _, ok := ct.lookupMethod(n); ok {
-				return true, isRestrictedName(n, ct.PkgPath, callerPath), nil
+				if !isRestrictedName(n, ct.PkgPath, callerPath) {
+					return true, gated, nil
+				}
+				gated = true // fall through to the base search.
 			}
 			t = ct.Base
 		case *PointerType:
 			// Pointers to declared types and structs expose embedded
 			// methods and fields; other pointers expose nothing.
 			if t = canonEmbeddedType(ct); t == nil {
-				return false, false, nil
+				return false, gated, nil
 			}
 		case *StructType:
 			for i := range ct.Fields {
 				if ct.Fields[i].Name == n {
-					return true, isRestrictedName(n, ct.PkgPath, callerPath), nil
+					if !isRestrictedName(n, ct.PkgPath, callerPath) {
+						return true, gated, nil
+					}
+					gated = true // embedded fields may still provide n.
+					break
 				}
 			}
-			return false, false, ct
+			return false, gated, ct
 		case *InterfaceType:
-			// Interface method sets are flat (interfaces only embed
-			// interfaces), so the recursive search is O(methods).
+			// Interface method sets are flattened at construction, so
+			// the scan is O(methods); it applies the same gated-name
+			// rule against each method's origin package.
 			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n, nil)
-			return tr != nil || ae, ae, nil
+			return tr != nil, gated || ae, nil
 		default:
-			return false, false, nil
+			return false, gated, nil
 		}
 	}
 }
@@ -3083,12 +3183,12 @@ func buildEmbeddedTrail(callerPath string, t Type, n Name, hops []uint16) (
 		return
 	case *DeclaredType:
 		if len(hops) == 0 {
-			if i, ok := ct.lookupMethod(n); ok {
+			// A gated (same-spelled unexported foreign) method is a
+			// distinct identity: skip it and keep building through the
+			// base, mirroring resolveEmbedNode.
+			if i, ok := ct.lookupMethod(n); ok &&
+				!isRestrictedName(n, ct.PkgPath, callerPath) {
 				fv := ct.Methods[i].V.(*FuncValue)
-				// Ensure exposed or package match.
-				if isRestrictedName(n, ct.PkgPath, callerPath) {
-					return nil, false, nil, nil, true
-				}
 				// NOTE: makes code simple but requires preprocessor's
 				// Store to pre-load method types.
 				rt := fv.GetType(nil).Params[0].Type
@@ -3125,14 +3225,12 @@ func buildEmbeddedTrail(callerPath string, t Type, n Name, hops []uint16) (
 		}
 	case *StructType:
 		if len(hops) == 0 {
-			// Terminal: a direct field of the struct.
+			// Terminal: a direct field of the struct. A gated field is
+			// a distinct identity, not a match (see resolveEmbedNode).
 			for i := range ct.Fields {
 				sf := &ct.Fields[i]
-				if sf.Name == n {
-					// Ensure exposed or package match.
-					if isRestrictedName(n, ct.PkgPath, callerPath) {
-						return nil, false, nil, nil, true
-					}
+				if sf.Name == n &&
+					!isRestrictedName(n, ct.PkgPath, callerPath) {
 					vp := NewValuePathField(0, uint16(i), n)
 					return []ValuePath{vp}, false, nil, sf.Type, false
 				}

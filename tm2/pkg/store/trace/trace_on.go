@@ -8,12 +8,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 const StoreGasEnabled = true
 
-var out *bufio.Writer // nil when writing to stderr (unbuffered)
-var outFile *os.File  // always set
+// mu serializes writes: with parallel in-memory nodes, many goroutines emit
+// trace lines concurrently, and an unsynchronized bufio.Writer corrupts
+// (slice-bounds panics) under that load.
+var mu sync.Mutex
+
+var (
+	out     *bufio.Writer // nil when writing to stderr (unbuffered)
+	outFile *os.File      // always set
+)
 
 func init() {
 	path := os.Getenv("GAS_TRACE")
@@ -31,6 +39,8 @@ func init() {
 }
 
 func Store(op string, gas int64, key []byte, valLen int, info string) {
+	mu.Lock()
+	defer mu.Unlock()
 	keyHex := hex.EncodeToString(key)
 	if len(keyHex) > 160 {
 		keyHex = keyHex[:160] + "..."
@@ -56,6 +66,8 @@ func Store(op string, gas int64, key []byte, valLen int, info string) {
 }
 
 func TxStart(mode string, gasWanted int64) {
+	mu.Lock()
+	defer mu.Unlock()
 	var w io.Writer = outFile
 	if out != nil {
 		w = out
@@ -64,6 +76,8 @@ func TxStart(mode string, gasWanted int64) {
 }
 
 func TxEnd(gasUsed int64) {
+	mu.Lock()
+	defer mu.Unlock()
 	var w io.Writer = outFile
 	if out != nil {
 		w = out
@@ -73,6 +87,8 @@ func TxEnd(gasUsed int64) {
 }
 
 func TxEndDebug(gasUsed, totalCharge, totalRefund int64) {
+	mu.Lock()
+	defer mu.Unlock()
 	var w io.Writer = outFile
 	if out != nil {
 		w = out
