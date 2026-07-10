@@ -541,7 +541,7 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 	dupes := []ast.Decl{}
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods and init functions
+		// ignore methods, init and blank functions
 		if !ok ||
 			fd.Recv != nil ||
 			fd.Name.Name == "init" ||
