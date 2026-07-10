@@ -429,6 +429,13 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return nil, errs
 	}
 
+	// STEP 3: Reject go1.18 generics syntax (type parameters, interface
+	// type sets). go/types accepts them, so without this deploy-time
+	// guard generic declarations slip on chain silently. See checkNoGenerics.
+	if errs = checkNoGenerics(gofset, allgofs); errs != nil {
+		return nil, errs
+	}
+
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
 		err := prepareGoGno0p9(gof)
