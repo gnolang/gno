@@ -2,7 +2,7 @@ package main
 
 import "filetests/extern/ifaceext"
 
-// Both embeds contribute an ifaceext-stamped sec with conflicting signatures.
+// The panic must name the stamped sec, not a bare one.
 type I interface {
 	ifaceext.Sec
 	ifaceext.SecStr

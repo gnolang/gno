@@ -12,8 +12,7 @@ func (SecImpl) sec() int { return 7 }
 // flattens sec with the same ifaceext-qualified identity).
 func UseSec(x interface{ Sec }) int { return x.sec() }
 
-// SecStr declares a same-spelled unexported method with a different signature,
-// so two ifaceext interfaces can contribute a conflicting sec.
+// SecStr conflicts with Sec: same sec, different signature.
 type SecStr interface{ sec() string }
 
 // SecPtrImpl satisfies Sec only through a pointer.
