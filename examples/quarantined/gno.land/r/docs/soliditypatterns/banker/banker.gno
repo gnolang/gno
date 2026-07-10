@@ -39,8 +39,8 @@ func Deposit(cur realm) {
 
 	// Get current balance
 	currentBalance := int64(0)
-	if val, exists := deposits.Get(caller.String()); exists {
-		currentBalance = val.(int64)
+	if balance, exists := deposits.Get(caller.String()).(int64); exists {
+		currentBalance = balance
 	}
 
 	// Update balance
@@ -68,8 +68,8 @@ func Withdraw(cur realm, amount int64) {
 
 	// Get current balance
 	currentBalance := int64(0)
-	if val, exists := deposits.Get(caller.String()); exists {
-		currentBalance = val.(int64)
+	if balance, exists := deposits.Get(caller.String()).(int64); exists {
+		currentBalance = balance
 	}
 
 	// Check balance
@@ -96,8 +96,8 @@ func Withdraw(cur realm, amount int64) {
 
 // GetBalance returns the deposited balance for an address
 func GetBalance(addr address) int64 {
-	if val, exists := deposits.Get(addr.String()); exists {
-		return val.(int64)
+	if balance, exists := deposits.Get(addr.String()).(int64); exists {
+		return balance
 	}
 	return 0
 }
