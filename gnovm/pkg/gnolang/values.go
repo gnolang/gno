@@ -297,11 +297,11 @@ func (av *ArrayValue) GetLength() int {
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
 	if ii < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
 	}
 	if av.Data == nil {
 		if ii >= len(av.List) {
-			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
+			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
 		}
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -311,7 +311,7 @@ func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerVal
 		}
 	}
 	if ii >= len(av.Data) {
-		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
 	// heap alloc, so need to compare value rather than pointer.
 	// If you Deref the result, TypedValue.GetByteAtIndexInt is more efficient.
@@ -403,13 +403,13 @@ func (sv *SliceValue) GetElementPointer(store Store, ii int, et Type) PointerVal
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		excpt := &Exception{
-			Value: typedString(fmt.Sprintf(
+			Value: typedRuntimeError(fmt.Sprintf(
 				"runtime error: slice index out of bounds: %d", ii)),
 		}
 		panic(excpt)
 	} else if sv.Length <= ii {
 		excpt := &Exception{
-			Value: typedString(fmt.Sprintf(
+			Value: typedRuntimeError(fmt.Sprintf(
 				"runtime error: slice index out of bounds: %d (len=%d)",
 				ii, sv.Length)),
 		}
@@ -684,6 +684,14 @@ type BoundMethodValue struct {
 	// (Func == nil); the call re-derives the dispatch trail on Receiver's
 	// current value. Empty for a resolved (eager) bind.
 	Method Name
+
+	// MethodPkg is the callerPath of the bind site (the package whose code
+	// formed the method value). Unexported method identity is
+	// package-qualified, so the call-time re-derivation must look up Method
+	// under the same qualification — the dynamic type's own package may see a
+	// different (or shadowing) same-spelled member. Empty for a resolved
+	// (eager) bind.
+	MethodPkg string
 }
 
 // IsLazy reports whether bmv is an unresolved interface-dispatched bind whose
@@ -699,10 +707,10 @@ func (bmv *BoundMethodValue) IsLazy() bool {
 // receivers pass nil through), and a value receiver is a fresh snapshot of the
 // current pointee. A nested interface step yields another lazy bind, which
 // resolveLazyBound unwraps.
-func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath) PointerValue {
+func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
 	btv := boxed
 	for i, path := range tr {
-		ptr := btv.GetPointerToFromTV(alloc, store, path)
+		ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
 		if i == len(tr)-1 {
 			return ptr
 		}
@@ -730,6 +738,14 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
 	operand := bmv.Receiver
 	name := bmv.Method
+	// The bind-site package qualifies the lookup: unexported method identity
+	// is package-qualified, and the dynamic type's package may hold a
+	// same-spelled member with a different identity (e.g. a shadowing
+	// unexported field), which must not be matched here.
+	callerPath := bmv.MethodPkg
+	if callerPath == "" {
+		callerPath = operand.T.GetPkgPath()
+	}
 	// The method name is invariant across layers, so the operand's identity
 	// fully identifies the loop state: a revisited identity means the resolution
 	// can only repeat forever (a cyclic embed, e.g. `s.IG = s`). Identity is the
@@ -765,20 +781,20 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			}
 			seen[id] = struct{}{}
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(operand.T.GetPkgPath(), operand.T, name, nil)
+		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, operand.T, name, nil)
 		if len(tr) == 0 {
-			// Mirrors the bind-site guard (GetPointerToFromTV, VPInterface).
+			// Mirrors the bind-site guard (getPointerToFromTV, VPInterface).
 			// The call-time operand type is the same one that passed that
 			// guard, so this should be unreachable; guard anyway rather than
 			// fall into resolveInterfaceTrail's "should not happen".
 			panic(fmt.Sprintf("method %s not found in type %s",
 				name, operand.T.String()))
 		}
-		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr).Deref().V.(*BoundMethodValue)
+		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
 			return next.Func, next.Receiver
 		}
-		operand, name = next.Receiver, next.Method
+		operand, name, callerPath = next.Receiver, next.Method, next.MethodPkg
 	}
 }
 
@@ -1717,7 +1733,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	// tv.T here came via interface boxing. isComparable recurses, so the
 	// panic names the outer dynamic type, matching Go.
 	if !isComparable(tv.T) {
-		panic(&Exception{Value: typedString(
+		panic(&Exception{Value: typedRuntimeError(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	// General case.
@@ -1821,7 +1837,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 		// Defensive fallback: the isComparable gate above already stops
 		// every uncomparable type (slices, maps, funcs, chans, ...) before
 		// the switch, so this is unreachable in practice.
-		panic(&Exception{Value: typedString(
+		panic(&Exception{Value: typedRuntimeError(
 			"runtime error: hash of unhashable type " + tv.T.String())})
 	}
 	return MapKey(bz), false
@@ -1871,9 +1887,17 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	return tv.getPointerToFromTV(alloc, store, path, "")
+}
+
+// callerPath is the package of the code executing the selector; VPInterface
+// resolution needs it to pick the right same-spelled unexported method
+// (identity is package-qualified). Empty falls back to the dynamic type's
+// package, which is only correct when no such collision exists (debugger).
+func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
-			panic("GetPointerToFromTV() on undefined value")
+			panic("getPointerToFromTV() on undefined value")
 		}
 	}
 	// NOTE: path will be mutated.
@@ -1930,7 +1954,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			path.SetDepth(0)
 		case 2:
 			if tv.V == nil {
-				panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+				panic(&Exception{Value: typedRuntimeError("runtime error: nil pointer dereference")})
 			}
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
@@ -1951,7 +1975,15 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		// lazily and this runs at call time via resolveInterfaceTrail, where
 		// eager-deref is exactly Go's call-time semantics.)
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+			msg := "runtime error: nil pointer dereference"
+			if pt, ok := tv.T.(*PointerType); ok {
+				if dt, ok := pt.Elt.(*DeclaredType); ok {
+					msg = fmt.Sprintf(
+						"value method %s.%s.%s called using nil *%s pointer",
+						dt.PkgPath, dt.Name, path.Name, dt.Name)
+				}
+			}
+			panic(&Exception{Value: typedRuntimeError(msg)})
 		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
@@ -2102,12 +2134,14 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPInterface:
 		if dtv.IsUndefined() {
-			panic(&Exception{Value: typedString("runtime error: method selector on nil interface")})
+			panic(&Exception{Value: typedRuntimeError("runtime error: method selector on nil interface")})
 		}
 		if dtv.T.Kind() == InterfaceKind {
 			panic("cannot resolve an interface path at static time")
 		}
-		callerPath := dtv.T.GetPkgPath()
+		if callerPath == "" {
+			callerPath = dtv.T.GetPkgPath()
+		}
 		tr, _, _, ift, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
@@ -2124,9 +2158,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		// (receiver-stripped) method type, known statically from the interface.
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
-			Func:     nil, // resolved at call (see resolveLazyBound)
-			Receiver: *dtv,
-			Method:   path.Name,
+			Func:      nil, // resolved at call (see resolveLazyBound)
+			Receiver:  *dtv,
+			Method:    path.Name,
+			MethodPkg: callerPath,
 		}
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		return PointerValue{
@@ -2163,10 +2198,10 @@ func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			if ii >= len(sv) {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
 			}
 			if ii < 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
 			}
 			res = TypedValue{T: Uint8Type}
 			res.SetUint8(sv[ii])
@@ -2175,10 +2210,10 @@ func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok
 	case *ArrayType:
 		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
 			if ii < 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
 			}
 			if ii >= len(av.Data) {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 			}
 			res = TypedValue{T: bt.Elt}
 			res.SetUint8(av.Data[ii])
@@ -2186,15 +2221,15 @@ func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok
 		}
 	case *SliceType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+			panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index (out of bounds)")})
 		}
 		if sv, sok := tv.V.(*SliceValue); sok {
 			if base := sv.GetBase(store); base.Data != nil {
 				if ii < 0 {
-					panic(&Exception{Value: typedString(fmt.Sprintf(
+					panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 						"runtime error: slice index out of bounds: %d", ii))})
 				} else if sv.Length <= ii {
-					panic(&Exception{Value: typedString(fmt.Sprintf(
+					panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 						"runtime error: slice index out of bounds: %d (len=%d)",
 						ii, sv.Length))})
 				}
@@ -2219,10 +2254,10 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 			}
 
 			if ii >= len(sv) {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
 			}
 			if ii < 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
 			}
 
 			btv.SetUint8(sv[ii])
@@ -2240,14 +2275,14 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		return av.GetElementPointer(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+			panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index (out of bounds)")})
 		}
 		sv := tv.V.(*SliceValue)
 		ii := int(iv.ConvertGetInt())
 		return sv.GetElementPointer(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: uninitialized map index")})
+			panic(&Exception{Value: typedRuntimeError("runtime error: uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
 
@@ -2417,24 +2452,24 @@ func (tv *TypedValue) GetCapacity() int {
 
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
 			low))})
 	}
 	if high < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
 			low))})
 	}
 	if low > high {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
 			low, high))})
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if tv.GetLength() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with string length %d",
 				low, high, tv.GetLength()))})
 		}
@@ -2449,7 +2484,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		)})
 	case *ArrayType:
 		if tv.GetLength() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with array length %d",
 				low, high, tv.GetLength()))})
 		}
@@ -2470,13 +2505,13 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.GetCapacity() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with capacity %d",
 				low, high, tv.GetCapacity()))})
 		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedString("runtime error: nil slice index out of range")})
+				panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index out of range")})
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2501,37 +2536,37 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
 	if lowVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
 			lowVal))})
 	}
 	if highVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
 			highVal))})
 	}
 	if maxVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
 			maxVal))})
 	}
 	if lowVal > highVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
 			lowVal, highVal))})
 	}
 	if highVal > maxVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
 			highVal, maxVal))})
 	}
 	if tv.GetCapacity() < highVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
 			lowVal, highVal, maxVal, tv.GetCapacity()))})
 	}
 	if tv.GetCapacity() < maxVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
 			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
 			lowVal, highVal, maxVal, tv.GetCapacity()))})
 	}
@@ -2555,7 +2590,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.V == nil {
 			if lowVal != 0 || highVal != 0 || maxVal != 0 {
-				panic(&Exception{Value: typedString("runtime error: nil slice index out of range")})
+				panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index out of range")})
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2981,6 +3016,16 @@ func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue(s)
 	return tv
+}
+
+// typedRuntimeError creates a Gno value of type .runtimeError that implements
+// the Gno error interface. Used for VM-level runtime panics (nil pointer
+// dereference, etc.) so that recover().(error) works as it does in Go.
+func typedRuntimeError(msg string) TypedValue {
+	return TypedValue{
+		T: gRuntimeErrorType,
+		V: StringValue(msg),
+	}
 }
 
 // returns the same tv instance for convenience.

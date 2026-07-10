@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"testing"
 
@@ -100,14 +101,14 @@ func TestFastIndex_Differential(t *testing.T) {
 	tB := NewMutableTreeWithDB(dbB, 64, NewNopLogger())
 
 	const keyspace = 160
-	key := func(i int) []byte { return []byte(fmt.Sprintf("k%05d", i)) }
+	key := func(i int) []byte { return fmt.Appendf(nil, "k%05d", i) }
 
 	model := map[string][]byte{}
 	snaps := map[int64]map[string][]byte{}
 	var firstRetained, latest int64
 	saves := 0
 
-	for op := 0; op < 4000; op++ {
+	for op := range 4000 {
 		if rng.Intn(3) == 0 && len(model) > 0 {
 			i := rng.Intn(keyspace)
 			k := key(i)
@@ -123,7 +124,7 @@ func TestFastIndex_Differential(t *testing.T) {
 		} else {
 			i := rng.Intn(keyspace)
 			k := key(i)
-			v := []byte(fmt.Sprintf("v%d.%d", i, op))
+			v := fmt.Appendf(nil, "v%d.%d", i, op)
 			mustSet(t, tA, k, v)
 			mustSet(t, tB, k, v)
 			model[string(k)] = v
@@ -149,9 +150,7 @@ func TestFastIndex_Differential(t *testing.T) {
 				firstRetained = vA
 			}
 			snap := make(map[string][]byte, len(model))
-			for k, v := range model {
-				snap[k] = v
-			}
+			maps.Copy(snap, model)
 			snaps[vA] = snap
 			saves++
 
@@ -187,8 +186,8 @@ func TestFastIndex_Differential(t *testing.T) {
 			}
 			checks++
 		}
-		for i := 0; i < 40; i++ {
-			ak := []byte(fmt.Sprintf("absent-%d", i))
+		for i := range 40 {
+			ak := fmt.Appendf(nil, "absent-%d", i)
 			gotA, _ := tA.GetVersioned(ak, v)
 			gotB, _ := tB.GetVersioned(ak, v)
 			if gotA != nil || gotB != nil {
@@ -334,8 +333,8 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	// Build a source tree and export it.
 	srcDB := memdb.NewMemDB()
 	src := NewMutableTreeWithDB(srcDB, 256, NewNopLogger())
-	for i := 0; i < 40; i++ {
-		mustSet(t, src, []byte(fmt.Sprintf("k%03d", i)), []byte(fmt.Sprintf("v%d", i)))
+	for i := range 40 {
+		mustSet(t, src, fmt.Appendf(nil, "k%03d", i), fmt.Appendf(nil, "v%d", i))
 	}
 	ver := mustSave(t, src)
 	imm, err := src.GetImmutable(ver)
@@ -388,8 +387,8 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	if n := countFastEntries(t, dstDB); n != 40 {
 		t.Fatalf("Load did not rebuild after import: %d 'F' entries (want 40)", n)
 	}
-	for i := 0; i < 40; i++ {
-		got, _ := dst2.GetVersioned([]byte(fmt.Sprintf("k%03d", i)), ver)
+	for i := range 40 {
+		got, _ := dst2.GetVersioned(fmt.Appendf(nil, "k%03d", i), ver)
 		if want := fmt.Sprintf("v%d", i); string(got) != want {
 			t.Fatalf("k%03d = %q; want %q", i, got, want)
 		}
@@ -428,12 +427,12 @@ func TestFastIndex_RebuildClearsStale(t *testing.T) {
 func TestFastIndex_Prune(t *testing.T) {
 	db := memdb.NewMemDB()
 	tr := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
-	key := func(i int) []byte { return []byte(fmt.Sprintf("k%03d", i)) }
+	key := func(i int) []byte { return fmt.Appendf(nil, "k%03d", i) }
 
 	var latest int64
 	for v := 1; v <= 5; v++ {
-		for i := 0; i < 25; i++ {
-			mustSet(t, tr, key(i), []byte(fmt.Sprintf("v%d-k%d", v, i)))
+		for i := range 25 {
+			mustSet(t, tr, key(i), fmt.Appendf(nil, "v%d-k%d", v, i))
 		}
 		latest = mustSave(t, tr)
 	}
@@ -441,7 +440,7 @@ func TestFastIndex_Prune(t *testing.T) {
 		t.Fatalf("Prune: %v", err)
 	}
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		want := fmt.Sprintf("v5-k%d", i)
 		if got, _ := tr.GetVersioned(key(i), latest); string(got) != want {
 			t.Fatalf("after prune key %d = %q; want %q", i, got, want)

@@ -11,7 +11,7 @@ cmp stdout getg.stdout.golden
 
 -- getg.stdout.golden --
 height: 0
-data: {"results":[{"T":{"@type":"/gno.FuncType","Params":[],"Results":[{"Name":".res.0","Type":{"@type":"/gno.PrimitiveType","value":"32"},"Embedded":false,"Tag":""}]},"V":{"@type":"/gno.BoundMethodValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Func":null,"Receiver":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/lz.Impl"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}},"Method":"Get"}}]}
+data: {"results":[{"T":{"@type":"/gno.FuncType","Params":[],"Results":[{"Name":".res.0","Type":{"@type":"/gno.PrimitiveType","value":"32"},"Embedded":false,"Tag":"","PkgPath":""}]},"V":{"@type":"/gno.BoundMethodValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Func":null,"Receiver":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/lz.Impl"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}},"Method":"Get","MethodPkg":"gno.land/r/test/lz"}}]}
 -- realm/gnomod.toml --
 module = "gno.land/r/test/lz"
 gno = "0.9"

@@ -254,6 +254,7 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 			Func:       fnc,
 			Receiver:   rtv,
 			Method:     cv.Method,
+			MethodPkg:  cv.MethodPkg,
 		}
 	case *MapValue:
 		list := &MapList{}
@@ -414,6 +415,7 @@ func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int) []FieldTy
 			Type:     exportRefOrCopyType(field.Type, seen),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
+			PkgPath:  field.PkgPath,
 		}
 	}
 	return fieldsCpy

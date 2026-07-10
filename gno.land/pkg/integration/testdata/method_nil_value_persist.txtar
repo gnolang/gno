@@ -16,7 +16,7 @@ stdout OK!
 # later tx: G is reloaded from store; calling it still derefs the nil *T
 # and panics at call time (no "ZERO-RECEIVER", no OK!).
 ! gnokey maketx call -pkgpath gno.land/r/test/myrealm -func CallLater -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
-stderr 'nil pointer dereference'
+stderr 'value method gno.land/r/test/myrealm.T.M called using nil \*T pointer'
 
 -- myrealm/gnomod.toml --
 module = "gno.land/r/test/myrealm"

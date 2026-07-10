@@ -1514,6 +1514,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 			Type:     refOrCopyType(field.Type),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
+			PkgPath:  field.PkgPath,
 		}
 	}
 	return fieldsCpy
@@ -1716,6 +1717,7 @@ func copyValueWithRefs(val Value) Value {
 			Func:       fnc,
 			Receiver:   rtv,
 			Method:     cv.Method,
+			MethodPkg:  cv.MethodPkg,
 		}
 	case *MapValue:
 		list := &MapList{}
@@ -1828,6 +1830,12 @@ func fillType(store Store, typ Type) Type {
 	case *InterfaceType:
 		for i, mthd := range ct.Methods {
 			ct.Methods[i].Type = fillType(store, mthd.Type)
+			// An embed entry means the bytes predate interface flattening
+			// (unsupported state); reject at this decode boundary, which
+			// sees every stored type. See panicUnflattened.
+			if ct.Methods[i].Type.Kind() == InterfaceKind {
+				ct.panicUnflattened(ct.Methods[i])
+			}
 		}
 		return ct
 	case *TypeType:

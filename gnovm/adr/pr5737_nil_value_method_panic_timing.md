@@ -38,11 +38,19 @@ Bind interface method values lazily; resolve at the call.
   across reload.
 - `Func == nil` consumers audited (`IsCrossing`, `String`, GC, realm
   persist/copy/fill, `GetShallowSize`).
+- `BoundMethodValue` also gains `MethodPkg string` (proto field 5): the bind
+  site's `callerPath`. PR #5739 made unexported member identity
+  package-qualified, so the call-time re-derivation must look up `Method` under
+  the bind site's package, not the dynamic type's — the latter may hold a
+  same-spelled member with a different identity (e.g. an unexported field
+  shadowing a promoted unexported method: `iface_embed_field_shadow.gno`).
+  Persistence pinned by `method_iface_shadow_persist.txtar` (restart, then
+  dispatch must still skip the realm-qualified shadow field).
 
 ## Consequences
 
-- **Hard fork**: `Method` is proto field 4 (`pb3_gen` regenerated);
-  `_allocBoundMethodValue` 200→216. Persisted bound methods change bytes →
+- **Hard fork**: `Method` is proto field 4, `MethodPkg` field 5 (`pb3_gen`
+  regenerated); `_allocBoundMethodValue` 200→232. Persisted bound methods change bytes →
   different IAVL hashes / gas (`stdlib_restart_compare` pin moved). Ship only on
   fresh genesis or a coordinated upgrade (like ADR-5544); old state still decodes
   (new field defaults empty).
