@@ -430,9 +430,10 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
-// printName qualifies a stamped method by its origin package, so two same-spelled
-// unexported methods print apart. Unlike idName, an unstamped one stays bare.
-func (ft FieldType) printName() string {
+// stampedName prefixes a stamped method with its origin package, so two
+// same-spelled unexported methods print apart. An unstamped one stays bare,
+// unlike idName, which qualifies every unexported name.
+func (ft FieldType) stampedName() string {
 	if ft.PkgPath == "" {
 		return string(ft.Name)
 	}
@@ -524,7 +525,7 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(sep)
 		}
 		if withName {
-			bld.WriteString(ft.printName())
+			bld.WriteString(ft.stampedName())
 			bld.WriteByte(' ')
 		}
 		bld.WriteString(ft.Type.String())
@@ -1120,7 +1121,7 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name, nil)
-		mname := im.printName()
+		mname := im.stampedName()
 		if tr == nil { // not found.
 			return fmt.Errorf("missing method %s", mname)
 		}
@@ -2753,7 +2754,7 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 		key := ft.idName(pkgPath)
 		if prev, ok := seen[key]; ok {
 			if prev.TypeID() != typ.TypeID() {
-				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", ft.printName()))
+				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", ft.stampedName()))
 			}
 			return
 		}
