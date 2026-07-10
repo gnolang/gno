@@ -799,6 +799,20 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 		}, true
 	}
 
+	// Every tx delivered during InitChain replay is a genesis replay tx.
+	// Mark the ctx so the ante's genesis signature-skip also covers the
+	// historical/patched txs whose BlockHeight is overridden above (see
+	// auth.GenesisReplayKey). Composes with any ctxFn built above, and
+	// only affects sig verification when the node ran with
+	// --skip-genesis-sig-verification.
+	prev := ctxFn
+	ctxFn = func(ctx sdk.Context) sdk.Context {
+		if prev != nil {
+			ctx = prev(ctx)
+		}
+		return ctx.WithValue(auth.GenesisReplayKey{}, true)
+	}
+
 	res := cfg.baseApp.Deliver(stdTx, ctxFn)
 	if res.IsErr() {
 		ctx.Logger().Error(
