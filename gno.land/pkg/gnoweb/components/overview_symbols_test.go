@@ -30,6 +30,13 @@ func TestBuildSymbols_SplitsTopLevelAndMethods(t *testing.T) {
 	require.True(t, types[0].Methods[0].IsMethod)
 }
 
+func TestTypeDecl(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "type Foo int", typeDecl(&doc.JSONType{Name: "Foo", Type: "int"}))
+	require.Equal(t, "type Store struct{}", typeDecl(&doc.JSONType{Name: "Store", Type: "struct{}"}))
+	require.Equal(t, "type Bar = Baz", typeDecl(&doc.JSONType{Name: "Bar", Type: "Baz", Alias: true}))
+}
+
 func TestBuildSymbols_FiltersUnexported(t *testing.T) {
 	t.Parallel()
 	jdoc := &doc.JSONDocumentation{

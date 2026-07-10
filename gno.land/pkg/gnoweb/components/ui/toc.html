@@ -34,6 +34,16 @@ UI - TOC Source component
 =================================================================================== */}}
 {{- define "ui/toc_source" }}
 <div class="b-source-toc c-stack">
+  <!-- Overview link — back to the package source overview -->
+  {{ if .OverviewLink }}
+  <a class="c-with-icon b-source-toc__overview" href="{{ .OverviewLink }}">
+    <svg class="c-icon">
+      <use href="#ico-arrow-left"></use>
+    </svg>
+    Overview
+  </a>
+  {{ end }}
+
   <!-- README File Section -->
   {{ if .ReadmeFile.Link }}
   <a class="c-with-icon" href="{{ .ReadmeFile.Link }}">

@@ -26,7 +26,7 @@ func buildSymbols(jdoc *doc.JSONDocumentation, render DocRenderer, pkgPath strin
 		}
 		typeTable[t.Name] = &TypeEntry{
 			Name:               t.Name,
-			SignatureComponent: renderSignature(t.Type, render),
+			SignatureComponent: renderSignature(typeDecl(t), render),
 			Kind:               t.Kind,
 			Doc:                renderDocString(t.Doc, render),
 			AnchorID:           "type-" + t.Name,
@@ -98,6 +98,16 @@ func symbolAnchor(fn *doc.JSONFunc) string {
 		return "method-" + fn.Type + "-" + fn.Name
 	}
 	return "func-" + fn.Name
+}
+
+// typeDecl renders the full type declaration line (e.g. "type Foo int", or
+// "type Bar = Baz" for an alias) so the card mirrors godoc, instead of showing
+// only the underlying type expression.
+func typeDecl(t *doc.JSONType) string {
+	if t.Alias {
+		return "type " + t.Name + " = " + t.Type
+	}
+	return "type " + t.Name + " " + t.Type
 }
 
 // renderSignature syntax-highlights a Gno signature snippet as HTML.
