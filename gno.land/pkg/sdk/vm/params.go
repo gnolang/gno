@@ -207,20 +207,25 @@ func (p Params) Validate() error {
 	return nil
 }
 
-func mustParseAddressSlice(paramName string, value any) []crypto.Address {
-	s := sdkparams.MustParamString(paramName, value)
-	if s == "" {
-		return nil
-	}
-	var addrs []crypto.Address
-	for part := range strings.SplitSeq(s, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		addr, err := crypto.AddressFromString(part)
+// mustParseAddressStrings decodes a repeated (string-array) governance param
+// into typed addresses. Both code_submitters and pkg_approvers are set via the
+// strings param path (params.NewSysParamStringsPropRequest / SetStrings); the
+// keeper stores the raw string array and GetParams decodes it element-wise back
+// into the typed []crypto.Address field. Validation is strict — no trimming, no
+// skipping of empty entries — precisely so this matches what GetParams later
+// decodes: any entry accepted here must round-trip, otherwise a value could
+// pass validation yet make every subsequent GetParams panic. A comma-separated
+// single string does NOT round-trip and is unsupported.
+//
+// This mirrors the convention introduced for code_submitters in Phase 1
+// (#5885), so the two changes compose without divergence.
+func mustParseAddressStrings(paramName string, value any) []crypto.Address {
+	ss := sdkparams.MustParamStrings(paramName, value)
+	addrs := make([]crypto.Address, 0, len(ss))
+	for _, s := range ss {
+		addr, err := crypto.AddressFromString(s)
 		if err != nil {
-			panic(fmt.Sprintf("invalid %s address %q: %v", paramName, part, err))
+			panic(fmt.Sprintf("invalid %s address %q: %v", paramName, s, err))
 		}
 		addrs = append(addrs, addr)
 	}
@@ -344,9 +349,9 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	case "p:code_submission_policy":
 		params.CodeSubmissionPolicy = CodeSubmissionPolicy(sdkparams.MustParamString("code_submission_policy", value))
 	case "p:code_submitters":
-		params.CodeSubmitters = mustParseAddressSlice("code_submitters", value)
+		params.CodeSubmitters = mustParseAddressStrings("code_submitters", value)
 	case "p:pkg_approvers":
-		params.PkgApprovers = mustParseAddressSlice("pkg_approvers", value)
+		params.PkgApprovers = mustParseAddressStrings("pkg_approvers", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
