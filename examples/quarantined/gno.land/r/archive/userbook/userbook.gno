@@ -33,7 +33,7 @@ func SignUp(cur realm) string {
 	caller := cur.Previous().Address()
 
 	// Check if the user is already signed up
-	if _, exists := tracker.Get(caller.String()); exists {
+	if tracker.Has(caller.String()) {
 		panic(caller.String() + " is already signed up!")
 	}
 

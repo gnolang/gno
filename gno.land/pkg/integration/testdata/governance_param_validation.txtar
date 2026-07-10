@@ -49,7 +49,7 @@ func SayHello(cur realm) string {
 }
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"
