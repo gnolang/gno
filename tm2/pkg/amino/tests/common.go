@@ -372,7 +372,7 @@ func (a *SimpleAddress) UnmarshalAmino(repr string) error {
 	if len(repr) != 40 {
 		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
 	}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		var b byte
 		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
 			return err

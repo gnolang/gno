@@ -24,13 +24,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write # for GHA cache (docker buildx cache-to/from=type=gha)
+      actions: write # kept in case type=gha is re-enabled; not required by type=registry
       packages: write # to push images to ghcr.io
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Compute build version
+        id: build_version
+        run: |
+          V=$(git describe --tags --exact-match 2>/dev/null \
+              || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -70,6 +78,8 @@ jobs:
 
       - name: Bake build and push
         uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        env:
+          BUILD_VERSION: ${{ steps.build_version.outputs.version }}
         with:
           source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |
@@ -78,7 +88,11 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
           targets: ${{ matrix.image }}
+          # type=registry is used instead of type=gha because GHA cache blob
+          # entries are global (not scoped). When matrix jobs export concurrently,
+          # they race on the shared blob namespace, corrupting each other's cache.
+          # type=registry gives each image a fully independent OCI cache manifest.
           set: |
-            *.cache-from=type=gha
-            *.cache-to=type=gha,mode=max
+            *.cache-from=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }}
+            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max
             *.context=.

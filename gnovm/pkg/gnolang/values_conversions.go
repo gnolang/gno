@@ -10,6 +10,26 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
+// runeStrFromInt64 converts an integer value to the string containing the
+// UTF-8 representation of the code point, per the Go spec: values outside the
+// range of valid Unicode code points convert to "�". Values within
+// [0, utf8.MaxRune] are handled by Go's native string(rune) conversion, which
+// already maps the surrogate halves in that range to "�" as well.
+func runeStrFromInt64(v int64) string {
+	if v < 0 || v > utf8.MaxRune {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
+
+// runeStrFromUint64 is like runeStrFromInt64 for unsigned values.
+func runeStrFromUint64(v uint64) string {
+	if v > utf8.MaxRune {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
+
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
@@ -131,7 +151,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -419,7 +439,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -494,7 +514,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -778,7 +798,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -991,13 +1011,19 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
+			x := softfloat.F64to32(tv.GetFloat64())
 			validate(Float64Kind, Float32Kind, func() bool {
-				// TODO(morgan): Doesn't account for loss of precision in
-				// subnromal value, doesn't account for negative values.
-				return softfloat.Fle64(tv.GetFloat64(), math.Float64bits(float64(math.MaxFloat32)))
+				// Constant float conversions may round (including to
+				// subnormals or MaxFloat32), but must not overflow to
+				// ±Inf. Check the rounded result, either sign.
+				return x&^softfloat.NegZero32 != softfloat.Inf32
 			})
 
-			x := softfloat.F64to32(tv.GetFloat64())
+			// Narrowing can underflow a nonzero negative to -0;
+			// constant conversions have no signed zero.
+			if isConst && x == softfloat.NegZero32 {
+				x = 0
+			}
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
@@ -1286,10 +1312,12 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 24 for float32
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
-		if bf.IsInf() {
+		f32, acc := bf.Float32()
+		// A big.Float made from a big.Int is never Inf; overflow shows
+		// up in the rounded result.
+		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
 		}
-		f32, acc := bf.Float32()
 		if f32 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float32 (too close to zero)")
 		}
@@ -1300,10 +1328,10 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 53 for float64
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
-		if bf.IsInf() {
+		f64, acc := bf.Float64()
+		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
 		}
-		f64, acc := bf.Float64()
 		if f64 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float64 (too close to zero)")
 		}
@@ -1381,6 +1409,16 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	}
 }
 
+// posZero returns f with the sign bit cleared when f is zero. Constant
+// conversions have no signed zero (golang/go#12621): any constant that
+// converts to zero — an underflowing negative or a literal -0.0 — yields +0.
+func posZero[F float32 | float64](f F) F {
+	if f == 0 {
+		return 0
+	}
+	return f
+}
+
 func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
 	bd := bdv.V
@@ -1401,7 +1439,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		dst.T = Float64Type
 		dst.V = nil
 		f, _ := bd.Float64()
-		dst.SetFloat64(math.Float64bits(f))
+		dst.SetFloat64(math.Float64bits(posZero(f)))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
@@ -1427,7 +1465,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
-		dst.SetFloat32(math.Float32bits(f32))
+		dst.SetFloat32(math.Float32bits(posZero(f32)))
 		return
 	case Float64Kind:
 		dst.T = t
@@ -1439,7 +1477,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
-		dst.SetFloat64(math.Float64bits(f64))
+		dst.SetFloat64(math.Float64bits(posZero(f64)))
 		return
 	default:
 		panic(fmt.Sprintf(
