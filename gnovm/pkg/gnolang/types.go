@@ -430,10 +430,13 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
-// diagName returns the name to print in a diagnostic: bare, unless the method
-// carries a stamp, in which case it is qualified by its origin package. Unlike
-// idName it leaves a same-package unexported method bare, because only a
-// stamped method can sit beside a same-spelled one and need telling apart.
+// diagName returns the name to print: bare, unless the method carries a stamp,
+// in which case it is qualified by its origin package. Only cross-package
+// unexported interface methods are stamped (see flattenInterfaceMethods), and
+// only such a method can sit beside a same-spelled one and need telling apart.
+// Unlike idName it leaves a same-package unexported method bare. Both the
+// interface stringer and the diagnostics use it, so an error names a method
+// exactly as the interface printed beside it spells it.
 func (ft FieldType) diagName() string {
 	if ft.PkgPath == "" {
 		return string(ft.Name)
@@ -526,14 +529,7 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(sep)
 		}
 		if withName {
-			// Only cross-package unexported interface methods carry a stamp
-			// (see flattenInterfaceMethods); qualify them so two same-spelled
-			// methods print distinguishably.
-			if ft.PkgPath != "" {
-				bld.WriteString(ft.PkgPath)
-				bld.WriteByte('.')
-			}
-			bld.WriteString(string(ft.Name))
+			bld.WriteString(ft.diagName())
 			bld.WriteByte(' ')
 		}
 		bld.WriteString(ft.Type.String())
