@@ -430,9 +430,8 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
-// diagName qualifies a stamped method by its origin package, so a message can
-// tell two same-spelled unexported methods apart. Unlike idName, a same-package
-// unexported method stays bare.
+// diagName qualifies a stamped method by its origin package, so two same-spelled
+// unexported methods print apart. Unlike idName, an unstamped one stays bare.
 func (ft FieldType) diagName() string {
 	if ft.PkgPath == "" {
 		return string(ft.Name)
