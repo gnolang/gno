@@ -86,6 +86,7 @@ type nativeGasEntry struct {
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
+	{Pkg: "crypto/secp256k1", Fn: "verify", Base: 225693, Slope: 25871, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                  // PRELIMINARY fit base=225693ns slope=25.27ns/N (=25871/1024); measured on Xeon Silver 4114 — must be re-fit on the M2 ARM64 reference machine via gen_native_table.py before merge.
 	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                       // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998
 	{Pkg: "chain", Fn: "deriveStorageDepositAddr", Base: 541, Slope: 471, SlopeIdx: 0, SlopeKind: SizeLenString},                                               // fit base=540.9ns slope=0.4602ns/N (=471/1024) R²=0.994
 	{Pkg: "chain", Fn: "pubKeyAddress", Base: 2631, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 2631.0ns

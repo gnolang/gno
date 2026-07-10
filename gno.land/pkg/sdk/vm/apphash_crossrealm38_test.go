@@ -68,7 +68,13 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped by the crypto/secp256k1 PR: adding the crypto/secp256k1 stdlib
+// (with native Verify) introduces a new stdlib MemPackage into the genesis
+// stdlib set, shifting the iavlStore Merkle root. This is the intended
+// consensus-breaking change of adding a new stdlib; the zrealm_crossrealm38.gno
+// filetest still passes.
+const expectedCrossrealm38Hash = "94bff8c2a1aac074aada7fc2b19bfe02c80e771e280f8b64dde447f1b68ddc71"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
