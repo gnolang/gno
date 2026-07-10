@@ -37,8 +37,8 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	t.Run("Add First Committee Category and Evaluation Criteria", func(t *testing.T) {
 		testing.SetOriginCaller(member)
 		c.AddCategory(category, criteria)
-		value, exists := c.categories.Get(category)
-		if !exists {
+		value := c.categories.Get(category)
+		if value == nil {
 			t.Errorf("Add first category %s failed", category)
 		}
 		gotCategory := value.(*Category)
@@ -50,8 +50,8 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	t.Run("Add Second Committee Category and Evaluation Criteria", func(t *testing.T) {
 		testing.SetOriginCaller(member)
 		c.AddCategory(category2, criteria2)
-		value2, exists2 := c.categories.Get(category2)
-		if !exists2 {
+		value2 := c.categories.Get(category2)
+		if value2 == nil {
 			t.Errorf("Add second category %s failed", category2)
 		}
 		gotCategory2 := value2.(*Category)
@@ -64,7 +64,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 		testing.SetOriginCaller(member)
 		approved := c.ApproveCategory(category, VoteYes)
 		if !approved {
-			value, _ := c.categories.Get(category)
+			value := c.categories.Get(category)
 			gotCategory := value.(*Category)
 			t.Errorf("Approved First Committee category got %s expected %s", gotCategory.status, "Approved")
 		}

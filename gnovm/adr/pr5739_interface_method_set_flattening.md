@@ -138,6 +138,45 @@ first on this branch). Sound, but only equalizes alias-vs-target; leaves
   `-tags debugAssert` at the interior sites (method resolution, satisfaction,
   `TypeID`), which may assume the invariant on a validated store.
 
+## Follow-up: same-spelled unexported members must not shadow each other
+
+Review (davd-gzl, omarsy) showed that once two same-named unexported methods
+from different packages legally coexist (which flattening enables), every
+name-keyed lookup with first-match-wins semantics becomes order-dependent and
+wrong: `interface{ sec() int; ifaceext.Sec }` failed selector resolution, its
+own `I`-to-`I` assignment ("main.I does not implement main.I"), and concrete
+satisfaction (a type with its own `sec` plus a promoted `ifaceext.sec`).
+
+Two layers were fixed:
+
+- **Static lookups** (`StructType`/`InterfaceType`/`DeclaredType`
+  `FindEmbeddedFieldType`): a name match whose unexported gate fails is a
+  *distinct identity*, not an error — skip it and keep scanning (struct
+  fields fall through to embedded fields; declared-type direct methods fall
+  through to the base). `accessError` is reported only when the search ends
+  with no accessible match; the `trail != nil ⇒ accessError == false`
+  contract is clamped once in the `findEmbeddedFieldType` dispatcher (callers
+  check `accessError` before `trail`).
+- **Runtime dispatch** (`getPointerToFromTV`, `VPInterface` case): the
+  resolver used the *dynamic type's* package as `callerPath`, which picks the
+  wrong member when identities collide (e.g. an interface method call
+  resolving to a same-named unexported *field* of the receiver). Selector ops
+  now pass the executing package (`m.Package.PkgPath`) — statically gated to
+  equal the method's origin for unexported selectors. The exported
+  `GetPointerToFromTV` keeps the dynamic-type fallback (debugger,
+  collision-free by construction there).
+
+Pinned by `iface_embed_sel_order.gno` (order-independent selector),
+`iface_embed_same_name.gno` (self-assignment), and
+`iface_embed_field_shadow.gno` (field vs promoted method, static + runtime),
+each verified against real Go first.
+
+Diagnostics qualify stamped methods by origin package (`FieldTypeList.string`,
+`VerifyImplementedBy`'s "missing method"), so such an interface no longer
+prints as `interface {sec func() int; sec func() int}` with two
+indistinguishable entries. Directly-declared unexported methods are unstamped
+and print unchanged.
+
 ## Rollout: state persisted before this change is unsupported (decided)
 
 Every `InterfaceType` is born one of three ways: **preprocess (AST)**,

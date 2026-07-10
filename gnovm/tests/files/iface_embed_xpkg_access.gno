@@ -12,7 +12,7 @@ func main() {
 }
 
 // Error:
-// main/iface_embed_xpkg_access.gno:11:10-15: cannot access interface {sec func() int}.sec from main
+// main/iface_embed_xpkg_access.gno:11:10-15: cannot access interface {filetests/extern/ifaceext.sec func() int}.sec from main
 
 // TypeCheckError:
 // main/iface_embed_xpkg_access.gno:11:12: x.sec undefined (cannot refer to unexported method sec)

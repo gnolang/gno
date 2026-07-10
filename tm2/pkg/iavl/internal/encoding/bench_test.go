@@ -24,7 +24,6 @@ func TestEncodeVarintParity(t *testing.T) {
 	var board [binary.MaxVarintLen64]byte
 
 	for _, val := range encValues {
-		val := val
 		name := fmt.Sprintf("%d", val)
 
 		buf.Reset()
