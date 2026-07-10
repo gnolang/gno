@@ -14252,6 +14252,18 @@ func (goo *StructType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 
 func (goo FieldType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.PkgPath != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.PkgPath))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.Tag != "" {
 		{
 			before := offset
@@ -14323,6 +14335,9 @@ func (goo FieldType) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.Tag != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.Tag))) + len(goo.Tag)
 	}
+	if goo.PkgPath != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.PkgPath))) + len(goo.PkgPath)
+	}
 	return s, nil
 }
 
@@ -14385,6 +14400,16 @@ func (goo *FieldType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 			}
 			bz = bz[n:]
 			goo.Tag = Tag(v)
+		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.PkgPath = string(v)
 		default:
 			return fmt.Errorf("unknown field number %d for FieldType", fnum)
 		}

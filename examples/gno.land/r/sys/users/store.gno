@@ -96,13 +96,13 @@ func registerUser(cur realm, name string, address_XXX address, ignoreCanonical b
 
 	canonical := Canonicalize(name)
 	if !ignoreCanonical {
-		if _, taken := canonicalStore.Get(canonical); taken {
+		if canonicalStore.Has(canonical) {
 			return ErrCanonicalCollision
 		}
 	}
 
-	raw, ok := addressStore.Get(address_XXX.String())
-	if ok {
+	raw := addressStore.Get(address_XXX.String())
+	if raw != nil {
 		// Cannot re-register after deletion
 		if raw.(*UserData).IsDeleted() {
 			return ErrDeletedUser
@@ -195,7 +195,7 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 		// confusable aliases of one's own name through free renames. The
 		// only path to a self-confusable rename is DAO governance via
 		// ProposeUpdateName.
-		if _, taken := canonicalStore.Get(canonical); taken {
+		if canonicalStore.Has(canonical) {
 			return ErrCanonicalCollision
 		}
 	}
