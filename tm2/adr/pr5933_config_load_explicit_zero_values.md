@@ -1,4 +1,4 @@
-# ADR-prxxxx: Config loader must honor explicit zero values
+# PR5933: Config loader must honor explicit zero values
 
 ## Status
 
