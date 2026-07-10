@@ -20,12 +20,3 @@ type SecStr interface{ sec() string }
 type SecPtrImpl struct{}
 
 func (*SecPtrImpl) sec() int { return 8 }
-
-// SecStrImpl provides ifaceext's sec() string.
-type SecStrImpl struct{}
-
-func (SecStrImpl) sec() string { return "s" }
-
-// FieldSec carries sec as a field rather than a method, so a lookup finds a
-// non-function where Sec wants one.
-type FieldSec struct{ sec int }
