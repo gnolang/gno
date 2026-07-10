@@ -75,8 +75,8 @@ No matter how you browse through the paginated list, the introductory text (this
 
 // renderConfigItem shows details for a single item, e.g. ":item001".
 func renderConfigItem(itemName string) string {
-	value, ok := items.Get(itemName)
-	if !ok {
+	value := items.Get(itemName)
+	if value == nil {
 		return ufmt.Sprintf("**No item found** for key: %s", itemName)
 	}
 
