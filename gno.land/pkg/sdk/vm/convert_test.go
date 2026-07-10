@@ -534,16 +534,16 @@ func TestConvertJSONMaps(t *testing.T) {
 		rep := stringifyJSONResults(m, tvs, nil)
 
 		// Parse to check structure
-		var result map[string]interface{}
+		var result map[string]any
 		err := json.Unmarshal([]byte(rep), &result)
 		require.NoError(t, err)
 
-		results := result["results"].([]interface{})
+		results := result["results"].([]any)
 		require.Len(t, results, 1)
 
 		// Type is an Amino-encoded MapType object
-		firstResult := results[0].(map[string]interface{})
-		tObj := firstResult["T"].(map[string]interface{})
+		firstResult := results[0].(map[string]any)
+		tObj := firstResult["T"].(map[string]any)
 		require.Equal(t, "/gno.MapType", tObj["@type"])
 	})
 
@@ -899,7 +899,7 @@ func TestConvertJSONStress(t *testing.T) {
 
 		// Create a slice with 50 elements
 		var elements []string
-		for i := 0; i < 50; i++ {
+		for i := range 50 {
 			elements = append(elements, fmt.Sprintf("%d", i))
 		}
 		code := fmt.Sprintf(`package testdata; var Value = []int{%s}`, strings.Join(elements, ","))

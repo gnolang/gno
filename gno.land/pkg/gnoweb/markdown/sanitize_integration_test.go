@@ -317,7 +317,7 @@ func splitTwoQuoted(s string) (a, b string, ok bool) {
 // template. CodeFence uses the output twice (open + close fence).
 func substituteContext(sc sanitizeCase, output string) string {
 	count := strings.Count(sc.Context, "%s")
-	args := make([]interface{}, count)
+	args := make([]any, count)
 	for i := range args {
 		args[i] = output
 	}

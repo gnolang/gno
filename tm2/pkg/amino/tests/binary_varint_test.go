@@ -98,7 +98,6 @@ func TestPlainVarint_ByteTable(t *testing.T) {
 		{"neg-one", -1, []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
@@ -173,7 +172,6 @@ func TestPlainVarintCodec_RoundTrip(t *testing.T) {
 		{A: math.MinInt64, B: math.MinInt32},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			bz, err := cdc.MarshalSized(&c)
@@ -261,7 +259,6 @@ func TestPlainVarint_RejectWrongTypes(t *testing.T) {
 		{"int16", varintOnInt16{}},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Panics(t, func() { registerLocal(t, c.typ) })
