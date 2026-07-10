@@ -79,8 +79,8 @@ func (h *Haystack) Get(hash string) (string, error) {
 	if _, err := hex.DecodeString(hash); err != nil {
 		return "", err
 	}
-	v, ok := h.internal.Get(hash)
-	if !ok {
+	v := h.internal.Get(hash)
+	if v == nil {
 		return "", ErrorNeedleNotFound
 	}
 	b, ok := v.([]byte)
