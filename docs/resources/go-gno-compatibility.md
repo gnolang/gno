@@ -1,6 +1,20 @@
 # Go - Gno compatibility
 
-Gno is modeled after Go 1.17.
+Gno is modeled after Go 1.17. Concretely, this means:
+
+- **Language spec, not toolchain.** Gno implements the Go *language* as it stood
+  at Go 1.17; the Gno tooling itself is built with a modern Go toolchain.
+- **The cut-off is Go 1.18.** Language features introduced from Go 1.18 onward
+  are out of scope by design, not merely unimplemented: generics (type
+  parameters), interface type-set unions and `~T` terms, and later built-ins
+  such as `min`, `max`, and `clear`.
+- **Not strict conformance.** There are deliberate exceptions in both
+  directions: `any` (a Go 1.18 spec alias for `interface{}`) is supported,
+  while some pre-1.17 features such as goroutines and channels are not (yet) —
+  see the tables below.
+- **Enforced per construct.** There is no global language-version switch;
+  unsupported constructs are rejected individually by the type-checker and the
+  interpreter.
 
 ## Reserved keywords
 
