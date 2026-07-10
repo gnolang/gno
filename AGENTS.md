@@ -68,7 +68,7 @@ make fmt                        # Format all code
 - Import paths: `gno.land/{p,r}/...` only.
 - No OS/network access.
 - Before writing Gno code, read the relevant docs in `docs/resources/`:
-  - `gno-interrealm.md` — cross-realm calls, `cross(rlm)`/`realm` semantics
+  - `gno-interrealm-v2.md` — cross-realm calls, `cross(rlm)`/`realm` semantics
   - `effective-gno.md` — idiomatic Gno patterns
   - `go-gno-compatibility.md` — what works and what doesn't vs Go
   - `gno-testing.md` — testing patterns for `.gno` files
@@ -94,10 +94,10 @@ make fmt                        # Format all code
 
 ## Gno Security Semantics
 
-- Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
+- Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm-v2.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
 - For the complete AI-focused checklist (10 cases), read `docs/resources/gno-ai-contract-review.md` before reviewing any realm.
 - `runtime.PreviousRealm()` only shifts on explicit cross-calls (`fn(cross, ...)`) into crossing functions (`func fn(cur realm, ...){...}`). A `PreviousRealm().PkgPath() == "..."` check inside a non-crossing function does not identify the immediate caller and is a security bug.
-- In crossing functions (`func F(cur realm, ...)`), **always** use `cur.IsCurrent()` before calling `cur.Previous()`. Never use `chain/runtime/unsafe.PreviousRealm()` in a crossing function — it bypasses the frame verification that `cur.IsCurrent()` provides. Any import of `chain/runtime/unsafe` alongside `cur realm` parameters is a red flag.
+- In crossing functions (`func F(cur realm, ...)`), **always** use `cur.IsCurrent()` before calling `cur.Previous()`. Never use `chain/runtime/unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` for caller identity in a crossing function — they bypass the frame verification that `cur.IsCurrent()` provides. The `unsafe.OriginCaller()` and `unsafe.OriginSend()` tx-origin primitives are a separate case: they have no `cur` substitute and stay legitimate for event emission or fee attribution.
 - When editing a realm that accepts payment via `banker.OriginSend()`, the caller guard must be `cur.Previous().IsUserCall()`, not `IsUser()`. `IsUser()` accepts `maketx run` ephemeral realms, which can consume the origin-send envelope before calling your function and bypass the payment check. See [docs/resources/effective-gno.md § Verifying inbound Coin payments](docs/resources/effective-gno.md#verifying-inbound-coin-payments).
 - When you see an existing realm using `IsUser()` plus `banker.OriginSend()`, flag it and cross-check nearby `OriginSend` usage.
 - Never return a pointer to a `/p/`-type instance stored in realm state if that type has any exported mutation method (e.g. `avl.Tree.Set`, `avl.Tree.Remove`). Readonly taint does not block method dispatch — borrow rule #2 fires and the write commits under your realm's authority. Return values or narrow read-only views instead.
