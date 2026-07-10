@@ -95,9 +95,4 @@ func e2() {
 	x.f = y // ERROR "write barrier prohibited by caller"
 }
 
-// UncaughtError:
-// line 22: uncaught; gc expects: write barrier prohibited
-// line 38: uncaught; gc expects: write barrier prohibited by caller
-// line 74: uncaught; gc expects: write barrier prohibited by caller
-// line 90: uncaught; gc expects: write barrier prohibited by caller
-// line 95: uncaught; gc expects: write barrier prohibited by caller
+// Unsupported: gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts

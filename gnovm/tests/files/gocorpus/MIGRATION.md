@@ -9,11 +9,11 @@ do not edit by hand; re-run after `--update-golden-tests`.
 | Bucket | Count | Meaning |
 |---|--:|---|
 | 🔥 **Urgent KnownIssue** | 53 | runtime divergence — Gno's run result differs from Go's (wrong value, or panic where Go succeeds); ships past deploy, breaks in production; **fix now** |
-| 🕳️ **Uncaught leak** | 21 | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |
+| 🕳️ **Uncaught leak** | 17 | gc-invalid code caught by NEITHER Gno preprocess nor go/types — would deploy; under-rejection, **fix now** |
 | 🟠 **Over-strict** | 158 | Gno rejects code gc *and* go/types accept (static; caught at deploy, no inconsistent state — fix deferred) |
 | 🔵 KnownDivergence | 47 | accepted run-mode difference (not a bug) |
 | 🛡️ Permissive-GuardOnly | 62 | Gno preprocess accepts; the go/types guard alone rejects — holds in production, but is the native-coverage worklist for go/types removal |
-| ⚪ Unsupported | 822 | feature gap (unsupported import / language feature); skipped |
+| ⚪ Unsupported | 826 | feature gap (unsupported import / language feature); skipped |
 | ✅ Clean | 905 | verified, no outstanding issue |
 | **Total migrated** | 2068 | |
 
@@ -75,31 +75,27 @@ Gno's run-mode result differs from Go's — a wrong value, or a panic where Go s
 - [`recover2.go`](testdata/recover2.go) — Runtime panics carry a bare string, so v.(error) fails ("string doesn't — 🚧 Fixing: PR #5732 (fix/5667, typedRuntimeError); partial on branch (wording gap at test4), broken on master; re-check after merge.
 - [`typeswitch1.go`](testdata/typeswitch1.go) — In `switch xx := x.(type)`, the `case nil:` clause fails to declare the — 🚧 Fixing: PR #5766 (fix/typeswitch1, case-nil tag-type handling); verified clean on branch, broken on master; re-golden after merge.
 
-## 🕳️ Uncaught leak — gc-invalid code deploys (21)
+## 🕳️ Uncaught leak — gc-invalid code deploys (17)
 
 Checkable (non-GC_ERROR) markers caught by neither Gno's preprocess nor the go/types guard: the whole stack accepts code gc rejects. Under-rejection — invalid packages deploy — so these rank with (arguably above) the urgent bucket.
 
-- [`directive2.go`](testdata/directive2.go) — line 18: uncaught; gc expects: misplaced compiler directive
 - [`fixedbugs/bug195.go`](testdata/fixedbugs/bug195.go) — line 9: uncaught; gc expects: interface
 - [`fixedbugs/bug305.go`](testdata/fixedbugs/bug305.go) — line 24: uncaught; gc expects: cannot|incompatible
 - [`fixedbugs/issue10975.go`](testdata/fixedbugs/issue10975.go) — line 13: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type
 - [`fixedbugs/issue11610.go`](testdata/fixedbugs/issue11610.go) — line 13: uncaught; gc expects: unexpected keyword var|expected identifier|expected type
 - [`fixedbugs/issue11614.go`](testdata/fixedbugs/issue11614.go) — line 14: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type int requires
 - [`fixedbugs/issue13274.go`](testdata/fixedbugs/issue13274.go) — line 11: uncaught; gc expects: unexpected EOF|expected .*}.*
-- [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — line 10: uncaught; gc expects: 
 - [`fixedbugs/issue15611.go`](testdata/fixedbugs/issue15611.go) — line 11: uncaught; gc expects: newline in character literal|newline in rune literal
 - [`fixedbugs/issue18331.go`](testdata/fixedbugs/issue18331.go) — line 19: uncaught; gc expects: can only use //go:noescape with external func implementations
 - [`fixedbugs/issue18393.go`](testdata/fixedbugs/issue18393.go) — line 20: uncaught; gc expects: import path must be a string
 - [`fixedbugs/issue24339.go`](testdata/fixedbugs/issue24339.go) — line 20: uncaught; gc expects: unknown field foo
 - [`fixedbugs/issue28450.go`](testdata/fixedbugs/issue28450.go) — line 10: uncaught; gc expects: non-final parameter a|must be last parameter|can only use ... with final parameter
 - [`fixedbugs/issue32133.go`](testdata/fixedbugs/issue32133.go) — line 10: uncaught; gc expects: newline in string
-- [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — line 13: uncaught; gc expects: duplicate method M
 - [`fixedbugs/issue48097.go`](testdata/fixedbugs/issue48097.go) — line 12: uncaught; gc expects: can only use //go:noescape with external func implementations
 - [`fixedbugs/issue49368.go`](testdata/fixedbugs/issue49368.go) — line 10: uncaught; gc expects: 
 - [`fixedbugs/issue51531.go`](testdata/fixedbugs/issue51531.go) — line 11: uncaught; gc expects: 
 - [`fixedbugs/issue67141.go`](testdata/fixedbugs/issue67141.go) — line 13: uncaught; gc expects: cannot range over 10
 - [`mainsig.go`](testdata/mainsig.go) — line 9: uncaught; gc expects: func main must have no arguments and no return values
-- [`nowritebarrier.go`](testdata/nowritebarrier.go) — line 22: uncaught; gc expects: write barrier prohibited
 
 ## 🟠 Over-strict — Gno-only static rejects (fix deferred) (158)
 
@@ -383,7 +379,7 @@ Every gc marker is caught by the go/types guard and NONE by Gno's own preprocess
 - [`switch6.go`](testdata/switch6.go) — line 18: impossible type switch case: int
 - [`typeswitch2b.go`](testdata/typeswitch2b.go) — line 16: declared and not used: t
 
-## ⚪ Unsupported — feature gaps (skipped) (822)
+## ⚪ Unsupported — feature gaps (skipped) (826)
 
 Gno can't process the file (unsupported import or language feature). Skipped via t.Skip.
 
@@ -441,6 +437,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`deferfin.go`](testdata/deferfin.go) — goroutines not supported in Gno
 - [`deferprint.go`](testdata/deferprint.go) — channels not supported in Gno
 - [`devirt.go`](testdata/devirt.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
+- [`directive2.go`](testdata/directive2.go) — gc pragma-placement enforcement; //go: directives are inert comments in Gno
 - [`embedfunc.go`](testdata/embedfunc.go) — unknown import path embed
 - [`embedvers.go`](testdata/embedvers.go) — unknown import path embed
 - [`env.go`](testdata/env.go) — unsupported stdlib symbol in Gno: Getenv
@@ -584,6 +581,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue14636.go`](testdata/fixedbugs/issue14636.go) — unknown import path log
 - [`fixedbugs/issue14646.go`](testdata/fixedbugs/issue14646.go) — unsupported stdlib symbol in Gno: Caller
 - [`fixedbugs/issue14729.go`](testdata/fixedbugs/issue14729.go) — unknown import path unsafe
+- [`fixedbugs/issue14999.go`](testdata/fixedbugs/issue14999.go) — gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts
 - [`fixedbugs/issue15002.go`](testdata/fixedbugs/issue15002.go) — unknown import path syscall
 - [`fixedbugs/issue15277.go`](testdata/fixedbugs/issue15277.go) — unsupported stdlib symbol in Gno: KeepAlive
 - [`fixedbugs/issue15281.go`](testdata/fixedbugs/issue15281.go) — channels not supported in Gno
@@ -716,6 +714,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`fixedbugs/issue33555.go`](testdata/fixedbugs/issue33555.go) — unknown import path io/ioutil
 - [`fixedbugs/issue33724.go`](testdata/fixedbugs/issue33724.go) — unknown import path runtime/debug
 - [`fixedbugs/issue34123.go`](testdata/fixedbugs/issue34123.go) — uintptr type not supported in Gno
+- [`fixedbugs/issue34329.go`](testdata/fixedbugs/issue34329.go) — gc -lang version-gating test below Gno's go1.17 pin (go1.13)
 - [`fixedbugs/issue34723.go`](testdata/fixedbugs/issue34723.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`fixedbugs/issue35073b.go`](testdata/fixedbugs/issue35073b.go) — unknown import path reflect
 - [`fixedbugs/issue35518.go`](testdata/fixedbugs/issue35518.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
@@ -960,6 +959,7 @@ Gno can't process the file (unsupported import or language feature). Skipped via
 - [`nilptr5.go`](testdata/nilptr5.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`noinit.go`](testdata/noinit.go) — channels not supported in Gno
 - [`nosplit.go`](testdata/nosplit.go) — unknown import path io/ioutil
+- [`nowritebarrier.go`](testdata/nowritebarrier.go) — gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts
 - [`opt_branchlikely.go`](testdata/opt_branchlikely.go) — gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors
 - [`parentype.go`](testdata/parentype.go) — channels not supported in Gno
 - [`peano.go`](testdata/peano.go) — unsupported stdlib symbol in Gno: GOARCH

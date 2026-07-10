@@ -449,15 +449,25 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// Route to Unsupported instead of counting them as leaks.
 		if firstLine := strings.SplitN(string(originalSource), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
 			flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
-			isDiag := len(flags) > 0 && flags[0] == "errorcheckwithauto"
+			reason := ""
+			if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
+				reason = "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+			}
 			for _, fl := range flags[1:] {
-				if fl == "-0" || fl == "-m" {
-					isDiag = true
-					break
+				switch {
+				case fl == "-0" || fl == "-m":
+					reason = "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+				case fl == "-+" || strings.HasPrefix(fl, "-p="):
+					// runtime-package mode: write-barrier / runtime escape
+					// rules — gc-internal contracts, no Gno equivalent.
+					reason = "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
+				case langBelowPin(fl):
+					// version-gating test BELOW Gno's go1.17 pin: the
+					// markers assert errors of an older language version.
+					reason = "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
 				}
 			}
-			if isDiag {
-				reason := "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+			if reason != "" {
 				if opts.Sync {
 					return writeUnsupportedDirective(originalSource, reason), gas, nil
 				}
@@ -478,6 +488,30 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if len(checkable) == 0 {
 			reason := "only gc-specific (GC_ERROR) markers; not part of Gno's contract"
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, nil
+			}
+			return "", gas, &SkipError{Reason: reason}
+		}
+		// Pragma-placement enforcement tests: every checkable marker
+		// asserts gc's "misplaced compiler directive" — //go: pragmas
+		// are inert comments in Gno, so there is nothing to check.
+		allPragma := true
+		for _, mk := range checkable {
+			hit := false
+			for _, pat := range mk.Patterns {
+				if strings.Contains(pat, "compiler directive") {
+					hit = true
+					break
+				}
+			}
+			if !hit {
+				allPragma = false
+				break
+			}
+		}
+		if allPragma {
+			reason := "gc pragma-placement enforcement; //go: directives are inert comments in Gno"
 			if opts.Sync {
 				return writeUnsupportedDirective(originalSource, reason), gas, nil
 			}
@@ -2022,4 +2056,21 @@ func restoreGoExtInError(originalFname, tcError string) string {
 	}
 	base := strings.TrimSuffix(filepath.Base(originalFname), ".go")
 	return strings.ReplaceAll(tcError, base+".gno", base+".go")
+}
+
+// langBelowPin reports whether fl is a `-lang=go1.N` flag with N below
+// Gno's go1.17 pin (numeric compare; lexical would misorder go1.9).
+func langBelowPin(fl string) bool {
+	v, ok := strings.CutPrefix(fl, "-lang=go1.")
+	if !ok {
+		return false
+	}
+	n := 0
+	for _, c := range v {
+		if c < '0' || c > '9' {
+			return false
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n < 17
 }

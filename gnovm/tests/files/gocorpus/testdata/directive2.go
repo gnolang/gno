@@ -57,8 +57,4 @@ func f() {
 // EOF
 //go:noinline // ERROR "misplaced compiler directive"
 
-// UncaughtError:
-// line 18: uncaught; gc expects: misplaced compiler directive
-// line 34: uncaught; gc expects: misplaced compiler directive
-// line 46: uncaught; gc expects: misplaced compiler directive
-// line 48: uncaught; gc expects: misplaced compiler directive
+// Unsupported: gc pragma-placement enforcement; //go: directives are inert comments in Gno

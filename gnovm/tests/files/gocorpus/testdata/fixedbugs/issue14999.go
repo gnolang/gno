@@ -17,7 +17,4 @@ func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtim
 	}
 }
 
-// UncaughtError:
-// line 10: uncaught; gc expects: 
-// line 13: uncaught; gc expects: x escapes to heap, not allowed in runtime
-// line 14: uncaught; gc expects: 
+// Unsupported: gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts

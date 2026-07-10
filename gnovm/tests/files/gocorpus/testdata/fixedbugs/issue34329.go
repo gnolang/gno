@@ -13,5 +13,4 @@ type _ interface {
 	I // ERROR "duplicate method M"
 }
 
-// UncaughtError:
-// line 13: uncaught; gc expects: duplicate method M
+// Unsupported: gc -lang version-gating test below Gno's go1.17 pin (go1.13)
