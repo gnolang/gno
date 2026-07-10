@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
-// computeStats derives numeric counters from the file list and qdoc payload.
 // bugsNotInDoc returns the BUG notes not already visible in the rendered package
 // doc. go/doc leaves a note's body in Doc when the note lives inside the package
 // comment, so without this the same text would render both inline and in the
@@ -21,7 +20,7 @@ func bugsNotInDoc(bugs []string, packageDoc string) []string {
 	}
 	var out []string
 	for _, b := range bugs {
-		if strings.Contains(packageDoc, strings.TrimSpace(b)) {
+		if docHasNote(packageDoc, strings.TrimSpace(b)) {
 			continue
 		}
 		out = append(out, b)
@@ -29,6 +28,31 @@ func bugsNotInDoc(bugs []string, packageDoc string) []string {
 	return out
 }
 
+// docHasNote reports whether packageDoc contains note as a whole block rather
+// than as a fragment of a longer sentence. A plain substring test would drop a
+// distinct floating note whose text happens to be a prefix of an inline one.
+func docHasNote(packageDoc, note string) bool {
+	if note == "" {
+		return false
+	}
+	for i := 0; ; {
+		j := strings.Index(packageDoc[i:], note)
+		if j < 0 {
+			return false
+		}
+		start := i + j
+		end := start + len(note)
+		beforeOK := start == 0 || strings.ContainsRune(" \t\n", rune(packageDoc[start-1]))
+		rest := strings.TrimLeft(packageDoc[end:], " \t")
+		afterOK := rest == "" || strings.HasPrefix(rest, "\n")
+		if beforeOK && afterOK {
+			return true
+		}
+		i = start + 1
+	}
+}
+
+// computeStats derives numeric counters from the file list and qdoc payload.
 func computeStats(files []string, jdoc *doc.JSONDocumentation, imports []ImportLink) PackageStats {
 	s := PackageStats{
 		FileCount:   len(files),
@@ -155,12 +179,15 @@ func buildSubpackages(self string, paths []string) []SubpackageLink {
 }
 
 // buildOverviewTOC builds the hierarchical table-of-contents items used by the sidebar.
-func buildOverviewTOC(quality PackageQuality, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, imports []ImportLink, subpacks []SubpackageLink) []*TocItem {
+// hasReadmeSection tells whether the README section was actually rendered. The
+// file being listed is not enough: its fetch may have failed, and the #readme
+// entry must not point at a section the template never emitted.
+func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, imports []ImportLink, files []FileLink, subpacks []SubpackageLink) []*TocItem {
 	var toc []*TocItem
 	if quality.HasPkgDoc {
 		toc = append(toc, &TocItem{Title: "Overview", ID: "overview"})
 	}
-	if quality.HasReadme {
+	if hasReadmeSection {
 		toc = append(toc, &TocItem{Title: "README", ID: "readme"})
 	}
 	hasConst, hasVar := false, false
@@ -199,7 +226,13 @@ func buildOverviewTOC(quality PackageQuality, funcs []FuncEntry, types []TypeEnt
 	if len(imports) > 0 {
 		toc = append(toc, &TocItem{Title: "Imports", ID: "imports"})
 	}
-	toc = append(toc, &TocItem{Title: "Files", ID: "files"})
+	// The file entries link straight into the source view, so a reader reaches a
+	// file from the sidebar instead of scrolling down to the Files section.
+	filesItem := &TocItem{Title: "Files", ID: "files"}
+	for _, f := range files {
+		filesItem.Items = append(filesItem.Items, &TocItem{Title: f.Name, Link: f.Link, Icon: "file"})
+	}
+	toc = append(toc, filesItem)
 	if len(subpacks) > 0 {
 		toc = append(toc, &TocItem{Title: "Directories", ID: "subpackages"})
 	}
@@ -303,7 +336,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 	stats := computeStats(in.Files, in.Doc, imports)
 	files := buildFileLinks(in.URL.Path, in.Files)
 	subpacks := buildSubpackages(in.URL.Path, in.Subpaths)
-	toc := buildOverviewTOC(quality, funcs, types, values, imports, subpacks)
+	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, imports, files, subpacks)
 
 	pkgDocSynopsis := ""
 	var pkgDocComp Component

@@ -48,6 +48,13 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	helpURL.WebQuery = url.Values{"help": {""}}
 	stateURL.WebQuery = url.Values{"state": {""}}
 
+	// Carry the open file onto the Source link. Without it, a reader already
+	// looking at a file is sent back to the package overview by the tab that
+	// is meant to be showing them source.
+	if file := u.WebQuery.Get("file"); file != "" {
+		sourceURL.WebQuery.Set("file", file)
+	}
+
 	contentLink := HeaderLink{
 		Label:    "Content",
 		URL:      contentURL.EncodeWebURL(),
