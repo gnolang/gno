@@ -2,7 +2,9 @@
 
 Gno targets the Go 1.17 language specification. Concretely, this means:
 
-- **Language spec, not toolchain.** Gno implements the Go 1.17 language specification, while the Gno tooling itself is built with a modern Go toolchain.
+- **Language spec, not toolchain.** Gno implements the Go 1.17 language
+  specification, while the Gno tooling itself is built with a modern Go
+  toolchain.
 - **The cut-off is Go 1.18.** Language features introduced from Go 1.18 onward
   are not part of Gno's current language target: generics (type parameters),
   interface type-set unions and `~T` terms, and later built-ins such as `min`,
