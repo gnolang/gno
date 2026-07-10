@@ -343,9 +343,18 @@ func buildRegisterTx(row seedRow) AnnotatedTx {
 	}
 
 	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 0)),
-		Signatures: []std.Signature{},
+		Msgs: []std.Msg{msg},
+		// Non-zero fee (1 ugnot) so std.Coin survives the amino round-trip:
+		// a zero-amount Coin marshals to "" (denom dropped), and decoding it
+		// back trips Tx.ValidateBasic's Fee.GasFee.IsValid() on the empty
+		// denom. Amount=1 preserves the denom. The gnops/valopers.Register
+		// squat guard is bypassed at genesis-mode (ChainHeight() == 0).
+		Fee: std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 1)),
+		// One zero-value Signature per signer: the consumer runs with
+		// --skip-genesis-sig-verification so sig verification never runs,
+		// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+		// equal to len(GetSigners()). Mirrors gnoland/genesis.go.
+		Signatures: make([]std.Signature, len(msg.GetSigners())),
 	}
 
 	return AnnotatedTx{
