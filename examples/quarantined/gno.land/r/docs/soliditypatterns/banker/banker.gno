@@ -39,8 +39,8 @@ func Deposit(cur realm) {
 
 	// Get current balance
 	currentBalance := int64(0)
-	if val := deposits.Get(caller.String()); val != nil {
-		currentBalance = val.(int64)
+	if deposits.Has(caller.String()) {
+		currentBalance = deposits.Get(caller.String()).(int64)
 	}
 
 	// Update balance
@@ -68,8 +68,8 @@ func Withdraw(cur realm, amount int64) {
 
 	// Get current balance
 	currentBalance := int64(0)
-	if val := deposits.Get(caller.String()); val != nil {
-		currentBalance = val.(int64)
+	if deposits.Has(caller.String()) {
+		currentBalance = deposits.Get(caller.String()).(int64)
 	}
 
 	// Check balance
@@ -96,11 +96,10 @@ func Withdraw(cur realm, amount int64) {
 
 // GetBalance returns the deposited balance for an address
 func GetBalance(addr address) int64 {
-	balance := deposits.Get(addr.String())
-	if balance == nil {
+	if !deposits.Has(addr.String()) {
 		return 0
 	}
-	return balance.(int64)
+	return deposits.Get(addr.String()).(int64)
 }
 
 // GetRealmBalance returns the total coins held by this realm
