@@ -26,16 +26,30 @@ func (h hybridGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	return h.rpc.GetMemPackage(pkgPath)
 }
 
+// qfileFunc runs a vm/qfile query for a package path or a package file path.
+type qfileFunc func(filepath string) ([]byte, error)
+
 // rpcGetter fetches package sources from a node via the vm/qfile ABCI query and
-// reconstructs them into MemPackages. Results (including misses, as nil) are
-// cached for the lifetime of the oracle to avoid re-querying the node.
+// reconstructs them into MemPackages. On-chain packages are immutable by path
+// (a path is write-once — re-adding fails), so any successfully fetched package
+// is cached for the lifetime of the oracle and never re-queried.
 type rpcGetter struct {
-	client rpcclient.Client
-	cache  map[string]*std.MemPackage
+	qfile qfileFunc
+	cache map[string]*std.MemPackage
 }
 
 func newRPCGetter(client rpcclient.Client) *rpcGetter {
-	return &rpcGetter{client: client, cache: make(map[string]*std.MemPackage)}
+	qfile := func(filepath string) ([]byte, error) {
+		qres, err := client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
+		if err != nil {
+			return nil, err
+		}
+		if qres.Response.Error != nil {
+			return nil, qres.Response.Error
+		}
+		return qres.Response.Data, nil
+	}
+	return &rpcGetter{qfile: qfile, cache: make(map[string]*std.MemPackage)}
 }
 
 func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
@@ -43,7 +57,12 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 		return mpkg
 	}
 	mpkg := g.fetch(pkgPath)
-	g.cache[pkgPath] = mpkg // cache misses (nil) too
+	// Cache only what the chain actually returned. Misses are NOT cached: a
+	// package that is absent now (e.g. still inert, or enabled later in this
+	// run) must resolve on a later query rather than being pinned to nil.
+	if mpkg != nil {
+		g.cache[pkgPath] = mpkg
+	}
 	return mpkg
 }
 
@@ -77,17 +96,6 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		Files: files,
 		Type:  gno.MPUserProd,
 	}
-}
-
-func (g *rpcGetter) qfile(filepath string) ([]byte, error) {
-	qres, err := g.client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
-	if err != nil {
-		return nil, err
-	}
-	if qres.Response.Error != nil {
-		return nil, qres.Response.Error
-	}
-	return qres.Response.Data, nil
 }
 
 // packageName derives the package name from the first .gno file whose package

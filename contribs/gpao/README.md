@@ -71,11 +71,15 @@ transactions are rejected.
   *transactions* (`MsgEnablePackage`), which they cannot do. Use the gnokey
   keystore (or, in future, an HSM/KMS-backed keystore that can sign txs).
 
+## Import cache
+
+Packages fetched via `vm/qfile` are cached for the process lifetime. This is
+safe: on-chain package paths are write-once (re-adding an existing path fails),
+so a fetched package never changes. Only successful fetches are cached — a miss
+(a package still inert, or enabled later in the run) is re-queried on the next
+lookup rather than pinned to "not found".
+
 ## Limitations
 
-- **RPC import cache is per-run**: on-chain packages fetched via `vm/qfile` are
-  cached for the process lifetime, so a dependency updated mid-run is not
-  re-fetched. This only affects the oracle's *proposal*; the chain re-typechecks
-  against current state at enable time.
 - **No catch-up persistence**: `--start-height` lets you replay from a given
   height, but gpao keeps no on-disk cursor between runs.
