@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -114,17 +115,72 @@ func TestFlattenInterfaceMethods_ConflictPanics(t *testing.T) {
 	t.Parallel()
 	fn := &FuncType{}
 	fn2 := &FuncType{Results: []FieldType{{Type: BoolType}}}
-	in := []FieldType{
-		mkEmbed("p", mkMethod("M", fn)),
-		mkEmbed("p", mkMethod("M", fn2)),
-	}
 
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected panic on conflicting embedded method, got none")
-		}
-	}()
-	flattenInterfaceMethods(in, "q")
+	// An exported method needs no stamp, so it panics under its bare name. An
+	// unexported one hoisted out of p is stamped, so the panic names p.
+	cases := []struct {
+		desc string
+		in   []FieldType
+		want string
+	}{
+		{
+			desc: "exported stays bare",
+			in: []FieldType{
+				mkEmbed("p", mkMethod("M", fn)),
+				mkEmbed("p", mkMethod("M", fn2)),
+			},
+			want: "duplicate method M with conflicting types in interface",
+		},
+		{
+			desc: "cross-package unexported is qualified",
+			in: []FieldType{
+				mkEmbed("p", FieldType{Name: "sec", Type: fn, PkgPath: "p"}),
+				mkEmbed("p", FieldType{Name: "sec", Type: fn2, PkgPath: "p"}),
+			},
+			want: "duplicate method p.sec with conflicting types in interface",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("expected panic on conflicting embedded method, got none")
+				}
+				if got := fmt.Sprint(r); got != tc.want {
+					t.Fatalf("panic message:\n got %q\nwant %q", got, tc.want)
+				}
+			}()
+			flattenInterfaceMethods(tc.in, "q")
+		})
+	}
+}
+
+// diagName qualifies a method only when it carries an origin-package stamp,
+// unlike idName, which qualifies every unexported name.
+func TestFieldType_diagName(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		desc string
+		ft   FieldType
+		want string
+	}{
+		{"exported, unstamped", FieldType{Name: "M"}, "M"},
+		{"unexported, unstamped", FieldType{Name: "sec"}, "sec"},
+		{"unexported, stamped", FieldType{Name: "sec", PkgPath: "p"}, "p.sec"},
+		// flatten never stamps an exported method; this pins that diagName keys
+		// on the stamp alone, so nobody re-adds an isUpper check.
+		{"exported, stamped", FieldType{Name: "M", PkgPath: "p"}, "p.M"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.ft.diagName(); got != tc.want {
+				t.Fatalf("diagName() = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 // Regression for the sort/emit provenance mismatch (thehowl review). The same
