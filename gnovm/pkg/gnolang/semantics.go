@@ -47,17 +47,34 @@ type Semantics struct {
 	// SemanticsForVersion is where each version sets them.)
 }
 
+// semanticsByVersion is the registry of supported language versions.
+// A map (not a switch) so a second version — and, in tests, a synthetic
+// one — is a single entry. Production ships exactly one entry until the
+// persistence follow-up lands (see file header).
+var semanticsByVersion = map[string]Semantics{
+	GnoVerLatest: {Version: GnoVerLatest},
+}
+
 // SemanticsForVersion returns the Semantics for a gno language version,
-// and whether that version is supported. Today only GnoVerLatest is
-// registered; an unknown version returns ok=false so callers can reject
-// rather than silently run under an undefined semantics.
+// and whether that version is supported. An unknown version returns
+// ok=false so callers can reject rather than silently run under an
+// undefined semantics.
 func SemanticsForVersion(version string) (Semantics, bool) {
-	switch version {
-	case GnoVerLatest:
-		return Semantics{Version: GnoVerLatest}, true
-	default:
-		return Semantics{}, false
+	s, ok := semanticsByVersion[version]
+	return s, ok
+}
+
+// registerSemanticsForTest adds a synthetic version to the registry and
+// returns a cleanup func. Test-only: it exists so the per-package
+// dispatch can be exercised (a real second version can't be committed
+// before the persistence follow-up). Not exported — callers live in the
+// same package's _test.go.
+func registerSemanticsForTest(s Semantics) (cleanup func()) {
+	if _, exists := semanticsByVersion[s.Version]; exists {
+		panic("registerSemanticsForTest: version already registered: " + s.Version)
 	}
+	semanticsByVersion[s.Version] = s
+	return func() { delete(semanticsByVersion, s.Version) }
 }
 
 // Semantics returns the resolved semantics for this package. It never
