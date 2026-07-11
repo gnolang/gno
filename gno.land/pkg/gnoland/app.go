@@ -372,6 +372,12 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
+		// Surface loadAppState errors on the logger before returning. The
+		// error is also propagated via ResponseInitChain.Error, but
+		// tendermint's handshake does not surface that field — operators
+		// otherwise see "Completed ABCI Handshake" with an empty appHash
+		// and no indication that genesis replay never happened.
+		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
 				Error: abci.StringError(err.Error()),
@@ -791,6 +797,20 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 				Log:   "genesis replay: skipped failed tx from source chain",
 			},
 		}, true
+	}
+
+	// Every tx delivered during InitChain replay is a genesis replay tx.
+	// Mark the ctx so the ante's genesis signature-skip also covers the
+	// historical/patched txs whose BlockHeight is overridden above (see
+	// auth.GenesisReplayKey). Composes with any ctxFn built above, and
+	// only affects sig verification when the node ran with
+	// --skip-genesis-sig-verification.
+	prev := ctxFn
+	ctxFn = func(ctx sdk.Context) sdk.Context {
+		if prev != nil {
+			ctx = prev(ctx)
+		}
+		return ctx.WithValue(auth.GenesisReplayKey{}, true)
 	}
 
 	res := cfg.baseApp.Deliver(stdTx, ctxFn)
