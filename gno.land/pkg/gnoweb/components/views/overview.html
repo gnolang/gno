@@ -67,8 +67,8 @@ UI - Package quality (sidebar card)
   <h3 class="b-pkg-meta-heading">Metadata</h3>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
-    {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: it can only be added to the chain at genesis, and newly added modules cannot import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
-    {{ if .Info.Private }}<li class="b-tag--tertiary" title="Marked private in gnomod.toml: other realms cannot import it, and references to the objects it owns cannot be stored outside it.">private</li>{{ else }}<li class="b-tag--tertiary" title="Not marked private in gnomod.toml, so other realms may import it.">public</li>{{ end }}
+    {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: the author considers it not production-ready, and other packages cannot import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
+    {{ if .Info.Private }}<li class="b-tag--tertiary" title="Marked private in gnomod.toml: other realms cannot import it or retain references to the objects it owns. Unlike a public package it can be re-uploaded to the same path, and the replacement must stay private.">private</li>{{ else }}<li class="b-tag--tertiary" title="Not marked private in gnomod.toml: other realms may import it, and once deployed it cannot be re-uploaded to the same path.">public</li>{{ end }}
     {{/* Completeness signals — present-only, uniform tags (no check/cross icon) */}}
     {{ with .Quality }}
     {{ if .HasPkgDoc }}<li class="b-tag--tertiary" title="The package has a doc comment above its package clause.">Documented</li>{{ end }}
@@ -235,7 +235,7 @@ UI - Overview body
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></span>
+    <a href="{{ .PkgPath }}/" class="c-with-icon" title="Open the file directory"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></a>
     <span class="count">{{ len .Files }}</span>
   </h2>
   <ul class="b-pkg-list b-pkg-section__body">

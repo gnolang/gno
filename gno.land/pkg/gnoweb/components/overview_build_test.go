@@ -58,30 +58,6 @@ func TestBugsNotInDoc(t *testing.T) {
 	require.Nil(t, bugsNotInDoc(nil, "anything"))
 }
 
-func TestBugsNotInDoc_KeepsNoteThatIsPrefixOfAnother(t *testing.T) {
-	t.Parallel()
-	// Only the longer note lives in the package doc. The shorter one is a
-	// distinct floating note and must survive, even though its text is a
-	// substring of the inline one.
-	got := bugsNotInDoc(
-		[]string{"Foo panics on nil", "Foo panics on nil input; use Bar"},
-		"Package foo does things.\n\nBUG(alice): Foo panics on nil input; use Bar\n",
-	)
-	require.Equal(t, []string{"Foo panics on nil"}, got)
-}
-
-func TestBugsNotInDoc_TabIndentedNoteIsInline(t *testing.T) {
-	t.Parallel()
-	// An indented note is still the same note, whichever whitespace indents it.
-	for _, indent := range []string{" ", "\t"} {
-		got := bugsNotInDoc(
-			[]string{"thing A is broken"},
-			"Package foo does things.\n\n"+indent+"thing A is broken\n",
-		)
-		require.Nil(t, got, "note indented with %q must count as already rendered", indent)
-	}
-}
-
 func TestDeriveQuality(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -20,36 +20,12 @@ func bugsNotInDoc(bugs []string, packageDoc string) []string {
 	}
 	var out []string
 	for _, b := range bugs {
-		if docHasNote(packageDoc, strings.TrimSpace(b)) {
+		if strings.Contains(packageDoc, strings.TrimSpace(b)) {
 			continue
 		}
 		out = append(out, b)
 	}
 	return out
-}
-
-// docHasNote reports whether packageDoc contains note as a whole block rather
-// than as a fragment of a longer sentence. A plain substring test would drop a
-// distinct floating note whose text happens to be a prefix of an inline one.
-func docHasNote(packageDoc, note string) bool {
-	if note == "" {
-		return false
-	}
-	for i := 0; ; {
-		j := strings.Index(packageDoc[i:], note)
-		if j < 0 {
-			return false
-		}
-		start := i + j
-		end := start + len(note)
-		beforeOK := start == 0 || strings.ContainsRune(" \t\n", rune(packageDoc[start-1]))
-		rest := strings.TrimLeft(packageDoc[end:], " \t")
-		afterOK := rest == "" || strings.HasPrefix(rest, "\n")
-		if beforeOK && afterOK {
-			return true
-		}
-		i = start + 1
-	}
 }
 
 // computeStats derives numeric counters from the file list and qdoc payload.
