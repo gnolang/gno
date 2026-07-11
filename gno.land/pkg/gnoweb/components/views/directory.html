@@ -3,8 +3,8 @@
   <header class="b-content-header">
     <h1 class="title b-content-h1">{{ $pkgpath }}</h1>
     <div class="header-info">
-      {{ if .Mode.IsExplorer }}<span>Explorer · {{ .FileCounter }} Packages</span>
-      {{ else }}<a class="b-directory__source-link" href="{{ $pkgpath }}$source" title="Open the package source view">Directory · {{ .FileCounter }} Files</a>{{ end }}
+      <span>{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages {{
+        else }} Directory · {{ .FileCounter }} Files {{ end }}</span>
     </div>
   </header>
 

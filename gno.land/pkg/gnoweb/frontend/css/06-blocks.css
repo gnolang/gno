@@ -705,12 +705,6 @@
 		color: var(--s-color-text-tertiary);
 		font-size: var(--g-font-size-100);
 	}
-
-	/* The directory file count links to the source view; underline it on hover
-	   so the affordance reads without changing the resting look. */
-	.b-directory__source-link:hover {
-		text-decoration: underline;
-	}
 }
 
 /* Responsive label-hide for `.b-inline-btn` toolbars: icon-only on
@@ -1374,10 +1368,6 @@ main.dev-mode .b-toc a {
 }
 
 .b-source-toc {
-	& > .b-source-toc__overview {
-		margin-block-end: var(--g-space-4);
-	}
-
 	& > .b-toc {
 		margin-block-end: var(--g-space-4);
 	}
