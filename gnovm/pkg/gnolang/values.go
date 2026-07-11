@@ -747,12 +747,12 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 		callerPath = operand.T.GetPkgPath()
 	}
 	// The method name is invariant across layers, so the operand's identity
-	// fully identifies the loop state: a revisited identity means the resolution
-	// can only repeat forever (a cyclic embed, e.g. `s.IG = s`). Identity is the
-	// pointee for a pointer operand and the heap object for a struct operand (an
-	// interface field re-read yields the same *StructValue each hop, so a cycle
-	// routed through a boxed struct value recurs by pointer identity too). Other
-	// shapes cannot embed fields and so cannot yield another lazy hop.
+	// fully identifies the loop state: a revisited identity means a cyclic
+	// embed (e.g. `s.IG = s`). Pointer and struct operands are the only shapes
+	// that can recur — another lazy hop needs an embedded interface, and only
+	// structs can embed; anything else terminates this iteration. The graph is
+	// fixed during resolution (no user code runs), and field re-reads yield
+	// stable identities, so any endless walk must revisit a recorded one.
 	var seen map[any]struct{}
 	for {
 		// Charge per hop so the cost scales with embedded-interface depth rather
