@@ -1402,9 +1402,11 @@ const (
 	// layer), so deep/nested embedded-interface dispatch is metered by depth like
 	// the eager concrete path. Single-hop resolution (the common case) charges it
 	// once — gas-neutral with the prior per-call charge.
-	// TODO(calibration), before the fork ships: re-measure on the gas-table
-	// reference HW — 529 is ratio-scaled (lazy-vs-concrete bench delta against
-	// OpCPUPrecallBoundMethod's known value) and reused as the per-hop cost.
+	// 529 is ratio-scaled: the lazy-vs-concrete bench delta on a dev machine,
+	// anchored to OpCPUPrecallBoundMethod's known reference value, so the
+	// machine-speed factor cancels; reused as the per-hop cost.
+	// TODO(calibration): measure directly on the gas-table reference HW when
+	// its numbers are next refreshed.
 	OpCPULazyBoundResolve    = 529
 	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
@@ -1466,7 +1468,7 @@ const (
 	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
-	OpCPUSelectorInterface   = 276 // base; VPInterface, per-method added in handler. Was 751 (eager dispatch walked the trail here); the walk moved to call time (OpCPULazyBoundResolve), so the bind only does the method lookup + lazy-bind alloc now. TODO(calibration): ratio-scaled re-fit (~140ns pure), re-measure on the reference HW with OpCPULazyBoundResolve before the fork ships.
+	OpCPUSelectorInterface   = 276 // base; VPInterface, per-method added in handler. Was 751 (eager dispatch walked the trail here); the walk moved to call time (OpCPULazyBoundResolve), so the bind only does the method lookup + lazy-bind alloc now. TODO(calibration): ratio-scaled re-fit (~140ns pure); measure with OpCPULazyBoundResolve when the reference-HW numbers are next refreshed.
 	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
 	OpCPUStar                = 102
 	OpCPURef                 = 210
