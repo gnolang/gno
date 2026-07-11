@@ -15,6 +15,11 @@ type Cnt struct{ N int }
 
 func (c Cnt) sec() int { return c.N }
 
+// RecImpl records each sec run (observable through a deferred call).
+type RecImpl struct{ Ran int }
+
+func (r *RecImpl) sec() int { r.Ran++; return 7 }
+
 func UseSec(x Sec) int { return x.sec() }
 
 // MakeGetter forms the method value inside sec's origin package.
