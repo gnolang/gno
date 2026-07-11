@@ -102,15 +102,11 @@ UI - TOC Source component
   </details>
   {{ end }}
 
-  <!-- TOML Files Section -->
+  <!-- Configuration Files Section — always open: a package has few config
+       files (usually just gnomod.toml), so a collapse toggle adds no value. -->
   {{ if .TomlFiles }}
-  <details class="accordion">
-    <summary class="c-with-icon">
-      <svg class="c-icon">
-        <use href="#ico-arrow"></use>
-      </svg>
-      <h3>Configuration Files</h3>
-    </summary>
+  <div class="b-source-toc__section">
+    <h3>Configuration Files</h3>
     <ul class="b-toc">
       {{ range .TomlFiles }}
       <li>
@@ -123,7 +119,7 @@ UI - TOC Source component
       </li>
       {{ end }}
     </ul>
-  </details>
+  </div>
   {{ end }}
 </div>
 {{ end }}

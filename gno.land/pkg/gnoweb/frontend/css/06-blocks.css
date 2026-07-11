@@ -705,6 +705,12 @@
 		color: var(--s-color-text-tertiary);
 		font-size: var(--g-font-size-100);
 	}
+
+	/* The directory file count links to the source view; underline it on hover
+	   so the affordance reads without changing the resting look. */
+	.b-directory__source-link:hover {
+		text-decoration: underline;
+	}
 }
 
 /* Responsive label-hide for `.b-inline-btn` toolbars: icon-only on
@@ -1378,6 +1384,14 @@ main.dev-mode .b-toc a {
 
 	& > * + * {
 		margin-block-start: var(--g-space-1-5);
+	}
+
+	/* Always-open file section (Configuration Files): a heading over its list,
+	   matching the accordion's heading type without the collapse toggle. */
+	.b-source-toc__section h3 {
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-medium);
+		margin-block: 0 var(--g-space-1);
 	}
 
 	.accordion {
