@@ -2084,9 +2084,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// Interface... what can we do?
 								} else if fv := ftv.GetUnboundFunc(); fv != nil {
 									// fv == nil: typed-nil crossing func (e.g.
-									// `var f func(cur realm); f(cur)`); fall
-									// through, runtime will panic with
-									// "call of nil function".
+									// `var f func(cur realm); f(cur)`) or a
+									// lazy interface bind (no concrete func
+									// until call time); fall through, the
+									// runtime check covers both.
 									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
 											fv.PkgPath, n.Func, ctxpn.PkgPath))
