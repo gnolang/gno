@@ -35,5 +35,3 @@ func main() {
 		panic(o.Foo)
 	}
 }
-
-// Output:
