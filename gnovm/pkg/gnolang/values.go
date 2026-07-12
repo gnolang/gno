@@ -2365,7 +2365,7 @@ func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	case *FuncValue:
 		return fv
 	case *BoundMethodValue:
-		return fv.Func
+		return fv.Func // nil for a lazy bind: bmv exists, concrete func doesn't yet
 	default:
 		panic(fmt.Sprintf("expected func/method or nil but got %T", tv.V))
 	}
