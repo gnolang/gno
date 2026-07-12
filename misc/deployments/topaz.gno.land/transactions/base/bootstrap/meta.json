@@ -1,0 +1,10 @@
+{
+  "reason": "topaz bootstrap MsgRun: seeds aeddi as the sole GovDAO T1 member and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/v3/impl. No transfer lock — topaz is unrestricted.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "govdao_prop1_topaz.gno"
+}
