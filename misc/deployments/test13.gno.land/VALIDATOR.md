@@ -96,6 +96,11 @@ gnoland start \
 
 `--skip-genesis-sig-verification` is **required**: test13's genesis replays historical transactions whose signatures a fresh node can't re-verify, so the node panics on startup without it.
 
+> **Tip:** the default log level is `debug`, which is very verbose on a long-running node.
+> Consider adding `--log-level info` to the start command for day-to-day operation
+> (options: `debug`, `info`, `warn`, `error`).
+
+
 Let the node sync, and wait until it has caught up to the chain tip before the next step.
 
 ## 5. Register as a validator candidate
@@ -119,7 +124,7 @@ gnokey maketx call \
   --args "<cloud|on-prem|data-center>" \
   --args "<your operator g1... address>" \
   --args "<your gpub1... consensus pubkey>" \
-  --gas-fee 1000000ugnot --gas-wanted 50000000 \
+  --gas-fee 1000000ugnot --gas-wanted 100000000 \
   --chainid test-13 \
   --remote https://rpc.test13.testnets.gno.land \
   --broadcast \
