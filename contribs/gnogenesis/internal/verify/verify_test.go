@@ -163,6 +163,58 @@ func TestGenesis_Verify(t *testing.T) {
 		}
 	})
 
+	t.Run("missing signer public key", func(t *testing.T) {
+		// Zero-value placeholder signatures (e.g. valoper-seed output)
+		// carry no public key. Verification must reject them with a
+		// proper error, not dereference the nil PubKey.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		sender := ed25519.GenPrivKey()
+		sendMsg := bank.MsgSend{
+			FromAddress: sender.PubKey().Address(),
+			ToAddress:   sender.PubKey().Address(),
+			Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+		}
+
+		tx := std.Tx{
+			Msgs: []std.Msg{sendMsg},
+			Fee: std.Fee{
+				GasWanted: 1000000,
+				GasFee:    std.NewCoin("ugnot", 20),
+			},
+		}
+		// One zero-value signature per signer: passes ValidateBasic's
+		// len(Signatures) == len(GetSigners()) requirement, carries no
+		// key material.
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+		appState := g.AppState.(gnoland.GnoGenesisState)
+		appState.Txs = []gnoland.TxWithMetadata{
+			{
+				Tx: tx,
+			},
+		}
+		g.AppState = appState
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		// Create the command
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{
+			"--genesis-path",
+			tempFile.Name(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorIs(t, cmdErr, errInvalidTxSignature)
+	})
+
 	t.Run("invalid balances", func(t *testing.T) {
 		t.Parallel()
 

@@ -88,6 +88,16 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			// Basic tx validation ensures there is at least 1 signer
 			signer := tx.Tx.GetSignatures()[0]
 
+			// Zero-value placeholder signatures carry no public key —
+			// nothing to verify against.
+			if signer.PubKey == nil {
+				return fmt.Errorf(
+					"%w #%d, missing signer public key",
+					errInvalidTxSignature,
+					index,
+				)
+			}
+
 			// Grab the signature bytes of the tx.
 			// Genesis transactions are signed with
 			// account number and sequence set to 0
