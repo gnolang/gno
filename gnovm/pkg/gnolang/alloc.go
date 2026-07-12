@@ -330,12 +330,15 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
-		// Clone, not alias: the child must not mutate the parent's
-		// tracking state (CleanupTrackedStrings would silently prune
-		// the parent's entries; query paths fork on a different
-		// goroutine). The parent's existing entries are preserved so
-		// the child sees them on first lookup.
-		stringRanges: slices.Clone(alloc.stringRanges),
+		// stringRanges starts empty (nil). The child re-registers every
+		// string it charges through its own NewString / fillTypesOfValue
+		// path: the tx store's caches start empty, so persisted strings
+		// are reloaded and re-tracked, and runtime-created strings are
+		// tracked at creation. Carrying the parent's entries over is
+		// unnecessary (they are never consulted), and sharing them would
+		// be unsafe — the child's CleanupTrackedStrings would prune the
+		// parent's entries, and query paths fork on a different goroutine.
+		stringRanges: nil,
 	}
 }
 

@@ -288,11 +288,13 @@ func TestTrackString_SubrangeIdempotent(t *testing.T) {
 	}
 }
 
-// TestFork_ClonesStringRanges verifies the Fork-aliasing fix from
-// thehowl's review: a forked allocator must not share its tracking
-// state with the parent. Mutations on the child (e.g. cleanup) must
-// not leak back.
-func TestFork_ClonesStringRanges(t *testing.T) {
+// TestFork_StartsWithEmptyTracking verifies that Fork does not carry
+// over the parent's string tracking. The child re-registers every
+// string it charges through its own NewString / fillTypesOfValue path,
+// so the parent's entries are unnecessary; sharing them would also be
+// unsafe (the child's CleanupTrackedStrings would prune the parent, and
+// query paths fork on a different goroutine). Related: thehowl's review.
+func TestFork_StartsWithEmptyTracking(t *testing.T) {
 	parent := NewAllocator(1_000_000)
 	parent.NewString("parented")
 	if got := len(parent.stringRanges); got != 1 {
@@ -300,19 +302,20 @@ func TestFork_ClonesStringRanges(t *testing.T) {
 	}
 
 	child := parent.Fork()
-	if got := len(child.stringRanges); got != 1 {
-		t.Errorf("child should inherit 1 range, got %d", got)
-	}
-
-	// Cleanup on the child with a fresh cycle drops everything in the child.
-	child.CleanupTrackedStrings(99)
 	if got := len(child.stringRanges); got != 0 {
-		t.Errorf("child cleanup should drop all entries, got %d", got)
+		t.Errorf("child should start with empty tracking, got %d", got)
 	}
 
-	// Parent must be unaffected.
+	// The child tracks its own strings independently.
+	child.NewString("child-owned")
+	if got := len(child.stringRanges); got != 1 {
+		t.Errorf("child should track its own string, got %d", got)
+	}
+
+	// Child mutations must not touch the parent.
+	child.CleanupTrackedStrings(99)
 	if got := len(parent.stringRanges); got != 1 {
-		t.Errorf("parent's ranges leaked to child: got %d, want 1", got)
+		t.Errorf("parent's ranges must be independent of the child: got %d, want 1", got)
 	}
 }
 
