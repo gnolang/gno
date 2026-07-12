@@ -20,7 +20,7 @@ func main() {
 }
 
 // Error:
-// main/method47.gno:19:6-11: ambiguous selector Foo in main.C
+// main/method43.gno:19:6-11: ambiguous selector Foo in main.C
 
 // TypeCheckError:
-// main/method47.gno:19:8: ambiguous selector c.Foo
+// main/method43.gno:19:8: ambiguous selector c.Foo
