@@ -163,6 +163,103 @@ func TestGenesis_Verify(t *testing.T) {
 		}
 	})
 
+	t.Run("skip signature check", func(t *testing.T) {
+		// Genesis-mode txs can carry signatures that intentionally don't
+		// verify: a caller_override patches the caller post-sign (e.g. a
+		// names.Enable admin call), and valoper-seed emits zero-value
+		// placeholder signatures. Nodes accept both under
+		// --skip-genesis-sig-verification; -skip-signature-check is the
+		// verify-time equivalent, keeping every other check active.
+		t.Parallel()
+
+		testTable := []struct {
+			name         string
+			signaturesFn func(tx *std.Tx, chainID string) []std.Signature
+		}{
+			{
+				name: "mutated tx body (caller_override)",
+				signaturesFn: func(tx *std.Tx, chainID string) []std.Signature {
+					// Sign with a chain ID that differs from the genesis
+					// chain ID — same mismatch class as a post-sign
+					// caller patch: valid signature shape, wrong payload.
+					signer := ed25519.GenPrivKey()
+					signBytes, err := tx.GetSignBytes(chainID+"wrong", 0, 0)
+					require.NoError(t, err)
+					signature, err := signer.Sign(signBytes)
+					require.NoError(t, err)
+
+					return []std.Signature{
+						{
+							PubKey:    signer.PubKey(),
+							Signature: signature,
+						},
+					}
+				},
+			},
+			{
+				name: "zero-value placeholder signature (valoper-seed)",
+				signaturesFn: func(tx *std.Tx, _ string) []std.Signature {
+					return make([]std.Signature, len(tx.GetSigners()))
+				},
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				tempFile, cleanup := testutils.NewTestFile(t)
+				t.Cleanup(cleanup)
+
+				g := getValidTestGenesis()
+
+				sender := ed25519.GenPrivKey()
+				sendMsg := bank.MsgSend{
+					FromAddress: sender.PubKey().Address(),
+					ToAddress:   sender.PubKey().Address(),
+					Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+				}
+
+				tx := std.Tx{
+					Msgs: []std.Msg{sendMsg},
+					Fee: std.Fee{
+						GasWanted: 1000000,
+						GasFee:    std.NewCoin("ugnot", 20),
+					},
+				}
+				tx.Signatures = testCase.signaturesFn(&tx, g.ChainID)
+
+				appState := g.AppState.(gnoland.GnoGenesisState)
+				appState.Txs = []gnoland.TxWithMetadata{
+					{
+						Tx: tx,
+					},
+				}
+				g.AppState = appState
+
+				require.NoError(t, g.SaveAs(tempFile.Name()))
+
+				// Without the flag, verification must fail.
+				cmd := NewVerifyCmd(commands.NewTestIO())
+				args := []string{
+					"--genesis-path",
+					tempFile.Name(),
+				}
+				require.Error(t, cmd.ParseAndRun(context.Background(), args))
+
+				// With the flag, every non-signature check still runs
+				// and the genesis is accepted.
+				cmd = NewVerifyCmd(commands.NewTestIO())
+				args = []string{
+					"--genesis-path",
+					tempFile.Name(),
+					"--skip-signature-check",
+				}
+				require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+			})
+		}
+	})
+
 	t.Run("missing signer public key", func(t *testing.T) {
 		// Zero-value placeholder signatures (e.g. valoper-seed output)
 		// carry no public key. Verification must reject them with a

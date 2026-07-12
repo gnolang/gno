@@ -31,6 +31,8 @@ const (
 
 type verifyCfg struct {
 	common.Cfg
+
+	skipSignatureCheck bool
 }
 
 // NewVerifyCmd creates the genesis verify subcommand
@@ -53,6 +55,13 @@ func NewVerifyCmd(io commands.IO) *commands.Command {
 
 func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.Cfg.RegisterFlags(fs)
+
+	fs.BoolVar(&c.skipSignatureCheck, "skip-signature-check", false,
+		"skip per-tx signature verification. Genesis-mode txs can carry "+
+			"signatures that intentionally don't verify (post-sign caller "+
+			"overrides, valoper-seed placeholder signatures); nodes accept "+
+			"them under --skip-genesis-sig-verification. Every other check "+
+			"still runs.")
 }
 
 func execVerify(cfg *verifyCfg, io commands.IO) error {
@@ -82,6 +91,10 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 		for index, tx := range state.Txs {
 			if validateErr := tx.Tx.ValidateBasic(); validateErr != nil {
 				return fmt.Errorf("invalid transacton, %w", validateErr)
+			}
+
+			if cfg.skipSignatureCheck {
+				continue
 			}
 
 			// Genesis txs can only be signed by 1 account.
