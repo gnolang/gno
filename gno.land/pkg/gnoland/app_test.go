@@ -1252,29 +1252,118 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
+// TestGasPriceMinimumIsCheckTxOnly verifies that the production ante handler
+// enforces the block gas price minimum in CheckTx, but not in DeliverTx.
 func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
-	app := newGasPriceTestApp(t)
-	app.InitChain(abci.RequestInitChain{
-		AppState: gnoGenesisState(t),
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	baseApp := app.(*sdk.BaseApp)
+
+	initialPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 100, Denom: "ugnot"},
+	}
+
+	gen := gnoGenesisState(t)
+	gen.Auth.Params.InitialGasPrice = initialPrice
+
+	privKey := getDummyKey(t)
+	addr := privKey.PubKey().Address()
+
+	gen.Balances = []Balance{
+		{
+			Address: addr,
+			Amount:  []std.Coin{{Amount: 10_000_000_000, Denom: "ugnot"}},
+		},
+	}
+
+	initRes := baseApp.InitChain(abci.RequestInitChain{
+		AppState: gen,
 		ChainID:  "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
-			Block: &abci.BlockParams{MaxGas: 1_000_000},
+			Block: &abci.BlockParams{MaxGas: 10_000_000},
 		},
 	})
+	require.True(
+		t,
+		initRes.ResponseBase.IsOK(),
+		"InitChain failed: %v",
+		initRes.ResponseBase.Error,
+	)
+	baseApp.Commit()
 
-	tx := newCounterTx(100)
+	query := abci.RequestQuery{
+		Path: ".store/main/key",
+		Data: []byte(auth.GasPriceKey),
+	}
+
+	var storedPrice std.GasPrice
+	qr := baseApp.Query(query)
+	require.True(t, qr.IsOK(), "query failed: %v", qr.ResponseBase.Error)
+	require.NoError(t, amino.Unmarshal(qr.Value, &storedPrice))
+	require.Equal(t, initialPrice, storedPrice)
+
+	msgs := []std.Msg{
+		bank.NewMsgSend(
+			addr,
+			crypto.AddressFromPreimage([]byte("test-account")),
+			std.Coins{{Denom: "ugnot", Amount: 100}},
+		),
+	}
+
+	tx := createAndSignTx(t, msgs, "test-chain", privKey)
 	tx.Fee = std.Fee{
-		GasWanted: 10_000,
+		GasWanted: 10_000_000,
 		GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
 	}
+
+	// The fee is part of the sign bytes, so the transaction must be re-signed.
+	signBytes, err := tx.GetSignBytes("test-chain", 0, 0)
+	require.NoError(t, err)
+
+	sig, err := privKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:   privKey.PubKey(),
+			Signature: sig,
+		},
+	}
+
 	txBytes, err := amino.Marshal(tx)
 	require.NoError(t, err)
 
-	require.False(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
-	app.BeginBlock(abci.RequestBeginBlock{
-		Header: &bft.Header{ChainID: "test-chain", Height: 1},
+	checkRes := baseApp.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.False(
+		t,
+		checkRes.IsOK(),
+		"CheckTx should reject a transaction below the block gas price: %v",
+		checkRes,
+	)
+	require.Contains(
+		t,
+		checkRes.Log,
+		"as block gas price",
+		"unexpected CheckTx error: %s",
+		checkRes.Log,
+	)
+
+	baseApp.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{
+			ChainID: "test-chain",
+			Height:  2,
+		},
 	})
-	require.True(t, app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes}).IsOK())
+
+	// This documents the current bug: DeliverTx does not enforce the minimum.
+	deliverRes := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(
+		t,
+		deliverRes.IsOK(),
+		"DeliverTx failed: %+v",
+		deliverRes,
+	)
 }
 
 func TestGasPriceEmptyBlockUpdate(t *testing.T) {
