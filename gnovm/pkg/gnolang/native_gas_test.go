@@ -21,8 +21,9 @@ func (r *recordingMeter) ConsumeGas(amount types.Gas, _ string) {
 func (r *recordingMeter) RefundGas(amount types.Gas, _ string) {
 	r.consumed -= amount
 }
-func (r *recordingMeter) IsPastLimit() bool { return false }
-func (r *recordingMeter) IsOutOfGas() bool  { return false }
+func (r *recordingMeter) SetLimit(types.Gas) {}
+func (r *recordingMeter) IsPastLimit() bool  { return false }
+func (r *recordingMeter) IsOutOfGas() bool   { return false }
 
 const (
 	testNativePkg = "x_test_native"

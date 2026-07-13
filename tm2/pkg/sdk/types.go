@@ -2,6 +2,7 @@ package sdk
 
 import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -20,7 +21,27 @@ type Handler interface {
 	Query(ctx Context, req abci.RequestQuery) abci.ResponseQuery
 }
 
+// PayGasInfo tracks whether a realm has called PayGas in the current transaction.
+type PayGasInfo struct {
+	RealmPkgPath string         // pkg path of the realm that called PayGas
+	RealmAddr    crypto.Address // derived address of the realm
+	MaxFee       int64          // gas fee cap in ugnot (0 = PayGas not called)
+	Eligible     bool           // true only for 0-fee credit-window txs; PayGas is a no-op otherwise
+}
+
+type PayStorageInfo struct {
+	RealmPkgPath     string           // pkg path of the realm that called PayStorage
+	RealmAddr        crypto.Address   // derived address of the realm
+	MaxDeposit       int64            // storage deposit cap in ugnot (0 = PayStorage not called)
+	SpentDeposit     int64            // deposit already charged across prior messages (per-tx running total)
+	AccumulatedDiffs map[string]int64 // tx-level storage diff accumulator (when SponsorStorage=true)
+	Eligible         bool             // true only for 0-fee credit-window txs; PayStorage is a no-op otherwise
+}
+
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.
+// Its wire encoding must stay compatible with abci.ResponseDeliverTx (same
+// fields), so no PayGas/sponsorship state is carried here — that lives on the
+// (in-process) sdk.Context and is read directly from there in endTxHook.
 type Result struct {
 	abci.ResponseBase
 	GasWanted int64
@@ -57,4 +78,13 @@ const (
 	RunTxModeSimulate RunTxMode = iota
 	// Deliver a transaction
 	RunTxModeDeliver RunTxMode = iota
+	// RunTxModeCheckExecute runs a transaction's messages during CheckTx
+	// admission (used for 0-fee PayGas txs, to validate that a realm called
+	// PayGas) while persisting the ante handler's writes — notably the account
+	// sequence increment — to checkState, and discarding the message writes.
+	// Unlike Simulate it does not wrap the context in a throwaway cache, so an
+	// admitted sponsored tx advances the mempool sequence; unlike Check it
+	// executes the messages. Signatures are verified normally (it is not a
+	// Simulate mode), so it needs no signature-verification override.
+	RunTxModeCheckExecute RunTxMode = iota
 )

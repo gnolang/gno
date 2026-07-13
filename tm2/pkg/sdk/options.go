@@ -99,3 +99,10 @@ func (app *BaseApp) SetEndTxHook(endTx EndTxHook) {
 	}
 	app.endTxHook = endTx
 }
+
+func (app *BaseApp) SetAllowZeroFeeTxs(allow bool) {
+	if app.sealed {
+		panic("SetAllowZeroFeeTxs() on sealed BaseApp")
+	}
+	app.allowZeroFeeTxs = allow
+}

@@ -23,5 +23,9 @@ type EndBlocker func(ctx Context, req abci.RequestEndBlock) abci.ResponseEndBloc
 type BeginTxHook func(ctx Context) Context
 
 // EndTxHook is a BaseApp-specific hook, called after all the messages in a
-// transaction have terminated.
-type EndTxHook func(ctx Context, result Result)
+// transaction have terminated. It runs once per DeliverTx, and only when the tx
+// SUCCEEDED — a failed tx reverts all of its state and runs no settlement. The
+// hook may perform end-of-tx settlement and commit any app-side transaction
+// store. Returning a non-nil error fails the tx: its writes are reverted and the
+// error surfaces as a typed ABCI error instead of a panic.
+type EndTxHook func(ctx Context, result Result) error

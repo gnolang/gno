@@ -61,6 +61,9 @@ type BaseApp struct {
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices []GasPrice
 
+	// Allow 0-fee txs when realms sponsor gas via PayGas.
+	allowZeroFeeTxs bool
+
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
 
@@ -583,8 +586,38 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 //
 // NOTE:CheckTx does not run the actual Msg handler function(s).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
-	ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+	var tx Tx
+	if err := amino.Unmarshal(req.Tx, &tx); err != nil {
+		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		return
+	}
+
+	// For 0-fee txs when allowed, use RunTxModeCheckExecute to run full VM
+	// execution so that runTx can validate PayGas was called before accepting
+	// into the mempool (the PayGas-not-called rejection itself lives in runTx,
+	// for all modes). Unlike Simulate, this mode persists the ante's account
+	// sequence increment to checkState when the tx is admitted, so a subsequent
+	// sponsored tx from the same account (sequence+1) is accepted; and it
+	// verifies signatures normally (it is not Simulate), so no forged-signature
+	// tx can enter the mempool.
+	//
+	// Only do this on FIRST-TIME admission. A recheck (issued after every
+	// committed block for every still-pending tx) must NOT re-run the full VM:
+	// the tx already passed admission once, and re-executing every pending 0-fee
+	// tx each block is an unbounded CPU-amplification vector. On recheck we fall
+	// back to the cheap ante-only RunTxModeCheck, which re-validates sequence and
+	// funding; DeliverTx independently re-enforces PayGas at inclusion time.
+	mode := RunTxModeCheck
+	if req.Type != abci.CheckTxTypeRecheck &&
+		tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs &&
+		app.consensusParams != nil && app.consensusParams.Block != nil &&
+		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
+		mode = RunTxModeCheckExecute
+	}
+	ctx := app.getContextForTx(mode, req.Tx)
+
 	result := app.runTx(ctx, req.Tx)
+
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
 	res.GasUsed = result.GasUsed
@@ -703,7 +736,9 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 // Returns the applications's deliverState if app is in RunTxModeDeliver,
 // otherwise it returns the application's checkstate.
 func (app *BaseApp) getState(mode RunTxMode) *state {
-	if mode == RunTxModeCheck || mode == RunTxModeSimulate {
+	// Only DeliverTx runs against deliverState; Check, Simulate and CheckExecute
+	// (mempool admission) all operate on checkState.
+	if mode != RunTxModeDeliver {
 		return app.checkState
 	}
 
@@ -741,6 +776,8 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 			modeName = "simulate"
 		case RunTxModeDeliver:
 			modeName = "deliver"
+		case RunTxModeCheckExecute:
+			modeName = "check_execute"
 		}
 		// GasWanted isn't known until after the ante handler unmarshals
 		// the tx and reads the fee; log 0 here as a placeholder.
@@ -892,17 +929,41 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		ctx, msCache = app.cacheTxContext(ctx)
 	}
 	cp := msCache.(store.Checkpointable)
+
+	// Set up the shared PayGas / PayStorage context before message execution, so
+	// the sponsorship pointers are visible to every message in the tx.
+	runMsgCtx := ctx
+
+	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
+	// PayGas is only meaningful — and only permitted to move funds or resize the
+	// gas meter — for such txs; in a normal fee-paying tx it is a no-op.
+	// Genesis (height 0) is exempt: genesis txs are trusted and never call PayGas,
+	// so they must not be subjected to the credit-window enforcement below.
+	zeroFeeCreditTx := ctx.BlockHeight() > 0 &&
+		tx.Fee.GasFee.IsZero() &&
+		app.consensusParams != nil && app.consensusParams.Block != nil &&
+		app.consensusParams.Block.MaxGasCreditPerTx > 0
+
+	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
+	psi := &PayStorageInfo{Eligible: zeroFeeCreditTx}
+	if runMsgCtx.SponsorStorage() {
+		psi.AccumulatedDiffs = make(map[string]int64)
+	}
+	runMsgCtx = runMsgCtx.
+		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
+		WithPayStorageInfo(psi)
+
 	cp.Checkpoint()
 
-	// Flush ante writes on DeliverTx panic (e.g., OutOfGasError).
-	// Registered after existing defers so it runs first (LIFO).
+	// On a DeliverTx panic (e.g., OutOfGasError) discard the message writes and
+	// flush only the ante writes (notably the account sequence increment).
+	// Registered after the existing defers so it runs first (LIFO).
 	defer func() {
 		if mode == RunTxModeDeliver && cp.HasCheckpoint() {
 			cp.WriteCheckpoint()
 		}
 	}()
 
-	runMsgCtx := ctx
 	if app.beginTxHook != nil {
 		runMsgCtx = app.beginTxHook(runMsgCtx)
 	}
@@ -910,19 +971,49 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
-	// Simulate: return after msg execution. The outer CacheContext
-	// (from getContextForTx) discards everything.
+	// Whether a realm called PayGas is read from the (in-process) context, not
+	// carried on result — result must stay wire-compatible with ResponseDeliverTx.
+	pgi := runMsgCtx.PayGasInfo()
+	payGasCalled := pgi != nil && pgi.MaxFee > 0
+
+	// Enforce sponsorship for 0-fee txs in EVERY mode — including DeliverTx, so a
+	// block proposer cannot force-include a free tx that skips PayGas. A 0-fee tx
+	// that never called PayGas has no payer, so it must fail and have its msg
+	// writes discarded (below, result.IsOK() is false → WriteCheckpoint reverts).
+	if zeroFeeCreditTx && !payGasCalled && result.IsOK() {
+		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
+	}
+
+	// Non-Deliver modes return after msg execution without committing message
+	// state. CheckExecute (0-fee mempool admission) additionally persists the
+	// ante writes — notably the account sequence increment — to checkState when
+	// the tx is ADMITTED (result OK), so a subsequent sponsored tx from the same
+	// account at sequence+1 is accepted. WriteCheckpoint flushes only the ante
+	// snapshot and discards the message writes (CheckTx must not commit state). A
+	// rejected tx flushes nothing, leaving the mempool sequence unadvanced, so it
+	// can be resubmitted. Simulate (RPC gas estimation) discards everything via
+	// the outer CacheContext.
 	if mode != RunTxModeDeliver {
+		if mode == RunTxModeCheckExecute && result.IsOK() {
+			cp.WriteCheckpoint()
+		}
 		return result
 	}
 
-	if app.endTxHook != nil {
-		app.endTxHook(runMsgCtx, result)
+	// End-of-tx settlement + commit runs ONLY on success. On failure every
+	// message write reverts and a gas sponsor does NOT pay — see the design note
+	// in docs/design/realm-gas-sponsorship-hld.md. A settlement error fails the
+	// tx, which then takes the revert branch below.
+	if result.IsOK() && app.endTxHook != nil {
+		if err := app.endTxHook(runMsgCtx, result); err != nil {
+			result.Error = ABCIError(err)
+		}
 	}
 
 	if result.IsOK() {
 		msCache.MultiWrite()
 	} else {
+		// Failure: discard the message writes, keeping only the ante writes.
 		cp.WriteCheckpoint()
 	}
 

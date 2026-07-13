@@ -119,6 +119,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
 	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 148.4ns
 	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 5.0ns
+	{Pkg: "chain/runtime", Fn: "PayGas", Base: 600, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat; realm balance read + arithmetic (heuristic, recalibrate via gnovm/cmd/calibrate)
+	{Pkg: "chain/runtime", Fn: "PayStorage", Base: 600, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat; realm balance read + arithmetic (heuristic, recalibrate via gnovm/cmd/calibrate)
 	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.
 	{Pkg: "chain/runtime/unsafe", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // mirrors chain/runtime.originCaller
 	{Pkg: "chain/runtime/unsafe", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // mirrors chain/runtime.getRealm

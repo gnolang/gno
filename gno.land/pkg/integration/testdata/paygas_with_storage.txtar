@@ -1,0 +1,52 @@
+# Test that PayGas + PayStorage together make the user pay truly 0 gnot.
+# The realm pays both gas fees and storage deposits.
+
+## start a new node
+gnoland start
+
+## deploy realm that calls PayGas + PayStorage and modifies state
+gnokey maketx addpkg -pkgdir $WORK/storagepay -pkgpath gno.land/r/test/storagepay -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1att8mj24n50jusrxsp757g8cn6jccpykqncvxh -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check balances before
+gnokey query bank/balances/g1att8mj24n50jusrxsp757g8cn6jccpykqncvxh
+stdout '10000000ugnot'
+
+gnokey query bank/balances/$test1_user_addr
+cp stdout user_balance_before
+
+## call with 0 fee — realm pays both gas and storage
+gnokey maketx call -pkgpath gno.land/r/test/storagepay -func DoWork -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"done" string'
+
+## check realm balance decreased (paid gas + storage)
+gnokey query bank/balances/g1att8mj24n50jusrxsp757g8cn6jccpykqncvxh
+! stdout '10000000ugnot'
+
+## check user balance unchanged — truly gasless
+gnokey query bank/balances/$test1_user_addr
+cp stdout user_balance_after
+cmp user_balance_before user_balance_after
+
+-- storagepay/gnomod.toml --
+module = "storagepay"
+gno = "0.9"
+
+-- storagepay/storagepay.gno --
+package storagepay
+
+import "chain/runtime"
+
+var data string
+
+func DoWork(cur realm) string {
+	runtime.PayGas(5000000)    // realm pays gas
+	runtime.PayStorage(500000) // realm pays storage
+	data = "some new state that triggers a storage deposit"
+	return "done"
+}

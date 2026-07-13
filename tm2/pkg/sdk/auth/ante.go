@@ -34,6 +34,8 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+	// AllowZeroFeeTxs enables 0-fee transactions when realms sponsor gas via PayGas.
+	AllowZeroFeeTxs bool
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -43,32 +45,71 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
-		// Ensure that the gas wanted is not greater than the max allowed.
+		// Determine if this is a 0-fee PayGas transaction.
 		consParams := ctx.ConsensusParams()
-		if consParams.Block.MaxGas == -1 {
-			// no gas bounds (not recommended)
-		} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
-			// tx gas-wanted too large.
-			res = abciResult(std.ErrInvalidGasWanted(
-				fmt.Sprintf(
-					"invalid gas-wanted; got: %d block-max-gas: %d",
-					tx.Fee.GasWanted, consParams.Block.MaxGas,
-				),
-			))
+		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
+
+		// Fee.SponsorStorage only applies to sponsored (0-fee) txs, where a realm
+		// covers deferred storage via PayStorage. Reject it on a normal fee-paying
+		// tx so the mistake surfaces at submission (CheckTx) rather than failing
+		// opaquely at inclusion (the deferred path would skip the signer's
+		// per-message deposit and then abort at end-of-tx). Genesis (height 0) is
+		// exempt — genesis txs are trusted and never sponsor.
+		if tx.Fee.SponsorStorage && !isZeroFeeTx && ctx.BlockHeight() > 0 {
+			res = abciResult(std.ErrUnauthorized("SponsorStorage requires a 0-fee sponsored transaction"))
 			return ctx, res, true
 		}
 
-		// Ensure that the provided fees meet a minimum threshold for the validator,
-		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only run upon checktx.
-		if ctx.IsCheckTx() && !simulate {
-			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
-			if !res.IsOK() {
+		// SponsorStorage defers all messages' storage diffs to end-of-tx, where
+		// the per-message caller identity is lost: the deferred settlement can
+		// attribute a freed-storage refund only to a single tx caller (the first
+		// signer). Restrict it to single-signer txs so that caller is unambiguous,
+		// avoiding routing one signer's refund to a co-signer. Genesis (height 0)
+		// is exempt.
+		if tx.Fee.SponsorStorage && len(tx.GetSigners()) > 1 && ctx.BlockHeight() > 0 {
+			res = abciResult(std.ErrUnauthorized("SponsorStorage is not supported for multi-signer transactions"))
+			return ctx, res, true
+		}
+
+		// Ensure that the gas wanted is not greater than the max allowed.
+		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
+		if !isZeroFeeTx {
+			if consParams.Block.MaxGas == -1 {
+				// no gas bounds (not recommended)
+			} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
+				// tx gas-wanted too large.
+				res = abciResult(std.ErrInvalidGasWanted(
+					fmt.Sprintf(
+						"invalid gas-wanted; got: %d block-max-gas: %d",
+						tx.Fee.GasWanted, consParams.Block.MaxGas,
+					),
+				))
 				return ctx, res, true
 			}
 		}
 
-		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		// Ensure that the provided fees meet a minimum threshold for the validator,
+		// if this is a CheckTx. This is only for local mempool purposes, and thus
+		// is only run upon checktx. Skip for 0-fee PayGas txs when allowed.
+		if ctx.IsCheckTx() && !simulate {
+			if isZeroFeeTx && !opts.AllowZeroFeeTxs {
+				res = abciResult(std.ErrInsufficientFee("zero-fee transactions not accepted by this validator"))
+				return ctx, res, true
+			}
+			if !isZeroFeeTx {
+				res := EnsureSufficientMempoolFees(ctx, tx.Fee)
+				if !res.IsOK() {
+					return ctx, res, true
+				}
+			}
+		}
+
+		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
+		if isZeroFeeTx {
+			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
+		} else {
+			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		}
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -116,6 +157,9 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		stdSigs := tx.GetSignatures()
 		isGenesis := ctx.BlockHeight() == 0
 		sessionAccounts := map[crypto.Address]std.DelegatedAccount{}
+
+		// Store tx caller and sponsor flag for end-of-tx settlement.
+		newCtx = newCtx.WithTxCaller(signerAddrs[0]).WithSponsorStorage(tx.Fee.SponsorStorage)
 
 		// ——— Phase 1: Resolve all signers ———
 
@@ -278,6 +322,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, res, true
 			}
 
+			// Verify signatures unless this is a pure gas-estimation simulate.
+			// CheckTx admission of 0-fee txs runs in RunTxModeCheckExecute (not
+			// Simulate), so simulate is false there and forged-signature txs are
+			// rejected before entering the mempool.
 			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
 			}
@@ -297,7 +345,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			newCtx = newCtx.WithValue(std.SessionAccountsContextKey{}, sessionAccounts)
 		}
 
-		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false
+		// Report GasWanted. For 0-fee txs the effective per-tx gas ceiling is the
+		// credit window (the meter was sized to MaxGasCreditPerTx above), NOT the
+		// client-supplied tx.Fee.GasWanted. The mempool sums the reported GasWanted
+		// against Block.MaxGas when packing a block, so reporting the credit window
+		// keeps block packing bounded by real worst-case consumption; reporting the
+		// client value (which can be 0) would let a proposer overfill the block.
+		reportedGasWanted := tx.Fee.GasWanted
+		if isZeroFeeTx {
+			reportedGasWanted = consParams.Block.MaxGasCreditPerTx
+		}
+		return newCtx, sdk.Result{GasWanted: reportedGasWanted}, false
 	}
 }
 

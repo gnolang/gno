@@ -44,6 +44,7 @@ message Tx {
 message Fee {
 	sint64 gas_wanted = 1;
 	string gas_fee = 2;
+	bool sponsor_storage = 3;
 }
 
 message Signature {

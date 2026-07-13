@@ -68,7 +68,27 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "28f55f0ad9842bc3c4d8984f1a63a709203a1e99fae7e816786825e26629f618"
+//
+// Hash bumped by the realm transaction sponsorship PR: adding the PayGas and
+// PayStorage natives to the chain/runtime stdlib changes that stdlib's committed
+// genesis MemPackage, which shifts the iavlStore Merkle root — same class of
+// change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
+// (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
+// shifted.
+//
+// Hash bumped again by the review fixes on this PR: correcting the PayGas
+// documentation comment (MinGasPrice -> dynamic gas price) and noting the
+// "only in sponsored txs" rule in paygas.gno / paystorage.gno edits those
+// stdlib .gno source files, whose bytes are committed into the genesis
+// MemPackage — same class of encoding-only shift. Behavior is unchanged.
+//
+// Hash bumped again when two-realm sponsorship was allowed: the paygas.gno /
+// paystorage.gno doc comments were updated (dropping "must be the same realm",
+// adding the "PayGas and PayStorage are independent" note), editing those stdlib
+// .gno source bytes in the genesis MemPackage — encoding-only. The native .go
+// change (allowing a different realm to sponsor storage) is not part of the
+// committed MemPackage and does not affect this hash.
+const expectedCrossrealm38Hash = "c36a01125f99f023edfb1781e2967d8c0d0e63fc42824df191c2b113031bf212"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
