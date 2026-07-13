@@ -1252,6 +1252,31 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
+func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
+	app := newGasPriceTestApp(t)
+	app.InitChain(abci.RequestInitChain{
+		AppState: gnoGenesisState(t),
+		ChainID:  "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: 1_000_000},
+		},
+	})
+
+	tx := newCounterTx(100)
+	tx.Fee = std.Fee{
+		GasWanted: 10_000,
+		GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+	}
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	require.False(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+	app.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{ChainID: "test-chain", Height: 1},
+	})
+	require.True(t, app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes}).IsOK())
+}
+
 func TestGasPriceEmptyBlockUpdate(t *testing.T) {
 	startingPrice := std.GasPrice{
 		Gas:   1000,
