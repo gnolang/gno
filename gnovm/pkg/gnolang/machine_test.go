@@ -62,6 +62,135 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.Equal(t, StringValue("1"), v.V)
 }
 
+func TestPreprocessMemPackage_recovery(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+
+	t.Run("syntax error is recovered", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "broken",
+			Path: "broken",
+			Files: []*std.MemFile{
+				{Name: "broken.gno", Body: `package broken; func }{`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "preprocess broken")
+	})
+
+	t.Run("package name mismatch is recovered", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "mypkg",
+			Path: "mypkg",
+			Files: []*std.MemFile{
+				{Name: "f.gno", Body: `package wrongname; func X() {}`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "preprocess mypkg")
+	})
+
+	t.Run("valid package succeeds", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewMachineWithOptions(MachineOptions{Store: store})
+		defer m.Release()
+
+		mpkg := &std.MemPackage{
+			Type: MPStdlibProd,
+			Name: "hello",
+			Path: "hello",
+			Files: []*std.MemFile{
+				{Name: "hello.gno", Body: `package hello; func Hi() string { return "hi" }`},
+			},
+		}
+		err := m.preprocessMemPackage(mpkg)
+		assert.NoError(t, err)
+	})
+}
+
+func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+
+	// IterMemPackage iterates in insertion order; add broken first so the
+	// panic path runs before good is preprocessed.
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
+		Name: "broken",
+		Path: "broken",
+		Files: []*std.MemFile{
+			{Name: "broken.gno", Body: "package broken\n\nfunc Crash() { for range 1000 {} }"},
+		},
+	}, MPAnyAll)
+
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
+		Name: "good",
+		Path: "good",
+		Files: []*std.MemFile{
+			{Name: "good.gno", Body: `package good; func Hello() string { return "hello" }`},
+		},
+	}, MPAnyAll)
+
+	m := NewMachineWithOptions(MachineOptions{Store: store})
+	defer m.Release()
+
+	failed := m.PreprocessAllFilesAndSaveBlockNodes()
+
+	// The broken package should be in the failed list.
+	assert.Contains(t, failed, "broken")
+	// The good package should NOT be in the failed list.
+	assert.NotContains(t, failed, "good")
+
+	// Verify no corrupt data left in the store: the good package's
+	// PackageNode must be fully intact with its FileSet populated and
+	// its declared function accessible.
+	goodLoc := PackageNodeLocation("good")
+	goodBN := store.GetBlockNodeSafe(goodLoc)
+	require.NotNil(t, goodBN, "good package's block node must exist in the store")
+	goodPN, ok := goodBN.(*PackageNode)
+	require.True(t, ok, "good package's block node must be a *PackageNode")
+	assert.Equal(t, "good", goodPN.PkgPath)
+	require.NotNil(t, goodPN.FileSet, "good package's FileSet must be populated")
+	assert.Len(t, goodPN.FileSet.Files, 1, "good package should have exactly one file")
+	// The "Hello" function must be defined in the package's static block,
+	// proving that Preprocess and SaveBlockNodes completed for this package.
+	_, ok = goodPN.GetLocalIndex("Hello")
+	assert.True(t, ok, "good package must have 'Hello' defined after full preprocessing")
+
+	// The broken package panics during Preprocess, after SetBlockNode and
+	// PredefineFileSet already wrote partial data to the store. Verify the
+	// partial PackageNode exists (confirming writes happened before the
+	// panic) but that this does not corrupt the good package above.
+	brokenLoc := PackageNodeLocation("broken")
+	brokenBN := store.GetBlockNodeSafe(brokenLoc)
+	require.NotNil(t, brokenBN,
+		"broken package should have a partial PackageNode from writes before the panic")
+}
+
 func TestMachineString(t *testing.T) {
 	cases := []struct {
 		name string
