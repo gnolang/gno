@@ -388,6 +388,8 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
 	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
+	// Mirror the allow-list into the params store for realms to read (genesis-immutable).
+	cfg.prmk.SetStrings(ictx, valsetPubKeyTypesPath, allowedKeyTypes)
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
