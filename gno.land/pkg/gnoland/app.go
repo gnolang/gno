@@ -359,13 +359,6 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// that any genesis-time realm reads of sysparams.GetValsetEffective /
 	// GetValsetEntries see the authoritative set instead of empty.
 	//
-	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
-	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
-	// a fresh ctx via getContextForTx (tm2/pkg/sdk/baseapp.go:606-611),
-	// so this sentinel does NOT propagate into genesis-tx execution —
-	// a malicious genesis tx cannot manufacture a sentinel-bearing ctx
-	// and write valset:current directly.
-	//
 	// Gate the initial validator set against the pubkey-type allow-list (like the
 	// EndBlocker does for runtime updates); panic to abort boot on a disallowed type.
 	var allowedKeyTypes []string
@@ -386,6 +379,12 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		}
 	}
 
+	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
+	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
+	// a fresh ctx via getContextForTx (tm2/pkg/sdk/baseapp.go:606-611),
+	// so this sentinel does NOT propagate into genesis-tx execution —
+	// a malicious genesis tx cannot manufacture a sentinel-bearing ctx
+	// and write valset:current directly.
 	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
 	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
 	// Mirror the allow-list into the params store for realms to read (genesis-immutable).
