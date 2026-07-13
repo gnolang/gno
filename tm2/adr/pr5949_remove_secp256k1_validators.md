@@ -54,6 +54,30 @@ The execution-layer check (`validateValidatorUpdates` →
 validator pubkey type absent from the params, so removing secp256k1 from the
 allow-list automatically causes secp256k1 validator updates to be rejected.
 
+### Gating the initial genesis validator set
+
+The params allow-list and the runtime `EndBlocker` gate together cover consensus-params
+validation and runtime valset *updates*, but the **initial** validator set is seeded
+into consensus state directly by the gno.land `InitChainer`
+(`gno.land/pkg/gnoland/app.go`) — it does not pass through `validateValidatorUpdates`.
+Nothing else re-checked those genesis validators against the allow-list, so a genesis
+doc with ed25519-only params could still seed a secp256k1 validator into the active set,
+leaving the "IBC-compatible by construction" guarantee incomplete.
+
+`InitChainer` now scans `req.Validators` against
+`req.ConsensusParams.Validator.PubKeyTypeURLs` before writing `valset:current`, using the
+same allow-list logic as the `EndBlocker` gate. A disallowed genesis validator is fatal:
+as with the existing valoper-coverage assertion, `ResponseInitChain.Error` is silently
+discarded by tm2, so the check **panics** to abort the handshake loudly rather than boot
+a non-compliant chain. When the allow-list is empty (no `Validator` params configured),
+the scan is skipped — matching the `EndBlocker` "accept all" fallback.
+
+This gate lives in the gno.land app layer, not in tm2's `GenesisDoc.Validate` /
+`ValidateAndComplete`, because tm2 genesis validation is deliberately key-type-agnostic
+(mock and secp256k1 keys are used pervasively in tm2/gnogenesis test fixtures for
+non-consensus purposes). The app layer is where the genesis set is actually consumed into
+consensus and where the sibling `EndBlocker` gate already lives.
+
 ## Alternatives considered
 
 **Leave secp256k1 in the allow-list, document that operators should not use it.**
@@ -70,6 +94,14 @@ Would reject secp256k1 validator updates at runtime but still let a genesis doc 
 `ValidateConsensusParams` with secp256k1 listed, leaving misleading params in state.
 Enforcing at the params allow-list is the single authoritative gate. Rejected.
 
+**Gate the initial validator set in tm2 `GenesisDoc.ValidateAndComplete`.**
+Would reject secp256k1 (and mock) genesis validators at the tm2 layer. Rejected: tm2
+genesis validation is intentionally key-type-agnostic — mock/secp256k1 validator keys
+are used across tm2 and gnogenesis test fixtures for non-consensus purposes, and a
+key-type policy there is both too broad and the wrong layer. The gate belongs where the
+genesis set is consumed into consensus (gno.land `InitChainer`), alongside the existing
+runtime `EndBlocker` gate.
+
 ## Key files
 
 | File | Role |
@@ -78,6 +110,9 @@ Enforcing at the params allow-list is the single authoritative gate. Rejected.
 | `tm2/pkg/bft/types/params_test.go` | Validation test asserting secp256k1 validator params are rejected |
 | `tm2/pkg/bft/state/execution.go` | `validateValidatorUpdates` — unchanged; honors the allow-list |
 | `tm2/pkg/bft/types/genesis.go` | Applies `DefaultConsensusParams()` when genesis omits params |
+| `gno.land/pkg/gnoland/app.go` | `InitChainer` — gates the initial genesis validator set against the allow-list (panics on a disallowed key type) |
+| `gno.land/pkg/gnoland/app_test.go` | `TestInitChainer_GenesisValidatorPubKeyType` — accepts ed25519, aborts on secp256k1 |
+| `gno.land/pkg/integration/testdata/params_valset_rotation_during_pending_proposal.txtar` | Rotation target switched from a secp256k1 to an ed25519 signing key (secp256k1 no longer publishable to the valset) |
 
 ## Consequences
 
@@ -87,6 +122,9 @@ Enforcing at the params allow-list is the single authoritative gate. Rejected.
   `Validator.PubKeyTypeURLs` now fails `ValidateConsensusParams`.
 - A `ValidatorUpdate` carrying a secp256k1 pubkey is rejected by
   `validateValidatorUpdates` (unsupported for consensus).
+- A genesis doc whose **initial** validator set contains a validator with a disallowed
+  (e.g. secp256k1) pubkey type now aborts `InitChain` (panic), so a chain cannot boot with
+  a non-compliant validator already in the active set.
 - **Backwards compatibility:** an existing chain whose consensus params already list
   secp256k1, or whose active validator set contains a secp256k1 key, is affected —
   its stored params would no longer re-validate and such a validator could not be

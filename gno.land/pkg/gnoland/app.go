@@ -365,6 +365,27 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// so this sentinel does NOT propagate into genesis-tx execution —
 	// a malicious genesis tx cannot manufacture a sentinel-bearing ctx
 	// and write valset:current directly.
+	//
+	// Gate the initial validator set against the pubkey-type allow-list (like the
+	// EndBlocker does for runtime updates); panic to abort boot on a disallowed type.
+	var allowedKeyTypes []string
+	if req.ConsensusParams != nil && req.ConsensusParams.Validator != nil {
+		allowedKeyTypes = req.ConsensusParams.Validator.PubKeyTypeURLs
+	}
+	if len(allowedKeyTypes) > 0 {
+		for _, v := range req.Validators {
+			if v.Power == 0 {
+				continue // non-voting entry, never enters the active set
+			}
+			if keyType := amino.GetTypeURL(v.PubKey); !slices.Contains(allowedKeyTypes, keyType) {
+				panic(fmt.Errorf(
+					"genesis validator %s has disallowed pubkey type %s (allowed: %v)",
+					v.Address.String(), keyType, allowedKeyTypes,
+				))
+			}
+		}
+	}
+
 	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
 	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
 
