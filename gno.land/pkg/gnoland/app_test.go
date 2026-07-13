@@ -1252,7 +1252,68 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
-func newGasPriceTestApp(t *testing.T) abci.Application {
+func TestGasPriceEmptyBlockUpdate(t *testing.T) {
+	startingPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+	}
+	floorPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 1, Denom: "ugnot"},
+	}
+
+	run := func() []byte {
+		app := newGasPriceTestApp(t, startingPrice)
+		gen := gnoGenesisState(t)
+		gen.Auth.Params.InitialGasPrice = floorPrice
+		res := app.InitChain(abci.RequestInitChain{
+			AppState: gen,
+			ChainID:  "test-chain",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: &abci.BlockParams{MaxGas: 3_000_000_000},
+			},
+		})
+		require.True(t, res.ResponseBase.IsOK(), "%v", res.ResponseBase.Error)
+
+		genesisHash := app.Commit().Data
+		query := abci.RequestQuery{Path: ".store/main/key", Data: []byte(auth.GasPriceKey)}
+		var gasPrice std.GasPrice
+		qr := app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, startingPrice, gasPrice)
+
+		tx := newCounterTx(1)
+		tx.Fee = std.Fee{
+			GasWanted: 1000,
+			GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+		}
+		txBytes, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		require.False(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: 2},
+		})
+		app.EndBlock(abci.RequestEndBlock{Height: 2})
+		emptyBlockHash := app.Commit().Data
+
+		qr = app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, int64(9), gasPrice.Price.Amount)
+		require.Equal(t, startingPrice.Gas, gasPrice.Gas)
+		require.Equal(t, startingPrice.Price.Denom, gasPrice.Price.Denom)
+		require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+		require.NotEqual(t, genesisHash, emptyBlockHash)
+
+		return emptyBlockHash
+	}
+
+	require.Equal(t, run(), run(), "identical empty blocks must produce identical state transitions")
+}
+
+func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Application {
 	t.Helper()
 	cfg := TestAppOptions(memdb.NewMemDB())
 	cfg.EventSwitch = events.NewEventSwitch()
@@ -1283,7 +1344,13 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	icc.baseApp = baseApp
 	icc.prmk = prmk
 	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
-	baseApp.SetInitChainer(icc.InitChainer)
+	baseApp.SetInitChainer(func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		res := icc.InitChainer(ctx, req)
+		if len(storedGasPrice) > 0 && res.ResponseBase.IsOK() {
+			gpk.SetGasPrice(ctx, storedGasPrice[0])
+		}
+		return res
+	})
 
 	// Set AnteHandler
 	baseApp.SetAnteHandler(
