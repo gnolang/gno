@@ -395,10 +395,8 @@ func boundedSprintPrimitiveTV(w *boundedBuf, tv TypedValue) {
 	case UntypedBigdecType:
 		if tv.V == nil {
 			w.WriteString("<nil>")
-		} else if bd := tv.GetBigDec(); bd != nil {
-			boundedSprintBigDec(w, bd)
 		} else {
-			w.WriteString("<nil>")
+			boundedSprintBigDecValue(w, tv.GetBigDec())
 		}
 	default:
 		fmt.Fprintf(w, "<%v>", pt)
@@ -422,7 +420,7 @@ func boundedSprintValue(w *boundedBuf, v Value, depth int) {
 	case BigintValue:
 		boundedSprintBigInt(w, x.V)
 	case BigdecValue:
-		boundedSprintBigDec(w, x.V)
+		boundedSprintBigDecValue(w, x)
 	case *ArrayValue:
 		boundedSprintArrayValue(w, x, depth)
 	case *SliceValue:
@@ -530,6 +528,23 @@ func boundedSprintBigDec(w *boundedBuf, r *big.Rat) {
 		return
 	}
 	writeBoundedString(w, r.FloatString(10), rem)
+}
+
+// boundedSprintBigDecValue renders a BigdecValue in either rat or float form.
+func boundedSprintBigDecValue(w *boundedBuf, bdv BigdecValue) {
+	rem := w.Remaining()
+	if rem <= 0 {
+		return
+	}
+	if bdv.F != nil {
+		writeBoundedString(w, bdv.F.Text('g', -1), rem)
+		return
+	}
+	if bdv.V == nil {
+		w.WriteString("<nil>")
+		return
+	}
+	boundedSprintBigDec(w, bdv.V)
 }
 
 // ----------------------------------------

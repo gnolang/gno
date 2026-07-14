@@ -54,20 +54,42 @@ manual hex-float parsing block in `op_eval.go` (≈107 lines of code) is replace
 by a single `r.SetString(x.Value)` call, eliminating significant complexity
 and regex-based parsing.
 
-### Numerator and denominator guard
+### Dual representation: big.Rat with big.Float fallback
 
-After every arithmetic operation on `UntypedBigdecType`, and at literal-parse
-time, `ratGuard` checks both `r.Num().BitLen()` and `r.Denom().BitLen()`
-against a 4096-bit ceiling. Bounding only the denominator is insufficient:
-integer-valued rationals have `Denom() == 1`, so a huge literal like
-`1e10000` or its repeated squaring at const-fold time would slip through and
-allocate arbitrary memory during preprocess. When triggered, `ratGuard`
-panics with one of:
+`BigdecValue` carries either a `*big.Rat` (exact rational form) or a 512-bit
+`*big.Float` (bounded-precision fallback form). Exactly one is non-nil for
+a well-formed value.
 
-```
-constant expression result too large: numerator exceeds 4096 bits
-constant expression result too large: denominator exceeds 4096 bits
-```
+The switch is automatic and mirrors `go/constant`: when arithmetic or a
+literal would produce a `big.Rat` whose numerator or denominator exceeds
+`ratOverflowBits` (= 4096), the value promotes to a 512-bit `big.Float`.
+This is what Go itself does at the same threshold — see
+[`src/go/constant/value.go`](https://cs.opensource.google/go/go/+/refs/tags/go1.25.0:src/go/constant/value.go)
+lines 328-345, 351, and the 512-bit precision constant at line 69.
+
+Why not just bigger `big.Rat` limits, or just `big.Float`?
+
+- **big.Rat alone** cannot represent `1e10000` cheaply — its rational form
+  requires a ~33k-bit integer, so any threshold high enough to accept it
+  is DoS-vulnerable to squaring.
+- **big.Float alone** loses the exactness that motivates this branch:
+  `(1.0 / 3.0) * 3.0 == 1.0` no longer holds because `1/3` rounds to a
+  binary approximation.
+- **Dual representation** gets both: exact rational for small values
+  (financial-scale, physical-constant-scale, up to 1e±1233) and
+  bounded-precision float for anything past that (RSA-size literals,
+  extreme-exponent arithmetic).
+
+Arithmetic (`Add`/`Sub`/`Mul`/`Quo`) stays in rat form when both operands
+are rat form and the result fits; otherwise it promotes both operands to
+big.Float and computes there. Comparison (`Cmp`/`Eql`/`Lss`/etc.) applies
+the same promotion rule. Literal parsing (`parseBigdecLiteral`) tries rat
+form first and falls back to big.Float when the parse produces an
+overflowing rat.
+
+The invariant "exactly one of `V`, `F` is non-nil" is enforced by
+constructors (`wrapRatOrPromote`, `parseBigdecLiteral`) and preserved by
+every helper (`Copy`, `AsFloat`, `IsInt`, `Sign`).
 
 This matches Go's observable behavior of rejecting overly large constant
 expressions (Go's floor is 256 bits; 4096 is well above it and consistent

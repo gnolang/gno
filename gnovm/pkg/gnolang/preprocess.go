@@ -1581,7 +1581,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Out of bounds errors are usually handled during evalConst().
 						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !bd.V.IsInt() {
+								if !bd.IsInt() {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))

@@ -66,6 +66,12 @@ func (biv BigintValue) String() string {
 }
 
 func (bdv BigdecValue) String() string {
+	if bdv.F != nil {
+		return bdv.F.Text('g', -1)
+	}
+	if bdv.V == nil {
+		return "0.0"
+	}
 	s := bdv.V.FloatString(10)
 	// Trim trailing zeros after the decimal point, but keep at least one
 	// decimal digit so bigdec values are visually distinct from integers.

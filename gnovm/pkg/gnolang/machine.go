@@ -1350,11 +1350,26 @@ func ratDigits(r *big.Rat) int64 {
 	return d
 }
 
+// bigdecDigits estimates the decimal digit count of a BigdecValue, working
+// for both the rat and float representations.
+func bigdecDigits(bdv BigdecValue) int64 {
+	if bdv.F != nil {
+		// big.Float has a bounded mantissa (BigdecFloatPrec bits) plus an
+		// exponent; the exponent contributes at most log10(2) per bit.
+		bits := int64(bdv.F.Prec()) + int64(bdv.F.MantExp(nil))
+		if bits < 0 {
+			bits = -bits
+		}
+		return max(bits/3, 1)
+	}
+	return ratDigits(bdv.V)
+}
+
 // incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
 func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 	if lv.T == UntypedBigdecType {
-		lb := ratDigits(lv.GetBigDec())
-		rb := ratDigits(rv.GetBigDec())
+		lb := bigdecDigits(lv.GetBigDec())
+		rb := bigdecDigits(rv.GetBigDec())
 		m.incrCPU(max(lb, rb) * slopePer100 / 100)
 	}
 }
@@ -1364,8 +1379,8 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 // safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
-		lb := ratDigits(lv.GetBigDec()) / 10
-		rb := ratDigits(rv.GetBigDec()) / 10
+		lb := bigdecDigits(lv.GetBigDec()) / 10
+		rb := bigdecDigits(rv.GetBigDec()) / 10
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
@@ -1381,7 +1396,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	if xv.T == UntypedBigdecType {
-		digits := ratDigits(xv.GetBigDec())
+		digits := bigdecDigits(xv.GetBigDec())
 		m.incrCPU(digits * slopePer100 / 100)
 	}
 }

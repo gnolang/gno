@@ -56,7 +56,11 @@ func (m *Machine) doOpUneg() {
 		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	case UntypedBigdecType:
 		bdv := xv.V.(BigdecValue)
-		xv.V = BigdecValue{V: new(big.Rat).Neg(bdv.V)}
+		if bdv.IsFloat() {
+			xv.V = BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).Neg(bdv.F)}
+		} else {
+			xv.V = BigdecValue{V: new(big.Rat).Neg(bdv.V)}
+		}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		biv := xv.V.(BigintValue)

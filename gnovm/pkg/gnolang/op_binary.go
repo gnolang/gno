@@ -512,9 +512,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) == 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) == 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) == 0
 	case ArrayKind:
 		la := lv.V.(*ArrayValue)
 		ra := rv.V.(*ArrayValue)
@@ -649,9 +647,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) < 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) < 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) < 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator < not defined for %s",
@@ -696,9 +692,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) <= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) <= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) <= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator <= not defined for %s",
@@ -743,9 +737,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) > 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) > 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) > 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator > not defined for %s",
@@ -790,9 +782,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) >= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) >= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) >= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator >= not defined for %s",
@@ -801,18 +791,88 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
-// ratGuard panics if either component of r exceeds 4096 bits, matching Go's
-// behavior of rejecting constant expressions that exceed implementation limits.
-// The numerator must be bounded too: an integer-valued big.Rat has Denom() == 1,
-// so a denominator-only check would let arbitrarily large integer constants
-// through (e.g. 1e10000, or repeated squaring of such a value).
-func ratGuard(r *big.Rat) {
-	if r.Num().BitLen() > 4096 {
-		panic("constant expression result too large: numerator exceeds 4096 bits")
+// ratOverflowBits is the size ceiling (in bits) above which we promote a
+// big.Rat to a bounded big.Float representation, matching go/constant which
+// switches representations past the same 4096-bit threshold.
+const ratOverflowBits = 4096
+
+// ratOverflows reports whether either component of r exceeds ratOverflowBits.
+// Callers use this signal to promote to big.Float rather than reject.
+func ratOverflows(r *big.Rat) bool {
+	return r.Num().BitLen() > ratOverflowBits ||
+		r.Denom().BitLen() > ratOverflowBits
+}
+
+// wrapRatOrPromote wraps r as a BigdecValue in rat form if it fits within
+// ratOverflowBits, or promotes it to a 512-bit big.Float form otherwise.
+// This mirrors go/constant's automatic switch from big.Rat to big.Float at
+// the same 4096-bit threshold: extreme exponents no longer allocate massive
+// integers, and huge-magnitude constants are handled the way Go handles them.
+func wrapRatOrPromote(r *big.Rat) BigdecValue {
+	if ratOverflows(r) {
+		return BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).SetRat(r)}
 	}
-	if r.Denom().BitLen() > 4096 {
-		panic("constant expression result too large: denominator exceeds 4096 bits")
+	return BigdecValue{V: r}
+}
+
+// bigdecArith runs op on two BigdecValues, staying in rat form when both
+// inputs are rat-form and the result fits within ratOverflowBits, and
+// promoting to 512-bit big.Float otherwise (matching go/constant).
+func bigdecArith(lb, rb BigdecValue,
+	ratOp func(z, x, y *big.Rat) *big.Rat,
+	floatOp func(z, x, y *big.Float) *big.Float,
+) BigdecValue {
+	if lb.IsFloat() || rb.IsFloat() {
+		z := new(big.Float).SetPrec(BigdecFloatPrec)
+		return BigdecValue{F: floatOp(z, lb.AsFloat(), rb.AsFloat())}
 	}
+	result := ratOp(new(big.Rat), lb.V, rb.V)
+	return wrapRatOrPromote(result)
+}
+
+func bigdecAdd(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Add, (*big.Float).Add)
+}
+
+func bigdecSub(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Sub, (*big.Float).Sub)
+}
+
+func bigdecMul(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Mul, (*big.Float).Mul)
+}
+
+func bigdecQuo(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Quo, (*big.Float).Quo)
+}
+
+// bigdecCmp compares lb and rb, promoting to a common form. Returns -1, 0, +1
+// per the usual convention.
+func bigdecCmp(lb, rb BigdecValue) int {
+	if lb.IsFloat() || rb.IsFloat() {
+		return lb.AsFloat().Cmp(rb.AsFloat())
+	}
+	return lb.V.Cmp(rb.V)
+}
+
+// parseBigdecLiteral parses a decimal or hex-float literal into a BigdecValue,
+// using big.Rat by default and falling back to a 512-bit big.Float when the
+// rational representation would exceed ratOverflowBits. kind is a human-facing
+// label for error messages ("decimal" or "hex float").
+func parseBigdecLiteral(s, kind string) BigdecValue {
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); ok && !ratOverflows(r) {
+		return BigdecValue{V: r}
+	}
+	// Rat form either failed or overflowed; fall back to big.Float. big.Float
+	// natively parses decimal and hex-float notation, and stores the exponent
+	// separately from the mantissa so extreme-magnitude literals (1e10000,
+	// 1e-10000) fit comfortably in bounded space.
+	f, _, err := big.ParseFloat(s, 0, BigdecFloatPrec, big.ToNearestEven)
+	if err != nil {
+		panic(fmt.Sprintf("invalid %s constant: %s", kind, s))
+	}
+	return BigdecValue{F: f}
 }
 
 // for doOpAdd and doOpAddAssign.
@@ -855,11 +915,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		result := new(big.Rat).Add(lb, rb)
-		ratGuard(result)
-		lv.V = BigdecValue{V: result}
+		lv.V = bigdecAdd(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -906,11 +962,7 @@ func subAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		result := new(big.Rat).Sub(lb, rb)
-		ratGuard(result)
-		lv.V = BigdecValue{V: result}
+		lv.V = bigdecSub(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -957,11 +1009,7 @@ func mulAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		result := new(big.Rat).Mul(lb, rb)
-		ratGuard(result)
-		lv.V = BigdecValue{V: result}
+		lv.V = bigdecMul(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -1052,10 +1100,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		if rb.Sign() == 0 {
 			return expt
 		}
-		lb := lv.GetBigDec()
-		result := new(big.Rat).Quo(lb, rb)
-		ratGuard(result)
-		lv.V = BigdecValue{V: result}
+		lv.V = bigdecQuo(lv.GetBigDec(), rb)
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",

@@ -74,10 +74,7 @@ func (m *Machine) doOpInc() {
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		one := new(big.Rat).SetInt64(1)
-		sum := new(big.Rat).Add(lb, one)
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecAdd(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
@@ -151,10 +148,7 @@ func (m *Machine) doOpDec() {
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		one := new(big.Rat).SetInt64(1)
-		sum := new(big.Rat).Sub(lb, one)
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecSub(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}

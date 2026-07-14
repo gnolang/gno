@@ -88,25 +88,15 @@ func (m *Machine) doOpEval() {
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
 			if reFloat.MatchString(x.Value) {
-				r := new(big.Rat)
-				if _, ok := r.SetString(x.Value); !ok {
-					panic(fmt.Sprintf("invalid decimal constant: %s", x.Value))
-				}
-				ratGuard(r)
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: r},
+					V: parseBigdecLiteral(x.Value, "decimal"),
 				})
 				return
 			} else if reHexFloat.MatchString(x.Value) {
-				r := new(big.Rat)
-				if _, ok := r.SetString(x.Value); !ok {
-					panic(fmt.Sprintf("invalid hex float constant: %s", x.Value))
-				}
-				ratGuard(r)
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: r},
+					V: parseBigdecLiteral(x.Value, "hex float"),
 				})
 				return
 			} else {

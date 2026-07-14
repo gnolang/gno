@@ -1421,54 +1421,53 @@ func posZero[F float32 | float64](f F) F {
 
 func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
-	r := bdv.V
 	switch k {
 	case BigintKind:
-		if !isRatInt(r) {
+		if !bdv.IsInt() {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bigdecErrString(r),
+				bigdecValueErrString(bdv),
 			))
 		}
 		dst.T = t
-		dst.V = BigintValue{V: toRatBigInt(r)}
+		dst.V = BigintValue{V: bigdecToBigInt(bdv)}
 		return
 	case BoolKind:
 		panic("cannot convert untyped bigdec to bool")
 	case InterfaceKind:
 		dst.T = Float64Type
 		dst.V = nil
-		f, _ := r.Float64()
+		f := bigdecToFloat64(bdv)
 		dst.SetFloat64(math.Float64bits(posZero(f)))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !isRatInt(r) {
+		if !bdv.IsInt() {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bigdecErrString(r),
+				bigdecValueErrString(bdv),
 			))
 		}
-		ConvertUntypedBigintTo(dst, BigintValue{V: toRatBigInt(r)}, t)
+		ConvertUntypedBigintTo(dst, BigintValue{V: bigdecToBigInt(bdv)}, t)
 		return
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := r.Float64()
-		f64 = posZero(f64)
+		f64 := bigdecToFloat64(bdv)
 		// Narrow via softfloat so the rounding is not hardware-dependent.
 		f32Bits := softfloat.F64to32(math.Float64bits(f64))
 		f32 := math.Float32frombits(f32Bits)
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
-		dst.SetFloat32(f32Bits)
+		f32 = posZero(f32)
+		dst.SetFloat32(math.Float32bits(f32))
 		return
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := r.Float64()
+		f64 := bigdecToFloat64(bdv)
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
@@ -1481,19 +1480,49 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	}
 }
 
+// bigdecToFloat64 renders bdv as the nearest float64, handling both Rat and
+// Float representations. big.Rat.Float64 and big.Float.Float64 are both
+// deterministic (they build the IEEE 754 bit pattern via math.Ldexp / direct
+// bit manipulation, not hardware FP arithmetic).
+func bigdecToFloat64(bdv BigdecValue) float64 {
+	if bdv.IsFloat() {
+		f, _ := bdv.F.Float64()
+		return f
+	}
+	if bdv.V == nil {
+		return 0
+	}
+	f, _ := bdv.V.Float64()
+	return f
+}
+
+// bigdecToBigInt extracts the integer value of bdv. Caller must have already
+// verified bdv.IsInt().
+func bigdecToBigInt(bdv BigdecValue) *big.Int {
+	if bdv.IsFloat() {
+		bi, _ := bdv.F.Int(nil)
+		return bi
+	}
+	if bdv.V == nil {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(bdv.V.Num())
+}
+
+// bigdecValueErrString renders bdv for user-facing error messages, delegating
+// to bigdecErrString for the rat form.
+func bigdecValueErrString(bdv BigdecValue) string {
+	if bdv.IsFloat() {
+		return bdv.F.Text('g', -1)
+	}
+	if bdv.V == nil {
+		return "0"
+	}
+	return bigdecErrString(bdv.V)
+}
+
 // ----------------------------------------
 // big.Rat utility
-
-func isRatInt(r *big.Rat) bool {
-	return r.IsInt()
-}
-
-func toRatBigInt(r *big.Rat) *big.Int {
-	if !r.IsInt() {
-		panic(fmt.Sprintf("cannot convert non-integer rational %s to big.Int", bigdecErrString(r)))
-	}
-	return new(big.Int).Set(r.Num())
-}
 
 // bigdecErrString renders r for user-facing error messages. It returns the
 // minimal decimal form for terminating decimals (matching source literals
@@ -1532,7 +1561,7 @@ func bigdecErrString(r *big.Rat) string {
 // underlying value has no fractional component.
 func IsExactBigDec(v Value) bool {
 	if bd, ok := v.(BigdecValue); ok {
-		return isRatInt(bd.V)
+		return bd.IsInt()
 	}
 	return false
 }
