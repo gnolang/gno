@@ -143,11 +143,11 @@ Output:
 ```
 GAS WANTED: 2000000
 GAS USED:   268994
-INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1000ugnot/1000000gas
+INFO:       estimated gas usage: 268994 (suggested, with 5% margin: 282444), gas fee: 297ugnot, current gas price: 1000ugnot/1000000gas
 ```
 
-Use the `estimated gas usage` and `gas fee` values as your `-gas-wanted` and `-gas-fee`
-for the actual transaction.
+Use the suggested gas-wanted and `gas fee` values as your `-gas-wanted` and
+`-gas-fee` for the actual transaction.
 
 ## Gas Optimization Tips
 
