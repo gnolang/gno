@@ -1454,10 +1454,19 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64 := bigdecToFloat64(bdv)
-		// Narrow via softfloat so the rounding is not hardware-dependent.
-		f32Bits := softfloat.F64to32(math.Float64bits(f64))
-		f32 := math.Float32frombits(f32Bits)
+		// Convert directly at 24-bit precision (float32 mantissa width) so
+		// the rounding happens once, at the target precision. Going through
+		// float64 first and then narrowing performs a double rounding that
+		// misclassifies halfway cases like `1.0 + 0x1p-24 + 0x1p-80`, which
+		// exceeds the float32 halfway point but rounds to it after the
+		// float64 step drops the 2^-80 bit.
+		bf := new(big.Float).SetPrec(24)
+		if bdv.F != nil {
+			bf.Set(bdv.F)
+		} else if bdv.V != nil {
+			bf.SetRat(bdv.V)
+		}
+		f32, _ := bf.Float32()
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
