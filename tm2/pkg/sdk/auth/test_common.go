@@ -38,7 +38,6 @@ func setupTestEnv() testEnv {
 	prmk.Register("dummybank", bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
-	ctx = ctx.WithValue(GasPriceContextKey{}, std.GasPrice{})
 
 	acck.SetParams(ctx, DefaultParams()) // Setup default params
 

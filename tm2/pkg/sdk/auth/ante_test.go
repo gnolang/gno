@@ -887,6 +887,18 @@ func TestAnteHandlerGasPriceRejectedExecutionPaths(t *testing.T) {
 	}
 }
 
+func TestAnteHandlerAllowsDeliverTxWithoutBlockGasPrice(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, acc)
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)}, []crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	checkValidTx(t, anteHandler, ctx, tx, false)
+}
+
 func TestAnteHandlerGasPriceSuccessfulExecutionPaths(t *testing.T) {
 	blockGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("atom", 2)}
 	localGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("atom", 3)}

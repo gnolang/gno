@@ -421,7 +421,7 @@ func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector cryp
 // EnsureSufficientBlockGasPrice verifies that the transaction fee meets the
 // consensus block gas price.
 func EnsureSufficientBlockGasPrice(ctx sdk.Context, fee std.Fee) sdk.Result {
-	blockGasPrice := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
+	blockGasPrice, _ := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
 	feeGasPrice := std.GasPrice{Gas: fee.GasWanted, Price: fee.GasFee}
 	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
 		ok, err := feeGasPrice.IsGTE(blockGasPrice)
