@@ -2374,7 +2374,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
 			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
-				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
+				(m.Realm == nil || !recvOID.PkgID.eq(m.Realm.ID)) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				r := objpv.GetRealm()
@@ -2769,10 +2769,10 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	// realm, since borrow rule #2 is skipped for stdlib receivers. Keyed on
 	// m.Package (the executing code), so an attacker can't trigger it; NOT
 	// granted to /p/ — a /p/ global stays immutable post-init.
-	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() && oid.PkgID == m.Package.PkgID {
+	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() && oid.PkgID.eq(m.Package.PkgID) {
 		return false
 	}
-	return oid.PkgID != m.Realm.ID
+	return !oid.PkgID.eq(m.Realm.ID)
 }
 
 // resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
