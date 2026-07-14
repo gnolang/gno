@@ -44,9 +44,7 @@ func TestFastIndex_RaceSnapshotReadersVsWriter(t *testing.T) {
 	stop := make(chan struct{})
 	var wg sync.WaitGroup
 	for range readers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-stop:
@@ -69,7 +67,7 @@ func TestFastIndex_RaceSnapshotReadersVsWriter(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	for round := 2; round <= rounds; round++ {
