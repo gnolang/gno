@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/gcpsecretmanager"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
@@ -33,22 +34,31 @@ type PrivValidatorConfig struct {
 	// listens for tmkms / Horcrux to dial in). Mutually exclusive with RemoteSigner;
 	// see upstream_config.go.
 	TmkmsListener *TmkmsListenerConfig `json:"tmkms_listener" toml:"tmkms_listener" comment:"Configuration for upstream-Tendermint-protocol signer (tmkms / Horcrux). Empty listen_addr disables this mode."`
+
+	// GCPSecretManager configures a signer that loads the validator key from
+	// a GCP Secret Manager secret instead of a local file. Signing still
+	// happens locally, in-process; GCP Secret Manager is only used as the
+	// durable key store. Mutually exclusive with RemoteSigner and TmkmsListener.
+	GCPSecretManager *gcpsecretmanager.Config `json:"gcp_secret_manager" toml:"gcp_secret_manager" comment:"Configuration for loading the validator key from GCP Secret Manager"`
 }
 
 // PrivValidatorConfig validation errors.
 var (
-	errInvalidSignStatePath   = errors.New("invalid private validator sign state file path")
-	errInvalidLocalSignerPath = errors.New("invalid private validator local signer file path")
-	errNilRemoteSignerConfig  = errors.New("remote signer configuration cannot be nil")
+	errInvalidSignStatePath     = errors.New("invalid private validator sign state file path")
+	errInvalidLocalSignerPath   = errors.New("invalid private validator local signer file path")
+	errNilRemoteSignerConfig    = errors.New("remote signer configuration cannot be nil")
+	errNilGCPSecretManagerCfg   = errors.New("gcp secret manager configuration cannot be nil")
+	errMultipleSignerSourcesSet = errors.New("only one of remote_signer, tmkms_listener, or gcp_secret_manager may be configured")
 )
 
 // DefaultPrivValidatorConfig returns a default configuration for the PrivValidator.
 func DefaultPrivValidatorConfig() *PrivValidatorConfig {
 	return &PrivValidatorConfig{
-		SignState:     "priv_validator_state.json",
-		LocalSigner:   "priv_validator_key.json",
-		RemoteSigner:  rsclient.DefaultRemoteSignerClientConfig(),
-		TmkmsListener: DefaultTmkmsListenerConfig(),
+		SignState:        "priv_validator_state.json",
+		LocalSigner:      "priv_validator_key.json",
+		RemoteSigner:     rsclient.DefaultRemoteSignerClientConfig(),
+		TmkmsListener:    DefaultTmkmsListenerConfig(),
+		GCPSecretManager: gcpsecretmanager.DefaultConfig(),
 	}
 }
 
@@ -97,9 +107,22 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 		}
 	}
 
+	// Verify the GCP Secret Manager configuration is not nil.
+	if cfg.GCPSecretManager == nil {
+		return errNilGCPSecretManagerCfg
+	}
+
+	// Validate the GCP Secret Manager configuration.
+	if err := cfg.GCPSecretManager.ValidateBasic(); err != nil {
+		return err
+	}
+
 	// Mutual exclusion: at most one external-signer mode may be enabled.
 	if cfg.RemoteSigner.ServerAddress != "" && cfg.TmkmsListener.IsEnabled() {
 		return errBothExternalSignersEnabled
+	}
+	if cfg.GCPSecretManager.IsEnabled() && (cfg.RemoteSigner.ServerAddress != "" || cfg.TmkmsListener.IsEnabled()) {
+		return errMultipleSignerSourcesSet
 	}
 
 	return nil
@@ -123,6 +146,11 @@ func NewSignerFromConfig(
 			clientPrivKey,
 			clientLogger,
 		)
+	}
+
+	// If GCP Secret Manager is configured, load the key from there.
+	if config.GCPSecretManager.IsEnabled() {
+		return gcpsecretmanager.NewSignerFromConfig(ctx, config.GCPSecretManager)
 	}
 
 	// Otherwise, use a local signer.
@@ -149,9 +177,12 @@ func NewPrivValidatorFromConfig(
 ) (types.PrivValidator, error) {
 	// Mutual exclusion is also enforced in ValidateBasic, but defend in
 	// depth here in case callers skip validation.
-	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" &&
-		config.TmkmsListener.IsEnabled() {
+	remoteSignerEnabled := config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != ""
+	if remoteSignerEnabled && config.TmkmsListener.IsEnabled() {
 		return nil, errBothExternalSignersEnabled
+	}
+	if config.GCPSecretManager.IsEnabled() && (remoteSignerEnabled || config.TmkmsListener.IsEnabled()) {
+		return nil, errMultipleSignerSourcesSet
 	}
 
 	// tmkms-compat path. tmkms holds HRS authority; we don't wrap the
