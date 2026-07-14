@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -187,7 +188,7 @@ func TestParamsSetCmd(t *testing.T) {
 		cmd := newParamsSetCmd(cfg, io)
 
 		newGas := std.GasPrice{
-			Gas: 2000, Price: std.MustParseCoin("400ugnot"),
+			Gas: auth.BlockGasPriceScale, Price: std.MustParseCoin("2000ugnot"),
 		}
 
 		args := []string{"auth.initial_gasprice", newGas.String()}
@@ -198,6 +199,22 @@ func TestParamsSetCmd(t *testing.T) {
 		require.NoError(t, err)
 		state := updated.AppState.(gnoland.GnoGenesisState)
 		assert.Equal(t, newGas, state.Auth.Params.InitialGasPrice)
+	})
+
+	t.Run("reject noncanonical gas price", func(t *testing.T) {
+		t.Parallel()
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := common.DefaultGenesis()
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		cfg := &paramsCfg{}
+		cfg.GenesisPath = tempGenesis.Name()
+		cmd := newParamsSetCmd(cfg, commands.NewTestIO())
+
+		err := cmd.ParseAndRun(context.Background(), []string{"auth.initial_gasprice", "400ugnot/2000gas"})
+		assert.ErrorContains(t, err, "gas must be 1000000")
 	})
 
 	t.Run("invalid type", func(t *testing.T) {

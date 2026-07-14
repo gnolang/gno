@@ -73,6 +73,9 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 	if err != nil {
 		return fmt.Errorf("unable to set params %q: %w", key, err)
 	}
+	if err := gnoland.ValidateGenState(appstate); err != nil {
+		return fmt.Errorf("unable to validate genesis state: %w", err)
+	}
 
 	// Override AppState with the updated one
 	genesis.AppState = appstate
