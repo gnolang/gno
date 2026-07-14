@@ -419,7 +419,7 @@ Now, we should have the following folder structure:
 ```
 
 In the `script.gno` file, first define the package to be `main`. Then we can import
-the Counter realm and define a `main()` function with no return values that will
+the Counter realm and define a `main(cur realm)` function with no return values that will
 be automatically detected and run. In it, we can call the `Increment()` function.
 
 ```go
@@ -427,8 +427,8 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
-	println(counter.Increment(cross))
+func main(cur realm) {
+	println(counter.Increment(cross(cur)))
 }
 ```
 
@@ -1261,7 +1261,7 @@ var (
 )
 
 func init(cur realm) {
-        Token, adm = grc20.NewToken(0, cur, "wugnot", "wrapped GNOT", "wugnot", 0)
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
 }
 
 const (

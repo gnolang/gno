@@ -8,13 +8,15 @@ import (
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
 var (
-	instances avl.Tree // symbol -> *instance
-	pager     = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
+	instances   avl.Tree // symbol -> *instance
+	nextTokenID seqid.ID
+	pager       = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
 )
 
 type instance struct {
@@ -35,7 +37,8 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		panic("token already exists")
 	}
 
-	token, ledger := grc20.NewToken(0, cur, symbol, name, symbol, decimals)
+	id := nextTokenID.Next().String()
+	token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
 	if initialMint > 0 {
 		ledger.Mint(admin, initialMint)
 	}

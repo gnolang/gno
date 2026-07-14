@@ -141,8 +141,8 @@ In Gno, `init()` primarily serves two purposes:
 ```go
 import "gno.land/r/some/registry"
 
-func init() {
-	registry.Register(cross, "myID", myCallback)
+func init(cur realm) {
+	registry.Register(cross(cur), "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -809,7 +809,7 @@ have been consumed by the intermediary. Two attacker shapes bypass the check:
 
 1. **Intermediate code realm.** User calls `r/attacker/wrapper.DoIt()` with
    `-send 1000000ugnot`. The wrapper keeps the coins (via its own banker) and
-   then calls `BuyThing(cross, ...)` on your realm. Your realm sees
+   then calls `BuyThing(cross(cur), ...)` on your realm. Your realm sees
    `OriginSend() = 1000000ugnot`, the `IsUser()` check passes because... actually
    it doesn't — `IsUser()` rejects pure code realms. Which leads to:
 
@@ -818,7 +818,7 @@ have been consumed by the intermediary. Two attacker shapes bypass the check:
    That script runs in an ephemeral code realm at path
    `gno.land/e/{attacker}/run`. Inside main, the script consumes the origin-send
    envelope (via its own `BankerTypeOriginSend`) or simply does whatever it
-   wants with the coins, then calls `BuyThing(cross, ...)`. Your realm sees
+   wants with the coins, then calls `BuyThing(cross(cur), ...)`. Your realm sees
    `OriginSend() = 1000000ugnot` in the envelope and `IsUser() = true` because
    **`IsUser()` accepts both `IsUserCall()` (pure EOA) AND `IsUserRun()` (user-run
    ephemeral realm)**. The check passes but no coins reached your realm.
@@ -897,7 +897,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken(0, cur, "FOO", "Foo Token", "FOO", 4)
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
 	UserTeller = Token.CallerTeller()
 }
 

@@ -13,12 +13,12 @@ import (
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
 
-// Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
+// Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
 // Use this package's Register to make a token discoverable:
 //
-//	Token, ledger := grc20.NewToken(0, cur, id, name, symbol, decimals)
-//	grc20reg.Register(cross, Token, "")
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
+//	grc20reg.Register(cross(cur), Token, "")
 
 func Register(cur realm, token *grc20.Token, slug string) {
 	if slug != "" {

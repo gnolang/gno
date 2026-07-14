@@ -9,11 +9,14 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
 const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
+
+var nextGRC20ID seqid.ID
 
 // newTestNFT constructs an NFT through a same-realm cross so NewBasicNFT's
 // IsCurrent + non-empty PkgPath checks pass.
@@ -29,7 +32,7 @@ func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, _ := grc20.NewToken(0, cur, "TEST", "Test Token", "TEST", 6)
+	token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next().String(), cur)
 	RegisterToken(cross(cur), token, "test_token")
 
 	retrievedToken := GetToken("gno.land/r/matijamarjanovic/tokenhub.test_token")
@@ -80,7 +83,7 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, ledger := grc20.NewToken(0, cur, "TEST", "Test Token", "TEST", 6)
+	token, ledger := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next().String(), cur)
 	RegisterToken(cross(cur), token, "test_token")
 	ledger.Mint(unsafe.CurrentRealm().Address(), 1000)
 
@@ -128,7 +131,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	grc20Token, _ := grc20.NewToken(0, cur, "TEST", "Test Token", "TEST", 6)
+	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next().String(), cur)
 	RegisterToken(cross(cur), grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
@@ -162,7 +165,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 func TestMustGetFunctions(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, _ := grc20.NewToken(0, cur, "MUST", "Must Token", "MUST", 6)
+	token, _ := grc20.NewToken("Must Token", "MUST", 6, nextGRC20ID.Next().String(), cur)
 	RegisterToken(cross(cur), token, "must_token")
 
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/tokenhub.must_token")

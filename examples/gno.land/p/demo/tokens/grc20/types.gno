@@ -137,6 +137,7 @@ var (
 // only and allows any valid UTF-8 except control characters.
 const (
 	MaxNameLen   = 64
+	MaxIDLen     = 13
 	MaxSymbolLen = 11
 	MaxDecimals  = 18
 )

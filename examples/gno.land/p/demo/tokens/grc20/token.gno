@@ -18,13 +18,18 @@ import (
 // crossing frame, origRealm is unforgeable: an external realm cannot
 // fabricate a Token claiming to belong to a different package.
 //
-// Typical call from a realm's init(cur realm) or other crossing function:
+// Realms that can create multiple tokens should allocate IDs from one
+// persistent seqid.ID from gno.land/p/nt/seqid/v0, shared by every creation
+// path:
 //
-//	Token, ledger := grc20.NewToken(0, cur, "FOO", "Foo", "FOO", 4)
+//	var nextTokenID seqid.ID
+//	id := nextTokenID.Next().String()
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, id, cur)
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross, Token, slug).
-func NewToken(_ int, rlm realm, id, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+// grc20reg.Register(cross(cur), Token, slug).
+// rlm is last so this /p/ function remains non-crossing.
+func NewToken(name, symbol string, decimals int, id string, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -35,7 +40,7 @@ func NewToken(_ int, rlm realm, id, name, symbol string, decimals int) (*Token, 
 	if !validName(name) {
 		panic(ErrInvalidName)
 	}
-	if !validSymbol(id) {
+	if !validID(id) {
 		panic(ErrInvalidID)
 	}
 	if !validSymbol(symbol) {
@@ -57,6 +62,11 @@ func NewToken(_ int, rlm realm, id, name, symbol string, decimals int) (*Token, 
 	return token, ledger
 }
 
+// validID reports whether id is a valid seqid-compatible slug.
+func validID(id string) bool {
+	return validSlug(id, MaxIDLen)
+}
+
 // validName reports whether name is a valid display name: non-empty,
 // within MaxNameLen, and contains no control characters (any rune
 // below 0x20 or 0x7f). Permits Unicode letters, digits, punctuation,
@@ -76,7 +86,11 @@ func validName(name string) bool {
 // validSymbol reports whether s is valid slug-compatible metadata: non-empty,
 // within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
 func validSymbol(s string) bool {
-	if s == "" || len(s) > MaxSymbolLen {
+	return validSlug(s, MaxSymbolLen)
+}
+
+func validSlug(s string, maxLen int) bool {
+	if s == "" || len(s) > maxLen {
 		return false
 	}
 	for _, c := range s {
