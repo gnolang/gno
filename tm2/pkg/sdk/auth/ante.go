@@ -58,9 +58,14 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return ctx, res, true
 		}
 
-		// Ensure that the provided fees meet a minimum threshold for the validator,
-		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only run upon checktx.
+		if !simulate {
+			res := EnsureSufficientBlockGasPrice(ctx, tx.Fee)
+			if !res.IsOK() {
+				return ctx, res, true
+			}
+		}
+
+		// Validator minimum fees are local mempool policy, not consensus rules.
 		if ctx.IsCheckTx() && !simulate {
 			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
 			if !res.IsOK() {
@@ -413,23 +418,11 @@ func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector cryp
 	return sdk.Result{}
 }
 
-// EnsureSufficientMempoolFees verifies that the given transaction has supplied
-// enough fees to cover a proposer's minimum fees. A result object is returned
-// indicating success or failure.
-//
-// Contract: This should only be called during CheckTx as it cannot be part of
-// consensus.
-func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
-	minGasPrices := ctx.MinGasPrices()
+// EnsureSufficientBlockGasPrice verifies that the transaction fee meets the
+// consensus block gas price.
+func EnsureSufficientBlockGasPrice(ctx sdk.Context, fee std.Fee) sdk.Result {
 	blockGasPrice := ctx.Value(GasPriceContextKey{}).(std.GasPrice)
-	feeGasPrice := std.GasPrice{
-		Gas: fee.GasWanted,
-		Price: std.Coin{
-			Amount: fee.GasFee.Amount,
-			Denom:  fee.GasFee.Denom,
-		},
-	}
-	// check the block gas price
+	feeGasPrice := std.GasPrice{Gas: fee.GasWanted, Price: fee.GasFee}
 	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
 		ok, err := feeGasPrice.IsGTE(blockGasPrice)
 		if err != nil {
@@ -445,6 +438,15 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			))
 		}
 	}
+	return sdk.Result{}
+}
+
+// EnsureSufficientMempoolFees verifies that the transaction fee meets the
+// validator's local minimum gas prices. It must only be called during CheckTx.
+func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
+	minGasPrices := ctx.MinGasPrices()
+	feeGasPrice := std.GasPrice{Gas: fee.GasWanted, Price: fee.GasFee}
+
 	// check min gas price set by the node.
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)

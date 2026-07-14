@@ -1182,6 +1182,11 @@ func TestGasPriceUpdate(t *testing.T) {
 	// CheckTx failed because gas price increased
 	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
 	assert.False(t, r.IsOK(), fmt.Sprintf("%v", r))
+	header = &bft.Header{ChainID: "test-chain", Height: 2}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes2})
+	require.False(t, res.IsOK(), "DeliverTx accepted the previous block gas price: %v", res)
+	require.Contains(t, res.Log, "as block gas price")
 
 	// Case 3:
 	// A previously failed CheckTx successed after block gas price reduced.
@@ -1190,15 +1195,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
 	assert.False(t, r.IsOK(), fmt.Sprintf("%v", r))
 	// Replayed a Block, the gas price decrease
-	header = &bft.Header{ChainID: "test-chain", Height: 2}
-	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	// Delvier Tx consumes less than that target block gas 600000.
 
 	tx200 := newCounterTx(20000)
 	tx200.Fee = std.Fee{
 		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200000,
+			Amount: 300000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1252,9 +1255,9 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
-// TestGasPriceMinimumIsCheckTxOnly verifies that the production ante handler
-// enforces the block gas price minimum in CheckTx, but not in DeliverTx.
-func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
+// TestBlockGasPriceMinimumIsEnforcedInDeliverTx verifies that the production
+// ante handler rejects a block gas price bypass in both transaction paths.
+func TestBlockGasPriceMinimumIsEnforcedInDeliverTx(t *testing.T) {
 	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
 	require.NoError(t, err)
 	baseApp := app.(*sdk.BaseApp)
@@ -1326,7 +1329,7 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 
 	tx.Signatures = []std.Signature{
 		{
-			PubKey:   privKey.PubKey(),
+			PubKey:    privKey.PubKey(),
 			Signature: sig,
 		},
 	}
@@ -1356,14 +1359,14 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 		},
 	})
 
-	// This documents the current bug: DeliverTx does not enforce the minimum.
 	deliverRes := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
-	require.True(
+	require.False(
 		t,
 		deliverRes.IsOK(),
-		"DeliverTx failed: %+v",
+		"DeliverTx should reject a transaction below the block gas price: %+v",
 		deliverRes,
 	)
+	require.Contains(t, deliverRes.Log, "as block gas price")
 }
 
 func TestGasPriceEmptyBlockUpdate(t *testing.T) {
@@ -1483,8 +1486,14 @@ func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Appli
 
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(readCtx))
-			// Continue on with default auth ante handler.
-			if ctx.IsCheckTx() {
+			// Continue on with the production fee-check ordering.
+			if !simulate {
+				res := auth.EnsureSufficientBlockGasPrice(ctx, tx.Fee)
+				if !res.IsOK() {
+					return ctx, res, true
+				}
+			}
+			if ctx.IsCheckTx() && !simulate {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
 				if !res.IsOK() {
 					return ctx, res, true
@@ -1597,7 +1606,7 @@ func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {
 	tx.Fee = std.Fee{
 		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 1000,
+			Amount: 1_000_000,
 			Denom:  "ugnot",
 		},
 	}

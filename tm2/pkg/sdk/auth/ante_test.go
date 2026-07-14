@@ -768,9 +768,6 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 		{std.NewFee(200000, std.NewCoin("stake", 2)), true},
 		{std.NewFee(200000, std.NewCoin("atom", 5)), false},
 	}
-	// Do not set the block gas price
-	ctx = ctx.WithValue(GasPriceContextKey{}, std.GasPrice{})
-
 	for i, tc := range testCases {
 		res := EnsureSufficientMempoolFees(ctx, tc.input)
 		require.Equal(
@@ -828,53 +825,104 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
 
-func TestEnsureBlockGasPrice(t *testing.T) {
-	p1, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
-	require.NoError(t, err)
-
-	p2, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
+func TestEnsureSufficientBlockGasPrice(t *testing.T) {
+	blockGasPrice, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
 	require.NoError(t, err)
 
 	userFeeCases := []struct {
-		minGasPrice   std.GasPrice
 		blockGasPrice std.GasPrice
 		input         std.Fee
 		expectedOK    bool
 	}{
-		// user's gas wanted and gas fee: 0.1ugnot to 0.5ugnot
-		// validator's minGasPrice: 0.3 ugnot
-		// block gas price: 0.2ugnot
-
-		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
-		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
-		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
-		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
-		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
-
-		// validator's minGasPrice: 0.2 ugnot
-		// block gas price2: 0.3ugnot
-		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
-		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
-		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
-		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
-		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+		{blockGasPrice, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{blockGasPrice, std.NewFee(100, std.NewCoin("ugnot", 20)), true},
+		{blockGasPrice, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{blockGasPrice, std.NewFee(100, std.NewCoin("uatom", 30)), false},
+		{std.GasPrice{}, std.NewFee(100, std.NewCoin("ugnot", 0)), true},
 	}
 
-	// setup
 	env := setupTestEnv()
-	ctx := env.ctx
-	// validator min gas price // 0.3 ugnot per gas
 	for i, c := range userFeeCases {
-		ctx = ctx.WithMinGasPrices(
-			[]std.GasPrice{c.minGasPrice},
-		)
-		ctx = ctx.WithValue(GasPriceContextKey{}, c.blockGasPrice)
+		ctx := env.ctx.WithValue(GasPriceContextKey{}, c.blockGasPrice)
 
-		res := EnsureSufficientMempoolFees(ctx, c.input)
+		res := EnsureSufficientBlockGasPrice(ctx, c.input)
 		require.Equal(
 			t, c.expectedOK, res.IsOK(),
 			"unexpected result; case #%d, input: %v, log: %v", i, c.input, res.Log,
 		)
+	}
+}
+
+func TestAnteHandlerGasPriceRejectedExecutionPaths(t *testing.T) {
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	blockGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("ugnot", 2)}
+	localGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("ugnot", 3)}
+
+	tests := []struct {
+		name          string
+		mode          sdk.RunTxMode
+		blockGasPrice std.GasPrice
+		minGasPrices  []std.GasPrice
+		fee           std.Fee
+		expectedErr   abci.Error
+	}{
+		{"below block price in CheckTx", sdk.RunTxModeCheck, blockGasPrice, nil, std.NewFee(100, std.NewCoin("ugnot", 10)), std.InsufficientFeeError{}},
+		{"below block price in DeliverTx", sdk.RunTxModeDeliver, blockGasPrice, nil, std.NewFee(100, std.NewCoin("ugnot", 10)), std.InsufficientFeeError{}},
+		{"different denomination in CheckTx", sdk.RunTxModeCheck, blockGasPrice, nil, std.NewFee(100, std.NewCoin("uatom", 30)), std.InsufficientFeeError{}},
+		{"different denomination in DeliverTx", sdk.RunTxModeDeliver, blockGasPrice, nil, std.NewFee(100, std.NewCoin("uatom", 30)), std.InsufficientFeeError{}},
+		{"local price rejects CheckTx", sdk.RunTxModeCheck, blockGasPrice, []std.GasPrice{localGasPrice}, std.NewFee(100, std.NewCoin("ugnot", 20)), std.InsufficientFeeError{}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := env.ctx.WithMode(test.mode).
+				WithMinGasPrices(test.minGasPrices).
+				WithValue(GasPriceContextKey{}, test.blockGasPrice)
+			tx := std.Tx{Fee: test.fee}
+			_, res, abort := anteHandler(ctx, tx, false)
+			require.True(t, abort)
+			require.IsType(t, test.expectedErr, sdk.ABCIError(res.Error))
+		})
+	}
+}
+
+func TestAnteHandlerGasPriceSuccessfulExecutionPaths(t *testing.T) {
+	blockGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("atom", 2)}
+	localGasPrice := std.GasPrice{Gas: 10, Price: std.NewCoin("atom", 3)}
+
+	tests := []struct {
+		name        string
+		mode        sdk.RunTxMode
+		simulate    bool
+		blockPrice  std.GasPrice
+		localPrices []std.GasPrice
+		fee         std.Fee
+	}{
+		{"equal block price in CheckTx", sdk.RunTxModeCheck, false, blockGasPrice, nil, std.NewFee(50_000, std.NewCoin("atom", 10_000))},
+		{"equal block price in DeliverTx", sdk.RunTxModeDeliver, false, blockGasPrice, nil, std.NewFee(50_000, std.NewCoin("atom", 10_000))},
+		{"above block price in CheckTx", sdk.RunTxModeCheck, false, blockGasPrice, nil, std.NewFee(50_000, std.NewCoin("atom", 10_001))},
+		{"above block price in DeliverTx", sdk.RunTxModeDeliver, false, blockGasPrice, nil, std.NewFee(50_000, std.NewCoin("atom", 10_001))},
+		{"local price does not reject DeliverTx", sdk.RunTxModeDeliver, false, blockGasPrice, []std.GasPrice{localGasPrice}, std.NewFee(50_000, std.NewCoin("atom", 10_000))},
+		{"disabled block price in CheckTx", sdk.RunTxModeCheck, false, std.GasPrice{}, nil, std.NewFee(50_000, std.NewCoin("atom", 1))},
+		{"disabled block price in DeliverTx", sdk.RunTxModeDeliver, false, std.GasPrice{}, nil, std.NewFee(50_000, std.NewCoin("atom", 1))},
+		{"simulation skips both prices", sdk.RunTxModeSimulate, true, blockGasPrice, []std.GasPrice{localGasPrice}, std.NewFee(50_000, std.NewCoin("atom", 1))},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.ctx.WithMode(test.mode).
+				WithMinGasPrices(test.localPrices).
+				WithValue(GasPriceContextKey{}, test.blockPrice)
+			priv, _, addr := tu.KeyTestPubAddr()
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc.SetCoins(tu.NewTestCoins())
+			env.acck.SetAccount(ctx, acc)
+			tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)}, []crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, test.fee)
+			anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+			checkValidTx(t, anteHandler, ctx, tx, test.simulate)
+		})
 	}
 }
 
@@ -896,11 +944,11 @@ func TestInvalidUserFee(t *testing.T) {
 		[]std.GasPrice{minGasPrice},
 	)
 	ctx = ctx.WithValue(GasPriceContextKey{}, blockGasPrice)
-	res1 := EnsureSufficientMempoolFees(ctx, userFee1)
+	res1 := EnsureSufficientBlockGasPrice(ctx, userFee1)
 	require.False(t, res1.IsOK())
 	assert.Contains(t, res1.Log, "GasPrice.Gas cannot be zero;")
 
-	res2 := EnsureSufficientMempoolFees(ctx, userFee2)
+	res2 := EnsureSufficientBlockGasPrice(ctx, userFee2)
 	require.False(t, res2.IsOK())
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }
