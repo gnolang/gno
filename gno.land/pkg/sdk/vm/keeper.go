@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -1749,9 +1748,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	for path, diff := range ParamsRealmDiffs(ctx) {
 		realmDiffs[path] += diff
 	}
-	depositAmt := deposit.AmountOf(ugnot.Denom)
+	defaultDepositCoin := std.MustParseCoin(params.DefaultDeposit)
+	defaultDenom := defaultDepositCoin.Denom
+	depositAmt := deposit.AmountOf(defaultDenom)
 	if depositAmt == 0 {
-		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
+		depositAmt = defaultDepositCoin.Amount
 	}
 	price := std.MustParseCoin(params.StoragePrice)
 
@@ -1783,11 +1784,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
 			if depositAmt < requiredDeposit {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
-					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
-					requiredDeposit, ugnot.Denom, diff))
+					"not enough deposit to cover the storage usage: requires %d%s for %d bytes but got %d%s",
+					requiredDeposit, defaultDenom, diff, depositAmt, defaultDenom))
 				continue
 			}
-			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
+			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, defaultDenom, diff)
 			if err != nil {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"lockStorageDeposit failed for realm %s: %w",
@@ -1800,7 +1801,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
-			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
+			d := std.Coin{Denom: defaultDenom, Amount: requiredDeposit}
 			evt := chain.StorageDepositEvent{
 				BytesDelta: diff,
 				FeeDelta:   d,
@@ -1834,10 +1835,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if rlm.Deposit < uint64(depositUnlocked) {
 				panic(fmt.Sprintf(
 					"not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",
-					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
+					rlmPath, rlm.Deposit, defaultDenom, depositUnlocked, defaultDenom))
 			}
 
-			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
+			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), defaultDenom)
 			receiver := caller
 			if isRestricted {
 				// If gnot tokens are locked, sent them to the storageFeeCollector address
@@ -1845,14 +1846,14 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				receiver = params.StorageFeeCollector
 			}
 
-			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
+			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, defaultDenom, released)
 			if err != nil {
 				return err
 			}
 			// Commit the per-realm meta-key only after the refund
 			// transfers — symmetry with the lock branch above.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
-			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
+			d := std.Coin{Denom: defaultDenom, Amount: depositUnlocked}
 			evt := chain.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative
 				BytesDelta:     diff,
@@ -1870,10 +1871,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	return nil
 }
 
-func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, requiredDeposit int64, diff int64) error {
+func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, requiredDeposit int64, depositDenom string, diff int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 
-	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+	d := std.Coins{std.Coin{Denom: depositDenom, Amount: requiredDeposit}}
 
 	// Count storage deposit against a session's SpendLimit. The transfer
 	// itself uses SendCoinsUnrestricted (deposits must bypass
@@ -1897,9 +1898,9 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	return nil
 }
 
-func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.Address, rlm *gno.Realm, depositUnlocked int64, depositDenom string, released int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
-	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
+	d := std.Coins{std.Coin{Denom: depositDenom, Amount: depositUnlocked}}
 
 	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, refundReceiver, d)
 	if err != nil {
