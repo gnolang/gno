@@ -18,7 +18,7 @@ func TestPkgIDEq(t *testing.T) {
 	// Flip each byte in turn: covers every word segment of the
 	// hand-unrolled compare and fails loudly if HashSize ever drifts
 	// away from the 8+8+4 layout eq assumes.
-	for seg := 0; seg < HashSize; seg++ {
+	for seg := range HashSize {
 		other := base
 		other.Hashlet[seg] ^= 0xFF
 		if base.eq(other) {
@@ -42,7 +42,7 @@ func TestHashletIsZero(t *testing.T) {
 	if !zero.IsZero() {
 		t.Fatal("zero Hashlet reported non-zero")
 	}
-	for seg := 0; seg < HashSize; seg++ {
+	for seg := range HashSize {
 		var h Hashlet
 		h[seg] = 1
 		if h.IsZero() {
