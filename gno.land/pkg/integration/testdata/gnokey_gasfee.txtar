@@ -14,7 +14,7 @@ stdout '"coins": "10000000000000ugnot"'
 # the actual gas the real tx would consume.
 gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 3_500_000 -gas-fee 350001ugnot -chainid tendermint_test -simulate only test1
 stdout 'GAS USED:\s+2756592'
-stdout 'INFO:       estimated gas usage: 2756592 \(suggested, with 5% margin: 2894422\), gas fee: 2894ugnot, current gas price: 1ugnot/1000gas'
+stdout 'INFO:       estimated gas usage: 2756592 \(suggested, with 5% margin: 2894422\), gas fee: 3039ugnot, current gas price: 1000ugnot/1000000gas'
 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
@@ -37,7 +37,7 @@ stdout '"coins": "9999999790206ugnot"'
 # Tx Call -simulate only, estimate gas used and gas fee.
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_800_000 -gas-fee 180001ugnot -chainid tendermint_test -simulate only test1
 stdout 'GAS USED:\s+1212011'
-stdout 'INFO:       estimated gas usage: 1212011 \(suggested, with 5% margin: 1272612\), gas fee: 1273ugnot, current gas price: 1ugnot/1000gas'
+stdout 'INFO:       estimated gas usage: 1212011 \(suggested, with 5% margin: 1272612\), gas fee: 1336ugnot, current gas price: 1000ugnot/1000000gas'
 
 ## No additional fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr

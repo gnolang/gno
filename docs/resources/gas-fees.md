@@ -59,11 +59,11 @@ prices when usage is high and decreasing them when usage is low.
 ### How Gas Price Works
 
 The gas price is returned as a `GasPrice` object with two fields:
-- `gas` - the gas units (e.g., 1000)
-- `price` - the price for those gas units (e.g., "100ugnot")
+- `gas` - the gas units (`1000000` for the consensus dynamic price)
+- `price` - the price for those gas units (e.g., "100000ugnot")
 
-Together, these represent a **rate**. For example, `{gas: 1000, price: "100ugnot"}`
-means the minimum rate is 100 ugnot per 1000 gas units, which simplifies to
+Together, these represent a **rate**. For example, `{gas: 1000000, price: "100000ugnot"}`
+means the minimum rate is 100000 ugnot per 1000000 gas units, which simplifies to
 0.1 ugnot per gas unit.
 
 To calculate the minimum fee manually:
@@ -74,8 +74,8 @@ To calculate the minimum fee manually:
 
 **Example:**
 ```bash
-# Query returns: {gas: 1000, price: "100ugnot"}
-# Rate = 100 ÷ 1000 = 0.1 ugnot/gas
+# Query returns: {gas: 1000000, price: "100000ugnot"}
+# Rate = 100000 ÷ 1000000 = 0.1 ugnot/gas
 
 # If you want --gas-wanted 2000000:
 # Minimum fee = 2,000,000 × 0.1 = 200,000 ugnot
@@ -143,7 +143,7 @@ Output:
 ```
 GAS WANTED: 2000000
 GAS USED:   268994
-INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1ugnot/1000gas
+INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1000ugnot/1000000gas
 ```
 
 Use the `estimated gas usage` and `gas fee` values as your `-gas-wanted` and `-gas-fee`
@@ -182,4 +182,3 @@ To minimize gas costs, consider these optimization strategies:
 > out of gas), the transaction won't be submitted and you won't be charged.
 > However, a transaction that passes simulation can still fail on-chain, in
 > which case you will be charged.
-

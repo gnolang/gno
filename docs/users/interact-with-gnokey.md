@@ -1158,8 +1158,8 @@ If everything went correctly, we should get an output similar to the following:
 ```bash
 height: 0
 data: {
-  "gas": 1000,
-  "price": "100ugnot"
+  "gas": 1000000,
+  "price": "100000ugnot"
 }
 ```
 
