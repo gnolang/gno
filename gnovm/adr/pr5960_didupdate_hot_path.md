@@ -96,6 +96,7 @@ non-inlined callees in `DidUpdate`.
   under `-tags debugAssert`.
 - `PkgID.eq`/`IsZero` must stay in sync with `HashSize` (20); both are
   covered by segment-by-segment unit tests
-  (`realm_pkgid_test.go`) that cross-check against the generic `==`.
+  (`realm_pkgid_test.go`) that cross-check against the generic `==`
+  and loop the full `HashSize` range so a constant drift fails loudly.
 - The `markX(oo, oi)` forms require `oi == oo.GetObjectInfo()`; they
   are unexported and only called from `DidUpdate`/wrappers.
