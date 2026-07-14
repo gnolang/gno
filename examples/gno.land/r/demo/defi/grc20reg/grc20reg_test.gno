@@ -78,10 +78,16 @@ func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 
 func TestValidateSlug(cur realm, t *testing.T) {
 	// Valid slugs — should not panic
-	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c"}
+	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c", strings.Repeat("a", maxSlugLen)}
 	for _, slug := range valid {
 		validateSlug(slug) // no panic = pass
 	}
+}
+
+func TestValidateSlugPanicsOnTooLong(cur realm, t *testing.T) {
+	defer func() { recover() }()
+	validateSlug(strings.Repeat("a", maxSlugLen+1))
+	t.Errorf("should have panicked")
 }
 
 func TestValidateSlugPanicsOnSpace(cur realm, t *testing.T) {

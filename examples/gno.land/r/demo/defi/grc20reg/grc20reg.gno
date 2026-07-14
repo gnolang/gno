@@ -46,8 +46,8 @@ func Register(cur realm, token *grc20.Token, slug string) {
 }
 
 func Get(key string) *grc20.Token {
-	token, ok := registry.Get(key)
-	if !ok {
+	token := registry.Get(key)
+	if token == nil {
 		return nil
 	}
 	return token.(*grc20.Token)
@@ -94,15 +94,21 @@ func Render(path string) string {
 	}
 }
 
-const registerEvent = "register"
+const (
+	registerEvent = "register"
+	maxSlugLen    = 128
+)
 
 func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
 }
 
-// validateSlug panics if the legacy slug argument contains non-alphanumeric characters.
+// validateSlug panics if the slug is too long or contains non-alphanumeric characters.
 // Only letters, digits, dashes, and underscores are allowed.
 func validateSlug(slug string) {
+	if len(slug) > maxSlugLen {
+		panic("grc20reg: slug too long")
+	}
 	for _, c := range slug {
 		if !isAlphanumeric(c) && c != '_' && c != '-' {
 			panic("grc20reg: invalid slug character: " + string(c))

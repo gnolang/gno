@@ -19,6 +19,7 @@ import (
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -181,6 +182,60 @@ func TestNewApp(t *testing.T) {
 		AppState:   DefaultGenState(),
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+}
+
+// TestInitChainer_GenesisValidatorPubKeyType verifies that the initial
+// validator set seeded from genesis is gated by the consensus-params pubkey
+// allow-list, mirroring the EndBlocker gate for runtime valset updates. A
+// genesis validator whose key type is not allowed (e.g. secp256k1, which is
+// disallowed for validators) must abort InitChain rather than seed a
+// non-compliant validator into the active set.
+func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(pubKey crypto.PubKey) abci.RequestInitChain {
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				// ed25519 is the only allowed validator key type.
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: DefaultGenState(),
+		}
+	}
+
+	t.Run("ed25519 genesis validator accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(ed25519.GenPrivKey().PubKey()))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("secp256k1 genesis validator aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		// getDummyKey produces a secp256k1 key, which is not in the allow-list.
+		secpKey := getDummyKey(t).PubKey()
+		wantErr := fmt.Sprintf(
+			"genesis validator %s has disallowed pubkey type %s (allowed: %v)",
+			secpKey.Address().String(), amino.GetTypeURL(secpKey), []string{ed25519Type},
+		)
+		assert.PanicsWithError(t, wantErr, func() {
+			app.InitChain(newInitReq(secpKey))
+		})
+	})
 }
 
 // Test whether InitChainer calls to load the stdlibs correctly.
@@ -431,7 +486,7 @@ func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 
 	keys := make([]crypto.PrivKey, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := getDummyKey(t)
 		keys = append(keys, key)
 	}
@@ -2419,7 +2474,6 @@ func TestMeetsMinVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
 			t.Parallel()
 			got := meetsMinVersion(tc.binary, tc.minVer)
@@ -2448,7 +2502,6 @@ func TestParseGnolandVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			major, minor, ok := parseGnolandVersion(tc.input)

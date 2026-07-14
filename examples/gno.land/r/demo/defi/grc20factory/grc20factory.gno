@@ -1,4 +1,4 @@
-package foo20
+package grc20factory
 
 import (
 	"gno.land/p/demo/tokens/grc20"
@@ -208,8 +208,8 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func mustGetInstance(symbol string) *instance {
-	t, exists := instances.Get(symbol)
-	if !exists {
+	t := instances.Get(symbol)
+	if t == nil {
 		panic("token instance does not exist")
 	}
 	return t.(*instance)
