@@ -133,6 +133,23 @@ func TestValidate(t *testing.T) {
 			}
 		})
 	}
+
+	valid := DefaultParams()
+	valid.InitialGasPrice = std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Denom: "ugnot", Amount: 1000}}
+	require.NoError(t, valid.Validate())
+
+	for name, gasPrice := range map[string]std.GasPrice{
+		"noncanonical equivalent scale": {Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		"zero gas with amount":          {Gas: 0, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		"zero amount with scale":        {Gas: BlockGasPriceScale, Price: std.Coin{Denom: "ugnot", Amount: 0}},
+		"invalid denomination":          {Gas: BlockGasPriceScale, Price: std.Coin{Denom: "X", Amount: 1}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			params := valid
+			params.InitialGasPrice = gasPrice
+			require.Error(t, params.Validate())
+		})
+	}
 }
 
 func TestNewParams(t *testing.T) {
@@ -178,6 +195,9 @@ func TestNewParams(t *testing.T) {
 
 func TestWillSetParam(t *testing.T) {
 	env := setupTestEnv()
+	params := DefaultParams()
+	params.InitialGasPrice = std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Denom: "ugnot", Amount: 1000}}
+	require.NoError(t, env.acck.SetParams(env.ctx, params))
 
 	tests := []struct {
 		name        string
@@ -340,8 +360,20 @@ func TestWillSetParam(t *testing.T) {
 		{
 			name:        "valid initial_gasprice",
 			key:         "p:initial_gasprice",
-			value:       "1ugnot/1gas",
+			value:       "2000ugnot/1000000gas",
 			shouldPanic: false,
+		},
+		{
+			name:        "invalid initial_gasprice scale",
+			key:         "p:initial_gasprice",
+			value:       "1ugnot/1000gas",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid initial_gasprice denomination change",
+			key:         "p:initial_gasprice",
+			value:       "1000uatom/1000000gas",
+			shouldPanic: true,
 		},
 		{
 			name:        "wrong type for initial_gasprice",

@@ -347,7 +347,9 @@ func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if (gp == std.GasPrice{}) {
 		return
 	}
-	gp = canonicalBlockGasPrice(gp)
+	if err := validateBlockGasPrice(gp); err != nil {
+		panic(err)
+	}
 	stor := ctx.Store(gk.key)
 	bz, err := amino.Marshal(gp)
 	if err != nil {
@@ -395,19 +397,22 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
 // point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
+	if err := validateBlockGasPrice(lastGasPrice); err != nil {
+		panic(err)
+	}
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
 		return lastGasPrice
 	}
-	lastGasPrice = canonicalBlockGasPrice(lastGasPrice)
-
 	// This is also a configuration to indicate that there is no need to change the last gas price.
 	if params.TargetGasRatio == 0 {
 		return lastGasPrice
 	}
-	initialGasPrice := canonicalBlockGasPrice(params.InitialGasPrice)
-	if lastGasPrice.Price.Denom != initialGasPrice.Price.Denom {
-		panic(fmt.Sprintf("block gas price denomination %q does not match initial gas price denomination %q", lastGasPrice.Price.Denom, initialGasPrice.Price.Denom))
+	if err := validateBlockGasPrice(params.InitialGasPrice); err != nil {
+		panic(err)
+	}
+	if lastGasPrice.Price.Denom != params.InitialGasPrice.Price.Denom {
+		panic(fmt.Sprintf("block gas price denomination %q does not match initial gas price denomination %q", lastGasPrice.Price.Denom, params.InitialGasPrice.Price.Denom))
 	}
 	// Note: gasUsed == 0 (empty block) is deliberately handled by the decrease
 	// branch below, so the price can decay during idle periods.
@@ -423,14 +428,11 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	targetGasInt := new(big.Int).Set(num)
 
 	lastPriceInt := big.NewInt(lastGasPrice.Price.Amount)
-	initPriceInt := big.NewInt(initialGasPrice.Price.Amount)
+	initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
 
-	// if used gas is right on target, only apply a newly raised floor
+	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
-		if lastPriceInt.Cmp(initPriceInt) < 0 {
-			return initialGasPrice
-		}
 		return lastGasPrice
 	}
 
@@ -450,7 +452,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
 		if lastPriceInt.Cmp(initPriceInt) == -1 {
-			return initialGasPrice
+			return params.InitialGasPrice
 		}
 		num.Sub(targetGasInt, gasUsedInt)
 		num.Mul(num, lastPriceInt)
@@ -462,9 +464,9 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// value of GasPricesChangeCompressor (see issue #5906).
 		diff := maxBig(num, bigOne)
 		num.Sub(lastPriceInt, diff)
+		// gas price should not be less than the initial gas price,
+		num = maxBig(num, initPriceInt)
 	}
-	// Gas price should not be less than the initial gas price in either branch.
-	num = maxBig(num, initPriceInt)
 
 	if !num.IsInt64() {
 		panic("The min gas price is out of int64 range")
@@ -503,7 +505,9 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	if err != nil {
 		panic(err)
 	}
-	gp = canonicalBlockGasPrice(gp)
+	if err := validateBlockGasPrice(gp); err != nil {
+		panic(err)
+	}
 	logTelemetry(gp,
 		attribute.KeyValue{
 			Key:   "func",
@@ -512,44 +516,18 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	return gp
 }
 
-func canonicalBlockGasPrice(gp std.GasPrice) std.GasPrice {
-	if gp.Price.Amount == 0 {
-		return gp
-	}
-	if gp.Price.Amount < 0 {
-		panic("block gas price amount must be positive")
-	}
-	if gp.Gas <= 0 {
-		panic("nonzero block gas price gas must be positive")
-	}
-
-	amount := new(big.Int).Mul(big.NewInt(gp.Price.Amount), big.NewInt(BlockGasPriceScale))
-	quotient, remainder := new(big.Int), new(big.Int)
-	quotient.QuoRem(amount, big.NewInt(gp.Gas), remainder)
-	if remainder.Sign() != 0 {
-		quotient.Add(quotient, big.NewInt(1))
-	}
-	if !quotient.IsInt64() {
-		panic("The min gas price is out of int64 range")
-	}
-
-	gp.Gas = BlockGasPriceScale
-	gp.Price.Amount = quotient.Int64()
-	return gp
-}
-
 func logTelemetry(gp std.GasPrice, kv attribute.KeyValue) {
 	if !telemetry.MetricsEnabled() {
 		return
 	}
-	attrs := []attribute.KeyValue{
-		attribute.String("coin_denom", gp.Price.Denom),
-		attribute.Int64("gas_denominator", gp.Gas),
-		kv,
+	a := attribute.KeyValue{
+		Key:   "Coin",
+		Value: attribute.StringValue(gp.Price.String()),
 	}
+	attrs := []attribute.KeyValue{a, kv}
 	metrics.BlockGasPriceAmount.Record(
 		context.Background(),
-		gp.Price.Amount,
+		gp.Gas,
 		metric.WithAttributes(attrs...),
 	)
 }

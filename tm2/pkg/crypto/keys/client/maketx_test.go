@@ -25,6 +25,7 @@ func TestRequiredGasFee(t *testing.T) {
 		{"small gas with large denominator", 1, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 1},
 		{"exact division", 2000, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 2},
 		{"remainder division", 2001, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 3},
+		{"equivalent rate", 2001, std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1}}, 3},
 		{"large multiply", 3_000_000_000, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1_000_000}}, 3_000_000_000},
 	}
 	for _, tt := range tests {

@@ -253,7 +253,7 @@ func Init(config config.Config) error {
 
 	if BlockGasPriceAmount, err = meter.Int64Histogram(
 		gasPriceKey,
-		metric.WithDescription("block gas price amount numerator"),
+		metric.WithDescription("block gas price"),
 		metric.WithUnit("token"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)

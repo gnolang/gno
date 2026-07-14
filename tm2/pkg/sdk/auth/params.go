@@ -118,11 +118,24 @@ func (p Params) Validate() error {
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
 	}
-	if p.InitialGasPrice.Gas < 0 {
-		return fmt.Errorf("invalid initial gas price: gas must be non-negative, got %d", p.InitialGasPrice.Gas)
+	if err := validateBlockGasPrice(p.InitialGasPrice); err != nil {
+		return fmt.Errorf("invalid initial gas price: %w", err)
 	}
-	if p.InitialGasPrice.Price.Amount < 0 {
-		return fmt.Errorf("invalid initial gas price: price amount must be non-negative, got %d", p.InitialGasPrice.Price.Amount)
+	return nil
+}
+
+func validateBlockGasPrice(gp std.GasPrice) error {
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return nil
+	}
+	if gp.Gas != BlockGasPriceScale {
+		return fmt.Errorf("gas must be %d, got %d", BlockGasPriceScale, gp.Gas)
+	}
+	if gp.Price.Amount <= 0 {
+		return fmt.Errorf("price amount must be positive, got %d", gp.Price.Amount)
+	}
+	if err := std.ValidateDenom(gp.Price.Denom); err != nil {
+		return err
 	}
 	return nil
 }
@@ -191,6 +204,9 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		gp, err := std.ParseGasPrice(s)
 		if err != nil {
 			panic(fmt.Sprintf("invalid initial_gasprice: %v", err))
+		}
+		if params.InitialGasPrice.Price.Denom != "" && gp.Price.Denom != params.InitialGasPrice.Price.Denom {
+			panic(fmt.Sprintf("initial_gasprice denomination %q does not match current denomination %q", gp.Price.Denom, params.InitialGasPrice.Price.Denom))
 		}
 		params.InitialGasPrice = gp
 	case "p:unrestricted_addrs":

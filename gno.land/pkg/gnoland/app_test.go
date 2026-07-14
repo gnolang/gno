@@ -1261,8 +1261,8 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 	baseApp := app.(*sdk.BaseApp)
 
 	initialPrice := std.GasPrice{
-		Gas:   1000,
-		Price: std.Coin{Amount: 100, Denom: "ugnot"},
+		Gas:   auth.BlockGasPriceScale,
+		Price: std.Coin{Amount: 100_000, Denom: "ugnot"},
 	}
 
 	gen := gnoGenesisState(t)
@@ -1302,10 +1302,7 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 	qr := baseApp.Query(query)
 	require.True(t, qr.IsOK(), "query failed: %v", qr.ResponseBase.Error)
 	require.NoError(t, amino.Unmarshal(qr.Value, &storedPrice))
-	require.Equal(t, std.GasPrice{
-		Gas:   auth.BlockGasPriceScale,
-		Price: std.Coin{Amount: 100_000, Denom: "ugnot"},
-	}, storedPrice)
+	require.Equal(t, initialPrice, storedPrice)
 
 	msgs := []std.Msg{
 		bank.NewMsgSend(
@@ -1372,12 +1369,12 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 
 func TestGasPriceEmptyBlockUpdate(t *testing.T) {
 	startingPrice := std.GasPrice{
-		Gas:   1000,
-		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+		Gas:   auth.BlockGasPriceScale,
+		Price: std.Coin{Amount: 10_000, Denom: "ugnot"},
 	}
 	floorPrice := std.GasPrice{
-		Gas:   1000,
-		Price: std.Coin{Amount: 1, Denom: "ugnot"},
+		Gas:   auth.BlockGasPriceScale,
+		Price: std.Coin{Amount: 1000, Denom: "ugnot"},
 	}
 
 	run := func() []byte {
@@ -1399,10 +1396,7 @@ func TestGasPriceEmptyBlockUpdate(t *testing.T) {
 		qr := app.Query(query)
 		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
 		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
-		require.Equal(t, std.GasPrice{
-			Gas:   auth.BlockGasPriceScale,
-			Price: std.Coin{Amount: 10_000, Denom: "ugnot"},
-		}, gasPrice)
+		require.Equal(t, startingPrice, gasPrice)
 
 		tx := newCounterTx(1)
 		tx.Fee = std.Fee{
@@ -1574,8 +1568,8 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
       "params": {
         "gas_price_change_compressor": "8",
         "initial_gasprice": {
-          "gas": "1000",
-          "price": "100ugnot"
+          "gas": "1000000",
+          "price": "100000ugnot"
         },
         "max_memo_bytes": "65536",
         "sig_verify_cost_ed25519": "590",
