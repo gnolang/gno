@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/awssecretsmanager"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
@@ -33,22 +34,31 @@ type PrivValidatorConfig struct {
 	// listens for tmkms / Horcrux to dial in). Mutually exclusive with RemoteSigner;
 	// see upstream_config.go.
 	TmkmsListener *TmkmsListenerConfig `json:"tmkms_listener" toml:"tmkms_listener" comment:"Configuration for upstream-Tendermint-protocol signer (tmkms / Horcrux). Empty listen_addr disables this mode."`
+
+	// AWSSecretsManager configures a signer that loads the validator key from
+	// an AWS Secrets Manager secret instead of a local file. Signing still
+	// happens locally, in-process; AWS Secrets Manager is only used as the
+	// durable key store. Mutually exclusive with RemoteSigner and TmkmsListener.
+	AWSSecretsManager *awssecretsmanager.Config `json:"aws_secrets_manager" toml:"aws_secrets_manager" comment:"Configuration for loading the validator key from AWS Secrets Manager"`
 }
 
 // PrivValidatorConfig validation errors.
 var (
-	errInvalidSignStatePath   = errors.New("invalid private validator sign state file path")
-	errInvalidLocalSignerPath = errors.New("invalid private validator local signer file path")
-	errNilRemoteSignerConfig  = errors.New("remote signer configuration cannot be nil")
+	errInvalidSignStatePath     = errors.New("invalid private validator sign state file path")
+	errInvalidLocalSignerPath   = errors.New("invalid private validator local signer file path")
+	errNilRemoteSignerConfig    = errors.New("remote signer configuration cannot be nil")
+	errNilAWSSecretsManagerCfg  = errors.New("aws secrets manager configuration cannot be nil")
+	errMultipleSignerSourcesSet = errors.New("only one of remote_signer, tmkms_listener, or aws_secrets_manager may be configured")
 )
 
 // DefaultPrivValidatorConfig returns a default configuration for the PrivValidator.
 func DefaultPrivValidatorConfig() *PrivValidatorConfig {
 	return &PrivValidatorConfig{
-		SignState:     "priv_validator_state.json",
-		LocalSigner:   "priv_validator_key.json",
-		RemoteSigner:  rsclient.DefaultRemoteSignerClientConfig(),
-		TmkmsListener: DefaultTmkmsListenerConfig(),
+		SignState:         "priv_validator_state.json",
+		LocalSigner:       "priv_validator_key.json",
+		RemoteSigner:      rsclient.DefaultRemoteSignerClientConfig(),
+		TmkmsListener:     DefaultTmkmsListenerConfig(),
+		AWSSecretsManager: awssecretsmanager.DefaultConfig(),
 	}
 }
 
@@ -97,9 +107,22 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 		}
 	}
 
+	// Verify the AWS Secrets Manager configuration is not nil.
+	if cfg.AWSSecretsManager == nil {
+		return errNilAWSSecretsManagerCfg
+	}
+
+	// Validate the AWS Secrets Manager configuration.
+	if err := cfg.AWSSecretsManager.ValidateBasic(); err != nil {
+		return err
+	}
+
 	// Mutual exclusion: at most one external-signer mode may be enabled.
 	if cfg.RemoteSigner.ServerAddress != "" && cfg.TmkmsListener.IsEnabled() {
 		return errBothExternalSignersEnabled
+	}
+	if cfg.AWSSecretsManager.IsEnabled() && (cfg.RemoteSigner.ServerAddress != "" || cfg.TmkmsListener.IsEnabled()) {
+		return errMultipleSignerSourcesSet
 	}
 
 	return nil
@@ -123,6 +146,11 @@ func NewSignerFromConfig(
 			clientPrivKey,
 			clientLogger,
 		)
+	}
+
+	// If AWS Secrets Manager is configured, load the key from there.
+	if config.AWSSecretsManager.IsEnabled() {
+		return awssecretsmanager.NewSignerFromConfig(ctx, config.AWSSecretsManager)
 	}
 
 	// Otherwise, use a local signer.
@@ -149,9 +177,12 @@ func NewPrivValidatorFromConfig(
 ) (types.PrivValidator, error) {
 	// Mutual exclusion is also enforced in ValidateBasic, but defend in
 	// depth here in case callers skip validation.
-	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" &&
-		config.TmkmsListener.IsEnabled() {
+	remoteSignerEnabled := config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != ""
+	if remoteSignerEnabled && config.TmkmsListener.IsEnabled() {
 		return nil, errBothExternalSignersEnabled
+	}
+	if config.AWSSecretsManager.IsEnabled() && (remoteSignerEnabled || config.TmkmsListener.IsEnabled()) {
+		return nil, errMultipleSignerSourcesSet
 	}
 
 	// tmkms-compat path. tmkms holds HRS authority; we don't wrap the
