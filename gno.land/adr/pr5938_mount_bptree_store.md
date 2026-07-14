@@ -4,7 +4,7 @@
 
 Proposed (PR pending). Stacked on the tm2 PR that made `MutableTree.Get`
 serve clean-working-tree reads from the fast index
-(`tm2/adr/prxxxx_bptree_fastindex_working_tree.md`).
+(`tm2/adr/pr5937_bptree_fastindex_working_tree.md`).
 
 ## Context
 
