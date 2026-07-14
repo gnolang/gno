@@ -878,6 +878,18 @@ func TestEnsureBlockGasPrice(t *testing.T) {
 	}
 }
 
+func TestEnsureBlockGasPriceCanonicalThreshold(t *testing.T) {
+	env := setupTestEnv()
+	old := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
+	canonical := std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 1000, Denom: "ugnot"}}
+
+	for _, blockPrice := range []std.GasPrice{old, canonical} {
+		ctx := env.ctx.WithValue(GasPriceContextKey{}, blockPrice)
+		require.False(t, EnsureSufficientMempoolFees(ctx, std.NewFee(1001, std.NewCoin("ugnot", 1))).IsOK())
+		require.True(t, EnsureSufficientMempoolFees(ctx, std.NewFee(1001, std.NewCoin("ugnot", 2))).IsOK())
+	}
+}
+
 func TestInvalidUserFee(t *testing.T) {
 	minGasPrice, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
 	require.NoError(t, err)

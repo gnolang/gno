@@ -32,6 +32,9 @@ const (
 
 	// key for gas price
 	GasPriceKey = "gasPrice"
+	// BlockGasPriceScale is the canonical gas denominator for the consensus
+	// dynamic block gas price.
+	BlockGasPriceScale int64 = 1_000_000
 	// param key for global account number
 	GlobalAccountNumberKey = "globalAccountNumber"
 

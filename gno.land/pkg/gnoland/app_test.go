@@ -1230,7 +1230,8 @@ func TestGasPriceUpdate(t *testing.T) {
 	var gp std.GasPrice
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
-	require.Equal(t, "108ugnot", gp.Price.String())
+	require.Equal(t, "108506ugnot", gp.Price.String())
+	require.Equal(t, auth.BlockGasPriceScale, gp.Gas)
 
 	// Case 5,
 	// require matching expected GasPrice after low gas blocks ( decrease below initial gas price case)
@@ -1242,14 +1243,14 @@ func TestGasPriceUpdate(t *testing.T) {
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
-	require.Equal(t, "102ugnot", gp.Price.String())
+	require.Equal(t, "101866ugnot", gp.Price.String())
 
 	replayBlock(t, baseApp, 500000, 9)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
-	require.Equal(t, "100ugnot", gp.Price.String())
+	require.Equal(t, "100000ugnot", gp.Price.String())
 }
 
 // TestGasPriceMinimumIsCheckTxOnly verifies that the production ante handler
@@ -1301,7 +1302,10 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 	qr := baseApp.Query(query)
 	require.True(t, qr.IsOK(), "query failed: %v", qr.ResponseBase.Error)
 	require.NoError(t, amino.Unmarshal(qr.Value, &storedPrice))
-	require.Equal(t, initialPrice, storedPrice)
+	require.Equal(t, std.GasPrice{
+		Gas:   auth.BlockGasPriceScale,
+		Price: std.Coin{Amount: 100_000, Denom: "ugnot"},
+	}, storedPrice)
 
 	msgs := []std.Msg{
 		bank.NewMsgSend(
@@ -1326,7 +1330,7 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 
 	tx.Signatures = []std.Signature{
 		{
-			PubKey:   privKey.PubKey(),
+			PubKey:    privKey.PubKey(),
 			Signature: sig,
 		},
 	}
@@ -1395,7 +1399,10 @@ func TestGasPriceEmptyBlockUpdate(t *testing.T) {
 		qr := app.Query(query)
 		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
 		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
-		require.Equal(t, startingPrice, gasPrice)
+		require.Equal(t, std.GasPrice{
+			Gas:   auth.BlockGasPriceScale,
+			Price: std.Coin{Amount: 10_000, Denom: "ugnot"},
+		}, gasPrice)
 
 		tx := newCounterTx(1)
 		tx.Fee = std.Fee{
@@ -1415,8 +1422,8 @@ func TestGasPriceEmptyBlockUpdate(t *testing.T) {
 		qr = app.Query(query)
 		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
 		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
-		require.Equal(t, int64(9), gasPrice.Price.Amount)
-		require.Equal(t, startingPrice.Gas, gasPrice.Gas)
+		require.Equal(t, int64(8750), gasPrice.Price.Amount)
+		require.Equal(t, auth.BlockGasPriceScale, gasPrice.Gas)
 		require.Equal(t, startingPrice.Price.Denom, gasPrice.Price.Denom)
 		require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
 		require.NotEqual(t, genesisHash, emptyBlockHash)

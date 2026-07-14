@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -99,7 +100,62 @@ func TestGasPrice(t *testing.T) {
 	}
 	env.gk.SetGasPrice(env.ctx, gp)
 	gp2 := env.gk.LastGasPrice(env.ctx)
-	require.True(t, gp == gp2)
+	require.Equal(t, std.GasPrice{
+		Gas:   BlockGasPriceScale,
+		Price: std.Coin{Denom: "token", Amount: 100_000},
+	}, gp2)
+}
+
+func TestLastGasPriceCanonicalizesLegacyState(t *testing.T) {
+	env := setupTestEnv()
+	legacy := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
+	bz, err := amino.Marshal(legacy)
+	require.NoError(t, err)
+	env.ctx.Store(env.gk.key).Set(env.ctx.GasContext(), []byte(GasPriceKey), bz)
+
+	require.Equal(t, std.GasPrice{
+		Gas:   BlockGasPriceScale,
+		Price: std.Coin{Amount: 1000, Denom: "ugnot"},
+	}, env.gk.LastGasPrice(env.ctx))
+}
+
+func TestCanonicalBlockGasPrice(t *testing.T) {
+	tests := []struct {
+		name string
+		in   std.GasPrice
+		want std.GasPrice
+	}{
+		{"default floor", std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}, std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 1000, Denom: "ugnot"}}},
+		{"exact", std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 10, Denom: "ugnot"}}, std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 10_000, Denom: "ugnot"}}},
+		{"ceil", std.GasPrice{Gas: 3, Price: std.Coin{Amount: 1, Denom: "foo"}}, std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 333_334, Denom: "foo"}}},
+		{"disabled", std.GasPrice{Gas: 0, Price: std.Coin{Denom: "ugnot"}}, std.GasPrice{Gas: 0, Price: std.Coin{Denom: "ugnot"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, canonicalBlockGasPrice(tt.in))
+		})
+	}
+
+	t.Run("invalid gas", func(t *testing.T) {
+		require.PanicsWithValue(t, "nonzero block gas price gas must be positive", func() {
+			canonicalBlockGasPrice(std.GasPrice{Price: std.Coin{Amount: 1, Denom: "ugnot"}})
+		})
+	})
+	t.Run("overflow", func(t *testing.T) {
+		require.PanicsWithValue(t, "The min gas price is out of int64 range", func() {
+			canonicalBlockGasPrice(std.GasPrice{Gas: 1, Price: std.Coin{Amount: math.MaxInt64, Denom: "ugnot"}})
+		})
+	})
+	t.Run("rate preservation", func(t *testing.T) {
+		old := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
+		canonical := canonicalBlockGasPrice(old)
+		gte, err := old.IsGTE(canonical)
+		require.NoError(t, err)
+		require.True(t, gte)
+		gte, err = canonical.IsGTE(old)
+		require.NoError(t, err)
+		require.True(t, gte)
+	})
 }
 
 func TestMax(t *testing.T) {
@@ -145,16 +201,10 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	params := Params{
 		TargetGasRatio:            70,
 		GasPricesChangeCompressor: 10,
-		InitialGasPrice: std.GasPrice{
-			Gas:   1000,
-			Price: std.Coin{Amount: 1, Denom: "ugnot"},
-		},
+		InitialGasPrice:           std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 1000, Denom: "ugnot"}},
 	}
 	price := func(amount int64) std.GasPrice {
-		return std.GasPrice{
-			Gas:   1000,
-			Price: std.Coin{Amount: amount, Denom: "ugnot"},
-		}
+		return std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: amount, Denom: "ugnot"}}
 	}
 
 	tests := []struct {
@@ -163,14 +213,12 @@ func TestCalcBlockGasPrice(t *testing.T) {
 		gasUsed  int64
 		expected int64
 	}{
-		{"at target", 10, targetGas, 10},
-		{"one below target", 10, targetGas - 1, 9},
-		{"one above target", 10, targetGas + 1, 11},
-		{"low usage", 10, 420_000_000, 9},
-		{"empty block", 10, 0, 9},
-		{"floor below target", 1, targetGas - 1, 1},
-		{"floor empty block", 1, 0, 1},
-		{"floor one above target", 1, targetGas + 1, 2},
+		{"at target", 1000, targetGas, 1000},
+		{"one below target", 1000, targetGas - 1, 1000},
+		{"one above target", 1000, targetGas + 1, 1001},
+		{"full block", 1000, maxGas, 1042},
+		{"empty block", 10_000, 0, 9000},
+		{"floor empty block", 1000, 0, 1000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -180,8 +228,8 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	}
 
 	t.Run("calculated deltas", func(t *testing.T) {
-		params := Params{TargetGasRatio: 50, GasPricesChangeCompressor: 2}
-		start := std.GasPrice{Gas: 7, Price: std.Coin{Amount: 100, Denom: "atom"}}
+		params := Params{TargetGasRatio: 50, GasPricesChangeCompressor: 2, InitialGasPrice: price(1)}
+		start := price(100)
 		require.Equal(t, int64(125), gk.calcBlockGasPrice(start, 7500, 10000, params).Price.Amount)
 		require.Equal(t, int64(75), gk.calcBlockGasPrice(start, 2500, 10000, params).Price.Amount)
 	})
@@ -192,7 +240,22 @@ func TestCalcBlockGasPrice(t *testing.T) {
 
 		disabledParams := params
 		disabledParams.TargetGasRatio = 0
-		require.Equal(t, price(10), gk.calcBlockGasPrice(price(10), targetGas+1, maxGas, disabledParams))
+		oldFormat := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 10, Denom: "ugnot"}}
+		require.Equal(t, price(10_000), gk.calcBlockGasPrice(oldFormat, targetGas+1, maxGas, disabledParams))
+	})
+
+	t.Run("raised floor clamps every branch", func(t *testing.T) {
+		raised := params
+		raised.InitialGasPrice = price(2000)
+		for _, gasUsed := range []int64{targetGas - 1, targetGas, targetGas + 1} {
+			require.Equal(t, price(2000), gk.calcBlockGasPrice(price(1000), gasUsed, maxGas, raised))
+		}
+	})
+
+	t.Run("denom mismatch", func(t *testing.T) {
+		mismatch := params
+		mismatch.InitialGasPrice = std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 1000, Denom: "other"}}
+		require.Panics(t, func() { gk.calcBlockGasPrice(price(1000), targetGas, maxGas, mismatch) })
 	})
 
 	t.Run("int64 overflow", func(t *testing.T) {
@@ -211,14 +274,11 @@ func TestCalcBlockGasPriceRatchet(t *testing.T) {
 	params := Params{
 		TargetGasRatio:            70,
 		GasPricesChangeCompressor: 10,
-		InitialGasPrice: std.GasPrice{
-			Gas:   1000,
-			Price: std.Coin{Amount: 1, Denom: "ugnot"},
-		},
+		InitialGasPrice:           std.GasPrice{Gas: BlockGasPriceScale, Price: std.Coin{Amount: 1000, Denom: "ugnot"}},
 	}
 	price := std.GasPrice{
-		Gas:   1000,
-		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+		Gas:   BlockGasPriceScale,
+		Price: std.Coin{Amount: 10_000, Denom: "ugnot"},
 	}
 
 	for _, tt := range []struct {
@@ -226,8 +286,8 @@ func TestCalcBlockGasPriceRatchet(t *testing.T) {
 		gasUsed  []int64
 		expected []int64
 	}{
-		{"below then above target", []int64{targetGas - 1, targetGas + 1}, []int64{9, 10, 9, 10}},
-		{"above then below target", []int64{targetGas + 1, targetGas - 1}, []int64{11, 10, 11, 10}},
+		{"below then above target", []int64{targetGas - 1, targetGas + 1}, []int64{9999, 10_000, 9999, 10_000}},
+		{"above then below target", []int64{targetGas + 1, targetGas - 1}, []int64{10_001, 10_000, 10_001, 10_000}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			next := price
@@ -239,20 +299,20 @@ func TestCalcBlockGasPriceRatchet(t *testing.T) {
 	}
 
 	for _, tt := range []struct {
-		name    string
-		gasUsed int64
+		name     string
+		gasUsed  int64
+		expected []int64
 	}{
-		{"low usage", 420_000_000},
-		{"empty blocks", 0},
+		{"low usage", 420_000_000, []int64{9200, 8464, 7787}},
+		{"empty blocks", 0, []int64{9000, 8100, 7290}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			next := price
-			for block := int64(1); block <= 9; block++ {
+			for _, expected := range tt.expected {
 				next = gk.calcBlockGasPrice(next, tt.gasUsed, maxGas, params)
-				require.Equal(t, int64(10)-block, next.Price.Amount)
+				require.Equal(t, expected, next.Price.Amount)
 			}
-			next = gk.calcBlockGasPrice(next, tt.gasUsed, maxGas, params)
-			require.Equal(t, int64(1), next.Price.Amount)
+			require.Greater(t, next.Price.Amount, params.InitialGasPrice.Price.Amount)
 		})
 	}
 }

@@ -73,10 +73,10 @@ func TestQueryGasPrice(t *testing.T) {
 	require.Nil(t, res.Error) // no gasprice is set and no error returned anyway
 	require.NotNil(t, res)
 	gp := std.GasPrice{
-		Gas: 100,
+		Gas: BlockGasPriceScale,
 		Price: std.Coin{
-			Denom:  "token",
-			Amount: 10,
+			Denom:  "ugnot",
+			Amount: 1000,
 		},
 	}
 	env.gk.SetGasPrice(env.ctx, gp)
@@ -86,7 +86,7 @@ func TestQueryGasPrice(t *testing.T) {
 	require.Nil(t, res.Error)
 	require.NotNil(t, res)
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &gp2))
-	require.True(t, gp == gp2)
+	require.Equal(t, gp, gp2)
 }
 
 func TestQuerySessions(t *testing.T) {

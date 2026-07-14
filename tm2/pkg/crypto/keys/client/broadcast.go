@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -224,8 +225,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit,
 	if gp.Gas == 0 {
 		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d)\n", gasUsed, suggested)
 	} else {
-		fee := gasUsed/gp.Gas + 1
-		fee = overflow.Mulp(fee, gp.Price.Amount)
+		fee := requiredGasFee(suggested, gp)
 		// fee buffer to cover the sudden change of gas price
 		feeBuffer := overflow.Mulp(fee, int64(gasFeeMargin)) / 100
 		fee = overflow.Addp(fee, feeBuffer)
@@ -237,6 +237,18 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit,
 		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + s
 	}
 	return nil
+}
+
+func requiredGasFee(gasWanted int64, gp std.GasPrice) int64 {
+	fee, remainder := new(big.Int), new(big.Int)
+	fee.QuoRem(new(big.Int).Mul(big.NewInt(gasWanted), big.NewInt(gp.Price.Amount)), big.NewInt(gp.Gas), remainder)
+	if remainder.Sign() != 0 {
+		fee.Add(fee, big.NewInt(1))
+	}
+	if !fee.IsInt64() {
+		panic("gas fee is out of int64 range")
+	}
+	return fee.Int64()
 }
 
 func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {

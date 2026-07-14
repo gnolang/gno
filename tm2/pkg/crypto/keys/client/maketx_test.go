@@ -15,6 +15,25 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+func TestRequiredGasFee(t *testing.T) {
+	tests := []struct {
+		name      string
+		gasWanted int64
+		gasPrice  std.GasPrice
+		want      int64
+	}{
+		{"small gas with large denominator", 1, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 1},
+		{"exact division", 2000, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 2},
+		{"remainder division", 2001, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1000}}, 3},
+		{"large multiply", 3_000_000_000, std.GasPrice{Gas: 1_000_000, Price: std.Coin{Amount: 1_000_000}}, 3_000_000_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, requiredGasFee(tt.gasWanted, tt.gasPrice))
+		})
+	}
+}
+
 func TestHandleDeliverResultCallsOnFailure(t *testing.T) {
 	called := false
 	cfg := &BaseCfg{BaseOptions: BaseOptions{OnTxFailure: func(commands.IO, std.Tx, *ctypes.ResultBroadcastTxCommit) {
