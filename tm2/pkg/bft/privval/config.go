@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/vault"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
@@ -33,13 +34,21 @@ type PrivValidatorConfig struct {
 	// listens for tmkms / Horcrux to dial in). Mutually exclusive with RemoteSigner;
 	// see upstream_config.go.
 	TmkmsListener *TmkmsListenerConfig `json:"tmkms_listener" toml:"tmkms_listener" comment:"Configuration for upstream-Tendermint-protocol signer (tmkms / Horcrux). Empty listen_addr disables this mode."`
+
+	// Vault configures a signer that loads the validator key from a
+	// HashiCorp Vault KV v2 secret instead of a local file. Signing still
+	// happens locally, in-process; Vault is only used as the durable key
+	// store. Mutually exclusive with RemoteSigner and TmkmsListener.
+	Vault *vault.Config `json:"vault" toml:"vault" comment:"Configuration for loading the validator key from HashiCorp Vault"`
 }
 
 // PrivValidatorConfig validation errors.
 var (
-	errInvalidSignStatePath   = errors.New("invalid private validator sign state file path")
-	errInvalidLocalSignerPath = errors.New("invalid private validator local signer file path")
-	errNilRemoteSignerConfig  = errors.New("remote signer configuration cannot be nil")
+	errInvalidSignStatePath     = errors.New("invalid private validator sign state file path")
+	errInvalidLocalSignerPath   = errors.New("invalid private validator local signer file path")
+	errNilRemoteSignerConfig    = errors.New("remote signer configuration cannot be nil")
+	errNilVaultConfig           = errors.New("vault configuration cannot be nil")
+	errMultipleSignerSourcesSet = errors.New("only one of remote_signer, tmkms_listener, or vault may be configured")
 )
 
 // DefaultPrivValidatorConfig returns a default configuration for the PrivValidator.
@@ -49,6 +58,7 @@ func DefaultPrivValidatorConfig() *PrivValidatorConfig {
 		LocalSigner:   "priv_validator_key.json",
 		RemoteSigner:  rsclient.DefaultRemoteSignerClientConfig(),
 		TmkmsListener: DefaultTmkmsListenerConfig(),
+		Vault:         vault.DefaultConfig(),
 	}
 }
 
@@ -97,9 +107,22 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 		}
 	}
 
+	// Verify the Vault configuration is not nil.
+	if cfg.Vault == nil {
+		return errNilVaultConfig
+	}
+
+	// Validate the Vault configuration.
+	if err := cfg.Vault.ValidateBasic(); err != nil {
+		return err
+	}
+
 	// Mutual exclusion: at most one external-signer mode may be enabled.
 	if cfg.RemoteSigner.ServerAddress != "" && cfg.TmkmsListener.IsEnabled() {
 		return errBothExternalSignersEnabled
+	}
+	if cfg.Vault.IsEnabled() && (cfg.RemoteSigner.ServerAddress != "" || cfg.TmkmsListener.IsEnabled()) {
+		return errMultipleSignerSourcesSet
 	}
 
 	return nil
@@ -123,6 +146,11 @@ func NewSignerFromConfig(
 			clientPrivKey,
 			clientLogger,
 		)
+	}
+
+	// If Vault is configured, load the key from there.
+	if config.Vault.IsEnabled() {
+		return vault.NewSignerFromConfig(ctx, config.Vault)
 	}
 
 	// Otherwise, use a local signer.
@@ -149,9 +177,12 @@ func NewPrivValidatorFromConfig(
 ) (types.PrivValidator, error) {
 	// Mutual exclusion is also enforced in ValidateBasic, but defend in
 	// depth here in case callers skip validation.
-	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" &&
-		config.TmkmsListener.IsEnabled() {
+	remoteSignerEnabled := config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != ""
+	if remoteSignerEnabled && config.TmkmsListener.IsEnabled() {
 		return nil, errBothExternalSignersEnabled
+	}
+	if config.Vault.IsEnabled() && (remoteSignerEnabled || config.TmkmsListener.IsEnabled()) {
+		return nil, errMultipleSignerSourcesSet
 	}
 
 	// tmkms-compat path. tmkms holds HRS authority; we don't wrap the

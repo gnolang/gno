@@ -77,11 +77,23 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 		return nil, err
 	}
 
-	// Unmarshal the JSON bytes into a FileKey using amino.
-	fk := &FileKey{}
-	err = amino.UnmarshalJSON(rawJSONBytes, fk)
+	// Parse and validate the FileKey from the JSON bytes.
+	fk, err := ParseFileKey(rawJSONBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %w", filePath, err)
+	}
+
+	return fk, nil
+}
+
+// ParseFileKey unmarshals and validates a FileKey from raw amino JSON bytes.
+// This is exposed so that alternative key sources (e.g. a secrets manager)
+// can reuse the same encoding and validation rules as the on-disk FileKey.
+func ParseFileKey(rawJSONBytes []byte) (*FileKey, error) {
+	// Unmarshal the JSON bytes into a FileKey using amino.
+	fk := &FileKey{}
+	if err := amino.UnmarshalJSON(rawJSONBytes, fk); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal FileKey: %w", err)
 	}
 
 	// Validate the FileKey.
