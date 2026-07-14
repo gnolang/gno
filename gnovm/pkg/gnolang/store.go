@@ -1243,6 +1243,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage yields each indexed package's PROD mempackage in index
+// order, skipping prod-less packages. See the Store interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
