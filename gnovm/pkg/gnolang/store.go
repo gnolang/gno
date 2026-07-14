@@ -88,7 +88,7 @@ type Store interface {
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
-	// is yielded as nil.
+	// is skipped.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -1263,6 +1263,13 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				mpkg := ds.GetMemPackage(string(path))
+				if mpkg == nil {
+					// Prod-less package (e.g. xxx_test-only): no prod
+					// blob to yield. On-chain this is unreachable — the
+					// vm keeper rejects prod-less packages at AddPackage
+					// — so this skip is defensive, for non-chain stores.
+					continue
+				}
 				ch <- mpkg
 			}
 			close(ch)
