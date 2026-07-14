@@ -410,6 +410,7 @@ func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int) []FieldTy
 			Type:     exportRefOrCopyType(field.Type, seen),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
+			PkgPath:  field.PkgPath,
 		}
 	}
 	return fieldsCpy

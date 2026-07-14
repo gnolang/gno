@@ -103,6 +103,25 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			errContains("cannot use 11"),
 		},
 		{
+			"BlankFuncsAllChecked",
+			&std.MemPackage{
+				Type: MPUserProd,
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							func _() { var x int = "a"; _ = x }
+							func _() { var y string = 1; _ = y }`,
+					},
+				},
+			},
+			nil,
+			errContains(`cannot use "a"`, "cannot use 1"),
+		},
+		{
 			"ParseError",
 			&std.MemPackage{
 				Type: MPUserProd,
@@ -375,7 +394,6 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	})
 
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
