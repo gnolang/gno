@@ -13,7 +13,16 @@ import "testing"
 //   - RealAttach:    po real, co real (reference write; both dirty).
 //   - RealSwap:      po real, xo and co real (replace a reference).
 
-func benchRealmAndObjects() (*Realm, *StructValue, *StructValue, *StructValue) {
+// benchFixture holds a realm plus three of its real, already-dirty
+// objects for the DidUpdate scenarios. Returned as a struct so each
+// benchmark reads only the fields it needs (avoids blank-identifier
+// noise).
+type benchFixture struct {
+	rlm        *Realm
+	po, xo, co *StructValue
+}
+
+func benchRealmAndObjects() benchFixture {
 	rlm := NewRealm("gno.land/r/bench")
 	rlm.Time = 100
 	mkReal := func(t uint64) *StructValue {
@@ -24,65 +33,62 @@ func benchRealmAndObjects() (*Realm, *StructValue, *StructValue, *StructValue) {
 		sv.IncRefCount()
 		return sv
 	}
-	po := mkReal(2)
-	xo := mkReal(3)
-	co := mkReal(4)
-	return rlm, po, xo, co
+	return benchFixture{rlm: rlm, po: mkReal(2), xo: mkReal(3), co: mkReal(4)}
 }
 
 func BenchmarkDidUpdate_NilRealm(b *testing.B) {
-	_, po, _, _ := benchRealmAndObjects()
+	f := benchRealmAndObjects()
 	m := benchMachine()
 	defer m.Release()
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		nilRealm.DidUpdate(m, po, nil, nil)
+		nilRealm.DidUpdate(m, f.po, nil, nil)
 	}
 }
 
 func BenchmarkDidUpdate_Unreal(b *testing.B) {
-	rlm, _, _, _ := benchRealmAndObjects()
+	f := benchRealmAndObjects()
 	m := benchMachine()
 	defer m.Release()
 	po := &StructValue{}
-	po.SetPkgID(rlm.ID) // allocated but not finalized → not real
+	po.SetPkgID(f.rlm.ID) // allocated but not finalized → not real
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rlm.DidUpdate(m, po, nil, nil)
+		f.rlm.DidUpdate(m, po, nil, nil)
 	}
 }
 
 func BenchmarkDidUpdate_RealPrimitive(b *testing.B) {
-	rlm, po, _, _ := benchRealmAndObjects()
+	f := benchRealmAndObjects()
 	m := benchMachine()
 	defer m.Release()
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rlm.DidUpdate(m, po, nil, nil)
+		f.rlm.DidUpdate(m, f.po, nil, nil)
 	}
 }
 
 func BenchmarkDidUpdate_RealAttach(b *testing.B) {
-	rlm, po, _, co := benchRealmAndObjects()
+	f := benchRealmAndObjects()
 	m := benchMachine()
 	defer m.Release()
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rlm.DidUpdate(m, po, nil, co)
+		f.rlm.DidUpdate(m, f.po, nil, f.co)
 	}
 }
 
 func BenchmarkDidUpdate_RealSwap(b *testing.B) {
-	rlm, po, xo, co := benchRealmAndObjects()
+	f := benchRealmAndObjects()
 	m := benchMachine()
 	defer m.Release()
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rlm.DidUpdate(m, po, xo, co)
+		f.rlm.DidUpdate(m, f.po, f.xo, f.co)
 	}
 }
