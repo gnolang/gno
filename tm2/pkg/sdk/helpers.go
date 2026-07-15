@@ -53,8 +53,13 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 	return app.runTx(ctx, txBytes)
 }
 
-func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
+func (app *BaseApp) Simulate(txBytes []byte, ctxFns ...ContextFn) (result Result) {
 	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+	for _, ctxFn := range ctxFns {
+		if ctxFn != nil {
+			ctx = ctxFn(ctx)
+		}
+	}
 	return app.runTx(ctx, txBytes)
 }
 

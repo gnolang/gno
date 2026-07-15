@@ -24,6 +24,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -377,7 +378,23 @@ type vmkContextKey int
 const (
 	vmkContextKeyStore vmkContextKey = iota
 	vmkContextKeyTypeCheckCache
+	vmkContextKeyProfiler
 )
+
+// WithGasProfile marks ctx for source-level gas profiling and returns the
+// profiler that will accumulate the tx's gas tree. Call it before
+// MakeGnoTransactionStore (which installs the meter decorator). After the tx
+// runs, read the profiler's tree (WritePprof). Dev/simulation use only — the
+// wrapper is inert unless this is called. See gnovm/adr/prxxxx_gas_profiler.md.
+func WithGasProfile(ctx sdk.Context) (sdk.Context, *gasprof.Profiler) {
+	p := gasprof.New()
+	return ctx.WithValue(vmkContextKeyProfiler, p), p
+}
+
+func getGasProfiler(ctx sdk.Context) *gasprof.Profiler {
+	p, _ := ctx.Value(vmkContextKeyProfiler).(*gasprof.Profiler)
+	return p
+}
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
 	base := ctx.Store(vm.baseKey)
@@ -399,6 +416,17 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
+	if p := getGasProfiler(ctx); p != nil {
+		// Install the profiler decorator once, at the tx boundary. Every gas
+		// sink (store I/O, amino, machines, allocators) reads ctx.GasMeter(),
+		// so wrapping it here captures all dimensions. Ante gas already charged
+		// before this point is booked as the synthetic (ante) node so the
+		// profile reconciles exactly with GasConsumed().
+		if m := ctx.GasMeter(); m != nil {
+			p.Book("(ante)", int64(m.GasConsumed()))
+			ctx = ctx.WithGasMeter(gasprof.WrapMeter(m, p))
+		}
+	}
 	return ctx.
 		WithValue(vmkContextKeyTypeCheckCache, maps.Clone(vm.typeCheckCache)).
 		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
@@ -725,6 +753,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			Alloc:              gnostore.GetAllocator(),
 			Context:            msgCtx,
 			GasMeter:           ctx.GasMeter(),
+			GasProfiler:        getGasProfiler(ctx),
 			BoundedPanicRender: true,
 		})
 	defer m2.Release()
@@ -843,6 +872,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Context:            msgCtx,
 			Alloc:              gnostore.GetAllocator(),
 			GasMeter:           ctx.GasMeter(),
+			GasProfiler:        getGasProfiler(ctx),
 			BoundedPanicRender: true,
 		})
 	xn := m.MustParseExpr(expr)
@@ -1092,6 +1122,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 				Alloc:              alloc,
 				Context:            msgCtx,
 				GasMeter:           ctx.GasMeter(),
+				GasProfiler:        getGasProfiler(ctx),
 				BoundedPanicRender: true,
 			})
 		defer m.Release()
@@ -1113,6 +1144,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Alloc:              alloc,
 			Context:            msgCtx,
 			GasMeter:           ctx.GasMeter(),
+			GasProfiler:        getGasProfiler(ctx),
 			BoundedPanicRender: true,
 		})
 	defer m2.Release()

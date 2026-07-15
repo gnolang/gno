@@ -717,6 +717,9 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 		TMConfig:      tmc,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
+		// gnodev is a local dev node: always expose the .app/profiletx gas
+		// profiler query. It has zero cost unless a client queries it.
+		EnableGasProfiler: true,
 	}
 	return cfg
 }

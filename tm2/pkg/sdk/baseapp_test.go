@@ -1504,3 +1504,72 @@ func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
 		})
 	})
 }
+
+// Simulate applies ctxFns in order to the (post-getContextForTx) ctx before
+// runTx, skipping nil fns, and the decorated ctx reaches execution.
+func TestSimulateCtxFns(t *testing.T) {
+	t.Parallel()
+	type ctxKey struct{ n int }
+
+	var seen1, seen2 any
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (Context, Result, bool) {
+			seen1 = ctx.Value(ctxKey{1})
+			seen2 = ctx.Value(ctxKey{2})
+			return ctx.WithGasMeter(store.NewGasMeter(100)), Result{}, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
+	}
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	txBytes, err := amino.Marshal(newTxCounter(1, 1))
+	require.NoError(t, err)
+
+	var order []string
+	fn1 := func(c Context) Context { order = append(order, "a"); return c.WithValue(ctxKey{1}, "v1") }
+	fn2 := func(c Context) Context { order = append(order, "b"); return c.WithValue(ctxKey{2}, "v2") }
+
+	result := app.Simulate(txBytes, fn1, nil, fn2) // nil must be skipped, not panic
+	require.True(t, result.IsOK(), result.Log)
+	require.Equal(t, []string{"a", "b"}, order, "ctxFns applied in order")
+	require.Equal(t, "v1", seen1, "decorated ctx reached runTx/ante")
+	require.Equal(t, "v2", seen2)
+}
+
+// handleQueryApp routes .app/profiletx to the registered TxProfiler, forwarding
+// req.Data and returning its bytes + log; ErrUnknownRequest when unset;
+// ErrInternal when the profiler errors.
+func TestQueryProfileTx(t *testing.T) {
+	t.Parallel()
+
+	var gotData []byte
+	withProfiler := func(bapp *BaseApp) {
+		bapp.SetTxProfiler(func(b []byte) ([]byte, string, error) {
+			gotData = b
+			return []byte("PPROF"), "status-ok", nil
+		})
+	}
+	app := setupBaseApp(t, withProfiler)
+	res := app.Query(abci.RequestQuery{Path: ".app/profiletx", Data: []byte("rawtx")})
+	require.True(t, res.IsOK(), res.Log)
+	require.Equal(t, []byte("PPROF"), res.Value)
+	require.Equal(t, "status-ok", res.Log)
+	require.Equal(t, []byte("rawtx"), gotData, "req.Data forwarded verbatim")
+
+	// No profiler registered -> unknown request.
+	app2 := setupBaseApp(t)
+	res2 := app2.Query(abci.RequestQuery{Path: ".app/profiletx", Data: []byte("x")})
+	require.False(t, res2.IsOK(), "profiletx must be disabled when no TxProfiler is set")
+
+	// Profiler error -> internal error surfaced.
+	withErr := func(bapp *BaseApp) {
+		bapp.SetTxProfiler(func(b []byte) ([]byte, string, error) { return nil, "", fmt.Errorf("boom") })
+	}
+	app3 := setupBaseApp(t, withErr)
+	res3 := app3.Query(abci.RequestQuery{Path: ".app/profiletx", Data: []byte("x")})
+	require.False(t, res3.IsOK(), "a profiler error must fail the query")
+}
