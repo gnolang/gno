@@ -2,8 +2,6 @@
 package main
 
 // Type switch interface case gas grows linearly with method count.
-//
-// typeswitch_iface_small.gno: same test with 1 method.
 type I interface {
 	M0()
 	M1()
@@ -38,4 +36,4 @@ func main() {
 }
 
 // Gas:
-// 5802
+// 7050

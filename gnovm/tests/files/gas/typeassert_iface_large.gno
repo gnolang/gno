@@ -2,8 +2,6 @@
 package main
 
 // Type assertion gas grows linearly with interface method count.
-//
-// typeassert_iface_small.gno: same test with 1 method.
 type I interface {
 	M0()
 	M1()
@@ -36,4 +34,4 @@ func main() {
 }
 
 // Gas:
-// 5571
+// 6819

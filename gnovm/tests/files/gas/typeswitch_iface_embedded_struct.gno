@@ -1,9 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// Type switch interface case against a struct whose methods come entirely
-// from an embedded field — gas accounts for promoted methods, not just
-// directly declared ones.
+// Type switch interface case; gas counts methods promoted from an embedded
+// struct.
 type I interface {
 	M0()
 	M1()
@@ -40,4 +39,4 @@ func main() {
 }
 
 // Gas:
-// 6376
+// 7625

@@ -1,10 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// Type switch interface case against pointer concrete type — gas matches the
-// value-receiver case, since methods on *S are reachable via the same lookup.
-//
-// typeswitch_iface_large.gno: same test with value concrete S{}.
+// Type switch interface case against a pointer concrete type; gas matches the
+// value case.
 type I interface {
 	M0()
 	M1()
@@ -39,4 +37,4 @@ func main() {
 }
 
 // Gas:
-// 6205
+// 7453

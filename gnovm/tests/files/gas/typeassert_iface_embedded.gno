@@ -1,10 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// Embedded interfaces are recursively counted via TotalMethodCount,
-// so gas matches a flat interface with the same total method count.
-//
-// typeassert_iface_large.gno: equivalent flat interface with 10 methods.
+// Embedded interfaces flatten to leaf methods, one probe each, so gas matches
+// a flat interface with the same total method count.
 type IA interface {
 	M0()
 	M1()
@@ -45,4 +43,4 @@ func main() {
 }
 
 // Gas:
-// 6328
+// 7576

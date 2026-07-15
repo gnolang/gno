@@ -1,13 +1,12 @@
 // MAXALLOC: 500000000
 package main
 
-// Type switch gas scales with clause count.
-//
-// typeswitch_clauses_small.gno: same test with 1 clause.
+// Type switch gas scales with clause count. Matching clause is last so every
+// clause is scanned; a leading match would short-circuit and only measure
+// source size.
 func main() {
 	var x interface{} = 1
 	switch x.(type) {
-	case int:
 	case string:
 	case bool:
 	case float64:
@@ -15,8 +14,9 @@ func main() {
 	case []string:
 	case [2]int:
 	case map[string]int:
+	case int:
 	}
 }
 
 // Gas:
-// 3916
+// 5288

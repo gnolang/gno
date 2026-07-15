@@ -2,8 +2,6 @@
 package main
 
 // Type switch interface case charges gas per interface method.
-//
-// typeswitch_iface_large.gno: same with 10 methods.
 type I interface {
 	M0()
 }
@@ -20,4 +18,4 @@ func main() {
 }
 
 // Gas:
-// 5244
+// 5367

@@ -1,10 +1,8 @@
 // MAXALLOC: 500000000
 package main
 
-// Type switch charges gas per non-empty clause (OpCPUSwitchClause) plus
-// per case check (OpCPUSwitchClauseCase).
-//
-// typeswitch_clauses_large.gno: same test with 8 concrete clauses.
+// Type switch charges per non-empty clause (OpCPUSwitchClause) and per case
+// (OpCPUSwitchClauseCase).
 func main() {
 	var x interface{} = 1
 	switch x.(type) {
@@ -13,4 +11,4 @@ func main() {
 }
 
 // Gas:
-// 3814
+// 3812

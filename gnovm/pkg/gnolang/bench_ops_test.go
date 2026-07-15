@@ -3845,7 +3845,7 @@ func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	reportBenchops(b)
 }
 
-// --- doOpTypeAssert1 interface: VerifyImplementedBy with many methods ---
+// --- doOpTypeAssert1 interface: verifyImplementedBy with many methods ---
 
 // benchInterfaceAndImpl creates an InterfaceType with nMethods methods and a
 // DeclaredType that implements nImpl of them. When nImpl == nMethods the type
