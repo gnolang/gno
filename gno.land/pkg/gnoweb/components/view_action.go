@@ -35,6 +35,10 @@ type HelpData struct {
 	// Community is set on packages outside the trusted paths, the pages that
 	// show the realm notice.
 	Community bool
+
+	// Wallets is the embedded external-wallet registry, used by the frontend
+	// to render the GnoConnect wallet chooser. Populated by HelpView.
+	Wallets []Wallet
 }
 
 type HelpTocData struct {
@@ -112,6 +116,11 @@ func registerHelpFuncs(funcs template.FuncMap) {
 }
 
 func HelpView(data HelpData) *View {
+	// Populate the external-wallet registry so the frontend can render the
+	// GnoConnect wallet chooser. Kept out of the handler so callers don't need
+	// to know about the embedded registry.
+	data.Wallets = Wallets()
+
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),
