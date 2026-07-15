@@ -84,6 +84,39 @@ DeliverTx incl. 59k/read + 24k/write):
   pointer behind the interface rather than inline in `PrivateLedger`. Called
   out for reviewers; judged acceptable against the opt-in's −51%.
 
+### Bucket hashing: native SHA-256, not interpreted FNV-1a
+
+`bucketIndex` uses `crypto/sha256.Sum256` (low 64 bits) rather than an FNV-1a
+loop written in Gno. FNV-1a is interpreted — a per-byte loop metered several VM
+ops per byte, run ~4× per transfer over ~40-byte address keys. `Sum256` is a
+calibrated **native** binding (a flat native charge), so it moves the hash off
+the interpreter.
+
+Measured end-to-end (cold grc20 transfer, production gas, this ADR's harness):
+
+| holders | FNV-1a (reads/writes · gas) | SHA-256 (reads/writes · gas) | Δ |
+|---|---|---|---|
+| 20k | 78 / 8 · 7.40M | 82 / 8 · 6.89M | −0.51M |
+| 100k | 78 / 8 · 7.53M | 82 / 8 · 7.06M | −0.48M |
+| 1,000,000 | 78 / 8 · 9.13M | 82 / 8 · **8.58M** | **−0.55M** |
+
+The saving is real but **smaller than a compute-only measurement suggests**.
+Decomposed: the interpreted hash removed saves **−0.75M in the VM term**, but
+calling native `crypto/sha256` pulls its package objects into the store cold on
+first use — a fixed **+4 reads (+0.24M)** that FNV-1a (pure in-package Gno, zero
+imports) never paid. Net is **−0.5M**, flat across scale. A "−0.9M" figure
+counts only the VM term and omits the package cold-load — a warm-vs-cold trap.
+
+Two consequences worth recording:
+
+- **This must ship before any hashmap is persisted.** Placement is a function of
+  the digest; changing the hash after state exists relocates every key. Hence it
+  is in this PR, not a follow-up.
+- The +4-read package tax is itself a data point: **fixed package/stdlib
+  cold-loads are a measurable slice of the O(1) read floor** (now ~82 objects).
+  Shrinking that floor — packing immutable package code, or realm-native KV — is
+  a larger lever than bucket tuning, and the next thing to profile.
+
 ### Scaling to 1,000,000 entries (KV backends isolated)
 
 To confirm the O(1) claim at realistic scale and compare against the in-tree
