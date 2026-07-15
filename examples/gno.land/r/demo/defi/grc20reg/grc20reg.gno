@@ -51,6 +51,30 @@ func MustGet(key string) *grc20.Token {
 	return token
 }
 
+func GetName(tokenKey string) string {
+	return MustGet(tokenKey).GetName()
+}
+
+func GetSymbol(tokenKey string) string {
+	return MustGet(tokenKey).GetSymbol()
+}
+
+func GetDecimals(tokenKey string) int {
+	return MustGet(tokenKey).GetDecimals()
+}
+
+func TotalSupply(tokenKey string) int64 {
+	return MustGet(tokenKey).TotalSupply()
+}
+
+func BalanceOf(tokenKey string, account address) int64 {
+	return MustGet(tokenKey).BalanceOf(account)
+}
+
+func Allowance(tokenKey string, owner, spender address) int64 {
+	return MustGet(tokenKey).Allowance(owner, spender)
+}
+
 // Transfer moves tokens owned by the immediate caller. A direct user call
 // spends the user's balance; a realm cross-call spends the calling realm's.
 func Transfer(cur realm, tokenKey string, to address, amount int64) {
