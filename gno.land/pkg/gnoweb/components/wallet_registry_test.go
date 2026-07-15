@@ -1,6 +1,8 @@
 package components
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -47,7 +49,8 @@ func TestWallets_ContainsGnokey(t *testing.T) {
 func TestHelpView_PopulatesWallets(t *testing.T) {
 	t.Parallel()
 
-	// HelpView must populate Wallets even when the caller leaves it unset.
+	// HelpView must populate Wallets and WalletsJSON even when the caller
+	// leaves them unset.
 	view := HelpView(HelpData{RealmName: "test"})
 	require.NotNil(t, view)
 
@@ -56,4 +59,28 @@ func TestHelpView_PopulatesWallets(t *testing.T) {
 	params, ok := tc.data.(helpViewParams)
 	require.True(t, ok, "unexpected view data type %T", tc.data)
 	assert.Equal(t, Wallets(), params.Wallets)
+
+	// WalletsJSON must be valid JSON round-tripping to the same registry, so
+	// the frontend controller can JSON.parse it.
+	var roundtrip []Wallet
+	require.NoError(t, json.Unmarshal([]byte(params.WalletsJSON), &roundtrip))
+	assert.Equal(t, Wallets(), roundtrip)
+}
+
+// TestHelpView_RendersWalletRegistry guards the html/template escaping of the
+// pre-marshaled registry: template.JS inside a <script type="application/json">
+// tag must survive verbatim (scheme + data: URI intact) so JSON.parse works.
+func TestHelpView_RendersWalletRegistry(t *testing.T) {
+	t.Parallel()
+
+	view := HelpView(HelpData{RealmName: "test"})
+	var buf bytes.Buffer
+	require.NoError(t, view.Render(&buf))
+
+	out := buf.String()
+	assert.Contains(t, out, `data-wallet-launch-target="wallet-registry"`)
+	assert.Contains(t, out, "land.gno.gnokey")
+	// The data: URI's slashes must survive verbatim (not JS-escaped to \/),
+	// otherwise JSON.parse in the browser would choke.
+	assert.Contains(t, out, "data:image/svg+xml;base64,")
 }
