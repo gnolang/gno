@@ -40,19 +40,28 @@ same grc20 code is ~5.9M when the ledger is small.
 ## Decision
 
 1. **Add `p/nt/hashmap` (v0)**: a persistent string-keyed map storing entries
-   in a fixed, power-of-two-sized array of native Gno maps ("buckets"). A
-   native map persists as a *single* object regardless of entry count
-   (`MapListItem` carries no `ObjectInfo`), so any Get/Set/Remove loads a
-   constant number of objects — Map struct, bucket array, one bucket —
-   **independent of N**. Bucket index is FNV-1a(key) masked to the bucket
-   count; iteration is deterministic (bucket order, insertion order within a
-   bucket) but not key-sorted.
+   in native Gno maps ("buckets"). A native map persists as a *single* object
+   regardless of entry count (`MapListItem` carries no `ObjectInfo`), so any
+   Get/Set/Remove loads a constant number of objects **independent of N**.
+
+   Two design choices matter for cold gas, both settled here because they fix
+   bucket placement and so cannot change after a map is persisted:
+
+   - **Two-level buckets.** Buckets are not one flat array — a flat B-slot
+     array is a single object every op must decode in full (~190KB at B=1024,
+     fixed at any N). Instead they live in a directory of √B pages of √B
+     buckets; an op decodes the directory, one page, and one bucket (√B-slot
+     arrays), and pages are lazily allocated. This keeps the bucket count high
+     (small leaves) without a large array. `New()` = 4096 buckets (64×64);
+     `NewWithBuckets(n)` splits n evenly across the two levels.
+   - **Native SHA-256 hashing.** Bucket index derives from `crypto/sha256`
+     (low 64 bits), a calibrated native binding, rather than an interpreted
+     FNV-1a loop metered per byte on every op.
 
    API is a minimal KV: `Get / Set / Remove / Has / Size / Iterate`, mirroring
-   the avl.Tree signatures for those methods. Bucket count is fixed at
-   construction (`New()` = 1024, `NewWithBuckets(n)`), with sizing guidance in
-   the package doc. No ordered iteration, by design — avl remains the tool for
-   sorted keys and range queries.
+   the avl.Tree signatures. Iteration is deterministic (page, bucket, then
+   insertion order) but not key-sorted — avl remains the tool for sorted keys
+   and range queries.
 
 2. **Add an opt-in storage backend to grc20**: a `KV` interface (satisfied by
    both `*avl.Tree` and `*hashmap.Map`), a `WithStorage(func() KV)` option on
@@ -141,16 +150,48 @@ Findings:
 - **hashmap stays flat to 1M:** 4.3M → 5.7M across a 50× state increase
   (−69% vs avl). The bucket-bloat concern (≈977 entries/bucket at 1M with 1024
   buckets) is real but mild (~+1.4M).
-- **Do NOT over-size buckets** (corrects an earlier assumption): 4096 buckets
-  is *worse* than 1024 at every size, because every op decodes the whole
-  bucket-pointer array once — a 4× larger array is a fixed tax that outweighs
-  the smaller per-bucket decodes. 1024 is a good default from ~1k to ~1M
-  entries; only raise it past ~1M when per-bucket decode finally dominates.
-  The package sizing guidance was updated to match.
+- **With a *flat* array, do NOT over-size buckets:** 4096-flat was *worse* than
+  1024-flat at every size, because every op decodes the whole bucket-pointer
+  array once — a 4× larger array is a fixed tax that outweighs the smaller
+  per-bucket decodes. **This is exactly what the two-level directory fixes**
+  (see below): by splitting the array, more buckets no longer means a larger
+  array to decode, so 4096 becomes the better default. This finding is what
+  motivated the two-level design.
 - **bptree keeps ordering but costs ~2× hashmap at scale** (−37% vs avl at 1M);
   the gap widens with N as a transfer's 4 traversals plus node-split writes add
   up. It is the right avl replacement where sorted access is required, not
   where flat cost is the goal.
+
+### Two-level directory: the shipped design
+
+The findings above (flat array tax + bucket bloat) were resolved by making v0's
+buckets two-level. Profiling one cold 1M-holder grc20 transfer by object type
+(temporary `ReadProfileHook` in the store) shows *where* the flat design spent
+its decode gas, and that the entire 20k→1M growth is the buckets swelling:
+
+| REALM object (1M transfer) | flat 1024 | two-level 64×64 | drop |
+|---|---|---|---|
+| `ArrayValue` (bucket directory) | 190,595 B → 571,785 gas | 39,454 B → 118,362 gas | −0.45M |
+| `MapValue` (leaf buckets) | 281,712 B → 845,136 gas | 70,758 B → 212,274 gas | −0.63M |
+| ledger decode total | **1.42M** | **0.33M** | **−1.09M** |
+
+The flat 1024-slot directory decodes ~190KB on *every* op regardless of N; the
+two-level split (dir + one page, √-sized) cuts that, and the higher usable bucket
+count (4096) shrinks each leaf from ~977 to ~244 entries. Full grc20 transfer
+cost (cold, production gas, incl. the flat 59k/read and sha256 hashing):
+
+| holders | flat hashmap 1024 | **two-level v0 (4096)** | vs flat | vs avl |
+|---|---|---|---|---|
+| 20,000 | 6.89M | **6.17M** | −0.72M | — |
+| 100,000 | 7.53M | **6.22M** | −1.31M | — |
+| 1,000,000 | 8.58M | **6.59M** | **−1.99M** | **≈−65%** |
+
+The −1.99M is ~−1.09M decode (above) plus ~−0.9M alloc gas on the same shrunken
+objects, for +3 cold reads (the extra directory/page loads). Cost is nearly flat
+in N (6.17M → 6.59M across 50×), versus flat-hashmap's 6.89M → 8.58M. Beyond the
+ledger, a fixed ~200-object *package/code floor* remains (stdlib+`/p/` blocks,
+identical across backends and N) — the next lever, but VM-level (package packing
+/ realm-native KV), out of scope here.
 
 ### Storage footprint (persisted bytes / deposit)
 
