@@ -31,8 +31,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -206,7 +206,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
@@ -366,7 +366,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
 		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
@@ -1265,7 +1265,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetAppVersion("test")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
@@ -1514,7 +1514,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 	)
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 
 	// Make sure loading a past version doesn't fail
@@ -2881,7 +2881,7 @@ func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (par
 	mainKey := store.NewStoreKey("main")
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	require.NoError(t, cms.LoadLatestVersion())
 
 	prmk := params.NewParamsKeeper(mainKey)
