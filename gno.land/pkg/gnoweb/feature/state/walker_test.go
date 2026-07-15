@@ -1504,3 +1504,16 @@ func TestPeekTopLevelKind(t *testing.T) {
 		assert.Contains(t, typ, "func(")
 	})
 }
+
+// TestDecodeBoundMethodLazyBind: an interface-dispatched bind persists with
+// Func == nil (resolved at call time); the walker must render the selector
+// name instead of dereferencing a nil *FuncValue.
+func TestDecodeBoundMethodLazyBind(t *testing.T) {
+	t.Parallel()
+
+	nodes := decodeValueChildren(DefaultPageRenderConfig(), &gno.BoundMethodValue{Method: "Get"})
+	require.Len(t, nodes, 1)
+	assert.Equal(t, "(method)", nodes[0].Name)
+	assert.Equal(t, "func Get()", nodes[0].Type)
+	assert.Equal(t, KindFunc, nodes[0].Kind)
+}

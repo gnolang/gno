@@ -493,6 +493,14 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 		}
 		return []StateNode{decodeFuncInline(startDepth, name, cv)}
 	case *gno.BoundMethodValue:
+		if cv.IsLazy() {
+			// Interface-dispatched bind: no resolved FuncValue until the call.
+			return []StateNode{{
+				Name: "(method)",
+				Type: fmt.Sprintf("func %s()", cv.Method),
+				Kind: KindFunc,
+			}}
+		}
 		return []StateNode{decodeFuncInline(startDepth, "(method)", cv.Func)}
 	case gno.PointerValue:
 		if cv.TV != nil {
