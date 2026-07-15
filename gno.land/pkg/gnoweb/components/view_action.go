@@ -1,6 +1,7 @@
 package components
 
 import (
+	"encoding/json"
 	"html/template"
 	"strings"
 
@@ -36,6 +37,10 @@ type HelpData struct {
 	// Wallets is the embedded external-wallet registry, used by the frontend
 	// to render the GnoConnect wallet chooser. Populated by HelpView.
 	Wallets []Wallet
+	// WalletsJSON is Wallets pre-marshaled to JSON for the frontend controller
+	// to read from a <script type="application/json"> tag (no toJSON template
+	// helper exists). Populated by HelpView.
+	WalletsJSON template.JS
 }
 
 type HelpTocData struct {
@@ -113,6 +118,14 @@ func HelpView(data HelpData) *View {
 	// GnoConnect wallet chooser. Kept out of the handler so callers don't need
 	// to know about the embedded registry.
 	data.Wallets = Wallets()
+	// Pre-marshal for the frontend controller. A malformed registry would have
+	// panicked at package init, so Marshal cannot fail here; ignore the error
+	// and fall back to an empty array so the template stays valid JSON.
+	if raw, err := json.Marshal(data.Wallets); err == nil {
+		data.WalletsJSON = template.JS(raw)
+	} else {
+		data.WalletsJSON = template.JS("[]")
+	}
 
 	tocData := HelpTocData{
 		Icon:  "code",

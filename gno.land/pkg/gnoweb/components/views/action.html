@@ -59,10 +59,13 @@ UI - Help Function component
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}
 </h2>
+{{/* External-wallet registry (GnoConnect chooser), consumed by
+     controller-wallet-launch.ts. Embedded server-side so it works offline. */}}
+<script type="application/json" data-wallet-launch-target="wallet-registry">{{ $data.WalletsJSON }}</script>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
-    data-action-function-pkgpath-value="{{ $.PkgPath }}">
+  <article class="b-action-function" data-controller="action-function wallet-launch"
+    data-action-function-name-value="{{ .Name }}" data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -173,6 +176,19 @@ UI - Help Function component
       </div>
     </div>
     {{ end }}
+    {{/* Wallet chooser (GnoConnect). Hidden until Execute routes to an external
+         wallet on a touch device with >1 wallet; the command block above stays
+         the always-present fallback. Buttons are populated by
+         controller-wallet-launch.ts from the embedded registry. */}}
+    <dialog class="b-wallet-chooser" data-wallet-launch-target="chooser">
+      <div class="b-wallet-chooser__inner">
+        <h3 class="b-wallet-chooser__title">Open with a wallet</h3>
+        <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"></ul>
+        <button type="button" class="b-btn b-btn--secondary" data-action="click->wallet-launch#closeChooser">
+          Cancel
+        </button>
+      </div>
+    </dialog>
   </article>
   {{ end }}
 </div>

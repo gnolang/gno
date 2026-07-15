@@ -3452,3 +3452,64 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
 }
+
+/* ===== WALLET CHOOSER (GnoConnect external wallets) ===== */
+.b-wallet-chooser {
+	padding: 0;
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
+
+	&::backdrop {
+		background-color: rgb(0 0 0 / 50%);
+	}
+}
+
+.b-wallet-chooser__inner {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	min-width: 16rem;
+	max-width: 90vw;
+	padding: var(--g-space-4);
+}
+
+.b-wallet-chooser__title {
+	font-size: var(--g-font-size-200);
+	font-weight: var(--g-font-semibold);
+}
+
+.b-wallet-chooser__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.b-wallet-chooser__item {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	width: 100%;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: 1px solid var(--s-color-border-secondary);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-secondary);
+	color: inherit;
+	font-size: var(--g-font-size-100);
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-primary-hover);
+	}
+}
+
+.b-wallet-chooser__icon {
+	width: var(--g-space-6);
+	height: var(--g-space-6);
+	flex-shrink: 0;
+}
