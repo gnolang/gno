@@ -1,4 +1,4 @@
-package image_embed
+package img_embed
 
 // Render displays a title and an embedded image from Imgur
 func Render(path string) string {

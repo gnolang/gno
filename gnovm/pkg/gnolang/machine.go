@@ -2816,14 +2816,14 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("runtime error: nil pointer dereference"))
+				m.Panic(typedRuntimeError("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
