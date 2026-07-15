@@ -86,7 +86,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 	for _, name := range tokenNames {
 		// Create the token.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next().String(), rlm)
+		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
 
 		// Register the token.
 		grc20reg.Register(cross(rlm), token, symbol)

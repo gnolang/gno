@@ -10,7 +10,7 @@ import (
 )
 
 func TestCallerTellerImpl(cur realm, t *testing.T) {
-	tok, _ := newTestToken("Dummy", "DUMMY", 4, "DUMMY", cur)
+	tok, _ := newTestToken("Dummy", "DUMMY", 4, 0, cur)
 	teller := tok.CallerTeller()
 	urequire.False(t, tok == nil)
 	var _ Teller = teller
@@ -24,7 +24,7 @@ type evilWrap struct {
 }
 
 func TestIsCanonicalTeller(cur realm, t *testing.T) {
-	tok, _ := newTestToken("Dummy", "DUMMY", 4, "DUMMY", cur)
+	tok, _ := newTestToken("Dummy", "DUMMY", 4, 0, cur)
 	legit := tok.CallerTeller()
 
 	uassert.True(t, IsCanonicalTeller(legit),
@@ -42,7 +42,7 @@ func TestTeller(cur realm, t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	token, ledger := newTestToken("Dummy", "DUMMY", 6, "DUMMY", cur)
+	token, ledger := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -104,7 +104,7 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	token, ledger := newTestToken("Dummy", "DUMMY", 6, "DUMMY", cur)
+	token, ledger := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 	teller := token.CallerTeller()
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {

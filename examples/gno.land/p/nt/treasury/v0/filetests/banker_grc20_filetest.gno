@@ -18,7 +18,7 @@ var nextTokenID seqid.ID
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next().String(), rlm)
+	token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)

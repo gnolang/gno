@@ -41,7 +41,7 @@ func main(cur realm) {
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	token, ledger := grc20.NewToken("TestToken", "TEST", 0, "token", cur)
+	token, ledger := grc20.NewToken("TestToken", "TEST", 0, 0, cur)
 	ledger.Mint(ownerAddr, amount)
 
 	grc20Lister := func() map[string]*grc20.Token {

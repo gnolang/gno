@@ -15,10 +15,10 @@ func main(cur realm) {
 	first, firstLedger := newToken(cur)
 	second, secondLedger := newToken(cur)
 
-	if first.ID() != "gno.land/r/demo/grc20identity.0000001" {
+	if first.ID() != "gno.land/r/demo/grc20identity.DUP.0000001" {
 		panic("unexpected first token ID: " + first.ID())
 	}
-	if second.ID() != "gno.land/r/demo/grc20identity.0000002" {
+	if second.ID() != "gno.land/r/demo/grc20identity.DUP.0000002" {
 		panic("unexpected second token ID: " + second.ID())
 	}
 
@@ -31,8 +31,7 @@ func main(cur realm) {
 }
 
 func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
-	id := nextTokenID.Next().String()
-	return grc20.NewToken("Same", "DUP", 6, id, cur)
+	return grc20.NewToken("Same", "DUP", 6, nextTokenID.Next(), cur)
 }
 
 // Events:
@@ -42,7 +41,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
 //       },
 //       {
 //         "key": "from",
@@ -64,7 +63,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
 //       },
 //       {
 //         "key": "owner",
@@ -86,7 +85,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
 //       },
 //       {
 //         "key": "from",
@@ -108,7 +107,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
 //       },
 //       {
 //         "key": "owner",

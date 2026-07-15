@@ -6,30 +6,31 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + id.
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
 // fabricate a Token claiming to belong to a different package.
 //
-// Realms that can create multiple tokens should allocate IDs from one
-// persistent seqid.ID from gno.land/p/nt/seqid/v0, shared by every creation
-// path:
+// Realms that create multiple tokens should allocate id from one persistent
+// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
 //
 //	var nextTokenID seqid.ID
-//	id := nextTokenID.Next().String()
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, id, cur)
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
+//
+// A realm that creates only a single token can pass 0 directly, since no
+// other token of that realm can collide with it.
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug).
-// rlm is last so this /p/ function remains non-crossing.
-func NewToken(name, symbol string, decimals int, id string, rlm realm) (*Token, *PrivateLedger) {
+func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -40,9 +41,6 @@ func NewToken(name, symbol string, decimals int, id string, rlm realm) (*Token, 
 	if !validName(name) {
 		panic(ErrInvalidName)
 	}
-	if !validID(id) {
-		panic(ErrInvalidID)
-	}
 	if !validSymbol(symbol) {
 		panic(ErrInvalidSymbol)
 	}
@@ -51,7 +49,7 @@ func NewToken(name, symbol string, decimals int, id string, rlm realm) (*Token, 
 	}
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:        id,
+		id:        pkgPath + "." + symbol + "." + id.String(),
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
@@ -60,11 +58,6 @@ func NewToken(name, symbol string, decimals int, id string, rlm realm) (*Token, 
 	}
 	ledger.token = token
 	return token, ledger
-}
-
-// validID reports whether id is a valid seqid-compatible slug.
-func validID(id string) bool {
-	return validSlug(id, MaxIDLen)
 }
 
 // validName reports whether name is a valid display name: non-empty,
@@ -86,11 +79,7 @@ func validName(name string) bool {
 // validSymbol reports whether s is valid slug-compatible metadata: non-empty,
 // within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
 func validSymbol(s string) bool {
-	return validSlug(s, MaxSymbolLen)
-}
-
-func validSlug(s string, maxLen int) bool {
-	if s == "" || len(s) > maxLen {
+	if s == "" || len(s) > MaxSymbolLen {
 		return false
 	}
 	for _, c := range s {
@@ -121,9 +110,9 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // ID returns the Identifier of the token.
-// It is composed of the original realm and the provided ID.
+// It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
-	return tok.origRealm + "." + tok.id
+	return tok.id
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
