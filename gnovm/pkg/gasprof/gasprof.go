@@ -130,10 +130,7 @@ func (p *Profiler) Pop() {
 // call frames at once), where a single Pop is insufficient. callFrames counts
 // frames with Func != nil (matching what Enter descends on).
 func (p *Profiler) SyncDepth(callFrames int) {
-	target := callFrames + 1 // + root
-	if target < 1 {
-		target = 1
-	}
+	target := max(callFrames+1, 1) // callFrames + root, clamped to >= 1
 	if target < len(p.stack) {
 		p.stack = p.stack[:target]
 	}
