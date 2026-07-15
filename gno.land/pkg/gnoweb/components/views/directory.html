@@ -12,7 +12,7 @@
     {{ range .FilesLinks }}
     <li>
       <div>
-        <a href="{{ .Link }}{{ if $.Mode.IsExplorer }}/{{ end }}">
+        <a href="{{ .Link }}">
           <span class="c-with-icon">
             <svg class="c-icon">
               <use href="#ico-file"></use>
@@ -25,6 +25,7 @@
           {{ if not (hasPrefix $pkgpath "/p/") }}
           <a href="{{ .Link }}" class="b-inline-btn">Open</a>
           {{ end }}
+          <a href="{{ .Link }}/" class="b-inline-btn">Browse</a>
           <a href="{{ .Link }}$source" class="b-inline-btn">Source</a>
           {{ if not (hasPrefix $pkgpath "/p/") }}
           <a href="{{ .Link }}$help" class="b-inline-btn">Action</a>

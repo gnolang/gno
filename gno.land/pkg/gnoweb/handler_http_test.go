@@ -476,6 +476,43 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Action")
 }
 
+// TestHTTPHandler_ExplorerPathsListBrowse verifies that the explorer paths-list
+// view (e.g. /r/<addr>/ listing a user's packages) links each entry's name to the
+// realm render (no trailing slash) and exposes a dedicated "Browse" button that
+// opens the directory listing (trailing slash), alongside Open/Source/Action.
+func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
+	t.Parallel()
+
+	// A package under the /r/mock namespace; requesting the namespace itself
+	// (no direct files) falls through to the explorer paths-list view.
+	subPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/sub",
+		Files:  map[string]string{"sub.gno": `package sub`},
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, gnoweb.NewMockClient(subPackage)),
+	)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/", nil))
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// Explorer mode renders the "Packages" counter.
+	assert.Contains(t, body, "Packages")
+	// Main entry link points at the render, not the directory listing.
+	assert.Contains(t, body, `href="/r/mock/sub">`)
+	// Right-side inline buttons, including the new Browse (directory listing).
+	assert.Contains(t, body, `href="/r/mock/sub" class="b-inline-btn">Open</a>`)
+	assert.Contains(t, body, `href="/r/mock/sub/" class="b-inline-btn">Browse</a>`)
+	assert.Contains(t, body, `href="/r/mock/sub$source" class="b-inline-btn">Source</a>`)
+	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-inline-btn">Action</a>`)
+}
+
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
