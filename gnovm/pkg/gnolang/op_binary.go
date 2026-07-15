@@ -855,24 +855,23 @@ func bigdecCmp(lb, rb BigdecValue) int {
 	return lb.V.Cmp(rb.V)
 }
 
-// parseBigdecLiteral parses a decimal or hex-float literal into a BigdecValue,
-// using big.Rat by default and falling back to a 512-bit big.Float when the
-// rational representation would exceed ratOverflowBits. kind is a human-facing
-// label for error messages ("decimal" or "hex float").
+// parseBigdecLiteral parses a decimal or hex-float literal into a BigdecValue.
+// It probes via big.ParseFloat first (cheap, bounded) so extreme magnitudes
+// never allocate the giant big.Rat numerator/denominator; literals within
+// ratOverflowBits stay in exact rat form.
 func parseBigdecLiteral(s, kind string) BigdecValue {
-	r := new(big.Rat)
-	if _, ok := r.SetString(s); ok && !ratOverflows(r) {
-		return BigdecValue{V: r}
-	}
-	// Rat form either failed or overflowed; fall back to big.Float. big.Float
-	// natively parses decimal and hex-float notation, and stores the exponent
-	// separately from the mantissa so extreme-magnitude literals (1e10000,
-	// 1e-10000) fit comfortably in bounded space.
 	f, _, err := big.ParseFloat(s, 0, BigdecFloatPrec, big.ToNearestEven)
 	if err != nil {
 		panic(fmt.Sprintf("invalid %s constant: %s", kind, s))
 	}
-	return BigdecValue{F: f}
+	if exp := f.MantExp(nil); exp > ratOverflowBits || exp < -ratOverflowBits {
+		return BigdecValue{F: f}
+	}
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok || ratOverflows(r) {
+		return BigdecValue{F: f}
+	}
+	return BigdecValue{V: r}
 }
 
 // for doOpAdd and doOpAddAssign.

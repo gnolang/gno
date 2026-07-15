@@ -1454,19 +1454,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// Convert directly at 24-bit precision (float32 mantissa width) so
-		// the rounding happens once, at the target precision. Going through
-		// float64 first and then narrowing performs a double rounding that
-		// misclassifies halfway cases like `1.0 + 0x1p-24 + 0x1p-80`, which
-		// exceeds the float32 halfway point but rounds to it after the
-		// float64 step drops the 2^-80 bit.
-		bf := new(big.Float).SetPrec(24)
-		if bdv.F != nil {
-			bf.Set(bdv.F)
-		} else if bdv.V != nil {
-			bf.SetRat(bdv.V)
-		}
-		f32, _ := bf.Float32()
+		f32 := bigdecToFloat32(bdv)
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
@@ -1502,6 +1490,22 @@ func bigdecToFloat64(bdv BigdecValue) float64 {
 		return 0
 	}
 	f, _ := bdv.V.Float64()
+	return f
+}
+
+// bigdecToFloat32 renders bdv as the nearest float32, handling both Rat and
+// Float representations. big.Rat.Float32 and big.Float.Float32 are both
+// deterministic (they build the IEEE 754 bit pattern via math.Ldexp / direct
+// bit manipulation, not hardware FP arithmetic).
+func bigdecToFloat32(bdv BigdecValue) float32 {
+	if bdv.IsFloat() {
+		f, _ := bdv.F.Float32()
+		return f
+	}
+	if bdv.V == nil {
+		return 0
+	}
+	f, _ := bdv.V.Float32()
 	return f
 }
 
