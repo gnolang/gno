@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -76,14 +77,31 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		opslog = new(bytes.Buffer)
 	}
 	gasMeter := store.NewInfiniteGasMeter()
-	// Create machine for execution and run test
+	// Create machine for execution and run test.
+	//
+	// When profiling, wrap the meter BEFORE building the store so that store
+	// I/O, amino, CPU, and alloc gas all flow through one profiler decorator
+	// (filetests share a single meter between store and machine). The store
+	// gets a GasContext so store I/O is actually charged; the cursor is driven
+	// via MachineOptions.GasProfiler (the meter is already wrapped, so this only
+	// enables the cursor). Off-profile this is byte-identical to before.
 	tcw := opts.BaseStore.CacheWrap()
+	var gctx *store.GasContext
+	storeMeter := gasMeter
+	var machineProfiler *gasprof.Profiler
+	if opts.GasProfiler != nil {
+		w := gasprof.WrapMeter(gasMeter, opts.GasProfiler)
+		storeMeter = w
+		gctx = &store.GasContext{Meter: w, Config: store.DefaultGasConfig()}
+		machineProfiler = opts.GasProfiler
+	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
+		Store:         tgs.BeginTransaction(tcw, tcw, gctx, storeMeter),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
-		GasMeter:      gasMeter,
+		GasMeter:      storeMeter,
+		GasProfiler:   machineProfiler,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
@@ -198,7 +216,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
 		case DirectiveGas:
-			match(dir, strconv.FormatInt(m.GasMeter.GasConsumed(), 10))
+			// Profiling wires extra store metering, so GasConsumed() differs
+			// from a normal run; skip the golden Gas: check (and don't rewrite
+			// it under -sync) when profiling.
+			if opts.GasProfiler == nil {
+				match(dir, strconv.FormatInt(m.GasMeter.GasConsumed(), 10))
+			}
 		case DirectiveStorage:
 			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
