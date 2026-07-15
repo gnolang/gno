@@ -97,7 +97,10 @@ type Token struct {
 // unordered, O(1) persisted-object loads per op — cheaper gas for large
 // ledgers) satisfy it.
 type KV interface {
-	Get(key string) (value any, exists bool)
+	// Get returns the value stored under key, or nil if the key is absent.
+	// (Matches avl.Tree/bptree.BPTree: absence is nil, so ledger values must
+	// be non-nil — grc20 stores int64.)
+	Get(key string) any
 	Set(key string, value any) (updated bool)
 	Remove(key string) (value any, removed bool)
 	Has(key string) bool
