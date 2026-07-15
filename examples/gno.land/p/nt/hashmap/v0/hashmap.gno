@@ -34,18 +34,22 @@
 // Iteration order is deterministic (bucket index, then per-bucket insertion
 // order) but NOT sorted by key.
 //
-// Adversarial keys: the bucket hash (FNV-1a) uses a fixed seed, so keys can be
-// ground to land in the same bucket. A party able to create many funded
-// entries (e.g. via a faucet) can inflate one bucket, raising the per-op cost
-// for keys that hash there — bounded by that bucket's size, not global. This
-// is inherent to any fixed hash in a deterministic VM (no per-map secret is
-// possible). Size the bucket count so expected entries-per-bucket stays small,
-// which dilutes the effect; avl.Tree, whose cost is O(log N) regardless of key
-// distribution, is the alternative when adversarial concentration is a concern.
+// Adversarial keys: bucket selection uses deterministic SHA-256, so keys can
+// still be ground to land in the same bucket — though grinding SHA-256
+// preimages is far costlier than inverting a non-cryptographic hash. A party
+// able to create many funded entries (e.g. via a faucet) can inflate one
+// bucket, raising the per-op cost for keys that hash there — bounded by that
+// bucket's size, not global. This is inherent to any public hash in a
+// deterministic VM (no per-map secret is possible). Size the bucket count so
+// expected entries-per-bucket stays small, which dilutes the effect; avl.Tree,
+// whose cost is O(log N) regardless of key distribution, is the alternative
+// when adversarial concentration is a concern.
 package hashmap
 
+import "crypto/sha256"
+
 // DefaultBuckets is the bucket count used by New. Good for maps up to roughly
-// 100k entries; see the package documentation for sizing guidance.
+// 1M entries; see the package documentation for sizing guidance.
 const DefaultBuckets = 1024
 
 // Map is a persistent string-keyed map with O(1) object loads per operation.
@@ -69,20 +73,27 @@ func NewWithBuckets(count int) *Map {
 	return &Map{buckets: make([]map[string]any, count)}
 }
 
-// fnv1a is the 64-bit FNV-1a hash. Pure Gno, deterministic across nodes.
-func fnv1a(s string) uint64 {
-	h := uint64(14695981039346656037)
-	for i := 0; i < len(s); i++ {
-		h ^= uint64(s[i])
-		h *= 1099511628211
-	}
-	return h
+// hash64 returns the first 64 bits of SHA-256 in little-endian order. Sum256 is
+// a calibrated native binding, so it avoids the per-byte metered cost of an
+// interpreted Gno hash loop on every Get, Set, Has, and Remove.
+func hash64(s string) uint64 {
+	h := sha256.Sum256([]byte(s))
+	return uint64(h[0]) |
+		uint64(h[1])<<8 |
+		uint64(h[2])<<16 |
+		uint64(h[3])<<24 |
+		uint64(h[4])<<32 |
+		uint64(h[5])<<40 |
+		uint64(h[6])<<48 |
+		uint64(h[7])<<56
 }
 
 // bucketIndex is the single source of truth for key placement; Get/Has/Remove
 // (via bucketOf) and Set must all use it so reads and writes cannot diverge.
+// The digest is fixed, so placement must be settled before any map is persisted
+// — changing the hash later relocates every key.
 func (m *Map) bucketIndex(key string) int {
-	return int(fnv1a(key) & uint64(len(m.buckets)-1))
+	return int(hash64(key) & uint64(len(m.buckets)-1))
 }
 
 func (m *Map) bucketOf(key string) map[string]any {
