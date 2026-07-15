@@ -359,6 +359,26 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// that any genesis-time realm reads of sysparams.GetValsetEffective /
 	// GetValsetEntries see the authoritative set instead of empty.
 	//
+	// Gate the initial validator set against the pubkey-type allow-list (like the
+	// EndBlocker does for runtime updates); panic to abort boot on a disallowed type.
+	var allowedKeyTypes []string
+	if req.ConsensusParams != nil && req.ConsensusParams.Validator != nil {
+		allowedKeyTypes = req.ConsensusParams.Validator.PubKeyTypeURLs
+	}
+	if len(allowedKeyTypes) > 0 {
+		for _, v := range req.Validators {
+			if v.Power == 0 {
+				continue // non-voting entry, never enters the active set
+			}
+			if keyType := amino.GetTypeURL(v.PubKey); !slices.Contains(allowedKeyTypes, keyType) {
+				panic(fmt.Errorf(
+					"genesis validator %s has disallowed pubkey type %s (allowed: %v)",
+					v.Address.String(), keyType, allowedKeyTypes,
+				))
+			}
+		}
+	}
+
 	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
 	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
 	// a fresh ctx via getContextForTx (tm2/pkg/sdk/baseapp.go:606-611),
@@ -367,11 +387,19 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// and write valset:current directly.
 	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
 	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
+	// Mirror the allow-list into the params store for realms to read (genesis-immutable).
+	cfg.prmk.SetStrings(ictx, valsetPubKeyTypesPath, allowedKeyTypes)
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
+		// Surface loadAppState errors on the logger before returning. The
+		// error is also propagated via ResponseInitChain.Error, but
+		// tendermint's handshake does not surface that field — operators
+		// otherwise see "Completed ABCI Handshake" with an empty appHash
+		// and no indication that genesis replay never happened.
+		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
 				Error: abci.StringError(err.Error()),
