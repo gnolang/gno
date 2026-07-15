@@ -360,7 +360,10 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
-	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
+	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
+	if err != nil {
+		return runResult{Error: err.Error()}
+	}
 	tcError := ""
 	fname = filepath.Base(fname)
 	if opts.tcCache == nil {
@@ -413,6 +416,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			}
 		}
 	}()
+
+	// Validate that package name matches path last element.
+	// See https://github.com/gnolang/gno/issues/1571
+	if err := gno.ValidatePkgNameMatchesPath(pkgName, pkgPath); err != nil {
+		panic(err)
+	}
 
 	// Remove filetest from name, as that can lead to the package not being
 	// parsed correctly when using RunMemPackage.

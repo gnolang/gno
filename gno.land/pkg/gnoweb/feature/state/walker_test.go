@@ -661,7 +661,7 @@ func TestDecodePrimitives_Variants(t *testing.T) {
 	// Build N as 8-byte little-endian base64.
 	n8 := func(v uint64) string {
 		buf := make([]byte, 8)
-		for i := 0; i < 8; i++ {
+		for i := range 8 {
 			buf[i] = byte(v >> (8 * i))
 		}
 		return base64.StdEncoding.EncodeToString(buf)
@@ -688,7 +688,6 @@ func TestDecodePrimitives_Variants(t *testing.T) {
 		{"uint64 huge", pUint64, n8(18446744073709551615), "uint64", "18446744073709551615"},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			fixture := fmt.Sprintf(
@@ -996,7 +995,6 @@ func TestDecodeMalformedJSON(t *testing.T) {
 		{"nonsense", `<<not json>>`},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			defer func() {
@@ -1066,7 +1064,7 @@ func TestDecodeDeepStruct(t *testing.T) {
 
 	// Walk down the tree to confirm depth is preserved.
 	cur := nodes[0]
-	for i := 0; i < depth; i++ {
+	for i := range depth {
 		require.Equal(t, "struct", cur.Kind, "level %d is struct", i)
 		require.NotEmpty(t, cur.Children, "level %d has children", i)
 		cur = cur.Children[0]
@@ -1146,13 +1144,13 @@ func BenchmarkDecodeMixed_Parallel(b *testing.B) {
 func buildLargeMapFixture(n int) string {
 	var b strings.Builder
 	b.WriteString(`{"names":["m"],"values":[{"T":{"@type":"/gno.MapType","Key":{"@type":"/gno.PrimitiveType","value":"16"},"Value":{"@type":"/gno.PrimitiveType","value":"32"}},"V":{"@type":"/gno.MapValue","List":{"List":[`)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i > 0 {
 			b.WriteString(",")
 		}
 		// Encode int i as little-endian 8 bytes, base64.
 		nbuf := make([]byte, 8)
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			nbuf[j] = byte(i >> (8 * j))
 		}
 		nB64 := base64Encode(nbuf)
@@ -1174,12 +1172,12 @@ func buildDeepStructFixture(d int) string {
 	openLevel := func() {
 		b.WriteString(`{"T":{"@type":"/gno.StructType","PkgPath":"test","Fields":[{"Name":"x","Type":{"@type":"/gno.StructType","PkgPath":"test","Fields":[]},"Embedded":false,"Tag":""}]},"V":{"@type":"/gno.StructValue","Fields":[`)
 	}
-	for i := 0; i < d; i++ {
+	for range d {
 		openLevel()
 	}
 	// Innermost: int = 1
 	b.WriteString(`{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}`)
-	for i := 0; i < d; i++ {
+	for range d {
 		b.WriteString(`]}}`)
 	}
 	b.WriteString(`]}`)
@@ -1275,7 +1273,7 @@ func TestDecodeStruct_FieldCap(t *testing.T) {
 	const overCap = maxChildrenPerNode + 5
 
 	var fields strings.Builder
-	for i := 0; i < overCap; i++ {
+	for i := range overCap {
 		if i > 0 {
 			fields.WriteString(",")
 		}
@@ -1384,7 +1382,7 @@ func TestDecodeTypedValue_HeapItemChainRespectsDepth(t *testing.T) {
 	t.Parallel()
 
 	inner := gno.TypedValue{T: gno.IntType}
-	for i := 0; i < maxDecodeDepth+50; i++ {
+	for range maxDecodeDepth + 50 {
 		hiv := &gno.HeapItemValue{Value: inner}
 		inner = gno.TypedValue{T: gno.IntType, V: hiv}
 	}
