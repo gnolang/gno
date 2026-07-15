@@ -22,6 +22,8 @@ func Set(key string, value int) {
 }
 
 func Get(key string) int {
+    // Get returns nil for an absent key. A stored nil value looks the same,
+    // so use Has when you must tell absent from present-but-nil.
     raw := tree.Get(key)
     if raw == nil {
         panic("not found")

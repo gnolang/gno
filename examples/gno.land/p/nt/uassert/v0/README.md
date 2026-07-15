@@ -5,7 +5,7 @@
 
 # `uassert` - test assertions
 
-Assertion helpers for `_test.gno` files. Adapted, lighter port of `stretchr/testify/assert`. Each helper reports the failure via `t.Errorf` and lets the test keep running.
+Assertion helpers for writing Gno tests, in both `_test.gno` and `_filetest.gno` files. Adapted, lighter port of `stretchr/testify/assert`. Each helper takes a `TestingT`, reports the failure via `t.Errorf`, and lets the test keep running.
 
 ## Usage
 
