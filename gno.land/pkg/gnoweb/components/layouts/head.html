@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ .Title }}</title>
 
+  <!-- CSP nonce (set under strict headers) so CodeMirror's injected styles pass the policy -->
+  {{ if .CSPNonce }}
+  <meta name="csp-nonce" content="{{ .CSPNonce }}" />
+  {{ end }}
+
   <!-- Preload -->
   <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"

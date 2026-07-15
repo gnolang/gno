@@ -413,6 +413,61 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 	}
 }
 
+// TestIndexLayout_CSPNonce verifies how HeadData.CSPNonce is rendered into the
+// page head. When set, the layout must emit a <meta name="csp-nonce"> tag whose
+// content is the nonce; the frontend reads that tag and passes it to CodeMirror's
+// EditorView.cspNonce facet so CodeMirror's runtime-injected <style> elements
+// carry the nonce and pass a strict style-src CSP. When empty (non-strict mode,
+// where no CSP nonce is issued), the meta tag must be omitted entirely.
+func TestIndexLayout_CSPNonce(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		nonce string
+		want  string // "" means the meta tag must be absent
+	}{
+		{
+			name:  "nonce set renders csp-nonce meta",
+			nonce: "Ml2rzjv6QqQEexAw32Pbeg==",
+			want:  `<meta name="csp-nonce" content="Ml2rzjv6QqQEexAw32Pbeg==" />`,
+		},
+		{
+			name:  "empty nonce omits the meta tag",
+			nonce: "",
+			want:  "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title:    "Test",
+					CSPNonce: tc.nonce,
+				},
+				Mode: ViewModeHome,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			var buf strings.Builder
+			require.NoError(t, IndexLayout(data).Render(&buf))
+			output := buf.String()
+
+			if tc.want == "" {
+				assert.NotContains(t, output, `name="csp-nonce"`, "expected no csp-nonce meta tag")
+			} else {
+				assert.Contains(t, output, tc.want, "expected csp-nonce meta tag")
+			}
+		})
+	}
+}
+
 func TestNewBannerData(t *testing.T) {
 	t.Parallel()
 
