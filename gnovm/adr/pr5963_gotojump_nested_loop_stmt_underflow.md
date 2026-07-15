@@ -1,4 +1,4 @@
-# PRXXXX: Fix `GotoJump` stmt-stack underflow on backward goto out of nested loops
+# PR5963: Fix `GotoJump` stmt-stack underflow on backward goto out of nested loops
 
 ## Context
 
