@@ -972,7 +972,7 @@ func (it *InterfaceType) IsNamed() bool {
 	return false
 }
 
-func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	// Methods is flattened at construction (flattenInterfaceMethods): every
@@ -2111,12 +2111,12 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 		n))
 }
 
-// The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
+// The Preprocesses uses findEmbeddedFieldType() to set the path.
 // OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
 // i.e.,
 //
-//	preprocessor: *DT.FindEmbeddedFieldType(name)
+//	preprocessor: findEmbeddedFieldType(callerPath, dt, name)
 //	              *DT.GetValueAt(path) // from op_type/evalTypeOf()
 //
 //	     runtime: *TV.GetPointerTo(path)
@@ -2128,8 +2128,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
-		// should call *DT.FindEmbeddedFieldType(name) instead.
-		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+		// should call findEmbeddedFieldType(callerPath, dt, n) instead.
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
@@ -2153,8 +2152,7 @@ func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
-		// should call *DT.FindEmbeddedFieldType(name) instead.
-		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+		// should call findEmbeddedFieldType(callerPath, dt, n) instead.
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			return dt.Methods[path.Index]
@@ -2921,7 +2919,7 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name) (
 		// interfaces), so delegate directly instead of running the
 		// find-then-rebuild phases twice over the same methods.
 		var accessError bool
-		trail, hasPtr, rcvr, ft, accessError = it.FindEmbeddedFieldType(callerPath, n, nil)
+		trail, hasPtr, rcvr, ft, accessError = it.FindEmbeddedFieldType(callerPath, n)
 		switch {
 		case accessError:
 			status = embedLookupAccessError
@@ -3149,7 +3147,7 @@ func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st 
 			// Interface method sets are flattened at construction, so
 			// the scan is O(methods); it applies the same gated-name
 			// rule against each method's origin package.
-			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n, nil)
+			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n)
 			return tr != nil, gated || ae, nil
 		default:
 			return false, gated, nil
@@ -3191,17 +3189,15 @@ func buildEmbeddedTrail(callerPath string, t Type, n Name, hops []uint16) (
 				fv := ct.Methods[i].V.(*FuncValue)
 				// NOTE: makes code simple but requires preprocessor's
 				// Store to pre-load method types.
-				rt := fv.GetType(nil).Params[0].Type
+				mt := fv.GetType(nil)
+				rt := mt.Params[0].Type
 				var vp ValuePath
 				if _, isPtr := rt.(*PointerType); isPtr {
 					vp = NewValuePathPtrMethod(i, n)
 				} else {
 					vp = NewValuePathValMethod(i, n)
 				}
-				// NOTE: makes code simple but requires preprocessor's
-				// Store to pre-load method types.
-				bt := fv.GetType(nil).BoundType()
-				return []ValuePath{vp}, false, rt, bt, false
+				return []ValuePath{vp}, false, rt, mt.BoundType(), false
 			}
 		}
 		// Otherwise, build through base.
@@ -3246,7 +3242,7 @@ func buildEmbeddedTrail(callerPath string, t Type, n Name, hops []uint16) (
 		trail = append([]ValuePath{vp}, trail...)
 		return
 	case *InterfaceType:
-		return ct.FindEmbeddedFieldType(callerPath, n, nil)
+		return ct.FindEmbeddedFieldType(callerPath, n)
 	default:
 		return
 	}
