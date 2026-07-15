@@ -11,8 +11,9 @@ gas dimension (CPU, allocation, store I/O, amino, refunds) and an incremental
 call-tree cursor attributes each charge to the current gno function; output is a
 standard multi-dimension pprof profile viewable with `go tool pprof`. It is
 driven from two surfaces: `gno test -gasprofile=<file>` (unit tests and
-filetests) and the dev-only `.app/profiletx` ABCI query (via
-`gnoclient.ProfileTx`, exposed by gnodev). It is off by default and, when on, is
+filetests) and the dev-only `.app/profiletx` ABCI query (reachable from the
+command line via `gnokey maketx -profile`, from Go via `gnoclient.ProfileTx`,
+and exposed by gnodev). It is off by default and, when on, is
 observation-only — it never changes gas charged or execution results. This
 document records the design and the rationale; the code lives in
 `gnovm/pkg/gasprof/`.
@@ -321,7 +322,7 @@ These are wiring facts about the surfaces, not the profiler design.
 | 1 (done) | `gno test -gasprofile=<file>`: cpu + alloc dimensions | Meter decorator + incremental cursor; wraps the test `NewInfiniteGasMeter()` and rewraps the allocator's meter; writes a 6-value pprof. Store columns present but zero. |
 | 2 (done) | Store dimension on `gno test` | `gasProfileStoreMeters` wires a `GasContext` (`DefaultGasConfig`) + amino meter, both backed by a wrapper around the **shared** profiler, into the test store's `BeginTransaction` — **only when profiling** (normal `gno test` totals unchanged). Because the shared store and per-test machines hold separate meters, store gas rides its own infinite meter and records to the shared profiler at the current cursor. Measured: store is ~99% of gas on a store-heavy package, mostly at `(root)` (package load/persist charged outside test frames). **Filetests** also covered: they share one meter between store and machine, so the meter is wrapped *before* the store is built and the cursor enabled via `MachineOptions.GasProfiler` (filetest.go). (`gno run` still has no meter — not a profiling surface.) |
 | 3a (done, engine) | Node/keeper tx tracer — engine | `vm.WithGasProfile(ctx)` marks a ctx; `MakeGnoTransactionStore` wraps `ctx.GasMeter()` once (all dimensions share it on-chain) and books the pre-install consumed as `(ante)`. `MachineOptions.GasProfiler` drives the cursor on the top-level tx machines (Call/Run/AddPackage); preprocess sub-machines inherit the wrapped meter but not the cursor, so their gas attributes to the parent. Verified end-to-end: a real Call captures cpu+alloc+**store** and reconciles exactly with the tx meter. Off unless `WithGasProfile` is called. |
-| 3b (done, query) | Node/keeper tx tracer — surface | `.app/profiletx` ABCI query returns a pprof profile of a tx's gas. tm2 stays profiler-free: `BaseApp.Simulate` gained variadic `ContextFn`s and a nil-by-default `TxProfiler` hook; `AppOptions.EnableGasProfiler` (off by default; dev nodes only) registers a closure that runs `Simulate` with a `WithGasProfile` ctxFn and returns `WritePprof` bytes. Verified end-to-end: query a Call tx → gzipped pprof naming the function + cpu/store dimensions; rejected when disabled. Remaining ergonomics: a gnoclient helper + gnodev flag (thin follow-up). |
+| 3b (done, query) | Node/keeper tx tracer — surface | `.app/profiletx` ABCI query returns a pprof profile of a tx's gas. tm2 stays profiler-free: `BaseApp.Simulate` gained variadic `ContextFn`s and a nil-by-default `TxProfiler` hook; `AppOptions.EnableGasProfiler` (off by default; dev nodes only) registers a closure that runs `Simulate` with a `WithGasProfile` ctxFn and returns `WritePprof` bytes. Verified end-to-end: query a Call tx → gzipped pprof naming the function + cpu/store dimensions; rejected when disabled. Ergonomics wired: `gnoclient.ProfileTx`, gnodev enables it by default, and `gnokey maketx -profile <file>` (all subcommands) signs the tx like `-simulate only` and writes the pprof instead of broadcasting. |
 | 3.1 (not pursued) | Historical tx re-execution | A faithful `debug_traceTransaction` (reproduce a past tx's *actual* gas) is **not achievable** in gno: the VM/gas rules live in the binary, not versioned per height, so replaying an old tx with the current binary applies today's rules to old state. gno's own hardfork/genesis replay confirms this — it bypasses the gas meter (`GasReplayMode="source"` → `SkipGasMeteringKey`) and compares against *recorded* source gas rather than reproducing it. Historical *state* is retrievable within the prune window, but faithful trace would need a per-height ruleset (a chain-design change, out of scope). What we built is the `debug_traceCall` analog: trace under current rules. |
 
 ### Code layout
@@ -338,6 +339,7 @@ gnovm/cmd/gno/test.go         # -gasprofile flag
 gno.land/pkg/sdk/vm/keeper.go # WithGasProfile + meter wrap at MakeGnoTransactionStore
 gno.land/pkg/gnoland/app.go   # AppOptions.EnableGasProfiler + .app/profiletx closure
 tm2/pkg/sdk/                  # Simulate ctxFns + TxProfiler hook + profiletx query
+tm2/pkg/crypto/keys/client/   # gnokey maketx -profile flag (signTx + ProfileTx)
 gno.land/pkg/gnoclient/       # ProfileTx client method
 ```
 

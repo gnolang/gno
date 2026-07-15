@@ -96,7 +96,28 @@ and **store** dimensions.
 **off by default on all other nodes** (never on validators) and is enabled per
 node via `AppOptions.EnableGasProfiler` — it is a local-development feature.
 
-Query it from Go with the gno client:
+The easiest way is the `-profile` flag on `gnokey maketx`: it signs the tx (like
+`-simulate only`, without broadcasting) and writes the pprof to a file. Point
+`-remote` at a profiler-enabled node such as `gnodev`:
+
+```sh
+gnokey maketx call \
+  -pkgpath "gno.land/r/dev/counter" -func "Increment" \
+  -gas-wanted 20000000 -gas-fee 1000000ugnot \
+  -profile gas.pprof \
+  -remote 127.0.0.1:26657 -chainid dev \
+  devtest
+# gas profile written to gas.pprof (ok)
+# view with: go tool pprof gas.pprof
+```
+
+The flag works on every `maketx` subcommand (`call`, `run`, `addpkg`, `send`).
+Set a generous `-gas-wanted`: the tx runs under it, so too low a limit yields a
+profile truncated at the out-of-gas point (the confirmation line reports `ok` vs
+a "partial" note). Against a node without the profiler enabled, the command
+fails with a clear "gas profiling is not enabled on this node" error.
+
+Or query it from Go with the gno client:
 
 ```go
 profile, log, err := client.ProfileTx(tx) // tx is a *std.Tx
@@ -110,12 +131,7 @@ os.WriteFile("gas.pprof", profile, 0o644)
 
 `profile` is the same gzipped pprof produced by `gno test -gasprofile`, so all
 the `go tool pprof` viewing and `-sample_index` dimension-switching shown above
-apply. The `log` reports whether the profile is complete or partial (a tx runs
-under its declared `GasWanted`, so a failed or out-of-gas tx yields a profile
-truncated at the failure point).
-
-> A `gnokey maketx ... -profile <file>` command-line flag is planned so a tx can
-> be profiled without writing Go.
+apply.
 
 ## `gno run`
 

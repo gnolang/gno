@@ -147,7 +147,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.RootCfg.Broadcast {
+	if cfg.RootCfg.ShouldSign() {
 		cfg.RootCfg.RootCfg.OnTxSuccess = PrintTxSuccess
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {

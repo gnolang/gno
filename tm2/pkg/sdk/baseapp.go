@@ -446,7 +446,9 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			// return a pprof profile. Disabled (unknown request) unless the
 			// application registered a TxProfiler via SetTxProfiler.
 			if app.txProfiler == nil {
-				res.Error = ABCIError(std.ErrUnknownRequest("tx gas profiling is not enabled on this node"))
+				const msg = "tx gas profiling is not enabled on this node"
+				res.Error = ABCIError(std.ErrUnknownRequest(msg))
+				res.Log = msg // descriptive text for clients (Error stringifies generically)
 				return res
 			}
 			res.Height = req.Height
