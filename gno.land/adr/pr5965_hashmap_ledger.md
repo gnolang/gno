@@ -119,6 +119,45 @@ Findings:
   up. It is the right avl replacement where sorted access is required, not
   where flat cost is the goal.
 
+### Storage footprint (persisted bytes / deposit)
+
+The backend choice affects not only access **gas** but also persisted
+**storage** — and therefore the storage *deposit* (100 ugnot/byte) a realm must
+lock. Measured with the same harness via `rlm.Storage` after commit (grc20
+token realm; deploy base = empty ledger, then N holders minted):
+
+| holders | avl (bytes) | hashmap (bytes) | bptree (bytes) |
+|---|---|---|---|
+| 0 (deploy) | 9,321 | 169,967 | 9,508 |
+| 20,000 | 41,315,124 | **3,343,815** | 11,805,414 |
+| 100,000 | 208,629,782 | **14,870,242** | 58,578,909 |
+| 1,000,000 | ~2.09B* | **144,473,034** | panic† |
+
+`*` avl 1M inferred from its flat slope (the 1M avl seed is impractically slow
+to build). `†` bptree 1M hit the same unrelated cold-reboot VM panic seen at
+grc20 scale; not a storage property.
+
+Marginal cost **per holder** — the number that matters at scale:
+
+| backend | bytes/holder | why |
+|---|---|---|
+| avl | **~2,090** | each entry is a full persisted tree node: balance + height + two child pointers + object metadata |
+| bptree | ~585 | entries packed into shared leaf nodes, plus node objects + ordering metadata |
+| **hashmap** | **~144** | just a native-map entry (key→balance); the bucket map is one object, entries add raw bytes only |
+
+Findings:
+
+- **The gas-heaviest structure is also the storage-heaviest.** avl materializes
+  one persisted object per entry, so it pays both the cold-load gas *and* ~14×
+  hashmap's bytes per holder — same root cause, both axes.
+- **hashmap is −92% storage at 20k and −93% at 100k** vs avl (3.3M vs 41M bytes;
+  14.9M vs 209M). Its 170 KB fixed deploy overhead (1024 pre-allocated bucket
+  maps) is paid back after **~85 holders** — negligible for any real ledger.
+- **Deposit follows directly** (bytes × 100 ugnot): a 100k-holder avl ledger
+  locks **~20,863 GNOT** of storage deposit vs **~1,487 GNOT** for hashmap.
+- **bptree is the ordered middle ground:** ~4× hashmap's bytes but still −72% vs
+  avl at 100k, while keeping sorted iteration.
+
 ## Alternatives considered
 
 - **Higher-fanout B-tree** — the in-tree `p/nt/bptree/v0` already satisfies the
