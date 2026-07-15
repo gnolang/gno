@@ -430,6 +430,16 @@ func (ft FieldType) idName(fallbackPkg string) string {
 	return ft.originPkg(fallbackPkg) + "." + string(ft.Name)
 }
 
+// stampedName prefixes a stamped method with its origin package, so two
+// same-spelled unexported methods print apart. An unstamped one stays bare,
+// unlike idName, which qualifies every unexported name.
+func (ft FieldType) stampedName() string {
+	if ft.PkgPath == "" {
+		return string(ft.Name)
+	}
+	return ft.PkgPath + "." + string(ft.Name)
+}
+
 // sortForPackage sorts the methods by their package-qualified identity name
 // (idName with pkgPath as the fallback) — the SAME key TypeIDForPackage emits
 // with. Keying the sort and the emission identically means the order does not
@@ -515,14 +525,7 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(sep)
 		}
 		if withName {
-			// Only cross-package unexported interface methods carry a stamp
-			// (see flattenInterfaceMethods); qualify them so two same-spelled
-			// methods print distinguishably.
-			if ft.PkgPath != "" {
-				bld.WriteString(ft.PkgPath)
-				bld.WriteByte('.')
-			}
-			bld.WriteString(string(ft.Name))
+			bld.WriteString(ft.stampedName())
 			bld.WriteByte(' ')
 		}
 		bld.WriteString(ft.Type.String())
@@ -1024,27 +1027,23 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
+		mname := im.stampedName()
 		if tr == nil { // not found.
-			// Qualify a stamped cross-package method so it is
-			// distinguishable from a same-spelled local one.
-			if im.PkgPath != "" {
-				return fmt.Errorf("missing method %s.%s", im.PkgPath, im.Name)
-			}
-			return fmt.Errorf("missing method %s", im.Name)
+			return fmt.Errorf("missing method %s", mname)
 		}
 		if mt, ok := ft.(*FuncType); ok {
 			// if method is pointer receiver, check addressability:
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-				return fmt.Errorf("method %s has pointer receiver", im.Name) // not addressable.
+				return fmt.Errorf("method %s has pointer receiver", mname) // not addressable.
 			}
 			// check for func type equality.
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				return fmt.Errorf("wrong type for method %s", im.Name)
+				return fmt.Errorf("wrong type for method %s", mname)
 			}
 		} else {
-			return fmt.Errorf("wrong type for method %s", im.Name)
+			return fmt.Errorf("wrong type for method %s", mname)
 		}
 	}
 	return nil
@@ -2600,7 +2599,7 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 		key := ft.idName(pkgPath)
 		if prev, ok := seen[key]; ok {
 			if prev.TypeID() != typ.TypeID() {
-				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", name))
+				panic(fmt.Sprintf("duplicate method %s with conflicting types in interface", ft.stampedName()))
 			}
 			return
 		}
