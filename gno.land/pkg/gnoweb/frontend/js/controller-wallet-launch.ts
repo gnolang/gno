@@ -26,16 +26,22 @@ export class WalletLaunchController extends BaseController {
 	declare _params: Record<string, string>;
 	declare _send: string | undefined;
 	declare _wallets: Wallet[];
-	declare _form: HTMLFormElement | null;
+	declare _article: HTMLElement | null;
 
 	protected connect(): void {
 		this.initializeDOM({});
 
-		// Static identity, read from the co-located action-function article.
+		// This controller is attached to the params <form> (one controller per
+		// element — the framework derives its target-attribute prefix from the
+		// element's whole data-controller value). The identifying data lives on
+		// the enclosing action-function <article>.
+		this._article = this.element.closest<HTMLElement>(
+			"[data-action-function-name-value]",
+		);
 		this._funcName =
-			this.element.getAttribute("data-action-function-name-value") || "";
+			this._article?.getAttribute("data-action-function-name-value") || "";
 		this._pkgPath =
-			this.element.getAttribute("data-action-function-pkgpath-value") || "";
+			this._article?.getAttribute("data-action-function-pkgpath-value") || "";
 
 		this._wallets = this._loadRegistry();
 
@@ -54,10 +60,8 @@ export class WalletLaunchController extends BaseController {
 			this._send = detail.send;
 		});
 
-		this._form = document.getElementById(
-			`form-${this._funcName}`,
-		) as HTMLFormElement | null;
-		this._form?.addEventListener("submit", this._onSubmit.bind(this));
+		// The Execute button submits this form (via its form= attribute).
+		this.element.addEventListener("submit", this._onSubmit.bind(this));
 	}
 
 	// Parse the embedded wallet registry. A missing/malformed registry simply
@@ -192,10 +196,12 @@ export class WalletLaunchController extends BaseController {
 		this._openChooser();
 	}
 
-	// Populate and show the chooser dialog for the >1 wallet case.
+	// Populate and show the chooser dialog for the >1 wallet case. The dialog
+	// lives in the article, outside this controller's form, so scope to it.
 	private _openChooser(): void {
-		const dialog = this.getTarget("chooser") as HTMLDialogElement | null;
-		const list = this.getTarget("chooser-list");
+		const scope = this._article ?? undefined;
+		const dialog = this.getTarget("chooser", scope) as HTMLDialogElement | null;
+		const list = this.getTarget("chooser-list", scope);
 		if (!dialog || !list) {
 			// No dialog available — fail open to the first wallet.
 			this._openWallet(this._wallets[0]);
@@ -226,18 +232,15 @@ export class WalletLaunchController extends BaseController {
 			list.appendChild(li);
 		});
 
+		// Wire the Cancel button (it lives outside this controller's form, so
+		// setupActions can't reach it via data-action).
+		const cancel = this.getTarget("chooser-cancel", scope);
+		cancel?.addEventListener("click", () => dialog.close(), { once: true });
+
 		if (typeof dialog.showModal === "function") {
 			dialog.showModal();
 		} else {
 			dialog.setAttribute("open", "");
 		}
 	}
-
-	// DOM ACTION — Cancel button in the chooser dialog.
-	public closeChooser(): void {
-		const dialog = this.getTarget("chooser") as HTMLDialogElement | null;
-		dialog?.close();
-	}
 }
-
-export default WalletLaunchController;
