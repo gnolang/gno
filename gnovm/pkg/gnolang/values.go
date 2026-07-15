@@ -1920,7 +1920,7 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		// (e.g. reaching a promoted pointer-receiver method's receiver via an
 		// embedded field of a nil *T). Matches Go; previously crashed the VM.
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+			panic(&Exception{Value: typedRuntimeError("runtime error: nil pointer dereference")})
 		}
 		switch path.Depth {
 		case 0:

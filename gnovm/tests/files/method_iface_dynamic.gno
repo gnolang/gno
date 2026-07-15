@@ -1,7 +1,8 @@
 // Call-time dynamic dispatch facets. Reassigning an embedded interface field to
 // a *different concrete type* re-dispatches at the call (redispatch 2). A
 // pointer-receiver method promoted through an embedded field of a nil pointer
-// panics cleanly instead of crashing (c5 1). And re-boxing through a second
+// panics cleanly instead of crashing, and the recovered value satisfies error
+// like Go's runtime.Error (c5 2). And re-boxing through a second
 // interface, nested unwrap, a value stored in a map, and one via type-assertion
 // all observe the operand's current value at the call (rebox 9, nested 9,
 // map 8, assert 9).
@@ -41,7 +42,11 @@ func redispatch() int {
 
 // pointer-receiver method promoted through an embedded field of a nil pointer.
 func c5() (r int) {
-	defer func() { recover() }()
+	defer func() {
+		if _, ok := recover().(error); ok {
+			r++
+		}
+	}()
 	var i IP = pmp // nil *MidP
 	defer i.Ptr()
 	r = 1
@@ -89,7 +94,7 @@ func main() {
 
 // Output:
 // redispatch 2
-// c5 1
+// c5 2
 // rebox 9
 // nested 9
 // map 8
