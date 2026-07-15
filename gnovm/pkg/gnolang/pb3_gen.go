@@ -1651,7 +1651,7 @@ func (goo BoundMethodValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	if goo.MethodPkg != "" {
 		{
 			before := offset
-			offset = amino.PrependString(buf, offset, goo.MethodPkg)
+			offset = amino.PrependString(buf, offset, string(goo.MethodPkg))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
@@ -1827,7 +1827,7 @@ func (goo *BoundMethodValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 				return err
 			}
 			bz = bz[n:]
-			goo.MethodPkg = v
+			goo.MethodPkg = string(v)
 		default:
 			return fmt.Errorf("unknown field number %d for BoundMethodValue", fnum)
 		}
