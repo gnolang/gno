@@ -158,6 +158,91 @@ func TestGetPackageSingleFileEagerHydration(t *testing.T) {
 	assert.True(t, ok, "the hydrated block should be a.gno")
 }
 
+// readRecordingStore wraps a tm2 store and counts reads per key, so tests
+// can assert which objects were (not) fetched from the underlying store.
+type readRecordingStore struct {
+	storetypes.Store
+	reads map[string]int
+}
+
+func (rs *readRecordingStore) Get(gctx *storetypes.GasContext, key []byte) []byte {
+	rs.reads[string(key)]++
+	return rs.Store.Get(gctx, key)
+}
+
+// TestLazyFileBlocksSkipUnusedStoreReads showcases the lazy win end-to-end at
+// the store boundary (where I/O gas is charged): loading a multi-file package
+// and calling into one file must never read the other files' block objects
+// from the underlying store. Under eager fillPackage (pre-lazy), GetPackage
+// read all three. The method call also exercises the #4527 panic site:
+// DeclaredType.GetValueAt fills the method's nil Parent via
+// FuncValue.GetParent, which now lazily loads the file block.
+func TestLazyFileBlocksSkipUnusedStoreReads(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	// Create and persist a three-file package.
+	wrapped := tm2Store.CacheWrap()
+	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/r/lazyread",
+		Store:   txSt,
+		Output:  io.Discard,
+	})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
+		Name: "lazyread",
+		Path: "gno.land/r/lazyread",
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: GenGnoModLatest("gno.land/r/lazyread")},
+			{Name: "a.gno", Body: "package lazyread\ntype T struct{}\nfunc (T) MA() int { return 7 }\nfunc FA() int { return T{}.MA() }"},
+			{Name: "b.gno", Body: "package lazyread\nfunc FB() int { return 2 }"},
+			{Name: "c.gno", Body: "package lazyread\nfunc FC() int { return 3 }"},
+		},
+	}, true)
+	txSt.Write()
+	wrapped.Write()
+
+	// Reload in a fresh transaction through a read-recording base store.
+	spy := &readRecordingStore{Store: tm2Store.CacheWrap(), reads: map[string]int{}}
+	txSt2 := st.BeginTransaction(spy, spy, nil, nil)
+	pv := txSt2.GetPackage("gno.land/r/lazyread", false)
+	require.NotNil(t, pv)
+	require.Len(t, pv.FNames, 3)
+
+	// The file-block store keys, from the package's RefValue slots.
+	blockKey := map[string]string{}
+	for i, fname := range pv.FNames {
+		ref, ok := pv.FBlocks[i].(RefValue)
+		require.True(t, ok, "file block %q should still be a RefValue after load", fname)
+		blockKey[fname] = backendObjectKey(ref.ObjectID)
+	}
+
+	// Loading the package must not read any file block from the store.
+	for fname, key := range blockKey {
+		assert.Zero(t, spy.reads[key], "GetPackage should not read %s's file block", fname)
+	}
+
+	// Call into a.gno: FA calls the method T.MA, whose dispatch copies the
+	// method FuncValue and fills its nil Parent via GetParent →
+	// GetFileBlock, reading a.gno's block from the store on demand.
+	m2 := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/r/lazyread",
+		Store:   txSt2,
+		Output:  io.Discard,
+	})
+	m2.SetActivePackage(pv)
+	res := m2.Eval(m2.MustParseExpr("FA()"))
+	require.Len(t, res, 1)
+	assert.Equal(t, int64(7), res[0].GetInt()) // FA() → T{}.MA() → 7, per a.gno above
+
+	// Only a.gno's block was read; the unused files' blocks never were.
+	assert.Positive(t, spy.reads[blockKey["a.gno"]], "the called method's file block should be read")
+	assert.Zero(t, spy.reads[blockKey["b.gno"]], "unused file block b.gno must not be read")
+	assert.Zero(t, spy.reads[blockKey["c.gno"]], "unused file block c.gno must not be read")
+}
+
 func TestTransactionStore_blockedMethods(t *testing.T) {
 	// These methods should panic as they modify store settings, which should
 	// only be changed in the root store.
