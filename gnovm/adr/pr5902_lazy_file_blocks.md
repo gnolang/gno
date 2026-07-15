@@ -9,12 +9,27 @@ transaction that enters only a few functions of a package (or imports a large
 multi-file package and touches a fraction of it) therefore paid to hydrate file
 blocks it never used.
 
-The eager derivation was added in #4376 (`fix(gnovm): fill package value for
-GetPackage and GetObject`), itself the accepted fix for a gnoswap production
-panic — `"file block missing for file \"pool_type.gno\""` (#4527). That panic
-came from `FuncValue.GetParent` reading `pv.fBlocksMap[fv.FileName]` directly and
-panicking on a miss when a package was loaded with an unpopulated map. #4376
-resolved it by guaranteeing every load path fully populated `fBlocksMap`.
+Eager derivation has existed on the `GetPackage` load path since gno's early
+history, but `GetObject` returned a raw, unfilled `PackageValue` — and
+`FuncValue.GetParent` read `pv.fBlocksMap[fv.FileName]` directly, panicking on
+a miss. That inconsistency between the two load paths caused a gnoswap
+production panic, `"file block missing for file \"pool_type.gno\""` (#4527).
+#4376 (`fix(gnovm): fill package value for GetPackage and GetObject`) fixed it
+by unifying both paths onto `loadObjectSafe` → `fillPackage`, so every load got
+the same eager fill. The unification is right and this PR keeps it —
+`fillPackage` remains the single fill point; what changes is the shared policy
+(eager → lazy), which is only safe because `GetParent` becomes miss-tolerant
+(see Decision).
+
+Why only some callers hit that map: a *plain* top-level function is persisted
+with `Parent` already pointing at its file block (`PrepareNewValues` sets it at
+creation; `copyValueWithRefs` writes it as a `RefValue`), so `GetParent`
+resolves it by ObjectID directly. A *method*, however, lives in
+`DeclaredType.Methods` — a shared, context-free type definition that must not
+carry a transaction-scoped `*Block` pointer — so it is persisted with
+`Parent == nil` and `DeclaredType.GetValueAt` fills a per-dispatch copy via
+`GetParent`, which is the only consumer of `fBlocksMap`. That is why #4527
+fired on method dispatch.
 
 The machinery to load a file block on demand (`PackageValue.GetFileBlock`, which
 resolves `pv.FBlocks[i]` from a `RefValue` and caches it) already existed and
