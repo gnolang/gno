@@ -363,6 +363,15 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 
 	oid := ObjectIDFromPkgPath(pkgPath)
+	// Synthetic packages are never persisted: check only the cache — a
+	// backend read would be a guaranteed miss charged as a full I/O
+	// read, and the pkgGetter cannot resolve them either.
+	if IsSyntheticPath(pkgPath) {
+		if oo, exists := ds.cacheObjects[oid]; exists {
+			return oo.(*PackageValue)
+		}
+		return nil
+	}
 	// Get package from cache or baseStore
 	oo := ds.GetObjectSafe(oid)
 	if oo != nil {
@@ -749,11 +758,6 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		if trace.StoreGasEnabled {
 			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
 		}
-	}
-	// delete escaped hash from iavl.
-	if oo.GetIsEscaped() && ds.iavlStore != nil {
-		key := []byte(oid.String())
-		ds.iavlStore.Delete(ds.gctx, key)
 	}
 	// make realm op log entry
 	if ds.opslog != nil {

@@ -3,7 +3,6 @@ module github.com/gnolang/gno
 go 1.25.9
 
 require (
-	dario.cat/mergo v1.0.2
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
 	github.com/bmatsuo/lmdb-go v1.8.0
@@ -59,7 +58,7 @@ require (
 	golang.org/x/sync v0.21.0
 	golang.org/x/term v0.44.0
 	golang.org/x/text v0.38.0
-	golang.org/x/tools v0.46.0
+	golang.org/x/tools v0.47.0
 	google.golang.org/protobuf v1.36.11
 )
 
