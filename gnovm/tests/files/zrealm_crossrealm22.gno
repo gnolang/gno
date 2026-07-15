@@ -118,6 +118,7 @@ func main(cur realm) {
 //             {
 //                 "Embedded": false,
 //                 "Name": ".res.0",
+//                 "PkgPath": "",
 //                 "Tag": "",
 //                 "Type": {
 //                     "@type": "/gno.RefType",
@@ -183,7 +184,7 @@ func main(cur realm) {
 //                  },
 //                  "Index": "0",
 // u[07e973c6aeab1f1cb747d0903cb1e4d369226376:2](0)=
-//     @@ -268,7 +268,7 @@
+//     @@ -276,7 +276,7 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
@@ -325,7 +326,7 @@ func main(cur realm) {
 //              "OwnerID": "06279d1e03ecb38b84822f9caf584bd16913470d:2",
 //              "RefCount": "1"
 //          },
-//     @@ -24,7 +24,6 @@
+//     @@ -25,7 +25,6 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
@@ -334,7 +335,7 @@ func main(cur realm) {
 //              }
 //          }
 // u[07e973c6aeab1f1cb747d0903cb1e4d369226376:2](0)=
-//     @@ -268,7 +268,7 @@
+//     @@ -276,7 +276,7 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
@@ -433,6 +434,7 @@ func main(cur realm) {
 //             {
 //                 "Embedded": false,
 //                 "Name": ".res.0",
+//                 "PkgPath": "",
 //                 "Tag": "",
 //                 "Type": {
 //                     "@type": "/gno.RefType",
@@ -464,7 +466,7 @@ func main(cur realm) {
 //          "Parent": null,
 //          "PkgPath": "gno.land/r/tests/vm/crossrealm_b",
 // u[07e973c6aeab1f1cb747d0903cb1e4d369226376:2](0)=
-//     @@ -268,7 +268,7 @@
+//     @@ -276,7 +276,7 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
