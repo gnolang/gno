@@ -97,7 +97,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var token *grc20.Token
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
-		token, ledger = grc20.NewToken("Test Token", "TEST", 6, "token", cur)
+		token, ledger = grc20.NewToken("Test Token", "TEST", 6, 0, cur)
 	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
