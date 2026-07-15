@@ -231,6 +231,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Remote:            h.Static.RemoteHelp,
 			BuildTime:         h.Static.BuildTime,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
+			CSPNonce:          CSPNonceFromContext(r.Context()),
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
