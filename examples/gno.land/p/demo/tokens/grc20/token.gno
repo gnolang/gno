@@ -6,6 +6,7 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -38,7 +39,10 @@ import (
 // realm built two independent ledgers behind one identifier, and that every
 // later Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm
 // is emitting untrustworthy events and should be flagged or ignored wholesale.
-func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+//
+// opts configure the ledger's storage backend; see WithStorage. Without any
+// option the ledger uses avl.Tree, as it always has.
+func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm, opts ...Option) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -55,7 +59,14 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
-	ledger := &PrivateLedger{}
+	cfg := ledgerConfig{newKV: func() KV { return avl.NewTree() }}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	ledger := &PrivateLedger{
+		balances:   cfg.newKV(),
+		allowances: cfg.newKV(),
+	}
 	token := &Token{
 		id:       pkgPath + "." + symbol + "." + id.String(),
 		name:     name,
