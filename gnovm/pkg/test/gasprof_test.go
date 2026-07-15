@@ -81,23 +81,33 @@ func TestGasProfile_filetestChargesStoreGas(t *testing.T) {
 	p := gasprof.New()
 	opts.GasProfiler = p
 
-	source := `package main
+	// A realm filetest that mutates persistent state: finalizing the realm
+	// forces store WRITES, whose gas is deterministic and independent of cache
+	// warmth. (A bare `package main` filetest only charges store READS for
+	// stdlib/type loading, which a warm object cache can drive to zero — see
+	// the storage gas cold/warm trap.) This keeps the gap-fix assertion robust
+	// whether the test runs first or after a warmed package cache.
+	source := `// PKGPATH: gno.land/r/demo/gasproftest
+package gasproftest
+
+var saved [][]int
 
 func main() {
-	s := 0
-	for i := 0; i < 100; i++ {
-		s += i
+	row := make([]int, 0, 8)
+	for i := 0; i < 8; i++ {
+		row = append(row, i*i)
 	}
-	println(s)
+	saved = append(saved, row)
+	println(len(saved), len(row))
 }
 
 // Output:
-// 4950
+// 1 8
 `
-	_, _, _, err = opts.RunFiletest("store_filetest.gno", []byte(source), opts.TestStore)
-	require.NoError(t, err)
+	report, _, _, err := opts.RunFiletest("store_filetest.gno", []byte(source), opts.TestStore)
+	require.NoError(t, err, report)
 
 	tot := p.Totals()
 	require.Positive(t, tot.CPU, "cpu gas captured")
-	require.Positive(t, tot.Store, "filetest store/amino gas now captured (the gap fix)")
+	require.Positive(t, tot.Store, "filetest store gas now captured (the gap fix)")
 }

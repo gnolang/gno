@@ -39,11 +39,11 @@ func newSim() *sim {
 func (s *sim) enter(name string)   { s.p.Enter(Frame{Func: name}) }
 func (s *sim) pop()                { s.p.Pop() }
 func (s *sim) sync(callFrames int) { s.p.SyncDepth(callFrames) }
-func (s *sim) cpu(a int64)         { s.m.ConsumeGas(store.Gas(a), "CPUCycles") }
-func (s *sim) alloc(a int64)       { s.m.ConsumeGas(store.Gas(a), "memory allocation") }
-func (s *sim) storeGas(a int64)    { s.m.ConsumeGas(store.Gas(a), "DepthSet") }
-func (s *sim) other(a int64)       { s.m.ConsumeGas(store.Gas(a), "txSize") }
-func (s *sim) refund(a int64)      { s.m.RefundGas(store.Gas(a), "Refund") }
+func (s *sim) cpu(a int64)         { s.m.ConsumeGas(a, "CPUCycles") }
+func (s *sim) alloc(a int64)       { s.m.ConsumeGas(a, "memory allocation") }
+func (s *sim) storeGas(a int64)    { s.m.ConsumeGas(a, "DepthSet") }
+func (s *sim) other(a int64)       { s.m.ConsumeGas(a, "txSize") }
+func (s *sim) refund(a int64)      { s.m.RefundGas(a, "Refund") }
 
 func TestCursor_descendAscendAndFolded(t *testing.T) {
 	s := newSim()
@@ -111,7 +111,7 @@ func TestCursor_popEqualsSyncDepth(t *testing.T) {
 				depth++
 			case "c":
 				n, _ := parseInt(s.arg)
-				w.ConsumeGas(store.Gas(n), "CPUCycles")
+				w.ConsumeGas(n, "CPUCycles")
 			case "r":
 				depth--
 				if useSyncDepth {

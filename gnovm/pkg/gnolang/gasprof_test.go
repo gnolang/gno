@@ -113,7 +113,7 @@ func TestGasProf_attributionAndConservation(t *testing.T) {
 
 	// Reconciliation invariant: the profile's dimensions sum exactly to the gas
 	// the meter recorded for this call. Nothing dropped, nothing double-counted.
-	require.Equal(t, int64(gc1-gc0), netGas(tot), "profile must reconcile with the meter")
+	require.Equal(t, gc1-gc0, netGas(tot), "profile must reconcile with the meter")
 }
 
 // Defer + recovered panic drives the O(1) Pop path through unwinding: the
@@ -174,7 +174,7 @@ func TestGasProf_deferAndRecoveredPanic(t *testing.T) {
 	// cleanup, called from the deferred closure, is attributed to it.
 	require.Contains(t, folded, "deferp.(anonymous);gno.land/r/demo/deferp.cleanup")
 	// Cursor survived the unwind: the profile still reconciles.
-	require.Equal(t, int64(gc1-gc0), netGas(prof.Totals()))
+	require.Equal(t, gc1-gc0, netGas(prof.Totals()))
 }
 
 // A finite meter that runs out mid-execution must still reconcile — the final
@@ -207,7 +207,7 @@ func TestGasProf_outOfGasReconciles(t *testing.T) {
 
 	require.Greater(t, gc1, gc0, "meter consumed gas")
 	require.LessOrEqual(t, gc1, total, "did not exceed the full cost")
-	require.Equal(t, int64(gc1-gc0), netGas(prof.Totals()),
+	require.Equal(t, gc1-gc0, netGas(prof.Totals()),
 		"out-of-gas profile must include the final charge and reconcile")
 }
 

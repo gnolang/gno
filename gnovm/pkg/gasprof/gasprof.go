@@ -211,7 +211,7 @@ func (m *meter) ConsumeGas(amount store.Gas, descriptor string) {
 	// mutating; that requires ~9.2e18 consumed gas and is terminal, so the
 	// resulting one-charge over-count is unreachable in practice.)
 	if amount != 0 {
-		m.prof.record(dimensionOf(descriptor), int64(amount))
+		m.prof.record(dimensionOf(descriptor), amount)
 	}
 	m.inner.ConsumeGas(amount, descriptor)
 }
@@ -221,7 +221,7 @@ func (m *meter) RefundGas(amount store.Gas, descriptor string) {
 	// not the requested amount. Booked as a separate positive dimension.
 	before := m.inner.GasConsumed()
 	m.inner.RefundGas(amount, descriptor)
-	if applied := int64(before - m.inner.GasConsumed()); applied != 0 {
+	if applied := before - m.inner.GasConsumed(); applied != 0 {
 		m.prof.record(dimRefund, applied)
 	}
 }

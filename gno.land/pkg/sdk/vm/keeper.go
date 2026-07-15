@@ -423,7 +423,7 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 		// before this point is booked as the synthetic (ante) node so the
 		// profile reconciles exactly with GasConsumed().
 		if m := ctx.GasMeter(); m != nil {
-			p.Book("(ante)", int64(m.GasConsumed()))
+			p.Book("(ante)", m.GasConsumed())
 			ctx = ctx.WithGasMeter(gasprof.WrapMeter(m, p))
 		}
 	}

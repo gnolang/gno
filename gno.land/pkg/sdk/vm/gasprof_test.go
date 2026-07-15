@@ -59,7 +59,7 @@ func Append(cur realm, n int) int {
 	// Reconciliation: the whole tree (ante + all dimensions minus refunds)
 	// equals the tx meter's total. Nothing dropped or double-counted.
 	net := tot.CPU + tot.Alloc + tot.Store + tot.Other - tot.Refund
-	require.Equal(t, int64(ctx.GasMeter().GasConsumed()), net,
+	require.Equal(t, ctx.GasMeter().GasConsumed(), net,
 		"profile reconciles with the tx meter")
 
 	// Attribution: the called function is a nested node (leading ';' proves it
@@ -112,7 +112,7 @@ func Append(cur realm, n int) int {
 		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, "gno.land/r/test", files)))
 		_, err := env.vmk.Call(ctx, NewMsgCall(addr, nil, "gno.land/r/test", "Append", []string{"40"}))
 		require.NoError(t, err)
-		return int64(ctx.GasMeter().GasConsumed())
+		return ctx.GasMeter().GasConsumed()
 	}
 	require.Equal(t, run(false), run(true), "profiling must not change gas consumed")
 }
@@ -153,7 +153,7 @@ func main() {
 	require.Positive(t, tot.CPU, "cpu captured across both Run machines")
 	require.Equal(t, int64(9_000), tot.Other, "(ante) snapshot booked")
 	net := tot.CPU + tot.Alloc + tot.Store + tot.Other - tot.Refund
-	require.Equal(t, int64(ctx.GasMeter().GasConsumed()), net, "Run profile reconciles with the tx meter")
+	require.Equal(t, ctx.GasMeter().GasConsumed(), net, "Run profile reconciles with the tx meter")
 
 	var fb strings.Builder
 	require.NoError(t, prof.WriteFolded(&fb))
