@@ -89,19 +89,24 @@ func (m *Map) bucketOf(key string) map[string]any {
 	return m.buckets[m.bucketIndex(key)]
 }
 
-// Get returns the value stored under key, and whether it exists.
-func (m *Map) Get(key string) (value any, exists bool) {
+// Get returns the value stored under key, or nil if the key is absent.
+// (Matches avl.Tree/bptree.BPTree; use Has to distinguish an absent key from a
+// key stored with a nil value.)
+func (m *Map) Get(key string) any {
 	b := m.bucketOf(key)
 	if b == nil {
-		return nil, false
+		return nil
 	}
-	value, exists = b[key]
-	return value, exists
+	return b[key]
 }
 
 // Has reports whether key exists in the map.
 func (m *Map) Has(key string) bool {
-	_, exists := m.Get(key)
+	b := m.bucketOf(key)
+	if b == nil {
+		return false
+	}
+	_, exists := b[key]
 	return exists
 }
 

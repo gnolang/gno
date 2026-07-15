@@ -11,8 +11,8 @@ func TestBasicOps(t *testing.T) {
 	if m.Size() != 0 {
 		t.Fatalf("new map size = %d, want 0", m.Size())
 	}
-	if _, exists := m.Get("missing"); exists {
-		t.Fatal("Get on empty map reported existence")
+	if m.Get("missing") != nil {
+		t.Fatal("Get on empty map returned non-nil")
 	}
 	if m.Has("missing") {
 		t.Fatal("Has on empty map returned true")
@@ -30,9 +30,8 @@ func TestBasicOps(t *testing.T) {
 	if m.Size() != 1 {
 		t.Fatalf("size = %d, want 1", m.Size())
 	}
-	v, exists := m.Get("a")
-	if !exists || v.(int64) != 2 {
-		t.Fatalf("Get(a) = %v, %v; want 2, true", v, exists)
+	if v := m.Get("a"); v == nil || v.(int64) != 2 {
+		t.Fatalf("Get(a) = %v; want 2", v)
 	}
 
 	v, removed := m.Remove("a")
@@ -61,9 +60,8 @@ func TestManyKeysAndCollisions(t *testing.T) {
 	}
 	for i := 0; i < 100; i++ {
 		key := "key" + string(rune('A'+i%26)) + strconv.Itoa(i)
-		v, exists := m.Get(key)
-		if !exists || v.(int64) != int64(i) {
-			t.Fatalf("Get(%q) = %v, %v; want %d, true", key, v, exists, i)
+		if v := m.Get(key); v == nil || v.(int64) != int64(i) {
+			t.Fatalf("Get(%q) = %v; want %d", key, v, i)
 		}
 	}
 	for i := 0; i < 100; i += 2 {
