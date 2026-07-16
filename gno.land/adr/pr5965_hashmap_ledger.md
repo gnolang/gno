@@ -77,31 +77,66 @@ are anchored by the on-chain `test_atone` figure of 18.3M.)
 
 ## Measured results (validation)
 
-Cold-cache harness (build state, commit, measure one `Transfer` from a fresh
-keeper — a validator after cache GC), production gas incl. 59k/read + 24k/write,
-through the **shipped design** (two-level buckets + SHA-256):
+> **⚠️ Numbers corrected (real gas metering).** An earlier version of this ADR
+> reported gas from a harness that *simulated* production cost as
+> `VM_gas + reads×59k + writes×24k` — only 2 of the store's **7** gas dimensions,
+> and **no depth-gas multiplier**. That undercounts real gas by **~2×**. An
+> independent maintainer gnodev reproduction and a real cache-store-metered
+> harness both confirmed the higher numbers. The table below is re-measured by
+> running the cold transfer through the **real cache-wrapped, gas-metered store**
+> (`DefaultGasConfig` + `DefaultParams` depth params — exactly what a gno.land
+> node charges, `app.go` `WithGasConfig`) and reading `GasConsumed()`.
 
-| ledger size | avl: reads / gas | hashmap (shipped): reads / gas | reduction |
-|---|---|---|---|
-| 20,000 | 191 / 15.46M | 85 / 6.17M | −60% |
-| 100,000 | 207 / 16.94M | 85 / 6.22M | −63% |
-| 1,000,000 | ~245 / ~19M | **85 / 6.59M** | **−65%** |
+Cold transfer, real metering (fresh keeper = validator after cache GC / under
+congestion — a *warm* transfer is far cheaper; see "Cold vs warm"):
 
-- The O(1)-objects claim holds: hashmap reads a near-constant **85 objects** at
-  every ledger size (cost flat within ~0.4M from 20k → 1M), vs avl's growth
-  (191 → ~245). avl 1M is extrapolated — its 1M seed is impractically slow;
-  200k already costs 18.39M, matching the on-chain `test_atone` transfer (18.3M).
-- At a tiny ledger the hashmap is marginally worse (bucket-array decode
-  overhead); it wins from a few hundred entries up — opt in for ledgers expected
-  to grow.
-- Introducing the `KV` interface costs the **default avl path ~4 extra object
-  loads** (value→interface indirection), called out for reviewers; acceptable
-  against the opt-in's −60%.
+| holders | avl | two-level hashmap (shipped) | bptree | hashmap reduction |
+|---|---|---|---|---|
+| 20,000 | 27.9M | **16.2M** | 22.2M | **−42%** |
+| 100,000 | 29.8M | **16.5M** | 26.3M | **−45%** |
+| 1,000,000 | ~35M* | **18.8M** | — | **−46%** |
 
-The two increments behind this number — native SHA-256 hashing, then the
-two-level directory — are decomposed below.
+`*` avl 1M extrapolated from 27.9 / 29.8 / 32.0M at 20k / 100k / 200k.
+
+- **A fixed ~10.7M package-code "depth floor" dominates every cold transfer —
+  identical across all backends.** It is the cold, depth-multiplied load of the
+  grc20/realm package graph; the backend only moves the *ledger* reads on top of
+  it. That's why even hashmap can't drop below ~16M cold and the win (−42 to
+  −46%) is smaller than a data-structure-only view suggests. Shrinking that floor
+  (packing immutable package code / realm-native KV) is now the biggest lever.
+- hashmap stays ~flat (16.2 → 18.8M over 20k → 1M); avl climbs (27.9 → ~35M).
+- The earlier "**−65% / hashmap ≈ 6.6M @ 1M**" figures were the ~2× undercount —
+  disregard them in favour of this table.
+
+### Cold vs warm
+
+The depth/flat/per-byte reads are charged **only on a cache miss**
+([cache/store.go](tm2/pkg/store/cache/store.go): `DepthReadFlat` etc. inside the
+`!ok` branch). So a **warm** transfer (package already cached — e.g. a `txtar`
+test that deploys and transfers in the same session) skips almost all of it and
+costs **~7M**; a **cold** one (validator after GC, or congestion churning the
+cache) pays it in full (~16–28M). #5906's congestion is the **cold** case, which
+is why the issue is real there even though casual/warm testing looks cheap. The
+on-chain test13 `test_atone` = 18.3M is a cold-config number at a **modest**
+ledger — NOT 1M (a fully-cold 1M avl transfer is ~35M; the "18M @ 1M" the first
+draft claimed was an artifact of the ~2× undercount).
+
+The two increments behind the shipped number — native SHA-256 hashing, then the
+two-level directory — are decomposed below (those sub-tables predate this
+correction, so treat their **relative deltas** as indicative and their
+**absolutes** as ~2× low unless re-measured; the SHA-256 step was re-measured —
+see below).
 
 ### Bucket hashing: native SHA-256, not interpreted FNV-1a
+
+> **Re-measured under real gas metering:** two-level SHA-256 (16.18M) vs an
+> otherwise-identical two-level FNV-1a build (16.92M) at 20k holders = **−0.74M**,
+> with *identical* store gas (depth/flat/per-byte all equal) — the whole
+> difference is the interpreted FNV-1a CPU loop. The "+4 reads / +0.24M package
+> penalty" described below does **not** apply: `crypto/sha256` is stdlib, served
+> from the in-memory byte cache (no depth/flat charge). So SHA-256 is a clean
+> −0.74M win, slightly better than the pre-correction −0.5M below.
+
 
 Bucket placement (`locate`/`hash64`) uses `crypto/sha256.Sum256` (low 64 bits)
 rather than an FNV-1a loop written in Gno. FNV-1a is interpreted — a per-byte loop metered several VM
