@@ -1504,3 +1504,40 @@ func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
 		})
 	})
 }
+
+// TestInitChainCheckStateIsolation: after InitChain, checkState must READ
+// genesis state written by the initChainer (e.g. the first CheckTx verifies
+// the genesis gas price), but writes into checkState — what a pre-block-1
+// CheckTx does via the ante: fee deduction, sequence bump — must NOT be
+// visible to the block-1 deliver state. When the two states shared one
+// store, a tx that passed CheckTx before block 1 bumped its signer's
+// sequence in the shared store and then failed signature verification when
+// delivered in block 1.
+func TestInitChainCheckStateIsolation(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	app := newBaseApp(t.Name(), db)
+	genKey, genVal := []byte("genesis-key"), []byte("genesis-value")
+	app.SetInitChainer(func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		ctx.Store(mainKey).Set(nil, genKey, genVal)
+		return abci.ResponseInitChain{}
+	})
+	require.NoError(t, app.LoadLatestVersion())
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// CheckTx state must see genesis writes.
+	checkStore := app.checkState.ctx.Store(mainKey)
+	require.Equal(t, genVal, checkStore.Get(nil, genKey),
+		"check state must read genesis state before block 1")
+
+	// A CheckTx-side write must stay isolated from the deliver state.
+	seqKey := []byte("sequence-bump")
+	checkStore.Set(nil, seqKey, []byte{1})
+
+	deliverStore := app.deliverState.ctx.Store(mainKey)
+	require.Equal(t, genVal, deliverStore.Get(nil, genKey),
+		"deliver state must see genesis state")
+	require.Nil(t, deliverStore.Get(nil, seqKey),
+		"CheckTx writes must not leak into the block-1 deliver state")
+}
