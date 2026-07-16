@@ -80,10 +80,17 @@ import (
 // Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
 // stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
 // stdlib MemPackage source bytes are committed into genesis state, so the
-// iavlStore Merkle root shifts. The crossrealm38 scenario itself does not
-// use sub-realms; the move is purely the interface/stdlib change and is an
-// intended consensus break for that PR.
-const expectedCrossrealm38Hash = "b04e01f899aeee4bbfa376b60bf834dbbf8d90a6812904f539d511dd9ff4ec48"
+// committed multistore root shifts. The crossrealm38 scenario itself does
+// not use sub-realms; the move is purely the interface/stdlib change and is
+// an intended consensus break for that PR.
+//
+// Hash bumped by the mempackage prod/test storage split (#5891): MP*All
+// packages now store production files under pkg:<path> (typed MP*Prod) and
+// test/filetest files under a pkg:<path>#allbutprod sibling, changing stored
+// package bytes and the committed multistore root. Behavior is unchanged;
+// only the storage encoding shifted. (Value re-derived after merging master,
+// so it reflects the bptree store, #5890, and this split together.)
+const expectedCrossrealm38Hash = "d576406059fa96b30b8c16fb83bea798d3545ef30bc462e3d36b36897ddffa0b"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
