@@ -3470,7 +3470,10 @@ main.dev-mode > section:has(.c-overview-view) {
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-3);
-	min-width: 16rem;
+	/* 100% cap: the dialog is width-capped to the visual viewport by
+	   controller-wallet-launch.ts; a hard 16rem would overflow it when
+	   the page is zoomed past ~1.35x. */
+	min-width: min(16rem, 100%);
 	max-width: 90vw;
 	padding: var(--g-space-4);
 }
