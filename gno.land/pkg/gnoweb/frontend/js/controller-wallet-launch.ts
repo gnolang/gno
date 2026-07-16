@@ -209,8 +209,43 @@ export class WalletLaunchController extends BaseController {
 
 		if (typeof dialog.showModal === "function") {
 			dialog.showModal();
+			this._centerInVisualViewport(dialog);
 		} else {
 			dialog.setAttribute("open", "");
 		}
+	}
+
+	// showModal() centers the dialog in the layout viewport, but a zoomed
+	// mobile page (e.g. iOS auto-zoom on sub-16px inputs) only shows part of
+	// it, so the dialog can land half off-screen. Shift it to the center of
+	// the visual viewport instead, tracking zoom/scroll while open.
+	private _centerInVisualViewport(dialog: HTMLDialogElement): void {
+		const vv = window.visualViewport;
+		if (!vv) return;
+
+		const center = () => {
+			const root = document.documentElement;
+			// Cap to the visible area: the inner's 90vw is layout-viewport based
+			// and overflows the visible width once the page is zoomed.
+			dialog.style.maxWidth = `${vv.width * 0.9}px`;
+			dialog.style.maxHeight = `${vv.height * 0.9}px`;
+			const dx = vv.offsetLeft + (vv.width - root.clientWidth) / 2;
+			const dy = vv.offsetTop + (vv.height - root.clientHeight) / 2;
+			dialog.style.transform = `translate(${dx}px, ${dy}px)`;
+		};
+		center();
+		vv.addEventListener("resize", center);
+		vv.addEventListener("scroll", center);
+		dialog.addEventListener(
+			"close",
+			() => {
+				vv.removeEventListener("resize", center);
+				vv.removeEventListener("scroll", center);
+				dialog.style.transform = "";
+				dialog.style.maxWidth = "";
+				dialog.style.maxHeight = "";
+			},
+			{ once: true },
+		);
 	}
 }
