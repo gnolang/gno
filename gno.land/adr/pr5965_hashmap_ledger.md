@@ -37,6 +37,11 @@ the ceiling the issue is about. The per-operation cost is a property of the
 storage data structure, not of the contract code: the same transfer over the
 same grc20 code is ~5.9M when the ledger is small.
 
+(Object counts in this intro table are from the initial investigation harness;
+the refined validation tables below report slightly different absolute counts —
+e.g. avl@20k is 191 reads there, not 182 — but the same growth trend, and both
+are anchored by the on-chain `test_atone` figure of 18.3M.)
+
 ## Decision
 
 1. **Add `p/nt/hashmap` (v0)**: a persistent string-keyed map storing entries
@@ -53,7 +58,7 @@ same grc20 code is ~5.9M when the ledger is small.
      buckets; an op decodes the directory, one page, and one bucket (√B-slot
      arrays), and pages are lazily allocated. This keeps the bucket count high
      (small leaves) without a large array. `New()` = 4096 buckets (64×64);
-     `NewWithBuckets(n)` splits n evenly across the two levels.
+     `NewWithBuckets(n)` splits n across the two levels.
    - **Native SHA-256 hashing.** Bucket index derives from `crypto/sha256`
      (low 64 bits), a calibrated native binding, rather than an interpreted
      FNV-1a loop metered per byte on every op.
@@ -117,7 +122,8 @@ Decomposed: the interpreted hash removed saves **−0.75M in the VM term**, but
 calling native `crypto/sha256` pulls its package objects into the store cold on
 first use — a fixed **+4 reads (+0.24M)** that FNV-1a (pure in-package Gno, zero
 imports) never paid. Net is **−0.5M**, flat across scale. A "−0.9M" figure
-counts only the VM term and omits the package cold-load — a warm-vs-cold trap.
+counts only the hash compute in isolation and omits the +4-read package
+cold-load — a warm-vs-cold trap.
 
 Two consequences worth recording:
 
@@ -133,8 +139,9 @@ Two consequences worth recording:
 
 To confirm the O(1) claim at realistic scale and compare against the in-tree
 B+ tree, the same cold-cache harness was run on the KV backends directly
-(arbitrary string keys, batched in-gno seeding — no grc20 package graph, so
-subtract ~5.5M for a full token transfer; the *slope* is the data structure's).
+(arbitrary string keys, batched in-gno seeding — no grc20 package graph, so a
+full token transfer adds ~0.5–1M of fixed grc20/package overhead on top; the
+*slope* is the data structure's).
 Op is transfer-shaped (2 Get + 2 Set):
 
 | backend | 20k | 100k | 1,000,000 | vs avl @1M | ordered? |
@@ -192,9 +199,9 @@ cost (cold, production gas, incl. the flat 59k/read and sha256 hashing):
 The −1.99M is ~−1.09M decode (above) plus ~−0.9M alloc gas on the same shrunken
 objects, for +3 cold reads (the extra directory/page loads). Cost is nearly flat
 in N (6.17M → 6.59M across 50×), versus flat-hashmap's 6.89M → 8.58M. Beyond the
-ledger, a fixed ~200-object *package/code floor* remains (stdlib+`/p/` blocks,
-identical across backends and N) — the next lever, but VM-level (package packing
-/ realm-native KV), out of scope here.
+ledger, a fixed *package/code floor* remains — most of those ~85 reads (stdlib +
+`/p/` blocks, identical across backends and N) — the next lever, but VM-level
+(package packing / realm-native KV), out of scope here.
 
 ### Storage footprint (persisted bytes / deposit)
 
