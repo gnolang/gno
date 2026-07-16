@@ -16,12 +16,24 @@ even for a type that was already proven type-private-clean in an
 earlier transaction. `saveUnsavedObjects` builds a fresh
 `visited map[TypeID]struct{}` per call specifically to dedupe repeats
 *within* one commit; there is no memory across commits. A realm whose
-objects reuse a handful of struct types (the common case) re-pays the
-same O(graph size) walk, and the same repeated `store.GetPackage`
-lookups, on every object saved in every block — pure node-side
-overhead with no offsetting gas charge (this whole path — confirmed by
-inspection — never calls `ConsumeGas`/`incrCPU`/`Allocator.Allocate`;
-it's uncharged CPU work, not a fee-fairness concern, just wasted time).
+objects reuse a handful of **acyclic** struct types — plain data/config
+shapes with no self- or mutual reference, which covers most declared
+types — re-pays the same O(graph size) walk, and the same repeated
+`store.GetPackage` lookups, on every object saved in every block — pure
+node-side overhead with no offsetting gas charge (this whole path —
+confirmed by inspection — never calls
+`ConsumeGas`/`incrCPU`/`Allocator.Allocate`; it's uncharged CPU work,
+not a fee-fairness concern, just wasted time).
+
+**This does not cover every "commonly reused type," notably not the
+single most common stateful collection shape in the ecosystem.**
+`gno.land/p/nt/avl`'s `Node` (`leftNode *Node`, `rightNode *Node`) is
+self-referential, and — as the Decision section below explains — any
+type reached only through a cycle is deliberately excluded from the
+permanent cache. Realms built on `avl.Tree` (an extremely common
+pattern for ordered maps/sets) get zero benefit from this change; they
+keep paying the full walk on every commit, exactly as before. See
+"Limitations" under Consequences.
 
 An `XXX JAE` comment on `assertTypeIsPublic` already named the fix:
 precompute an `IsPrivate`-style flag per type, once, instead of
@@ -73,9 +85,21 @@ track whether the walk crossed any cycle at all (via an `onStack` DFS
 guard); if it did, discard every result computed during that walk
 instead of committing it to the permanent cache — the type stays
 "cold" and gets recomputed (correctly, just not memoized) on the next
-call. Acyclic walks — the common case, since Gno rejects import
-cycles and most declared types aren't self-referential — commit
-everything they touch.
+call. Acyclic walks commit everything they touch; walks that touch a
+cycle anywhere commit nothing.
+
+This rule is deliberately coarse: it discards caching for *every* node
+touched by a walk that crossed a cycle anywhere, not just the specific
+node(s) at risk of the premature-caching hazard above. A type like
+`avl.Node` (`leftNode *Node`, `rightNode *Node` — a linked-structure
+self-reference, not the two-distinct-types mutual cycle in the example
+above) may not actually need this exclusion in every case, but proving
+a narrower rule safe against every adversarial shape (not just the one
+counterexample this ADR happened to construct) was judged not worth
+the risk for a correctness-critical realm-isolation check. So this
+optimization gives no speedup at all for `avl.Node`-shaped self- or
+mutually-referential types, regardless of how many times the same type
+gets saved — see "Limitations" below.
 
 `assertTypeIsPublic`'s own traversal and `typeHasPrivateDep`'s walker
 originally duplicated the same ~10-case type-kind switch
@@ -107,16 +131,29 @@ field on an existing one) only needs updating in one place.
 
 ## Consequences
 
-- **Perf**: for a type whose privacy has already been resolved once in
-  the current process, `assertTypeIsPublic` drops from an O(graph
-  size) walk (~2.1µs, 51 allocations for a representative mid-sized
-  nested struct, benchmarked) to two map lookups (~25ns, 0
-  allocations) — see `BenchmarkAssertTypeIsPublic_RepeatedCommits` in
+- **Perf, for acyclic types**: for a type whose privacy has already
+  been resolved once in the current process, `assertTypeIsPublic`
+  drops from an O(graph size) walk (~2.1µs, 51 allocations for a
+  representative mid-sized nested struct, benchmarked) to two map
+  lookups (~25ns, 0 allocations) — see
+  `BenchmarkAssertTypeIsPublic_RepeatedCommits` in
   `gnovm/pkg/gnolang/realm_assertpublic_bench_test.go`. The adversarial
   case (every call sees a brand-new type, so the cache never hits) is
   not slower than before — incidentally also faster, since the shared
   traversal helper stopped double-walking through `FieldType` wrappers
   along the way.
+- **Limitation — no benefit for self- or mutually-referential types**:
+  any type reachable only through a cycle never gets cached (see
+  Decision), so this gives **zero speedup for `avl.Node`-shaped types**
+  — concretely, `gno.land/p/nt/avl`'s `Node` (`leftNode`/`rightNode
+  *Node`), and by extension every realm built on `avl.Tree`, one of
+  the most common ordered-map/set patterns in the ecosystem.
+  `BenchmarkAssertTypeIsPublic_RepeatedCommits_SelfReferential` in
+  `gnovm/pkg/gnolang/realm_assertpublic_bench_test.go` exercises an
+  `avl.Node`-shaped type and shows no improvement over repeated calls,
+  in contrast to the acyclic benchmark above — making this gap visible
+  to anyone re-measuring this optimization later, rather than only
+  documented in prose.
 - **No gas or consensus impact**: this whole path is unmetered before
   and after this change, so cache warmth (which varies by node uptime
   and is never part of consensus state) cannot affect billed gas.

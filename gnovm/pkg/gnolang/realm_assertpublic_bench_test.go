@@ -78,3 +78,44 @@ func BenchmarkAssertTypeIsPublic_AlwaysNewType(b *testing.B) {
 		i++
 	}
 }
+
+// buildSelfReferentialTypeGraph builds a DeclaredType shaped exactly like
+// gno.land/p/nt/avl's Node struct: two fields pointing back at the type
+// itself (leftNode/rightNode *Node). This is the shape
+// typeHasPrivateDep's cycle-safety rule (see
+// gnovm/adr/prxxxx_type_privacy_dependency_cache.md, "Limitations")
+// deliberately excludes from the permanent cache.
+func buildSelfReferentialTypeGraph(store Store, pkgPath string) *DeclaredType {
+	store.SetCachePackage(&PackageValue{PkgPath: pkgPath, Private: false})
+
+	nodeDT := &DeclaredType{PkgPath: pkgPath, Name: "Node"}
+	nodeDT.Base = &StructType{
+		PkgPath: pkgPath,
+		Fields: []FieldType{
+			{Name: "key", Type: StringType},
+			{Name: "value", Type: IntType},
+			{Name: "leftNode", Type: &PointerType{Elt: nodeDT}},
+			{Name: "rightNode", Type: &PointerType{Elt: nodeDT}},
+		},
+	}
+	return nodeDT
+}
+
+// BenchmarkAssertTypeIsPublic_RepeatedCommits_SelfReferential is the
+// avl.Node-shaped counterpart to BenchmarkAssertTypeIsPublic_
+// RepeatedCommits: same type, many separate commits, simulating repeated
+// saves of an avl.Tree-backed realm. Unlike that benchmark, this type is
+// self-referential, so it's expected to show NO improvement call-to-call
+// — every call re-walks the graph from scratch, same as before this
+// change. This exists to make that limitation measurable, not just
+// documented in the ADR.
+func BenchmarkAssertTypeIsPublic_RepeatedCommits_SelfReferential(b *testing.B) {
+	store := NewStore(nil, nil, nil)
+	node := buildSelfReferentialTypeGraph(store, "gno.land/p/bench_selfref")
+	rlm := NewRealm(node.PkgPath)
+
+	for b.Loop() {
+		visited := map[TypeID]struct{}{}
+		rlm.assertTypeIsPublic(store, node, visited)
+	}
+}
