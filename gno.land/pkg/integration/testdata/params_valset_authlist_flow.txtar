@@ -34,9 +34,9 @@ gnoland start
 # on height-LastRotationHeight < rotation_period_blocks.
 gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_throttle.gno
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 23_000_000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # member registers their own valoper profile with pubKey P.
@@ -56,7 +56,7 @@ gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -ga
 stdout OK!
 
 # member revokes test2's authority.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 8_800_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 10_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # (c) test2 again attempts a rotation; must reject post-revoke.

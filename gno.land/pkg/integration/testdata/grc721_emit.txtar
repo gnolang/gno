@@ -5,7 +5,7 @@ loadpkg gno.land/r/foo721 $WORK/foo721
 gnoland start
 
 # Mint
-gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 920001ugnot -gas-wanted 9_200_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 920001ugnot -gas-wanted 9_400_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # SetTokenURI
@@ -17,15 +17,15 @@ gnokey maketx call -pkgpath gno.land/r/foo721 -func SetMetadata -args 1 -gas-fee
 stdout '\[{\"type\":\"MetadataUpdate\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"}.*\]'
 
 # Approve
-gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 890001ugnot -gas-wanted 8_900_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 890001ugnot -gas-wanted 9_100_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # SetApprovalForAll
-gnokey maketx call -pkgpath gno.land/r/foo721 -func SetApprovalForAll -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args false  -gas-fee 880001ugnot -gas-wanted 8_800_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetApprovalForAll -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args false  -gas-fee 880001ugnot -gas-wanted 9_000_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"ApprovalForAll\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"approved\",\"value\":\"false\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # TransferFrom
-gnokey maketx call -pkgpath gno.land/r/foo721 -func TransferFrom -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 990001ugnot -gas-wanted 9_900_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo721 -func TransferFrom -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 990001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"Transfer\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"from\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # Burn

@@ -26,11 +26,11 @@ stdout 'Prop #0 - Member Promotion Proposal'
 stdout 'This is a proposal to promote g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r from \*\*T3\*\* to \*\*T2\*\*.'
 
 # vote on the proposal 1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # vote on the proposal 2
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test withdrawmember
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000001ugnot -gas-wanted 24_000_000 -args 0 -args YES -chainid=tendermint_test withdrawmember
 stdout OK!
 
 # add the proposal

@@ -31,7 +31,7 @@ loadpkg gno.land/r/gnops/valopers
 gnoland start
 
 # Deploy the hostile proxy realm.
-gnokey maketx addpkg -pkgdir $WORK/rotateproxy -pkgpath gno.land/r/test/rotateproxy -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test member
+gnokey maketx addpkg -pkgdir $WORK/rotateproxy -pkgpath gno.land/r/test/rotateproxy -gas-fee 5000000ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # member registers their valoper profile with pubKey P.

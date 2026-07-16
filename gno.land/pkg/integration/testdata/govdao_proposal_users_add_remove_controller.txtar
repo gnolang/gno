@@ -31,11 +31,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Add Whitelisted Caller to \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 26_000_000 -args 0 -chainid=tendermint_test test1
 stdout OK!
 
 # Register a new user as a controller (@test1)

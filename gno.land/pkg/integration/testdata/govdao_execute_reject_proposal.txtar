@@ -15,7 +15,7 @@ gnokey maketx run -gas-fee 2400001ugnot -gas-wanted 27_000_000 -chainid=tendermi
 stdout OK!
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 22000000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 23000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Try to execute proposal, it should fail because execution returns an error

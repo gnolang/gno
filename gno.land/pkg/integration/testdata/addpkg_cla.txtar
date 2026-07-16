@@ -16,7 +16,7 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 # Give alice more tokens for gas
-gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid tendermint_test test1
+gnokey maketx send -send 1000000000ugnot -to $alice_user_addr -gas-fee 130001ugnot -gas-wanted 2_800_000 -chainid tendermint_test test1
 
 # ============================================================
 # Test 1: CLA enforcement disabled (no required hash set)
@@ -27,7 +27,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$alice_user
 stdout 'true bool'
 
 # Alice should be able to addpkg when CLA is disabled
-gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$alice_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 5_400_000 -chainid=tendermint_test alice
 stdout 'OK!'
 
 # ============================================================
@@ -39,10 +39,10 @@ gnokey maketx run -gas-fee 2800001ugnot -gas-wanted 32_000_000 -chainid=tendermi
 stdout OK!
 
 # Vote and execute proposal 0
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 25_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Alice's signature is now invalid (hasn't signed)
@@ -58,7 +58,7 @@ stderr 'A Contributor License Agreement'
 # ============================================================
 
 # Alice signs the CLA with correct hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 560001ugnot -gas-wanted 7_300_000 -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 8800001ugnot -gas-wanted 8_800_000 -chainid tendermint_test alice
 stdout 'OK!'
 
 # Verify Alice's signature
@@ -93,7 +93,7 @@ stdout 'false bool'
 stderr 'A Contributor License Agreement'
 
 # Alice re-signs with new hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 560001ugnot -gas-wanted 7_300_000 -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 8800001ugnot -gas-wanted 8_800_000 -chainid tendermint_test alice
 stdout 'OK!'
 
 # Now Alice can deploy again
@@ -120,7 +120,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/cla.HasValidSignature(\"$test1_user
 stdout 'true bool'
 
 # Any user can deploy when enforcement is disabled (even test1 who never signed)
-gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 440001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg1 -pkgpath gno.land/r/$test1_user_addr/pkg1 -gas-fee 5500001ugnot -gas-wanted 5_500_000 -chainid=tendermint_test test1
 stdout 'OK!'
 
 -- proposer/propose_cla1.gno --

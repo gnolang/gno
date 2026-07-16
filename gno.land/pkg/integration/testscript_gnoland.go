@@ -747,7 +747,7 @@ func waitForNewBlock(ts *testscript.TestScript, remote string, defaultPK crypto.
 			ToAddress:   addr,
 			Amount:      std.Coins{std.NewCoin(ugnot.Denom, 1)},
 		}},
-		Fee: std.NewFee(890_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+		Fee: std.NewFee(2_500_000, std.NewCoin(ugnot.Denom, 1_000_000)),
 	}
 	signBytes, err := tx.GetSignBytes("tendermint_test", acct.BaseAccount.GetAccountNumber(), acct.BaseAccount.GetSequence())
 	if err != nil {

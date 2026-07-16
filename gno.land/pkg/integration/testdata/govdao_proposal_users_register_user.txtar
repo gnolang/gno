@@ -25,7 +25,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Register User to \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 22000000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 23000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
@@ -45,11 +45,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'Update Name Alias in \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 1 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 21000000 -args 1 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 30000000 -args 1 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 31000000 -args 1 -chainid=tendermint_test test1
 stdout OK!
 
 # Check alias is registered
@@ -65,7 +65,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
 stdout 'Delete User in \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 2 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 21000000 -args 2 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal

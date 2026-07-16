@@ -16,33 +16,33 @@ loadpkg gno.land/p/nt/ufmt/v0
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/bob -pkgpath gno.land/r/test/bob -gas-fee 570001ugnot -gas-wanted 7_700_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/alice -pkgpath gno.land/r/test/alice -gas-fee 530001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/peter -pkgpath gno.land/p/test/peter -gas-fee 360001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 730001ugnot -gas-wanted 18_000_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bob -pkgpath gno.land/r/test/bob -gas-fee 570001ugnot -gas-wanted 8_400_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/alice -pkgpath gno.land/r/test/alice -gas-fee 530001ugnot -gas-wanted 6_500_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/peter -pkgpath gno.land/p/test/peter -gas-fee 360001ugnot -gas-wanted 5_500_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 730001ugnot -gas-wanted 21_000_000 -chainid=tendermint_test test1
 
 ## test CASE_rA1
 ## interrealm v2: bob.Do is /r/bob-declared → borrow rule #1 borrows m.Realm = /r/bob.
 ## fn=alice.TopFunc is invoked, /r/alice-declared → borrow rule #1 → /r/alice.
 ## Inside TopFunc, bob.PrivateFunc() → borrow rule #1 → /r/bob, writes succeed.
 ## (Pre-interrealm-v2: stayed in caller's m.Realm throughout, write panicked.)
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA1 -gas-fee 5000000ugnot -gas-wanted 4800000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rA2
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA2 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA2 -gas-fee 5000000ugnot -gas-wanted 4400000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rA3
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA3 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA3 -gas-fee 5000000ugnot -gas-wanted 4400000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rB1
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB1 -gas-fee 5000000ugnot -gas-wanted 4000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rB2
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB2 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB2 -gas-fee 5000000ugnot -gas-wanted 4400000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_rB3
@@ -124,7 +124,7 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB4 -gas-fee 
 stdout 'OK'
 
 ## test CASE_pC1
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC1 -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC1 -gas-fee 5500001ugnot -gas-wanted 5_500_000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_pC2
@@ -132,7 +132,7 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC2 -gas-fee 
 stdout 'OK'
 
 ## test CASE_pC3
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC3 -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test runner
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC3 -gas-fee 5500001ugnot -gas-wanted 5_500_000 -chainid=tendermint_test runner
 stdout 'OK'
 
 ## test CASE_pC4

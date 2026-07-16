@@ -956,6 +956,73 @@ func TestSetGasMeter_SkipGasMeteringKey(t *testing.T) {
 	})
 }
 
+// TestAnteHandlerPrepareGasMeter verifies that application-specific gas setup
+// runs after the basic fee checks and that charges made by the setup callback
+// remain on the meter returned by the ante handler. This is used by gnoland to
+// charge VM governance-parameter loading before auth account operations.
+func TestAnteHandlerPrepareGasMeter(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, acc)
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+
+	const prepareGas = int64(1234)
+	called := false
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer,
+		AnteOptions{
+			VerifyGenesisSignatures: true,
+			PrepareGasMeter: func(ctx sdk.Context, tx std.Tx) sdk.Context {
+				called = true
+				ctx.GasMeter().ConsumeGas(prepareGas, "prepare-gas-meter")
+				return ctx
+			},
+		})
+
+	newCtx, res, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort)
+	require.True(t, res.IsOK(), res)
+	require.True(t, called)
+	require.GreaterOrEqual(t, newCtx.GasMeter().GasConsumed(), prepareGas)
+}
+
+// TestAnteHandlerPrepareGasMeterOutOfGas verifies that an out-of-gas panic in
+// the preparation callback is recovered by the ante handler with the final
+// meter available to BaseApp.
+func TestAnteHandlerPrepareGasMeterOutOfGas(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, acc)
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer,
+		AnteOptions{
+			VerifyGenesisSignatures: true,
+			PrepareGasMeter: func(ctx sdk.Context, tx std.Tx) sdk.Context {
+				ctx.GasMeter().ConsumeGas(ctx.GasMeter().Limit()+1, "prepare-gas-meter")
+				return ctx
+			},
+		})
+
+	newCtx, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort)
+	require.IsType(t, std.OutOfGasError{}, sdk.ABCIError(res.Error))
+	require.Equal(t, tx.Fee.GasWanted, res.GasWanted)
+	require.Greater(t, res.GasUsed, res.GasWanted)
+	require.Equal(t, res.GasUsed, newCtx.GasMeter().GasConsumed())
+}
+
 // TestAnteHandlerGenesisReplaySkip verifies the genesis-replay signature
 // skip: a tx whose signature no longer matches its body (as happens to a
 // --patch-txs-rewritten historical tx) is skipped ONLY when the node ran

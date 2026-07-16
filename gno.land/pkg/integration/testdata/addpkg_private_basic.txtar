@@ -4,7 +4,7 @@
 gnoland start
 
 # add a public realm
-gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 4600000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # update the public realm

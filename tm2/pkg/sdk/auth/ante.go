@@ -29,11 +29,24 @@ func init() {
 // and also to accept or reject different types of PubKey's. This is where apps can define their own PubKey
 type SignatureVerificationGasConsumer = func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result
 
+// PrepareGasMeter prepares the transaction context after the basic fee and
+// gas-wanted checks have passed, but before any auth reads or writes occur.
+// The default transaction gas meter is already installed when the callback is
+// invoked. Applications may use it to charge consensus configuration reads to
+// the final transaction meter before applying the configuration to the
+// context.
+type PrepareGasMeter = func(ctx sdk.Context, tx std.Tx) sdk.Context
+
 type AnteOptions struct {
 	// If verifyGenesisSignatures is false, does not check signatures when Height==0.
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+
+	// PrepareGasMeter is invoked after basic gas/mempool checks, with the final
+	// transaction gas meter already installed. A nil callback leaves the
+	// default context unchanged.
+	PrepareGasMeter PrepareGasMeter
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -94,6 +107,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				}
 			}
 		}()
+
+		if opts.PrepareGasMeter != nil {
+			newCtx = opts.PrepareGasMeter(newCtx, tx)
+		}
 
 		// Get params from context.
 		params := ctx.Value(AuthParamsContextKey{}).(Params)

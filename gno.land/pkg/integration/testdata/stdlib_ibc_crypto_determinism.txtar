@@ -14,7 +14,7 @@
 
 env ADDPKG_GAS=10_000_000
 env CALL_GAS=10_000_000
-env EXACT_GAS=2551422
+env EXACT_GAS=4206176
 
 gnoland start
 

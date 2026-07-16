@@ -30,7 +30,7 @@ stdout '"coins": "10000000000000ugnot"'
 # Benign tx still works. If the per-tx preAlloc had leaked from the
 # failed tx (e.g., kept on the store across the defer), this would
 # either fail with stale-state errors or charge the prior tx's gas.
-gnokey maketx addpkg -pkgdir $WORK/healthy -pkgpath gno.land/r/healthy -gas-fee 100000ugnot -gas-wanted 3_100_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/healthy -pkgpath gno.land/r/healthy -gas-fee 4400001ugnot -gas-wanted 4_400_000 -chainid=tendermint_test test1
 stdout 'OK'
 
 -- doubling/gnomod.toml --

@@ -21,7 +21,7 @@ gnoland start
 
 ## Enter via MsgRun: the ephemeral run realm crosses into the persistent
 ## subhost realm, which mints a sub of its own cur and crosses on.
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1 $WORK/run/parity.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 4300000 -chainid=tendermint_test test1 $WORK/run/parity.gno
 stdout 'OK!'
 
 ## The sub presents its synthesized identity to the innermost callee...

@@ -49,7 +49,7 @@ stdout OK!
 # captured paths at the first `-`, so a deploy under `gno.land/r/nym-alice123/*`
 # would have lookup-up "nym" instead of "nym-alice123" and failed with
 # "is not authorized to deploy packages to namespace nym".
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 6_700_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/nym-alice123/hello -gas-fee 1500001ugnot -gas-wanted 15_000_000 -chainid=tendermint_test user1

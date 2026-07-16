@@ -10,7 +10,7 @@ gnoland start -lock-transfer
 
 ## test1 is the DefaultAccount in the integration test. To ensure that the unrestricted account can send tokens even when token transfers are locked,
 ## we included it in the unrestricted account list in the genesis state. By default, the unrestricted account list is empty.
-gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
+gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 130001ugnot -gas-wanted 2_800_000 -chainid=tendermint_test test1
 
 stdout 'OK!'
 
@@ -39,7 +39,7 @@ gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 27_000_000  -chainid=tender
 stdout 'OK!'
 
 ## Restricted transfer is unlocked, allowing simple token transfers for regular accounts.
-gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test regular1
+gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 3000001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test regular1
 
 stdout 'OK!'
 

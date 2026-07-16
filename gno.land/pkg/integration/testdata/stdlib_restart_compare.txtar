@@ -2,9 +2,9 @@
 # Both Convert calls start from lastResult="42" and set it to "42".
 # EXACT_GAS is the expected GAS USED — both calls must match exactly.
 
-env ADDPKG_GAS=4_800_000
-env SETUP_GAS=3_200_000
-env EXACT_GAS=2012646
+env ADDPKG_GAS=5_700_000
+env SETUP_GAS=4_100_000
+env EXACT_GAS=3667400
 
 gnoland start
 

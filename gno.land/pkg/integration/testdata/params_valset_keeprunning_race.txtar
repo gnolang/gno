@@ -46,11 +46,11 @@ stdout OK!
 
 # Flip A's KeepRunning to false BEFORE the proposal executes. This is
 # the race the test pins.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateKeepRunning -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args false -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateKeepRunning -gas-fee 4000001ugnot -gas-wanted 16_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args false -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # Vote YES on the proposal.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 23_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # Execute. The executor must re-check KeepRunning, see false (no
