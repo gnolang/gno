@@ -113,5 +113,5 @@ func TestHelpView_RendersWalletRegistry(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, `data-wallet-launch-target="wallet-registry"`)
 	assert.Contains(t, out, "land.gno.gnokey")
-	assert.Contains(t, out, "data:image/svg+xml;base64,")
+	assert.Contains(t, out, "data:image/png;base64,")
 }
