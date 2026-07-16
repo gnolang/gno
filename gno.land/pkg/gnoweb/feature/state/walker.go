@@ -494,10 +494,12 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 		return []StateNode{decodeFuncInline(startDepth, name, cv)}
 	case *gno.BoundMethodValue:
 		if cv.IsLazy() {
-			// Interface-dispatched bind: no resolved FuncValue until the call.
+			// Interface-dispatched bind: only the selector name and the saved
+			// operand exist until the call resolves it — say so instead of
+			// faking an empty signature.
 			return []StateNode{{
 				Name: "(method)",
-				Type: fmt.Sprintf("func %s()", cv.Method),
+				Type: fmt.Sprintf("%s on %s (resolved at call)", cv.Method, typeName(cv.Receiver.T)),
 				Kind: KindFunc,
 			}}
 		}

@@ -1511,9 +1511,13 @@ func TestPeekTopLevelKind(t *testing.T) {
 func TestDecodeBoundMethodLazyBind(t *testing.T) {
 	t.Parallel()
 
-	nodes := decodeValueChildren(DefaultPageRenderConfig(), &gno.BoundMethodValue{Method: "Get"})
+	bmv := &gno.BoundMethodValue{
+		Method:   "Get",
+		Receiver: gno.TypedValue{T: gno.RefType{ID: "gno.land/r/test.Impl"}},
+	}
+	nodes := decodeValueChildren(DefaultPageRenderConfig(), bmv)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, "(method)", nodes[0].Name)
-	assert.Equal(t, "func Get()", nodes[0].Type)
+	assert.Equal(t, "Get on test.Impl (resolved at call)", nodes[0].Type)
 	assert.Equal(t, KindFunc, nodes[0].Kind)
 }
