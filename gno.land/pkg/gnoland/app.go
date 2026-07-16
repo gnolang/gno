@@ -29,8 +29,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -100,7 +100,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	// B+32 store with the fast index (see storebptree.FastStoreConstructor).
+	// Not state-compatible with IAVL databases: fresh chains and
+	// export/import forks only.
+	baseApp.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.

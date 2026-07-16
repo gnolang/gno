@@ -70,12 +70,11 @@ func (m *Machine) doOpPrecall() {
 // Two paths, distinguished by what Args[0] evaluated to on the value
 // stack:
 //
-//   - Compiler-synthesized `.origin` (MsgCall chain root) or the
-//     legacy `cross1` migration sentinel: preprocessor replaced
-//     Args[0] with a constNil, so its stack slot is undefined. The
-//     new cur's prev comes from m.callingCurOrOrigin() — a frame
-//     walk that finds the topmost crossing frame's Cur (or the
-//     per-tx origin).
+//   - Compiler-synthesized `.origin` (MsgCall chain root):
+//     preprocessor replaced Args[0] with a constNil, so its stack
+//     slot is undefined. The new cur's prev comes from
+//     m.callingCurOrOrigin() — a frame walk that finds the topmost
+//     crossing frame's Cur (or the per-tx origin).
 //
 //   - Explicit `cross(rlm)`: Args[0] is the inner cross CallExpr. At
 //     runtime cross's native body validates IsCurrent-strict on rlm
@@ -89,7 +88,7 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 	argtv := m.PeekValue(cx.NumArgs)
 	var prev TypedValue
 	if argtv.IsUndefined() {
-		// .origin / cross1 path.
+		// .origin path.
 		prev = m.callingCurOrOrigin()
 	} else {
 		// cross(rlm) form: argtv is the realm value cross pushed
@@ -140,6 +139,28 @@ func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 // The walk is intentionally simpler than execctx.GetRealm: we only need
 // the immediate captured prev, not a height-based ancestor selection.
 func (m *Machine) callingCurOrOrigin() TypedValue {
+	if cur, ok := m.topCrossingCur(); ok {
+		return cur
+	}
+	return buildOriginRealm(m)
+}
+
+// topCrossingCur returns the topmost crossing frame's captured Cur, if
+// any. This is the single frame walk anchoring "the live cur": it backs
+// callingCurOrOrigin (origin fallback), topmostCrossingFrameCurHIV
+// (IsCurrent/cross/Sub guards), and PresentedRealmAt (the unsafe.*
+// identity chain).
+//
+// Skips:
+//   - non-call frames (loops, blocks).
+//   - non-crossing call frames (no WithCross or DidCrossing).
+//   - frames whose Cur has not been set yet (the just-pushed frame at
+//     the top during doOpPrecall, or native crossing functions).
+//
+// Crossing functions entered without cross inherit their caller's Cur
+// (pointer-identical), so the first crossing frame with a captured Cur
+// anchors the chain.
+func (m *Machine) topCrossingCur() (TypedValue, bool) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if !fr.IsCall() {
@@ -151,9 +172,9 @@ func (m *Machine) callingCurOrOrigin() TypedValue {
 		if fr.Cur.T == nil {
 			continue
 		}
-		return fr.Cur
+		return fr.Cur, true
 	}
-	return buildOriginRealm(m)
+	return TypedValue{}, false
 }
 
 var gReturnStmt = &ReturnStmt{}

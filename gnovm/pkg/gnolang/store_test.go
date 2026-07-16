@@ -112,6 +112,54 @@ func TestCopyFromCachedStore(t *testing.T) {
 	assert.Equal(t, cachedStore.cacheNodes, destStore.cacheNodes, "cacheNodes should match")
 }
 
+func TestDeleteMemPackageClearsStaleBlobsOnReAdd(t *testing.T) {
+	newStore := func() *defaultStore {
+		d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+		d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+		d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+		return NewStore(nil, d1s, d2s)
+	}
+	const pkgPath = "gno.land/r/demo/foo"
+	withTests := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+				{Name: "foo_test.gno", Body: "package foo\n"},
+			},
+		}
+	}
+	prodOnly := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+			},
+		}
+	}
+
+	// DeleteMemPackage removes both the prod blob and the #allbutprod sibling.
+	st := newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	require.NotNil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+	st.DeleteMemPackage(pkgPath)
+	assert.Nil(t, st.GetMemPackage(pkgPath))
+	assert.Nil(t, st.GetMemPackageAll(pkgPath))
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+
+	// Re-add idempotency (mirrors the keeper clearing a private package before
+	// redeploy): dropping the test file must not leave a stale #allbutprod sibling.
+	st = newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	st.DeleteMemPackage(pkgPath)
+	st.AddMemPackage(prodOnly(), MPUserAll)
+	all := st.GetMemPackageAll(pkgPath)
+	require.NotNil(t, all)
+	require.Len(t, all.Files, 1)
+	assert.Equal(t, "foo.gno", all.Files[0].Name)
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"), "stale test file must not survive re-add")
+}
+
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
@@ -195,6 +243,51 @@ func TestFindByPrefix(t *testing.T) {
 
 			store.FindPathsByPrefix(tc.Prefix)(yield) // find stdlibs
 			require.Equal(t, tc.Expected, paths)
+		})
+	}
+}
+
+func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	store := NewStore(nil, d1s, d2s)
+
+	add := func(name string, files ...*std.MemFile) {
+		store.AddMemPackage(&std.MemPackage{
+			Type:  MPUserAll,
+			Name:  name,
+			Path:  "gno.land/r/demo/" + name,
+			Files: files,
+		}, MPUserAll)
+	}
+	// alpha: prod + test -> prod blob + #allbutprod sibling (must list once, not twice).
+	add("alpha", &std.MemFile{Name: "alpha.gno", Body: "package alpha\n"},
+		&std.MemFile{Name: "alpha_test.gno", Body: "package alpha\n"})
+	// beta: test-only -> #allbutprod sibling only (empty prod; must still list once).
+	add("beta", &std.MemFile{Name: "beta_test.gno", Body: "package beta\n"})
+	// gamma: prod only -> prod blob only.
+	add("gamma", &std.MemFile{Name: "gamma.gno", Body: "package gamma\n"})
+
+	var got []string
+	store.FindPathsByPrefix("gno.land")(func(p string) bool {
+		got = append(got, p)
+		return true
+	})
+	require.Equal(t, []string{
+		"gno.land/r/demo/alpha",
+		"gno.land/r/demo/beta",
+		"gno.land/r/demo/gamma",
+	}, got)
+
+	// A '#'-containing prefix (impossible in a valid package path, reachable
+	// from raw query input) ranges over alpha's #allbutprod sibling key; the
+	// trimmed path "gno.land/r/demo/alpha" does not carry the prefix and must
+	// not be yielded.
+	for _, prefix := range []string{"gno.land/r/demo/alpha#", "gno.land/r/demo/alpha#allbutprod"} {
+		store.FindPathsByPrefix(prefix)(func(p string) bool {
+			t.Fatalf("prefix %q must yield nothing, got %q", prefix, p)
+			return true
 		})
 	}
 }
