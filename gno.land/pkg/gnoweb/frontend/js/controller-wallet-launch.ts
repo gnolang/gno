@@ -155,15 +155,13 @@ export class WalletLaunchController extends BaseController {
 		if (wallets.length === 0) return;
 
 		event.preventDefault();
-
-		if (wallets.length === 1) {
-			this._openWallet(wallets[0]);
-			return;
-		}
 		this._openChooser(wallets);
 	}
 
-	// Populate and show the page-level chooser dialog (>1 wallet).
+	// Populate and show the page-level chooser dialog. Always shown, even for
+	// a single wallet: "Continue in browser" is the only way back to the
+	// native submit when the wallet isn't installed (a failed custom-scheme
+	// launch is silent).
 	private _openChooser(wallets: Wallet[]): void {
 		const dialog = this.getGlobalTarget("chooser") as HTMLDialogElement | null;
 		const list = this.getGlobalTarget("chooser-list");
@@ -196,7 +194,16 @@ export class WalletLaunchController extends BaseController {
 			list.appendChild(li);
 		});
 
-		// Assignment (not addEventListener) so reopening doesn't stack handlers.
+		// Assignment (not addEventListener) so reopening doesn't stack handlers
+		// or submit a previously opened form.
+		const browser = this.getGlobalTarget("chooser-browser");
+		if (browser) {
+			browser.onclick = () => {
+				dialog.close();
+				// Native submit; bypasses submit listeners, so no re-interception.
+				(this.element as HTMLFormElement).submit();
+			};
+		}
 		const cancel = this.getGlobalTarget("chooser-cancel");
 		if (cancel) cancel.onclick = () => dialog.close();
 

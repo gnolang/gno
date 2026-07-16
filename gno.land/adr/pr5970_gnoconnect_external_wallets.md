@@ -68,14 +68,22 @@ HTML-escapes), and exposed to the frontend through a
   entry shape. Wallets register by PR.
 - `platforms` and `install_url` are informational for now: no platform
   filtering and no "not installed" fallback yet.
+- Entries are validated at package init — RFC 3986 scheme grammar (which
+  cannot contain `:`, so a registry entry can never smuggle a `javascript:`
+  payload into `window.location`), unique ids and schemes, `data:image/`
+  icons. A bad registry is an authoring error and panics.
 
 ### Selection: gnoweb, never the OS
 
 A duplicated custom scheme on iOS routes to one arbitrary app with no system
 chooser, so the OS cannot pick. gnoweb merges candidates and shows its own
 chooser `<dialog>`, which also makes desktop and mobile behave identically.
-One wallet → launch directly; more than one → chooser; none → today's
-copy-paste TxLink, untouched.
+The chooser appears whenever at least one wallet is registered — even for a
+single wallet — because it carries a "Continue in browser" action that
+performs the native submit. A failed custom-scheme launch is silent, so
+without that escape hatch a mobile user without the wallet installed would
+find Execute dead-ended. No registered wallet → today's copy-paste TxLink,
+untouched.
 
 ### Additive and fail-safe by construction
 
