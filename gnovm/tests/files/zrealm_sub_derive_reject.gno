@@ -12,8 +12,8 @@ import "chain"
 // pins the REJECTING path, without which the mirror could silently
 // drift and the equivalence claim would be untested on the failure side.
 //
-// It also asserts the load-bearing derivation-safety assert: a host
-// containing ":" is rejected (forecloses nested synthesis and the
+// It also asserts the derivation-safety check: a host containing
+// "#" is rejected (forecloses nested synthesis and the
 // run-path-extraction aliasing described in the ADR's "Derivation
 // safety coupling").
 func try(host, subpath string) {
@@ -38,10 +38,10 @@ func main() {
 	try(host, "..")   // traversal
 	try(host, "_x")   // edge punctuation
 
-	// Invalid host: a synthesized ":"-bearing host must be rejected
+	// Invalid host: a synthesized "#"-bearing host must be rejected
 	// (derivation-safety assert; subsumes the run-path assert since the
-	// run-path shape is colon-free).
-	try(host+":already", "x")
+	// run-path shape is "#"-free).
+	try(host+"#already", "x")
 
 	// A run-path-shaped subpath is NOT special-cased away by DerivePkgSubAddr:
 	// '/' is legal inside subpaths, so this is a normal (hashed) derivation,
@@ -51,7 +51,7 @@ func main() {
 	// addresses here is caught.)
 	addr := chain.DerivePkgSubAddr(host, "e/g1abc/run")
 	println("run-shaped subpath hashed (not extracted):",
-		string(addr) != "g1abc" && addr == chain.PackageAddress(host+":e/g1abc/run"))
+		string(addr) != "g1abc" && addr == chain.PackageAddress(host+"#e/g1abc/run"))
 }
 
 // Output:

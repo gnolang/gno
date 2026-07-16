@@ -7,6 +7,11 @@ import (
 
 func packageAddress(string) string
 
+// subRealmSep joins a host pkgpath and a subpath in a sub-realm token's
+// synthesized pkgpath ("host#subpath"). Must match gnolang.subRealmSep.
+// '#' is reserved in package paths and kept distinct from gnoweb's ':'.
+const subRealmSep = "#"
+
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
 // in which case the address is extracted from the path.
 func PackageAddress(pkgPath string) address {
@@ -18,19 +23,19 @@ func PackageAddress(pkgPath string) address {
 // by cur.Sub(subpath) on the host realm at pkgpath. Pure computation;
 // callable from anywhere — lets other realms and off-chain tooling
 // compute a sub-address without consulting the host. Enforces the same
-// subpath rules as Sub(); the host-colon-free assert also subsumes the
-// run-path derivation assert (the run-path shape is colon-free).
+// subpath rules as Sub(); the host-"#"-free assert also subsumes the
+// run-path derivation assert (the run-path shape is "#"-free).
 func DerivePkgSubAddr(pkgpath, subpath string) address {
 	assertValidSubpath(pkgpath, subpath)
-	return PackageAddress(pkgpath + ":" + subpath)
+	return PackageAddress(pkgpath + subRealmSep + subpath)
 }
 
 // SplitPkgSubPath splits a possibly-synthesized pkgpath into host and
 // subpath. ok reports whether p is a synthesized sub-realm pkgpath
-// (":" is reserved in real package paths and appears only via
+// ("#" is reserved in real package paths and appears only via
 // realm.Sub synthesis).
 func SplitPkgSubPath(p string) (host, subpath string, ok bool) {
-	return strings.Cut(p, ":")
+	return strings.Cut(p, subRealmSep)
 }
 
 // assertValidSubpath mirrors gnolang.subRealmPathError so
@@ -43,7 +48,7 @@ func assertValidSubpath(pkgpath, subpath string) {
 		panic("Sub: subpath cannot be empty")
 	case len(pkgpath)+1+len(subpath) > 256:
 		panic("Sub: synthesized pkgpath too long (max 256 bytes)")
-	case strings.Contains(pkgpath, ":"):
+	case strings.Contains(pkgpath, subRealmSep):
 		panic("Sub: receiver pkgpath is already synthesized or invalid")
 	case !isValidSubpath(subpath):
 		panic("Sub: subpath must be '/'-separated segments of [a-z0-9], with '_.-' allowed inside a segment")

@@ -325,7 +325,7 @@ func TestRealmLegacyThreeFieldShape(t *testing.T) {
 
 	// A sub-token with a truly-nil prev must NOT be origin-exempt:
 	// exempting it would make the sub-token persistable.
-	sub := newSubRealmHIVPointer(nil, "addr", "example.com/r/host:x", TypedValue{}, "x", TypedValue{})
+	sub := newSubRealmHIVPointer(nil, "addr", "example.com/r/host#x", TypedValue{}, "x", TypedValue{})
 	if isOriginRealmHIV(realmHIV(&sub)) {
 		t.Fatal("nil-prev sub-token must not be persistence-exempt")
 	}
@@ -343,8 +343,11 @@ func TestIsValidSubpath(t *testing.T) {
 	}
 	invalid := []string{
 		"", "/", "//", "dao/", "/dao", "a//b", "Dao", "DAO",
-		"a b", "a\tb", "a\nb", "a:b", "a\x00b", "..", ".", "../x",
-		"_x", "x_", "-x", "x-", ".x", "x.", "café", "‮", "a/",
+		"a b", "a\tb", "a\nb", "a:b", "a#b", "a\x00b", "..", ".", "../x",
+		"_x", "x_", "-x", "x-", ".x", "x.",
+		"caf\u00e9", // non-ASCII (é)
+		"a\u202eb",  // RTL override
+		"a/",
 		"a/./b",
 	}
 	for _, s := range valid {
@@ -360,19 +363,19 @@ func TestIsValidSubpath(t *testing.T) {
 }
 
 // subRealmPathError enforces the total-length cap over the synthesized
-// "host:subpath" (not the subpath alone), keeping downstream
+// "host#subpath" (not the subpath alone), keeping downstream
 // pkgpath-sized buffers valid.
 func TestSubRealmPathErrorTotalCap(t *testing.T) {
 	t.Parallel()
 	host := "gno.land/r/x"
-	// host + ":" + subpath == 256 is OK; 257 is rejected.
+	// host + "#" + subpath == 256 is OK; 257 is rejected.
 	okSub := strings.Repeat("a", 256-len(host)-1)
-	synth := host + ":" + okSub
+	synth := host + subRealmSep + okSub
 	if e := subRealmPathError(host, okSub, synth); e != "" {
 		t.Errorf("256-byte synthesized rejected: %s", e)
 	}
 	tooLong := okSub + "a"
-	if e := subRealmPathError(host, tooLong, host+":"+tooLong); e == "" {
+	if e := subRealmPathError(host, tooLong, host+subRealmSep+tooLong); e == "" {
 		t.Error("257-byte synthesized accepted, want rejected")
 	}
 }

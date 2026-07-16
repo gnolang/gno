@@ -25,7 +25,7 @@ gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint
 stdout 'OK!'
 
 ## The sub presents its synthesized identity to the innermost callee...
-stdout 'observed prev.PkgPath: gno.land/r/tests/vm/subhost:dao/5'
+stdout 'observed prev.PkgPath: gno.land/r/tests/vm/subhost#dao/5'
 stdout 'observed prev.Subpath: dao/5'
 ## ...IsUserCall is false (a sub-token cross is never a direct user call)...
 stdout 'observed prev.IsUserCall: false'

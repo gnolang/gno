@@ -10,7 +10,7 @@ import (
 // Cross-realm sub-identity presentation: this realm mints a sub of its
 // OWN cur and crosses into a DIFFERENT realm (subhost). The callee reads
 // the presented identity via cur.Previous() and must see:
-//   - PkgPath() = the synthesized "<this host>:dao/9"
+//   - PkgPath() = the synthesized "<this host>#dao/9"
 //   - Address() = chain.DerivePkgSubAddr(<this host>, "dao/9")
 //   - Subpath() = "dao/9" (the canonical "am I a sub, of what" accessor,
 //     resolved THROUGH the cross — this is the end-to-end check that
@@ -37,8 +37,8 @@ func main(cur realm) {
 }
 
 // Output:
-// expected sub addr: g1kug6thlz8wsc7nrs82j3urf58nv6j676tjal7r
-// observed prev.PkgPath: gno.land/r/demo/subpresent:dao/9
+// expected sub addr: g1ry3pqdfmq2edtc4pv7rjurxnuchfzswlsqgq9z
+// observed prev.PkgPath: gno.land/r/demo/subpresent#dao/9
 // observed prev.Subpath: dao/9
 // observed prev.IsUserCall: false
 // prev.Address == DerivePkgSubAddr(host, subpath): true

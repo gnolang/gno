@@ -243,6 +243,13 @@ const (
 	realmFieldParent  = 4
 )
 
+// subRealmSep joins a host pkgpath and a subpath in a sub-realm token's
+// synthesized pkgpath ("host#subpath"). '#' is reserved in package
+// paths (rejected at ValidateMemPackageAny) so no real package can
+// collide, and it is kept distinct from ':', which gnoweb uses as its
+// URL path/render-args separator. chain.assertValidSubpath mirrors this.
+const subRealmSep = "#"
+
 // Singleton pointer type for *.grealm. Allocated once so TypeID memoization
 // is stable across the realm machinery.
 var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
@@ -478,13 +485,14 @@ func MakeRealmValue(alloc *Allocator, addr, pkgPath string, prev TypedValue) Typ
 //     segments, "/"-separated, with "_.-" allowed only inside a
 //     segment. This excludes uppercase, whitespace, control bytes,
 //     non-ASCII (so no NFC/NFD or RTL-override address ambiguity),
-//     ":" and NUL, empty segments (leading/trailing/double "/"), edge
-//     punctuation, and ".."/"." path-traversal segments.
-//   - the host is colon-free (forecloses nested synthesis).
-//   - the synthesized "host:subpath" is ≤ 256 bytes total (the pkgpath
+//     the "#" separator and NUL, empty segments (leading/trailing/
+//     double "/"), edge punctuation, and ".."/"." path-traversal
+//     segments.
+//   - the host contains no "#" (forecloses nested synthesis).
+//   - the synthesized "host#subpath" is ≤ 256 bytes total (the pkgpath
 //     limit — keeps downstream pkgpath-sized buffers valid) and is not
 //     a DerivePkgBech32Addr run-path (defense in depth; unreachable
-//     while the run-path regex stays colon-free).
+//     while the run-path regex stays "#"-free).
 //
 // Mirrored by chain.assertValidSubpath on the .gno side so
 // DerivePkgSubAddr can never derive an address cur.Sub would refuse.
@@ -494,7 +502,7 @@ func subRealmPathError(host, subpath, synthesized string) string {
 		return "Sub: subpath cannot be empty"
 	case len(synthesized) > 256:
 		return "Sub: synthesized pkgpath too long (max 256 bytes)"
-	case strings.Contains(host, ":"):
+	case strings.Contains(host, subRealmSep):
 		return "Sub: receiver pkgpath is already synthesized or invalid"
 	case !isValidSubpath(subpath):
 		return "Sub: subpath must be '/'-separated segments of [a-z0-9], with '_.-' allowed inside a segment"
@@ -1683,12 +1691,12 @@ func makeUverseNode() {
 		},
 	)
 	// Sub mints a sub-realm identity token: a realm value whose pkgpath
-	// is the synthesized "host:subpath" (":" is reserved — no real
+	// is the synthesized "host#subpath" ("#" is reserved — no real
 	// package path can contain it, see ValidateMemPackageAny) and whose
 	// address derives from that synthesized path. After
 	// cross(cur.Sub(x)) downstream callees see the sub-identity through
 	// the ordinary cur.Previous() idiom; the host is recoverable by
-	// splitting the pkgpath on ":" (chain.SplitPkgSubPath).
+	// splitting the pkgpath on "#" (chain.SplitPkgSubPath).
 	//
 	// The sub-token's prev is the receiver's prev (the host is not
 	// inserted as a chain step); the minting cur is held in the
@@ -1714,12 +1722,17 @@ func makeUverseNode() {
 			subpath := arg1.TV.GetString()
 			sv := derefRealmStruct(recv)
 			host := sv.Fields[realmFieldPkgPath].GetString()
-			synthesized := host + ":" + subpath
-			// Charge before any work (mirroring chain.packageAddress's
-			// calibrated cost over the synthesized path) so failed
-			// calls pay too. A native_gas.go table entry would never
-			// fire here: uverse natives have NativePkg == "" and
-			// chargeNativeGas short-circuits to the flat body charge.
+			synthesized := host + subRealmSep + subpath
+			// Charge before any work (so failed calls pay too) with the
+			// same Base+Slope·len calibration as chain.packageAddress —
+			// the dominant cost is the identical bech32 derivation. Note
+			// this is ON TOP of the flat OpCPUCallNativeBody that
+			// chargeNativeGas already levies for every uverse native
+			// (NativePkg == ""), so Sub is priced slightly above bare
+			// packageAddress — a deliberate, safe overcharge covering the
+			// extra validation/frame-walk/allocation Sub does. (A
+			// native_gas.go table entry can't be used: the table is only
+			// consulted for stdlib natives, not uverse ones.)
 			m.incrCPU(OpCPUSubRealmBase + OpCPUSubRealmSlope*int64(len(synthesized))/1024)
 			if err := subRealmPathError(host, subpath, synthesized); err != "" {
 				m.PanicString(err)
@@ -1755,9 +1768,9 @@ func makeUverseNode() {
 	)
 	// Subpath returns the sub-token's subpath, or "" for a primary cur.
 	// Derived from the pkgPath field (the substring after the first
-	// ":"), NOT the internal subpath field, so the answer stays
+	// "#"), NOT the internal subpath field, so the answer stays
 	// consistent with chain.SplitPkgSubPath for any realm value —
-	// including test-built colon-bearing values whose internal field is
+	// including test-built "#"-bearing values whose internal field is
 	// empty. This is the canonical "am I a sub, and of what subpath"
 	// accessor; consumers should prefer it over parsing PkgPath().
 	defNativePtrMethod(".grealm", "Subpath",
@@ -1767,7 +1780,7 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
 			path := sv.Fields[realmFieldPkgPath].GetString()
-			_, sub, _ := strings.Cut(path, ":")
+			_, sub, _ := strings.Cut(path, subRealmSep)
 			m.PushValue(typedString(sub))
 		},
 	)

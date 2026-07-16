@@ -2,11 +2,9 @@
 
 ## Status
 
-Consolidated proposal, revised after a three-lens review (security,
-implementation feasibility, design coherence) verified against master.
-Supersedes the initial SUB.md draft and the CROSSUB.md draft; the
-decisions inherited from those drafts are restated self-contained in
-"Alternatives considered" so this document stands alone.
+Consolidated proposal. Alternatives that were considered and dropped
+are recorded self-contained in "Alternatives considered" so this
+document stands alone.
 
 Decisions made in this revision (rationale in the named section,
 table row, or sequencing step):
@@ -76,9 +74,9 @@ Add one method to the `realm` interface:
 // the calling realm's namespace.
 //
 // The returned token has:
-//   - Address() = chain.PackageAddress(cur.PkgPath() + ":" + subpath)
-//   - PkgPath() = cur.PkgPath() + ":" + subpath   (distinct from any
-//     primary pkgpath; the prefix before ":" encodes the host realm)
+//   - Address() = chain.PackageAddress(cur.PkgPath() + "#" + subpath)
+//   - PkgPath() = cur.PkgPath() + "#" + subpath   (distinct from any
+//     primary pkgpath; the prefix before "#" encodes the host realm)
 //   - Previous() = cur.Previous()  (the sub-token represents the host
 //     realm acting under a sub-identity, not a new delegation step;
 //     chain depth is unchanged from a regular cross)
@@ -103,7 +101,7 @@ Add one method to the `realm` interface:
 //
 // subpath constraints:
 //   - non-empty
-//   - does not contain ":"
+//   - does not contain "#"
 //   - does not contain NUL bytes
 //   - length ≤ 256 bytes
 //
@@ -124,16 +122,16 @@ Sub(subpath string) realm
 The sub-token's `PkgPath()` is the synthesized form:
 
 ```
-sub_pkgpath = parent_pkgpath + ":" + subpath
+sub_pkgpath = parent_pkgpath + "#" + subpath
 ```
 
-`:` is reserved as a separator.
+`#` is reserved as a separator.
 
 ### Where the reservation is enforced
 
 `Re_gnoUserPkgPath` (`gnovm/pkg/gnolang/mempackage.go:48-53`) and the
 tm2-level `rePkgPathURL` (`tm2/pkg/std/memfile.go`) are both anchored
-and colon-free, so `:` is already rejected in every package-ingestion
+and "#"-free, so `#` is already rejected in every package-ingestion
 path today (keeper AddPackage, genesis, gnodev, and
 `defaultStore.AddMemPackage` itself all funnel through
 `ValidateMemPackageAny`). To make the reservation an explicit contract
@@ -143,8 +141,8 @@ actually lives:
 ```go
 // In gnovm/pkg/gnolang/mempackage.go, ValidateMemPackageAny (or the
 // shared path-validation helper it uses):
-if strings.Contains(mpkg.Path, ":") {
-    return fmt.Errorf("invalid package path %q: ':' is reserved for sub-realm derivation", mpkg.Path)
+if strings.Contains(mpkg.Path, subRealmSep) {
+    return fmt.Errorf("invalid package path %q: '#' is reserved for sub-realm derivation", mpkg.Path)
 }
 ```
 
@@ -152,27 +150,27 @@ if strings.Contains(mpkg.Path, ":") {
 validation; the mempackage layer is where every ingestion path
 converges.)
 
-### Derivation safety coupling (load-bearing)
+### Derivation safety coupling
 
 The safety of sub-address derivation itself rests on real pkgpaths
-being colon-free. `DerivePkgBech32Addr`
+being "#"-free. `DerivePkgBech32Addr`
 (`gnovm/pkg/gnolang/misc.go:201-211`) special-cases run paths: if the
 input matches `IsGnoRunPath` (`<domain>/e/<addr>/run`), it returns the
 embedded bech32 address **verbatim, skipping the hash**. A synthesized
-`host:subpath` contains `:` and fails that anchored regex today, so
+`host#subpath` contains `#` and fails that anchored regex today, so
 derivation falls through to the hash — but subpaths permit `/`, so if
-the pkgpath rules were ever relaxed to admit `:`, a subpath like
+the pkgpath rules were ever relaxed to admit `#`, a subpath like
 `"/e/g1victim/run"` could alias run-path extraction and yield an
 arbitrary account's address. Two defensive requirements:
 
 1. `Sub()` and `DerivePkgSubAddr` assert that the *host* pkgpath
-   contains no `:` (also forecloses nested synthesis through any
+   contains no `#` (also forecloses nested synthesis through any
    unforeseen path), and
-2. assert that the synthesized `host + ":" + subpath` is not a run
+2. assert that the synthesized `host + "#" + subpath` is not a run
    path. In the Sub native this is a literal `!IsGnoRunPath` call; on
    the `.gno` side (`DerivePkgSubAddr`) no run-path predicate exists
-   and none is needed — the host-colon-free assert subsumes it, since
-   the run-path regex is anchored and colon-free.
+   and none is needed — the host-"#"-free assert subsumes it, since
+   the run-path regex is anchored and "#"-free.
 
 These are one-line panics; they turn a silent regex coupling into an
 explicit invariant.
@@ -183,17 +181,17 @@ explicit invariant.
 // In gnovm/stdlibs/chain/address.gno (alongside PackageAddress).
 // Pure Gno; reuses the existing packageAddress native — no new native
 // binding. Validates the same subpath rules as Sub() plus the
-// host-colon-free assert; the run-path assert is native-only
+// host-"#"-free assert; the run-path assert is native-only
 // (subsumed here — see "Derivation safety coupling").
 func DerivePkgSubAddr(pkgpath, subpath string) address {
     assertValidSubpath(pkgpath, subpath)
-    return PackageAddress(pkgpath + ":" + subpath)
+    return PackageAddress(pkgpath + "#" + subpath)
 }
 
 // SplitPkgSubPath splits a possibly-synthesized pkgpath into host and
 // subpath. ok reports whether p is a synthesized sub-realm pkgpath.
 func SplitPkgSubPath(p string) (host, subpath string, ok bool) {
-    return strings.Cut(p, ":")
+    return strings.Cut(p, subRealmSep)
 }
 ```
 
@@ -203,8 +201,8 @@ sub-identities without consulting the host realm.
 Examples:
 
 - `cur.PkgPath() == "gno.land/r/nt/commondao/v0"`
-- `cur.Sub("dao/42").PkgPath() == "gno.land/r/nt/commondao/v0:dao/42"`
-- `cur.Sub("dao/42").Address() == chain.PackageAddress("gno.land/r/nt/commondao/v0:dao/42")`
+- `cur.Sub("dao/42").PkgPath() == "gno.land/r/nt/commondao/v0#dao/42"`
+- `cur.Sub("dao/42").Address() == chain.PackageAddress("gno.land/r/nt/commondao/v0#dao/42")`
 
 ### Matching sub-identities (the safe idiom)
 
@@ -217,7 +215,7 @@ anchor the separator:
 
 ```go
 p := cur.Previous().PkgPath()
-ok := p == host || strings.HasPrefix(p, host+":")
+ok := p == host || strings.HasPrefix(p, host+"#")
 ```
 
 A bare `strings.HasPrefix(p, host)` is **wrong**: it also matches
@@ -276,10 +274,10 @@ methods are specified for v1 as follows:
 | `IsUserCall()` | false | A sub-token cross is realm-mediated, never a direct user call. |
 | `IsUserRun()` | false | Same reasoning. |
 | `IsEphemeral()` | false | Ephemeral hosts cannot mint subs (Sub() panics on `/e/` curs), so every sub-token's host is a persistent realm. |
-| `Subpath()` | the subpath (`""` for primaries) | The canonical "am I a sub, of what subpath" accessor. Derived from `PkgPath()` (substring after the first `:`), so it agrees with `chain.SplitPkgSubPath` for any realm value. Consumers should prefer it over string-parsing `PkgPath()`; the banker `RealmIssue`/`OriginSend` ban is the first consumer. |
-| `String()` | `realm{<synthesized>:<addr>}` | The existing format already uses `:` internally; sub-tokens render with an extra colon. Cosmetic; tooling parses via `SplitPkgSubPath`/`Subpath()`, not `String()`. |
+| `Subpath()` | the subpath (`""` for primaries) | The canonical "am I a sub, of what subpath" accessor. Derived from `PkgPath()` (substring after the first `#`), so it agrees with `chain.SplitPkgSubPath` for any realm value. Consumers should prefer it over string-parsing `PkgPath()`; the banker `RealmIssue`/`OriginSend` ban is the first consumer. |
+| `String()` | `realm{<synthesized>:<addr>}` | The format separates pkgpath from address with `:`; a sub-token's pkgpath carries the `#` separator, e.g. `realm{host#dao/42:g1…}`. Cosmetic; tooling parses via `SplitPkgSubPath`/`Subpath()`, not `String()`. |
 
-All user-ness predicates returning false is load-bearing: downstream
+All user-ness predicates returning false is essential: downstream
 guards like `Previous().IsUserCall()` (payment envelopes) must not
 treat a programmatic sub-identity as a user.
 
@@ -299,7 +297,7 @@ chain root sees the chain root regardless of whether a sub-token was
 used at the immediate previous level.
 
 The host realm's identity is still recoverable forensically: the
-synthesized pkgpath encodes it as the prefix before the `:` separator.
+synthesized pkgpath encodes it as the prefix before the `#` separator.
 
 ```go
 host, subpath, ok := chain.SplitPkgSubPath(cur.Previous().PkgPath())
@@ -361,7 +359,7 @@ identifier):
 
 ```go
 cur.Previous().Address()         // = sub-address (DAO)
-cur.Previous().PkgPath()         // = "<host>:dao/42" (synthesized)
+cur.Previous().PkgPath()         // = "<host>#dao/42" (synthesized)
 unsafe.PreviousRealm().Address() // = same sub-address
 unsafe.PreviousRealm().PkgPath() // = same synthesized form
 ```
@@ -412,7 +410,7 @@ Trace through scenarios:
 | /r/Y | /r/Y code with passed /r/X cur | /r/Y | /r/X | ✗ |
 | chain root | /p/ top-level func | nil | anything | ✗ (nil guard) |
 
-Because `m.Realm.Path` is always a real, colon-free package path, the
+Because `m.Realm.Path` is always a real, "#"-free package path, the
 check also structurally rejects any receiver with a synthesized
 pkgpath — a second line of defense against nested synthesis, on top of
 the strict entry guard below.
@@ -454,7 +452,7 @@ func nativeSub(m *Machine, recv TypedValue, subpath string) realm {
 
 Helper definitions: `assertValidSubpath(host, subpath)` enforces the
 subpath rules (see "Subpath validation") plus the derivation asserts —
-host contains no `:`, and the synthesized `host+":"+subpath` is not a
+host contains no `#`, and the synthesized `host+"#"+subpath` is not a
 run path. `topmostCrossingFrameCurHIV` walks frames topmost-down and
 returns the Cur HIV of the first frame with `WithCross ||
 DidCrossing` (mirroring today's `realmIsCurrentOnMachine` loop at
@@ -479,11 +477,11 @@ Consequence:
   sub-token's internal `parent` field matches. The check fails.
   Sub-of-sub is structurally blocked.
 
-This is load-bearing for defense in depth: if Sub() routed through
+This matters for defense in depth: if Sub() routed through
 `IsCurrent()` (and thus through the parent-reference relaxation),
 nested sub-minting would be stopped only by the caller-pkgpath check —
 a single line of defense resting on the invariant that real pkgpaths
-are colon-free. The strict pointer-identity check keeps sub-of-sub
+are "#"-free. The strict pointer-identity check keeps sub-of-sub
 structurally foreclosed, independent of path-shape invariants. A
 regression test must assert that Sub() and IsCurrent() give different
 answers for a live-parent sub-token (IsCurrent true; Sub panics), so a
@@ -531,7 +529,7 @@ The same routine backs:
 
 It is **NOT** used by Sub()'s native entry guard — that uses the
 strict `recvHIV == topCurHIV` check directly (see previous section).
-The distinction is load-bearing.
+The distinction is essential.
 
 A stale sub-token — held in a local after the parent's crossing frame
 has exited, or smuggled to a sibling frame within the same
@@ -546,7 +544,7 @@ automatically — **except** the `isOriginRealmHIV` carve-out
 (`uverse.go:251-260`), which exempts realms whose `prev` is truly nil.
 A sub-token minted from a truly-nil-prev cur (test frames) would be
 wrongly exempt. The carve-out must gain a `subpath == ""` condition.
-One line, but load-bearing.
+One line, but essential.
 
 ## Banker compatibility (one `.gno`-layer guard, no native change)
 
@@ -622,11 +620,12 @@ if bt != BankerTypeRealmSend {
 
 - **RealmIssue**: `assertCoinDenom` (`banker.gno:180-190`) prefixes
   denoms with `"/" + pkgPath + ":"`; a sub-token-issued denom would
-  have a double-`:` shape (`"/host:dao/42:base"`). No forgery is
-  possible either way (`isValidBaseDenom` rejects `:`, so a primary
-  cannot fabricate a sub's denom), but coin issuance under a
-  sub-namespace is an exotic capability; keeping the denom space clean
-  for v1 costs nothing.
+  carry the `#` separator in its pkgpath component
+  (`"/host#dao/42:base"`). No forgery is possible either way
+  (`isValidBaseDenom` rejects both `#` and `#`, so a primary cannot
+  fabricate a sub's denom), but coin issuance under a sub-namespace is
+  an exotic capability; keeping the denom space clean for v1 costs
+  nothing.
 - **OriginSend**: the existing guard is `rlm.Previous().IsUserCall()`
   (`banker.gno:96`). Because `Previous()` skips the host, a sub-token
   would pass that guard whenever an EOA called the host — yielding an
@@ -671,7 +670,7 @@ callee takes `rlm` and checks `IsCurrent()` + `Address()`.
 rlm realm, slug string)` deriving per-slug accounts as
 `chain.PackageAddress(addr.String() + "/" + slug)` — an address-based,
 `/`-separated scheme, incompatible with this proposal's pkgpath-based,
-`:`-separated derivation (the code carries an "XXX: use a new std.XXX
+`#`-separated derivation (the code carries an "XXX: use a new std.XXX
 call for this" note anticipating exactly this feature). Balances held
 at RealmSubTeller-derived addresses will NOT match
 `cur.Sub(slug).Address()`. Migration of RealmSubTeller onto `Sub()` is
@@ -772,8 +771,8 @@ administration — some board-admin code runs
 | Extend `realmIsCurrentOnMachine` for sub-tokens; extract `topmostCrossingFrameCurHIV` helper shared with Sub's strict guard | `uverse.go` | ~15 lines |
 | Extend `execctx.GetRealm` to walk the presented-identity chain (crossing frame's `Cur` → `.prev`^height) with existing origin fallbacks; same change in the test-stdlib mirror (incl. `RealmOverride` reconciliation) | `gnovm/stdlibs/internal/execctx/realm.go`, `gnovm/tests/stdlibs/chain/runtime/testing_runtime.go` | ~60–100 lines across 2 files |
 | Add `chain.DerivePkgSubAddr` + `chain.SplitPkgSubPath` (pure Gno, reuse existing native) | `gnovm/stdlibs/chain/address.gno` | ~15 lines |
-| Explicit `:` rejection in package path validation | `gnovm/pkg/gnolang/mempackage.go` (`ValidateMemPackageAny`) | 1 conditional |
-| Defensive derivation asserts (host colon-free in both sites; `!IsGnoRunPath(synthesized)` native-only — the `.gno` helper's host-colon-free assert subsumes it, see "Derivation safety coupling") | Sub native + `DerivePkgSubAddr` | ~4 lines |
+| Explicit `#` rejection in package path validation | `gnovm/pkg/gnolang/mempackage.go` (`ValidateMemPackageAny`) | 1 conditional |
+| Defensive derivation asserts (host "#"-free in both sites; `!IsGnoRunPath(synthesized)` native-only — the `.gno` helper's host-"#"-free assert subsumes it, see "Derivation safety coupling") | Sub native + `DerivePkgSubAddr` | ~4 lines |
 | Forbid `RealmIssue`/`OriginSend` for sub-token rlm | `gnovm/stdlibs/chain/banker/banker.gno` | ~8 lines |
 | Meter `Sub` inside the native body (`m.incrCPU` as the body's first statement, so failed calls pay too; base + per-byte slope over the synthesized path, mirroring `packageAddress`'s calibrated entry). A `native_gas.go` table entry would be dead code: uverse natives have `NativePkg == ""`, and `chargeNativeGas` short-circuits to flat `OpCPUCallNativeBody` without consulting the table | Sub native in `uverse.go` | ~5 lines |
 
@@ -803,7 +802,7 @@ Lowercase-alphanumeric segments, `/`-separated, with `_`, `.`, `-`
 allowed only *inside* a segment. This excludes: uppercase, whitespace,
 control bytes, non-ASCII (so no NFC/NFD or RTL-override address
 ambiguity — two visually identical subpaths can't derive two
-addresses), `:` and NUL, empty segments (leading/trailing/double `/`),
+addresses), the "#" separator and NUL, empty segments (leading/trailing/double `/`),
 edge punctuation, and `..`/`.` traversal segments. Examples that pass:
 `dao/42`, `treasury`, `role_admin`, `v1.2`, `g1…` addresses. Examples
 that fail: `Dao`, `a b`, `../x`, `dao/`, `a//b`, `_x`.
@@ -813,7 +812,7 @@ later is additive (safe); **tightening it later would strand funds**
 already sent to addresses derived from a now-illegal subpath. So the
 narrow set is chosen up front.
 
-The **total** cap is on the synthesized `host:subpath` (≤ 256, the
+The **total** cap is on the synthesized `host#subpath` (≤ 256, the
 existing `pkgPathLimit`), not the subpath alone — this keeps every
 downstream pkgpath-sized buffer/field valid, rather than letting
 `PkgPath()` reach ~513 bytes.
@@ -874,12 +873,12 @@ invoking untrusted helpers with a live cur.
 **2. Subpath collisions across logical types.** A single realm using
 the same subpath for two unrelated purposes (e.g., `"42"` for a DAO ID
 AND a committee ID) creates a sub-address collision. Mitigation:
-caller convention — `"dao/42"`, `"committee/42"` (`:` is reserved;
+caller convention — `"dao/42"`, `"committee/42"` (`#` is reserved;
 use `/` or `.` for structure).
 
 **3. Tooling parsing of synthesized pkgpath.** Off-chain tools may not
-recognize `gno.land/r/nt/commondao/v0:dao/42` as a non-package. The
-`:` separator is the marker; `chain.SplitPkgSubPath` is the canonical
+recognize `gno.land/r/nt/commondao/v0#dao/42` as a non-package. The
+`#` separator is the marker; `chain.SplitPkgSubPath` is the canonical
 parse. Standardize in tooling docs.
 
 **4. Salt grinding vs known addresses.** Address derivation is a
@@ -901,7 +900,7 @@ When a callee opts in:
   the host realm's current *and future* code, exactly as granting to
   the host's primary address is.
 - PkgPath-keyed auth: opt in via the anchored idiom
-  (`p == host || strings.HasPrefix(p, host+":")`) or explicit
+  (`p == host || strings.HasPrefix(p, host+"#")`) or explicit
   synthesized-form match.
 - IsCurrent+Address-keyed wrappers (treasury banker, token tellers):
   work automatically if constructed with the sub-token.
@@ -952,7 +951,7 @@ proposal executors and exposing `DAOAddress()`.
 1. **VM change**: `.grealm` fields + constructor/carve-out plumbing,
    Sub() native (strict guard + caller-pkgpath check + validation),
    extended `realmIsCurrentOnMachine`, realm-interface + typechecker
-   shim, `:` rejection at mempackage validation, derivation asserts,
+   shim, `#` rejection at mempackage validation, derivation asserts,
    `chain.DerivePkgSubAddr`/`SplitPkgSubPath`, gas entry.
 2. **unsafe parity**: extend `execctx.GetRealm` + test-stdlib mirror
    to the presented-identity chain.
@@ -989,7 +988,7 @@ proposal executors and exposing `DAOAddress()`.
    - Banker: RealmSend with sub-token works; RealmIssue/OriginSend
      panic; treasury-style token wrapper accepts a sub-token.
    - Go unit test (not a filetest): `ValidateMemPackageAny` rejects
-     pkgpaths containing `:`.
+     pkgpaths containing `#`.
 5. **commondao integration**: `TreasurySpendProposal` using
    `cur.Sub(subpathOf(daoID))` for native and GRC20 spends;
    `DAOAddress()` helper. Note the `/r/` realm is currently quarantined (see
@@ -1044,7 +1043,7 @@ proposal does not preclude them.
 
 ## Alternatives considered
 
-**`crosssub(...)` fused call form** (the CROSSUB.md draft): a second
+**`crosssub(...)` fused call form**: a second
 special form performing mint+cross in one step at the call site, e.g.
 `target.Foo(crosssub("dao/42"), ...)`. Rejected because it produces no
 first-class `realm` value: non-crossing token-style consumers —
@@ -1106,6 +1105,6 @@ structurally.
   coins is automatic; spending is gated by the host realm's proposal
   machinery.
 
-The synthesized pkgpath is the load-bearing improvement; the token
-form is the load-bearing compatibility win; the rest are bounded
+The synthesized pkgpath is the key improvement; the token
+form is the key compatibility win; the rest are bounded
 protections.

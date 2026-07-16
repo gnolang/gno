@@ -431,14 +431,15 @@ A realm can mint a **sub-realm token** for one of its internal actors
 
 ```go
 sub := cur.Sub("dao/42")
-sub.PkgPath()  // "gno.land/r/nt/commondao/v0:dao/42"  (synthesized)
+sub.PkgPath()  // "gno.land/r/nt/commondao/v0#dao/42"  (synthesized)
 sub.Address()  // chain.PackageAddress(sub.PkgPath())  (derived)
 ```
 
-`:` is reserved: no real package path can contain it (rejected at
-package validation), so the synthesized form can never collide with a
-deployed package, and exact-match pkgpath auth is never silently
-broadened.
+`#` is the sub-realm separator (kept distinct from `:`, which gnoweb
+uses in URLs to split a realm path from its render args). `#` is
+reserved: no real package path can contain it (rejected at package
+validation), so the synthesized form can never collide with a deployed
+package, and exact-match pkgpath auth is never silently broadened.
 
 The token is a first-class `realm` value. Cross with it (two-step —
 `cross(...)` takes a bare identifier) or hand it to token-style
@@ -474,12 +475,12 @@ Guards — `Sub()` panics unless all hold:
 1. subpath matches `segment ("/" segment)*`, where a `segment` is
    `[a-z0-9]` optionally followed by `[a-z0-9_.-]*[a-z0-9]` (lowercase-alnum,
    `/`-separated, `_.-` only inside a segment; no uppercase/whitespace/non-ASCII/`..`),
-   and the synthesized `host:subpath` is ≤ 256 bytes. This grammar is
+   and the synthesized `host#subpath` is ≤ 256 bytes. This grammar is
    frozen at introduction — loosening later is safe, tightening would
    strand funds;
 2. the receiver's own HIV is the topmost crossing frame's Cur —
    strictly stronger than `IsCurrent()`, so sub-tokens can never be
-   `Sub()`d (no `host:a:b`);
+   `Sub()`d (no `host#a#b`);
 3. `m.Realm.Path` equals the receiver's pkgpath — foreign code holding
    a passed-around cur cannot mint in the caller's namespace;
 4. the host is not ephemeral (`/e/` run realms cannot mint).
@@ -491,12 +492,12 @@ and subdirectory packages:
 
 ```go
 p := cur.Previous().PkgPath()
-ok := p == host || strings.HasPrefix(p, host+":")
+ok := p == host || strings.HasPrefix(p, host+"#")
 ```
 
 Off-chain and cross-realm derivation without the host's cooperation:
 `chain.DerivePkgSubAddr(host, subpath)`; parse a synthesized path with
-`chain.SplitPkgSubPath(p) (host, subpath, ok)` — the `:` is the
+`chain.SplitPkgSubPath(p) (host, subpath, ok)` — the `#` is the
 marker tooling should key on.
 
 Trust note: passing your live `cur` to `/p/` code already delegates
@@ -505,7 +506,7 @@ your namespace could ever mint (all are derivable off-chain). Audit
 `/p/` imports accordingly.
 
 Design rationale, alternatives, and the full guard analysis:
-`gnovm/adr/prxxxx_realm_sub.md`.
+`gnovm/adr/pr5890_realm_sub.md`.
 
 ## 6. Realm Boundaries
 

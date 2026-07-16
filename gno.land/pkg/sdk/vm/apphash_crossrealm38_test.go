@@ -68,7 +68,15 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "99e5ff7caff0997ffdbe78ab4f78113cd5ac6ee19d9ed59c881cc00a8dd43da7"
+//
+// Hash bumped by the realm.Sub PR (#5890): the realm interface gained
+// Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
+// stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
+// stdlib MemPackage source bytes are committed into genesis state, so the
+// iavlStore Merkle root shifts. The crossrealm38 scenario itself does not
+// use sub-realms; the move is purely the interface/stdlib change and is an
+// intended consensus break for that PR.
+const expectedCrossrealm38Hash = "466720513ce05e282f76ad880efead23b35e36bbe34620d952425d5fc84f61e2"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

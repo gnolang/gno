@@ -31,8 +31,8 @@ func main(cur realm) {
 }
 
 // Output:
-// prev.PkgPath: gno.land/r/demo/subrealm:dao/1
-// prev.Address: g1k4uhdpkdqwty40z4lzqtn5x95jsdm4dqtt3de5
+// prev.PkgPath: gno.land/r/demo/subrealm#dao/1
+// prev.Address: g1jy9ajp3mqdrcsklfgeafqpfr0nn2ypejnexzv6
 // unsafe parity prev: true
 // unsafe parity cur: true
-// nested mint: gno.land/r/demo/subrealm:inner
+// nested mint: gno.land/r/demo/subrealm#inner
