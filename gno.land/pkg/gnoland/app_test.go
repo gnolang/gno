@@ -1326,7 +1326,7 @@ func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
 
 	tx.Signatures = []std.Signature{
 		{
-			PubKey:   privKey.PubKey(),
+			PubKey:    privKey.PubKey(),
 			Signature: sig,
 		},
 	}
