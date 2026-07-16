@@ -35,7 +35,7 @@ func init() {
 	if err != nil {
 		panic("unable to marshal wallet registry: " + err.Error())
 	}
-	walletsMarshalled = template.JS(raw)
+	walletsMarshalled = template.JS(raw) //nolint:gosec // JSON object intended for <script type="application/json"> embed
 }
 
 // Wallets returns the embedded external-wallet registry.
