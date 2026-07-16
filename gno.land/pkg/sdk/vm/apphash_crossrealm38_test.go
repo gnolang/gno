@@ -69,6 +69,13 @@ import (
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
 //
+// Hash bumped 2026-07-10 (bptree mount PR), two coinciding causes: (1) the
+// test env's main store switched from IAVL to the B+32 bptree store
+// (different commitment structure — every multistore hash moves); (2) the
+// depth gas pins committed into "vm:p" changed (Fixed = Min: 300/200/440 →
+// 100/200/540). Behavior is unchanged (the zrealm_crossrealm38.gno filetest
+// still passes).
+//
 // Hash bumped by the realm.Sub PR (#5890): the realm interface gained
 // Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
 // stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
@@ -76,7 +83,7 @@ import (
 // iavlStore Merkle root shifts. The crossrealm38 scenario itself does not
 // use sub-realms; the move is purely the interface/stdlib change and is an
 // intended consensus break for that PR.
-const expectedCrossrealm38Hash = "466720513ce05e282f76ad880efead23b35e36bbe34620d952425d5fc84f61e2"
+const expectedCrossrealm38Hash = "b04e01f899aeee4bbfa376b60bf834dbbf8d90a6812904f539d511dd9ff4ec48"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

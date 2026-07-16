@@ -596,6 +596,7 @@ message FieldType {
 	google.protobuf.Any type = 2 [json_name = "Type"];
 	bool embedded = 3 [json_name = "Embedded"];
 	string tag = 4 [json_name = "Tag"];
+	string pkg_path = 5 [json_name = "PkgPath"];
 }
 
 message FuncType {

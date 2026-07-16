@@ -2818,7 +2818,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]
