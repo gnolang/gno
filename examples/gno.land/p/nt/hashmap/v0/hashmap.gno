@@ -19,8 +19,8 @@
 // B bucket pointers is itself a single object that every operation must decode in
 // full — at B=1024 that is ~190KB decoded on every Get/Set, fixed at any entry
 // count. Instead the buckets live in a two-level directory: ≈√B pages of ≈√B
-// buckets each. An operation decodes the directory, one page, and one bucket —
-// each a ≈√B-slot array rather than a B-slot one — and pages are allocated lazily,
+// buckets each. An operation decodes the directory and one page — each a ≈√B-slot
+// array rather than a B-slot one — plus one leaf bucket, and pages are allocated lazily,
 // so untouched pages cost nothing. This keeps the total bucket count high (small,
 // cheap-to-decode leaves) without a large array to decode. Measured on a cold 1M
 // entry grc20 transfer, this cut the ledger's decode+alloc cost by ~2M gas versus
