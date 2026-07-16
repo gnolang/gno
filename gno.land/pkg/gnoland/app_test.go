@@ -3184,6 +3184,104 @@ func TestInitChainer_StreamingAppState_TxParity(t *testing.T) {
 		"in-memory vs streaming tx outcomes must match")
 }
 
+func TestInitChainer_VestingAccount(t *testing.T) {
+	t.Parallel()
+
+	key := getDummyKey(t)
+	addr := key.PubKey().Address()
+	chainID := "test"
+
+	vestingAmount := std.NewCoins(std.NewCoin("ugnot", 500_000))
+	totalBalance := std.NewCoins(std.NewCoin("ugnot", 1_000_000))
+
+	tests := []struct {
+		name      string
+		vesting   *std.VestingSchedule
+		isVesting bool
+	}{
+		{
+			"continuous vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       100,
+				EndTime:         200,
+			},
+			true,
+		},
+		{
+			"delayed vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       0,
+				EndTime:         200,
+				Type:            std.VestingDelayed,
+			},
+			true,
+		},
+		{
+			"no vesting",
+			nil,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDb := memdb.NewMemDB()
+			testApp, err := NewAppWithOptions(TestAppOptions(testDb))
+			require.NoError(t, err)
+
+			state := DefaultGenState()
+			state.Balances = []Balance{
+				{
+					Address: addr,
+					Amount:  totalBalance,
+					Vesting: tt.vesting,
+				},
+			}
+
+			resp := testApp.InitChain(abci.RequestInitChain{
+				ChainID: chainID,
+				Time:    time.Unix(150, 0), // halfway through vesting
+				ConsensusParams: &abci.ConsensusParams{
+					Block: defaultBlockParams(),
+					Validator: &abci.ValidatorParams{
+						PubKeyTypeURLs: []string{},
+					},
+				},
+				AppState: state,
+			})
+			require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+
+			// Commit to persist the genesis state before querying.
+			cres := testApp.Commit()
+			require.NotNil(t, cres)
+
+			// Query the account to verify it exists.
+			qres := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("auth/accounts/%s", addr),
+			})
+			require.True(t, qres.IsOK(), "account query response: %v", qres)
+
+			if tt.isVesting {
+				// The account should be a vesting account type.
+				assert.Contains(t, string(qres.Data), "Vesting")
+				// The account number must be present.
+				assert.Contains(t, string(qres.Data), "account_number")
+			}
+
+			// Verify the coins are set correctly.
+			qresBank := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("bank/balances/%s", addr),
+			})
+			require.True(t, qresBank.IsOK(), "bank query response: %v", qresBank)
+			assert.Contains(t, string(qresBank.Data), "ugnot")
+		})
+	}
+}
+
 // writeMinimalGenesisFile emits a tm2.GenesisDoc-shaped JSON file under
 // t.TempDir() that wraps the given GnoGenesisState as `app_state`. Uses
 // the same SaveAs serialization the production gnogenesis CLI uses, so
