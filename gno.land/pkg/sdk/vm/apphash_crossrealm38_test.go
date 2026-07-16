@@ -88,9 +88,15 @@ import (
 // packages now store production files under pkg:<path> (typed MP*Prod) and
 // test/filetest files under a pkg:<path>#allbutprod sibling, changing stored
 // package bytes and the committed multistore root. Behavior is unchanged;
-// only the storage encoding shifted. (Value re-derived after merging master,
-// so it reflects the bptree store, #5890, and this split together.)
-const expectedCrossrealm38Hash = "d576406059fa96b30b8c16fb83bea798d3545ef30bc462e3d36b36897ddffa0b"
+// only the storage encoding shifted.
+//
+// Hash bumped by the preprocess-gas PR (#5892): the new PreprocessGasPerByte
+// vm param (default 1250) has a non-zero default serialized into the genesis
+// vm params state, shifting the committed multistore root. Behavior is
+// unchanged; only the genesis params encoding shifted. (Value re-derived
+// after merging master, so it reflects the bptree store + #5890 + #5891 +
+// this param together.)
+const expectedCrossrealm38Hash = "058910b2a1aa0f2c900990843643b5e13d8b8dfa3be8aa7f9dc7d169c1e7cb15"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
