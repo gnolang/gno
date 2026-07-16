@@ -29,7 +29,7 @@ import (
 // other token of that realm can collide with it.
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug).
+// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
 func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
