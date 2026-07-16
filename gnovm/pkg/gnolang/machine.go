@@ -1405,12 +1405,14 @@ const (
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
 	OpCPUExec                = 130
-	OpCPUPrecallTypeConv     = 72   // type conversion
-	OpCPUPrecallFunc         = 178  // function call
-	OpCPUPrecallBoundMethod  = 199  // bound method call
-	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
-	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
-	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
+	OpCPUPrecallTypeConv     = 72    // type conversion
+	OpCPUPrecallFunc         = 178   // function call
+	OpCPUPrecallBoundMethod  = 199   // bound method call
+	OpCPUEnterCrossing       = 520   // XXX arbitrary, not yet benchmarked
+	OpCPUCall                = 310   // base for 0 params, 0 captures (340.8ns - 31 alloc)
+	OpCPUCallNativeBody      = 2205  // XXX arbitrary, not properly benchmarked
+	OpCPUSubRealmBase        = 552   // realm.Sub: mirrors chain.packageAddress calibration (base)
+	OpCPUSubRealmSlope       = 15201 // realm.Sub: per 1024 bytes of synthesized pkgpath (slope)
 	OpCPUDefer               = 71
 	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
 	OpCPUGo                  = 1   // XXX not yet implemented
@@ -2827,7 +2829,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]

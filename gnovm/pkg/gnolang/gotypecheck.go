@@ -47,6 +47,8 @@ type realm interface {
     IsUserRun() bool
     IsEphemeral() bool
     IsCurrent() bool
+    Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm
@@ -79,7 +81,6 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
-var cross1 realm // shim — legacy sentinel migration aid; lowers to .origin-shaped AST at preprocess
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
@@ -541,10 +542,11 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 	dupes := []ast.Decl{}
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods and init functions
+		// ignore methods, init and blank functions
 		if !ok ||
 			fd.Recv != nil ||
-			fd.Name.Name == "init" {
+			fd.Name.Name == "init" ||
+			fd.Name.Name == "_" {
 			continue
 		}
 		// if declaration is duplicate, delete this one.

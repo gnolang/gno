@@ -88,7 +88,7 @@ type Store interface {
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
-	// is yielded as nil.
+	// is skipped.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -765,11 +765,6 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
 		}
 	}
-	// delete escaped hash from iavl.
-	if oo.GetIsEscaped() && ds.iavlStore != nil {
-		key := []byte(oid.String())
-		ds.iavlStore.Delete(ds.gctx, key)
-	}
 	// make realm op log entry
 	if ds.opslog != nil {
 		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
@@ -1243,6 +1238,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage yields each indexed package's PROD mempackage in index
+// order, skipping prod-less packages. See the Store interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
@@ -1263,6 +1260,13 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				mpkg := ds.GetMemPackage(string(path))
+				if mpkg == nil {
+					// Prod-less package (e.g. xxx_test-only): no prod
+					// blob to yield. On-chain this is unreachable — the
+					// vm keeper rejects prod-less packages at AddPackage
+					// — so this skip is defensive, for non-chain stores.
+					continue
+				}
 				ch <- mpkg
 			}
 			close(ch)
