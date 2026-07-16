@@ -184,7 +184,7 @@ gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugn
 stdout 'OK!'
 
 # user2 publishes a custom home package to its address namespace
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$user2_user_addr/home -gas-fee 540001ugnot -gas-wanted 5_400_000 -chainid=tendermint_test user2
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$user2_user_addr/home -gas-fee 540001ugnot -gas-wanted 7_100_000 -chainid=tendermint_test user2
 stdout 'OK!'
 
 # Render user2's home package
