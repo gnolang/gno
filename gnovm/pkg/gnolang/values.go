@@ -1996,8 +1996,8 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		if callerPath == "" {
 			callerPath = dtv.T.GetPkgPath()
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
-		if len(tr) == 0 {
+		tr, _, _, _, status := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
+		if status != embedLookupFound {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
 		}

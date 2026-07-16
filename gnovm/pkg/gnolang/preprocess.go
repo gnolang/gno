@@ -2529,11 +2529,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case embedLookupAmbiguous:
 						panic(fmt.Sprintf("ambiguous selector %s in %s",
 							n.Sel, cxt.String()))
-					}
-					if tr == nil {
+					case embedLookupNone:
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+					// embedLookupFound guarantees tr != nil below.
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)

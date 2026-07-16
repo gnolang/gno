@@ -1026,9 +1026,9 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// method's origin package (its stamp when flattened out of another
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
-		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
+		_, hp, rt, ft, status := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
 		mname := im.stampedName()
-		if tr == nil { // not found.
+		if status != embedLookupFound {
 			return fmt.Errorf("missing method %s", mname)
 		}
 		if mt, ok := ft.(*FuncType); ok {
@@ -2899,7 +2899,8 @@ func isGeneric(t Type) bool {
 // MaxStructFields/MaxEmbedDepth walk-size analysis valid (see DEGEN9
 // WideEmbed).
 //
-// Contract: trail != nil implies status == embedLookupFound — a
+// Contract: trail != nil iff status == embedLookupFound (callers check
+// only status and then use the trail unconditionally) — a
 // same-spelled unexported name from another package is a distinct
 // identity, so a gated candidate is skipped, never resolved; the walk
 // reports embedLookupAccessError only when gated sightings were the
