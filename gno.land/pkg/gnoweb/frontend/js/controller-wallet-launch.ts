@@ -53,9 +53,9 @@ export class WalletLaunchController extends BaseController {
 		return registryCache;
 	}
 
-	// Parameter values read live from the inputs at submit time, in declaration
-	// order (checked boxes of a checkbox group are comma-joined).
-	private _readArgs(): string[] {
+	// Parameter name/value pairs read live from the inputs at submit time
+	// (checked boxes of a checkbox group are comma-joined).
+	private _readArgs(): Map<string, string> {
 		const values = new Map<string, string>();
 		this.element
 			.querySelectorAll<HTMLInputElement>("[data-action-function-param-value]")
@@ -77,7 +77,7 @@ export class WalletLaunchController extends BaseController {
 					values.set(name, input.value.trim());
 				}
 			});
-		return [...values.values()];
+		return values;
 	}
 
 	// Send coins, if the send checkbox is toggled on.
@@ -117,16 +117,17 @@ export class WalletLaunchController extends BaseController {
 		return url.toString();
 	}
 
-	// Compose "<scheme>://tx?path=&func=&args=&...". args repeat once per
-	// positional param, empty values included to keep positions aligned.
+	// Compose "<scheme>://tx?path=&func=&arg.<name>=&...". Args are named,
+	// prefixed "arg." so realm parameter names can't collide with the link's
+	// own keys (path, func, send, rpc, chainid, callback).
 	private _buildLink(wallet: Wallet): string {
 		const enc = encodeURIComponent;
 		const parts: string[] = [
 			`path=${enc(this._pkgPath)}`,
 			`func=${enc(this._funcName)}`,
 		];
-		for (const value of this._readArgs()) {
-			parts.push(`args=${enc(value)}`);
+		for (const [name, value] of this._readArgs()) {
+			parts.push(`arg.${enc(name)}=${enc(value)}`);
 		}
 		const send = this._readSend();
 		if (send) parts.push(`send=${enc(send)}`);
