@@ -104,6 +104,14 @@ Bind interface method values lazily; resolve at the call.
   the eager 751 design; interface-layer hops are already metered at 529 each).
   #5721's BFS rewrite shrank this under-charge's worst case from O(paths) to
   O(reachable types) but did not remove it.
+  Re-measurement record (2026-07-16, dev machine, 3s×10): medians — selector
+  220ns, concrete-precall anchor 174ns (spread 151–206), lazy 799ns. The
+  anchor's ±16% spread alone swings the derived lazy const across 279–556, and
+  the original fit didn't record whether alloc-gas was subtracted (alloc-sub
+  formula → ~419, no-sub → ~714); 529 lies inside the joint uncertainty band,
+  so it stands — a dev-machine re-fit would be false precision. For the
+  reference-HW pass: record raw numbers + formula, and prefer a stabler (or
+  averaged) anchor than the ~160ns concrete precall.
 - Orthogonal, pre-existing (not caused or addressed here): interface method
   *expressions* `I.M` rejected at preprocess (#5787); a method call on a *nil
   interface* panics uncatchably (#5850).
