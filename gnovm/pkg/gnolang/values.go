@@ -633,10 +633,11 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 			return nil
 		}
 		pv := fv.GetPackage(store)
-		fb, ok := pv.fBlocksMap[fv.FileName]
-		if !ok {
-			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
-		}
+		// Lazily materialize this function's file block. fillPackage no
+		// longer pre-populates fBlocksMap, so on a package loaded from
+		// the store the entry may be absent here; GetFileBlock loads it
+		// from the FBlocks RefValue on demand and caches it.
+		fb := pv.GetFileBlock(store, fv.FileName)
 		fv.Parent = fb
 		return fb
 	case RefValue:
