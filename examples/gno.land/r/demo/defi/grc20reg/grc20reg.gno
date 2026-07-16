@@ -30,7 +30,7 @@ func Register(cur realm, token *grc20.Token, slug string) {
 	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
 	if key != token.ID() {
-		panic("grc20reg: token ID mismatch")
+		panic("grc20reg: token must be registered from its own realm")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")

@@ -71,7 +71,7 @@ func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	token, _ := grc20.NewToken(0, cur, "Mismatch Token", "MISMATCH", 4)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_target"))
-	urequire.AbortsContains(t, cur, "token ID mismatch", func() {
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
 		Register(cross(cur), token, "")
 	})
 }
@@ -124,4 +124,11 @@ func TestValidateSlugPanicsOnInjection(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug(`) [Claim](https://evil.com`)
 	t.Errorf("should have panicked")
+}
+
+func TestRegisterRejectsNilToken(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_nil"))
+	urequire.AbortsContains(t, cur, "nil token", func() {
+		Register(cross(cur), nil, "")
+	})
 }
