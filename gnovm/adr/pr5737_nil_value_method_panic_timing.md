@@ -60,24 +60,50 @@ Bind interface method values lazily; resolve at the call.
   still valid). The dispatch *walk* moved from bind to call, so the two consts
   were re-fit together (ratio-scaled; reference HW unavailable — see the
   `TODO(calibration)` on each):
-  - bind `OpCPUSelectorInterface` 751 → **276** — the eager selector walked the
-    trail here (~751); the lazy bind only does the method lookup + lazy-bind
-    alloc (~140 ns ≈ 276), so leaving it at 751 would double-charge the walk.
-  - call `OpCPULazyBoundResolve` **529** (new) — the walk, now at call time.
+  - Eager era (before): one flat `OpCPUSelectorInterface` = 751 at the *bind*
+    covered the whole dispatch — lookup, embedded-field trail walk, and any
+    nested embedded-interface layers — with no depth component; the call then
+    charged only the plain `OpCPUPrecallBoundMethod`. 751 was fitted on the
+    shallow (depth-1) shape, so deep dispatch did more work for the same flat
+    charge.
+  - bind `OpCPUSelectorInterface` 751 → **276** — the lazy bind only does the
+    method lookup + lazy-bind alloc (~140 ns ≈ 276); leaving it at 751 would
+    double-charge the walk, which now runs at the call.
+  - call `OpCPULazyBoundResolve` **529** (new) — charged per hop of
+    `resolveLazyBound` (once per stripped interface layer). Nested-interface
+    depth is thereby *metered* now (529 × hops), where the eager design charged
+    once regardless. Embedded-struct depth *within* a hop (the
+    `findEmbeddedFieldType` lookup + `resolveInterfaceTrail` per-step walk)
+    remains flat — inherited from the eager design, not introduced here (see
+    Follow-ups).
   Net ≈ +54 gas per interface method call (the genuine extra: a re-lookup +
   throwaway bound-method alloc), not the ~480 an un-reduced base would
-  over-charge. `stdlib_restart_compare` pin → 2235788. A lean walk avoiding the
+  over-charge. `stdlib_restart_compare` pin: +151 on the measured tx vs base,
+  stable across rebases (absolute value re-measured after each master merge;
+  1986927 as of the 2026-07-15 merge). A lean walk avoiding the
   throwaway alloc was rejected — it would duplicate `GetPointerToFromTV`'s
   dispatch/nil machinery on consensus code; the reuse form stays the single
   source of truth.
+- **#5721 interaction** (merged 2026-07-15): `findEmbeddedFieldType` was
+  rewritten to shallowest-match BFS with a global visited set — O(reachable
+  types), not O(paths), killing the diamond-embedding blowup. Same-machine
+  before/after benches (`OpPrecall_BoundMethod_Lazy`, `OpSelector_VPInterface`)
+  show the shallow common case unchanged within noise (−2%/−3%): both hot paths
+  hit the rewrite's depth-0 fast path, so **276 and 529 stay valid** at their
+  prior fidelity. It also tightens the un-metered intra-hop worst case (below)
+  — the reachable-type graph is capped by `MaxEmbedDepth` (8) /
+  `MaxStructFields` (128), and BFS visits each type at most once.
 
 ## Follow-ups
 
 - **Calibration, before the fork ships** (both consts are ratio-scaled — the
   reference HW was unavailable): re-measure `OpCPUSelectorInterface` (276) and
   `OpCPULazyBoundResolve` (529) on the gas-table reference HW; and consider a
-  per-trail-step slope on the lazy resolve so deep/nested dispatch is metered
-  per hop, matching the eager path (currently flat, a bounded under-charge).
+  per-trail-step slope on the lazy resolve so embedded-struct depth *within* a
+  hop is metered too (currently flat — a bounded under-charge inherited from
+  the eager 751 design; interface-layer hops are already metered at 529 each).
+  #5721's BFS rewrite shrank this under-charge's worst case from O(paths) to
+  O(reachable types) but did not remove it.
 - Orthogonal, pre-existing (not caused or addressed here): interface method
   *expressions* `I.M` rejected at preprocess (#5787); a method call on a *nil
   interface* panics uncatchably (#5850).
