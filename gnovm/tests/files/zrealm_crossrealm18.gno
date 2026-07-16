@@ -2,37 +2,38 @@
 package crossrealm
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
 
 func (fooer) Foo(cur realm) {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
 func (fooer) Bar() {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
-var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
+var f crossrealm.Fooer
 
 func init(cur realm) {
 	println("init")
-	// crossrealm.CallFooerFooCur(cross) <-- should panic
-	crossrealm.CallFooerFooCross(cross)
+	f = crossrealm.SetFooer(cross(cur), &fooer{})
+	// crossrealm.CallFooerFooCur(cross(cur)) <-- should panic
+	crossrealm.CallFooerFooCross(cross(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross(cur))
 }
 
 func main(cur realm) {
 	println("main")
 	// crossrealm.CallFooerFooCur(cross) <-- should panic
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross(cur))
 	print(".")
 }
 
@@ -40,15 +41,9 @@ func main(cur realm) {
 // init
 // hello gno.land/r/crossrealm
 // hello gno.land/r/crossrealm
-// hello gno.land/r/demo/tests/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
 // main
 // hello gno.land/r/crossrealm
 // hello gno.land/r/crossrealm
-// hello gno.land/r/demo/tests/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
 // .
-
-// Realm:
-// finalizerealm["gno.land/r/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm"]

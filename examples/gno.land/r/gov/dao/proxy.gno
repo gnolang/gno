@@ -1,8 +1,11 @@
 package dao
 
 import (
-	"std"
+	"chain"
+	"errors"
 	"strconv"
+
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // dao is the actual govDAO implementation, having all the needed business logic
@@ -18,13 +21,13 @@ var allowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
-// Remember this realm for rendering.
-var gRealm = std.CurrentRealm()
-
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
-func Render(p string) string {
-	return dao.Render(gRealm.PkgPath(), p)
+func Render(cur realm, p string) string {
+	if dao == nil {
+		return "DAO not initialized"
+	}
+	return dao.Render(cross(cur), cur.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
@@ -42,28 +45,28 @@ func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
 // If the proposal was denied, it will return false. If the proposal is correctly
 // executed, it will return true. If something happens this function will panic.
 func ExecuteProposal(cur realm, pid ProposalID) bool {
-	execute, err := dao.PreExecuteProposal(pid)
-	if err != nil {
-		panic(err.Error())
-	}
+	return executeProposal(cur, pid, false)
+}
 
-	if !execute {
-		return false
-	}
-	prop, err := GetProposal(cur, pid)
-	if err != nil {
-		panic(err.Error())
-	}
-	if err := prop.executor.Execute(cross); err != nil {
-		panic(err.Error())
-	}
-	return true
+// ExecuteOrRejectProposal executes the proposal with the provided ProposalID or rejects
+// it when there is an execution error.
+// If the proposal was denied, it will return false. If the proposal is correctly
+// executed, it will return true, unless execution fails with an error, in which case
+// proposal is rejected with the error as the reason.
+// This function allows to finish proposals by rejecting them when there is a state
+// change or an error in the proposal parameters that makes execution fail, potentially
+// leaving the proposal active forever because it can't be successfully executed.
+func ExecuteOrRejectProposal(cur realm, pid ProposalID) bool {
+	return executeProposal(cur, pid, true)
 }
 
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
-	author, err := dao.PreCreateProposal(r)
+	if dao == nil {
+		return -1, errors.New("DAO not initialized")
+	}
+	author, err := dao.PreCreateProposal(0, cur, r)
 	if err != nil {
 		return -1, err
 	}
@@ -77,9 +80,9 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(r, pid)
+	dao.PostCreateProposal(0, cur, r, pid)
 
-	std.Emit("ProposalCreated",
+	chain.Emit("ProposalCreated",
 		"id", strconv.FormatInt(int64(pid), 10),
 	)
 
@@ -96,7 +99,10 @@ func MustVoteOnProposal(cur realm, r VoteRequest) {
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
 func VoteOnProposal(cur realm, r VoteRequest) error {
-	return dao.VoteOnProposal(r)
+	if dao == nil {
+		return errors.New("DAO not initialized")
+	}
+	return dao.VoteOnProposal(0, cur, r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
@@ -107,8 +113,8 @@ func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
 	})
 }
 
-func MustGetProposal(cur realm, pid ProposalID) *Proposal {
-	p, err := GetProposal(cur, pid)
+func MustGetProposal(pid ProposalID) *Proposal {
+	p, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -116,18 +122,17 @@ func MustGetProposal(cur realm, pid ProposalID) *Proposal {
 	return p
 }
 
-// GetProposal gets created proposal by its ID
-func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
-	if err := dao.PreGetProposal(pid); err != nil {
-		return nil, err
+// GetProposal gets created proposal by its ID. Non-crossing pure read:
+// looks up the proposal in this realm's package var. Callable directly
+// from any realm without cross-call syntax.
+func GetProposal(pid ProposalID) (*Proposal, error) {
+	if dao == nil {
+		return nil, errors.New("DAO not initialized")
 	}
-
 	prop := proposals.GetProposal(pid)
-
-	if err := dao.PostGetProposal(pid, prop); err != nil {
-		return nil, err
+	if prop == nil {
+		return nil, errors.New(ufmt.Sprintf("Proposal %v does not exist.", int64(pid)))
 	}
-
 	return prop, nil
 }
 
@@ -139,7 +144,7 @@ func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(cur realm, r UpdateRequest) {
-	gRealm := std.PreviousRealm().PkgPath()
+	gRealm := cur.Previous().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
 		panic("permission denied for prev realm: " + gRealm)
@@ -170,4 +175,32 @@ func InAllowedDAOs(pkg string) bool {
 		}
 	}
 	return false
+}
+
+func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
+	if dao == nil {
+		return false
+	}
+	execute, err := dao.PreExecuteProposal(0, cur, pid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !execute {
+		return false
+	}
+	prop, err := GetProposal(pid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	err = dao.ExecuteProposal(0, cur, pid, prop.executor)
+	if err != nil {
+		if execErrorRejects {
+			return false
+		}
+
+		panic(err.Error())
+	}
+	return true
 }

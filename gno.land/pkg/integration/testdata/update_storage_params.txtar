@@ -11,16 +11,16 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## add a contract
-gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 380001ugnot -gas-wanted 3_800_000  -chainid=tendermint_test test1
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 
 ## Vote "update default deposit"
-gnokey maketx run  -gas-fee 95000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
@@ -29,7 +29,7 @@ gnokey query params/vm:p:default_deposit
 stdout '600000000ugnot'
 
 ## Execute "update default deposit" proposal
-gnokey maketx run  -gas-fee 20000ugnot -gas-wanted 20000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -40,7 +40,7 @@ stdout '1ugnot'
 
 ## failed due to not providing enough default deposit
 
-! gnokey maketx call -pkgpath gno.land/r/storage -func SetName -args "hellooo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/storage -func SetName -args "hellooo"  -gas-fee 5000000ugnot -gas-wanted 50000000  -chainid=tendermint_test test1
 
 stderr 'not enough deposit to cover the storage usage'
 
@@ -52,36 +52,30 @@ import (
   "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 
-  prop := params.NewSysParamStringPropRequest("vm", "p", "default_deposit", "1ugnot")
-  dao.MustCreateProposal(cross,prop)
+  prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "default_deposit", "1ugnot")
+  dao.MustCreateProposal(cross(cur),prop)
 }
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross,dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
-
 -- run/vote_proposal.gno --
 package main
 
@@ -89,11 +83,8 @@ import (
     "gno.land/r/gov/dao"
 )
 
-func main() {
-  dao.MustVoteOnProposal(cross,dao.VoteRequest{
-    Option:     dao.YesVote,
-    ProposalID: dao.ProposalID(0),
-  })
+func main(cur realm) {
+  dao.MustVoteOnProposal(cross(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 
@@ -104,8 +95,8 @@ import (
   "gno.land/r/gov/dao"
 )
 
-func main() {
-  dao.ExecuteProposal(cross,dao.ProposalID(0))
+func main(cur realm) {
+  dao.ExecuteProposal(cross(cur),dao.ProposalID(0))
 }
 
 
@@ -120,8 +111,8 @@ package storage
 
 var record Foo
 
-func init(){
-	NewFoo(cross,"hello")
+func init(cur realm){
+	NewFoo(cross(cur),"hello")
 }
 
 type Foo struct{

@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {
@@ -10,11 +10,17 @@ type Struct struct {
 }
 
 func main(cur realm) {
+	println("s := &Struct{A: 100}")
 	s := &Struct{A: 100}
-	crossrealm_b.SetObject(cross, &s.A)
+	println("crossrealm_b.SetObject(cross, &s.A)")
+	crossrealm_b.SetObject(cross(cur), &s.A)
+	println("s.A = 123")
 	s.A = 123
 	println(s)
 }
 
-// Error:
-// cannot modify external-realm or non-realm object
+// Output:
+// s := &Struct{A: 100}
+// crossrealm_b.SetObject(cross, &s.A)
+// s.A = 123
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct)

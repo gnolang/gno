@@ -2,28 +2,28 @@
 package crossrealm
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
 
 func (fooer) Foo(cur realm) {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
 func (fooer) Bar() {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
 var f *fooer
 
-func init() {
+func init(cur realm) {
 	println("init")
 	f = &fooer{}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.SetFooer(cross(cur), f)
+	crossrealm.CallFooerFooCur(cross(cur))
 }
 
 func main(cur realm) {
@@ -34,4 +34,4 @@ func main(cur realm) {
 // init
 
 // Error:
-// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/demo/tests/crossrealm
+// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm

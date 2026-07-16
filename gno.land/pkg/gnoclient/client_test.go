@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -25,7 +27,7 @@ var testGasFee = ugnot.ValueString(10000)
 
 func TestRender(t *testing.T) {
 	t.Parallel()
-	testRealmPath := "gno.land/r/demo/deep/very/deep"
+	testRealmPath := "gno.land/r/tests/vm/deep/very/deep"
 	expectedRender := []byte("it works!")
 
 	client := Client{
@@ -109,7 +111,7 @@ func TestCallSingle(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
@@ -178,14 +180,14 @@ func TestCallMultiple(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
 		},
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/wugnot",
+			PkgPath: "gno.land/r/gnoland/wugnot",
 			Func:    "Deposit",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(1000)}},
@@ -390,7 +392,6 @@ func TestCallErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -590,7 +591,6 @@ func TestClient_Send_Errors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -644,8 +644,8 @@ func TestRunSingle(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -721,8 +721,8 @@ func TestRunMultiple(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -956,7 +956,6 @@ func TestRunErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1155,7 +1154,6 @@ func TestAddPackageErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1271,7 +1269,6 @@ func TestBlockErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1312,7 +1309,6 @@ func TestBlockResultErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1342,7 +1338,6 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1520,7 +1515,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
-		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
+		assert.ErrorContains(t, err, "unable to unmarshal simulation response")
 	})
 
 	t.Run("valid gas estimation", func(t *testing.T) {
@@ -1564,5 +1559,61 @@ func TestClient_EstimateGas(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
+	})
+
+	t.Run("valid simulate", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			gasUsed     = int64(100000)
+			deliverResp = &abci.ResponseDeliverTx{
+				GasUsed: gasUsed,
+				ResponseBase: abci.ResponseBase{
+					Events: []abci.Event{
+						&chain.StorageDepositEvent{
+							BytesDelta: 10,
+							FeeDelta:   std.Coin{Denom: ugnot.Denom, Amount: 1000},
+						},
+					},
+				},
+			}
+		)
+
+		// Encode the response
+		encodedResp, err := amino.Marshal(deliverResp)
+		require.NoError(t, err)
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: encodedResp, // valid amino binary
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		deliverTx, err := c.Simulate(&std.Tx{})
+
+		require.NoError(t, err)
+		assert.Equal(t, gasUsed, deliverTx.GasUsed)
+
+		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events)
+		assert.Equal(t, true, hasStorageEvents)
+		assert.Equal(t, int64(10), bytesDelta)
+		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }

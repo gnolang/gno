@@ -20,7 +20,7 @@ type City struct {
 }
 
 type Sponsor struct {
-	Address std.Address
+	Address address
 	Amount  std.Coins
 }
 
@@ -92,34 +92,34 @@ func init() {
 }
 
 func UpdateCities(newCities []City) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	travel.cities = newCities
 }
 
 func AddCities(newCities ...City) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 
 	travel.cities = append(travel.cities, newCities...)
 }
 
 func UpdateJarLink(newLink string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	travel.jarLink = newLink
 }
 
 func UpdateAboutMe(aboutMeStr string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	profile.aboutMe = strings.Split(aboutMeStr, "|")
 }
 
 func AddAboutMeRows(newRows ...string) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 
 	profile.aboutMe = append(profile.aboutMe, newRows...)
 }
 
 func UpdateMaxSponsors(newMax int) {
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwned()
 	if newMax <= 0 {
 		panic("maxSponsors must be greater than zero")
 	}
@@ -169,7 +169,7 @@ func GetTopSponsors() []Sponsor {
 	var sponsorSlice SponsorSlice
 
 	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
-		addr := std.Address(key)
+		addr := address(key)
 		amount := value.(std.Coins)
 		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
 		return false
@@ -230,7 +230,7 @@ func formatAddress(address string) string {
 	return address[:4] + "..." + address[len(address)-4:]
 }
 
-func getDisplayName(addr std.Address) string {
+func getDisplayName(addr address) string {
 	if user := users.ResolveAddress(addr); user != nil {
 		return user.Name()
 	}

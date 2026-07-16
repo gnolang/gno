@@ -1,13 +1,13 @@
-package gnoblog
+package blog
 
 import (
-	"std"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/blog"
 )
 
 var b = &blog.Blog{
-	Title:  "gno.land's blog",
+	Title:  "Gno.land's blog",
 	Prefix: "/r/gnoland/blog:",
 }
 
@@ -15,7 +15,7 @@ func AddComment(_ realm, postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 
-	caller := std.OriginCaller()
+	caller := unsafe.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

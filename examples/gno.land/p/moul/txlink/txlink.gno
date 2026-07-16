@@ -28,12 +28,13 @@
 package txlink
 
 import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
 	"net/url"
-	"std"
 	"strings"
 )
 
-var chainDomain = std.ChainDomain()
+var chainDomain = runtime.ChainDomain()
 
 // Realm represents a specific realm for generating tx links.
 type Realm string
@@ -129,7 +130,7 @@ func Call(fn string, args ...string) string {
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		curPath := std.CurrentRealm().PkgPath()
+		curPath := unsafe.CurrentRealm().PkgPath()
 		return strings.TrimPrefix(curPath, chainDomain)
 	}
 

@@ -6,21 +6,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/random"
-
-	// "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var (
 	cacheSize        = 100
 	numRecent  int64 = 5
-	storeEvery int64 = 3
+	storeEvery int64 = 0
 )
 
 var (
@@ -35,7 +32,7 @@ var (
 func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
 	t.Helper()
 
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	for k, v := range treeData {
 		tree.Set([]byte(k), []byte(v))
 	}
@@ -54,9 +51,11 @@ func TestGetImmutable(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
-	require.True(t, tree.Set([]byte("hello"), []byte("adios")))
+	updated, err := tree.Set([]byte("hello"), []byte("adios"))
+	require.NoError(t, err)
+	require.True(t, updated)
 	hash, ver, err := tree.SaveVersion()
 	cID = types.CommitID{Version: ver, Hash: hash}
 	require.Nil(t, err)
@@ -66,18 +65,18 @@ func TestGetImmutable(t *testing.T) {
 
 	newStore, err := store.GetImmutable(cID.Version - 1)
 	require.NoError(t, err)
-	require.Equal(t, newStore.Get([]byte("hello")), []byte("goodbye"))
+	require.Equal(t, newStore.Get(nil, []byte("hello")), []byte("goodbye"))
 
 	newStore, err = store.GetImmutable(cID.Version)
 	require.NoError(t, err)
-	require.Equal(t, newStore.Get([]byte("hello")), []byte("adios"))
+	require.Equal(t, newStore.Get(nil, []byte("hello")), []byte("adios"))
 
 	res := newStore.Query(abci.RequestQuery{Data: []byte("hello"), Height: cID.Version, Path: "/key", Prove: true})
 	require.Equal(t, res.Value, []byte("adios"))
 	require.NotNil(t, res.Proof)
 
-	require.Panics(t, func() { newStore.Set(nil, nil) })
-	require.Panics(t, func() { newStore.Delete(nil) })
+	require.Panics(t, func() { newStore.Set(nil, nil, nil) })
+	require.Panics(t, func() { newStore.Delete(nil, nil) })
 	require.Panics(t, func() { newStore.Commit() })
 }
 
@@ -86,12 +85,12 @@ func TestTestGetImmutableIterator(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree, cID := newAlohaTree(t, db)
-	store := UnsafeNewStore(tree, storeOptions(10, 10))
+	store := UnsafeNewStore(tree, storeOptions(10, 0))
 
 	newStore, err := store.GetImmutable(cID.Version)
 	require.NoError(t, err)
 
-	iter := newStore.Iterator([]byte("aloha"), []byte("hellz"))
+	iter := newStore.Iterator(nil, []byte("aloha"), []byte("hellz"))
 	expected := []string{"aloha", "hello"}
 	var i int
 
@@ -115,21 +114,21 @@ func TestIAVLStoreGetSetHasDelete(t *testing.T) {
 
 	key := "hello"
 
-	exists := iavlStore.Has([]byte(key))
+	exists := iavlStore.Has(nil, []byte(key))
 	require.True(t, exists)
 
-	value := iavlStore.Get([]byte(key))
+	value := iavlStore.Get(nil, []byte(key))
 	require.EqualValues(t, value, treeData[key])
 
 	value2 := "notgoodbye"
-	iavlStore.Set([]byte(key), []byte(value2))
+	iavlStore.Set(nil, []byte(key), []byte(value2))
 
-	value = iavlStore.Get([]byte(key))
+	value = iavlStore.Get(nil, []byte(key))
 	require.EqualValues(t, value, value2)
 
-	iavlStore.Delete([]byte(key))
+	iavlStore.Delete(nil, []byte(key))
 
-	exists = iavlStore.Has([]byte(key))
+	exists = iavlStore.Has(nil, []byte(key))
 	require.False(t, exists)
 }
 
@@ -139,7 +138,7 @@ func TestIAVLStoreNoNilSet(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree, _ := newAlohaTree(t, db)
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
-	require.Panics(t, func() { iavlStore.Set([]byte("key"), nil) }, "setting a nil value should panic")
+	require.Panics(t, func() { iavlStore.Set(nil, []byte("key"), nil) }, "setting a nil value should panic")
 }
 
 func TestIAVLIterator(t *testing.T) {
@@ -148,7 +147,7 @@ func TestIAVLIterator(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree, _ := newAlohaTree(t, db)
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
-	iter := iavlStore.Iterator([]byte("aloha"), []byte("hellz"))
+	iter := iavlStore.Iterator(nil, []byte("aloha"), []byte("hellz"))
 	expected := []string{"aloha", "hello"}
 	var i int
 
@@ -161,7 +160,7 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator([]byte("golang"), []byte("rocks"))
+	iter = iavlStore.Iterator(nil, []byte("golang"), []byte("rocks"))
 	expected = []string{"hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -172,7 +171,7 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, []byte("golang"))
+	iter = iavlStore.Iterator(nil, nil, []byte("golang"))
 	expected = []string{"aloha"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -183,7 +182,7 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, []byte("shalom"))
+	iter = iavlStore.Iterator(nil, nil, []byte("shalom"))
 	expected = []string{"aloha", "hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -194,7 +193,7 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator(nil, nil)
+	iter = iavlStore.Iterator(nil, nil, nil)
 	expected = []string{"aloha", "hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -205,7 +204,7 @@ func TestIAVLIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = iavlStore.Iterator([]byte("golang"), nil)
+	iter = iavlStore.Iterator(nil, []byte("golang"), nil)
 	expected = []string{"hello"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -221,19 +220,19 @@ func TestIAVLReverseIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
-	iavlStore.Set([]byte{0x00}, []byte("0"))
-	iavlStore.Set([]byte{0x00, 0x00}, []byte("0 0"))
-	iavlStore.Set([]byte{0x00, 0x01}, []byte("0 1"))
-	iavlStore.Set([]byte{0x00, 0x02}, []byte("0 2"))
-	iavlStore.Set([]byte{0x01}, []byte("1"))
+	iavlStore.Set(nil, []byte{0x00}, []byte("0"))
+	iavlStore.Set(nil, []byte{0x00, 0x00}, []byte("0 0"))
+	iavlStore.Set(nil, []byte{0x00, 0x01}, []byte("0 1"))
+	iavlStore.Set(nil, []byte{0x00, 0x02}, []byte("0 2"))
+	iavlStore.Set(nil, []byte{0x01}, []byte("1"))
 
 	testReverseIterator := func(t *testing.T, start []byte, end []byte, expected []string) {
 		t.Helper()
 
-		iter := iavlStore.ReverseIterator(start, end)
+		iter := iavlStore.ReverseIterator(nil, start, end)
 		var i int
 		for i = 0; iter.Valid(); iter.Next() {
 			expectedValue := expected[i]
@@ -256,22 +255,22 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
-	iavlStore.Set([]byte("test1"), []byte("test1"))
-	iavlStore.Set([]byte("test2"), []byte("test2"))
-	iavlStore.Set([]byte("test3"), []byte("test3"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(0)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(1)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(255)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(0)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(1)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(255)}, []byte("test4"))
+	iavlStore.Set(nil, []byte("test1"), []byte("test1"))
+	iavlStore.Set(nil, []byte("test2"), []byte("test2"))
+	iavlStore.Set(nil, []byte("test3"), []byte("test3"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(0)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(1)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(255)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(0)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(1)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(255)}, []byte("test4"))
 
 	var i int
 
-	iter := types.PrefixIterator(iavlStore, []byte("test"))
+	iter := types.PrefixIterator(nil, iavlStore, []byte("test"))
 	expected := []string{"test1", "test2", "test3"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -283,7 +282,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.PrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.PrefixIterator(nil, iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(0)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -299,7 +298,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	iter.Close()
 	require.Equal(t, len(expected), i)
 
-	iter = types.PrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.PrefixIterator(nil, iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(0)},
 		{byte(255), byte(255), byte(1)},
@@ -320,22 +319,22 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
-	iavlStore.Set([]byte("test1"), []byte("test1"))
-	iavlStore.Set([]byte("test2"), []byte("test2"))
-	iavlStore.Set([]byte("test3"), []byte("test3"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(0)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(1)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(55), byte(255), byte(255), byte(255)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(0)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(1)}, []byte("test4"))
-	iavlStore.Set([]byte{byte(255), byte(255), byte(255)}, []byte("test4"))
+	iavlStore.Set(nil, []byte("test1"), []byte("test1"))
+	iavlStore.Set(nil, []byte("test2"), []byte("test2"))
+	iavlStore.Set(nil, []byte("test3"), []byte("test3"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(0)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(1)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(55), byte(255), byte(255), byte(255)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(0)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(1)}, []byte("test4"))
+	iavlStore.Set(nil, []byte{byte(255), byte(255), byte(255)}, []byte("test4"))
 
 	var i int
 
-	iter := types.ReversePrefixIterator(iavlStore, []byte("test"))
+	iter := types.ReversePrefixIterator(nil, iavlStore, []byte("test"))
 	expected := []string{"test3", "test2", "test1"}
 	for i = 0; iter.Valid(); iter.Next() {
 		expectedKey := expected[i]
@@ -346,7 +345,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(55), byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(nil, iavlStore, []byte{byte(55), byte(255), byte(255)})
 	expected2 := [][]byte{
 		{byte(55), byte(255), byte(255), byte(255)},
 		{byte(55), byte(255), byte(255), byte(1)},
@@ -361,7 +360,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	}
 	require.Equal(t, len(expected), i)
 
-	iter = types.ReversePrefixIterator(iavlStore, []byte{byte(255), byte(255)})
+	iter = types.ReversePrefixIterator(nil, iavlStore, []byte{byte(255), byte(255)})
 	expected2 = [][]byte{
 		{byte(255), byte(255), byte(255)},
 		{byte(255), byte(255), byte(1)},
@@ -380,7 +379,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 func nextVersion(iavl *Store) {
 	key := fmt.Appendf(nil, "Key for tree: %d", iavl.LastCommitID().Version)
 	value := fmt.Appendf(nil, "Value for tree: %d", iavl.LastCommitID().Version)
-	iavl.Set(key, value)
+	iavl.Set(nil, key, value)
 	iavl.Commit()
 }
 
@@ -388,52 +387,45 @@ func TestIAVLDefaultPruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 5, storeEvery = 3
+	// numRecent = 5, storeEvery = 0 (no waypoints)
+	// Each block prunes toRelease = previous - 5 when condition met.
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5}, []int64{}},
-		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},
-		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},
-		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},
-		{[]int64{3, 4, 5, 6, 7, 8, 9}, []int64{1, 2}},
-		{[]int64{3, 5, 6, 7, 8, 9, 10}, []int64{1, 2, 4}},
-		{[]int64{3, 6, 7, 8, 9, 10, 11}, []int64{1, 2, 4, 5}},
-		{[]int64{3, 6, 7, 8, 9, 10, 11, 12}, []int64{1, 2, 4, 5}},
-		{[]int64{3, 6, 8, 9, 10, 11, 12, 13}, []int64{1, 2, 4, 5, 7}},
-		{[]int64{3, 6, 9, 10, 11, 12, 13, 14}, []int64{1, 2, 4, 5, 7, 8}},
-		{[]int64{3, 6, 9, 10, 11, 12, 13, 14, 15}, []int64{1, 2, 4, 5, 7, 8}},
+		{[]int64{}, []int64{}},                                    // v0 (initial)
+		{[]int64{1}, []int64{}},                                   // v1
+		{[]int64{1, 2}, []int64{}},                                // v2
+		{[]int64{1, 2, 3}, []int64{}},                             // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                          // v4
+		{[]int64{1, 2, 3, 4, 5}, []int64{}},                       // v5
+		{[]int64{1, 2, 3, 4, 5, 6}, []int64{}},                    // v6: toRelease=0, 5<0 false
+		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},                   // v7: toRelease=1
+		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},                // v8: toRelease=2
+		{[]int64{4, 5, 6, 7, 8, 9}, []int64{1, 2, 3}},             // v9: toRelease=3
+		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},         // v10: toRelease=4
+		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},     // v11: toRelease=5
+		{[]int64{7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6}}, // v12: toRelease=6
 	}
-	testPruning(t, int64(5), int64(3), states)
+	testPruning(t, int64(5), int64(0), states)
 }
 
 func TestIAVLAlternativePruning(t *testing.T) {
 	t.Parallel()
 
 	// Expected stored / deleted version numbers for:
-	// numRecent = 3, storeEvery = 5
+	// numRecent = 3, storeEvery = 0 (no waypoints)
 	states := []pruneState{
-		{[]int64{}, []int64{}},
-		{[]int64{1}, []int64{}},
-		{[]int64{1, 2}, []int64{}},
-		{[]int64{1, 2, 3}, []int64{}},
-		{[]int64{1, 2, 3, 4}, []int64{}},
-		{[]int64{2, 3, 4, 5}, []int64{1}},
-		{[]int64{3, 4, 5, 6}, []int64{1, 2}},
-		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},
-		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},
-		{[]int64{5, 6, 7, 8, 9}, []int64{1, 2, 3, 4}},
-		{[]int64{5, 7, 8, 9, 10}, []int64{1, 2, 3, 4, 6}},
-		{[]int64{5, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 6, 7}},
-		{[]int64{5, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 6, 7, 8}},
-		{[]int64{5, 10, 11, 12, 13}, []int64{1, 2, 3, 4, 6, 7, 8, 9}},
-		{[]int64{5, 10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 6, 7, 8, 9}},
-		{[]int64{5, 10, 12, 13, 14, 15}, []int64{1, 2, 3, 4, 6, 7, 8, 9, 11}},
+		{[]int64{}, []int64{}},                            // v0
+		{[]int64{1}, []int64{}},                           // v1
+		{[]int64{1, 2}, []int64{}},                        // v2
+		{[]int64{1, 2, 3}, []int64{}},                     // v3
+		{[]int64{1, 2, 3, 4}, []int64{}},                  // v4: toRelease=0, 3<0 false
+		{[]int64{2, 3, 4, 5}, []int64{1}},                 // v5: toRelease=1
+		{[]int64{3, 4, 5, 6}, []int64{1, 2}},              // v6: toRelease=2
+		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},           // v7: toRelease=3
+		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},        // v8: toRelease=4
+		{[]int64{6, 7, 8, 9}, []int64{1, 2, 3, 4, 5}},     // v9: toRelease=5
+		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}}, // v10: toRelease=6
 	}
-	testPruning(t, int64(3), int64(5), states)
+	testPruning(t, int64(3), int64(0), states)
 }
 
 type pruneState struct {
@@ -445,7 +437,7 @@ func testPruning(t *testing.T, numRecent int64, storeEvery int64, states []prune
 	t.Helper()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	for step, state := range states {
 		for _, ver := range state.stored {
@@ -466,7 +458,7 @@ func TestIAVLNoPrune(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, int64(1)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -483,7 +475,7 @@ func TestIAVLPruneEverything(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(int64(0), int64(0)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -503,7 +495,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	k1, v1 := []byte("key1"), []byte("val1")
@@ -511,32 +503,21 @@ func TestIAVLStoreQuery(t *testing.T) {
 	v3 := []byte("val3")
 
 	ksub := []byte("key")
-	KVs0 := []types.KVPair{}
-	KVs1 := []types.KVPair{
-		{Key: k1, Value: v1},
-		{Key: k2, Value: v2},
-	}
-	KVs2 := []types.KVPair{
-		{Key: k1, Value: v3},
-		{Key: k2, Value: v2},
-	}
-	valExpSubEmpty := amino.MustMarshalSized(KVs0)
-	valExpSub1 := amino.MustMarshalSized(KVs1)
-	valExpSub2 := amino.MustMarshalSized(KVs2)
 
 	cid := iavlStore.Commit()
 	ver := cid.Version
 	query := abci.RequestQuery{Path: "/key", Data: k1, Height: ver}
 	querySub := abci.RequestQuery{Path: "/subspace", Data: ksub, Height: ver}
 
-	// query subspace before anything set
+	// /subspace is disabled (unbounded response); it must return an error,
+	// never data.
 	qres := iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSubEmpty, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// set data
-	iavlStore.Set(k1, v1)
-	iavlStore.Set(k2, v2)
+	iavlStore.Set(nil, k1, v1)
+	iavlStore.Set(nil, k2, v2)
 
 	// set data without commit, doesn't show up
 	qres = iavlStore.Query(query)
@@ -555,13 +536,13 @@ func TestIAVLStoreQuery(t *testing.T) {
 	require.Nil(t, qres.Error)
 	require.Equal(t, v1, qres.Value)
 
-	// and for the subspace
+	// subspace stays disabled regardless of state
 	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub1, qres.Value)
+	require.NotNil(t, qres.Error)
+	require.Nil(t, qres.Value)
 
 	// modify
-	iavlStore.Set(k1, v3)
+	iavlStore.Set(nil, k1, v3)
 	cid = iavlStore.Commit()
 
 	// query will return old values, as height is fixed
@@ -579,10 +560,6 @@ func TestIAVLStoreQuery(t *testing.T) {
 	qres = iavlStore.Query(query2)
 	require.Nil(t, qres.Error)
 	require.Equal(t, v2, qres.Value)
-	// and for the subspace
-	qres = iavlStore.Query(querySub)
-	require.Nil(t, qres.Error)
-	require.Equal(t, valExpSub2, qres.Value)
 
 	// default (height 0) will show latest -1
 	query0 := abci.RequestQuery{Path: "/key", Data: k1}
@@ -594,7 +571,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 func BenchmarkIAVLIteratorNext(b *testing.B) {
 	db := memdb.NewMemDB()
 	treeSize := 1000
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	for range treeSize {
 		key := random.RandBytes(4)
 		value := random.RandBytes(50)
@@ -603,7 +580,7 @@ func BenchmarkIAVLIteratorNext(b *testing.B) {
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	iterators := make([]types.Iterator, b.N/treeSize)
 	for i := range iterators {
-		iterators[i] = iavlStore.Iterator([]byte{0}, []byte{255, 255, 255, 255, 255})
+		iterators[i] = iavlStore.Iterator(nil, []byte{0}, []byte{255, 255, 255, 255, 255})
 	}
 	b.ResetTimer()
 	for i := range iterators {

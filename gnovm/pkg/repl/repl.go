@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"os"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -63,15 +64,15 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.errput = os.Stderr
 	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
 
-	var nilAllocator = (*gno.Allocator)(nil)
+	alloc := gno.NewAllocator(math.MaxInt64)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
-	r.pv = r.pn.NewPackage(nilAllocator)
+	r.pv = r.pn.NewPackage(alloc)
 	r.fn = &gno.FileNode{
 		FileName: "<repl>",
 		PkgName:  "repl",
 		Decls:    nil,
 	}
-	r.fb = gno.NewBlock(nilAllocator, r.fn, r.pv.GetBlock(r.store))
+	r.fb = gno.NewBlock(alloc, r.fn, r.pv.GetBlock(r.store))
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -164,9 +165,9 @@ func (r *Repl) RunStatements(code string) {
 		defer r.m.Debugger.Disable()
 	}
 
-	decls, err := gno.ParseDecls(code)
+	decls, err := r.m.ParseDecls(code)
 	if err != nil {
-		stmts, err2 := gno.ParseStmts(code)
+		stmts, err2 := r.m.ParseStmts(code)
 		if err2 != nil {
 			r.Errorln(err2.Error())
 			return

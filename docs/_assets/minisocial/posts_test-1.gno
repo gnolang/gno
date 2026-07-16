@@ -1,21 +1,20 @@
 package minisocial
 
 import (
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils" // Provides testing utilities
+	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(cross, text1)
+	err := CreatePost(cross(cur), text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -29,7 +28,7 @@ func TestCreatePostSingle(t *testing.T) {
 	}
 }
 
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -44,12 +43,11 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
-		// Create the post
-		// To call a crossing function, we specify the `cross` keyword
-		// This matches the first argument of type realm in the function itself
-		err := CreatePost(cross, p.text)
+		// Create the post via cross(cur) so the realm capability flows
+		// to CreatePost's `cur realm` parameter.
+		err := CreatePost(cross(cur), p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}

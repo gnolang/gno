@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"gno.land/p/demo/avl"
 	"strconv"
+
+	"gno.land/p/nt/avl/v0"
 )
 
 var boards avl.Tree
@@ -26,11 +27,11 @@ func (b *TreeBoard) AddPost(title, content string) {
 }
 
 func (b *TreeBoard) GetPost(id int) (Post, bool) {
-	p, ok := b.posts.Get(strconv.Itoa(id))
-	if ok {
-		return p.(Post), ok
+	p := b.posts.Get(strconv.Itoa(id))
+	if p != nil {
+		return p.(Post), true
 	} else {
-		return Post{}, ok
+		return Post{}, false
 	}
 }
 func (b *TreeBoard) Size() int {

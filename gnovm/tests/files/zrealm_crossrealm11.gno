@@ -2,33 +2,41 @@
 package crossrealm
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	ptests "gno.land/p/demo/tests"
-	"gno.land/p/demo/ufmt"
-	rtests "gno.land/r/demo/tests"
+	"gno.land/p/nt/ufmt/v0"
+	rtests "gno.land/r/tests/vm"
 )
 
-func getPreviousRealm() std.Realm {
-	return std.PreviousRealm()
+func getPreviousRealm() runtime.Realm {
+	return unsafe.PreviousRealm()
 }
 
 func Exec(fn func()) {
 	fn()
 }
 
+// ExecRlm mirrors Exec but threads rlm into the callback so it can
+// use `cross(rlm)` instead of bare cross.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+	fn(0, rlm)
+}
+
 func main(cur realm) {
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
-	callersByAddr := make(map[std.Address]string)
+	callersByAddr := make(map[address]string)
 	for _, caller := range []string{
-		"user1.gno", "gno.land/r/crossrealm", "gno.land/r/demo/tests",
+		"user1.gno", "gno.land/r/crossrealm", "gno.land/r/tests/vm",
 	} {
-		addr := std.DerivePkgAddr(caller)
+		addr := chain.PackageAddress(caller)
 		callersByAddr[addr] = caller
 	}
 
-	assertRealm := func(r std.Realm) {
+	assertRealm := func(r runtime.Realm) {
 		pkgPath := callersByAddr[r.Address()]
 		if r.IsUser() && pkgPath != "user1.gno" {
 			panic(ufmt.Sprintf("ERROR: expected: 'user1.gno', got:'%s'", pkgPath))
@@ -39,12 +47,12 @@ func main(cur realm) {
 
 	tests := []struct {
 		callStackAdd     string
-		callerFn         func() std.Realm
-		callerFnCrossing func(realm) std.Realm
+		callerFn         func() runtime.Realm
+		callerFnCrossing func(realm) runtime.Realm
 	}{
 		{
-			callStackAdd: " -> std.PreviousRealm",
-			callerFn:     std.PreviousRealm,
+			callStackAdd: " -> unsafe.PreviousRealm",
+			callerFn:     unsafe.PreviousRealm,
 		},
 		{
 			callStackAdd: " -> r/crossrealm.getPreviousRealm",
@@ -69,55 +77,55 @@ func main(cur realm) {
 	}
 
 	println("---") // needed to have space prefixes
-	printColumns("STACK", "std.PreviousRealm")
-	printColumns("-----", "------------------")
+	printColumns("STACK", "unsafe.PreviousRealm")
+	printColumns("-----", "----------------------")
 
 	baseCallStack := "user1.gno !> r/crossrealm.main2"
 	for _, tt := range tests {
 		{ // with no Exec
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross(cur))
 			} else {
 				r = tt.callerFn()
 			}
 			printColumns(baseCallStack+tt.callStackAdd, callersByAddr[r.Address()])
 
 		}
-		Exec(func() {
-			var r std.Realm
+		ExecRlm(0, cur, func(_ int, rlm realm) {
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/crossrealm.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.Exec(func() {
-			var r std.Realm
+		rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.ExecSwitch(cross, func() {
-			var r std.Realm
+		rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" !> r/demo/tests.ExecSwitch"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		ptests.Exec(func() {
-			var r std.Realm
+		ptests.ExecRlm(0, cur, func(_ int, rlm realm) {
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
@@ -146,13 +154,13 @@ func printColumns(left, right string) {
 
 // Output:
 // ---
-//                                                                                                     STACK = std.PreviousRealm
-//                                                                                                     ----- = ------------------
-//                                                      user1.gno !> r/crossrealm.main2 -> std.PreviousRealm = user1.gno
-//                                 user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> std.PreviousRealm = user1.gno
-//                                 user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> std.PreviousRealm = user1.gno
-//                           user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> std.PreviousRealm = gno.land/r/crossrealm
-//                                 user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> std.PreviousRealm = user1.gno
+//                                                                                                     STACK = unsafe.PreviousRealm
+//                                                                                                     ----- = ----------------------
+//                                                   user1.gno !> r/crossrealm.main2 -> unsafe.PreviousRealm = user1.gno
+//                              user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> unsafe.PreviousRealm = user1.gno
+//                              user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> unsafe.PreviousRealm = user1.gno
+//                        user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> unsafe.PreviousRealm = gno.land/r/crossrealm
+//                              user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> unsafe.PreviousRealm = user1.gno
 //                                          user1.gno !> r/crossrealm.main2 -> r/crossrealm.getPreviousRealm = user1.gno
 //                     user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> r/crossrealm.getPreviousRealm = user1.gno
 //                     user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> r/crossrealm.getPreviousRealm = user1.gno
@@ -171,10 +179,10 @@ func printColumns(left, right string) {
 //                                                           user1.gno !> r/crossrealm.main2 !> r/demo/tests = gno.land/r/crossrealm
 //                                      user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec !> r/demo/tests = gno.land/r/crossrealm
 //                                      user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec !> r/demo/tests = gno.land/r/crossrealm
-//                                user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests = gno.land/r/demo/tests
+//                                user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests = gno.land/r/tests/vm
 //                                      user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec !> r/demo/tests = gno.land/r/crossrealm
-//                                  user1.gno !> r/crossrealm.main2 !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/demo/tests
-//             user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/demo/tests
-//             user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/demo/tests
-//       user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/demo/tests
-//             user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/demo/tests
+//                                  user1.gno !> r/crossrealm.main2 !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//       user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm

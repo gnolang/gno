@@ -1,99 +1,32 @@
-# Running & testing Gno code
+# Running & Testing Gno code
+
+The `gno` binary runs and tests Gno code locally: `gno test` for unit tests,
+`gno run` for evaluating one-off expressions, and filetests for golden tests of
+realms.
+
+All of them run against a mocked GnoVM, so there is no real chain and any state
+changes stay in memory for that one command. Imports resolve from your local
+gno installation rather than a chain, so tests see the same standard library and
+examples packages you have on disk.
 
 ## Prerequisites
 
-- `gno` set up. See [Installation](../users/interact-with-gnokey.md).
+`gno` installed. See [Installation](../builders/install.md). The examples below
+build on the counter realm from
+[Getting started](../builders/getting-started.md): the `myrealm` package, with
+`myrealm.gno` and `myrealm_test.gno` in the package directory.
 
-## Overview
+## `gno test`
 
-In this tutorial, you will learn how to run and test your Gno code locally, by
-using the `gno` binary. For this example, we will use the `Counter` code from a
-[previous tutorial](../builders/anatomy-of-a-gno-package.md).
-
-## Setup
-
-Start by creating a folder which will contain your Gno code:
-
-```
-mkdir counter
-cd counter
-```
-
-First, we should initialize a `gnomod.toml` file. This file declares the package path
-of your realm & the Gno language version, and is used by Gno tools. We can do
-this by using the following command:
-
-```
-gno mod init gno.land/r/<namespace>/counter
-```
-
-You can enter your username under `<namespace>`. In this case, let's use `example`.
-This will create a file with the following content:
-
-```
-module gno.land/r/example/counter
-```
-
-Then, in the same folder, create two files- `counter.gno` & `counter_test.gno`:
-
-```
-touch counter.gno counter_test.gno
-```
-
-In these files, paste in the code from the previous tutorial.
-
-`counter.gno`:
-```go
-package counter
-
-import "strconv"
-
-var count int
-
-func Increment(_ realm, change int) int {
-	count += change
-	return count
-}
-
-func Render(_ string) string {
-	return "Current counter value: " + strconv.Itoa(count)
-}
-```
-
-`counter_test.gno`:
-```go
-package counter
-
-import "testing"
-
-func TestIncrement(t *testing.T) {
-	// Check initial value
-	if count != 0 {
-		t.Fatalf("Expected 0, got %d", count)
-	}
-
-	// Call Increment
-	value := Increment(cross, 42)
-
-	// Check result
-	if value != 42 {
-		t.Fatalf("Expected 42, got %d", count)
-	}
-}
-```
-
-## Testing
-
-To run package tests, we can simply use the `gno test` subcommand, passing it the
-directory that contains the tests. From inside the `counter/` directory, we
-can run the following:
+`gno test` runs a package's `_test.gno` files, much like `go test`. From inside
+the package directory:
 
 ```
 $ gno test .
 ok      .       0.81s
 ```
 
-To see a detailed list of tests that were executed, we can add the verbose flag:
+Add `-v` for verbose output:
 
 ```
 $ gno test . -v
@@ -102,68 +35,125 @@ $ gno test . -v
 ok      .       0.81s
 ```
 
-Apart from `-v`, other flags are also available, such as ones for setting the
-test timeout, checking performance metrics, etc.
+Other flags cover test timeouts and performance checks. See `gno test --help`.
 
-:::info Mocked testing & running environment
-The `gno` binary mocks a blockchain environment when running & testing code.
-See [Final remarks](#final-remarks).
+## `gno run`
+
+`gno run` evaluates an expression against your package code, a quick way to
+check a function during development without deploying. It works with pure
+packages and plain, non-crossing functions. To exercise realm functions that
+take a `realm` argument, use `gno test` or a filetest instead.
+
+It's a program runner, not a REPL, so return values aren't printed
+automatically. Wrap the expression in `println()`:
+
+```
+$ gno run -expr "println(Add(2, 3))" .
+5
+```
+
+Pass `-debug` to start the GnoVM debugger. See this
+[blog post](https://gno.land/r/gnoland/blog:p/gno-debugger).
+
+## Example tests
+
+`gno test` also supports example tests, [similar to Go](https://go.dev/blog/examples). An
+example test function takes no arguments and begins with the word `Example`. Like the test shown
+above, it must be in a file ending in `_test.gno`.
+The function prints output which is compared to the expected output in the `// Output:` comment.
+
+To try it, create a file `example_test.gno` which checks the expected value of the `Render` function:
+```
+touch example_test.gno
+```
+
+`example_test.gno`:
+```go
+package myrealm
+
+import (
+	"fmt"
+)
+
+func ExampleRender() {
+	count = 10
+	fmt.Println(Render(""))
+	// Output:
+	// Count: 10
+}
+```
+
+:::warning Reserved function name
+Your test file can have local helper functions, but `init()` is reserved for other types of tests.
+Use something like `initialize()` instead.
 :::
 
-## Running Gno code
+## Filetests
 
-The `gno` binary contains a `run` subcommand, allowing users to evaluate
-specific expressions in their Gno code, without a full blockchain environment.
-Under the hood, the Gno Virtual Machine evaluates the given expression and simply
-returns the value, without any permanent changes to contract storage.
+Filetests are golden tests typically used to test realms. They execute a `main`
+function and compare actual output against expected output written as comment
+directives at the bottom of the file.
 
-This can be an easy way to quickly evaluate a function during development, without
-having to spin up a full blockchain environment.
+Filetests use the `*_filetest.gno` suffix and are placed in a `filetests/`
+subdirectory of the realm package.
 
-The GnoVM won't automatically print out return values upon evaluating expressions,
-which is why we need to include a `println()` somewhere- either in the function
-body itself, or modify the expression itself:
+:::warning Stability notice
+Filetests are primarily intended as an internal tool. Their API and behavior
+are not guaranteed to be as stable as standard `gno test` testing.
+:::
 
-```
-gno run -expr "println(Increment(42))"
-```
+### Example
 
-Try running this expression for yourself:
+```go
+// PKGPATH: gno.land/r/demo/counter_test
+// SEND: 1000000ugnot
+package counter_test
 
-```go gno run-expression=println(Increment(42))
-package counter
+import "gno.land/r/demo/counter"
 
-import "strconv"
-
-var count int
-
-func Increment(_ realm, change int) int {
-	count += change
-	return count
+func main() {
+	counter.Increment(cross)
+	println(counter.Render(""))
 }
 
-func Render(_ string) string {
-	return "Current counter value: " + strconv.Itoa(count)
-}
+// Output:
+// 1
 ```
 
-The `run` subcommand also supports a full GnoVM debugger, which can be started
-with the `-debug` flag. Read more about it [here](https://gno.land/r/gnoland/blog:p/gno-debugger).
+### Running filetests
 
-## Final remarks
+```bash
+# Only run the filetest for a package (from the package directory)
+gno test -run "_filetest.gno" .
+# Update expected values when output intentionally changes
+gno test --update-golden-tests .
+```
 
-Note that executing and testing code as shown in this tutorial  utilizes a local,
-mocked execution environment. During testing and expression evaluation, the GnoVM
-is simply running as a language interpreter, with no connection to a real blockchain.
+### Directives
 
-No real on-chain transactions occur, and the state changes are purely in-memory
-for testing and development purposes. You might notice this if you run the same
-expression modifying a state variable twice, with the actual value staying unchanged.
+**Input directives** are single-line comments at the top of the file:
 
-All possible imports in your code are resolved from the GnoVM's installation folder.
+| Directive  | Description                          | Default |
+|------------|--------------------------------------|---------|
+| `PKGPATH`  | Package path. Use `r/` for realms.   | `main`  |
+| `MAXALLOC` | Max memory allocation in bytes.      | `0`     |
+| `SEND`     | Coins sent with the transaction.     | (none)  |
 
-## Conclusion
+**Output directives** are multi-line comments at the bottom:
 
-That's it 🎉
+| Directive        | Matches                                       |
+|------------------|-----------------------------------------------|
+| `Output`         | Standard output.                              |
+| `Error`          | Panic or error message.                       |
+| `Realm`          | Realm state change operations.                |
+| `Events`         | Emitted events (JSON).                        |
+| `Preprocessed`   | Preprocessed AST.                             |
+| `Stacktrace`     | Gno stacktrace on panic.                      |
+| `Gas`            | Gas consumed.                                 |
+| `Storage`        | Realm storage size diff.                      |
+| `TypeCheckError` | Go type-checker error.                        |
 
-You've successfully run local tests and expressions using the `gno` binary.
+:::info Pure package imports
+Imports of pure packages are processed separately. If a pure package contains a
+line like `println(1)`, its output cannot be checked by an `// Output:` directive.
+:::

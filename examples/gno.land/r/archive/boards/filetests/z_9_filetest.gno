@@ -1,0 +1,43 @@
+// PKGPATH: gno.land/r/archive/boards/filetests/z_9_filetest
+
+package z_9_filetest
+
+// SEND: 1000000ugnot
+
+import (
+	"strconv"
+	"testing"
+
+	"gno.land/r/archive/boards"
+	uinit "gno.land/r/sys/users/init"
+)
+
+var (
+	firstBoard  boards.BoardID
+	secondBoard boards.BoardID
+	pid         boards.PostID
+)
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
+
+	firstBoard = boards.CreateBoard(cross(cur), "first_board")
+	secondBoard = boards.CreateBoard(cross(cur), "second_board")
+	pid = boards.CreateThread(cross(cur), firstBoard, "First Post in (title)", "Body of the first post. (body)")
+
+	boards.CreateRepost(cross(cur), firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
+}
+
+func main() {
+	println(boards.Render("second_board/" + strconv.Itoa(int(pid))))
+}
+
+// Output:
+// # First Post in (title)
+//
+// Body of the first post. (body)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/archive/boards:second_board/1/1) \[[reply](/r/archive/boards$help&func=CreateReply&bid=2&postid=1&threadid=1)] \[[x](/r/archive/boards$help&func=DeletePost&bid=2&postid=1&threadid=1)]
+//

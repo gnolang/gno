@@ -5,15 +5,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/token"
+	"go/types"
 	goio "io"
 	"io/fs"
-	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -68,16 +71,24 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	dirs, err := gnoPackagesFromArgsRecursively(args)
+	loadCfg := packages.LoadConfig{
+		Fetcher:    testPackageFetcher,
+		Deps:       true,
+		Test:       true,
+		Out:        io.Err(),
+		AllowEmpty: true,
+		GnoRoot:    cmd.rootDir,
+	}
+	pkgs, err := packages.Load(loadCfg, args...)
 	if err != nil {
-		return fmt.Errorf("list packages from args: %w", err)
+		return err
 	}
 
 	hasError := false
 
 	prodbs, prodgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false},
+		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false, Packages: pkgs},
 	)
 	testbs, testgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
@@ -87,19 +98,32 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			WithExamples:   true,
 			Testing:        true,
 			SourceStore:    prodgs,
+			Packages:       pkgs,
 		},
 	)
 	ppkgs := map[string]cmdutil.ProcessedPackage{}
 	cache := make(gno.TypeCheckCache)
 
 	if cmd.verbose {
-		io.ErrPrintfln("linting directories: %v", dirs)
+		targetsNames := []string{}
+		for _, pkg := range pkgs {
+			if len(pkg.Match) == 0 {
+				continue
+			}
+			targetsNames = append(targetsNames, lintTargetName(pkg))
+		}
+		io.ErrPrintfln("linting packages: %v", targetsNames)
 	}
 	//----------------------------------------
 	// LINT STAGE 1: Typecheck and lint.
-	for _, dir := range dirs {
+	for _, pkg := range pkgs {
+		// ignore dependencies
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		if cmd.verbose {
-			io.ErrPrintfln("linting %q", dir)
+			io.ErrPrintfln("linting %q", lintTargetName(pkg))
 		}
 
 		// XXX Currently the linter only supports linting directories.
@@ -109,10 +133,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// rather than dirs. Commands like `gno lint a.gno b.gno`
 		// should create a temporary package from just those files. We
 		// could also load mempackages lazily for memory efficiency.
-		info, err := os.Stat(dir)
-		if err == nil && !info.IsDir() {
-			dir = filepath.Dir(dir)
-		}
+		// Alternative: support `command-line-arguments` in packages.Load
+		dir := pkg.Dir
 
 		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(dir, "gnomod.toml")
@@ -147,6 +169,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return commands.ExitCodeError(1)
 		}
 
+		// Skip processing for ignored modules
+		if mod.Ignore {
+			if cmd.verbose {
+				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+			}
+			continue
+		}
+
 		// See adr/pr4264_lint_transpile.md
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
@@ -158,11 +188,21 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Skip processing for ignored modules
-		if mod.Ignore {
-			if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+		// Check package name matches path element.
+		// This is also enforced in ValidateMemPackageAny, but we check here
+		// to provide a specific lint error code before other processing.
+		// See https://github.com/gnolang/gno/issues/1571
+		if err := gno.ValidatePkgNameMatchesPath(gno.Name(mpkg.Name), mpkg.Path); err != nil {
+			issue := gnoIssue{
+				Code:       gnoPackageNameMismatchError,
+				Confidence: 1,
+				Location:   dir,
+				Msg:        err.Error(),
 			}
+			io.ErrPrintln(issue)
+			hasError = true
+			// Skip the remaining lint steps: type-checking would only
+			// cascade-fail on the same mismatched package name.
 			continue
 		}
 
@@ -178,7 +218,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// doesn't impact other packages.
 		newProdGnoStore := func() gno.Store {
 			pcw := prodbs.CacheWrap()
-			pgs := prodgs.BeginTransaction(pcw, pcw, nil)
+			pgs := prodgs.BeginTransaction(pcw, pcw, nil, nil)
 			return pgs
 		}
 		injectTmpkg := func(tgs gno.Store) {
@@ -202,7 +242,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tmpkgType := tmpkg.Type.(gno.MemPackageType)
 					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						gno.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
+						m2.ParseMemPackageAsType(tmpkg, tmpkgType), true, true)
 				} else {
 					return tgetter(pkgPath, store)
 				}
@@ -210,7 +250,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 		newTestGnoStore := func(withTmpkg bool) gno.Store {
 			tcw := testbs.CacheWrap()
-			tgs := testgs.BeginTransaction(tcw, tcw, nil)
+			tgs := testgs.BeginTransaction(tcw, tcw, nil, nil)
 			if withTmpkg {
 				injectTmpkg(tgs)
 			}
@@ -237,11 +277,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcFset := token.NewFileSet()
+			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
 				Cache:      cache,
+				Fset:       tcFset,
 			})
 			if errs != nil {
 				// io.ErrPrintln(errs) printed above.
@@ -249,8 +291,16 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				return
 			}
 
+			// ensure the 'Render' function is correct
+			err = lintRenderSignature(io, tcPkg, tcFset)
+			if err != nil {
+				// io.ErrPrintln(err) printed above.
+				hasError = true
+				return
+			}
+
 			// Construct machine for testing.
-			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false)
+			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil)
 			defer tm.Release()
 
 			// LINT STEP 4: re-parse for preprocessor.
@@ -265,7 +315,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess fset files (no test files)
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false, "")
+					mpkg.Name, mpkg.Path, fset, false, false)
 				ppkg.AddNormal(pn, fset)
 			}
 			{
@@ -273,7 +323,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess fset files (w/ some *_test.gno).
 				tm.Store = newTestGnoStore(false)
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, tfset, false, false, "")
+					mpkg.Name, mpkg.Path, tfset, false, false)
 				ppkg.AddTest(pn, fset)
 			}
 			{
@@ -281,7 +331,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess _test files (all xxx_test *_test.gno).
 				tm.Store = newTestGnoStore(true)
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, "")
+					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false)
 				ppkg.AddUnderscoreTests(pn, _tests)
 			}
 			{
@@ -298,9 +348,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						hasError = true
 						continue
 					}
+					// A filetest may assert a preprocess-time failure
+					// via // Error:; in that case, swallow any panic
+					// here. Exact-message verification is `gno test`'s
+					// job — lint just needs to not flag the expected
+					// failure as a lint error.
+					expectsErr, derr := hasErrorDirective(mfile.Body)
+					if derr != nil {
+						io.ErrPrintln(derr)
+						hasError = true
+						continue
+					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, "")
-					ppkg.AddFileTest(pn, fset)
+					func() {
+						if expectsErr {
+							defer func() { _ = recover() }()
+						}
+						pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
+						ppkg.AddFileTest(pn, fset)
+					}()
 				}
 			}
 
@@ -318,15 +384,20 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	//----------------------------------------
 	// LINT STAGE 2: Write.
 	// Must be a separate stage to prevent partial writes.
-	for _, dir := range dirs {
-		ppkg, ok := ppkgs[dir]
+	for _, pkg := range pkgs {
+		// ignore dependencies
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		ppkg, ok := ppkgs[pkg.Dir]
 		if !ok {
 			// Skip directories that were not processed (e.g., ignored modules)
 			continue
 		}
 
 		// LINT STEP 6: mpkg.WriteTo():
-		err := ppkg.MPkg.WriteTo(dir)
+		err := ppkg.MPkg.WriteTo(pkg.Dir)
 		if err != nil {
 			return err
 		}
@@ -344,10 +415,11 @@ func lintTypeCheck(
 	mpkg *std.MemPackage,
 	opts gno.TypeCheckOptions) (
 	// Results:
+	tcPkg *types.Package,
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
+	tcPkg, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
@@ -357,4 +429,82 @@ func lintTypeCheck(
 
 	lerr = tcErrs
 	return
+}
+
+func lintTargetName(pkg *packages.Package) string {
+	if pkg.ImportPath != "" {
+		return pkg.ImportPath
+	}
+
+	return tryRelativizePath(pkg.Dir)
+}
+
+// lintRenderSignature checks if a Render function in the package has the expected signature
+// Returns error if the signature is incorrect.
+func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet) error {
+	// ignore pure package and ephemeral realms
+	if pkg == nil || !gno.IsRealmPath(pkg.Path()) {
+		return nil
+	}
+
+	o := pkg.Scope().Lookup("Render")
+	if o == nil {
+		return nil
+	}
+
+	fn, ok := o.(*types.Func)
+	if !ok {
+		return nil
+	}
+
+	s, ok := fn.Type().(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	if s.Recv() != nil {
+		return nil
+	}
+
+	// Accept both the legacy non-crossing form `Render(string) string`
+	// and the crossing form `Render(cur realm, string) string`. The
+	// crossing form is auto-injected with .cur by the chain query layer
+	// (see MaybeInjectCurForEval).
+	params, results := s.Params(), s.Results()
+	isString := func(t *types.Tuple, i int) bool {
+		return t != nil && i < t.Len() && t.At(i) != nil && t.At(i).Type().String() == "string"
+	}
+	isRealm := func(t *types.Tuple, i int) bool {
+		if t == nil || i >= t.Len() || t.At(i) == nil {
+			return false
+		}
+		// gno's `realm` type is exposed via the gnobuiltins shim as
+		// gnobuiltins/gno0p9.realm (alias .Realm). Match by suffix to
+		// tolerate qualifier variants.
+		ts := t.At(i).Type().String()
+		return strings.HasSuffix(ts, ".realm") || strings.HasSuffix(ts, ".Realm")
+	}
+
+	validResults := results != nil && results.Len() == 1 && isString(results, 0)
+	validNonCrossing := params != nil && params.Len() == 1 && isString(params, 0)
+	validCrossing := params != nil && params.Len() == 2 && isRealm(params, 0) && isString(params, 1)
+
+	if !validResults || (!validNonCrossing && !validCrossing) {
+		location := pkg.Path()
+		if fset != nil && fn.Pos().IsValid() {
+			pos := fset.Position(fn.Pos())
+			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
+		}
+
+		err := fmt.Errorf("invalid signature for the realm's Render function; must be `func Render(string) string` or `func Render(cur realm, string) string`")
+		fmt.Fprintln(io.Err(), gnoIssue{
+			Code:       gnoLintError,
+			Msg:        err.Error(),
+			Confidence: 1,
+			Location:   location,
+		})
+		return err
+	}
+
+	return nil
 }

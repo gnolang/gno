@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/version"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 type vmHandler struct {
@@ -71,13 +71,18 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
-	QueryDoc     = "qdoc"
-	QueryPaths   = "qpaths"
-	QueryStorage = "qstorage"
+	QueryRender       = "qrender"
+	QueryFuncs        = "qfuncs"
+	QueryEval         = "qeval"
+	QueryEvalJSON     = "qeval_json"
+	QueryObjectJSON   = "qobject_json"
+	QueryObjectBinary = "qobject_binary"
+	QueryFile         = "qfile"
+	QueryDoc          = "qdoc"
+	QueryPaths        = "qpaths"
+	QueryStorage      = "qstorage"
+	QueryPkgJSON      = "qpkg_json"
+	QueryTypeJSON     = "qtype_json"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -93,6 +98,12 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
 		res = vh.queryEval(ctx, req)
+	case QueryEvalJSON:
+		res = vh.queryEvalJSON(ctx, req)
+	case QueryObjectJSON:
+		res = vh.queryObjectJSON(ctx, req)
+	case QueryObjectBinary:
+		res = vh.queryObjectBinary(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
@@ -101,6 +112,10 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryPkgJSON:
+		res = vh.queryPkg(ctx, req)
+	case QueryTypeJSON:
+		res = vh.queryType(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -194,6 +209,42 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
+// queryEvalJSON evaluates any expression in readonly mode and returns JSON results.
+func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgPath, expr := parseQueryEvalData(string(req.Data))
+	result, err := vh.vm.QueryEvalJSON(ctx, pkgPath, expr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryObjectJSON retrieves a persisted object by ObjectID and returns its Amino JSON representation.
+func (vh vmHandler) queryObjectJSON(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObjectJSON(ctx, oidStr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryObjectBinary retrieves a persisted object by ObjectID and returns its Amino binary representation.
+func (vh vmHandler) queryObjectBinary(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObjectBinary(ctx, oidStr)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = result
+	return
+}
+
 // parseQueryEval parses the input string of vm/qeval. It takes the first dot
 // after the first slash (if any) to separe the pkgPath and the expr.
 // For instance, in gno.land/r/realm.MyFunction(), gno.land/r/realm is the
@@ -247,6 +298,39 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgpath := string(req.Data)
 	result, err := vh.vm.QueryStorage(ctx, pkgpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryPkg returns the named block variables of a package as Amino JSON.
+func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgPath := string(req.Data)
+	result, err := vh.vm.QueryPkg(ctx, pkgPath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryType returns a type definition by TypeID as Amino JSON.
+func (vh vmHandler) queryType(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// Recover from panics (e.g. stack overflow from circular type references
+	// like time.Time) so the server stays alive.
+	defer func() {
+		if r := recover(); r != nil {
+			res = sdk.ABCIResponseQueryFromError(
+				fmt.Errorf("queryType panic for %q: %v", string(req.Data), r))
+		}
+	}()
+
+	tidStr := string(req.Data)
+	result, err := vh.vm.QueryType(ctx, tidStr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

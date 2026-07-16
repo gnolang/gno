@@ -48,7 +48,7 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 	// for logging
 	switch m := msg.Msg.(type) {
 	case newRoundStepInfo:
-		cs.Logger.Info("Replay: New Step", "height", m.Height, "round", m.Round, "step", m.Step)
+		cs.Logger.Debug("Replay: New Step", "height", m.Height, "round", m.Round, "step", m.Step)
 		// these are playback checks
 		ticker := time.After(time.Second * 2)
 		if newStepSub != nil {
@@ -73,19 +73,19 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 		switch msg := m.Msg.(type) {
 		case *ProposalMessage:
 			p := msg.Proposal
-			cs.Logger.Info("Replay: Proposal", "height", p.Height, "round", p.Round, "header",
+			cs.Logger.Debug("Replay: Proposal", "height", p.Height, "round", p.Round, "header",
 				p.BlockID.PartsHeader, "pol", p.POLRound, "peer", peerID)
 		case *BlockPartMessage:
-			cs.Logger.Info("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerID)
+			cs.Logger.Debug("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerID)
 		case *VoteMessage:
 			v := msg.Vote
-			cs.Logger.Info("Replay: Vote", "height", v.Height, "round", v.Round, "type", v.Type,
+			cs.Logger.Debug("Replay: Vote", "height", v.Height, "round", v.Round, "type", v.Type,
 				"blockID", v.BlockID, "peer", peerID)
 		}
 
 		cs.handleMsg(m)
 	case timeoutInfo:
-		cs.Logger.Info("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
+		cs.Logger.Debug("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
 		cs.handleTimeout(m, cs.RoundState)
 	default:
 		return fmt.Errorf("replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
@@ -134,6 +134,7 @@ func (cs *ConsensusState) catchupReplay(csHeight int64) error {
 	defer gr.Close() //nolint: errcheck
 
 	cs.Logger.Info("Catchup by replaying consensus messages", "height", csHeight)
+	start := time.Now()
 
 	dec := walm.NewWALReader(gr, maxMsgSize)
 
@@ -156,7 +157,7 @@ LOOP:
 			return err
 		}
 	}
-	cs.Logger.Info("Replay: Done")
+	cs.Logger.Info("Replay: Done", "elapsed", time.Since(start))
 	return nil
 }
 
@@ -286,6 +287,38 @@ func (h *Handshaker) ReplayBlocks(
 	stateBlockHeight := state.LastBlockHeight
 	h.logger.Info("ABCI Replay Blocks", "appHeight", appBlockHeight, "storeHeight", storeBlockHeight, "stateHeight", stateBlockHeight)
 
+	// "Fresh state" = no real block has been committed for this chain yet.
+	// Captured BEFORE any mutation so the inner "first-time
+	// validators/params update" branch below recognises this as the first
+	// boot for hardfork chains too. genDoc.InitialHeight is the source of
+	// truth — state.InitialHeight may not yet reflect it (e.g. when
+	// MakeGenesisStateFromFile was called against a master-format genesis
+	// before genDoc.InitialHeight was applied).
+	genDocInitialHeight := h.genDoc.InitialHeight
+	if genDocInitialHeight == 0 {
+		genDocInitialHeight = 1
+	}
+	wasStateFresh := stateBlockHeight < genDocInitialHeight
+
+	// fix-a: align state.InitialHeight and state.LastBlockHeight to
+	// genDoc.InitialHeight when the genesis declares a hardfork start
+	// height but the loaded state hasn't (yet) been positioned there.
+	// MakeGenesisState already sets the post-handshake shape on a fresh
+	// run; this branch covers (1) restart with a state that pre-dates
+	// the InitialHeight field, and (2) the cms-ahead-of-state crash
+	// window. Persist immediately (sm.SaveState SetSyncs the state-record
+	// key).
+	if genDocInitialHeight > 1 && state.LastBlockHeight < genDocInitialHeight-1 {
+		state.InitialHeight = genDocInitialHeight
+		state.LastBlockHeight = genDocInitialHeight - 1
+		stateBlockHeight = state.LastBlockHeight
+		h.logger.Info("Aligning state to genesis InitialHeight",
+			"initial_height", state.InitialHeight,
+			"last_block_height", state.LastBlockHeight,
+		)
+		sm.SaveState(h.stateDB, state)
+	}
+
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain.
 	if appBlockHeight == 0 {
 		validators := make([]*types.Validator, len(h.genDoc.Validators))
@@ -301,6 +334,7 @@ func (h *Handshaker) ReplayBlocks(
 			ConsensusParams: &csParams,
 			Validators:      nextVals,
 			AppState:        h.genDoc.AppState,
+			InitialHeight:   h.genDoc.InitialHeight,
 		}
 		res, err := proxyApp.Consensus().InitChainSync(req)
 		if err != nil {
@@ -314,7 +348,9 @@ func (h *Handshaker) ReplayBlocks(
 
 		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
 
-		if stateBlockHeight == 0 { // we only update state when we are in initial state
+		// Use the captured wasStateFresh because the fix-a hoist above may
+		// have advanced state.LastBlockHeight to InitialHeight-1 already.
+		if wasStateFresh {
 			// If the app returned validators or consensus params, update the state.
 			if len(res.Validators) > 0 {
 				vals := types.NewValidatorSetFromABCIValidatorUpdates(res.Validators)
@@ -328,6 +364,8 @@ func (h *Handshaker) ReplayBlocks(
 			if res.ConsensusParams != nil {
 				state.ConsensusParams = state.ConsensusParams.Update(*res.ConsensusParams)
 			}
+
+			// (state.InitialHeight + LastBlockHeight init hoisted to top of function — see fix-a above.)
 			sm.SaveState(h.stateDB, state)
 		}
 	}
@@ -418,15 +456,22 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 	if mutateState {
 		finalBlock--
 	}
-	for i := appBlockHeight + 1; i <= finalBlock; i++ {
+	// When the chain starts at InitialHeight > 1 (e.g. a hardfork upgrade),
+	// heights in [1, InitialHeight-1] are phantom — they never had a block.
+	// Clamp the replay cursor so we don't try to LoadBlock on those heights.
+	startHeight := max(h.genDoc.InitialHeight, appBlockHeight+1)
+	for i := startHeight; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)
+		if block == nil {
+			return nil, fmt.Errorf("block not found for height %d", i)
+		}
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
 		}
 
-		appHash, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, h.logger, h.stateDB)
+		appHash, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, state, h.logger, h.stateDB)
 		if err != nil {
 			return nil, err
 		}
@@ -450,7 +495,13 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 // ApplyBlock on the proxyApp with the last block.
 func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp appconn.Consensus) (sm.State, error) {
 	block := h.store.LoadBlock(height)
+	if block == nil {
+		return sm.State{}, fmt.Errorf("block not found for height %d", height)
+	}
 	meta := h.store.LoadBlockMeta(height)
+	if meta == nil {
+		return sm.State{}, fmt.Errorf("block meta not found for height %d", height)
+	}
 
 	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, mock.Mempool{})
 	blockExec.SetEventSwitch(h.evsw)

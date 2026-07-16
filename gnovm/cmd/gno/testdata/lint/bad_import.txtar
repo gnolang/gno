@@ -1,12 +1,12 @@
 # testing gno lint command: bad import error
 
-! gno lint ./bad_file.gno
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
 
 -- bad_file.gno --
-package main
+package bad_import
 
 import "python"
 

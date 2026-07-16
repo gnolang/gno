@@ -2,16 +2,18 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
-// NOTE: it is valid to persist external realm types.
+// Regression: a foreign-realm-typed package var carries the type's
+// declared PkgID (type-driven stamping). /r/crossrealm cannot
+// directly write fields of an /r/tests/vm-stamped struct — the
+// readonly gate fires.
 var somevalue tests.TestRealmObject
 
 func main(cur realm) {
 	somevalue.Field = "test"
-	println(somevalue)
 }
 
-// Output:
-// (struct{("test" string)} gno.land/r/demo/tests.TestRealmObject)
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): somevalue<~VPBlock(3,0)>.Field

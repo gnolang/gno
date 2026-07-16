@@ -72,6 +72,30 @@ fmt:
 	$(MAKE) --no-print-directory -C examples fmt
 	$(MAKE) --no-print-directory -C contribs fmt
 
+# `go fix` applies the Go 1.26+ modernizers. Pin the toolchain so `make fix`
+# matches CI regardless of the version in go.mod; override with
+# GO_FIX_TOOLCHAIN=local to use your installed Go. Bump when the repo's Go
+# version advances (keep in sync with .github/workflows/_ci-go.yml).
+GO_FIX_TOOLCHAIN ?= go1.26.1
+
+# -omitzero=false disables the omitzero modernizer: it strips `json:",omitempty"`
+# from struct-typed fields (a no-op for encoding/json), but Amino honors omitempty
+# on struct fields, so removing it changes JSON output. Keep in sync with the CI
+# check in .github/workflows/_ci-go.yml.
+GO_FIX_FLAGS ?= -omitzero=false
+
+.PHONY: fix
+# Apply `go fix` across every Go module that CI checks (see the lint job).
+# CGO_ENABLED=1 so `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) are
+# covered, matching CI; otherwise those files are silently skipped here but
+# flagged by the CI check. Requires a C compiler.
+fix:
+	CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
+	@for d in $(wildcard contribs/*/) misc/autocounterd/ misc/loop/; do \
+		echo "==> go fix $$d"; \
+		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
+	done
+
 .PHONY: lint
 lint:
 	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config .github/golangci.yml
@@ -79,3 +103,7 @@ lint:
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
+
+.PHONY: mocks
+mocks:
+	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go

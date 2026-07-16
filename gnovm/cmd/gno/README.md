@@ -29,6 +29,9 @@ SUBCOMMANDS
   tool     run specified gno tool
   version  display installed gno version
 
+FLAGS
+  -C ...  change to directory before running command
+
 ```
 
 ## Install
@@ -39,7 +42,7 @@ Or
 
     > git clone git@github.com:gnolang/gno.git
     > cd ./gno
-    > make install_gno
+    > make install.gno
 
 ## Getting started
 

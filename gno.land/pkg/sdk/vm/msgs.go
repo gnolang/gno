@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -19,7 +20,7 @@ type MsgAddPackage struct {
 	Creator    crypto.Address  `json:"creator" yaml:"creator"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
 	Send       std.Coins       `json:"send" yaml:"send"`
-	MaxDeposit std.Coins       `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
@@ -85,6 +86,15 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 	return msg.Send
 }
 
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the creator, zero otherwise.
+func (msg MsgAddPackage) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Creator {
+		return nil
+	}
+	return msg.Send
+}
+
 //----------------------------------------
 // MsgCall
 
@@ -92,10 +102,10 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 type MsgCall struct {
 	Caller     crypto.Address `json:"caller" yaml:"caller"`
 	Send       std.Coins      `json:"send" yaml:"send"`
-	MaxDeposit std.Coins      `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins      `json:"max_deposit" yaml:"max_deposit"`
 	PkgPath    string         `json:"pkg_path" yaml:"pkg_path"`
 	Func       string         `json:"func" yaml:"func"`
-	Args       []string       `json:"args" yaml:"args"`
+	Args       []string       `json:"args,omitempty" yaml:"args"`
 }
 
 var _ std.Msg = MsgCall{}
@@ -130,8 +140,14 @@ func (msg MsgCall) ValidateBasic() error {
 	if _, isInt := gno.IsInternalPath(msg.PkgPath); isInt {
 		return ErrInvalidPkgPath("pkgpath must not be of an internal package")
 	}
-	if msg.Func == "" { // XXX
+	if msg.Func == "" {
 		return ErrInvalidExpr("missing function to call")
+	}
+	// msg.Func is spliced into `pkg.{Func}(cross, …)` and handed to the
+	// Go parser at Call time; restrict it to a plain identifier so an
+	// attacker can't inject arbitrary Go expression syntax.
+	if !token.IsIdentifier(msg.Func) {
+		return ErrInvalidExpr("func must be a Go identifier")
 	}
 	if !msg.Send.IsValid() {
 		return std.ErrInvalidCoins(msg.Send.String())
@@ -152,8 +168,20 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
+// GetPkgPath returns the target package path.
+func (msg MsgCall) GetPkgPath() string { return msg.PkgPath }
+
 // Implements ReceiveMsg.
 func (msg MsgCall) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the caller, zero otherwise.
+func (msg MsgCall) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
 	return msg.Send
 }
 
@@ -164,7 +192,7 @@ func (msg MsgCall) GetReceived() std.Coins {
 type MsgRun struct {
 	Caller     crypto.Address  `json:"caller" yaml:"caller"`
 	Send       std.Coins       `json:"send" yaml:"send"`
-	MaxDeposit std.Coins       `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
 }
 
@@ -235,5 +263,14 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgRun) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the caller, zero otherwise.
+func (msg MsgRun) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
 	return msg.Send
 }

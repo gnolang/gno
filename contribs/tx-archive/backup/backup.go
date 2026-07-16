@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // amino types
+	_ "github.com/gnolang/gno/gnovm/stdlibs/chain" // amino types
 
 	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
 	"github.com/gnolang/gno/contribs/tx-archive/backup/writer"
@@ -92,10 +93,7 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		// Fetch by batches
 		for batchStart := fromBlock; batchStart <= toBlock; {
 			// Determine batch stop block
-			batchStop := batchStart + uint64(s.batchSize) - 1
-			if batchStop > toBlock {
-				batchStop = toBlock
-			}
+			batchStop := min(batchStart+uint64(s.batchSize)-1, toBlock)
 
 			batchSize := batchStop - batchStart + 1
 

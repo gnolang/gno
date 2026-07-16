@@ -5,9 +5,9 @@ import (
 
 	"gno.land/p/demo/gnorkle/storage"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestStorage(t *testing.T) {

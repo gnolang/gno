@@ -4,17 +4,18 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/bptree/v0/pager"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/samcrew/tablesort"
 	"gno.land/p/samcrew/urlfilter"
 )
 
 // RenderMembers returns the members list with tier filters and pagination.
 func RenderMembers(path string, members MembersByTier) string {
 	u, _ := url.Parse(path)
-	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
+	mdFilters, items := urlfilter.ApplyFilters(u, members.BPTree, "filter")
 	var sb strings.Builder
 
 	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore") + "\n\n")
@@ -25,26 +26,30 @@ func RenderMembers(path string, members MembersByTier) string {
 	pager := pager.NewPager(items, pageSize, false)
 	page := pager.MustGetPageByPath(path)
 
-	sb.WriteString(renderMembersPages(page, items) + "\n")
+	sb.WriteString(renderMembersPages(u, page, items) + "\n")
 	sb.WriteString(renderPagination(u, page))
 
 	return sb.String()
 }
 
 // renderMembersPages returns the members of each page.
-func renderMembersPages(page *pager.Page, members *avl.Tree) string {
+func renderMembersPages(u *url.URL, page *pager.Page, members *bptree.BPTree) string {
 	var sb strings.Builder
 
-	sb.WriteString("| **Tier** | **Address** |\n")
-	sb.WriteString("|----------|-------------|\n")
+	table := &tablesort.Table{
+		Headings: []string{"Tier", "Address"},
+		Rows:     [][]string{},
+	}
 
 	for _, item := range page.Items {
 		addr := item.Key
-		tn, _ := members.Get(addr)
+		tn := members.Get(addr)
 		tnStr, _ := tn.(string)
-
-		sb.WriteString(ufmt.Sprintf("| %s %s | %s |\n", tierColoredChip(tnStr), tn, addr))
+		tierCell := ufmt.Sprintf("%s %s", tierColoredChip(tnStr), tn)
+		table.Rows = append(table.Rows, []string{tierCell, addr})
 	}
+
+	sb.WriteString(tablesort.Render(u, table, ""))
 
 	return sb.String()
 }

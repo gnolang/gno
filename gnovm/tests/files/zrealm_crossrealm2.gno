@@ -2,21 +2,21 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
-// NOTE: it is valid to persist external realm types.
+// A foreign-realm-typed package var carries the type's declared
+// PkgID (authority = /r/tests/vm) but lives in the declaring
+// package's storage block (owner = /r/crossrealm). Writes from
+// /r/tests/vm code via a cross-call are still rejected because the
+// existing readonly check uses owner-realm, not authority-realm.
+// Authority and storage diverge under type-driven stamping; the
+// system stays conservative and blocks at the readonly layer.
 var somevalue tests.TestRealmObject
 
-func init() {
-	somevalue.Field = "test"
-}
-
 func main(cur realm) {
-	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(cross, &somevalue)
-	println(somevalue)
+	tests.ModifyTestRealmObject(cross(cur), &somevalue)
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): t<VPBlock(1,1)>.Field
+// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,1)>.Field

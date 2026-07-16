@@ -15,13 +15,14 @@
 package helplink
 
 import (
-	"std"
+	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/moul/txlink"
 )
 
-var chainDomain = std.ChainDomain()
+var chainDomain = runtime.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
@@ -47,7 +48,8 @@ type Realm string
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		return ""
+		curPath := unsafe.CurrentRealm().PkgPath()
+		return strings.TrimPrefix(curPath, chainDomain)
 	}
 
 	// local realm -> /realm

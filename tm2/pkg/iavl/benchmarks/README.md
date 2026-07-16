@@ -1,8 +1,14 @@
 # Running Benchmarks
 
-These instructions are mainly for running the benchmarks on an cloud instance that is intended to be thrown away, not on a dev machine.  Be careful with the install scripts locally.
+You should run the benchmarks in a container that has all needed support code, one of those is:
 
-This has only been tested on Ubuntu 16.04 and 18.04.  It *should* work on Ubuntu 14.04 as well.  It *may* work on Debian, but has never been tested.
+```
+ghcr.io/notional-labs/cosmos
+```
+
+and the source for it is here: https://github.com/notional-labs/containers/blob/master/cosmos/Dockerfile
+
+In
 
 
 ## Setting up the machine
@@ -34,6 +40,22 @@ screen
 Copy them back from your local machine:
 
 ```
-scp user@host:go/src/github.com/tendermint/classic/iavl/results.txt results.txt
+scp user@host:go/src/github.com/gnolang/gno/tm2/pkg/iavl/results.txt results.txt
 git add results
+```
+
+## Running benchmarks with docker
+
+Run the command below to install leveldb and rocksdb from source then run the benchmarks all the dbs (memdb, goleveldb, rocksdb, badgerdb) except boltdb.
+
+replace:
+- `baabeetaa` with your repo username and 
+- `fix-bencharks` with your branch.
+
+```
+docker run --rm -it ubuntu:16.04 /bin/bash -c \
+"apt-get update && apt-get install -y curl && \
+sh <(curl -s https://raw.githubusercontent.com/baabeetaa/iavl/fix-bencharks/benchmarks/setup/INSTALL_ROOT.sh) && \
+sh <(curl -s https://raw.githubusercontent.com/baabeetaa/iavl/fix-bencharks/benchmarks/setup/RUN_BENCHMARKS.sh) fix-bencharks baabeetaa && \
+cat ~/iavl/results.txt"
 ```

@@ -50,10 +50,11 @@ func readPassword() (string, error) {
 
 // GetConfirmation will request user give the confirmation from stdin.
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
+// If the input is empty (just Enter), it defaults to "yes".
 // If the input is not recognized, it returns false and a nil error.
 func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 	// On stderr so it isn't part of bash output.
-	io.ErrPrintfln("%s [y/n]:", prompt)
+	io.ErrPrintfln("%s [Y/n]:", prompt)
 
 	response, err := io.readLine()
 	if err != nil {
@@ -62,7 +63,7 @@ func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 
 	response = strings.TrimSpace(response)
 	if len(response) == 0 {
-		return false, nil
+		return true, nil // Default to yes when Enter is pressed
 	}
 
 	response = strings.ToLower(response)

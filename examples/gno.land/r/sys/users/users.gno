@@ -1,15 +1,11 @@
 package users
 
-import (
-	"std"
-
-	"gno.land/p/demo/avl/rotree"
-)
+import "gno.land/p/nt/bptree/v0/rotree"
 
 // ResolveName returns the latest UserData of a specific user by name or alias
 func ResolveName(name string) (data *UserData, isCurrent bool) {
-	raw, ok := nameStore.Get(name)
-	if !ok {
+	raw := nameStore.Get(name)
+	if raw == nil {
 		return nil, false
 	}
 
@@ -22,9 +18,9 @@ func ResolveName(name string) (data *UserData, isCurrent bool) {
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr std.Address) *UserData {
-	raw, ok := addressStore.Get(addr.String())
-	if !ok {
+func ResolveAddress(addr address) *UserData {
+	raw := addressStore.Get(addr.String())
+	if raw == nil {
 		return nil
 	}
 
@@ -39,7 +35,7 @@ func ResolveAddress(addr std.Address) *UserData {
 // ResolveAny tries to resolve any given string to *UserData
 // If the input is not found in the registry in any form, nil is returned
 func ResolveAny(input string) (*UserData, bool) {
-	addr := std.Address(input)
+	addr := address(input)
 	if addr.IsValid() {
 		return ResolveAddress(addr), true
 	}

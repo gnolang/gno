@@ -29,18 +29,18 @@ func main() {}`,
 func main() {}`,
 		},
 		{
-			name: "std.Address rewrite",
+			name: "std.Coin rewrite",
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1337")
+	addr := std.Coin{}
 }`,
 			expected: `package test
 
 import "chain"
 
 func main() {
-	addr := chain.Address("g1337")
+	addr := chain.Coin{}
 }`,
 		},
 		{
@@ -63,7 +63,8 @@ func main() {
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1337")
+	addr := std.Address("123")
+	_ = std.Coin{}
 	std.AssertOriginCall()
 }`,
 			expected: `package test
@@ -74,7 +75,8 @@ import (
 )
 
 func main() {
-	addr := chain.Address("g1337")
+	addr := address("123")
+	_ = chain.Coin{}
 	runtime.AssertOriginCall()
 }`,
 		},
@@ -87,7 +89,7 @@ import (
 )
 func main() {
 	fmt.Println("hello")
-	addr := std.Address("g1337")
+	c := std.Coin{}
 }`,
 			expected: `package test
 
@@ -98,7 +100,7 @@ import (
 
 func main() {
 	fmt.Println("hello")
-	addr := chain.Address("g1337")
+	c := chain.Coin{}
 }`,
 		},
 		{
@@ -106,14 +108,14 @@ func main() {
 			input: `package test
 import s "std"
 func main() {
-	addr := s.Address("g1337")
+	c := s.Coin{}
 }`,
 			expected: `package test
 
 import "chain"
 
 func main() {
-	addr := chain.Address("g1337")
+	c := chain.Coin{}
 }`,
 		},
 		{
@@ -163,12 +165,15 @@ func main() {
 }`,
 			expected: `package test
 
-import "chain/runtime"
+import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
+)
 
 func main() {
 	runtime.AssertOriginCall()
-	runtime.PreviousRealm()
-	runtime.CurrentRealm()
+	unsafe.PreviousRealm()
+	unsafe.CurrentRealm()
 }`,
 		},
 		{
@@ -215,7 +220,7 @@ import (
 
 func main() {
 	if true {
-		addr := chain.Address("g1337")
+		addr := address("g1337")
 		if true {
 			runtime.AssertOriginCall()
 		}
@@ -234,10 +239,10 @@ func main() {
 }`,
 			expected: `package test
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 }`,
 		},
 		{
@@ -246,15 +251,18 @@ func main() {
 import "std"
 func main() {
 	banker := std.NewBanker(std.BankerTypeReadonly)
-	coin := std.NewCoin("gnot", 100)
+	send := std.OriginSend()
 }`,
 			expected: `package test
 
-import "chain/banker"
+import (
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
 
 func main() {
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	coin := banker.NewCoin("gnot", 100)
+	send := unsafe.OriginSend()
 }`,
 		},
 		{
@@ -295,7 +303,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(std.Address("123")) }
+func (S) String() { return string(std.DerivePkgAddr("123")) }
 func (I) String() { return std.RawAddressSize + 123 }`,
 			expected: `package main
 
@@ -306,7 +314,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(chain.Address("123")) }
+func (S) String() { return string(chain.PackageAddress("123")) }
 func (I) String() { return 20 + 123 }`,
 		},
 		{
@@ -323,11 +331,14 @@ var (
 )
 
 func main() {
-	println(std.Coins{})
+	println(std.OriginSend())
 }`,
+			// std.OriginSend now maps to chain/runtime/unsafe.OriginSend, so
+			// the package identifier is "unsafe" — no collision with the
+			// existing banker/banker_ identifiers.
 			expected: `package main
 
-import banker__ "chain/banker"
+import "chain/runtime/unsafe"
 
 var (
 	banker  = 123
@@ -335,7 +346,7 @@ var (
 )
 
 func main() {
-	println(banker__.Coins{})
+	println(unsafe.OriginSend())
 }`,
 		},
 		{
@@ -350,17 +361,20 @@ func main() {
 	banker := 123
 	banker_ := 456
 	_ = 123 + banker + banker_
-	println(std.Coins{})
+	println(std.OriginSend())
 }`,
+			// std.OriginSend now maps to chain/runtime/unsafe.OriginSend, so
+			// the inserted import is "unsafe" — no collision with the
+			// banker/banker_ locals in func scope.
 			expected: `package main
 
-import "chain/banker"
+import "chain/runtime/unsafe"
 
 func main() {
-	banker__ := 123
+	banker := 123
 	banker_ := 456
-	_ = 123 + banker__ + banker_
-	println(banker.Coins{})
+	_ = 123 + banker + banker_
+	println(unsafe.OriginSend())
 }`,
 		},
 		{
@@ -368,9 +382,9 @@ func main() {
 			input: `package disperse
 
 import (
-        "std"
+	"std"
 
-        tokens "gno.land/r/demo/grc20factory"
+	tokens "gno.land/r/demo/grc20factory"
 )
 
 // Get address of Disperse realm
@@ -407,7 +421,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	for _, coin := range coinSent {
 		leftoverAmt := banker.GetCoins(realmAddr).AmountOf(coin.Denom)
 		if leftoverAmt > 0 {
-			send := std.Coins{std.NewCoin(coin.Denom, leftoverAmt)}
+			send := chain.Coins{chain.NewCoin(coin.Denom, leftoverAmt)}
 			banker.SendCoins(realmAddr, caller, send)
 		}
 	}
@@ -417,20 +431,20 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	tokens "gno.land/r/demo/grc20factory"
 )
 
 // Get address of Disperse realm
-var realmAddr = runtime.CurrentRealm().Address()
+var realmAddr = unsafe.CurrentRealm().Address()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
-func DisperseUgnot(addresses []chain.Address, coins banker.Coins) {
-	coinSent := banker.OriginSend()
-	caller := runtime.PreviousRealm().Address()
+func DisperseUgnot(addresses []address, coins chain.Coins) {
+	coinSent := unsafe.OriginSend()
+	caller := unsafe.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
 
 	if len(addresses) != len(coins) {
@@ -449,14 +463,14 @@ func DisperseUgnot(addresses []chain.Address, coins banker.Coins) {
 
 	// Send coins
 	for i, _ := range addresses {
-		banker_.SendCoins(realmAddr, addresses[i], banker.NewCoins(coins[i]))
+		banker_.SendCoins(realmAddr, addresses[i], chain.NewCoins(coins[i]))
 	}
 
 	// Return possible leftover coins
 	for _, coin := range coinSent {
 		leftoverAmt := banker_.GetCoins(realmAddr).AmountOf(coin.Denom)
 		if leftoverAmt > 0 {
-			send := banker.Coins{banker.NewCoin(coin.Denom, leftoverAmt)}
+			send := chain.Coins{chain.NewCoin(coin.Denom, leftoverAmt)}
 			banker_.SendCoins(realmAddr, caller, send)
 		}
 	}
@@ -546,13 +560,13 @@ import (
 )
 func main() {
 	// Already using chain packages along with std
-	std.Address("g1337")
+	std.DerivePkgAddr("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
 	// These should be converted
 	std.AssertOriginCall()
-	std.DecodeBech32("g1337")
+	std.DerivePkgAddr("g1337")
 }`
 
 	expected := `package test
@@ -564,13 +578,13 @@ import (
 
 func main() {
 	// Already using chain packages along with std
-	chain.Address("g1337")
+	chain.PackageAddress("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
 	// These should be converted
 	runtime.AssertOriginCall()
-	chain.DecodeBech32("g1337")
+	chain.PackageAddress("g1337")
 }`
 
 	fset := token.NewFileSet()

@@ -3,7 +3,7 @@ package panictoerr
 import (
 	"errors"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // PanicToError executes a function that might panic and, if it does,

@@ -31,7 +31,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 		{
 			name:            "valid message",
 			msg:             NewMsgAddPackage(creator, pkgPath, files),
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"info":null,"name":"test","path":"gno.land/r/namespace/test","type":null},"send":""}`,
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","max_deposit":"","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"},"send":""}`,
 			expectErr:       nil,
 		},
 		{
@@ -129,7 +129,6 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -160,7 +159,7 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			name: "valid message",
 			msg:  NewMsgCall(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgPath, funcName, args),
 			expectSignBytes: `{"args":["arg1","arg2"],"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
+				`"func":"MyFunction","max_deposit":"","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
 			expectErr: nil,
 		},
 		{
@@ -234,6 +233,48 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			expectErr: InvalidExprError{},
 		},
 		{
+			name: "func name with injected expression",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo()+huge",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name with selector chain",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo.Bar",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name starting with digit",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "1Foo",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
 			name: "invalid Send coins",
 			msg: MsgCall{
 				Caller:  caller,
@@ -273,12 +314,11 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 					Amount: 1000,
 				}},
 			},
-			expectSignBytes: `{"args":[],"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
+			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","func":"MyFunction","max_deposit":"","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -314,7 +354,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 		{
 			name:            "valid message",
 			msg:             NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
-			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}","name":"main.gno"}],"info":null,"name":"main","path":"","type":null},"send":"1000ugnot"}`,
+			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","max_deposit":"","package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}","name":"main.gno"}],"name":"main","path":""},"send":"1000ugnot"}`,
 			expectErr:       nil,
 		},
 		{
@@ -400,7 +440,6 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

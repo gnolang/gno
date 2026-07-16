@@ -1,0 +1,48 @@
+name: meta / dependabot-tidy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "**/go.mod"
+      - "**/go.sum"
+
+permissions: {}
+
+jobs:
+  tidy_go_mods:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    permissions:
+      contents: write # to commit the tidied go.mod/go.sum files
+    steps:
+      - name: Checkout code # zizmor: ignore[artipacked]
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Credentials must be persisted so the git-auto-commit-action step
+          # below can push the tidied go.mod/go.sum back to the dependabot PR.
+          persist-credentials: true
+
+      - name: Install Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Tidy all Go mods
+        env:
+          VERIFY_MOD_SUMS: false
+        run: |
+          # Ensure Make is installed
+          make --version
+
+          # Run the tidy target
+          make tidy
+
+      - name: Commit changes, if any
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          skip_dirty_check: false # Enable dirty check, and skip unnecessary committing
+          commit_message: "Run 'go mod tidy' via GitHub Actions"

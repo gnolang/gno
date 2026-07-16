@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	amino "github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
 func TestNilSliceEmptySlice(t *testing.T) {
@@ -96,9 +97,9 @@ func TestNewFieldBackwardsCompatibility(t *testing.T) {
 
 	var v1 V1
 	err = cdc.Unmarshal(bz, &v1)
-	assert.Nil(t, err, "unexpected error %v", err)
-	assert.Equal(t, v1, V1{"hi", "cosmos"},
-		"backwards compatibility failed: didn't yield expected result ...")
+	// Strict mode: unknown fields from V2 (Time, Int) are rejected.
+	assert.NotNil(t, err, "expected error on unknown fields from V2")
+	assert.Contains(t, err.Error(), "unknown field number")
 
 	v3 := V3{String: "tender", Int: 2014, Some: SomeStruct{Sth: 84}}
 	bz2, err := cdc.Marshal(v3)
@@ -264,6 +265,63 @@ func TestStructPointerSlice2(t *testing.T) {
 	assert.NotNil(t, f2.C[0])
 }
 
+// TestNonStructPointerSliceNilElements exercises []*string (non-struct pointer
+// element) with amino:"nil_elements". Prior to the fix in binary_decode.go the
+// reflect decoder returned new(string)=&"" for 0x00 slots, while genproto2
+// (post-nil_elements fix) returned nil — a silent cross-codec divergence that
+// no existing test covered because all existing nil_elements uses target
+// struct pointers.
+func TestNonStructPointerSliceNilElements(t *testing.T) {
+	t.Parallel()
+
+	type Foo struct {
+		Vals []*string `amino:"nil_elements"`
+	}
+
+	cdc := amino.NewCodec()
+
+	s := "hi"
+	orig := Foo{Vals: []*string{&s, nil, &s}}
+	bz, err := cdc.MarshalReflect(orig)
+	require.NoError(t, err)
+
+	var decoded Foo
+	require.NoError(t, cdc.UnmarshalReflect(bz, &decoded))
+	require.Len(t, decoded.Vals, 3)
+	require.NotNil(t, decoded.Vals[0])
+	assert.Equal(t, "hi", *decoded.Vals[0])
+	assert.Nil(t, decoded.Vals[1], "0x00 with nil_elements must decode as nil, not &\"\"")
+	require.NotNil(t, decoded.Vals[2])
+	assert.Equal(t, "hi", *decoded.Vals[2])
+}
+
+// TestNonStructPointerArrayNilElements is the array-path companion to
+// TestNonStructPointerSliceNilElements. The reflect decoder's 0x00 sentinel
+// lives at two sites in binary_decode.go — the array path and the slice
+// path — and the fix must apply to both.
+func TestNonStructPointerArrayNilElements(t *testing.T) {
+	t.Parallel()
+
+	type Foo struct {
+		Vals [3]*string `amino:"nil_elements"`
+	}
+
+	cdc := amino.NewCodec()
+
+	s := "hi"
+	orig := Foo{Vals: [3]*string{&s, nil, &s}}
+	bz, err := cdc.MarshalReflect(orig)
+	require.NoError(t, err)
+
+	var decoded Foo
+	require.NoError(t, cdc.UnmarshalReflect(bz, &decoded))
+	require.NotNil(t, decoded.Vals[0])
+	assert.Equal(t, "hi", *decoded.Vals[0])
+	assert.Nil(t, decoded.Vals[1], "0x00 with nil_elements must decode as nil, not &\"\"")
+	require.NotNil(t, decoded.Vals[2])
+	assert.Equal(t, "hi", *decoded.Vals[2])
+}
+
 func TestBasicTypes(t *testing.T) {
 	t.Parallel()
 
@@ -351,4 +409,62 @@ func TestDuration(t *testing.T) {
 	err = cdc.Unmarshal(nil, &dPtr)
 	assert.NoError(t, err)
 	assert.Equal(t, dPtr, &dZero)
+}
+
+func TestInterfaceTypeAssignability(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	// Wrap PrimitivesStruct in an `any` field to get Any/typeURL encoding.
+	// Then try to unmarshal into a struct with Interface1 field.
+	// PrimitivesStruct doesn't implement Interface1, so this should error.
+	type AnyWrapper struct {
+		Value any
+	}
+	type Interface1Wrapper struct {
+		Value tests.Interface1
+	}
+
+	src := AnyWrapper{Value: tests.PrimitivesStruct{Int: 42}}
+	bz, err := cdc.Marshal(src)
+	require.NoError(t, err)
+
+	var dst Interface1Wrapper
+	err = cdc.Unmarshal(bz, &dst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not assignable")
+}
+
+func TestInterfaceTypeAssignabilityOnDecodeError(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+
+	// Same as TestInterfaceTypeAssignability but with corrupted bytes
+	// to trigger the error path in decodeReflectBinaryAny where
+	// rv.Set(irvSet) is called for debugging purposes.
+	type AnyWrapper struct {
+		Value any
+	}
+	type Interface1Wrapper struct {
+		Value tests.Interface1
+	}
+
+	src := AnyWrapper{Value: tests.PrimitivesStruct{Int: 42}}
+	bz, err := cdc.Marshal(src)
+	require.NoError(t, err)
+
+	// Corrupt some bytes to cause decode error (but keep typeURL intact)
+	if len(bz) > 20 {
+		bz[len(bz)-1] ^= 0xFF
+		bz[len(bz)-2] ^= 0xFF
+	}
+
+	var dst Interface1Wrapper
+	err = cdc.Unmarshal(bz, &dst)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not assignable")
 }

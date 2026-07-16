@@ -7,7 +7,9 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -20,7 +22,7 @@ import (
 
 // extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
 func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
-	var defaultPremineBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
+	defaultPremineBalance := std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
 
 	for _, tx := range nodeConfig.InitialTxs {
 		for _, msg := range tx.Tx.Msgs {
@@ -56,7 +58,7 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -88,6 +90,13 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		logger.Debug("no path(s) provided")
 	}
 
+	// Genesis txs never pass through the lazy proxy, so -paths entries and
+	// txs-file dependencies must be tracked explicitly to reach genesis.
+	loader.Track(paths...)
+
+	// A reset returns to this seeded set, dropping lazily loaded packages.
+	nodeConfig.ResetState = loader.ResetTracked
+
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 
@@ -97,10 +106,11 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	loader packages.Loader,
-) *gnodev.NodeConfig {
+	reload func() ([]*packages.Package, error),
+	book *address.Book,
+) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
-	config.Loader = loader
+	config.Reload = reload
 
 	config.Logger = logger
 	config.Emitter = emitter
@@ -109,12 +119,25 @@ func setupDevNodeConfig(
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
+	config.TMConfig.Consensus.CreateEmptyBlocks = cfg.emptyBlocks
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = time.Duration(cfg.emptyBlocksInterval) * time.Second
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultLocalAppConfig.nodeProxyAppListenerAddr
 
-	return config
+	// Setup deploy key as default creator
+	if cfg.deployKey == "" {
+		return nil, fmt.Errorf("no deploy key provided")
+	}
+
+	dkey, _, ok := book.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+	}
+	config.DefaultCreator = dkey
+
+	return config, nil
 }
 
 func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
@@ -134,9 +157,8 @@ func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, erro
 func resolveUnixOrTCPAddr(in string) (addr net.Addr) {
 	var err error
 
-	if strings.HasPrefix(in, "unix://") {
-		in = strings.TrimPrefix(in, "unix://")
-		if addr, err = net.ResolveUnixAddr("unix", in); err == nil {
+	if saddr, ok := strings.CutPrefix(in, "unix://"); ok {
+		if addr, err = net.ResolveUnixAddr("unix", saddr); err == nil {
 			return addr
 		}
 

@@ -14,9 +14,16 @@ PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 FINAL_GENESIS_TXS_SHEET="/gnoroot/gno.land/genesis/genesis_txs.jsonl"
 
 echo "" >> $FINAL_GENESIS_TXS_SHEET
-echo "" >> /gnoroot/gno.land/genesis/genesis_balances.jsonl
 cat "${GENESIS_BACKUP_FILE}" >> $FINAL_GENESIS_TXS_SHEET
-cat "${GENESIS_BALANCES_FILE}" >> /gnoroot/gno.land/genesis/genesis_balances.jsonl
+
+# Reset balance file if backup file is not empty
+if [ -n "$GENESIS_BALANCES_FILE" ] && [ -s "$GENESIS_BALANCES_FILE" ]; then
+  cat "$GENESIS_BALANCES_FILE" /gnoroot/gno.land/genesis/genesis_balances.txt > /tmp/genesis_balances.tmp
+  mv /tmp/genesis_balances.tmp /gnoroot/gno.land/genesis/genesis_balances.txt
+fi
+
+# Add FAUCET ADDRESS
+[ -n "${FAUCET_ADDRESS}" ] && echo "$FAUCET_ADDRESS=10000000000000ugnot" >> /gnoroot/gno.land/genesis/genesis_balances.txt
 
 # Initialize the secrets
 gnoland secrets init

@@ -6,7 +6,7 @@ package bits_test
 
 import (
 	"math/bits"
-	testing "testing/base"
+	"testing"
 )
 
 func TestLeadingZeros(t *testing.T) {

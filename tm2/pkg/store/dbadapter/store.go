@@ -16,7 +16,64 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 
 // Wrapper type for dbm.Db with implementation of Store
 type Store struct {
-	dbm.DB
+	DB dbm.DB
+}
+
+// Get returns nil iff key doesn't exist. Panics on nil key.
+func (dsa Store) Get(gctx *types.GasContext, key []byte) []byte {
+	v, err := dsa.DB.Get(key)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Has checks if a key exists. Panics on nil key.
+func (dsa Store) Has(gctx *types.GasContext, key []byte) bool {
+	v, err := dsa.DB.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Set sets the key. Panics on nil key or value.
+func (dsa Store) Set(gctx *types.GasContext, key, value []byte) {
+	err := dsa.DB.Set(key, value)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Delete deletes the key. Panics on nil key.
+func (dsa Store) Delete(gctx *types.GasContext, key []byte) {
+	err := dsa.DB.Delete(key)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Iterator over a domain of keys in ascending order.
+//
+// Does not charge gas. Gas is charged by cache.Store, which wraps this
+// store on gas-metered production paths.
+func (dsa Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
+	it, err := dsa.DB.Iterator(start, end)
+	if err != nil {
+		panic(err)
+	}
+	return it
+}
+
+// Iterator over a domain of keys in descending order.
+//
+// Does not charge gas. See Iterator.
+func (dsa Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
+	it, err := dsa.DB.ReverseIterator(start, end)
+	if err != nil {
+		panic(err)
+	}
+	return it
 }
 
 // CacheWrap cache wraps the underlying store.
@@ -37,6 +94,11 @@ func (dsa Store) Commit() types.CommitID {
 		Version: 0,
 		Hash:    nil,
 	}
+}
+
+// GetDB returns the underlying database.
+func (dsa Store) GetDB() dbm.DB {
+	return dsa.DB
 }
 
 // Implements Committer/CommitStore.

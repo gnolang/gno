@@ -1,14 +1,14 @@
 package helplink
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestFunc(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		title     string
 		fn        string
@@ -43,7 +43,7 @@ func TestFunc(t *testing.T) {
 }
 
 func TestFuncURL(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		fn        string
 		args      []string
@@ -85,12 +85,13 @@ func TestFuncURL(t *testing.T) {
 }
 
 func TestHome(t *testing.T) {
-	cd := std.ChainDomain()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/helplink"))
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		realm_XXX Realm
 		want      string
 	}{
-		{"", "$help"},
+		{"", "/r/test/helplink$help"},
 		{Realm(cd + "/r/lorem/ipsum"), "/r/lorem/ipsum$help"},
 		{"gno.world/r/lorem/ipsum", "https://gno.world/r/lorem/ipsum$help"},
 	}

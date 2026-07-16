@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,21 +48,21 @@ func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, erro
 	return nil, errors.New("stubClient: Realm not implemented")
 }
 
-func (s *stubClient) File(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+func (s *stubClient) File(ctx context.Context, path, filename string, _ int64) ([]byte, gnoweb.FileMeta, error) {
 	if s.fileFunc != nil {
 		return s.fileFunc(ctx, path, filename)
 	}
 	return nil, gnoweb.FileMeta{}, errors.New("stubClient: File not implemented")
 }
 
-func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+func (s *stubClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDocumentation, error) {
 	if s.docFunc != nil {
 		return s.docFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: Doc not implemented")
 }
 
-func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+func (s *stubClient) ListFiles(ctx context.Context, path string, _ int64) ([]string, error) {
 	if s.listFilesFunc != nil {
 		return s.listFilesFunc(ctx, path)
 	}
@@ -76,14 +76,31 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 	return nil, errors.New("stubClient: ListPaths not implemented")
 }
 
+func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
+	return []byte(`{"names":[],"values":[]}`), nil
+}
+
+func (s *stubClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, error) {
+	return []byte(`{"objectid":"","value":{"@type":"/gno.StructValue","Fields":[]}}`), nil
+}
+
+func (s *stubClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
+	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
+}
+
 type rawRenderer struct{}
 
-func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.Toc, error) {
 	_, err := w.Write(src)
 	return md.Toc{}, err
 }
 
 func (rawRenderer) RenderSource(w io.Writer, name string, src []byte) error {
+	_, err := w.Write(src)
+	return err
+}
+
+func (rawRenderer) RenderDocumentation(w io.Writer, src []byte) error {
 	_, err := w.Write(src)
 	return err
 }
@@ -134,7 +151,7 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Contain: "one more time"},
 		{Path: "/r/mock/path/LicEnse", Status: http.StatusOK, Contain: "my super license"},
 		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Contain: "one more time"},
-		{Path: "/r/mock/path$source", Status: http.StatusOK, Contain: "module"}, // `gno.mod` by default
+		{Path: "/r/mock/path$source&file=gno.mod", Status: http.StatusOK, Contain: "module"},
 		{Path: "/r/mock/path/license", Status: http.StatusNotFound},
 
 		// Help page
@@ -179,6 +196,77 @@ func TestHTTPHandler_Get(t *testing.T) {
 			for _, contain := range tc.Contains {
 				assert.Containsf(t, rr.Body.String(), contain, "rendered body should contain: %q", contain)
 			}
+		})
+	}
+}
+
+// TestHTTPHandler_HelpURLOrigin verifies the Anchor copy URL is rendered absolute
+// across deployments (gnodev, prod direct, behind reverse proxy).
+func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+		Functions: []*doc.JSONFunc{
+			{Name: "DoThing", Params: []*doc.JSONField{{Name: "arg", Type: "string"}}},
+		},
+	}
+
+	cases := []struct {
+		name     string
+		host     string
+		fwdProto string
+		fwdHost  string
+		wantURL  string // absolute prefix (template HTML-escapes "&" to "&amp;")
+	}{
+		{
+			name:    "direct http",
+			host:    "127.0.0.1:8888",
+			wantURL: "http://127.0.0.1:8888/r/mock/path$help",
+		},
+		{
+			name:     "behind https proxy",
+			host:     "backend.internal",
+			fwdProto: "https",
+			fwdHost:  "gno.land",
+			wantURL:  "https://gno.land/r/mock/path$help",
+		},
+		{
+			name:    "custom domain",
+			host:    "preview.gno.example.com:8443",
+			wantURL: "http://preview.gno.example.com:8443/r/mock/path$help",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path$help", nil)
+			req.Host = tc.host
+			if tc.fwdProto != "" {
+				req.Header.Set("X-Forwarded-Proto", tc.fwdProto)
+			}
+			if tc.fwdHost != "" {
+				req.Header.Set("X-Forwarded-Host", tc.fwdHost)
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, `data-copy-text-value="`+tc.wantURL,
+				"rendered Anchor copy URL should be absolute and reflect the request origin")
+			assert.Contains(t, body, `action="`+tc.wantURL,
+				"form action should also be absolute (single source of truth with copy URL)")
 		})
 	}
 }
@@ -263,7 +351,6 @@ func TestHTTPHandler_GetSourceDownload(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
 			t.Parallel()
 			t.Logf("input: %+v", tc)
@@ -360,9 +447,33 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// GetClientErrorStatusPage by default should return 500
+	// GetClientErrorStatusView by default should return 500
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// TestHTTPHandler_RealmExplorerWithRender tests realms with Render() show realm icon and Source button.
+func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
+	t.Parallel()
+
+	realmWithRender := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/demo/withrender",
+		Files:  map[string]string{"render.gno": `package withrender`},
+		Functions: []*doc.JSONFunc{{
+			Name:    "Render",
+			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+			Results: []*doc.JSONField{{Type: "string"}},
+		}},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, gnoweb.NewMockClient(realmWithRender)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/withrender", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Source")
+	assert.Contains(t, rr.Body.String(), "Action")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
@@ -397,7 +508,6 @@ func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -483,7 +593,10 @@ func TestHTTPHandler_GetSourceView_Error(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
-// TestHTTPHandler_GetSourceView_NoFiles covers the `if len(files)==0` of GetSourceView.
+// TestHTTPHandler_GetSourceView_NoFiles covers the `if len(files)==0` guard of
+// GetSourceView. A no-file `$source` now routes to the overview, so the request
+// carries an explicit `&file=` to reach the source view; the guard fires before
+// the requested file is looked up when the package lists no files.
 func TestHTTPHandler_GetSourceView_NoFiles(t *testing.T) {
 	t.Parallel()
 
@@ -501,7 +614,7 @@ func TestHTTPHandler_GetSourceView_NoFiles(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/emptysrc$source", nil)
+	req := httptest.NewRequest(http.MethodGet, "/r/emptysrc$source&file=main.gno", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -510,12 +623,13 @@ func TestHTTPHandler_GetSourceView_NoFiles(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "no files available")
 }
 
-func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
+func TestHTTPHandler_GetClientErrorStatusView(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
 		name     string
 		err      error
+		height   int64
 		wantCode int
 		wantView bool
 		wantMsg  string
@@ -534,9 +648,18 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 			wantMsg:  gnoweb.ErrClientPackageNotFound.Error(),
 		},
 		{
+			// Missing OID must surface as 404, not 500: the page is gone,
+			// not the server. Mirrors PackageNotFound's classification.
+			name:     "object not found",
+			err:      gnoweb.ErrClientObjectNotFound,
+			wantCode: http.StatusNotFound,
+			wantView: true,
+			wantMsg:  gnoweb.ErrClientObjectNotFound.Error(),
+		},
+		{
 			name:     "bad request",
 			err:      gnoweb.ErrClientBadRequest,
-			wantCode: http.StatusInternalServerError,
+			wantCode: http.StatusBadRequest,
 			wantView: true,
 			wantMsg:  "bad request",
 		},
@@ -554,14 +677,33 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 			wantView: true,
 			wantMsg:  "internal error",
 		},
+		{
+			// height>0 short-circuits a generic chain error to the friendly
+			// out-of-range height message.
+			name:     "response error with pinned height",
+			err:      gnoweb.ErrClientResponse,
+			height:   42,
+			wantCode: http.StatusBadRequest,
+			wantView: true,
+			wantMsg:  "block height 42 is not available",
+		},
+		{
+			// NotFound wins even when a height is pinned — a wrong path
+			// stays wrong at any block.
+			name:     "not found beats height pin",
+			err:      gnoweb.ErrClientPackageNotFound,
+			height:   42,
+			wantCode: http.StatusNotFound,
+			wantView: true,
+			wantMsg:  gnoweb.ErrClientPackageNotFound.Error(),
+		},
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			code, view := gnoweb.GetClientErrorStatusPage(nil, tc.err)
+			code, view := gnoweb.GetClientErrorStatusView(nil, tc.err, tc.height)
 			assert.Equal(t, tc.wantCode, code)
 
 			if !tc.wantView {
@@ -680,7 +822,6 @@ func TestHTTPHandler_CreateUsernameFromBech32(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -690,88 +831,8 @@ func TestHTTPHandler_CreateUsernameFromBech32(t *testing.T) {
 	}
 }
 
-// TestHTTPHandler_GetSourceView_FilePreference tests the file preference logic
-// when no specific file is requested in the source view.
-func TestHTTPHandler_GetSourceView_FilePreference(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name           string
-		files          []string
-		expectedFile   string
-		expectedStatus int
-	}{
-		{
-			name:           "prefer README.md over other files",
-			files:          []string{"config.toml", "README.md", "main.gno"},
-			expectedFile:   "README.md",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "prefer .gno file when no README.md",
-			files:          []string{"config.toml", "main.gno", "test.toml"},
-			expectedFile:   "main.gno",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "fallback to first file when no preferred files",
-			files:          []string{"config.toml", "test.toml", "data.json"},
-			expectedFile:   "config.toml",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "prefer first .gno file when multiple .gno files",
-			files:          []string{"config.toml", "main.gno", "utils.gno", "test.gno"},
-			expectedFile:   "main.gno",
-			expectedStatus: http.StatusOK,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := &stubClient{
-				listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
-					return tc.files, nil
-				},
-				fileFunc: func(ctx context.Context, path string, filename string) ([]byte, gnoweb.FileMeta, error) {
-					if slices.Contains(tc.files, filename) {
-						content := fmt.Sprintf("content of %s", filename)
-						return []byte(content), gnoweb.FileMeta{}, nil
-					}
-
-					return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
-				},
-			}
-
-			config := newTestHandlerConfig(t, client)
-			handler, err := gnoweb.NewHTTPHandler(
-				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-				config,
-			)
-			handler.Renderer = &rawRenderer{}
-
-			require.NoError(t, err)
-
-			// Request source view without specifying a file
-			req, err := http.NewRequest(http.MethodGet, "/r/test/path$source", nil)
-			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			// Check status
-			assert.Equal(t, tc.expectedStatus, rr.Code)
-
-			// Check that the expected file content is displayed
-			expectedContent := "content of " + tc.expectedFile
-			assert.Contains(t, rr.Body.String(), expectedContent,
-				"should display content of preferred file: %s", tc.expectedFile)
-		})
-	}
-}
-
+// TestHTTPHandler_GetSourceView_ReadmeErrors covers the source view's README
+// rendering fallback when the README fetch fails.
 func TestHTTPHandler_GetSourceView_ReadmeErrors(t *testing.T) {
 	t.Parallel()
 
@@ -938,26 +999,36 @@ func TestHTTPHandler_ContextCancellation(t *testing.T) {
 func TestHTTPHandler_ContextPropagation(t *testing.T) {
 	t.Parallel()
 
+	// GetOverviewView (the $source case) fans its client calls out concurrently,
+	// so the stub closures write `cr` from multiple goroutines — guard the map.
+	// The post-ServeHTTP read is already ordered after those writes by errgroup's
+	// Wait, so it needs no lock.
 	newClient := func(cr map[string]bool) gnoweb.ClientAdapter {
+		var mu sync.Mutex
+		mark := func(key string, ok bool) {
+			mu.Lock()
+			cr[key] = ok
+			mu.Unlock()
+		}
 		return &stubClient{
 			realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
-				cr["realm"] = ctx != nil
+				mark("realm", ctx != nil)
 				return []byte("realm content"), nil
 			},
 			listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
-				cr["listFiles"] = ctx != nil
+				mark("listFiles", ctx != nil)
 				return []string{"test.gno"}, nil
 			},
 			fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
-				cr["file"] = ctx != nil
+				mark("file", ctx != nil)
 				return []byte("file content"), gnoweb.FileMeta{}, nil
 			},
 			docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
-				cr["doc"] = ctx != nil
+				mark("doc", ctx != nil)
 				return &doc.JSONDocumentation{PackagePath: "test"}, nil
 			},
 			listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
-				cr["listPaths"] = ctx != nil
+				mark("listPaths", ctx != nil)
 				return []string{"/r/test/path1", "/r/test/path2"}, nil
 			},
 		}
@@ -1044,4 +1115,735 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.True(t, contextReceived)
 	assert.Contains(t, rr.Body.String(), content)
+}
+
+// TestHTTPHandler_Post_OpenRedirectBlocked tests that protocol-relative URLs
+// are blocked as a defense-in-depth measure.
+func TestHTTPHandler_Post_OpenRedirectBlocked(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files: map[string]string{
+			"render.gno": `package main`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name       string
+		path       string
+		formData   string
+		wantStatus int
+		wantIn     string // substring that should be in response
+	}{
+		{
+			name:       "valid path allowed",
+			path:       "/r/test:validpath",
+			formData:   "field=value",
+			wantStatus: http.StatusSeeOther,
+		},
+		{
+			// Defense-in-depth: block protocol-relative URLs that would redirect externally
+			// This catches edge cases where the URL encodes to //evil.domain
+			name:       "protocol relative URL blocked",
+			path:       "/evil.domain",
+			formData:   "field=value",
+			wantStatus: http.StatusBadRequest,
+			wantIn:     "invalid",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.formData))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.wantStatus, rr.Code, "unexpected status code for path %s", tc.path)
+			if tc.wantIn != "" {
+				assert.Contains(t, rr.Body.String(), tc.wantIn)
+			}
+		})
+	}
+}
+
+// TestHTTPHandler_Post_HiddenPathField tests that the __gno_path hidden form field
+// is properly extracted and encoded in the redirect URL.
+func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files: map[string]string{
+			"render.gno": `package main`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name            string
+		urlPath         string
+		formData        string
+		wantStatus      int
+		wantRedirectURL string
+	}{
+		{
+			name:            "simple path from hidden field",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit?name=test",
+		},
+		{
+			name:            "path with slashes encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=foo/bar/baz&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:foo%2Fbar%2Fbaz?name=test",
+		},
+		{
+			name:            "path with dots encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=../../../foo&name=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:..%2F..%2F..%2Ffoo?name=test",
+		},
+		{
+			name:            "hidden field not included in query params",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=mypath&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:mypath?field=value",
+		},
+		{
+			name:            "no hidden field - no args in redirect",
+			urlPath:         "/r/test",
+			formData:        "field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test?field=value",
+		},
+		{
+			name:            "query in path is encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit?evil=injection&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%3Fevil=injection?field=value",
+		},
+		{
+			name:            "PoC path traversal attack neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=user../../../../../evil.domain.com#&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:user..%2F..%2F..%2F..%2F..%2Fevil.domain.com%23?field=value",
+		},
+		{
+			name:            "protocol-relative URL encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=//evil.com/steal&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:%2F%2Fevil.com%2Fsteal?data=test",
+		},
+		{
+			name:            "full URL with protocol encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=https://evil.com/steal&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:https:%2F%2Fevil.com%2Fsteal?data=test",
+		},
+		{
+			name:            "javascript URI neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=javascript:alert(1)&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:javascript:alert%281%29?data=test",
+		},
+		{
+			name:            "data URI neutralized",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=data:text/html,<script>alert(1)</script>&data=test",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:data:text%2Fhtml%2C%3Cscript%3Ealert%281%29%3C%2Fscript%3E?data=test",
+		},
+		{
+			name:            "fragment in path encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit#fragment&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%23fragment?field=value",
+		},
+		{
+			name:            "complex attack vector encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=../..//evil.com#@victim.com&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:..%2F..%2F%2Fevil.com%23@victim.com?field=value",
+		},
+		{
+			name:            "null byte injection stays encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit%00evil&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%00evil?field=value",
+		},
+		{
+			name:            "unicode domain encoded",
+			urlPath:         "/r/test",
+			formData:        "__gno_path=submit/παράδειγμα.δοκιμή&field=value",
+			wantStatus:      http.StatusSeeOther,
+			wantRedirectURL: "/r/test:submit%2F%CF%80%CE%B1%CF%81%CE%AC%CE%B4%CE%B5%CE%B9%CE%B3%CE%BC%CE%B1.%CE%B4%CE%BF%CE%BA%CE%B9%CE%BC%CE%AE?field=value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, tc.urlPath, strings.NewReader(tc.formData))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.wantStatus, rr.Code, "unexpected status code")
+			if tc.wantStatus == http.StatusSeeOther {
+				location := rr.Header().Get("Location")
+				assert.Equal(t, tc.wantRedirectURL, location, "unexpected redirect URL")
+			}
+		})
+	}
+}
+
+// newRealRendererHelpHandler builds an HTTPHandler with a real HTMLRenderer
+// and a stubClient whose Doc() returns jdoc. Other client methods are not
+// stubbed as the $help endpoint only exercises the Doc() path.
+func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnoweb.HTTPHandler {
+	t.Helper()
+
+	client := &stubClient{
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return jdoc, nil
+		},
+	}
+
+	renderer := gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		gnoweb.NewDefaultRenderConfig(),
+		client,
+	)
+
+	h, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		&gnoweb.HTTPHandlerConfig{
+			ClientAdapter: client,
+			Renderer:      renderer,
+			Aliases:       map[string]gnoweb.AliasTarget{},
+			Meta:          gnoweb.StaticMetadata{Domain: "gno.land"},
+		},
+	)
+	require.NoError(t, err)
+	return h
+}
+
+func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		PackageDoc: "Package **foo** does things.",
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+	require.Contains(t, body, "<strong>foo</strong>", "bold markdown must render as <strong>")
+	require.NotContains(t, body, "**foo**", "literal markdown syntax must not leak")
+}
+
+func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Hello", Signature: "func Hello() string",
+			Doc: "Hello **greets** a user.",
+		}},
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "<strong>greets</strong>")
+}
+
+func TestGetHelpView_HTMLInjectionInDocStripped(t *testing.T) {
+	t.Parallel()
+
+	// Doc markdown containing raw HTML must be stripped by Goldmark safe mode
+	// before reaching the rendered page.
+	jdoc := &doc.JSONDocumentation{
+		PackageDoc: `<script>alert('xss')</script>`,
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	require.NotContains(t, body, "<script>", "raw <script> tag must never survive")
+	require.NotContains(t, body, "alert('xss')", "script payload must not leak either")
+}
+
+func TestGetHelpView_BackslashEscapingIssueFixed(t *testing.T) {
+	t.Parallel()
+
+	// Regression test for #4417: vm/qdoc markdown with backslash-escaped
+	// backticks/underscores must render as literal text, not leak the
+	// backslashes into the page.
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Register", Signature: "func Register()",
+			Doc: "special char is \\`\\_\\`",
+		}},
+	}
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	// Backslashes must be absent and the literal characters present.
+	require.NotContains(t, body, "\\`\\_\\`")
+	require.Contains(t, body, "`_`")
+}
+
+func TestHTTPHandler_ThemeCookie(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "hello" }`,
+			"gno.mod":    `module example.com/r/mock/path`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	cases := []struct {
+		name        string
+		cookieValue string
+		wantAttr    string
+	}{
+		{
+			name:        "success: dark cookie renders data-theme dark",
+			cookieValue: "dark",
+			wantAttr:    `data-theme="dark"`,
+		},
+		{
+			name:        "success: light cookie renders data-theme light",
+			cookieValue: "light",
+			wantAttr:    `data-theme="light"`,
+		},
+		{
+			name:        "edge: no cookie renders no data-theme",
+			cookieValue: "",
+			wantAttr:    "",
+		},
+		{
+			name:        "edge: invalid cookie value ignored",
+			cookieValue: "purple",
+			wantAttr:    "",
+		},
+		{
+			name:        "edge: system cookie value ignored",
+			cookieValue: "system",
+			wantAttr:    "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+			if tc.cookieValue != "" {
+				req.AddCookie(&http.Cookie{Name: "theme", Value: tc.cookieValue})
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+
+			body := rr.Body.String()
+			if tc.wantAttr != "" {
+				assert.Contains(t, body, tc.wantAttr,
+					"expected HTML to contain %q", tc.wantAttr)
+			} else {
+				assert.NotContains(t, body, `data-theme=`,
+					"expected HTML to not contain data-theme attribute")
+			}
+		})
+	}
+}
+
+// TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page
+// renders every section (sidebar, nav, content) for a fully populated realm.
+func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return []string{"foo.gno", "foo_test.gno", "README.md", "LICENSE"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{
+				PackageDoc: "Package foo does things.",
+				Imports:    []string{"gno.land/p/demo/avl", "strings"},
+				Funcs: []*doc.JSONFunc{
+					{Name: "Hello", Signature: "func Hello() string", File: "foo.gno", Line: 10},
+					{Name: "internal"}, // filtered by export check
+				},
+				Types: []*doc.JSONType{
+					{Name: "Config", Type: "type Config struct{}", Kind: "struct", File: "foo.gno", Line: 3},
+				},
+			}, nil
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			switch filename {
+			case "README.md":
+				return []byte("# Foo\n"), gnoweb.FileMeta{}, nil
+			case "LICENSE":
+				return []byte("The MIT License\n"), gnoweb.FileMeta{}, nil
+			}
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "Package foo does things", "package doc should be rendered")
+	assert.Contains(t, body, "Hello", "exported func should be rendered")
+	assert.NotContains(t, body, ">internal<", "unexported func should not appear as a symbol")
+	assert.Contains(t, body, "Config", "type should be rendered")
+	assert.Contains(t, body, "foo.gno", "file link should appear")
+	assert.Contains(t, body, "gno.land/p/demo/avl", "qdoc import should be rendered")
+}
+
+// TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure verifies the overview still
+// renders (with empty symbol sections) when the qdoc RPC fails.
+func TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return []string{"foo.gno"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, errors.New("node unavailable")
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "foo.gno", "file list still renders when qdoc fails")
+}
+
+// TestHTTPHandler_GetOverviewView_PackageNotFoundReturns404 verifies error propagation.
+func TestHTTPHandler_GetOverviewView_PackageNotFoundReturns404(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientPackageNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/missing$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// TestHTTPHandler_UserView_ListPathsLimitBounded — a single GET /u/<name>
+// must not amplify into thousands of bech32-decode + url-parse iterations.
+// Asserts the limit passed to ListPaths equals the documented cap.
+func TestHTTPHandler_UserView_ListPathsLimitBounded(t *testing.T) {
+	t.Parallel()
+
+	var observedLimit int
+	stub := &stubClient{
+		listPathsFunc: func(_ context.Context, _ string, limit int) ([]string, error) {
+			observedLimit = limit
+			return nil, nil
+		},
+	}
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	cfg := newTestHandlerConfig(t, stub)
+	handler, err := gnoweb.NewHTTPHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/u/alice", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, gnoweb.MaxUserContributions, observedLimit,
+		"ListPaths limit must equal the documented cap (drift would mask DoS regressions)")
+}
+
+// TestHTTPHandler_Post_BodyTooLarge asserts the POST handler caps r.Body
+// via http.MaxBytesReader so a 100 MiB payload returns 400 instead of
+// being buffered into memory.
+func TestHTTPHandler_Post_BodyTooLarge(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// 1 MiB form value — far above the 64 KiB cap, far below Go's 32 MiB default.
+	big := strings.Repeat("a", 1<<20)
+	body := "field=" + big
+	req := httptest.NewRequest(http.MethodPost, "/r/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code,
+		"oversized POST body must be rejected, not silently accepted")
+}
+
+// TestHTTPHandler_StatePageHeaderData regresses the wire-in: state-page
+// HTML responses MUST carry full HeaderData (breadcrumb + tab links)
+// like every other view, so the global gnoweb header renders against
+// the actual realm. Earlier code left HeaderData zero on the state
+// branch, which produced an empty searchbar input and tab links
+// pointing at "", visually swapping the breadcrumb and content header.
+func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$state", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "state page must render OK")
+	body := rr.Body.String()
+
+	// The header search input is populated from HeaderData.RealmPath
+	// (set via EnrichHeaderData over RealmURL). If HeaderData is zero
+	// the value="" attribute is rendered against an empty path.
+	assert.Contains(t, body,
+		`value="/r/mock/path"`,
+		"global header search input must reflect the realm path — empty value means HeaderData was not threaded into IndexLayout")
+
+	// The tab links (Content / State / Source / Actions) are built
+	// from RealmURL by StaticHeaderDevLinks. The State tab must
+	// surface as an active menu link pointing at the same realm.
+	assert.Contains(t, body, `href="/r/mock/path$state"`,
+		"State tab link must point at the realm — empty href means RealmURL was not threaded")
+	assert.Contains(t, body, `href="/r/mock/path$source"`,
+		"Source tab link must point at the realm — empty href means RealmURL was not threaded")
+	assert.Contains(t, body, `href="/r/mock/path$help"`,
+		"Actions tab link must point at the realm — empty href means RealmURL was not threaded")
+
+	// The HTML <title> reflects domain + path. Empty Title means
+	// HeadData.Title was not set on the state branch. (Test config
+	// leaves Domain unset, so the title is " - /r/mock/path".)
+	assert.Contains(t, body, `<title> - /r/mock/path</title>`,
+		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
+}
+
+// TestHTTPHandler_StateJSONErrorOnBadURL checks that a `$state&json`
+// request whose URL fails weburl.ParseFromURL still gets a JSON
+// envelope, not the HTML "invalid path" page — the JSON-in/JSON-out
+// contract holds even on the parse-failure path.
+func TestHTTPHandler_StateJSONErrorOnBadURL(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// `/~!1337` fails ParseFromURL ("invalid path"); the `$state&json`
+	// webargs still parse, so isStateJSONRequest must detect the JSON intent.
+	req := httptest.NewRequest(http.MethodGet, "/~!1337$state&json", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Content-Type"), "application/json",
+		"state+json parse failure must return a JSON content type, not HTML")
+	body := rr.Body.String()
+	assert.Contains(t, body, `"error"`, "must return the {\"error\":...} JSON envelope")
+	assert.NotContains(t, strings.ToLower(body), "<!doctype",
+		"must not return an HTML page for a JSON-requested URL")
+
+	// Sanity: the same bad URL WITHOUT json still renders the HTML page.
+	req2 := httptest.NewRequest(http.MethodGet, "/~!1337", nil)
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+	assert.Equal(t, http.StatusNotFound, rr2.Code)
+	assert.Contains(t, rr2.Body.String(), "invalid path",
+		"non-JSON bad URL must still render the HTML invalid-path page")
+}
+
+// TestRouting_SourceDispatch verifies that $source without a file routes to
+// overview and $source&file=X routes to the classic source view.
+func TestRouting_SourceDispatch(t *testing.T) {
+	t.Parallel()
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/demo/foo",
+		Files:  map[string]string{"foo.gno": `package foo`},
+	}
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	tests := []struct {
+		url        string
+		wantInBody string
+	}{
+		{"/r/demo/foo$source", "Package Index"},
+		{"/r/demo/foo$source&file=foo.gno", "package foo"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.url, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.wantInBody)
+		})
+	}
+}
+
+// TestHTTPHandler_GetAlwaysBoundsContext checks that even with no
+// explicit Timeout configured, Get applies defaultRequestTimeout so
+// r.Context() always carries a deadline. We assert indirectly — the
+// handler must still serve a normal request without hanging — and
+// directly via a client that inspects the context deadline.
+func TestHTTPHandler_GetAlwaysBoundsContext(t *testing.T) {
+	t.Parallel()
+
+	var sawDeadline bool
+	client := &stubClient{
+		realmFunc: func(ctx context.Context, _, _ string) ([]byte, error) {
+			_, sawDeadline = ctx.Deadline()
+			return []byte("# ok"), nil
+		},
+	}
+	config := newTestHandlerConfig(t, client)
+	// Timeout left at zero — the default must still apply.
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.True(t, sawDeadline,
+		"request context must carry a deadline even when Timeout is unset")
 }

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -34,8 +35,12 @@ var (
 	//  - sub.domain.tld/c/letter
 	//  - sub.domain.tld/d/works
 	//  - sub.domain.tld/r/realm
-	//  - sub.domain.tld/r/_realm/_path
-	//  - sub.domain.tld/p/package/_path123/etc
+	//  - sub.domain.tld/r/realm/sub-path
+	//  - sub.domain.tld/p/package/path123/etc
+	//
+	// Note: each path segment must START with [a-z] (no leading separator)
+	// and END with [a-z0-9] (no trailing separator); single hyphens or
+	// underscores are allowed between alphanumerics but never consecutive.
 	//
 	// Further validation should be done with LETTER to determine the type of pkgPath:
 	//  - /r/ for realm paths
@@ -52,8 +57,8 @@ var (
 	//  - math
 	//  - math/fourier123
 	//  - justnodots
-	//  - _nodots123
-	//  - _nodots123/_subpath1/_subpath2
+	//  - nodots123
+	//  - nodots123/subpath1/subpath2
 	Re_gnoStdPkgPath = r.N("PKGPATH",
 		Re_name, r.S(r.E(`/`), Re_name)) // no dots, just name(s) with `/` delimiter.
 
@@ -62,8 +67,8 @@ var (
 	Re_domain = r.N("DOMAIN", // all lowercase
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
-	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
-	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
+	Re_name    = r.G(r.C(`a-z`), r.S(r.C(`a-z0-9`)), r.S(r.C(`_-`), r.P(r.C(`a-z0-9`)))) // start with letter; alphanumeric body; separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing
+	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                                // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()
@@ -91,10 +96,17 @@ func IsEphemeralPath(pkgPath string) bool {
 	return match != nil && match.Get("LETTER") == "e"
 }
 
+// IsSyntheticPath determines whether the given pkgPath is a compiler-internal
+// synthetic path (".uverse", ".dontcare", ...). Synthetic packages are never
+// persisted to the store and cannot appear in user source.
+func IsSyntheticPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, ".")
+}
+
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
-// DerivePkgAddr() returns the embedded address such that the run package can
+// DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
-// XXX XXX XXX XXX change DerivePkgAddr().
+// XXX XXX XXX XXX change DerivePkgAddress().
 func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "e" || match.Get("REPO") != "run" {
@@ -137,11 +149,40 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for PkgID classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
 	match := ReGnoStdPkgPath.Match(pkgPath)
 	return match != nil
+}
+
+// isImmutableLibraryPath reports whether pkgPath is a /p/ or stdlib library
+// package that should carry a frozen, immutable realm. That realm is a
+// runtime borrow target for the cross-realm write gate, so a /p/- or
+// stdlib-stamped receiver's method runs with m.Realm set (not nil).
+//
+// External _test overlays are excluded: they are transient test
+// scaffolding, never deployed, and granting one a realm makes a stdlib's
+// own self-tests (e.g. strconv_test) execute under a foreign realm, which
+// breaks legitimate same-package reads/writes of the stdlib's own state.
+// /p/ and /r/ _test overlays already self-exclude (IsPPackagePath /
+// IsRealmPath reject the _test suffix); only stdlib's dot-free _test
+// names slip through IsStdlib, so guard against the suffix here.
+func isImmutableLibraryPath(pkgPath string) bool {
+	if strings.HasSuffix(pkgPath, "_test") {
+		return false
+	}
+	return IsPPackagePath(pkgPath) || IsStdlib(pkgPath)
 }
 
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
@@ -155,13 +196,92 @@ func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
 }
 
+// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
+// package — one whose purpose is to host VM-test fixtures, exploit
+// probes, and other test-only support code. Test-namespace packages
+// are allowed to use the `cross` keyword and may be imported only
+// from other test-namespace packages or from test files
+// (_test.gno / _filetest.gno).
+//
+// The set is currently hand-listed (rather than a single prefix like
+// gno.land/p/testing/) so the migration can be staged: rules can be
+// enforced now without moving the packages. A future cleanup will
+// collapse the list as packages move under a single namespace.
+func IsTestPkgPath(pkgPath string) bool {
+	return pkgPath == "gno.land/p/demo/tests" ||
+		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
+		pkgPath == "gno.land/r/tests/vm" ||
+		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
+}
+
+//----------------------------------------
+// Package name and path validation helpers.
+// See https://github.com/gnolang/gno/issues/1571
+
+// reVersionSuffix matches version suffixes (v0, v1, v2, v3, v10, v11, ...).
+// Note: Go convention says v1 should not appear in paths, but Gno allows it
+// for backwards compatibility with existing versioned packages.
+var reVersionSuffix = regexp.MustCompile(`^v(0|[1-9][0-9]*)$`)
+
+// isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
+func isVersionSuffix(s string) bool {
+	return reVersionSuffix.MatchString(s)
+}
+
+// LastPathElement extracts the last meaningful element from a package path.
+// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
+// returns "foo" since version suffixes (v1, v2, ...) are skipped.
+func LastPathElement(pkgPath string) string {
+	pos := strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	pkgPath, last := pkgPath[:pos], pkgPath[pos+1:]
+	if !isVersionSuffix(last) {
+		return last
+	}
+
+	// Version suffix found; return the element before it.
+	pos = strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	return pkgPath[pos+1:]
+}
+
+// ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
+// This prevents confusion where a package at "gno.land/r/foo" declares "package bar".
+// For versioned paths (v1, v2, ...), the package name must match the element before
+// the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
+func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
+	// Reject paths ending in consecutive version suffixes (e.g.
+	// "gno.land/r/demo/foo/v2/v3"): no sensible expected name exists for them.
+	if pos := strings.LastIndexByte(pkgPath, '/'); pos >= 0 && isVersionSuffix(pkgPath[pos+1:]) {
+		rest := pkgPath[:pos]
+		if isVersionSuffix(rest[strings.LastIndexByte(rest, '/')+1:]) {
+			return fmt.Errorf("package path %q must not end with consecutive version suffixes", pkgPath)
+		}
+	}
+	expectedName := LastPathElement(pkgPath)
+	if expectedName == "" {
+		return nil
+	}
+	if string(pkgName) != expectedName {
+		return fmt.Errorf("package name %q does not match path element %q", pkgName, expectedName)
+	}
+	return nil
+}
+
 //----------------------------------------
 // Mempackage basic file filters.
 
 var (
 	goodFiles = []string{
-		"LICENSE",
-		"README.md",
+		"license",
+		"license.txt",
+		"licence",
+		"licence.txt",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -171,6 +291,7 @@ var (
 	goodFileXtns = []string{
 		".gno",
 		".toml",
+		".md",
 		// ".txtar", // XXX: to be considered
 	}
 	badFileXtns = []string{
@@ -560,6 +681,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
@@ -640,7 +764,8 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
+// additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -674,17 +799,40 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
+	filetestsDir := ""
 	for _, file := range files {
+		if file.IsDir() && file.Name() == "filetests" {
+			// Process filetests dir below
+			filetestsDir = filepath.Join(dir, file.Name())
+			continue
+		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
+		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
+				!slices.Contains(goodFiles, strings.ToLower(file.Name()))) ||
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	if filetestsDir != "" {
+		// Add filetest files from the subdir
+		filetestsFiles, err := os.ReadDir(filetestsDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range filetestsFiles {
+			if strings.HasSuffix(file.Name(), "_filetest.gno") {
+				checkPath := filepath.Join(dir, file.Name())
+				if slices.Contains(list, checkPath) {
+					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
+				}
+				list = append(list, filepath.Join(filetestsDir, file.Name()))
+			}
+		}
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
@@ -855,8 +1003,8 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+func (m *Machine) ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
+	return m.ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
 }
 
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
@@ -865,7 +1013,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate(pkgPath)
 	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
@@ -903,7 +1051,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 		// NOTE: the above is (almost) duplicated in ReadMemPackageFromList().
 		//--------------------------------------------------------------------------------
 		// Parse the file.
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -925,7 +1073,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 
 // ParseMemPackageTests parses test files (skipping filetests) in the mpkg and splits
 // the files into categories for testing.
-func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
+func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	var errs error
@@ -934,7 +1082,7 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 			continue // skip this file.
 		}
 
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -984,6 +1132,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, subRealmSep) {
+		return fmt.Errorf("invalid package/realm path %q: %q is reserved for sub-realm derivation", mpkg.Path, subRealmSep)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {
@@ -1009,6 +1164,14 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
+	// Validate that package name matches path last element for pkg meant to be deployed on-chain.
+	// See https://github.com/gnolang/gno/issues/1571
+	if mptype == MPUserAll {
+		if err := ValidatePkgNameMatchesPath(Name(mpkg.Name), mpkg.Path); err != nil {
+			return err
+		}
+	}
+
 	// Validate files.
 	if mpkg.IsEmpty() {
 		return fmt.Errorf("package has no files")
@@ -1031,7 +1194,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			continue
 		}
 		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
+			if !slices.Contains(goodFiles, strings.ToLower(fname)) {
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
 				continue
 			}

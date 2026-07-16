@@ -1,13 +1,25 @@
 package components
 
-import (
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-)
-
 const RealmViewType ViewType = "realm-view"
 
+// TocItem represents a table of contents item for the components package.
+type TocItem struct {
+	Title string
+	ID    string
+	// Icon is an optional sprite id suffix (e.g. "kind-func") rendered as a
+	// leading kind glyph. Empty means no glyph — realm/action/source TOCs leave
+	// it unset, so only the package overview surfaces icons.
+	Icon  string
+	Items []*TocItem
+}
+
+// Anchor returns the anchor link for this ToC item.
+func (i TocItem) Anchor() string {
+	return "#" + i.ID
+}
+
 type RealmTOCData struct {
-	Items []*markdown.TocItem
+	Items []*TocItem
 }
 
 type RealmData struct {
@@ -29,7 +41,7 @@ func RealmView(data RealmData) *View {
 	viewData := realmViewParams{
 		Article: ArticleData{
 			ComponentContent: data.ComponentContent,
-			Classes:          "realm-view lg:row-start-1 pt-6 lg:pt-10",
+			Classes:          "c-realm-view",
 		},
 		ComponentTOC: NewTemplateComponent("ui/toc_realm", data.TocItems),
 	}

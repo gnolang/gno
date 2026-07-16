@@ -1,6 +1,10 @@
 package main
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
+)
 
 type AppConfig struct {
 	// Listeners
@@ -20,28 +24,36 @@ type AppConfig struct {
 	txsFile      string
 
 	// Web Configuration
-	noWeb               bool
-	webHTML             bool
-	webListenerAddr     string
-	webRemoteHelperAddr string
-	webWithHTML         bool
-	webHome             string
+	noWeb                bool
+	webHTML              bool
+	webListenerAddr      string
+	webRemoteHelperAddr  string
+	webWithHTML          bool
+	webHome              string
+	webAnalytics         bool
+	webAnalyticsHostname string
 
-	// Resolver
-	resolvers varResolver
+	// Loader
+	noExamples                 bool
+	withoutQuarantinedExamples bool
+	extraRoots                 []string
+	remotes                    map[string]string
 
 	// Node Configuration
-	logFormat   string
-	lazyLoader  bool
-	verbose     bool
-	noWatch     bool
-	noReplay    bool
-	maxGas      int64
-	chainId     string
-	chainDomain string
-	unsafeAPI   bool
-	interactive bool
-	paths       string
+	logFormat           string
+	staging             bool
+	noWorkspaceHint     string // mode's loading consequence in the no-workspace banner; not a flag
+	verbose             bool
+	noWatch             bool
+	noReplay            bool
+	maxGas              int64
+	chainId             string
+	chainDomain         string
+	unsafeAPI           bool
+	interactive         bool
+	paths               string
+	emptyBlocks         bool
+	emptyBlocksInterval int64
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -110,10 +122,44 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
 	)
 
+	fs.BoolVar(
+		&c.noExamples,
+		"no-examples",
+		defaultCfg.noExamples,
+		"skip loading $GNOROOT/examples entirely",
+	)
+
+	fs.BoolVar(
+		&c.webAnalytics,
+		"web-analytics",
+		defaultCfg.webAnalytics,
+		"gnoweb: enable SimpleAnalytics tracking",
+	)
+
+	fs.StringVar(
+		&c.webAnalyticsHostname,
+		"web-analytics-hostname",
+		defaultCfg.webAnalyticsHostname,
+		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)",
+	)
+
 	fs.Var(
-		&c.resolvers,
-		"resolver",
-		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+		(*commands.StringArr)(&c.extraRoots),
+		"extra-root",
+		"additional workspace root to include (repeatable); every package under it is eager-loaded",
+	)
+
+	fs.Var(
+		(*remoteArr)(&c.remotes),
+		"remote",
+		"fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched",
 	)
 
 	fs.StringVar(
@@ -185,13 +231,6 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"do not replay previous transactions upon reload",
 	)
 
-	fs.BoolVar(
-		&c.lazyLoader,
-		"lazy-loader",
-		defaultCfg.lazyLoader,
-		"enable lazy loader",
-	)
-
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
@@ -217,7 +256,21 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.paths,
 		"paths",
 		defaultCfg.paths,
-		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+		`additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas`,
+	)
+
+	fs.BoolVar(
+		&c.emptyBlocks,
+		"empty-blocks",
+		defaultCfg.emptyBlocks,
+		"enable creation of empty blocks (default: ~1s interval)",
+	)
+
+	fs.Int64Var(
+		&c.emptyBlocksInterval,
+		"empty-blocks-interval",
+		defaultCfg.emptyBlocksInterval,
+		"set the interval for creating empty blocks (in seconds)",
 	)
 
 	fs.BoolVar(

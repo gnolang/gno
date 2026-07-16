@@ -1,17 +1,18 @@
 package validators
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 )
 
 var (
 	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
+	changes *bptree.BPTree            // changes holds any valset changes; seqid(block number) -> []change
 )
 
 // change represents a single valset change, tied to a specific block number
@@ -30,19 +31,19 @@ func addValidator(validator validators.Validator) {
 
 	// Validator added, note the change
 	ch := change{
-		blockNum:  std.ChainHeight(),
+		blockNum:  runtime.ChainHeight(),
 		validator: val,
 	}
 
 	saveChange(ch)
 
 	// Emit the validator set change
-	std.Emit(validators.ValidatorAddedEvent)
+	chain.Emit(validators.ValidatorAddedEvent)
 }
 
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
-func removeValidator(address_XXX std.Address) {
+func removeValidator(address_XXX address) {
 	val, err := vp.RemoveValidator(address_XXX)
 	if err != nil {
 		panic(err)
@@ -50,7 +51,7 @@ func removeValidator(address_XXX std.Address) {
 
 	// Validator removed, note the change
 	ch := change{
-		blockNum: std.ChainHeight(),
+		blockNum: runtime.ChainHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
@@ -61,15 +62,15 @@ func removeValidator(address_XXX std.Address) {
 	saveChange(ch)
 
 	// Emit the validator set change
-	std.Emit(validators.ValidatorRemovedEvent)
+	chain.Emit(validators.ValidatorRemovedEvent)
 }
 
 // saveChange saves the valset change
 func saveChange(ch change) {
 	id := getBlockID(ch.blockNum)
 
-	setRaw, exists := changes.Get(id)
-	if !exists {
+	setRaw := changes.Get(id)
+	if setRaw == nil {
 		changes.Set(id, []change{ch})
 
 		return
@@ -98,7 +99,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
+	changes.ReverseIterateByOffset(0, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {

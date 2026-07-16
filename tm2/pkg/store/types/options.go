@@ -3,7 +3,6 @@ package types
 // (Global) Store options are used to construct new stores.
 type StoreOptions struct {
 	PruningOptions
-	LazyLoad  bool
 	Immutable bool
 }
 
@@ -14,7 +13,7 @@ type PruningOptions struct {
 	// A value of 0 means keep no recent states.
 	KeepRecent int64
 	// This is the distance between state-sync waypoint states to be stored.
-	// See https://github.com/tendermint/classic/issues/828
+	// See https://github.com/tendermint/tendermint/issues/828
 	// A value of 1 means store every state.
 	// A value of 0 means store no waypoints. (node cannot assist in state-sync)
 	// By default this value should be set the same across all nodes,
@@ -23,6 +22,9 @@ type PruningOptions struct {
 }
 
 func NewPruningOptions(keepRecent, keepEvery int64) PruningOptions {
+	if keepEvery > 1 {
+		panic("KeepEvery > 1 is not supported: waypoint retention is broken (versions survive only one block). Use KeepEvery=0 (no waypoints) or KeepEvery=1 (keep all).")
+	}
 	return PruningOptions{
 		KeepRecent: keepRecent,
 		KeepEvery:  keepEvery,
@@ -35,9 +37,9 @@ var (
 	PruneEverything = NewPruningOptions(0, 0)
 	// PruneNothing means all historic states will be saved, nothing will be deleted
 	PruneNothing = NewPruningOptions(0, 1)
-	// PruneSyncable means only those states not needed for state syncing will be deleted.
-	// Assuming 3s block times, and a span of 3.5w, ~705600 blocks should be kept.
-	PruneSyncable = NewPruningOptions(705600, 10)
+	// PruneSyncable keeps recent states for querying. Waypoints are not supported
+	// (KeepEvery is broken and gno.land has no state-sync snapshot support).
+	PruneSyncable = NewPruningOptions(705600, 0)
 )
 
 type PruneStrategy string

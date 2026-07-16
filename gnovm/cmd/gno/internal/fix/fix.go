@@ -29,21 +29,10 @@ type Fix struct {
 
 var Fixes = []Fix{
 	{
-		Name: "interrealm",
-		Date: "2025-06-06",
-		Desc: `gno 0.9 inter-realm syntax change. This is a version of the transpiler
-which works directly onto the AST (without type checking); function calls to
-funcs/methods in the same package will not be modified, as such some manual
-modification may be required in these cases.`,
-		F:       interrealm,
-		Version: "0.9",
-	},
-	{
-		Name:              "stdsplit",
-		Date:              "2025-08-13",
-		Desc:              "rewrites imports and symbols of the std package into the new packages and symbols",
-		F:                 stdsplit,
-		DisabledByDefault: true,
+		Name: "stdsplit",
+		Date: "2025-08-13",
+		Desc: "rewrites imports and symbols of the std package into the new packages and symbols",
+		F:    stdsplit,
 	},
 }
 

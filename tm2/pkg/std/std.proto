@@ -15,15 +15,54 @@ message BaseAccount {
 	uint64 sequence = 5;
 }
 
+message BaseSessionAccount {
+	BaseAccount base_account = 1 [json_name = "BaseAccount"];
+	string master_address = 2;
+	sint64 expires_at = 3;
+	string spend_limit = 4;
+	sint64 spend_period = 5;
+	string spend_used = 6;
+	sint64 spend_reset = 7;
+}
+
+message Coin {
+	string value = 1;
+}
+
+message GasPrice {
+	sint64 gas = 1;
+	string price = 2;
+}
+
+message Tx {
+	repeated google.protobuf.Any msgs = 1 [json_name = "msg"];
+	Fee fee = 2;
+	repeated Signature signatures = 3;
+	string memo = 4;
+}
+
+message Fee {
+	sint64 gas_wanted = 1;
+	string gas_fee = 2;
+}
+
+message Signature {
+	google.protobuf.Any pub_key = 1;
+	bytes signature = 2;
+	string session_addr = 3;
+}
+
 message MemFile {
-	string name = 1 [json_name = "Name"];
-	string body = 2 [json_name = "Body"];
+	string name = 1;
+	string body = 2;
 }
 
 message MemPackage {
-	string name = 1 [json_name = "Name"];
-	string path = 2 [json_name = "Path"];
-	repeated MemFile files = 3 [json_name = "Files"];
+	string name = 1;
+	string path = 2;
+	repeated MemFile files = 3;
+	google.protobuf.Any type = 4;
+	google.protobuf.Any info = 5;
 }
 
 message InternalError {
@@ -78,4 +117,19 @@ message NoSignaturesError {
 }
 
 message GasOverflowError {
+}
+
+message RestrictedTransferError {
+}
+
+message SessionExpiredError {
+}
+
+message SessionNotFoundError {
+}
+
+message SessionLimitError {
+}
+
+message SessionNotAllowedError {
 }

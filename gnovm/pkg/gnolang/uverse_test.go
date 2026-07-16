@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -100,7 +101,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			name: "print composite slice",
 			code: `package test
 			func main() {
-				a, b, c, d := 1, 2, 3, 4
+				const a, b, c, d = 1, 2, 3, 4
 				x := []int{
 					a: b,
 					c: d,
@@ -159,7 +160,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewMachine("test", nil)
-			n := MustParseFile("main.go", tc.code)
+			n := m.MustParseFile("main.go", tc.code)
 			m.RunFiles(n)
 			m.RunMain()
 			assertOutput(t, tc.code, tc.expected)
@@ -298,5 +299,83 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 			got := buf.String()
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// Legacy AST-persisted origin placeholders carry the 3-field .grealm
+// shape (predating the sub-realm fields); the sub-token accessors must
+// treat the missing fields as zero, and the origin persistence
+// exemption must keep covering them while never covering sub-tokens.
+func TestRealmLegacyThreeFieldShape(t *testing.T) {
+	sv := &StructValue{Fields: []TypedValue{
+		{T: gAddressType, V: StringValue("")},
+		{T: StringType, V: StringValue("")},
+		{}, // prev truly-nil: origin shape
+	}}
+	if got := realmSubpathOf(sv); got != "" {
+		t.Fatalf("realmSubpathOf(legacy) = %q, want empty", got)
+	}
+	if got := realmParentOf(sv); got != nil {
+		t.Fatalf("realmParentOf(legacy) = %v, want nil", got)
+	}
+	hiv := &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
+	if !isOriginRealmHIV(hiv) {
+		t.Fatal("legacy 3-field origin must remain persistence-exempt")
+	}
+
+	// A sub-token with a truly-nil prev must NOT be origin-exempt:
+	// exempting it would make the sub-token persistable.
+	sub := newSubRealmHIVPointer(nil, "addr", "example.com/r/host#x", TypedValue{}, "x", TypedValue{})
+	if isOriginRealmHIV(realmHIV(&sub)) {
+		t.Fatal("nil-prev sub-token must not be persistence-exempt")
+	}
+}
+
+// isValidSubpath enforces the frozen sub-realm subpath grammar:
+// segment ("/" segment)*, segment = [a-z0-9] ([a-z0-9_.-]* [a-z0-9])?.
+// Freeze-critical: loosening later is additive, tightening later would
+// strand funds — so the accepted/rejected sets are pinned here.
+func TestIsValidSubpath(t *testing.T) {
+	t.Parallel()
+	valid := []string{
+		"a", "dao", "dao42", "dao/42", "v1.2", "role_admin",
+		"a/b/c", "g1abc", "a-b", "x.y-z_w", "0", "1/2/3",
+	}
+	invalid := []string{
+		"", "/", "//", "dao/", "/dao", "a//b", "Dao", "DAO",
+		"a b", "a\tb", "a\nb", "a:b", "a#b", "a\x00b", "..", ".", "../x",
+		"_x", "x_", "-x", "x-", ".x", "x.",
+		"caf\u00e9", // non-ASCII (é)
+		"a\u202eb",  // RTL override
+		"a/",
+		"a/./b",
+	}
+	for _, s := range valid {
+		if !isValidSubpath(s) {
+			t.Errorf("isValidSubpath(%q) = false, want true", s)
+		}
+	}
+	for _, s := range invalid {
+		if isValidSubpath(s) {
+			t.Errorf("isValidSubpath(%q) = true, want false", s)
+		}
+	}
+}
+
+// subRealmPathError enforces the total-length cap over the synthesized
+// "host#subpath" (not the subpath alone), keeping downstream
+// pkgpath-sized buffers valid.
+func TestSubRealmPathErrorTotalCap(t *testing.T) {
+	t.Parallel()
+	host := "gno.land/r/x"
+	// host + "#" + subpath == 256 is OK; 257 is rejected.
+	okSub := strings.Repeat("a", 256-len(host)-1)
+	synth := host + subRealmSep + okSub
+	if e := subRealmPathError(host, okSub, synth); e != "" {
+		t.Errorf("256-byte synthesized rejected: %s", e)
+	}
+	tooLong := okSub + "a"
+	if e := subRealmPathError(host, tooLong, host+subRealmSep+tooLong); e == "" {
+		t.Error("257-byte synthesized accepted, want rejected")
 	}
 }

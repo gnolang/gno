@@ -6,7 +6,6 @@ package typeutil
 import (
 	"errors"
 	"sort"
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +20,7 @@ type stringer interface {
 // It supports a wide range of Go types including:
 //   - Basic: string, bool
 //   - Numbers: int, int8-64, uint, uint8-64, float32, float64
-//   - Special: time.Time, std.Address, []byte
+//   - Special: time.Time, address, []byte
 //   - Slices: []T for most basic types
 //   - Maps: map[string]string, map[string]any
 //   - Interface: types implementing String() string
@@ -66,7 +65,7 @@ func ToString(val any) string {
 			return ""
 		}
 		return v.String()
-	case *std.Address:
+	case *address:
 		if v == nil {
 			return ""
 		}
@@ -81,7 +80,7 @@ func ToString(val any) string {
 	// Special types
 	case time.Time:
 		return v.String()
-	case std.Address:
+	case address:
 		return string(v)
 	case []byte:
 		return string(v)
@@ -142,7 +141,7 @@ func ToString(val any) string {
 		return joinTimes(v)
 	case []stringer:
 		return join(v)
-	case []std.Address:
+	case []address:
 		return joinAddresses(v)
 	case [][]byte:
 		return joinBytes(v)
@@ -275,7 +274,7 @@ func joinTimes(slice []time.Time) string {
 	return b.String()
 }
 
-func joinAddresses(slice []std.Address) string {
+func joinAddresses(slice []address) string {
 	if len(slice) == 0 {
 		return "[]"
 	}
@@ -336,7 +335,7 @@ func ToBool(val any) bool {
 //   - nil: true
 //   - bool: false
 //   - time.Time: IsZero()
-//   - std.Address: empty string
+//   - address: empty string
 func IsZero(val any) bool {
 	if val == nil {
 		return true
@@ -352,7 +351,7 @@ func IsZero(val any) bool {
 		return v == nil || *v == 0
 	case *time.Time:
 		return v == nil || v.IsZero()
-	case *std.Address:
+	case *address:
 		return v == nil || string(*v) == ""
 
 	// Bool
@@ -398,7 +397,7 @@ func IsZero(val any) bool {
 		return len(v) == 0
 	case time.Time:
 		return v.IsZero()
-	case std.Address:
+	case address:
 		return string(v) == ""
 
 	// Slices (check if empty)
@@ -418,7 +417,7 @@ func IsZero(val any) bool {
 		return len(v) == 0
 	case []time.Time:
 		return len(v) == 0
-	case []std.Address:
+	case []address:
 		return len(v) == 0
 	case [][]byte:
 		return len(v) == 0
@@ -653,7 +652,7 @@ func ToStringSlice(val any) []string {
 			result[i] = t.String()
 		}
 		return result
-	case []std.Address:
+	case []address:
 		result := make([]string, len(v))
 		for i, addr := range v {
 			result[i] = string(addr)

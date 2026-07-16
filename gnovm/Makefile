@@ -15,6 +15,11 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
+# Force the Go toolchain to match the version in go.mod, so filetest
+# TypeCheckError messages match CI. Override with GOTOOLCHAIN=local to use
+# your local Go version instead.
+GOTOOLCHAIN ?= $(shell sed -n 's/^toolchain //p' ../go.mod)
+export GOTOOLCHAIN
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # used to set the default GNOROOT. This helps on local development, as it sets
@@ -22,7 +27,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
 # We can't use '-trimpath' yet as amino use absolute path from call stack
 # to find some directory: see #1236
-GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/version.Version=$(VERSION) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 # file where to place cover profile; used for coverage commands which are
 # more complex than adding -coverprofile, like test.cmd.coverage.
 GOTEST_COVER_PROFILE ?= cmd-profile.out
@@ -53,33 +58,65 @@ lint:
 .PHONY: fmt
 fmt:
 	go fmt ./...
-	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
+	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/... ./tests/files/...
 	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
-# Benchmarking the VM's opcode and storage access
-.PHONY: opcode storage build_opcode build_storage
-build.bench.opcode:
-	go build -tags "benchmarkingops" -o build/gnobench ./cmd/benchops
+########################################
+# Gas calibration analysis
+CALIBRATE_DIR := cmd/calibrate
+BENCH_DATA := $(CALIBRATE_DIR)/op_bench_do_dedicated.txt
+MACHINE_GO := pkg/gnolang/machine.go
 
-build.bench.storage:
-	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd/benchops
+.PHONY: calibrate.analysis
+calibrate.analysis:
+	python3 $(CALIBRATE_DIR)/gen_analysis.py $(BENCH_DATA) $(MACHINE_GO)
 
-# Extract the latest commit hash
-COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
+.PHONY: calibrate.plot
+calibrate.plot:
+	python3 $(CALIBRATE_DIR)/plot_fits.py $(BENCH_DATA) $(CALIBRATE_DIR)/op_gas_fits.png
+	@echo "Plot saved to $(CALIBRATE_DIR)/op_gas_fits.png"
 
-# Run target
-run.bench.opcode: build.bench.opcode
-	./build/gnobench -out opcode_results_$(COMMIT_HASH).csv
+# Run allocation benchmarks and generate allocGasTable.
+.PHONY: calibrate.alloc
+calibrate.alloc:
+	@mkdir -p .tmp
+	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+		./$(CALIBRATE_DIR)/ | tee .tmp/alloc_bench.txt
+	python3 $(CALIBRATE_DIR)/gen_alloc_table.py .tmp/alloc_bench.txt
 
-# Run target
-run.bench.storage: build.bench.storage
-	./build/gnobench -out store_results_$(COMMIT_HASH).csv
-
+# Full gas calibration: run op benchmarks, allocation benchmarks, and analysis.
+.PHONY: calibrate.gas
+calibrate.gas:
+	@echo "=== Running op handler benchmarks ==="
+	go test -tags benchmarkingops -bench=BenchmarkOp -benchmem -count=3 -timeout=30m \
+		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/op_bench_local.txt
+	@echo "=== Running allocation benchmarks ==="
+	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
+		./$(CALIBRATE_DIR)/ | tee $(CALIBRATE_DIR)/alloc_bench_local.txt
+	@echo "=== Generating analysis ==="
+	python3 $(CALIBRATE_DIR)/gen_analysis.py $(CALIBRATE_DIR)/op_bench_local.txt $(MACHINE_GO)
+	python3 $(CALIBRATE_DIR)/gen_alloc_table.py $(CALIBRATE_DIR)/alloc_bench_local.txt
+	@echo "=== Generating plots ==="
+	python3 $(CALIBRATE_DIR)/plot_fits.py $(CALIBRATE_DIR)/op_bench_local.txt $(CALIBRATE_DIR)/op_gas_fits_local.png
+	@echo ""
+	@echo "Calibration complete. Review the analysis output above."
+	@echo "Update constants in pkg/gnolang/machine.go and pkg/gnolang/alloc.go as needed."
+	@echo "Then run: go test ./pkg/gnolang/ -run TestFiles -test.short --update-golden-tests"
 
 ########################################
 # Test suite
 .PHONY: test
 test: _test.filetest _test.cmd _test.pkg _test.stdlibs
+
+# Run tests with the debug build tag (enables debug checks).
+.PHONY: test.debug
+test.debug:
+	go test -tags debug ./pkg/... $(GOTEST_FLAGS)
+
+# Run tests with the debugAssert build tag (enables runtime invariant checks).
+.PHONY: test.debugAssert
+test.debugAssert:
+	go test -tags debugAssert ./pkg/... $(GOTEST_FLAGS)
 
 .PHONY: _test.cmd
 _test.cmd:
@@ -112,7 +149,7 @@ _test.stdlibs:
 	go test -v ./stdlibs/...
 	# 'gno test ./stdlibs/...' is different from TestStdlibs in 'go test ./pkg/..'
 	# TestStdlibs does not include tests from *_test packages.
-	go run ../gnovm/cmd/gno test -v ./stdlibs/...
+	cd stdlibs && go run ../cmd/gno test -v ./...
 
 
 .PHONY: _test.filetest

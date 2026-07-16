@@ -2,11 +2,11 @@
 package borrow
 
 import (
+	"chain/runtime/unsafe"
 	"fmt"
-	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {
@@ -26,8 +26,8 @@ func (s *Struct) PrintRealms() {
 }
 
 func (s *Struct) printRealms() {
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(unsafe.CurrentRealm())
+	fmt.Println(unsafe.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -53,12 +53,12 @@ func (p *Passthrough) printRealm() {
 var s *Struct
 
 func main(cur realm) {
-	s = &Struct{A: 100}              // saved in borrow_test.
-	crossrealm_b.SetObject(cross, s) // saved in crossrealm_b
+	s = &Struct{A: 100}                   // saved in borrow_test.
+	crossrealm_b.SetObject(cross(cur), s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}
 
-	crossrealm.SetObject(cross, p) // saved in crossrealm.
+	crossrealm.SetObject(cross(cur), p) // saved in crossrealm.
 
 	p.Mutate() // receiver method borrows crossrealm, then crossrealm_b, but does not impact prev, current realm.
 

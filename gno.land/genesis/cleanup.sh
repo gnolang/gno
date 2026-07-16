@@ -21,7 +21,7 @@ JAE_ADDR=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 cat $SRC | grep '"func":"CreateBoard","args":\["gnolang"\]' | sed "s/$JAE_ADDR/$ADMIN_ADDR/" >> $TARGET
 
 # r/boards:gnolang/xxx by jae, admin
-cat $SRC | grep "caller\":\"$JAE_ADDR" | grep 'gno.land/r/demo/boards","func":"CreateThread","args":\["1"' | sed "s/$JAE_ADDR/$ADMIN_ADDR/" >> $TARGET
-cat $SRC | grep "caller\":\"$ADMIN_ADDR" | grep 'gno.land/r/demo/boards","func":"CreateThread","args":\["1"' >> $TARGET
+cat $SRC | grep "caller\":\"$JAE_ADDR" | grep 'gno.land/r/archive/boards","func":"CreateThread","args":\["1"' | sed "s/$JAE_ADDR/$ADMIN_ADDR/" >> $TARGET
+cat $SRC | grep "caller\":\"$ADMIN_ADDR" | grep 'gno.land/r/archive/boards","func":"CreateThread","args":\["1"' >> $TARGET
 
 wc -l $SRC $TARGET

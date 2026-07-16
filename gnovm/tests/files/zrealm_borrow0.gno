@@ -2,10 +2,10 @@
 package borrow
 
 import (
+	"chain/runtime/unsafe"
 	"fmt"
-	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 type Struct struct {
@@ -34,8 +34,8 @@ func (s *Struct) printRealms() {
 	// Should this be allowed?
 	// Whether it panics or not is determined by
 	// 'fr.DidCrossing = true' in PushFrameCall.
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(unsafe.CurrentRealm())
+	fmt.Println(unsafe.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -69,7 +69,7 @@ func main(cur realm) {
 
 	p := &Passthrough{S: s}
 
-	crossrealm.SetObject(cross, p) // saved in crossrealm.
+	crossrealm.SetObject(cross(cur), p) // saved in crossrealm.
 
 	p.Mutate() // receiver method borrows crossrealm_b.
 

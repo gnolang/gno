@@ -6,7 +6,8 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": ["**", "!static/**", "!node_modules/**"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -15,7 +16,10 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"suspicious": {
+				"noDocumentCookie": "off"
+			}
 		}
 	},
 	"javascript": {
@@ -30,5 +34,9 @@
 				"organizeImports": "on"
 			}
 		}
+	},
+	"css": {
+		"formatter": { "enabled": true },
+		"linter": { "enabled": false }
 	}
 }

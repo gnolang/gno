@@ -23,14 +23,16 @@ var (
 const (
 	// XXX rename these to flagXyz.
 
-	// flagUnrestricted allows flagUnrestricted transfers.
-	flagUnrestricted BitSet = 1 << iota
+	// flagTokenLockWhitelisted allows unrestricted transfers.
+	flagTokenLockWhitelisted BitSet = 1 << iota
 
 	// TODO: flagValidatorAccount marks an account as validator.
 	flagValidatorAccount
 
 	// TODO: flagRealmAccount marks an account as realm.
 	flagRealmAccount
+
+	flagFrozen
 )
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
@@ -49,7 +51,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount
+const validFlags = flagTokenLockWhitelisted | flagValidatorAccount | flagRealmAccount | flagFrozen
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
@@ -79,15 +81,31 @@ func isValidFlag(flag BitSet) bool {
 	return flag&^validFlags == 0 && flag != 0
 }
 
-// SetUnrestricted allows the account to bypass global transfer locking restrictions.
-// By default, accounts are restricted when global transfer locking is enabled.
-func (ga *GnoAccount) SetUnrestricted() {
-	ga.setFlag(flagUnrestricted)
+// SetTokenLockWhitelisted allows the account to bypass global transfer locking restrictions.
+// By default, accounts are restricted with token transfer when global transfer locking is enabled.
+func (ga *GnoAccount) SetTokenLockWhitelisted(whitelisted bool) {
+	if whitelisted {
+		ga.setFlag(flagTokenLockWhitelisted)
+	} else {
+		ga.clearFlag(flagTokenLockWhitelisted)
+	}
 }
 
-// IsUnrestricted checks whether the account is flagUnrestricted.
-func (ga *GnoAccount) IsUnrestricted() bool {
-	return ga.hasFlag(flagUnrestricted)
+// IsTokenLockWhitelisted checks whether the account is white listed for the token locking
+func (ga *GnoAccount) IsTokenLockWhitelisted() bool {
+	return ga.hasFlag(flagTokenLockWhitelisted)
+}
+
+func (ga *GnoAccount) SetFrozen(frozen bool) {
+	if frozen {
+		ga.setFlag(flagFrozen)
+	} else {
+		ga.clearFlag(flagFrozen)
+	}
+}
+
+func (ga *GnoAccount) IsFrozen() bool {
+	return ga.hasFlag(flagFrozen)
 }
 
 // String implements fmt.Stringer
@@ -102,12 +120,60 @@ func ProtoGnoAccount() std.Account {
 	return &GnoAccount{}
 }
 
+// GetBaseAccount returns a pointer to the embedded BaseAccount.
+func (ga *GnoAccount) GetBaseAccount() *std.BaseAccount {
+	return &ga.BaseAccount
+}
+
+// GnoSessionAccount extends BaseSessionAccount with gno.land-specific
+// session fields. AllowPaths is the per-session msg-type/path allow-list
+// using the typed grammar "*" or "<route>/<type>[:<path>]" (see
+// allow_paths.go). Required at create-time; empty is rejected.
+type GnoSessionAccount struct {
+	std.BaseSessionAccount
+	AllowPaths []string `json:"allow_paths,omitempty" yaml:"allow_paths,omitempty"`
+}
+
+func (gsa *GnoSessionAccount) SetAllowPaths(paths []string) {
+	gsa.AllowPaths = paths
+}
+
+func (gsa *GnoSessionAccount) GetAllowPaths() []string {
+	return gsa.AllowPaths
+}
+
+// ValidateAllowPaths checks that every entry conforms to the typed grammar.
+// Implements the auth handler's local allowPathsValidator interface, called
+// from handleMsgCreateSession before SetAllowPaths.
+func (gsa *GnoSessionAccount) ValidateAllowPaths(paths []string) error {
+	_, err := parseAllowPaths(paths)
+	return err
+}
+
+func ProtoGnoSessionAccount() std.Account {
+	return &GnoSessionAccount{}
+}
+
+var _ std.DelegatedAccount = &GnoSessionAccount{}
+
 type GnoGenesisState struct {
 	Balances []Balance         `json:"balances"`
 	Txs      []TxWithMetadata  `json:"txs"`
 	Auth     auth.GenesisState `json:"auth"`
 	Bank     bank.GenesisState `json:"bank"`
 	VM       vm.GenesisState   `json:"vm"`
+	// Chain upgrade fields
+	PastChainIDs  []string `json:"past_chain_ids,omitempty"` // Allowlist of chain IDs valid for historical tx signature verification
+	InitialHeight int64    `json:"initial_height,omitempty"` // Block height to start from after genesis replay
+	// GasReplayMode controls how historical txs (metadata.BlockHeight > 0) are
+	// metered during replay. Valid values:
+	//   "" or "strict" — use the new VM's gas meter (default; may fail txs
+	//       that worked on the source chain if gas requirements changed)
+	//   "source"       — bypass the new gas meter for historical txs; they
+	//       execute with unlimited gas and the response records
+	//       metadata.GasUsed from the source chain. This preserves the
+	//       historical outcome even if the VM's gas metering changed.
+	GasReplayMode string `json:"gas_replay_mode,omitempty"`
 }
 
 type TxWithMetadata struct {
@@ -116,7 +182,36 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp   int64               `json:"timestamp"`
+	BlockHeight int64               `json:"block_height,omitempty"` // Original block height for historical tx replay
+	ChainID     string              `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
+	Failed      bool                `json:"failed,omitempty"`       // True if tx had non-zero return code on source chain
+	SignerInfo  []SignerAccountInfo `json:"signer_info,omitempty"`  // Per-signer account metadata for signature verification
+	GasUsed     int64               `json:"gas_used,omitempty"`     // Gas consumed on source chain (used when GasReplayMode="source")
+	GasWanted   int64               `json:"gas_wanted,omitempty"`   // Gas requested on source chain (informational / report)
+	// ---- Hardfork provenance ----
+	// Populated by `gnogenesis fork generate` at assembly time; not used during
+	// normal chain operation.
+	Source     string  `json:"source,omitempty"`      // one of SourceBase / SourceHistorical / SourcePatched / SourceMigration
+	Note       string  `json:"note,omitempty"`        // free-form reason (set for patched and migration)
+	OriginalTx *std.Tx `json:"original_tx,omitempty"` // pre-patch tx body (set for patched only)
+}
+
+// Provenance Source values for GnoTxMetadata.Source.
+const (
+	SourceBase       = "base"       // tx came from the base genesis (appState.Txs in --source-genesis-file)
+	SourceHistorical = "historical" // tx came unmodified from the historical replay stream
+	SourcePatched    = "patched"    // historical tx whose body was replaced via --patch-txs
+	SourceMigration  = "migration"  // tx came from --migration-tx
+)
+
+// SignerAccountInfo records a signer's account number and sequence at the time
+// a historical tx was executed on the source chain. Used during hardfork replay
+// to force-set account state so signatures verify correctly.
+type SignerAccountInfo struct {
+	Address    crypto.Address `json:"address"`
+	AccountNum uint64         `json:"account_num"` // Stable, never changes once assigned
+	Sequence   uint64         `json:"sequence"`    // Pre-tx sequence (value used in GetSignBytes)
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path
@@ -165,9 +260,16 @@ func ReadGenesisTxs(ctx context.Context, path string) ([]TxWithMetadata, error) 
 	return txs, nil
 }
 
-// SignGenesisTxs will sign all txs passed as argument using the private key.
+// GenesisSigner defines the interface needed to sign genesis transactions.
+// Both crypto.PrivKey and bft/types.Signer implement this interface.
+type GenesisSigner interface {
+	PubKey() crypto.PubKey
+	Sign(msg []byte) ([]byte, error)
+}
+
+// SignGenesisTxs will sign all txs passed as argument using the genesis signer.
 // This signature is only valid for genesis transactions as the account number and sequence are 0
-func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string) error {
+func SignGenesisTxs(txs []TxWithMetadata, signer GenesisSigner, chainID string) error {
 	for index, tx := range txs {
 		// Upon verifying genesis transactions, the account number and sequence are considered to be 0.
 		// The reason for this is that it is not possible to know the account number (or sequence!) in advance
@@ -177,14 +279,14 @@ func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string
 			return fmt.Errorf("unable to get sign bytes for transaction, %w", err)
 		}
 
-		signature, err := privKey.Sign(bytes)
+		signature, err := signer.Sign(bytes)
 		if err != nil {
 			return fmt.Errorf("unable to sign genesis transaction, %w", err)
 		}
 
 		txs[index].Tx.Signatures = []std.Signature{
 			{
-				PubKey:    privKey.PubKey(),
+				PubKey:    signer.PubKey(),
 				Signature: signature,
 			},
 		}

@@ -1,59 +1,57 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime/unsafe"
+	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-	trs_pkg "gno.land/p/nt/treasury"
+	trs_pkg "gno.land/p/nt/treasury/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	cb := func(_ realm) error {
-		law = newLaw
+	cb := func(cur realm) error {
+		law = &newLaw
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new Law is proposed:\n %v", newLaw))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new Law is proposed:\n %v", newLaw))
 
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
-func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		dao.UpdateImpl(cross, dao.UpdateRequest{
-			DAO:         newDao,
-			AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
-		})
+		dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
-	_, ok := memberstore.Tiers.GetTier(tier)
+func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
 	}
@@ -66,7 +64,7 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -75,14 +73,14 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		member.RemoveInvitationPoint()
-		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier))
 
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
 	name := tryResolveAddr(addr)
 	return dao.NewProposalRequestWithFilter(
@@ -93,22 +91,23 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 	)
 }
 
-func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.ProposalRequest {
-	member, tier := memberstore.Get().GetMember(addr)
+func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.ProposalRequest {
+	member, tier := memberstore.Get(0, cur).GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
 	}
 
+	reason = strings.TrimSpace(reason)
 	if tier == memberstore.T1 && reason == "" {
 		panic("T1 user removals must contains a reason.")
 	}
 
-	cb := func(_ realm) error {
-		memberstore.Get().RemoveMember(addr)
+	cb := func(cur realm) error {
+		memberstore.Get(0, cur).RemoveMember(addr)
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
 
 	return dao.NewProposalRequest(
 		"Member Withdrawal Proposal",
@@ -117,9 +116,9 @@ func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.Prop
 	)
 }
 
-func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
-	cb := func(_ realm) error {
-		prevTier := memberstore.Get().RemoveMember(addr)
+func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
+	cb := func(cur realm) error {
+		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -128,12 +127,12 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		err := memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+		err := memberstore.Get(0, cur).SetMember(toTier, addr, memberByTier(toTier))
 
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
 
 	return dao.NewProposalRequestWithFilter(
 		"Member Promotion Proposal",
@@ -143,22 +142,23 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 	)
 }
 
-func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
 
+	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		panic("treasury payment request requires a reason")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
-			treasury.Send(cross, payment)
+			treasury.Send(cross(cur), payment)
 		})
 	}
 
-	e := dao.NewSimpleExecutor(
+	e := dao.NewSimpleExecutor(0, cur,
 		cb,
 		ufmt.Sprintf(
 			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
@@ -180,18 +180,22 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 
 // NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
-func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
-	cb := func(_ realm) error {
+func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.ProposalRequest {
+	if len(newTokenKeys) == 0 {
+		panic("the list of new tokens is empty")
+	}
+
+	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
 			// NOTE:: Consider checking if the newTokenKeys are already registered
 			// in the grc20reg before updating the treasury tokens keys.
-			treasury.SetTokenKeys(cross, newTokenKeys)
+			treasury.SetTokenKeys(cross(cur), newTokenKeys)
 		})
 	}
 
 	bulletList := md.BulletList(newTokenKeys)
 
-	e := dao.NewSimpleExecutor(
+	e := dao.NewSimpleExecutor(0, cur,
 		cb,
 		ufmt.Sprintf(
 			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.\n",
@@ -212,20 +216,14 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T1)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		t, _ := memberstore.GetTier(memberstore.T1)
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T2:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T2)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		t, _ := memberstore.GetTier(memberstore.T2)
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T3:
-		t, _ := memberstore.Tiers.GetTier(memberstore.T3)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		t, _ := memberstore.GetTier(memberstore.T3)
+		return memberstore.NewMember(t.InvitationPoints)
 	default:
 		panic("member not found by the specified tier")
 	}

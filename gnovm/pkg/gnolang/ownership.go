@@ -71,17 +71,41 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
-// TODO: make faster by making PkgID a pointer
-// and enforcing that the value of PkgID is never zero.
+func (oid ObjectID) IsPackageID() bool {
+	// all package objects have newtime 1.
+	return !oid.PkgID.IsZero() && oid.NewTime == 1
+}
+
+// IsZero returns true iff the ObjectID is completely empty (both
+// PkgID and NewTime are zero). This is the "totally empty" state
+// — used to detect "no owner exists" / "transient/never-stamped".
+//
+// An ObjectID has three states:
+//
+//	empty:     PkgID zero, NewTime zero        (never went through allocator)
+//	allocated: PkgID set,  NewTime zero        (set at construction by the allocator)
+//	finalized: PkgID set,  NewTime ≥ 1         (real, persisted)
+//
+// Use IsFinalized() for "has a real persisted identity" and
+// GetIsReal() (on ObjectInfo) as the convenience equivalent.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.PkgID.IsZero() {
-			if oid.NewTime != 0 {
-				panic("should not happen")
-			}
+		// The impossible state is PkgID zero + NewTime non-zero.
+		// PkgID set + NewTime zero is the allocated-but-unfinalized
+		// state.
+		if oid.PkgID.IsZero() && oid.NewTime != 0 {
+			panic("invariant: NewTime set but PkgID zero")
 		}
 	}
-	return oid.PkgID.IsZero()
+	return oid.PkgID.IsZero() && oid.NewTime == 0
+}
+
+// IsFinalized returns true iff the ObjectID has been stamped with a
+// NewTime by assignNewObjectID — i.e., it has a real persisted
+// identity. The allocated-but-unfinalized state (PkgID set, NewTime
+// zero) returns false.
+func (oid ObjectID) IsFinalized() bool {
+	return oid.NewTime != 0
 }
 
 type ObjectIDer interface {
@@ -94,6 +118,8 @@ type Object interface {
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
 	SetObjectID(oid ObjectID)
+	SetNewTime(t uint64) // partial stamp during assignNewObjectID
+	SetPkgID(p PkgID)    // partial stamp at allocation time
 	GetHash() ValueHash
 	SetHash(ValueHash)
 	GetOwner() Object
@@ -113,7 +139,7 @@ type Object interface {
 	GetIsEscaped() bool
 	SetIsEscaped(bool)
 	GetIsDeleted() bool
-	SetIsDeleted(bool, uint64)
+	SetIsDeleted(bool)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
 	GetIsNewEscaped() bool
@@ -136,6 +162,7 @@ var (
 	_ Object = &FuncValue{}
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
+	_ Object = &PackageValue{}
 	_ Object = &Block{}
 	_ Object = &HeapItemValue{}
 )
@@ -214,8 +241,8 @@ func (oi *ObjectInfo) GetObjectID() ObjectID {
 }
 
 func (oi *ObjectInfo) MustGetObjectID() ObjectID {
-	if oi.ID.IsZero() {
-		panic("unexpected zero object id")
+	if !oi.ID.IsFinalized() {
+		panic("unexpected non-finalized object id")
 	}
 	return oi.ID
 }
@@ -247,20 +274,33 @@ func (oi *ObjectInfo) SetOwner(po Object) {
 }
 
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
-	if oi.owner == nil {
-		return ObjectID{}
-	} else {
-		return oi.owner.GetObjectID()
-	}
+	return oi.OwnerID
 }
 
 func (oi *ObjectInfo) GetIsOwned() bool {
 	return !oi.OwnerID.IsZero()
 }
 
-// NOTE: does not return true for new reals.
+// GetIsReal returns true iff the object has a finalized ObjectID
+// (NewTime ≥ 1). Allocated-but-unfinalized objects (PkgID set,
+// NewTime zero) return false. Note: does not return true for
+// new-reals (those waiting for assignNewObjectID at finalize time).
 func (oi *ObjectInfo) GetIsReal() bool {
-	return !oi.ID.IsZero()
+	return oi.ID.IsFinalized()
+}
+
+// SetNewTime stamps only the NewTime portion of the ObjectID,
+// preserving any pre-existing PkgID set at allocation time.
+// Used by assignNewObjectID.
+func (oi *ObjectInfo) SetNewTime(t uint64) {
+	oi.ID.NewTime = t
+}
+
+// SetPkgID stamps only the PkgID portion of the ObjectID,
+// preserving any pre-existing NewTime. Used by allocator
+// constructors to stamp authority at allocation.
+func (oi *ObjectInfo) SetPkgID(p PkgID) {
+	oi.ID.PkgID = p
 }
 
 func (oi *ObjectInfo) GetModTime() uint64 {
@@ -313,16 +353,11 @@ func (oi *ObjectInfo) GetIsDeleted() bool {
 	return oi.isDeleted
 }
 
-func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
-	// NOTE: Don't over-write modtime.
-	// Consider adding a DelTime, or just log it somewhere, or
-	// continue to ignore it.
-
-	// The above comment is likely made because it could introduce complexity
-	// Objects can be "undeleted" if referenced during a transaction
-	// If an object is deleted and then undeleted in the same transaction
-	// If an object is deleted multiple times
-	// ie...continue to ignore it
+// SetIsDeleted marks the object as deleted. The deletion is just a
+// tombstone marker, not a clock — under cross-realm finalize this
+// avoids a "myrealm's clock stamps yourrealm's tombstone" semantic
+// discrepancy.
+func (oi *ObjectInfo) SetIsDeleted(x bool) {
 	oi.isDeleted = x
 }
 
@@ -379,51 +414,127 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *BoundMethodValue:
 		return cv
 	case *PackageValue:
-		return cv.GetBlock(store)
+		return cv
 	case *Block:
 		return cv
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObject() cannot handle RefValue{PkgPath}")
+		}
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of GetFirstObject() on heap item")
 	default:
 		return nil
 	}
 }
 
-// returns false if there is no object.
-func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
+// IsReadonlyBy returns true if tv is a real object owned by a realm
+// other than rid (i.e., residing in an external realm).
+//
+// ownPkgID is the executing package's PkgID (m.Package.PkgID). An object
+// stamped with it is the executing package's own package-level data, which
+// the package may always read/copy regardless of rid — e.g. stdlib or a /p/
+// library reading its own immutable tables while running under a caller's
+// realm (those callables don't borrow, so m.Realm is the caller's, not the
+// library's). Pass a zero PkgID to disable this exemption.
+//
+// This is different from GetFirstObject in two significant ways:
+//  1. IsReadonlyBy does not go through RefValues; for this reason, it
+//     also doesn't need a store to fetch the nested object.
+//  2. If a pointer's HeapItemValue is unreal, only the object id of
+//     its underlying Value is considered.
+//  3. If a pointer's HeapItemValue is real, both the object id of
+//     the heap item value AND its internal value is considered.
+//
+// This function controls heavily the behaviour of
+// [Machine.IsReadonly], and thus cross-realm write authority.
+func (tv *TypedValue) IsReadonlyBy(rid, ownPkgID PkgID) bool {
+	var tvoid ObjectID
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		if cv.Base == nil {
-			return ObjectID{}, false
+			return false // free floating
 		}
-		return cv.Base.(ObjectIDer).GetObjectID(), true
+		if hiv, ok := cv.Base.(*HeapItemValue); ok {
+			// Also need to check the heap item value.
+			// NOTE: It is possible for the value to be
+			// external while the heap item itself is
+			// not.
+			// See test/files/zrealm_crossrealm25a.gno.
+			if hiv.Value.IsReadonlyBy(rid, ownPkgID) {
+				return true
+			}
+			// An unreal HIV is a transient heap-promotion wrapper
+			// for an escaping local (closure capture, new(T), &T{},
+			// etc.) — not a realm-owned slot. The alloc-site PkgID
+			// stamp is incidental, so skip the PkgID gate while
+			// the HIV is unreal. Once persisted (NewTime>0) the
+			// standard gate applies: cross-realm writes to a
+			// persisted captured slot are rejected so callers must
+			// use an explicit crossing function in the owning
+			// realm, keeping all cross-realm side effects
+			// syntactically visible via `cross`.
+			if !hiv.GetIsReal() {
+				return false
+			}
+			tvoid = hiv.GetObjectID()
+		} else {
+			tvoid = cv.Base.(ObjectIDer).GetObjectID()
+		}
 	case *ArrayValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *SliceValue:
-		return cv.Base.(ObjectIDer).GetObjectID(), true
+		tvoid = cv.Base.(ObjectIDer).GetObjectID()
 	case *StructValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *FuncValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *MapValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *BoundMethodValue:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *PackageValue:
-		return cv.Block.(ObjectIDer).GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case *Block:
-		return cv.GetObjectID(), true
+		tvoid = cv.GetObjectID()
 	case RefValue:
-		return cv.GetObjectID(), true
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			// It is should be handled by Machine.IsReadonly().
+			panic("IsReadonlyBy() cannot handle RefValue{PkgPath}")
+		}
+		tvoid = cv.GetObjectID()
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of IsReadonly() on heap item")
 	default:
-		return ObjectID{}, false
+		// tv is not an object ("first object" ID is zero)
+		return false // e.g. primitive
 	}
+	// tv is an unreal object (no object id)
+	if tvoid.IsZero() {
+		return false
+	}
+	// tv is an object residing in external realm — unless it is the
+	// executing package's own package-level data (stamped ownPkgID),
+	// which the package may always read/copy regardless of m.Realm.
+	if tvoid.PkgID != rid && tvoid.PkgID != ownPkgID {
+		return true
+	}
+	return false
 }

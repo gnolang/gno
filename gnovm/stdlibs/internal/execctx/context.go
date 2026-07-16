@@ -1,0 +1,89 @@
+package execctx
+
+import (
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+type BankerInterface interface {
+	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
+	TotalCoin(denom string) int64
+	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
+	RemoveCoin(addr crypto.Bech32Address, denom string, amount int64)
+}
+
+type ParamsInterface interface {
+	SetString(key, val string)
+	SetBool(key string, val bool)
+	SetInt64(key string, val int64)
+	SetUint64(key string, val uint64)
+	SetBytes(key string, val []byte)
+	SetStrings(key string, val []string)
+	UpdateStrings(key string, val []string, add bool)
+	// GetXxx writes the stored value (if any) into *ptr and returns
+	// whether the key existed. A return of false leaves *ptr at its
+	// zero value, distinguishing "never set" from "set to zero" —
+	// which the in-memory backed types alone cannot.
+	GetString(key string, ptr *string) bool
+	GetBool(key string, ptr *bool) bool
+	GetInt64(key string, ptr *int64) bool
+	GetUint64(key string, ptr *uint64) bool
+	GetBytes(key string, ptr *[]byte) bool
+	GetStrings(key string, ptr *[]string) bool
+}
+
+type ExecContext struct {
+	ChainID         string
+	ChainDomain     string
+	Height          int64
+	Timestamp       int64 // seconds
+	TimestampNano   int64 // nanoseconds, only used for testing.
+	OriginCaller    crypto.Bech32Address
+	OriginSend      std.Coins
+	OriginSendSpent *std.Coins // mutable
+	Banker          BankerInterface
+	Params          ParamsInterface
+	EventLogger     *sdk.EventLogger
+	SessionAccount  std.DelegatedAccount // nil for master-key txs
+}
+
+// GetContext returns the execution context.
+// This is used to allow extending the exec context using interfaces,
+// for instance when testing.
+func (e ExecContext) GetExecContext() ExecContext {
+	return e
+}
+
+var _ ExecContexter = ExecContext{}
+
+// ExecContexter is a type capable of returning the parent [ExecContext]. When
+// using these standard libraries, m.Context should always implement this
+// interface. This can be obtained by embedding [ExecContext].
+type ExecContexter interface {
+	GetExecContext() ExecContext
+}
+
+// NOTE: In order to make this work by simply embedding ExecContext in another
+// context (like TestExecContext), the method needs to be something other than
+// the field name.
+
+// GetContext returns the context from the Gno machine.
+func GetContext(m *gno.Machine) ExecContext {
+	return m.Context.(ExecContexter).GetExecContext()
+}
+
+// Wire the per-tx OriginCaller into gnolang so it can build the per-tx
+// origin realm value (the EOA-shaped value at the chain root used by
+// captured `cur.Previous()`). This must match what runtime.PreviousRealm()
+// surfaces in the same context — (OriginCaller, "") at the EOA boundary.
+func init() {
+	gno.OriginCallerExtractor = func(ctx any) string {
+		if ec, ok := ctx.(ExecContexter); ok {
+			return string(ec.GetExecContext().OriginCaller)
+		}
+		return ""
+	}
+}

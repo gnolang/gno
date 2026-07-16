@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,38 +13,50 @@ import (
 // DefaultDirPerm is the default permissions used when creating directories.
 const DefaultDirPerm = 0o700
 
-// LoadConfigFile loads the TOML node configuration from the specified path
+// LoadConfigFile loads the TOML node configuration from the specified path,
+// applying the file's values on top of the default configuration
 func LoadConfigFile(path string) (*Config, error) {
+	cfg := DefaultConfig()
+
+	if loadErr := loadConfigFile(path, cfg); loadErr != nil {
+		return nil, loadErr
+	}
+
+	return cfg, nil
+}
+
+// loadConfigFile decodes the TOML file at the given path into cfg.
+// Keys present in the file overwrite cfg's fields, including with explicit
+// zero values; keys absent from the file leave cfg's fields untouched
+func loadConfigFile(path string, cfg *Config) error {
 	// Read the config file
 	content, readErr := os.ReadFile(path)
 	if readErr != nil {
-		return nil, readErr
+		return readErr
 	}
 
 	// Parse the node config
-	var nodeConfig Config
-
-	if unmarshalErr := toml.Unmarshal(content, &nodeConfig); unmarshalErr != nil {
-		return nil, unmarshalErr
+	if unmarshalErr := toml.Unmarshal(content, cfg); unmarshalErr != nil {
+		return unmarshalErr
 	}
 
 	// Validate the config
-	if validateErr := nodeConfig.ValidateBasic(); validateErr != nil {
-		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+	if validateErr := cfg.ValidateBasic(); validateErr != nil {
+		return fmt.Errorf("unable to validate config, %w", validateErr)
 	}
 
-	return &nodeConfig, nil
+	return nil
 }
 
 /****** these are for production settings ***********/
 
 // WriteConfigFile renders config using the template and writes it to configFilePath.
 func WriteConfigFile(configFilePath string, config *Config) error {
-	// Marshal the config
-	configRaw, err := toml.Marshal(config)
-	if err != nil {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Indentation("").Encode(config); err != nil {
 		return fmt.Errorf("unable to TOML marshal config, %w", err)
 	}
+	configRaw := buf.Bytes()
 
 	if err := osm.WriteFile(configFilePath, configRaw, 0o644); err != nil {
 		return fmt.Errorf("unable to write config file, %w", err)

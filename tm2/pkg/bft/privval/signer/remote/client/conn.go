@@ -19,12 +19,12 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 	// Try to establish a connection with the server, retrying if necessary.
 	for try := 0; ; try++ {
 		// Ensure the client is not closed.
-		if rsc.isClosed() {
+		if rsc.ctx.Err() != nil {
 			return ErrClientAlreadyClosed
 		}
 
 		// Dial the server.
-		conn, err := rsc.dialer.DialContext(rsc.dialCtx, rsc.protocol, rsc.address)
+		conn, err := rsc.dialer.DialContext(rsc.ctx, rsc.protocol, rsc.address)
 		if err != nil {
 			rsc.logger.Warn("Failed to dial",
 				"protocol", rsc.protocol,
@@ -44,7 +44,7 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 			// Continue after the interval (retry) or if the dial context is done (exit).
 			select {
 			case <-time.After(rsc.dialRetryInterval):
-			case <-rsc.dialCtx.Done():
+			case <-rsc.ctx.Done():
 			}
 			continue
 		}

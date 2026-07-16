@@ -4,7 +4,8 @@ package keyscli
 import (
 	"encoding/base64"
 
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -33,10 +34,10 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		commands.HelpExec,
 	)
 
-	// OnTxSuccess is only used by NewBroadcastCmd
-	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-		PrintTxInfo(tx, res, io)
-	}
+	// OnTxSuccess is used whenever we broadcast a transaction
+	cfg.OnTxSuccess = PrintTxSuccess
+	// OnTxFailure prints metrics (gas, storage, etc.) when a tx fails.
+	cfg.OnTxFailure = PrintTxMetrics
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
@@ -50,6 +51,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
 		client.NewMultisignCmd(cfg, io),
+		client.NewVersionCmd(cfg, io),
 
 		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
@@ -58,48 +60,66 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	return cmd
 }
 
-// PrintTxInfo prints the transaction result to io. If the events has storage deposit
+// PrintTxSuccess prints the transaction result to io. If the events has storage deposit
 // info then also print it with the total transaction cost.
-func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO) {
+func PrintTxSuccess(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println(string(res.DeliverTx.Data))
 	io.Println("OK!")
+	PrintTxMetrics(io, tx, res)
+}
+
+// PrintTxMetrics prints common tx metrics (gas, storage, events, info, hash).
+// This is used for both success and failure cases so users always see the
+// relevant numbers.
+func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)
-	if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
-		io.Printfln("STORAGE DELTA:  %d bytes", delta)
-		if storageFee.Amount >= 0 {
-			io.Println("STORAGE FEE:   ", storageFee)
+	if bytesDelta, coinsDelta, hasStorageEvents := GetStorageInfo(res.DeliverTx.Events); hasStorageEvents {
+		io.Printfln("STORAGE DELTA:  %d bytes", bytesDelta)
+		if coinsDelta.IsAllPositive() || coinsDelta.IsZero() {
+			io.Println("STORAGE FEE:   ", coinsDelta)
 		} else {
-			refund := storageFee
-			refund.Amount = -refund.Amount
-			io.Println("STORAGE REFUND:", refund)
+			// NOTE: there is edge cases where coinsDelta can be a mixture of positive and negative coins.
+			// For example if the keeper respects the storage price param denom and a tx contains a storage cost param change message sandwiched by storage movement messages.
+			// These will fall in this case and print confusing information but it's so rare that we don't
+			// really care about this possibility here.
+			io.Println("STORAGE REFUND:", std.Coins{}.SubUnsafe(coinsDelta))
 		}
-		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-		}
+		io.Printfln("TOTAL TX COST:  %s", coinsDelta.AddUnsafe(std.Coins{tx.Fee.GasFee}))
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+	for _, msg := range tx.Msgs {
+		if addPkg, ok := msg.(vm.MsgAddPackage); ok {
+			io.Println("PKGPATH:   ", addPkg.Package.Path)
+		}
+	}
 }
 
-// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and fee.
-// If this is "unlock", then bytes delta and fee are negative.
-// The third return is true if found, else false.
-func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
+// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.
+func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
+	var (
+		bytesDelta int64
+		coinsDelta std.Coins
+		hasEvents  bool
+	)
+
 	for _, event := range events {
 		switch storageEvent := event.(type) {
-		case gnostd.StorageDepositEvent:
-			return storageEvent.BytesDelta, storageEvent.FeeDelta, true
-		case gnostd.StorageUnlockEvent:
-			fee := storageEvent.FeeRefund
-			fee.Amount *= -1
-			// For unlock, BytesDelta is negative
-			return storageEvent.BytesDelta, fee, true
+		case chain.StorageDepositEvent:
+			bytesDelta += storageEvent.BytesDelta
+			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			hasEvents = true
+		case chain.StorageUnlockEvent:
+			bytesDelta += storageEvent.BytesDelta
+			if !storageEvent.RefundWithheld {
+				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
+			}
+			hasEvents = true
 		}
 	}
 
-	return 0, std.Coin{}, false
+	return bytesDelta, coinsDelta, hasEvents
 }

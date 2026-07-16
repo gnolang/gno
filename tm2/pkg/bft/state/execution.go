@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
@@ -92,12 +91,10 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, InvalidBlockError(err)
 	}
 
-	abciResponses, err := execBlockOnProxyApp(blockExec.logger, blockExec.proxyApp, block, blockExec.db)
+	abciResponses, err := execBlockOnProxyApp(blockExec.logger, blockExec.proxyApp, block, state, blockExec.db)
 	if err != nil {
 		return state, ProxyAppConnError(err)
 	}
-
-	fail.Fail() // XXX
 
 	// Save the results by height
 	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
@@ -113,8 +110,6 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 			},
 		)
 	}
-
-	fail.Fail() // XXX
 
 	// validate the validator updates and convert to tendermint types
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
@@ -138,13 +133,9 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
-	fail.Fail() // XXX
-
 	// Update the app hash and save the state.
 	state.AppHash = appHash
 	SaveState(blockExec.db, state)
-
-	fail.Fail() // XXX
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
@@ -214,6 +205,7 @@ func execBlockOnProxyApp(
 	logger *slog.Logger,
 	proxyAppConn appconn.Consensus,
 	block *types.Block,
+	state State,
 	stateDB dbm.DB,
 ) (*ABCIResponses, error) {
 	validTxs, invalidTxs := 0, 0
@@ -239,7 +231,7 @@ func execBlockOnProxyApp(
 	}
 	proxyAppConn.SetResponseCallback(proxyCb)
 
-	commitInfo := getBeginBlockLastCommitInfo(block, stateDB)
+	commitInfo := getBeginBlockLastCommitInfo(block, state, stateDB)
 
 	// Begin block
 	var err error
@@ -273,11 +265,19 @@ func execBlockOnProxyApp(
 	return abciResponses, nil
 }
 
-func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCommitInfo {
+func getBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB) abci.LastCommitInfo {
+	// Defensive guard: any block reaching execution must have height >=
+	// state.InitialHeight (state.ValidateBlock already enforces this on the
+	// wire-facing path). Panic indicates a plumbing bug.
+	if block.Height < state.InitialHeight {
+		panic(fmt.Sprintf("getBeginBlockLastCommitInfo: block.Height %d < state.InitialHeight %d", block.Height, state.InitialHeight))
+	}
 	voteInfos := make([]abci.VoteInfo, block.LastCommit.Size())
 	var lastValSet *types.ValidatorSet
 	var err error
-	if block.Height > 1 {
+	// For a genesis block (block.Height == state.InitialHeight) there are
+	// no previous validators to attribute votes to.
+	if block.Height > state.InitialHeight {
 		lastValSet, err = LoadValidators(stateDB, block.Height-1)
 		if err != nil {
 			panic(err) // shouldn't happen
@@ -385,6 +385,7 @@ func updateState(
 		BlockVersion:                     typesver.BlockVersion,
 		AppVersion:                       state.AppVersion, // TODO
 		ChainID:                          state.ChainID,
+		InitialHeight:                    state.InitialHeight,
 		LastBlockHeight:                  header.Height,
 		LastBlockTotalTx:                 state.LastBlockTotalTx + header.NumTxs,
 		LastBlockID:                      blockID,
@@ -438,10 +439,11 @@ func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCI
 func ExecCommitBlock(
 	appConnConsensus appconn.Consensus,
 	block *types.Block,
+	state State,
 	logger *slog.Logger,
 	stateDB dbm.DB,
 ) ([]byte, error) {
-	_, err := execBlockOnProxyApp(logger, appConnConsensus, block, stateDB)
+	_, err := execBlockOnProxyApp(logger, appConnConsensus, block, state, stateDB)
 	if err != nil {
 		logger.Error("Error executing block on proxy app", "height", block.Height, "err", err)
 		return nil, err

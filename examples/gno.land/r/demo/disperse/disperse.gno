@@ -1,20 +1,30 @@
 package disperse
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
 
-	tokens "gno.land/r/demo/grc20factory"
+	tokens "gno.land/r/demo/defi/grc20factory"
 )
-
-var realmAddr = std.CurrentRealm().Address()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
-func DisperseUgnot(cur realm, addresses []std.Address, coins std.Coins) {
-	coinSent := std.OriginSend()
-	caller := std.PreviousRealm().Address()
-	banker := std.NewBanker(std.BankerTypeRealmSend)
+func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
+	// Reject non-EOA callers: unsafe.OriginSend() and the realm-balance
+	// check below describe coins that actually landed at this realm only
+	// when the caller is a pure EOA. A `maketx run` ephemeral realm or
+	// intermediate code realm could otherwise consume the envelope and
+	// have this function disperse pre-existing realm balance to
+	// attacker-chosen addresses.
+	if !cur.Previous().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
+	coinSent := unsafe.OriginSend()
+	caller := cur.Previous().Address()
+	realmAddr := cur.Address()
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)
@@ -25,22 +35,22 @@ func DisperseUgnot(cur realm, addresses []std.Address, coins std.Coins) {
 			panic(ErrNegativeCoinAmount)
 		}
 
-		if banker.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
+		if banker_.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
 			panic(ErrMismatchBetweenSentAndParams)
 		}
 	}
 
 	// Send coins
 	for i := range addresses {
-		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
+		banker_.SendCoins(realmAddr, addresses[i], chain.NewCoins(coins[i]))
 	}
 
 	// Return possible leftover coins
 	for _, coin := range coinSent {
-		leftoverAmt := banker.GetCoins(realmAddr).AmountOf(coin.Denom)
+		leftoverAmt := banker_.GetCoins(realmAddr).AmountOf(coin.Denom)
 		if leftoverAmt > 0 {
-			send := std.Coins{std.NewCoin(coin.Denom, leftoverAmt)}
-			banker.SendCoins(realmAddr, caller, send)
+			send := chain.Coins{chain.NewCoin(coin.Denom, leftoverAmt)}
+			banker_.SendCoins(realmAddr, caller, send)
 		}
 	}
 }
@@ -58,9 +68,9 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 		panic(err)
 	}
 
-	coins := make(std.Coins, len(parsedAmounts))
+	coins := make(chain.Coins, len(parsedAmounts))
 	for i, amount := range parsedAmounts {
-		coins[i] = std.NewCoin("ugnot", amount)
+		coins[i] = chain.NewCoin("ugnot", amount)
 	}
 
 	DisperseUgnot(cur, parsedAddresses, coins)
@@ -69,8 +79,8 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 // DisperseGRC20 disperses tokens to multiple addresses
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
-func DisperseGRC20(cur realm, addresses []std.Address, amounts []int64, symbols []string) {
-	caller := std.PreviousRealm().Address()
+func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []string) {
+	caller := cur.Previous().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)
@@ -82,7 +92,7 @@ func DisperseGRC20(cur realm, addresses []std.Address, amounts []int64, symbols 
 	}
 
 	for i := 0; i < len(addresses); i++ {
-		tokens.TransferFrom(cross, symbols[i], caller, addresses[i], amounts[i])
+		tokens.TransferFrom(cross(cur), symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 
