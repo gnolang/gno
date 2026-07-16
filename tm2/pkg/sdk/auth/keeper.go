@@ -374,6 +374,20 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
+	// Skip the write when the price is unchanged — e.g. it already sits at the
+	// floor, the block was exactly at target, or dynamic pricing is disabled
+	// (stored price 0 or TargetGasRatio == 0). Now that empty blocks are no
+	// longer short-circuited, an unconditional SetGasPrice would re-write the
+	// identical value on every idle block; the bptree main store keeps the same
+	// value hash (so the AppHash is unaffected) but still rotates the value's
+	// out-of-line key and orphans the previous one each time — wasted work on an
+	// idle chain. Skipping restores the "idle block ⇒ no write" invariant the
+	// removed gasUsed<=0 guard used to provide. It never blocks decay: while the
+	// price is above the floor an empty/under-target block always moves it by at
+	// least -1, so newGasPrice != lgp and the write happens.
+	if newGasPrice == lgp {
+		return
+	}
 	gk.SetGasPrice(ctx, newGasPrice)
 	logTelemetry(newGasPrice,
 		attribute.KeyValue{
