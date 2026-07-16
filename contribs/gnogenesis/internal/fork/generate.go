@@ -469,7 +469,17 @@ func buildHardforkGenesis(
 		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
 		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
 		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
-		appState.VM.Params.PreprocessGasPerByte = defaults.PreprocessGasPerByte
+	}
+
+	// preprocess_gas_per_byte (PR #5892) is newer than the #5415 fields
+	// above, so a source chain exported between the two carries the
+	// #5415 fields (IterNextCostFlat != 0, ...) but not this one, leaving
+	// it 0 — which Validate() rejects (must be > 0). The all-zero guard
+	// above would therefore skip it. Fill it independently so the emitted
+	// genesis is self-contained rather than relying on the node's
+	// applyLegacyDefaults tolerance at boot.
+	if appState.VM.Params.PreprocessGasPerByte == 0 {
+		appState.VM.Params.PreprocessGasPerByte = vm.DefaultParams().PreprocessGasPerByte
 	}
 
 	// Append historical txs after existing genesis-mode txs
