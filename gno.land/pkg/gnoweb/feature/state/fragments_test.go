@@ -732,3 +732,36 @@ func TestFragSourceRejectsInvalidLine(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "b-state-frag-error",
 		"line<1 must be rejected by ValidateLine")
 }
+
+// TestFragNodeLazyBoundMethodRendersRow: a persisted lazy interface bind
+// (BoundMethodValue with Func == nil) decodes to a single source-less
+// func-kind row. serveFragNode must NOT promote it to the root (there is
+// no body to show) — the fragment renders the selector row, not "(empty)".
+func TestFragNodeLazyBoundMethodRendersRow(t *testing.T) {
+	body := fmt.Appendf(nil, `{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.BoundMethodValue",
+			"Func": null,
+			"Receiver": {
+				"T": {"@type": "/gno.RefType", "ID": "gno.land/r/dev/lazybind.Impl"},
+				"V": {"@type": "/gno.RefValue", "ObjectID": "ffffffffffffffffffffffffffffffffffffffff:4"}
+			},
+			"Method": "Get",
+			"MethodPkg": "gno.land/r/dev/lazybind"
+		}
+	}`, fragOID)
+	client := &fragMockClient{objBytes: body}
+	h := newFragHandler(client, nil)
+	rec := serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+	})
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	out := rec.Body.String()
+	assert.Contains(t, out, "Get on lazybind.Impl (resolved at call)",
+		"lazy bind must render its selector row")
+	assert.NotContains(t, out, "(empty)",
+		"a source-less func row must not be promoted into an empty root")
+}
