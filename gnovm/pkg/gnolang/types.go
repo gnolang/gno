@@ -682,92 +682,54 @@ func (pt *PointerType) IsNamed() bool {
 	return false
 }
 
-func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
-) {
-	// Recursion guard.
-	if m == nil {
-		m = map[Type]struct{}{pt: (struct{}{})}
-	} else if _, exists := m[pt]; exists {
-		return nil, false, nil, nil, false
-	} else {
-		m[pt] = struct{}{}
-	}
-	// ...
-	switch cet := pt.Elt.(type) {
-	case *DeclaredType, *StructType:
-		// Pointer to declared types and structs
-		// expose embedded methods and fields.
-		// See tests/selector_test.go for examples.
-		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(callerPath, cet, n, m)
-		if trail != nil { // found
-			hasPtr = true // pt *is* a pointer.
-			switch trail[0].Type {
-			case VPField:
-				// Case 1: If trail is of form [VPField, VPField, ... VPPtrMethod],
-				// that is, one or more fields followed by a pointer method,
-				// convert to [VPSubrefField, VPSubrefField, ... VPDerefPtrMethod].
-				if func() bool {
-					for i, path := range trail {
-						if i < len(trail)-1 {
-							if path.Type != VPField {
-								return false
-							}
-						} else {
-							if path.Type != VPPtrMethod {
-								return false
-							}
-						}
-					}
-					return true
-				}() {
-					for i := range trail {
-						if i < len(trail)-1 {
-							trail[i].Type = VPSubrefField
-						} else {
-							trail[i].Type = VPDerefPtrMethod
-						}
-					}
-					return
-				} else {
-					// Case 2: otherwise, is just a deref field.
-					trail[0].Type = VPDerefField
-					switch trail[0].Depth {
-					case 0:
-						// *PointerType > *StructType.Field has depth 0.
-					case 1:
-						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
-						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-						trail[0].SetDepth(2)
-						/*
-							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
-							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
-								trail[1].Type = VPDerefPtrMethod
-							}
-						*/
-					default:
-						panic("should not happen")
-					}
-					return
+// applyPointerDeref rewrites, in place, a trail that was found through a
+// pointer's element type (pointers to declared types and structs expose
+// embedded methods and fields; see tests/selector_test.go for examples).
+func applyPointerDeref(trail []ValuePath) {
+	switch trail[0].Type {
+	case VPField:
+		// Case 1: If trail is of form [VPField, VPField, ... VPPtrMethod],
+		// that is, one or more fields followed by a pointer method,
+		// convert to [VPSubrefField, VPSubrefField, ... VPDerefPtrMethod].
+		fieldsThenPtrMethod := trail[len(trail)-1].Type == VPPtrMethod
+		if fieldsThenPtrMethod {
+			for _, path := range trail[:len(trail)-1] {
+				if path.Type != VPField {
+					fieldsThenPtrMethod = false
+					break
 				}
-			case VPValMethod:
-				trail[0].Type = VPDerefValMethod
-				return
-			case VPPtrMethod:
-				trail[0].Type = VPDerefPtrMethod
-				return
-			case VPDerefValMethod, VPDerefPtrMethod:
-				panic("should not happen")
+			}
+		}
+		if fieldsThenPtrMethod {
+			for i := range trail {
+				if i < len(trail)-1 {
+					trail[i].Type = VPSubrefField
+				} else {
+					trail[i].Type = VPDerefPtrMethod
+				}
+			}
+		} else {
+			// Case 2: otherwise, is just a deref field.
+			trail[0].Type = VPDerefField
+			switch trail[0].Depth {
+			case 0:
+				// *PointerType > *StructType.Field has depth 0.
+			case 1:
+				// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
+				// *PointerType > *DeclaredType > *StructType.Field has depth 2.
+				trail[0].SetDepth(2)
 			default:
 				panic("should not happen")
 			}
-		} else { // not found
-			return
 		}
+	case VPValMethod:
+		trail[0].Type = VPDerefValMethod
+	case VPPtrMethod:
+		trail[0].Type = VPDerefPtrMethod
+	case VPDerefValMethod, VPDerefPtrMethod:
+		panic("should not happen")
 	default:
-		// nester pointers or pointer to interfaces
-		// and other pointer types do not expose their methods.
-		return
+		panic("should not happen")
 	}
 }
 
@@ -881,62 +843,6 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 		}
 	}
 	return st.Fields[path.Index].Type
-}
-
-// Searches embedded fields to find matching method or field,
-// which may be embedded. This function is slow. DeclaredType uses
-// this. There is probably no need to cache positive results here;
-// it may be better to implement it on DeclaredType. The resulting
-// ValuePaths may be modified.  If not found, all returned values
-// are nil; for consistency, check the trail.
-func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
-) {
-	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{st: (struct{}{})}
-	} else if _, exists := m[st]; exists {
-		return nil, false, nil, nil, false
-	} else {
-		m[st] = struct{}{}
-	}
-	// Search fields.
-	for i := range st.Fields {
-		sf := &st.Fields[i]
-		// Maybe is a field of the struct.
-		if sf.Name == n {
-			// Ensure exposed or package match. A same-spelled unexported
-			// name from another package is a distinct identity: skip it and
-			// keep searching embedded fields for an accessible one.
-			if isUpper(string(n)) || st.PkgPath == callerPath {
-				vp := NewValuePathField(0, uint16(i), n)
-				return []ValuePath{vp}, false, nil, sf.Type, false
-			}
-			accessError = true
-		}
-		// Maybe is embedded within a field.
-		if sf.Embedded {
-			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
-			if accessError2 {
-				// A gated match somewhere below: remember, keep scanning.
-				accessError = true
-			} else if trail2 != nil {
-				if trail != nil {
-					// conflict detected. return none.
-					return nil, false, nil, nil, false
-				} else {
-					// remember.
-					vp := NewValuePathField(0, uint16(i), sf.Name)
-					trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
-				}
-			}
-		}
-	}
-	// A sibling gated match may have set accessError even though an
-	// accessible one was found; the findEmbeddedFieldType dispatcher
-	// clamps it (trail != nil implies accessError == false).
-	return // may be found or nil.
 }
 
 // ----------------------------------------
@@ -1069,7 +975,7 @@ func (it *InterfaceType) IsNamed() bool {
 	return false
 }
 
-func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	// Methods is flattened at construction (flattenInterfaceMethods): every
@@ -1120,9 +1026,9 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// method's origin package (its stamp when flattened out of another
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
-		tr, hp, rt, ft, _ := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name, nil)
+		_, hp, rt, ft, status := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
 		mname := im.stampedName()
-		if tr == nil { // not found.
+		if status != embedLookupFound {
 			return fmt.Errorf("missing method %s", mname)
 		}
 		if mt, ok := ft.(*FuncType); ok {
@@ -2204,71 +2110,12 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 		n))
 }
 
-// Searches embedded fields to find matching field or method.
-// This function is slow.
-// TODO: consider memoizing for successful matches.
-func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
-) {
-	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{dt: (struct{}{})}
-	} else if _, exists := m[dt]; exists {
-		return nil, false, nil, nil, false
-	} else {
-		m[dt] = struct{}{}
-	}
-	// Search direct methods via O(1) name lookup.
-	gated := false
-	if i, ok := dt.lookupMethod(n); ok {
-		// Ensure exposed or package match.
-		if isUpper(string(n)) || dt.PkgPath == callerPath {
-			fv := dt.Methods[i].V.(*FuncValue)
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			mt := fv.GetType(nil)
-			rt := mt.Params[0].Type
-			var vp ValuePath
-			if _, isPtr := rt.(*PointerType); isPtr {
-				vp = NewValuePathPtrMethod(i, n)
-			} else {
-				vp = NewValuePathValMethod(i, n)
-			}
-			return []ValuePath{vp}, false, rt, mt.BoundType(), false
-		}
-		// A same-spelled unexported method from another package is a
-		// distinct method: fall through to the base search for one with
-		// a matching identity.
-		gated = true
-	}
-	// Otherwise, search base.
-	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
-	if trail == nil {
-		return nil, false, nil, nil, accessError || gated
-	}
-	switch trail[0].Type {
-	case VPInterface:
-		return trail, hasPtr, rcvr, ft, false
-	case VPField, VPDerefField:
-		if debug {
-			if trail[0].Depth != 0 && trail[0].Depth != 2 {
-				panic("should not happen")
-			}
-		}
-
-		trail[0].SetDepth(trail[0].Depth + 1)
-		return trail, hasPtr, rcvr, ft, false
-	default:
-		panic("should not happen")
-	}
-}
-
-// The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
+// The Preprocesses uses findEmbeddedFieldType() to set the path.
 // OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
 // i.e.,
 //
-//	preprocessor: *DT.FindEmbeddedFieldType(name)
+//	preprocessor: findEmbeddedFieldType(callerPath, dt, name)
 //	              *DT.GetValueAt(path) // from op_type/evalTypeOf()
 //
 //	     runtime: *TV.GetPointerTo(path)
@@ -2280,8 +2127,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
-		// should call *DT.FindEmbeddedFieldType(name) instead.
-		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+		// should call findEmbeddedFieldType(callerPath, dt, n) instead.
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
@@ -2305,8 +2151,7 @@ func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
-		// should call *DT.FindEmbeddedFieldType(name) instead.
-		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
+		// should call findEmbeddedFieldType(callerPath, dt, n) instead.
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			return dt.Methods[path.Index]
@@ -3039,32 +2884,368 @@ func isGeneric(t Type) bool {
 }
 
 // NOTE: runs at preprocess time but also runtime,
-// for dynamic interface lookups. m can be nil,
-// is used for recursion detection.
+// for dynamic interface lookups.
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
-// Contract: trail != nil implies accessError == false — a same-spelled
-// unexported name from another package is a distinct identity, so a gated
-// candidate is skipped, not an error, when an accessible match exists.
-// Callers rely on this (they check accessError before trail).
-func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
-	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
+//
+// Implements Go spec §Selectors: x.f denotes the field or method at the
+// shallowest depth in T where there is such an f; if there is not
+// exactly one f with shallowest depth, the selector expression is
+// illegal (embedLookupAmbiguous). The walk over the struct-embedding
+// graph is breadth-first by depth with a global visited set, so each
+// reachable type is processed at most once — O(reachable types), not
+// O(paths), even for diamond-shaped or cyclic embedding. This keeps the
+// MaxStructFields/MaxEmbedDepth walk-size analysis valid (see DEGEN9
+// WideEmbed).
+//
+// Contract: trail != nil iff status == embedLookupFound (callers check
+// only status and then use the trail unconditionally) — a
+// same-spelled unexported name from another package is a distinct
+// identity, so a gated candidate is skipped, never resolved; the walk
+// reports embedLookupAccessError only when gated sightings were the
+// only ones.
+func findEmbeddedFieldType(callerPath string, t Type, n Name) (
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, status embedLookupStatus,
+) {
+	root := canonEmbeddedType(t)
+	if root == nil {
+		// e.g. nested pointers and pointers to interfaces
+		// do not expose fields or methods.
+		return
+	}
+	if it, ok := root.(*InterfaceType); ok {
+		// Interface method sets are flat (interfaces only embed
+		// interfaces), so delegate directly instead of running the
+		// find-then-rebuild phases twice over the same methods.
+		var accessError bool
+		trail, hasPtr, rcvr, ft, accessError = it.FindEmbeddedFieldType(callerPath, n)
+		switch {
+		case accessError:
+			status = embedLookupAccessError
+		case trail != nil:
+			status = embedLookupFound
+		}
+		return
+	}
+	hops, lstatus := lookupShallowestEmbedded(callerPath, root, n)
+	if lstatus != embedLookupFound {
+		status = lstatus
+		return
+	}
+	var accessError bool
+	trail, hasPtr, rcvr, ft, accessError = buildEmbeddedTrail(callerPath, t, n, hops)
+	switch {
+	case accessError:
+		trail, hasPtr, rcvr, ft = nil, false, nil, nil
+		status = embedLookupAccessError
+	case trail != nil:
+		status = embedLookupFound
+	}
+	return
+}
+
+// isRestrictedName reports whether n is unexported and declared outside
+// callerPath, making it inaccessible to the caller.
+func isRestrictedName(n Name, declPkgPath, callerPath string) bool {
+	return !isUpper(string(n)) && declPkgPath != callerPath
+}
+
+type embedLookupStatus int
+
+const (
+	embedLookupNone embedLookupStatus = iota
+	embedLookupFound
+	embedLookupAmbiguous
+	embedLookupAccessError
+)
+
+// embedLookupEntry is one node of the breadth-first walk in
+// lookupShallowestEmbedded.
+type embedLookupEntry struct {
+	typ       Type     // canonical node; see canonEmbeddedType
+	hops      []uint16 // embedded-field indices from the root to typ
+	multiples bool     // reachable by more than one same-depth path
+}
+
+// lookupShallowestEmbedded walks the embedding graph of root breadth-
+// first, one level per embedded struct field traversed, and reports how
+// n resolves: the unique shallowest accessible provider's hops
+// (embedded-field indices from root), or ambiguity when the shallowest
+// providing level has more than one provider (Go spec §Selectors).
+// Same-spelled unexported names from other packages are distinct
+// identities: they never occupy a depth (an accessible match at the
+// same or a deeper level still resolves), but if the walk ends with
+// only gated sightings the result is an access error. A global seen set
+// skips types already reached at a shallower level — any match through
+// a deeper occurrence is shadowed anyway — which bounds the walk to
+// O(reachable types) and guards embedding cycles.
+func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, embedLookupStatus) {
+	notFound := func(gated bool) embedLookupStatus {
+		if gated {
+			return embedLookupAccessError
+		}
+		return embedLookupNone
+	}
+	// Depth 0: the root provides n directly — the common case; no BFS
+	// state is allocated for it.
+	hit, sawGated, rootSt := resolveEmbedNode(callerPath, root, n)
+	switch {
+	case hit:
+		return nil, embedLookupFound
+	case rootSt == nil:
+		return nil, notFound(sawGated)
+	}
+	seen := map[Type]struct{}{root: {}}
+	cur := []embedLookupEntry{{typ: root}}
+	structs := []*StructType{rootSt}
+	for {
+		// Expand each entry's embedded fields into the next level.
+		var next []embedLookupEntry
+		for i := range cur {
+			st := structs[i]
+			if st == nil {
+				continue
+			}
+			e := &cur[i]
+			for j := range st.Fields {
+				sf := &st.Fields[j]
+				if !sf.Embedded {
+					continue
+				}
+				child := canonEmbeddedType(sf.Type)
+				if child == nil {
+					continue
+				}
+				// Second same-depth path to the same type? Then any
+				// name it provides is not unique at this depth.
+				// (Linear scan: level width is small in practice and
+				// bounded by MaxStructFields regardless.)
+				dup := false
+				for k := range next {
+					if next[k].typ == child {
+						next[k].multiples = true
+						dup = true
+						break
+					}
+				}
+				if dup {
+					continue
+				}
+				if _, ok := seen[child]; ok {
+					continue // reached at a shallower depth already
+				}
+				seen[child] = struct{}{}
+				hops := make([]uint16, len(e.hops)+1)
+				copy(hops, e.hops)
+				hops[len(e.hops)] = uint16(j)
+				next = append(next, embedLookupEntry{typ: child, hops: hops, multiples: e.multiples})
+			}
+		}
+		if len(next) == 0 {
+			return nil, notFound(sawGated)
+		}
+		// Scan the new level for accessible providers of n.
+		found := false
+		ambiguous := false
+		var winner []uint16
+		structs = make([]*StructType, len(next))
+		for i := range next {
+			e := &next[i]
+			hit, gated, st := resolveEmbedNode(callerPath, e.typ, n)
+			structs[i] = st
+			sawGated = sawGated || gated
+			if !hit {
+				continue
+			}
+			// A second provider at this depth — or one reachable via
+			// two same-depth paths — makes n ambiguous (Go spec
+			// §Selectors: not exactly one f at the shallowest depth).
+			ambiguous = ambiguous || found || e.multiples
+			if !found {
+				winner = e.hops
+			}
+			found = true
+		}
+		if found {
+			if ambiguous {
+				return nil, embedLookupAmbiguous
+			}
+			return winner, embedLookupFound
+		}
+		cur = next
+	}
+}
+
+// canonEmbeddedType returns the canonical lookup node for an embedded
+// field type or lookup root: at most one pointer layer is stripped
+// (embedded fields are T or *T, and pointers to declared types and
+// structs are transparent for field/method exposure). Returns nil for
+// types that expose nothing (e.g. nested pointers, pointers to
+// interfaces).
+func canonEmbeddedType(t Type) Type {
+	if pt, ok := t.(*PointerType); ok {
+		switch pt.Elt.(type) {
+		case *DeclaredType, *StructType:
+			return pt.Elt
+		}
+		return nil
+	}
+	return t
+}
+
+// resolveEmbedNode reports whether node typ provides n at its own depth
+// — as a method on a declared type along its wrapper spine, a direct
+// struct field, or an interface method — without traversing any
+// embedded field. A same-spelled unexported name from another package
+// is a distinct identity: it is not a hit but sets gated, and the walk
+// keeps going so an accessible match elsewhere (same spine or deeper)
+// can still resolve. When typ does not provide n, st is the underlying
+// struct to expand one embedding level deeper (nil when there is none).
+func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st *StructType) {
+	// A cycle along the wrapper spine must revisit a *DeclaredType
+	// (the Base of a DeclaredType is never another DeclaredType), so
+	// tracking those suffices to guard degenerate wrapper cycles like
+	// type A *B; type B *A, which provide nothing. The buffer stays on
+	// the stack for ordinary spines.
+	var declBuf [8]*DeclaredType
+	seenDecls := declBuf[:0]
+	t := typ
+	for {
+		switch ct := t.(type) {
+		case *DeclaredType:
+			if slices.Contains(seenDecls, ct) {
+				return false, gated, nil
+			}
+			seenDecls = append(seenDecls, ct)
+			// Search direct methods via O(1) name lookup.
+			if _, ok := ct.lookupMethod(n); ok {
+				if !isRestrictedName(n, ct.PkgPath, callerPath) {
+					return true, gated, nil
+				}
+				gated = true // fall through to the base search.
+			}
+			t = ct.Base
+		case *PointerType:
+			// Pointers to declared types and structs expose embedded
+			// methods and fields; other pointers expose nothing.
+			if t = canonEmbeddedType(ct); t == nil {
+				return false, gated, nil
+			}
+		case *StructType:
+			for i := range ct.Fields {
+				if ct.Fields[i].Name == n {
+					if !isRestrictedName(n, ct.PkgPath, callerPath) {
+						return true, gated, nil
+					}
+					gated = true // embedded fields may still provide n.
+					break
+				}
+			}
+			return false, gated, ct
+		case *InterfaceType:
+			// Interface method sets are flattened at construction, so
+			// the scan is O(methods); it applies the same gated-name
+			// rule against each method's origin package.
+			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n)
+			return tr != nil, gated || ae, nil
+		default:
+			return false, gated, nil
+		}
+	}
+}
+
+// buildEmbeddedTrail constructs the ValuePath trail for the unique
+// match found by lookupShallowestEmbedded by re-walking the single
+// winning path: hops are embedded-field indices, one per struct level;
+// declared-type and pointer wrappers between levels contribute no hop
+// but transform the trail (depth bumps and pointer derefs). The trail
+// is freshly allocated and may be modified by callers.
+func buildEmbeddedTrail(callerPath string, t Type, n Name, hops []uint16) (
+	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
 ) {
 	switch ct := t.(type) {
-	case *DeclaredType:
-		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
 	case *PointerType:
-		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
+		elt := canonEmbeddedType(ct)
+		if elt == nil {
+			// Nested pointers and pointers to interfaces
+			// do not expose their methods.
+			return
+		}
+		trail, hasPtr, rcvr, field, accessError = buildEmbeddedTrail(callerPath, elt, n, hops)
+		if trail == nil || accessError {
+			return
+		}
+		hasPtr = true // ct *is* a pointer.
+		applyPointerDeref(trail)
+		return
+	case *DeclaredType:
+		if len(hops) == 0 {
+			// A gated (same-spelled unexported foreign) method is a
+			// distinct identity: skip it and keep building through the
+			// base, mirroring resolveEmbedNode.
+			if i, ok := ct.lookupMethod(n); ok &&
+				!isRestrictedName(n, ct.PkgPath, callerPath) {
+				fv := ct.Methods[i].V.(*FuncValue)
+				// NOTE: makes code simple but requires preprocessor's
+				// Store to pre-load method types.
+				mt := fv.GetType(nil)
+				rt := mt.Params[0].Type
+				var vp ValuePath
+				if _, isPtr := rt.(*PointerType); isPtr {
+					vp = NewValuePathPtrMethod(i, n)
+				} else {
+					vp = NewValuePathValMethod(i, n)
+				}
+				return []ValuePath{vp}, false, rt, mt.BoundType(), false
+			}
+		}
+		// Otherwise, build through base.
+		trail, hasPtr, rcvr, field, accessError = buildEmbeddedTrail(callerPath, ct.Base, n, hops)
+		if trail == nil {
+			return nil, false, nil, nil, accessError
+		}
+		switch trail[0].Type {
+		case VPInterface:
+			return
+		case VPField, VPDerefField:
+			if debug {
+				if trail[0].Depth != 0 && trail[0].Depth != 2 {
+					panic("should not happen")
+				}
+			}
+			trail[0].SetDepth(trail[0].Depth + 1)
+			return
+		default:
+			panic("should not happen")
+		}
 	case *StructType:
-		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
+		if len(hops) == 0 {
+			// Terminal: a direct field of the struct. A gated field is
+			// a distinct identity, not a match (see resolveEmbedNode).
+			for i := range ct.Fields {
+				sf := &ct.Fields[i]
+				if sf.Name == n &&
+					!isRestrictedName(n, ct.PkgPath, callerPath) {
+					vp := NewValuePathField(0, uint16(i), n)
+					return []ValuePath{vp}, false, nil, sf.Type, false
+				}
+			}
+			return // should not happen for phase-1 winners
+		}
+		sf := &ct.Fields[hops[0]]
+		trail, hasPtr, rcvr, field, accessError = buildEmbeddedTrail(callerPath, sf.Type, n, hops[1:])
+		if trail == nil || accessError {
+			return
+		}
+		vp := NewValuePathField(0, hops[0], sf.Name)
+		trail = append([]ValuePath{vp}, trail...)
+		return
 	case *InterfaceType:
-		trail, hasPtr, rcvr, ft, accessError = ct.FindEmbeddedFieldType(callerPath, n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n)
 	default:
-		return nil, false, nil, nil, false
+		return
 	}
-	accessError = accessError && trail == nil // enforce the contract above.
-	return
 }
 
 // GetPkgID returns the cached PkgID for this DeclaredType, computing
