@@ -18,7 +18,7 @@ stdout 'data: # GovDAO'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
-gnokey maketx run -gas-fee 110001ugnot -gas-wanted 1_100_000 -chainid=tendermint_test member $WORK/debug/check_addresses.gno
+gnokey maketx run -gas-fee 110001ugnot -gas-wanted 1_500_000 -chainid=tendermint_test member $WORK/debug/check_addresses.gno
 stdout '=== Debug info ==='
 stdout 'Origin caller: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run }'
