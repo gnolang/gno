@@ -28,3 +28,6 @@ func main(cur realm) {}
 
 // Error:
 // gno.land/r/crossrealm/zrealm_seal_realm.gno:25:5-26: gno.land/r/crossrealm.fakeRealm does not implement .uverse.realm (missing method .seal)
+
+// TypeCheckError:
+// gno.land/r/crossrealm/zrealm_seal_realm.gno:25:15: cannot use fakeRealm{} (value of struct type fakeRealm) as realm value in variable declaration: fakeRealm does not implement gno0p9.realm (missing method Sub)
