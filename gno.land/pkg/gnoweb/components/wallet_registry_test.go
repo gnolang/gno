@@ -20,11 +20,51 @@ func TestWallets_EmbeddedRegistry(t *testing.T) {
 	for _, wallet := range w {
 		assert.NotEmpty(t, wallet.Name, "wallet name")
 		assert.NotEmpty(t, wallet.ID, "wallet id")
-		assert.NotEmpty(t, wallet.Scheme, "wallet scheme")
-		assert.NotContains(t, wallet.Scheme, "://", "scheme must be stored bare")
-		assert.True(t, strings.HasPrefix(wallet.Icon, "data:"),
-			"icon must be a self-contained data: URI, got %q", wallet.Icon)
+		assert.Regexp(t, walletSchemeRe, wallet.Scheme, "scheme must be a bare URL scheme")
+		assert.True(t, strings.HasPrefix(wallet.Icon, "data:image/"),
+			"icon must be a self-contained data:image/ URI, got %q", wallet.Icon)
 	}
+}
+
+func TestValidateWallets(t *testing.T) {
+	t.Parallel()
+
+	valid := func() Wallet {
+		return Wallet{Name: "W", ID: "w", Scheme: "land.gno.w", Icon: "data:image/svg+xml;base64,x"}
+	}
+
+	cases := []struct {
+		name    string
+		mutate  func(*Wallet) // applied to the second of two entries
+		wantErr string
+	}{
+		{"missing name", func(w *Wallet) { w.Name = "" }, "name and id are required"},
+		{"missing id", func(w *Wallet) { w.ID = "" }, "name and id are required"},
+		{"scheme with host", func(w *Wallet) { w.Scheme = "land.gno.w2://tx" }, "not a valid URL scheme"},
+		// Passes a bare "no ://" check but executes if it ever reaches
+		// window.location; the grammar must reject any ":".
+		{"javascript payload", func(w *Wallet) { w.Scheme = "javascript:alert(1)//" }, "not a valid URL scheme"},
+		{"empty scheme", func(w *Wallet) { w.Scheme = "" }, "not a valid URL scheme"},
+		{"non-image icon", func(w *Wallet) { w.Icon = "data:text/html,x" }, "data:image/ URI"},
+		{"remote icon", func(w *Wallet) { w.Icon = "https://example.com/i.svg" }, "data:image/ URI"},
+		{"duplicate id", func(w *Wallet) { w.ID = "w" }, "duplicate wallet id"},
+		{"duplicate scheme", func(w *Wallet) { w.Scheme = "land.gno.w" }, "duplicate wallet scheme"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			first, second := valid(), valid()
+			second.ID, second.Scheme = "w2", "land.gno.w2"
+			tc.mutate(&second)
+			err := validateWallets([]Wallet{first, second})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+
+	assert.NoError(t, validateWallets([]Wallet{valid()}))
+	assert.NoError(t, validateWallets(nil))
 }
 
 func TestWallets_ContainsGnokey(t *testing.T) {
