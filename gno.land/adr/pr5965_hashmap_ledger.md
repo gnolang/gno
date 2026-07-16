@@ -72,31 +72,34 @@ same grc20 code is ~5.9M when the ledger is small.
 
 ## Measured results (validation)
 
-Same cold-cache harness, master, the same grc20 token realm with avl vs
-hashmap backends (objects = cold store loads; gas = estimated production
-DeliverTx incl. 59k/read + 24k/write):
+Cold-cache harness (build state, commit, measure one `Transfer` from a fresh
+keeper — a validator after cache GC), production gas incl. 59k/read + 24k/write,
+through the **shipped design** (two-level buckets + SHA-256):
 
-| ledger size | avl: objects / gas | hashmap: objects / gas | reduction |
+| ledger size | avl: reads / gas | hashmap (shipped): reads / gas | reduction |
 |---|---|---|---|
-| 1 | 86 / 6.18M | 76 / 6.59M | −7% (slightly worse) |
-| 2,000 | 170 / 13.75M | **77 / 7.21M** | **−48%** |
-| 20,000 | 186 / 15.06M | **77 / 7.33M** | **−51%** |
+| 20,000 | 191 / 15.46M | 85 / 6.17M | −60% |
+| 100,000 | 207 / 16.94M | 85 / 6.22M | −63% |
+| 1,000,000 | ~245 / ~19M | **85 / 6.59M** | **−65%** |
 
-- The O(1) claim holds exactly: hashmap reads a constant **77 objects** at
-  every ledger size, vs avl's growth (86 → 186). Cost is flat within **1.7%**
-  from 2k → 20k holders.
+- The O(1)-objects claim holds: hashmap reads a near-constant **85 objects** at
+  every ledger size (cost flat within ~0.4M from 20k → 1M), vs avl's growth
+  (191 → ~245). avl 1M is extrapolated — its 1M seed is impractically slow;
+  200k already costs 18.39M, matching the on-chain `test_atone` transfer (18.3M).
 - At a tiny ledger the hashmap is marginally worse (bucket-array decode
-  overhead ≈ +0.4M); it wins from a few hundred entries up. This matches the
-  intended positioning: opt in for ledgers expected to grow.
-- Note: introducing the `KV` interface costs the **default avl path ~4 extra
-  object loads** (~0.25M, +1.7% at 20k) because the trees are now held by
-  pointer behind the interface rather than inline in `PrivateLedger`. Called
-  out for reviewers; judged acceptable against the opt-in's −51%.
+  overhead); it wins from a few hundred entries up — opt in for ledgers expected
+  to grow.
+- Introducing the `KV` interface costs the **default avl path ~4 extra object
+  loads** (value→interface indirection), called out for reviewers; acceptable
+  against the opt-in's −60%.
+
+The two increments behind this number — native SHA-256 hashing, then the
+two-level directory — are decomposed below.
 
 ### Bucket hashing: native SHA-256, not interpreted FNV-1a
 
-`bucketIndex` uses `crypto/sha256.Sum256` (low 64 bits) rather than an FNV-1a
-loop written in Gno. FNV-1a is interpreted — a per-byte loop metered several VM
+Bucket placement (`locate`/`hash64`) uses `crypto/sha256.Sum256` (low 64 bits)
+rather than an FNV-1a loop written in Gno. FNV-1a is interpreted — a per-byte loop metered several VM
 ops per byte, run ~4× per transfer over ~40-byte address keys. `Sum256` is a
 calibrated **native** binding (a flat native charge), so it moves the hash off
 the interpreter.
@@ -264,12 +267,14 @@ Findings:
   bptree where ordered iteration is needed, avl for small/bounded collections.
 - Hashmap-backed state loses key-ordered iteration; consumers that render
   sorted listings must keep avl or maintain a separate index.
-- Bucket count is fixed at construction. Measured, the default 1024 stays flat
-  from ~1k to ~1M entries and over-sizing is counter-productive (the array
-  decode tax dominates); guidance is in the package doc. Progressive splitting
-  (linear hashing) is possible as a v2 without API changes if maps far exceed
-  ~1M entries.
-- The bucket hash (FNV-1a) has a fixed seed, so keys are grindable: a party
+- Bucket count is fixed at construction; the default is **4096**, split across
+  the two-level directory. Because the array-decode tax is now paid on small
+  √-sized levels rather than one flat array, a higher bucket count is cheap and
+  stays flat from ~1k to ~1M entries; guidance is in the package doc.
+  Progressive splitting (linear hashing) is possible as a v2 without API changes
+  if maps far exceed ~1M entries.
+- The bucket hash (SHA-256) is unkeyed, so keys are grindable — though grinding
+  SHA-256 preimages is far costlier than inverting a non-cryptographic hash: a party
   that can create many funded entries could concentrate them in one bucket to
   raise the per-op cost of keys hashing there. The effect is bounded by that
   bucket's size (not global) and is inherent to any fixed hash in a

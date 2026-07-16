@@ -18,19 +18,21 @@
 // Two-level buckets: the buckets are not held in one flat array. A flat array of
 // B bucket pointers is itself a single object that every operation must decode in
 // full — at B=1024 that is ~190KB decoded on every Get/Set, fixed at any entry
-// count. Instead the buckets live in a two-level directory: √B pages of √B
+// count. Instead the buckets live in a two-level directory: ≈√B pages of ≈√B
 // buckets each. An operation decodes the directory, one page, and one bucket —
-// each a √B-slot array rather than a B-slot one — and pages are allocated lazily,
+// each a ≈√B-slot array rather than a B-slot one — and pages are allocated lazily,
 // so untouched pages cost nothing. This keeps the total bucket count high (small,
 // cheap-to-decode leaves) without a large array to decode. Measured on a cold 1M
 // entry grc20 transfer, this cut the ledger's decode+alloc cost by ~2M gas versus
 // a flat array (see the ADR referenced above).
 //
 // Bucket sizing: the total bucket count is fixed at construction (a power of two)
-// and split evenly across the two levels. Larger counts shrink each leaf bucket;
-// because the array tax is now paid on √B-slot arrays, over-sizing is far less
-// punishing than with a flat array. The default (4096) stays nearly flat from a
-// few thousand up to ~1,000,000 entries:
+// and split across the two levels — evenly when its exponent is even (4096 →
+// 64×64), else the directory takes the extra bit (2048 → 64×32). Larger counts
+// shrink each leaf bucket; because the array tax is now paid on the small
+// per-level arrays, over-sizing is far less punishing than with a flat array.
+// The default (4096) stays nearly flat from a few thousand up to ~1,000,000
+// entries:
 //
 //	expected entries | recommended buckets
 //	         < 1,000 |   256
@@ -38,7 +40,12 @@
 //	       > ~1,000k | 16384 (marginally cheaper once leaves dominate)
 //
 // Iteration order is deterministic (page, then bucket, then per-bucket insertion
-// order) but NOT sorted by key.
+// order) but NOT sorted by key, and is preserved across a store reload. Note the
+// persisted image is insertion-order-dependent, NOT canonical like avl.Tree's
+// sorted image: two maps holding the same entries inserted in a different order
+// serialize to different images. This is harmless for consensus (all nodes
+// replay the same op order) but means the state root is not a canonical function
+// of the key set — avoid layering Iterate-based consensus logic on it.
 //
 // Adversarial keys: bucket selection uses deterministic SHA-256, so keys can
 // still be ground to land in the same bucket — though grinding SHA-256 preimages
