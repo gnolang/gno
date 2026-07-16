@@ -13,13 +13,12 @@ func TestRegistry(cur realm, t *testing.T) {
 	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
 	ledger.Mint(cur.Address(), 1234567)
 	// register
-	Register(cross(cur), token, "mySlug")
-	key := token.ID()
+	key := Register(cross(cur), token, "mySlug")
 	regToken := Get(key)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST.0000000 - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST.0000000)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))
@@ -32,26 +31,31 @@ func TestRegistry(cur realm, t *testing.T) {
 
 	expected = `# TestToken
 - symbol: **TST**
-- realm: [gno.land/r/demo/foo](/r/demo/foo).TST.0000000
+- realm: [gno.land/r/demo/foo](/r/demo/foo).TST
 - decimals: 4
 - total supply: 1234567
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)
 
+	// The registry keys by rlmPath.symbol, so a second token with the same
+	// symbol in the same realm is rejected even though its Token.ID() differs
+	// (distinct trailing sequence id). See TestRegisterRejectsOverwrite.
 	second, _ := grc20.NewToken("Second", "TST", 4, 1, cur)
-	Register(cross(cur), second, "")
-	urequire.Equal(t, "TST", Get(second.ID()).GetSymbol())
+	urequire.NotEqual(t, token.ID(), second.ID()) // ids are decoupled from symbol
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		Register(cross(cur), second, "")
+	})
 }
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_overwrite"))
 	token, ledger := grc20.NewToken("Bar", "BAR", 4, 0, cur)
 	ledger.Mint(cur.Address(), 11)
-	Register(cross(cur), token, "")
+	key := Register(cross(cur), token, "")
 
-	urequire.Equal(t, "BAR", Get(token.ID()).GetSymbol())
-	urequire.Equal(t, int64(11), Get(token.ID()).BalanceOf(cur.Address()))
+	urequire.Equal(t, "BAR", Get(key).GetSymbol())
+	urequire.Equal(t, int64(11), Get(key).BalanceOf(cur.Address()))
 
 	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, 0, cur)
 	urequire.AbortsContains(t, cur, "token already registered", func() {

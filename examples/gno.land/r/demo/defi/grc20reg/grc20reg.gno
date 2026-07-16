@@ -12,16 +12,24 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // Token.ID() -> *Token
+var registry = avl.NewTree() // rlmPath.symbol -> *Token
 
 // Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// Register stores tokens under their canonical Token.ID():
+// The registry key is the canonical fqname rlmPath.symbol (one token per
+// realm+symbol), independent of Token.ID()'s trailing sequence id, so
+// callers can look a token up from the (realm, symbol) pair they already
+// know:
 //
 //	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
-//	grc20reg.Register(cross(cur), Token, "")
+//	key := grc20reg.Register(cross(cur), Token, "")
 
-func Register(cur realm, token *grc20.Token, slug string) {
+// Register records token under its rlmPath.symbol key and returns that key.
+// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
+// token identities/events unique, but the registry deliberately keys by
+// rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
+// register two tokens under the same symbol (overwrite/alias guard).
+func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
 	}
@@ -29,8 +37,10 @@ func Register(cur realm, token *grc20.Token, slug string) {
 		validateSlug(slug)
 	}
 	rlmPath := cur.Previous().PkgPath()
-	key := token.ID()
-	if !strings.HasPrefix(key, fqname.Construct(rlmPath, token.GetSymbol())+".") {
+	key := fqname.Construct(rlmPath, token.GetSymbol())
+	// Token.ID() == key + "." + <id>; verify the token originates from the
+	// registering realm and symbol.
+	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 	if registry.Has(key) {
@@ -44,6 +54,7 @@ func Register(cur realm, token *grc20.Token, slug string) {
 		"slug", slug,
 		"symbol", token.GetSymbol(),
 	)
+	return key
 }
 
 func Get(key string) *grc20.Token {
