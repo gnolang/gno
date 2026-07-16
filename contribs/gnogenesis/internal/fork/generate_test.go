@@ -91,21 +91,14 @@ func TestBuildHardforkGenesis_DefaultsGasParams(t *testing.T) {
 
 	// Source genesis mimicking a pre-refactor gnoland1: vm.params has the
 	// original 6 fields set but none of the 7 new gas-storage fields.
-	src := &bftypes.GenesisDoc{
-		ChainID: "gnoland1",
-		AppState: gnoland.GnoGenesisState{
-			VM: vm.GenesisState{
-				Params: vm.Params{
-					SysNamesPkgPath:     "gno.land/r/sys/names",
-					SysCLAPkgPath:       "gno.land/r/sys/cla",
-					ChainDomain:         "gno.land",
-					DefaultDeposit:      "600000000ugnot",
-					StoragePrice:        "100ugnot",
-					StorageFeeCollector: crypto.AddressFromPreimage([]byte("storage_fee_collector")),
-				},
-			},
-		},
-	}
+	src := srcGenesisWithParams(vm.Params{
+		SysNamesPkgPath:     "gno.land/r/sys/names",
+		SysCLAPkgPath:       "gno.land/r/sys/cla",
+		ChainDomain:         "gno.land",
+		DefaultDeposit:      "600000000ugnot",
+		StoragePrice:        "100ugnot",
+		StorageFeeCollector: crypto.AddressFromPreimage([]byte("storage_fee_collector")),
+	})
 
 	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
 	require.NoError(t, err)
@@ -137,21 +130,14 @@ func TestBuildHardforkGenesis_PreservesTunedGasParams(t *testing.T) {
 
 	// Source with only IterNextCostFlat set (simulating operator who tuned
 	// one field). The other 6 must stay at zero (no partial defaulting).
-	src := &bftypes.GenesisDoc{
-		ChainID: "gnoland1",
-		AppState: gnoland.GnoGenesisState{
-			VM: vm.GenesisState{
-				Params: vm.Params{
-					SysNamesPkgPath:  "gno.land/r/sys/names",
-					SysCLAPkgPath:    "gno.land/r/sys/cla",
-					ChainDomain:      "gno.land",
-					DefaultDeposit:   "600000000ugnot",
-					StoragePrice:     "100ugnot",
-					IterNextCostFlat: 500, // operator override
-				},
-			},
-		},
-	}
+	src := srcGenesisWithParams(vm.Params{
+		SysNamesPkgPath:  "gno.land/r/sys/names",
+		SysCLAPkgPath:    "gno.land/r/sys/cla",
+		ChainDomain:      "gno.land",
+		DefaultDeposit:   "600000000ugnot",
+		StoragePrice:     "100ugnot",
+		IterNextCostFlat: 500, // operator override
+	})
 
 	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
 	require.NoError(t, err)
@@ -198,6 +184,45 @@ func TestBuildHardforkGenesis_PreservesExplicitGasReplayMode(t *testing.T) {
 		"explicit GasReplayMode must not be overwritten")
 }
 
+// TestBuildHardforkGenesis_AnnotatesSource asserts that buildHardforkGenesis
+// tags base-genesis txs with Source="base" and that historical txs passed in
+// pre-annotated keep their value (e.g. "historical" or "patched" set upstream
+// in execGenerate).
+func TestBuildHardforkGenesis_AnnotatesSource(t *testing.T) {
+	t.Parallel()
+
+	manfred := crypto.AddressFromPreimage([]byte("manfred"))
+	baseTx := gnoland.TxWithMetadata{
+		Tx: std.Tx{Msgs: []std.Msg{bank.MsgSend{FromAddress: manfred, ToAddress: manfred, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}}, Fee: std.NewFee(10, std.NewCoin("ugnot", 100))},
+	}
+	histTx := gnoland.TxWithMetadata{
+		Tx: std.Tx{Msgs: []std.Msg{bank.MsgSend{FromAddress: manfred, ToAddress: manfred, Amount: std.NewCoins(std.NewCoin("ugnot", 2))}}, Fee: std.NewFee(10, std.NewCoin("ugnot", 100))},
+		Metadata: &gnoland.GnoTxMetadata{
+			BlockHeight: 100,
+			ChainID:     "gnoland1",
+			Source:      gnoland.SourceHistorical, // pre-annotated by execGenerate
+		},
+	}
+
+	src := &bftypes.GenesisDoc{
+		ChainID: "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			Txs: []gnoland.TxWithMetadata{baseTx},
+		},
+	}
+
+	_, appState, err := buildHardforkGenesis(src, []gnoland.TxWithMetadata{histTx}, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	require.Len(t, appState.Txs, 2)
+
+	// base tx (index 0): annotated as "base"
+	require.NotNil(t, appState.Txs[0].Metadata)
+	assert.Equal(t, gnoland.SourceBase, appState.Txs[0].Metadata.Source)
+	// historical tx (index 1): pre-annotated value preserved
+	require.NotNil(t, appState.Txs[1].Metadata)
+	assert.Equal(t, gnoland.SourceHistorical, appState.Txs[1].Metadata.Source)
+}
+
 // TestVerifyGenesisFile_Invalid verifies that verifyGenesisFile returns an
 // error for a malformed genesis file (so the calling tool can abort).
 func TestVerifyGenesisFile_Invalid(t *testing.T) {
@@ -218,4 +243,76 @@ func TestVerifyGenesisFile_Invalid(t *testing.T) {
 		err := verifyGenesisFile(path)
 		require.Error(t, err)
 	})
+}
+
+// TestBuildHardforkGenesis_RepricesLegacyDefaultGasParams asserts that a source
+// genesis carrying the untuned post-#5415, pre-bptree-mount defaults
+// (Fixed == Min == 300/200/440, IterNextCostFlat == 1000) is rewritten to the
+// current defaults: forked chains run the bptree+fast-index store, and the
+// legacy values are IAVL-era prices (GET 3× overcharged, writes missing the
+// index cost).
+func TestBuildHardforkGenesis_RepricesLegacyDefaultGasParams(t *testing.T) {
+	t.Parallel()
+
+	src := srcGenesisWithParams(legacyFingerprintParams())
+
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+
+	defaults := vm.DefaultParams()
+	assert.Equal(t, defaults.MinGetReadDepth100, appState.VM.Params.MinGetReadDepth100)
+	assert.Equal(t, defaults.MinSetReadDepth100, appState.VM.Params.MinSetReadDepth100)
+	assert.Equal(t, defaults.MinWriteDepth100, appState.VM.Params.MinWriteDepth100)
+	assert.Equal(t, defaults.FixedGetReadDepth100, appState.VM.Params.FixedGetReadDepth100)
+	assert.Equal(t, defaults.FixedSetReadDepth100, appState.VM.Params.FixedSetReadDepth100)
+	assert.Equal(t, defaults.FixedWriteDepth100, appState.VM.Params.FixedWriteDepth100)
+	assert.Equal(t, defaults.IterNextCostFlat, appState.VM.Params.IterNextCostFlat)
+	require.NoError(t, appState.VM.Params.Validate())
+}
+
+// TestBuildHardforkGenesis_PreservesNearLegacyGasParams asserts that any
+// deviation from the exact legacy fingerprint (operator tuning) disables the
+// reprice — the values carry over verbatim.
+func TestBuildHardforkGenesis_PreservesNearLegacyGasParams(t *testing.T) {
+	t.Parallel()
+
+	tuned := legacyFingerprintParams()
+	tuned.FixedWriteDepth100 = 450 // one field off the fingerprint = tuned
+	src := srcGenesisWithParams(tuned)
+
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	assert.Equal(t, tuned.FixedWriteDepth100, appState.VM.Params.FixedWriteDepth100)
+	assert.Equal(t, tuned.FixedGetReadDepth100, appState.VM.Params.FixedGetReadDepth100)
+	assert.Equal(t, tuned.MinWriteDepth100, appState.VM.Params.MinWriteDepth100)
+}
+
+// legacyFingerprintParams returns the exact untuned post-#5415, pre-bptree-mount
+// vm params (Fixed == Min == 300/200/440, IterNextCostFlat == 1000) that the
+// fork tool's legacy-fingerprint reprice matches.
+func legacyFingerprintParams() vm.Params {
+	return vm.Params{
+		SysNamesPkgPath:      "gno.land/r/sys/names",
+		SysCLAPkgPath:        "gno.land/r/sys/cla",
+		ChainDomain:          "gno.land",
+		DefaultDeposit:       "600000000ugnot",
+		StoragePrice:         "100ugnot",
+		StorageFeeCollector:  crypto.AddressFromPreimage([]byte("storage_fee_collector")),
+		MinGetReadDepth100:   300,
+		MinSetReadDepth100:   200,
+		MinWriteDepth100:     440,
+		FixedGetReadDepth100: 300,
+		FixedSetReadDepth100: 200,
+		FixedWriteDepth100:   440,
+		IterNextCostFlat:     1_000,
+	}
+}
+
+func srcGenesisWithParams(p vm.Params) *bftypes.GenesisDoc {
+	return &bftypes.GenesisDoc{
+		ChainID: "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: p},
+		},
+	}
 }

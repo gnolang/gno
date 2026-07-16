@@ -35,6 +35,7 @@ type generateCfg struct {
 	output          string
 	txsOutput       string
 	patchRealms     patchRealmList
+	patchTxs        stringList
 	migrationTxs    stringList
 	skipTxs         bool
 	noVerify        bool
@@ -228,6 +229,14 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
 		"before writing the hardfork genesis. Use this to deliver realm upgrades "+
 		"as part of the fork (e.g. adding a new .gno file to an existing realm).")
+	fs.Var(&c.patchTxs, "patch-txs", "patch historical txs in place: repeatable, PATH to a "+
+		".jsonl file of AnnotatedTx entries. Each entry is matched against the "+
+		"fetched source-tx stream by (block_height, signer_info[0].address, "+
+		"signer_info[0].sequence); the source tx body is replaced by the patch "+
+		"body, the original tx is preserved on metadata.original_tx, and "+
+		"metadata.note / metadata.source are populated from the patch. Fails "+
+		"fast on duplicate keys across files and on patch keys that match no "+
+		"source tx.")
 	fs.BoolVar(&c.skipTxs, "skip-txs", false, "skip tx export (only copy genesis structure — useful for quick preview)")
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
@@ -312,12 +321,21 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 
 		io.Printf("  Fetched %d successful transactions\n", len(txs))
 
-		// Write txs to separate file if requested
+		// Write txs to separate file if requested — pre-patch, for audit.
 		if cfg.txsOutput != "" {
 			if err := writeTxsJSONL(cfg.txsOutput, txs); err != nil {
 				return fmt.Errorf("writing txs output: %w", err)
 			}
 			io.Printf("  Txs written to: %s\n", cfg.txsOutput)
+		}
+
+		// Annotate historical txs first; --patch-txs below will override to
+		// SourcePatched on matched entries.
+		annotateSource(txs, gnoland.SourceHistorical)
+
+		// Apply --patch-txs rewrites on historical txs (in-memory only).
+		if _, err := applyPatchTxs(txs, cfg.patchTxs, io); err != nil {
+			return fmt.Errorf("--patch-txs: %w", err)
 		}
 	} else {
 		io.Println("Step 2/4: Skipping tx export (--skip-txs)")
@@ -357,10 +375,11 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// so they go through the genesis-mode path (chain-id via PastChainIDs[0],
 	// sig verify skipped under --skip-genesis-sig-verification).
 	for _, path := range cfg.migrationTxs {
-		migTxs, err := readMigrationTxs(path)
+		migTxs, err := loadMigrationTxs(path)
 		if err != nil {
 			return fmt.Errorf("migration-tx %s: %w", path, err)
 		}
+		annotateSource(migTxs, gnoland.SourceMigration)
 		appState.Txs = append(appState.Txs, migTxs...)
 		io.Printf("  appended %d migration tx(s) from %s\n", len(migTxs), path)
 	}
@@ -446,30 +465,20 @@ func buildHardforkGenesis(
 		appState.GasReplayMode = "source"
 	}
 
-	// Source chains generated before the gas-storage refactor (PR #5415)
-	// have no min_*/fixed_*_depth_100 or iter_next_cost_flat fields in
-	// vm.params. When deserialized into the post-refactor Params struct
-	// these default to 0, which fails Validate() (iter_next_cost_flat must
-	// be > 0). Populate from code defaults when every field is unset, so
-	// the resulting genesis boots on a post-refactor node without manual
-	// patching. Do not overwrite if any value is already set — an operator
-	// may have intentionally tuned these.
-	if appState.VM.Params.IterNextCostFlat == 0 &&
-		appState.VM.Params.MinGetReadDepth100 == 0 &&
-		appState.VM.Params.MinSetReadDepth100 == 0 &&
-		appState.VM.Params.MinWriteDepth100 == 0 &&
-		appState.VM.Params.FixedGetReadDepth100 == 0 &&
-		appState.VM.Params.FixedSetReadDepth100 == 0 &&
-		appState.VM.Params.FixedWriteDepth100 == 0 {
-		defaults := vm.DefaultParams()
-		appState.VM.Params.MinGetReadDepth100 = defaults.MinGetReadDepth100
-		appState.VM.Params.MinSetReadDepth100 = defaults.MinSetReadDepth100
-		appState.VM.Params.MinWriteDepth100 = defaults.MinWriteDepth100
-		appState.VM.Params.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
-		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
-		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
-		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
+	// Rewrite untuned depth/iteration gas params to the current defaults.
+	// A source genesis matching an era fingerprint EXACTLY is untuned by
+	// definition; any deviation means an operator tuned the values, which
+	// carry over verbatim. See untunedDepthFingerprints for the eras.
+	for _, fp := range untunedDepthFingerprints {
+		if depthParamsMatch(appState.VM.Params, fp) {
+			applyDefaultDepthParams(&appState.VM.Params)
+			break
+		}
 	}
+
+	// Tag base-genesis txs (SourceBase) before the historical stream is
+	// appended; historical and patched txs already carry their own Source.
+	annotateSource(appState.Txs, gnoland.SourceBase)
 
 	// Append historical txs after existing genesis-mode txs
 	// Genesis-mode txs (no metadata or BlockHeight==0): package deploys, setup
@@ -503,35 +512,6 @@ func writeGenesis(path string, genDoc *bftypes.GenesisDoc) error {
 		return fmt.Errorf("renaming %s -> %s: %w", tmp, path, err)
 	}
 	return nil
-}
-
-// readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
-// BlockHeight is forced to 0 so each line is treated as a genesis-mode tx
-// when replayed (uses PastChainIDs[0] for chain-id; sig verify skipped under
-// --skip-genesis-sig-verification). Blank lines and # comments are ignored.
-func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	out := make([]gnoland.TxWithMetadata, 0, len(lines))
-	for i, line := range lines {
-		trim := strings.TrimSpace(line)
-		if trim == "" || strings.HasPrefix(trim, "#") {
-			continue
-		}
-		var tx gnoland.TxWithMetadata
-		if err := amino.UnmarshalJSON([]byte(line), &tx); err != nil {
-			return nil, fmt.Errorf("line %d: %w", i+1, err)
-		}
-		if tx.Metadata == nil {
-			tx.Metadata = &gnoland.GnoTxMetadata{}
-		}
-		tx.Metadata.BlockHeight = 0 // always genesis-mode
-		out = append(out, tx)
-	}
-	return out, nil
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
@@ -685,4 +665,53 @@ func gnoPackageNameFromFileBody(_ string, body string) string {
 		}
 	}
 	return ""
+}
+
+// untunedDepthFingerprints are the exact depth/iteration gas params (only
+// those seven fields are compared) that identify an UNTUNED source genesis of
+// each historical era. A new era fingerprint must be appended whenever the
+// vm defaults change (see the note on the defaults in
+// gno.land/pkg/sdk/vm/params.go).
+var untunedDepthFingerprints = []vm.Params{
+	// Pre-#5415 (gas-storage refactor): the fields did not exist; they
+	// deserialize to zero, which fails Validate() (iter_next_cost_flat
+	// must be > 0) without the rewrite.
+	{},
+	// Post-#5415, pre-bptree-mount: IAVL-era untuned defaults. Left as-is
+	// on a bptree+fast-index fork they are simply wrong prices (GET 3×
+	// overcharged, writes missing the fast-index cost).
+	{
+		MinGetReadDepth100:   300,
+		MinSetReadDepth100:   200,
+		MinWriteDepth100:     440,
+		FixedGetReadDepth100: 300,
+		FixedSetReadDepth100: 200,
+		FixedWriteDepth100:   440,
+		IterNextCostFlat:     1_000,
+	},
+}
+
+// depthParamsMatch reports whether p's seven depth/iteration gas params equal
+// fp's exactly (all other Params fields are ignored).
+func depthParamsMatch(p, fp vm.Params) bool {
+	return p.MinGetReadDepth100 == fp.MinGetReadDepth100 &&
+		p.MinSetReadDepth100 == fp.MinSetReadDepth100 &&
+		p.MinWriteDepth100 == fp.MinWriteDepth100 &&
+		p.FixedGetReadDepth100 == fp.FixedGetReadDepth100 &&
+		p.FixedSetReadDepth100 == fp.FixedSetReadDepth100 &&
+		p.FixedWriteDepth100 == fp.FixedWriteDepth100 &&
+		p.IterNextCostFlat == fp.IterNextCostFlat
+}
+
+// applyDefaultDepthParams copies the current default depth/iteration gas
+// params into p.
+func applyDefaultDepthParams(p *vm.Params) {
+	defaults := vm.DefaultParams()
+	p.MinGetReadDepth100 = defaults.MinGetReadDepth100
+	p.MinSetReadDepth100 = defaults.MinSetReadDepth100
+	p.MinWriteDepth100 = defaults.MinWriteDepth100
+	p.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
+	p.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
+	p.FixedWriteDepth100 = defaults.FixedWriteDepth100
+	p.IterNextCostFlat = defaults.IterNextCostFlat
 }

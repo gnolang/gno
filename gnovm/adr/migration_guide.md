@@ -7,9 +7,9 @@ rule distilled from a concrete pitfall encountered during migration.
 
 This is a living document. Append new learnings as discovered.
 
-**Migrating a codebase from bare `cross`?** Start with §16 — the
-two-step recipe (`cross` → `cross1` → `cross(rlm)`) gets you a
-mechanical bulk rename first, then per-site semantic threading.
+**Migrating a codebase from bare `cross`?** Start with §16 — each
+site migrates directly to `cross(rlm)` with per-site threading (the
+`cross1` intermediate sentinel has been removed).
 
 ---
 
@@ -487,59 +487,39 @@ rather than mutating a package singleton.
 
 ---
 
-## 16. Two-step migration recipe: bare `cross` → `cross1` → `cross(rlm)`
+## 16. Migrating bare `cross` → `cross(rlm)`
+
+> Historical note: this section originally described a two-step recipe
+> through a `cross1` intermediate sentinel. `cross1` has been
+> **removed** — the name no longer resolves (typecheck:
+> `undefined: cross1`; preprocess: `name cross1 not declared`). Any
+> site still carrying it migrates the same way as bare `cross` below.
+> `gnovm/tests/files/zrealm_cross1_removed.gno` asserts the name stays
+> dead.
 
 The gno 0.9 canonical form is `fn(cross(rlm), args...)` where `rlm` is
-the in-scope realm value. Codebases originally written against the
-bare-`cross` sentinel (`fn(cross, args...)`) migrate in **two
-mechanical-then-semantic steps**:
+the in-scope realm value.
 
 **Bare `cross` is REJECTED by the preprocessor.**
 `preprocess.go` (`case CallExpr` → first-arg switch) accepts only
-`cur`, `.cur`, `.origin`, or `cross1` as the first argument to a
-crossing function. A bare-`cross` callsite now panics with
-`"only cur or cross(rlm) are allowed as the first argument..."` at
-compile time. Step 1 below is therefore **load-bearing for
-compilation**, not optional cleanup — any code merged in from a branch
-that still uses bare `cross` will not compile until renamed.
+`cur`, `.cur`, or `.origin` as the first argument to a crossing
+function, plus the `cross(rlm)` call form. A bare-`cross` callsite
+panics with `"only cur or cross(rlm) are allowed as the first
+argument..."` at compile time.
 
-**Step 1 — mechanical: `cross` → `cross1`.**
-
-A pure rename. `cross1` is a uverse-defined legacy sentinel (see
-`uverse.go` `def("cross1", undefined)`, `preprocess.go`
-`case Name("cross1")`) that lowers to **exactly the same AST shape as
-the compiler-synthesized `.origin`**:
-- `n.SetWithCross()` (the call is a crossing call)
-- `n.Args[0] = constNil(nx)` (Args[0] is nil, not a realm value)
-
-Runtime takes the `Args[0]==nil → callingCurOrOrigin →
-buildOriginRealm` path — the same path bare `cross` used to take.
-Behavior is preserved, so this step is safe to bulk-apply with sed/awk
-across the tree without per-site analysis.
-
-This unblocks deleting the bare-`cross` preprocessor branch from gnovm
-while leaving codebases temporarily compilable.
-
-**The Step 1 sed pattern.**
+**Finding the sites.**
 A naive `\bcross\b` matches the English word "cross" in comments and
 identifiers like `MessageTypeCrossPanic`, producing false positives.
-The tested pattern matches only the call-site context — `cross`
-immediately preceded by `(` or `,` (with optional whitespace) and
-followed by `,` or `)`:
+This pattern matches only the call-site context — `cross` immediately
+preceded by `(` or `,` (with optional whitespace) and followed by `,`
+or `)`:
 
 ```bash
-sed -i '' -E 's/([(,][[:space:]]*)cross([,)])/\1cross1\2/g' "$@"
+grep -rnE '[(,][[:space:]]*cross[,)]' --include='*.gno' --include='*.sh' --include='*.md' .
 ```
 
-Verified to:
-- Match `Execute(cross)`, `Foo(cross, x)`, `Foo(a, cross, b)`,
-  `Foo(a, cross)`.
-- NOT match `cross(cur)` (new form), `cross-realm` /
-  `cross-multiply` / `crossing` (English compounds and identifiers),
-  or `// the cross-call pattern` (comments).
-
-Multi-line `cross,\n` does not occur in the current tree but is not
-handled by the single-line sed; if you encounter one, fix it by hand.
+Multi-line `cross,\n` sites exist in principle but not in practice;
+if you encounter one, find it by hand.
 
 **File-type scope.**
 Bare `cross` lives in three file types:
@@ -552,58 +532,41 @@ Bare `cross` lives in three file types:
   language. Doc examples don't fail compilation but readers copying
   them will hit the preprocessor reject.
 
-Run the sed against all three file types when sweeping.
+Sweep all three file types.
 
-**Step 2 — semantic: `cross1` → `cross(rlm)`.**
+**The transform — per-call-site judgment, no mechanical rewrite.**
 
-This step requires per-call-site judgment: identify which realm value
-is in scope (typically `cur` from the enclosing crossing function, but
-sometimes a captured realm passed via parameter, or a freshly-minted
-`testing.NewUserRealm(...)`), and replace `cross1` with `cross(rlm)`.
+`cur` isn't always the right realm to thread, and outside a crossing
+function `cur` doesn't even exist. Sites that look obvious
+(`Foo(cross, x)` inside `func Bar(cur realm)`) usually do become
+`Foo(cross(cur), x)`, but sites inside non-crossing helpers, in test
+scopes that called `testing.SetRealm`, or in MsgRun `func main()`
+without `(cur realm)` all need different fixes: identify which realm
+value is in scope (typically `cur` from the enclosing crossing
+function, but sometimes a captured realm passed via parameter, or a
+freshly-minted `testing.NewUserRealm(...)`), and replace bare `cross`
+with `cross(rlm)`.
 
-Lowering changes: `cross(rlm)` takes the `else` branch in
-`installCrossingCur` and uses `*argtv` directly as the new cur's prev,
-**bypassing** `callingCurOrOrigin`/`buildOriginRealm`. The new cur's
-prev is now a static, statically-validated value rather than something
-dynamically reconstructed from `OriginCaller`.
+Lowering note: `cross(rlm)` takes the `else` branch in
+`installCrossingCur` and uses `*argtv` directly as the new cur's prev
+— a static, statically-validated value rather than something
+dynamically reconstructed from `OriginCaller` (the old bare-`cross`
+runtime path, still used by the compiler-synthesized `.origin` for
+MsgCall chain roots).
 
-**Why two steps and not one:** the `cross` → `cross(cur)` rewrite can't
-be applied mechanically — `cur` isn't always the right realm to thread,
-and outside a crossing function `cur` doesn't even exist. Sites that
-look obvious (`Foo(cross, x)` inside `func Bar(cur realm)`) usually do
-become `Foo(cross(cur), x)`, but sites inside non-crossing helpers, in
-test scopes that called `testing.SetRealm`, or in MsgRun `func main()`
-without `(cur realm)` all need different fixes. The `cross1`
-intermediate lets the mechanical sweep land first (compile-clean,
-preserves behavior) and the semantic threading happen at a human pace.
+**Common shapes in practice:**
 
-**Common Step 2 shapes in practice:**
-
-| Where the `cross1` lives | Step 2 transform |
+| Where the bare `cross` lives | Transform |
 |---|---|
-| Inside a crossing function `func Bar(cur realm) { Foo(cross1, ...) }` | `Foo(cross(cur), ...)` — thread the enclosing `cur`. |
-| Inside a non-crossing helper that has no realm in scope | Add `(_ int, cur realm, ...)` to the helper signature (no leading `cur` to avoid making it crossing), update callers to pass `(0, cur, ...)`, then `cross1` → `cross(cur)`. |
-| Inside a test fn `func TestX(t *testing.T) { ... cross1 ... }` | Rewrite as `func TestX(cur realm, t *testing.T)` (allowed in `_test.gno` only; see §11), then `cross1` → `cross(cur)`. Every `uassert`/`urequire` helper called inside also needs `cur` threaded as its second argument. |
-| Inside a MsgRun script `package main` + `func main() { ... cross1 ... }` | Rewrite as `func main(cur realm)` (the `/e/` carve-out — see §12), then `cross1` → `cross(cur)`. Scripts that contain multiple `package main` heredocs (e.g. one to drive a proposal, one to assert state afterward) should leave the assert-only heredoc as `func main()` — adding an unused `cur realm` parameter is misleading. |
-| Inside an `init()` that mutates realm state | Rewrite as `init(cur realm)` (same allowance as `main`), then `cross1` → `cross(cur)`. |
-
-**When you cannot finish Step 2:** leave `cross1` in place. The
-sentinel is intentionally preserved in uverse for exactly this case —
-it isn't a deprecation that will break, it's a long-tail compatibility
-shim. The runtime path (`callingCurOrOrigin → buildOriginRealm`) is
-the same path the compiler-synthesized `.origin` lowering uses for
-MsgCall chain roots, so `cross1` will keep working as long as that
-synthesis does.
-
-See `gnovm/tests/files/zrealm_cross1_legacy.gno` for a minimal example
-asserting that `cross1` and `cross(cur)` produce identical
-`cur.PkgPath()` from the callee — useful as a regression guard if the
-two lowerings ever diverge.
+| Inside a crossing function `func Bar(cur realm) { Foo(cross, ...) }` | `Foo(cross(cur), ...)` — thread the enclosing `cur`. |
+| Inside a non-crossing helper that has no realm in scope | Add `(_ int, cur realm, ...)` to the helper signature (no leading `cur` to avoid making it crossing), update callers to pass `(0, cur, ...)`, then `cross` → `cross(cur)`. |
+| Inside a test fn `func TestX(t *testing.T) { ... cross ... }` | Rewrite as `func TestX(cur realm, t *testing.T)` (allowed in `_test.gno` only; see §11), then `cross` → `cross(cur)`. Every `uassert`/`urequire` helper called inside also needs `cur` threaded as its second argument. |
+| Inside a MsgRun script `package main` + `func main() { ... cross ... }` | Rewrite as `func main(cur realm)` (the `/e/` carve-out — see §12), then `cross` → `cross(cur)`. Scripts that contain multiple `package main` heredocs (e.g. one to drive a proposal, one to assert state afterward) should leave the assert-only heredoc as `func main()` — adding an unused `cur realm` parameter is misleading. |
+| Inside an `init()` that mutates realm state | Rewrite as `init(cur realm)` (same allowance as `main`), then `cross` → `cross(cur)`. |
 
 **Merging upstream `master` into a `cur`-migrated branch.**
-The Step 1 sed clears the literal bare-`cross` issue, but new code
-from upstream typically lands with *three* additional drifts that the
-sed does not touch:
+Threading the bare-`cross` sites clears the literal issue, but new
+code from upstream typically lands with *three* additional drifts:
 
 1. **Helper signature drift.** Upstream helpers that build executors
    or wrap dao calls use master's `dao.NewSimpleExecutor(callback,
@@ -632,10 +595,10 @@ sed does not touch:
    t *testing.T)` rationale and the `SetRealm + crossing-closure`
    actor-simulation pattern.
 
-The sed sweep + Step 2 thread happens at one pace; (1)–(3) happen at
-another. Don't conflate them in the same commit — the sed is purely
-mechanical and reviewable as a single rename; the signature/test-fn
-plumbing requires per-call judgment and is a separate pass.
+The bare-`cross` threading happens at one pace; (1)–(3) happen at
+another. Don't conflate them in the same commit — the signature and
+test-fn plumbing requires per-call judgment and reviews best as a
+separate pass.
 
 ---
 
@@ -703,11 +666,9 @@ common reasons to keep them.
 ## Appendix: open questions
 
 - **How best to mint a fresh cur after `SetRealm(NewUserRealm)`?**
-  See (2). The dynamic-origin path in `buildOriginRealm` is reachable
-  from user code via `cross1` (the legacy migration sentinel — see
-  §16) and from compiler-synthesized `.origin` (MsgCall chain root).
-  `cross1` is intentionally available as a long-tail shim for this
-  test pattern, so the gap is covered. A named user-facing primitive
-  (e.g. `cross.fromOrigin()`) or refactoring SUTs to take caller
-  address explicitly would still be cleaner — `cross1` reads as a
-  migration tool, not a stable API.
+  See (2). The dynamic-origin path in `buildOriginRealm` is now
+  reachable only from compiler-synthesized `.origin` (MsgCall chain
+  root) — the `cross1` shim that also reached it has been removed, so
+  this gap is open for user code. Candidate answers: a named
+  user-facing primitive (e.g. `cross.fromOrigin()`), or refactoring
+  SUTs to take the caller address explicitly.
