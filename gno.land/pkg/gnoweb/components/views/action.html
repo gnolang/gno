@@ -63,8 +63,8 @@ UI - Help Function component
 <script type="application/json" data-wallet-launch-target="wallet-registry">{{ $data.WalletsJSON }}</script>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function"
-    data-action-function-name-value="{{ .Name }}" data-action-function-pkgpath-value="{{ $.PkgPath }}">
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
+    data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -183,6 +183,9 @@ UI - Help Function component
   <div class="b-wallet-chooser__inner">
     <h3 class="b-wallet-chooser__title">Open with a wallet</h3>
     <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"></ul>
+    <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-browser">
+      Continue in browser
+    </button>
     <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-cancel">
       Cancel
     </button>
