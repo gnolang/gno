@@ -20,17 +20,22 @@ composing with the in-page layer rather than replacing it.
 On Execute, gnoweb opens the wallet with:
 
 ```
-<scheme>://tx?path=<pkgPath>&func=<fn>&args=<v1>&args=<v2>&send=<coins>&rpc=<gnoconnect:rpc>&chainid=<gnoconnect:chainid>&callback=<page-url>
+<scheme>://tx?path=<pkgPath>&func=<fn>&arg.<name>=<value>&send=<coins>&rpc=<gnoconnect:rpc>&chainid=<gnoconnect:chainid>&callback=<page-url>
 ```
 
-- No new tx encoding: the exact TxLink fields, plus `rpc`/`chainid` from the
-  existing `gnoconnect:*` meta so the wallet targets the right node (including
-  localnet).
+- Named args, like TxLinks (`&param=value`), but namespaced under `arg.` so a
+  realm parameter named `func`, `send`, `rpc`, `chainid`, or `callback` cannot
+  collide with the link's own keys. Every name and value is percent-encoded.
+  `rpc`/`chainid` come from the existing `gnoconnect:*` meta so the wallet
+  targets the right node (including localnet).
 - Host is `tx`, not `call`: it names the intent and leaves room for future
   hosts (`run`, `sign`) under the same scheme. Wallets should accept `call` as
   a silent back-compat alias but emit/document only `tx`.
-- `args` repeats once per positional parameter, in declaration order, every
-  value percent-encoded; empty values are included to keep positions aligned.
+- Named args are self-describing: the wallet resolves declaration order via
+  `vm/qdoc` before building the `MsgCall`. This adds no connectivity
+  requirement — the wallet already needs the RPC node for the account
+  sequence and the broadcast — and it protects third-party-authored links
+  from silent positional mis-binding.
 - Args are read live from the form inputs at submit time — never from the
   address bar, which goes stale between edits and submit.
 - `callback` is the current page URL (minus any `status`/`hash` params left by
@@ -98,12 +103,21 @@ UL/AL are at most an optional "not installed" fallback, never the primary path.
 - **Subscribing to `params:changed` events for arg state** — rejected during
   review: reading the DOM at submit time is always fresh and reads the same
   inputs, so the event subscription was pure duplication.
+- **Positional repeated `args=` values** — works without `vm/qdoc`, but any
+  producer whose ordering diverges from declaration order silently binds
+  values to the wrong parameters, and it cannot express partial prefill.
+  Rejected during review; the wallet is online at signing time anyway.
+- **Flat TxLink-style names (no `arg.` prefix)** — a realm parameter named
+  `func`, `send`, `rpc`, `chainid`, or `callback` would collide with the
+  link's own keys.
 
 ## Consequences
 
 - Mobile users with a registered wallet get a native sign-and-broadcast flow;
   everyone else sees no behavior change.
-- Wallet authors must implement the `<scheme>://tx?...` link format above.
+- Wallet authors must implement the `<scheme>://tx?...` link format above,
+  documented in the GnoConnect standard (`docs/resources/gnoconnect.md`,
+  "Launch Links").
 - The registry gates wallet listing on gnoweb PRs until a served/on-chain
   catalog exists.
 - Follow-ups (not gaps): QR for desktop→phone (the launch link is already the
@@ -119,3 +133,7 @@ Execute → chooser → wallet opens prefilled → sign & broadcast → `callbac
 reopens gnoweb with `?status=success&hash=…`. Multi-arg ordering exercised via
 `r/demo/profile.SetStringField(field, value)` under a scoped session
 allow-path, confirmed on-chain.
+
+That round trip used the original positional `args=` encoding; the switch to
+named `arg.<name>=` params (post-review) still needs an end-to-end pass with
+the updated wallet branch.

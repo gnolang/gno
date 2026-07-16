@@ -71,7 +71,35 @@ can call `vm/qdoc` to retrieve the remaining fields
 
 TODO ([discussion](https://github.com/gnolang/gno/issues/3283)).
 
-## Supported Clients
+## Launch Links (external wallets)
+
+Launch links hand a transaction intent off to an external wallet — a mobile app
+or standalone desktop signer registered under a custom URL scheme — when an
+in-page provider is not available. Gnoweb emits them from `$help` Execute; any
+producer may author them.
+
+```
+<scheme>://tx?path=<pkgPath>&func=<Foo>&arg.<name>=<value>&send=<coins>&rpc=<rpc>&chainid=<chainid>&callback=<url>
+```
+
+- `<scheme>` is the wallet's registered custom scheme (e.g.
+  `land.gno.gnokey`). The host is `tx`; future hosts (`run`, `sign`) may be
+  added under the same scheme. Wallets should accept `call` as a silent
+  back-compat alias for `tx` but emit and document only `tx`.
+- Function arguments are named like TxLink arguments, but namespaced under
+  `arg.` so realm parameter names cannot collide with the link's own keys
+  (`path`, `func`, `send`, `rpc`, `chainid`, `callback`). Every name and value
+  is percent-encoded. As with TxLinks, a link may prefill only some arguments;
+  the wallet resolves parameter order and remaining fields via `vm/qdoc`.
+- `send` (optional) is the coin amount to attach, in `gnokey` coin syntax
+  (e.g. `1000000ugnot`).
+- `rpc` and `chainid` mirror the `gnoconnect:rpc`/`gnoconnect:chainid`
+  metadata of the emitting page, verbatim. `rpc` may be scheme-less
+  (`127.0.0.1:26657`); the wallet assumes `http://` when the scheme is
+  missing.
+- `callback` (optional) is the URL to reopen after signing. The wallet
+  appends `status` (`success` or `error`) and, on success, the transaction
+  `hash` as query parameters.
 
 - **Gnoweb** (provider)
 - **Adena Wallet** (client)
