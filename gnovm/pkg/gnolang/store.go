@@ -1011,7 +1011,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	// and part of consensus state), while the #allbutprod sibling lives in the
 	// non-merkleized baseStore: test/filetest files never affect execution, so
 	// they are kept queryable for tooling but deliberately excluded from the
-	// consensus AppHash and from storage-deposit accounting. See ADR pr5963.
+	// consensus AppHash. See ADR pr5971.
 	if mpkgtype.IsAll() {
 		prod, allButProd := splitProdAllButProd(mpkg)
 		// prod is nil for a package with no production .gno files (e.g. an

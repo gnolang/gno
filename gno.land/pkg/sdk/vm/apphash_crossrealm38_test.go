@@ -103,7 +103,7 @@ import (
 // AppHash. Every genesis stdlib/example package that ships _test.gno files drops
 // its test blob out of the committed root, so the pinned value shifts once.
 // Behavior is unchanged; this is an intentional, consensus-breaking change that
-// ships in a coordinated upgrade (see ADR pr5963).
+// ships in a coordinated upgrade (see ADR pr5971).
 const expectedCrossrealm38Hash = "4ffebf2217e292a1eb6a02abca5f7e05c6122571cb334e5f8a2cebc9f6beb440"
 
 func TestAppHashCrossrealm38(t *testing.T) {
