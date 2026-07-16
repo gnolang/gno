@@ -35,9 +35,32 @@ type is a pointer (`type S struct{ D1 }` → "embedded field type cannot
 be a pointer") at declaration, while GnoVM accepted the declaration and
 then panicked on selection.
 
+Review surfaced two more panicking shapes with the same root cause,
+both hitting the `default:` branch in `PointerType.FindEmbeddedFieldType`
+instead:
+
+```go
+type C struct{ F int }
+type B *C
+type A *B
+var x A
+_ = x.F // Go: x.F undefined; the (*x).f shorthand applies once, and
+        // (*x) is again a defined pointer type with no field F.
+
+type BI interface{ M() string }
+type AI *BI
+var y AI
+_ = y.M // Go: y.M undefined (type AI is pointer to interface)
+```
+
+Here the pointer's element is a defined type whose own base is a
+pointer (returns a `VPDerefField`-headed trail: a second indirection)
+or an interface (returns a `VPInterface`-headed trail), neither of
+which the switch handled.
+
 ## Decision
 
-Two changes in `gnovm/pkg/gnolang/types.go`:
+Three changes in `gnovm/pkg/gnolang/types.go`:
 
 1. **`DeclaredType.FindEmbeddedFieldType`**: after the base search
    returns a trail, if the base is a `*PointerType` and the trail's
@@ -50,7 +73,14 @@ Two changes in `gnovm/pkg/gnolang/types.go`:
    `rcvr != nil` was rejected as the discriminator because interface
    method matches return a nil receiver.
 
-2. **`fillEmbeddedName`**: reject embedded fields that are still of
+2. **`PointerType.FindEmbeddedFieldType`**: when the element search
+   returns a `VPDerefField`-headed trail (the element is a defined type
+   that resolved the selector through its own pointer base — a second
+   indirection) or a `VPInterface`-headed trail (pointer to interface),
+   return not-found. Go promotes neither through a pointer. The
+   `default:` panic stays for genuinely impossible trail heads.
+
+3. **`fillEmbeddedName`**: reject embedded fields that are still of
    pointer kind after one `unwrapPointerType` — i.e. a defined type of
    pointer kind (`D1`) or a pointer whose element is of pointer kind
    (`*D1`) — with Go's message "embedded field type cannot be a
@@ -92,4 +122,6 @@ uses the same lookup, and Go agrees (`D1` implements nothing).
 - Programs that (unintentionally) relied on method promotion through
   defined pointer types now get errors; such programs already failed
   go/types type-checking on-chain, so nothing deployable breaks.
-- Tests: `method40–43.gno`, `struct64.gno`, `struct64b.gno`.
+- Tests: `method40–43.gno`, `struct64.gno`, `struct64b.gno`,
+  `ptr12.gno` (nested defined pointers, from review), `ptr13.gno`
+  (pointer to defined interface type).

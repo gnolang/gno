@@ -756,6 +756,13 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 			case VPPtrMethod:
 				trail[0].Type = VPDerefPtrMethod
 				return
+			case VPDerefField, VPInterface:
+				// The element is a defined type that resolved the selector
+				// through its own pointer base (VPDerefField: a second
+				// indirection, e.g. `type B *C; type A *B`) or through an
+				// interface base (VPInterface: pointer to interface). Go
+				// promotes neither through a pointer: not found.
+				return nil, false, nil, nil, false
 			case VPDerefValMethod, VPDerefPtrMethod:
 				panic("should not happen")
 			default:
