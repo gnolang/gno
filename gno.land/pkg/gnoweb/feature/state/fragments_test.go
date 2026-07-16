@@ -760,8 +760,10 @@ func TestFragNodeLazyBoundMethodRendersRow(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	out := rec.Body.String()
-	assert.Contains(t, out, "Get on lazybind.Impl (resolved at call)",
+	assert.Contains(t, out, "Get (resolved at call)",
 		"lazy bind must render its selector row")
+	assert.Contains(t, out, "lazybind.Impl",
+		"lazy bind row must show the operand type")
 	assert.NotContains(t, out, "(empty)",
 		"a source-less func row must not be promoted into an empty root")
 }

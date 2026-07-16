@@ -495,12 +495,13 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 	case *gno.BoundMethodValue:
 		if cv.IsLazy() {
 			// Interface-dispatched bind: only the selector name and the saved
-			// operand exist until the call resolves it — say so instead of
-			// faking an empty signature.
+			// operand exist until the call resolves it — show those instead of
+			// faking a signature. Type = operand type, Value = selector + note.
 			return []StateNode{{
-				Name: "(method)",
-				Type: fmt.Sprintf("%s on %s (resolved at call)", cv.Method, typeName(cv.Receiver.T)),
-				Kind: KindFunc,
+				Name:  "(method)",
+				Type:  typeName(cv.Receiver.T),
+				Kind:  KindFunc,
+				Value: fmt.Sprintf("%s (resolved at call)", cv.Method),
 			}}
 		}
 		return []StateNode{decodeFuncInline(startDepth, "(method)", cv.Func)}

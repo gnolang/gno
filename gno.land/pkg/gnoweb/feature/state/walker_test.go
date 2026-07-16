@@ -1518,6 +1518,7 @@ func TestDecodeBoundMethodLazyBind(t *testing.T) {
 	nodes := decodeValueChildren(DefaultPageRenderConfig(), bmv)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, "(method)", nodes[0].Name)
-	assert.Equal(t, "Get on test.Impl (resolved at call)", nodes[0].Type)
+	assert.Equal(t, "test.Impl", nodes[0].Type)
+	assert.Equal(t, "Get (resolved at call)", nodes[0].Value)
 	assert.Equal(t, KindFunc, nodes[0].Kind)
 }
