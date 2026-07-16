@@ -2246,6 +2246,18 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	if trail == nil {
 		return nil, false, nil, nil, accessError || gated
 	}
+	// A defined type whose underlying type is a pointer has an empty method
+	// set: only fields promote through it, via the (*x).f selector shorthand
+	// (Go spec: "denoting a field (but not a method)"). A method match — the
+	// trail's last element — is therefore "not found", not promoted.
+	if _, baseIsPtr := dt.Base.(*PointerType); baseIsPtr {
+		switch trail[len(trail)-1].Type {
+		case VPField, VPDerefField:
+			// field promotion is allowed.
+		default:
+			return nil, false, nil, nil, gated
+		}
+	}
 	switch trail[0].Type {
 	case VPInterface:
 		return trail, hasPtr, rcvr, ft, false
@@ -2712,6 +2724,12 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	}
 	if ft.Name == "" {
 		panic(fmt.Sprintf("cannot derive embedded name for field type %s", ft.Type.String()))
+	}
+	// Go spec: an embedded field must be a type name T or *T, and T itself
+	// may not be a pointer type. An alias of a pointer type resolves to the
+	// *PointerType spelling and is allowed, matching Go.
+	if unwrapPointerType(ft.Type).Kind() == PointerKind {
+		panic(fmt.Sprintf("embedded field type cannot be a pointer: %s", ft.Type.String()))
 	}
 	ft.Embedded = true
 }
