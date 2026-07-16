@@ -8,11 +8,6 @@ var ownableInst = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376f
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts(cur realm) {
-	// IsCurrent() is the authentication primitive: it confirms cur is the live
-	// crossing frame before we trust cur.Previous() for the owner check.
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	ownableInst.AssertOwnedBy(cur.Previous().Address())
 	posts = nil
 }

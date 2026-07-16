@@ -14,9 +14,6 @@ var owner = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") /
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	owner.AssertOwnedBy(cur.Previous().Address())
 	posts = avl.NewTree()
 	postID = seqid.ID(0)

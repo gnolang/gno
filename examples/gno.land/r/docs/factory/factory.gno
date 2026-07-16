@@ -5,6 +5,8 @@ package factory
 import (
 	"errors"
 	"strconv"
+
+	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // TokenType represents different types of tokens
@@ -107,9 +109,6 @@ var (
 
 // CreateFungibleToken creates a fungible token
 func CreateFungibleToken(cur realm, name string) string {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	caller := cur.Previous().Address()
 	token := CreateToken(Fungible, name, caller)
 	lastToken = token
@@ -118,9 +117,6 @@ func CreateFungibleToken(cur realm, name string) string {
 
 // CreateNFT creates a non-fungible token
 func CreateNFT(cur realm, name string) string {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	caller := cur.Previous().Address()
 	token := CreateToken(NonFungible, name, caller)
 	lastToken = token
@@ -129,9 +125,6 @@ func CreateNFT(cur realm, name string) string {
 
 // CreateSoulBound creates a soul-bound token
 func CreateSoulBound(cur realm, name string) string {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	caller := cur.Previous().Address()
 	token := CreateToken(SoulBound, name, caller)
 	lastToken = token
@@ -154,26 +147,26 @@ type Token interface {
 }
 
 // Concrete types
-type FungibleToken struct { name string; amount uint64 }
-type NonFungibleToken struct { name string }
-type SoulBoundToken struct { name string }
+type FungibleToken struct { name string; amount uint64; owner address }
+type NonFungibleToken struct { name string; owner address }
+type SoulBoundToken struct { name string; owner address }
 
 // Factory function
-func CreateToken(tokenType TokenType, name string) Token {
+func CreateToken(tokenType TokenType, name string, owner address) Token {
     switch tokenType {
     case Fungible:
-        return &FungibleToken{name: name, amount: 1000}
+        return &FungibleToken{name: name, amount: 1000, owner: owner}
     case NonFungible:
-        return &NonFungibleToken{name: name}
+        return &NonFungibleToken{name: name, owner: owner}
     case SoulBound:
-        return &SoulBoundToken{name: name}
+        return &SoulBoundToken{name: name, owner: owner}
     default:
         panic("unknown token type")
     }
 }
 
 // Work with interface, not concrete types
-token := CreateToken(Fungible, "USDC")
+token := CreateToken(Fungible, "USDC", ownerAddr)
 if err := token.Transfer(recipientAddr, 100); err != nil {
     panic(err)
 }
@@ -190,7 +183,7 @@ if err := token.Transfer(recipientAddr, 100); err != nil {
 	if lastToken != nil {
 		out += "### Last Created Token\n\n"
 		out += "**Type:** " + lastToken.GetType() + "\n\n"
-		out += "**Info:** " + lastToken.GetInfo() + "\n\n"
+		out += "**Info:** " + sanitize.InlineText(lastToken.GetInfo()) + "\n\n"
 	}
 
 	return out

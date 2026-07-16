@@ -29,9 +29,6 @@ const (
 
 // Register adds a new service to the registry
 func Register(cur realm, name, description, endpoint string) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		panic("name cannot be empty")
@@ -66,9 +63,6 @@ func Register(cur realm, name, description, endpoint string) {
 
 // Update updates an existing service (owner only)
 func Update(cur realm, name, description, endpoint string) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	if len(description) > maxDescriptionLength {
 		panic("description too long")
 	}
@@ -92,9 +86,6 @@ func Update(cur realm, name, description, endpoint string) {
 
 // Deactivate marks a service as inactive (owner only)
 func Deactivate(cur realm, name string) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
@@ -110,9 +101,6 @@ func Deactivate(cur realm, name string) {
 
 // Delete removes a service permanently (owner only)
 func Delete(cur realm, name string) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	caller := cur.Previous().Address()
 	key := caller.String() + ":" + name
 
@@ -193,9 +181,6 @@ var (
 )
 
 func Register(cur realm, name, data string) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     caller := cur.Previous().Address()
     key := caller.String() + ":" + name
 

@@ -5,16 +5,10 @@ import "strconv"
 var count int64 = 0
 
 func Increment(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	count++
 }
 
 func Decrement(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	count--
 }
 

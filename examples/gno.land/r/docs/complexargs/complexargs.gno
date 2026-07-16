@@ -30,15 +30,14 @@ func NewCustomType(name string, numbers []int) CustomType {
 // SetSlice takes a complex argument that must be called using MsgRun or from
 // another contract that imports this one. It is intentionally unguarded so the
 // demo stays focused on argument passing; a production crossing function that
-// derives caller identity must first check cur.IsCurrent(), then use
-// cur.Previous() — see gno.land/r/docs/private.
+// derives caller identity should use cur.Previous() — see gno.land/r/docs/private.
 func SetSlice(_ realm, newSlice []int) {
 	slice = newSlice
 }
 
 // SetMyObject takes a complex argument that must be called using MsgRun or from
 // another contract that imports this one. Like SetSlice, it is intentionally
-// unguarded; gate equivalent setters with cur.IsCurrent() in real realms.
+// unguarded, unlike a production setter.
 func SetMyObject(_ realm, newCoolObject CustomType) {
 	myObject = &newCoolObject
 }

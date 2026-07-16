@@ -12,13 +12,6 @@ var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
 func CreatePost(cur realm, text string) error {
-	// IsCurrent() confirms cur is the live crossing frame before we attribute
-	// authorship from cur.Previous(); a stale realm value would still resolve an
-	// address but not the real caller.
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-
 	// Returning an error does NOT revert chain state. That is fine here because
 	// this check runs before any mutation, so there is nothing to roll back.
 	if text == "" {

@@ -63,9 +63,6 @@ each component checks that the caller is the authorized composition realm:
 const allowedCaller = "gno.land/r/my/composite"
 
 func ModifyState(cur realm) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     caller := cur.Previous()
     if caller.PkgPath() != allowedCaller {
         panic("unauthorized")
