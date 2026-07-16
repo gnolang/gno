@@ -222,8 +222,8 @@ func LobbyGameFound(cur realm) string {
 	refreshLobby(0, cur, tcLobby5p0)
 	refreshLobby(0, cur, tcLobby10p5)
 
-	val, ok := lobbyPlayer2Game.Get(cur.Previous().Address().String())
-	if !ok {
+	val := lobbyPlayer2Game.Get(cur.Previous().Address().String())
+	if val == nil {
 		return "null"
 	}
 	return val.(*Game).json()

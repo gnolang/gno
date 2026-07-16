@@ -27,7 +27,7 @@ gnoland start
 
 # === PROPOSAL 0: ADD VALIDATOR ===
 
-gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 69_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 85_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member

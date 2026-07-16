@@ -96,6 +96,13 @@ func IsEphemeralPath(pkgPath string) bool {
 	return match != nil && match.Get("LETTER") == "e"
 }
 
+// IsSyntheticPath determines whether the given pkgPath is a compiler-internal
+// synthetic path (".uverse", ".dontcare", ...). Synthetic packages are never
+// persisted to the store and cannot appear in user source.
+func IsSyntheticPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, ".")
+}
+
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
 // DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
@@ -1125,6 +1132,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, subRealmSep) {
+		return fmt.Errorf("invalid package/realm path %q: %q is reserved for sub-realm derivation", mpkg.Path, subRealmSep)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {

@@ -22,8 +22,8 @@ import (
 //
 //	Token, ledger := grc20.NewToken(0, cur, "Foo", "FOO", 4)
 //
-// If the Token should be discoverable, follow up with
-// grc20reg.Register(cross, Token, slug).
+// If the Token should be discoverable, follow up with grc20reg.Register.
+// The registry key is Token.ID().
 func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -335,8 +335,8 @@ func (led PrivateLedger) hasAddr(addr address) bool {
 
 // balanceOf returns the balance of the specified address.
 func (led PrivateLedger) balanceOf(addr address) int64 {
-	balance, found := led.balances.Get(addr.String())
-	if !found {
+	balance := led.balances.Get(addr.String())
+	if balance == nil {
 		return 0
 	}
 	return balance.(int64)
@@ -344,8 +344,8 @@ func (led PrivateLedger) balanceOf(addr address) int64 {
 
 // allowance returns the allowance of the specified owner and spender.
 func (led PrivateLedger) allowance(owner, spender address) int64 {
-	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
-	if !found {
+	allowance := led.allowances.Get(allowanceKey(owner, spender))
+	if allowance == nil {
 		return 0
 	}
 	return allowance.(int64)

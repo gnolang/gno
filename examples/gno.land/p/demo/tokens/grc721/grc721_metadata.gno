@@ -51,8 +51,8 @@ func (s *metadataNFT) SetTokenMetadata(caller address, tid TokenID, metadata Met
 // TokenMetadata retrieves metadata for a given token ID.
 func (s *metadataNFT) TokenMetadata(tid TokenID) (Metadata, error) {
 	// Retrieve metadata from the extensions AVL tree
-	metadata, found := s.extensions.Get(tid.String())
-	if !found {
+	metadata := s.extensions.Get(tid.String())
+	if metadata == nil {
 		return Metadata{}, ErrInvalidTokenId
 	}
 
