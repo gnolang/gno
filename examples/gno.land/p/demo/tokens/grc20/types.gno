@@ -129,7 +129,7 @@ var (
 
 // Construction limits. Symbol is restricted to the same charset as
 // grc20reg.validateSlug because Token.ID() = origRealm + "." + symbol is
-// emitted in events and frequently used as a registry slug; banning `.`
+// emitted in events and used as the canonical registry key; banning `.`
 // `/` and whitespace here prevents downstream parsers from being fooled
 // by ambiguous IDs (e.g. an attacker emitting tokens whose ID parses as
 // belonging to a victim realm). Name is for display only and allows

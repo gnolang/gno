@@ -11,27 +11,38 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
+var registry = avl.NewTree() // rlmPath.symbol -> *Token
 
 // Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// Use this package's Register to make a token discoverable:
+// Register stores tokens under their canonical Token.ID():
 //
 //	Token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
 //	grc20reg.Register(cross, Token, "")
 
 func Register(cur realm, token *grc20.Token, slug string) {
 	assertCurrent(cur)
+	if token == nil {
+		panic("grc20reg: nil token")
+	}
 	if slug != "" {
 		validateSlug(slug)
 	}
 	rlmPath := cur.Previous().PkgPath()
-	key := fqname.Construct(rlmPath, slug)
+	key := fqname.Construct(rlmPath, token.GetSymbol())
+	if key != token.ID() {
+		panic("grc20reg: token must be registered from its own realm")
+	}
+	if registry.Has(key) {
+		panic("grc20reg: token already registered")
+	}
 	registry.Set(key, token)
 	chain.Emit(
 		registerEvent,
+		"token_path", key,
 		"pkgpath", rlmPath,
 		"slug", slug,
+		"symbol", token.GetSymbol(),
 	)
 }
 
@@ -105,8 +116,8 @@ func Render(path string) string {
 		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
 			token := tokenI.(*grc20.Token)
-			rlmPath, slug := fqname.Parse(key)
-			rlmLink := fqname.RenderLink(rlmPath, slug)
+			rlmPath, symbol := fqname.Parse(key)
+			rlmLink := fqname.RenderLink(rlmPath, symbol)
 			infoLink := "/r/demo/grc20reg:" + key
 			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
 			return false
@@ -118,8 +129,8 @@ func Render(path string) string {
 	default: // specific token
 		key := path
 		token := MustGet(key)
-		rlmPath, slug := fqname.Parse(key)
-		rlmLink := fqname.RenderLink(rlmPath, slug)
+		rlmPath, symbol := fqname.Parse(key)
+		rlmLink := fqname.RenderLink(rlmPath, symbol)
 		s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
 		s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
