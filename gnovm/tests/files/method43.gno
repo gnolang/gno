@@ -19,9 +19,9 @@ type D1 *D2
 func main() {
 	d2 := D2{A: 5}
 	var x D1 = &d2
-	println(x.A)          // field: promoted via (*x).A
-	println(x.E.Bar())    // method on explicitly selected field
-	println((*x).Foo())   // method via explicit deref
+	println(x.A)        // field: promoted via (*x).A
+	println(x.E.Bar())  // method on explicitly selected field
+	println((*x).Foo()) // method via explicit deref
 }
 
 // Output:
