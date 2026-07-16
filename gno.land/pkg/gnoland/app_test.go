@@ -19,6 +19,7 @@ import (
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -31,8 +32,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -183,6 +184,60 @@ func TestNewApp(t *testing.T) {
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
 
+// TestInitChainer_GenesisValidatorPubKeyType verifies that the initial
+// validator set seeded from genesis is gated by the consensus-params pubkey
+// allow-list, mirroring the EndBlocker gate for runtime valset updates. A
+// genesis validator whose key type is not allowed (e.g. secp256k1, which is
+// disallowed for validators) must abort InitChain rather than seed a
+// non-compliant validator into the active set.
+func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(pubKey crypto.PubKey) abci.RequestInitChain {
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				// ed25519 is the only allowed validator key type.
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: DefaultGenState(),
+		}
+	}
+
+	t.Run("ed25519 genesis validator accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(ed25519.GenPrivKey().PubKey()))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("secp256k1 genesis validator aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		// getDummyKey produces a secp256k1 key, which is not in the allow-list.
+		secpKey := getDummyKey(t).PubKey()
+		wantErr := fmt.Sprintf(
+			"genesis validator %s has disallowed pubkey type %s (allowed: %v)",
+			secpKey.Address().String(), amino.GetTypeURL(secpKey), []string{ed25519Type},
+		)
+		assert.PanicsWithError(t, wantErr, func() {
+			app.InitChain(newInitReq(secpKey))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -206,7 +261,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
@@ -366,7 +421,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
 		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
@@ -1265,7 +1320,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetAppVersion("test")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
@@ -1514,7 +1569,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 	)
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 
 	// Make sure loading a past version doesn't fail
@@ -2881,7 +2936,7 @@ func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (par
 	mainKey := store.NewStoreKey("main")
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	require.NoError(t, cms.LoadLatestVersion())
 
 	prmk := params.NewParamsKeeper(mainKey)

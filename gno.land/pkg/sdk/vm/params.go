@@ -22,10 +22,24 @@ const (
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
 
-	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
-	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
-	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
-	minWriteDepth100Default   = 440        // 4.4 write ops (batched)
+	// Depth pins for the reference store: B+32 mounted with the fast index
+	// (storebptree.FastStoreConstructor), calibrated at 100M items, 10K node
+	// cache, batched 1000-mutation blocks (NewParams pins Fixed = Min, so
+	// these are charged exactly, at every tree size). GET is one flat DB
+	// read via the fast index, size-independent by construction.
+	// SET-read/WRITE are pinned at the measured-with-cache costs rather than
+	// priced by the store's live estimator (Fixed=0), which ignores the node
+	// LRU and overcharges mid-range sizes ~2× — revisit once it is
+	// cache-aware. Until then the pins drift gradually underpriced past the
+	// calibration point (write pin ~-13% at 1.6G keys) and are re-tuned by
+	// governance. Provenance: tm2/pkg/bptree/PERFORMANCE.md; rationale and
+	// accepted imprecisions: gno.land/adr/pr5938_mount_bptree_store.md.
+	//
+	// Changing these defaults requires a new legacy fingerprint in
+	// contribs/gnogenesis/internal/fork/generate.go (fork repricing).
+	minGetReadDepth100Default = int64(100) // 1.0 flat read (fast-index hit)
+	minSetReadDepth100Default = int64(200) // 2.0 SET read ops (descent, measured with 10K cache)
+	minWriteDepth100Default   = int64(540) // 4.4 batched COW writes + 1.0 fast-index write
 	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
 	iterNextCostFlatDefault = 1_000
 	// PreprocessGasPerByte: gas charged per .gno source byte at MsgAddPackage
