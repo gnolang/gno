@@ -615,6 +615,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+	// Reject packages with no production .gno files (e.g. only _test.gno
+	// files). The storage split writes no prod blob for them (store.go
+	// splitProdAllButProd), so a restarted node would rebuild no PackageNode
+	// while a non-restarted node still holds the deploy-time node in RAM —
+	// making call gas depend on restart history.
+	if gno.MPFProd.FilterMemPackage(memPkg).IsEmpty() {
+		return ErrInvalidPackage("package has no production .gno files")
+	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
@@ -623,6 +631,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+	}
+	if pv != nil {
+		// A private package is being redeployed (non-private re-adds were
+		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
+		// its conditional writes don't fully replace across both keys, so a stale
+		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
+		// survive the re-add and be served by qfile/GetMemPackage.
+		gnostore.DeleteMemPackage(pkgPath)
 	}
 
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
@@ -1394,7 +1411,8 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return memFile.Body, nil
 	} else {
-		memPkg := store.GetMemPackage(dirpath)
+		// GetMemPackageAll so the file listing includes test/filetest files.
+		memPkg := store.GetMemPackageAll(dirpath)
 		if memPkg == nil {
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
@@ -1412,7 +1430,9 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
-	memPkg := store.GetMemPackage(pkgPath)
+	// GetMemPackageAll for parity with QueryFile, so doc generation sees test
+	// files (e.g. for any future test-derived examples).
+	memPkg := store.GetMemPackageAll(pkgPath)
 	if memPkg == nil {
 		err := ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
