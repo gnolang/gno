@@ -633,10 +633,11 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 			return nil
 		}
 		pv := fv.GetPackage(store)
-		fb, ok := pv.fBlocksMap[fv.FileName]
-		if !ok {
-			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
-		}
+		// Lazily materialize this function's file block. fillPackage no
+		// longer pre-populates fBlocksMap, so on a package loaded from
+		// the store the entry may be absent here; GetFileBlock loads it
+		// from the FBlocks RefValue on demand and caches it.
+		fb := pv.GetFileBlock(store, fv.FileName)
 		fv.Parent = fb
 		return fb
 	case RefValue:
@@ -781,8 +782,8 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			}
 			seen[id] = struct{}{}
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, operand.T, name, nil)
-		if len(tr) == 0 {
+		tr, _, _, _, status := findEmbeddedFieldType(callerPath, operand.T, name)
+		if status != embedLookupFound {
 			// Mirrors the bind-site guard (getPointerToFromTV, VPInterface).
 			// The call-time operand type is the same one that passed that
 			// guard, so this should be unreachable; guard anyway rather than
@@ -2142,8 +2143,8 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		if callerPath == "" {
 			callerPath = dtv.T.GetPkgPath()
 		}
-		tr, _, _, ift, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
-		if len(tr) == 0 {
+		_, _, _, ift, status := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
+		if status != embedLookupFound {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
 		}

@@ -1323,16 +1323,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic(".origin can only be used as the first argument to a crossing function")
 					}
 					return n, TRANS_CONTINUE
-				case "cross1":
-					// legacy sentinel: a migration aid for codebases moving from
-					// the old bare-`cross` form. Lowers to the same with-cross
-					// AST shape as `.origin` (Args[0]=nil, WithCross=true) so
-					// the runtime takes the callingCurOrOrigin path. Migrate
-					// `cross1` → `cross(rlm)` once the in-scope realm is clear.
-					if ftype != TRANS_CALL_ARG || index != 0 {
-						panic("cross1 can only be used as the first argument to a crossing function")
-					}
-					return n, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
 					// typed-nils when appropriate upon
@@ -2040,7 +2030,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") && nx.Name != Name("cross1") {
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") {
 								panic(fmt.Sprintf("only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
@@ -2050,13 +2040,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// runtime path (installCrossingCur →
 								// callingCurOrOrigin → buildOriginRealm) mints an
 								// EOA-origin cur.
-								n.SetWithCross()
-								n.Args[0] = constNil(nx)
-							case Name("cross1"):
-								// legacy migration sentinel: same lowering as .origin
-								// (WithCross=true, Args[0]=constNil → runtime takes
-								// callingCurOrOrigin path). Reachable from user source
-								// to ease migration from the old bare-`cross` form.
 								n.SetWithCross()
 								n.Args[0] = constNil(nx)
 							case Name(".cur"):
@@ -2522,14 +2505,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel, nil)
-					if aerr {
+					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					switch status {
+					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, ctxpn.PkgPath))
-					} else if tr == nil {
+					case embedLookupAmbiguous:
+						panic(fmt.Sprintf("ambiguous selector %s in %s",
+							n.Sel, cxt.String()))
+					case embedLookupNone:
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+					// embedLookupFound guarantees tr != nil below.
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -2604,7 +2592,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// bound method or underlying.
 					// NOTE: unexported field access is already checked
-					// by findEmbeddedFieldType above (aerr).
+					// by findEmbeddedFieldType above (status).
 					n.Path = tr[len(tr)-1]
 
 					// n.Path = cxt.GetPathForName(n.Sel)

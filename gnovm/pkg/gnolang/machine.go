@@ -327,6 +327,17 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		if mpkg == nil {
+			// An indexed package with no production files (e.g. an
+			// xxx_test-only package) has no prod blob, so GetMemPackage
+			// returns nil. There are no production block nodes to build;
+			// its test files live under the #allbutprod sibling. On-chain
+			// this is unreachable — the vm keeper rejects prod-less packages
+			// at AddPackage (block-node state would otherwise depend on
+			// restart history) — so this skip is defensive, for non-chain
+			// stores.
+			continue
+		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
@@ -1408,9 +1419,11 @@ const (
 	// TODO(calibration): measure directly on the gas-table reference HW when
 	// its numbers are next refreshed.
 	OpCPULazyBoundResolve    = 529
-	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
-	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
-	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
+	OpCPUEnterCrossing       = 520   // XXX arbitrary, not yet benchmarked
+	OpCPUCall                = 310   // base for 0 params, 0 captures (340.8ns - 31 alloc)
+	OpCPUCallNativeBody      = 2205  // XXX arbitrary, not properly benchmarked
+	OpCPUSubRealmBase        = 552   // realm.Sub: mirrors chain.packageAddress calibration (base)
+	OpCPUSubRealmSlope       = 15201 // realm.Sub: per 1024 bytes of synthesized pkgpath (slope)
 	OpCPUDefer               = 71
 	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
 	OpCPUGo                  = 1   // XXX not yet implemented
