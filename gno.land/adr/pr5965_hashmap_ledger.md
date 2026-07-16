@@ -121,9 +121,9 @@ The saving is real but **smaller than a compute-only measurement suggests**.
 Decomposed: the interpreted hash removed saves **−0.75M in the VM term**, but
 calling native `crypto/sha256` pulls its package objects into the store cold on
 first use — a fixed **+4 reads (+0.24M)** that FNV-1a (pure in-package Gno, zero
-imports) never paid. Net is **−0.5M**, flat across scale. A "−0.9M" figure
-counts only the hash compute in isolation and omits the +4-read package
-cold-load — a warm-vs-cold trap.
+imports) never paid. Net is **−0.5M**, flat across scale (the −0.75M VM term less the +0.24M package
+cold-load). A "−0.9M" figure is a higher, compute-only estimate of the hash
+alone that omits the +4-read package cold-load — a warm-vs-cold trap.
 
 Two consequences worth recording:
 
