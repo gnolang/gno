@@ -41,11 +41,11 @@
 //
 // Iteration order is deterministic (page, then bucket, then per-bucket insertion
 // order) but NOT sorted by key, and is preserved across a store reload. Note the
-// persisted image is insertion-order-dependent, NOT canonical like avl.Tree's
-// sorted image: two maps holding the same entries inserted in a different order
-// serialize to different images. This is harmless for consensus (all nodes
-// replay the same op order) but means the state root is not a canonical function
-// of the key set — avoid layering Iterate-based consensus logic on it.
+// persisted image is insertion-order-dependent: two maps holding the same
+// entries inserted in a different order serialize to different images (and
+// iteration is not key-sorted, unlike avl.Tree). This is harmless for consensus
+// (all nodes replay the same op order) but the state root is not a function of
+// the key set alone — avoid layering Iterate-based consensus logic on it.
 //
 // Adversarial keys: bucket selection uses deterministic SHA-256, so keys can
 // still be ground to land in the same bucket — though grinding SHA-256 preimages
@@ -85,8 +85,8 @@ func New() *Map {
 
 // NewWithBuckets returns an empty Map with the given total number of buckets,
 // which must be a power of two. The count is fixed for the lifetime of the map
-// and split across the two directory levels (the page level takes the low half
-// of the index bits, the directory the remaining high half).
+// and split across the two directory levels: the low half of the hash bits
+// selects the bucket within a page, the high half selects the page.
 func NewWithBuckets(count int) *Map {
 	if count <= 0 || count&(count-1) != 0 {
 		panic("hashmap: bucket count must be a positive power of two")
