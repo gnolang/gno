@@ -122,6 +122,21 @@ func NewSafeThread(ref *boards.Post) Thread {
 		panic("post is not a thread")
 	}
 
+	var commentCount int
+	if ref.Replies != nil {
+		commentCount = ref.Replies.Size()
+	}
+
+	var repostCount int
+	if ref.Reposts != nil {
+		repostCount = ref.Reposts.Size()
+	}
+
+	var flagCount int
+	if ref.Flags != nil {
+		flagCount = ref.Flags.Size()
+	}
+
 	return Thread{
 		id:               uint64(ref.ID),
 		originalBoardID:  uint64(ref.OriginalBoardID),
@@ -131,9 +146,9 @@ func NewSafeThread(ref *boards.Post) Thread {
 		body:             ref.Body,
 		hidden:           ref.Hidden,
 		readonly:         ref.Readonly,
-		commentCount:     ref.Replies.Size(),
-		repostCount:      ref.Reposts.Size(),
-		flagCount:        ref.Flags.Size(),
+		commentCount:     commentCount,
+		repostCount:      repostCount,
+		flagCount:        flagCount,
 		creator:          ref.Creator,
 		createdAt:        timeToUnix(ref.CreatedAt),
 		updatedAt:        timeToUnix(ref.UpdatedAt),
