@@ -205,10 +205,10 @@ token realm; deploy base = empty ledger, then N holders minted):
 
 | holders | avl (bytes) | hashmap (bytes) | bptree (bytes) |
 |---|---|---|---|
-| 0 (deploy) | 9,321 | 169,967 | 9,508 |
-| 20,000 | 41,315,124 | **3,343,815** | 11,805,414 |
-| 100,000 | 208,629,782 | **14,870,242** | 58,578,909 |
-| 1,000,000 | ~2.09B* | **144,473,034** | panic† |
+| 0 (deploy) | 9,321 | 23,119 | 9,508 |
+| 20,000 | 41,315,124 | **4,419,897** | 11,805,414 |
+| 100,000 | 208,629,782 | **15,976,554** | 58,578,909 |
+| 1,000,000 | ~2.09B* | **145,588,842** | panic† |
 
 `*` avl 1M inferred from its flat slope (the 1M avl seed is impractically slow
 to build). `†` bptree 1M hit the same unrelated cold-reboot VM panic seen at
@@ -227,11 +227,15 @@ Findings:
 - **The gas-heaviest structure is also the storage-heaviest.** avl materializes
   one persisted object per entry, so it pays both the cold-load gas *and* ~14×
   hashmap's bytes per holder — same root cause, both axes.
-- **hashmap is −92% storage at 20k and −93% at 100k** vs avl (3.3M vs 41M bytes;
-  14.9M vs 209M). Its 170 KB fixed deploy overhead (1024 pre-allocated bucket
-  maps) is paid back after **~85 holders** — negligible for any real ledger.
+- **hashmap is −89% storage at 20k, −92% at 100k, −93% at 1M** vs avl (4.4M vs
+  41M bytes; 16.0M vs 209M; 146M vs ~2.09B). Marginal cost is ~144 bytes/holder,
+  identical to a flat map; the two-level directory's larger bucket count (4096)
+  adds a one-time object overhead that fully amortizes by 1M (145.6M ≈ a
+  flat-map's 144.5M). Its deploy base is a small **23 KB** — pages and buckets
+  are allocated lazily on first write, not pre-allocated, so an empty ledger
+  costs almost nothing.
 - **Deposit follows directly** (bytes × 100 ugnot): a 100k-holder avl ledger
-  locks **~20,863 GNOT** of storage deposit vs **~1,487 GNOT** for hashmap.
+  locks **~20,863 GNOT** of storage deposit vs **~1,598 GNOT** for hashmap.
 - **bptree is the ordered middle ground:** ~4× hashmap's bytes but still −72% vs
   avl at 100k, while keeping sorted iteration.
 

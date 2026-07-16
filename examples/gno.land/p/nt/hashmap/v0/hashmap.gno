@@ -85,7 +85,8 @@ func New() *Map {
 
 // NewWithBuckets returns an empty Map with the given total number of buckets,
 // which must be a power of two. The count is fixed for the lifetime of the map
-// and split evenly across the two directory levels.
+// and split across the two directory levels (the page level takes the low half
+// of the index bits, the directory the remaining high half).
 func NewWithBuckets(count int) *Map {
 	if count <= 0 || count&(count-1) != 0 {
 		panic("hashmap: bucket count must be a positive power of two")
