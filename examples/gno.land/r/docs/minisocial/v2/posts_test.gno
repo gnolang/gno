@@ -141,8 +141,7 @@ func TestDeletePostRejectsNonAuthor(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 	uassert.NoError(t, DeletePost(cross(cur), id))
 
-	_, ok := posts.Get(id)
-	uassert.False(t, ok, "expected post to be removed by author")
+	uassert.True(t, posts.Get(id) == nil, "expected post to be removed by author")
 }
 
 func TestResetPostsRejectsNonOwner(cur realm, t *testing.T) {
