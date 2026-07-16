@@ -2,8 +2,6 @@ package grc20
 
 import (
 	"errors"
-
-	"gno.land/p/nt/avl/v0"
 )
 
 // Teller interface defines the methods that a GRC20 token must implement. It
@@ -93,6 +91,42 @@ type Token struct {
 	ledger *PrivateLedger
 }
 
+// KV is the key-value storage backend used by a PrivateLedger for its
+// balances and allowances maps. Both *avl.Tree (the default; key-ordered,
+// O(log n) persisted-object loads per op) and *hashmap.Map (p/nt/hashmap;
+// unordered, O(1) persisted-object loads per op — cheaper gas for large
+// ledgers) satisfy it.
+type KV interface {
+	// Get returns the value stored under key, or nil if the key is absent.
+	// (Matches avl.Tree/bptree.BPTree: absence is nil, so ledger values must
+	// be non-nil — grc20 stores int64.)
+	Get(key string) any
+	Set(key string, value any) (updated bool)
+	Remove(key string) (value any, removed bool)
+	Has(key string) bool
+	Size() int
+}
+
+// Option configures a Token created by NewToken.
+type Option func(*ledgerConfig)
+
+type ledgerConfig struct {
+	newKV func() KV
+}
+
+// WithStorage makes NewToken build the ledger's balances and allowances maps
+// with newKV instead of the default avl.Tree. Use it to opt in to a storage
+// backend with a different gas/ordering trade-off, e.g. hashmap for
+// large ledgers:
+//
+//	grc20.NewToken(0, cur, "Foo", "FOO", 6,
+//		grc20.WithStorage(func() grc20.KV { return hashmap.New() }))
+//
+// newKV is called once per map and must return a fresh, empty store.
+func WithStorage(newKV func() KV) Option {
+	return func(cfg *ledgerConfig) { cfg.newKV = newKV }
+}
+
 // PrivateLedger is a struct that holds the balances and allowances for the
 // token. It provides administrative functions for minting, burning,
 // transferring tokens, and managing allowances.
@@ -104,9 +138,9 @@ type PrivateLedger struct {
 	// Total supply of the token managed by this ledger.
 	totalSupply int64
 	// chain.Address -> int64
-	balances avl.Tree
+	balances KV
 	// owner.(chain.Address)+":"+spender.(chain.Address)) -> int64
-	allowances avl.Tree
+	allowances KV
 	// Pointer to the associated Token struct
 	token *Token
 }

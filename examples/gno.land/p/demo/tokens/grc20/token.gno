@@ -6,6 +6,7 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -24,7 +25,7 @@ import (
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross, Token, slug).
-func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+func NewToken(_ int, rlm realm, name, symbol string, decimals int, opts ...Option) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -41,7 +42,14 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
-	ledger := &PrivateLedger{}
+	cfg := ledgerConfig{newKV: func() KV { return avl.NewTree() }}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	ledger := &PrivateLedger{
+		balances:   cfg.newKV(),
+		allowances: cfg.newKV(),
+	}
 	token := &Token{
 		name:      name,
 		symbol:    symbol,
