@@ -96,7 +96,12 @@ import (
 // unchanged; only the genesis params encoding shifted. (Value re-derived
 // after merging master, so it reflects the bptree store + #5890 + #5891 +
 // this param together.)
-const expectedCrossrealm38Hash = "058910b2a1aa0f2c900990843643b5e13d8b8dfa3be8aa7f9dc7d169c1e7cb15"
+//
+// Hash bumped by the VM params bundle PR: InitGenesis now stores the same
+// parameters in one additional amino-binary `_vm_params` key. The individual
+// keys and scenario behavior are unchanged; this is the intentional state-
+// schema/app-hash change documented in prxxxx_vm_params_bundle.md.
+const expectedCrossrealm38Hash = "18c8ba7c2c8f153356ab4364df9fe837fdda6a0eeb71853555d95ae90c1b7120"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

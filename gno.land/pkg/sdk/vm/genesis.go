@@ -53,6 +53,9 @@ func (vm *VMKeeper) InitGenesis(ctx sdk.Context, gs GenesisState) {
 	if err := ValidateGenesis(gs); err != nil {
 		panic(err)
 	}
+	// Besides the legacy per-field keys, SetParams writes the bundled VM
+	// params representation. For export/import hardforks, InitGenesis is the
+	// explicit migration and activation point for the lower read-gas schedule.
 	if err := vm.SetParams(ctx, gs.Params); err != nil {
 		panic(err)
 	}

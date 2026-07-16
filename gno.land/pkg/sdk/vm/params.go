@@ -231,7 +231,16 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
+	bundle, err := amino.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("marshal vm params bundle: %w", err)
+	}
+
+	// Keep the individual keys for the generic params query/governance paths.
+	// Write the bundle last so a successful SetParams always leaves both
+	// representations synchronized.
 	vm.prmk.SetStruct(ctx, "vm:p", params) // prmk is root.
+	vm.prmk.SetBytes(ctx, paramsBundleKey, bundle)
 	return nil
 }
 
@@ -250,14 +259,42 @@ func (p Params) applyLegacyDefaults() Params {
 	return p
 }
 
-func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
+// getParamsBundle returns the VM parameters from the bundled representation.
+// A missing bundle is value-compatible legacy state, but probing for it is an
+// additional read compared with the old binary. The binary and state migration
+// must therefore still be activated by a coordinated chain upgrade.
+func (vm *VMKeeper) getParamsBundle(ctx sdk.Context) (Params, bool) {
+	var bundle []byte
+	if vm.prmk.GetBytes(ctx, paramsBundleKey, &bundle) {
+		params := Params{}
+		if err := amino.Unmarshal(bundle, &params); err != nil {
+			panic(fmt.Errorf("unmarshal vm params bundle: %w", err))
+		}
+		return params.applyLegacyDefaults(), true
+	}
+	return Params{}, false
+}
+
+func (vm *VMKeeper) getParams(ctx sdk.Context) (Params, bool) {
+	if params, ok := vm.getParamsBundle(ctx); ok {
+		return params, true
+	}
 	params := Params{}
 	vm.prmk.GetStruct(ctx, "vm:p", &params) // prmk is root.
-	return params.applyLegacyDefaults()
+	return params.applyLegacyDefaults(), false
+}
+
+func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
+	params, _ := vm.getParams(ctx)
+	return params
 }
 
 const (
 	moduleParamPrefix = "vm"
+	// paramsBundleKey deliberately has no module prefix. It is chain-internal
+	// state, not a governance-addressable parameter; an unprefixed key also
+	// avoids recursively invoking VMKeeper.WillSetParam from SetBytes.
+	paramsBundleKey = "_vm_params"
 
 	sysUsersPkgParamPath = moduleParamPrefix + ":p:sysnames_pkgpath"
 	sysCLAPkgParamPath   = moduleParamPrefix + ":p:syscla_pkgpath"
@@ -265,25 +302,34 @@ const (
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
+	if params, ok := vm.getParamsBundle(ctx); ok {
+		return params.ChainDomain
+	}
 	chainDomain := chainDomainDefault // default
 	vm.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
 	return chainDomain
 }
 
 func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
+	if params, ok := vm.getParamsBundle(ctx); ok {
+		return params.SysNamesPkgPath
+	}
 	sysNamesPkg := sysNamesPkgDefault
 	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysNamesPkg)
 	return sysNamesPkg
 }
 
 func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
+	if params, ok := vm.getParamsBundle(ctx); ok {
+		return params.SysCLAPkgPath
+	}
 	sysCLAPkg := sysCLAPkgDefault
 	vm.prmk.GetString(ctx, sysCLAPkgParamPath, &sysCLAPkg)
 	return sysCLAPkg
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	params := vm.GetParams(ctx)
+	params, bundled := vm.getParams(ctx)
 	switch key {
 	case "p:sysnames_pkgpath":
 		params.SysNamesPkgPath = sdkparams.MustParamString("sysnames_pkgpath", value)
@@ -327,5 +373,18 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	}
 	if err := params.Validate(); err != nil {
 		panic("invalid param: " + err.Error())
+	}
+
+	// ParamsKeeper invokes this hook immediately before writing the changed
+	// individual key. Updating an already-active bundle here keeps the two
+	// writes atomic in BaseApp's transaction cache. Do not create a bundle on
+	// legacy state: its presence changes transaction gas and must only be
+	// introduced by an explicit upgrade migration.
+	if bundled {
+		bundle, err := amino.Marshal(params)
+		if err != nil {
+			panic(fmt.Errorf("marshal vm params bundle: %w", err))
+		}
+		vm.prmk.SetBytes(ctx, paramsBundleKey, bundle)
 	}
 }

@@ -252,6 +252,7 @@ func TestGetParamsDefaultsPreprocessGasPerByte(t *testing.T) {
 
 	legacy := DefaultParams()
 	legacy.PreprocessGasPerByte = 0
+	env.prmk.SetBytes(ctx, paramsBundleKey, nil)
 	env.prmk.SetStruct(ctx, "vm:p", legacy) // direct write: no Validate, no hooks
 
 	assert.Equal(t, preprocessGasPerByteDefault, env.vmk.GetParams(ctx).PreprocessGasPerByte)

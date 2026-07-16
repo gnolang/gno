@@ -28,7 +28,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	tx.Fee.GasWanted = 3000000
+	tx.Fee.GasWanted = 2_000_000
 	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx, _ = gctx.CacheContext()
 
@@ -111,7 +111,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	tx.Fee.GasWanted = 500000
+	tx.Fee.GasWanted = 300_000
 	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx, _ = gctx.CacheContext()
 

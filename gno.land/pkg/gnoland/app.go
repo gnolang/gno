@@ -129,6 +129,15 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
+		PrepareGasMeter: func(ctx sdk.Context, tx std.Tx) sdk.Context {
+			// Charge VM parameter loading to the final transaction meter,
+			// then apply the governed store-gas configuration to all later
+			// ante and message operations. The auth ante handler invokes
+			// this callback after its basic fee and gas-wanted checks.
+			gasCfg := store.DefaultGasConfig()
+			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
+			return ctx.WithGasConfig(gasCfg)
+		},
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
@@ -143,16 +152,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// the gas meter (see tm2/pkg/sdk/auth/params.go) so this
 			// read costs nothing.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
-			// Apply VM gas config so all store operations (account
-			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			gasCfg := store.DefaultGasConfig()
-			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
-			ctx = ctx.WithGasConfig(gasCfg)
-
 			// During genesis (block height 0), automatically create accounts for signers
 			// if they don't exist. This allows packages with custom creators to be loaded.
 			if ctx.BlockHeight() == 0 {
