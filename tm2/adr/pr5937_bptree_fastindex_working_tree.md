@@ -143,6 +143,31 @@ is strictly safer for an advisory structure.
   self-verifies so a malformed probe cannot silently turn a fast-path
   assertion into a vacuous walk test.
 
+## Addendum: the pre-block-1 window (surfaced by the mount's e2e)
+
+Mounting this store changed a client-visible behavior: ABCI queries issued
+before the first commit now succeed with empty data (e.g. `auth/accounts/…`
+returns `null`) instead of erroring as the IAVL mount did (`bptree`'s
+immutable open treats version 0 as empty-but-valid). Tooling that used query
+success as a readiness signal must check for actual data
+(`misc/e2e/run_tests.sh` now does).
+
+That unmasked two pre-existing tm2 issues in the window between RPC start
+(post-InitChain) and the block-1 commit:
+
+- **Fixed here — checkState/deliverState aliasing**: InitChain aliased the
+  two states' multistore, so pre-block-1 CheckTx ante writes (fee deduction,
+  sequence bumps, and gno.land's height-0 auto-created funded accounts)
+  leaked into the block-1 deliver state — per-node mempool activity mutating
+  consensus state. checkState now cache-wraps the deliver state (reads
+  genesis; writes isolated); pinned by `TestInitChainCheckStateIsolation`.
+- **Not fixed (documented)**: a tx signed off empty account info
+  (accNum=0/seq=0, what a client gets from a pre-block-1 `null` account
+  query) passes CheckTx — the height-0 genesis context builds sign bytes
+  with (0,0) — but is correctly rejected at block-1 delivery against the
+  real account number, then evicted at the first post-commit recheck.
+  Clients must not sign off a null account query.
+
 ## AI assistance
 
 Implemented with AI assistance (plan and diff reviewed through multi-agent
