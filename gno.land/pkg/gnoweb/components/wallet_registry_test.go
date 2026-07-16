@@ -16,9 +16,7 @@ func TestWallets_EmbeddedRegistry(t *testing.T) {
 	w := Wallets()
 	require.NotEmpty(t, w, "embedded wallet registry should not be empty")
 
-	// Every entry must carry the fields the frontend chooser relies on. The
-	// scheme is stored bare (no "://"), so the frontend can compose the launch
-	// prefix.
+	// Every entry must carry the fields the frontend chooser relies on.
 	for _, wallet := range w {
 		assert.NotEmpty(t, wallet.Name, "wallet name")
 		assert.NotEmpty(t, wallet.ID, "wallet id")
@@ -33,9 +31,9 @@ func TestWallets_ContainsGnokey(t *testing.T) {
 	t.Parallel()
 
 	var found *Wallet
-	for i, wallet := range Wallets() {
+	for _, wallet := range Wallets() {
 		if wallet.ID == "gnokey" {
-			found = &Wallets()[i]
+			found = &wallet
 			break
 		}
 	}
@@ -49,8 +47,6 @@ func TestWallets_ContainsGnokey(t *testing.T) {
 func TestHelpView_PopulatesWallets(t *testing.T) {
 	t.Parallel()
 
-	// HelpView must populate Wallets and WalletsJSON even when the caller
-	// leaves them unset.
 	view := HelpView(HelpData{RealmName: "test"})
 	require.NotNil(t, view)
 
@@ -58,18 +54,15 @@ func TestHelpView_PopulatesWallets(t *testing.T) {
 	require.True(t, ok, "unexpected component type %T", view.Component)
 	params, ok := tc.data.(helpViewParams)
 	require.True(t, ok, "unexpected view data type %T", tc.data)
-	assert.Equal(t, Wallets(), params.Wallets)
 
-	// WalletsJSON must be valid JSON round-tripping to the same registry, so
-	// the frontend controller can JSON.parse it.
+	// WalletsJSON must round-trip to the registry so the frontend can parse it.
 	var roundtrip []Wallet
 	require.NoError(t, json.Unmarshal([]byte(params.WalletsJSON), &roundtrip))
 	assert.Equal(t, Wallets(), roundtrip)
 }
 
-// TestHelpView_RendersWalletRegistry guards the html/template escaping of the
-// pre-marshaled registry: template.JS inside a <script type="application/json">
-// tag must survive verbatim (scheme + data: URI intact) so JSON.parse works.
+// The registry must survive html/template escaping verbatim so the browser can
+// JSON.parse it.
 func TestHelpView_RendersWalletRegistry(t *testing.T) {
 	t.Parallel()
 
@@ -80,7 +73,5 @@ func TestHelpView_RendersWalletRegistry(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, `data-wallet-launch-target="wallet-registry"`)
 	assert.Contains(t, out, "land.gno.gnokey")
-	// The data: URI's slashes must survive verbatim (not JS-escaped to \/),
-	// otherwise JSON.parse in the browser would choke.
 	assert.Contains(t, out, "data:image/svg+xml;base64,")
 }

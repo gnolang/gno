@@ -8,15 +8,6 @@ declare global {
 		"mode:changed": CustomEvent<{ mode: string }>;
 		"address:changed": CustomEvent<{ address: string }>;
 		"theme:changed": CustomEvent<{ theme: string }>;
-		// Dispatched by ActionFunctionController on every param/send change, and
-		// once on connect. Consumed by WalletLaunchController to build the
-		// GnoConnect launch link.
-		"params:changed": CustomEvent<{
-			pkgPath: string;
-			funcName: string;
-			params: Record<string, string>;
-			send?: string;
-		}>;
 	}
 
 	// SimpleAnalytics globals injected by sa.gno.services/latest.js and the
