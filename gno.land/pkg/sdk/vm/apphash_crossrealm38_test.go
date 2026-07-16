@@ -75,7 +75,15 @@ import (
 // depth gas pins committed into "vm:p" changed (Fixed = Min: 300/200/440 →
 // 100/200/540). Behavior is unchanged (the zrealm_crossrealm38.gno filetest
 // still passes).
-const expectedCrossrealm38Hash = "42c5386f9c38aa3d30180032cee326a7a14b6adb84bbfd088a12287072463ff2"
+//
+// Hash bumped by the realm.Sub PR (#5890): the realm interface gained
+// Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
+// stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
+// stdlib MemPackage source bytes are committed into genesis state, so the
+// iavlStore Merkle root shifts. The crossrealm38 scenario itself does not
+// use sub-realms; the move is purely the interface/stdlib change and is an
+// intended consensus break for that PR.
+const expectedCrossrealm38Hash = "b04e01f899aeee4bbfa376b60bf834dbbf8d90a6812904f539d511dd9ff4ec48"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
