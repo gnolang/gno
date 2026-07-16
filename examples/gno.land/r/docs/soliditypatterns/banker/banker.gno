@@ -19,10 +19,6 @@ var deposits avl.Tree // address -> int64
 // Deposit accepts coins and tracks the sender's balance
 // In Solidity, this would be a payable function
 func Deposit(cur realm) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
-
 	// Require a direct user call so coins are credited to the real sender.
 	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
@@ -50,10 +46,6 @@ func Deposit(cur realm) {
 // Withdraw sends coins back to the caller
 // This is equivalent to Solidity's transfer() or call{value: x}()
 func Withdraw(cur realm, amount int64) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
-
 	// Require a direct user call so only the balance owner can withdraw.
 	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
@@ -145,8 +137,9 @@ import "chain/runtime/unsafe"
 var deposits map[address]int64
 
 func Deposit(cur realm) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
+    // Require a direct user call so coins are credited to the real sender.
+    if !cur.Previous().IsUserCall() {
+        panic("invalid non-user call")
     }
     caller := cur.Previous().Address()
     sent := unsafe.OriginSend()
@@ -158,8 +151,8 @@ func Deposit(cur realm) {
 }
 ` + "```" + `
 
-> **Note:** This example uses a map for simplicity. In production, prefer an AVL tree
-> for better performance. See [source code](/r/docs/soliditypatterns/banker$source).
+> **Note:** These snippets use a map for readability. The live source stores balances in
+> an AVL tree (` + "`avl.Tree`" + `) for deterministic iteration and performance. See [source code](/r/docs/soliditypatterns/banker$source).
 
 ---
 
@@ -186,18 +179,25 @@ import (
 var deposits map[address]int64
 
 func Withdraw(cur realm, amount int64) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
+    // Require a direct user call so only the balance owner can withdraw.
+    if !cur.Previous().IsUserCall() {
+        panic("invalid non-user call")
     }
     caller := cur.Previous().Address()
 
-    // Update state before sending (checks-effects-interactions)
+    // Checks: reject non-positive amounts and over-withdrawal.
+    if amount <= 0 {
+        panic("amount must be positive")
+    }
+    if deposits[caller] < amount {
+        panic("insufficient balance")
+    }
+
+    // Effects: update state before sending (checks-effects-interactions)
     deposits[caller] -= amount
 
-    // Create banker with send capability
+    // Interactions: create banker with send capability and send coins
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-
-    // Send coins
     realmAddr := cur.Address()
     bnk.SendCoins(realmAddr, caller, chain.Coins{chain.NewCoin("ugnot", amount)})
 }

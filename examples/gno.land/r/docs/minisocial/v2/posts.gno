@@ -32,13 +32,6 @@ var (
 
 // CreatePost creates a new post
 func CreatePost(cur realm, text string) error {
-	// cur.IsCurrent() must hold before we trust cur.Previous() to name the
-	// caller; a stale or forged realm value still resolves an address but no
-	// longer refers to the live caller.
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -69,10 +62,6 @@ func CreatePost(cur realm, text string) error {
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
 func UpdatePost(cur realm, id string, text string) error {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -107,10 +96,6 @@ func UpdatePost(cur realm, id string, text string) error {
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
 func DeletePost(cur realm, id string) error {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-
 	// Try to get the post
 	raw := posts.Get(id)
 	if raw == nil {

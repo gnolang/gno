@@ -17,9 +17,6 @@ var messages []Message
 
 // Post saves a message with the caller as the author
 func Post(cur realm, text string) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	msg := Message{
 		Author: cur.Previous().Address().String(),
 		Text:   text,

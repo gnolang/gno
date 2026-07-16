@@ -17,13 +17,8 @@ var (
 // UpdateMOTD sets the message of the day and records who set it.
 //
 // It is a crossing function: gnoweb's <gno-form> and the $help button both
-// reach it through a MsgCall. The cur.IsCurrent() guard rejects a spoofed
-// realm value forwarded by another realm, so cur.Previous() is a trustworthy
-// caller identity (interrealm designation-forgery class).
+// reach it through a MsgCall. cur.Previous() is a trustworthy caller identity.
 func UpdateMOTD(cur realm, newmotd string) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	motd = newmotd
 	lastCaller = cur.Previous().Address()
 	lastUpdate = time.Now()

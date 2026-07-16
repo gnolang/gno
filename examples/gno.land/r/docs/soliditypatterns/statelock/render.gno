@@ -61,17 +61,11 @@ func assertInState(expected State) {
 }
 
 func Lock(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	assertInState(StateActive)
 	state = StateLocked
 }
 
 func Unlock(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	assertInState(StateLocked)
 	state = StateActive
 }
@@ -81,10 +75,10 @@ func Unlock(cur realm) {
 * We declare a ^const^ block listing all valid states: ^StateActive^, ^StateLocked^, and ^StateDisabled^. These mirror the Solidity ^Enum^. ^StateDisabled^ is included for parity; this demo does not use it.
 * A global variable ^state^ of type ^State^ is initialized to ^StateActive^.
 * The helper function ^assertInState^ ensures that the contract is in the expected state. If not, it throws an error using ^panic^, showing both the expected and actual state values. This is equivalent to a Solidity ^modifier^.
-* The ^Lock^ function changes the state from ^Active^ to ^Locked^. It first calls ^cur.IsCurrent()^ to verify the crossing frame is live (preventing a stale or spoofed ^cur^ value from reaching the mutation), then checks the expected state.
-* The ^Unlock^ function reverses the state from ^Locked^ to ^Active^, applying the same guard.
+* The ^Lock^ function changes the state from ^Active^ to ^Locked^. It checks the expected state before mutating.
+* The ^Unlock^ function reverses the state from ^Locked^ to ^Active^, applying the same state check.
 
-> **Note on caller gating.** This demo restricts by *contract state*, not by *caller identity* — any authenticated caller may lock or unlock. This maps to a Solidity ^modifier^ used for state-machine control. A Solidity ^modifier^ used for *access control* (e.g. ^onlyOwner^) maps to an additional ^cur.Previous().Address()^ owner check after the ^cur.IsCurrent()^ guard. See the [ownable sibling](/r/docs/soliditypatterns/ownable) for that pattern.
+> **Note on caller gating.** This demo restricts by *contract state*, not by *caller identity* — any authenticated caller may lock or unlock. This maps to a Solidity ^modifier^ used for state-machine control. A Solidity ^modifier^ used for *access control* (e.g. ^onlyOwner^) maps to an additional ^cur.Previous().Address()^ owner check. See the [ownable sibling](/r/docs/soliditypatterns/ownable) for that pattern.
 
 ---
 

@@ -22,8 +22,5 @@ func Render(_ string) string {
 }
 
 func Emit(cur realm, customEventValue string) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	chain.Emit("ExampleEvent", "key", customEventValue)
 }

@@ -88,13 +88,13 @@ func RenderUser(nameOrAddr string) string {
     avatar := profile.GetStringField(addr, profile.Avatar, "")
     bio := profile.GetStringField(addr, profile.Bio, "No bio")
 
-    // Render combined info
-    out := "# " + displayName + "\n"
+    // Render combined info, sanitizing every user-controlled field
+    out := "# " + sanitize.InlineText(displayName) + "\n"
     if avatar != "" {
-        out += "![avatar](" + avatar + ")\n"
+        out += "![avatar](" + sanitize.ImageURL(avatar) + ")\n"
     }
-    out += bio + "\n"
-    out += "\nUsername: @" + name + "\n"
+    out += sanitize.Block(bio) + "\n"
+    out += "\nUsername: @" + sanitize.InlineText(name) + "\n"
     out += "Address: " + addr.String() + "\n"
 
     return out

@@ -18,12 +18,8 @@ func assertInState(expected State) {
 }
 
 // Lock transitions the contract from Active to Locked.
-// The cur.IsCurrent() check prevents a stale or spoofed realm value from
-// reaching the state mutation; any authenticated caller may lock.
+// Any authenticated caller may lock.
 func Lock(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	assertInState(StateActive)
 	state = StateLocked
 }
@@ -31,9 +27,6 @@ func Lock(cur realm) {
 // Unlock transitions the contract from Locked to Active.
 // Same caller model as Lock: any authenticated caller may unlock.
 func Unlock(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	assertInState(StateLocked)
 	state = StateActive
 }

@@ -37,13 +37,21 @@ contract Attacker {
 
 Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity's
 ` + "`receive()`" + ` and ` + "`fallback()`" + ` hooks, Gno realm code only runs through explicit
-` + "`cross`" + ` function calls—eliminating the reentrancy attack vector entirely.
+` + "`cross`" + ` function calls, so the automatic-callback vector behind the DAO hack does not
+exist here.
+
+This does **not** make reentrancy impossible. If your realm calls out through an
+interface, callback, or any address the caller controls, that code can re-enter your
+realm before your state updates land. Ordering your logic **Checks-Effects-Interactions**
+(below) is therefore still load-bearing, not just stylistic.
 
 ` + "```go" + `
+import (
+    "chain"
+    "chain/banker"
+)
+
 func Withdraw(cur realm, amount int64) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     // Require a direct user call so only the balance owner can withdraw.
     if !cur.Previous().IsUserCall() {
         panic("invalid non-user call")
@@ -65,9 +73,6 @@ pattern keeps your code clear and maintainable:
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
     // 1. Checks - validate all preconditions
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     if !cur.Previous().IsUserCall() {
         panic("invalid non-user call")
     }
