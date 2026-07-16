@@ -476,6 +476,15 @@ func buildHardforkGenesis(
 		}
 	}
 
+	// preprocess_gas_per_byte (PR #5892) is not covered by the depth-param
+	// legacy fill above (fingerprint-matched), so a source chain that
+	// predates #5892 leaves it 0 — which Validate() rejects (must be > 0).
+	// Fill it independently so the emitted genesis is self-contained
+	// rather than relying on the node's applyLegacyDefaults tolerance.
+	if appState.VM.Params.PreprocessGasPerByte == 0 {
+		appState.VM.Params.PreprocessGasPerByte = vm.DefaultParams().PreprocessGasPerByte
+	}
+
 	// Tag base-genesis txs (SourceBase) before the historical stream is
 	// appended; historical and patched txs already carry their own Source.
 	annotateSource(appState.Txs, gnoland.SourceBase)
