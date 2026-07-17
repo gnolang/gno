@@ -1,10 +1,13 @@
 package grc20reg
 
 import (
+	"chain"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -39,6 +42,56 @@ func TestRegistry(cur realm, t *testing.T) {
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)
+}
+
+func TestRegistryWrappers(cur realm, t *testing.T) {
+	const (
+		tokenPath   = "gno.land/r/demo/token"
+		realmCaller = "gno.land/r/demo/vault"
+	)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	carol := testutils.TestAddress("carol")
+	realmAddr := chain.PackageAddress(realmCaller)
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
+	// #5907 keys the registry by token.ID() (pkgpath.SYMBOL), not the bare
+	// pkgpath, so look up the wrappers by the token's canonical id.
+	tokenKey := token.ID()
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(realmAddr, 200))
+	Register(cross(cur), token, "")
+	uassert.Equal(t, "TestToken", GetName(tokenKey))
+	uassert.Equal(t, "TST", GetSymbol(tokenKey))
+	uassert.Equal(t, 4, GetDecimals(tokenKey))
+	uassert.Equal(t, int64(1_200), TotalSupply(tokenKey))
+	uassert.Equal(t, int64(1_000), BalanceOf(tokenKey, alice))
+	uassert.Equal(t, int64(0), Allowance(tokenKey, alice, carol))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Transfer(cross(cur), tokenKey, bob, 100)
+	Approve(cross(cur), tokenKey, carol, 300)
+
+	testing.SetRealm(testing.NewUserRealm(carol))
+	TransferFrom(cross(cur), tokenKey, alice, bob, 200)
+	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
+	uassert.Equal(t, int64(300), BalanceOf(tokenKey, bob))
+	uassert.Equal(t, int64(100), Allowance(tokenKey, alice, carol))
+
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewCodeRealm(realmCaller))
+	Transfer(cross(cur), tokenKey, bob, 50)
+	uassert.Equal(t, int64(150), BalanceOf(tokenKey, realmAddr))
+	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
+	uassert.Equal(t, int64(350), BalanceOf(tokenKey, bob))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsWithMessage(t, cur, "insufficient balance", func() {
+		Transfer(cross(cur), tokenKey, bob, 701)
+	})
+	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
+	uassert.Equal(t, int64(350), BalanceOf(tokenKey, bob))
 }
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
