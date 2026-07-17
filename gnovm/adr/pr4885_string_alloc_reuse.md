@@ -1,21 +1,28 @@
 # Correctly reuse/count string backing bytes in alloc and GC
 
+> **Status: experimental.** The mechanism identifies string backings by their
+> Go heap address (`unsafe.StringData`) — pro: exact byte accounting with no
+> change to the `StringValue` representation or persisted format; con: it
+> couples accounting to host-runtime address identity and adds mutable
+> tracking state to the allocator. If it proves fragile, the fallback is a
+> representation-level approach (see alternative 1).
+
 ## Context
 
 The allocator charges a string at creation time (`AllocateString`: header +
 per-byte cost). The GC then rebuilds `alloc.bytes` from scratch by walking live
-objects and summing `GetShallowSize()`. For strings this recount was wrong in
-both directions:
+objects and summing `GetShallowSize()`. For strings this was wrong in both
+directions:
 
-- **Double-count on shared backings.** `s1 := s` produces two `StringValue`s
-  sharing one Go backing array. `GetShallowSize()` returned header + full byte
-  length for each, so after a GC the recounted total could *exceed* what was
-  charged at allocation time.
-- **Overcharge on slices.** `s[m:n]` went through `alloc.NewString`, charging a
-  full new string even though Go string slicing shares the source's backing.
-- **Missing charge on reload.** `fillTypesOfValue` did nothing for
+- **Missing charge on restoration.** `fillTypesOfValue` did nothing for
   `StringValue`, so strings loaded from store were never charged or known to
   the allocator at all.
+- **Double-count on shared backings in GC.** `s1 := s` produces two
+  `StringValue`s sharing one Go backing array. `GetShallowSize()` returned
+  header + full byte length for each, so after a GC the recounted total could
+  *exceed* what was charged at allocation time.
+- **Overcharge on slices.** `s[m:n]` went through `alloc.NewString`, charging a
+  full new string even though Go string slicing shares the source's backing.
 
 Any fix must also keep a sliced substring correctly counted when its source
 string becomes unreachable: the slice keeps the entire backing alive, and its
@@ -58,15 +65,30 @@ backing per GC cycle:
 
 ## Alternatives considered
 
-1. **`map[uintptr]int64` keyed by `StringData` pointer** (earlier iteration of
+1. **Owner/reference flag on `StringValue`** ([#5082](https://github.com/gnolang/gno/pull/5082))
+   — extends `StringValue` to a struct with a `ref` bool: slices are created
+   in reference mode and charge fixed overhead, owners charge full bytes.
+   This fixes the slice *overcharge* but a per-value flag cannot express
+   shared-backing facts: `s1 := s` copies an owner-mode value, so the GC
+   recount still double-counts the backing; conversely a reference whose
+   owner dies recounts only its fixed overhead, so the backing bytes (kept
+   alive by the reference) escape counting — the same corner this PR's
+   containment lookup exists for. It also changes the `StringValue`
+   representation (alias → struct), touching value serialization, whereas
+   this PR confines all accounting to the allocator/GC. The two approaches
+   are complementary in spirit (both charge slices header-only); this one
+   was chosen because backing identity is a property of the *memory*, not
+   of any individual value, so tracking it in the allocator matches the
+   semantics.
+2. **`map[uintptr]int64` keyed by `StringData` pointer** (earlier iteration of
    this PR) — fails when a slice outlives its source: the slice's pointer is
    not equal to the source's key, so the backing bytes are dropped from the
    recount. Range containment fixes this structurally.
-2. **Visit backing bytes via `VisitAssociated`** — the backing is raw data,
+3. **Visit backing bytes via `VisitAssociated`** — the backing is raw data,
    not a `Value`; there is nothing for the visitor to visit. Kept
    `StringValue.VisitAssociated` as a documented no-op and put the byte
    accounting in `GCVisitorFn` instead.
-3. **Keep full-size `GetShallowSize` and dedup by value equality** — string
+4. **Keep full-size `GetShallowSize` and dedup by value equality** — string
    equality can't distinguish shared-backing duplicates from equal copies with
    distinct backings, and costs O(len) per compare.
 
