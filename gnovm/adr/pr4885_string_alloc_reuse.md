@@ -1,11 +1,28 @@
 # Correctly reuse/count string backing bytes in alloc and GC
 
-> **Status: experimental.** The mechanism identifies string backings by their
-> Go heap address (`unsafe.StringData`) — pro: exact byte accounting with no
-> change to the `StringValue` representation or persisted format; con: it
-> couples accounting to host-runtime address identity and adds mutable
-> tracking state to the allocator. If it proves fragile, the fallback is a
-> representation-level approach (see alternative 1).
+> **Status: experimental — known determinism issue, fix planned.**
+>
+> The mechanism identifies string backings by their Go heap address
+> (`unsafe.StringData`). Pro: exact byte accounting with no change to the
+> `StringValue` representation or persisted format. Con: **whether two equal
+> strings share a backing is decided by the Go toolchain, not by the VM.**
+> Example: `s2 := s1 + ""` — `runtime.concatstrings` may return `s1`'s
+> backing unchanged or allocate a fresh one depending on escape analysis,
+> which varies across Go versions; `string([]byte)` copy elision and linker
+> literal interning are similar sources. Shared backing → the GC recount
+> dedups to one charge; separate backings → both counted. Since
+> `runtime.MemStats()` is contract-visible and the GC verdict decides limit
+> aborts, nodes built with different toolchains can diverge on consensus
+> state — a fork risk, not just mispricing.
+>
+> **Planned fix (option 1): make sharing VM-controlled.** Force a fresh
+> backing (`strings.Clone`) for every string entering the allocator, except
+> the explicit `GetSlice` path — the one intentional sharing case. The
+> sharing structure is then decided by VM logic alone, deterministic across
+> toolchains; the cost is an extra copy in cases like `s1 + ""` that Go
+> would otherwise optimize away. Fallback (option 2): abandon address
+> identity for a representation-level approach (alternative 1 below) with
+> its GC gaps fixed — larger migration cost.
 
 ## Context
 
