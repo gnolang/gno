@@ -1,19 +1,42 @@
-// https://github.com/gnolang/gno/issues/5957
+// Verifies that selector resolution on an embedded field/method walks the
+// embedding hierarchy BREADTH-FIRST by depth (Go spec §Selectors): the
+// shallowest match wins, not the first match encountered in field-order
+// depth-first search.
+//
+// Program taken verbatim from go/test/fixedbugs/bug485.go, tracking the
+// original gccgo miscompilation reported via Go CL 94100045 (2014, no issue
+// number — predates the GitHub tracker): "Gccgo chose the wrong embedded
+// method when the same type appeared at different levels and the correct
+// choice was not the first appearance of the type in a depth-first search."
+// GnoVM independently reproduced it: b.val() resolved to the deeper
+// B.A.embedded ("a") instead of the shallower B.embedded ("b"), silently
+// dispatching the wrong receiver.
 package main
 
-type D2 struct{}
+type embedded string
 
-func (D2) Foo() string { return "m" }
-
-type D1 *D2 // defined pointer type: empty method set
-
-func main() {
-	var x D1
-	_ = x.Foo // want: method not found, not "should not happen"
+func (s embedded) val() string {
+	return string(s)
 }
 
-// Error:
-// main/method40.gno:12:6-11: missing field Foo in main.D1
+type A struct {
+	embedded
+}
 
-// TypeCheckError:
-// main/method40.gno:12:8: x.Foo undefined (type D1 has no field or method Foo)
+type B struct {
+	A
+	embedded
+}
+
+func main() {
+	b := &B{
+		A: A{
+			embedded: "a",
+		},
+		embedded: "b",
+	}
+	s := b.val()
+	if s != "b" {
+		panic(s)
+	}
+}

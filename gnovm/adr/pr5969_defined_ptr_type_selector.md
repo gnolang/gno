@@ -60,27 +60,29 @@ which the switch handled.
 
 ## Decision
 
-Three changes in `gnovm/pkg/gnolang/types.go`:
+Two changes in `gnovm/pkg/gnolang/types.go`. (The fix was originally
+written against the pre-BFS recursive lookup — per-type
+`FindEmbeddedFieldType` methods — and re-ported onto the BFS lookup
+introduced by #5721 when merging master.)
 
-1. **`DeclaredType.FindEmbeddedFieldType`**: after the base search
-   returns a trail, if the base is a `*PointerType` and the trail's
-   *last* element is not a field path (`VPField`/`VPDerefField`),
-   return not-found. The last element is checked (not `trail[0]`)
-   because a method promoted via an embedded field inside the
-   pointed-to struct yields a field-headed trail
-   (`[VPDerefField, VPValMethod]`), and interface-promoted methods
-   yield `[VPDerefField, VPInterface]` — all of which Go also rejects.
-   `rcvr != nil` was rejected as the discriminator because interface
-   method matches return a nil receiver.
+1. **`resolveEmbedNode` / `lookupShallowestEmbedded`**: the spine walk
+   gains a `fieldsOnly` flag. A `*PointerType` node inside the spine is
+   always a defined type's base (root and embedded-field pointers are
+   stripped by `canonEmbeddedType` before the walk), so crossing one
+   switches to fields-only: method lookups on subsequent declared types
+   and interface bases no longer count (a defined type whose underlying
+   type is a pointer has an empty method set), and a second crossing
+   exposes nothing (the `(*x).f` shorthand applies once — this is the
+   `type B *C; type A *B` case). The flag propagates through the BFS
+   (`embedLookupEntry.fieldsOnly`, threaded alongside the per-level
+   `structs` expansion state) so methods of types embedded *inside* the
+   pointed-to struct — including via embedded interfaces — don't
+   promote either, while their fields still do. With phase 1 filtering
+   these out, `buildEmbeddedTrail` no longer receives winners it cannot
+   represent, which is what previously tripped its
+   `should not happen` panics.
 
-2. **`PointerType.FindEmbeddedFieldType`**: when the element search
-   returns a `VPDerefField`-headed trail (the element is a defined type
-   that resolved the selector through its own pointer base — a second
-   indirection) or a `VPInterface`-headed trail (pointer to interface),
-   return not-found. Go promotes neither through a pointer. The
-   `default:` panic stays for genuinely impossible trail heads.
-
-3. **`fillEmbeddedName`**: reject embedded fields that are still of
+2. **`fillEmbeddedName`**: reject embedded fields that are still of
    pointer kind after one `unwrapPointerType` — i.e. a defined type of
    pointer kind (`D1`) or a pointer whose element is of pointer kind
    (`*D1`) — with Go's message "embedded field type cannot be a
@@ -90,7 +92,8 @@ Three changes in `gnovm/pkg/gnolang/types.go`:
    paths (`doOpStructType` and `buildFieldTypesAST`).
 
 Fields still promote through a defined pointer type (`x.A` for
-`(*x).A`), unchanged and covered by a regression test.
+`(*x).A`), unchanged and covered by a regression test, including
+fields of types embedded inside the pointed-to struct.
 
 A side effect of (1): a defined pointer type no longer (incorrectly)
 satisfies interfaces via its base's methods — `VerifyImplementedBy`
@@ -98,16 +101,18 @@ uses the same lookup, and Go agrees (`D1` implements nothing).
 
 ## Alternatives considered
 
-- **Handle the method trails in the `trail[0]` switch and promote
+- **Handle the offending trails in `buildEmbeddedTrail` and promote
   them** (make GnoVM more permissive than Go): rejected — Gno tracks
   Go semantics, and go/types type-checking at `AddPackage` already
   rejects such programs, so the VM must agree with the checker rather
   than diverge.
-- **Only fix the panic site (return not-found from the `default:`
-  branch)**: insufficient — `[VPDerefField, VPValMethod]`-shaped trails
-  (promoted via embedded field) don't reach the `default:` branch and
-  would still incorrectly resolve through the `VPField/VPDerefField`
-  case.
+- **Only patch the panic sites in `buildEmbeddedTrail` to return
+  not-found**: insufficient — phase 1 (`lookupShallowestEmbedded`)
+  would still report such names as found (affecting
+  `VerifyImplementedBy` and shallowest-depth/ambiguity resolution),
+  and field-headed trails ending in a method don't reach the panicking
+  branches at all. The filter belongs in the phase that defines the
+  method set.
 - **Declaration check in `validateStructFields`**: `fillEmbeddedName`
   was chosen instead because it runs exactly once per embedded field on
   both construction paths and has the source `FieldType` at hand.
@@ -122,6 +127,7 @@ uses the same lookup, and Go agrees (`D1` implements nothing).
 - Programs that (unintentionally) relied on method promotion through
   defined pointer types now get errors; such programs already failed
   go/types type-checking on-chain, so nothing deployable breaks.
-- Tests: `method40–43.gno`, `struct64.gno`, `struct64b.gno`,
-  `ptr12.gno` (nested defined pointers, from review), `ptr13.gno`
-  (pointer to defined interface type).
+- Tests: `method47–50.gno` (renumbered from 40–43 after merging
+  master, which added its own `method40–46.gno`), `struct64.gno`,
+  `struct64b.gno`, `ptr12.gno` (nested defined pointers, from review),
+  `ptr13.gno` (pointer to defined interface type).

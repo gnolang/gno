@@ -1,30 +1,26 @@
-// https://github.com/gnolang/gno/issues/5957
-// Fields (but not methods) promote through a defined pointer type;
-// methods remain reachable through an explicit deref or field selector.
+// Verifies that a promoted METHOD and a promoted FIELD with the same
+// name at the same depth are ambiguous (Go spec §Selectors makes no
+// distinction between fields and methods for depth resolution).
 package main
 
-type E struct{}
+type A struct{}
 
-func (E) Bar() string { return "bar" }
+func (A) Foo() string { return "method" }
 
-type D2 struct {
-	E
-	A int
+type B struct{ Foo string }
+
+type C struct {
+	A
+	B
 }
-
-func (D2) Foo() string { return "m" }
-
-type D1 *D2
 
 func main() {
-	d2 := D2{A: 5}
-	var x D1 = &d2
-	println(x.A)        // field: promoted via (*x).A
-	println(x.E.Bar())  // method on explicitly selected field
-	println((*x).Foo()) // method via explicit deref
+	var c C
+	_ = c.Foo
 }
 
-// Output:
-// 5
-// bar
-// m
+// Error:
+// main/method43.gno:19:6-11: ambiguous selector Foo in main.C
+
+// TypeCheckError:
+// main/method43.gno:19:8: ambiguous selector c.Foo

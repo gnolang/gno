@@ -1,21 +1,23 @@
-// https://github.com/gnolang/gno/issues/5957
+// Verifies that two embedded siblings exposing the same field name at the
+// same depth produce an ambiguous-selector error (Go spec §Selectors:
+// "If there is not exactly one f with shallowest depth, the selector
+// expression is illegal").
 package main
 
-type E struct{}
-
-func (E) Bar() string { return "bar" }
-
-type D2 struct{ E }
-
-type D1 *D2 // defined pointer type: no methods promote through it
+type A struct{ Foo int }
+type B struct{ Foo int }
+type C struct {
+	A
+	B
+}
 
 func main() {
-	var x D1
-	_ = x.Bar // want: method not found (promoted via embedded E in *D2)
+	var c C
+	_ = c.Foo
 }
 
 // Error:
-// main/method41.gno:14:6-11: missing field Bar in main.D1
+// main/method41.gno:16:6-11: ambiguous selector Foo in main.C
 
 // TypeCheckError:
-// main/method41.gno:14:8: x.Bar undefined (type D1 has no field or method Bar)
+// main/method41.gno:16:8: ambiguous selector c.Foo
