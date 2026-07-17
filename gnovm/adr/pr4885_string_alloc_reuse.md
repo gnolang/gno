@@ -1,28 +1,33 @@
 # Correctly reuse/count string backing bytes in alloc and GC
 
-> **Status: experimental — known determinism issue, fix planned.**
+> **Status: experimental.** The mechanism identifies string backings by
+> their Go heap address (`unsafe.StringData`). Pro: exact byte accounting
+> with no change to the `StringValue` representation or persisted format.
+> Con: address identity is a host-runtime concept, and one determinism
+> issue was found and fixed during review — see below.
 >
-> The mechanism identifies string backings by their Go heap address
-> (`unsafe.StringData`). Pro: exact byte accounting with no change to the
-> `StringValue` representation or persisted format. Con: **whether two equal
-> strings share a backing is decided by the Go toolchain, not by the VM.**
-> Example: `s2 := s1 + ""` — `runtime.concatstrings` may return `s1`'s
-> backing unchanged or allocate a fresh one depending on escape analysis,
-> which varies across Go versions; `string([]byte)` copy elision and linker
-> literal interning are similar sources. Shared backing → the GC recount
-> dedups to one charge; separate backings → both counted. Since
-> `runtime.MemStats()` is contract-visible and the GC verdict decides limit
-> aborts, nodes built with different toolchains can diverge on consensus
-> state — a fork risk, not just mispricing.
+> **Determinism issue (fixed): whether two equal strings share a backing
+> is decided by the Go toolchain, not by the VM.** Example: `s2 := s1 + ""`
+> — `runtime.concatstrings` may return `s1`'s backing unchanged or allocate
+> a fresh one depending on escape analysis, which varies across Go
+> versions; `string([]byte)` copy elision and linker literal interning are
+> similar sources. Shared backing → the GC recount dedups to one charge;
+> separate backings → both counted. Since `runtime.MemStats()` is
+> contract-visible and the GC verdict decides limit aborts, nodes built
+> with different toolchains could diverge on consensus state — a fork risk,
+> not just mispricing.
 >
-> **Planned fix (option 1): make sharing VM-controlled.** Force a fresh
-> backing (`strings.Clone`) for every string entering the allocator, except
-> the explicit `GetSlice` path — the one intentional sharing case. The
-> sharing structure is then decided by VM logic alone, deterministic across
-> toolchains; the cost is an extra copy in cases like `s1 + ""` that Go
-> would otherwise optimize away. Fallback (option 2): abandon address
-> identity for a representation-level approach (alternative 1 below) with
-> its GC gaps fixed — larger migration cost.
+> **Fix: make sharing VM-controlled.** `TrackString` clones the string
+> (`strings.Clone`) iff its extent overlaps an already-tracked range —
+> i.e. exactly when toolchain sharing (or address recycling) actually
+> occurred — so every `NewString` ends up with its own tracked range on
+> every toolchain, and the range set is decided by VM logic alone. The
+> common fresh-backing case pays no copy; the one intentional sharing
+> case, `GetSlice`, does not go through `TrackString`. Rejected variant:
+> unconditional clone (simpler to state, but copies every string twice on
+> paths like concat that already produced a fresh backing). Fallback if
+> address identity proves fragile anyway: a representation-level approach
+> (alternative 1 below) with its GC gaps fixed — larger migration cost.
 
 ## Context
 
@@ -54,10 +59,18 @@ backing per GC cycle:
 
 - `Allocator.stringRanges` holds sorted, disjoint `[start, end)` extents of
   every string backing charged through the allocator. `NewString` registers
-  the extent (`TrackString`); registration is idempotent via **containment**
-  lookup — a pointer anywhere inside a tracked range resolves to that backing.
-  Containment (not equality) is what makes the slice-whose-source-died case
-  inexpressible as a bug.
+  the extent (`TrackString`); lookup is by **containment** — a pointer
+  anywhere inside a tracked range resolves to that backing. Containment (not
+  equality) is what makes the slice-whose-source-died case inexpressible as
+  a bug.
+- Every `NewString` gets its **own** range: if the input's extent overlaps a
+  tracked range, `TrackString` clones it onto a fresh backing and registers
+  the clone (see Status note — this is what removes toolchain-dependent
+  backing sharing from consensus-visible accounting). A clone whose extent
+  still overlaps entries proves those entries stale — their backing died and
+  Go recycled the address, since live backings cannot be allocated over —
+  and they are evicted on the spot, earlier than `CleanupTrackedStrings`
+  would.
 - `StringValue.GetShallowSize()` now returns the header only. The GC visitor
   (`GCVisitorFn`) special-cases `StringValue`: `CountStringBytes` returns the
   **full backing length** the first time any string resolving into a range is
@@ -121,5 +134,9 @@ backing per GC cycle:
 - `TrackString`/`CountStringBytes` are O(log n) via binary search on the
   sorted range slice; inserts are O(n) but amortized by per-cycle pruning.
 - The allocator now holds `uintptr`s into Go heap memory. They are used only
-  for identity/containment (never dereferenced), and per-cycle pruning bounds
-  stale-address reuse.
+  for identity/containment (never dereferenced); stale entries are evicted
+  by `TrackString` when their recycled address is re-tracked, and pruned by
+  `CleanupTrackedStrings` otherwise.
+- Strings whose backing Go chose to share (e.g. `s1 + ""` returning `s1`)
+  now pay one extra copy at `NewString`; strings with fresh backings — the
+  common case — pay nothing.

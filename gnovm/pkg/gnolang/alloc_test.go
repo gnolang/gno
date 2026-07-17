@@ -2,6 +2,9 @@ package gnolang
 
 import (
 	"math"
+	"slices"
+	"sort"
+	"strings"
 	"testing"
 	"unsafe"
 
@@ -269,22 +272,93 @@ func TestNewString_EmptyStringNotTracked(t *testing.T) {
 	}
 }
 
-// TestTrackString_SubrangeIdempotent verifies that re-tracking a string
-// whose pointer falls inside an existing range does not add a duplicate.
-// (E.g. NewString called on a slice of an already-tracked source.)
-func TestTrackString_SubrangeIdempotent(t *testing.T) {
+// TestTrackString_OverlapClones verifies the determinism guarantee: a
+// string whose backing overlaps an already-tracked range (toolchain
+// sharing — concat returning its operand, copy elision — or NewString on
+// a sub-extent) is cloned onto a fresh backing and tracked as its own
+// range, so the range set never depends on Go's sharing decisions.
+func TestTrackString_OverlapClones(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 
 	src := alloc.NewString("the quick brown fox")
 	if got := len(alloc.stringRanges); got != 1 {
 		t.Fatalf("after NewString(src): got %d ranges, want 1", got)
 	}
+	srcStart, srcEnd := stringExtent(string(src))
 
-	// A slice of src would have ptr inside src's range. Tracking it
-	// must be a no-op.
-	alloc.TrackString(string(src)[4:9])
-	if got := len(alloc.stringRanges); got != 1 {
-		t.Errorf("TrackString of a sub-extent should be idempotent, got %d ranges", got)
+	// A sub-extent of src overlaps its range: TrackString must clone it
+	// onto a fresh backing and register that as a second range.
+	sub := string(src)[4:9]
+	tracked := alloc.TrackString(sub)
+	if tracked != sub {
+		t.Errorf("clone changed content: got %q, want %q", tracked, sub)
+	}
+	if got := len(alloc.stringRanges); got != 2 {
+		t.Fatalf("TrackString of an overlapping extent should clone+track, got %d ranges", got)
+	}
+	p, _ := stringExtent(tracked)
+	if p >= srcStart && p < srcEnd {
+		t.Error("tracked string still shares src's backing; expected a clone")
+	}
+
+	// A non-overlapping string is tracked as-is, no clone.
+	fresh := strings.Repeat("z", 8)
+	fp, _ := stringExtent(fresh)
+	gp, _ := stringExtent(alloc.TrackString(fresh))
+	if gp != fp {
+		t.Error("non-overlapping string should be tracked without cloning")
+	}
+	if got := len(alloc.stringRanges); got != 3 {
+		t.Errorf("want 3 ranges, got %d", got)
+	}
+}
+
+// TestTrackString_RecycledAddress simulates Go's runtime recycling a dead
+// tracked backing's address for a new string: stale entries are
+// synthesized around a fresh string's extent. TrackString cannot
+// distinguish this from sharing a live backing, so it must clone
+// conservatively and register the clone's exact extent; entries it cannot
+// prove stale are left for CleanupTrackedStrings, and disjoint live
+// entries must be untouched.
+func TestTrackString_RecycledAddress(t *testing.T) {
+	alloc := NewAllocator(1_000_000)
+
+	s := strings.Repeat("a", 16)
+	p, end := stringExtent(s)
+
+	stale := []stringRange{
+		{start: p - 8, end: p + 4},     // overlaps head
+		{start: p + 6, end: p + 10},    // contained
+		{start: end - 2, end: end + 4}, // overlaps tail
+	}
+	survivors := []stringRange{
+		{start: p - 100, end: p - 90, lastCycle: 7},
+		{start: end + 50, end: end + 60, lastCycle: 7},
+	}
+	alloc.stringRanges = slices.Concat(survivors[:1], stale, survivors[1:])
+	sort.Slice(alloc.stringRanges, func(i, j int) bool {
+		return alloc.stringRanges[i].start < alloc.stringRanges[j].start
+	})
+
+	tracked := alloc.TrackString(s)
+	if tracked != s {
+		t.Errorf("clone changed content: got %q, want %q", tracked, s)
+	}
+
+	// The clone's exact extent is registered as its own range.
+	tp, tend := stringExtent(tracked)
+	if i := alloc.rangeFor(tp); i < 0 || alloc.stringRanges[i].start != tp || alloc.stringRanges[i].end != tend {
+		t.Error("tracked string's extent not registered exactly")
+	}
+	// Disjoint entries are never evicted.
+	if alloc.rangeFor(p-95) < 0 || alloc.rangeFor(end+55) < 0 {
+		t.Error("disjoint entries were wrongly evicted")
+	}
+	// Whatever wasn't provably stale is at most deferred to GC cleanup:
+	// after a cycle in which only survivors are visited, exactly they remain.
+	alloc.CleanupTrackedStrings(7)
+	if got := len(alloc.stringRanges); got != 2 {
+		t.Errorf("after cleanup: want 2 survivor ranges, got %d", got)
 	}
 }
 
