@@ -93,10 +93,7 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		// Fetch by batches
 		for batchStart := fromBlock; batchStart <= toBlock; {
 			// Determine batch stop block
-			batchStop := batchStart + uint64(s.batchSize) - 1
-			if batchStop > toBlock {
-				batchStop = toBlock
-			}
+			batchStop := min(batchStart+uint64(s.batchSize)-1, toBlock)
 
 			batchSize := batchStop - batchStart + 1
 

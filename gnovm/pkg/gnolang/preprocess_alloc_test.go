@@ -69,7 +69,7 @@ func TestPreprocessAlloc_CumulativeAcrossStatements(t *testing.T) {
 	// 256th decl.
 	var b strings.Builder
 	b.WriteString("package cumulative\n")
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		fmt.Fprintf(&b, "const C%d = \"x\"\n", i)
 	}
 	b.WriteString("func main() {}\n")
@@ -123,7 +123,7 @@ func TestPreprocessAlloc_NoGCOnHardCap(t *testing.T) {
 
 	var b strings.Builder
 	b.WriteString("package nogc\n")
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		fmt.Fprintf(&b, "const C%d = \"x\"\n", i)
 	}
 	b.WriteString("func main() {}\n")
@@ -236,7 +236,7 @@ func TestPreprocessAlloc_GasCharged(t *testing.T) {
 	b.WriteString("package gascharged\n")
 	// String consts force alloc.NewString → alloc-gas charges per
 	// allocation. Simple int consts don't hit the allocator.
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		fmt.Fprintf(&b, "const C%d = \"some-non-trivial-string-%d\"\n", i, i)
 	}
 	b.WriteString("func main() {}\n")

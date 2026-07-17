@@ -104,10 +104,10 @@ func BenchmarkOpReturnCallDefersWarm(b *testing.B) {
 		m.Blocks = append(m.Blocks, &Block{})
 		cfr := m.LastFrame()
 		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   []TypedValue{},
-			Source: &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-			Parent: &Block{},
+			Callable: fv,
+			Args:     []TypedValue{},
+			Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
+			Parent:   &Block{},
 		})
 		m.PushOp(OpReturnCallDefers)
 		bm.SwitchOpCode(bmTarget)

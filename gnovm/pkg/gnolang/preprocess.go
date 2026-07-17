@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -219,9 +220,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			return
 		}
 		f := map[Name]bool{}
-		for k, v := range parent {
-			f[k] = v
-		}
+		maps.Copy(f, parent)
 		if modify != nil {
 			modify(f)
 		}
@@ -1297,6 +1296,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
@@ -1317,16 +1321,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// injection (gno.Nx(".origin")) can introduce it.
 					if ftype != TRANS_CALL_ARG || index != 0 {
 						panic(".origin can only be used as the first argument to a crossing function")
-					}
-					return n, TRANS_CONTINUE
-				case "cross1":
-					// legacy sentinel: a migration aid for codebases moving from
-					// the old bare-`cross` form. Lowers to the same with-cross
-					// AST shape as `.origin` (Args[0]=nil, WithCross=true) so
-					// the runtime takes the callingCurOrOrigin path. Migrate
-					// `cross1` → `cross(rlm)` once the in-scope realm is clear.
-					if ftype != TRANS_CALL_ARG || index != 0 {
-						panic("cross1 can only be used as the first argument to a crossing function")
 					}
 					return n, TRANS_CONTINUE
 				case nilStr:
@@ -1577,13 +1571,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Out of bounds errors are usually handled during evalConst().
 						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isDecimalInteger(bd.V) {
+								if !bd.IsInt() {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))
 								}
 							}
 							if isNumeric(at) {
+								convertConst(store, last, n, arg0, ct)
+								constConverted = true
+							}
+						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
+							// Convert float-valued and untyped-int constants
+							// directly to the target type: constant conversion
+							// has no signed zero, so an underflowing constant
+							// rounds to +0, unlike the machine's runtime
+							// narrowing; and an untyped int may exceed int64
+							// (e.g. float64(1<<100)) yet be representable in
+							// the float target, so it must not take the
+							// default-type (int) path below.
+							switch at.Kind() {
+							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
@@ -1756,8 +1764,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2019,7 +2030,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") && nx.Name != Name("cross1") {
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") {
 								panic(fmt.Sprintf("only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
@@ -2029,13 +2040,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// runtime path (installCrossingCur →
 								// callingCurOrOrigin → buildOriginRealm) mints an
 								// EOA-origin cur.
-								n.SetWithCross()
-								n.Args[0] = constNil(nx)
-							case Name("cross1"):
-								// legacy migration sentinel: same lowering as .origin
-								// (WithCross=true, Args[0]=constNil → runtime takes
-								// callingCurOrOrigin path). Reachable from user source
-								// to ease migration from the old bare-`cross` form.
 								n.SetWithCross()
 								n.Args[0] = constNil(nx)
 							case Name(".cur"):
@@ -2061,11 +2065,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`) or a
+									// lazy interface bind (no concrete func
+									// until call time); fall through, the
+									// runtime check covers both.
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
@@ -2201,11 +2209,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
@@ -2490,14 +2505,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel, nil)
-					if aerr {
+					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					switch status {
+					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, ctxpn.PkgPath))
-					} else if tr == nil {
+					case embedLookupAmbiguous:
+						panic(fmt.Sprintf("ambiguous selector %s in %s",
+							n.Sel, cxt.String()))
+					case embedLookupNone:
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+					// embedLookupFound guarantees tr != nil below.
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -2572,7 +2592,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// bound method or underlying.
 					// NOTE: unexported field access is already checked
-					// by findEmbeddedFieldType above (aerr).
+					// by findEmbeddedFieldType above (status).
 					n.Path = tr[len(tr)-1]
 
 					// n.Path = cxt.GetPathForName(n.Sel)
@@ -3091,7 +3111,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(dstTV)))
+						reflect.TypeFor[*TypedValue]()))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
@@ -4135,9 +4155,13 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
+		pkgPath := packageOf(last).PkgPath
 		it := &InterfaceType{
-			PkgPath: packageOf(last).PkgPath,
-			Methods: buildFieldTypesAST(store, last, x.Methods, true),
+			PkgPath: pkgPath,
+			// Build without embed naming (embed=false): flattenInterfaceMethods
+			// expands embedded interfaces into their method set, making identity
+			// the method set rather than the embedded-interface (alias) spelling.
+			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
@@ -4149,8 +4173,9 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 
 // buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
 // mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
-// embed=true mirrors doOpStructType/doOpInterfaceType which call
-// fillEmbeddedName per field; embed=false mirrors doOpFuncType which does not.
+// embed=true mirrors doOpStructType, which names embedded fields per field;
+// embed=false mirrors doOpFuncType and the interface path (which leaves embeds
+// unnamed and flattens them via flattenInterfaceMethods).
 func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
 	fts := make([]FieldType, len(fxs))
 	for i := range fxs {
@@ -4163,7 +4188,7 @@ func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed b
 			ft.Tag = Tag(evalConst(store, last, fx.Tag).GetString())
 		}
 		if embed {
-			fillEmbeddedName(&ft)
+			fillEmbeddedName(&ft, fx.Type)
 		}
 		fts[i] = ft
 	}
@@ -4398,6 +4423,21 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		})
 		cv := m.EvalStatic(last, x)
 		m.Release()
+		// The machine computes with runtime (IEEE) semantics, but a folded
+		// expression is a constant, and constants have no signed zero: a
+		// float -0 result (e.g. from negation) becomes +0.
+		if cv.T != nil {
+			switch cv.T.Kind() {
+			case Float32Kind:
+				if cv.GetFloat32() == softfloat.NegZero32 {
+					cv.SetFloat32(0)
+				}
+			case Float64Kind:
+				if cv.GetFloat64() == softfloat.NegZero64 {
+					cv.SetFloat64(0)
+				}
+			}
+		}
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

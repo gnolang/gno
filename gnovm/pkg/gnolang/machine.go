@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"path"
 	"reflect"
 	"runtime"
@@ -333,6 +334,17 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		if mpkg == nil {
+			// An indexed package with no production files (e.g. an
+			// xxx_test-only package) has no prod blob, so GetMemPackage
+			// returns nil. There are no production block nodes to build;
+			// its test files live under the #allbutprod sibling. On-chain
+			// this is unreachable — the vm keeper rejects prod-less packages
+			// at AddPackage (block-node state would otherwise depend on
+			// restart history) — so this skip is defensive, for non-chain
+			// stores.
+			continue
+		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
@@ -1344,11 +1356,37 @@ func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	}
 }
 
+// ratDigits estimates the decimal digit count of a *big.Rat from its bit-length.
+// 1 decimal digit ≈ 3.32 bits; we use /3 conservatively.
+func ratDigits(r *big.Rat) int64 {
+	if r == nil {
+		return 1
+	}
+	bits := r.Num().BitLen() + r.Denom().BitLen()
+	d := max(int64(bits)/3, 1)
+	return d
+}
+
+// bigdecDigits estimates the decimal digit count of a BigdecValue, working
+// for both the rat and float representations.
+func bigdecDigits(bdv BigdecValue) int64 {
+	if bdv.F != nil {
+		// big.Float has a bounded mantissa (BigdecFloatPrec bits) plus an
+		// exponent; the exponent contributes at most log10(2) per bit.
+		bits := int64(bdv.F.Prec()) + int64(bdv.F.MantExp(nil))
+		if bits < 0 {
+			bits = -bits
+		}
+		return max(bits/3, 1)
+	}
+	return ratDigits(bdv.V)
+}
+
 // incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
 func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits()
-		rb := rv.GetBigDec().NumDigits()
+		lb := bigdecDigits(lv.GetBigDec())
+		rb := bigdecDigits(rv.GetBigDec())
 		m.incrCPU(max(lb, rb) * slopePer100 / 100)
 	}
 }
@@ -1358,8 +1396,8 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 // safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits() / 10
-		rb := rv.GetBigDec().NumDigits() / 10
+		lb := bigdecDigits(lv.GetBigDec()) / 10
+		rb := bigdecDigits(rv.GetBigDec()) / 10
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
@@ -1375,7 +1413,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	if xv.T == UntypedBigdecType {
-		digits := xv.GetBigDec().NumDigits()
+		digits := bigdecDigits(xv.GetBigDec())
 		m.incrCPU(digits * slopePer100 / 100)
 	}
 }
@@ -1396,17 +1434,30 @@ const (
 	// See gnovm/cmd/calibrate/op_bench_analysis.txt for full derivation.
 
 	/* Control operators */
-	OpCPUInvalid             = 1
-	OpCPUHalt                = 1
-	OpCPUNoop                = 1
-	OpCPUExec                = 130
-	OpCPUPrecallTypeConv     = 72   // type conversion
-	OpCPUPrecallFunc         = 178  // function call
-	OpCPUPrecallBoundMethod  = 199  // bound method call
-	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
-	OpCPUCall                = 40   // 0 params/0 captures, sans block creation (now in acquireBlock); ~36-44 measured
-	OpCPUAcquireBlock        = 100  // block setup/recover in acquireBlock; ~91-102 measured (anchor Add_Int=81)
-	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
+	OpCPUInvalid            = 1
+	OpCPUHalt               = 1
+	OpCPUNoop               = 1
+	OpCPUExec               = 130
+	OpCPUPrecallTypeConv    = 72  // type conversion
+	OpCPUPrecallFunc        = 178 // function call
+	OpCPUPrecallBoundMethod = 199 // bound method call
+	// OpCPULazyBoundResolve is the extra CPU on top of OpCPUPrecallBoundMethod
+	// charged per hop of the resolveLazyBound walk (once per stripped interface
+	// layer), so deep/nested embedded-interface dispatch is metered by depth like
+	// the eager concrete path. Single-hop resolution (the common case) charges it
+	// once — gas-neutral with the prior per-call charge.
+	// 529 is ratio-scaled: the lazy-vs-concrete bench delta on a dev machine,
+	// anchored to OpCPUPrecallBoundMethod's known reference value, so the
+	// machine-speed factor cancels; reused as the per-hop cost.
+	// TODO(calibration): measure directly on the gas-table reference HW when
+	// its numbers are next refreshed.
+	OpCPULazyBoundResolve    = 529
+	OpCPUEnterCrossing       = 520   // XXX arbitrary, not yet benchmarked
+	OpCPUCall                = 40    // 0 params/0 captures, sans block creation (now in acquireBlock); ~36-44 measured
+	OpCPUAcquireBlock        = 100   // block setup/recover in acquireBlock; ~91-102 measured (anchor Add_Int=81)
+	OpCPUCallNativeBody      = 2205  // XXX arbitrary, not properly benchmarked
+	OpCPUSubRealmBase        = 552   // realm.Sub: mirrors chain.packageAddress calibration (base)
+	OpCPUSubRealmSlope       = 15201 // realm.Sub: per 1024 bytes of synthesized pkgpath (slope)
 	OpCPUDefer               = 71
 	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
 	OpCPUGo                  = 1   // XXX not yet implemented
@@ -1464,7 +1515,7 @@ const (
 	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
-	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
+	OpCPUSelectorInterface   = 276 // base; VPInterface, per-method added in handler. Was 751 (eager dispatch walked the trail here); the walk moved to call time (OpCPULazyBoundResolve), so the bind only does the method lookup + lazy-bind alloc now. TODO(calibration): ratio-scaled re-fit (~140ns pure); measure with OpCPULazyBoundResolve when the reference-HW numbers are next refreshed.
 	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
 	OpCPUStar                = 102
 	OpCPURef                 = 210
@@ -2164,7 +2215,7 @@ func (m *Machine) PopValues(n int) []TypedValue {
 func (m *Machine) PopCopyValues(res []TypedValue) {
 	n := len(res)
 	ptvs := m.PopValues(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		res[i] = ptvs[i].Copy(m.Alloc)
 	}
 }
@@ -2758,6 +2809,8 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	return nil
 }
 
+// Per-shape operand counts are mirrored in numStackValuesForPointer (below)
+// and consumed by resolvePointer — keep all three in sync.
 func (m *Machine) PushForPointer(lx Expr) {
 	switch lx := lx.(type) {
 	case *NameExpr:
@@ -2782,10 +2835,31 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
-		panic(fmt.Sprintf(
-			"illegal assignment X expression type %v",
-			reflect.TypeOf(lx)))
+		panicIllegalPointerLHS(lx)
 	}
+}
+
+// numStackValuesForPointer reports how many value-stack entries PushForPointer
+// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panicIllegalPointerLHS(lx)
+		return 0 // unreachable
+	}
+}
+
+// Outlined so the switches above stay within the inlining budget.
+func panicIllegalPointerLHS(lx Expr) {
+	panic(fmt.Sprintf(
+		"illegal assignment X expression type %v",
+		reflect.TypeOf(lx)))
 }
 
 // Pop a pointer (for writing only).
@@ -2891,10 +2965,13 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	return oid.PkgID != m.Realm.ID
 }
 
-// Returns ro = true if the base is readonly,
-// or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a composite lit expr.
-func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+// resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
+// PushForPointer evaluated for lx) rather than popping them off the value stack
+// itself — the caller supplies them, so this resolver has no stack side effects.
+// lhsOperands are in stack order, oldest first: for an IndexExpr lhsOperands[0]
+// is X and lhsOperands[1] is Index. ro reports a readonly/cross-realm violation.
+// Shared by PopAsPointer2 (the stack wrapper) and doOpAssign (reads in place).
+func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2909,11 +2986,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			panic("unexpected NameExpr in PopAsPointer")
+			panic("unexpected NameExpr in resolvePointer")
 		}
 	case *IndexExpr:
-		iv := m.PopValue()
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
+		iv := &lhsOperands[1]
 		if xv.T.Kind() == MapKind {
 			// For maps, GetPointerAtIndex unconditionally creates a new entry for
 			// missing keys. Check readonly before this mutation.
@@ -2928,21 +3005,21 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
-		xv := m.PopValue()
-		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		xv := &lhsOperands[0]
+		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("runtime error: nil pointer dereference"))
+				m.Panic(typedRuntimeError("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
-		tv := *m.PopValue()
+		tv := lhsOperands[0]
 		// Heap-slot wrapper is anonymous; nil t skips the
 		// construction-time check. The contained composite literal
 		// was already construction-time-checked at its own allocation.
@@ -2957,6 +3034,12 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		panic("should not happen")
 	}
 	return
+}
+
+// Thin stack wrapper around resolvePointer: pops lx's operands off m.Values
+// and resolves from them.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	return m.resolvePointer(lx, m.PopValues(numStackValuesForPointer(lx)))
 }
 
 // for testing.
@@ -3177,7 +3260,9 @@ func (m *Machine) String() string {
 	}
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
-		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
+		builder.WriteString("      ")
+		m.Exception.Fprint(builder, m)
+		builder.WriteByte('\n')
 	}
 	return builder.String()
 }

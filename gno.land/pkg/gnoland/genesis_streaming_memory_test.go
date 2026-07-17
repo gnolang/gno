@@ -225,7 +225,7 @@ func TestServeGenesis_ConcurrentPeakHeapBound(t *testing.T) {
 	totals := make([]int64, concurrency)
 	errs := make([]error, concurrency)
 
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(idx int) {
 			defer wg.Done()
 			resp, err := http.Get(srv.URL + "/genesis")

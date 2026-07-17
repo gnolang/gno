@@ -488,9 +488,9 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
-		// visit dfr.Func
-		if dfr.Func != nil {
-			stop = vis(dfr.Func)
+		// visit dfr.Callable (the deferred func / bound method)
+		if dfr.Callable != nil {
+			stop = vis(dfr.Callable)
 		}
 		if stop {
 			return

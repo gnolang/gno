@@ -10,7 +10,7 @@ func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
-		m.Panic(typedString("runtime error: call of nil function"))
+		m.Panic(typedRuntimeError("runtime error: call of nil function"))
 	}
 
 	switch fv := v.(type) {
@@ -27,15 +27,22 @@ func (m *Machine) doOpPrecall() {
 		}
 	case *BoundMethodValue:
 		m.incrCPU(OpCPUPrecallBoundMethod)
-		recv := fv.Receiver
-		m.PushFrameCall(cx, fv.Func, recv, false)
+		fn, recv := fv.Func, fv.Receiver
+		// A lazy interface bind resolves its concrete method + receiver at
+		// call time, walking the saved operand's current value (Go's call-time
+		// dispatch). A resolved bind is used as-is. nil derefs raise within the
+		// walk (caught by the Run loop).
+		if fv.IsLazy() {
+			fn, recv = resolveLazyBound(m, fv)
+		}
+		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
-		isCrossing := fv.IsCrossing()
+		isCrossing := fn.IsCrossing()
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
 		if cx.IsWithCross() {
-			m.installCrossingCur(cx, isCrossing, fv.Func.PkgPath)
+			m.installCrossingCur(cx, isCrossing, fn.PkgPath)
 		}
 	case TypeValue:
 		m.incrCPU(OpCPUPrecallTypeConv)
@@ -47,7 +54,7 @@ func (m *Machine) doOpPrecall() {
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
-				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+				m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
 			}
 		}
 		m.PushOp(OpConvert)
@@ -70,12 +77,11 @@ func (m *Machine) doOpPrecall() {
 // Two paths, distinguished by what Args[0] evaluated to on the value
 // stack:
 //
-//   - Compiler-synthesized `.origin` (MsgCall chain root) or the
-//     legacy `cross1` migration sentinel: preprocessor replaced
-//     Args[0] with a constNil, so its stack slot is undefined. The
-//     new cur's prev comes from m.callingCurOrOrigin() — a frame
-//     walk that finds the topmost crossing frame's Cur (or the
-//     per-tx origin).
+//   - Compiler-synthesized `.origin` (MsgCall chain root):
+//     preprocessor replaced Args[0] with a constNil, so its stack
+//     slot is undefined. The new cur's prev comes from
+//     m.callingCurOrOrigin() — a frame walk that finds the topmost
+//     crossing frame's Cur (or the per-tx origin).
 //
 //   - Explicit `cross(rlm)`: Args[0] is the inner cross CallExpr. At
 //     runtime cross's native body validates IsCurrent-strict on rlm
@@ -89,7 +95,7 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 	argtv := m.PeekValue(cx.NumArgs)
 	var prev TypedValue
 	if argtv.IsUndefined() {
-		// .origin / cross1 path.
+		// .origin path.
 		prev = m.callingCurOrOrigin()
 	} else {
 		// cross(rlm) form: argtv is the realm value cross pushed
@@ -140,6 +146,28 @@ func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 // The walk is intentionally simpler than execctx.GetRealm: we only need
 // the immediate captured prev, not a height-based ancestor selection.
 func (m *Machine) callingCurOrOrigin() TypedValue {
+	if cur, ok := m.topCrossingCur(); ok {
+		return cur
+	}
+	return buildOriginRealm(m)
+}
+
+// topCrossingCur returns the topmost crossing frame's captured Cur, if
+// any. This is the single frame walk anchoring "the live cur": it backs
+// callingCurOrOrigin (origin fallback), topmostCrossingFrameCurHIV
+// (IsCurrent/cross/Sub guards), and PresentedRealmAt (the unsafe.*
+// identity chain).
+//
+// Skips:
+//   - non-call frames (loops, blocks).
+//   - non-crossing call frames (no WithCross or DidCrossing).
+//   - frames whose Cur has not been set yet (the just-pushed frame at
+//     the top during doOpPrecall, or native crossing functions).
+//
+// Crossing functions entered without cross inherit their caller's Cur
+// (pointer-identical), so the first crossing frame with a captured Cur
+// anchors the chain.
+func (m *Machine) topCrossingCur() (TypedValue, bool) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if !fr.IsCall() {
@@ -151,9 +179,9 @@ func (m *Machine) callingCurOrOrigin() TypedValue {
 		if fr.Cur.T == nil {
 			continue
 		}
-		return fr.Cur
+		return fr.Cur, true
 	}
-	return buildOriginRealm(m)
+	return TypedValue{}, false
 }
 
 var gReturnStmt = &ReturnStmt{}
@@ -470,7 +498,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
@@ -558,21 +586,31 @@ func (m *Machine) doOpReturnCallDefers() {
 		return
 	}
 
-	if dfr.Func == nil {
-		m.pushPanic(typedString("defer called a nil function"))
+	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
+	var fv *FuncValue
+	var recv TypedValue // receiver for PushFrameCall: the bound receiver, or zero for a plain func
+	switch cv := dfr.Callable.(type) {
+	case *FuncValue:
+		fv = cv // plain func: no receiver, recv stays zero
+	case *BoundMethodValue:
+		// A lazy interface bind resolves its concrete method + receiver now, at
+		// the deferred call — Go's call-time dispatch on the operand's current
+		// value (nil derefs raise within the walk, caught by the Run loop). A
+		// resolved bind uses the receiver captured at the defer statement.
+		if cv.IsLazy() {
+			fv, recv = resolveLazyBound(m, cv)
+		} else {
+			fv, recv = cv.Func, dfr.Args[0]
+		}
+		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
+	default: // nil (deferred a nil func value)
+		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
 	}
 
 	// Call last deferred call.
-	fv := dfr.Func
 	ft := fv.GetType(m.Store)
-	// Push frame for defer.
-	if dfr.IsBoundMethod {
-		// args[0] is the receiver, per popCopyArgs bound-method invariant.
-		m.PushFrameCall(&dfr.Source.Call, fv, dfr.Args[0], true)
-	} else {
-		m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
-	}
+	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -581,7 +619,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	m.PushOp(OpExec)
 	// Convert if variadic argument.
 	// Create new block scope for defer.
-	pb := dfr.Func.GetParent(m.Store)
+	pb := fv.GetParent(m.Store)
 	b := m.acquireBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
@@ -684,37 +722,26 @@ func (m *Machine) doOpDefer() {
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		fv := cv
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{})
-		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
-		})
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case *BoundMethodValue:
-		fv := cv.Func
-		recv := cv.Receiver
+		// Args (and the receiver/operand) are captured now, at the defer
+		// statement. For a lazy interface bind, dispatch is resolved at the
+		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
+		// for a resolved bind, args[0] holds the copied receiver.
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			recv)
-		cfr.PushDefer(Defer{
-			Func:          fv,
-			IsBoundMethod: true,
-			Args:          args,
-			Source:        ds,
-			Parent:        lb,
-		})
+			cv.Receiver)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case nil:
-		cfr.PushDefer(Defer{
-			Func: nil,
-		})
+		// deferred a nil func value; raised as call-of-nil at the deferred call.
+		cfr.PushDefer(Defer{Source: ds, Parent: lb})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
@@ -732,14 +759,26 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 		}
 	}
 	numExceptions := m.Exception.NumExceptions()
-	exs := make([]string, numExceptions)
+	// Collect exceptions in chronological (outer-to-inner) order, then
+	// stream them into a single strings.Builder. Each Exception.Fprint
+	// charges output gas per flushed chunk, so the per-tx gas budget
+	// bounds the total descriptor size.
+	ordered := make([]*Exception, numExceptions)
 	last := m.Exception
-	for i := 0; i < numExceptions; i++ {
-		exs[numExceptions-1-i] = last.Sprint(m)
+	for i := range numExceptions {
+		ordered[numExceptions-1-i] = last
 		last = last.Previous
 	}
+	var b strings.Builder
+	b.Grow(128)
+	for i, ex := range ordered {
+		if i > 0 {
+			b.WriteString("\n\t")
+		}
+		ex.Fprint(&b, m)
+	}
 	return UnhandledPanicError{
-		Descriptor: strings.Join(exs, "\n\t"),
+		Descriptor: b.String(),
 	}
 }
 

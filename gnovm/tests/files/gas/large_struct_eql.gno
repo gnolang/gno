@@ -6,7 +6,7 @@ package main
 // small_struct_eql.gno: same test with 3 fields
 // string_struct_eql.gno: struct with a string field
 type Large struct {
-	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9          int
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9           int
 	F10, F11, F12, F13, F14, F15, F16, F17, F18, F19 int
 }
 

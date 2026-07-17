@@ -69,8 +69,8 @@ func removeValidator(address_XXX address) {
 func saveChange(ch change) {
 	id := getBlockID(ch.blockNum)
 
-	setRaw, exists := changes.Get(id)
-	if !exists {
+	setRaw := changes.Get(id)
+	if setRaw == nil {
 		changes.Set(id, []change{ch})
 
 		return
@@ -99,7 +99,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
+	changes.ReverseIterateByOffset(0, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {
