@@ -43,6 +43,7 @@ var (
 	ErrFrontrunValidator    = errors.New("post-genesis: signing address is already an active validator")
 	ErrRotationThrottled    = errors.New("rotation throttled: try again later")
 	ErrRegistryEntryMissing = errors.New("signing address has no active registry entry (corrupted state)")
+	ErrDisallowedPubKeyType = errors.New("consensus pubkey type is not allowed for validators")
 )
 
 var (
@@ -154,6 +155,9 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	if isValoper(addr) {
 		panic(ErrValoperExists)
 	}
+
+	// Reject disallowed key types early (else the EndBlocker drops it silently).
+	assertPubKeyTypeAllowed(pubKey)
 
 	// Derive the consensus signing address from the pubkey.
 	signingAddr, err := chain.PubKeyAddress(pubKey)
@@ -324,6 +328,9 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 		}
 	}
 
+	// Reject disallowed key types early (else the EndBlocker drops it silently).
+	assertPubKeyTypeAllowed(newPubKey)
+
 	// Derive the new signing address from the new pubkey.
 	newSigningAddr, err := chain.PubKeyAddress(newPubKey)
 	if err != nil {
@@ -356,8 +363,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 
 	// Mark the old registry entry retired. The entry must exist —
 	// it was inserted at Register time.
-	rawOld, ok := signingRegistry.Get(oldSigningAddr.String())
-	if !ok {
+	rawOld := signingRegistry.Get(oldSigningAddr.String())
+	if rawOld == nil {
 		panic(ErrRegistryEntryMissing)
 	}
 	oldEntry := rawOld.(regEntry)
@@ -386,8 +393,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 
 // GetByAddr fetches the valoper using the operator address, if present.
 func GetByAddr(addr address) Valoper {
-	valoperRaw, exists := valopers.Get(addr.String())
-	if !exists {
+	valoperRaw := valopers.Get(addr.String())
+	if valoperRaw == nil {
 		panic(ErrValoperMissing)
 	}
 
@@ -406,8 +413,8 @@ func Render(fullPath string) string {
 		if len(addr) < 2 || addr[:2] != "g1" {
 			return "invalid address " + addr
 		}
-		valoperRaw, exists := valopers.Get(addr)
-		if !exists {
+		valoperRaw := valopers.Get(addr)
+		if valoperRaw == nil {
 			return "unknown address " + addr
 		}
 		v := valoperRaw.(Valoper)
@@ -477,9 +484,7 @@ func (v Valoper) Render() string {
 
 // isValoper checks if the valoper exists.
 func isValoper(addr address) bool {
-	_, exists := valopers.Get(addr.String())
-
-	return exists
+	return valopers.Has(addr.String())
 }
 
 // validateMoniker checks if the moniker is valid.
@@ -528,6 +533,46 @@ func validatePubKey(pubKey string) error {
 	}
 
 	return nil
+}
+
+// assertPubKeyTypeAllowed panics if pubKey's type is not in the chain's validator allow-list (empty list accepts any).
+func assertPubKeyTypeAllowed(pubKey string) {
+	allowed := sysparams.GetValsetPubKeyTypes()
+	if len(allowed) == 0 {
+		return
+	}
+	typeURL, err := pubKeyTypeURL(pubKey)
+	if err != nil {
+		panic(err)
+	}
+	for _, a := range allowed {
+		if a == typeURL {
+			return
+		}
+	}
+	panic(ErrDisallowedPubKeyType)
+}
+
+// pubKeyTypeURL returns the amino type URL (e.g. "/tm.PubKeyEd25519") of a bech32 consensus pubkey.
+func pubKeyTypeURL(pubKey string) (string, error) {
+	// gpub exceeds bech32's 90-char cap, so decode without the limit.
+	_, data5, err := bech32.DecodeNoLimit(pubKey)
+	if err != nil {
+		return "", err
+	}
+	data, err := bech32.ConvertBits(data5, 5, 8, false)
+	if err != nil {
+		return "", err
+	}
+	// Type URL is the first amino field: 0x0A <len> <typeURL>.
+	if len(data) < 2 || data[0] != 0x0A {
+		return "", errors.New("malformed consensus pubkey: " + pubKey)
+	}
+	n := int(data[1])
+	if n == 0 || len(data) < 2+n {
+		return "", errors.New("malformed consensus pubkey: " + pubKey)
+	}
+	return string(data[2 : 2+n]), nil
 }
 
 // validateServerType checks if the server type is valid.

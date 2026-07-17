@@ -29,7 +29,7 @@ import (
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
 // Before the filetest is run it will be type-checked.
-func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, error) {
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, gno.StorageDiffs, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 	tcheck := true // Go type-check filetests in test/files.
@@ -40,10 +40,10 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 // (cmd/gno/test.go) already type-checked the whole package.
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
-func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, types.Gas, error) {
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, types.Gas, gno.StorageDiffs, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
-		return "", 0, fmt.Errorf("error parsing directives: %w", err)
+		return "", 0, nil, fmt.Errorf("error parsing directives: %w", err)
 	}
 
 	// Sanity check: type-check directives are not available
@@ -56,13 +56,13 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	pkgPath := dirs.FirstDefault(DirectivePkgPath, "main")
 	coins, err := std.ParseCoins(dirs.FirstDefault(DirectiveSend, ""))
 	if err != nil {
-		return "", 0, err
+		return "", 0, nil, err
 	}
 	ctx := Context("", pkgPath, coins)
 	maxAllocRaw := dirs.FirstDefault(DirectiveMaxAlloc, "0")
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
-		return "", 0, fmt.Errorf("could not parse MAXALLOC directive: %w", err)
+		return "", 0, nil, fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
 	// Force a non-nil allocator so interrealm v2 Phase 2 PkgID stamping
 	// fires under filetests the same way it does in production. MAXALLOC
@@ -91,6 +91,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 
 	// RUN THE FILETEST /////////////////////////////////////
 	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
+
+	// Collect storage diffs after test execution.
+	storageDiffs := m.Store.RealmStorageDiffs()
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -137,7 +140,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
+				return "", m.GasMeter.GasConsumed(), storageDiffs, fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
 					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
 			}
 		}
@@ -150,16 +153,16 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected output:\n%s", result.Output)
+				return "", m.GasMeter.GasConsumed(), storageDiffs, fmt.Errorf("unexpected output:\n%s", result.Output)
 			}
 		}
 	} else {
 		err = m.CheckEmpty()
 		if err != nil {
-			return "", m.GasMeter.GasConsumed(), fmt.Errorf("machine not empty after main: %w", err)
+			return "", m.GasMeter.GasConsumed(), storageDiffs, fmt.Errorf("machine not empty after main: %w", err)
 		}
 		if gno.HasDebugErrors() {
-			return "", m.GasMeter.GasConsumed(), fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
+			return "", m.GasMeter.GasConsumed(), storageDiffs, fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
 		}
 	}
 
@@ -188,7 +191,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNodeSafe(gno.PackageNodeLocation(pkgPath))
 			if pn == nil {
-				return "", m.GasMeter.GasConsumed(), fmt.Errorf("package %q not preprocessed: %s", pkgPath, result.Error)
+				return "", m.GasMeter.GasConsumed(), storageDiffs, fmt.Errorf("package %q not preprocessed: %s", pkgPath, result.Error)
 			}
 			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 			match(dir, pre)
@@ -217,10 +220,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	if updated { // only true if sync == true
-		return dirs.FileTest(), m.GasMeter.GasConsumed(), returnErr
+		return dirs.FileTest(), m.GasMeter.GasConsumed(), storageDiffs, returnErr
 	}
 
-	return "", m.GasMeter.GasConsumed(), returnErr
+	return "", m.GasMeter.GasConsumed(), storageDiffs, returnErr
 }
 
 // packageTypesString returns a deterministic listing of every type
@@ -283,7 +286,7 @@ func prettyTypeJSON(jstr []byte) []byte {
 }
 
 // returns a sorted string representation of realm diffs map
-func realmDiffsString(m map[string]int64) string {
+func realmDiffsString(m gno.StorageDiffs) string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -334,7 +337,10 @@ type runResult struct {
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
-	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
+	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
+	if err != nil {
+		return runResult{Error: err.Error()}
+	}
 	tcError := ""
 	fname = filepath.Base(fname)
 	if opts.tcCache == nil {
@@ -387,6 +393,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			}
 		}
 	}()
+
+	// Validate that package name matches path last element.
+	// See https://github.com/gnolang/gno/issues/1571
+	if err := gno.ValidatePkgNameMatchesPath(pkgName, pkgPath); err != nil {
+		panic(err)
+	}
 
 	// Remove filetest from name, as that can lead to the package not being
 	// parsed correctly when using RunMemPackage.

@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
 
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
@@ -25,20 +26,17 @@ import (
 // While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
-var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+// The map must not be mutated afterwards: it is read concurrently by parallel
+// type-checks.
+var gnoBuiltinsCache = sync.OnceValue(func() map[string]*std.MemPackage {
+	return map[string]*std.MemPackage{
+		"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
+	}
+})
 
-func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
-	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
-		panic("expected pkgPath to start with gnobuiltins/")
-	}
-	mpkg, ok := gnoBuiltinsCache[pkgPath]
-	if ok {
-		return mpkg
-	}
-	switch pkgPath {
-	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
-		mpkg.SetFile("gno0p9.gno", `package gno0p9
+func gnoBuiltinsGno0p9() *std.MemPackage { // 0.9
+	mpkg := &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+	mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
     PkgPath() string
@@ -49,6 +47,8 @@ type realm interface {
     IsUserRun() bool
     IsEphemeral() bool
     IsCurrent() bool
+    Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm
@@ -58,10 +58,17 @@ func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
 `)
-	default:
+	return mpkg
+}
+
+func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
+	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		panic("expected pkgPath to start with gnobuiltins/")
+	}
+	mpkg, ok := gnoBuiltinsCache()[pkgPath]
+	if !ok {
 		panic("unrecognized gnobuiltins pkgpath")
 	}
-	gnoBuiltinsCache[pkgPath] = mpkg
 	return mpkg
 }
 
@@ -74,7 +81,6 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
-var cross1 realm // shim — legacy sentinel migration aid; lowers to .origin-shaped AST at preprocess
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
@@ -193,6 +199,18 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
+			// Pin the accepted Go language version. Left empty, go/types gates
+			// syntax at whatever version the validator binary was built with,
+			// so the accept/reject verdict (and its error text) becomes a
+			// function of the build, not the package — a consensus fork. This
+			// is a syntax-acceptance floor only, NOT Gno's runtime semantics:
+			// Gno matches no single Go version (no generics, like <go1.18, yet
+			// go1.22 per-iteration loopvars, implemented in the interpreter
+			// regardless of this value). go1.18 is the minimum the injected
+			// .gnobuiltins shim needs (it uses any/type params) and rejects
+			// features Gno can't run (min/max, range-over-int/func) here rather
+			// than downstream.
+			GoVersion: "go1.18",
 			Error: func(err error) {
 				gimp.Error(err)
 			},
@@ -581,10 +599,11 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 	dupes := []ast.Decl{}
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods and init functions
+		// ignore methods, init and blank functions
 		if !ok ||
 			fd.Recv != nil ||
-			fd.Name.Name == "init" {
+			fd.Name.Name == "init" ||
+			fd.Name.Name == "_" {
 			continue
 		}
 		// if declaration is duplicate, delete this one.

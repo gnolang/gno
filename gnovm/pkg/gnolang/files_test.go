@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,8 +52,19 @@ func TestFiles(t *testing.T) {
 		)
 		return o
 	}
-	// sharedOpts is used for all "short" tests.
-	sharedOpts := newOpts()
+
+	// Tests run in parallel, drawing a TestOptions (with its store) from this
+	// pool. Reusing stores lets tests share previously loaded packages.
+	// When syncing golden files, run sequentially to keep walk-order writes
+	// and error propagation deterministic.
+	poolSize := runtime.GOMAXPROCS(0)
+	if *withSync {
+		poolSize = 1
+	}
+	optsPool := make(chan *test.TestOptions, poolSize)
+	for range poolSize {
+		optsPool <- newOpts()
+	}
 
 	dir := "../../tests/files"
 	fsys := os.DirFS(dir)
@@ -100,13 +112,25 @@ func TestFiles(t *testing.T) {
 
 		var criticalError error
 		t.Run(subTestName, func(t *testing.T) {
-			opts := sharedOpts
-			if isLong {
-				// Long tests are run in parallel, and with their own store.
+			if !*withSync {
 				t.Parallel()
-				opts = newOpts()
 			}
-			changed, _, err := opts.RunFiletest(path, content, opts.TestStore)
+			var opts *test.TestOptions
+			if isLong || strings.HasPrefix(subTestName, "alloc") {
+				// Long tests get their own store, so they don't hold
+				// up a pool slot for their whole (long) duration.
+				// Allocator-golden tests (alloc_*) also get their own store:
+				// they assert absolute allocator byte counts, which depend on
+				// which packages a pooled, previously-used store has already
+				// loaded — scheduling-dependent, so their goldens flake under
+				// the pool (and always diverge in filtered runs). A fresh
+				// store makes the counted allocations deterministic.
+				opts = newOpts()
+			} else {
+				opts = <-optsPool
+				defer func() { optsPool <- opts }()
+			}
+			changed, _, _, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -144,8 +168,6 @@ func TestStdlibs(t *testing.T) {
 		opts.Verbose = true
 		return
 	}
-	sharedCapture, sharedOpts := newOpts()
-
 	dir := "../../stdlibs/"
 	fsys := os.DirFS(dir)
 	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
@@ -177,7 +199,6 @@ func TestStdlibs(t *testing.T) {
 		// Read and run tests.
 		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlibAll)
 		t.Run(strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
-			capture, opts := sharedCapture, sharedOpts
 			switch mpkg.Path {
 			// Excluded in short
 			case
@@ -187,20 +208,11 @@ func TestStdlibs(t *testing.T) {
 				if testing.Short() {
 					t.Skip("Skipped because of -short, and this stdlib is very long currently.")
 				}
-				fallthrough
-			// Run using separate store, as it's faster
-			case
-				"math/rand",
-				"regexp",
-				"regexp/syntax",
-				"sort":
-				t.Parallel()
-				capture, opts = newOpts()
 			}
 
-			if capture != nil {
-				capture.Reset()
-			}
+			// Run in parallel, each package using its own store.
+			t.Parallel()
+			capture, opts := newOpts()
 
 			err := test.Test(mpkg, "", opts)
 			if !testing.Verbose() {
@@ -216,6 +228,9 @@ func TestStdlibs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Shared by the tests/stdlibs walk below, which runs sequentially.
+	sharedCapture, sharedOpts := newOpts()
 
 	testDir := "../../tests/stdlibs/"
 	testFs := os.DirFS(testDir)
