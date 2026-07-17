@@ -712,8 +712,14 @@ func boundedSprintFuncValue(w *boundedBuf, fv *FuncValue) {
 }
 
 func boundedSprintBoundMethodValue(w *boundedBuf, bmv *BoundMethodValue) {
-	if bmv == nil || bmv.Func == nil {
+	if bmv == nil {
 		w.WriteString("<nil>")
+		return
+	}
+	if bmv.IsLazy() {
+		// Unresolved interface bind: no concrete Func until call time; render
+		// from the selector name.
+		fmt.Fprintf(w, "<bound-method ?.%s>", bmv.Method)
 		return
 	}
 	name := string(bmv.Func.Name)

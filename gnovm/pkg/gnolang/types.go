@@ -2889,6 +2889,16 @@ func isGeneric(t Type) bool {
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
 //
+// Returns:
+//   - trail: the ValuePath steps from t down to n (embedded-field hops plus a
+//     final field/method step); nil unless status == embedLookupFound.
+//   - hasPtr: whether the trail crosses a pointer (a pointer field/receiver).
+//   - rcvr: for a method, its declared receiver type (T for a value receiver,
+//     *T for a pointer receiver); nil for a field.
+//   - ft: the type n resolves to — the field's type for a field, or the
+//     method's bound (receiver-stripped) function type for a method.
+//   - status: how n resolved (found / none / ambiguous / access error).
+//
 // Implements Go spec §Selectors: x.f denotes the field or method at the
 // shallowest depth in T where there is such an f; if there is not
 // exactly one f with shallowest depth, the selector expression is
