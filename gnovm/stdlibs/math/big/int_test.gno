@@ -2,8 +2,27 @@ package big_test
 
 import (
 	"math/big"
+	"strconv"
 	"testing"
 )
+
+// mustPanicWith runs fn and asserts it panics with exactly the wanted
+// message. Messages shared with Go's math/big are pinned so ported code
+// that matches on recover() values keeps working.
+func mustPanicWith(t *testing.T, label, want string, fn func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("%s: did not panic, want %q", label, want)
+			return
+		}
+		if s, ok := r.(string); !ok || s != want {
+			t.Errorf("%s: panic = %v, want %q", label, r, want)
+		}
+	}()
+	fn()
+}
 
 func TestNewInt(t *testing.T) {
 	tests := []struct {
@@ -206,7 +225,11 @@ func TestAliasing(t *testing.T) {
 	if q.String() != "3" || r.String() != "2" {
 		t.Errorf("QuoRem(17, 5) aliased q=x: q=%s r=%s, want q=3 r=2", q.String(), r.String())
 	}
-	// DivMod with modulus-aliased divisor.
+	// DivMod with modulus-aliased divisor. Deliberate divergence from Go:
+	// Go's DivMod reads y again after writing m, so m==y silently
+	// corrupts the result (q=-1 m=0 here). The bridge decodes all
+	// arguments before writing any receiver, so every input aliasing is
+	// well-defined and mathematically correct.
 	d := big.NewInt(-7)
 	m := big.NewInt(3)
 	d.DivMod(d, m, m)
@@ -297,12 +320,9 @@ func TestCmpAbs(t *testing.T) {
 }
 
 func TestSetStringInvalidBase(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("SetString with base=1 did not panic")
-		}
-	}()
-	new(big.Int).SetString("0", 1)
+	mustPanicWith(t, "SetString base=1", "invalid number base 1", func() {
+		new(big.Int).SetString("0", 1)
+	})
 }
 
 func TestBytes(t *testing.T) {
@@ -505,38 +525,27 @@ func TestDivByZero(t *testing.T) {
 		}},
 	}
 	for _, tc := range cases {
-		func() {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("%s by zero did not panic (recover()ed nil)", tc.name)
-				}
-			}()
-			tc.run()
-		}()
+		mustPanicWith(t, tc.name+" by zero", "division by zero", tc.run)
 	}
 }
 
 func TestQuoRemDistinctOutputs(t *testing.T) {
 	// Passing the same *Int for z and r must panic: the natural
 	// last-write-wins order would silently overwrite the quotient with
-	// the remainder.
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("QuoRem with z == r did not panic")
-		}
-	}()
-	z := new(big.Int)
-	z.QuoRem(big.NewInt(17), big.NewInt(5), z)
+	// the remainder (which is what Go does in this corner).
+	mustPanicWith(t, "QuoRem z==r",
+		"big: QuoRem requires distinct *Int for quotient and remainder", func() {
+			z := new(big.Int)
+			z.QuoRem(big.NewInt(17), big.NewInt(5), z)
+		})
 }
 
 func TestDivModDistinctOutputs(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("DivMod with z == m did not panic")
-		}
-	}()
-	z := new(big.Int)
-	z.DivMod(big.NewInt(17), big.NewInt(5), z)
+	mustPanicWith(t, "DivMod z==m",
+		"big: DivMod requires distinct *Int for quotient and modulus", func() {
+			z := new(big.Int)
+			z.DivMod(big.NewInt(17), big.NewInt(5), z)
+		})
 }
 
 func TestSetStringEdgeCases(t *testing.T) {
@@ -548,13 +557,25 @@ func TestSetStringEdgeCases(t *testing.T) {
 		want string
 		ok   bool
 	}{
-		{"+1", 10, "1", true},     // leading + accepted
-		{"-0", 10, "0", true},     // canonical zero
-		{"", 10, "", false},       // empty rejected
-		{"0x", 0, "", false},      // dangling base prefix
-		{"0o755", 0, "493", true}, // octal prefix
+		{"+1", 10, "1", true},      // leading + accepted
+		{"-0", 10, "0", true},      // canonical zero
+		{"", 10, "", false},        // empty rejected
+		{"0x", 0, "", false},       // dangling base prefix
+		{"0o755", 0, "493", true},  // octal prefix
 		{"5_000", 0, "5000", true}, // digit separator (base 0 only)
-		{"5_000", 10, "", false},  // underscore rejected outside base 0
+		{"5_000", 10, "", false},   // underscore rejected outside base 0
+		{"0377", 0, "255", true},   // legacy leading-0 octal
+		{"08", 0, "", false},       // 8 is not an octal digit
+		{"00", 0, "0", true},       // repeated zeros still base-8 zero
+		{"0x_10", 0, "16", true},   // underscore after prefix ok
+		{"1__0", 0, "", false},     // doubled underscore rejected
+		{"_1", 0, "", false},       // leading underscore rejected
+		{"-0X10", 0, "-16", true},  // sign + upper-case prefix
+		{"+0o10", 0, "8", true},    // sign + octal prefix
+		{"0b", 0, "", false},       // dangling binary prefix
+		{"ZZ", 62, "3843", true},   // 'Z' is 61 in base 62
+		{"zz", 36, "1295", true},   // 'z' is 35 in base 36
+		{"Zz", 62, "3817", true},   // case-sensitive digits above 36
 	}
 	for _, tc := range tests {
 		z, ok := new(big.Int).SetString(tc.s, tc.base)
@@ -573,14 +594,63 @@ func TestSetStringEdgeCases(t *testing.T) {
 
 func TestTextInvalidBase(t *testing.T) {
 	for _, b := range []int{-1, 0, 1, 63, 100} {
-		func(base int) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("Text(%d) did not panic", base)
-				}
-			}()
-			big.NewInt(255).Text(base)
-		}(b)
+		// Unlike SetString, Go's Text message carries no base number.
+		mustPanicWith(t, "Text("+strconv.Itoa(b)+")", "invalid base", func() {
+			big.NewInt(255).Text(b)
+		})
+	}
+}
+
+func TestNilReceiverText(t *testing.T) {
+	var x *big.Int
+	if got := x.String(); got != "<nil>" {
+		t.Errorf(`nil.String() = %q, want "<nil>"`, got)
+	}
+	if got := x.Text(16); got != "<nil>" {
+		t.Errorf(`nil.Text(16) = %q, want "<nil>"`, got)
+	}
+	// Like Go, the nil check precedes base validation: no panic even
+	// for an invalid base.
+	if got := x.Text(1); got != "<nil>" {
+		t.Errorf(`nil.Text(1) = %q, want "<nil>"`, got)
+	}
+}
+
+func TestTextNegativeAndBase62(t *testing.T) {
+	tests := []struct {
+		v    int64
+		base int
+		want string
+	}{
+		{-255, 16, "-ff"},
+		{-255, 2, "-11111111"},
+		{-255, 62, "-47"},
+		{3843, 62, "ZZ"}, // upper-case letters for digit values 36-61
+	}
+	for _, tc := range tests {
+		if got := big.NewInt(tc.v).Text(tc.base); got != tc.want {
+			t.Errorf("(%d).Text(%d) = %q, want %q", tc.v, tc.base, got, tc.want)
+		}
+	}
+}
+
+func TestLow64Truncation(t *testing.T) {
+	// Go documents Uint64/Int64 as undefined when the value doesn't fit,
+	// but the actual behavior is stable (low 64 bits of the magnitude,
+	// negated for negative x) and code in the wild relies on it. Pin it.
+	wide := mustParse(t, "36893488147419103232") // 2^65
+	if got := wide.Uint64(); got != 0 {
+		t.Errorf("2^65 Uint64() = %d, want 0", got)
+	}
+	if got := wide.Int64(); got != 0 {
+		t.Errorf("2^65 Int64() = %d, want 0", got)
+	}
+	nwide := mustParse(t, "-36893488147419103233") // -(2^65+1)
+	if got := nwide.Uint64(); got != 1 {
+		t.Errorf("-(2^65+1) Uint64() = %d, want 1", got)
+	}
+	if got := nwide.Int64(); got != -1 {
+		t.Errorf("-(2^65+1) Int64() = %d, want -1", got)
 	}
 }
 

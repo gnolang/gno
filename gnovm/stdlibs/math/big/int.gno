@@ -22,17 +22,13 @@ import (
 	"strconv"
 )
 
-func invalidBaseError(base int) string {
-	return "big: invalid base: " + strconv.Itoa(base)
-}
-
 // divCheck panics on the Gno side for y == 0 so the division-by-zero
 // error is a normal recoverable Gno panic instead of a native Go panic
 // surfaced through the genstd bridge (which is not catchable by a
-// realm-level recover()).
+// realm-level recover()). The message matches Go's math/big exactly.
 func divCheck(y *Int) {
 	if len(y.abs) == 0 {
-		panic("big: division by zero")
+		panic("division by zero")
 	}
 }
 
@@ -143,9 +139,15 @@ func (x *Int) IsInt64() bool {
 // Uint64 returns the uint64 representation of x.
 // If x cannot be represented in a uint64, the result is undefined.
 func (x *Int) Uint64() uint64 {
+	// Low 64 bits of the magnitude, like Go's low64: wider values
+	// truncate instead of scanning the whole slice.
+	b := x.abs
+	if len(b) > 8 {
+		b = b[len(b)-8:]
+	}
 	var v uint64
-	for _, b := range x.abs {
-		v = v<<8 | uint64(b)
+	for _, c := range b {
+		v = v<<8 | uint64(c)
 	}
 	return v
 }
@@ -281,10 +283,15 @@ func (x *Int) String() string {
 // must be between 2 and 62, inclusive. The result uses the lower-case
 // letters 'a' to 'z' for digit values 10 to 35, and the upper-case
 // letters 'A' to 'Z' for digit values 36 to 61. No prefix (such as "0x")
-// is added to the string.
+// is added to the string. If x is a nil pointer it returns "<nil>".
 func (x *Int) Text(base int) string {
+	// Like Go, the nil check comes before base validation:
+	// (*Int)(nil).Text(1) is "<nil>", not a panic.
+	if x == nil {
+		return "<nil>"
+	}
 	if base < 2 || base > 62 {
-		panic(invalidBaseError(base))
+		panic("invalid base")
 	}
 	return text(x.neg, x.abs, base)
 }
@@ -301,7 +308,7 @@ func (x *Int) Text(base int) string {
 // Otherwise, the selected base is 10 and no prefix is accepted.
 func (z *Int) SetString(s string, base int) (*Int, bool) {
 	if base != 0 && (base < 2 || base > 62) {
-		panic(invalidBaseError(base))
+		panic("invalid number base " + strconv.Itoa(base))
 	}
 	neg, abs, ok := setString(s, base)
 	if !ok {

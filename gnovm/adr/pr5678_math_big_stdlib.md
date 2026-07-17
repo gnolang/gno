@@ -98,6 +98,28 @@ arguments are read out of the call block into Go locals before the X_
 function runs; the result `(neg, abs)` is fresh and assigned to the
 receiver only after the call returns. Tested in `TestAliasing`.
 
+Two deliberate divergences from Go, both in corners where Go silently
+returns wrong values (probed empirically against Go's math/big):
+
+- `QuoRem(x, y, r)` with `z == r` (same pointer for both outputs): Go
+  overwrites the quotient with the remainder (17/5 yields q=2, r=2).
+  Gno panics instead.  Same for `DivMod` with `z == m`.
+- `DivMod(x, y, m)` with `m == y` (modulus receiver aliases divisor):
+  Go re-reads y in the sign fixup after writing m, corrupting the
+  result (-7 divmod 3 yields q=-1, m=0). Gno returns the correct
+  (q=-3, m=2) because all inputs are decoded before any receiver is
+  written.
+
+No valid Go program is affected: both corners produce garbage in Go.
+
+### Panic and nil-receiver parity
+
+Panic messages match Go's math/big byte-for-byte so ported code that
+matches on recover() values keeps working: `"division by zero"`,
+`"invalid base"` (Text), `"invalid number base %d"` (SetString).
+`String`/`Text` on a nil `*Int` return `"<nil>"`, and the nil check
+precedes base validation exactly as in Go. All pinned in tests.
+
 ### Gas
 
 Seven new native functions (`add`, `sub`, `mul`, `quoRem`, `divMod`,
