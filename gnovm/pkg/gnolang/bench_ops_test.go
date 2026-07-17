@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
-
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -3073,11 +3071,11 @@ func BenchmarkOpDec_BigInt_4096(b *testing.B) { benchOpDec_BigInt(b, 4096) }
 // Uses strings.Repeat to build a number like "1234567890123..." of the given length.
 func makeBigDec(digits int) BigdecValue {
 	s := strings.Repeat("1234567890", (digits/10)+1)[:digits]
-	d, _, err := apd.NewFromString(s)
-	if err != nil {
-		panic(err)
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		panic("invalid bigdec string: " + s)
 	}
-	return BigdecValue{V: d}
+	return BigdecValue{V: r}
 }
 
 // --- doOpAdd BigDec ---
