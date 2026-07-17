@@ -311,7 +311,7 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 		case UntypedBigintType:
 			w.WriteString(tv.V.(BigintValue).V.String())
 		case UntypedBigdecType:
-			w.WriteString(tv.V.(BigdecValue).V.String())
+			w.WriteString(tv.V.(BigdecValue).String())
 		default:
 			panic("should not happen")
 		}

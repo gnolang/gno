@@ -607,6 +607,40 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 	return nil
 }
 
+// chargePreprocessGas charges PreprocessGasPerByte gas per byte of every .gno
+// source file (prod, _test, and _filetest) in mpkg: the native type-check
+// pass processes all of them and the preprocess pass the prod subset, both
+// otherwise unmetered. AddPackage and Run call it immediately before their
+// type-check so an oversized package is rejected by the gas meter instead of
+// consuming unmetered validator CPU. Params.Validate rejects a non-positive
+// PreprocessGasPerByte, and GetParams defaults the field when reading a
+// legacy params blob that predates it, so the charge is always active.
+func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
+	var srcBytes int64
+	for _, f := range mpkg.Files {
+		if strings.HasSuffix(f.Name, ".gno") {
+			srcBytes += int64(len(f.Body))
+		}
+	}
+	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
+}
+
+// hasProdGnoFile reports whether mpkg contains at least one production
+// (non-test) .gno file. It applies MPFProd's own per-file predicate so it
+// cannot drift from what the storage split (store.go splitProdAllButProd)
+// treats as prod, but without allocating a filtered copy of the package.
+// FilterGno panics on non-.gno files and returns true to EXCLUDE a file, so a
+// prod .gno file is a .gno file it does not exclude.
+func hasProdGnoFile(mpkg *std.MemPackage) bool {
+	pname := gno.Name(mpkg.Name)
+	for _, f := range mpkg.Files {
+		if strings.HasSuffix(f.Name, ".gno") && !gno.MPFProd.FilterGno(f, pname) {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Defense-in-depth spend check. MsgAddPackage is currently blocked
@@ -643,6 +677,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+	// Reject packages with no production .gno files (e.g. only _test.gno
+	// files). The storage split writes no prod blob for them (store.go
+	// splitProdAllButProd), so a restarted node would rebuild no PackageNode
+	// while a non-restarted node still holds the deploy-time node in RAM —
+	// making call gas depend on restart history.
+	if !hasProdGnoFile(memPkg) {
+		return ErrInvalidPackage("package has no production .gno files")
+	}
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
@@ -651,6 +693,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+	}
+	if pv != nil {
+		// A private package is being redeployed (non-private re-adds were
+		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
+		// its conditional writes don't fully replace across both keys, so a stale
+		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
+		// survive the re-add and be served by qfile/GetMemPackage.
+		gnostore.DeleteMemPackage(pkgPath)
 	}
 
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
@@ -671,6 +722,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
+	// use the parameters before executing the message, as they may change during execution.
+	// The message should not fail due to parameter changes in the same transaction.
+	params := vm.GetParams(ctx)
+	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
@@ -779,11 +834,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
-	params := vm.GetParams(ctx)
 	m2.RunMemPackage(memPkg, true)
 
-	// use the parameters before executing the message, as they may change during execution.
-	// The message should not fail due to parameter changes in the same transaction.
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {
 		return err
@@ -1056,6 +1108,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
+	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter:     gnostore,
@@ -1426,7 +1479,8 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return memFile.Body, nil
 	} else {
-		memPkg := store.GetMemPackage(dirpath)
+		// GetMemPackageAll so the file listing includes test/filetest files.
+		memPkg := store.GetMemPackageAll(dirpath)
 		if memPkg == nil {
 			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
@@ -1444,7 +1498,9 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
-	memPkg := store.GetMemPackage(pkgPath)
+	// GetMemPackageAll for parity with QueryFile, so doc generation sees test
+	// files (e.g. for any future test-derived examples).
+	memPkg := store.GetMemPackageAll(pkgPath)
 	if memPkg == nil {
 		err := ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -250,11 +249,12 @@ func typedSelfReferentialSlice() TypedValue {
 
 // typedBigdec builds an untyped Bigdec fixture.
 func typedBigdec(s string) TypedValue {
-	v, _, err := apd.NewFromString(s)
-	if err != nil {
+	num := big.Rat{}
+	rat, ok := num.SetString(s)
+	if !ok {
 		panic("invalid bigdec literal: " + s)
 	}
-	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: v}}
+	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: rat}}
 }
 
 // typedNestedSlice nests depth levels of single-element []int slices,

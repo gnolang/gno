@@ -54,13 +54,47 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 }
 
 func (app *BaseApp) Simulate(txBytes []byte, ctxFns ...ContextFn) (result Result) {
-	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
-	for _, ctxFn := range ctxFns {
-		if ctxFn != nil {
+	// applyCtxFns decorates ctx with the optional context builders (skipping
+	// nil), so both the pre-first-commit fallback and the snapshot path below
+	// honor them (e.g. the .app/profiletx gas profiler installs its meter here).
+	applyCtxFns := func(ctx Context) Context {
+		for _, ctxFn := range ctxFns {
+			if ctxFn == nil {
+				continue
+			}
 			ctx = ctxFn(ctx)
 		}
+		return ctx
 	}
-	return app.runTx(ctx, txBytes)
+
+	// Read header from the atomic snapshot — safe for concurrent access.
+	header := app.getLastBlockHeader()
+	if header == nil || header.GetHeight() < 1 {
+		// Before first commit (e.g., during InitChain or tests),
+		// fall back to checkState which is safe in single-threaded context.
+		ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+		return app.runTx(applyCtxFns(ctx), txBytes)
+	}
+
+	height := header.GetHeight()
+
+	// Load an immutable snapshot of committed state at the given height.
+	// The snapshot is pinned until release() is called, preventing concurrent
+	// Commit() calls from freeing it while we're still reading.
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
+	if err != nil {
+		return ABCIResultFromError(
+			std.ErrInternal(fmt.Sprintf("failed to load state for simulate at height %d: %s", height, err)),
+		)
+	}
+	defer release()
+
+	ctx := NewContext(RunTxModeSimulate, cacheMS, header, app.logger).
+		WithTxBytes(txBytes).
+		WithMinGasPrices(app.minGasPrices).
+		WithConsensusParams(app.consensusParams)
+
+	return app.runTx(applyCtxFns(ctx), txBytes)
 }
 
 func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
