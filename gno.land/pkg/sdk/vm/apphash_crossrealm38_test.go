@@ -96,7 +96,7 @@ import (
 // unchanged; only the genesis params encoding shifted. (Value re-derived
 // after merging master, so it reflects the bptree store + #5890 + #5891 +
 // this param together.)
-const expectedCrossrealm38Hash = "058910b2a1aa0f2c900990843643b5e13d8b8dfa3be8aa7f9dc7d169c1e7cb15"
+const expectedCrossrealm38Hash = "d68f032b4d39a072cb0c8170587915de6b771d53580b0818e0201639a15276d7"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
