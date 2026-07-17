@@ -46,14 +46,25 @@ Measured on the full `TestFiles` suite: the `err == nil` branch fires **0 times*
 
 The failure mode is quiet and asymmetric, which is what makes this worth fixing rather than leaving alone:
 
-| Change | `zrealm_crossrealm17b.gno` |
-|---|---|
-| master (both bugs) | passes |
-| fix bug 1 only | **fails** — check silently skipped, error demoted to runtime |
-| fix bug 2 only | **fails** — same |
-| fix both | passes (full suite green) |
+| Change | `zrealm_crossrealm17b.gno` | `interrealm_v2.txtar` |
+|---|---|---|
+| master (both bugs) | passes | passes |
+| fix bug 1 only | **fails** | **fails** — broken package deploys |
+| fix bug 2 only | **fails** | **fails** |
+| fix both | passes | passes |
 
-Anyone who fixes the obviously-wrong `recover()` in isolation silently disables the compile-time cross-realm check. The diagnostic doesn't disappear — it moves from preprocess to runtime — so it is easy to miss in review.
+Anyone who fixes the obviously-wrong `recover()` in isolation silently disables the compile-time cross-realm check. `interrealm_v2.txtar:188` records that this check is a *deploy-time gate*, not merely a nicer error location:
+
+```
+## a foreign realm is rejected at PREPROCESS time. Demonstrated as
+## a fail-to-deploy package below.
+! gnokey maketx addpkg -pkgdir $WORK/fail_nocross ...
+stderr 'cannot cur-call to external realm function'
+```
+
+With bug 1 fixed alone, that txtar reports `unexpected "gnokey" command success` — the intentionally-broken package **deploys**. A realm containing an illegal cross-realm cur-call would reach the chain and fail at call time rather than being rejected at `addpkg`.
+
+The existing tests do catch this. What they do not do is explain *why* the two lines must move together — and bug 1 looks self-evidently safe to fix on its own. That gap is what this ADR exists to close.
 
 ## Decision
 
@@ -83,8 +94,10 @@ if err != nil {
 - **No behaviour change in any exercised case.** The `else if` chain already discriminated on `tv`'s shape, and it reaches the same verdict for every input the suite produces. Full `TestFiles` passes.
 - One latent hole closes. A `*ConstExpr` callee (`err == nil` via the early return) currently **skips** the realm check; afterwards it is checked, like any other resolved callee. This never occurs in the suite (0 hits), so it is unobservable today, but the post-fix behaviour is the correct one.
 - The runtime check in `machine.go` (the `IsCrossing` path in `PushFrameCall`) remains the authoritative enforcement point. The preprocess check stays best-effort.
-- `zrealm_crossrealm17b.gno` is the regression guard: it asserts a *preprocess-time* rejection (its expected error carries a `file:line` prefix). If either bug is reintroduced, the check is skipped, the error is produced by `machine.go` without a prefix, and the test fails.
-- No new tests. Behaviour is unchanged, so there is nothing new to assert; the existing test already fails on any regression.
+- Two existing tests are the regression guards, at different levels, and both fail if either bug is reintroduced:
+  - `zrealm_crossrealm17b.gno` asserts a *preprocess-time* rejection (its expected error carries a `file:line` prefix). If the check is skipped, `machine.go` emits the same message without a prefix and the test fails.
+  - `interrealm_v2.txtar` asserts the offending package *fails to deploy*. If the check is skipped, `addpkg` succeeds.
+- No new tests. Behaviour is unchanged, so there is nothing new to assert, and the existing tests already fail on any regression.
 
 ## Alternatives considered
 
