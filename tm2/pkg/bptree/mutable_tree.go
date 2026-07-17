@@ -36,7 +36,7 @@ import (
 // through the connection mutex.
 type MutableTree struct {
 	root      Node  // nil for empty tree
-	lastSaved Node  // snapshot for rollback (set by SaveVersion)
+	lastSaved Node  // committed root: rollback target, and the clean-session witness gating fast-index reads (see fastReadable)
 	size      int64 // total key count in working tree
 	version   int64 // last saved version
 
@@ -178,10 +178,33 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	return updated, nil
 }
 
+// fastReadable reports whether Get may serve from the committed fast index:
+// the feature is on and the working root IS the committed root, i.e. the
+// session has no staged mutations. Pointer identity is exact because every
+// published mutation COW-clones the root (treeInsert/treeRemove clone at
+// entry); this is the pointer-identity component of PruneVersionsTo's
+// clean-session check (prune.go). No staged-batch/pendingVals checks are
+// needed: fastGet reads committed DB state only, and a clean root means no
+// staged write can affect a read's answer.
+func (t *MutableTree) fastReadable() bool {
+	return t.ndb.opts.FastIndex && t.root == t.lastSaved
+}
+
 // Get retrieves the value for a key.
 func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
+	}
+	// Advisory fast path — trust rule in fast_index.go (a clean working tree
+	// IS the committed snapshot at t.version). Keep this after the nil-root
+	// return: it avoids probing on an empty tree, and a committed-empty tree
+	// with a staged Set+Remove round-trip has root == lastSaved == nil
+	// (defense in depth — in-contract, a clean committed-empty tree has an
+	// empty index anyway).
+	if t.fastReadable() {
+		if val, ok := t.ndb.fastGet(key, t.version); ok {
+			return val, nil
+		}
 	}
 	_, _, vk, found, err := treeLookup(t.root, key)
 	if err != nil {
@@ -576,8 +599,8 @@ func (t *MutableTree) newImmutable(root Node, version int64, committed bool) *Im
 	imm.ndb = t.ndb
 	if committed {
 		imm.valueResolver = t.ndb.getCommittedValue
-		// Only committed snapshots may use the fast index: it reflects committed
-		// state, so a read-your-writes (Snapshot) tree must not consult it.
+		// The fast index reflects committed state, so only committed snapshots
+		// may consult it here; a read-your-writes (Snapshot) tree must not.
 		imm.fast = t.ndb.opts.FastIndex
 	} else {
 		imm.valueResolver = t.ndb.GetValue
@@ -894,7 +917,7 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool, error) 
 	case *InnerNode:
 		childIdx := searchInner(n, key)
 		offset := int64(0)
-		for i := 0; i < childIdx; i++ {
+		for i := range childIdx {
 			offset += n.childSizes[i]
 		}
 		child, err := n.getChild(childIdx)

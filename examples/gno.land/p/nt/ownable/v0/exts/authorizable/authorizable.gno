@@ -47,7 +47,7 @@ func (a *Authorizable) AddToAuthList(_ int, rlm realm, addr address) error {
 }
 
 func (a *Authorizable) addToAuthList(addr address) error {
-	if _, exists := a.authorized.Get(addr.String()); exists {
+	if a.authorized.Has(addr.String()) {
 		return ErrAlreadyInList
 	}
 
