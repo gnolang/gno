@@ -1307,7 +1307,182 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
-func newGasPriceTestApp(t *testing.T) abci.Application {
+// TestGasPriceMinimumIsCheckTxOnly verifies that the production ante handler
+// enforces the block gas price minimum in CheckTx, but not in DeliverTx.
+func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	baseApp := app.(*sdk.BaseApp)
+
+	initialPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 100, Denom: "ugnot"},
+	}
+
+	gen := gnoGenesisState(t)
+	gen.Auth.Params.InitialGasPrice = initialPrice
+
+	privKey := getDummyKey(t)
+	addr := privKey.PubKey().Address()
+
+	gen.Balances = []Balance{
+		{
+			Address: addr,
+			Amount:  []std.Coin{{Amount: 10_000_000_000, Denom: "ugnot"}},
+		},
+	}
+
+	initRes := baseApp.InitChain(abci.RequestInitChain{
+		AppState: gen,
+		ChainID:  "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: 10_000_000},
+		},
+	})
+	require.True(
+		t,
+		initRes.ResponseBase.IsOK(),
+		"InitChain failed: %v",
+		initRes.ResponseBase.Error,
+	)
+	baseApp.Commit()
+
+	query := abci.RequestQuery{
+		Path: ".store/main/key",
+		Data: []byte(auth.GasPriceKey),
+	}
+
+	var storedPrice std.GasPrice
+	qr := baseApp.Query(query)
+	require.True(t, qr.IsOK(), "query failed: %v", qr.ResponseBase.Error)
+	require.NoError(t, amino.Unmarshal(qr.Value, &storedPrice))
+	require.Equal(t, initialPrice, storedPrice)
+
+	msgs := []std.Msg{
+		bank.NewMsgSend(
+			addr,
+			crypto.AddressFromPreimage([]byte("test-account")),
+			std.Coins{{Denom: "ugnot", Amount: 100}},
+		),
+	}
+
+	tx := createAndSignTx(t, msgs, "test-chain", privKey)
+	tx.Fee = std.Fee{
+		GasWanted: 10_000_000,
+		GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+	}
+
+	// The fee is part of the sign bytes, so the transaction must be re-signed.
+	signBytes, err := tx.GetSignBytes("test-chain", 0, 0)
+	require.NoError(t, err)
+
+	sig, err := privKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:    privKey.PubKey(),
+			Signature: sig,
+		},
+	}
+
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	checkRes := baseApp.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.False(
+		t,
+		checkRes.IsOK(),
+		"CheckTx should reject a transaction below the block gas price: %v",
+		checkRes,
+	)
+	require.Contains(
+		t,
+		checkRes.Log,
+		"as block gas price",
+		"unexpected CheckTx error: %s",
+		checkRes.Log,
+	)
+
+	baseApp.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{
+			ChainID: "test-chain",
+			Height:  2,
+		},
+	})
+
+	// This documents the current bug: DeliverTx does not enforce the minimum.
+	deliverRes := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(
+		t,
+		deliverRes.IsOK(),
+		"DeliverTx failed: %+v",
+		deliverRes,
+	)
+}
+
+func TestGasPriceEmptyBlockUpdate(t *testing.T) {
+	startingPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+	}
+	floorPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 1, Denom: "ugnot"},
+	}
+
+	run := func() []byte {
+		app := newGasPriceTestApp(t, startingPrice)
+		gen := gnoGenesisState(t)
+		gen.Auth.Params.InitialGasPrice = floorPrice
+		res := app.InitChain(abci.RequestInitChain{
+			AppState: gen,
+			ChainID:  "test-chain",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: &abci.BlockParams{MaxGas: 3_000_000_000},
+			},
+		})
+		require.True(t, res.ResponseBase.IsOK(), "%v", res.ResponseBase.Error)
+
+		genesisHash := app.Commit().Data
+		query := abci.RequestQuery{Path: ".store/main/key", Data: []byte(auth.GasPriceKey)}
+		var gasPrice std.GasPrice
+		qr := app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, startingPrice, gasPrice)
+
+		tx := newCounterTx(1)
+		tx.Fee = std.Fee{
+			GasWanted: 1000,
+			GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+		}
+		txBytes, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		require.False(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: 2},
+		})
+		app.EndBlock(abci.RequestEndBlock{Height: 2})
+		emptyBlockHash := app.Commit().Data
+
+		qr = app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, int64(9), gasPrice.Price.Amount)
+		require.Equal(t, startingPrice.Gas, gasPrice.Gas)
+		require.Equal(t, startingPrice.Price.Denom, gasPrice.Price.Denom)
+		require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+		require.NotEqual(t, genesisHash, emptyBlockHash)
+
+		return emptyBlockHash
+	}
+
+	require.Equal(t, run(), run(), "identical empty blocks must produce identical state transitions")
+}
+
+func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Application {
 	t.Helper()
 	cfg := TestAppOptions(memdb.NewMemDB())
 	cfg.EventSwitch = events.NewEventSwitch()
@@ -1338,7 +1513,13 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	icc.baseApp = baseApp
 	icc.prmk = prmk
 	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
-	baseApp.SetInitChainer(icc.InitChainer)
+	baseApp.SetInitChainer(func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		res := icc.InitChainer(ctx, req)
+		if len(storedGasPrice) > 0 && res.ResponseBase.IsOK() {
+			gpk.SetGasPrice(ctx, storedGasPrice[0])
+		}
+		return res
+	})
 
 	// Set AnteHandler
 	baseApp.SetAnteHandler(
@@ -3182,6 +3363,104 @@ func TestInitChainer_StreamingAppState_TxParity(t *testing.T) {
 	// The two paths must agree on tx outcome.
 	assert.Equal(t, memResp.TxResponses[0].Error, streamResp.TxResponses[0].Error,
 		"in-memory vs streaming tx outcomes must match")
+}
+
+func TestInitChainer_VestingAccount(t *testing.T) {
+	t.Parallel()
+
+	key := getDummyKey(t)
+	addr := key.PubKey().Address()
+	chainID := "test"
+
+	vestingAmount := std.NewCoins(std.NewCoin("ugnot", 500_000))
+	totalBalance := std.NewCoins(std.NewCoin("ugnot", 1_000_000))
+
+	tests := []struct {
+		name      string
+		vesting   *std.VestingSchedule
+		isVesting bool
+	}{
+		{
+			"continuous vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       100,
+				EndTime:         200,
+			},
+			true,
+		},
+		{
+			"delayed vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       0,
+				EndTime:         200,
+				Type:            std.VestingDelayed,
+			},
+			true,
+		},
+		{
+			"no vesting",
+			nil,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDb := memdb.NewMemDB()
+			testApp, err := NewAppWithOptions(TestAppOptions(testDb))
+			require.NoError(t, err)
+
+			state := DefaultGenState()
+			state.Balances = []Balance{
+				{
+					Address: addr,
+					Amount:  totalBalance,
+					Vesting: tt.vesting,
+				},
+			}
+
+			resp := testApp.InitChain(abci.RequestInitChain{
+				ChainID: chainID,
+				Time:    time.Unix(150, 0), // halfway through vesting
+				ConsensusParams: &abci.ConsensusParams{
+					Block: defaultBlockParams(),
+					Validator: &abci.ValidatorParams{
+						PubKeyTypeURLs: []string{},
+					},
+				},
+				AppState: state,
+			})
+			require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+
+			// Commit to persist the genesis state before querying.
+			cres := testApp.Commit()
+			require.NotNil(t, cres)
+
+			// Query the account to verify it exists.
+			qres := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("auth/accounts/%s", addr),
+			})
+			require.True(t, qres.IsOK(), "account query response: %v", qres)
+
+			if tt.isVesting {
+				// The account should be a vesting account type.
+				assert.Contains(t, string(qres.Data), "Vesting")
+				// The account number must be present.
+				assert.Contains(t, string(qres.Data), "account_number")
+			}
+
+			// Verify the coins are set correctly.
+			qresBank := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("bank/balances/%s", addr),
+			})
+			require.True(t, qresBank.IsOK(), "bank query response: %v", qresBank)
+			assert.Contains(t, string(qresBank.Data), "ugnot")
+		})
+	}
 }
 
 // writeMinimalGenesisFile emits a tm2.GenesisDoc-shaped JSON file under
