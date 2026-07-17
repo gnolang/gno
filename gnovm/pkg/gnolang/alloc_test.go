@@ -2,8 +2,6 @@ package gnolang
 
 import (
 	"math"
-	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"unsafe"
@@ -286,15 +284,15 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	}
 	srcStart, srcEnd := stringExtent(string(src))
 
-	// A sub-extent of src overlaps its range: TrackString must clone it
+	// A sub-extent of src overlaps its range: trackString must clone it
 	// onto a fresh backing and register that as a second range.
 	sub := string(src)[4:9]
-	tracked := alloc.TrackString(sub)
+	tracked := alloc.trackString(sub)
 	if tracked != sub {
 		t.Errorf("clone changed content: got %q, want %q", tracked, sub)
 	}
 	if got := len(alloc.stringRanges); got != 2 {
-		t.Fatalf("TrackString of an overlapping extent should clone+track, got %d ranges", got)
+		t.Fatalf("trackString of an overlapping extent should clone+track, got %d ranges", got)
 	}
 	p, _ := stringExtent(tracked)
 	if p >= srcStart && p < srcEnd {
@@ -304,7 +302,7 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	// A non-overlapping string is tracked as-is, no clone.
 	fresh := strings.Repeat("z", 8)
 	fp, _ := stringExtent(fresh)
-	gp, _ := stringExtent(alloc.TrackString(fresh))
+	gp, _ := stringExtent(alloc.trackString(fresh))
 	if gp != fp {
 		t.Error("non-overlapping string should be tracked without cloning")
 	}
@@ -315,7 +313,7 @@ func TestTrackString_OverlapClones(t *testing.T) {
 
 // TestTrackString_RecycledAddress simulates Go's runtime recycling a dead
 // tracked backing's address for a new string: stale entries are
-// synthesized around a fresh string's extent. TrackString cannot
+// synthesized around a fresh string's extent. trackString cannot
 // distinguish this from sharing a live backing, so it must clone
 // conservatively and register the clone's exact extent; entries it cannot
 // prove stale are left for CleanupTrackedStrings, and disjoint live
@@ -326,21 +324,15 @@ func TestTrackString_RecycledAddress(t *testing.T) {
 	s := strings.Repeat("a", 16)
 	p, end := stringExtent(s)
 
-	stale := []stringRange{
-		{start: p - 8, end: p + 4},     // overlaps head
-		{start: p + 6, end: p + 10},    // contained
-		{start: end - 2, end: end + 4}, // overlaps tail
+	alloc.stringRanges = []stringRange{
+		{start: p - 100, end: p - 90, lastCycle: 7},    // disjoint survivor
+		{start: p - 8, end: p + 4},                     // overlaps head, stale
+		{start: p + 6, end: p + 10},                    // contained, stale
+		{start: end - 2, end: end + 4},                 // overlaps tail, stale
+		{start: end + 50, end: end + 60, lastCycle: 7}, // disjoint survivor
 	}
-	survivors := []stringRange{
-		{start: p - 100, end: p - 90, lastCycle: 7},
-		{start: end + 50, end: end + 60, lastCycle: 7},
-	}
-	alloc.stringRanges = slices.Concat(survivors[:1], stale, survivors[1:])
-	sort.Slice(alloc.stringRanges, func(i, j int) bool {
-		return alloc.stringRanges[i].start < alloc.stringRanges[j].start
-	})
 
-	tracked := alloc.TrackString(s)
+	tracked := alloc.trackString(s)
 	if tracked != s {
 		t.Errorf("clone changed content: got %q, want %q", tracked, s)
 	}

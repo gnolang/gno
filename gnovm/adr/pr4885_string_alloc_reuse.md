@@ -17,13 +17,13 @@
 > with different toolchains could diverge on consensus state — a fork risk,
 > not just mispricing.
 >
-> **Fix: make sharing VM-controlled.** `TrackString` clones the string
+> **Fix: make sharing VM-controlled.** `trackString` clones the string
 > (`strings.Clone`) iff its extent overlaps an already-tracked range —
 > i.e. exactly when toolchain sharing (or address recycling) actually
 > occurred — so every `NewString` ends up with its own tracked range on
 > every toolchain, and the range set is decided by VM logic alone. The
 > common fresh-backing case pays no copy; the one intentional sharing
-> case, `GetSlice`, does not go through `TrackString`. Rejected variant:
+> case, `GetSlice`, does not go through `trackString`. Rejected variant:
 > unconditional clone (simpler to state, but copies every string twice on
 > paths like concat that already produced a fresh backing). Fallback if
 > address identity proves fragile anyway: a representation-level approach
@@ -59,12 +59,12 @@ backing per GC cycle:
 
 - `Allocator.stringRanges` holds sorted, disjoint `[start, end)` extents of
   every string backing charged through the allocator. `NewString` registers
-  the extent (`TrackString`); lookup is by **containment** — a pointer
+  the extent (`trackString`); lookup is by **containment** — a pointer
   anywhere inside a tracked range resolves to that backing. Containment (not
   equality) is what makes the slice-whose-source-died case inexpressible as
   a bug.
 - Every `NewString` gets its **own** range: if the input's extent overlaps a
-  tracked range, `TrackString` clones it onto a fresh backing and registers
+  tracked range, `trackString` clones it onto a fresh backing and registers
   the clone (see Status note — this is what removes toolchain-dependent
   backing sharing from consensus-visible accounting). A clone whose extent
   still overlaps entries proves those entries stale — their backing died and
@@ -131,11 +131,11 @@ backing per GC cycle:
 - New filetests `alloc_13.gno` / `alloc_13a.gno` pin recounting across two GC
   cycles and shared-backing dedup; unit tests in `alloc_test.go` cover
   tracking, dedup, cleanup, slice containment, and empty strings.
-- `TrackString`/`CountStringBytes` are O(log n) via binary search on the
+- `trackString`/`CountStringBytes` are O(log n) via binary search on the
   sorted range slice; inserts are O(n) but amortized by per-cycle pruning.
 - The allocator now holds `uintptr`s into Go heap memory. They are used only
   for identity/containment (never dereferenced); stale entries are evicted
-  by `TrackString` when their recycled address is re-tracked, and pruned by
+  by `trackString` when their recycled address is re-tracked, and pruned by
   `CleanupTrackedStrings` otherwise.
 - Strings whose backing Go chose to share (e.g. `s1 + ""` returning `s1`)
   now pay one extra copy at `NewString`; strings with fresh backings — the

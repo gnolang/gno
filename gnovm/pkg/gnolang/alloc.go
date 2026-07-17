@@ -47,7 +47,7 @@ type Allocator struct {
 	// once per cycle (see CountStringBytes).
 	//
 	// Sorted by start; ranges are disjoint. Every NewString gets its OWN
-	// range — TrackString clones the input if its extent overlaps an
+	// range — trackString clones the input if its extent overlaps an
 	// existing range — so the set of ranges is decided by VM logic alone,
 	// never by toolchain-dependent backing sharing (concat returning its
 	// operand, string([]byte) copy elision, literal interning).
@@ -61,7 +61,7 @@ type Allocator struct {
 	//
 	// Entries with lastCycle != current cycle at end of GC are pruned
 	// (CleanupTrackedStrings); entries whose address Go recycled earlier
-	// are evicted by TrackString when the new occupant is tracked.
+	// are evicted by trackString when the new occupant is tracked.
 	stringRanges []stringRange
 }
 
@@ -404,20 +404,18 @@ func stringExtent(str string) (start, end uintptr) {
 	return start, start + uintptr(len(str))
 }
 
-// overlapSpan returns the index span [lo, hi) of tracked ranges
-// overlapping [p, end); lo == hi means no overlap. Ranges are sorted and
-// disjoint, so both bounds binary-search cleanly.
-func (alloc *Allocator) overlapSpan(p, end uintptr) (lo, hi int) {
+// overlapAt returns the index of the first tracked range not entirely
+// before [p, end) — which is also the sorted insert position for that
+// extent — and whether it actually overlaps it. Ranges are sorted and
+// disjoint, so one binary search answers both.
+func (alloc *Allocator) overlapAt(p, end uintptr) (lo int, overlaps bool) {
 	lo = sort.Search(len(alloc.stringRanges), func(i int) bool {
 		return alloc.stringRanges[i].end > p
 	})
-	hi = sort.Search(len(alloc.stringRanges), func(i int) bool {
-		return alloc.stringRanges[i].start >= end
-	})
-	return lo, hi
+	return lo, lo < len(alloc.stringRanges) && alloc.stringRanges[lo].start < end
 }
 
-// TrackString registers a backing extent for str so the GC can recount
+// trackString registers a backing extent for str so the GC can recount
 // its bytes once per cycle, and returns the string whose backing was
 // registered — str itself, or a clone of it.
 //
@@ -434,9 +432,9 @@ func (alloc *Allocator) overlapSpan(p, end uintptr) (lo, hi int) {
 // evicted here, earlier than CleanupTrackedStrings would.
 //
 // The one intentional sharing case — string slicing (GetSlice) — does not
-// go through TrackString; a slice's pointer resolves into its source's
+// go through trackString; a slice's pointer resolves into its source's
 // range by containment in CountStringBytes.
-func (alloc *Allocator) TrackString(str string) string {
+func (alloc *Allocator) trackString(str string) string {
 	if alloc == nil || len(str) == 0 {
 		// unsafe.StringData on "" returns an unspecified (typically
 		// shared sentinel) pointer; skip tracking so all empty strings
@@ -444,20 +442,19 @@ func (alloc *Allocator) TrackString(str string) string {
 		return str
 	}
 	p, end := stringExtent(str)
-	if lo, hi := alloc.overlapSpan(p, end); lo < hi {
+	lo, overlaps := alloc.overlapAt(p, end)
+	if overlaps {
 		str = strings.Clone(str)
 		p, end = stringExtent(str)
-		if lo, hi = alloc.overlapSpan(p, end); lo < hi {
+		if lo, overlaps = alloc.overlapAt(p, end); overlaps {
 			// Overlap despite a fresh backing: stale entries.
+			hi := sort.Search(len(alloc.stringRanges), func(i int) bool {
+				return alloc.stringRanges[i].start >= end
+			})
 			alloc.stringRanges = slices.Delete(alloc.stringRanges, lo, hi)
 		}
 	}
-	i := sort.Search(len(alloc.stringRanges), func(i int) bool {
-		return alloc.stringRanges[i].start > p
-	})
-	alloc.stringRanges = slices.Insert(alloc.stringRanges, i, stringRange{
-		start: p, end: end, lastCycle: 0,
-	})
+	alloc.stringRanges = slices.Insert(alloc.stringRanges, lo, stringRange{start: p, end: end})
 	return str
 }
 
@@ -477,7 +474,7 @@ func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) (int64, bool
 	if alloc == nil || len(str) == 0 {
 		return 0, false
 	}
-	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	p, _ := stringExtent(str)
 
 	i := sort.Search(len(alloc.stringRanges), func(i int) bool {
 		return alloc.stringRanges[i].start > p
@@ -664,9 +661,9 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	// TrackString may clone s to guarantee a fresh, individually tracked
+	// trackString may clone s to guarantee a fresh, individually tracked
 	// backing; the returned string is the one to hand out.
-	s = alloc.TrackString(s)
+	s = alloc.trackString(s)
 	return StringValue(s)
 }
 
