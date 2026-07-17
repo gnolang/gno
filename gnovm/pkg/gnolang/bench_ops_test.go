@@ -4647,6 +4647,39 @@ func BenchmarkOpPrecall_BoundMethod(b *testing.B) {
 	reportBenchops(b)
 }
 
+// BenchmarkOpPrecall_BoundMethod_Lazy measures the interface-dispatched (lazy)
+// bound-method path: Func==nil, so doOpPrecall resolves the concrete method +
+// receiver at call time (resolveLazyBound walks the saved operand). This is the
+// cost of every interface method call (i.M()); compare with the concrete
+// BenchmarkOpPrecall_BoundMethod above. Value operand (re-walks every call).
+func BenchmarkOpPrecall_BoundMethod_Lazy(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	ft, _, dt, sv := benchMethodSetup(m.Alloc)
+	bmv := &BoundMethodValue{
+		Func:     nil,                      // lazy: resolved at call
+		Receiver: TypedValue{T: dt, V: sv}, // saved operand (value)
+		Method:   "DoStuff",
+	}
+	cx := &CallExpr{NumArgs: 1}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: ft, V: bmv})         // bound method
+		m.PushValue(TypedValue{T: IntType, N: i2n(1)}) // arg
+		m.PushExpr(cx)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpPrecall()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Frames = m.Frames[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 // --- doOpCall with receiver (method call) ---
 
 func BenchmarkOpCall_Method(b *testing.B) {
@@ -4873,10 +4906,10 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 		cfr := m.LastFrame()
 		for range nDefers {
 			cfr.PushDefer(Defer{
-				Func:   fv,
-				Args:   []TypedValue{},
-				Source: &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-				Parent: &Block{},
+				Callable: fv,
+				Args:     []TypedValue{},
+				Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
+				Parent:   &Block{},
 			})
 		}
 		m.PushOp(OpReturnCallDefers) // will be consumed by the op

@@ -70,6 +70,179 @@ func TestTransactionStore(t *testing.T) {
 	assert.Equal(t, stA, helloA)
 }
 
+// TestGetPackageLazyFileBlocks locks in the lazy file-block behavior:
+// loading a multi-file package from the store must NOT eagerly materialize
+// its file blocks; a block is materialized only when a function in that
+// file is first accessed. Guards against re-introducing eager loading in
+// fillPackage.
+func TestGetPackageLazyFileBlocks(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	// Create and persist a three-file package.
+	wrapped := tm2Store.CacheWrap()
+	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.vm/t/multi",
+		Store:   txSt,
+		Output:  io.Discard,
+	})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
+		Name: "multi",
+		Path: "gno.vm/t/multi",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package multi\nfunc FA() int { return 1 }"},
+			{Name: "b.gno", Body: "package multi\nfunc FB() int { return 2 }"},
+			{Name: "c.gno", Body: "package multi\nfunc FC() int { return 3 }"},
+		},
+	}, true)
+	txSt.Write()
+	wrapped.Write()
+
+	// Load the package fresh in a new transaction: its file blocks come
+	// back from the store as RefValues.
+	txSt2 := st.BeginTransaction(tm2Store.CacheWrap(), tm2Store.CacheWrap(), nil, nil)
+	pv := txSt2.GetPackage("gno.vm/t/multi", false)
+	require.NotNil(t, pv)
+	require.Len(t, pv.FNames, 3)
+
+	// fillPackage must leave fBlocksMap empty — no file block loaded yet.
+	assert.Empty(t, pv.fBlocksMap, "fillPackage should not eagerly materialize file blocks")
+
+	// Touching one file materializes only that file's block.
+	assert.NotNil(t, pv.GetFileBlock(txSt2, "a.gno"))
+	assert.Len(t, pv.fBlocksMap, 1, "only the touched file's block should be materialized")
+	_, ok := pv.fBlocksMap["a.gno"]
+	assert.True(t, ok, "the materialized block should be a.gno")
+}
+
+// TestGetPackageSingleFileEagerHydration locks in the single-file guard in
+// fillPackage: a package with <= 1 file has no unused file to skip, so it is
+// hydrated eagerly on load (preserving master's gas), not lazily. Complements
+// TestGetPackageLazyFileBlocks, which covers the multi-file lazy path.
+func TestGetPackageSingleFileEagerHydration(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	// Create and persist a single-file package.
+	wrapped := tm2Store.CacheWrap()
+	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.vm/t/single",
+		Store:   txSt,
+		Output:  io.Discard,
+	})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
+		Name: "single",
+		Path: "gno.vm/t/single",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package single\nfunc FA() int { return 1 }"},
+		},
+	}, true)
+	txSt.Write()
+	wrapped.Write()
+
+	// Load the package fresh in a new transaction.
+	txSt2 := st.BeginTransaction(tm2Store.CacheWrap(), tm2Store.CacheWrap(), nil, nil)
+	pv := txSt2.GetPackage("gno.vm/t/single", false)
+	require.NotNil(t, pv)
+	require.Len(t, pv.FNames, 1)
+
+	// fillPackage must hydrate the one block eagerly (no unused file to skip).
+	assert.Len(t, pv.fBlocksMap, 1, "single-file package should be eagerly hydrated in fillPackage")
+	_, ok := pv.fBlocksMap["a.gno"]
+	assert.True(t, ok, "the hydrated block should be a.gno")
+}
+
+// readRecordingStore wraps a tm2 store and counts reads per key, so tests
+// can assert which objects were (not) fetched from the underlying store.
+type readRecordingStore struct {
+	storetypes.Store
+	reads map[string]int
+}
+
+func (rs *readRecordingStore) Get(gctx *storetypes.GasContext, key []byte) []byte {
+	rs.reads[string(key)]++
+	return rs.Store.Get(gctx, key)
+}
+
+// TestLazyFileBlocksSkipUnusedStoreReads showcases the lazy win end-to-end at
+// the store boundary (where I/O gas is charged): loading a multi-file package
+// and calling into one file must never read the other files' block objects
+// from the underlying store. Under eager fillPackage (pre-lazy), GetPackage
+// read all three. The method call also exercises the #4527 panic site:
+// DeclaredType.GetValueAt fills the method's nil Parent via
+// FuncValue.GetParent, which now lazily loads the file block.
+func TestLazyFileBlocksSkipUnusedStoreReads(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	// Create and persist a three-file package.
+	wrapped := tm2Store.CacheWrap()
+	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/r/lazyread",
+		Store:   txSt,
+		Output:  io.Discard,
+	})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
+		Name: "lazyread",
+		Path: "gno.land/r/lazyread",
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: GenGnoModLatest("gno.land/r/lazyread")},
+			{Name: "a.gno", Body: "package lazyread\ntype T struct{}\nfunc (T) MA() int { return 7 }\nfunc FA() int { return T{}.MA() }"},
+			{Name: "b.gno", Body: "package lazyread\nfunc FB() int { return 2 }"},
+			{Name: "c.gno", Body: "package lazyread\nfunc FC() int { return 3 }"},
+		},
+	}, true)
+	txSt.Write()
+	wrapped.Write()
+
+	// Reload in a fresh transaction through a read-recording base store.
+	spy := &readRecordingStore{Store: tm2Store.CacheWrap(), reads: map[string]int{}}
+	txSt2 := st.BeginTransaction(spy, spy, nil, nil)
+	pv := txSt2.GetPackage("gno.land/r/lazyread", false)
+	require.NotNil(t, pv)
+	require.Len(t, pv.FNames, 3)
+
+	// The file-block store keys, from the package's RefValue slots.
+	blockKey := map[string]string{}
+	for i, fname := range pv.FNames {
+		ref, ok := pv.FBlocks[i].(RefValue)
+		require.True(t, ok, "file block %q should still be a RefValue after load", fname)
+		blockKey[fname] = backendObjectKey(ref.ObjectID)
+	}
+
+	// Loading the package must not read any file block from the store.
+	for fname, key := range blockKey {
+		assert.Zero(t, spy.reads[key], "GetPackage should not read %s's file block", fname)
+	}
+
+	// Call into a.gno: FA calls the method T.MA, whose dispatch copies the
+	// method FuncValue and fills its nil Parent via GetParent →
+	// GetFileBlock, reading a.gno's block from the store on demand.
+	m2 := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/r/lazyread",
+		Store:   txSt2,
+		Output:  io.Discard,
+	})
+	m2.SetActivePackage(pv)
+	res := m2.Eval(m2.MustParseExpr("FA()"))
+	require.Len(t, res, 1)
+	assert.Equal(t, int64(7), res[0].GetInt()) // FA() → T{}.MA() → 7, per a.gno above
+
+	// Only a.gno's block was read; the unused files' blocks never were.
+	assert.Positive(t, spy.reads[blockKey["a.gno"]], "the called method's file block should be read")
+	assert.Zero(t, spy.reads[blockKey["b.gno"]], "unused file block b.gno must not be read")
+	assert.Zero(t, spy.reads[blockKey["c.gno"]], "unused file block c.gno must not be read")
+}
+
 func TestTransactionStore_blockedMethods(t *testing.T) {
 	// These methods should panic as they modify store settings, which should
 	// only be changed in the root store.
@@ -110,6 +283,54 @@ func TestCopyFromCachedStore(t *testing.T) {
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
 	assert.Equal(t, cachedStore.cacheNodes, destStore.cacheNodes, "cacheNodes should match")
+}
+
+func TestDeleteMemPackageClearsStaleBlobsOnReAdd(t *testing.T) {
+	newStore := func() *defaultStore {
+		d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+		d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+		d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+		return NewStore(nil, d1s, d2s)
+	}
+	const pkgPath = "gno.land/r/demo/foo"
+	withTests := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+				{Name: "foo_test.gno", Body: "package foo\n"},
+			},
+		}
+	}
+	prodOnly := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: "foo", Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "foo.gno", Body: "package foo\n"},
+			},
+		}
+	}
+
+	// DeleteMemPackage removes both the prod blob and the #allbutprod sibling.
+	st := newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	require.NotNil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+	st.DeleteMemPackage(pkgPath)
+	assert.Nil(t, st.GetMemPackage(pkgPath))
+	assert.Nil(t, st.GetMemPackageAll(pkgPath))
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"))
+
+	// Re-add idempotency (mirrors the keeper clearing a private package before
+	// redeploy): dropping the test file must not leave a stale #allbutprod sibling.
+	st = newStore()
+	st.AddMemPackage(withTests(), MPUserAll)
+	st.DeleteMemPackage(pkgPath)
+	st.AddMemPackage(prodOnly(), MPUserAll)
+	all := st.GetMemPackageAll(pkgPath)
+	require.NotNil(t, all)
+	require.Len(t, all.Files, 1)
+	assert.Equal(t, "foo.gno", all.Files[0].Name)
+	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"), "stale test file must not survive re-add")
 }
 
 func TestFindByPrefix(t *testing.T) {
@@ -195,6 +416,51 @@ func TestFindByPrefix(t *testing.T) {
 
 			store.FindPathsByPrefix(tc.Prefix)(yield) // find stdlibs
 			require.Equal(t, tc.Expected, paths)
+		})
+	}
+}
+
+func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	store := NewStore(nil, d1s, d2s)
+
+	add := func(name string, files ...*std.MemFile) {
+		store.AddMemPackage(&std.MemPackage{
+			Type:  MPUserAll,
+			Name:  name,
+			Path:  "gno.land/r/demo/" + name,
+			Files: files,
+		}, MPUserAll)
+	}
+	// alpha: prod + test -> prod blob + #allbutprod sibling (must list once, not twice).
+	add("alpha", &std.MemFile{Name: "alpha.gno", Body: "package alpha\n"},
+		&std.MemFile{Name: "alpha_test.gno", Body: "package alpha\n"})
+	// beta: test-only -> #allbutprod sibling only (empty prod; must still list once).
+	add("beta", &std.MemFile{Name: "beta_test.gno", Body: "package beta\n"})
+	// gamma: prod only -> prod blob only.
+	add("gamma", &std.MemFile{Name: "gamma.gno", Body: "package gamma\n"})
+
+	var got []string
+	store.FindPathsByPrefix("gno.land")(func(p string) bool {
+		got = append(got, p)
+		return true
+	})
+	require.Equal(t, []string{
+		"gno.land/r/demo/alpha",
+		"gno.land/r/demo/beta",
+		"gno.land/r/demo/gamma",
+	}, got)
+
+	// A '#'-containing prefix (impossible in a valid package path, reachable
+	// from raw query input) ranges over alpha's #allbutprod sibling key; the
+	// trimmed path "gno.land/r/demo/alpha" does not carry the prefix and must
+	// not be yielded.
+	for _, prefix := range []string{"gno.land/r/demo/alpha#", "gno.land/r/demo/alpha#allbutprod"} {
+		store.FindPathsByPrefix(prefix)(func(p string) bool {
+			t.Fatalf("prefix %q must yield nothing, got %q", prefix, p)
+			return true
 		})
 	}
 }
