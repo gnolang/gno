@@ -385,7 +385,7 @@ const (
 // profiler that will accumulate the tx's gas tree. Call it before
 // MakeGnoTransactionStore (which installs the meter decorator). After the tx
 // runs, read the profiler's tree (WritePprof). Dev/simulation use only — the
-// wrapper is inert unless this is called. See gnovm/adr/prxxxx_gas_profiler.md.
+// wrapper is inert unless this is called. See gnovm/adr/pr5967_gas_profiler.md.
 func WithGasProfile(ctx sdk.Context) (sdk.Context, *gasprof.Profiler) {
 	p := gasprof.New()
 	return ctx.WithValue(vmkContextKeyProfiler, p), p

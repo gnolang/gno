@@ -55,7 +55,7 @@ type Machine struct {
 	// gasProfiler, when non-nil, receives per-charge gas attributed to the
 	// current gno call stack (see gnovm/pkg/gasprof). Off by default; the
 	// nil check is the only cost when profiling is disabled.
-	// See gnovm/adr/prxxxx_gas_profiler.md.
+	// See gnovm/adr/pr5967_gas_profiler.md.
 	gasProfiler *gasprof.Profiler
 	// savedAllocMeter holds m.Alloc's meter before profiling wrapped it, so
 	// DisableGasProfiler can restore it exactly.
@@ -99,7 +99,7 @@ type MachineOptions struct {
 	// machine. The meter must already be the profiling wrapper (installed once
 	// at the tx boundary). Do NOT set it on mid-execution preprocess
 	// sub-machines — their gas attributes to the parent's cursor. See
-	// gnovm/adr/prxxxx_gas_profiler.md.
+	// gnovm/adr/pr5967_gas_profiler.md.
 	GasProfiler   *gasprof.Profiler
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
@@ -1452,7 +1452,7 @@ func (m *Machine) incrCPU(cycles int64) {
 // and — once a surface charges it — store gas) to the current gno call frame,
 // and enables the frame-lifecycle cursor. Requires a GasMeter (Phase 1 target:
 // gno test). Returns nil if no meter is installed, else the new profiler.
-// See gnovm/adr/prxxxx_gas_profiler.md.
+// See gnovm/adr/pr5967_gas_profiler.md.
 func (m *Machine) EnableGasProfiler() *gasprof.Profiler {
 	if m.GasMeter == nil {
 		return nil
@@ -2629,6 +2629,11 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 	}
 	// pop frames if with depth not zero
 	if depthFrames != 0 {
+		// No gas-profiler cursor resync here: goto/break/continue cannot cross a
+		// function boundary, so depthFrames counts only loop/block frames
+		// (findGotoLabel increments it only for for/range/switch-clause). The
+		// cursor tracks call frames (IsCall) exclusively, so these pops leave it
+		// correct. If this ever truncates a call frame, add a SyncDepth call.
 		// the last popped frame
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
@@ -2792,6 +2797,10 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
+			// No gas-profiler cursor resync: this only drops the non-call (loop)
+			// frames above the last call frame, which the cursor does not track;
+			// the call frame itself is left on the stack and removed later by
+			// PopFrame (which does resync the cursor).
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}

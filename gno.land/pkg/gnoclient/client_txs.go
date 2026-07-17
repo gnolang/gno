@@ -550,6 +550,12 @@ func (c *Client) ProfileTx(tx *std.Tx) (profile []byte, log string, err error) {
 		return nil, "", fmt.Errorf("unable to perform ABCI query: %w", err)
 	}
 	if err = resp.Response.Error; err != nil {
+		// The descriptive message (e.g. "gas profiling is not enabled on this
+		// node") lives in Response.Log; the typed ABCI error stringifies to a
+		// generic category, so prefer the log when it is present.
+		if detail := resp.Response.Log; detail != "" {
+			return nil, "", fmt.Errorf("error encountered during ABCI query: %s", detail)
+		}
 		return nil, "", fmt.Errorf("error encountered during ABCI query: %w", err)
 	}
 

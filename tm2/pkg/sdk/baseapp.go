@@ -483,6 +483,7 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			profile, log, err := app.txProfiler(req.Data)
 			if err != nil {
 				res.Error = ABCIError(std.ErrInternal(err.Error()))
+				res.Log = err.Error() // descriptive text (Error stringifies generically)
 				return res
 			}
 			res.Value = profile

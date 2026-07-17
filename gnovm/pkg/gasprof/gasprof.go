@@ -7,7 +7,7 @@
 // refunds — via a GasMeter decorator (WrapMeter), and attributes each charge to
 // the current gno function through an incremental call-tree cursor driven by the
 // machine's frame push/pop events (O(1) per charge). See
-// gnovm/adr/prxxxx_gas_profiler.md.
+// gnovm/adr/pr5967_gas_profiler.md.
 //
 // Surfaces that drive it: gno test -gasprofile (unit tests + filetests) and the
 // on-chain .app/profiletx ABCI query (gno.land/pkg/gnoclient.ProfileTx, exposed
@@ -43,7 +43,10 @@ const (
 // dimOther so no gas ever leaks out of the profile.
 func dimensionOf(descriptor string) int {
 	switch descriptor {
-	case "CPUCycles", "GC", "parsing", "ComputeMapKey", "stream output":
+	case "CPUCycles", "GC", "parsing", "ComputeMapKey", "stream output",
+		// type-check + preprocess gas charged at MsgAddPackage / MsgRun
+		// (gno.land/pkg/sdk/vm/keeper.go) — compute work, same family as parsing.
+		"AddPackagePreprocess", "RunPreprocess":
 		return dimCPU
 	case "memory allocation":
 		return dimAlloc

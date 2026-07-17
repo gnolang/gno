@@ -63,10 +63,16 @@ with `-sample_index`:
 
 | Sample index          | What it measures                              |
 |-----------------------|-----------------------------------------------|
-| `total_gas` (default) | cpu + alloc + store + other, minus refunds    |
+| `total_gas` (default) | cpu + alloc + store + other (gross, pre-refund) |
 | `cpu_gas`             | CPU-cycle gas (execution)                     |
 | `alloc_gas`           | allocation gas                                |
 | `store_gas`           | storage read/write + amino (serialization)    |
+| `other_gas`           | gas not classified into the dimensions above  |
+| `refund_gas`          | gas refunded during execution (tracked separately, not netted into `total_gas`) |
+
+`total_gas` is the gross billable gas; the net cost is `total_gas - refund_gas`.
+Refunds are kept as their own dimension rather than subtracted so a child frame
+never appears to cost more than its parent.
 
 ```
 $ go tool pprof -sample_index=store_gas -http=:8080 gas.pprof   # storage flame graph
@@ -76,10 +82,19 @@ Notes:
 
 - `-gasprofile` requires `-p 1` (the profiler runs single-threaded); the flag
   sets it, and errors if you pass `-p` greater than 1.
-- A plain `gno test` run charges no store gas; `-gasprofile` additionally wires
-  store metering, so a profiled run reports a `store_gas` dimension that a normal
-  run does not. (`go tool pprof -top`/`-list` work without Graphviz; the graph
-  views `-http`/`-svg` need it installed.)
+- A plain `gno test` run charges no store gas and does not meter allocation
+  against the test meter; `-gasprofile` additionally wires both, so a profiled
+  run reports `store_gas` and `alloc_gas` dimensions a normal run does not — and
+  its `--- GAS:` total is correspondingly higher. This is expected: the extra
+  metering is what makes those dimensions observable. On-chain profiling
+  (`.app/profiletx`) is observation-only and does not change gas.
+- `go tool pprof -top`/`-tree`/`-peek` work without Graphviz; the graph views
+  `-http`/`-svg` need it installed.
+- `-list <func>` needs `-source_path=<pkgdir>` because frames record only the
+  file basename (full paths would be non-deterministic). Even then it resolves
+  only for source under that one root, so stdlib frames and multi-package
+  profiles (`gno test -gasprofile ./...`) may not fully resolve; `-top`/`-tree`
+  do not need it.
 
 To profile a **transaction** running on a local dev node instead of tests, see
 [Profiling a transaction](#profiling-a-transaction) below.
@@ -111,7 +126,8 @@ gnokey maketx call \
 # view with: go tool pprof gas.pprof
 ```
 
-The flag works on every `maketx` subcommand (`call`, `run`, `addpkg`, `send`).
+The flag works on every `maketx` subcommand (`call`, `run`, `addpkg`, `send`,
+and the `session` subcommands).
 Set a generous `-gas-wanted`: the tx runs under it, so too low a limit yields a
 profile truncated at the out-of-gas point (the confirmation line reports `ok` vs
 a "partial" note). Against a node without the profiler enabled, the command

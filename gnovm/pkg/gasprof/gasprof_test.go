@@ -190,26 +190,28 @@ func TestCursor_resetStrandedCursor(t *testing.T) {
 // store/cpu split would be off — see the ADR).
 func TestDimensionOf_classifiesKnownDescriptors(t *testing.T) {
 	cases := map[string]int{
-		"CPUCycles":          dimCPU,
-		"GC":                 dimCPU,
-		"parsing":            dimCPU,
-		"ComputeMapKey":      dimCPU,
-		"stream output":      dimCPU,
-		"memory allocation":  dimAlloc,
-		"DepthReadFlat":      dimStore,
-		"DepthSet":           dimStore,
-		"DepthDelete":        dimStore,
-		"ReadFlat":           dimStore,
-		"ReadPerByte":        dimStore,
-		"WriteFlat":          dimStore,
-		"Delete":             dimStore,
-		"IterNextFlat":       dimStore,
-		"ValuePerByte":       dimStore,
-		"AminoEncodePerByte": dimStore,
-		"AminoDecodePerByte": dimStore,
-		"txSize":             dimOther,
-		"ante verify: x":     dimOther,
-		"some-new-descr":     dimOther, // unknown -> other (documented fallback)
+		"CPUCycles":            dimCPU,
+		"GC":                   dimCPU,
+		"parsing":              dimCPU,
+		"ComputeMapKey":        dimCPU,
+		"stream output":        dimCPU,
+		"AddPackagePreprocess": dimCPU,
+		"RunPreprocess":        dimCPU,
+		"memory allocation":    dimAlloc,
+		"DepthReadFlat":        dimStore,
+		"DepthSet":             dimStore,
+		"DepthDelete":          dimStore,
+		"ReadFlat":             dimStore,
+		"ReadPerByte":          dimStore,
+		"WriteFlat":            dimStore,
+		"Delete":               dimStore,
+		"IterNextFlat":         dimStore,
+		"ValuePerByte":         dimStore,
+		"AminoEncodePerByte":   dimStore,
+		"AminoDecodePerByte":   dimStore,
+		"txSize":               dimOther,
+		"ante verify: x":       dimOther,
+		"some-new-descr":       dimOther, // unknown -> other (documented fallback)
 	}
 	for desc, want := range cases {
 		require.Equal(t, want, dimensionOf(desc), "descriptor %q", desc)

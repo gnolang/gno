@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -205,6 +206,8 @@ func TestGasProf_outOfGasReconciles(t *testing.T) {
 	// Disable didn't run (panic), so read through the still-wrapped meter.
 	gc1 := m.GasMeter.GasConsumed()
 
+	require.True(t, m.GasMeter.IsOutOfGas(),
+		"the finite meter must actually run out, else this degrades into the plain reconciliation test")
 	require.Greater(t, gc1, gc0, "meter consumed gas")
 	require.LessOrEqual(t, gc1, total, "did not exceed the full cost")
 	require.Equal(t, gc1-gc0, netGas(prof.Totals()),
@@ -251,15 +254,44 @@ func TestGasProf_dimensionAttribution(t *testing.T) {
 	require.NoError(t, prof.WritePprof(f))
 	require.NoError(t, f.Close())
 
-	top := func(index string) string {
-		out, err := exec.Command(goBin, "tool", "pprof", "-top", "-flat",
+	// flatCum parses `go tool pprof -top` and returns the flat and cumulative
+	// gas of the first function whose name contains fn, for the given dimension.
+	// A -top data line is: "<flat> <flat%> <sum%> <cum> <cum%> <name>"; the flat
+	// and cum columns carry a "gas" unit suffix except for a zero value, which
+	// pprof renders as a bare "0" — so parse by column, tolerating either form.
+	parseGas := func(tok string) int64 {
+		n, err := strconv.ParseInt(strings.TrimSuffix(tok, "gas"), 10, 64)
+		require.NoError(t, err, "unparseable pprof value %q", tok)
+		return n
+	}
+	flatCum := func(index, fn string) (flat, cum int64) {
+		out, err := exec.Command(goBin, "tool", "pprof", "-top",
 			"-sample_index="+index, "-nodecount=40", path).CombinedOutput()
 		require.NoError(t, err, "%s", out)
-		return string(out)
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if !strings.Contains(line, fn) {
+				continue
+			}
+			f := strings.Fields(line)
+			require.GreaterOrEqual(t, len(f), 6, "unexpected pprof -top line: %q", line)
+			return parseGas(f[0]), parseGas(f[3])
+		}
+		t.Fatalf("function %q not found in %s -top:\n%s", fn, index, out)
+		return 0, 0
 	}
-	// allocator dominates the alloc dimension; cruncher dominates cpu.
-	require.Contains(t, top("alloc_gas"), "allocp.allocator")
-	require.Contains(t, top("cpu_gas"), "allocp.cruncher")
+
+	// Assert magnitudes, not mere presence: both functions appear in both
+	// dimensions, so a Contains check would pass even with attribution swapped.
+	// CPU concentrates in the crunching loop; allocation concentrates in the
+	// allocator's call subtree (the make lands on a .uverse.make child, so
+	// compare allocator's CUMULATIVE alloc, not its flat).
+	crunchCPU, _ := flatCum("cpu_gas", "allocp.cruncher")
+	allocCPU, _ := flatCum("cpu_gas", "allocp.allocator")
+	require.Greater(t, crunchCPU, allocCPU, "cruncher must dominate the cpu dimension")
+
+	_, allocAllocCum := flatCum("alloc_gas", "allocp.allocator")
+	_, crunchAllocCum := flatCum("alloc_gas", "allocp.cruncher")
+	require.Greater(t, allocAllocCum, crunchAllocCum, "allocator's subtree must dominate the alloc dimension")
 }
 
 // DisableGasProfiler must restore both the machine meter and the allocator's

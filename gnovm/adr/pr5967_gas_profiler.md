@@ -78,8 +78,10 @@ Gas is the better profiling target for a smart-contract VM:
   surface where gas is already charged (the tx path, Phase 3) —
   observation only; profiling must never change gas usage or execution
   results there. The Phase-2 dev surface is the deliberate exception: it
-  *adds* store metering that plain `gno test` omits entirely, so profiled
-  local totals include dimensions unprofiled runs don't charge.
+  *adds* store metering (and routes allocation gas through the test meter)
+  that plain `gno test` omits entirely, so profiled local totals include
+  `store_gas`/`alloc_gas` dimensions unprofiled runs don't charge and a
+  correspondingly higher `--- GAS:` total.
 - Dev-first surface: `gno test`, where profiles are exactly reproducible
   run-to-run. CPU and alloc gas match on-chain costs for the same
   execution path — except `"GC"` gas, which depends on the allocator
@@ -186,9 +188,12 @@ reconciliation invariant (below) stays intact.
 
 The profiler maintains a call tree mirroring the gno call stack:
 
-- **Node identity**: callee `*FuncValue` → pkgpath + function name +
-  file:line of definition (via `fr.Func.GetSource(store).GetLocation()`,
-  the same identity `Machine.Stacktrace()` already renders).
+- **Node identity**: callee `*FuncValue` → pkgpath + function name + line
+  of definition (from `fr.Func.Source.GetLocation()`) and the file
+  *basename* (`fr.Func.FileName`; full paths would be non-deterministic).
+  The name mirrors what `Machine.Stacktrace()` renders. Because only the
+  basename is recorded, `go tool pprof -list` needs `-source_path` (see
+  `docs/resources/gno-testing.md`).
 - **Descend** on `PushFrameCall`; charges recorded by Component 1 accrue
   to the cursor's node as *flat* gas; cumulative gas is the subtree sum,
   computed at emission time.
@@ -212,16 +217,24 @@ VM does not guarantee one pop per push:
   `m.Frames` wholesale — no pops at all. Failed txs are a primary
   profiling target, not an edge case.
 
-Therefore the cursor does **not** rely on balanced push/pop events. Each
-cursor node records the machine *call-frame* depth at which it was
-entered; after any operation that changes the call-frame count (PopFrame
-— which PopFrameAndReturn/PopFrameAndReset route through — and
-PopUntilLastReviveFrame), the cursor re-syncs by ascending until its
-depth matches the machine's call-frame count. GotoJump and
-PopUntilLastCallFrame trim only non-call (loop/block) frames and need no
-hook. At `Release()` the cursor resets to the root. **Emission tolerates
-a non-root cursor**: attribution happened at charge time, so the tree is
-valid even when the tx aborted mid-call.
+Therefore the cursor does **not** rely on balanced push/pop events. It
+tracks call frames (frames with `Func != nil`, i.e. `IsCall()`)
+exclusively, driven by two kinds of hook:
+
+- **`Enter` / `Pop`** — the O(1) common path. `PushFrameCall` descends the
+  cursor one node; `PopFrame` (which `PopFrameAndReturn` and
+  `PopFrameAndReset` route through) ascends it one node. Both are guarded
+  by `IsCall()`.
+- **`SyncDepth(n)`** — the bulk path. `PopUntilLastReviveFrame` truncates
+  several call frames at once (revive/panic-recovery unwinding), so the
+  cursor re-syncs absolutely: it ascends until its depth matches the
+  machine's post-truncation call-frame count.
+
+`GotoJump` and `PopUntilLastCallFrame` trim only non-call (loop/block)
+frames — the cursor does not track those, so they need no hook (see the
+comments at those call sites). At `Release()` the cursor resets to the
+root. **Emission tolerates a non-root cursor**: attribution happened at
+charge time, so the tree is valid even when the tx aborted mid-call.
 
 **Sub-machines** (preprocess machines spawned mid-execution, the
 keeper's sequential run machines): each Machine has its *own* `Frames`
@@ -232,14 +245,15 @@ marking the boundary (e.g. `(preprocess)`). Per-machine cursor segments
 are a possible refinement, not required for correctness.
 
 **Charges outside any frame** (tx finalization / store writes at commit,
-preprocess/type-check gas, package init) attribute to synthetic root
-children — `(finalize)`, `(preprocess)`, `(init)`, `(ante)`. Real-world
-realm txs spend heavily in finalize-time store writes; making that visible
-rather than lost is a feature. These labels are defaults; finer attribution
-(e.g. per-file preprocess) is an open refinement. Note the `(preprocess)`
-label can appear both at the root (out-of-frame preprocessing, e.g.
-AddPackage) and under a call node (mid-execution sub-machines) — same
-meaning, different scope.
+preprocess/type-check gas, package init) attribute to the synthetic
+`(root)` node directly, since no call frame is on the cursor when they are
+charged. The one exception booked as a distinct synthetic child today is
+`(ante)`: the on-chain path snapshots `GasConsumed()` at meter-install time
+and books it via `Profiler.Book("(ante)", …)` so the tree reconciles with
+the meter. Real-world realm txs spend heavily in finalize-time store
+writes; those currently show up under `(root)` rather than a dedicated
+`(finalize)` node. Finer synthetic labels (`(finalize)`, `(preprocess)`,
+`(init)`, per-file preprocess) are an open refinement, not yet implemented.
 
 **GC**: gas charged during a GC sweep (descriptor `"GC"`) attributes to
 the frame that triggered the sweep ("trigger pays") — same semantics as
