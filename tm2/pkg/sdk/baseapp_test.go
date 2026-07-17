@@ -568,7 +568,7 @@ func TestCheckTx(t *testing.T) {
 	nTxs := int64(5)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	for i := int64(0); i < nTxs; i++ {
+	for i := range nTxs {
 		tx := newTxCounter(i, 0)
 		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)
@@ -1063,6 +1063,88 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 }
 
+func TestOOGLogBeyondGasWanted(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(200)
+	gasWanted := int64(100)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = gasWanted
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasWanted))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(gasWanted+1, "burn beyond tx gas wanted")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "gas used")
+	assert.Contains(t, res.Log, "exceeds tx's gas wanted (100)")
+	assert.Contains(t, res.Log, "simulate with consensus maximum (200) to get real transaction usage")
+}
+
+func TestOOGLogUsesMaxBlockGas(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(50)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = maxGas
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			return newCtx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(maxGas+1, "burn beyond consensus maxGas")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: maxGas},
+		},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "exceeds max block gas (50)")
+	assert.NotContains(t, res.Log, "simulate with consensus maximum")
+}
+
 func TestBaseAppAnteHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1421,4 +1503,41 @@ func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
 			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 10},
 		})
 	})
+}
+
+// TestInitChainCheckStateIsolation: after InitChain, checkState must READ
+// genesis state written by the initChainer (e.g. the first CheckTx verifies
+// the genesis gas price), but writes into checkState — what a pre-block-1
+// CheckTx does via the ante: fee deduction, sequence bump — must NOT be
+// visible to the block-1 deliver state. When the two states shared one
+// store, a tx that passed CheckTx before block 1 bumped its signer's
+// sequence in the shared store and then failed signature verification when
+// delivered in block 1.
+func TestInitChainCheckStateIsolation(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	app := newBaseApp(t.Name(), db)
+	genKey, genVal := []byte("genesis-key"), []byte("genesis-value")
+	app.SetInitChainer(func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		ctx.Store(mainKey).Set(nil, genKey, genVal)
+		return abci.ResponseInitChain{}
+	})
+	require.NoError(t, app.LoadLatestVersion())
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// CheckTx state must see genesis writes.
+	checkStore := app.checkState.ctx.Store(mainKey)
+	require.Equal(t, genVal, checkStore.Get(nil, genKey),
+		"check state must read genesis state before block 1")
+
+	// A CheckTx-side write must stay isolated from the deliver state.
+	seqKey := []byte("sequence-bump")
+	checkStore.Set(nil, seqKey, []byte{1})
+
+	deliverStore := app.deliverState.ctx.Store(mainKey)
+	require.Equal(t, genVal, deliverStore.Get(nil, genKey),
+		"deliver state must see genesis state")
+	require.Nil(t, deliverStore.Get(nil, seqKey),
+		"CheckTx writes must not leak into the block-1 deliver state")
 }

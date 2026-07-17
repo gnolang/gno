@@ -38,6 +38,9 @@ type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValu
 // NativeResolver is a function which can retrieve native bodies of native functions.
 type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
+// StorageDiffs maps realm paths to their storage size difference (in bytes).
+type StorageDiffs = map[string]int64
+
 // Store is the central interface that specifies the communications between the
 // GnoVM and the underlying data store; currently, generally the gno.land
 // blockchain, or the file system.
@@ -50,6 +53,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -64,7 +68,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
+	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -76,9 +80,15 @@ type Store interface {
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
+	DeleteMemPackage(path string)
 	GetMemPackage(path string) *std.MemPackage
+	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	// Yields each indexed package's PROD mempackage (test/filetest files
+	// live under the #allbutprod sibling and are not included), in index
+	// order. A package with no production .gno files has no prod blob and
+	// is skipped.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -104,8 +114,9 @@ type TransactionStore interface {
 
 // Gas consumption descriptors.
 const (
-	GasAminoDecodeDesc = "AminoDecodePerByte"
-	GasAminoEncodeDesc = "AminoEncodePerByte"
+	GasComputeMapKeyDesc = "ComputeMapKey"
+	GasAminoDecodeDesc   = "AminoDecodePerByte"
+	GasAminoEncodeDesc   = "AminoEncodePerByte"
 )
 
 // GasConfig defines amino compute gas costs for GnoVM stores.
@@ -140,7 +151,15 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
-	alloc        *Allocator // for accounting for cached items
+	// cacheRealms is the per-tx *Realm pointer cache, parallel to
+	// cacheObjects. Single source of truth for in-memory *Realm
+	// pointers within a tx — populated by GetPackageRealm and
+	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
+	// Ensures pv.Realm and any other in-tx caller observe the same
+	// pointer (so in-memory Time/sumDiff mutations are visible
+	// everywhere).
+	cacheRealms map[PkgID]*Realm
+	alloc       *Allocator // for accounting for cached items
 
 	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
 	// installed by the keeper (AddPackage / Run) before RunMemPackage.
@@ -174,7 +193,7 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	realmStorageDiffs map[string]int64 // maps realm path to size diff
+	realmStorageDiffs StorageDiffs // maps realm path to size diff
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -199,12 +218,13 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
 		stdlibKeyBytes: make(map[string][]byte),
 
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -233,6 +253,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		cacheRealms:  make(map[PkgID]*Realm),
 		alloc:        ds.alloc.Fork().Reset(),
 
 		// Inherit the per-tx preprocess allocator so sub-Machines spun
@@ -258,7 +279,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		realmStorageDiffs: make(map[string]int64),
+		realmStorageDiffs: make(StorageDiffs),
 	}
 	InitStoreCaches(ds2)
 
@@ -348,6 +369,15 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 
 	oid := ObjectIDFromPkgPath(pkgPath)
+	// Synthetic packages are never persisted: check only the cache — a
+	// backend read would be a guaranteed miss charged as a full I/O
+	// read, and the pkgGetter cannot resolve them either.
+	if IsSyntheticPath(pkgPath) {
+		if oo, exists := ds.cacheObjects[oid]; exists {
+			return oo.(*PackageValue)
+		}
+		return nil
+	}
 	// Get package from cache or baseStore
 	oo := ds.GetObjectSafe(oid)
 	if oo != nil {
@@ -395,7 +425,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	ds.cacheObjects[oid] = pv
 }
 
-// Some atomic operation.
+// Some atomic operation. Consults cacheRealms before reading from
+// baseStore; populates the cache on read so that subsequent in-tx
+// callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -403,6 +435,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
+	if cached, ok := ds.cacheRealms[oid.PkgID]; ok {
+		return cached
+	}
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get(ds.gctx, []byte(key))
 	if bz == nil {
@@ -421,10 +456,29 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 				oid.PkgID, rlm.ID))
 		}
 	}
+	ds.cacheRealms[oid.PkgID] = rlm
 	return rlm
 }
 
+// GetRealmByID looks up a Realm via the per-tx cache, falling back
+// to a path-resolution + baseStore load on miss. Single source of
+// truth for in-memory *Realm pointers within a tx. Used by
+// PushFrameCall borrow rule #2 and by cross-realm finalize
+// (touchForeignRealm).
+func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
+	if rlm, ok := ds.cacheRealms[pid]; ok {
+		return rlm
+	}
+	path := pkgPathFromPkgID(ds, pid)
+	if path == "" {
+		return nil
+	}
+	return ds.GetPackageRealm(path)
+}
+
 // An atomic operation to set the package realm info (id counter etc).
+// Refreshes the cacheRealms entry so subsequent in-tx reads see the
+// updated *Realm pointer.
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -440,6 +494,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
 	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
+	ds.cacheRealms[rlm.ID] = rlm
 	size = len(bz)
 }
 
@@ -543,12 +598,37 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
-		rlm := ds.GetPackageRealm(pv.PkgPath)
-		pv.Realm = rlm
+	if pv.Realm == nil {
+		if pv.IsRealm() {
+			pv.Realm = ds.GetPackageRealm(pv.PkgPath)
+		} else if isImmutableLibraryPath(pv.PkgPath) {
+			// /p/ and stdlib packages carry a frozen, immutable realm so
+			// borrow rule #2 lands m.Realm on it (not nil). It is not
+			// persisted (IsRealm()==false), so recreate it
+			// deterministically — the realm ID is derived from the pkgpath.
+			// _test overlays are excluded (see isImmutableLibraryPath).
+			pv.Realm = NewRealm(pv.PkgPath)
+		}
 	}
-	// Rederive pv.fBlocksMap.
-	pv.deriveFBlocksMap(ds)
+	// Re-derive denormalized PkgID cache (pv.PkgID is marked
+	// json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
+	}
+	// pv.fBlocksMap is left empty: file blocks load lazily via
+	// GetFileBlock when a function in that file is first called
+	// (see FuncValue.GetParent). Loading a package therefore no longer
+	// reads every file block up front — a call materializes only the
+	// file blocks it touches.
+	//
+	// Preserve historical hydration and gas accounting when there is no
+	// unused file to skip. A package with <= 1 file loads that one block on
+	// first call anyway, so laziness buys nothing there — only a gas shift;
+	// keep the eager path for them (this also keeps master's gas for the
+	// rare import that reads only package-level vars).
+	if len(pv.FNames) <= 1 {
+		pv.deriveFBlocksMap(ds)
+	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -625,8 +705,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	// save object to cache.
 	if debug {
-		if oid.IsZero() {
-			panic("object id cannot be zero")
+		if !oid.IsFinalized() {
+			panic("object id must be finalized at SetObject")
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
@@ -677,8 +757,13 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	// No amino compute gas — delete doesn't marshal/unmarshal.
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
-	// delete from cache.
+	// delete from cache. Lock-step evict cacheRealms when the object
+	// being deleted is a PackageValue: keeps the
+	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
+	if _, isPV := oo.(*PackageValue); isPV {
+		delete(ds.cacheRealms, oid.PkgID)
+	}
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -691,11 +776,6 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		if trace.StoreGasEnabled {
 			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
 		}
-	}
-	// delete escaped hash from iavl.
-	if oo.GetIsEscaped() && ds.iavlStore != nil {
-		key := []byte(oid.String())
-		ds.iavlStore.Delete(ds.gctx, key)
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
@@ -903,6 +983,14 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 // MPAnyProd and MPAnyTest.
 // MPFiletests are not allowed, as they are currently only read from disk (e.g.
 // test/files). However, MP*All may include filetests files.
+//
+// MP*All packages are stored as two keys (a prod blob plus a #allbutprod
+// sibling) and the writes are conditional, so this is NOT a full replace across
+// both keys. Re-adding an MP*All package at an existing path (e.g. a private
+// redeploy) MUST call DeleteMemPackage(path) first, or a stale sibling/prod blob
+// can survive. The keeper's AddPackage does this; new MP*All re-add callers must
+// too. (Already-filtered non-All types are stored under a single key and
+// overwrite cleanly.)
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	var size int
 	if bm.Enabled {
@@ -923,19 +1011,95 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	}
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
+	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
+	pathkey := []byte(backendPackagePathKey(mpkg.Path))
+	// MP*All packages are split for storage: production files under pathkey
+	// (the import/preprocess hot path, so its read/decode gas is charged on
+	// prod bytes only), and the remaining test/filetest files under a sibling
+	// "#allbutprod" key read only by query paths (see GetMemPackageAll). Other
+	// (already-filtered) types are stored whole under pathkey as before.
+	if mpkgtype.IsAll() {
+		prod, allButProd := splitProdAllButProd(mpkg)
+		// prod is nil for a package with no production .gno files (e.g. an
+		// xxx_test-only package): it has no prod blob, and readers treat a
+		// missing prod blob as nil. splitProdAllButProd folds that package's
+		// non-.gno files into the #allbutprod sibling so GetMemPackageAll can
+		// reconstruct the full package losslessly.
+		if prod != nil {
+			size += ds.setMemPackageBlob(pathkey, prod)
+		}
+		if len(allButProd.Files) > 0 {
+			size += ds.setMemPackageBlob([]byte(backendPackageAllButProdKey(mpkg.Path)), allButProd)
+		}
+	} else {
+		size += ds.setMemPackageBlob(pathkey, mpkg)
+	}
+}
+
+// DeleteMemPackage removes both the production blob (pkg:<path>) and the
+// #allbutprod sibling for path. It is a no-op for keys that do not exist. Used
+// before a private-package redeploy: AddMemPackage stores an MP*All package as
+// two keys, and its conditional writes are not a full replace across both, so a
+// stale sibling (or, for a now-prod-less package, a stale prod blob) could
+// otherwise survive a re-add and be served by GetMemPackage/GetMemPackageAll.
+func (ds *defaultStore) DeleteMemPackage(path string) {
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackagePathKey(path)))
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+}
+
+// setMemPackageBlob amino-marshals mpkg, charges encode gas, writes it under key
+// in the iavl store, and returns the encoded byte length.
+func (ds *defaultStore) setMemPackageBlob(key []byte, mpkg *std.MemPackage) int {
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
-	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	if trace.StoreGasEnabled {
-		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
+		trace.Store("ENCODE_MEMPKG", gas, key, len(bz), "none")
 	}
-	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+	ds.iavlStore.Set(ds.gctx, key, bz)
 	if trace.StoreGasEnabled {
-		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
+		trace.Store("IAVL_SET_MEMPKG", 0, key, len(bz), "none")
 	}
-	size = len(bz)
+	return len(bz)
+}
+
+// splitProdAllButProd partitions an MP*All mempackage into its production blob
+// and the complement ("all but prod") sibling so that prod ∪ allButProd ==
+// mpkg.Files exactly, with no overlap and no drops.
+//
+// The production blob holds the importable subset: non-.gno files plus non-test
+// .gno files, typed MP*Prod. However, a package with no production .gno files
+// (e.g. an xxx_test-only package) has no valid prod blob — an empty mempackage
+// fails validation, and readers treat a missing prod blob as nil — so in that
+// case prod is returned nil and ALL of its files (including non-.gno files such
+// as gnomod.toml, LICENSE, README, *.md, *.toml) are folded into the complement
+// instead, otherwise they would be silently dropped from storage.
+//
+// The complement keeps the package's Name/Path/Info and the original MP*All type
+// as an inert sentinel: it is written and read only by the store and never
+// enters the MemPackageType dispatch paths.
+func splitProdAllButProd(mpkg *std.MemPackage) (prod, allButProd *std.MemPackage) {
+	prod = MPFProd.FilterMemPackage(mpkg)
+	allButProd = &std.MemPackage{
+		Name: mpkg.Name,
+		Path: mpkg.Path,
+		Info: mpkg.Info,
+		Type: mpkg.Type,
+	}
+	// If there are no production .gno files, the prod blob will not be written
+	// (it would fail validation). Fold every non-prod-.gno file into the
+	// complement so reconstruction stays lossless.
+	prodSkipped := prod.IsEmpty()
+	if prodSkipped {
+		prod = nil
+	}
+	for _, mfile := range mpkg.Files {
+		if IsTestFile(mfile.Name) || (prodSkipped && !strings.HasSuffix(mfile.Name, ".gno")) {
+			allButProd.Files = append(allButProd.Files, mfile.Copy())
+		}
+	}
+	allButProd.Sort()
+	return prod, allButProd
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.
@@ -980,11 +1144,57 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	return mpkg
 }
 
+// getMemPackageAllButProd reads and decodes the "#allbutprod" sibling blob (the
+// test/filetest files) for path, or nil if there is none. Charges decode gas.
+func (ds *defaultStore) getMemPackageAllButProd(path string) *std.MemPackage {
+	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// GetMemPackageAll retrieves the complete MemPackage at path, including test and
+// filetest files, by merging the production blob with its "#allbutprod" sibling.
+// It returns nil if the package does not exist. The import/run hot path uses the
+// prod-only GetMemPackage; GetMemPackageAll is for query/tooling paths that must
+// see test files (e.g. vm/qfile).
+func (ds *defaultStore) GetMemPackageAll(path string) *std.MemPackage {
+	prod := ds.GetMemPackage(path)
+	allButProd := ds.getMemPackageAllButProd(path)
+	if prod == nil && allButProd == nil {
+		return nil
+	}
+	base := prod
+	if base == nil {
+		base = allButProd
+	}
+	merged := &std.MemPackage{
+		Name: base.Name,
+		Path: base.Path,
+		Info: base.Info,
+		Type: MPAnyAll.Decide(path), // MPUserAll or MPStdlibAll.
+	}
+	if prod != nil {
+		merged.Files = append(merged.Files, prod.Files...)
+	}
+	if allButProd != nil {
+		merged.Files = append(merged.Files, allButProd.Files...)
+	}
+	merged.Sort()
+	return merged
+}
+
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
-// do not exist.
+// do not exist. It consults the full package (prod + test files) so that
+// test/filetest files remain retrievable.
 func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	mpkg := ds.GetMemPackage(path)
+	mpkg := ds.GetMemPackageAll(path)
 	if mpkg == nil {
 		return nil
 	}
@@ -1008,8 +1218,31 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
 		defer iter.Close()
 
+		var last string
+		var hasLast bool
 		for ; iter.Valid(); iter.Next() {
-			path := decodeBackendPackagePathKey(string(iter.Key()))
+			key := string(iter.Key())
+			// A package's prod key (pkg:<path>) and its #allbutprod sibling map
+			// to the same path. Strip the sibling suffix and de-dup so each
+			// package is yielded exactly once — including an empty-prod package
+			// (only a sibling key). Prod and sibling keys for a path are
+			// adjacent in iavl order, so de-dup against the previous suffices.
+			key = strings.TrimSuffix(key, "#allbutprod")
+			// A prefix containing '#' (impossible in a valid package path,
+			// but reachable from raw query input, e.g. vm/qpaths) can range
+			// over a sibling key whose trimmed form no longer carries the
+			// requested prefix; don't yield such a path. Compared in key
+			// space (against startKey): stdlib paths decode without their
+			// "_/" key marker, so path-space comparison would wrongly drop
+			// legitimate stdlib matches.
+			if len(prefix) > 0 && !strings.HasPrefix(key, string(startKey)) {
+				continue
+			}
+			path := decodeBackendPackagePathKey(key)
+			if hasLast && path == last {
+				continue
+			}
+			last, hasLast = path, true
 			if !yield(path) {
 				return
 			}
@@ -1017,6 +1250,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage yields each indexed package's PROD mempackage in index
+// order, skipping prod-less packages. See the Store interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
@@ -1037,6 +1272,13 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				mpkg := ds.GetMemPackage(string(path))
+				if mpkg == nil {
+					// Prod-less package (e.g. xxx_test-only): no prod
+					// blob to yield. On-chain this is unreachable — the
+					// vm keeper rejects prod-less packages at AddPackage
+					// — so this skip is defensive, for non-chain stores.
+					continue
+				}
 				ch <- mpkg
 			}
 			close(ch)
@@ -1105,7 +1347,7 @@ func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Stor
 }
 
 // It resturns storage changes per realm within message
-func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
+func (ds *defaultStore) RealmStorageDiffs() StorageDiffs {
 	return ds.realmStorageDiffs
 }
 
@@ -1115,7 +1357,9 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.realmStorageDiffs = make(map[string]int64)
+	// Lock-step reset cacheRealms.
+	ds.cacheRealms = make(map[PkgID]*Realm)
+	ds.realmStorageDiffs = make(StorageDiffs)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
@@ -1128,6 +1372,16 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
+			// Lock-step evict cacheRealms when a PackageValue is
+			// evicted. Falls back to PkgID derivation from PkgPath
+			// if the PV's PkgID hasn't been stamped yet.
+			if pv, isPV := obj.(*PackageValue); isPV {
+				pid := objId.PkgID
+				if pid.IsZero() {
+					pid = PkgIDFromPkgPath(pv.PkgPath)
+				}
+				delete(ds.cacheRealms, pid)
+			}
 		}
 	}
 }
@@ -1145,7 +1399,7 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
-	if enabled {
+	if enabled.Load() {
 		ds.opslog = buf
 	} else {
 		ds.opslog = nil
@@ -1223,6 +1477,14 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+// backendPackageAllButProdKey returns the sibling key holding a package's
+// test/filetest files (everything in an MP*All package but its production
+// subset). It suffixes the package path key with "#allbutprod"; "#" cannot
+// appear in a valid package path, so it never collides with a real package key.
+func backendPackageAllButProdKey(path string) string {
+	return backendPackagePathKey(path) + "#allbutprod"
+}
 
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")

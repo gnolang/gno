@@ -21,15 +21,15 @@ stderr 'unauthorized: only gno.land/r/sys/validators/v3 may write valset params'
 
 # Confirm the attacker's pubkey did NOT reach valset:current.
 gnokey query params/node:valset:current
-! stdout 'gpub1pgfj7ard'
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr'
 
 -- run/exploit.gno --
 package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
-	sysparams.SetValsetProposal(cross, []string{
-		"gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj:1000000",
+func main(cur realm) {
+	sysparams.SetValsetProposal(cross(cur), []string{
+		"gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr:1000000",
 	})
 }

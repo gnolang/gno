@@ -1,5 +1,8 @@
 # Gas Refactor: Charge at the Store Boundary
 
+> Store backend and depth-gas defaults superseded by
+> [pr5938_mount_bptree_store.md](pr5938_mount_bptree_store.md) (bptree mount).
+
 **Status: Implemented**
 
 ## Problem
@@ -123,10 +126,11 @@ IAVL height) to prevent governance-set absurd values from tripping
 | 10M      | 24 | raw estimate prevails above the floor |
 | 100M     | 27 | raw estimate prevails above the floor |
 
-The three-depth split was introduced by commit `359308d6f`
-("feat(store): split DepthEstimator into three depths (read/write)").
-Earlier design iterations used a single `ExpectedDepth()` / `MinDepth`
-field; those predate the split.
+The three-depth split exposes three separate depths from
+`DepthEstimator`: read depth, set depth, and write (commit) depth.
+Each operation charges I/O against the depth that applies to it,
+so reads pay for read traversal, sets pay for in-memory cache
+insertion, and the commit pass pays for the disk-write traversal.
 
 ### Signature change
 
@@ -1015,12 +1019,12 @@ The byte cache approach was chosen over an object cache because:
 ## Follow-ups
 
 Items identified during implementation that are intentionally deferred
-out of this PR. Capture as issues when merging:
+out of this design. Capture as issues when merging:
 
 1. **100M-key iterator benchmark calibration.** Run
    `BenchmarkIterNext` / `BenchmarkIterSeek` at the 100M reference scale
-   on LMDB and adjust `IterNextCostFlat` if needed. Defaults in this PR
-   are conservative placeholders chosen to over-charge warm-cache steps
+   on LMDB and adjust `IterNextCostFlat` if needed. Defaults here are
+   conservative placeholders chosen to over-charge warm-cache steps
    rather than under-charge cold-cache.
 
 2. **Dedicated `DeleteCost` benchmark.** Currently `DeleteCost` is set

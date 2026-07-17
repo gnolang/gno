@@ -70,12 +70,12 @@ stdout 'true bool'
 
 # (3) After pause: addpkg under test1's PA namespace MUST fail. This is
 # the fail-closed semantic — pause halts every deploy including PA.
-! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/pkg_pa -pkgpath gno.land/r/$test1_user_addr/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
 stderr 'is not authorized to deploy packages to namespace'
 
 # Non-PA also still fails (would've failed pre-pause too — confirm pause
 # doesn't accidentally invert behavior).
-! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/anotherspace/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/pkg_pa -pkgpath gno.land/r/anotherspace/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
 stderr 'is not authorized to deploy packages to namespace'
 
 # (4) MsgCall against the package deployed pre-pause MUST keep working.
@@ -99,7 +99,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/names.IsPaused()"
 stdout 'false bool'
 
 # (5) After unpause: addpkg under PA succeeds again.
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/after_unpause -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg_au -pkgpath gno.land/r/$test1_user_addr/after_unpause -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test test1
 stdout OK!
 
 -- run/init_govdao.gno --
@@ -107,8 +107,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/propose_pause.gno --
@@ -119,9 +119,9 @@ import (
 	"gno.land/r/sys/names"
 )
 
-func main() {
-	r := names.ProposeSetPaused(true)
-	dao.MustCreateProposal(cross, r)
+func main(cur realm) {
+	r := names.ProposeSetPaused(cross(cur), true)
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/propose_unpause.gno --
@@ -132,9 +132,9 @@ import (
 	"gno.land/r/sys/names"
 )
 
-func main() {
-	r := names.ProposeSetPaused(false)
-	dao.MustCreateProposal(cross, r)
+func main(cur realm) {
+	r := names.ProposeSetPaused(cross(cur), false)
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- pkg/gnomod.toml --
@@ -146,4 +146,24 @@ package hello
 
 func Hello(cur realm) string {
 	return "hi from hello"
+}
+-- pkg_pa/gnomod.toml --
+module = "gno.land/r/paused_attempt"
+gno = "0.9"
+
+-- pkg_pa/paused_attempt.gno --
+package paused_attempt
+
+func Hello(cur realm) string {
+	return "hi from paused_attempt"
+}
+-- pkg_au/gnomod.toml --
+module = "gno.land/r/after_unpause"
+gno = "0.9"
+
+-- pkg_au/after_unpause.gno --
+package after_unpause
+
+func Hello(cur realm) string {
+	return "hi from after_unpause"
 }

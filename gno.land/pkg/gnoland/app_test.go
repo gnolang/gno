@@ -19,6 +19,7 @@ import (
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -31,8 +32,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -183,6 +184,60 @@ func TestNewApp(t *testing.T) {
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
 
+// TestInitChainer_GenesisValidatorPubKeyType verifies that the initial
+// validator set seeded from genesis is gated by the consensus-params pubkey
+// allow-list, mirroring the EndBlocker gate for runtime valset updates. A
+// genesis validator whose key type is not allowed (e.g. secp256k1, which is
+// disallowed for validators) must abort InitChain rather than seed a
+// non-compliant validator into the active set.
+func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(pubKey crypto.PubKey) abci.RequestInitChain {
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				// ed25519 is the only allowed validator key type.
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: DefaultGenState(),
+		}
+	}
+
+	t.Run("ed25519 genesis validator accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(ed25519.GenPrivKey().PubKey()))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("secp256k1 genesis validator aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		// getDummyKey produces a secp256k1 key, which is not in the allow-list.
+		secpKey := getDummyKey(t).PubKey()
+		wantErr := fmt.Sprintf(
+			"genesis validator %s has disallowed pubkey type %s (allowed: %v)",
+			secpKey.Address().String(), amino.GetTypeURL(secpKey), []string{ed25519Type},
+		)
+		assert.PanicsWithError(t, wantErr, func() {
+			app.InitChain(newInitReq(secpKey))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -206,7 +261,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
@@ -351,6 +406,58 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 	}
 }
 
+// TestInitChainer_PanicsOnValoperCoverageFailure pins that an
+// assertGenesisValopersConsistent failure aborts boot via a Go-level
+// panic, not via the ResponseInitChain.Error field that tm2's
+// consensus/replay.go:339-342 silently discards. Without this guarantee
+// a hardfork chain can boot in a state where genesis validators have no
+// v3 operator-keyed management plane — the safety net would fire but
+// not actually stop the boot.
+func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
+	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db)
+	ms.LoadLatestVersion()
+	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
+	// an error from it is the realistic shape of an assertion failure
+	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// wrapped error).
+	mock := &mockVMKeeper{
+		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
+			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+		},
+	}
+
+	cfg := InitChainerConfig{
+		vmk:   mock,
+		acck:  &mockAuthKeeper{},
+		bankk: &mockBankKeeper{},
+		prmk:  &mockParamsKeeper{},
+		gpk:   &mockGasPriceKeeper{},
+	}
+
+	// PastChainIDs + Validators → shouldAssertValoperCoverage returns
+	// true → the assertion runs against the mocked vmk and fails.
+	req := abci.RequestInitChain{
+		Validators: generateValidatorUpdates(t, 1),
+		AppState:   GnoGenesisState{PastChainIDs: []string{"old-chain"}},
+	}
+
+	assert.PanicsWithError(t,
+		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		func() { cfg.InitChainer(testCtx, req) },
+		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
+	)
+}
+
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	t.Helper()
@@ -379,7 +486,7 @@ func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 
 	keys := make([]crypto.PrivKey, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := getDummyKey(t)
 		keys = append(keys, key)
 	}
@@ -880,10 +987,10 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		// Tier 1 semantic flip: corrupted current is no longer
-		// silently recovered. Only chain code writes valset:current
-		// (via ctx-sentinel), so corruption is by definition a
-		// chain-internal bug or store damage and warrants a panic.
+		// Corrupted current panics rather than being silently
+		// recovered. Only chain code writes valset:current (via
+		// ctx-sentinel), so corruption is by definition a chain-
+		// internal bug or store damage and warrants a panic.
 		st := &valsetState{
 			current:  []string{"garbage:not-a-power"},
 			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),
@@ -1200,7 +1307,182 @@ func TestGasPriceUpdate(t *testing.T) {
 	require.Equal(t, "100ugnot", gp.Price.String())
 }
 
-func newGasPriceTestApp(t *testing.T) abci.Application {
+// TestGasPriceMinimumIsCheckTxOnly verifies that the production ante handler
+// enforces the block gas price minimum in CheckTx, but not in DeliverTx.
+func TestGasPriceMinimumIsCheckTxOnly(t *testing.T) {
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	baseApp := app.(*sdk.BaseApp)
+
+	initialPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 100, Denom: "ugnot"},
+	}
+
+	gen := gnoGenesisState(t)
+	gen.Auth.Params.InitialGasPrice = initialPrice
+
+	privKey := getDummyKey(t)
+	addr := privKey.PubKey().Address()
+
+	gen.Balances = []Balance{
+		{
+			Address: addr,
+			Amount:  []std.Coin{{Amount: 10_000_000_000, Denom: "ugnot"}},
+		},
+	}
+
+	initRes := baseApp.InitChain(abci.RequestInitChain{
+		AppState: gen,
+		ChainID:  "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: 10_000_000},
+		},
+	})
+	require.True(
+		t,
+		initRes.ResponseBase.IsOK(),
+		"InitChain failed: %v",
+		initRes.ResponseBase.Error,
+	)
+	baseApp.Commit()
+
+	query := abci.RequestQuery{
+		Path: ".store/main/key",
+		Data: []byte(auth.GasPriceKey),
+	}
+
+	var storedPrice std.GasPrice
+	qr := baseApp.Query(query)
+	require.True(t, qr.IsOK(), "query failed: %v", qr.ResponseBase.Error)
+	require.NoError(t, amino.Unmarshal(qr.Value, &storedPrice))
+	require.Equal(t, initialPrice, storedPrice)
+
+	msgs := []std.Msg{
+		bank.NewMsgSend(
+			addr,
+			crypto.AddressFromPreimage([]byte("test-account")),
+			std.Coins{{Denom: "ugnot", Amount: 100}},
+		),
+	}
+
+	tx := createAndSignTx(t, msgs, "test-chain", privKey)
+	tx.Fee = std.Fee{
+		GasWanted: 10_000_000,
+		GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+	}
+
+	// The fee is part of the sign bytes, so the transaction must be re-signed.
+	signBytes, err := tx.GetSignBytes("test-chain", 0, 0)
+	require.NoError(t, err)
+
+	sig, err := privKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:    privKey.PubKey(),
+			Signature: sig,
+		},
+	}
+
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	checkRes := baseApp.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.False(
+		t,
+		checkRes.IsOK(),
+		"CheckTx should reject a transaction below the block gas price: %v",
+		checkRes,
+	)
+	require.Contains(
+		t,
+		checkRes.Log,
+		"as block gas price",
+		"unexpected CheckTx error: %s",
+		checkRes.Log,
+	)
+
+	baseApp.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{
+			ChainID: "test-chain",
+			Height:  2,
+		},
+	})
+
+	// This documents the current bug: DeliverTx does not enforce the minimum.
+	deliverRes := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(
+		t,
+		deliverRes.IsOK(),
+		"DeliverTx failed: %+v",
+		deliverRes,
+	)
+}
+
+func TestGasPriceEmptyBlockUpdate(t *testing.T) {
+	startingPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 10, Denom: "ugnot"},
+	}
+	floorPrice := std.GasPrice{
+		Gas:   1000,
+		Price: std.Coin{Amount: 1, Denom: "ugnot"},
+	}
+
+	run := func() []byte {
+		app := newGasPriceTestApp(t, startingPrice)
+		gen := gnoGenesisState(t)
+		gen.Auth.Params.InitialGasPrice = floorPrice
+		res := app.InitChain(abci.RequestInitChain{
+			AppState: gen,
+			ChainID:  "test-chain",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: &abci.BlockParams{MaxGas: 3_000_000_000},
+			},
+		})
+		require.True(t, res.ResponseBase.IsOK(), "%v", res.ResponseBase.Error)
+
+		genesisHash := app.Commit().Data
+		query := abci.RequestQuery{Path: ".store/main/key", Data: []byte(auth.GasPriceKey)}
+		var gasPrice std.GasPrice
+		qr := app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, startingPrice, gasPrice)
+
+		tx := newCounterTx(1)
+		tx.Fee = std.Fee{
+			GasWanted: 1000,
+			GasFee:    std.Coin{Amount: 9, Denom: "ugnot"},
+		}
+		txBytes, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		require.False(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: 2},
+		})
+		app.EndBlock(abci.RequestEndBlock{Height: 2})
+		emptyBlockHash := app.Commit().Data
+
+		qr = app.Query(query)
+		require.True(t, qr.IsOK(), "%v", qr.ResponseBase.Error)
+		require.NoError(t, amino.Unmarshal(qr.Value, &gasPrice))
+		require.Equal(t, int64(9), gasPrice.Price.Amount)
+		require.Equal(t, startingPrice.Gas, gasPrice.Gas)
+		require.Equal(t, startingPrice.Price.Denom, gasPrice.Price.Denom)
+		require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: txBytes}).IsOK())
+		require.NotEqual(t, genesisHash, emptyBlockHash)
+
+		return emptyBlockHash
+	}
+
+	require.Equal(t, run(), run(), "identical empty blocks must produce identical state transitions")
+}
+
+func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Application {
 	t.Helper()
 	cfg := TestAppOptions(memdb.NewMemDB())
 	cfg.EventSwitch = events.NewEventSwitch()
@@ -1213,7 +1495,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetAppVersion("test")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
@@ -1231,7 +1513,13 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	icc.baseApp = baseApp
 	icc.prmk = prmk
 	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
-	baseApp.SetInitChainer(icc.InitChainer)
+	baseApp.SetInitChainer(func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		res := icc.InitChainer(ctx, req)
+		if len(storedGasPrice) > 0 && res.ResponseBase.IsOK() {
+			gpk.SetGasPrice(ctx, storedGasPrice[0])
+		}
+		return res
+	})
 
 	// Set AnteHandler
 	baseApp.SetAnteHandler(
@@ -1239,11 +1527,17 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Keeper bookkeeping reads run unmetered: the test's price math
+			// asserts exact values, so block gas consumed must equal the
+			// counter values exactly — calibrated store-read costs would
+			// otherwise blow the small block budget and skew the economics.
+			readCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
+
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(readCtx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(readCtx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -1456,7 +1750,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 	)
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
 
 	// Make sure loading a past version doesn't fail
@@ -2361,7 +2655,6 @@ func TestMeetsMinVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
 			t.Parallel()
 			got := meetsMinVersion(tc.binary, tc.minVer)
@@ -2390,7 +2683,6 @@ func TestParseGnolandVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			major, minor, ok := parseGnolandVersion(tc.input)
@@ -2825,7 +3117,7 @@ func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (par
 	mainKey := store.NewStoreKey("main")
 
 	cms := store.NewCommitMultiStore(db)
-	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
 	require.NoError(t, cms.LoadLatestVersion())
 
 	prmk := params.NewParamsKeeper(mainKey)
@@ -3071,6 +3363,104 @@ func TestInitChainer_StreamingAppState_TxParity(t *testing.T) {
 	// The two paths must agree on tx outcome.
 	assert.Equal(t, memResp.TxResponses[0].Error, streamResp.TxResponses[0].Error,
 		"in-memory vs streaming tx outcomes must match")
+}
+
+func TestInitChainer_VestingAccount(t *testing.T) {
+	t.Parallel()
+
+	key := getDummyKey(t)
+	addr := key.PubKey().Address()
+	chainID := "test"
+
+	vestingAmount := std.NewCoins(std.NewCoin("ugnot", 500_000))
+	totalBalance := std.NewCoins(std.NewCoin("ugnot", 1_000_000))
+
+	tests := []struct {
+		name      string
+		vesting   *std.VestingSchedule
+		isVesting bool
+	}{
+		{
+			"continuous vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       100,
+				EndTime:         200,
+			},
+			true,
+		},
+		{
+			"delayed vesting",
+			&std.VestingSchedule{
+				OriginalVesting: vestingAmount,
+				StartTime:       0,
+				EndTime:         200,
+				Type:            std.VestingDelayed,
+			},
+			true,
+		},
+		{
+			"no vesting",
+			nil,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDb := memdb.NewMemDB()
+			testApp, err := NewAppWithOptions(TestAppOptions(testDb))
+			require.NoError(t, err)
+
+			state := DefaultGenState()
+			state.Balances = []Balance{
+				{
+					Address: addr,
+					Amount:  totalBalance,
+					Vesting: tt.vesting,
+				},
+			}
+
+			resp := testApp.InitChain(abci.RequestInitChain{
+				ChainID: chainID,
+				Time:    time.Unix(150, 0), // halfway through vesting
+				ConsensusParams: &abci.ConsensusParams{
+					Block: defaultBlockParams(),
+					Validator: &abci.ValidatorParams{
+						PubKeyTypeURLs: []string{},
+					},
+				},
+				AppState: state,
+			})
+			require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+
+			// Commit to persist the genesis state before querying.
+			cres := testApp.Commit()
+			require.NotNil(t, cres)
+
+			// Query the account to verify it exists.
+			qres := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("auth/accounts/%s", addr),
+			})
+			require.True(t, qres.IsOK(), "account query response: %v", qres)
+
+			if tt.isVesting {
+				// The account should be a vesting account type.
+				assert.Contains(t, string(qres.Data), "Vesting")
+				// The account number must be present.
+				assert.Contains(t, string(qres.Data), "account_number")
+			}
+
+			// Verify the coins are set correctly.
+			qresBank := testApp.Query(abci.RequestQuery{
+				Path: fmt.Sprintf("bank/balances/%s", addr),
+			})
+			require.True(t, qresBank.IsOK(), "bank query response: %v", qresBank)
+			assert.Contains(t, string(qresBank.Data), "ugnot")
+		})
+	}
 }
 
 // writeMinimalGenesisFile emits a tm2.GenesisDoc-shaped JSON file under

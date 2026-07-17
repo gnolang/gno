@@ -4,7 +4,14 @@ type Realm interface {
 	Address() Address
 	PkgPath() string
 	Previous() Realm
-	Origin() Realm
+	IsCode() bool
+	IsUser() bool
+	IsUserCall() bool
+	IsUserRun() bool
+	IsEphemeral() bool
+	IsCurrent() bool
+	Sub(subpath string) Realm
+	Subpath() string
 	String() string
 }
 

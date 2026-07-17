@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
 
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
@@ -25,25 +26,29 @@ import (
 // While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
-var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+// The map must not be mutated afterwards: it is read concurrently by parallel
+// type-checks.
+var gnoBuiltinsCache = sync.OnceValue(func() map[string]*std.MemPackage {
+	return map[string]*std.MemPackage{
+		"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
+	}
+})
 
-func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
-	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
-		panic("expected pkgPath to start with gnobuiltins/")
-	}
-	mpkg, ok := gnoBuiltinsCache[pkgPath]
-	if ok {
-		return mpkg
-	}
-	switch pkgPath {
-	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
-		mpkg.SetFile("gno0p9.gno", `package gno0p9
+func gnoBuiltinsGno0p9() *std.MemPackage { // 0.9
+	mpkg := &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+	mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
     PkgPath() string
     Previous() realm
-    Origin() realm
+    IsCode() bool
+    IsUser() bool
+    IsUserCall() bool
+    IsUserRun() bool
+    IsEphemeral() bool
+    IsCurrent() bool
+    Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm
@@ -53,43 +58,37 @@ func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
 `)
-	default:
+	return mpkg
+}
+
+func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
+	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		panic("expected pkgPath to start with gnobuiltins/")
+	}
+	mpkg, ok := gnoBuiltinsCache()[pkgPath]
+	if !ok {
 		panic("unrecognized gnobuiltins pkgpath")
 	}
-	gnoBuiltinsCache[pkgPath] = mpkg
 	return mpkg
 }
 
 func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
-	gnoBuiltins := ""
-	switch gnoVersion {
-	case GnoVerLatest: // 0.9
-		gnoBuiltins = `package %s
+	if gnoVersion != GnoVerLatest {
+		panic("unsupported gno.mod version " + gnoVersion)
+	}
+	const gnoBuiltins = `package %s
 import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
-var cross realm // shim
+func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
 `
-	case GnoVerMissing: // 0.0
-		gnoBuiltins = `package %s
-
-func istypednil(x any) bool { return false } // shim
-func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
-func _cross_gno0p0[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
-func revive[F any](fn F) any { return nil } // shim
-`
-	default:
-		panic("unsupported gno.mod version " + gnoVersion)
-	}
-	file := &std.MemFile{
+	return &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
 		Body: fmt.Sprintf(gnoBuiltins, pkgName),
 	}
-	return file
 }
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
@@ -123,7 +122,6 @@ const (
 	TCLatestStrict  TypeCheckMode = iota // require latest gnomod.toml gno version, forbid drafts
 	TCGenesisStrict                      // require latest gnomod.toml gno version, allow drafts
 	TCLatestRelaxed                      // generate latest gnomod.toml if missing
-	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
 // RequiresLatestGnoMod returns true if the type check mode requires latest gno.mod version
@@ -178,6 +176,18 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
+			// Pin the accepted Go language version. Left empty, go/types gates
+			// syntax at whatever version the validator binary was built with,
+			// so the accept/reject verdict (and its error text) becomes a
+			// function of the build, not the package — a consensus fork. This
+			// is a syntax-acceptance floor only, NOT Gno's runtime semantics:
+			// Gno matches no single Go version (no generics, like <go1.18, yet
+			// go1.22 per-iteration loopvars, implemented in the interpreter
+			// regardless of this value). go1.18 is the minimum the injected
+			// .gnobuiltins shim needs (it uses any/type params) and rejects
+			// features Gno can't run (min/max, range-over-int/func) here rather
+			// than downstream.
+			GoVersion: "go1.18",
 			Error: func(err error) {
 				gimp.Error(err)
 			},
@@ -352,9 +362,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 }
 
 // Minimal AST mutation(s) for Go.
-// For gno 0.0 there was nothing to do besides including .gnobuiltins.gno.
-// For gno 0.9 we need to support init(cur realm), main(cur realm) by
-// removing them and instead setting `cur := cross`; hacky but good enough.
+// Supports init(cur realm), main(cur realm) by removing the param and
+// inserting `var cur realm; _ = cur` so go/types sees the cur variable.
 func prepareGoGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
@@ -366,30 +375,24 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 				} else {
 					return true
 				}
-				// This assignment is not valid in gno.
-				// `as1` declares cur and `as2` "uses" it.
-				as1 := &ast.AssignStmt{
-					Lhs: []ast.Expr{ast.NewIdent("cur")},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{ast.NewIdent("cross")},
-				}
-				as2 := &ast.AssignStmt{
-					Lhs: []ast.Expr{ast.NewIdent("cross")},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{ast.NewIdent("cur")},
-				}
-				// Not sure if this does anything,
-				// but we want the line numbers to not change.
 				insert := gon.Type.End()
-				as1.Lhs[0].(*ast.Ident).NamePos = insert
-				as1.TokPos = insert
-				as1.Rhs[0].(*ast.Ident).NamePos = insert
-				as2.Lhs[0].(*ast.Ident).NamePos = insert
-				as2.TokPos = insert
-				as2.Rhs[0].(*ast.Ident).NamePos = insert
-				// Prepend define and use of `cur`.
-				gon.Body.List = append([]ast.Stmt{as1, as2},
-					gon.Body.List...)
+				// var cur realm
+				decl := &ast.DeclStmt{Decl: &ast.GenDecl{
+					Tok:    token.VAR,
+					TokPos: insert,
+					Specs: []ast.Spec{&ast.ValueSpec{
+						Names: []*ast.Ident{{Name: "cur", NamePos: insert}},
+						Type:  &ast.Ident{Name: "realm", NamePos: insert},
+					}},
+				}}
+				// _ = cur
+				use := &ast.AssignStmt{
+					Lhs:    []ast.Expr{&ast.Ident{Name: "_", NamePos: insert}},
+					Tok:    token.ASSIGN,
+					TokPos: insert,
+					Rhs:    []ast.Expr{&ast.Ident{Name: "cur", NamePos: insert}},
+				}
+				gon.Body.List = append([]ast.Stmt{decl, use}, gon.Body.List...)
 			}
 		}
 		return true
@@ -421,18 +424,13 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 		gnoVersion = mod.GetGno()
 	} else {
+		// tcmode is TCLatestRelaxed: missing gnomod.toml → latest.
 		if mod == nil {
-			// cannot be stdlib; ParseCheckGnoMod will generate a
-			// gno.mod with version latest. Sanity check:
+			// cannot be stdlib; ParseCheckGnoMod auto-generates one.
 			if IsStdlib(mpkg.Path) {
 				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
 			}
-			switch gimp.tcmode {
-			case TCGno0p0:
-				gnoVersion = GnoVerMissing
-			case TCLatestRelaxed:
-				gnoVersion = GnoVerLatest
-			}
+			gnoVersion = GnoVerLatest
 		} else {
 			gnoVersion = mod.GetGno()
 		}
@@ -556,10 +554,11 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 	dupes := []ast.Decl{}
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods and init functions
+		// ignore methods, init and blank functions
 		if !ok ||
 			fd.Recv != nil ||
-			fd.Name.Name == "init" {
+			fd.Name.Name == "init" ||
+			fd.Name.Name == "_" {
 			continue
 		}
 		// if declaration is duplicate, delete this one.

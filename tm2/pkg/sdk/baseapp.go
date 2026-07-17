@@ -378,9 +378,18 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	// In app.initChainer(), we set the initial parameter values in the params keeper.
 	// The params keeper store needs to be accessible in the CheckTx state so that
 	// the first CheckTx can verify the gas price set right after the chain is initialized
-	// with the genesis state.
-	app.checkState.ctx.ms = app.deliverState.ctx.ms
-	app.checkState.ms = app.deliverState.ms
+	// with the genesis state. Wrap the deliver state rather than aliasing it:
+	// CheckTx must READ genesis state, but its writes must never leak into
+	// the block-1 deliver state. Under the old aliasing, a pre-block-1
+	// CheckTx flushed its ante writes (fee deduction, sequence bumps — and
+	// at genesis height gno.land's ante even auto-creates funded accounts
+	// for unknown signers) into the shared store: the same tx then failed
+	// signature verification when delivered in block 1, and, worse, whether
+	// a CheckTx ran is per-node mempool state, so block-1 deliver state
+	// could diverge across nodes.
+	checkMS := app.deliverState.ms.MultiCacheWrap()
+	app.checkState.ctx.ms = checkMS
+	app.checkState.ms = checkMS
 
 	// NOTE: We don't commit, but BeginBlock for block 1 starts from this
 	// deliverState.
@@ -776,16 +785,16 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
-				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
-					gasWanted,
-					ctx.GasMeter().GasConsumed(),
-					ex.Descriptor,
-				)
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				if trace.StoreGasEnabled {
 					trace.TxEnd(result.GasUsed)
 				}

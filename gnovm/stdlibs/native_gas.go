@@ -76,47 +76,53 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 46 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 65 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
+// crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
+// on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
+// Apple M2. The whole table must be regenerated on the reference Xeon 8168
+// before any consensus-relevant deployment; the IBC rows are flagged
+// "draft" in their trailing comment to make that obvious.
 var calibratedNativeGas = []nativeGasEntry{
-	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                           // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
-	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
-	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                         // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998
-	{Pkg: "chain", Fn: "deriveStorageDepositAddr", Base: 541, Slope: 471, SlopeIdx: 0, SlopeKind: SizeLenString},                                                 // fit base=540.9ns slope=0.4602ns/N (=471/1024) R²=0.994
-	{Pkg: "chain", Fn: "pubKeyAddress", Base: 2631, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                           // flat, median 2631.0ns
-	{Pkg: "time", Fn: "loadFromEmbeddedTZData", Base: 16068, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 16068.0ns
-	{Pkg: "math", Fn: "Float32bits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                                // flat, median 32.5ns
-	{Pkg: "math", Fn: "Float32frombits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                            // flat, median 32.4ns
-	{Pkg: "math", Fn: "Float64bits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                                // flat, median 28.7ns
-	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                            // flat, median 28.8ns
-	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                  // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
-	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},   // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
-	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                    // flat, median 88.6ns
-	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 140.6ns
-	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 195.9ns
-	{Pkg: "chain/banker", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 280.4ns
-	{Pkg: "chain/banker", Fn: "assertCallerIsRealm", Base: 701, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // flat, median 700.8ns
-	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
-	{Pkg: "chain/params", Fn: "SetString", Base: 1772, Slope: 135, SlopeIdx: 1, SlopeKind: SizeLenString},                                                        // fit base=1772.3ns slope=0.1323ns/N (=135/1024) R²=0.933
-	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 1643.0ns
-	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 1201.0ns
-	{Pkg: "chain/params", Fn: "SetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 1219.0ns
-	{Pkg: "sys/params", Fn: "setSysParamBytes", Base: 323, Slope: 9703, SlopeIdx: 3, SlopeKind: SizeLenBytes},                                                    // fit base=323.3ns slope=9.4757ns/N (=9703/1024) R²=0.995
-	{Pkg: "sys/params", Fn: "getSysParamBytes", Base: 416, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},   // post-call: base=415.7ns + 10.3357ns/N (=10584/1024) R²=1.000
-	{Pkg: "sys/params", Fn: "setSysParamString", Base: 269, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 269.1ns
-	{Pkg: "sys/params", Fn: "setSysParamBool", Base: 217, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 217.4ns
-	{Pkg: "sys/params", Fn: "setSysParamInt64", Base: 228, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                    // flat, median 227.8ns
-	{Pkg: "sys/params", Fn: "setSysParamUint64", Base: 299, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 298.9ns
-	{Pkg: "sys/params", Fn: "getSysParamBool", Base: 236, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 236.5ns
-	{Pkg: "sys/params", Fn: "getSysParamInt64", Base: 323, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                    // flat, median 322.9ns
-	{Pkg: "sys/params", Fn: "getSysParamUint64", Base: 309, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 308.7ns
-	{Pkg: "sys/params", Fn: "getSysParamString", Base: 363, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 362.8ns
-	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                           // flat, median 44.8ns
-	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 44.5ns
-	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 30.2ns
-	{Pkg: "chain/runtime", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // flat, median 44.9ns
-	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 148.4ns
-	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 5.0ns
-	{Pkg: "chain/runtime", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                                  // fit base=1003.0ns slope=1.2880ns/N (=1319/1024) R²=0.995
+	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
+	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
+	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                       // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998; realm.Sub mirrors this — keep gno.OpCPUSubRealmBase/Slope in sync (TestSubRealmGasMirrorsPackageAddress)
+	{Pkg: "chain", Fn: "deriveStorageDepositAddr", Base: 541, Slope: 471, SlopeIdx: 0, SlopeKind: SizeLenString},                                               // fit base=540.9ns slope=0.4602ns/N (=471/1024) R²=0.994
+	{Pkg: "chain", Fn: "pubKeyAddress", Base: 2631, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 2631.0ns
+	{Pkg: "time", Fn: "loadFromEmbeddedTZData", Base: 16068, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 16068.0ns
+	{Pkg: "math", Fn: "Float32bits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                              // flat, median 32.5ns
+	{Pkg: "math", Fn: "Float32frombits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 32.4ns
+	{Pkg: "math", Fn: "Float64bits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                              // flat, median 28.7ns
+	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
+	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
+	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
+	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 88.6ns
+	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 140.6ns
+	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 195.9ns
+	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
+	{Pkg: "chain/params", Fn: "SetString", Base: 1772, Slope: 135, SlopeIdx: 1, SlopeKind: SizeLenString},                                                      // fit base=1772.3ns slope=0.1323ns/N (=135/1024) R²=0.933
+	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 1643.0ns
+	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 1201.0ns
+	{Pkg: "chain/params", Fn: "SetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // flat, median 1219.0ns
+	{Pkg: "sys/params", Fn: "setSysParamBytes", Base: 323, Slope: 9703, SlopeIdx: 3, SlopeKind: SizeLenBytes},                                                  // fit base=323.3ns slope=9.4757ns/N (=9703/1024) R²=0.995
+	{Pkg: "sys/params", Fn: "getSysParamBytes", Base: 416, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=415.7ns + 10.3357ns/N (=10584/1024) R²=1.000
+	{Pkg: "sys/params", Fn: "setSysParamString", Base: 269, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 269.1ns
+	{Pkg: "sys/params", Fn: "setSysParamBool", Base: 217, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 217.4ns
+	{Pkg: "sys/params", Fn: "setSysParamInt64", Base: 228, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 227.8ns
+	{Pkg: "sys/params", Fn: "setSysParamUint64", Base: 299, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 298.9ns
+	{Pkg: "sys/params", Fn: "getSysParamBool", Base: 236, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 236.5ns
+	{Pkg: "sys/params", Fn: "getSysParamInt64", Base: 323, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 322.9ns
+	{Pkg: "sys/params", Fn: "getSysParamUint64", Base: 309, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 308.7ns
+	{Pkg: "sys/params", Fn: "getSysParamString", Base: 363, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 362.8ns
+	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 44.8ns
+	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 44.5ns
+	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
+	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 148.4ns
+	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 5.0ns
+	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.
+	{Pkg: "chain/runtime/unsafe", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // mirrors chain/runtime.originCaller
+	{Pkg: "chain/runtime/unsafe", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // mirrors chain/runtime.getRealm
+	{Pkg: "chain/runtime/unsafe", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // mirrors chain/banker.originSend
 	{Pkg: "time", Fn: "now", Base: 47, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                                        // flat, median 46.9ns
 	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955
 	{Pkg: "chain/params", Fn: "SetStrings", Base: 1601, Slope: 39842, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                      // fit base=1601.1ns slope=38.9082ns/N (=39842/1024) R²=0.993
@@ -124,6 +130,36 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999
+	// chain/markdown — calibrated from gnovm/cmd/calibrate (M2 ARM64 baseline,
+	// same as the other rows above). Same Xeon 8168 re-calibration caveat
+	// applies; values are stable across re-runs (R² ≥ 0.994 for all eight).
+	{Pkg: "chain/markdown", Fn: "StripBidiAndZeroWidth", Base: 71, Slope: 1882, SlopeIdx: 0, SlopeKind: SizeLenString},    // fit base=71.1ns slope=1.8378ns/N (=1882/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "NormalizeBreaks", Base: 72, Slope: 573, SlopeIdx: 0, SlopeKind: SizeLenString},           // fit base=71.8ns slope=0.5600ns/N (=573/1024) R²=0.994
+	{Pkg: "chain/markdown", Fn: "EscapeInline", Base: 76, Slope: 2041, SlopeIdx: 0, SlopeKind: SizeLenString},             // fit base=75.9ns slope=1.9932ns/N (=2041/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "EscapeTitle", Base: 76, Slope: 2060, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=76.1ns slope=2.0120ns/N (=2060/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
+	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
+	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
+
+	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
+	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},           // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
+	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 14883ns (input fixed 128B)
+	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 44465ns (input fixed 96B)
+	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes},     // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 7513ns (32+32B inputs)
+	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
+	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
+	// modExp cost is dominated by an O(N^3) big-int chain (Go big.Int.Exp). The
+	// linear schema can't capture that, so the slope below is fit so the charge
+	// matches measured cost at N=256-byte modulus (~6.16ms) and overcharges
+	// smaller inputs / undercharges very large inputs. Re-check before
+	// allowing >256-byte modulus in production realms.
+	{Pkg: "crypto/modexp", Fn: "modExp", Base: 58000, Slope: 24647680, SlopeIdx: 2, SlopeKind: SizeLenBytes}, // draft, calibrated against N=256-byte modulus (cubic underlying, see comment)
 }
 
 func init() {

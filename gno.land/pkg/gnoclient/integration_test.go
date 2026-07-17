@@ -322,12 +322,12 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
-func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
+func main(cur realm) {
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross)
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	caller, err := client.Signer.Info()
@@ -401,12 +401,12 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
-func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
+func main(cur realm) {
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross)
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	fileBody2 := `package main
@@ -542,7 +542,7 @@ func Echo(str string) string {
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 176800}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
+	deploymentPathB := "gno.land/p/demo/integration/test2/echo"
 	msg.Package.Path = deploymentPathB
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg)
 	assert.NoError(t, err)
@@ -686,8 +686,8 @@ func Hello(str string) string {
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996545300}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
-	deploymentPath2B := "gno.land/p/demo/integration/test/hello2"
+	deploymentPath1B := "gno.land/p/demo/integration/test2/echo"
+	deploymentPath2B := "gno.land/p/demo/integration/test2/hello"
 	msg1.Package.Path = deploymentPath1B
 	msg2.Package.Path = deploymentPath2B
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg1, msg2)
@@ -735,10 +735,9 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 	loader := integration.NewPkgsLoader()
 	examplesDir := filepath.Join(rootdir, "examples")
 	for _, path := range paths {
-		path = filepath.Clean(path)
-		path = filepath.Join(examplesDir, path)
-		err := loader.LoadPackage(examplesDir, path, "")
-		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", path, err)
+		dir := integration.ResolveExamplePath(examplesDir, filepath.Clean(path))
+		err := loader.LoadPackage(examplesDir, dir, "")
+		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", dir, err)
 	}
 	privKey, err := integration.GeneratePrivKeyFromMnemonic(integration.DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)

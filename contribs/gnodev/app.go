@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -57,7 +58,7 @@ type App struct {
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
-	loader        packages.Loader
+	loader        *packages.Loader
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
@@ -143,6 +144,17 @@ func (ds *App) Close() {
 	ds.deferred()
 }
 
+// logNoWorkspace warns that no workspace (gnomod.toml/gnowork.toml) was
+// found in the CWD ancestry. hint is the mode's loading consequence
+// (cfg.noWorkspaceHint, owned by each command's default config). The
+// multiline message renders as a single bordered block through the column
+// logger.
+func logNoWorkspace(logger *slog.Logger, hint string) {
+	logger.Warn("no workspace (gnomod.toml / gnowork.toml) found in ./ or any parent.\n" +
+		hint + "\n" +
+		"to include local packages, pass -extra-root <dir> or cd into a workspace.")
+}
+
 func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	if err := ds.cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
@@ -151,13 +163,123 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to not have this hardcoded
-	examplesDir := filepath.Join(ds.cfg.root, "examples")
-
-	// Setup loader and resolver
+	// Setup loader
 	loaderLogger := ds.logger.WithGroup(LoaderLogName)
-	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
-	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get cwd: %w", err)
+	}
+	ws := packages.FindWorkspace(cwd)
+
+	// Translate positional args into loader roots and path entries.
+	localPaths := make([]string, 0, len(dirs))
+	extraRoots := make([]string, 0, len(ds.cfg.extraRoots)+len(dirs))
+	for _, r := range ds.cfg.extraRoots {
+		if _, err := os.Stat(r); err != nil {
+			loaderLogger.Warn("-extra-root invalid, skipping", "root", r, "err", err)
+			continue
+		}
+		extraRoots = append(extraRoots, r)
+	}
+
+	// Package-dir candidates: explicit [package_dir...] args, plus the CWD
+	// forwarded by the local command. Dirs with a gnomod.toml resolve through
+	// a root scan; gnomod-less dirs deploy under a generated module path and
+	// are registered with the loader below (the scan requires gnomod.toml).
+	type generatedPkg struct{ path, dir string }
+	var generatedPkgs []generatedPkg
+	seenDirs := make(map[string]struct{}, len(dirs))
+	for _, dir := range dirs {
+		dir, err := filepath.Abs(dir)
+		if err != nil {
+			return fmt.Errorf("unable to resolve directory %q: %w", dir, err)
+		}
+		if _, ok := seenDirs[dir]; ok {
+			continue
+		}
+		seenDirs[dir] = struct{}{}
+		path, hasGnoMod, err := detectLocalPackage(ds.cfg, dir)
+		if err != nil {
+			// The CWD is forwarded unconditionally by the local command;
+			// not being a package there is normal. Explicit args warrant
+			// a warning.
+			if dir == cwd {
+				loaderLogger.Debug("skipping current directory", "dir", dir, "reason", err)
+			} else {
+				loaderLogger.Warn("skipping directory", "dir", dir, "reason", err)
+			}
+			continue
+		}
+		localPaths = append(localPaths, path)
+		switch {
+		case !hasGnoMod:
+			loaderLogger.Warn("gnomod.toml not found, deploying under a generated module path",
+				"dir", dir, "module", path,
+				"hint", "create a gnomod.toml to set the module path explicitly")
+			generatedPkgs = append(generatedPkgs, generatedPkg{path: path, dir: dir})
+		case dir != ws:
+			// The workspace root is already eagerly loaded; registering it
+			// again as an extra root would walk it twice per reload.
+			extraRoots = append(extraRoots, dir)
+		}
+	}
+
+	if ws == "" {
+		if ds.cfg.noExamples && len(extraRoots) == 0 {
+			return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
+		}
+		logNoWorkspace(loaderLogger, ds.cfg.noWorkspaceHint)
+	} else {
+		// Name the root explicitly: a forgotten gnowork.toml in a parent
+		// directory silently widens the workspace to that entire tree.
+		loaderLogger.Info("workspace detected", "root", ws)
+	}
+
+	if ds.cfg.root == "" {
+		ds.cfg.root = gnoenv.RootDir()
+	}
+	gnoRoot := ds.cfg.root
+	var excludeDirs []string
+	if ds.cfg.withoutQuarantinedExamples {
+		excludeDirs = append(excludeDirs, filepath.Join(gnoRoot, "examples", "quarantined"))
+	}
+
+	loaderCfg := packages.Config{
+		Workspace:   ws,
+		Examples:    !ds.cfg.noExamples,
+		ExtraRoots:  extraRoots,
+		ExcludeDirs: excludeDirs,
+		GnoRoot:     gnoRoot,
+		Remotes:     ds.cfg.remotes,
+		Logger:      loaderLogger,
+	}
+	ds.loader = packages.New(loaderCfg)
+	for _, gp := range generatedPkgs {
+		ds.loader.AddLocalPackage(gp.path, gp.dir)
+	}
+
+	// When examples are disabled, surface unresolvable gno.land/* imports at
+	// startup so users get a clear warning instead of a mysterious VM panic
+	// at first query. Non-fatal: user may be intentionally stubbing.
+	if ds.cfg.noExamples && ws != "" {
+		if missing := packages.CheckMissingExampleImports(ds.loader, ws); len(missing) > 0 {
+			loaderLogger.Warn(
+				"-no-examples is set but workspace packages import gno.land/* paths that are unresolvable",
+				"missing", missing,
+				"hint", "drop -no-examples, add -extra-root <dir> covering these paths, or pass -remote <domain>=<rpc> to fetch them",
+			)
+		}
+	}
+
+	// Lazy loading hydrates only the workspace at startup via Reload;
+	// eager loading (staging mode) materializes workspace + examples +
+	// extra roots. The node's first Reset invokes reload, surfacing any
+	// parse errors at startup.
+	reload := ds.loader.Reload
+	if ds.cfg.staging {
+		reload = ds.loader.LoadAll
+	}
 
 	// Get user's address book from local keybase
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
@@ -187,7 +309,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader, ds.book)
+	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, reload, ds.book)
 	if err != nil {
 		return fmt.Errorf("unable to setup node config: %w", err)
 	}
@@ -196,7 +318,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
 	// Setup lazy proxy
-	if ds.cfg.lazyLoader {
+	if !ds.cfg.staging {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		ds.proxy, err = proxy.NewPathInterceptor(proxyLogger, address)
 		if err != nil {
@@ -211,12 +333,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 			"target_addr", ds.proxy.TargetAddress(),
 		)
 
-		proxyLogger.Info("lazy loading is enabled. packages will be loaded only upon a request via a query or transaction.", "loader", ds.loader.Name())
+		proxyLogger.Info("lazy loading is enabled. packages will be loaded only upon a request via a query or transaction.", "loader", "native")
 	} else {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}
 
-	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.paths...)
+	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.loader, ds.paths...)
 	if err != nil {
 		return err
 	}
@@ -261,7 +383,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		// Generate initial paths
 		initPaths := map[string]struct{}{}
 		for _, pkg := range ds.devNode.ListPkgs() {
-			initPaths[pkg.Path] = struct{}{}
+			initPaths[pkg.ImportPath] = struct{}{}
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {
@@ -460,7 +582,7 @@ func (ds *App) RunInteractive(ctx context.Context, term *rawterm.RawTerm) {
 }
 
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
-https://docs.gno.land/builders/local-dev-with-gnodev
+https://docs.gno.land/resources/gnodev
 
 P           Previous TX  - Go to the previous tx
 N           Next TX      - Go to the next tx
@@ -494,7 +616,8 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		// Reset paths
 		ds.pathManager.Reset()
 		ds.devNode.SetPackagePaths(ds.paths...)
-		// Reset the node
+		// Reset the node (drops session-only lazily loaded packages via
+		// NodeConfig.ResetState).
 		if err = ds.devNode.Reset(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
 		}

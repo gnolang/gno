@@ -2,7 +2,6 @@ package profile
 
 import (
 	"chain"
-	"chain/runtime"
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/mux/v0"
@@ -71,7 +70,7 @@ var boolFields = map[string]bool{
 // Setters
 
 func SetStringField(cur realm, field, value string) bool {
-	addr := runtime.PreviousRealm().Address()
+	addr := cur.Previous().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
@@ -86,7 +85,7 @@ func SetStringField(cur realm, field, value string) bool {
 }
 
 func SetIntField(cur realm, field string, value int) bool {
-	addr := runtime.PreviousRealm().Address()
+	addr := cur.Previous().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
@@ -101,7 +100,7 @@ func SetIntField(cur realm, field string, value int) bool {
 }
 
 func SetBoolField(cur realm, field string, value bool) bool {
-	addr := runtime.PreviousRealm().Address()
+	addr := cur.Previous().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
@@ -119,7 +118,7 @@ func SetBoolField(cur realm, field string, value bool) bool {
 
 func GetStringField(addr address, field, def string) string {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(string)
 	}
 
@@ -128,7 +127,7 @@ func GetStringField(addr address, field, def string) string {
 
 func GetBoolField(addr address, field string, def bool) bool {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(bool)
 	}
 
@@ -137,7 +136,7 @@ func GetBoolField(addr address, field string, def bool) bool {
 
 func GetIntField(addr address, field string, def int) int {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(int)
 	}
 
