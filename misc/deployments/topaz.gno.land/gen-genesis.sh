@@ -155,12 +155,12 @@ NAMES_ADMIN=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 CHECKSUMS_DATA=$(
   cat <<'EOF'
 # Build artifacts
-397c3c90fb4bbc4ad248ac852a2e843f2089b5f8909f2c6c2cb4a37952e8096b  work/packages.gen.txt
+dac29a0caae126dfbad0a2d5ad08e0aa5fb4f4c0da87b55bc8fb889c7ff20eb3  work/packages.gen.txt
 c0946127b1ed0f310166c88f808c499df65f78f0c61f7032a6979cd5075397c4  work/valoper-seed.jsonl
-f0fc05aeb9061711a3b8d861e5d53ba3271989d411c226d90c7651b470ae28d1  work/genesis_txs.jsonl
+a5aa589086ae36f8a74ac9f79fa7969d5b5c405637607e79d6d2565b28d2ba96  work/genesis_txs.jsonl
 
 # Final artifact (moved to topaz.gno.land/ root on success)
-59897fed7c45b9f1cb6445b56c935134594fd96c3dea6953d7af6279a63d80ef  genesis.json
+2dd049f973b82858727440df9aff5722cb0b322fd00890f40f2b0688276898ff  genesis.json
 EOF
 )
 
