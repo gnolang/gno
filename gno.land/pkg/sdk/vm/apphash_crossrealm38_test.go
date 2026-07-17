@@ -96,7 +96,15 @@ import (
 // unchanged; only the genesis params encoding shifted. (Value re-derived
 // after merging master, so it reflects the bptree store + #5890 + #5891 +
 // this param together.)
-const expectedCrossrealm38Hash = "058910b2a1aa0f2c900990843643b5e13d8b8dfa3be8aa7f9dc7d169c1e7cb15"
+//
+// Hash bumped by the apd -> math/big.Rat PR (#5867): BigdecValue (untyped
+// float constant representation) now amino-serializes in rational form
+// ("1/3") instead of the old decimal string ("0.3333333333"), shifting the
+// committed multistore root for any realm state containing bigdec constants.
+// Behavior is unchanged for all typed values; only the constant-folding
+// arithmetic is corrected (fixes #5862). Re-derived after merging master, so
+// it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
+const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
