@@ -11,10 +11,10 @@
 //
 // If GC double-counted:
 //
-//	after ≈ 11956 - <dead> + 48 + 1052 ≈ 9448
+//	after ≈ 12004 - <dead> + 48 + 1052 ≈ 9496
 //	(the extra 1052B for s1's backing would push after above 9k)
 //
-// Observed: after = 8396, confirming single-count dedup.
+// Observed: after = 8444, confirming single-count dedup.
 package test
 
 import (
@@ -52,5 +52,5 @@ func main() {
 }
 
 // Output:
-// ===before GC, MemStats:  Allocator{maxBytes:50000, bytes:4456}
-// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:7392}
+// ===before GC, MemStats:  Allocator{maxBytes:50000, bytes:12004}
+// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:8444}
