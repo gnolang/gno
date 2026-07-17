@@ -14,8 +14,7 @@ func TestBasic(t *testing.T) {
 	p3c := NewP3Context()
 	p3c.RegisterPackage(sm1.Package)
 	p3doc := P3Doc{PackageName: "test"}
-	obj := sm1.StructSM{}
-	p3message := p3c.GenerateProto3MessagePartial(&p3doc, reflect.TypeOf(obj))
+	p3message := p3c.GenerateProto3MessagePartial(&p3doc, reflect.TypeFor[sm1.StructSM]())
 	assert.Equal(t, `message StructSM {
 	sint64 field_a = 1 [json_name = "FieldA"];
 	string field_b = 2 [json_name = "FieldB"];
@@ -29,7 +28,7 @@ package test;
 // imports
 import "github.com/gnolang/gno/tm2/pkg/amino/genproto/example/submodule2/submodule2.proto";`, p3doc.Print())
 
-	p3doc = p3c.GenerateProto3SchemaForTypes(sm1.Package, reflect.TypeOf(obj))
+	p3doc = p3c.GenerateProto3SchemaForTypes(sm1.Package, reflect.TypeFor[sm1.StructSM]())
 	assert.Equal(t, `syntax = "proto3";
 package submodule;
 

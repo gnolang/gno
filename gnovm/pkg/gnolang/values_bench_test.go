@@ -92,7 +92,7 @@ func BenchmarkComputeMapKey_IntArray(b *testing.B) {
 	for _, n := range []int{0, 8, 32, 1024} {
 		b.Run(fmt.Sprintf("len=%d", n), func(b *testing.B) {
 			arr := ArrayValue{List: make([]TypedValue, n)}
-			for i := 0; i < n; i++ {
+			for i := range n {
 				arr.List[i] = typedInt(i)
 			}
 			tv := TypedValue{
