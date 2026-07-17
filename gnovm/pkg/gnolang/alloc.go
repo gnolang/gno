@@ -106,7 +106,7 @@ const (
 	_allocSliceValue       = 40  // unsafe.Sizeof(SliceValue{})
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
-	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
+	_allocBoundMethodValue = 232 // unsafe.Sizeof(BoundMethodValue{})
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
@@ -858,8 +858,8 @@ func (mv *MapValue) GetShallowSize() int64 {
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
-	// skip .uverse
-	if bmv.Func.PkgPath == ".uverse" {
+	// skip .uverse (Func == nil for an unresolved lazy interface bind)
+	if bmv.Func != nil && bmv.Func.PkgPath == ".uverse" {
 		return 0
 	}
 	return allocBoundMethod

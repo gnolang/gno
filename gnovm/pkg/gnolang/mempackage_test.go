@@ -427,6 +427,21 @@ func TestMemPackage_Validate(t *testing.T) {
 	}
 }
 
+// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); the
+// reservation is an explicit check with its own diagnostic, ahead of
+// the path regexes that also exclude it.
+func TestValidateMemPackageAny_SepReserved(t *testing.T) {
+	t.Parallel()
+	mpkg := &std.MemPackage{
+		Type:  MPUserProd,
+		Name:  "hey",
+		Path:  "example.com/r/hey#sub",
+		Files: []*std.MemFile{{Name: "a.gno", Body: "package hey"}},
+	}
+	err := ValidateMemPackageAny(mpkg)
+	assert.ErrorContains(t, err, "is reserved for sub-realm derivation")
+}
+
 func TestIsVersionSuffix(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

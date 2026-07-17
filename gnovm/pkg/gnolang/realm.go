@@ -1223,7 +1223,10 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 			}
 		}
 	case *BoundMethodValue:
-		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
+		// A lazy interface bind has no resolved Func; its concrete method is
+		// determined at call time from the (public) receiver type checked
+		// below, so the private-realm guard applies only to a resolved Func.
+		if v.Func != nil && v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
 			panic("cannot persist bound method from the private realm " + v.Func.PkgPath)
 		}
 		if v.Receiver.T != nil {
@@ -1383,7 +1386,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *BoundMethodValue:
-		more = getSelfOrChildObjects(cv.Func, more)
+		if cv.Func != nil { // nil for a lazy interface bind
+			more = getSelfOrChildObjects(cv.Func, more)
+		}
 		more = getSelfOrChildObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
@@ -1702,12 +1707,17 @@ func copyValueWithRefs(val Value) Value {
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
+		var fnc *FuncValue // nil for a lazy interface bind (resolved at call)
+		if cv.Func != nil {
+			fnc = copyValueWithRefs(cv.Func).(*FuncValue)
+		}
 		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
+			Method:     cv.Method,
+			MethodPkg:  cv.MethodPkg,
 		}
 	case *MapValue:
 		list := &MapList{}
@@ -1917,7 +1927,9 @@ func fillTypesOfValue(store Store, val Value) Value {
 		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *BoundMethodValue:
-		fillTypesOfValue(store, cv.Func)
+		if cv.Func != nil { // nil for a lazy interface bind
+			fillTypesOfValue(store, cv.Func)
+		}
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:

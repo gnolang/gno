@@ -80,9 +80,15 @@ type Store interface {
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
+	DeleteMemPackage(path string)
 	GetMemPackage(path string) *std.MemPackage
+	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	// Yields each indexed package's PROD mempackage (test/filetest files
+	// live under the #allbutprod sibling and are not included), in index
+	// order. A package with no production .gno files has no prod blob and
+	// is skipped.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -609,8 +615,20 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	if pv.PkgID.IsZero() {
 		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
-	// Rederive pv.fBlocksMap.
-	pv.deriveFBlocksMap(ds)
+	// pv.fBlocksMap is left empty: file blocks load lazily via
+	// GetFileBlock when a function in that file is first called
+	// (see FuncValue.GetParent). Loading a package therefore no longer
+	// reads every file block up front — a call materializes only the
+	// file blocks it touches.
+	//
+	// Preserve historical hydration and gas accounting when there is no
+	// unused file to skip. A package with <= 1 file loads that one block on
+	// first call anyway, so laziness buys nothing there — only a gas shift;
+	// keep the eager path for them (this also keeps master's gas for the
+	// rare import that reads only package-level vars).
+	if len(pv.FNames) <= 1 {
+		pv.deriveFBlocksMap(ds)
+	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -758,11 +776,6 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		if trace.StoreGasEnabled {
 			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
 		}
-	}
-	// delete escaped hash from iavl.
-	if oo.GetIsEscaped() && ds.iavlStore != nil {
-		key := []byte(oid.String())
-		ds.iavlStore.Delete(ds.gctx, key)
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
@@ -970,6 +983,14 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 // MPAnyProd and MPAnyTest.
 // MPFiletests are not allowed, as they are currently only read from disk (e.g.
 // test/files). However, MP*All may include filetests files.
+//
+// MP*All packages are stored as two keys (a prod blob plus a #allbutprod
+// sibling) and the writes are conditional, so this is NOT a full replace across
+// both keys. Re-adding an MP*All package at an existing path (e.g. a private
+// redeploy) MUST call DeleteMemPackage(path) first, or a stale sibling/prod blob
+// can survive. The keeper's AddPackage does this; new MP*All re-add callers must
+// too. (Already-filtered non-All types are stored under a single key and
+// overwrite cleanly.)
 func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	var size int
 	if bm.Enabled {
@@ -990,19 +1011,95 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	}
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
+	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
+	pathkey := []byte(backendPackagePathKey(mpkg.Path))
+	// MP*All packages are split for storage: production files under pathkey
+	// (the import/preprocess hot path, so its read/decode gas is charged on
+	// prod bytes only), and the remaining test/filetest files under a sibling
+	// "#allbutprod" key read only by query paths (see GetMemPackageAll). Other
+	// (already-filtered) types are stored whole under pathkey as before.
+	if mpkgtype.IsAll() {
+		prod, allButProd := splitProdAllButProd(mpkg)
+		// prod is nil for a package with no production .gno files (e.g. an
+		// xxx_test-only package): it has no prod blob, and readers treat a
+		// missing prod blob as nil. splitProdAllButProd folds that package's
+		// non-.gno files into the #allbutprod sibling so GetMemPackageAll can
+		// reconstruct the full package losslessly.
+		if prod != nil {
+			size += ds.setMemPackageBlob(pathkey, prod)
+		}
+		if len(allButProd.Files) > 0 {
+			size += ds.setMemPackageBlob([]byte(backendPackageAllButProdKey(mpkg.Path)), allButProd)
+		}
+	} else {
+		size += ds.setMemPackageBlob(pathkey, mpkg)
+	}
+}
+
+// DeleteMemPackage removes both the production blob (pkg:<path>) and the
+// #allbutprod sibling for path. It is a no-op for keys that do not exist. Used
+// before a private-package redeploy: AddMemPackage stores an MP*All package as
+// two keys, and its conditional writes are not a full replace across both, so a
+// stale sibling (or, for a now-prod-less package, a stale prod blob) could
+// otherwise survive a re-add and be served by GetMemPackage/GetMemPackageAll.
+func (ds *defaultStore) DeleteMemPackage(path string) {
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackagePathKey(path)))
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+}
+
+// setMemPackageBlob amino-marshals mpkg, charges encode gas, writes it under key
+// in the iavl store, and returns the encoded byte length.
+func (ds *defaultStore) setMemPackageBlob(key []byte, mpkg *std.MemPackage) int {
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
-	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	if trace.StoreGasEnabled {
-		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
+		trace.Store("ENCODE_MEMPKG", gas, key, len(bz), "none")
 	}
-	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+	ds.iavlStore.Set(ds.gctx, key, bz)
 	if trace.StoreGasEnabled {
-		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
+		trace.Store("IAVL_SET_MEMPKG", 0, key, len(bz), "none")
 	}
-	size = len(bz)
+	return len(bz)
+}
+
+// splitProdAllButProd partitions an MP*All mempackage into its production blob
+// and the complement ("all but prod") sibling so that prod ∪ allButProd ==
+// mpkg.Files exactly, with no overlap and no drops.
+//
+// The production blob holds the importable subset: non-.gno files plus non-test
+// .gno files, typed MP*Prod. However, a package with no production .gno files
+// (e.g. an xxx_test-only package) has no valid prod blob — an empty mempackage
+// fails validation, and readers treat a missing prod blob as nil — so in that
+// case prod is returned nil and ALL of its files (including non-.gno files such
+// as gnomod.toml, LICENSE, README, *.md, *.toml) are folded into the complement
+// instead, otherwise they would be silently dropped from storage.
+//
+// The complement keeps the package's Name/Path/Info and the original MP*All type
+// as an inert sentinel: it is written and read only by the store and never
+// enters the MemPackageType dispatch paths.
+func splitProdAllButProd(mpkg *std.MemPackage) (prod, allButProd *std.MemPackage) {
+	prod = MPFProd.FilterMemPackage(mpkg)
+	allButProd = &std.MemPackage{
+		Name: mpkg.Name,
+		Path: mpkg.Path,
+		Info: mpkg.Info,
+		Type: mpkg.Type,
+	}
+	// If there are no production .gno files, the prod blob will not be written
+	// (it would fail validation). Fold every non-prod-.gno file into the
+	// complement so reconstruction stays lossless.
+	prodSkipped := prod.IsEmpty()
+	if prodSkipped {
+		prod = nil
+	}
+	for _, mfile := range mpkg.Files {
+		if IsTestFile(mfile.Name) || (prodSkipped && !strings.HasSuffix(mfile.Name, ".gno")) {
+			allButProd.Files = append(allButProd.Files, mfile.Copy())
+		}
+	}
+	allButProd.Sort()
+	return prod, allButProd
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.
@@ -1047,11 +1144,57 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	return mpkg
 }
 
+// getMemPackageAllButProd reads and decodes the "#allbutprod" sibling blob (the
+// test/filetest files) for path, or nil if there is none. Charges decode gas.
+func (ds *defaultStore) getMemPackageAllButProd(path string) *std.MemPackage {
+	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// GetMemPackageAll retrieves the complete MemPackage at path, including test and
+// filetest files, by merging the production blob with its "#allbutprod" sibling.
+// It returns nil if the package does not exist. The import/run hot path uses the
+// prod-only GetMemPackage; GetMemPackageAll is for query/tooling paths that must
+// see test files (e.g. vm/qfile).
+func (ds *defaultStore) GetMemPackageAll(path string) *std.MemPackage {
+	prod := ds.GetMemPackage(path)
+	allButProd := ds.getMemPackageAllButProd(path)
+	if prod == nil && allButProd == nil {
+		return nil
+	}
+	base := prod
+	if base == nil {
+		base = allButProd
+	}
+	merged := &std.MemPackage{
+		Name: base.Name,
+		Path: base.Path,
+		Info: base.Info,
+		Type: MPAnyAll.Decide(path), // MPUserAll or MPStdlibAll.
+	}
+	if prod != nil {
+		merged.Files = append(merged.Files, prod.Files...)
+	}
+	if allButProd != nil {
+		merged.Files = append(merged.Files, allButProd.Files...)
+	}
+	merged.Sort()
+	return merged
+}
+
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
-// do not exist.
+// do not exist. It consults the full package (prod + test files) so that
+// test/filetest files remain retrievable.
 func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	mpkg := ds.GetMemPackage(path)
+	mpkg := ds.GetMemPackageAll(path)
 	if mpkg == nil {
 		return nil
 	}
@@ -1075,8 +1218,31 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
 		defer iter.Close()
 
+		var last string
+		var hasLast bool
 		for ; iter.Valid(); iter.Next() {
-			path := decodeBackendPackagePathKey(string(iter.Key()))
+			key := string(iter.Key())
+			// A package's prod key (pkg:<path>) and its #allbutprod sibling map
+			// to the same path. Strip the sibling suffix and de-dup so each
+			// package is yielded exactly once — including an empty-prod package
+			// (only a sibling key). Prod and sibling keys for a path are
+			// adjacent in iavl order, so de-dup against the previous suffices.
+			key = strings.TrimSuffix(key, "#allbutprod")
+			// A prefix containing '#' (impossible in a valid package path,
+			// but reachable from raw query input, e.g. vm/qpaths) can range
+			// over a sibling key whose trimmed form no longer carries the
+			// requested prefix; don't yield such a path. Compared in key
+			// space (against startKey): stdlib paths decode without their
+			// "_/" key marker, so path-space comparison would wrongly drop
+			// legitimate stdlib matches.
+			if len(prefix) > 0 && !strings.HasPrefix(key, string(startKey)) {
+				continue
+			}
+			path := decodeBackendPackagePathKey(key)
+			if hasLast && path == last {
+				continue
+			}
+			last, hasLast = path, true
 			if !yield(path) {
 				return
 			}
@@ -1084,6 +1250,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage yields each indexed package's PROD mempackage in index
+// order, skipping prod-less packages. See the Store interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
@@ -1104,6 +1272,13 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				mpkg := ds.GetMemPackage(string(path))
+				if mpkg == nil {
+					// Prod-less package (e.g. xxx_test-only): no prod
+					// blob to yield. On-chain this is unreachable — the
+					// vm keeper rejects prod-less packages at AddPackage
+					// — so this skip is defensive, for non-chain stores.
+					continue
+				}
 				ch <- mpkg
 			}
 			close(ch)
@@ -1302,6 +1477,14 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+// backendPackageAllButProdKey returns the sibling key holding a package's
+// test/filetest files (everything in an MP*All package but its production
+// subset). It suffixes the package path key with "#allbutprod"; "#" cannot
+// appear in a valid package path, so it never collides with a real package key.
+func backendPackageAllButProdKey(path string) string {
+	return backendPackagePathKey(path) + "#allbutprod"
+}
 
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")
