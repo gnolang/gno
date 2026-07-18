@@ -637,6 +637,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		// Build constraints have no meaning in Gno. A //go:build go1.N line
+		// otherwise sets this file's language version in go/types, overriding
+		// the pinned Config.GoVersion, so the accept/reject verdict would
+		// depend on the submitter's tag and on the toolchain each validator
+		// binary was built with. Blank it so the pin is the sole authority.
+		gof.GoVersion = ""
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
 			mpkg.Type == MPFiletests {
