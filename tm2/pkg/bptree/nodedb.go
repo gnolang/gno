@@ -468,36 +468,21 @@ func (ndb *nodeDB) AvailableVersions() []int {
 	return versions
 }
 
-// discoverVersions scans the DB for root references to find
-// the first and latest versions. Called during Load.
+// discoverVersions finds the first and latest versions from the root
+// references. Called during Load, including on every immutable query-height
+// open.
+//
+// Root keys are PrefixRoot‖version-BE, so key order is version order: the first
+// forward key is the smallest version and the first reverse key is the largest.
+// Seeking both ends is two backend seeks, where scanning every root key was
+// linear in the retained-version count on every call.
 func (ndb *nodeDB) discoverVersions() error {
-	prefix := []byte{PrefixRoot}
-	end := make([]byte, len(prefix))
-	copy(end, prefix)
-	end[0]++
-
-	itr, err := ndb.db.Iterator(prefix, end)
+	first, err := ndb.edgeRootVersion(false)
 	if err != nil {
 		return err
 	}
-	defer itr.Close()
-
-	first := int64(0)
-	latest := int64(0)
-	for ; itr.Valid(); itr.Next() {
-		key := itr.Key()
-		if len(key) != 9 { // prefix(1) + version(8)
-			continue
-		}
-		v := int64(binary.BigEndian.Uint64(key[1:]))
-		if first == 0 || v < first {
-			first = v
-		}
-		if v > latest {
-			latest = v
-		}
-	}
-	if err := itr.Error(); err != nil {
+	latest, err := ndb.edgeRootVersion(true)
+	if err != nil {
 		return err
 	}
 
@@ -506,6 +491,40 @@ func (ndb *nodeDB) discoverVersions() error {
 	ndb.latestVersion = latest
 	ndb.mtx.Unlock()
 	return nil
+}
+
+// edgeRootVersion returns the version of the first (reverse=false) or last
+// (reverse=true) root key, or 0 when no root exists. Every root key is 9 bytes
+// (PrefixRoot‖version-BE); any other length is skipped, matching the prior full
+// scan, so a non-root key at either edge does not stop discovery.
+func (ndb *nodeDB) edgeRootVersion(reverse bool) (int64, error) {
+	prefix := []byte{PrefixRoot}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	end[0]++
+
+	var (
+		itr dbm.Iterator
+		err error
+	)
+	if reverse {
+		itr, err = ndb.db.ReverseIterator(prefix, end)
+	} else {
+		itr, err = ndb.db.Iterator(prefix, end)
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer itr.Close()
+
+	for ; itr.Valid(); itr.Next() {
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
+		}
+		return int64(binary.BigEndian.Uint64(key[1:])), itr.Error()
+	}
+	return 0, itr.Error()
 }
 
 // --- Version readers ---
