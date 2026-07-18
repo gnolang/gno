@@ -16,7 +16,7 @@ func TestDiscoverVersionsSeeksEdgesAfterPruneGap(t *testing.T) {
 
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err := tree.Set([]byte{byte('a' + i)}, []byte{byte(i)})
 		require.NoError(t, err)
 		_, _, err = tree.SaveVersion()
