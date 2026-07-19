@@ -62,6 +62,18 @@ type RPCConfig struct {
 	// See https://github.com/tendermint/tendermint/issues/3435
 	TimeoutBroadcastTxCommit time.Duration `json:"timeout_broadcast_tx_commit" toml:"timeout_broadcast_tx_commit" comment:"How long to wait for a tx to be committed during /broadcast_tx_commit.\n WARNING: Using a value larger than 10s will result in increasing the\n global HTTP write timeout, which applies to all connections and endpoints.\n See https://github.com/tendermint/tendermint/issues/3435"`
 
+	// How long a keep-alive HTTP connection may sit idle between requests
+	// before the RPC server closes it. Zero falls back to the server's read
+	// timeout (currently 10s, not separately configurable), per Go's
+	// net/http — the historical behavior. Reverse proxies that pool backend
+	// connections (AWS ALB, nginx, ...) need this LARGER than their own idle
+	// timeout, or connection reuse races the server's close and surfaces as
+	// intermittent 502s at the proxy. The number of simultaneously idle
+	// connections is bounded by max_open_connections; with
+	// max_open_connections = 0 (unlimited), a large idle_timeout permits
+	// unbounded idle-connection accumulation.
+	IdleTimeout time.Duration `json:"idle_timeout" toml:"idle_timeout" comment:"How long a keep-alive HTTP connection may sit idle between requests\n before the RPC server closes it. Zero falls back to the server's read\n timeout (currently 10s, not separately configurable), per Go's\n net/http — the historical behavior. Reverse proxies that pool backend\n connections (AWS ALB, nginx, ...) need this LARGER than their own idle\n timeout, or connection reuse races the server's close and surfaces as\n intermittent 502s at the proxy. The number of simultaneously idle\n connections is bounded by max_open_connections; with\n max_open_connections = 0 (unlimited), a large idle_timeout permits\n unbounded idle-connection accumulation."`
+
 	// Maximum size of request body, in bytes
 	MaxBodyBytes int64 `json:"max_body_bytes" toml:"max_body_bytes" comment:"Maximum size of request body, in bytes"`
 
@@ -100,6 +112,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		TimeoutBroadcastTxCommit: 10 * time.Second,
 
+		IdleTimeout: 0, // net/http: fall back to the read timeout
+
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
@@ -128,6 +142,9 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.TimeoutBroadcastTxCommit < 0 {
 		return errors.New("timeout_broadcast_tx_commit can't be negative")
+	}
+	if cfg.IdleTimeout < 0 {
+		return errors.New("idle_timeout can't be negative")
 	}
 	if cfg.MaxBodyBytes < 0 {
 		return errors.New("max_body_bytes can't be negative")

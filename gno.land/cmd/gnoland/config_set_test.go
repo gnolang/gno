@@ -678,6 +678,16 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"rpc idle timeout updated",
+			[]string{
+				"rpc.idle_timeout",
+				(time.Second * 620).String(),
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, loadedCfg.RPC.IdleTimeout.String())
+			},
+		},
+		{
 			"max body bytes updated",
 			[]string{
 				"rpc.max_body_bytes",
