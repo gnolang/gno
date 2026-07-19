@@ -776,6 +776,14 @@ func TestConfig_Get_RPC(t *testing.T) {
 			false,
 		},
 		{
+			"rpc idle timeout",
+			"rpc.idle_timeout",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.IdleTimeout, unmarshalJSONCommon[time.Duration](t, value))
+			},
+			false,
+		},
+		{
 			"max body bytes",
 			"rpc.max_body_bytes",
 			func(loadedCfg *config.Config, value []byte) {
