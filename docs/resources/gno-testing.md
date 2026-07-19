@@ -96,35 +96,39 @@ Notes:
   profiles (`gno test -gasprofile ./...`) may not fully resolve; `-top`/`-tree`
   do not need it.
 
-To profile a **transaction** running on a local dev node instead of tests, see
-[Profiling a transaction](#profiling-a-transaction) below.
-
 ## Profiling a transaction
 
-A gas-profiler-enabled node exposes an `.app/profiletx` ABCI query that runs a
+Instead of profiling tests, you can profile a **transaction** as it runs on a
+local dev node. This is the on-chain analogue of `gno test -gasprofile`, and the
+way to answer "where did this transaction's gas go?" across the cpu, alloc, and
+**store** dimensions.
+
+A gas-profiler-enabled node exposes an `.app/profiletx` ABCI query that runs the
 transaction through simulation (no state is committed) and returns a pprof
-profile of its gas usage — the on-chain analogue of `gno test -gasprofile`, and
-a way to answer "where did this transaction's gas go?" across the cpu, alloc,
-and **store** dimensions.
+profile of its gas usage.
 
 [`gnodev`](./gnodev.md) enables this query automatically. The profiler is
 **off by default on all other nodes** (never on validators) and is enabled per
 node via `AppOptions.EnableGasProfiler` — it is a local-development feature.
 
-The easiest way is the `-profile` flag on `gnokey maketx`: it signs the tx (like
-`-simulate only`, without broadcasting) and writes the pprof to a file. Point
-`-remote` at a profiler-enabled node such as `gnodev`:
+The easiest way is the `-gasprofile` flag on `gnokey maketx` (same flag name as
+`gno test -gasprofile`): it signs the tx and writes the pprof to a file instead
+of broadcasting it. Point `-remote` at a profiler-enabled node such as `gnodev`:
 
 ```sh
 gnokey maketx call \
   -pkgpath "gno.land/r/dev/counter" -func "Increment" \
   -gas-wanted 20000000 -gas-fee 1000000ugnot \
-  -profile gas.pprof \
+  -gasprofile gas.pprof \
   -remote 127.0.0.1:26657 -chainid dev \
   devtest
 # gas profile written to gas.pprof (ok)
+# transaction was NOT broadcast (-gasprofile profiles instead of sending)
 # view with: go tool pprof gas.pprof
 ```
+
+The transaction is **not** broadcast — it is only simulated to measure its gas,
+so the command reports that explicitly and no `TX HASH` is printed.
 
 The flag works on every `maketx` subcommand (`call`, `run`, `addpkg`, `send`,
 and the `session` subcommands).

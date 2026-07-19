@@ -32,10 +32,10 @@ type MakeTxCfg struct {
 	// Master, when set, signs the tx as a session account on behalf of this master key
 	// (name or bech32). The chain enforces which msg types a session may sign.
 	Master string
-	// Profile, when set, signs the tx and writes a pprof gas profile of it to
-	// this file path instead of broadcasting. Requires a node with the gas
+	// GasProfile, when set, signs the tx and writes a pprof gas profile of it
+	// to this file path instead of broadcasting. Requires a node with the gas
 	// profiler enabled (e.g. gnodev); it is off on real nodes.
-	Profile string
+	GasProfile string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -57,7 +57,7 @@ func (c *MakeTxCfg) Validate() error {
 // ShouldSign reports whether the tx must be signed — either to broadcast it or
 // to profile it. When false, the subcommand only prints the unsigned tx.
 func (c *MakeTxCfg) ShouldSign() bool {
-	return c.Broadcast || c.Profile != ""
+	return c.Broadcast || c.GasProfile != ""
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -144,11 +144,12 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.Profile,
-		"profile",
+		&c.GasProfile,
+		"gasprofile",
 		"",
 		"sign the tx and write a pprof gas profile to this file instead of "+
-			"broadcasting (requires a node with the gas profiler enabled, e.g. gnodev)",
+			"broadcasting (requires a node with the gas profiler enabled, e.g. gnodev); "+
+			"same flag name as `gno test -gasprofile`",
 	)
 }
 
@@ -381,17 +382,21 @@ func ExecSignAndBroadcast(
 		return err
 	}
 
-	// -profile: sign and write a pprof gas profile instead of broadcasting.
-	if cfg.Profile != "" {
+	// -gasprofile: sign and write a pprof gas profile instead of broadcasting.
+	// Say so explicitly: -broadcast is on by default, so staying quiet about
+	// not sending would leave a dropped tx looking like a successful send.
+	if cfg.GasProfile != "" {
 		profile, log, err := SignAndProfileHandler(cfg, nameOrBech32, tx, pass)
 		if err != nil {
 			return errors.Wrap(err, "profile tx")
 		}
-		if err := os.WriteFile(cfg.Profile, profile, 0o644); err != nil {
+		if err := os.WriteFile(cfg.GasProfile, profile, 0o644); err != nil {
 			return errors.Wrap(err, "writing gas profile")
 		}
-		io.Printfln("gas profile written to %s (%s)\nview with: go tool pprof %s",
-			cfg.Profile, log, cfg.Profile)
+		io.Printfln("gas profile written to %s (%s)\n"+
+			"transaction was NOT broadcast (-gasprofile profiles instead of sending)\n"+
+			"view with: go tool pprof %s",
+			cfg.GasProfile, log, cfg.GasProfile)
 		return nil
 	}
 

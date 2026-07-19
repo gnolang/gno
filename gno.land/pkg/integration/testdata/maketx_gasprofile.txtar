@@ -1,4 +1,4 @@
-# Test `gnokey maketx ... -profile <file>`: it signs the tx and writes a pprof
+# Test `gnokey maketx ... -gasprofile <file>`: it signs the tx and writes a pprof
 # gas profile of it (querying the node's dev-only .app/profiletx endpoint)
 # instead of broadcasting. Requires a node started with the gas profiler enabled.
 
@@ -9,9 +9,11 @@ gnoland start -gas-profiler
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 370001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test test1
 stdout OK!
 
-## -profile writes a pprof file and does NOT broadcast the tx
-gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -chainid=tendermint_test -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -profile $WORK/gas.pprof test1
+## -gasprofile writes a pprof file and does NOT broadcast the tx.
+## Note -broadcast defaults to true, so this must still work without -broadcast=false.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -chainid=tendermint_test -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -gasprofile $WORK/gas.pprof test1
 stdout 'gas profile written to'
+stdout 'transaction was NOT broadcast'
 stdout 'go tool pprof'
 ! stdout 'TX HASH'
 exists $WORK/gas.pprof
