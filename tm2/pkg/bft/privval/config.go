@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/yubihsm"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
@@ -33,13 +34,21 @@ type PrivValidatorConfig struct {
 	// listens for tmkms / Horcrux to dial in). Mutually exclusive with RemoteSigner;
 	// see upstream_config.go.
 	TmkmsListener *TmkmsListenerConfig `json:"tmkms_listener" toml:"tmkms_listener" comment:"Configuration for upstream-Tendermint-protocol signer (tmkms / Horcrux). Empty listen_addr disables this mode."`
+
+	// YubiHSM configures a signer that delegates signing to an Ed25519 key
+	// stored in a YubiHSM2 hardware security module, accessed through a
+	// yubihsm-connector service. The private key never leaves the device.
+	// Mutually exclusive with RemoteSigner and TmkmsListener.
+	YubiHSM *yubihsm.Config `json:"yubihsm" toml:"yubihsm" comment:"Configuration for signing with a YubiHSM2 hardware security module"`
 }
 
 // PrivValidatorConfig validation errors.
 var (
-	errInvalidSignStatePath   = errors.New("invalid private validator sign state file path")
-	errInvalidLocalSignerPath = errors.New("invalid private validator local signer file path")
-	errNilRemoteSignerConfig  = errors.New("remote signer configuration cannot be nil")
+	errInvalidSignStatePath     = errors.New("invalid private validator sign state file path")
+	errInvalidLocalSignerPath   = errors.New("invalid private validator local signer file path")
+	errNilRemoteSignerConfig    = errors.New("remote signer configuration cannot be nil")
+	errNilYubiHSMConfig         = errors.New("yubihsm configuration cannot be nil")
+	errMultipleSignerSourcesSet = errors.New("only one of remote_signer, tmkms_listener, or yubihsm may be configured")
 )
 
 // DefaultPrivValidatorConfig returns a default configuration for the PrivValidator.
@@ -49,6 +58,7 @@ func DefaultPrivValidatorConfig() *PrivValidatorConfig {
 		LocalSigner:   "priv_validator_key.json",
 		RemoteSigner:  rsclient.DefaultRemoteSignerClientConfig(),
 		TmkmsListener: DefaultTmkmsListenerConfig(),
+		YubiHSM:       yubihsm.DefaultConfig(),
 	}
 }
 
@@ -97,9 +107,22 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 		}
 	}
 
+	// Verify the YubiHSM configuration is not nil.
+	if cfg.YubiHSM == nil {
+		return errNilYubiHSMConfig
+	}
+
+	// Validate the YubiHSM configuration.
+	if err := cfg.YubiHSM.ValidateBasic(); err != nil {
+		return err
+	}
+
 	// Mutual exclusion: at most one external-signer mode may be enabled.
 	if cfg.RemoteSigner.ServerAddress != "" && cfg.TmkmsListener.IsEnabled() {
 		return errBothExternalSignersEnabled
+	}
+	if cfg.YubiHSM.IsEnabled() && (cfg.RemoteSigner.ServerAddress != "" || cfg.TmkmsListener.IsEnabled()) {
+		return errMultipleSignerSourcesSet
 	}
 
 	return nil
@@ -123,6 +146,11 @@ func NewSignerFromConfig(
 			clientPrivKey,
 			clientLogger,
 		)
+	}
+
+	// If YubiHSM is enabled, delegate signing to the hardware module.
+	if config.YubiHSM.IsEnabled() {
+		return yubihsm.NewSignerFromConfig(config.YubiHSM)
 	}
 
 	// Otherwise, use a local signer.
@@ -149,9 +177,12 @@ func NewPrivValidatorFromConfig(
 ) (types.PrivValidator, error) {
 	// Mutual exclusion is also enforced in ValidateBasic, but defend in
 	// depth here in case callers skip validation.
-	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" &&
-		config.TmkmsListener.IsEnabled() {
+	remoteSignerEnabled := config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != ""
+	if remoteSignerEnabled && config.TmkmsListener.IsEnabled() {
 		return nil, errBothExternalSignersEnabled
+	}
+	if config.YubiHSM.IsEnabled() && (remoteSignerEnabled || config.TmkmsListener.IsEnabled()) {
+		return nil, errMultipleSignerSourcesSet
 	}
 
 	// tmkms-compat path. tmkms holds HRS authority; we don't wrap the
