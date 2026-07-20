@@ -745,7 +745,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		)
 
 		sw := NewMultiplexSwitch(
-			nil,
+			&mockTransport{},
 			WithPersistentPeers([]string{rawAddr}),
 		)
 		sw.peers = ps
