@@ -29,7 +29,7 @@ func benchAcquireSrc(numNames int) *BlockStmt {
 }
 
 func warmPool(m *Machine) {
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		m.blockPool = append(m.blockPool, &Block{Values: make([]TypedValue, 0, blockPoolValueCap)})
 	}
 }

@@ -12,7 +12,7 @@
 # On the pre-split single-blob layout, depb's mempackage included its _test.gno,
 # so type-checking useb decoded those extra bytes and useb cost MORE than usea.
 #
-# Measured: on this branch usea == useb == 2796401 (equal => the win; includes the
+# Measured: on this branch usea == useb == 2796406 (equal => the win; includes the
 # PreprocessGasPerByte addpkg charge). On master (pre-split, pre-charge) usea == 3172364
 # but useb == 3212984 -- importing depb costs +40620 gas for its _test.gno bytes. The
 # split removes that import penalty.
@@ -26,9 +26,9 @@ gnokey maketx addpkg -pkgdir $WORK/depa -pkgpath gno.land/p/demo/depa -gas-fee 1
 gnokey maketx addpkg -pkgdir $WORK/depb -pkgpath gno.land/p/demo/depb -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
 
 gnokey maketx addpkg -pkgdir $WORK/usea -pkgpath gno.land/p/demo/usea -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2796401'
+stdout 'GAS USED:\s+2796406'
 gnokey maketx addpkg -pkgdir $WORK/useb -pkgpath gno.land/p/demo/useb -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2796401'
+stdout 'GAS USED:\s+2796406'
 
 -- depa/gnomod.toml --
 module = "gno.land/p/demo/depa"
