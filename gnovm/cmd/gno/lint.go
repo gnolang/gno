@@ -169,6 +169,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return commands.ExitCodeError(1)
 		}
 
+		// Skip processing for ignored modules
+		if mod.Ignore {
+			if cmd.verbose {
+				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+			}
+			continue
+		}
+
 		// See adr/pr4264_lint_transpile.md
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
@@ -180,11 +188,21 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Skip processing for ignored modules
-		if mod.Ignore {
-			if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignored, skipping", dir)
+		// Check package name matches path element.
+		// This is also enforced in ValidateMemPackageAny, but we check here
+		// to provide a specific lint error code before other processing.
+		// See https://github.com/gnolang/gno/issues/1571
+		if err := gno.ValidatePkgNameMatchesPath(gno.Name(mpkg.Name), mpkg.Path); err != nil {
+			issue := gnoIssue{
+				Code:       gnoPackageNameMismatchError,
+				Confidence: 1,
+				Location:   dir,
+				Msg:        err.Error(),
 			}
+			io.ErrPrintln(issue)
+			hasError = true
+			// Skip the remaining lint steps: type-checking would only
+			// cascade-fail on the same mismatched package name.
 			continue
 		}
 

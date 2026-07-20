@@ -55,6 +55,11 @@ func (idb *ImmutableDB) ReverseIterator(start, end []byte) (Iterator, error) {
 }
 
 // Implements DB.
+func (idb *ImmutableDB) NewSnapshot() (Snapshot, error) {
+	return idb.db.NewSnapshot()
+}
+
+// Implements DB.
 func (idb *ImmutableDB) NewBatch() Batch {
 	return nil // XXX
 }

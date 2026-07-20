@@ -23,8 +23,19 @@ func NewNFTWithMetadata(_ int, rlm realm, name, symbol string) *metadataNFT {
 	}
 }
 
-// SetTokenMetadata sets metadata for a given token ID.
-func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
+// SetTokenMetadata sets metadata for a given token ID. The token must exist and
+// caller must equal its owner; the owning realm's wrapper derives caller from
+// rlm.Previous().Address() under IsCurrent (mirrors SetTokenRoyalty).
+func (s *metadataNFT) SetTokenMetadata(caller address, tid TokenID, metadata Metadata) error {
+	// Check that the token exists and the caller is its owner.
+	owner, err := s.OwnerOf(tid)
+	if err != nil {
+		return err
+	}
+	if caller != owner {
+		return ErrCallerIsNotOwner
+	}
+
 	// Set the metadata for the token ID in the extensions AVL tree
 	s.extensions.Set(tid.String(), metadata)
 
@@ -40,8 +51,8 @@ func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
 // TokenMetadata retrieves metadata for a given token ID.
 func (s *metadataNFT) TokenMetadata(tid TokenID) (Metadata, error) {
 	// Retrieve metadata from the extensions AVL tree
-	metadata, found := s.extensions.Get(tid.String())
-	if !found {
+	metadata := s.extensions.Get(tid.String())
+	if metadata == nil {
 		return Metadata{}, ErrInvalidTokenId
 	}
 

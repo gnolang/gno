@@ -44,7 +44,8 @@ type ConcreteInfo struct {
 }
 
 type StructInfo struct {
-	Fields []FieldInfo // If a struct.
+	Fields   []FieldInfo // If a struct.
+	Reserved []uint32    // field numbers consumed by removed fields
 }
 
 type FieldInfo struct {
@@ -162,7 +163,7 @@ func (info *TypeInfo) String() string {
 // FieldInfo convenience
 
 func (finfo *FieldInfo) IsPtr() bool {
-	return finfo.Type.Kind() == reflect.Ptr
+	return finfo.Type.Kind() == reflect.Pointer
 }
 
 func (finfo *FieldInfo) ValidateBasic() {
@@ -338,7 +339,7 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 	cdc.packages.Add(pkg)
 
 	if rt.Kind() == reflect.Interface ||
-		rt.Kind() == reflect.Ptr {
+		rt.Kind() == reflect.Pointer {
 		panic(fmt.Sprintf("expected non-interface non-pointer concrete type, got %v", rt))
 	}
 
@@ -504,7 +505,7 @@ func (cdc *Codec) doAutoseal() {
 // CONTRACT: info.Type is set
 // CONTRACT: if info.Registered, info.TypeURL is set
 func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
-	if info.Type.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Pointer {
 		panic("unexpected pointer type")
 	}
 	if existing, ok := cdc.typeInfos[info.Type]; !ok || existing != info {
@@ -567,8 +568,8 @@ func (cdc *Codec) getTypeInfoWLock(rt reflect.Type) (info *TypeInfo, err error) 
 // Automatically dereferences rt pointers.
 func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error) {
 	// Dereference pointer type.
-	for rt.Kind() == reflect.Ptr {
-		if rt.Elem().Kind() == reflect.Ptr {
+	for rt.Kind() == reflect.Pointer {
+		if rt.Elem().Kind() == reflect.Pointer {
 			return nil, fmt.Errorf("cannot support nested pointers, got %v", rt)
 		}
 		rt = rt.Elem()
@@ -648,7 +649,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLock(rt reflect.Type) *TypeInfo {
 
 func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	switch rt.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		panic(fmt.Sprintf("unexpected pointer type %v", rt)) // should not happen.
 	case reflect.Map:
 		panic(fmt.Sprintf("map type not supported %v", rt))
@@ -724,7 +725,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 			panic(err)
 		}
 		info.ConcreteInfo.Elem = einfo
-		info.ConcreteInfo.ElemIsPtr = rt.Elem().Kind() == reflect.Ptr
+		info.ConcreteInfo.ElemIsPtr = rt.Elem().Kind() == reflect.Pointer
 	}
 	if rt.Kind() == reflect.Struct {
 		info.StructInfo = cdc.parseStructInfoWLocked(rt)
@@ -747,9 +748,21 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
+	nextFieldNum := uint32(1)
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		ftype := field.Type
+
+		// Handle blank-identifier reserved fields before the export check.
+		if field.Name == "_" {
+			if field.Tag.Get("amino") != "reserved" {
+				panic(fmt.Sprintf("blank identifier field at index %d must have amino:\"reserved\" tag", i))
+			}
+			sinfo.Reserved = append(sinfo.Reserved, nextFieldNum)
+			nextFieldNum++
+			continue
+		}
+
 		if !isExported(field) {
 			continue // field is unexported
 		}
@@ -757,9 +770,8 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		if skip {
 			continue // e.g. json:"-"
 		}
-		// NOTE: This is going to change a bit.
-		// NOTE: BinFieldNum starts with 1.
-		fopts.BinFieldNum = uint32(len(infos) + 1)
+		fopts.BinFieldNum = nextFieldNum
+		nextFieldNum++
 		fieldTypeInfo, err := cdc.getTypeInfoWLocked(ftype)
 		if err != nil {
 			panic(err)
@@ -773,7 +785,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				unpackedList = false
 			} else {
 				etype := frepr.Elem()
-				for etype.Kind() == reflect.Ptr {
+				for etype.Kind() == reflect.Pointer {
 					etype = etype.Elem()
 				}
 				// Consult the element's ReprType for AminoMarshaler types: a
@@ -807,7 +819,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		fieldInfo.ValidateBasic()
 		infos = append(infos, fieldInfo)
 	}
-	sinfo = StructInfo{infos}
+	sinfo = StructInfo{Fields: infos, Reserved: sinfo.Reserved}
 	return sinfo
 }
 
@@ -843,7 +855,7 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 	// in FieldInfo.ValidateBasic. Without comma-split, the entire string would
 	// fail the switch and silently set neither flag.
 	// NOTE: these get validated later, we don't have TypeInfo yet.
-	for _, t := range strings.Split(binTag, ",") {
+	for t := range strings.SplitSeq(binTag, ",") {
 		switch t {
 		case "fixed64":
 			fopts.BinFixed64 = true
@@ -858,8 +870,11 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 	}
 
 	// Parse amino tags.
-	aminoTags := strings.Split(aminoTag, ",")
-	for _, aminoTag := range aminoTags {
+	aminoTags := strings.SplitSeq(aminoTag, ",")
+	for aminoTag := range aminoTags {
+		if aminoTag == "reserved" {
+			panic(fmt.Sprintf("amino:\"reserved\" tag is only valid on blank identifier (_) fields, not %q", field.Name))
+		}
 		if aminoTag == "unsafe" {
 			fopts.Unsafe = true
 		}

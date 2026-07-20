@@ -39,14 +39,14 @@ func TestTreeGet(t *testing.T) {
 	tree := NewTree()
 	tree.Set("key1", "value1")
 
-	value, exists := tree.Get("key1")
-	if !exists || value != "value1" {
-		t.Error("Expected Get to return value1 and true")
+	value := tree.Get("key1")
+	if value != "value1" {
+		t.Error("Expected Get to return value1")
 	}
 
-	_, exists = tree.Get("key2")
-	if exists {
-		t.Error("Expected Get to return false for non-existent key")
+	value = tree.Get("key2")
+	if value != nil {
+		t.Error("Expected Get to return nil for non-existent key")
 	}
 }
 

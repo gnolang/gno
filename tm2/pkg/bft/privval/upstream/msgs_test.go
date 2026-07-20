@@ -1,10 +1,10 @@
 package upstream_test
 
 // msgs_test.go: verify the WrapMsg/UnwrapMsg envelope helpers and end-to-end
-// round-trip via google.golang.org/protobuf. This is the load-bearing test
-// for what was previously Phase 3 BUG-1 (Message envelope was not a real
-// oneof) and BUG-2 (PubKey emitted Any/TypeURL bytes, not upstream's
-// PublicKey oneof). Both are fixed by routing through upstreampb.
+// round-trip via google.golang.org/protobuf. Load-bearing for two earlier
+// bugs that routing through upstreampb fixes: (1) the Message envelope
+// was not emitted as a real protobuf oneof, and (2) PubKey emitted
+// Any/TypeURL bytes instead of upstream's PublicKey oneof.
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ func TestMsgs_Wrap_Unwrap_RoundTrip(t *testing.T) {
 
 	cases := []struct {
 		name string
-		in   interface{}
+		in   any
 	}{
 		{"PubKeyRequest", &upstreampb.PubKeyRequest{ChainId: "test"}},
 		{"SignVoteRequest", &upstreampb.SignVoteRequest{Vote: &upstreampb.Vote{Height: 42}, ChainId: "test"}},
@@ -34,7 +34,6 @@ func TestMsgs_Wrap_Unwrap_RoundTrip(t *testing.T) {
 		{"PingResponse", &upstreampb.PingResponse{}},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			env := upstream.WrapMsg(c.in)

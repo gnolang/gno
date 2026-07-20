@@ -2,9 +2,9 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 type BroadcastCfg struct {
@@ -28,8 +29,12 @@ type BroadcastCfg struct {
 	// If true, simulation is attempted but not printed;
 	// the result is only returned in case of an error.
 	testSimulate bool
-	GasFeeMargin uint64
+	// max gas limit to use for simulation (optional).
+	simulateMaxGas int64
+	GasFeeMargin   uint64
 }
+
+const simulationMaxGasFallback = int64(math.MaxInt64)
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	cfg := &BroadcastCfg{
@@ -83,19 +88,12 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
-		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
+		return handleDeliverResult(cfg.RootCfg, tx, res, io)
 	} else {
 		if cfg.RootCfg.OnTxSuccess != nil {
-			cfg.RootCfg.OnTxSuccess(tx, res)
+			cfg.RootCfg.OnTxSuccess(io, tx, res)
 		} else {
-			io.Println(string(res.DeliverTx.Data))
-			io.Println("OK!")
-			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-			io.Println("HEIGHT:    ", res.Height)
-			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+			DefaultOnTxSuccess(io, tx, res)
 		}
 	}
 	return nil
@@ -116,6 +114,8 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
+	// NewHTTPClient applies a 60s request timeout to every call, so
+	// context.Background() (no deadline) is safe to use here.
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, err
@@ -125,13 +125,34 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	// However, DryRun always returns here, while in case of success
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
-		res, err := SimulateTx(cli, bz)
-		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
-		if hasError {
+		simBz, rewritten, err := buildSimulationTxBytes(cfg.tx, bz, cfg.simulateMaxGas)
+		if err != nil {
+			return nil, err
+		}
+
+		originalGasWanted := cfg.tx.Fee.GasWanted
+		res, err := SimulateTx(cli, simBz)
+		if err != nil {
+			return nil, err
+		}
+
+		// Revert to the old GasWanted. If the GasUsed exceeds GasWanted, and
+		// there's no other error to report), create synthetic OOG error.
+		if rewritten {
+			res.DeliverTx.GasWanted = originalGasWanted
+			if res.DeliverTx.Error == nil && res.DeliverTx.GasUsed > originalGasWanted {
+				log := store.OutOfGasLog(res.DeliverTx.GasUsed, originalGasWanted, cfg.simulateMaxGas, "simulation", false)
+				res.DeliverTx.Error = abci.ABCIErrorOrStringError(std.ErrOutOfGas(log))
+				res.DeliverTx.Log = log
+			}
+		}
+		hasError := res.CheckTx.IsErr() || res.DeliverTx.IsErr()
+		if cfg.DryRun && !hasError {
+			err = estimateGasFee(cli, res, cfg.GasFeeMargin)
 			return res, err
 		}
-		if cfg.DryRun { // we estmate the gas fee in dry run
-			err = estimateGasFee(cli, res, cfg.GasFeeMargin)
+		if hasError {
+			appendSuggestedGasWanted(res)
 			return res, err
 		}
 	}
@@ -144,7 +165,51 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	return bres, nil
 }
 
+// buildSimulationTxBytes returns tx bytes to use for simulation, overriding
+// GasWanted to consensus maxGas. If maxGas is -1 (chain has no gas limit) it
+// falls back to MaxInt64. If maxGas is 0 (unknown, e.g. fetch failed) the
+// original bytes are returned unchanged. It also returns whether tx bytes were
+// rewritten.
+func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
+	if maxGas < 0 {
+		maxGas = simulationMaxGasFallback
+	}
+	if maxGas == 0 || tx.Fee.GasWanted >= maxGas {
+		return txBytes, false, nil
+	}
+
+	simTx := *tx
+	simTx.Fee.GasWanted = maxGas
+	simBz, err := amino.Marshal(&simTx)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "remarshaling tx binary bytes for simulation")
+	}
+
+	return simBz, true, nil
+}
+
+func suggestedGasWanted(gasUsed int64) int64 {
+	margin := gasUsed / 20
+	if gasUsed%20 != 0 {
+		margin++
+	}
+	return overflow.Addp(gasUsed, margin)
+}
+
+func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
+	suggested := suggestedGasWanted(bres.DeliverTx.GasUsed)
+	msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
+	if bres.DeliverTx.Info == "" {
+		bres.DeliverTx.Info = msg
+	} else {
+		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + msg
+	}
+}
+
 func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit, gasFeeMargin uint64) error {
+	gasUsed := bres.DeliverTx.GasUsed
+	suggested := suggestedGasWanted(gasUsed)
+
 	gp := std.GasPrice{}
 	qres, err := cli.ABCIQuery(context.Background(), "auth/gasprice", []byte{})
 	if err != nil {
@@ -155,17 +220,22 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit,
 		return errors.Wrap(err, "unmarshaling query gas price result")
 	}
 
+	var s string
 	if gp.Gas == 0 {
-		return nil
+		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d)\n", gasUsed, suggested)
+	} else {
+		fee := gasUsed/gp.Gas + 1
+		fee = overflow.Mulp(fee, gp.Price.Amount)
+		// fee buffer to cover the sudden change of gas price
+		feeBuffer := overflow.Mulp(fee, int64(gasFeeMargin)) / 100
+		fee = overflow.Addp(fee, feeBuffer)
+		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d), gas fee: %d%s, current gas price: %s\n", gasUsed, suggested, fee, gp.Price.Denom, gp.String())
 	}
-
-	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
-	fee = overflow.Mulp(fee, gp.Price.Amount)
-	// gasFeeMargin is a percentage fee buffer to cover the sudden change of gas price
-	feeBuffer := overflow.Mulp(fee, int64(gasFeeMargin)) / 100
-	fee = overflow.Addp(fee, feeBuffer)
-	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
-	bres.DeliverTx.Info = s
+	if bres.DeliverTx.Info == "" {
+		bres.DeliverTx.Info = s
+	} else {
+		bres.DeliverTx.Info = bres.DeliverTx.Info + ", " + s
+	}
 	return nil
 }
 
