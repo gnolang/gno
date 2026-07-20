@@ -302,10 +302,25 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	}
 }
 
+// assertBaseNotPoisoned panics if this pointer's Base is a runtime block that
+// has been returned to Machine's block pool. Reaching here means a pointer
+// into a recycled block was followed — a use-after-recycle that escape
+// analysis should have prevented by heap-promoting the local (see
+// Machine.releaseBlock). Compiled out unless the debugAssert build tag is set;
+// blocks are only ever marked poisoned under that same tag.
+func (pv PointerValue) assertBaseNotPoisoned() {
+	if b, ok := pv.Base.(*Block); ok && b.poisoned {
+		panic("gnovm: dereferenced a pointer into a recycled block; escape analysis should have heap-promoted this local")
+	}
+}
+
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	if debugAssert {
+		pv.assertBaseNotPoisoned()
+	}
 	// Special cases.
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
@@ -325,6 +340,9 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
+	if debugAssert {
+		pv.assertBaseNotPoisoned()
+	}
 	if pv.TV.T == DataByteType {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
@@ -2813,6 +2831,14 @@ type Block struct {
 	// transient runtime state — not persisted, and zeroed when a block is
 	// recycled or freshly allocated.
 	notRecyclable bool
+
+	// poisoned marks a block that has been returned to the machine's block
+	// pool (see Machine.releaseBlock). It only carries meaning under the
+	// debugAssert build tag, where PointerValue.Deref/Assign2 panic on a
+	// pointer whose Base is a poisoned block — turning a use-after-recycle
+	// (which would otherwise be silent corruption once the block is reused)
+	// into a loud failure. Set on release, cleared on acquire; not persisted.
+	poisoned bool
 }
 
 // setNotRecyclable marks the block as ineligible for Machine.releaseBlock's

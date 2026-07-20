@@ -276,6 +276,9 @@ func (m *Machine) Release() {
 		Stmts:  stmts,
 		Blocks: blocks,
 		Frames: frames,
+		// NOTE: ONLY copy values which are explicitly OK to copy and wouldn't
+		// change gas values on a "warm" run. blockPool, for instance, should
+		// not be copied.
 	}
 	machinePool.Put(m)
 }
@@ -2314,6 +2317,11 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 	b.Values = values
 	b.Parent = parent
 	m.Alloc.stampPkgID(&b.ObjectInfo, nil)
+	if debugAssert {
+		// The block is live again; clear the release-time poison so its
+		// pointers dereference normally (see PointerValue.assertBaseNotPoisoned).
+		b.poisoned = false
+	}
 	return b
 }
 
@@ -2366,11 +2374,22 @@ func (m *Machine) releaseBlock(b *Block) {
 		return
 	}
 	if debugAssert {
-		// Core invariant: a recycled block is provably dead. The only
-		// stack-traveling reference that can outlive a pop is Defer.Parent,
-		// which setNotRecyclable excludes. Guard against any future path that
-		// reaches here with that flag missing (a forgotten setNotRecyclable, a
-		// new long-lived block reference, etc.).
+		// Core invariant: a recycled block is provably dead — nothing that
+		// outlives its pop from the block stack still points into it. This
+		// holds by construction of escape analysis: every reference that can
+		// outlive the scope (a captured local or an &-taken local) is routed
+		// through a *HeapItemValue, a separate allocation that is never
+		// pooled (see codaHeapDefinesByUse and GetPointerToMaybeHeapDefine),
+		// so no live pointer ever has Base == b. The one non-heap reference
+		// that can travel past a pop is Defer.Parent, which setNotRecyclable
+		// excludes above. Scan for that here to catch any future path that
+		// reaches release with the flag missing (a forgotten
+		// setNotRecyclable, a new long-lived block reference, etc.).
+		//
+		// This scan only covers the known Defer.Parent route; the broader
+		// invariant is enforced empirically by poisoning the block below,
+		// which turns a followed stale pointer into a panic in
+		// PointerValue.Deref/Assign2 rather than silent corruption.
 		for fi := range m.Frames {
 			for di := range m.Frames[fi].Defers {
 				if m.Frames[fi].Defers[di].Parent == b {
@@ -2382,6 +2401,12 @@ func (m *Machine) releaseBlock(b *Block) {
 	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
 	clear(values)
 	*b = Block{Values: values[:0]}
+	if debugAssert {
+		// Mark the pooled block so that following any pointer whose Base is
+		// this block panics until it is re-acquired (and un-poisoned). See
+		// PointerValue.assertBaseNotPoisoned.
+		b.poisoned = true
+	}
 	m.blockPool = append(m.blockPool, b)
 }
 
