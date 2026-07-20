@@ -3,80 +3,72 @@
 > A fully audited version will be published as a subsequent release.
 > Use in production at your own risk.
 
+# `cford32` - Crockford Base32 encoding
 
-# cford32
+Modified base32 encoding using the [Crockford alphabet](https://www.crockford.com/base32.html). Designed to be human-readable, error-resistant, and pronounceable: the ambiguous characters `I`, `L`, `O`, `U` are excluded from the encoding, and decoding accepts `I`/`L` as `1` and `O` as `0`. Output is never padded.
 
+## Usage
+
+```go
+import "gno.land/p/nt/cford32/v0"
+
+// Byte slice encode/decode.
+encoded := cford32.EncodeToString([]byte("hello"))  // uppercase, no padding
+decoded, err := cford32.DecodeString(encoded)        // []byte("hello")
+
+// Lowercase variant.
+lower := cford32.EncodeToStringLower([]byte("hello"))
+
+// Compact uint64 encoding: 7 bytes for id < 2^34, else 13 bytes.
+enc := cford32.PutCompact(42)
+back, _ := cford32.Uint64(enc) // 42
+
+// Full fixed-width uint64 encoding (always 13 bytes).
+full := cford32.PutUint64(42)
 ```
-package cford32 // import "gno.land/p/nt/cford32/v0"
 
-Package cford32 implements a base32-like encoding/decoding package, with the
-encoding scheme specified by Douglas Crockford.
+## API
 
-From the website, the requirements of said encoding scheme are to:
+```go
+// Errors.
+type CorruptInputError int64
+func (e CorruptInputError) Error() string
 
-  - Be human readable and machine readable.
-  - Be compact. Humans have difficulty in manipulating long strings of arbitrary
-    symbols.
-  - Be error resistant. Entering the symbols must not require keyboarding
-    gymnastics.
-  - Be pronounceable. Humans should be able to accurately transmit the symbols
-    to other humans using a telephone.
+// Length helpers.
+func DecodedLen(n int) int
+func EncodedLen(n int) int
 
-This is slightly different from a simple difference in encoding table from
-the Go's stdlib `encoding/base32`, as when decoding the characters i I l L are
-parsed as 1, and o O is parsed as 0.
-
-This package additionally provides ways to encode uint64's efficiently, as well
-as efficient encoding to a lowercase variation of the encoding. The encodings
-never use paddings.
-
-# Uint64 Encoding
-
-Aside from lower/uppercase encoding, there is a compact encoding, allowing to
-encode all values in [0,2^34), and the full encoding, allowing all values in
-[0,2^64). The compact encoding uses 7 characters, and the full encoding uses 13
-characters. Both are parsed unambiguously by the Uint64 decoder.
-
-The compact encodings have the first character between ['0','f'], while the
-full encoding's first character ranges between ['g','z']. Practically, in your
-usage of the package, you should consider which one to use and stick with it,
-while considering that the compact encoding, once it reaches 2^34, automatically
-switches to the full encoding. The properties of the generated strings are still
-maintained: for instance, any two encoded uint64s x,y consistently generated
-with the compact encoding, if the numeric value is x < y, will also be x < y in
-lexical ordering. However, values [0,2^34) have a "double encoding", which if
-mixed together lose the lexical ordering property.
-
-The Uint64 encoding is most useful for generating string versions of Uint64 IDs.
-Practically, it allows you to retain sleek and compact IDs for your application
-for the first 2^34 (>17 billion) entities, while seamlessly rolling over to the
-full encoding should you exceed that. You are encouraged to use it unless you
-have a requirement or preferences for IDs consistently being always the same
-size.
-
-To use the cford32 encoding for IDs, you may want to consider using package
-gno.land/p/nt/seqid/v0.
-
-[specified by Douglas Crockford]: https://www.crockford.com/base32.html
-
-func AppendCompact(id uint64, b []byte) []byte
-func AppendDecode(dst, src []byte) ([]byte, error)
+// Byte slice encoding.
+func Encode(dst, src []byte)                          // uppercase
+func EncodeLower(dst, src []byte)                     // lowercase
+func EncodeToString(src []byte) string                // uppercase
+func EncodeToStringLower(src []byte) string           // lowercase
 func AppendEncode(dst, src []byte) []byte
 func AppendEncodeLower(dst, src []byte) []byte
+
+// Byte slice decoding. Case-insensitive; ignores \r and \n.
 func Decode(dst, src []byte) (n int, err error)
 func DecodeString(s string) ([]byte, error)
-func DecodedLen(n int) int
-func Encode(dst, src []byte)
-func EncodeLower(dst, src []byte)
-func EncodeToString(src []byte) string
-func EncodeToStringLower(src []byte) string
-func EncodedLen(n int) int
-func NewDecoder(r io.Reader) io.Reader
+func AppendDecode(dst, src []byte) ([]byte, error)
+
+// uint64 encoding.
+func PutUint64(id uint64) [13]byte                    // full, uppercase
+func PutUint64Lower(id uint64) [13]byte               // full, lowercase
+func PutCompact(id uint64) []byte                     // 7 bytes if id < 2^34, else 13, lowercase
+func AppendCompact(id uint64, b []byte) []byte
+func Uint64(b []byte) (uint64, error)                 // accepts both compact (7) and full (13)
+
+// Streaming I/O.
 func NewEncoder(w io.Writer) io.WriteCloser
 func NewEncoderLower(w io.Writer) io.WriteCloser
-func PutCompact(id uint64) []byte
-func PutUint64(id uint64) [13]byte
-func PutUint64Lower(id uint64) [13]byte
-func Uint64(b []byte) (uint64, error)
-type CorruptInputError int64
+func NewDecoder(r io.Reader) io.Reader
 ```
+
+## Notes
+
+- Alphabet: `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (no `I`, `L`, `O`, `U`).
+- Decoding is case-insensitive; `I`/`i`/`L`/`l` decode as `1`, and `O`/`o` decode as `0`.
+- The compact uint64 encoding preserves lexicographic order with numeric order, making encoded IDs suitable as ordered keys.
+- The compact and full uint64 encodings are unambiguously distinguished by their first character: `0`-`f` indicates compact (7 bytes), `g`-`z` indicates full (13 bytes).
+- Values in `[0, 2^34)` have BOTH a compact and a full encoding. Pick one scheme per key space and stick to it: mixing both for the same value breaks the lexicographic-order property. `PutCompact` rolls over from compact to full at `2^34` automatically, which is safe as long as everything in that space is generated the same way.
+- For sequential IDs, see [`gno.land/p/nt/seqid/v0`](../../seqid/v0).
