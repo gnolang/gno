@@ -539,9 +539,13 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup MultiplexSwitch.
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
-	)
+	persistentPeerStrs := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
+
+	// Validate for logging purposes. WithPersistentPeers re-parses these
+	// strings itself (and keeps the raw form around to re-resolve
+	// FQDN-based peers on every reconnect attempt, see #2580), so this
+	// pass only surfaces malformed addresses early.
+	_, errs := p2pTypes.NewNetAddressFromStrings(persistentPeerStrs)
 	for _, err = range errs {
 		p2pLogger.Error("invalid persistent peer address", "err", err)
 	}
@@ -556,7 +560,7 @@ func NewNode(config *cfg.Config,
 
 	// Prepare the misc switch options
 	opts := []p2p.SwitchOption{
-		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithPersistentPeers(persistentPeerStrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),

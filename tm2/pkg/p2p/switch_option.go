@@ -28,11 +28,24 @@ func WithReactor(name string, reactor Reactor) SwitchOption {
 	}
 }
 
-// WithPersistentPeers sets the p2p switch's persistent peer set
-func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
+// WithPersistentPeers sets the p2p switch's persistent peer set from raw
+// "id@host:port" address strings. The original strings are retained
+// alongside the resolved addresses so FQDN-based persistent peers can be
+// re-resolved on each reconnect attempt (see redialFn in switch.go) instead
+// of reusing a possibly-stale resolved IP forever (see #2580). Invalid
+// addresses are skipped; callers that want to surface parse errors (e.g.
+// for logging) should validate persistentPeerAddrs themselves beforehand,
+// such as with types.NewNetAddressFromStrings.
+func WithPersistentPeers(persistentPeerAddrs []string) SwitchOption {
 	return func(sw *MultiplexSwitch) {
-		for _, addr := range peerAddrs {
+		for _, raw := range persistentPeerAddrs {
+			addr, err := types.NewNetAddressFromString(raw)
+			if err != nil {
+				continue
+			}
+
 			sw.persistentPeers.Store(addr.ID, addr)
+			sw.persistentPeerAddrStrs.Store(addr.ID, raw)
 		}
 	}
 }

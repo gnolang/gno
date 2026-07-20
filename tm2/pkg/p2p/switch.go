@@ -71,8 +71,13 @@ type MultiplexSwitch struct {
 
 	peers           PeerSet  // currently active peer set (live connections)
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
-	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
-	transport       Transport
+	// persistentPeerAddrStrs holds the original "id@host:port" strings behind
+	// persistentPeers (ID -> string), so FQDN-based persistent peers can be
+	// re-resolved on each reconnect attempt in redialFn instead of reusing a
+	// possibly-stale resolved IP forever (see #2580).
+	persistentPeerAddrStrs sync.Map
+	privatePeers           sync.Map // ID -> nothing; lookup table of peers who are not shared
+	transport              Transport
 
 	dialQueue  *dial.Queue
 	dialNotify chan struct{}
@@ -402,12 +407,39 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 		)
 
 		// Gather addresses of persistent peers that are missing or
-		// not already in the dial queue
+		// not already in the dial queue. For peers configured via FQDN,
+		// re-resolve on every redial attempt rather than reusing the
+		// address resolved when the peer was first registered — otherwise
+		// a persistent peer's IP change (e.g. a sentry node behind a
+		// changing address) is never picked up (see #2580).
 		sw.persistentPeers.Range(func(key, value any) bool {
 			var (
-				id   = key.(types.ID)
-				addr = value.(*types.NetAddress)
+				id      = key.(types.ID)
+				cached  = value.(*types.NetAddress)
+				addr    = cached
+				rawAddr string
+				hasRaw  bool
 			)
+
+			if raw, ok := sw.persistentPeerAddrStrs.Load(id); ok {
+				rawAddr, hasRaw = raw.(string), true
+			}
+
+			if hasRaw {
+				if resolved, err := types.NewNetAddressFromString(rawAddr); err == nil {
+					addr = resolved
+					// Cache the freshly-resolved address so isPersistentPeer
+					// and other lookups reflect the latest known IP too.
+					sw.persistentPeers.Store(id, addr)
+				} else {
+					sw.Logger.Warn(
+						"unable to re-resolve persistent peer address, using last known address",
+						"id", id,
+						"raw_addr", rawAddr,
+						"err", err,
+					)
+				}
+			}
 
 			if !peers.Has(id) && !sw.dialQueue.Has(addr) {
 				peersToDial = append(peersToDial, addr)

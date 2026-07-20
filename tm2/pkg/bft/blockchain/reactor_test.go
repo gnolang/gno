@@ -22,7 +22,6 @@ import (
 	p2pTesting "github.com/gnolang/gno/tm2/pkg/internal/p2p"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 )
@@ -262,11 +261,11 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	lastReactorPair := newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
 	reactorPairs = append(reactorPairs, lastReactorPair)
 
-	persistentPeers := make([]*p2pTypes.NetAddress, 0, len(transports))
+	persistentPeers := make([]string, 0, len(transports))
 
 	for _, tr := range transports {
 		addr := tr.NetAddress()
-		persistentPeers = append(persistentPeers, &addr)
+		persistentPeers = append(persistentPeers, addr.String())
 	}
 
 	for i, opt := range options {

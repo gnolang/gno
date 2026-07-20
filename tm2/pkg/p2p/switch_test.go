@@ -39,12 +39,36 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 		t.Parallel()
 
 		peers := generateNetAddr(t, 10)
-
-		sw := NewMultiplexSwitch(nil, WithPersistentPeers(peers))
-
-		for _, p := range peers {
-			assert.True(t, sw.isPersistentPeer(p.ID))
+		peerStrs := make([]string, len(peers))
+		for i, p := range peers {
+			peerStrs[i] = p.String()
 		}
+
+		sw := NewMultiplexSwitch(nil, WithPersistentPeers(peerStrs))
+
+		for i, p := range peers {
+			assert.True(t, sw.isPersistentPeer(p.ID))
+
+			// The raw address string must be retained too, so it can be
+			// re-resolved on redial (see #2580).
+			raw, ok := sw.persistentPeerAddrStrs.Load(p.ID)
+			require.True(t, ok)
+			assert.Equal(t, peerStrs[i], raw)
+		}
+	})
+
+	t.Run("persistent peers, invalid address skipped", func(t *testing.T) {
+		t.Parallel()
+
+		peers := generateNetAddr(t, 2)
+
+		sw := NewMultiplexSwitch(nil, WithPersistentPeers([]string{
+			"not-a-valid-address",
+			peers[0].String(),
+		}))
+
+		assert.True(t, sw.isPersistentPeer(peers[0].ID))
+		assert.False(t, sw.isPersistentPeer(peers[1].ID))
 	})
 
 	t.Run("private peers", func(t *testing.T) {
@@ -578,16 +602,16 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 
 		// Make sure the peers are the
 		// switch persistent peers
-		addrs := make([]*types.NetAddress, 0, len(peers))
+		addrStrs := make([]string, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.SocketAddr())
+			addrStrs = append(addrStrs, p.SocketAddr().String())
 		}
 
 		// Create the switch
 		sw := NewMultiplexSwitch(
 			nil,
-			WithPersistentPeers(addrs),
+			WithPersistentPeers(addrStrs),
 		)
 
 		// Set the peer set
@@ -644,16 +668,16 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 
 		// Make sure the peers are the
 		// switch persistent peers
-		addrs := make([]*types.NetAddress, 0, len(peers))
+		addrStrs := make([]string, 0, len(peers))
 
 		for _, p := range peers {
-			addrs = append(addrs, p.SocketAddr())
+			addrStrs = append(addrStrs, p.SocketAddr().String())
 		}
 
 		// Create the switch
 		sw := NewMultiplexSwitch(
 			mockTransport,
-			WithPersistentPeers(addrs),
+			WithPersistentPeers(addrStrs),
 		)
 
 		// Set the peer set
@@ -701,6 +725,98 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 
 		require.True(t, sw.dialQueue.Has(missingAddr))
 		assert.Equal(t, missingAddr, sw.dialQueue.Peek().Address)
+	})
+
+	t.Run("re-resolves stale persistent peer address on redial", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peer      = mock.GeneratePeers(t, 1)[0]
+			freshAddr = peer.SocketAddr() // the current, correct address
+			rawAddr   = freshAddr.String()
+
+			dialedAddrs []types.NetAddress
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					address types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialedAddrs = append(dialedAddrs, address)
+
+					return nil, errors.New("stop after recording the dial attempt")
+				},
+			}
+			ps = &mockSet{
+				hasFn: func(types.ID) bool {
+					// The peer is never connected, so it's always a
+					// redial candidate.
+					return false
+				},
+			}
+		)
+
+		sw := NewMultiplexSwitch(
+			mockTransport,
+			WithPersistentPeers([]string{rawAddr}),
+		)
+		sw.peers = ps
+
+		// Simulate the address having changed since it was first resolved
+		// (e.g. a sentry node's IP changing behind an FQDN): before this
+		// fix, a stale cached IP like this would be dialed forever. Plant
+		// it directly and make sure redialFn prefers the freshly
+		// re-resolved address from the raw "id@host:port" string instead.
+		staleAddr := *freshAddr
+		staleAddr.IP = net.ParseIP("203.0.113.1") // TEST-NET-3, guaranteed to differ
+		sw.persistentPeers.Store(freshAddr.ID, &staleAddr)
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			sw.runRedialLoop(ctx)
+		}()
+
+		deadline := time.After(5 * time.Second)
+
+	loop:
+		for {
+			select {
+			case <-deadline:
+				break loop
+			default:
+				if len(dialedAddrs) > 0 {
+					cancelFn()
+
+					break loop
+				}
+			}
+		}
+
+		wg.Wait()
+
+		require.NotEmpty(t, dialedAddrs)
+		assert.True(
+			t,
+			dialedAddrs[0].Equals(*freshAddr),
+			"redial should use the freshly re-resolved address, not the stale cached one",
+		)
+		assert.False(
+			t,
+			dialedAddrs[0].Equals(staleAddr),
+			"redial must not reuse the stale cached IP",
+		)
 	})
 }
 
