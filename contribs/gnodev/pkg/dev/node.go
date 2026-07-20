@@ -91,6 +91,10 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
 	tmc.Consensus.CreateEmptyBlocks = false
+	// The dev node is in-memory and single-validator, so it never peers. Disable
+	// peer exchange to avoid persisting an address book under rootdir, which fails
+	// when rootdir is read-only (e.g. `go tool gnodev` against the module cache).
+	tmc.P2P.PeerExchange = false
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
