@@ -1,4 +1,4 @@
-package foo20
+package grc20factory
 
 import (
 	"gno.land/p/demo/tokens/grc20"
@@ -8,13 +8,15 @@ import (
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
 var (
-	instances avl.Tree // symbol -> *instance
-	pager     = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
+	instances   avl.Tree // symbol -> *instance
+	nextTokenID seqid.ID
+	pager       = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
 )
 
 type instance struct {
@@ -35,7 +37,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		panic("token already exists")
 	}
 
-	token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
+	token, ledger := grc20.NewToken(name, symbol, decimals, nextTokenID.Next(), cur)
 	if initialMint > 0 {
 		ledger.Mint(admin, initialMint)
 	}
@@ -208,8 +210,8 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func mustGetInstance(symbol string) *instance {
-	t, exists := instances.Get(symbol)
-	if !exists {
+	t := instances.Get(symbol)
+	if t == nil {
 		panic("token instance does not exist")
 	}
 	return t.(*instance)

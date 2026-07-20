@@ -1,7 +1,11 @@
 # IAVL vs B+32 — Disk-Bound Benchmark
 
-**Status:** in progress. Solid data at 1M (validation) and 33M; the decisive
-**100M disk-bound run is still pending** (see [TODO](#todo--the-100m-run-the-one-that-matters)).
+**Status:** superseded on the headline question — the disk-bound comparison
+at **~101M keys has since been measured**; see `../PERFORMANCE.md` ("Measured
+Results"), the empirical basis for the mounted store's gas params. Remaining
+gaps are tracked in the mount ADR's follow-ups
+(`gno.land/adr/pr5938_mount_bptree_store.md`). The 33M data below remains
+valid history.
 **Date:** 2026-06-07 · **Backend:** pebbledb (production-tuned: 500 MB block
 cache + bloom) · **Node LRU:** `-disk-node-cache=10000`.
 
@@ -172,14 +176,22 @@ size at 33M/100M before drawing a conclusion.
 ## Gas-param implications (`Fixed*Depth100`)
 
 These counts are exactly what gno.land's depth gas params encode (×100
-fixed-point; `gno.land/pkg/sdk/vm/params.go`). Current defaults are
-**B+32-calibrated** and line up with the measured B+32 counts:
+fixed-point; `gno.land/pkg/sdk/vm/params.go` — see there for the live
+values). The pre-mount (index-off) defaults lined up with the measured B+32
+counts:
 
-| param | current (B+32) | measured B+32 @33M |
+| param | pre-mount (index-off) | measured B+32 @33M |
 |---|---|---|
 | `FixedGetReadDepth100` | 300 | ~278 (2.78 GET reads) |
 | `FixedSetReadDepth100` | 200 | ~116 (1.16 SET reads) |
 | `FixedWriteDepth100` | 440 | ~400 (4.0 writes) |
+
+The measured B+32 counts are the index-OFF tree. With `FastIndexOption(true)`,
+`MutableTree.Get` serves clean-working-tree point reads from the fast index
+(~1 read for present keys), at the cost of one extra index write per
+Set/Remove and doubled value bytes on disk; misses still walk. The mount PR
+repriced accordingly (see `gno.land/adr/pr5938_mount_bptree_store.md` and
+`gno.land/pkg/sdk/vm/params.go` for the live values).
 
 **If gno.land used IAVL instead**, the params must change — and two of them can
 no longer be fixed, because IAVL's depth scales with `log₂N`:

@@ -229,8 +229,8 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
-	println(counter.Increment(cross))
+func main(cur realm) {
+	println(counter.Increment(cross(cur)))
 }
 ```
 
@@ -265,12 +265,12 @@ package main
 
 import "gno.land/r/myrealm"
 
-func main() {
+func main(cur realm) {
 	post := myrealm.Post{
 		Title: "Hello",
 		Tags:  []string{"gno", "blockchain"},
 	}
-	myrealm.CreatePost(cross, post)
+	myrealm.CreatePost(cross(cur), post)
 }
 ```
 
@@ -284,9 +284,9 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
+func main(cur realm) {
 	for i := 0; i < 5; i++ {
-		println(counter.Increment(cross))
+		println(counter.Increment(cross(cur)))
 	}
 }
 ```

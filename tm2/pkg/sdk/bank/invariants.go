@@ -2,6 +2,7 @@ package bank
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -16,7 +17,7 @@ func RegisterInvariants(ir sdk.InvariantRegistry, acck auth.AccountKeeper) {
 // NonnegativeBalanceInvariant checks that all accounts in the application have non-negative balances
 func NonnegativeBalanceInvariant(acck auth.AccountKeeper) sdk.Invariant {
 	return func(ctx sdk.Context) (string, bool) {
-		var msg string
+		var msg strings.Builder
 		var count int
 
 		accts := acck.GetAllAccounts(ctx)
@@ -24,14 +25,14 @@ func NonnegativeBalanceInvariant(acck auth.AccountKeeper) sdk.Invariant {
 			coins := acc.GetCoins()
 			if coins.IsAnyNegative() {
 				count++
-				msg += fmt.Sprintf("\t%s has a negative denomination of %s\n",
+				msg.WriteString(fmt.Sprintf("\t%s has a negative denomination of %s\n",
 					acc.GetAddress().String(),
-					coins.String())
+					coins.String()))
 			}
 		}
 		broken := count != 0
 
 		return sdk.FormatInvariant(ModuleName, "nonnegative-outstanding",
-			fmt.Sprintf("amount of negative accounts found %d\n%s", count, msg)), broken
+			fmt.Sprintf("amount of negative accounts found %d\n%s", count, msg.String())), broken
 	}
 }
