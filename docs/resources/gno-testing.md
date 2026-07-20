@@ -37,6 +37,122 @@ ok      .       0.81s
 
 Other flags cover test timeouts and performance checks. See `gno test --help`.
 
+## Gas profiling
+
+`gno test -gasprofile=<file>` writes a source-level gas profile of every
+executed test (unit tests and filetests) in standard [pprof](https://github.com/google/pprof)
+format, so the whole `go tool pprof` ecosystem works on gno gas. Use it to find
+which functions in your realm actually spend the gas.
+
+```
+$ gno test -gasprofile=gas.pprof .
+ok      .       0.81s
+gas profile written to gas.pprof (view with: go tool pprof gas.pprof)
+```
+
+Explore it interactively — top functions, per-line annotation, or a flame graph
+in the browser:
+
+```
+$ go tool pprof -top gas.pprof            # top functions by gas
+$ go tool pprof -http=:8080 gas.pprof     # flame graph + call graph (needs Graphviz)
+```
+
+The profile records gas per gno function across several dimensions. Select one
+with `-sample_index`:
+
+| Sample index          | What it measures                              |
+|-----------------------|-----------------------------------------------|
+| `total_gas` (default) | cpu + alloc + store + other (gross, pre-refund) |
+| `cpu_gas`             | CPU-cycle gas (execution)                     |
+| `alloc_gas`           | allocation gas                                |
+| `store_gas`           | storage read/write + amino (serialization)    |
+| `other_gas`           | gas not classified into the dimensions above  |
+| `refund_gas`          | gas refunded during execution (tracked separately, not netted into `total_gas`) |
+
+`total_gas` is the gross billable gas; the net cost is `total_gas - refund_gas`.
+Refunds are kept as their own dimension rather than subtracted so a child frame
+never appears to cost more than its parent.
+
+```
+$ go tool pprof -sample_index=store_gas -http=:8080 gas.pprof   # storage flame graph
+```
+
+Notes:
+
+- `-gasprofile` requires `-p 1` (the profiler runs single-threaded); the flag
+  sets it, and errors if you pass `-p` greater than 1.
+- A plain `gno test` run charges no store gas and does not meter allocation
+  against the test meter; `-gasprofile` additionally wires both, so a profiled
+  run reports `store_gas` and `alloc_gas` dimensions a normal run does not — and
+  its `--- GAS:` total is correspondingly higher. This is expected: the extra
+  metering is what makes those dimensions observable. On-chain profiling
+  (`.app/profiletx`) is observation-only and does not change gas.
+- `go tool pprof -top`/`-tree`/`-peek` work without Graphviz; the graph views
+  `-http`/`-svg` need it installed.
+- `-list <func>` needs `-source_path=<pkgdir>` because frames record only the
+  file basename (full paths would be non-deterministic). Even then it resolves
+  only for source under that one root, so stdlib frames and multi-package
+  profiles (`gno test -gasprofile ./...`) may not fully resolve; `-top`/`-tree`
+  do not need it.
+
+## Profiling a transaction
+
+Instead of profiling tests, you can profile a **transaction** as it runs on a
+local dev node. This is the on-chain analogue of `gno test -gasprofile`, and the
+way to answer "where did this transaction's gas go?" across the cpu, alloc, and
+**store** dimensions.
+
+A gas-profiler-enabled node exposes an `.app/profiletx` ABCI query that runs the
+transaction through simulation (no state is committed) and returns a pprof
+profile of its gas usage.
+
+[`gnodev`](./gnodev.md) enables this query automatically. The profiler is
+**off by default on all other nodes** (never on validators) and is enabled per
+node via `AppOptions.EnableGasProfiler` — it is a local-development feature.
+
+The easiest way is the `-gasprofile` flag on `gnokey maketx` (same flag name as
+`gno test -gasprofile`): it signs the tx and writes the pprof to a file instead
+of broadcasting it. Point `-remote` at a profiler-enabled node such as `gnodev`:
+
+```sh
+gnokey maketx call \
+  -pkgpath "gno.land/r/dev/counter" -func "Increment" \
+  -gas-wanted 20000000 -gas-fee 1000000ugnot \
+  -gasprofile gas.pprof \
+  -remote 127.0.0.1:26657 -chainid dev \
+  devtest
+# gas profile written to gas.pprof (ok)
+# transaction was NOT broadcast (-gasprofile profiles instead of sending)
+# view with: go tool pprof gas.pprof
+```
+
+The transaction is **not** broadcast — it is only simulated to measure its gas,
+so the command reports that explicitly and no `TX HASH` is printed.
+
+The flag works on every `maketx` subcommand (`call`, `run`, `addpkg`, `send`,
+and the `session` subcommands).
+Set a generous `-gas-wanted`: the tx runs under it, so too low a limit yields a
+profile truncated at the out-of-gas point (the confirmation line reports `ok` vs
+a "partial" note). Against a node without the profiler enabled, the command
+fails with a clear "gas profiling is not enabled on this node" error.
+
+Or query it from Go with the gno client:
+
+```go
+profile, log, err := client.ProfileTx(tx) // tx is a *std.Tx
+if err != nil {
+    // the node has profiling disabled, or the tx could not be decoded
+}
+_ = log // "ok", or a note that the profile is partial (tx ran out of gas / failed)
+os.WriteFile("gas.pprof", profile, 0o644)
+// then: go tool pprof gas.pprof
+```
+
+`profile` is the same gzipped pprof produced by `gno test -gasprofile`, so all
+the `go tool pprof` viewing and `-sample_index` dimension-switching shown above
+apply.
+
 ## `gno run`
 
 `gno run` evaluates an expression against your package code, a quick way to

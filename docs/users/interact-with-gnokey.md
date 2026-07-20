@@ -170,6 +170,10 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-gas-fee` - amount of GNOTs to pay per gas unit
 - `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
+- `-gasprofile` - signs the transaction and writes a pprof gas profile of it to this
+  file instead of broadcasting, for gas debugging against a profiler-enabled node
+  such as [`gnodev`](../resources/gnodev.md) (see
+  [Profiling a transaction](../resources/gno-testing.md#profiling-a-transaction))
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
 subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and

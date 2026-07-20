@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -38,6 +39,7 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	parallel            int
+	gasProfile          string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -94,6 +96,11 @@ GnoVM execution, acting as "golden tests":
 	- "Storage:" realm storage diffs produced during execution.
 	- "TypeCheckError:" type-check errors (only available for gnovm internal
 	test files).
+
+Use -gasprofile=<file> to write a source-level gas profile (pprof format) of all
+executed tests, then explore it with 'go tool pprof <file>' (top functions, a
+flame graph, or per-dimension with -sample_index=cpu_gas|store_gas|...). This
+requires -p 1.
 
 To speed up execution, imports of pure packages are processed separately from
 the execution of the tests. This makes testing faster, but means that the
@@ -187,6 +194,14 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 			"-debug enforces -p 1.",
 			runtime.GOMAXPROCS(0)),
 	)
+
+	fs.StringVar(
+		&c.gasProfile,
+		"gasprofile",
+		"",
+		"write a source-level gas profile (pprof format) of all executed tests to the given file; "+
+			"view with 'go tool pprof <file>'. Requires -p 1 (errors if -p > 1).",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -257,6 +272,35 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}
 	}
 
+	// -gasprofile: enforce -p 1 (the profiler is not concurrency-safe) and
+	// write an aggregate pprof profile of all executed tests on exit.
+	var gasProf *gasprof.Profiler
+	if cmd.gasProfile != "" {
+		if cmd.parallel > 1 {
+			return errors.New("-gasprofile can only be used with -p 1")
+		}
+		cmd.parallel = 1
+		gasProf = gasprof.New()
+		defer func() {
+			if gasProf.Empty() {
+				io.ErrPrintln("gasprofile: no gas recorded, nothing written")
+				return
+			}
+			f, err := os.Create(cmd.gasProfile)
+			if err != nil {
+				io.ErrPrintfln("gasprofile: %v", err)
+				return
+			}
+			defer f.Close()
+			if err := gasProf.WritePprof(f); err != nil {
+				io.ErrPrintfln("gasprofile: %v", err)
+				return
+			}
+			io.ErrPrintfln("gas profile written to %s (view with: go tool pprof %s)",
+				cmd.gasProfile, cmd.gasProfile)
+		}()
+	}
+
 	if cmd.parallel == 1 {
 		// Sequential run: all packages share a single store, and print
 		// their output directly as they run.
@@ -265,6 +309,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			stdout = io.Out()
 		}
 		opts := newOpts(stdout, io.Err())
+		opts.GasProfiler = gasProf
 		cache := make(gno.TypeCheckCache, 64)
 
 		for _, pkg := range pkgs {

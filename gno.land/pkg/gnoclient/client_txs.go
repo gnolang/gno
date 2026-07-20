@@ -21,7 +21,10 @@ var (
 	ErrMissingRPCClient = errors.New("missing RPCClient")
 )
 
-const simulatePath = ".app/simulate"
+const (
+	simulatePath  = ".app/simulate"
+	profileTxPath = ".app/profiletx"
+)
 
 // BaseTxCfg defines the base transaction configuration, shared by all message types
 type BaseTxCfg struct {
@@ -523,4 +526,38 @@ func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	}
 
 	return deliverTx, nil
+}
+
+// ProfileTx runs a transaction through the node's dev-only gas profiler
+// (.app/profiletx) and returns a pprof profile (gzipped protobuf) of its gas
+// usage together with a status log (e.g. "ok", or a note that the profile is
+// partial because the tx failed / ran out of gas). The node must have gas
+// profiling enabled (e.g. gnodev); otherwise the query is rejected. Like
+// Simulate, this assumes the signature carries the proper public key. View the
+// returned profile with: go tool pprof <file>.
+func (c *Client) ProfileTx(tx *std.Tx) (profile []byte, log string, err error) {
+	if err = c.validateRPCClient(); err != nil {
+		return nil, "", err
+	}
+
+	encodedTx, err := amino.Marshal(tx)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to marshal tx: %w", err)
+	}
+
+	resp, err := c.RPCClient.ABCIQuery(context.Background(), profileTxPath, encodedTx)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to perform ABCI query: %w", err)
+	}
+	if err = resp.Response.Error; err != nil {
+		// The descriptive message (e.g. "gas profiling is not enabled on this
+		// node") lives in Response.Log; the typed ABCI error stringifies to a
+		// generic category, so prefer the log when it is present.
+		if detail := resp.Response.Log; detail != "" {
+			return nil, "", fmt.Errorf("error encountered during ABCI query: %s", detail)
+		}
+		return nil, "", fmt.Errorf("error encountered during ABCI query: %w", err)
+	}
+
+	return resp.Response.Value, resp.Response.Log, nil
 }

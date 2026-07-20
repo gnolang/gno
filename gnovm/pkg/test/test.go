@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -250,6 +251,10 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// When non-nil, source-level gas profiling is enabled: every test
+	// machine's charges are attributed to this shared profiler (see
+	// gnovm/pkg/gasprof). Requires sequential execution (-p 1).
+	GasProfiler *gasprof.Profiler
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -260,6 +265,26 @@ type TestOptions struct {
 // [Test] is then able to swap it when needed.
 func (opts *TestOptions) WriterForStore() io.Writer {
 	return &opts.outWriter
+}
+
+// gasProfileStoreMeters returns a GasContext and amino meter that route store
+// I/O and amino gas through the gas profiler (the store dimension), or (nil,
+// nil) when not profiling — in which case gno test charges no store gas, as
+// before. Store gas never limits tests, so a dedicated infinite meter backs it;
+// charges record onto the shared profiler's current cursor (profiling runs
+// sequentially, so that is the executing test machine).
+//
+// Fidelity caveat: the config uses tm2 defaults, but the test base store is
+// flat (dbadapter), so IAVL's tree-depth multiplier never applies and chains
+// may further override the config via params. Local store gas is therefore an
+// approximation that systematically under-estimates on-chain store I/O; it is
+// useful for relative comparison, not exact on-chain prediction.
+func (opts *TestOptions) gasProfileStoreMeters() (*store.GasContext, store.GasMeter) {
+	if opts.GasProfiler == nil {
+		return nil, nil
+	}
+	w := gasprof.WrapMeter(store.NewInfiniteGasMeter(), opts.GasProfiler)
+	return &store.GasContext{Meter: w, Config: store.DefaultGasConfig()}, w
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
@@ -335,7 +360,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
 	tcw := opts.BaseStore.CacheWrap()
-	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil, nil)
+	gctx, aminoMeter := opts.gasProfileStoreMeters()
+	tgs := opts.TestStore.BeginTransaction(tcw, tcw, gctx, aminoMeter)
 
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
@@ -549,6 +575,9 @@ func (opts *TestOptions) runTestFiles(
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
+		if opts.GasProfiler != nil {
+			m.AttachGasProfiler(opts.GasProfiler)
+		}
 
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
 
@@ -707,6 +736,9 @@ func (opts *TestOptions) runTestFiles(
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
+		if opts.GasProfiler != nil {
+			m.AttachGasProfiler(opts.GasProfiler)
+		}
 
 		runExampleTestX := gno.Sel(testingcx, "RunExampleTest")
 		runExampleTest := m.Eval(runExampleTestX)[0]

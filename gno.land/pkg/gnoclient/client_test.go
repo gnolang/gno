@@ -1617,3 +1617,51 @@ func TestClient_EstimateGas(t *testing.T) {
 		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }
+
+func TestClient_ProfileTx(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns profile bytes and status log", func(t *testing.T) {
+		t.Parallel()
+		mockRPC := &mockRPCClient{
+			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				require.Equal(t, profileTxPath, path)
+				var tx std.Tx
+				require.NoError(t, amino.Unmarshal(data, &tx))
+				return &ctypes.ResultABCIQuery{
+					Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{Log: "ok"},
+						Value:        []byte("gzipped-pprof"),
+					},
+				}, nil
+			},
+		}
+		c := &Client{RPCClient: mockRPC}
+		profile, log, err := c.ProfileTx(&std.Tx{})
+		require.NoError(t, err)
+		assert.Equal(t, []byte("gzipped-pprof"), profile)
+		assert.Equal(t, "ok", log)
+	})
+
+	t.Run("surfaces a node-side query error", func(t *testing.T) {
+		t.Parallel()
+		mockRPC := &mockRPCClient{
+			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				return &ctypes.ResultABCIQuery{
+					Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{Error: abci.StringError("boom")},
+					},
+				}, nil
+			},
+		}
+		c := &Client{RPCClient: mockRPC}
+		_, _, err := c.ProfileTx(&std.Tx{})
+		require.Error(t, err)
+	})
+
+	t.Run("errors without an RPC client", func(t *testing.T) {
+		t.Parallel()
+		_, _, err := (&Client{}).ProfileTx(&std.Tx{})
+		require.Error(t, err)
+	})
+}

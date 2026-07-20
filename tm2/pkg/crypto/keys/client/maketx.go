@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -31,6 +32,10 @@ type MakeTxCfg struct {
 	// Master, when set, signs the tx as a session account on behalf of this master key
 	// (name or bech32). The chain enforces which msg types a session may sign.
 	Master string
+	// GasProfile, when set, signs the tx and writes a pprof gas profile of it
+	// to this file path instead of broadcasting. Requires a node with the gas
+	// profiler enabled (e.g. gnodev); it is off on real nodes.
+	GasProfile string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -47,6 +52,12 @@ func (c *MakeTxCfg) Validate() error {
 		return fmt.Errorf("invalid simulate option: %q", c.Simulate)
 	}
 	return nil
+}
+
+// ShouldSign reports whether the tx must be signed — either to broadcast it or
+// to profile it. When false, the subcommand only prints the unsigned tx.
+func (c *MakeTxCfg) ShouldSign() bool {
+	return c.Broadcast || c.GasProfile != ""
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -131,6 +142,15 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"session account master's key name or bech32 address (optional)",
 	)
+
+	fs.StringVar(
+		&c.GasProfile,
+		"gasprofile",
+		"",
+		"sign the tx and write a pprof gas profile to this file instead of "+
+			"broadcasting (requires a node with the gas profiler enabled, e.g. gnodev); "+
+			"same flag name as 'gno test -gasprofile'",
+	)
 }
 
 // GetCaller returns the address that should appear as msg.Caller. When c.Master
@@ -173,55 +193,39 @@ func (c *MakeTxCfg) GetMaster() (crypto.Address, error) {
 	return info.GetAddress(), nil
 }
 
-func SignAndBroadcastHandler(
-	cfg *MakeTxCfg,
-	nameOrBech32 string,
-	tx std.Tx,
-	pass string,
-	io commands.IO,
-) (*types.ResultBroadcastTxCommit, error) {
-	baseopts := cfg.RootCfg
-	txopts := cfg
-
+// signTx resolves the signer's account number and sequence (querying the node),
+// signs tx with the named key, and returns the signed tx. It is shared by the
+// broadcast and profile paths.
+func signTx(cfg *MakeTxCfg, nameOrBech32 string, tx std.Tx, pass string) (std.Tx, error) {
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
-		return nil, err
+		return std.Tx{}, err
 	}
 
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
-		return nil, err
+		return std.Tx{}, err
 	}
 	accountAddr := info.GetAddress()
-
-	var maxGasCh chan consensusMaxGasResult
-	if cfg.Simulate != SimulateSkip {
-		maxGasCh = make(chan consensusMaxGasResult, 1)
-		go func() {
-			maxGas, err := fetchConsensusMaxGas(baseopts.Remote)
-			maxGasCh <- consensusMaxGasResult{maxGas: maxGas, err: err}
-		}()
-	}
 
 	// query for the account number and sequence
 	var accountNumber uint64
 	var sequence uint64
 	qopts := &QueryCfg{
-		RootCfg: baseopts,
+		RootCfg: cfg.RootCfg,
 	}
 	if cfg.Master == "" {
 		qopts.Path = fmt.Sprintf("auth/accounts/%s", accountAddr)
 		qres, err := QueryHandler(qopts)
 		if err != nil {
-			return nil, errors.Wrap(err, "query account")
+			return std.Tx{}, errors.Wrap(err, "query account")
 		}
 		var qret struct {
 			BaseAccount std.BaseAccount
 			Attributes  uint64 `json:"attributes"` // GnoAccount extension
 		}
-		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-		if err != nil {
-			return nil, err
+		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+			return std.Tx{}, err
 		}
 
 		accountNumber = qret.BaseAccount.AccountNumber
@@ -229,21 +233,20 @@ func SignAndBroadcastHandler(
 	} else {
 		masterAddr, err := cfg.GetMaster()
 		if err != nil {
-			return nil, err
+			return std.Tx{}, err
 		}
 		sessionAddr := accountAddr
 		qopts.Path = fmt.Sprintf("auth/accounts/%s/session/%s", crypto.AddressToBech32(masterAddr), sessionAddr)
 		qres, err := QueryHandler(qopts)
 		if err != nil {
-			return nil, errors.Wrap(err, "query session account")
+			return std.Tx{}, errors.Wrap(err, "query session account")
 		}
 		var qret struct {
 			BaseSessionAccount std.BaseSessionAccount
 			AllowPaths         []string `json:"allow_paths,omitempty"` // GnoSessionAccount extension
 		}
-		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-		if err != nil {
-			return nil, err
+		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+			return std.Tx{}, err
 		}
 
 		accountNumber = qret.BaseSessionAccount.BaseAccount.AccountNumber
@@ -252,7 +255,7 @@ func SignAndBroadcastHandler(
 
 	// sign tx
 	sOpts := signOpts{
-		chainID:         txopts.ChainID,
+		chainID:         cfg.ChainID,
 		accountSequence: sequence,
 		accountNumber:   accountNumber,
 	}
@@ -265,7 +268,7 @@ func SignAndBroadcastHandler(
 	// Generate the transaction signature
 	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
 	if err != nil {
-		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+		return std.Tx{}, fmt.Errorf("unable to sign transaction: %w", err)
 	}
 
 	if cfg.Master != "" {
@@ -274,7 +277,34 @@ func SignAndBroadcastHandler(
 
 	// Add the signature to the tx
 	if err = addSignature(&tx, signature); err != nil {
-		return nil, fmt.Errorf("unable to add signature: %w", err)
+		return std.Tx{}, fmt.Errorf("unable to add signature: %w", err)
+	}
+
+	return tx, nil
+}
+
+func SignAndBroadcastHandler(
+	cfg *MakeTxCfg,
+	nameOrBech32 string,
+	tx std.Tx,
+	pass string,
+	io commands.IO,
+) (*types.ResultBroadcastTxCommit, error) {
+	baseopts := cfg.RootCfg
+
+	// Fetch consensus max gas concurrently with signing — both hit the network.
+	var maxGasCh chan consensusMaxGasResult
+	if cfg.Simulate != SimulateSkip {
+		maxGasCh = make(chan consensusMaxGasResult, 1)
+		go func() {
+			maxGas, err := fetchConsensusMaxGas(baseopts.Remote)
+			maxGasCh <- consensusMaxGasResult{maxGas: maxGas, err: err}
+		}()
+	}
+
+	signedTx, err := signTx(cfg, nameOrBech32, tx, pass)
+	if err != nil {
+		return nil, err
 	}
 
 	maxGas := resolveMaxGas(maxGasCh, io)
@@ -282,7 +312,7 @@ func SignAndBroadcastHandler(
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
-		tx:      &tx,
+		tx:      &signedTx,
 
 		DryRun:         cfg.Simulate == SimulateOnly,
 		testSimulate:   cfg.Simulate == SimulateTest,
@@ -291,6 +321,38 @@ func SignAndBroadcastHandler(
 	}
 
 	return BroadcastHandler(bopts)
+}
+
+// SignAndProfileHandler signs tx and queries the node's .app/profiletx endpoint,
+// returning a pprof gas profile of the tx and a status log. The endpoint is off
+// by default on real nodes and enabled on dev nodes (e.g. gnodev); against a
+// node without it, ProfileTx returns a clear "not enabled" error.
+func SignAndProfileHandler(
+	cfg *MakeTxCfg,
+	nameOrBech32 string,
+	tx std.Tx,
+	pass string,
+) (profile []byte, log string, err error) {
+	signedTx, err := signTx(cfg, nameOrBech32, tx, pass)
+	if err != nil {
+		return nil, "", err
+	}
+
+	bz, err := amino.Marshal(&signedTx)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "remarshaling tx binary bytes")
+	}
+
+	remote := cfg.RootCfg.Remote
+	if remote == "" {
+		return nil, "", errors.New("missing remote url")
+	}
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return ProfileTx(cli, bz)
 }
 
 func ExecSignAndBroadcast(
@@ -318,6 +380,27 @@ func ExecSignAndBroadcast(
 
 	if err != nil {
 		return err
+	}
+
+	// -gasprofile: sign and write a pprof gas profile instead of broadcasting.
+	// Say so explicitly: -broadcast is on by default, so staying quiet about
+	// not sending would leave a dropped tx looking like a successful send.
+	if cfg.GasProfile != "" {
+		profile, log, err := SignAndProfileHandler(cfg, nameOrBech32, tx, pass)
+		if err != nil {
+			return errors.Wrap(err, "profile tx")
+		}
+		if err := os.WriteFile(cfg.GasProfile, profile, 0o644); err != nil {
+			return errors.Wrap(err, "writing gas profile")
+		}
+		// stderr, not stdout: stdout carries the machine-readable tx result
+		// (TX HASH, OK!), and `gno test -gasprofile` reports the same thing on
+		// stderr.
+		io.ErrPrintfln("gas profile written to %s (%s)\n"+
+			"transaction was NOT broadcast (-gasprofile profiles instead of sending)\n"+
+			"view with: go tool pprof %s",
+			cfg.GasProfile, log, cfg.GasProfile)
+		return nil
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass, io)
