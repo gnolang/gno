@@ -24,7 +24,7 @@ var _ hsmAPI = (*hsm.SessionManager)(nil)
 func newSession(cfg *Config) (hsmAPI, error) {
 	conn := connector.NewHTTPConnector(cfg.ConnectorURL)
 
-	sm, err := hsm.NewSessionManager(conn, cfg.AuthKeyID, cfg.Password)
+	sm, err := hsm.NewSessionManager(conn, cfg.AuthKeyID, cfg.resolvePassword())
 	if err != nil {
 		return nil, fmt.Errorf("unable to open YubiHSM2 session: %w", err)
 	}

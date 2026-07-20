@@ -96,8 +96,26 @@ func TestNewSigner_InvalidPubKeyLength(t *testing.T) {
 	session := &mockSession{pubKeyData: make([]byte, 16)} // wrong length
 
 	signer, err := newSigner(session, 42)
-	require.ErrorIs(t, err, errInvalidPubKeyLen)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "key_id 42")
+	assert.Contains(t, err.Error(), "16-byte")
 	assert.Nil(t, signer)
+}
+
+func TestNewSigner_InvalidSignatureLength(t *testing.T) {
+	t.Parallel()
+
+	session := &mockSession{
+		pubKeyData: make([]byte, 32),
+		signature:  make([]byte, 16), // wrong length
+	}
+
+	signer, err := newSigner(session, 42)
+	require.NoError(t, err)
+
+	sig, err := signer.Sign([]byte("sign-bytes"))
+	require.ErrorIs(t, err, errInvalidSignatureLen)
+	assert.Nil(t, sig)
 }
 
 func TestNewSigner_SignError(t *testing.T) {
@@ -124,7 +142,7 @@ func TestConfig_IsEnabled(t *testing.T) {
 
 	assert.False(t, (&Config{}).IsEnabled())
 	assert.False(t, (*Config)(nil).IsEnabled())
-	assert.True(t, (&Config{ConnectorURL: "http://127.0.0.1:12345"}).IsEnabled())
+	assert.True(t, (&Config{ConnectorURL: "127.0.0.1:12345"}).IsEnabled())
 }
 
 func TestConfig_ValidateBasic(t *testing.T) {
@@ -133,19 +151,43 @@ func TestConfig_ValidateBasic(t *testing.T) {
 	assert.NoError(t, (&Config{}).ValidateBasic())
 
 	assert.ErrorIs(t, (&Config{
-		ConnectorURL: "http://127.0.0.1:12345",
+		ConnectorURL: "127.0.0.1:12345",
 	}).ValidateBasic(), errZeroAuthKeyID)
 
 	assert.ErrorIs(t, (&Config{
-		ConnectorURL: "http://127.0.0.1:12345",
+		ConnectorURL: "127.0.0.1:12345",
 		AuthKeyID:    1,
 	}).ValidateBasic(), errZeroKeyID)
 
 	assert.NoError(t, (&Config{
-		ConnectorURL: "http://127.0.0.1:12345",
+		ConnectorURL: "127.0.0.1:12345",
 		AuthKeyID:    1,
 		KeyID:        2,
 	}).ValidateBasic())
+}
+
+func TestConfig_ValidateBasic_PartiallyConfiguredButDisabled(t *testing.T) {
+	t.Parallel()
+
+	// connector_url unset but other fields set: this used to silently read
+	// as "disabled" and fall through to the local file signer. It must now
+	// be rejected instead.
+	assert.ErrorIs(t, (&Config{AuthKeyID: 1}).ValidateBasic(), errConnectorURLMissing)
+	assert.ErrorIs(t, (&Config{KeyID: 1}).ValidateBasic(), errConnectorURLMissing)
+	assert.ErrorIs(t, (&Config{Password: "x"}).ValidateBasic(), errConnectorURLMissing)
+	assert.ErrorIs(t, (&Config{PasswordEnv: "X"}).ValidateBasic(), errConnectorURLMissing)
+}
+
+func TestConfig_ResolvePassword(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "literal", (&Config{Password: "literal"}).resolvePassword())
+
+	t.Setenv("YUBIHSM_TEST_PASSWORD", "from-env")
+	assert.Equal(t, "from-env", (&Config{
+		Password:    "literal",
+		PasswordEnv: "YUBIHSM_TEST_PASSWORD",
+	}).resolvePassword())
 }
 
 func TestNewSignerFromConfig_Disabled(t *testing.T) {

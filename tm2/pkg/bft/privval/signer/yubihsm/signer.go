@@ -12,10 +12,10 @@ import (
 
 // Signer implements types.Signer by delegating public key retrieval and
 // signing to an Ed25519 key stored in a YubiHSM2 hardware security module.
-// Unlike the file/AWS/GCP/Vault-backed signers, the private key never
-// leaves the device: PubKey is fetched once at construction time and
-// cached, and Sign sends the raw sign-bytes to the device (through the
-// yubihsm-connector) for on-device signing.
+// Unlike the local file signer, the private key never leaves the device:
+// PubKey is fetched once at construction time and cached, and Sign sends
+// the raw sign-bytes to the device (through the yubihsm-connector) for
+// on-device signing.
 type Signer struct {
 	session hsmAPI
 	keyID   uint16
@@ -47,6 +47,10 @@ func (s *Signer) Sign(signBytes []byte) ([]byte, error) {
 		return nil, errUnexpectedResponseType
 	}
 
+	if len(sigResp.Signature) != ed25519.SignatureSize {
+		return nil, errInvalidSignatureLen
+	}
+
 	return sigResp.Signature, nil
 }
 
@@ -68,8 +72,8 @@ func (s *Signer) String() string {
 // Config validation errors.
 var (
 	errDisabled               = errors.New("yubihsm signer: not enabled")
-	errInvalidPubKeyLen       = errors.New("yubihsm signer: device returned an unexpected public key length")
 	errUnexpectedResponseType = errors.New("yubihsm signer: unexpected response type from device")
+	errInvalidSignatureLen    = errors.New("yubihsm signer: device returned an unexpected signature length")
 )
 
 // NewSignerFromConfig opens a session with the YubiHSM2 device behind cfg's
@@ -84,7 +88,16 @@ func NewSignerFromConfig(cfg *Config) (*Signer, error) {
 		return nil, err
 	}
 
-	return newSigner(session, cfg.KeyID)
+	signer, err := newSigner(session, cfg.KeyID)
+	if err != nil {
+		// Constructor failed after the session was opened: tear it down so
+		// we don't leak an authenticated session (and its keepalive
+		// goroutine) holding one of the device's limited session slots.
+		session.Destroy()
+		return nil, err
+	}
+
+	return signer, nil
 }
 
 // newSigner contains the constructor logic decoupled from the concrete
@@ -107,7 +120,11 @@ func newSigner(session hsmAPI, keyID uint16) (*Signer, error) {
 	}
 
 	if len(pubKeyResp.KeyData) != ed25519.PubKeyEd25519Size {
-		return nil, errInvalidPubKeyLen
+		return nil, fmt.Errorf(
+			"yubihsm signer: key_id %d returned a %d-byte public key (algorithm code %d), expected %d bytes for Ed25519; "+
+				"is key_id pointing at an Ed25519 key?",
+			keyID, len(pubKeyResp.KeyData), pubKeyResp.Algorithm, ed25519.PubKeyEd25519Size,
+		)
 	}
 
 	var pubKey ed25519.PubKeyEd25519

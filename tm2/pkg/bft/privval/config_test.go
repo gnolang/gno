@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	rsserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/yubihsm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -420,5 +421,93 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		}
 		require.NoError(t, err, "port must be released after Init failure")
 		require.NoError(t, rebound.Close())
+	})
+}
+
+// enabledYubiHSMConfig returns a minimally-valid, enabled YubiHSM config for
+// use in the mutual-exclusion tests below. It doesn't need to point at a
+// real device: these tests only exercise validation, not signer construction.
+func enabledYubiHSMConfig() *yubihsm.Config {
+	return &yubihsm.Config{
+		ConnectorURL: "127.0.0.1:12345",
+		AuthKeyID:    1,
+		KeyID:        2,
+	}
+}
+
+func TestPrivValidatorConfig_YubiHSMValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil yubihsm config", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.YubiHSM = nil
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNilYubiHSMConfig)
+	})
+
+	t.Run("yubihsm with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.YubiHSM = enabledYubiHSMConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("yubihsm with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.YubiHSM = enabledYubiHSMConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-yubihsm-test.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("yubihsm alone", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.YubiHSM = enabledYubiHSMConfig()
+
+		require.NoError(t, cfg.ValidateBasic())
+	})
+}
+
+func TestPrivValidatorConfig_YubiHSMNewPrivValidator(t *testing.T) {
+	t.Parallel()
+
+	var (
+		privKey = ed25519.GenPrivKey()
+		logger  = log.NewNoopLogger()
+	)
+
+	t.Run("yubihsm with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.YubiHSM = enabledYubiHSMConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
+	})
+
+	t.Run("yubihsm with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.YubiHSM = enabledYubiHSMConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-yubihsm-test2.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
 	})
 }

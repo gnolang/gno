@@ -18,9 +18,10 @@ import (
 )
 
 // PrivValidatorConfig defines the configuration for the PrivValidator, with a local
-// signer (file-based key), a gnokms remote signer (tm2-native protocol), or a tmkms
+// signer (file-based key), a gnokms remote signer (tm2-native protocol), a tmkms
 // listener (upstream Tendermint privval protocol — the validator listens for tmkms
-// to dial in). At most one of RemoteSigner or TmkmsListener may be enabled.
+// to dial in), or a YubiHSM2 hardware security module. At most one of RemoteSigner,
+// TmkmsListener, or YubiHSM may be enabled.
 type PrivValidatorConfig struct {
 	// File path configuration.
 	RootDir     string `json:"home" toml:"home"`
