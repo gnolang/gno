@@ -61,7 +61,7 @@ depends on whether the `*Block` was recycled or on its slice capacity.
 2. **file/package blocks** (referenced by `FuncValue.Parent`) — identified by
    `Source` node type (`*FileNode`, `*PackageNode`, `RefNode`, `nil`);
 3. **defer-site blocks** — `Defer.Parent` is visited by the VM-GC until the
-   defer runs, so `doOpDefer` marks the block with a `noRecycle` flag;
+   defer runs, so `doOpDefer` marks the block with a `notRecyclable` flag;
 4. **realm-attached blocks** — see the recycle guard below.
 
 Panic unwinding (`m.Exception != nil`) skips pooling entirely as cheap
@@ -91,10 +91,10 @@ in the realm graph; only file/package blocks are, and those exit at exclusion
 pooled is still referenced as a pending `Defer.Parent`, pinning the invariant
 in CI builds that enable the tag.
 
-### `noRecycle` lives in `Block`, not `bodyStmt`
+### `notRecyclable` lives in `Block`, not `bodyStmt`
 
-The defer-site `noRecycle` flag is a dedicated `Block` field
-(`Block.setNoRecycle`/`isNoRecycle`). An earlier iteration hid it in
+The defer-site flag is a dedicated `Block` field
+(`Block.notRecyclable`, set via `setNotRecyclable`). An earlier iteration hid it in
 `bodyStmt`'s trailing padding to keep `unsafe.Sizeof(Block{})` — and the
 `_allocBlock` gas constant — unchanged. That was a latent
 use-after-recycle bug: a `fallthrough` re-enters the next clause body by
@@ -120,7 +120,17 @@ invariant without the fix.
 The pool holds **uniformly cap-14** blocks. `newPooledBlock`
 (alloc.go → `newBlockWithValueCap`) allocates `make([]TypedValue, numNames,
 max(numNames, blockPoolValueCap))`; `releaseBlock` only pools blocks of
-`cap ≥ blockPoolValueCap`, re-sliced to exactly `[:14:14]`.
+*exactly* `cap == blockPoolValueCap`. Oversized blocks (numNames > 14,
+allocated at exact size by the miss path) are dropped whole to the Go GC
+instead: pooling one would pin its oversized backing array — including any
+values in the tail slots beyond a re-sliced cap, which `clear` would miss —
+for the machine's lifetime, while serving at most 14 slots. Not pooling them
+costs at most one extra `AllocateBlock` charge when an oversized release
+would otherwise have seeded the pool; in practice this is gas-invisible —
+oversized blocks always miss on acquire anyway (pooled caps are 14 <
+numNames), steady-state recycling is carried entirely by cap-14 blocks, and
+regenerating goldens after the exact-cap guard changed nothing (filetests and
+integration txtar are byte-identical).
 
 The pool is a LIFO stack and `acquireBlock` inspects only the top block, so a
 too-small top forces a miss even when a larger block sits deeper. A uniform
@@ -176,16 +186,18 @@ malloc.
 
 ## Consensus-visible change
 
-Two changes shift gas: the `_allocBlock` 528 → 536 bump (the `noRecycle`
-field, +8 B/block) and the recycle/allocate gas split above. Goldens
-regenerated under `-test.short`:
+Two changes shift gas: the `_allocBlock` 528 → 536 bump (the `notRecyclable`
+field, +8 B/block) and the recycle/allocate gas split above. The `_allocBlock`
+bump also reaches `addpkg` (package/file blocks allocated during package init
+are charged memory gas), so addpkg `GAS USED` values move by a few units too.
+Goldens regenerated under `-test.short`:
 
 - `gas/*` and `alloc_*` filetests (e.g. `gas/const` 2343 → 2284; `alloc_*`
   `MemStats` shift as recycled blocks stop charging phantom malloc);
-- five integration `GAS USED:`/fee values: `gc`, `gnokey_gasfee`,
-  `simulate_gas`, `stdlib_ibc_crypto_determinism`, `stdlib_restart_compare`
-  (`addpkg` gas is preprocess/storage-bound and unchanged; only `maketx call`
-  runtime gas shifts).
+- seven integration txtar files: `gc`, `gnokey_gasfee`, `simulate_gas`,
+  `stdlib_ibc_crypto_determinism`, `stdlib_restart_compare` (runtime
+  `maketx call` gas), plus `restart_gas` and `addpkg_import_testdep_gas`
+  (addpkg gas, from the `_allocBlock` bump).
 
 No other goldens change.
 

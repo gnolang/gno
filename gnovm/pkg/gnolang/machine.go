@@ -2355,11 +2355,16 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // — so this is belt-and-suspenders, not a hot exclusion.
 func (m *Machine) releaseBlock(b *Block) {
 	// exclusion conditions:
-	// pool over capacity, explicitly not recyclable, panicking or cap(values) below target.
+	// pool over capacity, explicitly not recyclable, panicking, or cap(values)
+	// not exactly the uniform pooled capacity. Oversized blocks (numNames >
+	// blockPoolValueCap) are dropped whole to the Go GC rather than pooled:
+	// pooling them would pin their oversized backing array (and any values in
+	// its tail slots, beyond the re-sliced cap) for the machine's lifetime
+	// while serving at most blockPoolValueCap slots.
 	if len(m.blockPool) >= blockPoolLimit ||
 		b.notRecyclable ||
 		m.Exception != nil ||
-		cap(b.Values) < blockPoolValueCap {
+		cap(b.Values) != blockPoolValueCap {
 		return
 	}
 	// exclude if we detect that block is stored
