@@ -31,6 +31,7 @@ require (
 	github.com/mimoo/StrobeGo v0.0.0-20181016162300-f8f6d4d2b643 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
