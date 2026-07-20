@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -197,12 +198,17 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
 }
 
-// Deflapped: this used to hit the errTransportClosed data race in
-// switch.go's runAcceptLoop (see the accompanying fix), which -race would
-// intermittently catch. Verified clean over 200 runs with -race after
-// the fix; no longer marked Flappy.
-func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+// NOTE: still marked Flappy. The errTransportClosed data race fixed in
+// switch.go's runAcceptLoop (see the accompanying fix) was one real source
+// of flakiness here (confirmed via 200 isolated -race runs), but running
+// the full mempool package under -race still intermittently leaks a
+// goroutine (MConnection recvRoutine/sendRoutine not shutting down
+// promptly) that isolated -run reps didn't surface. Needs further
+// investigation before this can be safely deflapped.
+func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	t.Parallel()
+
+	testutils.FilterStability(t, testutils.Flappy)
 
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
@@ -227,10 +233,11 @@ func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	leaktest.CheckTimeout(t, 10*time.Second)()
 }
 
-// Deflapped: same root cause as TestBroadcastTxForPeerStopsWhenPeerStops
-// above. Verified clean over 100 runs with -race after the fix.
-func TestBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+// NOTE: still marked Flappy; see TestFlappyBroadcastTxForPeerStopsWhenPeerStops above.
+func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	t.Parallel()
+
+	testutils.FilterStability(t, testutils.Flappy)
 
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
