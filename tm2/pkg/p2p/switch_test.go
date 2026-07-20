@@ -735,19 +735,6 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			freshAddr = peer.SocketAddr() // the current, correct address
 			rawAddr   = freshAddr.String()
 
-			dialedAddrs []types.NetAddress
-
-			mockTransport = &mockTransport{
-				dialFn: func(
-					_ context.Context,
-					address types.NetAddress,
-					_ PeerBehavior,
-				) (PeerConn, error) {
-					dialedAddrs = append(dialedAddrs, address)
-
-					return nil, errors.New("stop after recording the dial attempt")
-				},
-			}
 			ps = &mockSet{
 				hasFn: func(types.ID) bool {
 					// The peer is never connected, so it's always a
@@ -758,7 +745,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		)
 
 		sw := NewMultiplexSwitch(
-			mockTransport,
+			nil,
 			WithPersistentPeers([]string{rawAddr}),
 		)
 		sw.peers = ps
@@ -778,15 +765,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		)
 		defer cancelFn()
 
-		var wg sync.WaitGroup
-
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			sw.runRedialLoop(ctx)
-		}()
+		go sw.runRedialLoop(ctx)
 
 		deadline := time.After(5 * time.Second)
 
@@ -796,7 +775,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			case <-deadline:
 				break loop
 			default:
-				if len(dialedAddrs) > 0 {
+				if sw.dialQueue.Has(freshAddr) {
 					cancelFn()
 
 					break loop
@@ -804,18 +783,15 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			}
 		}
 
-		wg.Wait()
-
-		require.NotEmpty(t, dialedAddrs)
-		assert.True(
+		require.True(
 			t,
-			dialedAddrs[0].Equals(*freshAddr),
-			"redial should use the freshly re-resolved address, not the stale cached one",
+			sw.dialQueue.Has(freshAddr),
+			"redial should queue the freshly re-resolved address",
 		)
 		assert.False(
 			t,
-			dialedAddrs[0].Equals(staleAddr),
-			"redial must not reuse the stale cached IP",
+			sw.dialQueue.Has(&staleAddr),
+			"redial must not queue the stale cached IP",
 		)
 	})
 }
