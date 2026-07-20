@@ -11,11 +11,11 @@ type Struct struct {
 
 var s *Struct
 
-func init() {
+func init(cur realm) {
 	println("s = &Struct{A: 100}")
 	s = &Struct{A: 100}
 	println("crossrealm_b.SetObject(cross, &s.A)")
-	crossrealm_b.SetObject(cross, &s.A)
+	crossrealm_b.SetObject(cross(cur), &s.A)
 }
 
 func main(cur realm) {
@@ -28,6 +28,4 @@ func main(cur realm) {
 // s = &Struct{A: 100}
 // crossrealm_b.SetObject(cross, &s.A)
 // s.A = 123
-
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<~VPBlock(3,1)>.A
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct)

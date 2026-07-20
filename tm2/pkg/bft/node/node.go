@@ -4,10 +4,12 @@ package node
 // is enabled by the user by setting a profiling address
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +43,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -107,13 +110,32 @@ func DefaultNewNode(
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
-	// Generate node PrivKey
+	return DefaultNewNodeWithGenesisProvider(
+		config,
+		DefaultGenesisDocProviderFunc(genesisFile),
+		evsw,
+		logger,
+		options...,
+	)
+}
+
+// DefaultNewNodeWithGenesisProvider returns a Tendermint node with default
+// settings for the PrivValidator, ClientCreator, and DBProvider, but uses the
+// supplied GenesisDocProvider in place of the on-disk loader. This is the seam
+// callers use to inject custom genesis loading (for example, a streaming
+// loader that avoids reading the entire genesis file into memory).
+func DefaultNewNodeWithGenesisProvider(
+	config *cfg.Config,
+	genesisDocProvider GenesisDocProvider,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+	options ...Option,
+) (*Node, error) {
 	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
 
-	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
 		config.LocalApp,
 		config.ProxyApp,
@@ -121,7 +143,6 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
-	// Initialize the privValidator
 	privVal, err := privval.NewPrivValidatorFromConfig(
 		config.Consensus.PrivValidator,
 		nodeKey.PrivKey,
@@ -136,7 +157,7 @@ func DefaultNewNode(
 		privVal,
 		nodeKey,
 		appClientCreator,
-		DefaultGenesisDocProviderFunc(genesisFile),
+		genesisDocProvider,
 		DefaultDBProvider,
 		evsw,
 		logger,
@@ -342,6 +363,7 @@ func createConsensusReactor(config *cfg.Config,
 		blockExec,
 		blockStore,
 		mempool,
+		cs.NoOpEvidencePool{},
 	)
 	consensusState.SetLogger(consensusLogger)
 	if privValidator != nil {
@@ -489,7 +511,24 @@ func NewNode(config *cfg.Config,
 	var discoveryReactor *discovery.Reactor
 
 	if config.P2P.PeerExchange {
-		discoveryReactor = discovery.NewReactor()
+		// Set up the persistent peer store so discovered peers survive restarts.
+		// The store file lives in the config directory alongside the node key.
+		addrBookPath := config.P2P.AddrBookFile()
+
+		if err := osm.EnsureDir(filepath.Dir(addrBookPath), cfg.DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("unable to create address book directory, %w", err)
+		}
+
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
+		}
+
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
@@ -1007,17 +1046,43 @@ var genesisDocKey = []byte("genesisDoc")
 // database, or creates one using the given genesisDocProvider and persists the
 // result to the database. On success this also returns the genesis doc loaded
 // through the given provider.
+//
+// AppState is intentionally not persisted in the state DB (it can be huge —
+// hundreds of MB on real-world genesis files — and may carry types that the
+// codec cannot encode, such as on-disk-backed handles). The DB copy is an
+// audit trail for ChainID / Validators / GenesisTime / AppHash. Whenever the
+// loaded doc has no AppState attached, the provider is re-invoked to supply
+// it. AppState is only consumed at appBlockHeight==0 (see
+// consensus/replay.go ReplayBlocks), so this re-derivation is cheap and safe
+// — beyond that height the field is unused.
 func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider GenesisDocProvider) (sm.State, *types.GenesisDoc, error) {
-	// Get genesis doc
 	genDoc, err := loadGenesisDoc(stateDB)
 	if err != nil {
 		genDoc, err = genesisDocProvider()
 		if err != nil {
 			return sm.State{}, nil, err
 		}
-		// save genesis doc to prevent a certain class of user errors (e.g. when it
-		// was changed, accidentally or not). Also good for audit trail.
 		saveGenesisDoc(stateDB, genDoc)
+	} else if genDoc.AppState == nil {
+		freshDoc, perr := genesisDocProvider()
+		if perr != nil {
+			return sm.State{}, nil, perr
+		}
+		// Verify the fresh genesis matches what the DB persisted. An operator
+		// pointing the node at a different genesis.json between boots would
+		// otherwise pair the DB's chain metadata (chain A) with the fresh
+		// AppState (chain B), silently corrupting state at appBlockHeight==0.
+		if freshDoc.ChainID != genDoc.ChainID {
+			return sm.State{}, nil, fmt.Errorf(
+				"genesis chain id mismatch between persisted state (%q) and source genesis (%q): the genesis file backing this data dir has changed",
+				genDoc.ChainID, freshDoc.ChainID)
+		}
+		if !bytes.Equal(freshDoc.AppHash, genDoc.AppHash) {
+			return sm.State{}, nil, fmt.Errorf(
+				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
+				genDoc.AppHash, freshDoc.AppHash)
+		}
+		genDoc.AppState = freshDoc.AppState
 	}
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
@@ -1043,9 +1108,12 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	return genDoc, nil
 }
 
-// panics if failed to marshal the given genesis document
+// panics if failed to marshal the given genesis document.
+// AppState is dropped before persisting (see LoadStateFromDBOrGenesisDocProvider).
 func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
-	b, err := amino.MarshalJSON(genDoc)
+	stripped := *genDoc
+	stripped.AppState = nil
+	b, err := amino.MarshalJSON(&stripped)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}

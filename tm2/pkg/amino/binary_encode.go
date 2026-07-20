@@ -46,7 +46,7 @@ CONTRACT: rv is valid.
 func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Value,
 	fopts FieldOptions, bare bool, options uint64,
 ) (err error) {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		// Whether to encode nil pointers as 0x00 or not at all depend on the
 		// context, so pointers should be handled first by the caller.
 		panic("not allowed to be called with a reflect.Ptr")
@@ -115,6 +115,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			err = EncodeInt64(w, rv.Int())
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint(w, rv.Int())
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}
@@ -122,6 +124,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			err = EncodeInt32(w, int32(rv.Int()))
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint32(w, int32(rv.Int()))
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}
@@ -137,6 +141,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 			err = EncodeInt64(w, rv.Int())
 		} else if fopts.BinFixed32 {
 			err = EncodeInt32(w, int32(rv.Int()))
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint(w, rv.Int())
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}
@@ -380,7 +386,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		for i := range rv.Len() {
 			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				if erv.IsNil() {
 					erv = reflect.New(ert.Elem()).Elem()
 				} else {
@@ -395,7 +401,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		}
 	} else { // typ3 == Typ3ByteLength
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		ertIsStruct := einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&

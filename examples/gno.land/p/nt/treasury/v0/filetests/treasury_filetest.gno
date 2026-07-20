@@ -28,20 +28,20 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 	}
 }
 
-func main() {
+func main(cur realm) {
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a Treasury instance with no bankers.
-	_, err := treasury.New(nil)
+	_, err := treasury.New(nil, "")
 	if err != treasury.ErrNoBankerProvided {
 		panic("expected error when creating Treasury with no bankers")
 	}
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	token, ledger := grc20.NewToken("TestToken", "TEST", 0)
+	token, ledger := grc20.NewToken("TestToken", "TEST", 0, 0, cur)
 	ledger.Mint(ownerAddr, amount)
 
 	grc20Lister := func() map[string]*grc20.Token {
@@ -52,20 +52,20 @@ func main() {
 
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
-		banker_           = banker.NewBanker(banker.BankerTypeRealmSend)
-		coinsBanker, _    = treasury.NewCoinsBanker(banker_)
-		grc20Banker, _    = treasury.NewGRC20Banker(grc20Lister)
-		grc20BankerDup, _ = treasury.NewGRC20Banker(grc20Lister)
+		banker_           = banker.NewBanker(banker.BankerTypeRealmSend, cur)
+		coinsBanker, _    = treasury.NewCoinsBankerWithOwner(ownerAddr, banker_)
+		grc20Banker, _    = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
+		grc20BankerDup, _ = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
 	)
 
-	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup})
+	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup}, "")
 	if !strings.Contains(err.Error(), treasury.ErrDuplicateBanker.Error()) {
 		panic("expected error when creating Treasury with duplicate banker")
 	}
 
 	// Create a Treasury instance with valid bankers.
 	bankers := []treasury.Banker{coinsBanker, grc20Banker}
-	t, err := treasury.New(bankers)
+	t, err := treasury.New(bankers, "")
 	if err != nil {
 		panic("failed to create Treasury: " + err.Error())
 	}
@@ -99,7 +99,7 @@ func main() {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(validCoinsPayment)
+		err = t.Send(0, cur, validCoinsPayment)
 		if err != nil {
 			panic("failed to send valid Coins payment: " + err.Error())
 		}
@@ -112,7 +112,7 @@ func main() {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(validGRC20Payment)
+		err = t.Send(0, cur, validGRC20Payment)
 		if err != nil {
 			panic("failed to send valid GRC20 payment: " + err.Error())
 		}

@@ -8,8 +8,6 @@ import (
 	"slices"
 	"time"
 
-	"dario.cat/mergo"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -75,26 +73,17 @@ type Option func(cfg *Config)
 
 // LoadConfig loads the node configuration from disk
 func LoadConfig(root string) (*Config, error) {
-	// Initialize the config as default
-	var (
-		cfg        = DefaultConfig()
-		configPath = filepath.Join(root, defaultConfigPath)
-	)
+	configPath := filepath.Join(root, defaultConfigPath)
 
 	if !osm.FileExists(configPath) {
 		return nil, fmt.Errorf("config file at %q does not exist", configPath)
 	}
 
-	// Load the configuration
+	// Load the configuration, applying the file's
+	// values on top of the defaults
 	loadedCfg, loadErr := LoadConfigFile(configPath)
 	if loadErr != nil {
 		return nil, loadErr
-	}
-
-	// Merge the loaded config with the default values.
-	// This is done in case the loaded config is missing values
-	if err := mergo.Merge(loadedCfg, cfg); err != nil {
-		return nil, err
 	}
 
 	// Set the root directory
@@ -115,34 +104,28 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 		configPath = filepath.Join(root, defaultConfigPath)
 	)
 
-	// Config doesn't exist, create it
-	// from the default one
+	// Apply the options to the default config
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
 	// Check if the config exists
 	if osm.FileExists(configPath) {
-		// Load the configuration
-		loadedCfg, loadErr := LoadConfigFile(configPath)
-		if loadErr != nil {
+		// Load the configuration, applying the file's values
+		// on top of the defaults and options
+		if loadErr := loadConfigFile(configPath, cfg); loadErr != nil {
 			return nil, loadErr
 		}
 
-		// Merge the loaded config with the default values
-		if err := mergo.Merge(loadedCfg, cfg); err != nil {
-			return nil, err
-		}
-
 		// Set the root directory
-		loadedCfg.SetRootDir(root)
+		cfg.SetRootDir(root)
 
 		// Make sure the directories are initialized
-		if err := loadedCfg.EnsureDirs(); err != nil {
+		if err := cfg.EnsureDirs(); err != nil {
 			return nil, err
 		}
 
-		return loadedCfg, nil
+		return cfg, nil
 	}
 
 	cfg.SetRootDir(root)
@@ -305,7 +288,7 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: lmdbdb | mdbxdb | pebbledb | goleveldb | boltdb\n* lmdbdb (github.com/bmatsuo/lmdb-go)\n  - B+ tree with mmap, fastest reads at scale\n  - requires CGo\n  - default\n* mdbxdb (github.com/erigontech/mdbx-go)\n  - MDBX (improved LMDB fork), B+ tree with mmap\n  - auto-grows, better write perf, used by Erigon\n  - requires CGo\n* pebbledb (github.com/cockroachdb/pebble)\n  - LSM tree, pure go\n  - stable\n* goleveldb (github.com/syndtr/goleveldb)\n  - pure go\n  - stable\n  - use goleveldb build tag\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: lmdbdb | mdbxdb | pebbledb | goleveldb | boltdb\n* lmdbdb (github.com/bmatsuo/lmdb-go)\n  - B+ tree with mmap, fastest reads at scale\n  - requires CGo\n* mdbxdb (github.com/erigontech/mdbx-go)\n  - MDBX (improved LMDB fork), B+ tree with mmap\n  - auto-grows, better write perf, used by Erigon\n  - requires CGo\n* pebbledb (github.com/cockroachdb/pebble)\n  - LSM tree, pure go\n  - stable\n  - default\n* goleveldb (github.com/syndtr/goleveldb)\n  - pure go\n  - stable\n  - use goleveldb build tag\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`

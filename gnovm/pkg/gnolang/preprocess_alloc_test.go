@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"testing"
 
@@ -68,7 +69,7 @@ func TestPreprocessAlloc_CumulativeAcrossStatements(t *testing.T) {
 	// 256th decl.
 	var b strings.Builder
 	b.WriteString("package cumulative\n")
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		fmt.Fprintf(&b, "const C%d = \"x\"\n", i)
 	}
 	b.WriteString("func main() {}\n")
@@ -122,7 +123,7 @@ func TestPreprocessAlloc_NoGCOnHardCap(t *testing.T) {
 
 	var b strings.Builder
 	b.WriteString("package nogc\n")
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		fmt.Fprintf(&b, "const C%d = \"x\"\n", i)
 	}
 	b.WriteString("func main() {}\n")
@@ -235,7 +236,7 @@ func TestPreprocessAlloc_GasCharged(t *testing.T) {
 	b.WriteString("package gascharged\n")
 	// String consts force alloc.NewString → alloc-gas charges per
 	// allocation. Simple int consts don't hit the allocator.
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		fmt.Fprintf(&b, "const C%d = \"some-non-trivial-string-%d\"\n", i, i)
 	}
 	b.WriteString("func main() {}\n")
@@ -319,12 +320,12 @@ func TestPreprocessAlloc_DoublingConcatBlowsUpFromTinySource(t *testing.T) {
 		"expected no-GC marker (preprocess hard-cap), got: %v", val)
 }
 
-// TestPreprocessAlloc_NotSetMeansSubMachineAllocNil verifies that when
-// a Store has no preprocessAlloc installed, the sub-Machine fallback
-// resolves to a nil Allocator (the historical default) — i.e. the
-// new code does not regress non-keeper paths (filetests, REPL, etc.)
-// that never call SetPreprocessAllocator.
-func TestPreprocessAlloc_NotSetMeansSubMachineAllocNil(t *testing.T) {
+// TestPreprocessAlloc_NotSetMeansSubMachineHasFallbackAlloc verifies
+// that when a Store has no preprocessAlloc installed AND no Alloc
+// option is supplied, the sub-Machine falls back to a non-nil
+// MaxInt64-budget Allocator (interrealm v2: Machine.Alloc must be
+// non-nil so PkgID stamping always fires).
+func TestPreprocessAlloc_NotSetMeansSubMachineHasFallbackAlloc(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	st := NewStore(nil, tm2, tm2)
@@ -332,12 +333,14 @@ func TestPreprocessAlloc_NotSetMeansSubMachineAllocNil(t *testing.T) {
 		"freshly constructed store has no preprocessAlloc")
 
 	// Sub-Machine via NewMachine(pkg, store) with no opts.Alloc and
-	// no store preprocessAlloc → opts.MaxAllocBytes is 0 →
-	// NewAllocator(0) returns nil.
+	// no store preprocessAlloc → falls back to NewAllocator(math.MaxInt64).
 	sub := NewMachine("test", st)
 	defer sub.Release()
-	assert.Nil(t, sub.Alloc,
-		"sub-Machine should have nil Alloc when neither opt nor store provides one")
+	require.NotNil(t, sub.Alloc,
+		"sub-Machine Alloc must be non-nil (interrealm v2: mandatory for stamping)")
+	maxBytes, _ := sub.Alloc.Status()
+	require.Equal(t, int64(math.MaxInt64), maxBytes,
+		"fallback Alloc should have MaxInt64 budget (no enforcement)")
 }
 
 // TestPreprocessAlloc_BeginTransactionPropagates verifies the per-tx
@@ -355,4 +358,110 @@ func TestPreprocessAlloc_BeginTransactionPropagates(t *testing.T) {
 	require.NotNil(t, got, "forked tx-store must inherit preprocessAlloc")
 	require.Same(t, preAlloc, got,
 		"forked tx-store must share the SAME *Allocator pointer (gas counters and bytes are shared across the tx)")
+}
+
+// TestCheckArrayAllocFits exercises the preprocess-time array-length guard
+// directly. The make20/21/22 filetests only cover the wildly-oversized
+// MaxInt64 case end-to-end; the cases that matter for the threshold math —
+// the exact boundary, and the per-element divergence between the byte
+// (1 byte/elem) and non-byte (allocArrayItem/elem) paths — can't be written
+// as filetests because a boundary-length array would attempt a real
+// allocation. They are checked here instead.
+func TestCheckArrayAllocFits(t *testing.T) {
+	// Thresholds derived the same way the guard does, so the boundary cases
+	// double as change-detectors for the formula.
+	perItem := int64(allocArrayItem) // non-byte: a full TypedValue slot.
+	thrItem := (math.MaxInt64 - allocArray) / perItem
+	thrByte := int64(math.MaxInt64-allocArray) / 1 // byte: 1 byte/elem.
+
+	tests := []struct {
+		name    string
+		et      Type
+		length  int64
+		wantMsg string // "" => must not panic
+	}{
+		{"zero length", IntType, 0, ""},
+		{"negative length", IntType, -1, ""},
+		{"small array", IntType, 1 << 20, ""},
+		{"non-byte at boundary", IntType, thrItem, ""},
+		{"non-byte just over boundary", IntType, thrItem + 1, "larger than address space"},
+		{"non-byte maxint64", IntType, math.MaxInt64, "type [9223372036854775807]int larger than address space"},
+		{"byte at boundary", Uint8Type, thrByte, ""},
+		{"byte just over boundary", Uint8Type, thrByte + 1, "larger than address space"},
+		{"byte maxint64", Uint8Type, math.MaxInt64, "type [9223372036854775807]uint8 larger than address space"},
+		// 1<<62 overflows the non-byte (allocArrayItem/elem) accounting but
+		// still fits the byte (1/elem) path: the two branches must diverge.
+		{"cross-branch rejected as non-byte", IntType, 1 << 62, "larger than address space"},
+		{"cross-branch accepted as byte", Uint8Type, 1 << 62, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantMsg == "" {
+				require.NotPanics(t, func() { checkArrayAllocFits(tt.et, tt.length) })
+				return
+			}
+			defer func() {
+				r := recover()
+				require.NotNil(t, r, "expected a panic")
+				require.Contains(t, fmt.Sprint(r), tt.wantMsg)
+			}()
+			checkArrayAllocFits(tt.et, tt.length)
+		})
+	}
+}
+
+// TestEllipsisArrayIndexOverflow pins the variadic-array measurement guards
+// that reject an [...]T literal whose implied length would overflow int64.
+// This guard lives in preprocess1's measurement loop — a path the
+// checkArrayAllocFits test above never reaches (it emits "array index ... out
+// of bounds", not "larger than address space") — so it needs its own coverage.
+// Mirrors the make23 (keyed) and make26 (unkeyed trailing element) filetests.
+func TestEllipsisArrayIndexOverflow(t *testing.T) {
+	tests := []struct {
+		name string
+		expr string
+		want string
+	}{
+		{
+			// Keyed MaxInt64 implies length MaxInt64+1 (make23).
+			"keyed maxint64",
+			"[...]int{9223372036854775807: 1}",
+			"array index 9223372036854775807 out of bounds",
+		},
+		{
+			// Trailing unkeyed element after a MaxInt64-1 key reaches index
+			// MaxInt64, overflowing the running length (make26).
+			"unkeyed trailing element",
+			"[...]int{9223372036854775806: 1, 2}",
+			"array index 9223372036854775807 out of bounds",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st, _ := newPreprocessAllocTestStore(t, 64*1024*1024, stypes.NewInfiniteGasMeter())
+			defer st.SetPreprocessAllocator(nil)
+
+			pkgPath := "gno.land/r/test/ellipsis"
+			m := NewMachineWithOptions(MachineOptions{
+				PkgPath: pkgPath,
+				Store:   st,
+				Output:  io.Discard,
+				Alloc:   NewAllocator(64 * 1024 * 1024),
+			})
+			defer m.Release()
+
+			mpkg := &std.MemPackage{
+				Type: MPUserProd,
+				Name: "ellipsis",
+				Path: pkgPath,
+				Files: []*std.MemFile{{Name: "a.gno", Body: fmt.Sprintf(
+					"package ellipsis\nfunc main() { _ = %s }\n", tt.expr)}},
+			}
+			panicked, val := runMemPackageRecover(m, mpkg)
+			require.True(t, panicked, "expected preprocess to reject overflowing length")
+			require.Contains(t, fmt.Sprint(val), tt.want, "got: %v", val)
+		})
+	}
 }

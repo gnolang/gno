@@ -4,8 +4,6 @@ import (
 	"math/big"
 	"strings"
 	"testing"
-
-	"github.com/cockroachdb/apd/v3"
 )
 
 // These helpers are unreachable from .gno source today (operands are
@@ -24,11 +22,11 @@ func bigintTV(n int64) TypedValue {
 
 func bigdecTV(t *testing.T, s string) TypedValue {
 	t.Helper()
-	d, _, err := apd.NewFromString(s)
-	if err != nil {
-		t.Fatalf("apd.NewFromString(%q): %v", s, err)
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		t.Fatalf("big.Rat.SetString(%q) failed", s)
 	}
-	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: d}}
+	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: r}}
 }
 
 // wideBigint / wideBigdec build operands large enough that the per-N
@@ -43,8 +41,7 @@ func wideBigdec(t *testing.T) TypedValue {
 	if !ok {
 		t.Fatal("wideBigdec: SetString failed")
 	}
-	d := apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(coeff), 0)
-	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: d}}
+	return TypedValue{T: UntypedBigdecType, V: BigdecValue{V: new(big.Rat).SetInt(coeff)}}
 }
 
 func TestIsCompareBig_ChargesGas(t *testing.T) {
@@ -57,7 +54,7 @@ func TestIsCompareBig_ChargesGas(t *testing.T) {
 
 	bigdecLv := wideBigdec(t)
 	bigdecRv := wideBigdec(t)
-	bigdecRv.V.(BigdecValue).V.Negative = true
+	bigdecRv.V.(BigdecValue).V.Neg(bigdecRv.V.(BigdecValue).V)
 
 	kinds := []struct {
 		name   string
@@ -70,7 +67,7 @@ func TestIsCompareBig_ChargesGas(t *testing.T) {
 		name string
 		call func(m *Machine, lv, rv *TypedValue) bool
 	}{
-		{"isEql", isEql},
+		{"isEql", func(m *Machine, lv, rv *TypedValue) bool { return isEql(m, lv, rv, false) }},
 		{"isLss", isLss},
 		{"isLeq", isLeq},
 		{"isGtr", isGtr},
@@ -133,7 +130,7 @@ func TestIsCompareBig_CorrectResults(t *testing.T) {
 		m, _ := newMeteredMachine()
 		a := bigintTV(7)
 		b := bigintTV(11)
-		if isEql(m, &a, &b) {
+		if isEql(m, &a, &b, false) {
 			t.Error("isEql(7, 11) = true, want false")
 		}
 		if !isLss(m, &a, &b) {
@@ -154,7 +151,7 @@ func TestIsCompareBig_CorrectResults(t *testing.T) {
 		m, _ := newMeteredMachine()
 		a := bigdecTV(t, "7.5")
 		b := bigdecTV(t, "11.25")
-		if isEql(m, &a, &b) {
+		if isEql(m, &a, &b, false) {
 			t.Error("isEql(7.5, 11.25) = true, want false")
 		}
 		if !isLss(m, &a, &b) {

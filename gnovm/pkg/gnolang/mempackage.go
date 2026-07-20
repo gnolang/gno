@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -95,6 +96,13 @@ func IsEphemeralPath(pkgPath string) bool {
 	return match != nil && match.Get("LETTER") == "e"
 }
 
+// IsSyntheticPath determines whether the given pkgPath is a compiler-internal
+// synthetic path (".uverse", ".dontcare", ...). Synthetic packages are never
+// persisted to the store and cannot appear in user source.
+func IsSyntheticPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, ".")
+}
+
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
 // DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
@@ -141,11 +149,40 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for PkgID classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
 	match := ReGnoStdPkgPath.Match(pkgPath)
 	return match != nil
+}
+
+// isImmutableLibraryPath reports whether pkgPath is a /p/ or stdlib library
+// package that should carry a frozen, immutable realm. That realm is a
+// runtime borrow target for the cross-realm write gate, so a /p/- or
+// stdlib-stamped receiver's method runs with m.Realm set (not nil).
+//
+// External _test overlays are excluded: they are transient test
+// scaffolding, never deployed, and granting one a realm makes a stdlib's
+// own self-tests (e.g. strconv_test) execute under a foreign realm, which
+// breaks legitimate same-package reads/writes of the stdlib's own state.
+// /p/ and /r/ _test overlays already self-exclude (IsPPackagePath /
+// IsRealmPath reject the _test suffix); only stdlib's dot-free _test
+// names slip through IsStdlib, so guard against the suffix here.
+func isImmutableLibraryPath(pkgPath string) bool {
+	if strings.HasSuffix(pkgPath, "_test") {
+		return false
+	}
+	return IsPPackagePath(pkgPath) || IsStdlib(pkgPath)
 }
 
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
@@ -157,6 +194,83 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
+// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
+// package — one whose purpose is to host VM-test fixtures, exploit
+// probes, and other test-only support code. Test-namespace packages
+// are allowed to use the `cross` keyword and may be imported only
+// from other test-namespace packages or from test files
+// (_test.gno / _filetest.gno).
+//
+// The set is currently hand-listed (rather than a single prefix like
+// gno.land/p/testing/) so the migration can be staged: rules can be
+// enforced now without moving the packages. A future cleanup will
+// collapse the list as packages move under a single namespace.
+func IsTestPkgPath(pkgPath string) bool {
+	return pkgPath == "gno.land/p/demo/tests" ||
+		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
+		pkgPath == "gno.land/r/tests/vm" ||
+		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
+}
+
+//----------------------------------------
+// Package name and path validation helpers.
+// See https://github.com/gnolang/gno/issues/1571
+
+// reVersionSuffix matches version suffixes (v0, v1, v2, v3, v10, v11, ...).
+// Note: Go convention says v1 should not appear in paths, but Gno allows it
+// for backwards compatibility with existing versioned packages.
+var reVersionSuffix = regexp.MustCompile(`^v(0|[1-9][0-9]*)$`)
+
+// isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
+func isVersionSuffix(s string) bool {
+	return reVersionSuffix.MatchString(s)
+}
+
+// LastPathElement extracts the last meaningful element from a package path.
+// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
+// returns "foo" since version suffixes (v1, v2, ...) are skipped.
+func LastPathElement(pkgPath string) string {
+	pos := strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	pkgPath, last := pkgPath[:pos], pkgPath[pos+1:]
+	if !isVersionSuffix(last) {
+		return last
+	}
+
+	// Version suffix found; return the element before it.
+	pos = strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	return pkgPath[pos+1:]
+}
+
+// ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
+// This prevents confusion where a package at "gno.land/r/foo" declares "package bar".
+// For versioned paths (v1, v2, ...), the package name must match the element before
+// the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
+func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
+	// Reject paths ending in consecutive version suffixes (e.g.
+	// "gno.land/r/demo/foo/v2/v3"): no sensible expected name exists for them.
+	if pos := strings.LastIndexByte(pkgPath, '/'); pos >= 0 && isVersionSuffix(pkgPath[pos+1:]) {
+		rest := pkgPath[:pos]
+		if isVersionSuffix(rest[strings.LastIndexByte(rest, '/')+1:]) {
+			return fmt.Errorf("package path %q must not end with consecutive version suffixes", pkgPath)
+		}
+	}
+	expectedName := LastPathElement(pkgPath)
+	if expectedName == "" {
+		return nil
+	}
+	if string(pkgName) != expectedName {
+		return fmt.Errorf("package name %q does not match path element %q", pkgName, expectedName)
+	}
+	return nil
 }
 
 //----------------------------------------
@@ -1018,6 +1132,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, subRealmSep) {
+		return fmt.Errorf("invalid package/realm path %q: %q is reserved for sub-realm derivation", mpkg.Path, subRealmSep)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {
@@ -1043,6 +1164,14 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
+	// Validate that package name matches path last element for pkg meant to be deployed on-chain.
+	// See https://github.com/gnolang/gno/issues/1571
+	if mptype == MPUserAll {
+		if err := ValidatePkgNameMatchesPath(Name(mpkg.Name), mpkg.Path); err != nil {
+			return err
+		}
+	}
+
 	// Validate files.
 	if mpkg.IsEmpty() {
 		return fmt.Errorf("package has no files")
