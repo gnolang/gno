@@ -339,7 +339,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.linkType.LinkPrefix(tc.pkgPath)
 			assert.Equal(t, tc.expected, result)

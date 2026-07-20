@@ -214,6 +214,7 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -223,6 +224,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
@@ -417,7 +419,7 @@ Now, we should have the following folder structure:
 ```
 
 In the `script.gno` file, first define the package to be `main`. Then we can import
-the Counter realm and define a `main()` function with no return values that will
+the Counter realm and define a `main(cur realm)` function with no return values that will
 be automatically detected and run. In it, we can call the `Increment()` function.
 
 ```go
@@ -425,8 +427,8 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
-	println(counter.Increment(cross))
+func main(cur realm) {
+	println(counter.Increment(cross(cur)))
 }
 ```
 
@@ -1074,6 +1076,10 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
 
+For JSON-structured endpoints designed for programmatic access (`vm/qeval_json`,
+`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`), see
+[Querying On-Chain State (JSON APIs)](../builders/query-state-api.md).
+
 Let's see how we can use them.
 
 ### `auth/accounts`
@@ -1255,7 +1261,7 @@ var (
 )
 
 func init(cur realm) {
-        Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
 }
 
 const (

@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -222,10 +223,7 @@ func CodeFence(content string, minCount int) string {
 			cur = 0
 		}
 	}
-	n := longest + 1
-	if n < minCount {
-		n = minCount
-	}
+	n := max(longest+1, minCount)
 	out := make([]byte, n)
 	for i := range out {
 		out[i] = '`'
@@ -749,10 +747,8 @@ func isCloseFence(line string, fenceChar byte, fenceLen int) bool {
 // Byte-level (not rune-level) — required for UTF-8 lead-byte fast paths.
 func containsAnyByte(s string, bs ...byte) bool {
 	for i := 0; i < len(s); i++ {
-		for _, b := range bs {
-			if s[i] == b {
-				return true
-			}
+		if slices.Contains(bs, s[i]) {
+			return true
 		}
 	}
 	return false

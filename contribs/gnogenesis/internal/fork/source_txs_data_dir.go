@@ -90,8 +90,10 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 
 	// Set up a minimal auth keeper on the gnolang multistore so per-signer
 	// (accNum, finalSeq) lookups can run without an RPC. Mirrors
-	// gno.land/pkg/gnoland/app.go: same "main" + "base" store keys, same
-	// constructors, same proto accounts.
+	// gno.land/pkg/gnoland/app.go's "main" + "base" store keys and proto
+	// accounts — but keeps the IAVL constructor deliberately: fork sources
+	// are legacy IAVL-format data dirs (the mounted chain itself now runs
+	// the bptree store).
 	s.mainKey = mstore.NewStoreKey("main")
 	baseKey := mstore.NewStoreKey("base")
 	s.cms = mstore.NewCommitMultiStore(s.appDB)
