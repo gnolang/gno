@@ -6,7 +6,6 @@ package calibrate
 // measured ns/op feeds gen_native_table.py without special-casing.
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
@@ -37,6 +36,41 @@ func BenchmarkNative_Keccak256_Sum256_256(b *testing.B)   { benchKeccak256(b, 25
 func BenchmarkNative_Keccak256_Sum256_1024(b *testing.B)  { benchKeccak256(b, 1024) }
 func BenchmarkNative_Keccak256_Sum256_4096(b *testing.B)  { benchKeccak256(b, 4096) }
 func BenchmarkNative_Keccak256_Sum256_16384(b *testing.B) { benchKeccak256(b, 16384) }
+
+// The square-N benches above only sample the diagonal len(exp) == len(mod),
+// so a single-slope fit on the modulus silently assumes the exponent scales
+// with it. Nothing forces a caller to respect that: a small modulus with a
+// large exponent is cheap to buy and expensive to run. These hold the modulus
+// at the supported ceiling and vary the exponent alone, so the fitter can see
+// the exponent term instead of inferring it.
+func benchModExpOffDiagonal(b *testing.B, modLen, expLen int) {
+	b.Helper()
+	base := make([]byte, modLen)
+	mod := make([]byte, modLen)
+	for i := range modLen {
+		base[i] = byte(i + 1)
+		mod[i] = 0xFF
+	}
+	mod[modLen-1] = 0xFD
+	exp := make([]byte, expLen)
+	for i := range expLen {
+		exp[i] = byte(i + 3)
+	}
+	m := newDispatchMachine(3)
+	setBlockValueFromGo(m, 0, base)
+	setBlockValueFromGo(m, 1, exp)
+	setBlockValueFromGo(m, 2, mod)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
+	b.ResetTimer()
+	b.SetBytes(int64(expLen))
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_ModExp_M256_E32(b *testing.B)   { benchModExpOffDiagonal(b, 256, 32) }
+func BenchmarkNative_ModExp_M256_E256(b *testing.B)  { benchModExpOffDiagonal(b, 256, 256) }
+func BenchmarkNative_ModExp_M256_E1024(b *testing.B) { benchModExpOffDiagonal(b, 256, 1024) }
 
 // ----- crypto/modexp.modExp(base, exp, modulus []byte) []byte -----
 //
@@ -170,18 +204,33 @@ func BenchmarkNative_Merkle_LeafHash_256(b *testing.B)  { benchMerkleLeafHash(b,
 func BenchmarkNative_Merkle_LeafHash_1024(b *testing.B) { benchMerkleLeafHash(b, 1024) }
 func BenchmarkNative_Merkle_LeafHash_4096(b *testing.B) { benchMerkleLeafHash(b, 4096) }
 
-func BenchmarkNative_Merkle_InnerHash(b *testing.B) {
-	left := sha256.Sum256([]byte("left"))
-	right := sha256.Sum256([]byte("right"))
+// innerHash accepts []byte of any length on both sides, so both must be
+// sized. Benching only the 32+32B digest case yields a single point, which
+// the fitter can only express as SizeFlat, and a flat charge lets a realm
+// hash megabytes for the price of 64 bytes.
+func benchMerkleInnerHash(b *testing.B, n int) {
+	b.Helper()
+	left := make([]byte, n)
+	right := make([]byte, n)
+	for i := range n {
+		left[i] = byte(i + 1)
+		right[i] = byte(i + 2)
+	}
 	m := newDispatchMachine(2)
-	setBlockValueFromGo(m, 0, left[:])
-	setBlockValueFromGo(m, 1, right[:])
+	setBlockValueFromGo(m, 0, left)
+	setBlockValueFromGo(m, 1, right)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/merkle", "innerHash"), nReturns: 1}
 	b.ResetTimer()
+	b.SetBytes(int64(2 * n))
 	for i := 0; i < b.N; i++ {
 		h.call()
 	}
 }
+
+func BenchmarkNative_Merkle_InnerHash_32(b *testing.B)   { benchMerkleInnerHash(b, 32) }
+func BenchmarkNative_Merkle_InnerHash_256(b *testing.B)  { benchMerkleInnerHash(b, 256) }
+func BenchmarkNative_Merkle_InnerHash_1024(b *testing.B) { benchMerkleInnerHash(b, 1024) }
+func BenchmarkNative_Merkle_InnerHash_4096(b *testing.B) { benchMerkleInnerHash(b, 4096) }
 
 // encodeMerkleItems builds the [4-byte BE count][4-byte BE len][data]…
 // wire format consumed by hashFromByteSlices.
