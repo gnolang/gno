@@ -139,9 +139,12 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
-	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
-	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
-	ATTR_LOOPVAR_SKIP          GnoAttribute = "ATTR_LOOPVAR_SKIP" // temp only
+	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"     // if name expr refers to package.
+	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
+	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
+	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	// For top level declarations, a map[Name]struct{} of other dependencies
+	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
 
 // Embedded in each Node.
@@ -418,32 +421,26 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	WithCross bool  // if cross-called with `cur`.
 }
 
-// returns true if x is of form fn(cur,...) or fn(cross,...).
-// but fn(cur,...) doesn't always mean with cross,
-// because `cur` could be anything, so this is a sanity check.
+// returns true if x is of form fn(cur, ...) or fn(cross(rlm), ...).
+// fn(cur, ...) doesn't always mean with cross, because `cur` could
+// be anything; this is a sanity check.
+//
+// For the cross(rlm) form, Args[0] is a *CallExpr whose Func is the
+// const-evaluated uverse `cross` native. At runtime cross's body
+// validates IsCurrent-strict on rlm and returns it; the outer
+// crossing call's installCrossingCur peeks the evaluated realm
+// value and uses it as the new cur's prev.
 func (x *CallExpr) isLikeWithCross() bool {
 	if len(x.Args) == 0 {
 		return false
 	}
-	first := x.Args[0]
-	nx, ok := first.(*NameExpr)
-	if !ok {
-		return false
-	}
-	if nx.Name == Name("cross") || nx.Name == Name("cur") {
-		return true
-	}
-	return false
-}
-
-// Legacy; only for fixing gno0.0 to gno0.9
-func (x *CallExpr) isCrossing_gno0p0() bool {
-	if x == nil {
-		return false
-	}
-	if nx, ok := unconst(x.Func).(*NameExpr); ok {
-		if nx.Name == "crossing" {
-			return true
+	switch first := x.Args[0].(type) {
+	case *NameExpr:
+		return first.Name == Name("cur") || first.Name == Name(".origin")
+	case *CallExpr:
+		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
+			return fcx.GetFunc().PkgPath == uversePkgPath &&
+				fcx.GetFunc().Name == "cross"
 		}
 	}
 	return false
@@ -451,7 +448,7 @@ func (x *CallExpr) isCrossing_gno0p0() bool {
 
 func (x *CallExpr) SetWithCross() {
 	if !x.isLikeWithCross() {
-		panic("expected fn(cur,...) or fn(cross,...)")
+		panic("expected fn(cur, ...) or fn(cross(rlm), ...)")
 	}
 	x.WithCross = true
 }
@@ -567,6 +564,13 @@ type FuncLitExpr struct {
 	Type         FuncTypeExpr // function type
 	Body                      // function body
 	HeapCaptures NameExprs    // filled in findLoopUses1
+
+	// heapCapturesIdx maps capture name → its position in HeapCaptures
+	// for O(1) lookup in addHeapCapture. addHeapCapture is preprocess-
+	// only and accumulates idx alongside HeapCaptures from empty;
+	// no lazy rebuild needed. Closes the K-fold scan that drove DEGEN3
+	// DeepClosureCapture / DEGEN1 #3 WideClosureCapture. Not serialized.
+	heapCapturesIdx map[Name]uint16
 }
 
 func (*FuncLitExpr) GetName() Name {
@@ -777,20 +781,6 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 		}
 	}
 	return nil, -1
-}
-
-// Legacy, only for fixing 0.0 to 0.9
-func (ss Body) isCrossing_gno0p0() bool {
-	if len(ss) == 0 {
-		return false
-	}
-	fs := ss[0]
-	xs, ok := fs.(*ExprStmt)
-	if !ok {
-		return false
-	}
-	cx, ok := xs.X.(*CallExpr)
-	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1012,6 +1002,15 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (x *bodyStmt) LastStmt() Stmt {
+	if x.NextBodyIndex <= 0 {
+		// Loop hasn't entered its body yet; return Body[0] so mid-init
+		// stacktraces have a line to point at instead of crashing.
+		// Regression tests: range13.gno, for25.gno.
+		if len(x.Body) == 0 {
+			return nil
+		}
+		return x.Body[0]
+	}
 	return x.Body[x.NextBodyIndex-1]
 }
 
@@ -1026,7 +1025,7 @@ func (x *bodyStmt) String() string {
 	}
 	active := ""
 	if x.Active != nil {
-		if x.NextBodyIndex < 0 || x.NextBodyIndex == len(x.Body) {
+		if x.NextBodyIndex <= 0 || x.NextBodyIndex == len(x.Body) {
 			// none
 		} else if x.Body[x.NextBodyIndex-1] == x.Active {
 			active = "*"
@@ -1316,6 +1315,19 @@ type PackageNode struct {
 	PkgPath  string
 	PkgName  Name
 	*FileSet // provides .GetDeclFor*()
+
+	// pkgID is the lazy-cached PkgID derived from PkgPath.
+	// Not serialized.
+	pkgID PkgID
+}
+
+// GetPkgID returns the cached PkgID for this PackageNode, computing
+// it lazily on first call from PkgPath.
+func (pn *PackageNode) GetPkgID() PkgID {
+	if pn.pkgID.IsZero() {
+		pn.pkgID = PkgIDFromPkgPath(pn.PkgPath)
+	}
+	return pn.pkgID
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1343,24 +1355,41 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
+		// Stamp PkgID = the package's own ID on both PackageValue
+		// and its inner Block. PackageNode caches PkgID on first
+		// access.
+		pid := pn.GetPkgID()
+		blk := &Block{
+			Source: pn,
+		}
+		blk.ObjectInfo.SetPkgID(pid)
 		pv = &PackageValue{
-			Block: &Block{
-				Source: pn,
-			},
+			Block:      blk,
 			PkgName:    pn.PkgName,
 			PkgPath:    pn.PkgPath,
+			PkgID:      pid,
 			FNames:     nil,
 			FBlocks:    nil,
 			fBlocksMap: make(map[string]*Block),
 		}
+		pv.ObjectInfo.SetPkgID(pid)
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
-	// Set realm for realm packages, main package, and ephemeral run packages
+	// Set realm for realm packages, main package, and ephemeral run packages.
+	// /p/ and stdlib packages also get a realm: it is frozen/immutable
+	// (IsRealm() stays false, so it is never persisted as mutable state), but
+	// giving it a real Realm means borrow rule #2 on a /p/- or stdlib-stamped
+	// receiver shifts m.Realm to this realm instead of nil — so the
+	// readonly/PkgID write gate keeps working inside those method bodies (it
+	// short-circuits to "allow" on nil).
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
+		rlm := NewRealm(pn.PkgPath)
+		pv.SetRealm(rlm)
+	} else if isImmutableLibraryPath(pn.PkgPath) {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
@@ -1426,12 +1455,18 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				panic("unexpected heap item")
 			}
 			if heapItems[pvl+i] {
+				// Heap-slot wrappers are anonymous; the contained
+				// value's type can be cross-realm (e.g., package
+				// vars of /r/foreign types) but the HIV slot
+				// itself is not /r/-declared. Pass nil to skip
+				// the construction-time check.
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: alloc.NewHeapItem(nvs[i]),
+					V: alloc.NewHeapItem(nil, nvs[i]),
 				}
 			}
 		}
+		alloc.AllocateBlockItems(int64(len(nvs)))
 		block.Values = append(block.Values, nvs...)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
@@ -1463,8 +1498,22 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	fv.nativeBody = native
 }
 
-// DefineNativeMethod defines a native method.
+// DefineNativeMethod defines a native method with a value receiver.
 func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, false)
+}
+
+// DefineNativePtrMethod defines a native method with a pointer receiver
+// (`func (_ *r) n(...)`). Used when the receiver needs to preserve its
+// outer pointer/HIV identity through method dispatch — value-receiver
+// dispatch struct-copies the receiver and drops the outer PointerValue,
+// which matters for types like `.grealm` where HIV-identity is the
+// security primitive.
+func (pn *PackageNode) DefineNativePtrMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, true)
+}
+
+func (pn *PackageNode) defineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine), ptr bool) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1472,7 +1521,11 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 		panic("DefineNative expects a function, but got nil")
 	}
 
-	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
+	var recvType Expr = Nx(r)
+	if ptr {
+		recvType = &StarExpr{X: Nx(r)}
+	}
+	fd := MthdD(n, Fld("_", recvType), ps, rs, nil)
 	fd = Preprocess(nil, pn, fd).(*FuncDecl)
 	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
@@ -1547,7 +1600,6 @@ type BlockNode interface {
 	Define2(bool, Name, Type, TypedValue, NameSource)
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNames() []Name
-	GetExternNames() []Name
 	GetNumNames() uint16
 	GetIsConst(Store, Name) bool
 	GetIsConstAt(Store, ValuePath) bool
@@ -1600,18 +1652,35 @@ type StaticBlock struct {
 	Block
 	Location
 	Types             []Type
-	NumNames          uint16
+	NumNames          uint16 // == len(Names); nameIndex is its O(1) co-invariant
 	Names             []Name
 	NameSources       []NameSource
 	HeapItems         []bool
 	UnassignableNames []Name
-	Consts            []Name // TODO consider merging with Names.
-	Externs           []Name
+	Consts            []Name   // TODO consider merging with Names.
+	_                 struct{} `amino:"reserved"` // was: Externs []Name
 	Parent            BlockNode
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
+
+	// nameIndex maps Name → its position in Names for O(1) lookup once
+	// NumNames exceeds nameIndexThreshold. Maintained by Define2 on append;
+	// built (or rebuilt after amino deserialization) lazily on the first
+	// GetLocalIndex past threshold. Not serialized.
+	//
+	// CONTRACT: any code mutating Names directly (instead of via Define2)
+	// must nil out nameIndex, or the index goes stale. The only direct
+	// writers in production are amino UnmarshalBinary2 (which zeros the
+	// whole struct) and a small set of test fixtures; none of them call
+	// GetLocalIndex on the directly-populated block.
+	nameIndex map[Name]uint16
 }
+
+// nameIndexThreshold gates the map build: below this, linear scan over
+// Names is faster and saves a per-block map allocation. Above this, the
+// map's O(1) lookup dominates.
+const nameIndexThreshold = 32
 
 // NameSource holds origin information about a name.
 type NameSource struct {
@@ -1697,7 +1766,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.NameSources = make([]NameSource, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
-	sb.Externs = make([]Name, 0, 16)
+	sb.nameIndex = nil // drop any stale map; lazy-rebuild past threshold.
 	sb.Parent = parent
 }
 
@@ -1720,20 +1789,6 @@ func (sb *StaticBlock) GetBlock() *Block {
 // Implements BlockNode.
 func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 	return sb.Names
-}
-
-// Implements BlockNode.
-// NOTE: Extern names may also be local, if declared after usage as an extern
-// (thus shadowing the extern name).
-func (sb *StaticBlock) GetExternNames() (ns []Name) {
-	return sb.Externs
-}
-
-func (sb *StaticBlock) addExternName(n Name) {
-	if slices.Contains(sb.Externs, n) {
-		return
-	}
-	sb.Externs = append(sb.Externs, n)
 }
 
 // Implements BlockNode.
@@ -1761,7 +1816,6 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 }
 
 // Implements BlockNode.
-// As a side effect, notes externally defined names.
 // Slow, for precompile only.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == blankIdentifier {
@@ -1773,14 +1827,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	}
 	sn := sb.GetSource(store)
-	// Register as extern.
-	// NOTE: uverse names are externs too.
-	// NOTE: externs may also be shadowed later in the block. Thus, usages
-	// before the declaration will have depth > 1; following it, depth == 1,
-	// matching the two different identifiers they refer to.
-	if !isFile(sn) {
-		sb.GetStaticBlock().addExternName(n)
-	}
 	// Check ancestors.
 	gen++
 	fauxChild := 0
@@ -1795,9 +1841,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			}
 			return NewValuePathBlock(uint8(gen-fauxChild), idx, n)
 		} else {
-			if !isFile(sn) {
-				sn.GetStaticBlock().addExternName(n)
-			}
 			gen++
 			if fauxChildBlockNode(sn) {
 				fauxChild++
@@ -1929,22 +1972,68 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
+	// Lazy-build when nameIndex is missing on a wide block (e.g. first
+	// read on an amino-deserialized block). Idempotent; treats the build
+	// as cache initialization, not a logical state change. Builders rely
+	// on the existing single-threaded preprocess invariant.
+	if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+		sb.buildNameIndex()
+	}
+	if sb.nameIndex != nil {
+		i, ok := sb.nameIndex[n]
+		if debug {
+			sb.debugLogGetLocalIndex(n, int(i), ok)
+		}
+		return i, ok
+	}
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
-				nt := reflect.TypeOf(sb.Source).String()
-				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
-					sb, nt, n, i, name)
+				sb.debugLogGetLocalIndex(n, i, true)
 			}
 			return uint16(i), true
 		}
 	}
 	if debug {
-		nt := reflect.TypeOf(sb.Source).String()
+		sb.debugLogGetLocalIndex(n, 0, false)
+	}
+	return 0, false
+}
+
+// buildNameIndex populates nameIndex from Names. Uses first-wins semantics
+// on duplicates to match the linear-scan path's "first match" contract.
+// (Names should be unique through Define2; the first-wins guard exists for
+// directly-constructed test fixtures and corrupted-on-disk blocks.)
+func (sb *StaticBlock) buildNameIndex() {
+	sb.nameIndex = make(map[Name]uint16, len(sb.Names))
+	for i, name := range sb.Names {
+		if _, ok := sb.nameIndex[name]; !ok {
+			sb.nameIndex[name] = uint16(i)
+		}
+	}
+}
+
+// debugLogGetLocalIndex emits the existing debug trace shared by both the
+// linear-scan and map-lookup branches of GetLocalIndex.
+func (sb *StaticBlock) debugLogGetLocalIndex(n Name, i int, found bool) {
+	var nt string
+	if sb.Source != nil {
+		nt = reflect.TypeOf(sb.Source).String()
+	} else {
+		// sb.Source is nil only for the empty PackageNode{} stub
+		// returned by UverseNode() during re-entrant uverse init.
+		if sb.Location.PkgPath != uversePkgPath {
+			panic("nil Source outside uverse")
+		}
+		nt = "<uverse>"
+	}
+	if found {
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+			sb, nt, n, i, sb.Names[i])
+	} else {
 		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
 			sb, nt, n)
 	}
-	return 0, false
 }
 
 // Implemented BlockNode.
@@ -2284,7 +2373,22 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 				sb.oldValues = append(sb.oldValues,
 					oldValue{idx, old.V})
 			} else {
-				if tv.T.TypeID() != old.T.TypeID() {
+				if isGeneric(tv.T) || isGeneric(old.T) {
+					// Generic types are only used in uverse
+					// (e.g. cap(x <X>{})) and have no TypeID;
+					// skip the TypeID comparison.
+					if debug {
+						pkgPath := sb.Location.PkgPath
+						if pkgPath == "" {
+							if pn := sb.GetParentNode(nil); pn != nil {
+								pkgPath = pn.GetLocation().PkgPath
+							}
+						}
+						if pkgPath != uversePkgPath {
+							panic("generic type outside uverse")
+						}
+					}
+				} else if tv.T.TypeID() != old.T.TypeID() {
 					panic(fmt.Sprintf(
 						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 						n, old.T, tv.T))
@@ -2321,11 +2425,22 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
 		sb.NameSources = append(sb.NameSources, nsrc)
+		// Maintain nameIndex consistent with Names: build at threshold-cross,
+		// otherwise insert incrementally if the map already exists.
+		if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+			sb.buildNameIndex()
+		} else if sb.nameIndex != nil {
+			sb.nameIndex[n] = sb.NumNames - 1
+		}
 	}
 }
 
 // Implements BlockNode
 func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
+	// nameIndex is per-instance derived state. Reset on assign so the
+	// destination rebuilds lazily from its own Names instead of aliasing
+	// the source's map (which could otherwise be mutated through both refs).
+	osb.nameIndex = nil
 	*sb = osb
 }
 

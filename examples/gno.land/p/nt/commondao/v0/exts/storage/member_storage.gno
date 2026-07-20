@@ -2,7 +2,7 @@ package storage
 
 import (
 	"gno.land/p/jeronimoalbi/message"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
 )
 
@@ -19,12 +19,12 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 		return nil
 	}
 
-	v, found := storage.memberGroups.Get(member.String())
-	if !found {
+	v := storage.memberGroups.Get(member.String())
+	if v == nil {
 		return nil
 	}
 
-	tree := v.(*avl.Tree)
+	tree := v.(*bptree.BPTree)
 	groups := make([]string, 0, tree.Size())
 	tree.Iterate("", "", func(group string, _ any) bool {
 		groups = append(groups, group)
@@ -73,18 +73,18 @@ func NewMemberStorage() commondao.MemberStorage {
 type memberStorage struct {
 	commondao.MemberStorage
 
-	memberGroups avl.Tree // string(address) -> *avl.Tree(group -> struct{})
+	memberGroups bptree.BPTree // string(address) -> *bptree.BPTree(group -> struct{})
 	messages     message.Subscriber
 }
 
 func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, _ := s.memberGroups.Get(key)
-	groups, ok := v.(*avl.Tree)
+	v := s.memberGroups.Get(key)
+	groups, ok := v.(*bptree.BPTree)
 	if !ok {
 		// Create a new tree to track member's groups
-		groups = avl.NewTree()
+		groups = bptree.NewBPTree32()
 		s.memberGroups.Set(key, groups)
 
 		// Add the new member to the storage
@@ -98,14 +98,14 @@ func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 func (s *memberStorage) handleMemberRemoveMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, found := s.memberGroups.Get(key)
-	if !found {
+	v := s.memberGroups.Get(key)
+	if v == nil {
 		// Member should always be found
 		return
 	}
 
 	// Remove the group from the list of groups member belongs
-	groups := v.(*avl.Tree)
+	groups := v.(*bptree.BPTree)
 	groups.Remove(data.Group)
 
 	// Remove the member from the storage when it doesn't belong to any group

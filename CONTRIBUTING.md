@@ -13,7 +13,7 @@ Thank you for contributing to Gno! This guide will help you get started.
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - Unix environment (Linux/macOS/WSL2)
 - `make` command
 
@@ -94,8 +94,9 @@ This will be disabled only for the git repository you're currently on.
 
 ### Editor Setup
 
-For editor configuration and LSP support, see
-[github.com/gnoverse/gnopls](https://github.com/gnoverse/gnopls).
+See [docs/builders/editor-setup.md](./docs/builders/editor-setup.md) for
+configuring your editor with LSP support, autocompletion, and formatting
+for `.gno` files.
 
 ## Reporting Issues
 
@@ -160,3 +161,5 @@ documents they'd have to parse in full.
 ---
 
 For more documentation, see the [docs](./docs/) folder.
+
+> For maintainers with merge access, see [RELEASING.md](RELEASING.md) for internal processes (versioning, branching, release workflow).

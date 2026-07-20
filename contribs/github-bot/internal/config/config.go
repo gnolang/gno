@@ -86,7 +86,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				// c) be a draft
 				If(r.Or(
 					r.ReviewByAnyUser(gh,
-						"davd-gzl", "jefft0", "notJoon", "omarsy", "MikaelVallenet",
+						"aronpark1007", "davd-gzl", "jefft0", "notJoon", "omarsy", "MikaelVallenet",
 					).WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
@@ -116,20 +116,6 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				c.Not(c.Author("dependabot[bot]")),
 			),
 			Teams: Teams{"core-contributors"},
-		},
-		{
-			Description: "Determine if infra needs to be updated before merging",
-			If: c.And(
-				c.BaseBranch("^master$"),
-				c.Or(
-					c.FileChanged(gh, `Dockerfile`),
-					c.FileChanged(gh, `^misc/deployments`),
-					c.FileChanged(gh, `^misc/docker-`),
-					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
-				),
-			),
-			Teams: Teams{"devops"},
 		},
 	}
 

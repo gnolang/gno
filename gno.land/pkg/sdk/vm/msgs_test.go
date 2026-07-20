@@ -129,7 +129,6 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -234,6 +233,48 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			expectErr: InvalidExprError{},
 		},
 		{
+			name: "func name with injected expression",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo()+huge",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name with selector chain",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo.Bar",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name starting with digit",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "1Foo",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
 			name: "invalid Send coins",
 			msg: MsgCall{
 				Caller:  caller,
@@ -278,7 +319,6 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -400,7 +440,6 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

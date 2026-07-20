@@ -1,6 +1,9 @@
 package p_crossrealm
 
-import "chain/runtime"
+import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
+)
 
 type Stringer interface {
 	String() string
@@ -26,5 +29,5 @@ func (c *Container) Print() {
 }
 
 func CurrentRealm() runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }

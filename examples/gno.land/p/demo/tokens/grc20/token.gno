@@ -2,36 +2,95 @@ package grc20
 
 import (
 	"chain"
-	"chain/runtime"
 	"math"
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-// NewToken creates a new Token.
-// It returns a pointer to the Token and a pointer to the Ledger.
-// Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
-func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
-	if name == "" {
-		panic("name should not be empty")
+// NewToken creates a Token whose origRealm is bound to the calling realm.
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
+// and rlm.PkgPath() — the calling realm itself — becomes the Token's
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
+//
+// Because IsCurrent runtime-validates that rlm came from the live
+// crossing frame, origRealm is unforgeable: an external realm cannot
+// fabricate a Token claiming to belong to a different package.
+//
+// Realms that create multiple tokens should allocate id from one persistent
+// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
+//
+//	var nextTokenID seqid.ID
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
+//
+// A realm that creates only a single token can pass 0 directly, since no
+// other token of that realm can collide with it.
+//
+// If the Token should be discoverable, follow up with
+// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
+func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
 	}
-	if symbol == "" {
-		panic("symbol should not be empty")
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
 	}
-	// XXX additional checks (length, characters, limits, etc)
-
+	if !validName(name) {
+		panic(ErrInvalidName)
+	}
+	if !validSymbol(symbol) {
+		panic(ErrInvalidSymbol)
+	}
+	if decimals < 0 || decimals > MaxDecimals {
+		panic(ErrInvalidDecimals)
+	}
 	ledger := &PrivateLedger{}
 	token := &Token{
-		name:      name,
-		symbol:    symbol,
-		decimals:  decimals,
-		origRealm: runtime.CurrentRealm().PkgPath(),
-		ledger:    ledger,
+		id:       pkgPath + "." + symbol + "." + id.String(),
+		name:     name,
+		symbol:   symbol,
+		decimals: decimals,
+		ledger:   ledger,
 	}
 	ledger.token = token
 	return token, ledger
+}
+
+// validName reports whether name is a valid display name: non-empty,
+// within MaxNameLen, and contains no control characters (any rune
+// below 0x20 or 0x7f). Permits Unicode letters, digits, punctuation,
+// and spaces — name is purely a display field.
+func validName(name string) bool {
+	if name == "" || len(name) > MaxNameLen {
+		return false
+	}
+	for _, c := range name {
+		if c < 0x20 || c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// validSymbol reports whether s is valid slug-compatible metadata: non-empty,
+// within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
+func validSymbol(s string) bool {
+	if s == "" || len(s) > MaxSymbolLen {
+		return false
+	}
+	for _, c := range s {
+		if !isAlnum(c) && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func isAlnum(c rune) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
 // GetName returns the name of the token.
@@ -50,9 +109,9 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // ID returns the Identifier of the token.
-// It is composed of the original realm and the provided symbol.
+// It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
-	return tok.origRealm + "." + tok.symbol
+	return tok.id
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
@@ -280,8 +339,8 @@ func (led PrivateLedger) hasAddr(addr address) bool {
 
 // balanceOf returns the balance of the specified address.
 func (led PrivateLedger) balanceOf(addr address) int64 {
-	balance, found := led.balances.Get(addr.String())
-	if !found {
+	balance := led.balances.Get(addr.String())
+	if balance == nil {
 		return 0
 	}
 	return balance.(int64)
@@ -289,8 +348,8 @@ func (led PrivateLedger) balanceOf(addr address) int64 {
 
 // allowance returns the allowance of the specified owner and spender.
 func (led PrivateLedger) allowance(owner, spender address) int64 {
-	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
-	if !found {
+	allowance := led.allowances.Get(allowanceKey(owner, spender))
+	if allowance == nil {
 		return 0
 	}
 	return allowance.(int64)

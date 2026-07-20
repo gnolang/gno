@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                             |  Chain ID  |
-|---------|------------------------------------------|------------|
-| Betanet | https://rpc.gno.land:443                 | `gnoland1` |
-| Staging | https://rpc.staging.gno.land:443         | `staging`  |
-| Test11  | https://rpc.test11.testnets.gno.land:443 | `test11`   |
+| Network           | RPC Endpoint                             |  Chain ID    |
+|-------------------|------------------------------------------|--------------|
+| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
+| Staging           | https://rpc.staging.gno.land:443         | `staging`    |
+| Test13            | https://rpc.test13.testnets.gno.land:443 | `test-13`    |
 
 ### WebSocket endpoints
 
@@ -132,15 +132,15 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test11
+### Test13
 
-The latest Gno.land testnet, released on the 12th of Februrary, 2025.
+The latest Gno.land testnet, released on the 15th of June, 2026.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test11.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest11.0)
+  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -149,9 +149,17 @@ The latest Gno.land testnet, released on the 12th of Februrary, 2025.
 
 These testnets are deprecated and currently serve as archives of previous progress.
 
+### Test12 (archive)
+
+Test12 is the testnet released on the 16th of April, 2026.
+
+### Test11 (archive)
+
+Test11 is the testnet released on the 12th of February, 2025.
+
 ### Test10 (archive)
 
-Test9 is the testnet released on the 18th of December, 2025.
+Test10 is the testnet released on the 18th of December, 2025.
 
 ### Test9 (archive)
 

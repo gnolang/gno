@@ -4,10 +4,12 @@ package node
 // is enabled by the user by setting a profiling address
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +43,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -107,13 +110,32 @@ func DefaultNewNode(
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
-	// Generate node PrivKey
+	return DefaultNewNodeWithGenesisProvider(
+		config,
+		DefaultGenesisDocProviderFunc(genesisFile),
+		evsw,
+		logger,
+		options...,
+	)
+}
+
+// DefaultNewNodeWithGenesisProvider returns a Tendermint node with default
+// settings for the PrivValidator, ClientCreator, and DBProvider, but uses the
+// supplied GenesisDocProvider in place of the on-disk loader. This is the seam
+// callers use to inject custom genesis loading (for example, a streaming
+// loader that avoids reading the entire genesis file into memory).
+func DefaultNewNodeWithGenesisProvider(
+	config *cfg.Config,
+	genesisDocProvider GenesisDocProvider,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+	options ...Option,
+) (*Node, error) {
 	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
 
-	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
 		config.LocalApp,
 		config.ProxyApp,
@@ -121,7 +143,6 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
-	// Initialize the privValidator
 	privVal, err := privval.NewPrivValidatorFromConfig(
 		config.Consensus.PrivValidator,
 		nodeKey.PrivKey,
@@ -136,7 +157,7 @@ func DefaultNewNode(
 		privVal,
 		nodeKey,
 		appClientCreator,
-		DefaultGenesisDocProviderFunc(genesisFile),
+		genesisDocProvider,
 		DefaultDBProvider,
 		evsw,
 		logger,
@@ -186,6 +207,7 @@ type Node struct {
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
 	proxyApp          appconn.AppConns     // connection to the application
 	rpcListeners      []net.Listener       // rpc servers
+	rpcEnv            *rpccore.Environment // per-node RPC handler state
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
@@ -341,6 +363,7 @@ func createConsensusReactor(config *cfg.Config,
 		blockExec,
 		blockStore,
 		mempool,
+		cs.NoOpEvidencePool{},
 	)
 	consensusState.SetLogger(consensusLogger)
 	if privValidator != nil {
@@ -488,7 +511,24 @@ func NewNode(config *cfg.Config,
 	var discoveryReactor *discovery.Reactor
 
 	if config.P2P.PeerExchange {
-		discoveryReactor = discovery.NewReactor()
+		// Set up the persistent peer store so discovered peers survive restarts.
+		// The store file lives in the config directory alongside the node key.
+		addrBookPath := config.P2P.AddrBookFile()
+
+		if err := osm.EnsureDir(filepath.Dir(addrBookPath), cfg.DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("unable to create address book directory, %w", err)
+		}
+
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
+		}
+
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
@@ -595,15 +635,13 @@ func (n *Node) OnStart() error {
 		n.Logger.Info("Genesis time is in the future. Starting RPC+P2P early (-x-early-start)", "genTime", genTime)
 	}
 
-	// Set up the GLOBAL variables in rpc/core which refer to this node.
-	// This is done separately from startRPC(), as the values in rpc/core are used,
-	// for instance, to set up Local clients (rpc/client) which work without
-	// a network connection.
+	// Build the per-node RPC Environment. This is done separately from
+	// startRPC(), as rpcEnv is also used to back Local clients
+	// (rpc/client) which work without a network connection.
 	n.configureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
+	if err := n.rpcEnv.Start(); err != nil {
+		return err
 	}
-	rpccore.Start()
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -679,6 +717,13 @@ func (n *Node) OnStop() {
 		n.Logger.Error("Error closing private validator", "err", err)
 	}
 
+	// Stop the RPC environment (tears down the txDispatcher) before the
+	// event switch so its listenRoutine exits via its own Quit channel
+	// instead of racing evsw.Quit().
+	if n.rpcEnv != nil {
+		_ = n.rpcEnv.Stop()
+	}
+
 	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
@@ -714,22 +759,32 @@ func (n *Node) Ready() <-chan struct{} {
 	return n.firstBlockSignal
 }
 
-// configureRPC sets all variables in rpccore so they will serve
-// rpc calls from this node
+// configureRPC builds the per-node RPC Environment used by this node's
+// RPC handlers and by Local clients that don't need a network connection.
 func (n *Node) configureRPC() {
-	rpccore.SetStateDB(n.stateDB)
-	rpccore.SetBlockStore(n.blockStore)
-	rpccore.SetConsensusState(n.consensusState)
-	rpccore.SetMempool(n.mempool)
-	rpccore.SetP2PPeers(n.sw)
-	rpccore.SetP2PTransport(n)
-	rpccore.SetPubKey(n.privValidator.PubKey())
-	rpccore.SetGenesisDoc(n.genesisDoc)
-	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
-	rpccore.SetLogger(n.Logger.With("module", "rpc"))
-	rpccore.SetEventSwitch(n.evsw)
-	rpccore.SetConfig(*n.config.RPC)
+	n.rpcEnv = &rpccore.Environment{
+		ProxyAppQuery: n.proxyApp.Query(),
+		StateDB:       n.stateDB,
+		BlockStore:    n.blockStore,
+		Consensus:     n.consensusState,
+		P2PPeers:      n.sw,
+		P2PTransport:  n,
+		PubKey:        n.privValidator.PubKey(),
+		GenDoc:        n.genesisDoc,
+		EventSwitch:   n.evsw,
+		Mempool:       n.mempool,
+		GetFastSync:   n.consensusReactor.FastSync,
+		Logger:        n.Logger.With("module", "rpc"),
+		Config:        *n.config.RPC,
+	}
+}
+
+// RPCEnvironment returns the per-node RPC Environment. It is populated by
+// configureRPC during OnStart and is nil before the node has started.
+// rpc/client.NewLocal needs this to dispatch handler calls without going
+// over the network.
+func (n *Node) RPCEnvironment() *rpccore.Environment {
+	return n.rpcEnv
 }
 
 func (n *Node) startRPC() (listeners []net.Listener, err error) {
@@ -756,6 +811,8 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
 	}
 
+	routes := n.rpcEnv.Routes(n.config.RPC.Unsafe)
+
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
 	listeners = make([]net.Listener, 0, len(listenAddrs))
@@ -763,7 +820,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
-		wm := rpcserver.NewWebsocketManager(rpccore.Routes,
+		wm := rpcserver.NewWebsocketManager(routes,
 			rpcserver.OnDisconnect(func(remoteAddr string) {
 				// any cleanup...
 				// (we used to unsubscribe from all event subscriptions)
@@ -772,7 +829,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		)
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
-		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, rpcLogger)
+		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
 		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
 			rebuildAddresses = true
 		}
@@ -989,17 +1046,43 @@ var genesisDocKey = []byte("genesisDoc")
 // database, or creates one using the given genesisDocProvider and persists the
 // result to the database. On success this also returns the genesis doc loaded
 // through the given provider.
+//
+// AppState is intentionally not persisted in the state DB (it can be huge —
+// hundreds of MB on real-world genesis files — and may carry types that the
+// codec cannot encode, such as on-disk-backed handles). The DB copy is an
+// audit trail for ChainID / Validators / GenesisTime / AppHash. Whenever the
+// loaded doc has no AppState attached, the provider is re-invoked to supply
+// it. AppState is only consumed at appBlockHeight==0 (see
+// consensus/replay.go ReplayBlocks), so this re-derivation is cheap and safe
+// — beyond that height the field is unused.
 func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider GenesisDocProvider) (sm.State, *types.GenesisDoc, error) {
-	// Get genesis doc
 	genDoc, err := loadGenesisDoc(stateDB)
 	if err != nil {
 		genDoc, err = genesisDocProvider()
 		if err != nil {
 			return sm.State{}, nil, err
 		}
-		// save genesis doc to prevent a certain class of user errors (e.g. when it
-		// was changed, accidentally or not). Also good for audit trail.
 		saveGenesisDoc(stateDB, genDoc)
+	} else if genDoc.AppState == nil {
+		freshDoc, perr := genesisDocProvider()
+		if perr != nil {
+			return sm.State{}, nil, perr
+		}
+		// Verify the fresh genesis matches what the DB persisted. An operator
+		// pointing the node at a different genesis.json between boots would
+		// otherwise pair the DB's chain metadata (chain A) with the fresh
+		// AppState (chain B), silently corrupting state at appBlockHeight==0.
+		if freshDoc.ChainID != genDoc.ChainID {
+			return sm.State{}, nil, fmt.Errorf(
+				"genesis chain id mismatch between persisted state (%q) and source genesis (%q): the genesis file backing this data dir has changed",
+				genDoc.ChainID, freshDoc.ChainID)
+		}
+		if !bytes.Equal(freshDoc.AppHash, genDoc.AppHash) {
+			return sm.State{}, nil, fmt.Errorf(
+				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
+				genDoc.AppHash, freshDoc.AppHash)
+		}
+		genDoc.AppState = freshDoc.AppState
 	}
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
@@ -1025,9 +1108,12 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	return genDoc, nil
 }
 
-// panics if failed to marshal the given genesis document
+// panics if failed to marshal the given genesis document.
+// AppState is dropped before persisting (see LoadStateFromDBOrGenesisDocProvider).
 func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
-	b, err := amino.MarshalJSON(genDoc)
+	stripped := *genDoc
+	stripped.AppState = nil
+	b, err := amino.MarshalJSON(&stripped)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}

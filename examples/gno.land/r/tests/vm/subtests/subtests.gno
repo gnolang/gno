@@ -1,13 +1,16 @@
 package subtests
 
-import "chain/runtime"
+import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
+)
 
 func GetCurrentRealm(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }
 
 func GetPreviousRealm(cur realm) runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func Exec(fn func()) {
@@ -19,5 +22,9 @@ func CallAssertOriginCall(cur realm) {
 }
 
 func CallIsOriginCall(cur realm) bool {
-	return runtime.PreviousRealm().IsUser()
+	return unsafe.PreviousRealm().IsUser()
+}
+
+func BankerOriginSend(cur realm) string {
+	return unsafe.OriginSend().String()
 }

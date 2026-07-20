@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	gopath "path"
@@ -19,10 +20,53 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-// Renderer defines the interface for rendering realms and source files.
+// maxMarkdownRenderBytes caps the markdown fed to goldmark per render. Beyond
+// this size the residual super-linear goldmark vectors (reference-flood,
+// nested-lists) cost too much CPU (~8 s at the 8 MiB RPC ceiling), so the
+// content is shown as plain text rather than parsed. Legit realm output is
+// well under 1 MiB (see maxRPCResponseSize commentary in client.go); this cap
+// is distinct from and tighter than that transport guard.
+const maxMarkdownRenderBytes = 1 << 20 // 1 MiB
+
+// markdownPlainTextNotice precedes the plain-text fallback so a visitor
+// understands why the page is unstyled. It mirrors the markup ExtAlerts emits
+// for a `[!WARNING]` block (markdown/ext_alert.go) so it inherits gnoweb's
+// alert styling and icon. Static, no attacker content.
+const markdownPlainTextNotice = `<details class="gno-alert gno-alert-warning" open>
+<summary>
+<svg><use href="#ico-warning"></use></svg>Content too large to render<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This content exceeds the render limit and is shown as plain text below.</p>
+</div>
+</details>
+`
+
+// writeMarkdownPlainText handles input over maxMarkdownRenderBytes by emitting
+// it as HTML-escaped plain text instead of feeding it to goldmark, whose
+// super-linear parse paths are the cost being avoided. html.EscapeString keeps
+// the (attacker-controlled) content from being reflected as live markup. It
+// reports whether the fallback fired, so callers skip parsing and return their
+// zero result.
+func writeMarkdownPlainText(w io.Writer, src []byte) (handled bool, err error) {
+	if len(src) <= maxMarkdownRenderBytes {
+		return false, nil
+	}
+	if _, err := io.WriteString(w, markdownPlainTextNotice+`<pre class="gno-render-plaintext">`+html.EscapeString(string(src))+`</pre>`); err != nil {
+		return true, fmt.Errorf("write plain-text fallback: %w", err)
+	}
+	return true, nil
+}
+
+// Renderer defines the interface for rendering realms, source files, and
+// doc-context markdown (function/type/package documentation).
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+	// RenderDocumentation renders doc-context markdown (from vm/qdoc) to HTML.
+	// Fenced and indented code blocks are wrapped in collapsible <details>
+	// with Chroma highlighting. HTML escaping is delegated to Goldmark.
+	RenderDocumentation(w io.Writer, src []byte) error
 }
 
 // RealmRenderContext holds context information for rendering realms
@@ -38,8 +82,9 @@ type HTMLRenderer struct {
 	cfg    *RenderConfig
 	client ClientAdapter
 
-	gm goldmark.Markdown
-	ch *chromahtml.Formatter
+	gm              goldmark.Markdown // realm context
+	documentationGM goldmark.Markdown // doc context
+	ch              *chromahtml.Formatter
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
@@ -48,17 +93,36 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
 		),
 	))
+
+	// Doc-context renderer. parser.WithAttribute consumes the Pandoc-style
+	// `{#id}` heading suffixes emitted by gnovm/pkg/doc; ExtCodeExpand wraps
+	// fenced code blocks in collapsible <details>.
+	docFormatter := chromahtml.New(cfg.ChromaOptions...)
+	docOpts := []goldmark.Option{
+		goldmark.WithExtensions(
+			markdown.NewHighlighting(markdown.WithFormatOptions(cfg.ChromaOptions...)),
+			md.ExtCodeExpand(docFormatter, cfg.ChromaStyle),
+			md.ExtEmphasis, // bound emphasis-parsing cost (yuin/goldmark#555)
+		),
+		goldmark.WithParserOptions(parser.WithAttribute()),
+	}
+
 	return &HTMLRenderer{
-		logger: logger,
-		cfg:    &cfg,
-		client: client,
-		gm:     goldmark.New(gmOpts...),
-		ch:     chromahtml.New(cfg.ChromaOptions...),
+		logger:          logger,
+		cfg:             &cfg,
+		client:          client,
+		gm:              goldmark.New(gmOpts...),
+		documentationGM: goldmark.New(docOpts...),
+		ch:              chromahtml.New(cfg.ChromaOptions...),
 	}
 }
 
 // RenderRealm renders a realm to HTML and returns a table of contents.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error) {
+	if handled, err := writeMarkdownPlainText(w, src); handled {
+		return md.Toc{}, err
+	}
+
 	var mdctx md.GnoContext
 	mdctx.GnoURL = u
 	mdctx.ChainId = ctx.ChainId
@@ -112,6 +176,21 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
 	}
 
+	return nil
+}
+
+// RenderDocumentation writes the HTML representation of doc-context markdown
+// to w. HTML escaping is delegated to Goldmark.
+func (r *HTMLRenderer) RenderDocumentation(w io.Writer, src []byte) error {
+	if len(src) == 0 {
+		return nil
+	}
+	if handled, err := writeMarkdownPlainText(w, src); handled {
+		return err
+	}
+	if err := r.documentationGM.Convert(src, w); err != nil {
+		return fmt.Errorf("render documentation: %w", err)
+	}
 	return nil
 }
 

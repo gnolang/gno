@@ -126,15 +126,15 @@ profiles:
 > is: to what extent are we susceptible to such behavioural manipulation?" -
 > Joe Westby
 
-Trust in our institutions is at an all-time low. CIA director William Casey
-was accused of saying that "we’ll know our disinformation program is complete
-when everything the American public believes is false." by Barbara Honegger,
-assistant to the chief domestic policy advisor to President Reagan. 
-The [quote is contested](https://truthstreammedia.com/2015/01/13/cia-flashback-well-know-our-disinformation-program-is-complete-when-everything-the-american-public-believes-is-false/) but we know now about illegal mass mind control
-projects like MKUltra (by the CIA), and also that the Smith-Mundt Modernization
-Act of 2013 lifted the ban on domestic dissemination of propaganda in the US,
-reversing the original Smith-Mundt Act of 1948. Whether the quote is true or
-not, the substance is clearly true today.
+Trust in our institutions is at an all-time low. CIA director William Casey was
+accused of saying that "we’ll know our disinformation program is complete when
+everything the American public believes is false." by Barbara Honegger,
+assistant to the chief domestic policy advisor to President Reagan.  While the
+quote is contested we now know about illegal mass mind control projects like
+MKUltra (by the CIA), and also that the Smith-Mundt Modernization Act of 2013
+lifted the ban on domestic dissemination of propaganda in the US, reversing the
+original Smith-Mundt Act of 1948. Whether the quote is true or not, the
+substance is clearly true today.
 
 ### Health Sovereignty
 
@@ -364,7 +364,7 @@ example Library Genesis:
 Some of these projects have or are working toward IPFS integration on top of
 BitTorrent; but for the value that global archiving provides not just today but
 also for all possible potential future timelines the number of seeders for many
-of the archival files [still hover in the single digits](https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
+of the archival files [still hover in the single digits](https://web.archive.org/web/20260228085850/https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
 
 More recently the US Department of Justice released millions of files of the
 "Epstein Files" many of which have also been made available for sharing (such
@@ -541,9 +541,9 @@ incomplete or primitive message-passing agent architecture; such interop
 function calls generally do not share the same call-stack nor memory space.
 Solidity's implicit `msg.sender` changes on external calls have caused billions
 of dollars in exploits (reentrancy, confused-deputy attacks). In Gno the
-programmer writes `cross` at each call site that changes the realm-context,
-making every trust boundary visible in the source code and checkable by the
-compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
+programmer writes `cross(rlm)` at each call site that changes the
+realm-context, making every trust boundary visible in the source code and
+checkable by the compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
 Aptos) improves on Solidity with a linear type system that prevents reentrancy,
 but at the cost of a bespoke language unfamiliar to most developers and without
 a shared persistent object graph; inter-module calls in Move still pass values
@@ -1117,8 +1117,8 @@ interactivity.
  * **Gno2.** A future major revision of the Gno language incorporating
    lessons learned from production use. Potential additions include a
    `readonly` modifier for function return types, native syntax for
-   `cross` and `cur realm` (replacing the current overloaded function
-   argument convention), and further language-level support for
+   `cross(rlm)` and `cur realm` (replacing the current overloaded
+   function argument convention), and further language-level support for
    multi-user patterns that emerge from ecosystem usage.
 
  * **Open hardware.** Memristor-based memory systems eliminate the
@@ -1138,7 +1138,7 @@ contribute:
 
  * **Learn Gno.** If you know Go you already know most of Gno. Start with the
    [examples directory](https://github.com/gnolang/gno/tree/master/examples/gno.land)
-   and the [Gno by Example](https://gno-by-example.com/) tutorials.
+   and the [Gno documentation](https://docs.gno.land/) tutorials.
  * **Write a realm.** Build something useful--a board, a registry, a token, a
    game, a supply chain tracker, a reputation module. Deploy it to the testnet.
    The ecosystem grows one realm at a time.
@@ -1267,10 +1267,6 @@ Consider the following thought statement tree/graph:
              * The recent 3D scan of the sunken Titanic reveals an outward blowing
                out of the ship's hull where the engine room was, exactly where
                photographs of the Titanic showed fire damage during boarding.
-               * The OceanGate submersible that later imploded on the way to view
-                 the Titanic had in its board of directors a Rothschild.
-                 (See also [Babylon in Banking](https://ephesus.church#babylon-in-banking)
-                 and [The Rothschild Dynasty](https://ephesus.church#the-rothschild-dynasty).)
          * The year following the sinking of the Titanic saw the unconstitutional
            passage of the Federal Reserve act in December 23, 1913.
              * The Federal Reserve Act was drafted in secret on Jekyll Island and
@@ -1639,7 +1635,7 @@ and failing that, users should fork the chain or seek alternatives.
 > government, big business and the CIA to develop techniques to manage and control the minds of
 > the American people**. Those in power believed that the only way to make democracy work and
 > create a stable society was to repress the savage barbarism that lurked just under the surface of
-> normal American life." - Adam Curtis, BBC Four, 2002. ([transcript](https://github.com/jaekwon/ephesus/blob/main/files/century-of-the-self-transcript.pdf), [youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
+> normal American life." - Adam Curtis, BBC Four, 2002. ([youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
 
 ### On Twitter Censorship
 

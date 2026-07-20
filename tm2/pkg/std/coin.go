@@ -26,14 +26,26 @@ type Coin struct {
 // It will panic if the amount is negative.
 // To construct a negative (invalid) amount, use an operation.
 func NewCoin(denom string, amount int64) Coin {
-	if err := validate(denom, amount); err != nil {
+	coin, err := NewCoinSafe(denom, amount)
+	if err != nil {
 		panic(err)
+	}
+
+	return coin
+}
+
+// NewCoinSafe returns a new coin with a denomination and amount.
+// It will return an error if the amount is negative.
+// To construct a negative (invalid) amount, use an operation.
+func NewCoinSafe(denom string, amount int64) (Coin, error) {
+	if err := validate(denom, amount); err != nil {
+		return Coin{}, err
 	}
 
 	return Coin{
 		Denom:  denom,
 		Amount: amount,
-	}
+	}, nil
 }
 
 func (coin Coin) MarshalAmino() (string, error) {
@@ -213,11 +225,11 @@ func (coins Coins) String() string {
 		return ""
 	}
 
-	out := ""
+	var out strings.Builder
 	for _, coin := range coins {
-		out += fmt.Sprintf("%v,", coin.String())
+		out.WriteString(fmt.Sprintf("%v,", coin.String()))
 	}
-	return out[:len(out)-1]
+	return out.String()[:len(out.String())-1]
 }
 
 // IsValid asserts the Coins are sorted, have positive amount,

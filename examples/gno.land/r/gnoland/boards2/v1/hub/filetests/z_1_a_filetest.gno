@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_1_a_filetest
+
 // Test default thread values
-package main
+package z_1_a_filetest
 
 import (
 	"testing"
@@ -15,21 +17,22 @@ var (
 	threadID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "origin123", false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Title", "Body")
+	boardID = boards2.CreateBoard(cross(cur), "origin123", false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, found := hub.GetThread(uint64(boardID), uint64(threadID))
+	thread, found := hub.GetThread(cross(cur), uint64(boardID), uint64(threadID))
 	if !found {
 		return
 	}
 
 	println(thread.ID)
 	println(thread.OriginalBoardID)
+	println(thread.OriginalThreadID)
 	println(thread.BoardID)
 	println(thread.Title)
 	println(thread.Body)
@@ -45,6 +48,7 @@ func main() {
 
 // Output:
 // 1
+// 0
 // 0
 // 1
 // Title

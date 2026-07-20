@@ -12,21 +12,21 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## Deploy a realm and verify it works
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid=tendermint_test test1
 stdout 'hello world'
 
 ## Propose setting StoragePrice to an invalid value
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
 stdout OK!
 
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
 stdout OK!
 
 ## Executing the proposal should fail because the value is invalid
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
+! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
 stderr 'invalid param'
 
 ## StoragePrice should remain unchanged
@@ -34,7 +34,7 @@ gnokey query params/vm:p:storage_price
 stdout '100ugnot'
 
 ## VM operations should still work
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid=tendermint_test test1
 stdout 'hello world'
 
 -- hello/gnomod.toml --
@@ -49,7 +49,7 @@ func SayHello(cur realm) string {
 }
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"
@@ -57,17 +57,14 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 -- run/propose_invalid.gno --
@@ -78,9 +75,9 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
-	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "invalid")
-	dao.MustCreateProposal(cross, prop)
+func main(cur realm) {
+	prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "storage_price", "invalid")
+	dao.MustCreateProposal(cross(cur), prop)
 }
 
 -- run/vote_yes.gno --
@@ -88,11 +85,8 @@ package main
 
 import "gno.land/r/gov/dao"
 
-func main() {
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/execute_proposal.gno --
@@ -100,6 +94,6 @@ package main
 
 import "gno.land/r/gov/dao"
 
-func main() {
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 }

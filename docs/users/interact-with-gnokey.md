@@ -7,19 +7,12 @@ with the essential operations.
 
 ## Installing gnokey
 
-To build and install from source, you'll need:
+See the [Installation](../builders/install.md) page for prerequisites and install methods.
 
-- Git
-- Go 1.22+
-- Make
+After installing, verify that `gnokey` is available:
 
-```bash
-# Clone the repository
-git clone https://github.com/gnolang/gno.git
-cd gno
-
-# Install gnokey
-make install
+```sh
+gnokey version
 ```
 
 ## Managing key pairs
@@ -126,11 +119,30 @@ mkdir p/ && cd p
 touch hello_world.gno
 ```
 
+Next, initialize a `gnomod.toml` file for the package. This file defines
+package metadata, and the `pkgpath` it contains must match the `-pkgpath`
+flag you will use when deploying:
+
+```bash
+gno mod init gno.land/p/<your_namespace>/hello_world
+```
+
+This will generate a `gnomod.toml` with the following content:
+
+```toml
+gno = "0.9"
+module = "gno.land/p/<your_namespace>/hello_world"
+```
+
+For more details on `gnomod.toml` and its fields, see
+[Configuring Gno Projects](../resources/configuring-gno-projects.md#gnomodtoml).
+
 Now, we should have the following folder structure:
 
 ```bash
 └── example/
 │   └── p/
+│       ├── gnomod.toml
 │       └── hello_world.gno
 ```
 
@@ -150,13 +162,13 @@ correct flags for the `addpkg` subcommand.
 The `addpkg` subcommand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your code is located
-- `-broadcast` - enables broadcasting the transaction to the chain
+- `-broadcast` - enables broadcasting the transaction to the chain (default: true)
 - `-send` - Amount of GNOT to send to the realm with the transaction (optional)
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
-- `-chain-id` - id of the chain that we are sending the transaction to
+- `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
@@ -174,7 +186,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443"
 ```
@@ -188,7 +199,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443"
 mykey
@@ -204,6 +214,7 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -213,6 +224,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
@@ -251,7 +263,6 @@ gnokey maketx call \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -291,7 +302,6 @@ gnokey maketx call \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -301,7 +311,7 @@ If everything was successful, we should get something similar to the following
 output:
 
 ```
-(1000 uint64)
+(1000 int64)
 
 OK!
 GAS WANTED: 2000000
@@ -368,7 +378,6 @@ gnokey maketx send \
 -send 100ugnot \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -410,7 +419,7 @@ Now, we should have the following folder structure:
 ```
 
 In the `script.gno` file, first define the package to be `main`. Then we can import
-the Counter realm and define a `main()` function with no return values that will
+the Counter realm and define a `main(cur realm)` function with no return values that will
 be automatically detected and run. In it, we can call the `Increment()` function.
 
 ```go
@@ -418,8 +427,8 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
-	println(counter.Increment())
+func main(cur realm) {
+	println(counter.Increment(cross(cur)))
 }
 ```
 
@@ -429,7 +438,6 @@ Now we will be able to provide this to the `maketx run` subcommand:
 gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey ./script.gno
@@ -615,7 +623,7 @@ of the transaction, preventing replay attacks.
 ### 2. Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the [`call` API](#call),
-without the `-broadcast` flag, while redirecting the output to a local file:
+with `-broadcast=false`, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
@@ -623,6 +631,7 @@ gnokey maketx call \
 -func "Increment" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
+-broadcast=false \
 mykey > counter.tx
 ```
 
@@ -670,12 +679,19 @@ been signed in a previous step and `gnokey` is only sending it to the RPC endpoi
 ## Verifying a transaction's signature
 
 To verify a transaction's signature is correct, you can use the `gnokey verify`
-subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself.
-Make sure the signature is in the `hex` format.
+subcommand. Provide the path to the transaction document using the `-tx-path`
+flag, and optionally the path to a separate signature file using the `-sig-path`
+flag. If `-sig-path` is omitted, the first signature embedded in the transaction
+itself is verified.
 
 ```bash
-gnokey verify -docpath counter.tx mykey <signature>
+gnokey verify -tx-path counter.tx mykey
+```
+
+To verify against a separate signature file:
+
+```bash
+gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
 ## Using a k-of-n multisig
@@ -807,7 +823,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
@@ -1025,7 +1041,7 @@ cd gnokey-airgap-bundle
 sha256sum -c gnokey.sha256
 
 # You can run the command locally now
-./gnokey --h
+./gnokey -h
 ```
 
 ### Practical warning: CGO usually implies dynamic deps
@@ -1060,6 +1076,10 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
 - `vm/qlatestversion` - returns the latest deployed version and gap info for a versioned package
+
+For JSON-structured endpoints designed for programmatic access (`vm/qeval_json`,
+`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`), see
+[Querying On-Chain State (JSON APIs)](../builders/query-state-api.md).
 
 Let's see how we can use them.
 
@@ -1127,7 +1147,7 @@ The data field will contain the coins the address owns.
 ### `auth/gasprice`
 
 The `auth/gasprice` query allows you to fetch the minimum gas price currently
-required for transactions. This is useful for ensuring your `--gas-fee` meets
+required for transactions. This is useful for ensuring your `-gas-fee` meets
 the network's requirements when submitting transactions. To call it, we can run the following command:
 
 ```bash
@@ -1182,7 +1202,7 @@ data: [
           "Params": [
             {
             "Name": "amount",
-            "Type": "uint64",
+            "Type": "int64",
             "Value": ""
             }
           ],
@@ -1226,23 +1246,28 @@ height: 0
 data: package wugnot
 
 import (
-        "std"
+        "chain"
+        "chain/banker"
+        "chain/runtime"
         "strings"
 
         "gno.land/p/demo/tokens/grc20"
         "gno.land/p/nt/ufmt/v0"
-        pusers "gno.land/p/demo/users"
-        "gno.land/r/demo/users"
+        "gno.land/r/demo/defi/grc20reg"
 )
 
 var (
-        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-        Token                = banker.Token()
+        Token *grc20.Token
+        adm   *grc20.PrivateLedger
 )
 
+func init(cur realm) {
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
+}
+
 const (
-        ugnotMinDeposit  uint64 = 1000
-        wugnotMinDeposit uint64 = 1
+        ugnotMinDeposit  int64 = 1000
+        wugnotMinDeposit int64 = 1
 )
 ...
 ```
@@ -1277,12 +1302,12 @@ data: {
     {
       "type": "",
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address std.Address) Valoper",
+      "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
       "params": [
         {
           "Name": "address",
-          "Type": "std.Address"
+          "Type": "address"
         }
       ],
       "results": [
@@ -1311,7 +1336,7 @@ data: {
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]
@@ -1479,13 +1504,15 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  --pkgpath "gno.land/r/demo/boards" \
-  --func "CreateBoard" \
-  --args "MyBoard" "Board description" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --remote https://rpc.staging.gno.land:443 \
-  --chainid staging \
+  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -func "CreateBoard" \
+  -args "MyBoard" \
+  -args "true" \
+  -args "true" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 2000000 \
+  -remote https://rpc.staging.gno.land:443 \
+  -chainid staging \
   YOUR_KEY_NAME
 ```
 

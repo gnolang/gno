@@ -48,6 +48,16 @@ Example: `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` (A user's run
 
 For more details on ephemeral packages and the `maketx run` command, see [Interacting with gnokey](../users/interact-with-gnokey.md#run).
 
+### Import rules
+
+Not every package type can import every other. The rules:
+
+- **Pure packages (`/p/`)** can be imported by anything: realms, other pure packages, and ephemeral packages.
+- **Realms (`/r/`)** can be imported by other realms and by ephemeral packages, but **not by pure packages** (importing state into a stateless library is forbidden).
+- **Ephemeral packages (`/e/`)** **cannot be imported by anything**. They exist only during their own execution.
+
+Importing a realm gives access to its exported functions and interacts with that realm's persistent state. Importing a pure package gives access to its exported functions only, with no state persistence.
+
 ## Package Path Structure
 
 A package path is a unique identifier for any package that lives on the Gno.land
@@ -74,9 +84,27 @@ The components of these paths are:
 - `demo`, `gnoland`, etc., represent namespaces as described below.
 - `home`, `hof`, `avl`, `run`, etc., represent the package name found at the path.
 
-Two important facts about package paths:
+Important facts about package paths:
 - The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#derivepkgaddr)
+- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
+- **The package name in your source code must match the last element of the path.** For example, `gno.land/r/demo/counter` requires `package counter`.
+- Because package names are identifiers of the form `[a-z][a-z0-9_]+`, the
+  last element of a deployable path must also have that form: lowercase
+  letters, digits and underscores, starting with a letter, and at least two
+  characters long. In particular, hyphens are allowed in intermediate path
+  elements (e.g. namespaces like `gno.land/r/my-team/counter`) but not in the
+  last element, since no package name could match it.
+
+### Version Suffixes
+
+Package paths can include version suffixes for versioned packages:
+
+- `gno.land/r/demo/mylib/v1` → package name should be `mylib`
+- `gno.land/r/demo/mylib/v2` → package name should be `mylib`
+- `gno.land/p/demo/utils/v10` → package name should be `utils`
+
+A path may end in at most one version suffix: paths ending in consecutive
+version suffixes (e.g. `gno.land/r/demo/mylib/v2/v3`) are rejected.
 
 ## Namespaces
 
@@ -89,7 +117,7 @@ Initially, all users are granted a default namespace with their address - a
 pseudo-anonymous (PA) namespace - to which the associated address can
 deploy. This namespace has the following format:
 ```
-gno.land/{p,r}/{std.Address}/**
+gno.land/{p,r}/{address}/**
 ```
 
 For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the
@@ -152,15 +180,19 @@ func Set(key string, value int) {
 }
 
 func Get(key string) int {
-  // tree.Get returns the value at given key in its raw form,
-  // and a bool to signify the existence of the key-value pair
-  rawValue, exists := tree.Get(key)
-  if !exists {
+  // tree.Get returns the value at given key, or nil if the key does not exist.
+  // Use a type assertion to convert the raw value into the proper type.
+  rawValue := tree.Get(key)
+  if rawValue == nil {
 	  panic("value at given key does not exist")
   }
 
-  // rawValue needs to be converted into the proper type before returning it
   return rawValue.(int)
+}
+
+func Exists(key string) bool {
+  // tree.Has returns true if the key exists
+  return tree.Has(key)
 }
 ```
 
@@ -214,5 +246,5 @@ This provides transparency and allows you to learn from existing code.
 
 For detailed instructions on creating your own packages:
 
-- For realms, see [Example Minisocial dApp](../builders/example-minisocial-dapp.md)
-- For deployment, see [Deploying Gno Packages](../builders/deploy-packages.md)
+- For a hands-on walkthrough, see [Getting started](../builders/getting-started.md)
+- For a full example, see [Tutorial: MiniSocial dApp](../builders/tutorial-minisocial.md)

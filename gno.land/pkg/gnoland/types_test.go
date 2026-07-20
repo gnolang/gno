@@ -272,3 +272,164 @@ func TestClearFlag(t *testing.T) {
 	account.clearFlag(flagTokenLockWhitelisted)
 	assert.False(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be cleared")
 }
+
+func TestGnoTxMetadata_ProvenanceFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("source constants", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "base", SourceBase)
+		assert.Equal(t, "historical", SourceHistorical)
+		assert.Equal(t, "patched", SourcePatched)
+		assert.Equal(t, "migration", SourceMigration)
+	})
+
+	t.Run("amino JSON omitempty when fields unset", func(t *testing.T) {
+		t.Parallel()
+		meta := &GnoTxMetadata{BlockHeight: 100}
+
+		bz, err := amino.MarshalJSON(meta)
+		require.NoError(t, err)
+
+		s := string(bz)
+		assert.NotContains(t, s, `"source"`)
+		assert.NotContains(t, s, `"note"`)
+		assert.NotContains(t, s, `"original_tx"`)
+	})
+
+	t.Run("amino JSON roundtrip preserves provenance fields", func(t *testing.T) {
+		t.Parallel()
+		originalTx := std.Tx{
+			Msgs: []std.Msg{
+				bank.MsgSend{
+					FromAddress: crypto.Address{0x42},
+					ToAddress:   crypto.Address{0x43},
+					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1234)),
+				},
+			},
+			Fee:  std.Fee{GasWanted: 10, GasFee: std.NewCoin(ugnot.Denom, 1000000)},
+			Memo: "original tx body",
+		}
+
+		meta := &GnoTxMetadata{
+			Timestamp:   1700000000,
+			BlockHeight: 1950,
+			ChainID:     "gnoland-1",
+			Source:      SourcePatched,
+			Note:        "API drift on params.ProposeAddUnrestrictedAcctsRequest (post-#5669)",
+			OriginalTx:  &originalTx,
+		}
+
+		bz, err := amino.MarshalJSON(meta)
+		require.NoError(t, err)
+
+		var got GnoTxMetadata
+		require.NoError(t, amino.UnmarshalJSON(bz, &got))
+
+		assert.Equal(t, meta.Source, got.Source)
+		assert.Equal(t, meta.Note, got.Note)
+		require.NotNil(t, got.OriginalTx)
+		assert.Equal(t, originalTx.Memo, got.OriginalTx.Memo)
+		assert.Equal(t, originalTx.Fee.GasWanted, got.OriginalTx.Fee.GasWanted)
+		require.Len(t, got.OriginalTx.Msgs, 1)
+	})
+
+	t.Run("amino binary roundtrip preserves provenance fields", func(t *testing.T) {
+		t.Parallel()
+		// GnoTxMetadata is consensus-serialized into genesis via the amino
+		// binary (pb3) codec, so exercise that path directly — the nested
+		// OriginalTx message is the highest-risk field.
+		originalTx := std.Tx{
+			Msgs: []std.Msg{
+				bank.MsgSend{
+					FromAddress: crypto.Address{0x42},
+					ToAddress:   crypto.Address{0x43},
+					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1234)),
+				},
+			},
+			Fee:  std.Fee{GasWanted: 10, GasFee: std.NewCoin(ugnot.Denom, 1000000)},
+			Memo: "original tx body",
+		}
+
+		meta := &GnoTxMetadata{
+			Timestamp:   1700000000,
+			BlockHeight: 1950,
+			ChainID:     "gnoland-1",
+			Source:      SourcePatched,
+			Note:        "API drift on params.ProposeAddUnrestrictedAcctsRequest (post-#5669)",
+			OriginalTx:  &originalTx,
+		}
+
+		bz, err := amino.Marshal(meta)
+		require.NoError(t, err)
+
+		var got GnoTxMetadata
+		require.NoError(t, amino.Unmarshal(bz, &got))
+
+		assert.Equal(t, meta.Source, got.Source)
+		assert.Equal(t, meta.Note, got.Note)
+		require.NotNil(t, got.OriginalTx)
+		assert.Equal(t, originalTx.Memo, got.OriginalTx.Memo)
+		assert.Equal(t, originalTx.Fee.GasWanted, got.OriginalTx.Fee.GasWanted)
+		require.Len(t, got.OriginalTx.Msgs, 1)
+	})
+}
+
+func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+	masterAddr := crypto.AddressFromPreimage([]byte("master"))
+
+	original := &GnoSessionAccount{
+		BaseSessionAccount: std.BaseSessionAccount{
+			BaseAccount: std.BaseAccount{
+				Address:       addr,
+				PubKey:        pubKey,
+				AccountNumber: 99,
+				Sequence:      3,
+			},
+			MasterAddress: masterAddr,
+			ExpiresAt:     1700000000,
+			SpendLimit:    std.Coins{std.NewCoin("ugnot", 5000)},
+			SpendPeriod:   86400,
+			SpendUsed:     std.Coins{std.NewCoin("ugnot", 100)},
+			SpendReset:    1699990000,
+		},
+		AllowPaths: []string{
+			"gno.land/r/demo/boards",
+			"gno.land/r/demo/chat",
+		},
+	}
+
+	// Marshal
+	bz, err := amino.MarshalAny(original)
+	require.NoError(t, err)
+	require.NotEmpty(t, bz)
+
+	// Unmarshal
+	var got any
+	err = amino.UnmarshalAny(bz, &got)
+	require.NoError(t, err)
+
+	result, ok := got.(*GnoSessionAccount)
+	require.True(t, ok, "expected *GnoSessionAccount, got %T", got)
+
+	// Verify embedded BaseSessionAccount fields
+	assert.Equal(t, original.Address, result.Address)
+	assert.Nil(t, result.GetCoins())
+	assert.True(t, original.PubKey.Equals(result.PubKey))
+	assert.Equal(t, original.AccountNumber, result.AccountNumber)
+	assert.Equal(t, original.Sequence, result.Sequence)
+	assert.Equal(t, original.MasterAddress, result.MasterAddress)
+	assert.Equal(t, original.ExpiresAt, result.ExpiresAt)
+	assert.True(t, original.SpendLimit.IsEqual(result.SpendLimit))
+	assert.Equal(t, original.SpendPeriod, result.SpendPeriod)
+	assert.True(t, original.SpendUsed.IsEqual(result.SpendUsed))
+	assert.Equal(t, original.SpendReset, result.SpendReset)
+
+	// Verify AllowPaths round-trips correctly
+	assert.Equal(t, original.AllowPaths, result.AllowPaths)
+}

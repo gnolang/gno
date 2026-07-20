@@ -26,7 +26,7 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	const format = "unknown bank param key: %q"
 	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
 
-	typ := reflect.TypeOf(Params{})
+	typ := reflect.TypeFor[Params]()
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
@@ -35,6 +35,39 @@ func TestWillSetParamExhaustive(t *testing.T) {
 			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
+}
+
+func TestNewParams(t *testing.T) {
+	denoms := []string{"ugnot", "atom"}
+	p := NewParams(denoms)
+	assert.Equal(t, denoms, p.RestrictedDenoms)
+}
+
+func TestDefaultParams(t *testing.T) {
+	p := DefaultParams()
+	assert.Empty(t, p.RestrictedDenoms)
+}
+
+func TestParamsString(t *testing.T) {
+	p := NewParams([]string{"ugnot"})
+	s := p.String()
+	assert.Contains(t, s, "Params:")
+	assert.Contains(t, s, "ugnot")
+}
+
+func TestSetParams(t *testing.T) {
+	env := setupTestEnv()
+
+	// valid
+	err := env.bankk.SetParams(env.ctx, NewParams([]string{"ugnot"}))
+	require.NoError(t, err)
+	got := env.bankk.GetParams(env.ctx)
+	assert.Equal(t, []string{"ugnot"}, got.RestrictedDenoms)
+
+	// invalid denom
+	err = env.bankk.SetParams(env.ctx, NewParams([]string{"!!"}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid restricted denom")
 }
 
 func TestWillSetParam(t *testing.T) {

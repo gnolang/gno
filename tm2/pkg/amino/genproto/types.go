@@ -142,9 +142,10 @@ type P3Import struct {
 }
 
 type P3Message struct {
-	Comment string
-	Name    string
-	Fields  []P3Field
+	Comment  string
+	Name     string
+	Fields   []P3Field
+	Reserved []uint32
 }
 
 type P3Field struct {
@@ -221,6 +222,9 @@ func (msg P3Message) PrintCode(p *press.Press) *press.Press {
 		for _, fld := range msg.Fields {
 			fld.PrintCode(p)
 		}
+		for _, n := range msg.Reserved {
+			p.Pl("reserved %v;", n)
+		}
 	}).Pl("}")
 	return p
 }
@@ -243,8 +247,8 @@ func printComments(p *press.Press, comment string) {
 	if comment == "" {
 		return
 	}
-	commentLines := strings.Split(comment, "\n")
-	for _, line := range commentLines {
+	commentLines := strings.SplitSeq(comment, "\n")
+	for line := range commentLines {
 		p.Pl("// %v", line)
 	}
 }
@@ -281,6 +285,7 @@ func nListFieldOptions(fopts amino.FieldOptions) amino.FieldOptions {
 	return amino.FieldOptions{
 		BinFixed64:     fopts.BinFixed64,
 		BinFixed32:     fopts.BinFixed32,
+		BinPlainVarint: fopts.BinPlainVarint,
 		UseGoogleTypes: fopts.UseGoogleTypes,
 	}
 }
@@ -341,6 +346,8 @@ func (nl NList) Name() string {
 		prefix = "Fixed64"
 	} else if nl.FieldOptions.BinFixed32 {
 		prefix = "Fixed32"
+	} else if nl.FieldOptions.BinPlainVarint {
+		prefix = "Varint"
 	}
 	if nl.FieldOptions.UseGoogleTypes {
 		prefix = "G" + prefix
@@ -445,7 +452,7 @@ func findNLists(root *amino.Package, info *amino.TypeInfo, found *map[string]NLi
 func findNLists2(root *amino.Package, list *amino.TypeInfo, fopts amino.FieldOptions) []NList {
 	fopts = nListFieldOptions(fopts)
 	switch list.ReprType.Type.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		panic("should not happen")
 	case reflect.Array, reflect.Slice:
 		elem := list.ReprType.Elem

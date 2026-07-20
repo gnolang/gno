@@ -1,7 +1,7 @@
 package gnorkle
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
@@ -106,7 +106,7 @@ type PostMessageHandler interface {
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
-	caller := string(runtime.OriginCaller())
+	caller := string(unsafe.OriginCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 
@@ -142,8 +142,8 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (st
 }
 
 func (i *Instance) getFeed(id string) (Feed, error) {
-	untypedFeed, ok := i.feeds.Get(id)
-	if !ok {
+	untypedFeed := i.feeds.Get(id)
+	if untypedFeed == nil {
 		return nil, errors.New("invalid ingest id: " + id)
 	}
 
@@ -156,8 +156,8 @@ func (i *Instance) getFeed(id string) (Feed, error) {
 }
 
 func (i *Instance) getFeedWithWhitelist(id string) (FeedWithWhitelist, error) {
-	untypedFeedWithWhitelist, ok := i.feeds.Get(id)
-	if !ok {
+	untypedFeedWithWhitelist := i.feeds.Get(id)
+	if untypedFeedWithWhitelist == nil {
 		return FeedWithWhitelist{}, errors.New("invalid ingest id: " + id)
 	}
 

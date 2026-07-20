@@ -9,6 +9,8 @@ import (
 // AccountKeeper manages access to accounts.
 type AccountKeeperI interface {
 	NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account
+	NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account
+	GetNextAccountNumber(ctx sdk.Context) uint64
 	GetAccount(ctx sdk.Context, addr crypto.Address) std.Account
 	GetAllAccounts(ctx sdk.Context) []std.Account
 	SetAccount(ctx sdk.Context, acc std.Account)

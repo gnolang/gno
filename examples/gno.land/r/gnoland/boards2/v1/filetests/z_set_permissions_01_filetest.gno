@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_permissions_01_filetest
+
+package z_set_permissions_01_filetest
 
 import (
 	"testing"
@@ -21,11 +23,11 @@ func init() {
 	perms = permissions.New()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.SetPermissions(cross, bid, perms)
+	boards2.SetPermissions(cross(cur), bid, perms)
 }
 
 // Error:
-// unauthorized
+// unauthorized, user g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj doesn't have the required permission

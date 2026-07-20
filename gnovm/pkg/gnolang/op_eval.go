@@ -1,15 +1,11 @@
 package gnolang
 
 import (
-	goerrors "errors"
 	"fmt"
-	"math"
 	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/cockroachdb/apd/v3"
 )
 
 var (
@@ -32,14 +28,19 @@ func (m *Machine) doOpEval() {
 			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
-		} else {
-			// Get value from scope.
-			lb := m.LastBlock()
-			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
-			m.PushValue(ptr.Deref())
-			return
 		}
+		// Get value from scope.
+		m.incrCPU(OpCPUSlopeEvalNameExpr * int64(nx.Path.Depth))
+		lb := m.LastBlock()
+		// Inline parent traversal for common shallow depths
+		// to avoid GetPointerTo function call + blank check + loop overhead.
+		b := lb
+		for i := uint8(1); i < nx.Path.Depth; i++ {
+			b = b.GetParent(m.Store)
+		}
+		ptr := b.GetPointerToInt(m.Store, int(nx.Path.Index))
+		m.PushValue(ptr.Deref())
+		return
 	}
 	switch x := x.(type) {
 	// case NameExpr: handled above
@@ -87,110 +88,15 @@ func (m *Machine) doOpEval() {
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
 			if reFloat.MatchString(x.Value) {
-				value := x.Value
-				bd, c, err := apd.NewFromString(value)
-				if err != nil {
-					panic(fmt.Sprintf(
-						"invalid decimal constant: %s",
-						x.Value))
-				}
-				if c.Inexact() {
-					panic(fmt.Sprintf(
-						"could not represent decimal exactly: %s",
-						x.Value))
-				}
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: bd},
+					V: parseBigdecLiteral(x.Value, "decimal"),
 				})
 				return
 			} else if reHexFloat.MatchString(x.Value) {
-				originalInput := x.Value
-				value := x.Value[2:]
-				var hexString string
-				var exp int64
-				eIndex := strings.IndexAny(value, "Pp")
-				if eIndex == -1 {
-					panic("should not happen")
-				}
-
-				// ----------------------------------------
-				// NewFromHexString()
-				// TODO: move this to another function.
-
-				// Step 1 get exp component.
-				expInt, err := strconv.ParseInt(value[eIndex+1:], 10, 32)
-				if err != nil {
-					if e, ok := err.(*strconv.NumError); ok && goerrors.Is(e.Err, strconv.ErrRange) {
-						panic(fmt.Sprintf(
-							"can't convert %s to decimal: fractional part too long",
-							value))
-					}
-					panic(fmt.Sprintf(
-						"can't convert %s to decimal: exponent is not numeric",
-						value))
-				}
-				value = value[:eIndex]
-				exp = expInt
-				// Step 2 adjust exp from dot.
-				pIndex := -1
-				vLen := len(value)
-				for i := range vLen {
-					if value[i] == '.' {
-						if pIndex > -1 {
-							panic(fmt.Sprintf(
-								"can't convert %s to decimal: too many .s",
-								value))
-						}
-						pIndex = i
-					}
-				}
-				if pIndex == -1 {
-					// There is no decimal point, we can just parse the original string as
-					// a hex
-					hexString = value
-				} else {
-					if pIndex+1 < vLen {
-						hexString = value[:pIndex] + value[pIndex+1:]
-					} else {
-						hexString = value[:pIndex]
-					}
-					expInt := -len(value[pIndex+1:])
-					exp += int64(expInt)
-				}
-				bexp := apd.New(0, 0)
-				_, err = apd.BaseContext.WithPrecision(1024).Pow(
-					bexp,
-					apd.New(2, 0),
-					apd.New(exp, 0))
-				if err != nil {
-					panic(fmt.Sprintf("error computing exponent: %v", err))
-				}
-				// Step 3 make Decimal from mantissa and exp.
-				dValue := new(apd.BigInt)
-				_, ok := dValue.SetString(hexString, 16)
-				if !ok {
-					panic(fmt.Sprintf("can't convert %s to decimal", value))
-				}
-				if exp < math.MinInt32 || exp > math.MaxInt32 {
-					// NOTE(vadim): I doubt a string could realistically be this long
-					panic(fmt.Sprintf("can't convert %s to decimal: fractional part too long", originalInput))
-				}
-				res := apd.New(0, 0)
-				_, err = apd.BaseContext.WithPrecision(1024).Mul(
-					res,
-					apd.NewWithBigInt(dValue, 0),
-					bexp)
-				if err != nil {
-					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
-				}
-
-				// NewFromHexString() END
-				// ----------------------------------------
-
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: BigdecValue{V: res},
+					V: parseBigdecLiteral(x.Value, "hex float"),
 				})
 				return
 			} else {
@@ -400,10 +306,6 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
-	case *ChanTypeExpr:
-		m.PushOp(OpChanType)
-		m.PushExpr(x.Value)
-		m.PushOp(OpEval) // OpEvalType?
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}

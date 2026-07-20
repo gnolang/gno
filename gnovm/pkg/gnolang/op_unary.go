@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -22,6 +21,8 @@ func (m *Machine) doOpUneg() {
 		debug.Printf("doOpUneg(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
+	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUneg)
+	m.incrCPUBigDecUnary(xv, OpCPUSlopeBigDecUneg)
 
 	// Switch on the base type.
 	// NOTE: this is faster than computing the kind of kv.T.
@@ -55,7 +56,11 @@ func (m *Machine) doOpUneg() {
 		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	case UntypedBigdecType:
 		bdv := xv.V.(BigdecValue)
-		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bdv.V)}
+		if bdv.IsFloat() {
+			xv.V = BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).Neg(bdv.F)}
+		} else {
+			xv.V = BigdecValue{V: new(big.Rat).Neg(bdv.V)}
+		}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		biv := xv.V.(BigintValue)
@@ -89,6 +94,7 @@ func (m *Machine) doOpUxor() {
 		debug.Printf("doOpUxor(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
+	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUxor)
 
 	// Switch on the base type.
 	switch baseOf(xv.T) {
@@ -119,8 +125,4 @@ func (m *Machine) doOpUxor() {
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))
 	}
-}
-
-func (m *Machine) doOpUrecv() {
-	panic("not yet implemented")
 }
