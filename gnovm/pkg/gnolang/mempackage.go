@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	r "github.com/gnolang/gno/tm2/pkg/regx"
@@ -1311,4 +1312,37 @@ func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) er
 	}
 	mfile.Body = buf.String()
 	return nil
+}
+
+// ParseVersionSuffix extracts the version number from a package path
+// ending in /vN (e.g., "gno.land/p/demo/avl/v2").
+// Returns (basePath, version, true) if the path has a valid version suffix,
+// or ("", 0, false) otherwise (no match, or integer overflow).
+func ParseVersionSuffix(pkgPath string) (basePath string, version int, ok bool) {
+	lastSlash := strings.LastIndexByte(pkgPath, '/')
+	if lastSlash < 0 {
+		return "", 0, false
+	}
+	suffix := pkgPath[lastSlash+1:]
+	if len(suffix) < 2 || suffix[0] != 'v' {
+		return "", 0, false
+	}
+	digits := suffix[1:]
+	// Verify all characters are digits.
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return "", 0, false
+		}
+	}
+	// Reject zero-padded versions (e.g. /v01) so they do not collide with
+	// their canonical form (/v1), matching Go's module-path constraint.
+	if len(digits) > 1 && digits[0] == '0' {
+		return "", 0, false
+	}
+	v, err := strconv.Atoi(digits)
+	if err != nil {
+		// Overflow or other parse error.
+		return "", 0, false
+	}
+	return pkgPath[:lastSlash], v, true
 }
