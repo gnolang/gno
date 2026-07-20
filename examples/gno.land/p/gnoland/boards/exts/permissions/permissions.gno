@@ -2,9 +2,8 @@ package permissions
 
 import (
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/memberstorage"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/commondao/v0"
-	"gno.land/p/nt/commondao/v0/exts/storage"
 )
 
 // ValidatorFunc defines a function type for permissions validators.
@@ -23,7 +22,7 @@ type ValidatorFunc func(boards.Permissions, boards.Args) error
 // be configured to only allow one role per user.
 type Permissions struct {
 	superRole      boards.Role
-	dao            *commondao.CommonDAO
+	members        memberstorage.MemberStorage
 	public         boards.PermissionSet
 	validators     *bptree.BPTree // string(boards.Permission) -> ValidatorFunc
 	singleUserRole bool
@@ -31,21 +30,15 @@ type Permissions struct {
 
 // New creates a new permissions type.
 func New(options ...Option) *Permissions {
-	s := storage.NewMemberStorage()
 	ps := &Permissions{
 		validators: bptree.NewBPTree32(),
-		dao:        commondao.New(commondao.WithMemberStorage(s)),
+		members:    memberstorage.NewWithGrouping(),
 	}
 
 	for _, apply := range options {
 		apply(ps)
 	}
 	return ps
-}
-
-// DAO returns the underlying permissions DAO.
-func (ps Permissions) DAO() *commondao.CommonDAO {
-	return ps.dao
 }
 
 // ValidateFunc adds a custom permission validator function.
@@ -70,7 +63,7 @@ func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 	}
 
 	// Get member group for the role if it exists or otherwise create a new group
-	grouping := ps.dao.Members().Grouping()
+	grouping := ps.members.Grouping()
 	name := string(r)
 	group, found := grouping.Get(name)
 	if !found {
@@ -88,12 +81,12 @@ func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 
 // RoleExists checks if a role exists.
 func (ps Permissions) RoleExists(r boards.Role) bool {
-	return r == ps.superRole || ps.dao.Members().Grouping().Has(string(r))
+	return r == ps.superRole || ps.members.Grouping().Has(string(r))
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
 func (ps Permissions) GetUserRoles(user address) []boards.Role {
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := memberstorage.GetMemberGroups(ps.members, user)
 	if groups == nil {
 		return nil
 	}
@@ -108,7 +101,7 @@ func (ps Permissions) GetUserRoles(user address) []boards.Role {
 // HasRole checks if a user has a specific role assigned.
 func (ps Permissions) HasRole(user address, r boards.Role) bool {
 	name := string(r)
-	group, found := ps.dao.Members().Grouping().Get(name)
+	group, found := ps.members.Grouping().Get(name)
 	if !found {
 		return false
 	}
@@ -121,12 +114,12 @@ func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
 		return true
 	}
 
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := memberstorage.GetMemberGroups(ps.members, user)
 	if groups == nil {
 		return false
 	}
 
-	grouping := ps.dao.Members().Grouping()
+	grouping := ps.members.Grouping()
 	for _, name := range groups {
 		role := boards.Role(name)
 		if ps.superRole == role {
@@ -155,11 +148,11 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 		panic("user can only have one role")
 	}
 
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := memberstorage.GetMemberGroups(ps.members, user)
 	isGuest := len(roles) == 0
 
 	// Clear current user roles
-	grouping := ps.dao.Members().Grouping()
+	grouping := ps.members.Grouping()
 	for _, name := range groups {
 		group, found := grouping.Get(name)
 		if !found {
@@ -171,7 +164,7 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 
 	// Add user to the storage as guest when no roles are assigned
 	if isGuest {
-		ps.dao.Members().Add(user)
+		ps.members.Add(user)
 		return
 	}
 
@@ -189,12 +182,12 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 
 // RemoveUser removes a user from permissions.
 func (ps *Permissions) RemoveUser(user address) bool {
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := memberstorage.GetMemberGroups(ps.members, user)
 	if groups == nil {
-		return ps.dao.Members().Remove(user)
+		return ps.members.Remove(user)
 	}
 
-	grouping := ps.dao.Members().Grouping()
+	grouping := ps.members.Grouping()
 	for _, name := range groups {
 		group, found := grouping.Get(name)
 		if !found {
@@ -208,19 +201,19 @@ func (ps *Permissions) RemoveUser(user address) bool {
 
 // HasUser checks if a user exists.
 func (ps Permissions) HasUser(user address) bool {
-	return ps.dao.Members().Has(user)
+	return memberstorage.HasMember(ps.members, user)
 }
 
 // UsersCount returns the total number of users the permissioner contains.
 func (ps Permissions) UsersCount() int {
-	return ps.dao.Members().Size()
+	return memberstorage.GetTotalSize(ps.members)
 }
 
 // IterateUsers iterates permissions' users.
-func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (stopped bool) {
-	ps.dao.Members().IterateByOffset(start, count, func(addr address) bool {
+func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) bool {
+	return memberstorage.Iterate(ps.members, start, count, func(addr address) bool {
 		user := boards.User{Address: addr}
-		groups := storage.GetMemberGroups(ps.dao.Members(), addr)
+		groups := memberstorage.GetMemberGroups(ps.members, addr)
 		if groups != nil {
 			user.Roles = make([]boards.Role, len(groups))
 			for i, name := range groups {
@@ -230,7 +223,6 @@ func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (sto
 
 		return fn(user)
 	})
-	return
 }
 
 // WithPermission calls a callback when a user has a specific permission.
