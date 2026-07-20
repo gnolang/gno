@@ -851,11 +851,13 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
 	}
+	// perCheck is computed lazily on the first interface case (common
+	// type-switches over concrete types skip the walk entirely).
+	perCheck := int64(-1)
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
 	// iterating over all clauses and cases here.
@@ -870,7 +872,9 @@ matchLoop:
 			defaultIdx = i
 			continue
 		}
+		m.incrCPU(OpCPUSwitchClause)
 		for _, cx := range cs.Cases {
+			m.incrCPU(OpCPUSwitchClauseCase)
 			if debug {
 				if !isConstType(cx) {
 					panic(fmt.Sprintf(
@@ -884,7 +888,10 @@ matchLoop:
 			case ct == nil:
 				match = xv.IsUndefined()
 			case ct.Kind() == InterfaceKind:
-				match = baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T)
+				if perCheck < 0 {
+					perCheck = perInterfaceMethodCheckCost(xv.T)
+				}
+				match = baseOf(ct).(*InterfaceType).verifyImplementedBy(m, perCheck, xv.T) == nil
 			default:
 				match = xtid == ct.TypeID()
 			}
