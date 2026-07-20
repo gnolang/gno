@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/gcpsecretmanager"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	rsserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
@@ -420,5 +421,93 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		}
 		require.NoError(t, err, "port must be released after Init failure")
 		require.NoError(t, rebound.Close())
+	})
+}
+
+// enabledGCPConfig returns a minimally-valid, enabled GCP Secret Manager
+// config for use in the mutual-exclusion tests below. It doesn't need to
+// point at a real secret: these tests only exercise validation, not signer
+// construction.
+func enabledGCPConfig() *gcpsecretmanager.Config {
+	return &gcpsecretmanager.Config{
+		ProjectID: "test-project",
+		SecretID:  "test-validator-key",
+	}
+}
+
+func TestPrivValidatorConfig_GCPSecretManagerValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil gcp config", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.GCPSecretManager = nil
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNilGCPSecretManagerCfg)
+	})
+
+	t.Run("gcp with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.GCPSecretManager = enabledGCPConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("gcp with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.GCPSecretManager = enabledGCPConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-gcp-test.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("gcp alone", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.GCPSecretManager = enabledGCPConfig()
+
+		require.NoError(t, cfg.ValidateBasic())
+	})
+}
+
+func TestPrivValidatorConfig_GCPSecretManagerNewPrivValidator(t *testing.T) {
+	t.Parallel()
+
+	var (
+		privKey = ed25519.GenPrivKey()
+		logger  = log.NewNoopLogger()
+	)
+
+	t.Run("gcp with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.GCPSecretManager = enabledGCPConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
+	})
+
+	t.Run("gcp with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.GCPSecretManager = enabledGCPConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-gcp-test2.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
 	})
 }
