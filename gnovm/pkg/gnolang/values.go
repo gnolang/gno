@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"unsafe"
-
-	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -116,35 +115,125 @@ func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
 // ----------------------------------------
 // BigdecValue
 
+// BigdecFloatPrec is the mantissa precision (in bits) used for the big.Float
+// fallback representation, matching go/constant's 512-bit precision.
+const BigdecFloatPrec = 512
+
+// bigdecFloatMarshalPrefix distinguishes float-form BigdecValue in the amino
+// text wire format. A rat-form value is a plain "a/b" or integer string; a
+// float-form value is prefixed so UnmarshalAmino can tell them apart.
+const bigdecFloatMarshalPrefix = "f:"
+
+// BigdecValue holds an untyped bigdec constant in one of two representations:
+// an exact rational (V) for values that fit within ratGuard's bit limits, or
+// a bounded-precision big.Float (F) that gracefully handles extreme exponents.
+// Exactly one of V or F is non-nil for a well-formed value. The float form
+// mirrors go/constant, which switches from big.Rat to a 512-bit big.Float
+// past the same 4096-bit threshold.
 type BigdecValue struct {
-	V *apd.Decimal
+	V *big.Rat
+	F *big.Float
+}
+
+// IsFloat reports whether the value is held in big.Float form.
+func (bdv BigdecValue) IsFloat() bool { return bdv.F != nil }
+
+// AsFloat returns the value as a *big.Float, promoting from V if needed.
+// The returned value is a fresh copy; the receiver is not modified.
+func (bdv BigdecValue) AsFloat() *big.Float {
+	if bdv.F != nil {
+		return new(big.Float).SetPrec(BigdecFloatPrec).Set(bdv.F)
+	}
+	if bdv.V == nil {
+		return new(big.Float).SetPrec(BigdecFloatPrec)
+	}
+	return new(big.Float).SetPrec(BigdecFloatPrec).SetRat(bdv.V)
+}
+
+// NewBigdecFromRat wraps r as a rat-form BigdecValue.
+func NewBigdecFromRat(r *big.Rat) BigdecValue {
+	return BigdecValue{V: r}
+}
+
+// NewBigdecFromFloat wraps f as a float-form BigdecValue.
+func NewBigdecFromFloat(f *big.Float) BigdecValue {
+	return BigdecValue{F: f}
+}
+
+// Sign returns -1, 0, or +1 depending on the sign of the value.
+func (bdv BigdecValue) Sign() int {
+	if bdv.F != nil {
+		return bdv.F.Sign()
+	}
+	if bdv.V == nil {
+		return 0
+	}
+	return bdv.V.Sign()
+}
+
+// IsInt reports whether the value is an exact integer (i.e. safe to convert
+// to a bigint / typed integer). Float-form values are considered integer
+// only when they represent an exact integer.
+func (bdv BigdecValue) IsInt() bool {
+	if bdv.F != nil {
+		return bdv.F.IsInt()
+	}
+	if bdv.V == nil {
+		return true
+	}
+	return bdv.V.IsInt()
+}
+
+// IsZero reports whether the value is exactly zero.
+func (bdv BigdecValue) IsZero() bool {
+	if bdv.F != nil {
+		return bdv.F.Sign() == 0
+	}
+	if bdv.V == nil {
+		return true
+	}
+	return bdv.V.Sign() == 0
 }
 
 func (bdv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bdv.V.MarshalText()
-	if err != nil {
-		return "", err
+	if bdv.F != nil {
+		// 'p' format is an exact hexadecimal float representation; round-trips
+		// losslessly through big.Float.Parse.
+		return bigdecFloatMarshalPrefix + bdv.F.Text('p', 0), nil
 	}
-	return string(bz), nil
+	if bdv.V == nil {
+		return "0", nil
+	}
+	return bdv.V.RatString(), nil
 }
 
 func (bdv *BigdecValue) UnmarshalAmino(s string) error {
-	vv := apd.New(0, 0)
-	err := vv.UnmarshalText([]byte(s))
-	if err != nil {
-		return err
+	if strings.HasPrefix(s, bigdecFloatMarshalPrefix) {
+		f, _, err := big.ParseFloat(s[len(bigdecFloatMarshalPrefix):], 0, BigdecFloatPrec, big.ToNearestEven)
+		if err != nil {
+			return fmt.Errorf("invalid BigdecValue (float form): %q: %w", s, err)
+		}
+		bdv.F = f
+		bdv.V = nil
+		return nil
 	}
-	bdv.V = vv
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
+	}
+	bdv.V = r
+	bdv.F = nil
 	return nil
 }
 
 func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
-	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
-	if err != nil {
-		panic("should not happen")
+	if bdv.F != nil {
+		return BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).Set(bdv.F)}
 	}
-	return BigdecValue{V: cp}
+	if bdv.V == nil {
+		return BigdecValue{}
+	}
+	return BigdecValue{V: new(big.Rat).Set(bdv.V)}
 }
 
 // ----------------------------------------
@@ -1664,7 +1753,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 	return tv.V.(BigintValue).V
 }
 
-func (tv *TypedValue) GetBigDec() *apd.Decimal {
+func (tv *TypedValue) GetBigDec() BigdecValue {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
@@ -1672,7 +1761,7 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 				tv.T.String()))
 		}
 	}
-	return tv.V.(BigdecValue).V
+	return tv.V.(BigdecValue)
 }
 
 // Sign returns the sign of the given numeric tv.
