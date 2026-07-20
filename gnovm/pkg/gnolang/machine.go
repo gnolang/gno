@@ -77,7 +77,8 @@ func NewMachine(pkgPath string, store Store) *Machine {
 		MachineOptions{
 			PkgPath: pkgPath,
 			Store:   store,
-		})
+		},
+	)
 }
 
 // MachineOptions is used to pass options to [NewMachineWithOptions].
@@ -844,7 +845,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		if unsatisfied[i] > 0 {
 			panic(fmt.Sprintf(
 				"incomplete initialization: %v still has %d unsatisfied deps",
-				decl.GetDeclNames(), unsatisfied[i]))
+				decl.GetDeclNames(), unsatisfied[i],
+			))
 		}
 	}
 
@@ -1029,7 +1031,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
 			"Machine.Eval(x) expression already preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Preprocess input using last block context.
 	last := m.LastBlock().GetSource(m.Store)
@@ -1067,7 +1070,8 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -1098,7 +1102,8 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 		x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -2322,7 +2327,7 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 //     also travel on the block stack (RunStatement/Eval flows push static
 //     blocks; file blocks are referenced by FuncValue.Parent);
 //   - blocks captured as a pending Defer.Parent, which the garbage
-//     collector visits until the defer runs (see Block.setNoRecycle);
+//     collector visits until the defer runs (see Block.setNotRecyclable);
 //   - blocks with a finalized ObjectID (already persisted to realm
 //     state) or marked new-real (reachable from the realm graph and
 //     pending an ObjectID at finalize), as insurance against aliasing
@@ -2342,9 +2347,9 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // — so this is belt-and-suspenders, not a hot exclusion.
 func (m *Machine) releaseBlock(b *Block) {
 	// exclusion conditions:
-	// pool over capacity, explicitly no-recycle, panicking or cap(values) below target.
+	// pool over capacity, explicitly not recyclable, panicking or cap(values) below target.
 	if len(m.blockPool) >= blockPoolLimit ||
-		b.isNoRecycle() ||
+		b.notRecyclable ||
 		m.Exception != nil ||
 		cap(b.Values) < blockPoolValueCap {
 		return
@@ -2363,8 +2368,8 @@ func (m *Machine) releaseBlock(b *Block) {
 	if debugAssert {
 		// Core invariant: a recycled block is provably dead. The only
 		// stack-traveling reference that can outlive a pop is Defer.Parent,
-		// which setNoRecycle excludes. Guard against any future path that
-		// reaches here with that flag missing (a forgotten setNoRecycle, a
+		// which setNotRecyclable excludes. Guard against any future path that
+		// reaches here with that flag missing (a forgotten setNotRecyclable, a
 		// new long-lived block reference, etc.).
 		for fi := range m.Frames {
 			for di := range m.Frames[fi].Defers {
@@ -2859,7 +2864,8 @@ func numStackValuesForPointer(lx Expr) int {
 func panicIllegalPointerLHS(lx Expr) {
 	panic(fmt.Sprintf(
 		"illegal assignment X expression type %v",
-		reflect.TypeOf(lx)))
+		reflect.TypeOf(lx),
+	))
 }
 
 // Pop a pointer (for writing only).

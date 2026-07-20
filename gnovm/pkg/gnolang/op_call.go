@@ -67,7 +67,8 @@ func (m *Machine) doOpPrecall() {
 		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
 			"unexpected function value type %s %v",
-			reflect.TypeOf(v).String(), v))
+			reflect.TypeOf(v).String(), v,
+		))
 	}
 }
 
@@ -713,7 +714,7 @@ func (m *Machine) doOpDefer() {
 	// lb is captured as Defer.Parent below, which the garbage collector
 	// visits for as long as the defer is pending — possibly well after
 	// this block is popped. Exclude it from block recycling.
-	lb.setNoRecycle()
+	lb.setNotRecyclable()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
@@ -726,7 +727,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			TypedValue{})
+			TypedValue{},
+		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
@@ -737,7 +739,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			cv.Receiver)
+			cv.Receiver,
+		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.

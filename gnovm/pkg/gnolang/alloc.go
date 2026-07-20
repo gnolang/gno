@@ -473,7 +473,8 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	if pid != alloc.currentRealmID {
 		panic(fmt.Sprintf(
 			"cannot allocate %s in realm %s",
-			t.String(), alloc.currentRealmPath))
+			t.String(), alloc.currentRealmPath,
+		))
 	}
 }
 
@@ -673,6 +674,9 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 // NewBlock allocates a fresh Block. Blocks belong to the executing
 // package's realm (currentRealmID), since a Block represents a
 // lexical scope inside that realm's running code.
+//
+// NOTE: internal uses of Block that don't escape should use
+// [Machine.acquireBlock].
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
@@ -911,7 +915,8 @@ func internalRefSize(val Value) int64 {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %T",
-			val))
+			val,
+		))
 	}
 	return size
 }
