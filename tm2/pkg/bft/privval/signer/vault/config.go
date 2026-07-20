@@ -1,5 +1,7 @@
 package vault
 
+import "os"
+
 // Config defines the configuration options for a Signer backed by
 // HashiCorp Vault's KV v2 secrets engine. This is used to marshal/unmarshal
 // the configuration to/from TOML and configure the signer using the gnoland
@@ -10,10 +12,17 @@ type Config struct {
 	// chain (the VAULT_ADDR environment variable, then http://127.0.0.1:8200).
 	Address string `json:"address" toml:"address" comment:"Vault server address. Leave empty to use the VAULT_ADDR environment variable / SDK default"`
 
-	// Token is the Vault token used to authenticate. If empty, the client
-	// falls back to the standard Vault SDK resolution chain (the VAULT_TOKEN
-	// environment variable, or the ~/.vault-token file written by `vault login`).
-	Token string `json:"token" toml:"token" comment:"Vault token. Leave empty to use the VAULT_TOKEN environment variable / ~/.vault-token"`
+	// Token is the Vault token used to authenticate. Storing it directly
+	// here means it lands in config.toml in plaintext; prefer leaving this
+	// empty and using the standard VAULT_TOKEN environment variable (or
+	// TokenEnv below), or the ~/.vault-token file written by `vault login`.
+	Token string `json:"token" toml:"token" comment:"Vault token. Prefer VAULT_TOKEN / token_env over this where possible"`
+
+	// TokenEnv, if set, names an environment variable to read the Vault
+	// token from at startup, taking precedence over Token (but not over
+	// the standard VAULT_TOKEN handling already performed by the Vault
+	// SDK, which is consulted if both Token and TokenEnv are empty).
+	TokenEnv string `json:"token_env" toml:"token_env" comment:"Name of an environment variable to read the Vault token from (takes precedence over 'token')"`
 
 	// MountPath is the mount path of the KV v2 secrets engine holding the
 	// secret. Defaults to "secret" (the standard KV v2 mount) if empty.
@@ -37,6 +46,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Address:         "",
 		Token:           "",
+		TokenEnv:        "",
 		MountPath:       "secret",
 		SecretPath:      "", // Empty to disable the Vault signer by default.
 		CreateIfMissing: false,
@@ -70,4 +80,17 @@ func (cfg *Config) mountPath() string {
 	}
 
 	return cfg.MountPath
+}
+
+// resolveToken returns the Vault token to use explicitly, if one was
+// configured: the value of the TokenEnv environment variable if TokenEnv is
+// set, otherwise the literal Token field. If both are empty, it returns ""
+// and the caller should leave the Vault client's token unset so the SDK's
+// own resolution chain (VAULT_TOKEN, ~/.vault-token, etc.) applies.
+func (cfg *Config) resolveToken() string {
+	if cfg.TokenEnv != "" {
+		return os.Getenv(cfg.TokenEnv)
+	}
+
+	return cfg.Token
 }

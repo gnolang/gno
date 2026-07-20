@@ -158,6 +158,19 @@ func TestConfig_MountPath(t *testing.T) {
 	assert.Equal(t, "custom", (&Config{MountPath: "custom"}).mountPath())
 }
 
+func TestConfig_ResolveToken(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "", (&Config{}).resolveToken())
+	assert.Equal(t, "literal", (&Config{Token: "literal"}).resolveToken())
+
+	t.Setenv("VAULT_TEST_TOKEN", "from-env")
+	assert.Equal(t, "from-env", (&Config{
+		Token:    "literal",
+		TokenEnv: "VAULT_TEST_TOKEN",
+	}).resolveToken())
+}
+
 func TestNewSignerFromConfig_Disabled(t *testing.T) {
 	t.Parallel()
 

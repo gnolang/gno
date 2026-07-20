@@ -18,9 +18,10 @@ type kvAPI interface {
 // kvAPI is implemented by *vaultapi.KVv2.
 var _ kvAPI = (*vaultapi.KVv2)(nil)
 
-// newClient builds a real Vault KV v2 client. Address and Token, if set in
-// cfg, override the Vault SDK's own environment/file-based resolution chain
-// (VAULT_ADDR, VAULT_TOKEN, ~/.vault-token).
+// newClient builds a real Vault KV v2 client. Address and the resolved
+// token (see Config.resolveToken), if set, override the Vault SDK's own
+// environment/file-based resolution chain (VAULT_ADDR, VAULT_TOKEN,
+// ~/.vault-token).
 func newClient(cfg *Config) (kvAPI, error) {
 	vconfig := vaultapi.DefaultConfig()
 	if cfg.Address != "" {
@@ -32,8 +33,8 @@ func newClient(cfg *Config) (kvAPI, error) {
 		return nil, fmt.Errorf("unable to create Vault client: %w", err)
 	}
 
-	if cfg.Token != "" {
-		c.SetToken(cfg.Token)
+	if token := cfg.resolveToken(); token != "" {
+		c.SetToken(token)
 	}
 
 	return c.KVv2(cfg.mountPath()), nil

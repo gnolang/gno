@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	rsserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/vault"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -420,5 +421,92 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		}
 		require.NoError(t, err, "port must be released after Init failure")
 		require.NoError(t, rebound.Close())
+	})
+}
+
+// enabledVaultConfig returns a minimally-valid, enabled Vault config for use
+// in the mutual-exclusion tests below. It doesn't need to point at a real
+// Vault server: these tests only exercise validation, not signer
+// construction.
+func enabledVaultConfig() *vault.Config {
+	return &vault.Config{
+		SecretPath: "gno/validator-key",
+	}
+}
+
+func TestPrivValidatorConfig_VaultValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil vault config", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.Vault = nil
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNilVaultConfig)
+	})
+
+	t.Run("vault with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.Vault = enabledVaultConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("vault with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.Vault = enabledVaultConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-vault-test.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("vault alone", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.Vault = enabledVaultConfig()
+
+		require.NoError(t, cfg.ValidateBasic())
+	})
+}
+
+func TestPrivValidatorConfig_VaultNewPrivValidator(t *testing.T) {
+	t.Parallel()
+
+	var (
+		privKey = ed25519.GenPrivKey()
+		logger  = log.NewNoopLogger()
+	)
+
+	t.Run("vault with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.Vault = enabledVaultConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
+	})
+
+	t.Run("vault with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.Vault = enabledVaultConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-vault-test2.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
 	})
 }
