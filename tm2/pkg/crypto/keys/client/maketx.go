@@ -149,7 +149,7 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"sign the tx and write a pprof gas profile to this file instead of "+
 			"broadcasting (requires a node with the gas profiler enabled, e.g. gnodev); "+
-			"same flag name as `gno test -gasprofile`",
+			"same flag name as 'gno test -gasprofile'",
 	)
 }
 
@@ -393,7 +393,10 @@ func ExecSignAndBroadcast(
 		if err := os.WriteFile(cfg.GasProfile, profile, 0o644); err != nil {
 			return errors.Wrap(err, "writing gas profile")
 		}
-		io.Printfln("gas profile written to %s (%s)\n"+
+		// stderr, not stdout: stdout carries the machine-readable tx result
+		// (TX HASH, OK!), and `gno test -gasprofile` reports the same thing on
+		// stderr.
+		io.ErrPrintfln("gas profile written to %s (%s)\n"+
 			"transaction was NOT broadcast (-gasprofile profiles instead of sending)\n"+
 			"view with: go tool pprof %s",
 			cfg.GasProfile, log, cfg.GasProfile)

@@ -869,3 +869,20 @@ func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybas
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
 }
+
+// gnodev is the node the `gnokey maketx -gasprofile` flow targets, and the
+// dev-only .app/profiletx query only exists when the profiler is enabled. That
+// is a single field in newNodeConfig, so pin it: if it is dropped, every other
+// suite still passes while gnodev users get "gas profiling is not enabled on
+// this node".
+func TestNewNodeConfigEnablesGasProfiler(t *testing.T) {
+	t.Parallel()
+
+	cfg := newNodeConfig(
+		integration.DefaultTestingTMConfig(gnoenv.RootDir()),
+		"dev", "gno.land",
+		gnoland.GnoGenesisState{},
+	)
+	require.True(t, cfg.EnableGasProfiler,
+		"gnodev must expose .app/profiletx so `gnokey maketx -gasprofile` works against it")
+}

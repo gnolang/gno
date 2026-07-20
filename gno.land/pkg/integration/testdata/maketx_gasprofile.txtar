@@ -12,9 +12,10 @@ stdout OK!
 ## -gasprofile writes a pprof file and does NOT broadcast the tx.
 ## Note -broadcast defaults to true, so this must still work without -broadcast=false.
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -chainid=tendermint_test -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -gasprofile $WORK/gas.pprof test1
-stdout 'gas profile written to'
-stdout 'transaction was NOT broadcast'
-stdout 'go tool pprof'
+## the confirmation goes to stderr; stdout stays the machine-readable tx result
+stderr 'gas profile written to'
+stderr 'transaction was NOT broadcast'
+stderr 'go tool pprof'
 ! stdout 'TX HASH'
 exists $WORK/gas.pprof
 
