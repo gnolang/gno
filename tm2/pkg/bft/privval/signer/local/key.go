@@ -80,7 +80,7 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 	// Parse and validate the FileKey from the JSON bytes.
 	fk, err := ParseFileKey(rawJSONBytes)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %w", filePath, err)
+		return nil, fmt.Errorf("unable to load FileKey from %v: %w", filePath, err)
 	}
 
 	return fk, nil

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/awssecretsmanager"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	rsserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
@@ -420,5 +421,92 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		}
 		require.NoError(t, err, "port must be released after Init failure")
 		require.NoError(t, rebound.Close())
+	})
+}
+
+// enabledAWSConfig returns a minimally-valid, enabled AWS Secrets Manager
+// config for use in the mutual-exclusion tests below. It doesn't need to
+// point at a real secret: these tests only exercise validation, not signer
+// construction.
+func enabledAWSConfig() *awssecretsmanager.Config {
+	return &awssecretsmanager.Config{
+		SecretID: "test-validator-key",
+	}
+}
+
+func TestPrivValidatorConfig_AWSSecretsManagerValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil aws config", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.AWSSecretsManager = nil
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errNilAWSSecretsManagerCfg)
+	})
+
+	t.Run("aws with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.AWSSecretsManager = enabledAWSConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("aws with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.AWSSecretsManager = enabledAWSConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-aws-test.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errMultipleSignerSourcesSet)
+	})
+
+	t.Run("aws alone", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.AWSSecretsManager = enabledAWSConfig()
+
+		require.NoError(t, cfg.ValidateBasic())
+	})
+}
+
+func TestPrivValidatorConfig_AWSSecretsManagerNewPrivValidator(t *testing.T) {
+	t.Parallel()
+
+	var (
+		privKey = ed25519.GenPrivKey()
+		logger  = log.NewNoopLogger()
+	)
+
+	t.Run("aws with remote signer", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.AWSSecretsManager = enabledAWSConfig()
+		cfg.RemoteSigner.ServerAddress = "tcp://127.0.0.1:26659"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
+	})
+
+	t.Run("aws with tmkms listener", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.AWSSecretsManager = enabledAWSConfig()
+		cfg.TmkmsListener.ListenAddr = "unix:///tmp/tmkms-aws-test2.sock"
+		cfg.TmkmsListener.ChainID = "test-chain"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		assert.ErrorIs(t, err, errMultipleSignerSourcesSet)
 	})
 }
