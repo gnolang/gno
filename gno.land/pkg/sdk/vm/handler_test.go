@@ -143,6 +143,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
@@ -232,6 +233,7 @@ var myStructInst = myStruct{a: 1000}
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 func Panic() { panic("foo") }
 var counter int = 42
+var Hook func() // typed-nil func: QueryFuncs must skip rather than crash
 var pvString = "private string"
 var PubString = "public string"
 const ConstString = "const string"
@@ -637,6 +639,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 						Type: "",
 					},
 				},
+				File: "hello.gno",
+				Line: 9,
 			},
 		},
 		Funcs: []*doc.JSONFunc{
@@ -651,6 +655,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				Results: []*doc.JSONField{
 					{Name: "res", Type: "string"},
 				},
+				File: "hello.gno",
+				Line: 10,
 			},
 			{
 				Type:      "myStruct",
@@ -661,6 +667,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				Results: []*doc.JSONField{
 					{Name: "", Type: "string"},
 				},
+				File: "hello.gno",
+				Line: 7,
 			},
 		},
 		Types: []*doc.JSONType{
@@ -672,6 +680,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				Fields: []*doc.JSONField{
 					{Name: "a", Type: "int", Doc: ""},
 				},
+				File: "hello.gno",
+				Line: 6,
 			},
 		},
 	}

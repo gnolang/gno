@@ -55,8 +55,8 @@ func main(cur realm) {
 	preq := impl.NewWithdrawMemberRequest(cross(cur), addr, reason)
 	dao.MustCreateProposal(cross(cur), preq)
 }
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"

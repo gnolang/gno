@@ -1,0 +1,6 @@
+The driver caps the guard at 4 delimiter runs per block; these two spans
+use exactly 4, so everything renders as regular emphasis.
+-- input.md --
+*a* **b**
+-- output.html --
+<p><em>a</em> <strong>b</strong></p>

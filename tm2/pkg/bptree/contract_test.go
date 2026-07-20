@@ -23,7 +23,7 @@ import (
 // contract (verified to report a race under -race in review).
 func TestContract_ConcurrentSnapshotReadsVsWriter_NoRace(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -47,11 +47,9 @@ func TestContract_ConcurrentSnapshotReadsVsWriter_NoRace(t *testing.T) {
 
 	// Writer: Set + SaveVersion, bounded so the version count (and thus
 	// AvailableVersions cost) stays modest; idles until readers finish.
-	writerWg.Add(1)
-	go func() {
-		defer writerWg.Done()
+	writerWg.Go(func() {
 		rng := rand.New(rand.NewSource(1))
-		for c := 0; c < 800; c++ {
+		for range 800 {
 			select {
 			case <-stop:
 				return
@@ -68,14 +66,12 @@ func TestContract_ConcurrentSnapshotReadsVsWriter_NoRace(t *testing.T) {
 			atomic.AddInt64(&committed, 1)
 		}
 		<-stop
-	}()
+	})
 
 	const readers = 4
-	for r := 0; r < readers; r++ {
-		readerWg.Add(1)
-		go func() {
-			defer readerWg.Done()
-			for i := 0; i < 1000; i++ {
+	for range readers {
+		readerWg.Go(func() {
+			for i := range 1000 {
 				imm, err := tree.GetImmutable(v0) // safe concurrent entry point
 				if err != nil {
 					t.Error(err) // v0 is pinned — must always succeed
@@ -109,7 +105,7 @@ func TestContract_ConcurrentSnapshotReadsVsWriter_NoRace(t *testing.T) {
 					tree.AvailableVersions()
 				}
 			}
-		}()
+		})
 	}
 	readerWg.Wait()
 	close(stop)

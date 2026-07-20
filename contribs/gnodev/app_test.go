@@ -28,7 +28,7 @@ func writeWorkspacePkg(t *testing.T, dir, module, body string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "gnomod.toml"),
-		[]byte(fmt.Sprintf("module = %q\n", module)), 0o644))
+		fmt.Appendf(nil, "module = %q\n", module), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pkg.gno"),
 		[]byte(body), 0o644))
 }

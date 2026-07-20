@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 )
@@ -71,13 +72,7 @@ func TestValsetExportedSurface(t *testing.T) {
 		}
 	}
 	for name := range allowedExports {
-		found := false
-		for _, g := range gotExported {
-			if g == name {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(gotExported, name)
 		if !found {
 			t.Errorf("expected exported function %q missing from validators.gno", name)
 		}

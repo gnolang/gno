@@ -6,9 +6,22 @@ import (
 )
 
 // The fast index is an OPTIONAL, latest-version, inline read accelerator. It maps
-// user-key → version‖value ('F'‖key → stampChecksum(version(8)‖value)), so a
-// committed point Get of a PRESENT key resolves in 1 DB read (the entry carries
-// the value) instead of a full tree descent plus the out-of-line value read.
+// user-key → version‖value ('F'‖key → version(8)‖value‖crc32c, the standard
+// record framing), so a
+// point Get of a PRESENT key against committed state resolves in 1 DB read
+// (the entry carries the value) instead of a full tree descent plus the
+// out-of-line value read. Two read surfaces consult it: committed snapshots
+// (ImmutableTree.Get) and the CLEAN working tree (MutableTree.Get while the
+// session has no staged mutations — see MutableTree.fastReadable), which is
+// byte-identical to the committed snapshot at its version.
+//
+// Trust contract: index currency is verified by Load (ensureFastIndex rebuilds
+// on a stamp mismatch) and preserved from then on by eager same-batch
+// maintenance (Set/Remove/SaveVersion) and by Import dropping the index up
+// front. A tree reached ONLY via LoadVersion — never Load — over a DB whose
+// later versions were committed with the feature off is outside the contract:
+// nothing re-verifies the stamp there. The in-repo store layer always goes
+// through Load.
 //
 // Properties:
 //   - Not in the Merkle commitment — an unauthenticated accelerator, like cosmos
@@ -47,10 +60,12 @@ func (ndb *nodeDB) setFastIndex(userKey, vk, value []byte) error {
 	if !ndb.opts.FastIndex {
 		return nil
 	}
-	payload := make([]byte, 8+len(value))
-	copy(payload[:8], vk[:8]) // version prefix, from the valueKey
-	copy(payload[8:], value)
-	return ndb.batch.Set(fastDBKey(userKey), stampChecksum(payload))
+	// Build the record in one buffer (per-mutation hot path — avoids
+	// stampChecksum's second copy of the value bytes).
+	rec := make([]byte, 8+len(value)+checksumSize)
+	copy(rec[:8], vk[:8]) // version prefix, from the valueKey
+	copy(rec[8:], value)
+	return ndb.batch.Set(fastDBKey(userKey), sealChecksum(rec))
 }
 
 // deleteFastIndex stages removal of userKey from the index. No-op when disabled.
@@ -64,10 +79,11 @@ func (ndb *nodeDB) deleteFastIndex(userKey []byte) error {
 	return ndb.batch.Delete(fastDBKey(userKey))
 }
 
-// fastGet attempts an advisory fast-index read for a committed snapshot at
-// version s. Returns (value, true) on a trusted hit, or (nil, false) to fall
+// fastGet attempts an advisory fast-index read for committed state at version
+// s (a committed snapshot, or the clean working tree at its committed
+// version). Returns (value, true) on a trusted hit, or (nil, false) to fall
 // back to the tree walk (miss / corrupt / too-short / entry newer than s). It
-// reads committed state only (never pendingVals).
+// reads committed state only (never pendingVals or the staged batch).
 func (ndb *nodeDB) fastGet(userKey []byte, s int64) ([]byte, bool) {
 	data, err := ndb.db.Get(fastDBKey(userKey))
 	if err != nil || data == nil {
@@ -158,6 +174,34 @@ func (ndb *nodeDB) clearFastIndex() error {
 			return nil
 		}
 	}
+}
+
+// dropFastIndex removes the fast index entirely: the completeness stamp first
+// (with its own commit — clearFastIndex's empty-range path returns without
+// committing, so the stamp delete must not ride a chunk commit), then every
+// 'F' entry in bounded chunks. Stamp-first ordering makes an abort at any
+// point safe: the stamp is already gone, so the next Load rebuilds; a
+// partially-cleared index is only ever a perf loss, never a wrong read.
+// No-op when the feature is off. Precondition: the batch holds no unrelated
+// staged state (the chunked clear self-commits).
+func (ndb *nodeDB) dropFastIndex() (err error) {
+	if !ndb.opts.FastIndex {
+		return nil
+	}
+	// A failed Commit recycles the batch on its own path, so the trailing
+	// discard there is a harmless no-op (same convention as rebuildFastIndex).
+	defer func() {
+		if err != nil {
+			ndb.DiscardBatch()
+		}
+	}()
+	if err = ndb.batch.Delete(metaFastVersionKey); err != nil {
+		return err
+	}
+	if err = ndb.Commit(); err != nil {
+		return err
+	}
+	return ndb.clearFastIndex()
 }
 
 // ensureFastIndex rebuilds the fast index from the latest root if it is absent

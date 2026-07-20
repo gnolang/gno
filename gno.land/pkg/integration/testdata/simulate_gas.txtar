@@ -14,15 +14,15 @@ stdout 'GAS USED:   \d+' # same as simulate only
 
 # simulate only (again) with default 5% margin
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
-stdout 'gas fee: 1266ugnot'
+stdout 'gas fee: 1006ugnot'
 
-# simulate only with no gas fee margin. base gas fee is 1206ugnot
+# simulate only with no gas fee margin. base gas fee is 959ugnot
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=0 test1
-stdout 'gas fee: 1206ugnot'
+stdout 'gas fee: 959ugnot'
 
-# the 5% margin was 60ugnot (1266 - 1206). the 10% margin should be about 120ugnot, total of 1326
+# the 5% margin was 47ugnot (1006 - 959). the 10% margin should be about 95ugnot, total of 1054
 gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=10 test1
-stdout 'gas fee: 1326ugnot,'
+stdout 'gas fee: 1054ugnot,'
 
 # -gas-fee-margin should be a number
 ! gnokey maketx call -pkgpath gno.land/r/simulate -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only -gas-fee-margin=zzz test1

@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -268,11 +269,11 @@ func (evl EvidenceList) Hash() []byte {
 }
 
 func (evl EvidenceList) String() string {
-	s := ""
+	var s strings.Builder
 	for _, e := range evl {
-		s += fmt.Sprintf("%s\t\t", e)
+		s.WriteString(fmt.Sprintf("%s\t\t", e))
 	}
-	return s
+	return s.String()
 }
 
 // Has returns true if the evidence is in the EvidenceList.

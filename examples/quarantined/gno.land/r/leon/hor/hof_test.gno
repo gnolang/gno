@@ -83,7 +83,7 @@ func TestRegister(cur realm, t *testing.T) {
 }
 
 func TestUpvote(cur realm, t *testing.T) {
-	raw, _ := exhibition.items.Get(rlmPath)
+	raw := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
 	// 0 upvotes by default
@@ -105,7 +105,7 @@ func TestUpvote(cur realm, t *testing.T) {
 }
 
 func TestDownvote(cur realm, t *testing.T) {
-	raw, _ := exhibition.items.Get(rlmPath)
+	raw := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
 	// 0 downvotes by default
@@ -136,7 +136,7 @@ func TestDelete(cur realm, t *testing.T) {
 		Delete(cross(cur), "nonexistentpkgpath")
 	})
 
-	i, _ := exhibition.items.Get(rlmPath)
+	i := exhibition.items.Get(rlmPath)
 	_ = i.(*Item).id
 
 	uassert.NotPanics(t, cur, func() {
@@ -149,9 +149,7 @@ func TestDelete(cur realm, t *testing.T) {
 func itemExists(t *testing.T, rlmPath string) bool {
 	t.Helper()
 
-	_, ok1 := exhibition.items.Get(rlmPath)
-
-	return ok1
+	return exhibition.items.Has(rlmPath)
 }
 
 func TestgetVoteSortKey(t *testing.T) {

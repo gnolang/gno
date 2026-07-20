@@ -28,7 +28,7 @@
 //	token.Approve(swapAddr, 1000)
 //
 //	// Alice creates a swap with 1000 tokens for Bob
-//	id, _ := atomicswap.NewGRC20Swap(bobAddr, hashlock, "gno.land/r/demo/token")
+//	id, _ := atomicswap.NewGRC20Swap(bobAddr, hashlock, "gno.land/r/demo/token.TKN")
 //
 //	// Bob claims the swap by providing the secret
 //	atomicswap.Claim(id, "mysecret")
@@ -158,8 +158,8 @@ func Render(path string) string {
 		})
 		return output
 	} else { // by id
-		swap, ok := swaps.Get(path)
-		if !ok {
+		swap := swaps.Get(path)
+		if swap == nil {
 			return "404"
 		}
 		return swap.(*Swap).String()
@@ -176,8 +176,8 @@ func require(check bool, msg string) {
 // mustGet retrieves a swap by its id or panics.
 func mustGet(id int) *Swap {
 	key := strconv.Itoa(id)
-	swap, ok := swaps.Get(key)
-	if !ok {
+	swap := swaps.Get(key)
+	if swap == nil {
 		panic("unknown swap ID")
 	}
 	return swap.(*Swap)

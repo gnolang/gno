@@ -1,4 +1,4 @@
-package gnoblog
+package blog
 
 import (
 	"strings"

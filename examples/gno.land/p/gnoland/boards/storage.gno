@@ -51,8 +51,8 @@ type storage struct {
 // Get returns a board for a specific ID.
 func (s storage) Get(boardID ID) (*Board, bool) {
 	key := makeBoardKey(boardID)
-	v, found := s.byID.Get(key)
-	if !found {
+	v := s.byID.Get(key)
+	if v == nil {
 		return nil, false
 	}
 	return v.(*Board), true
@@ -61,8 +61,8 @@ func (s storage) Get(boardID ID) (*Board, bool) {
 // Get returns a board for a specific name.
 func (s storage) GetByName(name string) (*Board, bool) {
 	key := makeBoardNameKey(name)
-	v, found := s.byName.Get(key)
-	if !found {
+	v := s.byName.Get(key)
+	if v == nil {
 		return nil, false
 	}
 	return s.Get(v.(ID))
@@ -82,8 +82,8 @@ func (s *storage) Remove(boardID ID) (*Board, bool) {
 		key := makeBoardNameKey(name)
 
 		// Make sure that name is indexed to the board being removed
-		v, found := s.byName.Get(key)
-		if found && v.(ID) == boardID {
+		v := s.byName.Get(key)
+		if v != nil && v.(ID) == boardID {
 			s.byName.Remove(key)
 		}
 	}

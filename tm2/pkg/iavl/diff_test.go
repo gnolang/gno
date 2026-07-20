@@ -41,7 +41,7 @@ func TestDiffRoundTrip(t *testing.T) {
 func genChangeSets(r *rand.Rand, n int) []*ChangeSet {
 	var changeSets []*ChangeSet
 
-	for i := 0; i < n; i++ {
+	for range n {
 		items := make(map[string]*KVPair)
 		start, count, step := r.Int63n(1000), r.Int63n(1000), r.Int63n(10)
 		for i := start; i < start+count*step; i += step {

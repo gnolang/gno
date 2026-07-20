@@ -18,6 +18,10 @@ var _ reflect.Type
 func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BaseAccount)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BaseSessionAccount)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VestingSchedule)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*BaseVestingAccount)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ContinuousVestingAccount)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*DelayedVestingAccount)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Coin)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GasPrice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Tx)(nil)).Elem())
@@ -48,6 +52,8 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionNotFoundError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionLimitError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionNotAllowedError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidVestingScheduleError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*VestingLockedCoinsError)(nil)).Elem())
 }
 
 func (goo BaseAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
@@ -509,6 +515,390 @@ func (goo *BaseSessionAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 			goo.SpendReset = int64(v)
 		default:
 			return fmt.Errorf("unknown field number %d for BaseSessionAccount", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo VestingSchedule) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Type != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Type))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.EndTime != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.EndTime))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.StartTime != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.StartTime))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	{
+		repr, err := goo.OriginalVesting.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		if repr != "" {
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo VestingSchedule) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		repr, err := goo.OriginalVesting.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
+	}
+	if goo.StartTime != 0 {
+		s += 1 + amino.VarintSize(int64(goo.StartTime))
+	}
+	if goo.EndTime != 0 {
+		s += 1 + amino.VarintSize(int64(goo.EndTime))
+	}
+	if goo.Type != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Type))) + len(goo.Type)
+	}
+	return s, nil
+}
+
+func (goo *VestingSchedule) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = VestingSchedule{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.OriginalVesting.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.StartTime = int64(v)
+		case 3:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.EndTime = int64(v)
+		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Type = VestingScheduleType(v)
+		default:
+			return fmt.Errorf("unknown field number %d for VestingSchedule", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo BaseVestingAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	{
+		before := offset
+		offset, err = goo.VestingSchedule.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	{
+		before := offset
+		offset, err = goo.BaseAccount.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo BaseVestingAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		cs, err := goo.BaseAccount.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	{
+		cs, err := goo.VestingSchedule.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *BaseVestingAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = BaseVestingAccount{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BaseAccount.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.VestingSchedule.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for BaseVestingAccount", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo ContinuousVestingAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	{
+		before := offset
+		offset, err = goo.BaseVestingAccount.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo ContinuousVestingAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		cs, err := goo.BaseVestingAccount.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *ContinuousVestingAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ContinuousVestingAccount{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BaseVestingAccount.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for ContinuousVestingAccount", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo DelayedVestingAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	{
+		before := offset
+		offset, err = goo.BaseVestingAccount.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo DelayedVestingAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		cs, err := goo.BaseVestingAccount.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *DelayedVestingAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = DelayedVestingAccount{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BaseVestingAccount.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for DelayedVestingAccount", fnum)
 		}
 	}
 	return nil
@@ -2154,6 +2544,70 @@ func (goo *SessionNotAllowedError) UnmarshalBinary2(cdc *amino.Codec, bz []byte,
 		switch fnum {
 		default:
 			return fmt.Errorf("unknown field number %d for SessionNotAllowedError", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo InvalidVestingScheduleError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo InvalidVestingScheduleError) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	return s, nil
+}
+
+func (goo *InvalidVestingScheduleError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidVestingScheduleError{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			return fmt.Errorf("unknown field number %d for InvalidVestingScheduleError", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo VestingLockedCoinsError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo VestingLockedCoinsError) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	return s, nil
+}
+
+func (goo *VestingLockedCoinsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = VestingLockedCoinsError{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			return fmt.Errorf("unknown field number %d for VestingLockedCoinsError", fnum)
 		}
 	}
 	return nil

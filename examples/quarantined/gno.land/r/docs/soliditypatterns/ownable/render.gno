@@ -42,7 +42,7 @@ contract OnlyOwnerCanChange {
 ^^^go
 package onlyownercanchange
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 var owner address = ""
 

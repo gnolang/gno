@@ -486,7 +486,7 @@ func TestCodecMarshalPassesOnRegistered(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.Concrete1](), tests.Package)
 
 	bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete1{}})
 	assert.NoError(t, err, "correctly registered")
@@ -505,8 +505,8 @@ func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete2{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.Concrete1](), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.Concrete2](), tests.Package)
 
 	{ // test tests.Concrete1, no conflict.
 		bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete1{}})
@@ -542,7 +542,7 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteTypeDef](), tests.Package)
 
 	c3 := tests.ConcreteTypeDef{}
 	copy(c3[:], []byte("0123"))
@@ -617,7 +617,7 @@ func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteWrappedBytes](), tests.Package)
 
 	c3 := tests.ConcreteWrappedBytes{Value: []byte("0123")}
 
@@ -649,7 +649,7 @@ func TestCodecMarshalAny(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteWrappedBytes](), tests.Package)
 
 	obj := tests.ConcreteWrappedBytes{Value: []byte("0123")}
 	ifc := (any)(obj)
@@ -668,7 +668,7 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteTypeDef](), tests.Package)
 
 	var c3 tests.ConcreteTypeDef
 	copy(c3[:], []byte("0123"))
@@ -690,7 +690,7 @@ func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteTypeDef](), tests.Package)
 
 	var c3 tests.ConcreteTypeDef
 	copy(c3[:], []byte("0123"))
@@ -723,7 +723,7 @@ func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) 
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.ConcreteTypeDef](), tests.Package)
 
 	var c3a tests.ConcreteTypeDef
 	copy(c3a[:], []byte("0123"))
@@ -744,7 +744,7 @@ func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
-	cdc.RegisterTypeFrom(reflect.TypeOf(tests.InterfaceFieldsStruct{}), tests.Package)
+	cdc.RegisterTypeFrom(reflect.TypeFor[tests.InterfaceFieldsStruct](), tests.Package)
 
 	i1 := &tests.InterfaceFieldsStruct{F1: new(tests.InterfaceFieldsStruct), F2: nil}
 	bz, err := cdc.MarshalSized(i1)
@@ -1027,7 +1027,7 @@ var fuzzFuncs = []any{
 
 func getTypeFromPointer(ptr any) reflect.Type {
 	rt := reflect.TypeOf(ptr)
-	if rt.Kind() != reflect.Ptr {
+	if rt.Kind() != reflect.Pointer {
 		panic(fmt.Sprintf("expected pointer, got %v", rt))
 	}
 	return rt.Elem()

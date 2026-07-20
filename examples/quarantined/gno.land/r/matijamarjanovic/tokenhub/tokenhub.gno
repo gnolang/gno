@@ -2,7 +2,6 @@ package tokenhub
 
 import (
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname/v0"
 	"gno.land/r/demo/defi/grc20reg"
 
 	"gno.land/p/demo/tokens/grc1155"
@@ -29,12 +28,12 @@ func init(cur realm) {
 	hor.Register(cross(cur), "Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
-// RegisterToken is a function that uses gno.land/r/demo/defi/grc20reg to register a token
-// RegisterToken registers a token in grc20reg with the given slug.
-// Returns the registry key that can be used to retrieve the token.
+// RegisterToken registers a token in grc20reg.
+// Returns the registry key (rlmPath.symbol) that can be used to retrieve the
+// token; this is grc20reg's canonical key, not the token's full ID (which
+// carries a trailing sequence id).
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
-	grc20reg.Register(cross(cur), token, slug)
-	return fqname.Construct(cur.PkgPath(), slug)
+	return grc20reg.Register(cross(cur), token, slug)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree

@@ -116,9 +116,15 @@ func TestFiles(t *testing.T) {
 				t.Parallel()
 			}
 			var opts *test.TestOptions
-			if isLong {
+			if isLong || strings.HasPrefix(subTestName, "alloc") {
 				// Long tests get their own store, so they don't hold
 				// up a pool slot for their whole (long) duration.
+				// Allocator-golden tests (alloc_*) also get their own store:
+				// they assert absolute allocator byte counts, which depend on
+				// which packages a pooled, previously-used store has already
+				// loaded — scheduling-dependent, so their goldens flake under
+				// the pool (and always diverge in filtered runs). A fresh
+				// store makes the counted allocations deterministic.
 				opts = newOpts()
 			} else {
 				opts = <-optsPool

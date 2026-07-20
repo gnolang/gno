@@ -68,6 +68,26 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
+// anyLiveOverride reports whether any on-stack frame carries a live
+// testing.SetRealm override (map entry AND the frame's TestOverridden
+// flag, matching getOverride's validity rule). Stale map entries left
+// by popped frames don't count — they must not disable the identity
+// chain for the rest of the machine.
+func anyLiveOverride(m *gno.Machine, ctx *TestExecContext) bool {
+	if len(ctx.RealmFrames) == 0 {
+		return false
+	}
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		if !m.Frames[i].TestOverridden {
+			continue
+		}
+		if _, ok := ctx.RealmFrames[i]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
 	fr := &m.Frames[i]
 	ctx := m.Context.(*TestExecContext)
@@ -81,8 +101,21 @@ func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
 func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
+	ctx := m.Context.(*TestExecContext)
+
+	// Identity-chain walk (see execctx.GetRealm / gno.PresentedRealmAt):
+	// serves presented identities, including sub-realm tokens. Applied
+	// only when no live testing.SetRealm override is on the stack:
+	// overrides are frame-index-keyed and interleave with the legacy
+	// walk below, and UserRealm overrides on non-crossing frames are
+	// invisible to the chain — the gate is load-bearing.
+	if !anyLiveOverride(m, ctx) {
+		if a, p, ok := gno.PresentedRealmAt(m, height); ok {
+			return a, p
+		}
+	}
+
 	var (
-		ctx     = m.Context.(*TestExecContext)
 		lfr     = m.LastFrame() // last call frame
 		crosses int             // track realm crosses
 	)

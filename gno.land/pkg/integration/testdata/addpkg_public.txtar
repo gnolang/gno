@@ -7,11 +7,11 @@ loadpkg gno.land/p/nt/avl/v0
 gnoland start
 
 # add the public realm first
-gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 750001ugnot -gas-wanted 7_500_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 750001ugnot -gas-wanted 11_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 # add the normal realm (not marked as private)
-gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 910001ugnot -gas-wanted 9_100_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 910001ugnot -gas-wanted 13_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 570001ugnot -gas-wanted 5_700_000 -chainid=tendermint_test test1

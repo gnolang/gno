@@ -189,7 +189,21 @@ type GnoTxMetadata struct {
 	SignerInfo  []SignerAccountInfo `json:"signer_info,omitempty"`  // Per-signer account metadata for signature verification
 	GasUsed     int64               `json:"gas_used,omitempty"`     // Gas consumed on source chain (used when GasReplayMode="source")
 	GasWanted   int64               `json:"gas_wanted,omitempty"`   // Gas requested on source chain (informational / report)
+	// ---- Hardfork provenance ----
+	// Populated by `gnogenesis fork generate` at assembly time; not used during
+	// normal chain operation.
+	Source     string  `json:"source,omitempty"`      // one of SourceBase / SourceHistorical / SourcePatched / SourceMigration
+	Note       string  `json:"note,omitempty"`        // free-form reason (set for patched and migration)
+	OriginalTx *std.Tx `json:"original_tx,omitempty"` // pre-patch tx body (set for patched only)
 }
+
+// Provenance Source values for GnoTxMetadata.Source.
+const (
+	SourceBase       = "base"       // tx came from the base genesis (appState.Txs in --source-genesis-file)
+	SourceHistorical = "historical" // tx came unmodified from the historical replay stream
+	SourcePatched    = "patched"    // historical tx whose body was replaced via --patch-txs
+	SourceMigration  = "migration"  // tx came from --migration-tx
+)
 
 // SignerAccountInfo records a signer's account number and sequence at the time
 // a historical tx was executed on the source chain. Used during hardfork replay

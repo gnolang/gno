@@ -236,6 +236,10 @@ func (m *MDBX) Stats() map[string]string {
 	}
 }
 
+func (*MDBX) NewSnapshot() (db.Snapshot, error) {
+	return nil, errors.New("snapshots not supported")
+}
+
 func (m *MDBX) NewBatch() db.Batch {
 	return &mdbxBatch{db: m}
 }

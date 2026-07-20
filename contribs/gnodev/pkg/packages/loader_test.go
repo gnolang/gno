@@ -902,3 +902,81 @@ func TestLoader_LookupFS_NoFetcherCall(t *testing.T) {
 
 	assert.Zero(t, rec.calls.Load(), "LookupFS must never invoke the fetcher")
 }
+
+// ResetTracked must drop paths that grew the tracked set through a lazy
+// Resolve (browsed during a session) while keeping the paths seeded at setup
+// via Track. Ctrl+R relies on this so a reset returns to the initial package
+// set instead of redeploying everything browsed since boot.
+func TestLoader_ResetTracked_DropsLazilyResolved(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "seed"), "gno.land/p/ext/seed", "package seed\n")
+	writePkg(t, filepath.Join(extra, "browsed"), "gno.land/p/ext/browsed", "package browsed\n")
+
+	l := New(Config{ExtraRoots: []string{extra}, Logger: testLogger()})
+
+	// Seed one path explicitly, as -paths / txs-file deps do at setup.
+	l.Track("gno.land/p/ext/seed")
+
+	// A lazy proxy resolve grows the tracked set with a browsed path.
+	_, err := l.Resolve("gno.land/p/ext/browsed")
+	require.NoError(t, err)
+
+	l.mu.RLock()
+	_, browsedTracked := l.tracked["gno.land/p/ext/browsed"]
+	l.mu.RUnlock()
+	require.True(t, browsedTracked, "a lazy Resolve should grow the tracked set")
+
+	l.ResetTracked()
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	_, seedKept := l.tracked["gno.land/p/ext/seed"]
+	_, browsedKept := l.tracked["gno.land/p/ext/browsed"]
+	assert.True(t, seedKept, "a path seeded via Track must survive ResetTracked")
+	assert.False(t, browsedKept, "a lazily-resolved path must be dropped by ResetTracked")
+}
+
+// ResetTracked must also evict a browsed remote package from the index, not
+// just tracked. Otherwise the next browse hits Resolve's index fast path and
+// returns without re-adding the path to tracked, so a tracked-driven Reload
+// (the only deploy path for remote packages) never redeploys it — the user
+// sees it missing while actively viewing it. Eviction forces a re-fetch that
+// re-enters tracked.
+func TestLoader_ResetTracked_EvictsBrowsedRemoteFromIndex(t *testing.T) {
+	mp := &std.MemPackage{
+		Path:  "gno.land/r/demo/boards",
+		Name:  "boards",
+		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
+	}
+	fetch := &recordingFetcher{inner: pkgdownload.NewInMemoryFetcher(mp)}
+	l := New(Config{Fetcher: fetch, Logger: testLogger()})
+
+	// First browse: RPC slow path adds the package to index + tracked.
+	_, err := l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	require.Equal(t, int32(1), fetch.calls.Load())
+	l.mu.RLock()
+	_, inIndex := l.index["gno.land/r/demo/boards"]
+	_, inTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	require.True(t, inIndex && inTracked, "first browse should cache in index and tracked")
+
+	l.ResetTracked()
+
+	l.mu.RLock()
+	_, stillIndex := l.index["gno.land/r/demo/boards"]
+	_, stillTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	assert.False(t, stillTracked, "reset must drop the browsed remote from tracked")
+	assert.False(t, stillIndex, "reset must evict the browsed remote from the index")
+
+	// Second browse re-fetches (index missed) and re-enters tracked, so the
+	// next Reload redeploys it.
+	_, err = l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), fetch.calls.Load(), "re-browse after reset must re-fetch, not hit a stale index")
+	l.mu.RLock()
+	_, reTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	assert.True(t, reTracked, "re-browse must re-enter tracked so Reload redeploys it")
+}

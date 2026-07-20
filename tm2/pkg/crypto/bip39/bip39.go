@@ -186,7 +186,7 @@ func addChecksum(data []byte) []byte {
 	// and then set the (new) right most bit equal to checksum bit at that index
 	// staring from the left
 	dataBigInt := new(big.Int).SetBytes(data)
-	for i := uint(0); i < checksumBitLength; i++ {
+	for i := range checksumBitLength {
 		// Bitshift 1 left
 		dataBigInt.Mul(dataBigInt, BigTwo)
 

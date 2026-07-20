@@ -465,7 +465,8 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtColumns.Extend(m)
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
-	ExtMention.Extend(m) // @user / g1… mentions (system-resolved, keep chrome)
+	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)
+	ExtEmphasis.Extend(m) // bound emphasis-parsing cost (yuin/goldmark#555)
 	if imgValidator != nil {
 		ExtImageValidator.Extend(m, imgValidator)
 	}

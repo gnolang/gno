@@ -40,8 +40,8 @@ func TestPruneVersionsTo_FlushesBatchUnderThreshold(t *testing.T) {
 
 	// Create many versions so the prune loop iterates enough to flush.
 	const numVersions = 20
-	for v := 0; v < numVersions; v++ {
-		for i := 0; i < 30; i++ {
+	for v := range numVersions {
+		for i := range 30 {
 			tree.Set(fmt.Appendf(nil, "k%04d", i+v*30), fmt.Appendf(nil, "v%d_%d", v, i))
 		}
 		if _, _, err := tree.SaveVersion(); err != nil {
@@ -84,7 +84,7 @@ func TestPruneVersionsTo_ZeroFlushThresholdUsesDefault(t *testing.T) {
 	cdb := &batchCountingDB{DB: memdb.NewMemDB()}
 	tree := NewMutableTreeWithDB(cdb, 100, NewNopLogger()) // default threshold
 
-	for v := 0; v < 10; v++ {
+	for v := range 10 {
 		tree.Set(fmt.Appendf(nil, "k%d", v), []byte("v"))
 		if _, _, err := tree.SaveVersion(); err != nil {
 			t.Fatalf("SaveVersion: %v", err)

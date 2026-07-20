@@ -320,8 +320,8 @@ func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs 
 		if err != nil {
 			return nil, err
 		}
-		if strings.HasPrefix(path, transpiler.ImportPrefix) {
-			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
+		if after, ok := strings.CutPrefix(path, transpiler.ImportPrefix); ok {
+			res := after
 
 			dirs = append(dirs, rootDir+filepath.FromSlash(res))
 		}

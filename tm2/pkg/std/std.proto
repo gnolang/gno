@@ -25,6 +25,26 @@ message BaseSessionAccount {
 	sint64 spend_reset = 7;
 }
 
+message VestingSchedule {
+	string original_vesting = 1;
+	sint64 start_time = 2;
+	sint64 end_time = 3;
+	string type = 4;
+}
+
+message BaseVestingAccount {
+	BaseAccount base_account = 1 [json_name = "BaseAccount"];
+	VestingSchedule vesting_schedule = 2 [json_name = "VestingSchedule"];
+}
+
+message ContinuousVestingAccount {
+	BaseVestingAccount base_vesting_account = 1 [json_name = "BaseVestingAccount"];
+}
+
+message DelayedVestingAccount {
+	BaseVestingAccount base_vesting_account = 1 [json_name = "BaseVestingAccount"];
+}
+
 message Coin {
 	string value = 1;
 }
@@ -132,4 +152,10 @@ message SessionLimitError {
 }
 
 message SessionNotAllowedError {
+}
+
+message InvalidVestingScheduleError {
+}
+
+message VestingLockedCoinsError {
 }

@@ -37,7 +37,6 @@ func TestFastNode_encode_decode(t *testing.T) {
 		}, "020102", false},
 	}
 	for name, tc := range testcases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
 			err := tc.node.WriteBytes(&buf)

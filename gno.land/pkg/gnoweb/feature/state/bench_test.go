@@ -33,7 +33,7 @@ func servePageReqB(b *testing.B, h *Handler, path string) *httptest.ResponseReco
 // revealed, never bursted server-side, so rpc/op must stay flat.
 func refsPkgJSON(n int) []byte {
 	var refs []string
-	for i := 0; i < n; i++ {
+	for i := range n {
 		oid := fmt.Sprintf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:%d", i+1)
 		refs = append(refs,
 			fmt.Sprintf(`{"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo.T"}, "V": {"@type": "/gno.RefValue", "ObjectID": %q}}`, oid))
@@ -42,8 +42,8 @@ func refsPkgJSON(n int) []byte {
 	for i := range names {
 		names[i] = fmt.Sprintf("%q", fmt.Sprintf("R%d", i))
 	}
-	return []byte(fmt.Sprintf(`{"names":[%s],"values":[%s]}`,
-		strings.Join(names, ","), strings.Join(refs, ",")))
+	return fmt.Appendf(nil, `{"names":[%s],"values":[%s]}`,
+		strings.Join(names, ","), strings.Join(refs, ","))
 }
 
 // BenchmarkAmplification reports rpc/op (per simulated GET). Lazy

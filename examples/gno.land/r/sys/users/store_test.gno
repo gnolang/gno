@@ -243,8 +243,7 @@ func TestUpdateName(cur realm, t *testing.T) {
 		}
 
 		// Confirm the squat didn't happen: nameStore should NOT have it.
-		_, ok := nameStore.Get("squattedname")
-		uassert.False(t, ok)
+		uassert.False(t, nameStore.Has("squattedname"))
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {

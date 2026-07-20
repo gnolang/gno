@@ -113,7 +113,7 @@ func main(cur realm) {
 }
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"

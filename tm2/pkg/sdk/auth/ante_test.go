@@ -43,7 +43,7 @@ func checkInvalidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, 
 
 	require.Equal(t, reflect.TypeOf(err), reflect.TypeOf(sdk.ABCIError(result.Error)), fmt.Sprintf("Expected %v, got %v", err, result))
 
-	if reflect.TypeOf(err) == reflect.TypeOf(std.OutOfGasError{}) {
+	if reflect.TypeOf(err) == reflect.TypeFor[std.OutOfGasError]() {
 		// GasWanted set correctly
 		require.Equal(t, tx.Fee.GasWanted, result.GasWanted, "Gas wanted not set correctly")
 		require.True(t, result.GasUsed > result.GasWanted, "GasUsed not greated than GasWanted")
@@ -620,7 +620,6 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -698,7 +697,6 @@ func TestCountSubkeys(t *testing.T) {
 		{"multi level multikey", args{multiLevelMultiKey}, 11},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -956,4 +954,62 @@ func TestSetGasMeter_SkipGasMeteringKey(t *testing.T) {
 			got.GasMeter().ConsumeGas(10_000_000, "test")
 		})
 	})
+}
+
+// TestAnteHandlerGenesisReplaySkip verifies the genesis-replay signature
+// skip: a tx whose signature no longer matches its body (as happens to a
+// --patch-txs-rewritten historical tx) is skipped ONLY when the node ran
+// with --skip-genesis-sig-verification (VerifyGenesisSignatures == false)
+// AND the ctx carries GenesisReplayKey{}. Neither alone bypasses
+// verification, so a normally-configured node (flag unset) always verifies.
+func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	// Non-genesis block height: the BlockHeight()==0 gate does not apply,
+	// mirroring a historical/patched replay tx whose height is overridden > 0.
+	ctx := env.ctx
+	header := ctx.BlockHeader().(*bft.Header)
+	header.Height = 100
+	ctx = ctx.WithBlockHeader(header)
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	// Sign over the WRONG sequence (99) so the signature won't verify
+	// against the tx as reconstructed at the ante (sequence 0) — mirrors
+	// the invalidation a --patch-txs body rewrite causes.
+	msg := tu.NewTestMsg(addr)
+	fee := tu.NewTestFee()
+	signPayload, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      99,
+		Fee:           fee,
+		Msgs:          []std.Msg{msg},
+	})
+	require.NoError(t, err)
+	tx := tu.NewTestTxWithSignBytes([]std.Msg{msg}, []crypto.PrivKey{priv}, fee, signPayload, "")
+
+	ctxReplay := ctx.WithValue(GenesisReplayKey{}, true)
+
+	// flag OFF (VerifyGenesisSignatures=true): the replay key is present
+	// but the operator did not opt in — signature is verified and rejected.
+	verifyHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	checkInvalidTx(t, verifyHandler, ctxReplay, tx, false, std.UnauthorizedError{})
+
+	// flag ON (VerifyGenesisSignatures=false) but WITHOUT the replay key:
+	// not a replay tx, so it is still verified and rejected.
+	skipHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
+	checkInvalidTx(t, skipHandler, ctx, tx, false, std.UnauthorizedError{})
+
+	// flag ON AND replay key set: signature verification is skipped.
+	checkValidTx(t, skipHandler, ctxReplay, tx, false)
+
+	// flag OFF and no replay key (a fully normal node): the feature is
+	// inert — the invalid signature is verified and rejected.
+	checkInvalidTx(t, verifyHandler, ctx, tx, false, std.UnauthorizedError{})
 }

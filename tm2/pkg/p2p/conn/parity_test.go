@@ -31,7 +31,6 @@ func TestCodecParity_Conn(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("%d/%s", i, c.name), func(t *testing.T) {
 			t.Parallel()
 			aminotest.AssertCodecParity(t, cdc, c.v)

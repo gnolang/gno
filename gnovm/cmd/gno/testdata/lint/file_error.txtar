@@ -6,7 +6,7 @@ cmp stdout stdout.golden
 cmp stderr stderr.golden
 
 -- i_have_error_test.gno --
-package main
+package test
 
 import "fmt"
 

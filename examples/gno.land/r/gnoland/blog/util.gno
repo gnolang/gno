@@ -1,4 +1,4 @@
-package gnoblog
+package blog
 
 func checkErr(err error) {
 	if err != nil {

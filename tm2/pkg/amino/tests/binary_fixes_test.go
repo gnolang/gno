@@ -40,7 +40,6 @@ func TestBinFixed32_Int_RoundTrip(t *testing.T) {
 		{A: math.MinInt32, B: math.MinInt32},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			bz, err := cdc.MarshalSized(&c)
@@ -68,7 +67,6 @@ func TestBinFixed32_Uint_RoundTrip(t *testing.T) {
 		{A: math.MaxUint32, B: math.MaxUint32},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			bz, err := cdc.MarshalSized(&c)

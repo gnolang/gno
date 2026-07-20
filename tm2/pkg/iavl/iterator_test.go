@@ -375,7 +375,7 @@ func TestNodeIterator_WithEmptyRoot(t *testing.T) {
 
 func syncMapCount(m *sync.Map) int {
 	count := 0
-	m.Range(func(_, _ interface{}) bool {
+	m.Range(func(_, _ any) bool {
 		count++
 		return true
 	})

@@ -20,7 +20,7 @@ func main(cur realm) {
 // Realm:
 // finalizerealm["gno.land/r/test"]
 // u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](199)=
-//     @@ -2,9 +2,40 @@
+//     @@ -2,9 +2,42 @@
 //          "ObjectInfo": {
 //              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "LastObjectSize": "190",
@@ -37,6 +37,7 @@ func main(cur realm) {
 //     +                {
 //     +                    "Embedded": false,
 //     +                    "Name": "i",
+//     +                    "PkgPath": "",
 //     +                    "Tag": "",
 //     +                    "Type": {
 //     +                        "@type": "/gno.PrimitiveType",
@@ -48,6 +49,7 @@ func main(cur realm) {
 //     +                {
 //     +                    "Embedded": false,
 //     +                    "Name": ".res.0",
+//     +                    "PkgPath": "",
 //     +                    "Tag": "",
 //     +                    "Type": {
 //     +                        "@type": "/gno.PrimitiveType",

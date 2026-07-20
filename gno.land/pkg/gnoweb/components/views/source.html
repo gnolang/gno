@@ -7,7 +7,12 @@ LAYOUT - Source component
 
 <!-- Source Info -->
 <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
-  <h1 class="title b-content-h1">{{ .FileName }}</h1>
+  <h1 class="title b-content-h1">
+    <a href="{{ .PkgPath }}$source" class="b-content-h1__back" title="Back to overview" aria-label="Back to overview">
+      <svg class="c-icon"><use href="#ico-arrow-left"></use></svg>
+    </a>
+    {{ .FileName }}
+  </h1>
   <div class="header-info">
     <span>{{ .FileSize }} · {{ .FileLines }} lines</span>
     <div class="b-btns">
@@ -34,4 +39,11 @@ UI - Code wrapper
 =================================================================================== */}}
 {{ define "ui/code_wrapper" }}
 <div class="b-source-code" data-copy-target="source-code">{{ render . }}</div>
+{{ end }}
+
+{{/* ===================================================================================
+UI - Readme wrapper (rendered markdown, no code frame; only exposes the copy target)
+=================================================================================== */}}
+{{ define "ui/readme_wrapper" }}
+<div data-copy-target="source-code">{{ render . }}</div>
 {{ end }}

@@ -6,10 +6,10 @@ cmp stdout stdout.golden
 cmp stderr stderr.golden
 
 -- bad_file.gno --
-package main
+package hello
 
-func main() {
-	hello.Foo()
+func Hello() {
+	bar.Foo()
 	println("Hello", 42)
 }
 
@@ -18,4 +18,4 @@ module = "gno.land/p/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:4:2: undefined: hello (code=gnoTypeCheckError)
+bad_file.gno:4:2: undefined: bar (code=gnoTypeCheckError)

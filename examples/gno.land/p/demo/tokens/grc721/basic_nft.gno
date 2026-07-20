@@ -62,8 +62,8 @@ func (s *BasicNFT) BalanceOf(addr address) (int64, error) {
 		return 0, err
 	}
 
-	balance, found := s.balances.Get(addr.String())
-	if !found {
+	balance := s.balances.Get(addr.String())
+	if balance == nil {
 		return 0, nil
 	}
 
@@ -72,8 +72,8 @@ func (s *BasicNFT) BalanceOf(addr address) (int64, error) {
 
 // OwnerOf returns owner of input token id
 func (s *BasicNFT) OwnerOf(tid TokenID) (address, error) {
-	owner, found := s.owners.Get(string(tid))
-	if !found {
+	owner := s.owners.Get(string(tid))
+	if owner == nil {
 		return "", ErrInvalidTokenId
 	}
 
@@ -82,8 +82,8 @@ func (s *BasicNFT) OwnerOf(tid TokenID) (address, error) {
 
 // TokenURI returns the URI of input token id
 func (s *BasicNFT) TokenURI(tid TokenID) (string, error) {
-	uri, found := s.tokenURIs.Get(tid.String())
-	if !found {
+	uri := s.tokenURIs.Get(tid.String())
+	if uri == nil {
 		return "", ErrInvalidTokenId
 	}
 
@@ -123,8 +123,8 @@ func (s *BasicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool
 // Otherwise, returns false
 func (s *BasicNFT) IsApprovedForAll(owner, operator address) bool {
 	key := owner.String() + ":" + operator.String()
-	approved, found := s.operatorApprovals.Get(key)
-	if !found {
+	approved := s.operatorApprovals.Get(key)
+	if approved == nil {
 		return false
 	}
 
@@ -168,8 +168,8 @@ func (s *BasicNFT) Approve(caller, to address, tid TokenID) error {
 
 // GetApproved return the approved address for token
 func (s *BasicNFT) GetApproved(tid TokenID) (address, error) {
-	addr, found := s.tokenApprovals.Get(tid.String())
-	if !found {
+	addr := s.tokenApprovals.Get(tid.String())
+	if addr == nil {
 		return zeroAddress, ErrTokenIdNotHasApproved
 	}
 
@@ -403,8 +403,8 @@ func (s *BasicNFT) mint(to address, tid TokenID) error {
 }
 
 func (s *BasicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
-	owner, found := s.owners.Get(tid.String())
-	if !found {
+	owner := s.owners.Get(tid.String())
+	if owner == nil {
 		return false
 	}
 
@@ -423,8 +423,7 @@ func (s *BasicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
 
 // Checks if token id already exists
 func (s *BasicNFT) exists(tid TokenID) bool {
-	_, found := s.owners.Get(tid.String())
-	return found
+	return s.owners.Has(tid.String())
 }
 
 func (s *BasicNFT) beforeTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {

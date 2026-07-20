@@ -24,7 +24,7 @@ func (rse *RemoteSignerError) Error() string {
 }
 
 // RemoteSignerMessage is sent between Remote Signer clients and servers.
-type RemoteSignerMessage interface{}
+type RemoteSignerMessage any
 
 // PubKeyRequest requests the signing public key from the remote signer.
 type PubKeyRequest struct{}

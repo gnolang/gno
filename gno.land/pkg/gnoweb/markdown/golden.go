@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,10 +49,8 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 
 		if info.IsDir() {
 			rel, _ := filepath.Rel(dir, path)
-			for _, skip := range g.SkipDirs {
-				if rel == skip {
-					return filepath.SkipDir
-				}
+			if slices.Contains(g.SkipDirs, rel) {
+				return filepath.SkipDir
 			}
 			return shouldSkipDir
 		}

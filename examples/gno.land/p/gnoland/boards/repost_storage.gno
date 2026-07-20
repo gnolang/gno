@@ -44,8 +44,8 @@ type repostStorage struct {
 
 // Get returns the repost ID for a board.
 func (s repostStorage) Get(boardID ID) (ID, bool) {
-	v, found := s.reposts.Get(boardID.Key())
-	if !found {
+	v := s.reposts.Get(boardID.Key())
+	if v == nil {
 		return 0, false
 	}
 	return v.(ID), true

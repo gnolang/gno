@@ -435,7 +435,7 @@ func TestServePackagePageFullSidebar(t *testing.T) {
 	}
 	body := rec.Body.String()
 	// Every decl (v0..v11) appears in the TOC, on-page first then off-page.
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		name := fmt.Sprintf("v%d", i)
 		if !strings.Contains(body, `data-name="`+name+`"`) {
 			t.Errorf("body missing TOC entry for %q\n%s", name, head(body, 800))

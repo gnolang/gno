@@ -174,8 +174,8 @@ func ComputeMastersFromSeed(seed []byte) (secret [32]byte, chainCode [32]byte) {
 // using the given chainCode.
 func DerivePrivateKeyForPath(privKeyBytes [32]byte, chainCode [32]byte, path string) ([32]byte, error) {
 	data := privKeyBytes
-	parts := strings.Split(path, "/")
-	for _, part := range parts {
+	parts := strings.SplitSeq(path, "/")
+	for part := range parts {
 		// do we have an apostrophe?
 		harden := part[len(part)-1:] == "'"
 		// harden == private derivation, else public derivation:

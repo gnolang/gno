@@ -57,7 +57,7 @@ func (g *FieldsGenerator) GenerateFrom(s any, exec ExecMethod) []*Command {
 
 func (g *FieldsGenerator) generateFields(rv reflect.Value, parents []string, depth int) []parsedField {
 	// Unwrap pointer if needed
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			// Create a new non-nil instance of the original type that was nil
 			rv = reflect.New(rv.Type().Elem())
@@ -133,7 +133,7 @@ func (g *FieldsGenerator) generateFields(rv reflect.Value, parents []string, dep
 
 		// Recursive call for nested struct
 		var childs []parsedField
-		if k := fieldValue.Kind(); k == reflect.Ptr || k == reflect.Struct {
+		if k := fieldValue.Kind(); k == reflect.Pointer || k == reflect.Struct {
 			childs = g.generateFields(fieldValue, meta.names, depth+1)
 		}
 
@@ -158,7 +158,7 @@ func GetFieldByPath(currentValue reflect.Value, selTag string, path []string) (*
 	}
 
 	// Dereference the field if needed
-	if field.Kind() == reflect.Ptr {
+	if field.Kind() == reflect.Pointer {
 		field = field.Elem()
 	}
 
@@ -213,7 +213,7 @@ func eachField(value reflect.Value, selTag string, iterationCallback func(val re
 		// Anonymous fields will be treated regularly if they have a tag.
 		if fld.Anonymous && name == "" {
 			anon := fld.Type
-			if anon.Kind() == reflect.Ptr {
+			if anon.Kind() == reflect.Pointer {
 				anon = anon.Elem()
 			}
 

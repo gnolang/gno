@@ -6,9 +6,9 @@ loadpkg gno.land/p/nt/ufmt/v0
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 620001ugnot -gas-wanted 6_200_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 700001ugnot -gas-wanted 7_000_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 360001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 620001ugnot -gas-wanted 8_500_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 700001ugnot -gas-wanted 9_500_000 -chainid=tendermint_test test1
 
 ## validate initial state
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"

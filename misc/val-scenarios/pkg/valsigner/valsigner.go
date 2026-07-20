@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	rssrv "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	rssrv "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -196,9 +197,7 @@ func (c *Controller) Snapshot() (map[Phase]*RuleView, map[Phase]PhaseStats) {
 	}
 
 	stats := make(map[Phase]PhaseStats, len(c.stats))
-	for phase, stat := range c.stats {
-		stats[phase] = stat
-	}
+	maps.Copy(stats, c.stats)
 
 	return rules, stats
 }

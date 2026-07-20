@@ -36,6 +36,8 @@ func TestConsensusParamsValidation(t *testing.T) {
 		9: {makeParams(1, 1024, 0, 10, []string{}), false},
 		// test invalid pubkey type provided
 		10: {makeParams(1, 1024, 0, 10, []string{"potatoes make good pubkeys"}), false},
+		// secp256k1 is not supported for validators
+		11: {makeParams(1, 1024, 0, 10, valSecp256k1), false},
 	}
 	for i, tc := range testCases {
 		if tc.valid {

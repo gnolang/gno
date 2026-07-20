@@ -116,9 +116,9 @@ func (m *Machine) doOpStructType() {
 	// allocate (minimum) space for fields
 	fields := make([]FieldType, 0, len(x.Fields))
 	// populate fields
-	for _, ftv := range ftvs {
+	for i, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(&ft, x.Fields[i].Type)
 		fields = append(fields, ft)
 	}
 	// push struct type
@@ -142,9 +142,11 @@ func (m *Machine) doOpInterfaceType() {
 	// pop methods
 	for i := len(x.Methods) - 1; 0 <= i; i-- {
 		ft := m.PopValue().V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
 		methods[i] = ft
 	}
+	// flatten embedded interfaces so identity is the method set, not the
+	// embedded-interface (alias) spelling; see flattenInterfaceMethods.
+	methods = flattenInterfaceMethods(methods, m.Package.PkgPath)
 	// push interface type
 	it := &InterfaceType{
 		PkgPath: m.Package.PkgPath,
@@ -398,7 +400,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
+			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name)
 			m.PushValue(asValue(ft))
 		default:
 			panic(fmt.Sprintf(

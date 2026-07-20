@@ -59,7 +59,7 @@ stdout ${RFOO_USER_ADDR}
 ## stdout ${test1_user_addr}
 
 ## 7. MsgRun -> myrlm.A: user address
-gnokey maketx run -gas-fee 160001ugnot -gas-wanted 1_600_000 -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
+gnokey maketx run -gas-fee 160001ugnot -gas-wanted 2_100_000 -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
 stdout ${test1_user_addr}
 
 ## 8. MsgRun -> myrealm.B -> myrlm.A: user address
@@ -89,7 +89,7 @@ stdout ${RFOO_USER_ADDR}
 ## stdout ${test1_user_addr}
 
 ## 14. MsgRun -> std.PreviousRealm(): user address
-gnokey maketx run -gas-fee 100001ugnot -gas-wanted 1_000_000 -chainid tendermint_test test1 $WORK/run/baz.gno
+gnokey maketx run -gas-fee 100001ugnot -gas-wanted 1_400_000 -chainid tendermint_test test1 $WORK/run/baz.gno
 stdout ${test1_user_addr}
 
 -- r/myrlm/myrlm.gno --

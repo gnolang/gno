@@ -148,8 +148,8 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 	if err != nil {
 		return nil, err
 	}
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
+	txsLines := strings.SplitSeq(string(txsBz), "\n")
+	for txLine := range txsLines {
 		if txLine == "" {
 			continue // Skip empty line.
 		}

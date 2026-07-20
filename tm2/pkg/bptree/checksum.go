@@ -29,6 +29,17 @@ func stampChecksum(payload []byte) []byte {
 	return out
 }
 
+// sealChecksum writes crc32c over rec's payload (everything before the
+// trailing checksumSize bytes) into rec's tail and returns rec. For callers
+// that build the payload directly in a full-size fresh buffer — same format
+// as stampChecksum without the second payload copy. rec must not alias
+// caller-reachable memory (same rule as stampChecksum).
+func sealChecksum(rec []byte) []byte {
+	payload := rec[:len(rec)-checksumSize]
+	binary.BigEndian.PutUint32(rec[len(rec)-checksumSize:], crc32.Checksum(payload, crcTable))
+	return rec
+}
+
 // verifyChecksum splits a stored record into payload and checksum, verifying
 // the CRC. The returned payload is a zero-copy re-slice of data — callers
 // that hand it outside the package must copy it (see getCommittedValue). For

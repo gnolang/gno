@@ -37,6 +37,9 @@ type (
 	SessionNotFoundError   struct{ abciError }
 	SessionLimitError      struct{ abciError }
 	SessionNotAllowedError struct{ abciError }
+
+	InvalidVestingScheduleError struct{ abciError }
+	VestingLockedCoinsError     struct{ abciError }
 )
 
 func (e InternalError) Error() string           { return "internal error" }
@@ -151,4 +154,17 @@ func ErrSessionLimit(msg string) error {
 
 func ErrSessionNotAllowed(msg string) error {
 	return errors.Wrap(SessionNotAllowedError{}, msg)
+}
+
+// Vesting errors.
+
+func (e InvalidVestingScheduleError) Error() string { return "invalid vesting schedule error" }
+func (e VestingLockedCoinsError) Error() string     { return "vesting locked coins error" }
+
+func ErrInvalidVestingSchedule(msg string) error {
+	return errors.Wrap(InvalidVestingScheduleError{}, msg)
+}
+
+func ErrVestingLockedCoins(msg string) error {
+	return errors.Wrap(VestingLockedCoinsError{}, msg)
 }

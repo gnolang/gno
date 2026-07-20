@@ -21,9 +21,9 @@ func TestAsyncPruning(t *testing.T) {
 	keyCount := 10
 	pruneInterval := int64(100)
 	keepRecent := int64(300)
-	for i := 0; i < toVersion; i++ {
-		for j := 0; j < keyCount; j++ {
-			_, err := tree.Set([]byte(fmt.Sprintf("key-%d-%d", i, j)), []byte(fmt.Sprintf("value-%d-%d", i, j)))
+	for i := range toVersion {
+		for j := range keyCount {
+			_, err := tree.Set(fmt.Appendf(nil, "key-%d-%d", i, j), fmt.Appendf(nil, "value-%d-%d", i, j))
 			require.NoError(t, err)
 		}
 
@@ -40,7 +40,7 @@ func TestAsyncPruning(t *testing.T) {
 	}
 
 	// wait for async pruning to finish
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.SetCommitting()
 		_, _, err := tree.SaveVersion()
 		require.NoError(t, err)

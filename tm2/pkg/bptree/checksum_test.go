@@ -79,7 +79,7 @@ func TestChecksum_CorruptionMatrix(t *testing.T) {
 		}
 		// Overwrites create orphan records for v2.
 		for i := range 10 {
-			if _, err := tree.Set([]byte(fmt.Sprintf("key%02d", i)), []byte("v2")); err != nil {
+			if _, err := tree.Set(fmt.Appendf(nil, "key%02d", i), []byte("v2")); err != nil {
 				t.Fatal(err)
 			}
 		}

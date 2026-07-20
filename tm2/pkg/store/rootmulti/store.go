@@ -3,6 +3,8 @@ package rootmulti
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -21,6 +23,29 @@ const (
 	commitInfoKeyFmt = "s/%d" // s/<version>
 )
 
+// refSnapshot wraps a db.Snapshot with a reference count so it can be shared
+// between the multiStore (which owns the initial ref) and concurrent queries
+// (each of which acquires a ref for its duration). The snapshot is closed only
+// when the last reference is released.
+type refSnapshot struct {
+	snap dbm.Snapshot
+	refs atomic.Int64
+}
+
+func newRefSnapshot(snap dbm.Snapshot) *refSnapshot {
+	rs := &refSnapshot{snap: snap}
+	rs.refs.Store(1) // initial ref held by querySnapshot
+	return rs
+}
+
+func (rs *refSnapshot) acquire() { rs.refs.Add(1) }
+
+func (rs *refSnapshot) release() {
+	if rs.refs.Add(-1) == 0 {
+		rs.snap.Close()
+	}
+}
+
 // multiStore is composed of many CommitStores. Name contrasts with
 // cacheMultiStore which is for cache-wrapping other MultiStores. It implements
 // the CommitMultiStore interface.
@@ -38,6 +63,38 @@ type multiStore struct {
 	// on the first Commit; not persisted (after the first commit,
 	// lastCommitID.Version is the source of truth).
 	initialVersion int64
+
+	// querySnapshot holds the last fully-committed DB snapshot.
+	// It is swapped atomically by Commit() and read by query paths.
+	querySnapshot atomic.Pointer[refSnapshot]
+
+	// collector accumulates every sub-store write (dbadapter cache flush, IAVL
+	// SaveVersion, rootmulti metadata) during CommitAll. At the end of the
+	// commit it is drained into a single real batch and flushed with one
+	// WriteSync, giving cross-store atomicity across all write sites.
+	//
+	// nil on immutable multiStores built for queries — those never write.
+	collector *dbm.BatchCollector
+
+	// snapshotMu closes the TOCTOU gap between Load() and acquire().
+	//
+	// atomic.Pointer guarantees that each individual Load/Swap is atomic, but
+	// it does NOT make a Load+acquire pair atomic with respect to a concurrent
+	// Swap+release. Without this mutex the following interleaving is possible:
+	//
+	//   query goroutine          Commit goroutine
+	//   ──────────────────────   ────────────────────────────────
+	//   rs := Load()  (refs=1)
+	//                            Swap(newRS)
+	//                            old.release()  →  refs 1→0  →  snap.Close()
+	//   rs.acquire()             (snapshot already closed!)
+	//   rs.snap.Get(...)         ← use-after-free / panic
+	//
+	// snapshotMu prevents this: MultiImmutableCacheWrapWithVersion holds it
+	// as an RLock around Load+acquire, and Commit() holds it as a write-lock
+	// around Swap+release. Because the write-lock excludes all RLocks, no
+	// release() can reach zero while a Load+acquire is in progress.
+	snapshotMu sync.RWMutex
 }
 
 var (
@@ -51,6 +108,7 @@ func NewMultiStore(db dbm.DB) *multiStore {
 		storesParams: make(map[types.StoreKey]storeParams),
 		stores:       make(map[types.StoreKey]types.CommitStore),
 		keysByName:   make(map[string]types.StoreKey),
+		collector:    dbm.NewBatchCollector(),
 	}
 }
 
@@ -179,6 +237,15 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 }
 
 // Implements Committer/CommitStore.
+// Commit atomically persists every sub-store write plus rootmulti metadata in
+// a single WriteSync. Every write site — dbadapter, IAVL SaveVersion, IAVL
+// pruning, metadata — accumulates in ms.collector via CollectingDB, and
+// Commit drains it into one real batch. Either the whole block persists or
+// none of it does.
+//
+// Precondition: pending DeliverTx cache writes must be flushed via
+// MultiWrite() BEFORE calling Commit — otherwise SaveVersion sees a stale
+// tree and produces the wrong app hash.
 func (ms *multiStore) Commit() types.CommitID {
 	// Commit stores. For hardfork chains (InitialHeight > 1), the first commit
 	// must land at the chain's InitialHeight so multistore version equals
@@ -191,12 +258,33 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	commitInfo := commitStores(version, ms.stores)
 
-	// Need to update atomically.
-	batch := ms.db.NewBatch()
-	defer batch.Close()
-	setCommitInfo(batch, version, commitInfo)
-	setLatestVersion(batch, version)
-	batch.Write()
+	// Feed metadata into the same collector as IAVL/dbadapter writes so a
+	// single drain covers all four write sites.
+	metaBatch := ms.collector.NewBatch()
+	setCommitInfo(metaBatch, version, commitInfo)
+	setLatestVersion(metaBatch, version)
+
+	// Drain the collector into a real batch and flush atomically.
+	realBatch := ms.db.NewBatch()
+	defer realBatch.Close()
+	if err := ms.collector.Drain(realBatch); err != nil {
+		panic("rootmulti: Commit() drain failed: " + err.Error())
+	}
+	if err := realBatch.WriteSync(); err != nil {
+		panic("rootmulti: Commit() failed: " + err.Error())
+	}
+
+	// Take a fresh snapshot of the now-consistent DB state.
+	// Queries will read from this until the next Commit.
+	if snap, err := ms.db.NewSnapshot(); err == nil {
+		rs := newRefSnapshot(snap)
+		ms.snapshotMu.Lock()
+		old := ms.querySnapshot.Swap(rs)
+		if old != nil {
+			old.release() // drop the ref held by querySnapshot
+		}
+		ms.snapshotMu.Unlock()
+	}
 
 	// Prepare for next version.
 	commitID := types.CommitID{
@@ -205,6 +293,29 @@ func (ms *multiStore) Commit() types.CommitID {
 	}
 	ms.lastCommitID = commitID
 	return commitID
+}
+
+// QuerySnapshot returns the current read-only DB snapshot representing the last
+// fully committed block. Returns nil if no snapshot is available.
+func (ms *multiStore) QuerySnapshot() dbm.Snapshot {
+	if rs := ms.querySnapshot.Load(); rs != nil {
+		return rs.snap
+	}
+	return nil
+}
+
+// Close releases the current query snapshot so the underlying DB can be closed
+// cleanly. Call this before closing the backing DB; otherwise PebbleDB (and
+// any backend that tracks open snapshots) will report a resource leak.
+//
+// This is safe to call without the snapshotMu: by the time Close() is invoked
+// the node has stopped accepting connections, so no new queries call
+// MultiImmutableCacheWrapWithVersion and no new Commit()s race with us.
+func (ms *multiStore) Close() error {
+	if old := ms.querySnapshot.Swap(nil); old != nil {
+		old.release() // drops the store's initial ref → closes snapshot when refs hit 0
+	}
+	return nil
 }
 
 // SetInitialVersion records the version the next Commit() should produce
@@ -247,23 +358,44 @@ func (ms *multiStore) MultiWrite() {
 }
 
 // Implements CommitMultiStore.
-func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, error) {
+func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, func(), error) {
+	var db dbm.DB
+	var release func()
+
+	ms.snapshotMu.RLock()
+	rs := ms.querySnapshot.Load()
+	if rs != nil {
+		// Acquire a reference so the snapshot stays alive for the duration of
+		// this query, even if Commit() swaps it out concurrently.
+		rs.acquire()
+		release = rs.release
+		db = dbm.NewSnapshotDB(rs.snap)
+	} else {
+		// Backend doesn't support snapshots (e.g. non-PebbleDB in tests).
+		// Fall back to ImmutableDB over the live DB — same behaviour as before.
+		release = func() {}
+		db = dbm.NewImmutableDB(ms.db)
+	}
+	ms.snapshotMu.RUnlock()
+
 	ims := &multiStore{
-		db:           dbm.NewImmutableDB(ms.db),
+		db:           db,
 		storeOpts:    ms.storeOpts,
 		storesParams: ms.storesParams,
 		keysByName:   ms.keysByName,
 	}
 	ims.storeOpts.Immutable = true
-	err := ims.LoadVersion(version)
-	if err != nil {
-		return nil, err
+
+	if err := ims.LoadVersion(version); err != nil {
+		release() // don't leak the snapshot ref on error
+		return nil, nil, err
 	}
+
 	stores := make(map[types.StoreKey]types.Store, len(ims.stores))
 	for storeKey, store := range ims.stores {
 		stores[storeKey] = immut.New(store)
 	}
-	return cachemulti.New(stores, ims.keysByName), nil
+	return cachemulti.New(stores, ims.keysByName), release, nil
 }
 
 // Implements MultiStore.
@@ -374,17 +506,26 @@ func parsePath(path string) (storeName string, subpath string, err serrors.Error
 // ----------------------------------------
 
 func (ms *multiStore) constructStore(params storeParams) (store types.CommitStore, err error) {
-	var db dbm.DB
+	var raw dbm.DB
+	var prefix []byte
 	if params.db != nil {
-		db = dbm.NewPrefixDB(params.db, []byte("s/_/"))
+		raw = params.db
+		prefix = []byte("s/_/")
 	} else {
-		db = dbm.NewPrefixDB(ms.db, []byte("s/k:"+params.key.Name()+"/"))
+		raw = ms.db
+		prefix = []byte("s/k:" + params.key.Name() + "/")
 	}
+
+	// On the live multiStore, route sub-store writes through a CollectingDB so
+	// all four write sites (dbadapter cache flush, IAVL SaveVersion, pruning,
+	// rootmulti metadata) land in one batch that CommitAll drains atomically.
+	// Immutable multiStores (queries) skip this — they never write.
+	if !ms.storeOpts.Immutable && ms.collector != nil {
+		raw = dbm.NewCollectingDB(raw, ms.collector)
+	}
+	db := dbm.NewPrefixDB(raw, prefix)
 	opts := ms.storeOpts
 
-	// XXX: use these:
-	// return iavl.LoadStore(db, id, ms.pruningOpts, ms.lazyLoading)
-	// return commitDBStoreAdapter{dbadapter.Store{db}}, nil
 	store = params.constructor(db, opts)
 	return store, nil
 }

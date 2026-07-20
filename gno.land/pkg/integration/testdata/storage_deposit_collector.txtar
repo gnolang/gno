@@ -39,7 +39,7 @@ stdout 'OK!'
 gnokey query bank/balances/$storage_collector_user_addr
 stdout '1000000000ugnot'
 
-gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 370001ugnot -gas-wanted 3_700_000 -max-deposit 900000ugnot -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 370001ugnot -gas-wanted 4_800_000 -max-deposit 900000ugnot -chainid=tendermint_test test1
 stdout 'EVENTS:     \[{\"bytes_delta\":\d+,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":\d+},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
 stdout 'STORAGE DELTA:  \d+ bytes'
 stdout 'STORAGE FEE:    \d+ugnot'

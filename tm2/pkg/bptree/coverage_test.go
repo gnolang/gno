@@ -18,7 +18,7 @@ func TestCoverage_GetByIndexAfterReload(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	keys := make([]string, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		keys[i] = fmt.Sprintf("idx%05d", i)
 		tree.Set([]byte(keys[i]), fmt.Appendf(nil, "val%05d", i))
 	}
@@ -44,7 +44,7 @@ func TestCoverage_GetWithIndexAfterReload(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "wi%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
 	tree.SaveVersion()
@@ -52,7 +52,7 @@ func TestCoverage_GetWithIndexAfterReload(t *testing.T) {
 	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 	tree2.LoadVersion(1)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Appendf(nil, "wi%05d", i)
 		idx, val, err := tree2.GetWithIndex(key)
 		if err != nil {
@@ -284,7 +284,7 @@ func TestCoverage_DescendingIteratorDBBacked(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "di%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
 	tree.SaveVersion()
@@ -325,7 +325,7 @@ func TestCoverage_NonMembershipProofDBBacked(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "np%05d", i), []byte("v"))
 	}
 	tree.SaveVersion()

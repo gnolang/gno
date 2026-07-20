@@ -22,7 +22,7 @@ import (
 
 type Dummy struct{}
 
-var gopkg = reflect.TypeOf(Dummy{}).PkgPath()
+var gopkg = reflect.TypeFor[Dummy]().PkgPath()
 
 var transportPackage = pkg.NewPackage(gopkg, "amino_test", "").
 	WithTypes(&Transport{}, Car(""), insurancePlan(0), Boat(""), Plane{})
@@ -645,7 +645,7 @@ func TestJSONDepthLimitRejected(t *testing.T) {
 
 	// Build nested JSON: ConcreteRecursive has Inner Interface1.
 	inner := `{"@type":"/tests.Concrete1"}`
-	for i := 0; i < 70; i++ {
+	for range 70 {
 		inner = fmt.Sprintf(`{"@type":"/tests.ConcreteRecursive","Inner":%s}`, inner)
 	}
 	var iface tests.Interface1

@@ -173,7 +173,7 @@ func TestEncodeDecodeLightHeaderRoundTrip(t *testing.T) {
 		TimeSeconds: 2,
 		TimeNanos:   3,
 	}
-	for i := byte(0); i < 32; i++ {
+	for i := range byte(32) {
 		h.ValidatorsHash[i] = i + 1
 		h.NextValidatorsHash[i] = i + 2
 		h.AppHash[i] = i + 3
@@ -198,7 +198,7 @@ func TestDecodeLightHeaderRejectsNegatives(t *testing.T) {
 	t.Run("negative height", func(t *testing.T) {
 		// Overwrite height bytes with a negative i64 (0xFF...FF).
 		bad := append([]byte(nil), buf...)
-		for i := 0; i < 8; i++ {
+		for i := range 8 {
 			bad[i] = 0xFF
 		}
 		if _, err := DecodeLightHeader(bad); !errors.Is(err, ErrInvalidHeight) {

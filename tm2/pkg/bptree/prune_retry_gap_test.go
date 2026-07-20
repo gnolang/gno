@@ -22,8 +22,8 @@ func TestPruneVersionsTo_FlushThenErrorRetryResumes(t *testing.T) {
 	// flush threshold on every iteration.
 	const versions = 8
 	for v := 1; v <= versions; v++ {
-		for k := 0; k < 30; k++ {
-			if _, err := tree.Set([]byte(fmt.Sprintf("k%04d", k)), []byte(fmt.Sprintf("v%d_%d", v, k))); err != nil {
+		for k := range 30 {
+			if _, err := tree.Set(fmt.Appendf(nil, "k%04d", k), fmt.Appendf(nil, "v%d_%d", v, k)); err != nil {
 				t.Fatal(err)
 			}
 		}

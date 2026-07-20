@@ -896,8 +896,7 @@ func TestCalculateBackoff(t *testing.T) {
 func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var transportClosed bool
 	mockTransport := &mockTransport{

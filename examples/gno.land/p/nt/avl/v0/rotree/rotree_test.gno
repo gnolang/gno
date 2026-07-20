@@ -49,8 +49,8 @@ func TestExample(t *testing.T) {
 	// Test retrieving and verifying a user
 	t.Run("Get User", func(t *testing.T) {
 		// Get user from read-only tree
-		value, exists := roTree.Get("alice")
-		if !exists {
+		value := roTree.Get("alice")
+		if value == nil {
 			t.Fatal("User 'alice' not found")
 		}
 
@@ -67,7 +67,7 @@ func TestExample(t *testing.T) {
 		}
 
 		// Verify it's a different instance than the original
-		originalValue, _ := tree.Get("alice")
+		originalValue := tree.Get("alice")
 		originalUser := originalValue.(*User)
 		if user == originalUser {
 			t.Error("Read-only tree should return a copy, not the original pointer")
@@ -94,7 +94,7 @@ func TestExample(t *testing.T) {
 
 	// Verify that modifications to the returned user don't affect the original
 	t.Run("Modification Safety", func(t *testing.T) {
-		value, _ := roTree.Get("alice")
+		value := roTree.Get("alice")
 		user := value.(*User)
 
 		// Try to modify the returned user
@@ -102,7 +102,7 @@ func TestExample(t *testing.T) {
 		user.Internal = "hacked"
 
 		// Verify original is unchanged
-		originalValue, _ := tree.Get("alice")
+		originalValue := tree.Get("alice")
 		originalUser := originalValue.(*User)
 		if originalUser.Balance != 100 || originalUser.Internal != "sensitive_data_1" {
 			t.Error("Original user data was modified")
@@ -127,18 +127,17 @@ func TestReadOnlyTree(t *testing.T) {
 		name     string
 		key      string
 		expected any
-		exists   bool
 	}{
-		{"ExistingKey1", "key1", "value1_readonly", true},
-		{"ExistingKey2", "key2", "value2_readonly", true},
-		{"NonExistingKey", "key4", nil, false},
+		{"ExistingKey1", "key1", "value1_readonly"},
+		{"ExistingKey2", "key2", "value2_readonly"},
+		{"NonExistingKey", "key4", nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value, exists := roTree.Get(tt.key)
-			if exists != tt.exists || value != tt.expected {
-				t.Errorf("For key %s, expected %v (exists: %v), got %v (exists: %v)", tt.key, tt.expected, tt.exists, value, exists)
+			value := roTree.Get(tt.key)
+			if value != tt.expected {
+				t.Errorf("For key %s, expected %v, got %v", tt.key, tt.expected, value)
 			}
 		})
 	}
@@ -168,7 +167,7 @@ func TestMakeEntrySafeFnVariants(t *testing.T) {
 				// Modify the returned slice
 				slice[0] = 999
 				// Verify original is unchanged
-				originalValue, _ := tree.Get("slice")
+				originalValue := tree.Get("slice")
 				original := originalValue.([]int)
 				if original[0] != 1 {
 					t.Error("Original slice was modified")
@@ -181,8 +180,8 @@ func TestMakeEntrySafeFnVariants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			roTree := Wrap(tree, tt.makeEntrySafeFn)
-			value, exists := roTree.Get(tt.key)
-			if !exists {
+			value := roTree.Get(tt.key)
+			if value == nil {
 				t.Fatal("Key not found")
 			}
 			tt.validate(t, value)
@@ -200,8 +199,8 @@ func TestNilMakeEntrySafeFn(t *testing.T) {
 	roTree := Wrap(tree, nil)
 
 	// Test that we get back the original value
-	value, exists := roTree.Get("test")
-	if !exists {
+	value := roTree.Get("test")
+	if value == nil {
 		t.Fatal("Key not found")
 	}
 

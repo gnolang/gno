@@ -28,8 +28,8 @@ func (r *ResourcesStore) Set(resource *Resource) {
 }
 
 func (r *ResourcesStore) Get(name string) *Resource {
-	value, ok := r.Tree.Get(name)
-	if !ok {
+	value := r.Tree.Get(name)
+	if value == nil {
 		return nil
 	}
 	res := value.(*Resource)

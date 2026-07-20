@@ -715,7 +715,7 @@ func TestRoundtripBinary2_InterfaceHeavy(t *testing.T) {
 
 // compareEncoding verifies that MarshalBinary2 produces identical bytes to amino.MarshalReflect
 // and that UnmarshalBinary2 can roundtrip the data.
-func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface{}) {
+func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig any) {
 	t.Helper()
 
 	// Encode with amino reflection.

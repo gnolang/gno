@@ -325,7 +325,7 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		for i := 0; i < rn-1; i++ {
 			r.keys[i] = r.keys[i+1]
 		}
-		for i := 0; i < rn; i++ {
+		for i := range rn {
 			r.childNodes[i] = r.childNodes[i+1]
 			r.children[i] = r.children[i+1]
 			r.childHashes[i] = r.childHashes[i+1]

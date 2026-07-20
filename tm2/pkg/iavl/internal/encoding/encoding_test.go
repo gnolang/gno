@@ -61,7 +61,6 @@ func TestDecodeBytes(t *testing.T) {
 		"max uint64 -10": {bz, uint64(math.MaxUint64) - 10, nil, true},
 	}
 	for name, tc := range testcases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			// Generate an input slice.
 			buf := make([]byte, binary.MaxVarintLen64)

@@ -13,8 +13,8 @@ import (
 
 func getGroup(gid GroupID) *Group {
 	gidkey := groupIDKey(gid)
-	group_, exists := gGroups.Get(gidkey)
-	if !exists {
+	group_ := gGroups.Get(gidkey)
+	if group_ == nil {
 		panic("group id (" + gid.String() + ") does not exists")
 	}
 	group := group_.(*Group)

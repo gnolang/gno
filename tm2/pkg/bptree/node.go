@@ -92,7 +92,7 @@ func (n *InnerNode) setChild(idx int, child Node) {
 // For LeafNode, slots are HashLeafSlotFromValueHash(key, valueHash).
 // Cost: B-1 = 31 SHA256 calls (sets leaf slots directly, then Build).
 func (n *InnerNode) RebuildMiniMerkle() {
-	for i := 0; i < B; i++ {
+	for i := range B {
 		if i < n.NumChildren() {
 			n.miniTree.tree[B+i] = n.childHashes[i]
 		} else {
@@ -103,7 +103,7 @@ func (n *InnerNode) RebuildMiniMerkle() {
 }
 
 func (n *LeafNode) RebuildMiniMerkle() {
-	for i := 0; i < B; i++ {
+	for i := range B {
 		if i < int(n.numKeys) {
 			n.miniTree.tree[B+i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
 		} else {
@@ -154,7 +154,7 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 	}
 	// childSizes (numKeys+1 entries)
 	nc := n.NumChildren()
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		if err := writeVarint(w, n.childSizes[i]); err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 	// children (numKeys+1 NodeKey refs). saveNode must have wired these up
 	// before calling Serialize; a nil here would silently truncate the
 	// payload and shift every subsequent read during deserialization.
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		if n.children[i] == nil {
 			return fmt.Errorf("InnerNode.Serialize: nil child ref at index %d (numChildren=%d)", i, nc)
 		}
@@ -184,7 +184,7 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 		}
 	}
 	// childHashes
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		if _, err := w.Write(n.childHashes[i][:]); err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 	}
 
 	nc := n.NumChildren()
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		n.childSizes[i], err = binary.ReadVarint(r)
 		if err != nil {
 			return nil, fmt.Errorf("reading childSize %d: %w", i, err)
@@ -292,13 +292,13 @@ func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
 		}
 	}
 
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		n.children[i] = make([]byte, NodeKeySize)
 		if _, err := io.ReadFull(r, n.children[i]); err != nil {
 			return nil, fmt.Errorf("reading child ref %d: %w", i, err)
 		}
 	}
-	for i := 0; i < nc; i++ {
+	for i := range nc {
 		if _, err := io.ReadFull(r, n.childHashes[i][:]); err != nil {
 			return nil, fmt.Errorf("reading child hash %d: %w", i, err)
 		}

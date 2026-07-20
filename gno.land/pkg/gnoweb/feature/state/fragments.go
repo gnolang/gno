@@ -100,8 +100,11 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	// the root and fetch+highlight the body — one extra qfile, bounded
 	// and rate-limited like any fragment — so the expansion shows the
 	// actual function instead of a bare "(function): func()" row.
+	// Skip promotion when the node has no Source: there is no body to
+	// show and the template would render nothing (a lazy interface bind
+	// decodes to a source-less func-kind row that must stay a child row).
 	if len(root.Children) == 1 {
-		if c := root.Children[0]; isFuncKind(&c) {
+		if c := root.Children[0]; isFuncKind(&c) && c.Source != nil {
 			root = c
 			if root.Source != nil && root.Source.File != "" &&
 				h.deps.FileFetcher != nil && h.deps.Highlighter != nil &&
@@ -202,10 +205,7 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 	if endLine > 0 {
 		startLine = line
 	} else {
-		startLine = line - fragSourceContextLines
-		if startLine < 1 {
-			startLine = 1
-		}
+		startLine = max(line-fragSourceContextLines, 1)
 		endLine = line + fragSourceContextLines
 	}
 	slice := sliceLines(content, startLine, endLine)

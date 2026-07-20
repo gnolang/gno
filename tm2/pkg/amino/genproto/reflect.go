@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	gTimestampType = reflect.TypeOf(timestamppb.Timestamp{})
-	gDurationType  = reflect.TypeOf(durationpb.Duration{})
+	gTimestampType = reflect.TypeFor[timestamppb.Timestamp]()
+	gDurationType  = reflect.TypeFor[durationpb.Duration]()
 )
 
 // NOTE: do not change this definition.

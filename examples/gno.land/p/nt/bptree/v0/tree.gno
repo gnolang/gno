@@ -3,7 +3,7 @@ package bptree
 type ITree interface {
 	Size() int
 	Has(key string) bool
-	Get(key string) (value any, exists bool)
+	Get(key string) any
 	GetByIndex(index int) (key string, value any)
 	Iterate(start, end string, cb IterCbFn) bool
 	ReverseIterate(start, end string, cb IterCbFn) bool
@@ -59,9 +59,17 @@ func (t *BPTree) Has(key string) bool {
 }
 
 // Get retrieves the value associated with the given key.
-func (t *BPTree) Get(key string) (value any, exists bool) {
+// It returns the value if the key exists, or nil if it doesn't.
+// This allows for a simpler usage pattern with type assertions:
+//
+//	if value, ok := tree.Get("key").(MyType); ok {
+//	    // use value
+//	}
+//
+// Use Has to distinguish a stored nil value from a missing key.
+func (t *BPTree) Get(key string) any {
 	if t.root == nil {
-		return nil, false
+		return nil
 	}
 	n := t.root
 	for !n.isLeaf() {
@@ -72,9 +80,9 @@ func (t *BPTree) Get(key string) (value any, exists bool) {
 	leaf := n.(*leafNode)
 	pos, found := leaf.find(key)
 	if !found {
-		return nil, false
+		return nil
 	}
-	return *leaf.values[pos], true
+	return *leaf.values[pos]
 }
 
 // GetByIndex returns the key-value pair at the given 0-based index.

@@ -6,12 +6,17 @@ adduser regular1
 
 gnoland start
 
+# The chain mirrors the validator pubkey-type allow-list (ed25519-only by
+# default) from consensus params into the params store so realms can read it.
+gnokey query params/node:valset:pubkey_types
+stdout '/tm.PubKeyEd25519'
+
 # Add user as a member for govdao
 gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 # add a valoper with a bad operator address (not the caller's). The
 # post-genesis squat guard rejects: OriginCaller (test1) != addr.
-! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -chainid=tendermint_test test1
 stderr 'caller must equal operator address'
 
 # add a valoper with a bad pubkey. The operator address (test1's own)
@@ -20,13 +25,18 @@ stderr 'caller must equal operator address'
 ! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40zzz -chainid=tendermint_test test1
 stderr 'panic: invalid checksum'
 
-# add a valoper. The address arg is the test1 user's address (=
-# operator) and matches OriginCaller, so the squat guard passes.
-# The pubkey is the consensus signing key; chain.PubKeyAddress(pubKey)
-# derives g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 (= operator addr
-# in this test by coincidence). v3's executor resolves operator ->
-# signing-key via valoperCache at proposal-execute time.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4000001ugnot -gas-wanted 40_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
+# A secp256k1 signing key is rejected at registration: it is not in the
+# validator pubkey-type allow-list (ed25519-only), so Register fails fast
+# rather than letting the EndBlocker silently drop the eventual valset update.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 55_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
+stderr 'consensus pubkey type is not allowed for validators'
+
+# add a valoper with a valid ed25519 signing key. The address arg is the
+# test1 user's address (= operator) and matches OriginCaller, so the squat
+# guard passes. chain.PubKeyAddress(pubKey) derives the signing address
+# g10ddhfxv47lhyhpj426u57ckxwl0qtrk6c9rs5v; v3's executor resolves operator
+# -> signing-key via valoperCache at proposal-execute time.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4000001ugnot -gas-wanted 55_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render

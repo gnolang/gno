@@ -91,9 +91,11 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 	}
 
 	// Genesis txs never pass through the lazy proxy, so -paths entries and
-	// txs-file dependencies must be tracked explicitly to reach the
-	// loader's reload output — and from there, genesis.
+	// txs-file dependencies must be tracked explicitly to reach genesis.
 	loader.Track(paths...)
+
+	// A reset returns to this seeded set, dropping lazily loaded packages.
+	nodeConfig.ResetState = loader.ResetTracked
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }

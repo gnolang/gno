@@ -1076,7 +1076,7 @@ func TestNode_ObjectEach(t *testing.T) {
 	}
 }
 
-func TestNode_ExampleMust(t *testing.T) {
+func Example_TestNode_Must() {
 	data := []byte(`{
         "Image": {
             "Width":  800,
@@ -1094,10 +1094,11 @@ func TestNode_ExampleMust(t *testing.T) {
 
 	root := Must(Unmarshal(data))
 	if root.Size() != 1 {
-		t.Errorf("root.Size() must be 1. got: %v", root.Size())
+		ufmt.Printf("root.Size() must be 1. got: %v\n", root.Size())
+		return
 	}
 
-	ufmt.Sprintf("Object has %d inheritors inside", root.Size())
+	ufmt.Printf("Object has %d inheritors inside\n", root.Size())
 	// Output:
 	// Object has 1 inheritors inside
 }

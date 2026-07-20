@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -29,6 +28,11 @@ const (
 	opAddrA = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	opAddrB = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	opAddrC = "g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"
+
+	// testCaller is the fee-paying --caller used across seed tests
+	// (gnoland's well-known test1 account); passed as MsgCall.Caller
+	// independent of the operator rows.
+	testCaller = opAddrA
 )
 
 const validHeader = "operator_addr,signing_pubkey,moniker,description,server_type"
@@ -44,7 +48,7 @@ func runSeed(t *testing.T, dir, csvContent string) (string, error) {
 	t.Helper()
 	csvPath := writeCSV(t, dir, csvContent)
 	outPath := filepath.Join(dir, "out.jsonl")
-	cfg := &valoperSeedCfg{csvPath: csvPath, output: outPath}
+	cfg := &valoperSeedCfg{csvPath: csvPath, output: outPath, caller: testCaller}
 	io := commands.NewTestIO()
 	if err := execValoperSeed(t.Context(), cfg, io); err != nil {
 		return "", err
@@ -74,25 +78,62 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	// because "g1c0j..." < "g1jg8...".
 	require.True(t, opAddrB < opAddrA, "fixture ordering assumption")
 
-	var first gnoland.TxWithMetadata
+	var first AnnotatedTx
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[0]), &first))
 	require.Len(t, first.Tx.Msgs, 1)
 	msg, ok := first.Tx.Msgs[0].(vm.MsgCall)
 	require.True(t, ok, "first msg is MsgCall")
 	assert.Equal(t, "gno.land/r/gnops/valopers", msg.PkgPath)
 	assert.Equal(t, "Register", msg.Func)
-	assert.Equal(t, opAddrB, msg.Caller.String())
+	// Caller is the --caller flag value (fee payer), NOT the operator;
+	// the operator stays in Args[3].
+	assert.Equal(t, testCaller, msg.Caller.String())
 	require.Len(t, msg.Args, 5)
 	assert.Equal(t, "bob-validator", msg.Args[0])
 	assert.Equal(t, opAddrB, msg.Args[3])
 	assert.Equal(t, validPubKeyB, msg.Args[4])
 	require.NotNil(t, first.Metadata)
 	assert.Equal(t, int64(0), first.Metadata.BlockHeight)
+	assert.Contains(t, first.Reason, "valoper-seed: register "+opAddrB)
+	assert.Contains(t, first.Reason, "bob-validator")
 
-	var second gnoland.TxWithMetadata
+	var second AnnotatedTx
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[1]), &second))
 	msg2 := second.Tx.Msgs[0].(vm.MsgCall)
-	assert.Equal(t, opAddrA, msg2.Caller.String())
+	// Both txs share the same --caller flag value.
+	assert.Equal(t, testCaller, msg2.Caller.String())
+	// And both operators show up as Args[3] of their respective Register calls.
+	assert.Equal(t, opAddrA, msg2.Args[3])
+}
+
+func TestValoperSeed_RejectsBadCaller(t *testing.T) {
+	t.Parallel()
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n"
+
+	t.Run("empty caller", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		cfg := &valoperSeedCfg{
+			csvPath: writeCSV(t, dir, csv),
+			output:  filepath.Join(dir, "out.jsonl"),
+			caller:  "",
+		}
+		err := execValoperSeed(t.Context(), cfg, commands.NewTestIO())
+		require.ErrorContains(t, err, "--caller is required")
+	})
+
+	t.Run("invalid caller", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		cfg := &valoperSeedCfg{
+			csvPath: writeCSV(t, dir, csv),
+			output:  filepath.Join(dir, "out.jsonl"),
+			caller:  "not-a-valid-bech32",
+		}
+		err := execValoperSeed(t.Context(), cfg, commands.NewTestIO())
+		require.ErrorContains(t, err, "invalid --caller")
+	})
 }
 
 func TestValoperSeed_Idempotent(t *testing.T) {

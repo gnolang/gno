@@ -275,7 +275,7 @@ func (m *markedSigner) serveOnce(t *testing.T, ctx context.Context, ready chan<-
 			if err != nil {
 				return
 			}
-			var resp interface{}
+			var resp any
 			switch req := inner.(type) {
 			case *upstreampb.PingRequest:
 				resp = &upstreampb.PingResponse{}
@@ -454,7 +454,7 @@ func TestBugFix_SignVoteDropsConnOnWrongResponseType(t *testing.T) {
 			if err != nil {
 				return
 			}
-			var resp interface{}
+			var resp any
 			switch inner.(type) {
 			case *upstreampb.PubKeyRequest:
 				pbk, perr := upstream.PubKeyToProto(priv.PubKey())

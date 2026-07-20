@@ -13,7 +13,7 @@ import (
 func TestPrune_BelowFloorDoesNotRewindFirstVersion(t *testing.T) {
 	tree := newPruneTree(t)
 	for v := 1; v <= 3; v++ {
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			tree.Set(fmt.Appendf(nil, "fl%03d", i), fmt.Appendf(nil, "v%d", v))
 		}
 		if _, _, err := tree.SaveVersion(); err != nil {

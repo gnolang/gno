@@ -117,7 +117,7 @@ func SetOwner(_ realm, owner address) {
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
 func GetHandleByAddress(cur realm, address_XXX string) string {
-	if value, ok := addressToHandleMap.Get(address_XXX); ok {
+	if value := addressToHandleMap.Get(address_XXX); value != nil {
 		return value.(string)
 	}
 
@@ -126,7 +126,7 @@ func GetHandleByAddress(cur realm, address_XXX string) string {
 
 // GetAddressByHandle returns the gno address associated with the given github handle.
 func GetAddressByHandle(cur realm, handle string) string {
-	if value, ok := handleToAddressMap.Get(handle); ok {
+	if value := handleToAddressMap.Get(handle); value != nil {
 		return value.(string)
 	}
 

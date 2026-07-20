@@ -51,8 +51,8 @@ func Render(path string) (out string) {
 }
 
 func renderConfPage(id string) (out string) {
-	raw, ok := configs.Get(id)
-	if !ok {
+	raw := configs.Get(id)
+	if raw == nil {
 		out += md.H1("404")
 		out += "That config does not exist :/"
 		return out

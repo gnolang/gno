@@ -247,8 +247,8 @@ func printComments(p *press.Press, comment string) {
 	if comment == "" {
 		return
 	}
-	commentLines := strings.Split(comment, "\n")
-	for _, line := range commentLines {
+	commentLines := strings.SplitSeq(comment, "\n")
+	for line := range commentLines {
 		p.Pl("// %v", line)
 	}
 }
@@ -452,7 +452,7 @@ func findNLists(root *amino.Package, info *amino.TypeInfo, found *map[string]NLi
 func findNLists2(root *amino.Package, list *amino.TypeInfo, fopts amino.FieldOptions) []NList {
 	fopts = nListFieldOptions(fopts)
 	switch list.ReprType.Type.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		panic("should not happen")
 	case reflect.Array, reflect.Slice:
 		elem := list.ReprType.Elem

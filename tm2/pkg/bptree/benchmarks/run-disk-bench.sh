@@ -39,9 +39,10 @@
 #   GOMEMLIMIT  Go soft heap cap, to survive big populates     [12GiB]
 #   OUT         results/logs dir                               [./bench-out]
 #   COMMITTED_READ 1 = GetRandom/GetMiss read via a committed    [1]
-#               snapshot at the latest version (the ABCI-query path the bptree
-#               fast index serves); 0 = working-tree Get (index-free, the old
-#               behavior). bptree-fast only beats iavl on reads with this on.
+#               snapshot at the latest version (the ABCI-query path);
+#               0 = working-tree Get. For index-on bptree both settings serve
+#               the fast path while the tree is clean (always true in these
+#               benches), so the flag mainly exercises the snapshot machinery.
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"

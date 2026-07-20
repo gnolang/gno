@@ -95,8 +95,8 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 	// and adds require KeepRunning=true. KeepRunning=false is a
 	// binding opt-out; no proposal shape can override it.
 	for _, c := range changes {
-		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-		if !ok {
+		rawCache := valoperCache.Get(c.OperatorAddress.String())
+		if rawCache == nil {
 			panic("unknown operator: " + c.OperatorAddress.String())
 		}
 		entry := rawCache.(cacheEntry)
@@ -146,8 +146,8 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 		}
 
 		for _, c := range changes {
-			rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-			if !ok {
+			rawCache := valoperCache.Get(c.OperatorAddress.String())
+			if rawCache == nil {
 				panic("operator vanished from valoperCache between propose and execute: " + c.OperatorAddress.String())
 			}
 			entry := rawCache.(cacheEntry)

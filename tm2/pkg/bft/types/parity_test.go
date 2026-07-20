@@ -33,7 +33,6 @@ func TestCodecParity_BFTTypes(t *testing.T) {
 	cdc.Seal()
 
 	for i, c := range parityCasesBFT(t) {
-		c := c
 		name := fmt.Sprintf("%d/%s", i, c.name)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
