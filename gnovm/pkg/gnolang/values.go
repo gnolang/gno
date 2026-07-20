@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"unsafe"
-
-	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -116,35 +115,125 @@ func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
 // ----------------------------------------
 // BigdecValue
 
+// BigdecFloatPrec is the mantissa precision (in bits) used for the big.Float
+// fallback representation, matching go/constant's 512-bit precision.
+const BigdecFloatPrec = 512
+
+// bigdecFloatMarshalPrefix distinguishes float-form BigdecValue in the amino
+// text wire format. A rat-form value is a plain "a/b" or integer string; a
+// float-form value is prefixed so UnmarshalAmino can tell them apart.
+const bigdecFloatMarshalPrefix = "f:"
+
+// BigdecValue holds an untyped bigdec constant in one of two representations:
+// an exact rational (V) for values that fit within ratGuard's bit limits, or
+// a bounded-precision big.Float (F) that gracefully handles extreme exponents.
+// Exactly one of V or F is non-nil for a well-formed value. The float form
+// mirrors go/constant, which switches from big.Rat to a 512-bit big.Float
+// past the same 4096-bit threshold.
 type BigdecValue struct {
-	V *apd.Decimal
+	V *big.Rat
+	F *big.Float
+}
+
+// IsFloat reports whether the value is held in big.Float form.
+func (bdv BigdecValue) IsFloat() bool { return bdv.F != nil }
+
+// AsFloat returns the value as a *big.Float, promoting from V if needed.
+// The returned value is a fresh copy; the receiver is not modified.
+func (bdv BigdecValue) AsFloat() *big.Float {
+	if bdv.F != nil {
+		return new(big.Float).SetPrec(BigdecFloatPrec).Set(bdv.F)
+	}
+	if bdv.V == nil {
+		return new(big.Float).SetPrec(BigdecFloatPrec)
+	}
+	return new(big.Float).SetPrec(BigdecFloatPrec).SetRat(bdv.V)
+}
+
+// NewBigdecFromRat wraps r as a rat-form BigdecValue.
+func NewBigdecFromRat(r *big.Rat) BigdecValue {
+	return BigdecValue{V: r}
+}
+
+// NewBigdecFromFloat wraps f as a float-form BigdecValue.
+func NewBigdecFromFloat(f *big.Float) BigdecValue {
+	return BigdecValue{F: f}
+}
+
+// Sign returns -1, 0, or +1 depending on the sign of the value.
+func (bdv BigdecValue) Sign() int {
+	if bdv.F != nil {
+		return bdv.F.Sign()
+	}
+	if bdv.V == nil {
+		return 0
+	}
+	return bdv.V.Sign()
+}
+
+// IsInt reports whether the value is an exact integer (i.e. safe to convert
+// to a bigint / typed integer). Float-form values are considered integer
+// only when they represent an exact integer.
+func (bdv BigdecValue) IsInt() bool {
+	if bdv.F != nil {
+		return bdv.F.IsInt()
+	}
+	if bdv.V == nil {
+		return true
+	}
+	return bdv.V.IsInt()
+}
+
+// IsZero reports whether the value is exactly zero.
+func (bdv BigdecValue) IsZero() bool {
+	if bdv.F != nil {
+		return bdv.F.Sign() == 0
+	}
+	if bdv.V == nil {
+		return true
+	}
+	return bdv.V.Sign() == 0
 }
 
 func (bdv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bdv.V.MarshalText()
-	if err != nil {
-		return "", err
+	if bdv.F != nil {
+		// 'p' format is an exact hexadecimal float representation; round-trips
+		// losslessly through big.Float.Parse.
+		return bigdecFloatMarshalPrefix + bdv.F.Text('p', 0), nil
 	}
-	return string(bz), nil
+	if bdv.V == nil {
+		return "0", nil
+	}
+	return bdv.V.RatString(), nil
 }
 
 func (bdv *BigdecValue) UnmarshalAmino(s string) error {
-	vv := apd.New(0, 0)
-	err := vv.UnmarshalText([]byte(s))
-	if err != nil {
-		return err
+	if strings.HasPrefix(s, bigdecFloatMarshalPrefix) {
+		f, _, err := big.ParseFloat(s[len(bigdecFloatMarshalPrefix):], 0, BigdecFloatPrec, big.ToNearestEven)
+		if err != nil {
+			return fmt.Errorf("invalid BigdecValue (float form): %q: %w", s, err)
+		}
+		bdv.F = f
+		bdv.V = nil
+		return nil
 	}
-	bdv.V = vv
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
+	}
+	bdv.V = r
+	bdv.F = nil
 	return nil
 }
 
 func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
-	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
-	if err != nil {
-		panic("should not happen")
+	if bdv.F != nil {
+		return BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).Set(bdv.F)}
 	}
-	return BigdecValue{V: cp}
+	if bdv.V == nil {
+		return BigdecValue{}
+	}
+	return BigdecValue{V: new(big.Rat).Set(bdv.V)}
 }
 
 // ----------------------------------------
@@ -633,10 +722,11 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 			return nil
 		}
 		pv := fv.GetPackage(store)
-		fb, ok := pv.fBlocksMap[fv.FileName]
-		if !ok {
-			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
-		}
+		// Lazily materialize this function's file block. fillPackage no
+		// longer pre-populates fBlocksMap, so on a package loaded from
+		// the store the entry may be absent here; GetFileBlock loads it
+		// from the FBlocks RefValue on demand and caches it.
+		fb := pv.GetFileBlock(store, fv.FileName)
 		fv.Parent = fb
 		return fb
 	case RefValue:
@@ -663,14 +753,150 @@ type BoundMethodValue struct {
 	// Underlying unbound method function.
 	// The type without the receiver (since bound)
 	// is computed lazily if needed.
+	//
+	// nil for an interface-dispatched bind until the call: the concrete
+	// method is determined by dynamic dispatch on Receiver (the saved
+	// operand) and resolved at call time (see resolveLazyBound).
 	Func *FuncValue
 
 	// This becomes the first arg.
 	// The type is .Func.Type.Params[0].
+	//
+	// For an interface-dispatched bind (Func == nil) this holds the *saved
+	// operand* — the boxed value captured when the method value was formed (a
+	// copy for a value operand, the pointer as-is for a pointer operand), not
+	// the resolved receiver. The call walks it (via Method) to dispatch and
+	// form the receiver, matching Go: deref, value snapshot, nil panic, field
+	// re-read and dynamic re-dispatch all happen at the call.
 	Receiver TypedValue
+
+	// Method is the selector name for an interface-dispatched bind
+	// (Func == nil); the call re-derives the dispatch trail on Receiver's
+	// current value. Empty for a resolved (eager) bind.
+	Method Name
+
+	// MethodPkg is the callerPath of the bind site (the package whose code
+	// formed the method value). Unexported method identity is
+	// package-qualified, so the call-time re-derivation must look up Method
+	// under the same qualification — the dynamic type's own package may see a
+	// different (or shadowing) same-spelled member. Empty for a resolved
+	// (eager) bind.
+	MethodPkg string
+}
+
+// IsLazy reports whether bmv is an unresolved interface-dispatched bind whose
+// concrete method + receiver are resolved at call time from the saved operand.
+func (bmv *BoundMethodValue) IsLazy() bool {
+	return bmv.Func == nil
+}
+
+// resolveInterfaceTrail walks an interface-dispatch trail on the boxed concrete
+// value, returning the resolved bound-method pointer. The walk dereferences as
+// it goes, so running it at call time gives Go's call-time dispatch: nil derefs
+// panic now (per the method's receiver kind — value receivers panic, pointer
+// receivers pass nil through), and a value receiver is a fresh snapshot of the
+// current pointee. A nested interface step yields another lazy bind, which
+// resolveLazyBound unwraps.
+func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
+	btv := boxed
+	for i, path := range tr {
+		ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
+		if i == len(tr)-1 {
+			return ptr
+		}
+		btv = ptr.Deref()
+	}
+	panic("should not happen")
+}
+
+// resolveLazyBound resolves an interface-dispatched (lazy) bind to its concrete
+// method + receiver at call time, walking the saved operand's *current* value.
+// So the deref, value snapshot, nil panic, field re-read and dynamic
+// re-dispatch all happen now, matching Go. Each iteration strips one interface
+// indirection (a nested embedded-interface field yields another lazy bind);
+// for a finite (acyclic) operand graph this converges. A cyclic embedded
+// interface (e.g. `s.IG = s`) would re-box the same operand forever, so the
+// loop detects a repeated pointer operand and raises a fatal (gno-unrecoverable)
+// panic instead of hanging — matching Go, which runs the same program as
+// recursion and fatally stack-overflows (uncatchable by recover()).
+//
+// nil derefs are raised by the walk itself (GetPointerToFromTV panics with a
+// runtime-error Exception for a value receiver on a nil pointer, and passes nil
+// through for a pointer receiver) — the machine's Run loop converts that to the
+// cooperative panic path, so both immediate and deferred calls behave correctly
+// without a separate nil signal here.
+func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
+	operand := bmv.Receiver
+	name := bmv.Method
+	// The bind-site package qualifies the lookup: unexported method identity
+	// is package-qualified, and the dynamic type's package may hold a
+	// same-spelled member with a different identity (e.g. a shadowing
+	// unexported field), which must not be matched here.
+	callerPath := bmv.MethodPkg
+	if callerPath == "" {
+		callerPath = operand.T.GetPkgPath()
+	}
+	// The method name is invariant across layers, so the operand's identity
+	// fully identifies the loop state: a revisited identity means a cyclic
+	// embed (e.g. `s.IG = s`). Pointer and struct operands are the only shapes
+	// that can recur — another lazy hop needs an embedded interface, and only
+	// structs can embed; anything else terminates this iteration. The graph is
+	// fixed during resolution (no user code runs), and field re-reads yield
+	// stable identities, so any endless walk must revisit a recorded one.
+	var seen map[any]struct{}
+	for {
+		// Charge per hop so the cost scales with embedded-interface depth rather
+		// than being flat per call.
+		m.incrCPU(OpCPULazyBoundResolve)
+		// The saved operand may be a pointer reloaded from the store with an
+		// unfilled TV; fill it so the walk can dereference it. This load of the
+		// live state is what lets field re-read / dynamic re-dispatch observe
+		// updates made after the bind.
+		fillValueTV(m.Store, &operand)
+		var id any
+		switch v := operand.V.(type) {
+		case PointerValue:
+			if v.TV != nil {
+				id = v.TV
+			}
+		case *StructValue:
+			id = v
+		}
+		if id != nil {
+			if _, dup := seen[id]; dup {
+				panic("cyclic embedded interface in method-value dispatch")
+			}
+			if seen == nil {
+				seen = make(map[any]struct{})
+			}
+			seen[id] = struct{}{}
+		}
+		tr, _, _, _, status := findEmbeddedFieldType(callerPath, operand.T, name)
+		if status != embedLookupFound {
+			// Mirrors the bind-site guard (getPointerToFromTV, VPInterface).
+			// The call-time operand type is the same one that passed that
+			// guard, so this should be unreachable; guard anyway rather than
+			// fall into resolveInterfaceTrail's "should not happen".
+			panic(fmt.Sprintf("method %s not found in type %s",
+				name, operand.T.String()))
+		}
+		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
+		if !next.IsLazy() {
+			return next.Func, next.Receiver
+		}
+		operand, name, callerPath = next.Receiver, next.Method, next.MethodPkg
+	}
 }
 
 func (bmv *BoundMethodValue) IsCrossing() bool {
+	// A lazy interface bind has no concrete Func until call time; crossing-ness
+	// is a property of the resolved method, determined then. An interface
+	// method value is never itself a crossing entry point (crossing functions
+	// are not part of interface method sets in production code), so report
+	// false until resolved.
+	if bmv.IsLazy() {
+		return false
+	}
 	return bmv.Func.IsCrossing()
 }
 
@@ -821,16 +1047,22 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 	return
 }
 
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) {
+// DeleteForKey removes the entry for key and returns the STORED key TypedValue
+// that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
+// DecRef this stored key's object, not the (possibly transient) argument key —
+// otherwise a non-primitive stored key object is orphaned in the store.
+func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
 	// if key is NaN, do nothing.
 	kmk, isNaN := key.ComputeMapKey(m, store, false)
 	if isNaN {
-		return
+		return nil
 	}
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
+		return &mli.Key
 	}
+	return nil
 }
 
 // ----------------------------------------
@@ -1521,7 +1753,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 	return tv.V.(BigintValue).V
 }
 
-func (tv *TypedValue) GetBigDec() *apd.Decimal {
+func (tv *TypedValue) GetBigDec() BigdecValue {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
@@ -1529,7 +1761,7 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 				tv.T.String()))
 		}
 	}
-	return tv.V.(BigdecValue).V
+	return tv.V.(BigdecValue)
 }
 
 // Sign returns the sign of the given numeric tv.
@@ -1764,7 +1996,6 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("getPointerToFromTV() on undefined value")
 		}
 	}
-
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
@@ -1781,6 +2012,12 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPSubrefField:
+		// A subref field access through a nil pointer is a nil-pointer deref
+		// (e.g. reaching a promoted pointer-receiver method's receiver via an
+		// embedded field of a nil *T). Matches Go; previously crashed the VM.
+		if tv.V == nil {
+			panic(&Exception{Value: typedRuntimeError("runtime error: nil pointer dereference")})
+		}
 		switch path.Depth {
 		case 0:
 			dtv = tv.V.(PointerValue).TV
@@ -1828,6 +2065,11 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
+		// Concrete `pt.M`: Go snapshots the value receiver when the method
+		// value is formed, so a nil pointer derefs (panics) eagerly here.
+		// (Interface dispatch never reaches this at bind — VPInterface binds
+		// lazily and this runs at call time via resolveInterfaceTrail, where
+		// eager-deref is exactly Go's call-time semantics.)
 		if tv.V == nil {
 			msg := "runtime error: nil pointer dereference"
 			if pt, ok := tv.T.(*PointerType); ok {
@@ -1923,17 +2165,17 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("should not happen")
 			}
 		}
-		dtv2 := dtv.Copy(alloc)
-		if dtv2.V != nil {
-			// Clear readonly for receivers.
-			// Other rules still apply such as in DidUpdate.
-			// NOTE: dtv2 is a copy, orig is untouched.
-			dtv2.N = [8]byte{}
+		// A value receiver is a fresh copy the method body may mutate without
+		// touching the original; clear readonly on the copy (other rules still
+		// apply, e.g. in DidUpdate).
+		rtv := dtv.Copy(alloc)
+		if rtv.V != nil {
+			rtv.N = [8]byte{}
 		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
-			Receiver: dtv2,
+			Receiver: rtv,
 		}
 		// Bound method wrapper belongs to the realm doing the
 		// binding; the receiver carries its own PkgID independently.
@@ -1996,20 +2238,35 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		if callerPath == "" {
 			callerPath = dtv.T.GetPkgPath()
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
-		if len(tr) == 0 {
+		_, _, _, ift, status := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
+		if status != embedLookupFound {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
 		}
-		btv := *dtv
-		for i, path := range tr {
-			ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
-			if i == len(tr)-1 {
-				return ptr // done
-			}
-			btv = ptr.Deref() // deref
+		// Lazy interface dispatch (matches Go): a method value formed through
+		// an interface saves the operand at formation; the concrete method and
+		// receiver are materialized inside the CALL. So bind a lazy method
+		// value holding the saved operand (the boxed value/pointer) + selector
+		// name, and resolve at call time via resolveLazyBound. This gives Go's
+		// call-time semantics on every facet — deref timing, value snapshot,
+		// nil panic, field re-read through a pointer, and dynamic re-dispatch —
+		// because the operand is re-walked live at the call. ift is the bound
+		// (receiver-stripped) method type, known statically from the interface.
+		alloc.AllocateBoundMethod()
+		bmv := &BoundMethodValue{
+			Func:      nil, // resolved at call (see resolveLazyBound)
+			Receiver:  *dtv,
+			Method:    path.Name,
+			MethodPkg: callerPath,
 		}
-		panic("should not happen")
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		return PointerValue{
+			TV: &TypedValue{
+				T: ift.(*FuncType),
+				V: bmv,
+			},
+			Base: nil,
+		}
 	default:
 		panic("should not happen")
 	}
@@ -2193,6 +2450,10 @@ func (tv *TypedValue) GetFunc() *FuncValue {
 // GetUnboundFunc returns the underlying *FuncValue for both plain funcs
 // and bound methods (stripping the receiver), or nil for a typed-nil
 // func/method variable. Panics on any other type.
+//
+// A lazy interface bind (BoundMethodValue.IsLazy()) also returns nil — its
+// concrete func doesn't exist until call time — so callers must not read nil
+// as "typed-nil func" without checking the value shape.
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	switch fv := tv.V.(type) {
 	case nil:
@@ -2200,7 +2461,7 @@ func (tv *TypedValue) GetUnboundFunc() *FuncValue {
 	case *FuncValue:
 		return fv
 	case *BoundMethodValue:
-		return fv.Func
+		return fv.Func // nil for a lazy bind: bmv exists, concrete func doesn't yet
 	default:
 		panic(fmt.Sprintf("expected func/method or nil but got %T", tv.V))
 	}

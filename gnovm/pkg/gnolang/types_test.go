@@ -171,7 +171,7 @@ func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 		"fillType": func() { fillType(nil, legacy) },
 	}
 	if debugAssert {
-		uses["FindEmbeddedFieldType"] = func() { legacy.FindEmbeddedFieldType("p", "M", nil) }
+		uses["FindEmbeddedFieldType"] = func() { legacy.FindEmbeddedFieldType("p", "M") }
 		uses["verifyImplementedBy"] = func() { legacy.verifyImplementedBy(nil, 0, embedded) }
 		uses["TypeID"] = func() { legacy.TypeID() }
 	}
