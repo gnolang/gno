@@ -3,6 +3,7 @@ package txlog
 import (
 	"fmt"
 	"maps"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,10 +14,9 @@ func ExampleWrap() {
 		ID   int
 		Name string
 	}
-	m := GoMap[int, User](map[int]User{
-		1: {ID: 1, Name: "alice"},
-		2: {ID: 2, Name: "bob"},
-	})
+	m := NewSyncGoMap[int, User]()
+	m.Set(1, User{ID: 1, Name: "alice"})
+	m.Set(2, User{ID: 2, Name: "bob"})
 
 	// Wrap m in a transaction log.
 	txl := Wrap(m)
@@ -54,7 +54,7 @@ func Test_txLog(t *testing.T) {
 	type Value = struct{ b byte }
 
 	// Full "integration test" of the txLog + mapwrapper.
-	source := GoMap[int, *Value](map[int]*Value{})
+	source := NewSyncGoMap[int, *Value]()
 
 	// create 4 empty values (we'll just use the pointers)
 	vs := [...]*Value{
@@ -81,7 +81,7 @@ func Test_txLog(t *testing.T) {
 		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
 	}
 
-	saved := maps.Clone(source)
+	saved := maps.Collect(source.Iterate())
 	txm := Wrap(source).(*txLog[int, *Value])
 
 	{
@@ -117,8 +117,8 @@ func Test_txLog(t *testing.T) {
 		v, ok = source.Get(1)
 		assert.True(t, vs[1] == v)
 		assert.True(t, ok)
-		assert.Equal(t, saved, source)
-		assert.Equal(t, saved, txm.source)
+		assert.Equal(t, saved, maps.Collect(source.Iterate()))
+		assert.Equal(t, saved, maps.Collect(txm.source.Iterate()))
 
 		// double-check on the iterators.
 		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
@@ -131,7 +131,7 @@ func Test_txLog(t *testing.T) {
 		txm.Commit()
 		assert.Empty(t, txm.dirty)
 		assert.Equal(t, source, txm.source)
-		assert.NotEqual(t, saved, source)
+		assert.NotEqual(t, saved, maps.Collect(source.Iterate()))
 
 		v, ok := source.Get(3)
 		assert.True(t, vs[3] == v)
@@ -335,14 +335,141 @@ func (b bufferedTxMap[K, V]) Delete(k K) {
 	b.dirty[k] = deletable[V]{deleted: true}
 }
 
+func TestSyncGoMap(t *testing.T) {
+	t.Parallel()
+
+	m := NewSyncGoMap[string, int]()
+
+	// Get on empty map returns zero value and false.
+	v, ok := m.Get("a")
+	assert.False(t, ok)
+	assert.Zero(t, v)
+
+	// Set then Get.
+	m.Set("a", 1)
+	m.Set("b", 2)
+	v, ok = m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, 1, v)
+	v, ok = m.Get("b")
+	assert.True(t, ok)
+	assert.Equal(t, 2, v)
+
+	// Overwrite existing key.
+	m.Set("a", 99)
+	v, ok = m.Get("a")
+	assert.True(t, ok)
+	assert.Equal(t, 99, v)
+
+	// Delete existing key.
+	m.Delete("a")
+	v, ok = m.Get("a")
+	assert.False(t, ok)
+	assert.Zero(t, v)
+
+	// Delete non-existent key is a no-op.
+	m.Delete("missing")
+
+	// Iterate returns all remaining entries.
+	assert.Equal(t, map[string]int{"b": 2}, maps.Collect(m.Iterate()))
+}
+
+// TestSyncGoMap_iterateSnapshot verifies that Iterate snapshots the map at
+// call time, so mutations made during the for-range loop do not affect the
+// sequence being consumed.
+func TestSyncGoMap_iterateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	m := NewSyncGoMap[int, int]()
+	m.Set(1, 10)
+	m.Set(2, 20)
+
+	seen := map[int]int{}
+	for k, v := range m.Iterate() {
+		seen[k] = v
+		// Mutate the live map during iteration.
+		m.Set(3, 30)
+		m.Delete(k)
+	}
+
+	// The iteration should have visited exactly the two original entries.
+	assert.Equal(t, map[int]int{1: 10, 2: 20}, seen)
+
+	// Mutations are visible after iteration completes.
+	_, ok1 := m.Get(1)
+	_, ok2 := m.Get(2)
+	v3, ok3 := m.Get(3)
+	assert.False(t, ok1)
+	assert.False(t, ok2)
+	assert.True(t, ok3)
+	assert.Equal(t, 30, v3)
+}
+
+// TestSyncGoMap_concurrent exercises SyncGoMap under concurrent readers,
+// writers, and iterators. Run with -race to detect data races.
+func TestSyncGoMap_concurrent(t *testing.T) {
+	t.Parallel()
+
+	const (
+		keys       = 50
+		goroutines = 8
+		ops        = 500
+	)
+
+	m := NewSyncGoMap[int, int]()
+	for i := range keys {
+		m.Set(i, i)
+	}
+
+	var wg sync.WaitGroup
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				m.Get(i % keys)
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				k := i % keys
+				m.Set(k, k*2)
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for range ops / 10 {
+				k := 0
+				for range m.Iterate() {
+					k++
+				}
+			}
+		})
+	}
+
+	for range goroutines {
+		wg.Go(func() {
+			for i := range ops {
+				m.Delete(i % keys)
+			}
+		})
+	}
+
+	wg.Wait()
+}
+
 func Benchmark_txLogRead(b *testing.B) {
 	const maxValues = (1 << 10) * 9 // must be multiple of 9
 
 	var (
-		baseMap = make(map[int]int)        // all values filled
-		wrapped = GoMap[int, int](baseMap) // wrapper around baseMap
-		stack1  = Wrap(wrapped)            // n+1, n+4, n+7 values filled (n%9 == 0)
-		stack2  = Wrap(stack1)             // n'th values filled (n%9 == 0)
+		wrapped = NewSyncGoMap[int, int]() // all values filled
+		baseMap = wrapped.m
+		stack1  = Wrap(wrapped) // n+1, n+4, n+7 values filled (n%9 == 0)
+		stack2  = Wrap(stack1)  // n'th values filled (n%9 == 0)
 	)
 
 	for i := range maxValues {
@@ -390,7 +517,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 	_, _ = v, ok
 
 	b.Run("stack1", func(b *testing.B) {
-		src := GoMap[int, int](make(map[int]int))
+		src := NewSyncGoMap[int, int]()
 		st := Wrap(src)
 		b.ResetTimer()
 
@@ -408,7 +535,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 		}
 	})
 	b.Run("wrapped", func(b *testing.B) {
-		src := GoMap[int, int](make(map[int]int))
+		src := NewSyncGoMap[int, int]()
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -420,7 +547,7 @@ func Benchmark_txLogWrite(b *testing.B) {
 			v, ok = src.Get(k)
 
 			if k == maxValues-1 {
-				src = GoMap[int, int](make(map[int]int))
+				src = NewSyncGoMap[int, int]()
 			}
 		}
 	})

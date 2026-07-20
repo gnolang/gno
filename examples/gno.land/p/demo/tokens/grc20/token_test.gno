@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -15,30 +16,43 @@ import (
 // newTestToken constructs a Token. The IIFE same-realm cross
 // promotes the test's EOA-origin cur into a fresh /p/grc20
 // CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
-// checks pass. cross(rlm) is the explicit-rlm form of bare `cross`.
-func newTestToken(_ int, rlm realm, name, symbol string, decimals int) (tok *Token, adm *PrivateLedger) {
+// checks pass.
+func newTestToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
-		tok, adm = NewToken(0, cur, name, symbol, decimals)
+		tok, adm = NewToken(name, symbol, decimals, id, cur)
 	}(cross(rlm))
 	return
 }
 
 func TestTestImpl(cur realm, t *testing.T) {
-	bank, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
+	bank, _ := newTestToken("Dummy", "DUMMY", 4, 0, cur)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
+func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
+	holder := testutils.TestAddress("holder")
+
+	first, firstLedger := newTestToken("Same", "DUP", 6, 1, cur)
+	second, secondLedger := newTestToken("Same", "DUP", 6, 2, cur)
+
+	urequire.True(t, first.ID() != second.ID(), "duplicate symbols should not force duplicate IDs")
+
+	urequire.NoError(t, firstLedger.Mint(holder, 11))
+	urequire.NoError(t, secondLedger.Mint(holder, 22))
+	urequire.Equal(t, int64(11), first.BalanceOf(holder))
+	urequire.Equal(t, int64(22), second.BalanceOf(holder))
+}
+
 func TestNewTokenValidation(cur realm, t *testing.T) {
-	// Each case wraps NewToken in a crossing closure (same as newTestToken)
-	// to satisfy IsCurrent + non-empty pkgPath. The validation under test
-	// is the name/symbol/decimals checks that run after.
+	// Wrap NewToken to satisfy IsCurrent and pkgPath requirements,
+	// then validate name, symbol, and decimals.
 	mustPanic := func(name, sym string, dec int, want error, label string) {
 		t.Helper()
 		// newTestToken wraps NewToken in cross(...), so the panic from
 		// NewToken's validators crosses a realm boundary — use revive()
 		// (defer-recover doesn't see cross-realm panics).
 		r := revive(func() {
-			newTestToken(0, cur, name, sym, dec)
+			newTestToken(name, sym, dec, 0, cur)
 		})
 		if r == nil {
 			t.Errorf("%s: expected panic, got none", label)
@@ -72,11 +86,11 @@ func TestNewTokenValidation(cur realm, t *testing.T) {
 	mustPanic("Name", "OK", MaxDecimals+1, ErrInvalidDecimals, "decimals over cap")
 
 	// Boundary positives — should NOT panic.
-	tok, _ := newTestToken(0, cur, strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals)
+	tok, _ := newTestToken(strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals, 0, cur)
 	urequire.True(t, tok != nil, "boundary name+symbol+decimals should succeed")
 
 	// UTF-8 name with non-ASCII is allowed.
-	tok2, _ := newTestToken(0, cur, "Доллар", "RUB", 2)
+	tok2, _ := newTestToken("Доллар", "RUB", 2, 0, cur)
 	urequire.True(t, tok2 != nil, "UTF-8 name should be allowed")
 }
 
@@ -87,7 +101,7 @@ func TestToken(cur realm, t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	bank, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
+	bank, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -147,7 +161,7 @@ func TestToken(cur realm, t *testing.T) {
 func TestMintOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 
 	safeValue := int64(1 << 62)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
@@ -166,7 +180,7 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 		recipient        = testutils.TestAddress("to")
 	)
 
-	token, admin := newTestToken(0, cur, "Test", "TEST", 6)
+	token, admin := newTestToken("Test", "TEST", 6, 0, cur)
 
 	// owner has 100 tokens, spender has 50 allowance
 	initialBalance := int64(100)
@@ -201,7 +215,7 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 func TestMintUntilOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 
 	tests := []struct {
 		name           string

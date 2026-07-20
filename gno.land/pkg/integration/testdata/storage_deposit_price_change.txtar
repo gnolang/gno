@@ -69,10 +69,10 @@ stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999854'
+stdout '"coins": "9999853'
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"

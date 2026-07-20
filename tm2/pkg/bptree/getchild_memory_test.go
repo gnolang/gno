@@ -56,7 +56,7 @@ func assertReloadable(t *testing.T, n Node) {
 func TestGetChild_WorkingTreeBoundedAfterSave(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 200_000, NewNopLogger())
 	const n = 20_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -75,7 +75,7 @@ func TestGetChild_WorkingTreeBoundedAfterSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	rng := rand.New(rand.NewSource(1))
-	for i := 0; i < n; i++ {
+	for range n {
 		if _, err := imm.Has(i2b(rng.Intn(n))); err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +93,7 @@ func TestGetChild_WorkingTreeBoundedAfterSave(t *testing.T) {
 func TestGetChild_NoReloadSetSave_NdbInvariant(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 100, NewNopLogger())
 	const n = 5_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func TestGetChild_NoReloadSetSave_NdbInvariant(t *testing.T) {
 	if _, _, err := tree.SaveVersion(); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < n+2_000; i++ {
+	for i := range n + 2_000 {
 		got, err := tree.Get(i2b(i))
 		if err != nil {
 			t.Fatal(err)
@@ -131,7 +131,7 @@ func TestGetChild_NoReloadSetSave_NdbInvariant(t *testing.T) {
 func TestGetChild_NoReloadRemoveMerge(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 100, NewNopLogger())
 	const n = 5_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -148,7 +148,7 @@ func TestGetChild_NoReloadRemoveMerge(t *testing.T) {
 	if _, _, err := tree.SaveVersion(); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		got, err := tree.Get(i2b(i))
 		if err != nil {
 			t.Fatal(err)
