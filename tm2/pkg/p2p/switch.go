@@ -634,7 +634,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
 			return // exit
-		case errors.As(err, &errTransportClosed):
+		case errors.Is(err, errTransportClosed):
 			// Underlaying transport as been closed
 			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
 			return // exit
