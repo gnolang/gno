@@ -2558,9 +2558,13 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	if ft.Name == "" {
 		panic(fmt.Sprintf("cannot derive embedded name for field type %s", ft.Type.String()))
 	}
-	// Go spec: an embedded field must be a type name T or *T, and T itself
-	// may not be a pointer type. An alias of a pointer type resolves to the
-	// *PointerType spelling and is allowed, matching Go.
+	// Go spec: an embedded field must be a type name T or a pointer to a
+	// non-interface type name *T, and T itself may not be a pointer type.
+	// An alias of a pointer type resolves to the *PointerType spelling and
+	// is allowed, matching Go.
+	if pt, isPtr := ft.Type.(*PointerType); isPtr && pt.Elt.Kind() == InterfaceKind {
+		panic(fmt.Sprintf("embedded field type cannot be a pointer to an interface: %s", ft.Type.String()))
+	}
 	if unwrapPointerType(ft.Type).Kind() == PointerKind {
 		panic(fmt.Sprintf("embedded field type cannot be a pointer: %s", ft.Type.String()))
 	}
@@ -3102,12 +3106,19 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 // (embedded fields are T or *T, and pointers to declared types and
 // structs are transparent for field/method exposure). Returns nil for
 // types that expose nothing (e.g. nested pointers, pointers to
-// interfaces).
+// interfaces, and pointers to defined pointer types — `*D1` for
+// `type D1 *D2` needs a second deref for any selection, which Go's
+// selector shorthand never performs).
 func canonEmbeddedType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
-		switch pt.Elt.(type) {
-		case *DeclaredType, *StructType:
-			return pt.Elt
+		switch elt := pt.Elt.(type) {
+		case *DeclaredType:
+			if elt.Kind() == PointerKind {
+				return nil
+			}
+			return elt
+		case *StructType:
+			return elt
 		}
 		return nil
 	}

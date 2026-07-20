@@ -58,9 +58,23 @@ pointer (returns a `VPDerefField`-headed trail: a second indirection)
 or an interface (returns a `VPInterface`-headed trail), neither of
 which the switch handled.
 
+A second review pass surfaced two more:
+
+```go
+type S struct{ *I }  // I an interface. Go: "embedded field type
+                     // cannot be a pointer to an interface";
+                     // GnoVM: accepted, then panic on s.M.
+
+var p *D1            // type D1 *D2
+_ = p.A              // Go: p.A undefined (*D1 needs a second deref);
+                     // GnoVM: panic — the root canonEmbeddedType strip
+                     // turned *D1 into D1, entering the defined-
+                     // pointer crossing one level too late.
+```
+
 ## Decision
 
-Two changes in `gnovm/pkg/gnolang/types.go`. (The fix was originally
+Three changes in `gnovm/pkg/gnolang/types.go`. (The fix was originally
 written against the pre-BFS recursive lookup — per-type
 `FindEmbeddedFieldType` methods — and re-ported onto the BFS lookup
 introduced by #5721 when merging master.)
@@ -86,10 +100,18 @@ introduced by #5721 when merging master.)
    pointer kind after one `unwrapPointerType` — i.e. a defined type of
    pointer kind (`D1`) or a pointer whose element is of pointer kind
    (`*D1`) — with Go's message "embedded field type cannot be a
-   pointer". A literal `*T` unwraps to `T` and stays legal, and an
+   pointer"; and reject a pointer whose element is of interface kind
+   (`*I`) with "embedded field type cannot be a pointer to an
+   interface". A literal `*T` unwraps to `T` and stays legal, and an
    alias of a pointer type resolves to the `*PointerType` spelling and
    stays legal, both matching Go. This runs on both struct construction
    paths (`doOpStructType` and `buildFieldTypesAST`).
+
+3. **`canonEmbeddedType`**: `*T` where `T` is a defined type of pointer
+   kind returns nil (exposes nothing) — any selection through `*D1`
+   would need a second deref, which Go's selector shorthand never
+   performs. This covers the lookup root (`var p *D1; p.A`); spine
+   crossings were already covered by (1)'s second-crossing rule.
 
 Fields still promote through a defined pointer type (`x.A` for
 `(*x).A`), unchanged and covered by a regression test, including
@@ -129,5 +151,9 @@ uses the same lookup, and Go agrees (`D1` implements nothing).
   go/types type-checking on-chain, so nothing deployable breaks.
 - Tests: `method47–50.gno` (renumbered from 40–43 after merging
   master, which added its own `method40–46.gno`), `struct64.gno`,
-  `struct64b.gno`, `ptr12.gno` (nested defined pointers, from review),
-  `ptr13.gno` (pointer to defined interface type).
+  `struct64b.gno`, `struct64c.gno` (alias-of-pointer embedding stays
+  legal), `struct65.gno` (pointer-to-interface embedding rejected),
+  `ptr12.gno` (nested defined pointers, from review), `ptr13.gno`
+  (pointer to defined interface type), `ptr14.gno` (`*D1` root exposes
+  nothing), `ptr15.gno` (defined pointer type does not satisfy an
+  interface via its base's methods).
