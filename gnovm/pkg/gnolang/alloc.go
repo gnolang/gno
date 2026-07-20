@@ -3,6 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
+	"slices"
+	"sort"
+	"strings"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -38,6 +41,34 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
+
+	// stringRanges tracks the address extents of string backings allocated
+	// through this allocator, so the GC can recount their backing bytes
+	// once per cycle (see CountStringBytes).
+	//
+	// Sorted by start; ranges are disjoint. Every NewString gets its OWN
+	// range — trackString clones the input if its extent overlaps an
+	// existing range — so the set of ranges is decided by VM logic alone,
+	// never by toolchain-dependent backing sharing (concat returning its
+	// operand, string([]byte) copy elision, literal interning).
+	//
+	// Lookup finds the range containing a pointer p — so a slice s[M:N]
+	// (the one intentional sharing case, via GetSlice) whose ptr is src+M
+	// resolves to the source's range even if the source itself is dead.
+	// Identity by *containment*, not equality, is what makes the
+	// slice-undercount bug from the prior map[uintptr]int64 design
+	// inexpressible here.
+	//
+	// Entries with lastCycle != current cycle at end of GC are pruned
+	// (CleanupTrackedStrings); entries whose address Go recycled earlier
+	// are evicted by trackString when the new occupant is tracked.
+	stringRanges []stringRange
+}
+
+// stringRange is one tracked string-backing extent.
+type stringRange struct {
+	start, end uintptr // [start, end) extent of the backing
+	lastCycle  int64   // last GC cycle this range was visited; 0 = never
 }
 
 // Allocation size constants for gas metering.
@@ -305,6 +336,15 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
+		// stringRanges starts empty (nil). The child re-registers every
+		// string it charges through its own NewString / fillTypesOfValue
+		// path: the tx store's caches start empty, so persisted strings
+		// are reloaded and re-tracked, and runtime-created strings are
+		// tracked at creation. Carrying the parent's entries over is
+		// unnecessary (they are never consulted), and sharing them would
+		// be unsafe — the child's CleanupTrackedStrings would prune the
+		// parent's entries, and query paths fork on a different goroutine.
+		stringRanges: nil,
 	}
 }
 
@@ -354,6 +394,120 @@ func (alloc *Allocator) Allocate(size int64) {
 	if alloc.gasMeter != nil {
 		alloc.gasMeter.ConsumeGas(allocGas(size), "memory allocation")
 	}
+}
+
+// stringExtent returns the [start, end) extent of str's backing.
+// Caller must ensure len(str) > 0 (unsafe.StringData on "" returns an
+// unspecified pointer).
+func stringExtent(str string) (start, end uintptr) {
+	start = uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	return start, start + uintptr(len(str))
+}
+
+// overlapAt returns the index of the first tracked range not entirely
+// before [p, end) — which is also the sorted insert position for that
+// extent — and whether it actually overlaps it. Ranges are sorted and
+// disjoint, so one binary search answers both.
+func (alloc *Allocator) overlapAt(p, end uintptr) (lo int, overlaps bool) {
+	lo = sort.Search(len(alloc.stringRanges), func(i int) bool {
+		return alloc.stringRanges[i].end > p
+	})
+	return lo, lo < len(alloc.stringRanges) && alloc.stringRanges[lo].start < end
+}
+
+// trackString registers a backing extent for str so the GC can recount
+// its bytes once per cycle, and returns the string whose backing was
+// registered — str itself, or a clone of it.
+//
+// Whether a Go string operation shares or copies a backing is a toolchain
+// decision (concat returning its operand, string([]byte) copy elision,
+// literal interning), and consensus-visible accounting must not depend on
+// it. So every tracked string gets its own range: if str's extent overlaps
+// an already-tracked range, str is cloned — forcing a fresh backing — and
+// the clone is registered and returned instead.
+//
+// A fresh clone's extent can itself overlap tracked entries only if those
+// entries are stale: their backing died and Go recycled the address (live
+// backings are reachable and cannot be allocated over). Such entries are
+// evicted here, earlier than CleanupTrackedStrings would.
+//
+// The one intentional sharing case — string slicing (GetSlice) — does not
+// go through trackString; a slice's pointer resolves into its source's
+// range by containment in CountStringBytes.
+func (alloc *Allocator) trackString(str string) string {
+	if alloc == nil || len(str) == 0 {
+		// unsafe.StringData on "" returns an unspecified (typically
+		// shared sentinel) pointer; skip tracking so all empty strings
+		// don't collapse onto one entry.
+		return str
+	}
+	p, end := stringExtent(str)
+	lo, overlaps := alloc.overlapAt(p, end)
+	if overlaps {
+		str = strings.Clone(str)
+		p, end = stringExtent(str)
+		if lo, overlaps = alloc.overlapAt(p, end); overlaps {
+			// Overlap despite a fresh backing: stale entries.
+			hi := sort.Search(len(alloc.stringRanges), func(i int) bool {
+				return alloc.stringRanges[i].start >= end
+			})
+			alloc.stringRanges = slices.Delete(alloc.stringRanges, lo, hi)
+		}
+	}
+	alloc.stringRanges = slices.Insert(alloc.stringRanges, lo, stringRange{start: p, end: end})
+	return str
+}
+
+// CountStringBytes reports the backing-byte count the GC visitor should
+// charge for str during gcCycle, and whether to charge at all.
+//
+// Returns (size, true) the first time a containing range is seen in this
+// cycle, where size is the FULL backing length (not len(str)). Charging
+// the full backing — not the slice length — is what keeps a sliced
+// substring whose source is otherwise dead from undercounting: the
+// backing stays alive while the slice does, and the slice's pointer
+// resolves into the source's range via containment.
+//
+// Returns (0, false) on subsequent visits in the same cycle (dedup for
+// shared backings), for untracked pointers, or for empty strings.
+func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) (int64, bool) {
+	if alloc == nil || len(str) == 0 {
+		return 0, false
+	}
+	p, _ := stringExtent(str)
+
+	i := sort.Search(len(alloc.stringRanges), func(i int) bool {
+		return alloc.stringRanges[i].start > p
+	}) - 1
+	if i < 0 {
+		return 0, false
+	}
+	r := &alloc.stringRanges[i]
+	if p >= r.end {
+		return 0, false // pointer falls in a gap
+	}
+	if r.lastCycle == gcCycle {
+		return 0, false // dedup
+	}
+	r.lastCycle = gcCycle
+	return int64(r.end - r.start), true
+}
+
+// CleanupTrackedStrings drops ranges not visited in gcCycle (dead
+// backings), bounding the address-recycling window to a single cycle.
+// Entries visited (lastCycle == gcCycle) are preserved for the next GC.
+func (alloc *Allocator) CleanupTrackedStrings(gcCycle int64) {
+	if alloc == nil {
+		return
+	}
+	n := 0
+	for _, r := range alloc.stringRanges {
+		if r.lastCycle == gcCycle {
+			alloc.stringRanges[n] = r
+			n++
+		}
+	}
+	alloc.stringRanges = alloc.stringRanges[:n]
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -507,6 +661,9 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
+	// trackString may clone s to guarantee a fresh, individually tracked
+	// backing; the returned string is the one to hand out.
+	s = alloc.trackString(s)
 	return StringValue(s)
 }
 
@@ -784,7 +941,12 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// Only count header size during GC recount.
+	// String data bytes are tracked at allocation time and
+	// checked via CountStringBytes during GC. Slices share the
+	// underlying bytes with their source — only the header was
+	// charged, so the bytes belong to the original string.
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
