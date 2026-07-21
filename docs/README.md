@@ -32,6 +32,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Tutorial: `minisocial` dApp](builders/tutorial-minisocial.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
 - [RPC clients](builders/rpc-clients.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
 - [Contributor guide](builders/contributor-guide.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
+- [Cheatsheet](cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
 
 ## References
 

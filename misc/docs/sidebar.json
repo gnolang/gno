@@ -25,7 +25,8 @@
           "builders/editor-setup",
           "builders/tutorial-minisocial",
           "builders/rpc-clients",
-          "builders/contributor-guide"
+          "builders/contributor-guide",
+          "cheatsheet"
         ]
       },
       {
