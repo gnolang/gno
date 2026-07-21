@@ -430,6 +430,29 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
+	// A non-positive target is not a target at all, and both branches below
+	// divide by it. Two ways to get here, both reachable from a genesis that
+	// ValidateConsensusParams accepts:
+	//
+	//   - Block.MaxGas == -1, the "no gas bound" sentinel. Nothing maps it to
+	//     "unbounded" on this path, unlike BaseApp.getMaximumBlockGas and
+	//     NewAnteHandler. big.Int.Div floors, so maxGas*70/100 is -1, every
+	//     gasUsed >= 0 compares above it and takes the increase branch, and
+	//     there the intermediate quotient is negative so the min-1 floor
+	//     clamps it to +1: the price ratchets up by 1 on every block,
+	//     including idle ones, with the decay direction unreachable.
+	//   - maxGas*TargetGasRatio < 100 — with the default ratio of 70 that is
+	//     MaxGas 0 or 1 — makes the target 0 and the division panic. MaxGas 0
+	//     is the other "unbounded" spelling: getMaximumBlockGas turns it into
+	//     an infinite gas meter, so blocks do consume gas and the first
+	//     non-empty block panics in EndBlock.
+	//
+	// In both cases there is no congestion signal to price against, so leave
+	// the price where it is.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
+
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
@@ -466,8 +489,18 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// value of GasPricesChangeCompressor (see issue #5906).
 		diff := maxBig(num, bigOne)
 		num.Sub(lastPriceInt, diff)
-		// gas price should not be less than the initial gas price,
-		num = maxBig(num, initPriceInt)
+		// gas price should not be less than the initial gas price, and
+		// never below 1 whatever the initial price says. Params.Validate
+		// accepts an InitialGasPrice of 0, and 0 is an absorbing state: the
+		// guard at the top of this function reads a stored price of 0 as
+		// "dynamic pricing disabled" and returns early, so no congestion
+		// level can lift the price again. Combined with the min-1 decrement
+		// above, a chain configured that way walks down to 0 in a handful of
+		// under-target blocks and stays there permanently. gno.land's own
+		// genesis sets 1ugnot/1000gas, so the shipped chain has a floor of 1
+		// already; this stops an operator misconfiguration from silently
+		// disabling the mechanism.
+		num = maxBig(num, maxBig(initPriceInt, bigOne))
 	}
 
 	if !num.IsInt64() {
