@@ -397,11 +397,10 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
-		// Surface loadAppState errors on the logger before returning. The
-		// error is also propagated via ResponseInitChain.Error, but
-		// tendermint's handshake does not surface that field — operators
-		// otherwise see "Completed ABCI Handshake" with an empty appHash
-		// and no indication that genesis replay never happened.
+		// Surface loadAppState errors on the logger before returning.
+		// ResponseInitChain.Error carries the error up to the handshake,
+		// which aborts the boot on it, but the log line is what names the
+		// actual cause for the operator.
 		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
@@ -429,18 +428,13 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// has lost the operator-keyed management plane for those validators.
 	if cfg.shouldRunValoperCoverageAssertion(req) {
 		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
-			// ResponseInitChain.Error is silently discarded by tm2:
-			// consensus/replay.go:339-342 only inspects the Go-level
-			// err from InitChainSync, and the call chain has no
-			// recover() that would convert the proto Error field into
-			// one — baseapp.InitChain (baseapp.go:320 + 359-361
-			// short-circuit), localClient.InitChainSync
-			// (local_client.go:192), and consensus.InitChainSync
-			// (app_conn.go:65) are all pass-through. A panic
-			// propagates up the boot goroutine (NewNode →
-			// Handshaker.ReplayBlocks → InitChainSync) and crashes the
-			// process — the only way to abort handshake on uncovered
-			// genesis.
+			// Panic rather than return a ResponseInitChain.Error.
+			// Handshaker.ReplayBlocks does abort on that field now, so
+			// an error response would stop the boot too — but a panic
+			// does not depend on the caller inspecting it, and this
+			// invariant is unconditionally fatal. The panic propagates
+			// up the boot goroutine (NewNode → Handshaker.ReplayBlocks
+			// → InitChainSync) and crashes the process.
 			panic(fmt.Errorf("genesis valoper coverage assertion failed: %w", err))
 		}
 	}
