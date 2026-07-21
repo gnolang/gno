@@ -468,14 +468,7 @@ func (ndb *nodeDB) AvailableVersions() []int {
 	return versions
 }
 
-// discoverVersions finds the first and latest versions from the root
-// references. Called during Load, including on every immutable query-height
-// open.
-//
-// Root keys are PrefixRoot‖version-BE, so key order is version order: the first
-// forward key is the smallest version and the first reverse key is the largest.
-// Seeking both ends is two backend seeks, where scanning every root key was
-// linear in the retained-version count on every call.
+// discoverVersions sets the oldest and newest saved versions.
 func (ndb *nodeDB) discoverVersions() error {
 	first, err := ndb.edgeRootVersion(false)
 	if err != nil {
@@ -493,10 +486,13 @@ func (ndb *nodeDB) discoverVersions() error {
 	return nil
 }
 
-// edgeRootVersion returns the version of the first (reverse=false) or last
-// (reverse=true) root key, or 0 when no root exists. Every root key is 9 bytes
-// (PrefixRoot‖version-BE); any other length is skipped, matching the prior full
-// scan, so a non-root key at either edge does not stop discovery.
+// edgeRootVersion returns the oldest (reverse=false) or newest (reverse=true)
+// saved version, or 0 if none. Root keys are 'R' followed by the version in
+// big-endian, so sorting them sorts the versions and each end is one seek:
+//
+//	R 00 00 00 00 00 00 00 03   <- oldest, reverse=false returns 3
+//	R 00 00 00 00 00 00 00 04
+//	R 00 00 00 00 00 00 00 05   <- newest, reverse=true returns 5
 func (ndb *nodeDB) edgeRootVersion(reverse bool) (int64, error) {
 	prefix := []byte{PrefixRoot}
 	end := make([]byte, len(prefix))
