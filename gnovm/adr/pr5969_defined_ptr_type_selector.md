@@ -82,19 +82,24 @@ introduced by #5721 when merging master.)
 1. **`resolveEmbedNode` / `lookupShallowestEmbedded`**: the spine walk
    gains a `fieldsOnly` flag. A `*PointerType` node inside the spine is
    always a defined type's base (root and embedded-field pointers are
-   stripped by `canonEmbeddedType` before the walk), so crossing one
-   switches to fields-only: method lookups on subsequent declared types
-   and interface bases no longer count (a defined type whose underlying
-   type is a pointer has an empty method set), and a second crossing
-   exposes nothing (the `(*x).f` shorthand applies once — this is the
-   `type B *C; type A *B` case). The flag propagates through the BFS
-   (`embedLookupEntry.fieldsOnly`, threaded alongside the per-level
-   `structs` expansion state) so methods of types embedded *inside* the
-   pointed-to struct — including via embedded interfaces — don't
-   promote either, while their fields still do. With phase 1 filtering
-   these out, `buildEmbeddedTrail` no longer receives winners it cannot
-   represent, which is what previously tripped its
-   `should not happen` panics.
+   stripped by `canonEmbeddedType` before the walk). After crossing
+   one, a method hit — on a declared type or via an interface base —
+   still *occupies its depth*: it shadows deeper names and makes
+   same-depth selectors ambiguous exactly as in Go (a method `M.F` and
+   a field `V.F` at the same depth through `type D1 *D2` is
+   `ambiguous selector`, not a silent field pick). But it is not
+   *selectable*: the hit is marked `methodGated`, and a unique
+   methodGated winner resolves to not-found (Go: `x.F undefined`) —
+   a defined type whose underlying type is a pointer has an empty
+   method set. A second crossing exposes nothing at all (the `(*x).f`
+   shorthand applies once — the `type B *C; type A *B` case).
+   `fieldsOnly` is lookup-level state, not per-BFS-entry: embedding a
+   defined pointer type is rejected at construction, so in a valid
+   type graph the crossing can only occur along the root's own wrapper
+   spine, and every deeper node shares the root's flag. With phase 1
+   resolving these to not-found/ambiguous, `buildEmbeddedTrail` no
+   longer receives winners it cannot represent, which is what
+   previously tripped its `should not happen` panics.
 
 2. **`fillEmbeddedName`**: reject embedded fields that are still of
    pointer kind after one `unwrapPointerType` — i.e. a defined type of
@@ -156,4 +161,6 @@ uses the same lookup, and Go agrees (`D1` implements nothing).
   `ptr12.gno` (nested defined pointers, from review), `ptr13.gno`
   (pointer to defined interface type), `ptr14.gno` (`*D1` root exposes
   nothing), `ptr15.gno` (defined pointer type does not satisfy an
-  interface via its base's methods).
+  interface via its base's methods), `ptr16.gno` (gated method still
+  makes a same-depth selector ambiguous), `ptr17.gno` (gated method
+  still shadows a deeper field).

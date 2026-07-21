@@ -2983,10 +2983,9 @@ const (
 // embedLookupEntry is one node of the breadth-first walk in
 // lookupShallowestEmbedded.
 type embedLookupEntry struct {
-	typ        Type     // canonical node; see canonEmbeddedType
-	hops       []uint16 // embedded-field indices from the root to typ
-	multiples  bool     // reachable by more than one same-depth path
-	fieldsOnly bool     // below a defined-pointer crossing: methods don't count
+	typ       Type     // canonical node; see canonEmbeddedType
+	hops      []uint16 // embedded-field indices from the root to typ
+	multiples bool     // reachable by more than one same-depth path
 }
 
 // lookupShallowestEmbedded walks the embedding graph of root breadth-
@@ -3010,9 +3009,21 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 	}
 	// Depth 0: the root provides n directly — the common case; no BFS
 	// state is allocated for it.
-	hit, sawGated, rootSt, rootFO := resolveEmbedNode(callerPath, root, n, false)
+	//
+	// fieldsOnly is lookup-level state: embedding a defined pointer
+	// type is rejected at construction (fillEmbeddedName), so in a
+	// valid type graph the defined-pointer crossing can only occur
+	// along the root's own wrapper spine — every deeper BFS node
+	// shares the root's flag.
+	hit, sawGated, rootSt, fieldsOnly, mGated := resolveEmbedNode(callerPath, root, n, false)
 	switch {
 	case hit:
+		if mGated {
+			// The unique shallowest match is a method reached through
+			// a defined pointer type: it occupies the depth but is not
+			// selectable (Go: x.F undefined).
+			return nil, notFound(sawGated)
+		}
 		return nil, embedLookupFound
 	case rootSt == nil:
 		return nil, notFound(sawGated)
@@ -3020,7 +3031,6 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 	seen := map[Type]struct{}{root: {}}
 	cur := []embedLookupEntry{{typ: root}}
 	structs := []*StructType{rootSt}
-	childFOs := []bool{rootFO}
 	for {
 		// Expand each entry's embedded fields into the next level.
 		var next []embedLookupEntry
@@ -3061,23 +3071,25 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 				hops := make([]uint16, len(e.hops)+1)
 				copy(hops, e.hops)
 				hops[len(e.hops)] = uint16(j)
-				next = append(next, embedLookupEntry{typ: child, hops: hops, multiples: e.multiples, fieldsOnly: childFOs[i]})
+				next = append(next, embedLookupEntry{typ: child, hops: hops, multiples: e.multiples})
 			}
 		}
 		if len(next) == 0 {
 			return nil, notFound(sawGated)
 		}
-		// Scan the new level for accessible providers of n.
+		// Scan the new level for accessible providers of n. Providers
+		// that are methods reached through a defined pointer type
+		// (methodGated) still occupy the depth — they participate in
+		// shadowing and ambiguity — but are not selectable.
 		found := false
 		ambiguous := false
 		var winner []uint16
+		winnerMGated := false
 		structs = make([]*StructType, len(next))
-		childFOs = make([]bool, len(next))
 		for i := range next {
 			e := &next[i]
-			hit, gated, st, stFO := resolveEmbedNode(callerPath, e.typ, n, e.fieldsOnly)
+			hit, gated, st, _, mGated := resolveEmbedNode(callerPath, e.typ, n, fieldsOnly)
 			structs[i] = st
-			childFOs[i] = stFO
 			sawGated = sawGated || gated
 			if !hit {
 				continue
@@ -3088,12 +3100,19 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 			ambiguous = ambiguous || found || e.multiples
 			if !found {
 				winner = e.hops
+				winnerMGated = mGated
 			}
 			found = true
 		}
 		if found {
 			if ambiguous {
 				return nil, embedLookupAmbiguous
+			}
+			if winnerMGated {
+				// Unique winner, but a method through a defined
+				// pointer type: shadows deeper matches, selects
+				// nothing (Go: x.F undefined).
+				return nil, notFound(sawGated)
 			}
 			return winner, embedLookupFound
 		}
@@ -3132,17 +3151,21 @@ func canonEmbeddedType(t Type) Type {
 // is a distinct identity: it is not a hit but sets gated, and the walk
 // keeps going so an accessible match elsewhere (same spine or deeper)
 // can still resolve. When typ does not provide n, st is the underlying
-// struct to expand one embedding level deeper (nil when there is none),
-// and stFieldsOnly is the fieldsOnly context for expanding it.
+// struct to expand one embedding level deeper (nil when there is none).
 //
 // fieldsOnly implements Go's defined-pointer-type semantics: a defined
 // type whose underlying type is a pointer has an empty method set, and
 // the (*x).f selector shorthand promotes fields only. Once the spine
 // crosses such a pointer (a *PointerType node here is always a defined
 // type's base — root and embedded-field pointers are stripped by
-// canonEmbeddedType before the walk), methods no longer count, and a
-// second crossing exposes nothing (the shorthand applies once).
-func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit, gated bool, st *StructType, stFieldsOnly bool) {
+// canonEmbeddedType before the walk), a method still occupies its
+// depth — it shadows deeper names and makes same-depth selectors
+// ambiguous, exactly as in Go — but it is not selectable: such a hit
+// sets methodGated, and the caller turns a unique methodGated winner
+// into not-found. A second crossing exposes nothing (the shorthand
+// applies once). fieldsOnlyOut echoes the flag after any crossing
+// inside this spine, so the root call seeds the lookup-level state.
+func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit, gated bool, st *StructType, fieldsOnlyOut, methodGated bool) {
 	// A cycle along the wrapper spine must revisit a *DeclaredType
 	// (the Base of a DeclaredType is never another DeclaredType), so
 	// tracking those suffices to guard degenerate wrapper cycles like
@@ -3155,19 +3178,15 @@ func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit
 		switch ct := t.(type) {
 		case *DeclaredType:
 			if slices.Contains(seenDecls, ct) {
-				return false, gated, nil, false
+				return false, gated, nil, fieldsOnly, false
 			}
 			seenDecls = append(seenDecls, ct)
-			// Search direct methods via O(1) name lookup. Methods past
-			// a defined-pointer crossing are not in the method set: not
-			// a hit and not even a gated sighting.
-			if !fieldsOnly {
-				if _, ok := ct.lookupMethod(n); ok {
-					if !isRestrictedName(n, ct.PkgPath, callerPath) {
-						return true, gated, nil, false
-					}
-					gated = true // fall through to the base search.
+			// Search direct methods via O(1) name lookup.
+			if _, ok := ct.lookupMethod(n); ok {
+				if !isRestrictedName(n, ct.PkgPath, callerPath) {
+					return true, gated, nil, fieldsOnly, fieldsOnly
 				}
+				gated = true // fall through to the base search.
 			}
 			t = ct.Base
 		case *PointerType:
@@ -3177,37 +3196,33 @@ func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit
 			if fieldsOnly {
 				// Second defined-pointer crossing (e.g. type B *C;
 				// type A *B): nothing promotes.
-				return false, gated, nil, false
+				return false, gated, nil, fieldsOnly, false
 			}
 			fieldsOnly = true
 			if t = canonEmbeddedType(ct); t == nil {
-				return false, gated, nil, false
+				return false, gated, nil, fieldsOnly, false
 			}
 		case *StructType:
 			for i := range ct.Fields {
 				if ct.Fields[i].Name == n {
 					if !isRestrictedName(n, ct.PkgPath, callerPath) {
-						return true, gated, nil, false
+						return true, gated, nil, fieldsOnly, false
 					}
 					gated = true // embedded fields may still provide n.
 					break
 				}
 			}
-			return false, gated, ct, fieldsOnly
+			return false, gated, ct, fieldsOnly, false
 		case *InterfaceType:
-			// Interfaces provide only methods; none are reachable
-			// through a defined pointer type (e.g. type B interface{...};
-			// type A *B).
-			if fieldsOnly {
-				return false, gated, nil, false
-			}
 			// Interface method sets are flattened at construction, so
 			// the scan is O(methods); it applies the same gated-name
-			// rule against each method's origin package.
+			// rule against each method's origin package. Interface
+			// entries are methods, so a hit past a defined-pointer
+			// crossing is methodGated like any other method.
 			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n)
-			return tr != nil, gated || ae, nil, false
+			return tr != nil, gated || ae, nil, fieldsOnly, fieldsOnly
 		default:
-			return false, gated, nil, false
+			return false, gated, nil, fieldsOnly, false
 		}
 	}
 }
