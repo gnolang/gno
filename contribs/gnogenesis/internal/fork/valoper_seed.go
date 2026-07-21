@@ -49,6 +49,7 @@ const (
 type valoperSeedCfg struct {
 	csvPath string
 	output  string
+	caller  string
 }
 
 type seedRow struct {
@@ -80,10 +81,10 @@ a CSV of (operator_addr, signing_pubkey, moniker, description, server_type).
 
 The output is intended for gnogenesis fork generate's --migration-tx flag,
 which appends migration txs after historical replay. Each emitted tx is a
-genesis-mode MsgCall to gno.land/r/gnops/valopers.Register, with Caller
-set to operator_addr (so OriginCaller during genesis-mode replay equals
-the operator address — the realm's post-genesis squat guard is bypassed
-via ChainHeight()==0 during migration replay).
+genesis-mode MsgCall to gno.land/r/gnops/valopers.Register. Caller is the
+--caller fee-payer address and the operator is passed in Args[3]; the
+realm's post-genesis squat guard (which requires caller==operator) is
+bypassed via ChainHeight()==0 during migration replay.
 
 CSV schema (header row required, exact column names):
 
@@ -144,6 +145,14 @@ Example (full flow, source is gnoland-1 with v3 NOT pre-deployed):
 func (c *valoperSeedCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.csvPath, "csv", "", "input CSV path (required)")
 	fs.StringVar(&c.output, "output", "", "output .jsonl path (required)")
+	fs.StringVar(&c.caller, "caller", "",
+		"bech32 address used as the MsgCall.Caller (fee payer). Must have "+
+			"genesis balance >= 1 ugnot since the tx fee is 1 ugnot (zero-fee "+
+			"would trip Coin amino zero-collapse on round-trip). Operator "+
+			"address from the CSV row is still passed in MsgCall.Args[3] so "+
+			"valopers.Register registers the right operator; the squat guard "+
+			"that requires caller==operator is bypassed at genesis-mode "+
+			"replay (ChainHeight()==0). Required.")
 }
 
 func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) error {
@@ -152,6 +161,13 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 	}
 	if cfg.output == "" {
 		return errors.New("--output is required")
+	}
+	if cfg.caller == "" {
+		return errors.New("--caller is required")
+	}
+	callerAddr, err := crypto.AddressFromBech32(cfg.caller)
+	if err != nil {
+		return fmt.Errorf("invalid --caller %q: %w", cfg.caller, err)
 	}
 
 	rows, err := loadAndValidateCSV(cfg.csvPath)
@@ -167,7 +183,7 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 
 	var buf strings.Builder
 	for _, r := range rows {
-		tx := buildRegisterTx(r)
+		tx := buildRegisterTx(r, callerAddr)
 		line, err := amino.MarshalJSON(tx)
 		if err != nil {
 			return fmt.Errorf("marshal tx for operator %s: %w", r.OperatorAddr, err)
@@ -322,13 +338,12 @@ func validateRow(row *seedRow, csvRow int) error {
 	return nil
 }
 
-// buildRegisterTx produces a TxWithMetadata for a single valoper.Register
-// MsgCall. Caller is the operator address; OriginCaller during genesis-
-// mode replay therefore equals the operator address, satisfying the
-// realm's squat guard via the ChainHeight()==0 bypass.
-func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
-	caller, _ := crypto.AddressFromBech32(row.OperatorAddr)
-
+// buildRegisterTx produces an AnnotatedTx for a single valoper.Register
+// MsgCall. Caller is the --caller fee-payer address; the operator is
+// passed in Args[3]. The realm's squat guard (which requires
+// caller==operator post-genesis) is bypassed during genesis-mode replay
+// via ChainHeight()==0.
+func buildRegisterTx(row seedRow, caller crypto.Address) AnnotatedTx {
 	msg := vm.MsgCall{
 		Caller:  caller,
 		PkgPath: valopersPkgPath,
@@ -343,15 +358,25 @@ func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
 	}
 
 	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 0)),
-		Signatures: []std.Signature{},
+		Msgs: []std.Msg{msg},
+		// Non-zero fee (1 ugnot) so std.Coin survives the amino round-trip:
+		// a zero-amount Coin marshals to "" (denom dropped), and decoding it
+		// back trips Tx.ValidateBasic's Fee.GasFee.IsValid() on the empty
+		// denom. Amount=1 preserves the denom. The gnops/valopers.Register
+		// squat guard is bypassed at genesis-mode (ChainHeight() == 0).
+		Fee: std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 1)),
+		// One zero-value Signature per signer: the consumer runs with
+		// --skip-genesis-sig-verification so sig verification never runs,
+		// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+		// equal to len(GetSigners()). Mirrors gnoland/genesis.go.
+		Signatures: make([]std.Signature, len(msg.GetSigners())),
 	}
 
-	return gnoland.TxWithMetadata{
+	return AnnotatedTx{
 		Tx: tx,
 		Metadata: &gnoland.GnoTxMetadata{
 			BlockHeight: 0, // genesis-mode replay
 		},
+		Reason: fmt.Sprintf("valoper-seed: register %s as %q", row.OperatorAddr, row.Moniker),
 	}
 }

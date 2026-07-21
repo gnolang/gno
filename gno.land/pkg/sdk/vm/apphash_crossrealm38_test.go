@@ -49,7 +49,62 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "daa554529ce43b80c3dedd658de8fe787e0a057e60aa01c897364dd80f9dfc65"
+// Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
+// to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
+// PR is the test13 chain-upgrade vehicle, so the shift is intentional.
+// Hash bumped 2026-06-01: this branch's foreign-markdown work changes the genesis
+// package set (notably the chain/markdown stdlib), which shifts the iavlStore Merkle
+// root — same class of change as the crypto-stdlib bump above. Verified this is NOT
+// the merged nil-realm write-gate fix (#5758): crossrealm38 still produces e37075fb
+// on a clean origin/master. Behavior is unchanged (the zrealm_crossrealm38.gno
+// filetest passes); only the genesis encoding shifted.
+// Hash bumped 2026-06-07: adding the errors stdlib (Unwrap/Is/Join) to the genesis
+// stdlib set shifts the iavlStore Merkle root. Behavior is unchanged (the
+// zrealm_crossrealm38.gno filetest still passes); only the genesis encoding shifted.
+//
+// Hash bumped again by the Example-test PR: editing
+// gnovm/stdlibs/math/rand/example_test.gno changes the math/rand stdlib
+// MemPackage that is committed into genesis state (stdlib MemPackages include
+// their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
+// is the only consensus-relevant change in that PR; verified by bisection that
+// no other change in the PR moves this hash. The shift is therefore expected.
+//
+// Hash bumped 2026-07-10 (bptree mount PR), two coinciding causes: (1) the
+// test env's main store switched from IAVL to the B+32 bptree store
+// (different commitment structure — every multistore hash moves); (2) the
+// depth gas pins committed into "vm:p" changed (Fixed = Min: 300/200/440 →
+// 100/200/540). Behavior is unchanged (the zrealm_crossrealm38.gno filetest
+// still passes).
+//
+// Hash bumped by the realm.Sub PR (#5890): the realm interface gained
+// Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
+// stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
+// stdlib MemPackage source bytes are committed into genesis state, so the
+// committed multistore root shifts. The crossrealm38 scenario itself does
+// not use sub-realms; the move is purely the interface/stdlib change and is
+// an intended consensus break for that PR.
+//
+// Hash bumped by the mempackage prod/test storage split (#5891): MP*All
+// packages now store production files under pkg:<path> (typed MP*Prod) and
+// test/filetest files under a pkg:<path>#allbutprod sibling, changing stored
+// package bytes and the committed multistore root. Behavior is unchanged;
+// only the storage encoding shifted.
+//
+// Hash bumped by the preprocess-gas PR (#5892): the new PreprocessGasPerByte
+// vm param (default 1250) has a non-zero default serialized into the genesis
+// vm params state, shifting the committed multistore root. Behavior is
+// unchanged; only the genesis params encoding shifted. (Value re-derived
+// after merging master, so it reflects the bptree store + #5890 + #5891 +
+// this param together.)
+//
+// Hash bumped by the apd -> math/big.Rat PR (#5867): BigdecValue (untyped
+// float constant representation) now amino-serializes in rational form
+// ("1/3") instead of the old decimal string ("0.3333333333"), shifting the
+// committed multistore root for any realm state containing bigdec constants.
+// Behavior is unchanged for all typed values; only the constant-folding
+// arithmetic is corrected (fixes #5862). Re-derived after merging master, so
+// it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
+const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

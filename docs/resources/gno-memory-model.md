@@ -86,6 +86,20 @@ or heap item. It is also used internally in the VM for assigning to slots.
 Even internally the Base is used to tell the realm finalizer when the base
 has been updated.
 
+### Pointer equality
+
+In Gno, two pointers are equal only when they point to the same variable. Two
+distinct zero-sized variables are never equal, even where Go may report them
+equal:
+
+```go
+a, b := struct{}{}, struct{}{}
+_ = &a == &b // false in Gno; unspecified in Go
+```
+
+The Go spec leaves equality of pointers to distinct zero-size variables
+unspecified, so Gno applies one identity rule to every type.
+
 ## Blocks and Heap Items
 
 All statements enclosed in {} parentheses will allocate a new block

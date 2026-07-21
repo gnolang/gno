@@ -55,6 +55,10 @@ type DB interface {
 
 	// Stats returns a map of property values for all keys and the size of the cache.
 	Stats() map[string]string
+
+	// NewSnapshot returns a point-in-time read-only view of the DB.
+	// The caller must call Close on the snapshot when done.
+	NewSnapshot() (Snapshot, error)
 }
 
 // ----------------------------------------
@@ -136,5 +140,38 @@ type Iterator interface {
 	Error() error
 
 	// Close closes the iterator, releasing any allocated resources.
+	Close() error
+}
+
+// Snapshot is a read-only, point-in-time view of the DB.
+// Callers must call Close when done to release resources.
+type Snapshot interface {
+	// Get returns nil iff key doesn't exist.
+	// A nil key is interpreted as an empty byteslice.
+	// CONTRACT: key, value readonly []byte
+	Get([]byte) ([]byte, error)
+
+	// Has checks if a key exists.
+	// A nil key is interpreted as an empty byteslice.
+	// CONTRACT: key, value readonly []byte
+	Has(key []byte) (bool, error)
+
+	// Iterate over a domain of keys in ascending order. End is exclusive.
+	// Start must be less than end, or the Iterator is invalid.
+	// A nil start is interpreted as an empty byteslice.
+	// If end is nil, iterates up to the last item (inclusive).
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
+	// CONTRACT: start, end readonly []byte
+	Iterator(start, end []byte) (Iterator, error)
+
+	// Iterate over a domain of keys in descending order. End is exclusive.
+	// Start must be less than end, or the Iterator is invalid.
+	// If start is nil, iterates up to the first/least item (inclusive).
+	// If end is nil, iterates from the last/greatest item (inclusive).
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
+	// CONTRACT: start, end readonly []byte
+	ReverseIterator(start, end []byte) (Iterator, error)
+
+	// Close releases the resources associated with the snapshot.
 	Close() error
 }

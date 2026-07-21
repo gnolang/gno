@@ -139,8 +139,10 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
-	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
-	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"     // if name expr refers to package.
+	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
+	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
+	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -434,7 +436,7 @@ func (x *CallExpr) isLikeWithCross() bool {
 	}
 	switch first := x.Args[0].(type) {
 	case *NameExpr:
-		return first.Name == Name("cur") || first.Name == Name(".origin") || first.Name == Name("cross1")
+		return first.Name == Name("cur") || first.Name == Name(".origin")
 	case *CallExpr:
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&
@@ -1374,11 +1376,20 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
-	// Set realm for realm packages, main package, and ephemeral run packages
+	// Set realm for realm packages, main package, and ephemeral run packages.
+	// /p/ and stdlib packages also get a realm: it is frozen/immutable
+	// (IsRealm() stays false, so it is never persisted as mutable state), but
+	// giving it a real Realm means borrow rule #2 on a /p/- or stdlib-stamped
+	// receiver shifts m.Realm to this realm instead of nil — so the
+	// readonly/PkgID write gate keeps working inside those method bodies (it
+	// short-circuits to "allow" on nil).
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
+		rlm := NewRealm(pn.PkgPath)
+		pv.SetRealm(rlm)
+	} else if isImmutableLibraryPath(pn.PkgPath) {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
@@ -1646,8 +1657,8 @@ type StaticBlock struct {
 	NameSources       []NameSource
 	HeapItems         []bool
 	UnassignableNames []Name
-	Consts            []Name // TODO consider merging with Names.
-	Externs           []Name // TODO: remove, this only exists for amino backward-compat.
+	Consts            []Name   // TODO consider merging with Names.
+	_                 struct{} `amino:"reserved"` // was: Externs []Name
 	Parent            BlockNode
 
 	// temporary storage for rolling back redefinitions.

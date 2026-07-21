@@ -65,6 +65,16 @@ func NewGnoExtension(opts ...Option) *GnoExtension {
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *GnoExtension) Extend(m goldmark.Markdown) {
+	// Bound goldmark emphasis-parsing cost (yuin/goldmark#555) before anything
+	// else parses attacker-controlled markdown.
+	ExtEmphasis.Extend(m)
+
+	// Add foreign extension. Image validator is forwarded so the
+	// inner instance inherits it. gno-form is intentionally NOT
+	// loaded inside the foreign sandbox (forms are interactive UI
+	// and never permitted in foreign-controlled bytes).
+	ExtForeign.Extend(m, e.cfg.imgValidatorFunc)
+
 	// Add column extension
 	ExtColumns.Extend(m)
 
