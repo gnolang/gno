@@ -237,3 +237,54 @@ func TestCountDeliverableTxs(t *testing.T) {
 		})
 	}
 }
+
+// TestExecTest_InitialHeightMismatch pins the case fork test used to report as
+// PASS: a hardfork genesis whose GnoGenesisState.InitialHeight disagrees with
+// GenesisDoc.InitialHeight. InitChainer rejects it before the tx loop, and with
+// zero txs the incomplete-replay guard compares 0 < 0 and lets it through — so
+// the failure has to surface from node startup, not from the tx count.
+//
+// Skipped in short mode: it loads stdlibs.
+func TestExecTest_InitialHeightMismatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode — requires loading stdlibs (~30s)")
+	}
+
+	appState := minimalAppState()
+	appState.PastChainIDs = []string{"test-hardfork-source"}
+	appState.InitialHeight = 999 // GenesisDoc below says 100
+
+	pv := bft.NewMockPV()
+	pk := pv.PubKey()
+
+	genDoc := bft.GenesisDoc{
+		GenesisTime:   time.Now(),
+		ChainID:       "test-hardfork-1",
+		InitialHeight: 100,
+		ConsensusParams: abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1_000_000,
+				MaxDataBytes: 2_000_000,
+				MaxGas:       3_000_000_000,
+				TimeIotaMS:   100,
+			},
+		},
+		Validators: []bft.GenesisValidator{
+			{Address: pk.Address(), PubKey: pk, Power: 10, Name: "test-validator"},
+		},
+		AppState: appState,
+	}
+
+	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
+	require.NoError(t, err)
+
+	path := filepath.Join(t.TempDir(), "genesis.json")
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+
+	io := commands.NewTestIO()
+	cfg := &testCfg{genesis: path, timeout: 3 * time.Minute}
+
+	err = execTest(context.Background(), cfg, io)
+	require.Error(t, err, "fork test must not report PASS on an InitialHeight mismatch")
+	require.ErrorContains(t, err, "InitialHeight mismatch")
+}
