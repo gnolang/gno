@@ -50,28 +50,42 @@ func TestRemoteSignerClientConfig() *RemoteSignerClientConfig {
 // RemoteSignerClientConfig validation errors.
 var errInvalidAuthorizedKey = errors.New("invalid remote signer authorized key")
 
-// authorizedKeys returns the authorized public keys for the remote signer in ed25519
-// format and returns an error if any key is invalid.
+// authorizedKeys returns the authorized public keys for the remote signer as
+// concrete ed25519 keys (for the legacy SecretConnection path) and returns an
+// error if any key is invalid.
+//
+// EXPLORATORY: callers that have opted into the scheme-agnostic
+// SecretConnection should use authorizedKeysAny() instead.
 func (cfg *RemoteSignerClientConfig) authorizedKeys() ([]ed25519.PubKeyEd25519, error) {
-	keys := make([]ed25519.PubKeyEd25519, len(cfg.AuthorizedKeys))
+	pubs, err := cfg.authorizedKeysAny()
+	if err != nil {
+		return nil, err
+	}
 
-	for i := range cfg.AuthorizedKeys {
-		// Decode the public key from the Bech32 format.
-		pubKey, err := crypto.PubKeyFromBech32(cfg.AuthorizedKeys[i])
+	keys := make([]ed25519.PubKeyEd25519, len(pubs))
+	for i, pub := range pubs {
+		ed, ok := pub.(ed25519.PubKeyEd25519)
+		if !ok {
+			return nil, fmt.Errorf("%w: %q is not an ed25519 public key (got %T); legacy SecretConnection requires ed25519 keys",
+				errInvalidAuthorizedKey, cfg.AuthorizedKeys[i], pub)
+		}
+		keys[i] = ed
+	}
+	return keys, nil
+}
+
+// authorizedKeysAny returns the authorized public keys without enforcing a
+// specific signing scheme. Intended for callers wiring the scheme-agnostic
+// SecretConnection.
+func (cfg *RemoteSignerClientConfig) authorizedKeysAny() ([]crypto.PubKey, error) {
+	keys := make([]crypto.PubKey, len(cfg.AuthorizedKeys))
+	for i, raw := range cfg.AuthorizedKeys {
+		pubKey, err := crypto.PubKeyFromBech32(raw)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errInvalidAuthorizedKey, err)
 		}
-
-		// Cast the public key to the ed25519 type.
-		switch pubKey := pubKey.(type) {
-		case ed25519.PubKeyEd25519:
-			keys[i] = pubKey
-
-		default:
-			return nil, fmt.Errorf("%w: not an ed25519 public key", errInvalidAuthorizedKey)
-		}
+		keys[i] = pubKey
 	}
-
 	return keys, nil
 }
 
