@@ -897,7 +897,10 @@ var (
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
+	// The fourth argument is a seqid.ID that identifies the token within
+	// this realm. A realm that creates a single token can pass 0; one that
+	// creates several should draw ids from a shared, persistent seqid.ID.
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
 	UserTeller = Token.CallerTeller()
 }
 

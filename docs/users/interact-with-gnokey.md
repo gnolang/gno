@@ -1261,7 +1261,7 @@ var (
 )
 
 func init(cur realm) {
-        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, 0, cur)
 }
 
 const (
