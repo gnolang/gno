@@ -79,7 +79,7 @@ jobs:
           tags: gno-val-scenario-core:local
           load: true
           cache-from: type=gha,scope=val-scenarios-core
-          cache-to: type=gha,mode=max,scope=val-scenarios-core
+          cache-to: type=gha,mode=max,scope=val-scenarios-core,ignore-error=true
 
       - name: Build gnogenesis image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -90,7 +90,7 @@ jobs:
           tags: gnogenesis:local
           load: true
           cache-from: type=gha,scope=val-scenarios-gnogenesis
-          cache-to: type=gha,mode=max,scope=val-scenarios-gnogenesis
+          cache-to: type=gha,mode=max,scope=val-scenarios-gnogenesis,ignore-error=true
 
       - name: Build valsignerd image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -101,7 +101,7 @@ jobs:
           tags: valsignerd:local
           load: true
           cache-from: type=gha,scope=val-scenarios-valsignerd
-          cache-to: type=gha,mode=max,scope=val-scenarios-valsignerd
+          cache-to: type=gha,mode=max,scope=val-scenarios-valsignerd,ignore-error=true
 
       - name: Save images
         run: docker save gno-val-scenario-core:local gnogenesis:local valsignerd:local | gzip > /tmp/val-scenario-images.tar.gz

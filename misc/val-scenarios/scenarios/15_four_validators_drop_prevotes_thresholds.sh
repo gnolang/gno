@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCENARIO_CI=false
+# Consensus-only: skip example packages + on-chain PoA valset realm in genesis
+# (validators reach consensus via the genesis validator set).
+SCENARIO_GENESIS_EXAMPLES=false
 
 # 4 validators with controllable signer sidecars.
 # First, 1/4 validators drops prevotes, leaving 3/4 prevoting (> 2/3), so the
