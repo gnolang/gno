@@ -25,6 +25,7 @@ type runCmd struct {
 	debug     bool
 	debugAddr string
 	pkgPath   string
+	xVars     *xFlag
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -84,6 +85,14 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"pkgpath",
 		"",
 		"run with this package path, overriding the \"// PKGPATH:\" file directive and the gnomod.toml module path",
+	)
+
+	c.xVars = newXFlag()
+	fs.Var(
+		c.xVars,
+		"X",
+		"set the value of a package-level string variable, e.g. -X myVar=override (may be repeated); "+
+			"like 'go build -ldflags \"-X ...\"', only simple 'var name = \"...\"' declarations are patched",
 	)
 }
 
@@ -272,7 +281,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// read files
-	files, err := parseFiles(m, args, stderr)
+	files, err := parseFiles(m, args, stderr, cfg.xVars.values)
 	if err != nil {
 		return err
 	}
@@ -335,7 +344,7 @@ func derivePkgPath(arg string) (string, error) {
 	return mod.Module, nil
 }
 
-func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrides map[string]string) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
 	for _, fpath := range fpaths {
@@ -344,7 +353,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(m, subFns, stderr)
+			subFiles, err := parseFiles(m, subFns, stderr, xOverrides)
 			if err != nil {
 				return nil, err
 			}
@@ -358,7 +367,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 
 		dir, fname := filepath.Split(fpath)
 		didPanic = catchPanic(dir, fname, stderr, func() {
-			files = append(files, m.MustReadFile(fpath))
+			files = append(files, mustReadAndPatchFile(m, fpath, xOverrides))
 		})
 	}
 
@@ -366,6 +375,22 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil
+}
+
+// mustReadAndPatchFile reads fpath, applies any -X overrides to its
+// package-level string variable declarations (see patchXVars), and parses
+// the (possibly patched) result. It panics on error, like
+// (*gno.Machine).MustReadFile, which it replaces as the read path here so
+// that overrides can be applied before parsing.
+func mustReadAndPatchFile(m *gno.Machine, fpath string, xOverrides map[string]string) *gno.FileNode {
+	bz, err := os.ReadFile(fpath)
+	if err != nil {
+		panic(err)
+	}
+
+	body := patchXVars(fpath, string(bz), xOverrides)
+
+	return m.MustParseFile(fpath, body)
 }
 
 func listNonTestFiles(dir string) ([]string, error) {
