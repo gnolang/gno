@@ -1,0 +1,92 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/validators/v2
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# load specific govDAO implementation
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Creating a proposal with duplicate addresses should fail
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/duplicate_proposal.gno
+stderr 'duplicate validator address in proposal'
+
+# Creating a proposal with distinct addresses should succeed
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/valid_proposal.gno
+stdout OK!
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+-- proposer/duplicate_proposal.gno --
+package main
+
+import (
+	"gno.land/p/sys/validators"
+	valrealm "gno.land/r/sys/validators/v2"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	changesFn := func() []validators.Validator {
+		return []validators.Validator{
+			{
+				Address:     address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"),
+				PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj",
+				VotingPower: 0, // remove
+			},
+			{
+				Address:     address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"),
+				PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj",
+				VotingPower: 20, // re-add with new power
+			},
+		}
+	}
+
+	pr := valrealm.NewPropRequest(changesFn, "Update validator power", "Remove and re-add same validator")
+	dao.MustCreateProposal(cross, pr)
+}
+-- proposer/valid_proposal.gno --
+package main
+
+import (
+	"gno.land/p/sys/validators"
+	valrealm "gno.land/r/sys/validators/v2"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	changesFn := func() []validators.Validator {
+		return []validators.Validator{
+			{
+				Address:     address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"),
+				PubKey:      "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj",
+				VotingPower: 20,
+			},
+		}
+	}
+
+	pr := valrealm.NewPropRequest(changesFn, "Add new validator", "Add a single validator")
+	dao.MustCreateProposal(cross, pr)
+}
