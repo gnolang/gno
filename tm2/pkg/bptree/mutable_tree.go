@@ -619,8 +619,13 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 // registering as a version reader. For long-lived snapshots that have no Close
 // hook (e.g. the store's immutable LoadVersion view) — registering them would
 // pin the version against pruning forever. Such a snapshot is not protected
-// against a concurrent prune of its version (acceptable: prune and queries are
-// serialized by the ABCI mutex today).
+// against a concurrent prune of its version. Queries are NOT serialized against
+// prune: the query connection gets its own mutex in tm2/pkg/bft/proxy/client.go,
+// separate from the one consensus and mempool share, so the two run
+// concurrently by design. What keeps this safe is that a query does not reach
+// the consensus tree at all — rootmulti builds a separate store over a snapshot,
+// with its own version-reader map — and that this snapshot registers no reader,
+// so it cannot block prune either.
 func (t *MutableTree) GetImmutableUnregistered(version int64) (*ImmutableTree, error) {
 	return t.getImmutable(version, false)
 }
