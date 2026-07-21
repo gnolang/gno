@@ -38,6 +38,7 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	parallel            int
+	xVars               *xFlag
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -186,6 +187,14 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 			"When above 1, the output of each package is buffered and printed once the package's tests complete. "+
 			"-debug enforces -p 1.",
 			runtime.GOMAXPROCS(0)),
+	)
+
+	c.xVars = newXFlag()
+	fs.Var(
+		c.xVars,
+		"X",
+		"set the value of a package-level string variable, e.g. -X myVar=override (may be repeated); "+
+			"like 'go build -ldflags \"-X ...\"', only simple 'var name = \"...\"' declarations are patched",
 	)
 }
 
@@ -437,6 +446,11 @@ func (c *testCmd) testPkg(
 
 	// Read MemPackage with all files.
 	mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
+	if len(c.xVars.values) > 0 {
+		for _, f := range mpkg.Files {
+			f.Body = patchXVars(f.Name, f.Body, c.xVars.values)
+		}
+	}
 	var didPanic, didError bool
 	startedAt := time.Now()
 	didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {

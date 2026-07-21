@@ -20,6 +20,18 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "hello world!",
 		},
 		{
+			args:                []string{"run", "../../tests/integ/run_xflag/main.gno"},
+			stdoutShouldContain: "default",
+		},
+		{
+			args:                []string{"run", "-X", "myVar=overridden", "../../tests/integ/run_xflag/main.gno"},
+			stdoutShouldContain: "overridden",
+		},
+		{
+			args:             []string{"run", "-X", "invalidnoequals", "../../tests/integ/run_xflag/main.gno"},
+			errShouldContain: "invalid -X value",
+		},
+		{
 			args:             []string{"run", "../../tests/integ/does_not_exist"},
 			errShouldContain: "no such file or directory",
 		},
