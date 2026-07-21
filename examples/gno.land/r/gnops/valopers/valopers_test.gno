@@ -375,6 +375,67 @@ func TestValopers_UpdateAuthMembers(cur realm, t *testing.T) {
 			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
 	})
+
+	t.Run("invalid member address rejected", func(cur realm, t *testing.T) {
+		resetState()
+
+		info := validValidatorInfo(t)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+		testing.SetOriginSend(chain.Coins{minFee})
+
+		uassert.NotPanics(t, cur, func() {
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+
+		// Caller is the owner, but the member address is invalid: the
+		// bech32 guard rejects it before reaching the auth list. Empty
+		// and malformed-but-nonempty (bad checksum) are both rejected,
+		// so a future weakening to a mere empty-check would fail here.
+		for _, bad := range []address{address(""), address("g1nonsense")} {
+			uassert.AbortsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+				AddToAuthList(cross(cur), info.Address, bad)
+			})
+
+			uassert.AbortsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+				DeleteFromAuthList(cross(cur), info.Address, bad)
+			})
+		}
+	})
+}
+
+func TestValopers_RenderSanitizesDescription(cur realm, t *testing.T) {
+	resetState()
+
+	info := validValidatorInfo(t)
+	// Description that tries to inject a top-level heading. Input
+	// validation accepts it (only length is checked); Render must
+	// neutralize the structural markdown before it reaches the profile
+	// page and the govdao proposal that embeds Render.
+	info.Description = "# FORGEDHEADING\nbody FORGEDBODY"
+
+	testing.SetRealm(testing.NewUserRealm(info.Address))
+	testing.SetOriginSend(chain.Coins{minFee})
+	uassert.NotPanics(t, cur, func() {
+		Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+	})
+
+	out := GetByAddr(info.Address).Render()
+
+	// Prose survives.
+	uassert.True(t, strings.Contains(out, "FORGEDBODY"), "description body must be preserved")
+	uassert.True(t, strings.Contains(out, "FORGEDHEADING"), "heading text must be preserved as prose")
+	// But not as a live ATX heading line.
+	uassert.False(t, strings.Contains(out, "\n# FORGEDHEADING"), "forged heading must be neutralized")
+
+	// A non-empty description that sanitizes to empty (lone link-
+	// reference definition) must not glue the heading onto the chrome.
+	testing.SetRealm(testing.NewUserRealm(info.Address))
+	uassert.NotPanics(t, cur, func() {
+		UpdateDescription(cross(cur), info.Address, "[a]: https://x.example")
+	})
+	out2 := GetByAddr(info.Address).Render()
+	uassert.True(t, strings.Contains(out2, "## "+info.Moniker+"\n"), "heading line must stay terminated")
+	uassert.True(t, strings.Contains(out2, "\n- Operator Address:"), "operator-address line must not merge into the heading")
 }
 
 func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
