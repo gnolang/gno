@@ -4,8 +4,14 @@ Generate native function gas table for GnoVM stdlibs from Go benchmarks.
 
 Mirrors gen_analysis.py (opcode handler gas) and gen_alloc_table.py
 (allocation gas). Reads `go test -bench=BenchmarkNative` output, fits a
-formula per native (flat, base + slope*N, or base + α·count + β·total_bytes
-for slice-of-string natives), and prints:
+formula per native, and prints the result. Four shapes are supported:
+
+  - flat                            NATIVE_SPECS, kind "Flat"
+  - base + slope*N                  NATIVE_SPECS
+  - base + α·count + β·total_bytes  NATIVE_SPECS_2D   (one param, two measures)
+  - base + α·N1 + β·N2              NATIVE_SPECS_2ARG (two params, one each)
+
+Outputs:
 
   - native_gas_formulas.md  — markdown table of fits
   - native_gas_table.go.txt — Go-pasteable nativeGasTable block
@@ -164,8 +170,6 @@ NATIVE_SPECS = [
     # ---- IBC crypto stdlibs ----
     ("crypto/keccak256", "sum256", 0, "LenBytes",
      r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/modexp", "modExp", 2, "LenBytes",
-     r"BenchmarkNative_ModExp_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "g1Add", None, "Flat",
      r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "g1Mul", None, "Flat",
@@ -178,8 +182,6 @@ NATIVE_SPECS = [
      r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "leafHash", 0, "LenBytes",
      r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/merkle", "innerHash", None, "Flat",
-     r"BenchmarkNative_Merkle_InnerHash-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
      # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
      # + 6 payload), plus 4 for the outer count header.
@@ -212,6 +214,40 @@ NATIVE_SPECS_2D = [
      r"BenchmarkNative_SysParams_UpdateStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
     ("sys/params", "getSysParamStrings", 2, "ReturnLen",
      r"BenchmarkNative_SysParams_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
+]
+
+
+# 2-argument specs: natives whose cost depends on TWO independent
+# parameters, each with its own index and its own size kind. The fitter
+# regresses
+#   cost = base + s1*N1 + s2*N2
+# and emits Slope/SlopeIdx/SlopeKind alongside Slope2/Slope2Idx/
+# Slope2Kind, which chargeNativeGas reads off the call block and sums
+# independently.
+#
+# Distinct from NATIVE_SPECS_2D: that form measures ONE parameter two
+# ways (element count and total inner bytes), so both its slopes carry
+# the same index. Here the slopes point at different parameters, and a
+# parameter left out of the spec is charged nothing at all.
+#
+# The bench grid must vary the two parameters independently. Diagonal-only
+# data (N1 == N2 at every point) makes the two design columns identical,
+# and the least-squares split between s1 and s2 is then arbitrary.
+#
+# Format: (pkg, fn, idx1, kind1, idx2, kind2, regex)
+#   regex captures (n1, n2, ns).
+NATIVE_SPECS_2ARG = [
+    # innerHash(left, right []byte): sha256 over 0x01||left||right, so both
+    # sides cost per byte and a flat charge prices megabytes as 64 bytes.
+    ("crypto/merkle", "innerHash", 0, "LenBytes", 1, "LenBytes",
+     r"BenchmarkNative_Merkle_InnerHash_L(\d+)_R(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # modExp(base, exp, modulus []byte): one modular squaring per exponent
+    # bit, each quadratic in the modulus. Pricing the modulus alone leaves
+    # the exponent free. The additive model here still understates the
+    # len(exp)·len(mod)^2 corner, so the fit is only trustworthy over the
+    # benched range — re-run before raising the modulus ceiling.
+    ("crypto/modexp", "modExp", 1, "LenBytes", 2, "LenBytes",
+     r"BenchmarkNative_ModExp_E(\d+)_M(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 
@@ -249,6 +285,22 @@ def parse_bench_2d(path):
     return data
 
 
+def parse_bench_2arg(path):
+    """Parse 2-argument bench rows: (n1, n2) → list of ns observations."""
+    text = open(path).read()
+    data = defaultdict(lambda: defaultdict(list))
+    for pkg, fn, _, _, _, _, regex in NATIVE_SPECS_2ARG:
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            n1 = int(m.group(1))
+            n2 = int(m.group(2))
+            ns = float(m.group(3))
+            data[(pkg, fn)][(n1, n2)].append(ns)
+    return data
+
+
 def fit_linear(sizes_ns):
     """Weighted LS (1/y) so small N stays relevant; floor base to ns(min)."""
     sizes = np.array(sorted(sizes_ns.keys()), dtype=float)
@@ -269,37 +321,83 @@ def fit_linear(sizes_ns):
     return base, slope, r2
 
 
-def fit_2d(grid):
-    """Multivariate LS for cost = base + α·count + β·total_bytes.
+def fit_plane(pts):
+    """Multivariate LS for cost = base + a·x1 + b·x2.
 
-    grid: dict (count, per_elem) → list of ns observations.
-    Returns (base, alpha_count, beta_bytes, r2).
+    pts: iterable of (x1, x2, ns) triples, one per distinct design point.
+    Returns (base, a, b, r2), or None with fewer than 3 points (base plus
+    two slopes needs 3 to be determined).
     Weighted by 1/y to keep small/cheap data points from dominating.
-    Coefficients are floored at zero (gas can't be negative)."""
-    pts = []
-    for (c, p), nss in grid.items():
-        pts.append((c, c * p, float(np.median(nss))))
+    Slopes are floored at zero (gas can't be negative)."""
+    pts = sorted(pts)
     if len(pts) < 3:
-        # Need at least 3 to disambiguate base + 2 slopes.
         return None
-    pts.sort()
     arr = np.array(pts, dtype=float)
-    counts = arr[:, 0]
-    bytes_ = arr[:, 1]
+    x1 = arr[:, 0]
+    x2 = arr[:, 1]
     ns = arr[:, 2]
     w = 1.0 / np.maximum(ns, 1e-9)
-    A = np.column_stack([np.ones(len(arr)), counts, bytes_])
+    A = np.column_stack([np.ones(len(arr)), x1, x2])
     AW = (A.T * w).T
     yW = ns * w
     coeffs, *_ = np.linalg.lstsq(AW, yW, rcond=None)
     base = max(float(coeffs[0]), float(ns.min()) * 0.5)
-    alpha = max(float(coeffs[1]), 0.0)
-    beta = max(float(coeffs[2]), 0.0)
-    pred = base + alpha * counts + beta * bytes_
+    a = max(float(coeffs[1]), 0.0)
+    b = max(float(coeffs[2]), 0.0)
+    pred = base + a * x1 + b * x2
     ss_res = float(np.sum((ns - pred) ** 2))
     ss_tot = float(np.sum((ns - ns.mean()) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
-    return base, alpha, beta, r2
+    return base, a, b, r2
+
+
+def fit_2d(grid):
+    """Fit cost = base + α·count + β·total_bytes for a slice-of-string native.
+
+    grid: dict (count, per_elem) → list of ns observations. The second
+    regressor is the product count·per_elem (total inner bytes), which is
+    the only thing separating this from fit_2arg."""
+    return fit_plane((c, c * p, float(np.median(nss)))
+                     for (c, p), nss in grid.items())
+
+
+def fit_2arg(grid):
+    """Fit cost = base + s1·N1 + s2·N2 for two independent parameters.
+
+    grid: dict (n1, n2) → list of ns observations. Both regressors are used
+    as measured; nothing multiplies them together.
+
+    Returns (base, s1, s2, r2, separable). `separable` is False when the
+    sampled (N1, N2) pairs are collinear — a diagonal-only grid fits a
+    plane whose split between s1 and s2 is not determined by the data."""
+    pts = [(n1, n2, float(np.median(nss))) for (n1, n2), nss in grid.items()]
+    result = fit_plane(pts)
+    if result is None:
+        return None
+    arr = np.array([(p[0], p[1]) for p in pts], dtype=float)
+    separable = bool(np.linalg.matrix_rank(
+        np.column_stack([np.ones(len(arr)), arr])) >= 3)
+    return (*result, separable)
+
+
+def worst_undercharge(grid, base, s1_per_1024, s2_per_1024):
+    """Largest measured/charged ratio over the sampled grid.
+
+    Replays the runtime's integer arithmetic (base + slope*N/1024 per
+    slope) against the benched cost. A ratio above 1 means the emitted
+    entry charges less than the call measurably costs, which is what an
+    attacker buys. Returns (ratio, n1, n2) for the worst point."""
+    worst = (0.0, 0, 0)
+    for (n1, n2), nss in grid.items():
+        charged = (base
+                   + s1_per_1024 * n1 // 1024
+                   + s2_per_1024 * n2 // 1024)
+        if charged <= 0:
+            continue
+        ratio = float(np.median(nss)) / charged
+        if ratio > worst[0]:
+            worst = (ratio, n1, n2)
+    return worst
 
 
 def fit_flat(values):
@@ -336,6 +434,13 @@ def emit_markdown(rows, out):
                 f"| `{r['pkg']}.{r['fn']}` | base+α·count+β·bytes | "
                 f"{r['base']:.1f} | {r['alpha']:.4f} | {r['beta']:.4f} | "
                 f"{n_desc(r['count_kind'], r['idx'])} + sum_inner_len | {r['r2']:.3f} |\n"
+            )
+        elif r["shape"] == "2arg":
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·N1+β·N2 | "
+                f"{r['base']:.1f} | {r['alpha']:.4f} | {r['beta']:.4f} | "
+                f"{n_desc(r['kind1'], r['idx1'])} + {n_desc(r['kind2'], r['idx2'])} | "
+                f"{r['r2']:.3f} |\n"
             )
 
 
@@ -394,6 +499,24 @@ def emit_go_table(rows, out):
                     f' + β={r["beta"]:.4f}ns/byte (={beta_per_1024}/1024) R²={r["r2"]:.3f}\n'
                 )
             continue
+        if r["shape"] == "2arg":
+            s1_per_1024 = int(round(r["alpha"] * 1024))
+            s2_per_1024 = int(round(r["beta"] * 1024))
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'Slope: {s1_per_1024}, '
+                f'SlopeIdx: {r["idx1"]}, '
+                f'SlopeKind: Size{r["kind1"]}, '
+                f'Slope2: {s2_per_1024}, '
+                f'Slope2Idx: {r["idx2"]}, '
+                f'Slope2Kind: Size{r["kind2"]}}},'
+                f' // 2arg: base={r["base"]:.1f}ns'
+                f' + {r["alpha"]:.4f}ns/N1 (={s1_per_1024}/1024, p{r["idx1"]})'
+                f' + {r["beta"]:.4f}ns/N2 (={s2_per_1024}/1024, p{r["idx2"]})'
+                f' R²={r["r2"]:.3f}\n'
+            )
+            continue
         # 1-D linear.
         slope_per_1024 = int(round(r["slope"] * 1024))
         if r["kind"] == "ReturnLen":
@@ -428,6 +551,9 @@ def _param_label(r):
         return ""
     if r["shape"] == "2d":
         return f"count = len(p{r['idx']}); bytes = sum_inner_len"
+    if r["shape"] == "2arg":
+        return (f"N1 = {n_desc(r['kind1'], r['idx1'])}; "
+                f"N2 = {n_desc(r['kind2'], r['idx2'])}")
     kind = r["kind"]
     if kind == "NumCallFrames":
         return "N = m.NumCallFrames()"
@@ -436,8 +562,8 @@ def _param_label(r):
     return f"N = len(p{r['slope_idx']}) — {kind}"
 
 
-def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
-    """Render the parameterized fits — linear and 2-D.
+def plot_fits(var_data, flat_data, two_d_data, two_arg_data, rows, out_path):
+    """Render the parameterized fits — linear, 2-D and 2-argument.
 
     Flat natives (single horizontal reference; no parameter on the x-axis)
     are excluded — their plots are visually redundant with the median
@@ -446,7 +572,9 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
     - Linear panels: median data points (blue) + fit line (red dashed).
     - 2-D panels: two overlaid series — vs count (perElem=1, blue) and
       vs total bytes (count=2, orange). Each series gets the model's
-      prediction (dashed) so visual deviation flags a poor fit."""
+      prediction (dashed) so visual deviation flags a poor fit.
+    - 2-argument panels: one series per parameter, each swept with the
+      other held at its smallest sampled value."""
     try:
         import matplotlib.pyplot as plt
     except ImportError:
@@ -503,6 +631,35 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
             ax.set_title(
                 f"{r['pkg']}.{r['fn']}\nbase={r['base']:.0f}+α·c+β·b R²={r['r2']:.3f}",
                 fontsize=9)
+        elif r["shape"] == "2arg":
+            # One series per parameter: vary it while the other is held at
+            # its smallest sampled value, so a visibly flat series means the
+            # corresponding slope is not supported by the data.
+            grid = two_arg_data[(r["pkg"], r["fn"])]
+            min_n2 = min(n2 for (_, n2) in grid)
+            min_n1 = min(n1 for (n1, _) in grid)
+            xs1 = sorted(n1 for (n1, n2) in grid if n2 == min_n2)
+            xs2 = sorted(n2 for (n1, n2) in grid if n1 == min_n1)
+            if len(xs1) > 1:
+                ys1 = [np.median(grid[(x, min_n2)]) for x in xs1]
+                ax.plot(xs1, ys1, "bo-", markersize=5,
+                        label=f"vs N1 (N2={min_n2})")
+                a1 = np.array(xs1, dtype=float)
+                ax.plot(a1, r["base"] + r["alpha"] * a1 + r["beta"] * min_n2,
+                        "b--", alpha=0.6, label=f"  α={r['alpha']:.3f}")
+            if len(xs2) > 1:
+                ys2 = [np.median(grid[(min_n1, x)]) for x in xs2]
+                ax.plot(xs2, ys2, "s-", color="orange", markersize=5,
+                        label=f"vs N2 (N1={min_n1})")
+                a2 = np.array(xs2, dtype=float)
+                ax.plot(a2, r["base"] + r["alpha"] * min_n1 + r["beta"] * a2,
+                        "--", color="orange", alpha=0.6,
+                        label=f"  β={r['beta']:.3f}")
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.set_title(
+                f"{r['pkg']}.{r['fn']}\nbase={r['base']:.0f}+α·N1+β·N2 R²={r['r2']:.3f}",
+                fontsize=9)
         else:  # linear
             # 2-D entries that demoted to 1-D (β rounded to zero) live
             # in two_d_data, not var_data. Project them onto the count
@@ -513,11 +670,25 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
             if d is None:
                 grid = two_d_data.get((r["pkg"], r["fn"]), {})
                 if not grid:
-                    ax.set_title(f"{r['pkg']}.{r['fn']}\n(no data)", fontsize=9)
-                    continue
-                min_p = min(p for (_, p) in grid.keys())
-                d = {c: grid[(c, min_p)]
-                     for (c, p) in grid.keys() if p == min_p}
+                    # A 2-arg fit that demoted to 1-D: project onto the
+                    # surviving axis, holding the dropped one at its min.
+                    grid = two_arg_data.get((r["pkg"], r["fn"]), {})
+                    if not grid:
+                        ax.set_title(f"{r['pkg']}.{r['fn']}\n(no data)",
+                                     fontsize=9)
+                        continue
+                    if r["slope_idx"] == r.get("idx2"):
+                        min_n1 = min(n1 for (n1, _) in grid)
+                        d = {n2: v for (n1, n2), v in grid.items()
+                             if n1 == min_n1}
+                    else:
+                        min_n2 = min(n2 for (_, n2) in grid)
+                        d = {n1: v for (n1, n2), v in grid.items()
+                             if n2 == min_n2}
+                else:
+                    min_p = min(p for (_, p) in grid.keys())
+                    d = {c: grid[(c, min_p)]
+                         for (c, p) in grid.keys() if p == min_p}
             sizes = np.array(sorted(d.keys()), dtype=float)
             med = np.array([np.median(d[s]) for s in sizes])
             ax.plot(sizes, med, "bo-", markersize=5, label="median ns/op")
@@ -557,6 +728,7 @@ def main():
 
     var_data, flat_data = parse_bench(args.bench_file)
     two_d_data = parse_bench_2d(args.bench_file)
+    two_arg_data = parse_bench_2arg(args.bench_file)
 
     rows = []
     for pkg, fn, slope_idx, kind, _ in NATIVE_SPECS:
@@ -639,6 +811,71 @@ def main():
                 "idx": idx, "count_kind": count_kind, "post": post,
             })
 
+    # 2-argument fits.
+    for pkg, fn, idx1, kind1, idx2, kind2, _ in NATIVE_SPECS_2ARG:
+        grid = two_arg_data.get((pkg, fn))
+        if not grid:
+            print(f"WARN: no 2-arg data for {pkg}.{fn}", file=sys.stderr)
+            continue
+        result = fit_2arg(grid)
+        if result is None:
+            print(f"WARN: insufficient 2-arg points for {pkg}.{fn}",
+                  file=sys.stderr)
+            continue
+        base, s1, s2, r2, separable = result
+        if not separable:
+            print(f"WARN: {pkg}.{fn} 2-arg grid is collinear (N1 and N2 never "
+                  f"vary independently); the s1/s2 split is not identified — "
+                  f"add off-diagonal bench points", file=sys.stderr)
+        s1_per_1024 = int(round(s1 * 1024))
+        s2_per_1024 = int(round(s2 * 1024))
+        # Same noise floor as the 2-D ladder: below 10/1024 ns per unit the
+        # coefficient flips sign between bench runs.
+        if s1_per_1024 < 10:
+            s1_per_1024 = 0
+        if s2_per_1024 < 10:
+            s2_per_1024 = 0
+        # Dropping a slope here means the corresponding argument becomes
+        # free at runtime, which is the failure these specs exist to catch.
+        # Demote when the data says so, but say so loudly.
+        if s1_per_1024 == 0 and s2_per_1024 == 0:
+            rows.append({"pkg": pkg, "fn": fn, "shape": "flat", "base": base})
+            print(f"WARN: {pkg}.{fn} 2-arg demoted to flat (both slopes ≈0); "
+                  f"both parameters are now unpriced", file=sys.stderr)
+        elif s2_per_1024 == 0:
+            rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
+                         "base": base, "slope": s1, "r2": r2,
+                         "slope_idx": idx1, "kind": kind1,
+                         "idx2": idx2})
+            print(f"WARN: {pkg}.{fn} 2-arg→1-D (s2≈0); p{idx2} is now unpriced",
+                  file=sys.stderr)
+        elif s1_per_1024 == 0:
+            rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
+                         "base": base, "slope": s2, "r2": r2,
+                         "slope_idx": idx2, "kind": kind2,
+                         "idx2": idx2})
+            print(f"WARN: {pkg}.{fn} 2-arg→1-D (s1≈0); p{idx1} is now unpriced",
+                  file=sys.stderr)
+        else:
+            rows.append({
+                "pkg": pkg, "fn": fn, "shape": "2arg",
+                "base": base, "alpha": s1, "beta": s2, "r2": r2,
+                "idx1": idx1, "kind1": kind1, "idx2": idx2, "kind2": kind2,
+            })
+        # A plane through superlinear data undercharges its own worst
+        # sampled point, and least squares happily lands there. Replay the
+        # emitted integers against the measurements and say by how much.
+        ratio, wn1, wn2 = worst_undercharge(
+            grid, int(round(base)), s1_per_1024, s2_per_1024)
+        if r2 < 0.5 or ratio > 2.0:
+            print(f"WARN: {pkg}.{fn} additive model fits poorly "
+                  f"(R²={r2:.3f}); the emitted entry undercharges "
+                  f"N1={wn1},N2={wn2} by {ratio:.1f}x. Cost is superlinear "
+                  f"in these parameters — the two-slope schema cannot "
+                  f"express that. Raise Base/slopes by hand to cover the "
+                  f"supported input ceiling, and record the ceiling in "
+                  f"native_gas.go.", file=sys.stderr)
+
     with open(args.md_out, "w") as f:
         emit_markdown(rows, f)
     print(f"Wrote {args.md_out}", file=sys.stderr)
@@ -648,7 +885,8 @@ def main():
     print()
     emit_go_table(rows, sys.stdout)
     if not args.no_plot:
-        plot_fits(var_data, flat_data, two_d_data, rows, args.plot)
+        plot_fits(var_data, flat_data, two_d_data, two_arg_data, rows,
+                  args.plot)
 
 
 if __name__ == "__main__":

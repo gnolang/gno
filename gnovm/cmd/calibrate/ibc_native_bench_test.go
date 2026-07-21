@@ -39,57 +39,32 @@ func BenchmarkNative_Keccak256_Sum256_16384(b *testing.B) { benchKeccak256(b, 16
 
 // ----- crypto/modexp.modExp(base, exp, modulus []byte) []byte -----
 //
-// Modular exponentiation cost is dominated by len(exp)·len(mod). The
-// EVM precompile (EIP-198) gas formula uses similar scaling. We bench
-// a square modulus and a square exponent so a single-slope fit on
-// "size N" (== len(mod) == len(exp) == len(base)) captures the dominant term.
-
-func benchModExp(b *testing.B, n int) {
-	b.Helper()
-	base := make([]byte, n)
-	exp := make([]byte, n)
-	mod := make([]byte, n)
-	for i := range n {
-		base[i] = byte(i + 1)
-		exp[i] = byte(i + 3)
-		mod[i] = 0xFF // large odd modulus
-	}
-	if n > 0 {
-		mod[n-1] = 0xFD
-	}
-	m := newDispatchMachine(3)
-	setBlockValueFromGo(m, 0, base)
-	setBlockValueFromGo(m, 1, exp)
-	setBlockValueFromGo(m, 2, mod)
-	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
-	b.ResetTimer()
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		h.call()
-	}
-}
-
-func BenchmarkNative_ModExp_32(b *testing.B)  { benchModExp(b, 32) }
-func BenchmarkNative_ModExp_64(b *testing.B)  { benchModExp(b, 64) }
-func BenchmarkNative_ModExp_128(b *testing.B) { benchModExp(b, 128) }
-func BenchmarkNative_ModExp_256(b *testing.B) { benchModExp(b, 256) }
-func BenchmarkNative_ModExp_512(b *testing.B) { benchModExp(b, 512) }
-
-// The square-N benches above only sample the diagonal len(exp) == len(mod),
-// so a single-slope fit on the modulus silently assumes the exponent scales
-// with it. Nothing forces a caller to respect that: a small modulus with a
-// large exponent is cheap to buy and expensive to run. These hold the modulus
-// at the supported ceiling and vary the exponent alone, so the fitter can see
-// the exponent term instead of inferring it.
-func benchModExpOffDiagonal(b *testing.B, modLen, expLen int) {
+// Modular exponentiation runs one modular squaring per exponent bit, and
+// each squaring is quadratic in the modulus, so cost tracks
+// len(exp)·len(mod)². Sampling only the diagonal len(exp) == len(mod)
+// makes the two lengths indistinguishable to a fitter, and pricing the
+// modulus alone leaves the exponent free: a small modulus with a huge
+// exponent is cheap to buy and expensive to run.
+//
+// The grid below walks the diagonal, then holds the modulus at 256 bytes
+// while sweeping the exponent and holds the exponent at 256 bytes while
+// sweeping the modulus, so each length varies with the other pinned. Bench
+// name encodes both as _E<exp>_M<mod>.
+//
+// The base is sized to the modulus throughout. It is not a fitted
+// parameter: NativeGasInfo carries at most two pre-call slopes, and those
+// go to the two lengths that dominate.
+func benchModExp(b *testing.B, expLen, modLen int) {
 	b.Helper()
 	base := make([]byte, modLen)
 	mod := make([]byte, modLen)
 	for i := range modLen {
 		base[i] = byte(i + 1)
-		mod[i] = 0xFF
+		mod[i] = 0xFF // large odd modulus
 	}
-	mod[modLen-1] = 0xFD
+	if modLen > 0 {
+		mod[modLen-1] = 0xFD
+	}
 	exp := make([]byte, expLen)
 	for i := range expLen {
 		exp[i] = byte(i + 3)
@@ -100,15 +75,26 @@ func benchModExpOffDiagonal(b *testing.B, modLen, expLen int) {
 	setBlockValueFromGo(m, 2, mod)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
 	b.ResetTimer()
-	b.SetBytes(int64(expLen))
+	b.SetBytes(int64(expLen + modLen))
 	for i := 0; i < b.N; i++ {
 		h.call()
 	}
 }
 
-func BenchmarkNative_ModExp_M256_E32(b *testing.B)   { benchModExpOffDiagonal(b, 256, 32) }
-func BenchmarkNative_ModExp_M256_E256(b *testing.B)  { benchModExpOffDiagonal(b, 256, 256) }
-func BenchmarkNative_ModExp_M256_E1024(b *testing.B) { benchModExpOffDiagonal(b, 256, 1024) }
+// Diagonal: len(exp) == len(mod).
+func BenchmarkNative_ModExp_E32_M32(b *testing.B)   { benchModExp(b, 32, 32) }
+func BenchmarkNative_ModExp_E64_M64(b *testing.B)   { benchModExp(b, 64, 64) }
+func BenchmarkNative_ModExp_E128_M128(b *testing.B) { benchModExp(b, 128, 128) }
+func BenchmarkNative_ModExp_E256_M256(b *testing.B) { benchModExp(b, 256, 256) }
+func BenchmarkNative_ModExp_E512_M512(b *testing.B) { benchModExp(b, 512, 512) }
+
+// Exponent sweep, modulus pinned at 256 bytes.
+func BenchmarkNative_ModExp_E32_M256(b *testing.B)   { benchModExp(b, 32, 256) }
+func BenchmarkNative_ModExp_E1024_M256(b *testing.B) { benchModExp(b, 1024, 256) }
+
+// Modulus sweep, exponent pinned at 256 bytes.
+func BenchmarkNative_ModExp_E256_M32(b *testing.B)  { benchModExp(b, 256, 32) }
+func BenchmarkNative_ModExp_E256_M512(b *testing.B) { benchModExp(b, 256, 512) }
 
 // ----- crypto/bn254 EIP-196/197 precompile natives -----
 
@@ -208,12 +194,21 @@ func BenchmarkNative_Merkle_LeafHash_4096(b *testing.B) { benchMerkleLeafHash(b,
 // sized. Benching only the 32+32B digest case yields a single point, which
 // the fitter can only express as SizeFlat, and a flat charge lets a realm
 // hash megabytes for the price of 64 bytes.
-func benchMerkleInnerHash(b *testing.B, n int) {
+//
+// Sizing left and right together is still not enough: on the diagonal
+// len(left) == len(right) the two columns of the design matrix are
+// identical, so a two-slope fit is rank-deficient and cannot attribute
+// cost to either parameter. The off-diagonal pairs below break that tie.
+// Bench name encodes both lengths as _L<left>_R<right> so the fitter reads
+// them as two independent arguments.
+func benchMerkleInnerHash(b *testing.B, leftLen, rightLen int) {
 	b.Helper()
-	left := make([]byte, n)
-	right := make([]byte, n)
-	for i := range n {
+	left := make([]byte, leftLen)
+	for i := range leftLen {
 		left[i] = byte(i + 1)
+	}
+	right := make([]byte, rightLen)
+	for i := range rightLen {
 		right[i] = byte(i + 2)
 	}
 	m := newDispatchMachine(2)
@@ -221,16 +216,28 @@ func benchMerkleInnerHash(b *testing.B, n int) {
 	setBlockValueFromGo(m, 1, right)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/merkle", "innerHash"), nReturns: 1}
 	b.ResetTimer()
-	b.SetBytes(int64(2 * n))
+	b.SetBytes(int64(leftLen + rightLen))
 	for i := 0; i < b.N; i++ {
 		h.call()
 	}
 }
 
-func BenchmarkNative_Merkle_InnerHash_32(b *testing.B)   { benchMerkleInnerHash(b, 32) }
-func BenchmarkNative_Merkle_InnerHash_256(b *testing.B)  { benchMerkleInnerHash(b, 256) }
-func BenchmarkNative_Merkle_InnerHash_1024(b *testing.B) { benchMerkleInnerHash(b, 1024) }
-func BenchmarkNative_Merkle_InnerHash_4096(b *testing.B) { benchMerkleInnerHash(b, 4096) }
+func BenchmarkNative_Merkle_InnerHash_L32_R32(b *testing.B) { benchMerkleInnerHash(b, 32, 32) }
+func BenchmarkNative_Merkle_InnerHash_L256_R256(b *testing.B) {
+	benchMerkleInnerHash(b, 256, 256)
+}
+
+func BenchmarkNative_Merkle_InnerHash_L1024_R1024(b *testing.B) {
+	benchMerkleInnerHash(b, 1024, 1024)
+}
+
+func BenchmarkNative_Merkle_InnerHash_L4096_R4096(b *testing.B) {
+	benchMerkleInnerHash(b, 4096, 4096)
+}
+func BenchmarkNative_Merkle_InnerHash_L32_R4096(b *testing.B) { benchMerkleInnerHash(b, 32, 4096) }
+func BenchmarkNative_Merkle_InnerHash_L4096_R32(b *testing.B) { benchMerkleInnerHash(b, 4096, 32) }
+func BenchmarkNative_Merkle_InnerHash_L32_R1024(b *testing.B) { benchMerkleInnerHash(b, 32, 1024) }
+func BenchmarkNative_Merkle_InnerHash_L1024_R32(b *testing.B) { benchMerkleInnerHash(b, 1024, 32) }
 
 // encodeMerkleItems builds the [4-byte BE count][4-byte BE len][data]…
 // wire format consumed by hashFromByteSlices.
