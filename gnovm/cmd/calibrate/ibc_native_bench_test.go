@@ -37,41 +37,6 @@ func BenchmarkNative_Keccak256_Sum256_1024(b *testing.B)  { benchKeccak256(b, 10
 func BenchmarkNative_Keccak256_Sum256_4096(b *testing.B)  { benchKeccak256(b, 4096) }
 func BenchmarkNative_Keccak256_Sum256_16384(b *testing.B) { benchKeccak256(b, 16384) }
 
-// The square-N benches above only sample the diagonal len(exp) == len(mod),
-// so a single-slope fit on the modulus silently assumes the exponent scales
-// with it. Nothing forces a caller to respect that: a small modulus with a
-// large exponent is cheap to buy and expensive to run. These hold the modulus
-// at the supported ceiling and vary the exponent alone, so the fitter can see
-// the exponent term instead of inferring it.
-func benchModExpOffDiagonal(b *testing.B, modLen, expLen int) {
-	b.Helper()
-	base := make([]byte, modLen)
-	mod := make([]byte, modLen)
-	for i := range modLen {
-		base[i] = byte(i + 1)
-		mod[i] = 0xFF
-	}
-	mod[modLen-1] = 0xFD
-	exp := make([]byte, expLen)
-	for i := range expLen {
-		exp[i] = byte(i + 3)
-	}
-	m := newDispatchMachine(3)
-	setBlockValueFromGo(m, 0, base)
-	setBlockValueFromGo(m, 1, exp)
-	setBlockValueFromGo(m, 2, mod)
-	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
-	b.ResetTimer()
-	b.SetBytes(int64(expLen))
-	for i := 0; i < b.N; i++ {
-		h.call()
-	}
-}
-
-func BenchmarkNative_ModExp_M256_E32(b *testing.B)   { benchModExpOffDiagonal(b, 256, 32) }
-func BenchmarkNative_ModExp_M256_E256(b *testing.B)  { benchModExpOffDiagonal(b, 256, 256) }
-func BenchmarkNative_ModExp_M256_E1024(b *testing.B) { benchModExpOffDiagonal(b, 256, 1024) }
-
 // ----- crypto/modexp.modExp(base, exp, modulus []byte) []byte -----
 //
 // Modular exponentiation cost is dominated by len(exp)·len(mod). The
@@ -109,6 +74,41 @@ func BenchmarkNative_ModExp_64(b *testing.B)  { benchModExp(b, 64) }
 func BenchmarkNative_ModExp_128(b *testing.B) { benchModExp(b, 128) }
 func BenchmarkNative_ModExp_256(b *testing.B) { benchModExp(b, 256) }
 func BenchmarkNative_ModExp_512(b *testing.B) { benchModExp(b, 512) }
+
+// The square-N benches above only sample the diagonal len(exp) == len(mod),
+// so a single-slope fit on the modulus silently assumes the exponent scales
+// with it. Nothing forces a caller to respect that: a small modulus with a
+// large exponent is cheap to buy and expensive to run. These hold the modulus
+// at the supported ceiling and vary the exponent alone, so the fitter can see
+// the exponent term instead of inferring it.
+func benchModExpOffDiagonal(b *testing.B, modLen, expLen int) {
+	b.Helper()
+	base := make([]byte, modLen)
+	mod := make([]byte, modLen)
+	for i := range modLen {
+		base[i] = byte(i + 1)
+		mod[i] = 0xFF
+	}
+	mod[modLen-1] = 0xFD
+	exp := make([]byte, expLen)
+	for i := range expLen {
+		exp[i] = byte(i + 3)
+	}
+	m := newDispatchMachine(3)
+	setBlockValueFromGo(m, 0, base)
+	setBlockValueFromGo(m, 1, exp)
+	setBlockValueFromGo(m, 2, mod)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
+	b.ResetTimer()
+	b.SetBytes(int64(expLen))
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_ModExp_M256_E32(b *testing.B)   { benchModExpOffDiagonal(b, 256, 32) }
+func BenchmarkNative_ModExp_M256_E256(b *testing.B)  { benchModExpOffDiagonal(b, 256, 256) }
+func BenchmarkNative_ModExp_M256_E1024(b *testing.B) { benchModExpOffDiagonal(b, 256, 1024) }
 
 // ----- crypto/bn254 EIP-196/197 precompile natives -----
 
