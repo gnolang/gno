@@ -155,14 +155,17 @@ func TestPatchXVars(t *testing.T) {
 		}
 	})
 
-	t.Run("text resembling a var decl inside a raw string is left alone", func(t *testing.T) {
+	t.Run("text resembling a var decl inside another var's raw string is left alone", func(t *testing.T) {
 		t.Parallel()
 
 		// Regression test for a review comment on the original,
 		// regex-based implementation: a raw string literal that merely
 		// *contains* text resembling a top-level var declaration must
-		// never be touched, since it isn't a real declaration.
-		body := "package main\n\nvar myVar = `\nvar myVar = \"not a real declaration\"\n`\n"
+		// never be touched, since it isn't a real declaration -- only
+		// the actual "var myVar = ..." decl below is.
+		body := "package main\n\n" +
+			"var otherVar = `\nvar myVar = \"fake, must not be touched\"\n`\n\n" +
+			"var myVar = \"real default\"\n"
 		got := patchXVars("test.gno", body, map[string]string{"myVar": "override"})
 
 		value, ok := varValue(t, got, "myVar")
@@ -170,13 +173,12 @@ func TestPatchXVars(t *testing.T) {
 			t.Errorf("myVar = %q, ok = %v; want %q, true", value, ok, "override")
 		}
 
-		// The AST-level check above already proves only the real
-		// declaration was patched (there's only one `myVar` decl to find
-		// once the raw string's fake one is correctly excluded from
-		// consideration), but assert readably too: the literal source
-		// text of the fake declaration must be preserved verbatim.
-		if !strings.Contains(got, `not a real declaration`) {
-			t.Errorf("expected the raw string's contents to be preserved, got:\n%s", got)
+		// otherVar's raw string content -- which merely contains text
+		// that *looks* like a var myVar declaration -- must be preserved
+		// byte-for-byte, proving the fake declaration inside it was
+		// never treated as a real one.
+		if !strings.Contains(got, `var myVar = "fake, must not be touched"`) {
+			t.Errorf("expected otherVar's raw string contents to be preserved verbatim, got:\n%s", got)
 		}
 	})
 
