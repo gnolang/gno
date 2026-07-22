@@ -2558,6 +2558,16 @@ func fillEmbeddedName(ft *FieldType, nameSrc Expr) {
 	if ft.Name == "" {
 		panic(fmt.Sprintf("cannot derive embedded name for field type %s", ft.Type.String()))
 	}
+	// Go spec: an embedded field must be a type name T or a pointer to a
+	// non-interface type name *T, and T itself may not be a pointer type.
+	// An alias of a pointer type resolves to the *PointerType spelling and
+	// is allowed, matching Go.
+	if pt, isPtr := ft.Type.(*PointerType); isPtr && pt.Elt.Kind() == InterfaceKind {
+		panic(fmt.Sprintf("embedded field type cannot be a pointer to an interface: %s", ft.Type.String()))
+	}
+	if unwrapPointerType(ft.Type).Kind() == PointerKind {
+		panic(fmt.Sprintf("embedded field type cannot be a pointer: %s", ft.Type.String()))
+	}
 	ft.Embedded = true
 }
 
@@ -2999,9 +3009,21 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 	}
 	// Depth 0: the root provides n directly — the common case; no BFS
 	// state is allocated for it.
-	hit, sawGated, rootSt := resolveEmbedNode(callerPath, root, n)
+	//
+	// fieldsOnly is lookup-level state: embedding a defined pointer
+	// type is rejected at construction (fillEmbeddedName), so in a
+	// valid type graph the defined-pointer crossing can only occur
+	// along the root's own wrapper spine — every deeper BFS node
+	// shares the root's flag.
+	hit, sawGated, rootSt, fieldsOnly, mGated := resolveEmbedNode(callerPath, root, n, false)
 	switch {
 	case hit:
+		if mGated {
+			// The unique shallowest match is a method reached through
+			// a defined pointer type: it occupies the depth but is not
+			// selectable (Go: x.F undefined).
+			return nil, notFound(sawGated)
+		}
 		return nil, embedLookupFound
 	case rootSt == nil:
 		return nil, notFound(sawGated)
@@ -3055,14 +3077,18 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 		if len(next) == 0 {
 			return nil, notFound(sawGated)
 		}
-		// Scan the new level for accessible providers of n.
+		// Scan the new level for accessible providers of n. Providers
+		// that are methods reached through a defined pointer type
+		// (methodGated) still occupy the depth — they participate in
+		// shadowing and ambiguity — but are not selectable.
 		found := false
 		ambiguous := false
 		var winner []uint16
+		winnerMGated := false
 		structs = make([]*StructType, len(next))
 		for i := range next {
 			e := &next[i]
-			hit, gated, st := resolveEmbedNode(callerPath, e.typ, n)
+			hit, gated, st, _, mGated := resolveEmbedNode(callerPath, e.typ, n, fieldsOnly)
 			structs[i] = st
 			sawGated = sawGated || gated
 			if !hit {
@@ -3074,12 +3100,19 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 			ambiguous = ambiguous || found || e.multiples
 			if !found {
 				winner = e.hops
+				winnerMGated = mGated
 			}
 			found = true
 		}
 		if found {
 			if ambiguous {
 				return nil, embedLookupAmbiguous
+			}
+			if winnerMGated {
+				// Unique winner, but a method through a defined
+				// pointer type: shadows deeper matches, selects
+				// nothing (Go: x.F undefined).
+				return nil, notFound(sawGated)
 			}
 			return winner, embedLookupFound
 		}
@@ -3092,12 +3125,19 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 // (embedded fields are T or *T, and pointers to declared types and
 // structs are transparent for field/method exposure). Returns nil for
 // types that expose nothing (e.g. nested pointers, pointers to
-// interfaces).
+// interfaces, and pointers to defined pointer types — `*D1` for
+// `type D1 *D2` needs a second deref for any selection, which Go's
+// selector shorthand never performs).
 func canonEmbeddedType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
-		switch pt.Elt.(type) {
-		case *DeclaredType, *StructType:
-			return pt.Elt
+		switch elt := pt.Elt.(type) {
+		case *DeclaredType:
+			if elt.Kind() == PointerKind {
+				return nil
+			}
+			return elt
+		case *StructType:
+			return elt
 		}
 		return nil
 	}
@@ -3112,7 +3152,20 @@ func canonEmbeddedType(t Type) Type {
 // keeps going so an accessible match elsewhere (same spine or deeper)
 // can still resolve. When typ does not provide n, st is the underlying
 // struct to expand one embedding level deeper (nil when there is none).
-func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st *StructType) {
+//
+// fieldsOnly implements Go's defined-pointer-type semantics: a defined
+// type whose underlying type is a pointer has an empty method set, and
+// the (*x).f selector shorthand promotes fields only. Once the spine
+// crosses such a pointer (a *PointerType node here is always a defined
+// type's base — root and embedded-field pointers are stripped by
+// canonEmbeddedType before the walk), a method still occupies its
+// depth — it shadows deeper names and makes same-depth selectors
+// ambiguous, exactly as in Go — but it is not selectable: such a hit
+// sets methodGated, and the caller turns a unique methodGated winner
+// into not-found. A second crossing exposes nothing (the shorthand
+// applies once). fieldsOnlyOut echoes the flag after any crossing
+// inside this spine, so the root call seeds the lookup-level state.
+func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit, gated bool, st *StructType, fieldsOnlyOut, methodGated bool) {
 	// A cycle along the wrapper spine must revisit a *DeclaredType
 	// (the Base of a DeclaredType is never another DeclaredType), so
 	// tracking those suffices to guard degenerate wrapper cycles like
@@ -3125,42 +3178,51 @@ func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st 
 		switch ct := t.(type) {
 		case *DeclaredType:
 			if slices.Contains(seenDecls, ct) {
-				return false, gated, nil
+				return false, gated, nil, fieldsOnly, false
 			}
 			seenDecls = append(seenDecls, ct)
 			// Search direct methods via O(1) name lookup.
 			if _, ok := ct.lookupMethod(n); ok {
 				if !isRestrictedName(n, ct.PkgPath, callerPath) {
-					return true, gated, nil
+					return true, gated, nil, fieldsOnly, fieldsOnly
 				}
 				gated = true // fall through to the base search.
 			}
 			t = ct.Base
 		case *PointerType:
-			// Pointers to declared types and structs expose embedded
-			// methods and fields; other pointers expose nothing.
+			// A defined type's pointer base. Pointers to declared types
+			// and structs expose fields (and, before a crossing,
+			// methods); other pointers expose nothing.
+			if fieldsOnly {
+				// Second defined-pointer crossing (e.g. type B *C;
+				// type A *B): nothing promotes.
+				return false, gated, nil, fieldsOnly, false
+			}
+			fieldsOnly = true
 			if t = canonEmbeddedType(ct); t == nil {
-				return false, gated, nil
+				return false, gated, nil, fieldsOnly, false
 			}
 		case *StructType:
 			for i := range ct.Fields {
 				if ct.Fields[i].Name == n {
 					if !isRestrictedName(n, ct.PkgPath, callerPath) {
-						return true, gated, nil
+						return true, gated, nil, fieldsOnly, false
 					}
 					gated = true // embedded fields may still provide n.
 					break
 				}
 			}
-			return false, gated, ct
+			return false, gated, ct, fieldsOnly, false
 		case *InterfaceType:
 			// Interface method sets are flattened at construction, so
 			// the scan is O(methods); it applies the same gated-name
-			// rule against each method's origin package.
+			// rule against each method's origin package. Interface
+			// entries are methods, so a hit past a defined-pointer
+			// crossing is methodGated like any other method.
 			tr, _, _, _, ae := ct.FindEmbeddedFieldType(callerPath, n)
-			return tr != nil, gated || ae, nil
+			return tr != nil, gated || ae, nil, fieldsOnly, fieldsOnly
 		default:
-			return false, gated, nil
+			return false, gated, nil, fieldsOnly, false
 		}
 	}
 }
