@@ -238,16 +238,13 @@ func TestCountDeliverableTxs(t *testing.T) {
 	}
 }
 
-// TestExecTest_InitialHeightMismatch pins the case fork test used to report as
-// PASS: a hardfork genesis whose GnoGenesisState.InitialHeight disagrees with
-// GenesisDoc.InitialHeight. InitChainer rejects it before the tx loop, and with
-// zero txs the incomplete-replay guard compares 0 < 0 and lets it through — so
-// the failure has to surface from node startup, not from the tx count.
-//
-// Skipped in short mode: it loads stdlibs.
+// TestExecTest_InitialHeightMismatch checks that a genesis whose
+// GnoGenesisState.InitialHeight disagrees with GenesisDoc.InitialHeight fails
+// the fork test. The genesis carries no txs, so the tx-count guard cannot catch
+// it: the failure has to come from node startup.
 func TestExecTest_InitialHeightMismatch(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping in short mode — requires loading stdlibs (~30s)")
+		t.Skip("skipping in short mode: boots a node and loads stdlibs")
 	}
 
 	appState := minimalAppState()
