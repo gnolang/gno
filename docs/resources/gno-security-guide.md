@@ -3,7 +3,7 @@
 This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
-assumes the vocabulary of `gno-interrealm.md` (realm-context,
+assumes the vocabulary of `gno-interrealm-v2.md` (realm-context,
 realm-storage-context, borrow rules, `cur realm`, `IsCurrent()`).
 
 The goal: tell a realm author what they must do, and what they must
@@ -227,7 +227,7 @@ type has exported methods that mutate the receiver, returning a pointer
 to an instance stored in your realm is equivalent to publishing those
 mutators as your own API.
 
-`avl.Tree` is the canonical example. All fields (`root`, `size`) are
+`avl.Tree` is the canonical example. Its only field (`node`) is
 unexported — a naive reviewer sees no exposed state. But `Tree.Set`,
 `Tree.Remove`, and `Tree.ReverseIterate` all mutate or traverse the
 tree. An attacker who receives a `*avl.Tree` pointer can call
@@ -403,14 +403,16 @@ func Set(cur realm, key, value string) {
 }
 ```
 
-Any import of `chain/runtime/unsafe` in a realm that also declares
-crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
+Using `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` for caller
+identity in a realm with crossing functions is a red flag. The
+tx-origin primitives `unsafe.OriginCaller()` and `unsafe.OriginSend()`
+are different: no `cur` substitute, and fine for tx-level identity like
+event emission or fee attribution.
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
-`chain/runtime/unsafe` import.
+`cur.Previous()` under a `cur.IsCurrent()` guard. Drop
+`unsafe.PreviousRealm()`/`unsafe.CurrentRealm()`; keep the `unsafe`
+import only for `OriginCaller()`/`OriginSend()`.
 
 ---
 
