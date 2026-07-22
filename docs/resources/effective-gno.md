@@ -890,6 +890,14 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 )
 
+const (
+	fooDecimals = 4
+	// Identifies the token within this realm. A realm creating a single token
+	// can use 0; one creating several should draw ids from a shared,
+	// persistent seqid.ID.
+	fooTokenID = 0
+)
+
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
@@ -897,10 +905,7 @@ var (
 )
 
 func init(cur realm) {
-	// 4 is the decimals; 0 is the seqid.ID identifying this token within the
-	// realm. A realm creating a single token can pass 0; one creating several
-	// should draw ids from a shared, persistent seqid.ID.
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", fooDecimals, fooTokenID, cur)
 	UserTeller = Token.CallerTeller()
 }
 
