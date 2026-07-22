@@ -542,3 +542,47 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 	}
 	return merkle.SimpleHashFromMap(m)
 }
+
+// TestLastCommitIDConcurrentWithCommit models the production wiring: the query
+// connection runs on its own mutex (proxy.NewReadOnlyABCIClient), so
+// baseapp.LastBlockHeight() — which is cms.LastCommitID().Version — is read
+// concurrently with the consensus goroutine's Commit(). Run under -race.
+func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	const commits = 200
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+
+	for range 4 {
+		wg.Go(func() {
+			var last types.CommitID
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				id := ms.LastCommitID()
+				// A torn read would pair a fresh version with a stale
+				// hash; versions only ever move forward.
+				require.GreaterOrEqual(t, id.Version, last.Version)
+				last = id
+			}
+		})
+	}
+
+	store1 := ms.getStoreByName("store1")
+	for i := range commits {
+		store1.Set(nil, []byte{byte(i)}, []byte("v"))
+		ms.Commit()
+	}
+	close(stop)
+	wg.Wait()
+
+	require.Equal(t, int64(commits), ms.LastCommitID().Version)
+}
