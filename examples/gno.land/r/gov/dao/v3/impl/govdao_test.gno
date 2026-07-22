@@ -350,8 +350,12 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 	nm1 := testutils.TestAddress("errtest-nm1")
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
+
+	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// A member on a tier not allowed to vote on this proposal (T3 members
 	// aren't allowed to vote on a T2-add proposal).
