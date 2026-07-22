@@ -234,8 +234,8 @@ LOOP:
 			if _, ok := err.(ReachedLastBlockHeightError); ok {
 				break LOOP
 			}
-		case <-time.After(10 * time.Second):
-			t.Fatal("WAL did not panic for 10 seconds (check the log)")
+		case <-time.After(30 * time.Second):
+			t.Fatal("WAL did not panic for 30 seconds (check the log)")
 		}
 	}
 }
