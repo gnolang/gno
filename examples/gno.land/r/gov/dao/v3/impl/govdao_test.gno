@@ -373,18 +373,24 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	urequire.True(t, errors.Is(err, ErrAlreadyVoted), "expected ErrAlreadyVoted, got: "+errString(err))
 
-	// Reach supermajority to close the proposal, then vote again.
+	// Reach supermajority (for denial, mirroring the proven voting
+	// sequence in TestCreateProposalAndVote) to close the proposal, then
+	// vote again.
 	testing.SetOriginCaller(m11)
-	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
 	testing.SetOriginCaller(m2)
-	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
 	testing.SetOriginCaller(m3)
-	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
+	testing.SetOriginCaller(m111)
+	dao.MustVoteOnProposalSimple(cross(cur), int64(pid), "NO")
+	testing.SetOriginCaller(m1111)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
 
 	accepted := dao.ExecuteProposal(cross(cur), pid)
-	urequire.Equal(t, true, accepted)
+	urequire.Equal(t, false, accepted)
 
-	testing.SetOriginCaller(m111)
+	testing.SetOriginCaller(m6) // m6 hasn't voted, but the proposal is now closed
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	urequire.True(t, errors.Is(err, ErrProposalClosed), "expected ErrProposalClosed, got: "+errString(err))
 
@@ -392,7 +398,7 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 	// assert the concrete type directly.
 	closedErr, ok := err.(*ProposalClosedError)
 	urequire.True(t, ok, "expected *ProposalClosedError")
-	urequire.Equal(t, true, closedErr.Accepted)
+	urequire.Equal(t, false, closedErr.Accepted)
 }
 
 // errString returns err.Error(), or "<nil>" if err is nil, for building
