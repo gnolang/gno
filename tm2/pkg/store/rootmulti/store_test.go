@@ -559,9 +559,7 @@ func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range 4 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var last types.CommitID
 			for {
 				select {
@@ -575,10 +573,10 @@ func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 				require.GreaterOrEqual(t, id.Version, last.Version)
 				last = id
 			}
-		}()
+		})
 	}
 
-	store1 := ms.getStoreByName("store1").(types.Store)
+	store1 := ms.getStoreByName("store1")
 	for i := range commits {
 		store1.Set(nil, []byte{byte(i)}, []byte("v"))
 		ms.Commit()
