@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -329,4 +330,82 @@ func TestAbstainVote(cur realm, t *testing.T) {
 
 func contains(s, substr string) bool {
 	return strings.Index(s, substr) >= 0
+}
+
+// TestVoteOnProposalErrors verifies that VoteOnProposal returns errors an
+// external caller can distinguish programmatically with errors.Is, rather
+// than only a human-readable message (see #3104).
+func TestVoteOnProposalErrors(cur realm, t *testing.T) {
+	loadMembers(cur)
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+
+	// Voting on a proposal ID that was never created.
+	testing.SetOriginCaller(m1)
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(999)))
+	urequire.True(t, errors.Is(err, ErrProposalNotFound), "expected ErrProposalNotFound, got: "+errString(err))
+
+	// Create a proposal to exercise the remaining cases against.
+	portfolio := "# portfolio"
+	nm1 := testutils.TestAddress("errtest-nm1")
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
+
+	// A member on a tier not allowed to vote on this proposal (T3 members
+	// aren't allowed to vote on a T2-add proposal).
+	testing.SetOriginCaller(m4) // m4 is T3
+	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	urequire.True(t, errors.Is(err, ErrNotAllowedToVote), "expected ErrNotAllowedToVote, got: "+errString(err))
+
+	// An invalid vote option.
+	testing.SetOriginCaller(m1)
+	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.VoteOption("INVALID"), pid))
+	urequire.True(t, errors.Is(err, ErrInvalidVoteOption), "expected ErrInvalidVoteOption, got: "+errString(err))
+
+	// A vote that succeeds, then a second vote from the same member.
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	urequire.True(t, errors.Is(err, ErrAlreadyVoted), "expected ErrAlreadyVoted, got: "+errString(err))
+
+	// Reach supermajority (for denial, mirroring the proven voting
+	// sequence in TestCreateProposalAndVote) to close the proposal, then
+	// vote again.
+	testing.SetOriginCaller(m11)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
+	testing.SetOriginCaller(m2)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
+	testing.SetOriginCaller(m3)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
+	testing.SetOriginCaller(m111)
+	dao.MustVoteOnProposalSimple(cross(cur), int64(pid), "NO")
+	testing.SetOriginCaller(m1111)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, pid))
+
+	accepted := dao.ExecuteProposal(cross(cur), pid)
+	urequire.Equal(t, false, accepted)
+
+	testing.SetOriginCaller(m6) // m6 hasn't voted, but the proposal is now closed
+	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	urequire.True(t, errors.Is(err, ErrProposalClosed), "expected ErrProposalClosed, got: "+errString(err))
+
+	// errors.As isn't available in gno's stdlib errors package yet, so
+	// assert the concrete type directly.
+	closedErr, ok := err.(*ProposalClosedError)
+	urequire.True(t, ok, "expected *ProposalClosedError")
+	urequire.Equal(t, false, closedErr.Accepted)
+}
+
+// errString returns err.Error(), or "<nil>" if err is nil, for building
+// assertion failure messages.
+func errString(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
+	return err.Error()
 }
