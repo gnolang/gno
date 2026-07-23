@@ -1047,10 +1047,11 @@ var genesisDocKey = []byte("genesisDoc")
 // result to the database. On success this also returns the genesis doc loaded
 // through the given provider.
 //
-// Until the chain has committed a block, the persisted genesis records describe
-// an intent rather than history, so a genesis file that still names the same
-// chain replaces them wholesale. Once a block exists the persisted chain
-// identity and heights are authoritative and an edited file cannot move them.
+// Until InitChain has been accepted, the persisted genesis records describe an
+// intent rather than history, so a genesis file that still names the same chain
+// replaces them wholesale. Once the genesis has been applied the persisted
+// chain identity and heights are authoritative and an edited file cannot move
+// them.
 //
 // AppState is intentionally not persisted in the state DB (it can be huge —
 // hundreds of MB on real-world genesis files — and may carry types that the
@@ -1087,17 +1088,14 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
 				genDoc.AppHash, freshDoc.AppHash)
 		}
-		// Same chain, so the rest of the doc is safe to reconsider. The
-		// persisted records only become authoritative once a block has been
-		// committed; until then they describe an intent, not history, and the
-		// fresh doc replaces them outright. This is what lets an operator
-		// correct a genesis the app refused: without it, fixing the very
-		// field the rejection named would keep booting the stale value, with
-		// no way out but wiping the data dir. A genesis the app accepted but
-		// that has not committed a block yet is replaceable for the same
-		// reason, since InitChain has written nothing durable and ReplayBlocks
-		// re-runs it from scratch while the app is still at height 0.
-		if !chainStarted(stateDB) {
+		// Same chain, so the remaining doc fields are safe to refresh. The DB
+		// copy only becomes authoritative once the genesis has been applied;
+		// before that the node has committed nothing, so a boot the app
+		// rejected leaves the file free to be corrected and the fresh doc
+		// replaces the persisted one outright. Without this an operator fixing
+		// the very field the rejection named would keep booting the stale
+		// value, with no way out but wiping the data dir.
+		if !genesisApplied(stateDB) {
 			return resetToGenesisDoc(stateDB, freshDoc)
 		}
 		genDoc.AppState = freshDoc.AppState
@@ -1109,21 +1107,22 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 	return state, genDoc, nil
 }
 
-// chainStarted reports whether this data dir has committed a block, which is
-// what makes its persisted genesis records history rather than intent. Read
-// from the state DB alone, so it cannot disagree with the state record it
-// guards: a signal taken from the block store, which is a separate database,
-// would call a chain unstarted whenever that database is lost and the reset
-// below would then destroy a state record it cannot rebuild.
-func chainStarted(stateDB dbm.DB) bool {
-	state := sm.LoadState(stateDB)
-	return !state.IsEmpty() && state.LastBlockHeight >= state.InitialHeight
+// genesisApplied reports whether InitChain has run to completion for this data
+// dir. ReplayBlocks saves the genesis ABCI responses immediately after
+// InitChain returns, and nothing prunes height 0, so their presence is the
+// marker that the persisted genesis records describe an accepted genesis.
+//
+// Read from the state DB, the same database the reset below writes, so the
+// signal cannot desync from what it guards.
+func genesisApplied(stateDB dbm.DB) bool {
+	_, err := sm.LoadABCIResponses(stateDB, 0)
+	return err == nil
 }
 
 // resetToGenesisDoc makes genDoc authoritative, replacing the persisted doc and
-// rebuilding the state record from it. Only valid while no block has been
-// committed: the records left behind then describe a genesis the chain never
-// ran, including the InitialHeight alignment ReplayBlocks writes before calling
+// rebuilding the state record from it. Only valid before the genesis has been
+// applied: the records left behind then describe a genesis the app rejected,
+// including the InitialHeight alignment ReplayBlocks writes before calling
 // InitChain, and keeping them would boot a corrected genesis against the old
 // heights. The doc is written only once it validates, so a malformed one
 // cannot replace a good persisted copy.

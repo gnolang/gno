@@ -580,25 +580,24 @@ func TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry(t *testing.T) 
 	assert.Equal(t, int64(99), state.LastBlockHeight)
 }
 
-// Once a block has been committed the persisted doc is authoritative, so a
+// Once the genesis has been applied the persisted doc is authoritative, so a
 // genesis file edited afterwards must not silently move the chain.
-func TestLoadStateFromDBOrGenesisDocProvider_CommittedChainWins(t *testing.T) {
+func TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins(t *testing.T) {
 	t.Parallel()
 
 	db := dbm.DB(memdb.NewMemDB())
 	pk := ed25519.GenPrivKey().PubKey()
 
-	state, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
 	require.NoError(t, err)
 	require.Equal(t, int64(100), doc.InitialHeight)
 
-	// The chain commits its first block, so the records become history.
-	state.LastBlockHeight = state.InitialHeight
-	sm.SaveState(db, state)
+	// InitChain completed: ReplayBlocks saves the genesis ABCI responses.
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
 
 	_, doc, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 555))
 	require.NoError(t, err)
-	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win once the chain has committed a block")
+	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win after genesis is applied")
 }
 
 // A running chain's state must survive a restart untouched, whatever the
@@ -612,6 +611,8 @@ func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.
 	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
 	require.NoError(t, err)
 
+	// A chain that has run: the genesis is applied and blocks have committed.
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
 	state.LastBlockHeight = 500
 	state.AppHash = []byte("committed-app-hash")
 	sm.SaveState(db, state)
