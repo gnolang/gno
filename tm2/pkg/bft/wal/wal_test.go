@@ -236,7 +236,12 @@ func benchmarkWalRead(b *testing.B, n int) {
 	b.Helper()
 
 	buf := new(bytes.Buffer)
-	enc := NewWALWriter(buf, int64(n)+64) // n + overhead.
+	// The reader's max size must scale with n too, like the writer's:
+	// a fixed maxTestMsgSize (64KB) rejected any message larger than
+	// that with a DataCorruptionError, even though the writer above had
+	// no trouble writing it (see #910).
+	maxSize := int64(n) + 64 // n + overhead.
+	enc := NewWALWriter(buf, maxSize)
 
 	msg := TestMessage{
 		Height: 1,
@@ -251,7 +256,7 @@ func benchmarkWalRead(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		buf.Write(encoded)
-		dec := NewWALReader(buf, maxTestMsgSize)
+		dec := NewWALReader(buf, maxSize)
 		if _, _, err := dec.ReadMessage(); err != nil {
 			b.Fatal(err)
 		}
@@ -268,26 +273,21 @@ func BenchmarkWalRead10KB(b *testing.B) {
 }
 
 func BenchmarkWalRead100KB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 100*1024)
 }
 
 func BenchmarkWalRead1MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 1024*1024)
 }
 
 func BenchmarkWalRead10MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 10*1024*1024)
 }
 
 func BenchmarkWalRead100MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 100*1024*1024)
 }
 
 func BenchmarkWalRead1GB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 1024*1024*1024)
 }
