@@ -468,36 +468,14 @@ func (ndb *nodeDB) AvailableVersions() []int {
 	return versions
 }
 
-// discoverVersions scans the DB for root references to find
-// the first and latest versions. Called during Load.
+// discoverVersions sets the oldest and newest saved versions.
 func (ndb *nodeDB) discoverVersions() error {
-	prefix := []byte{PrefixRoot}
-	end := make([]byte, len(prefix))
-	copy(end, prefix)
-	end[0]++
-
-	itr, err := ndb.db.Iterator(prefix, end)
+	first, err := ndb.edgeRootVersion(false)
 	if err != nil {
 		return err
 	}
-	defer itr.Close()
-
-	first := int64(0)
-	latest := int64(0)
-	for ; itr.Valid(); itr.Next() {
-		key := itr.Key()
-		if len(key) != 9 { // prefix(1) + version(8)
-			continue
-		}
-		v := int64(binary.BigEndian.Uint64(key[1:]))
-		if first == 0 || v < first {
-			first = v
-		}
-		if v > latest {
-			latest = v
-		}
-	}
-	if err := itr.Error(); err != nil {
+	latest, err := ndb.edgeRootVersion(true)
+	if err != nil {
 		return err
 	}
 
@@ -506,6 +484,43 @@ func (ndb *nodeDB) discoverVersions() error {
 	ndb.latestVersion = latest
 	ndb.mtx.Unlock()
 	return nil
+}
+
+// edgeRootVersion returns the oldest (reverse=false) or newest (reverse=true)
+// saved version, or 0 if none. Root keys are 'R' followed by the version in
+// big-endian, so sorting them sorts the versions and each end is one seek:
+//
+//	R 00 00 00 00 00 00 00 03   <- oldest, reverse=false returns 3
+//	R 00 00 00 00 00 00 00 04
+//	R 00 00 00 00 00 00 00 05   <- newest, reverse=true returns 5
+func (ndb *nodeDB) edgeRootVersion(reverse bool) (int64, error) {
+	prefix := []byte{PrefixRoot}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	end[0]++
+
+	var (
+		itr dbm.Iterator
+		err error
+	)
+	if reverse {
+		itr, err = ndb.db.ReverseIterator(prefix, end)
+	} else {
+		itr, err = ndb.db.Iterator(prefix, end)
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer itr.Close()
+
+	for ; itr.Valid(); itr.Next() {
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
+		}
+		return int64(binary.BigEndian.Uint64(key[1:])), itr.Error()
+	}
+	return 0, itr.Error()
 }
 
 // --- Version readers ---
