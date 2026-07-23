@@ -311,20 +311,6 @@ export class PlaygroundController extends BaseController {
 		}
 	}
 
-	public runTests(): void {
-		this._resetOutput(
-			"Testing requires a running gno node.\n\nTo test locally:",
-		);
-		this._setOutput(" gno test .", true);
-	}
-
-	public formatCode(): void {
-		this._resetOutput(
-			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:",
-		);
-		this._setOutput(` gno fmt -w ${this.files[this.activeFile].name}`, true);
-	}
-
 	public async shareCode(): Promise<void> {
 		this.files[this.activeFile].content = this.editor.getCode();
 
