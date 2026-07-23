@@ -1,4 +1,9 @@
 import { BaseController } from "./controller.js";
+import {
+	type GnoTxRequest,
+	type GnoWallet,
+	getWallets,
+} from "./wallet-discovery.js";
 
 // Entry shape of the server-embedded registry (components/wallets.json).
 // platforms/install_url are informational for now (no filtering/fallback yet).
@@ -11,19 +16,34 @@ interface Wallet {
 	install_url: string;
 }
 
+// The two kinds of candidate the chooser merges: a wallet that announced
+// itself in the page (extension, called directly) and a registry entry
+// (external app, reached by launch link).
+type Candidate =
+	| { kind: "in-page"; wallet: GnoWallet }
+	| { kind: "external"; wallet: Wallet };
+
 // The registry is parsed lazily on first submit and shared across the
 // per-function controller instances.
 let registryCache: Wallet[] | undefined;
 
-// WalletLaunchController routes the Execute submit to an external wallet via a
-// GnoConnect launch link, on mobile only. In every other case (desktop, no
-// registered wallet, in-page extension present) the native submit proceeds.
+// WalletLaunchController routes the Execute submit to a wallet: an in-page
+// one announced over gno:registerWallet (any device), or an external one from
+// the embedded registry via a GnoConnect launch link (mobile only). With no
+// candidate — desktop without an announcing extension, empty registry — the
+// native submit proceeds untouched.
 export class WalletLaunchController extends BaseController {
 	declare _funcName: string;
 	declare _pkgPath: string;
+	declare _discovery: ReturnType<typeof getWallets>;
 
 	protected connect(): void {
 		this.initializeDOM({});
+
+		// Ask at page load, not at submit: an extension may answer
+		// asynchronously, and the chooser should not wait on it to appear.
+		this._discovery = getWallets();
+		this._discovery.request();
 
 		// Attached to the params <form> (one controller per element); the
 		// function name/pkgpath live on the enclosing article.
@@ -102,8 +122,10 @@ export class WalletLaunchController extends BaseController {
 		return window.matchMedia?.("(pointer: coarse)").matches === true;
 	}
 
-	// An in-page provider (browser extension) owns the submit; never intercept.
-	private _hasInPageProvider(): boolean {
+	// A legacy extension that owns the submit by intercepting it, without
+	// announcing itself. Only consulted when nothing announced: a wallet that
+	// speaks the announce protocol is chosen explicitly instead.
+	private _hasLegacyProvider(): boolean {
 		const w = window as unknown as Record<string, unknown>;
 		return Boolean(w.adena || w.gnoconnect);
 	}
@@ -117,25 +139,37 @@ export class WalletLaunchController extends BaseController {
 		return url.toString();
 	}
 
+	// The transaction intent, read live from the form. Both transports carry
+	// it: the launch link serializes it, an in-page provider is handed it.
+	private _txRequest(): GnoTxRequest {
+		const tx: GnoTxRequest = {
+			path: this._pkgPath,
+			func: this._funcName,
+			args: Array.from(this._readArgs(), ([name, value]) => ({ name, value })),
+		};
+		const send = this._readSend();
+		if (send) tx.send = send;
+
+		const rpc = this._meta("gnoconnect:rpc");
+		const chainid = this._meta("gnoconnect:chainid");
+		if (rpc) tx.rpc = rpc;
+		if (chainid) tx.chainid = chainid;
+		return tx;
+	}
+
 	// Compose "<scheme>://tx?path=&func=&arg.<name>=&...". Args are named,
 	// prefixed "arg." so realm parameter names can't collide with the link's
 	// own keys (path, func, send, rpc, chainid, callback).
 	private _buildLink(wallet: Wallet): string {
 		const enc = encodeURIComponent;
-		const parts: string[] = [
-			`path=${enc(this._pkgPath)}`,
-			`func=${enc(this._funcName)}`,
-		];
-		for (const [name, value] of this._readArgs()) {
+		const tx = this._txRequest();
+		const parts: string[] = [`path=${enc(tx.path)}`, `func=${enc(tx.func)}`];
+		for (const { name, value } of tx.args) {
 			parts.push(`arg.${enc(name)}=${enc(value)}`);
 		}
-		const send = this._readSend();
-		if (send) parts.push(`send=${enc(send)}`);
-
-		const rpc = this._meta("gnoconnect:rpc");
-		const chainid = this._meta("gnoconnect:chainid");
-		if (rpc) parts.push(`rpc=${enc(rpc)}`);
-		if (chainid) parts.push(`chainid=${enc(chainid)}`);
+		if (tx.send) parts.push(`send=${enc(tx.send)}`);
+		if (tx.rpc) parts.push(`rpc=${enc(tx.rpc)}`);
+		if (tx.chainid) parts.push(`chainid=${enc(tx.chainid)}`);
 		parts.push(`callback=${enc(this._callbackURL())}`);
 
 		return `${wallet.scheme}://tx?${parts.join("&")}`;
@@ -145,54 +179,93 @@ export class WalletLaunchController extends BaseController {
 		window.location.href = this._buildLink(wallet);
 	}
 
-	private _onSubmit(event: Event): void {
-		// Fall through to the native submit whenever external-wallet routing
-		// doesn't apply (desktop QR is a deferred follow-up).
-		if (this._hasInPageProvider()) return;
-		if (!this._isMobile()) return;
+	// Hand the intent to an announced wallet. A wallet may announce itself
+	// without implementing the tx surface, so a missing method falls back to
+	// the native submit rather than dead-ending Execute.
+	private async _signInPage(wallet: GnoWallet): Promise<void> {
+		const sign = wallet.provider?.signAndSubmitTransaction;
+		if (typeof sign !== "function") {
+			this.warn(
+				`wallet "${wallet.info.name}" announced no signAndSubmitTransaction; continuing in browser`,
+			);
+			(this.element as HTMLFormElement).submit();
+			return;
+		}
 
-		const wallets = this._wallets();
-		if (wallets.length === 0) return;
+		let response: Awaited<ReturnType<typeof sign>>;
+		try {
+			response = await sign.call(wallet.provider, this._txRequest());
+		} catch (err) {
+			// The wallet showed the user its own error; leave the form intact
+			// so they can retry or copy the command.
+			this.warn(`wallet "${wallet.info.name}" failed to sign`, err);
+			return;
+		}
+		// Rejected is an answer, not a failure: the user declined, the page
+		// stays exactly as it was.
+		if (response?.status !== "Approved") return;
+
+		// Same landing state as an external wallet's callback, so both
+		// transports end the round trip on one URL shape.
+		const url = new URL(this._callbackURL());
+		url.searchParams.set("status", "success");
+		if (response.args?.hash) url.searchParams.set("hash", response.args.hash);
+		window.location.href = url.toString();
+	}
+
+	// Candidates for this submit: wallets announced in the page (any device)
+	// plus, on mobile, the registry's external apps. Desktop external wallets
+	// need the cross-device QR, a deferred follow-up.
+	private _candidates(): Candidate[] {
+		const inPage: Candidate[] = this._discovery
+			.get()
+			.map((wallet) => ({ kind: "in-page", wallet }));
+		const external: Candidate[] = this._isMobile()
+			? this._wallets().map((wallet) => ({ kind: "external", wallet }))
+			: [];
+		return [...inPage, ...external];
+	}
+
+	private _onSubmit(event: Event): void {
+		const candidates = this._candidates();
+		if (candidates.length === 0) {
+			// Nothing to route to: the native submit (TxLink navigation), and
+			// with it any legacy extension interception, proceeds untouched.
+			return;
+		}
+		// A legacy extension owns the submit, but only while no wallet has
+		// announced itself — an announced wallet is picked by the user here.
+		if (
+			this._hasLegacyProvider() &&
+			!candidates.some((c) => c.kind === "in-page")
+		) {
+			return;
+		}
 
 		event.preventDefault();
-		this._openChooser(wallets);
+		this._openChooser(candidates);
 	}
 
 	// Populate and show the page-level chooser dialog. Always shown, even for
 	// a single wallet: "Continue in browser" is the only way back to the
 	// native submit when the wallet isn't installed (a failed custom-scheme
 	// launch is silent).
-	private _openChooser(wallets: Wallet[]): void {
+	private _openChooser(candidates: Candidate[]): void {
 		const dialog = this.getGlobalTarget("chooser") as HTMLDialogElement | null;
 		const list = this.getGlobalTarget("chooser-list");
 		if (!dialog || !list) {
-			this._openWallet(wallets[0]); // no dialog — fail open
+			this._pick(candidates[0]); // no dialog — fail open
 			return;
 		}
 
-		list.textContent = "";
-		wallets.forEach((wallet) => {
-			const li = document.createElement("li");
-			const btn = document.createElement("button");
-			btn.type = "button";
-			btn.className = "b-wallet-chooser__item";
-			if (wallet.icon) {
-				const img = document.createElement("img");
-				img.src = wallet.icon;
-				img.alt = "";
-				img.className = "b-wallet-chooser__icon";
-				btn.appendChild(img);
-			}
-			const label = document.createElement("span");
-			label.textContent = wallet.name;
-			btn.appendChild(label);
-			btn.addEventListener("click", () => {
-				dialog.close();
-				this._openWallet(wallet);
-			});
-			li.appendChild(btn);
-			list.appendChild(li);
+		this._renderCandidates(dialog, list, candidates);
+
+		// A wallet that loads late announces late; re-render so it appears
+		// instead of being missing for the life of the dialog.
+		const unsubscribe = this._discovery.on(() => {
+			this._renderCandidates(dialog, list, this._candidates());
 		});
+		this._discovery.request();
 
 		// Assignment (not addEventListener) so reopening doesn't stack handlers
 		// or submit a previously opened form.
@@ -206,12 +279,63 @@ export class WalletLaunchController extends BaseController {
 		}
 		const cancel = this.getGlobalTarget("chooser-cancel");
 		if (cancel) cancel.onclick = () => dialog.close();
+		dialog.addEventListener("close", unsubscribe, { once: true });
 
 		if (typeof dialog.showModal === "function") {
 			dialog.showModal();
 			this._centerInVisualViewport(dialog);
 		} else {
 			dialog.setAttribute("open", "");
+		}
+	}
+
+	private _renderCandidates(
+		dialog: HTMLDialogElement,
+		list: HTMLElement,
+		candidates: Candidate[],
+	): void {
+		list.textContent = "";
+		candidates.forEach((candidate) => {
+			const { name, icon } =
+				candidate.kind === "in-page" ? candidate.wallet.info : candidate.wallet;
+
+			const li = document.createElement("li");
+			const btn = document.createElement("button");
+			btn.type = "button";
+			btn.className = "b-wallet-chooser__item";
+			if (icon) {
+				const img = document.createElement("img");
+				img.src = icon;
+				img.alt = "";
+				img.className = "b-wallet-chooser__icon";
+				btn.appendChild(img);
+			}
+			// textContent, never innerHTML: an announced name is untrusted,
+			// anything in the page can dispatch an announcement.
+			const label = document.createElement("span");
+			label.textContent = name;
+			btn.appendChild(label);
+			// Which transport signs matters to the user: an extension signs
+			// here, an app takes them out of the browser and back.
+			const kind = document.createElement("span");
+			kind.className = "b-wallet-chooser__kind";
+			kind.textContent = candidate.kind === "in-page" ? "Extension" : "App";
+			btn.appendChild(kind);
+
+			btn.addEventListener("click", () => {
+				dialog.close();
+				this._pick(candidate);
+			});
+			li.appendChild(btn);
+			list.appendChild(li);
+		});
+	}
+
+	private _pick(candidate: Candidate): void {
+		if (candidate.kind === "in-page") {
+			void this._signInPage(candidate.wallet);
+		} else {
+			this._openWallet(candidate.wallet);
 		}
 	}
 
