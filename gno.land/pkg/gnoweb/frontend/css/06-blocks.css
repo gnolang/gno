@@ -3516,3 +3516,13 @@ main.dev-mode > section:has(.c-overview-view) {
 	height: var(--g-space-6);
 	flex-shrink: 0;
 }
+
+/* Transport of the entry — an extension signing in the page, or an app the
+   launch link opens. Pushed to the trailing edge, secondary to the name. */
+.b-wallet-chooser__kind {
+	margin-left: auto;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
