@@ -580,6 +580,9 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
 //
+// Every returned file has its GoVersion cleared, so the ASTs do not carry the
+// //go:build go1.N line the source may have declared.
+//
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
