@@ -580,6 +580,9 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
 //
+// Every returned file has its GoVersion cleared, so the ASTs do not carry the
+// //go:build go1.N line the source may have declared.
+//
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
@@ -637,6 +640,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		// Build constraints have no meaning in Gno. A //go:build go1.N line
+		// otherwise sets this file's language version in go/types, overriding
+		// the pinned Config.GoVersion, so the accept/reject verdict would
+		// depend on the submitter's tag and on the toolchain each validator
+		// binary was built with. Blank it so the pin is the sole authority.
+		gof.GoVersion = ""
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
 			mpkg.Type == MPFiletests {
