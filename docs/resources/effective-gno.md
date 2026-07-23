@@ -670,8 +670,7 @@ runtime performance for large or growing datasets.
 **Key differences**:
 
 - **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in insertion order (deterministic,
-  but do not rely on it).
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
 **Use `avl.Tree` when you need**:
 
@@ -691,7 +690,7 @@ runtime performance for large or growing datasets.
 users := make(map[string]User)
 users["bob"] = User{}
 users["alice"] = User{}
-for name := range users { // insertion order; do not rely on it
+for name := range users { // unspecified order
 	// ...
 }
 user := users["alice"] // O(1) direct access
@@ -1014,16 +1013,10 @@ declared with a leading `cur realm` parameter:
 func Register(cur realm, id string, h Handler) { /* ... */ }
 ```
 
-To actually cross into that realm, wrap your own `cur` in `cross(...)` and pass
-it as the first argument:
-
-```go
-import "gno.land/r/some/registry"
-
-func init(cur realm) {
-	registry.Register(cross(cur), "myID", myHandler)
-}
-```
+To actually cross into that realm, wrap your own `cur` in `cross(...)` and
+pass it as the first argument; the
+[`init()` example above](#understand-the-importance-of-init) does exactly this
+with `registry.Register(cross(cur), "myID", myCallback)`.
 
 When you cross, `cur.Previous()` inside the callee is *your* realm, not the
 original user. That shift is what lets a contract act on a caller's behalf,
@@ -1475,11 +1468,10 @@ offers a few sharper instruments for specific jobs:
   session key, so a realm can apply tighter limits to delegated sessions.
 - `chain/runtime/unsafe` holds the raw stack walkers: `CurrentRealm()`,
   `PreviousRealm()`, `OriginCaller()`, `OriginSend()`. The package is named
-  `unsafe` deliberately. Called from a non-crossing helper,
+  `unsafe` deliberately: called from a non-crossing helper,
   `unsafe.PreviousRealm()` answers relative to the last crossing, not the
-  helper's own caller, and
-  `unsafe.OriginCaller()` is gno's `tx.origin`: attribution data, never
-  access control.
+  helper's own caller, and `OriginCaller()` is the `tx.origin` covered in
+  [contract-level access control](#contract-level-access-control).
 
 If a check matters for security, express it through `cur`; reach into the
 frame stack only when the question is genuinely about the transaction, not
