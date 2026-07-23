@@ -5,32 +5,45 @@ import (
 	"testing"
 )
 
-// This file is deliberately self-contained (no shared helpers from
-// realm_privatedep_test.go) so it can be dropped, unmodified, onto a
-// pre-typeHasPrivateDep commit to get a before/after comparison via
-// benchstat: both `assertTypeIsPublic` and the Store/PackageValue/
-// StructType APIs it uses existed unchanged before that change.
+// These benchmarks isolate the cost of assertTypeIsPublic itself — the
+// type-graph walk on a miss vs. the store-cache lookup on a hit — which
+// is exactly what typeHasPrivateDep's cache removes. They deliberately
+// build the type ONCE, outside the timed loop, and do NOT include the
+// per-commit cost of materializing the type object (GetType / amino
+// decode): that cost is unchanged by this cache and would only swamp the
+// signal.
+//
+// Object identity is irrelevant here: the cache keys on TypeID, so a
+// fresh object reloaded in a later transaction hits exactly as a reused
+// object does. That cross-transaction, fresh-object survival — the
+// property the previous per-object design lacked — is verified separately
+// by TestTypeHasPrivateDep_CacheSurvivesTransaction, not re-measured here.
 
-// buildPublicTypeGraph builds a StructType with numFields fields, each of
-// a distinct nested StructType (also with a handful of scalar fields),
-// spread across numPkgs distinct public packages — representative of a
-// mid-sized realm struct that embeds a few imported types. store is
-// populated with one public PackageValue per package path used.
-func buildPublicTypeGraph(store Store, pkgPrefix string, numPkgs, numFields int) *StructType {
-	pkgPaths := make([]string, numPkgs)
+// registerPublicPkgs registers numPkgs public leaf packages plus a public
+// root package under pkgPrefix, and returns their paths. Registration is
+// separate from type construction so a test can build many fresh,
+// same-TypeID type objects against one already-registered package set.
+func registerPublicPkgs(store Store, pkgPrefix string, numPkgs int) (pkgPaths []string, rootPath string) {
+	pkgPaths = make([]string, numPkgs)
 	for i := range pkgPaths {
 		pkgPaths[i] = pkgPrefix + "/pkg" + strconv.Itoa(i)
 		store.SetCachePackage(&PackageValue{PkgPath: pkgPaths[i], Private: false})
 	}
-
-	rootPath := pkgPrefix + "/root"
+	rootPath = pkgPrefix + "/root"
 	store.SetCachePackage(&PackageValue{PkgPath: rootPath, Private: false})
+	return pkgPaths, rootPath
+}
 
+// buildPublicType builds a fresh StructType with numFields fields, each a
+// distinct nested StructType spread across the given leaf packages —
+// representative of a mid-sized realm struct embedding a few imported
+// types. Called repeatedly it yields distinct objects that all share one
+// TypeID (structurally identical), modelling GetType across commits.
+func buildPublicType(pkgPaths []string, rootPath string, numFields int) *StructType {
 	fields := make([]FieldType, numFields)
 	for i := range fields {
-		nestedPath := pkgPaths[i%numPkgs]
 		nested := &StructType{
-			PkgPath: nestedPath,
+			PkgPath: pkgPaths[i%len(pkgPaths)],
 			Fields: []FieldType{
 				{Name: "A", Type: IntType},
 				{Name: "B", Type: StringType},
@@ -42,52 +55,11 @@ func buildPublicTypeGraph(store Store, pkgPrefix string, numPkgs, numFields int)
 	return &StructType{PkgPath: rootPath, Fields: fields}
 }
 
-// BenchmarkAssertTypeIsPublic_RepeatedCommits simulates saveUnsavedObjects
-// calling assertTypeIsPublic with a FRESH visited map on every commit (as
-// happens once per real transaction — see saveUnsavedObjects's tids map),
-// for the SAME type across many separate commits. This is the exact
-// per-transaction re-walk pattern typeHasPrivateDep's cache targets (see
-// gnovm/adr/prxxxx_type_privacy_dependency_cache.md): without it, this is
-// O(graph size) on every single call; with the cache, every call after
-// the first is O(1).
-func BenchmarkAssertTypeIsPublic_RepeatedCommits(b *testing.B) {
-	store := NewStore(nil, nil, nil)
-	root := buildPublicTypeGraph(store, "gno.land/r/bench_repeated", 5, 20)
-	rlm := NewRealm(root.PkgPath)
-
-	for b.Loop() {
-		visited := map[TypeID]struct{}{}
-		rlm.assertTypeIsPublic(store, root, visited)
-	}
-}
-
-// BenchmarkAssertTypeIsPublic_AlwaysNewType is the adversarial case for
-// the cache: every iteration builds and checks a BRAND NEW type graph, so
-// typeHasPrivateDep's cache can never hit. This measures the fix's
-// worst-case overhead (the walker's extra bookkeeping) rather than its
-// benefit, to keep the comparison honest.
-func BenchmarkAssertTypeIsPublic_AlwaysNewType(b *testing.B) {
-	store := NewStore(nil, nil, nil)
-	rlm := NewRealm("gno.land/r/bench_new")
-
-	i := 0
-	for b.Loop() {
-		root := buildPublicTypeGraph(store, "gno.land/r/bench_new_"+strconv.Itoa(i), 5, 20)
-		visited := map[TypeID]struct{}{}
-		rlm.assertTypeIsPublic(store, root, visited)
-		i++
-	}
-}
-
-// buildSelfReferentialTypeGraph builds a DeclaredType shaped exactly like
-// gno.land/p/nt/avl's Node struct: two fields pointing back at the type
-// itself (leftNode/rightNode *Node). This is the shape
-// typeHasPrivateDep's cycle-safety rule (see
-// gnovm/adr/prxxxx_type_privacy_dependency_cache.md, "Limitations")
-// deliberately excludes from the permanent cache.
-func buildSelfReferentialTypeGraph(store Store, pkgPath string) *DeclaredType {
-	store.SetCachePackage(&PackageValue{PkgPath: pkgPath, Private: false})
-
+// buildSelfReferentialType builds a fresh DeclaredType shaped like
+// gno.land/p/nt/avl's Node (leftNode/rightNode *Node) — a self-cycle. Its
+// TypeID is nominal (PkgPath+Name), so repeated calls yield distinct
+// objects sharing one TypeID.
+func buildSelfReferentialType(pkgPath string) *DeclaredType {
 	nodeDT := &DeclaredType{PkgPath: pkgPath, Name: "Node"}
 	nodeDT.Base = &StructType{
 		PkgPath: pkgPath,
@@ -101,21 +73,69 @@ func buildSelfReferentialTypeGraph(store Store, pkgPath string) *DeclaredType {
 	return nodeDT
 }
 
-// BenchmarkAssertTypeIsPublic_RepeatedCommits_SelfReferential is the
-// avl.Node-shaped counterpart to BenchmarkAssertTypeIsPublic_
-// RepeatedCommits: same type, many separate commits, simulating repeated
-// saves of an avl.Tree-backed realm. Unlike that benchmark, this type is
-// self-referential, so it's expected to show NO improvement call-to-call
-// — every call re-walks the graph from scratch, same as before this
-// change. This exists to make that limitation measurable, not just
-// documented in the ADR.
-func BenchmarkAssertTypeIsPublic_RepeatedCommits_SelfReferential(b *testing.B) {
+// BenchmarkAssertTypeIsPublic_ColdAcyclic measures the cost paid the first
+// time a given type is checked in a process (cache miss): the full
+// type-graph walk. The cache is cleared each iteration so every call is a
+// miss.
+func BenchmarkAssertTypeIsPublic_ColdAcyclic(b *testing.B) {
 	store := NewStore(nil, nil, nil)
-	node := buildSelfReferentialTypeGraph(store, "gno.land/p/bench_selfref")
-	rlm := NewRealm(node.PkgPath)
+	pkgPaths, rootPath := registerPublicPkgs(store, "gno.land/r/bench_cold", 5)
+	rlm := NewRealm(rootPath)
+	root := buildPublicType(pkgPaths, rootPath, 20)
+	cache := storeTypePrivacyCache(store)
 
 	for b.Loop() {
-		visited := map[TypeID]struct{}{}
-		rlm.assertTypeIsPublic(store, node, visited)
+		cache.m = make(map[TypeID]bool) // force a cold cache each iteration
+		rlm.assertTypeIsPublic(store, root, map[TypeID]struct{}{})
+	}
+}
+
+// BenchmarkAssertTypeIsPublic_WarmAcyclic measures the cost paid on every
+// commit after the first: a TypeID already in the store cache — a hit.
+// This is the case the redesign makes fast across transactions; the
+// previous design could not, because its memo lived on the per-tx object
+// and never survived the commit.
+func BenchmarkAssertTypeIsPublic_WarmAcyclic(b *testing.B) {
+	store := NewStore(nil, nil, nil)
+	pkgPaths, rootPath := registerPublicPkgs(store, "gno.land/r/bench_warm", 5)
+	rlm := NewRealm(rootPath)
+	root := buildPublicType(pkgPaths, rootPath, 20)
+	rlm.assertTypeIsPublic(store, root, map[TypeID]struct{}{}) // warm once
+
+	for b.Loop() {
+		rlm.assertTypeIsPublic(store, root, map[TypeID]struct{}{})
+	}
+}
+
+// BenchmarkAssertTypeIsPublic_ColdSelfReferential is the avl.Node-shaped
+// cold counterpart — the first check of a self-referential type.
+func BenchmarkAssertTypeIsPublic_ColdSelfReferential(b *testing.B) {
+	store := NewStore(nil, nil, nil)
+	const pkgPath = "gno.land/p/bench_selfref_cold"
+	store.SetCachePackage(&PackageValue{PkgPath: pkgPath, Private: false})
+	rlm := NewRealm(pkgPath)
+	node := buildSelfReferentialType(pkgPath)
+	cache := storeTypePrivacyCache(store)
+
+	for b.Loop() {
+		cache.m = make(map[TypeID]bool)
+		rlm.assertTypeIsPublic(store, node, map[TypeID]struct{}{})
+	}
+}
+
+// BenchmarkAssertTypeIsPublic_WarmSelfReferential shows that, unlike the
+// previous design (which never cached any type reachable through a cycle,
+// so avl.Tree-backed realms got zero benefit), self-referential types now
+// hit the cache across commits like any other.
+func BenchmarkAssertTypeIsPublic_WarmSelfReferential(b *testing.B) {
+	store := NewStore(nil, nil, nil)
+	const pkgPath = "gno.land/p/bench_selfref_warm"
+	store.SetCachePackage(&PackageValue{PkgPath: pkgPath, Private: false})
+	rlm := NewRealm(pkgPath)
+	node := buildSelfReferentialType(pkgPath)
+	rlm.assertTypeIsPublic(store, node, map[TypeID]struct{}{}) // warm once
+
+	for b.Loop() {
+		rlm.assertTypeIsPublic(store, node, map[TypeID]struct{}{})
 	}
 }

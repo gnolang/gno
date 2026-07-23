@@ -807,14 +807,6 @@ type StructType struct {
 	// deterministically from Fields; not serialized, mirroring
 	// effectiveFields/effectiveMethods.
 	comparable uint8
-
-	// privateDep caches typeHasPrivateDep(this) as a tristate: 0 = not
-	// yet computed, 1 = no private dependency anywhere, 2 = has one.
-	// See typeHasPrivateDep in realm.go for what this means and why it's
-	// safe to cache permanently (except when a node is reached only
-	// through a cycle, in which case it's left at 0 and recomputed every
-	// call). Not serialized.
-	privateDep uint8
 }
 
 func (st *StructType) Kind() Kind {
@@ -1000,10 +992,6 @@ type InterfaceType struct {
 	// embedded interfaces. Same sentinel/caching semantics as
 	// StructType.effectiveFields. Not serialized.
 	effectiveMethods uint16
-
-	// privateDep mirrors StructType.privateDep; see typeHasPrivateDep in
-	// realm.go. Not serialized.
-	privateDep uint8
 }
 
 // General empty interface.
@@ -1568,13 +1556,6 @@ type DeclaredType struct {
 	// Single-threaded-preprocess invariant: lazy build via lookupMethod
 	// mutates *dt; not safe for concurrent first-lookup access.
 	methodIndex map[Name]uint16
-
-	// privateDep mirrors StructType.privateDep; see typeHasPrivateDep in
-	// realm.go. Safe to cache once populated: by the time any object of
-	// this type reaches the realm-save path, the owning package has
-	// finished preprocessing and Methods is final (TryDefineMethod only
-	// appends during that earlier phase). Not serialized.
-	privateDep uint8
 }
 
 // methodIndexThreshold gates the map build: most user types have ≤ a

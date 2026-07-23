@@ -1259,72 +1259,72 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 // never find a violation in t for ANY realm, so callers can skip that
 // walk entirely.
 //
-// Results are memoized on StructType/InterfaceType/DeclaredType (the
-// only types carrying a pkgPath) via each type's privateDep field,
-// EXCEPT for nodes reached only through a cycle (self- or mutually-
-// referential types, e.g. linked-list nodes): resolving such a node may
-// depend on a peer whose own fields haven't been fully explored yet (a
-// classic fixed-point hazard — see TestTypeHasPrivateDep_
-// MutualCycleDoesNotPoisonPeerCache), so caching it could freeze a
-// premature answer. Any walk that touches a cycle anywhere leaves every
-// node it visited uncached; acyclic walks (the common case, since Gno
-// rejects import cycles and most declared types aren't self-referential)
-// cache everything they touch.
+// The verdict is memoized on the store's process-lived typePrivacyCache,
+// keyed by t's TypeID. TypeID keying (rather than a field on the Type
+// object) is essential: every transaction reloads types as fresh objects
+// from a per-tx cacheTypes map, so a field on the object would never
+// survive the commit boundary this optimization exists to span. TypeID
+// identifies a type's full structure, and hasPrivateDep is a pure,
+// immutable function of that structure plus package privacy (itself
+// immutable), so the verdict is stable for the life of the process.
+//
+// Only the verdict for t itself (the queried root) is cached — never the
+// intermediate nodes reached during the walk. A root's DFS visits its
+// entire reachable closure before returning, so the root's answer is
+// correct regardless of cycles. Intermediate nodes reached only through a
+// cycle can resolve to an under-approximation mid-walk (a back-edge
+// returns false, contributing nothing to the OR), which is fine for
+// computing the root but wrong as a standalone verdict — so those values
+// stay confined to the local visiting map and are discarded when the walk
+// ends. This is why no cross-call cache poisoning is possible even for
+// self- or mutually-referential types (e.g. avl.Node), which the previous
+// per-node scheme had to exclude from caching entirely.
 func typeHasPrivateDep(store Store, t Type) bool {
-	if cached, ok := getPrivateDepCache(t); ok {
-		return cached
-	}
-	w := &privateDepWalker{store: store, onStack: map[TypeID]struct{}{}, resolved: map[TypeID]bool{}}
-	hasPrivateDep := w.walk(t)
-	if !w.sawCycle {
-		for _, p := range w.pending {
-			setPrivateDepCache(p.t, p.hasPrivateDep)
+	tid := t.TypeID()
+	cache := storeTypePrivacyCache(store)
+	if cache != nil {
+		if verdict, ok := cache.get(tid); ok {
+			return verdict
 		}
 	}
-	return hasPrivateDep
+	verdict := computeTypeHasPrivateDep(store, t, map[TypeID]bool{})
+	if cache != nil {
+		cache.set(tid, verdict) // root only; see doc comment.
+	}
+	return verdict
 }
 
-type privateDepWalker struct {
-	store    Store
-	onStack  map[TypeID]struct{} // nodes currently on this walk's DFS stack
-	resolved map[TypeID]bool     // nodes already resolved earlier in this same walk
-	sawCycle bool                // true once any node on this walk re-entered an onStack node
-
-	// pending collects this walk's freshly-computed results as
-	// candidates for the permanent cache; committed only if sawCycle
-	// stays false for the whole walk (see typeHasPrivateDep).
-	pending []pendingPrivateDep
+// storeTypePrivacyCache returns the store's shared type-privacy memo, or
+// nil for a store implementation that doesn't carry one (in which case
+// typeHasPrivateDep still returns the correct answer, just uncached).
+func storeTypePrivacyCache(store Store) *typePrivacyCache {
+	if ds, ok := store.(*defaultStore); ok {
+		return ds.typePrivacyCache
+	}
+	if ts, ok := store.(transactionStore); ok {
+		return ts.defaultStore.typePrivacyCache
+	}
+	return nil
 }
 
-type pendingPrivateDep struct {
-	t             Type
-	hasPrivateDep bool
-}
-
-func (w *privateDepWalker) walk(t Type) bool {
+// computeTypeHasPrivateDep is the uncached OR-reachability walk backing
+// typeHasPrivateDep. visiting maps each TypeID seen during THIS walk to
+// its result; a TypeID currently on the DFS stack maps to false (a
+// back-edge carries no new info toward the OR). Only the caller's root
+// result is safe to memoize — see typeHasPrivateDep's doc comment.
+func computeTypeHasPrivateDep(store Store, t Type, visiting map[TypeID]bool) bool {
 	tid := t.TypeID()
-	if v, ok := w.resolved[tid]; ok {
+	if v, ok := visiting[tid]; ok {
 		return v
 	}
-	if cached, ok := getPrivateDepCache(t); ok {
-		w.resolved[tid] = cached
-		return cached
-	}
-	if _, onStack := w.onStack[tid]; onStack {
-		w.sawCycle = true
-		return false // cyclic edge carries no new info; siblings are still explored.
-	}
-	w.onStack[tid] = struct{}{}
+	visiting[tid] = false // back-edge placeholder until this node resolves.
 	pkgPath, children := typePkgPathAndChildren(t)
-	hasPrivateDep := pkgPath != "" && isPkgPrivateFromPkgPath(w.store, pkgPath)
-	for i := 0; !hasPrivateDep && i < len(children); i++ {
-		hasPrivateDep = w.walk(children[i])
+	verdict := pkgPath != "" && isPkgPrivateFromPkgPath(store, pkgPath)
+	for i := 0; !verdict && i < len(children); i++ {
+		verdict = computeTypeHasPrivateDep(store, children[i], visiting)
 	}
-	delete(w.onStack, tid)
-
-	w.resolved[tid] = hasPrivateDep
-	w.pending = append(w.pending, pendingPrivateDep{t, hasPrivateDep})
-	return hasPrivateDep
+	visiting[tid] = verdict
+	return verdict
 }
 
 // typePkgPathAndChildren returns t's own pkgPath (only StructType,
@@ -1388,44 +1388,6 @@ func typePkgPathAndChildren(t Type) (pkgPath string, children []Type) {
 	return pkgPath, children
 }
 
-// privateDepPtr returns a pointer to t's privateDep cache field, or nil
-// if t's kind doesn't carry one (only Struct/Interface/DeclaredType do —
-// the only kinds with a pkgPath of their own; see typePkgPathAndChildren).
-func privateDepPtr(t Type) *uint8 {
-	switch tt := t.(type) {
-	case *StructType:
-		return &tt.privateDep
-	case *InterfaceType:
-		return &tt.privateDep
-	case *DeclaredType:
-		return &tt.privateDep
-	default:
-		return nil
-	}
-}
-
-// getPrivateDepCache returns the memoized typeHasPrivateDep(t) result for
-// t, if any.
-func getPrivateDepCache(t Type) (result, ok bool) {
-	p := privateDepPtr(t)
-	if p == nil || *p == 0 {
-		return false, false
-	}
-	return *p == 2, true
-}
-
-func setPrivateDepCache(t Type, result bool) {
-	p := privateDepPtr(t)
-	if p == nil {
-		return
-	}
-	if result {
-		*p = 2
-	} else {
-		*p = 1
-	}
-}
-
 // assertTypeIsPublic ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
 //
@@ -1435,14 +1397,15 @@ func setPrivateDepCache(t Type, result bool) {
 // after construction that sets the boolean based on its dependencies.
 // This slow implementation seems fine for now, something to optimize later.
 //
-// UPDATE: typeHasPrivateDep above now precomputes and caches exactly that
-// boolean (the realm-independent part of it) per type, so the walk below
-// is skipped entirely once a type is proven free of any private
-// dependency. It's kept as a separate function/cache rather than folded
-// into this one because this check is realm-dependent (pkgPath ==
-// rlm.Path is always exempt) while privacy-of-dependencies is not; see
-// typeHasPrivateDep's doc comment. Both functions recurse over the same
-// type-graph shape via the shared typePkgPathAndChildren.
+// UPDATE: typeHasPrivateDep above now caches exactly that boolean (the
+// realm-independent part of it) per TypeID on the store, so the walk
+// below is skipped entirely once a type is proven free of any private
+// dependency — across commits, not just within one. It's kept as a
+// separate function/cache rather than folded into this one because this
+// check is realm-dependent (pkgPath == rlm.Path is always exempt) while
+// privacy-of-dependencies is not; see typeHasPrivateDep's doc comment.
+// Both functions recurse over the same type-graph shape via the shared
+// typePkgPathAndChildren.
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
 	tid := t.TypeID()
