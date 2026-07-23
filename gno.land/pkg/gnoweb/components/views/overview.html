@@ -37,24 +37,24 @@ UI - Package metadata (sidebar card)
 {{ define "ui/pkg_meta" }}
 <dl class="b-pkg-meta" aria-label="Package info">
   <dt class="section">Package Info</dt>
-  <div class="row"><dt class="label">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
-  <div class="row mono"><dt class="label">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
-  <div class="row"><dt class="label">Type</dt><dd class="value">{{ .Info.PackageType }}</dd></div>
-  {{ with .Info.GnoVersion }}<div class="row"><dt class="label">Gno</dt><dd class="value">{{ . }}</dd></div>{{ end }}
-  {{ with .Info.License }}{{ if .Kind }}<div class="row"><dt class="label">License</dt><dd class="value"><a href="{{ $.PkgPath }}$source&file={{ .FileName }}">{{ .Kind }}</a></dd></div>{{ end }}{{ end }}
-  {{ with .Info.Creator }}<div class="row"><dt class="label">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
-  {{ if .Info.Creator }}<div class="row"><dt class="label">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
+  <div class="row"><dt class="label" title="The namespace this package is published under, taken from its path.">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
+  <div class="row mono"><dt class="label" title="The on-chain import path of this package.">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
+  <div class="row"><dt class="label" title="A realm keeps state on chain; a pure package is a stateless library.">Type</dt><dd class="value">{{ .Info.PackageType }}</dd></div>
+  {{ with .Info.GnoVersion }}<div class="row"><dt class="label" title="The Gno language version this package declares in its gnomod.toml.">Gno</dt><dd class="value">{{ . }}</dd></div>{{ end }}
+  {{ with .Info.License }}{{ if .Kind }}<div class="row"><dt class="label" title="The license detected from the package's LICENSE file.">License</dt><dd class="value"><a href="{{ $.PkgPath }}$source&file={{ .FileName }}">{{ .Kind }}</a></dd></div>{{ end }}{{ end }}
+  {{ with .Info.Creator }}<div class="row"><dt class="label" title="The account that deployed this package.">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
+  {{ if .Info.Creator }}<div class="row"><dt class="label" title="The block height at which this package was deployed.">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
 
   <dt class="section">Code stats</dt>
-  <div class="row"><dt class="label">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
-  <div class="row"><dt class="label">.gno files</dt><dd class="value">{{ .Stats.GnoFileCount }}</dd></div>
-  <div class="row"><dt class="label">Tests</dt><dd class="value">{{ .Stats.TestCount }}</dd></div>
-  {{ if gt .Stats.FuncCount 0 }}<div class="row"><dt class="label">Funcs</dt><dd class="value">{{ .Stats.FuncCount }} ({{ .Stats.ExportedFunc }} exported)</dd></div>{{ end }}
-  {{ if gt .Stats.TypeCount 0 }}<div class="row"><dt class="label">Types</dt><dd class="value">{{ .Stats.TypeCount }}</dd></div>{{ end }}
-  {{ if gt .Stats.ConstCount 0 }}<div class="row"><dt class="label">Consts</dt><dd class="value">{{ .Stats.ConstCount }}</dd></div>{{ end }}
-  {{ if gt .Stats.VarCount 0 }}<div class="row"><dt class="label">Vars</dt><dd class="value">{{ .Stats.VarCount }}</dd></div>{{ end }}
-  {{ if gt .Stats.ImportCount 0 }}<div class="row"><dt class="label">Imports</dt><dd class="value">{{ .Stats.ImportCount }}</dd></div>{{ end }}
-  {{ if gt .Stats.CrossingCount 0 }}<div class="row"><dt class="label">Crossing</dt><dd class="value">{{ .Stats.CrossingCount }}</dd></div>{{ end }}
+  <div class="row"><dt class="label" title="Every file in the package, including tests and configuration.">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
+  <div class="row"><dt class="label" title="Files with a .gno extension, tests included.">.gno files</dt><dd class="value">{{ .Stats.GnoFileCount }}</dd></div>
+  <div class="row"><dt class="label" title="Files whose name ends in _test.gno or _filetest.gno.">Tests</dt><dd class="value">{{ .Stats.TestCount }}</dd></div>
+  {{ if gt .Stats.FuncCount 0 }}<div class="row"><dt class="label" title="Every function and method the package declares. The count in parentheses is its exported top-level functions.">Funcs</dt><dd class="value">{{ .Stats.FuncCount }} ({{ .Stats.ExportedFunc }} exported)</dd></div>{{ end }}
+  {{ if gt .Stats.TypeCount 0 }}<div class="row"><dt class="label" title="Exported type declarations.">Types</dt><dd class="value">{{ .Stats.TypeCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.ConstCount 0 }}<div class="row"><dt class="label" title="Constant declaration groups holding at least one exported name.">Consts</dt><dd class="value">{{ .Stats.ConstCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.VarCount 0 }}<div class="row"><dt class="label" title="Variable declaration groups holding at least one exported name.">Vars</dt><dd class="value">{{ .Stats.VarCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.ImportCount 0 }}<div class="row"><dt class="label" title="Packages this one imports.">Imports</dt><dd class="value">{{ .Stats.ImportCount }}</dd></div>{{ end }}
+  {{ if gt .Stats.CrossingCount 0 }}<div class="row"><dt class="label" title="Functions callable across realms, declared with a cur realm parameter.">Crossing</dt><dd class="value">{{ .Stats.CrossingCount }}</dd></div>{{ end }}
 </dl>
 {{ end }}
 
@@ -67,14 +67,16 @@ UI - Package quality (sidebar card)
   <h3 class="b-pkg-meta-heading">Metadata</h3>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
-    {{ if .Info.Draft }}<li class="b-tag b-tag--draft">draft</li>{{ else }}<li class="b-tag b-tag--published">published</li>{{ end }}
-    {{ if .Info.Private }}<li class="b-tag--tertiary">private</li>{{ else }}<li class="b-tag--tertiary">public</li>{{ end }}
+    {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: the author considers it not production-ready, and other packages cannot import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
+    {{ if .Info.Private }}<li class="b-tag--tertiary" title="Marked private in gnomod.toml: other realms cannot import it or retain references to the objects it owns. Unlike a public package it can be re-uploaded to the same path, and the replacement must stay private.">private</li>{{ else }}<li class="b-tag--tertiary" title="Not marked private in gnomod.toml: other realms may import it, and once deployed it cannot be re-uploaded to the same path.">public</li>{{ end }}
     {{/* Completeness signals — present-only, uniform tags (no check/cross icon) */}}
     {{ with .Quality }}
-    {{ if .HasPkgDoc }}<li class="b-tag--tertiary">Documented</li>{{ end }}
-    {{ if .HasReadme }}<li><a class="b-tag--tertiary" href="#readme">README</a></li>{{ end }}
-    {{ if .HasTests }}<li class="b-tag--tertiary">Tests</li>{{ end }}
-    {{ if .HasLicense }}<li><a class="b-tag--tertiary" href="{{ $.PkgPath }}$source&file={{ $.Info.License.FileName }}">License</a></li>{{ end }}
+    {{ if .HasPkgDoc }}<li class="b-tag--tertiary" title="The package has a doc comment above its package clause.">Documented</li>{{ end }}
+    {{/* Link only once the README section rendered: a listed but unfetchable
+         README would anchor at a section the template never emitted. */}}
+    {{ if .HasReadme }}{{ if $.Readme }}<li><a class="b-tag--tertiary" href="#readme" title="The package ships a README.md. Jump to it.">README</a></li>{{ else }}<li class="b-tag--tertiary" title="The package lists a README.md, which could not be loaded.">README</li>{{ end }}{{ end }}
+    {{ if .HasTests }}<li class="b-tag--tertiary" title="The package ships at least one test file.">Tests</li>{{ end }}
+    {{ if .HasLicense }}<li><a class="b-tag--tertiary" href="{{ $.PkgPath }}$source&file={{ $.Info.License.FileName }}" title="The package ships a LICENSE file. Open it.">License</a></li>{{ end }}
     {{ end }}
   </ul>
 </section>
@@ -216,12 +218,12 @@ UI - Overview body
       {{ if .Link }}
       <a href="{{ .Link }}" class="b-pkg-list__link">
         <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind b-tag--kind-{{ .Kind }}">{{ .Kind }}</span>
+        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
       </a>
       {{ else }}
       <span class="b-pkg-list__link b-pkg-list__link--disabled">
         <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind b-tag--kind-{{ .Kind }}">{{ .Kind }}</span>
+        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
       </span>
       {{ end }}
     </li>
@@ -233,7 +235,7 @@ UI - Overview body
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></span>
+    <a href="{{ .PkgPath }}/" class="c-with-icon" title="Open the file directory"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></a>
     <span class="count">{{ len .Files }}</span>
   </h2>
   <ul class="b-pkg-list b-pkg-section__body">
@@ -316,7 +318,9 @@ UI - Symbol card header title (prefix + name + permalink). Accepts: Prefix, Name
 UI - Function symbol card
 =================================================================================== */}}
 {{ define "ui/pkg_func" }}
-<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}">
+{{/* A method card carries its receiver in data-name too: filtering by the type
+     name must keep its methods visible, not empty the type card's method list. */}}
+<article class="b-pkg-symbol" id="{{ .AnchorID }}" data-name="{{ .Name }}{{ with .Receiver }} {{ . }}{{ end }}">
   <header class="b-pkg-symbol__header">
     {{ template "ui/pkg_symbol_head" (dict "Prefix" "func" "Name" .Name "AnchorID" .AnchorID "SourceURL" .SourceURL) }}
     {{ if .Crossing }}<span class="b-tag b-tag--crossing">crossing</span>{{ end }}

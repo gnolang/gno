@@ -583,8 +583,9 @@ func TestHTTPHandler_GetSourceView_Error(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// We use the URL that triggers GetSourceView
-	req := httptest.NewRequest(http.MethodGet, "/r/errsrc$source", nil)
+	// A no-file `$source` routes to the overview, so the request carries an
+	// explicit `&file=` to reach GetSourceView.
+	req := httptest.NewRequest(http.MethodGet, "/r/errsrc$source&file=admin.gno", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1637,6 +1638,71 @@ func TestHTTPHandler_GetOverviewView_PackageNotFoundReturns404(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// newOverviewStubClient serves one file and an empty doc, so the overview
+// renders and each test only has to vary the ListPaths behaviour.
+func newOverviewStubClient(listPaths func(ctx context.Context, prefix string, limit int) ([]string, error)) *stubClient {
+	return &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return []string{"foo.gno"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{}, nil
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: listPaths,
+	}
+}
+
+// TestHTTPHandler_GetOverviewView_RendersSubpackages pins the Directories
+// section end to end, including the domain trim the handler applies before
+// buildSubpackages, which expects domain-relative paths.
+func TestHTTPHandler_GetOverviewView_RendersSubpackages(t *testing.T) {
+	t.Parallel()
+	client := newOverviewStubClient(func(ctx context.Context, prefix string, limit int) ([]string, error) {
+		return []string{"gno.land/r/demo/foo", "gno.land/r/demo/foo/child"}, nil
+	})
+
+	cfg := newTestHandlerConfig(t, client)
+	cfg.Meta.Domain = "gno.land"
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "child", "a direct child must reach the Directories section")
+}
+
+// TestHTTPHandler_GetOverviewView_DegradedOnListPathsFailure pins the swallow:
+// a transient ListPaths error drops the Directories section, never the page.
+func TestHTTPHandler_GetOverviewView_DegradedOnListPathsFailure(t *testing.T) {
+	t.Parallel()
+	client := newOverviewStubClient(func(ctx context.Context, prefix string, limit int) ([]string, error) {
+		return nil, errors.New("node unavailable")
+	})
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, "a ListPaths failure must not fail the overview")
+	assert.Contains(t, rr.Body.String(), "foo.gno")
 }
 
 // TestHTTPHandler_UserView_ListPathsLimitBounded — a single GET /u/<name>
