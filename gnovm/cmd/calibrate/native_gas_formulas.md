@@ -5,49 +5,63 @@ Slope is ns/N; runtime stores it as `Slope/1024` and computes `base + slope*N/10
 
 | Native | Shape | Base (ns) | α (ns/elem) | β (ns/byte) | N | R² |
 |---|---|---:|---:|---:|---|---:|
-| `crypto/sha256.sum256` | base+α·N | 226.3 | 8.6969 | — | len(p0) bytes | 1.000 |
-| `crypto/ed25519.verify` | base+α·N | 56534.0 | 8.7645 | — | len(p1) bytes | 0.991 |
-| `chain.packageAddress` | base+α·N | 552.1 | 14.8448 | — | len(p0) string | 0.998 |
-| `chain.deriveStorageDepositAddr` | base+α·N | 540.9 | 0.4602 | — | len(p0) string | 0.994 |
-| `chain.pubKeyAddress` | flat | 2631.0 | — | — | — | — |
-| `time.loadFromEmbeddedTZData` | flat | 16068.0 | — | — | — | — |
-| `math.Float32bits` | flat | 32.5 | — | — | — | — |
-| `math.Float32frombits` | flat | 32.4 | — | — | — | — |
-| `math.Float64bits` | flat | 28.7 | — | — | — | — |
-| `math.Float64frombits` | flat | 28.8 | — | — | — | — |
-| `chain/banker.bankerSendCoins` | base+α·N | 321.9 | 34.4898 | — | len(p3) slice | 0.999 |
-| `chain/banker.bankerGetCoins` | base+α·N | 349.1 | 35.3578 | — | len(return[2]) | 0.998 |
-| `chain/banker.bankerTotalCoin` | flat | 88.6 | — | — | — | — |
-| `chain/banker.bankerIssueCoin` | flat | 140.6 | — | — | — | — |
-| `chain/banker.bankerRemoveCoin` | flat | 195.9 | — | — | — | — |
-| `chain/banker.originSend` | flat | 280.4 | — | — | — | — |
-| `chain/banker.assertCallerIsRealm` | flat | 700.8 | — | — | — | — |
-| `chain/params.SetBytes` | base+α·N | 1912.0 | 12.9035 | — | len(p1) bytes | 1.000 |
-| `chain/params.SetString` | base+α·N | 1772.3 | 0.1323 | — | len(p1) string | 0.933 |
-| `chain/params.SetBool` | flat | 1643.0 | — | — | — | — |
-| `chain/params.SetInt64` | flat | 1201.0 | — | — | — | — |
-| `chain/params.SetUint64` | flat | 1219.0 | — | — | — | — |
-| `sys/params.setSysParamBytes` | base+α·N | 323.3 | 9.4757 | — | len(p3) bytes | 0.995 |
-| `sys/params.getSysParamBytes` | base+α·N | 415.7 | 10.3357 | — | len(return[2]) | 1.000 |
-| `sys/params.setSysParamString` | flat | 269.1 | — | — | — | — |
-| `sys/params.setSysParamBool` | flat | 217.4 | — | — | — | — |
-| `sys/params.setSysParamInt64` | flat | 227.8 | — | — | — | — |
-| `sys/params.setSysParamUint64` | flat | 298.9 | — | — | — | — |
-| `sys/params.getSysParamBool` | flat | 236.5 | — | — | — | — |
-| `sys/params.getSysParamInt64` | flat | 322.9 | — | — | — | — |
-| `sys/params.getSysParamUint64` | flat | 308.7 | — | — | — | — |
-| `sys/params.getSysParamString` | flat | 362.8 | — | — | — | — |
-| `chain/runtime.ChainID` | flat | 44.8 | — | — | — | — |
-| `chain/runtime.ChainDomain` | flat | 44.5 | — | — | — | — |
-| `chain/runtime.ChainHeight` | flat | 30.2 | — | — | — | — |
-| `chain/runtime.originCaller` | flat | 44.9 | — | — | — | — |
-| `chain/runtime.getSessionInfo` | flat | 148.4 | — | — | — | — |
-| `chain/runtime.AssertOriginCall` | flat | 5.0 | — | — | — | — |
-| `chain/runtime.getRealm` | base+α·N | 1003.0 | 1.2880 | — | m.NumCallFrames() | 0.995 |
-| `time.now` | flat | 46.9 | — | — | — | — |
-| `chain.emit` | base+α·N | 361.9 | 39.2750 | — | len(p1) slice | 0.955 |
-| `chain/params.SetStrings` | base+α·N | 1601.1 | 38.9082 | — | len(p1) slice | 0.993 |
-| `chain/params.UpdateParamStrings` | base+α·N | 1298.0 | 23.5122 | — | len(p1) slice | 1.000 |
-| `sys/params.setSysParamStrings` | base+α·N | 341.0 | 26.4006 | — | len(p3) slice | 0.997 |
-| `sys/params.updateSysParamStrings` | base+α·N | 413.4 | 26.2318 | — | len(p3) slice | 0.998 |
-| `sys/params.getSysParamStrings` | base+α·N | 348.9 | 22.6713 | — | len(return[2]) | 0.999 |
+| `crypto/sha256.sum256` | base+α·N | 471.9 | 8.2924 | — | len(p0) bytes | 0.998 |
+| `crypto/ed25519.verify` | base+α·N | 41004.5 | 9.7063 | — | len(p1) bytes | 0.990 |
+| `chain.packageAddress` | base+α·N | 756.5 | 16.8754 | — | len(p0) string | 0.985 |
+| `chain.deriveStorageDepositAddr` | base+α·N | 596.2 | 0.6131 | — | len(p0) string | 0.998 |
+| `chain.pubKeyAddress` | flat | 11892.0 | — | — | — | — |
+| `time.loadFromEmbeddedTZData` | flat | 52897.0 | — | — | — | — |
+| `math.Float32bits` | flat | 192.4 | — | — | — | — |
+| `math.Float32frombits` | flat | 90.7 | — | — | — | — |
+| `math.Float64bits` | flat | 85.2 | — | — | — | — |
+| `math.Float64frombits` | flat | 79.2 | — | — | — | — |
+| `chain/banker.bankerSendCoins` | base+α·N | 837.6 | 41.2233 | — | len(p3) slice | 0.961 |
+| `chain/banker.bankerGetCoins` | base+α·N | 1375.0 | 47.7531 | — | len(return[2]) | 0.841 |
+| `chain/banker.bankerTotalCoin` | flat | 386.8 | — | — | — | — |
+| `chain/banker.bankerIssueCoin` | flat | 381.2 | — | — | — | — |
+| `chain/banker.bankerRemoveCoin` | flat | 213.9 | — | — | — | — |
+| `chain/params.SetBytes` | base+α·N | 1949.8 | 6.8164 | — | len(p1) bytes | 0.995 |
+| `chain/params.SetString` | flat | 2050.0 | — | — | — | — |
+| `chain/params.SetBool` | flat | 1525.0 | — | — | — | — |
+| `chain/params.SetInt64` | flat | 3356.0 | — | — | — | — |
+| `chain/params.SetUint64` | flat | 1436.0 | — | — | — | — |
+| `sys/params.setSysParamBytes` | base+α·N | 887.2 | 6.6907 | — | len(p3) bytes | 0.989 |
+| `sys/params.getSysParamBytes` | base+α·N | 1032.0 | 16.7981 | — | len(return[2]) | 0.937 |
+| `sys/params.setSysParamString` | flat | 367.6 | — | — | — | — |
+| `sys/params.setSysParamBool` | flat | 695.3 | — | — | — | — |
+| `sys/params.setSysParamInt64` | flat | 332.1 | — | — | — | — |
+| `sys/params.setSysParamUint64` | flat | 710.9 | — | — | — | — |
+| `sys/params.getSysParamBool` | flat | 345.7 | — | — | — | — |
+| `sys/params.getSysParamInt64` | flat | 311.1 | — | — | — | — |
+| `sys/params.getSysParamUint64` | flat | 358.2 | — | — | — | — |
+| `sys/params.getSysParamString` | flat | 386.2 | — | — | — | — |
+| `chain/runtime.ChainID` | flat | 82.7 | — | — | — | — |
+| `chain/runtime.ChainDomain` | flat | 78.7 | — | — | — | — |
+| `chain/runtime.ChainHeight` | flat | 63.6 | — | — | — | — |
+| `chain/runtime.getSessionInfo` | flat | 246.4 | — | — | — | — |
+| `chain/runtime.AssertOriginCall` | flat | 15.5 | — | — | — | — |
+| `time.now` | flat | 103.7 | — | — | — | — |
+| `chain/markdown.StripBidiAndZeroWidth` | base+α·N | 153.1 | 2.0707 | — | len(p0) string | 0.975 |
+| `chain/markdown.NormalizeBreaks` | base+α·N | 299.6 | 0.5817 | — | len(p0) string | 0.941 |
+| `chain/markdown.EscapeInline` | base+α·N | 409.8 | 2.7306 | — | len(p0) string | 0.844 |
+| `chain/markdown.EscapeTitle` | base+α·N | 145.5 | 2.9926 | — | len(p0) string | 0.976 |
+| `chain/markdown.PercentEncodeURL` | base+α·N | 161.0 | 4.8376 | — | len(p0) string | 0.954 |
+| `chain/markdown.MatchCharsetN` | base+α·N | 849.6 | 0.9048 | — | len(p0) string | 0.967 |
+| `chain/markdown.CodeFence` | base+α·N | 149.9 | 1.0246 | — | len(p0) string | 0.936 |
+| `chain/markdown.EscapeBlockHazards` | base+α·N | 652.8 | 18.9973 | — | len(p0) string | 0.979 |
+| `crypto/keccak256.sum256` | base+α·N | 1089.0 | 14.7436 | — | len(p0) bytes | 0.972 |
+| `crypto/bn254.g1Add` | flat | 5587.0 | — | — | — | — |
+| `crypto/bn254.g1Mul` | flat | 4375.0 | — | — | — | — |
+| `crypto/bn254.pairingCheck` | flat | 314196.0 | — | — | — | — |
+| `crypto/cometbls.verifyZKP` | flat | 1098507.0 | — | — | — | — |
+| `crypto/merkle.leafHash` | base+α·N | 2961.0 | 6.7067 | — | len(p0) bytes | 0.978 |
+| `crypto/merkle.hashFromByteSlices` | base+α·N | 2395.0 | 301.2144 | — | len(p0) bytes | 0.968 |
+| `crypto/merkle.verifySimpleProof` | base+α·N | 2614.9 | 2.7347 | — | len(p4) bytes | 0.844 |
+| `chain.emit` | base+α·N | 308.4 | 27.6380 | — | len(p1) slice | 0.990 |
+| `chain/params.SetStrings` | base+α·N | 1727.8 | 27.5694 | — | len(p1) slice | 0.993 |
+| `chain/params.UpdateParamStrings` | base+α·N | 1973.9 | 28.5837 | — | len(p1) slice | 0.991 |
+| `sys/params.setSysParamStrings` | base+α·N | 537.9 | 27.3839 | — | len(p3) slice | 0.999 |
+| `sys/params.updateSysParamStrings` | base+α·N | 433.9 | 27.5901 | — | len(p3) slice | 1.000 |
+| `sys/params.getSysParamStrings` | base+α·N | 527.6 | 32.9723 | — | len(return[2]) | 0.989 |
+| `crypto/merkle.innerHash` | base+α·N1+β·N2 | 1445.5 | 7.6013 | 8.0193 | len(p0) bytes + len(p1) bytes | 0.999 |
+| `crypto/modexp.modExp` | base+α·N1+β·N2 | 20403.5 | 489.9172 | 2025.6587 | len(p1) bytes + len(p2) bytes | -0.267 |

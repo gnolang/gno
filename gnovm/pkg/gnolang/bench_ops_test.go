@@ -3078,6 +3078,17 @@ func makeBigDec(digits int) BigdecValue {
 	return BigdecValue{V: r}
 }
 
+// makeBigDecOffset builds a value of the same magnitude as makeBigDec but not
+// equal to it, so subtraction cannot short-circuit on equal operands.
+func makeBigDecOffset(digits int) BigdecValue {
+	s := strings.Repeat("9876543210", (digits/10)+1)[:digits]
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		panic("invalid bigdec string: " + s)
+	}
+	return BigdecValue{V: r}
+}
+
 // --- doOpAdd BigDec ---
 
 func benchOpAdd_BigDec(b *testing.B, digits int) {
@@ -3114,8 +3125,12 @@ func benchOpSub_BigDec(b *testing.B, digits int) {
 	m := benchMachine()
 	defer m.Release()
 	expr := &BinaryExpr{}
+	// Distinct operands. makeBigDec is deterministic, so calling it twice with
+	// the same argument yields equal values and doOpSub returns zero early,
+	// skipping the big.Float promotion the real operation pays. The fitted
+	// slope then describes an operation that never happens.
 	bv1 := makeBigDec(digits)
-	bv2 := makeBigDec(digits)
+	bv2 := makeBigDecOffset(digits)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
