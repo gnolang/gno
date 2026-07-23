@@ -1,14 +1,17 @@
 # Regression guard for the typeHasPrivateDep type-privacy cache (see
-# gnovm/adr/prxxxx_type_privacy_dependency_cache.md): assertTypeIsPublic
-# short-circuits via a per-process, in-memory type cache
-# (StructType/InterfaceType/DeclaredType.privateDep). That cache is never
-# part of consensus state — it resets to cold on every node restart — so
-# nothing that depends on chain determinism may vary with its warm/cold
-# state. Today that's true because the whole check is unmetered (see
-# realm.go's assertTypeIsPublic/typeHasPrivateDep: no ConsumeGas/incrCPU
-# calls anywhere in that path). If a future change ever meters this walk
-# proportionally to nodes visited (mirroring gcVisitGas), a cold node would
-# charge more than a warm one for the identical tx — a consensus split.
+# gnovm/adr/pr5923_type_privacy_dependency_cache.md): assertTypeIsPublic
+# short-circuits via a store-level, TypeID-keyed, process-lived cache
+# (defaultStore.typePrivacyCache). That cache is never part of consensus
+# state — it resets to cold on every node restart — so nothing that
+# depends on chain determinism may vary with its warm/cold state. Today
+# that's true because the whole check is unmetered (see realm.go's
+# assertTypeIsPublic/typeHasPrivateDep: no ConsumeGas/incrCPU calls
+# anywhere in that path). If a future change ever meters this walk
+# proportionally to nodes visited (mirroring gcVisitGas), a cold node
+# would charge more than a warm one for the identical tx — a consensus
+# split. Note: because the path is unmetered, this test also passes with
+# the cache disabled; its value is precisely to fail the day someone
+# meters it in a warm/cold-sensitive way.
 #
 # SaveItem mutates a FIELD of the existing `current` *Item in place (never
 # allocates a new Item), setting it to the value it already holds — a
@@ -18,11 +21,13 @@
 # update/re-encode path, just with zero storage-byte delta.
 #
 # Call 1 changes Name from its init value ("init" -> "same-every-time"), a
-# real byte-size change; it's a warm-up, not gas-compared, same as
+# real byte-size change; it also first populates the type-privacy cache
+# for Item/Coin. It's a warm-up, not gas-compared, same as
 # stdlib_restart_compare.txtar's first "setup" call. Call 2 (same process,
-# warm type-privacy cache) and call 3 (fresh process after restart, cold
-# type-privacy cache) are both the identical no-op write and MUST report
-# identical GAS USED — cache warmth must never be visible in billed gas.
+# cache genuinely warm — the TypeID-keyed verdict persists across commits)
+# and call 3 (fresh process after restart, cache cold and recomputed) are
+# the identical no-op write and MUST report identical GAS USED — cache
+# warmth must never be visible in billed gas.
 #
 # EXACT_GAS is a regression pin, not a derivation — if a legitimate VM/gas-
 # model change shifts it, update this value (and re-verify calls 2 and 3
