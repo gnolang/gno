@@ -476,6 +476,67 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Action")
 }
 
+func TestHTTPHandler_DirectoryViewRenderLink(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		requestPath string
+		pkg         *gnoweb.MockPackage
+		wantLink    string
+		wantRender  bool
+	}{
+		{
+			name:        "realm directory shows render link",
+			requestPath: "/r/demo/blog/",
+			pkg: &gnoweb.MockPackage{
+				Domain: "gno.land",
+				Path:   "/r/demo/blog",
+				Files: map[string]string{
+					"main.gno": "package blog",
+				},
+			},
+			wantLink:   `href="/r/demo/blog" class="b-inline-btn">Render</a>`,
+			wantRender: true,
+		},
+		{
+			name:        "pure package directory hides render link",
+			requestPath: "/p/demo/pkg/",
+			pkg: &gnoweb.MockPackage{
+				Domain: "gno.land",
+				Path:   "/p/demo/pkg",
+				Files: map[string]string{
+					"main.gno": "package pkg",
+				},
+			},
+			wantRender: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, err := gnoweb.NewHTTPHandler(
+				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+				newTestHandlerConfig(t, gnoweb.NewMockClient(tc.pkg)),
+			)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.requestPath, nil))
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			if tc.wantRender {
+				assert.Contains(t, rr.Body.String(), tc.wantLink)
+			} else {
+				assert.NotContains(t, rr.Body.String(), `class="b-inline-btn">Render</a>`)
+			}
+		})
+	}
+}
+
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestHTTPHandler_NewInvalidConfig(t *testing.T) {
 	t.Parallel()
