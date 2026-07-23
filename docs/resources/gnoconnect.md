@@ -82,15 +82,23 @@ Two hosts are defined: `tx` signs a transaction, `connect` asks for the user's
 on-chain identity. Further hosts (`run`, `sign`) may be added under the same
 scheme.
 
-All names and values are percent-encoded. Note that the obvious way to build a
-link in a browser — `URLSearchParams` — emits
-`application/x-www-form-urlencoded`, which encodes a space as `+` rather than
-`%20`. A wallet parsing strictly per RFC 3986 then reads that `+` as a literal
-plus, and the user reviews a value they never typed. Producers should
-percent-encode (`encodeURIComponent`), and wallets should decode `+` as a space
-in **argument values** — but not in the link's own keys, where a `+` may be
-data: `state` in particular is often base64, and rewriting it would break the
-correlation check it exists for.
+**Encoding.** Names and values are percent-encoded:
+
+- Producers MUST percent-encode (`encodeURIComponent`). A literal plus is
+  `%2B`.
+- Wallets MUST accept form-encoded argument values as well: in `arg.<name>`
+  and `args` values, `+` decodes to a space. Substitute **before**
+  percent-decoding, so `%2B` still yields a literal `+`.
+- Everywhere else — `path`, `func`, `send`, `rpc`, `chainid`, `callback`,
+  `state`, `signer`, `broadcast` — `+` is a literal plus and is not
+  substituted.
+
+The leniency is there because `URLSearchParams`, the obvious way to build a
+link in a browser, emits `application/x-www-form-urlencoded`, where a space is
+`+`. A wallet parsing strictly per RFC 3986 shows the user `testing+board` for
+a board they named `testing board`, and signs that. The leniency stops at
+argument values because elsewhere a `+` may be data: `state` is often base64,
+and rewriting it would break the correlation check it exists for.
 
 ### `tx` — review, sign, broadcast
 
