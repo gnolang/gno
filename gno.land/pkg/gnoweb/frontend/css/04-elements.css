@@ -102,6 +102,13 @@ summary {
 	cursor: pointer;
 }
 
+/* Re-assert the UA's dialog centering (inset + margin: auto), which the
+   preflight reset (* { margin: 0 }) zeroes — without it every dialog,
+   modal or not, pins to the top-left corner. */
+dialog {
+	margin: auto;
+}
+
 md-renderer {
 	margin-block-start: var(--g-space-4);
 	padding-bottom: var(--g-space-24);
