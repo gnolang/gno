@@ -348,7 +348,7 @@ func (h *Handshaker) ReplayBlocks(
 		// mismatched InitialHeight had its genesis responses saved and the
 		// node went on to commit its first block regardless. Abort instead.
 		if res.IsErr() {
-			return nil, fmt.Errorf("InitChain rejected the genesis: %v", res.Error)
+			return nil, fmt.Errorf("InitChain rejected the genesis: %w", res.Error)
 		}
 
 		// Save the results by height

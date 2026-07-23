@@ -554,8 +554,8 @@ func probeGenesisDocProvider(pk crypto.PubKey, initialHeight int64) GenesisDocPr
 }
 
 // A genesis the app rejected leaves a persisted doc and a state record behind,
-// but no genesis ABCI responses. Correcting the genesis file and booting again
-// must take the corrected doc, heights included, rather than the stale copy.
+// but no committed block. Correcting the genesis file and booting again must
+// take the corrected doc, heights included, rather than the stale copy.
 func TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry(t *testing.T) {
 	t.Parallel()
 
@@ -568,7 +568,7 @@ func TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry(t *testing.T) 
 
 	// ReplayBlocks aligns the state to the genesis InitialHeight before
 	// calling InitChain; the rejection then returns before anything else is
-	// saved, so the alignment survives and the ABCI responses never appear.
+	// saved, so the alignment survives and no block is ever committed.
 	state.InitialHeight = 999
 	state.LastBlockHeight = 998
 	sm.SaveState(db, state)
@@ -580,22 +580,44 @@ func TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry(t *testing.T) 
 	assert.Equal(t, int64(99), state.LastBlockHeight)
 }
 
-// Once the genesis has been applied the persisted doc is authoritative, so a
+// Once a block has been committed the persisted doc is authoritative, so a
 // genesis file edited afterwards must not silently move the chain.
-func TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins(t *testing.T) {
+func TestLoadStateFromDBOrGenesisDocProvider_CommittedChainWins(t *testing.T) {
 	t.Parallel()
 
 	db := dbm.DB(memdb.NewMemDB())
 	pk := ed25519.GenPrivKey().PubKey()
 
-	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	state, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
 	require.NoError(t, err)
 	require.Equal(t, int64(100), doc.InitialHeight)
 
-	// InitChain completed: ReplayBlocks saves the genesis ABCI responses.
-	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
+	// The chain commits its first block, so the records become history.
+	state.LastBlockHeight = state.InitialHeight
+	sm.SaveState(db, state)
 
 	_, doc, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 555))
 	require.NoError(t, err)
-	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win after genesis is applied")
+	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win once the chain has committed a block")
+}
+
+// A running chain's state must survive a restart untouched, whatever the
+// genesis file now says.
+func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+
+	state.LastBlockHeight = 500
+	state.AppHash = []byte("committed-app-hash")
+	sm.SaveState(db, state)
+
+	state, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
+	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
 }
