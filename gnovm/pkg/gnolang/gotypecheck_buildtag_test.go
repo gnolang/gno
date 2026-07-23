@@ -76,3 +76,43 @@ func TestTypeCheckMemPackage_BuildTagCannotRaisePin(t *testing.T) {
 				"got: %v", runtime.Version(), err)
 	})
 }
+
+// buildTagImportGetter serves one dependency by path so the import graph can
+// carry the build tag instead of the root package.
+type buildTagImportGetter map[string]*std.MemPackage
+
+func (g buildTagImportGetter) GetMemPackage(path string) *std.MemPackage {
+	return g[path]
+}
+
+func TestTypeCheckMemPackage_BuildTagOnImport(t *testing.T) {
+	t.Parallel()
+
+	// The blanking runs on every file GoParseMemPackage returns, and the
+	// importer recurses through it, so a tag in a dependency is the same
+	// vector as one in the package under check. Nothing else asserts that.
+	dep := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "dep",
+		Path: "gno.land/p/demo/dep",
+		Files: []*std.MemFile{{Name: "dep.gno", Body: "//go:build go1.22\n\n" +
+			"package dep\nfunc G() { for range 10 {} }\n"}},
+	}
+	root := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "z",
+		Path: "gno.land/p/demo/z",
+		Files: []*std.MemFile{{Name: "z.gno", Body: "package z\n" +
+			"import \"gno.land/p/demo/dep\"\nfunc F() { dep.G() }\n"}},
+	}
+
+	getter := buildTagImportGetter{dep.Path: dep}
+	_, err := TypeCheckMemPackage(root, TypeCheckOptions{
+		Getter:     getter,
+		TestGetter: getter,
+		Mode:       TCLatestRelaxed,
+	})
+	assert.Error(t, err,
+		"a //go:build line in an imported package must not raise the pinned "+
+			"GoVersion for that import")
+}
