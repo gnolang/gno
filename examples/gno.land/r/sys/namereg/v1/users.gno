@@ -61,8 +61,19 @@ func Register(cur realm, username string) {
 		panic(ErrPaused)
 	}
 
-	if unsafe.OriginSend().AmountOf("ugnot") != registerPrice {
+	sentCoins := unsafe.OriginSend()
+	if sentCoins.AmountOf("ugnot") != registerPrice {
 		panic(errInvalidPayment())
+	}
+
+	// Make sure no payment has been sent by mistake when registration is free
+	if registerPrice == 0 && !sentCoins.IsZero() {
+		panic(ErrNoPaymentExpected)
+	}
+
+	// Fee must only be payed in ugnot and no other coins must be sent by mistake
+	if registerPrice > 0 && len(sentCoins) > 1 {
+		panic(ErrInvalidPaymentCoin)
 	}
 
 	// Format + prefix + reserved-name check. ValidateNymFormat returns
