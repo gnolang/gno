@@ -262,30 +262,21 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
-			// Catch a partial InitChainer run: the result handler fired
-			// fewer times than there were deliverable txs, so the chain
-			// booted with truncated genesis state. Without this guard the
-			// test prints "PASS" while the only on-the-wire signal is a
-			// truncated appHash, which is easy to miss.
-			//
-			// This check cannot stand alone: at expected == 0 it degrades
-			// to `0 < 0`, and the failures it is named after (InitialHeight
-			// mismatch, validateSignerInfo) fire before the tx loop and are
-			// independent of the tx count. Those are caught upstream
-			// instead — InitChainer reports them through
-			// ResponseInitChain.Error and the handshake aborts on it, so
+			// Assert that every deliverable tx reached the result handler.
+			// No current code path can break this: the InitChain tx loop
+			// never exits early, and the only txs it skips are the
+			// metadata.Failed ones, which countDeliverableTxs already
+			// excludes. Every other genesis failure is reported through
+			// ResponseInitChain.Error, which aborts the handshake, so
 			// gnoland.NewInMemoryNode above returns the error and we never
-			// reach this point.
-			//
-			// Per-tx metadata.Failed entries are skipped by the InitChain
-			// loop (no handler call), so the deliverable count excludes
-			// them.
+			// get here. The assertion stays as a tripwire for a future
+			// path that skips the handler.
 			expected := int64(countDeliverableTxs(appState.Txs))
 			if processed < expected {
 				return fmt.Errorf(
-					"FAIL: genesis replay delivered %d of %d expected txs — "+
-						"InitChainer exited the tx loop early; re-run with --verbose "+
-						"to see the node's own error output",
+					"FAIL: genesis replay delivered %d of %d expected txs; "+
+						"the InitChain tx loop skipped deliverable txs. "+
+						"Re-run with --verbose to see the node's own error output",
 					processed, expected,
 				)
 			}

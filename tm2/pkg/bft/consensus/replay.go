@@ -341,14 +341,14 @@ func (h *Handshaker) ReplayBlocks(
 			return nil, err
 		}
 		// An app can also reject the genesis through the response's Error
-		// field rather than a transport-level error — that is the only
+		// field rather than a transport-level error. That field is the only
 		// channel it has, since InitChainSync is a pass-through all the way
-		// down to the local client. Nothing used to read the field, so an
-		// app that said "refusing to boot" (gno.land's StrictReplay, a
-		// malformed app_state) had its genesis responses saved and the node
-		// went on to commit block 1 regardless. Abort the handshake instead.
-		if res.Error != nil {
-			return nil, fmt.Errorf("InitChain rejected the genesis: %s", res.Error.Error())
+		// down to the local client. The handshake never read it, so an app
+		// that said "refusing to boot" for a malformed app_state or a
+		// mismatched InitialHeight had its genesis responses saved and the
+		// node went on to commit its first block regardless. Abort instead.
+		if res.IsErr() {
+			return nil, fmt.Errorf("InitChain rejected the genesis: %v", res.Error)
 		}
 
 		// Save the results by height

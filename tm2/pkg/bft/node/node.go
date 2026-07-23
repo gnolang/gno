@@ -1082,12 +1082,47 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
 				genDoc.AppHash, freshDoc.AppHash)
 		}
+		// Same chain, so the remaining doc fields are safe to refresh. The DB
+		// copy only becomes authoritative once the genesis has been applied;
+		// before that the node has committed nothing, so a boot the app
+		// rejected leaves the file free to be corrected and the fresh doc
+		// replaces the persisted one outright. Without this an operator fixing
+		// the very field the rejection named would keep booting the stale
+		// value, with no way out but wiping the data dir.
+		if !genesisApplied(stateDB) {
+			return resetToGenesisDoc(stateDB, freshDoc)
+		}
 		genDoc.AppState = freshDoc.AppState
 	}
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
 		return sm.State{}, nil, err
 	}
+	return state, genDoc, nil
+}
+
+// genesisApplied reports whether InitChain has run to completion for this data
+// dir. ReplayBlocks saves the genesis ABCI responses immediately after
+// InitChain returns, and nothing prunes height 0, so their presence is the
+// marker that the persisted genesis records describe an accepted genesis.
+func genesisApplied(stateDB dbm.DB) bool {
+	_, err := sm.LoadABCIResponses(stateDB, 0)
+	return err == nil
+}
+
+// resetToGenesisDoc makes genDoc authoritative again, replacing the persisted
+// doc and rebuilding the state record from it. Only valid before the genesis
+// has been applied: the records left behind then describe a genesis the app
+// rejected, including the InitialHeight alignment ReplayBlocks writes before
+// calling InitChain, and keeping them would boot a corrected genesis against
+// the old heights.
+func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *types.GenesisDoc, error) {
+	saveGenesisDoc(stateDB, genDoc)
+	state, err := sm.MakeGenesisState(genDoc)
+	if err != nil {
+		return sm.State{}, nil, err
+	}
+	sm.SaveState(stateDB, state)
 	return state, genDoc, nil
 }
 

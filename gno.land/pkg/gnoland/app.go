@@ -393,14 +393,13 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// Mirror the allow-list into the params store for realms to read (genesis-immutable).
 	cfg.prmk.SetStrings(ictx, valsetPubKeyTypesPath, allowedKeyTypes)
 
-	// load app state. AppState may be nil mostly in some minimal testing setups;
-	// so log a warning when that happens.
+	// Load app state. A nil AppState, or any type loadAppState does not
+	// recognise, is rejected here and aborts the boot.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
-		// Surface loadAppState errors on the logger before returning.
-		// ResponseInitChain.Error carries the error up to the handshake,
-		// which aborts the boot on it, but the log line is what names the
-		// actual cause for the operator.
+		// ResponseInitChain.Error carries the cause up to the handshake,
+		// which aborts the boot on it. Log it too, at Error level, so it
+		// still lands for a caller that only prints a summary.
 		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
