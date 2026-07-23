@@ -62,7 +62,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 
 | Key | Value |
 | --- | --- |
-| `p2p.seeds` | `g19q07ssuafhmg6r7ys7wp7rpc4jxc85cpvdy426@seed-1.topaz.testnets.gno.land:26656,g15k98e65gm8h7fdr3yr4tqn82lvch4a97a3sg3j@seed-2.topaz.testnets.gno.land:26656` |
+| `p2p.persistent_peers` | `g19q07ssuafhmg6r7ys7wp7rpc4jxc85cpvdy426@seed-1.topaz.testnets.gno.land:26656,g15k98e65gm8h7fdr3yr4tqn82lvch4a97a3sg3j@seed-2.topaz.testnets.gno.land:26656` |
 | `application.prune_strategy` | `syncable` |
 | `consensus.timeout_commit` | `3s` |
 | `consensus.peer_gossip_sleep_duration` | `10ms` |
