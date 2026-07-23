@@ -57,7 +57,7 @@ gnoland start
 ## Setup
 ## ============================================================
 
-gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/v2lib -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/v2lib -gas-fee 360001ugnot -gas-wanted 4_800_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx addpkg -pkgdir $WORK/owned -pkgpath gno.land/r/test/owned -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1

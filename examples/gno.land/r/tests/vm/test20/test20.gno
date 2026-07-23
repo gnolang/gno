@@ -19,6 +19,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, PrivateLedger = grc20.NewToken(0, cur, "Test20", "TST", 4)
+	// test20 only ever creates this one token, so id 0 can't collide.
+	Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4, 0, cur)
 	grc20reg.Register(cross(cur), Token, "")
 }

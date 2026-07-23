@@ -29,8 +29,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -100,7 +100,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	// B+32 store with the fast index (see storebptree.FastStoreConstructor).
+	// Not state-compatible with IAVL databases: fresh chains and
+	// export/import forks only.
+	baseApp.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
@@ -679,8 +682,28 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 }
 
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
-	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-	cfg.acck.SetAccount(ctx, acc)
+	if bal.IsVesting() {
+		baseAcc := std.BaseAccount{
+			Address:       bal.Address,
+			Coins:         bal.Amount,
+			AccountNumber: cfg.acck.GetNextAccountNumber(ctx),
+		}
+		var acc std.Account
+		var err error
+		switch bal.Vesting.Type {
+		case std.VestingDelayed:
+			acc, err = std.NewDelayedVestingAccount(&baseAcc, *bal.Vesting)
+		default: // VestingContinuous (empty string) — linear vesting
+			acc, err = std.NewContinuousVestingAccount(&baseAcc, *bal.Vesting)
+		}
+		if err != nil {
+			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
+		}
+		cfg.acck.SetAccount(ctx, acc)
+	} else {
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
+	}
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		panic(err)
 	}
