@@ -183,6 +183,19 @@ type defaultStore struct {
 	nativeResolver NativeResolver // for injecting natives
 	aminoCache     *ristretto.Cache[[]byte, Type]
 
+	// typePrivacyCache memoizes typeHasPrivateDep(tid) — whether a type,
+	// by TypeID, reaches any private package. Created once on the root
+	// store and shared by reference into every BeginTransaction child
+	// (like stdlibKeyBytes/aminoCache), so a verdict computed in one
+	// transaction is visible to every later one — the memo must outlive
+	// the per-tx Type objects it describes, which cacheTypes recreates
+	// fresh each transaction. The verdict is a pure, immutable function
+	// of TypeID (package privacy never changes after creation), so it is
+	// safe to keep for the life of the process and safe to share across
+	// the concurrent-query path (races only recompute the same value).
+	// Reset naturally per root store, so tests don't cross-contaminate.
+	typePrivacyCache *typePrivacyCache
+
 	// transient
 	opslog  io.Writer // for logging store operations.
 	current []string  // for detecting import cycles.
@@ -194,6 +207,33 @@ type defaultStore struct {
 
 	// realm storage changes on message level.
 	realmStorageDiffs StorageDiffs // maps realm path to size diff
+}
+
+// typePrivacyCache is a concurrency-safe, permanent (no eviction) map
+// from TypeID to typeHasPrivateDep's verdict. Writes happen at most once
+// per distinct TypeID for the life of the process and only ever store the
+// same value for a given key, so the RWMutex is for memory-safety under
+// the concurrent-query path, not value correctness.
+type typePrivacyCache struct {
+	mu sync.RWMutex
+	m  map[TypeID]bool
+}
+
+func newTypePrivacyCache() *typePrivacyCache {
+	return &typePrivacyCache{m: make(map[TypeID]bool)}
+}
+
+func (c *typePrivacyCache) get(tid TypeID) (verdict, ok bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	verdict, ok = c.m[tid]
+	return verdict, ok
+}
+
+func (c *typePrivacyCache) set(tid TypeID, verdict bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.m[tid] = verdict
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -227,10 +267,11 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
-		pkgGetter:      nil,
-		nativeResolver: nil,
-		gasConfig:      DefaultGasConfig(),
-		aminoCache:     globalAminoCache(),
+		pkgGetter:        nil,
+		nativeResolver:   nil,
+		gasConfig:        DefaultGasConfig(),
+		aminoCache:       globalAminoCache(),
+		typePrivacyCache: newTypePrivacyCache(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -274,6 +315,9 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		gasMeter:   gasMeter,
 		gasConfig:  ds.gasConfig,
 		aminoCache: ds.aminoCache,
+
+		// cross-transaction type-privacy memo (shared reference)
+		typePrivacyCache: ds.typePrivacyCache,
 
 		// transient
 		current: nil,

@@ -1250,6 +1250,147 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 	}
 }
 
+// typeHasPrivateDep reports whether t, or any type reachable from it, is
+// declared in a package with Private == true.
+//
+// assertTypeIsPublic additionally exempts pkgPath == rlm.Path (a realm
+// may always use its own types, private or not) — but package privacy
+// never changes once a package is created (PackageValue.Private is set
+// once at construction and never mutated), so "no private package
+// anywhere in t's structure" is a permanent fact independent of which
+// realm is asking. A false result here means assertTypeIsPublic could
+// never find a violation in t for ANY realm, so callers can skip that
+// walk entirely.
+//
+// The verdict is memoized on the store's process-lived typePrivacyCache,
+// keyed by t's TypeID. TypeID keying (rather than a field on the Type
+// object) is essential: every transaction reloads types as fresh objects
+// from a per-tx cacheTypes map, so a field on the object would never
+// survive the commit boundary this optimization exists to span. TypeID
+// identifies a type's full structure, and hasPrivateDep is a pure,
+// immutable function of that structure plus package privacy (itself
+// immutable), so the verdict is stable for the life of the process.
+//
+// Only the verdict for t itself (the queried root) is cached — never the
+// intermediate nodes reached during the walk. A root's DFS visits its
+// entire reachable closure before returning, so the root's answer is
+// correct regardless of cycles. Intermediate nodes reached only through a
+// cycle can resolve to an under-approximation mid-walk (a back-edge
+// returns false, contributing nothing to the OR), which is fine for
+// computing the root but wrong as a standalone verdict — so those values
+// stay confined to the local visiting map and are discarded when the walk
+// ends. This is why no cross-call cache poisoning is possible even for
+// self- or mutually-referential types (e.g. avl.Node), which the previous
+// per-node scheme had to exclude from caching entirely.
+func typeHasPrivateDep(store Store, t Type) bool {
+	tid := t.TypeID()
+	cache := storeTypePrivacyCache(store)
+	if cache != nil {
+		if verdict, ok := cache.get(tid); ok {
+			return verdict
+		}
+	}
+	verdict := computeTypeHasPrivateDep(store, t, map[TypeID]bool{})
+	if cache != nil {
+		cache.set(tid, verdict) // root only; see doc comment.
+	}
+	return verdict
+}
+
+// storeTypePrivacyCache returns the store's shared type-privacy memo, or
+// nil for a store implementation that doesn't carry one (in which case
+// typeHasPrivateDep still returns the correct answer, just uncached).
+func storeTypePrivacyCache(store Store) *typePrivacyCache {
+	if ds, ok := store.(*defaultStore); ok {
+		return ds.typePrivacyCache
+	}
+	if ts, ok := store.(transactionStore); ok {
+		return ts.defaultStore.typePrivacyCache
+	}
+	return nil
+}
+
+// computeTypeHasPrivateDep is the uncached OR-reachability walk backing
+// typeHasPrivateDep. visiting maps each TypeID seen during THIS walk to
+// its result; a TypeID currently on the DFS stack maps to false (a
+// back-edge carries no new info toward the OR). Only the caller's root
+// result is safe to memoize — see typeHasPrivateDep's doc comment.
+func computeTypeHasPrivateDep(store Store, t Type, visiting map[TypeID]bool) bool {
+	tid := t.TypeID()
+	if v, ok := visiting[tid]; ok {
+		return v
+	}
+	visiting[tid] = false // back-edge placeholder until this node resolves.
+	pkgPath, children := typePkgPathAndChildren(t)
+	verdict := pkgPath != "" && isPkgPrivateFromPkgPath(store, pkgPath)
+	for i := 0; !verdict && i < len(children); i++ {
+		verdict = computeTypeHasPrivateDep(store, children[i], visiting)
+	}
+	visiting[tid] = verdict
+	return verdict
+}
+
+// typePkgPathAndChildren returns t's own pkgPath (only StructType,
+// InterfaceType, and DeclaredType have one; "" otherwise) and the types
+// directly reachable from t in one step, unwrapping FieldType/TypedValue
+// wrappers so children are always the underlying types (never a
+// FieldType — its TypeID() rebuilds and hashes a string on every call,
+// unlike every other Type kind here, which memoizes its own typeid).
+//
+// assertTypeIsPublic and typeHasPrivateDep both recurse over exactly
+// this shape; factored out so a new Type kind (or a new field on an
+// existing one) only needs updating in one place, not kept in sync
+// across two independently-maintained switches.
+func typePkgPathAndChildren(t Type) (pkgPath string, children []Type) {
+	switch tt := t.(type) {
+	case *FuncType:
+		children = make([]Type, 0, len(tt.Params)+len(tt.Results))
+		for _, param := range tt.Params {
+			children = append(children, param.Type)
+		}
+		for _, result := range tt.Results {
+			children = append(children, result.Type)
+		}
+	case FieldType:
+		children = []Type{tt.Type}
+	case *SliceType, *ArrayType, *PointerType:
+		children = []Type{tt.Elem()}
+	case *tupleType:
+		children = tt.Elts
+	case *MapType:
+		children = []Type{tt.Key, tt.Elem()}
+	case *InterfaceType:
+		pkgPath = tt.GetPkgPath()
+		children = make([]Type, 0, len(tt.Methods))
+		for _, method := range tt.Methods {
+			children = append(children, method.Type)
+		}
+	case *StructType:
+		pkgPath = tt.GetPkgPath()
+		children = make([]Type, 0, len(tt.Fields))
+		for _, field := range tt.Fields {
+			children = append(children, field.Type)
+		}
+	case *DeclaredType:
+		children = make([]Type, 0, 1+2*len(tt.Methods))
+		children = append(children, tt.Base)
+		for _, method := range tt.Methods {
+			children = append(children, method.T)
+			if mv, ok := method.V.(*FuncValue); ok {
+				children = append(children, mv.Type)
+			}
+		}
+		pkgPath = tt.GetPkgPath()
+	case *RefType:
+		panic("should not happen: ref type in typePkgPathAndChildren")
+	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// these types do not have a package path or children.
+	default:
+		panic(fmt.Sprintf("typePkgPathAndChildren: unhandled type %T", tt))
+	}
+	return pkgPath, children
+}
+
 // assertTypeIsPublic ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
 //
@@ -1258,61 +1399,36 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 // The type itself could have a boolean, and every type could have SetIsPrivate() (no args)
 // after construction that sets the boolean based on its dependencies.
 // This slow implementation seems fine for now, something to optimize later.
+//
+// UPDATE: typeHasPrivateDep above now caches exactly that boolean (the
+// realm-independent part of it) per TypeID on the store, so the walk
+// below is skipped entirely once a type is proven free of any private
+// dependency — across commits, not just within one. It's kept as a
+// separate function/cache rather than folded into this one because this
+// check is realm-dependent (pkgPath == rlm.Path is always exempt) while
+// privacy-of-dependencies is not; see typeHasPrivateDep's doc comment.
+// Both functions recurse over the same type-graph shape via the shared
+// typePkgPathAndChildren.
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
-	pkgPath := ""
-
 	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
 	tid := t.TypeID()
 	if _, exists := visited[tid]; exists {
 		return
 	}
 	visited[tid] = struct{}{}
-	switch tt := t.(type) {
-	case *FuncType:
-		for _, param := range tt.Params {
-			rlm.assertTypeIsPublic(store, param, visited)
-		}
-		for _, result := range tt.Results {
-			rlm.assertTypeIsPublic(store, result, visited)
-		}
-	case FieldType:
-		rlm.assertTypeIsPublic(store, tt.Type, visited)
-	case *SliceType, *ArrayType, *PointerType:
-		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
-	case *tupleType:
-		for _, et := range tt.Elts {
-			rlm.assertTypeIsPublic(store, et, visited)
-		}
-	case *MapType:
-		rlm.assertTypeIsPublic(store, tt.Key, visited)
-		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
-	case *InterfaceType:
-		pkgPath = tt.GetPkgPath()
-		for _, method := range tt.Methods {
-			rlm.assertTypeIsPublic(store, method, visited)
-		}
-	case *StructType:
-		pkgPath = tt.GetPkgPath()
-		for _, field := range tt.Fields {
-			rlm.assertTypeIsPublic(store, field, visited)
-		}
-	case *DeclaredType:
-		rlm.assertTypeIsPublic(store, tt.Base, visited)
-		for _, method := range tt.Methods {
-			rlm.assertTypeIsPublic(store, method.T, visited)
-			if mv, ok := method.V.(*FuncValue); ok {
-				rlm.assertTypeIsPublic(store, mv.Type, visited)
-			}
-		}
-		pkgPath = tt.GetPkgPath()
-	case *RefType:
-		panic("should not happen: ref type in assert type is public")
-	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
-		// these types do not have a package path.
-		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
+
+	if !typeHasPrivateDep(store, t) {
+		// Nothing anywhere in t's structure belongs to a private
+		// package. Package privacy never changes once a package is
+		// created, so this is a permanent fact independent of which
+		// realm is asking — the walk below could never find a
+		// violation for any rlm, so skip it entirely.
 		return
-	default:
-		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
+	}
+
+	pkgPath, children := typePkgPathAndChildren(t)
+	for _, child := range children {
+		rlm.assertTypeIsPublic(store, child, visited)
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, pkgPath) {
 		panic("cannot persist object of type defined in the private realm " + pkgPath)
