@@ -149,13 +149,13 @@ func ExampleColumns() {
 	// <gno-columns>
 	// Column1
 	// content1
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Column2
 	// content2
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Column3
 	// content3
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Column4
 	// content4
 	// </gno-columns>
@@ -164,30 +164,30 @@ func ExampleColumns() {
 	// <gno-columns>
 	// Row1Column1
 	// content1
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row1Column2
 	// content2
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row1Column3
 	// content3
 	// </gno-columns>
 	// <gno-columns>
 	// Row2Column1
 	// content1
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row2Column2
 	// content2
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row2Column3
 	// content3
 	// </gno-columns>
 	// <gno-columns>
 	// Row3Column1
 	// content1
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row3Column2
 	// content2
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Row3Column3
 	// content3
 	// </gno-columns>
@@ -196,12 +196,12 @@ func ExampleColumns() {
 	// <gno-columns>
 	// Column1
 	// content1
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	// Column2
 	// content2
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	//
-	// <gno-columns-sep>
+	// <gno-columns-sep/>
 	//
 	// </gno-columns>
 }

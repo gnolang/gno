@@ -157,11 +157,11 @@ Column 1
 			padded: true,
 			expected: `<gno-columns>
 Column 1
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
 </gno-columns>
 `,
@@ -172,7 +172,7 @@ Column 1
 			padded: false,
 			expected: `<gno-columns>
 Column 1
-<gno-columns-sep>
+<gno-columns-sep/>
 Column 2
 </gno-columns>
 `,
@@ -183,11 +183,11 @@ Column 2
 			padded: true,
 			expected: `<gno-columns>
 Column 1
-<gno-columns-sep>
+<gno-columns-sep/>
 Column 2
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
 </gno-columns>
 `,
@@ -198,11 +198,11 @@ Column 2
 			padded: false,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
-<gno-columns-sep>
+<gno-columns-sep/>
 C
-<gno-columns-sep>
+<gno-columns-sep/>
 D
 </gno-columns>
 `,
@@ -213,11 +213,11 @@ D
 			padded: true,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
-<gno-columns-sep>
+<gno-columns-sep/>
 C
-<gno-columns-sep>
+<gno-columns-sep/>
 D
 </gno-columns>
 `,
@@ -228,13 +228,13 @@ D
 			padded: false,
 			expected: `<gno-columns>
 1
-<gno-columns-sep>
+<gno-columns-sep/>
 2
-<gno-columns-sep>
+<gno-columns-sep/>
 3
-<gno-columns-sep>
+<gno-columns-sep/>
 4
-<gno-columns-sep>
+<gno-columns-sep/>
 5
 </gno-columns>
 `,
@@ -245,19 +245,19 @@ D
 			padded: true,
 			expected: `<gno-columns>
 1
-<gno-columns-sep>
+<gno-columns-sep/>
 2
-<gno-columns-sep>
+<gno-columns-sep/>
 3
-<gno-columns-sep>
+<gno-columns-sep/>
 4
-<gno-columns-sep>
+<gno-columns-sep/>
 5
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
 </gno-columns>
 `,
@@ -296,9 +296,9 @@ func TestColumnsN(t *testing.T) {
 			padded:     false,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
-<gno-columns-sep>
+<gno-columns-sep/>
 C
 </gno-columns>
 `,
@@ -310,7 +310,7 @@ C
 			padded:     false,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
 </gno-columns>
 `,
@@ -322,7 +322,7 @@ B
 			padded:     false,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
 </gno-columns>
 <gno-columns>
@@ -337,12 +337,12 @@ C
 			padded:     true,
 			expected: `<gno-columns>
 A
-<gno-columns-sep>
+<gno-columns-sep/>
 B
 </gno-columns>
 <gno-columns>
 C
-<gno-columns-sep>
+<gno-columns-sep/>
 
 </gno-columns>
 `,
@@ -354,9 +354,9 @@ C
 			padded:     true,
 			expected: `<gno-columns>
 X
-<gno-columns-sep>
+<gno-columns-sep/>
 
-<gno-columns-sep>
+<gno-columns-sep/>
 
 </gno-columns>
 `,
