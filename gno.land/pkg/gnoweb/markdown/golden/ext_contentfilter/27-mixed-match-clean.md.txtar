@@ -1,0 +1,8 @@
+-- input.md --
+Visit evil-site.com for info.
+
+This paragraph is completely clean.
+
+-- output.html --
+<p>[blocked URL]</p>
+<p>This paragraph is completely clean.</p>

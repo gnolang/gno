@@ -1,0 +1,5 @@
+-- input.md --
+Click [evil-site.com](http://example.com) here.
+
+-- output.html --
+<p>[blocked URL]</p>

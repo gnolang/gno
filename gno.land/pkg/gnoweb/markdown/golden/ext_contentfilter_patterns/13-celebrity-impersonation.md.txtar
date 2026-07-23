@@ -1,0 +1,7 @@
+-- input.md --
+Vitalik Buterin giving away tokens in a giveaway today.
+
+Technology executives in the news this week.
+-- output.html --
+<p>[impersonation]</p>
+<p>Technology executives in the news this week.</p>
