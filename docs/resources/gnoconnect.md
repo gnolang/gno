@@ -230,6 +230,109 @@ a producer-supplied sequence would be one more value the dapp chooses that shape
 what gets signed. The positional form is what makes offline signing reachable,
 since named arguments require the `vm/qdoc` lookup.
 
+## In-Page Wallets (browser extensions)
+
+A wallet that runs code in the page announces itself; the page collects the
+announcements and lets the user choose. This replaces the namespace race that
+a single `window.<wallet>` global creates — with one global, the last
+extension to load wins and the others become invisible, so a user with two
+wallets installed cannot reach one of them.
+
+The handshake is two events on `window`, matching EIP-6963 and the Wallet
+Standard:
+
+| Event | Direction | Payload |
+|---|---|---|
+| `gno:registerWallet` | wallet → page | `CustomEvent` whose `detail` is `{ info, provider }` |
+| `gno:requestWallet` | page → wallets | none |
+
+Neither side can assume it loaded first, which is the whole difficulty:
+
+- A wallet MUST announce when it loads **and** on every `gno:requestWallet`.
+  A wallet that announces only once is invisible to any page that started
+  listening afterwards.
+- A page MUST start listening before it asks, and MUST keep listening after —
+  wallets load asynchronously, so the first answer is never known to be the
+  last. A page that reads its list once, at load, will miss wallets.
+
+```ts
+// Wallet side
+const announce = () =>
+  window.dispatchEvent(
+    new CustomEvent("gno:registerWallet", {
+      detail: Object.freeze({ info, provider }),
+    }),
+  );
+window.addEventListener("gno:requestWallet", announce);
+announce();
+
+// Page side
+window.addEventListener("gno:registerWallet", (e) => wallets.add(e.detail));
+window.dispatchEvent(new Event("gno:requestWallet"));
+```
+
+### `info` — how the wallet is presented
+
+```ts
+interface GnoWalletInfo {
+  uuid: string; // announcement handle, unique per page load (UUIDv4)
+  name: string; // human-readable, shown to the user
+  icon: string; // data:image/ URI — no network fetch, works offline
+  rdns: string; // durable identity, reverse-DNS (e.g. "land.gno.gnokey")
+}
+```
+
+`uuid` deduplicates repeated announcements within a page; `rdns` is what
+survives across page loads and versions, so it — not the display name — is
+what a page should persist when remembering a choice.
+
+### `provider` — what the page calls
+
+The provider carries the wallet's methods. The one a transaction producer
+needs mirrors the `tx` launch link field for field, so both transports carry
+the same intent:
+
+```ts
+signAndSubmitTransaction(tx: {
+  path: string;                             // full package path
+  func: string;                             // exported function name
+  args: { name: string; value: string }[];  // named, like arg.<name>
+  send?: string;                            // coins, gnokey syntax
+  rpc?: string;                             // from gnoconnect:rpc
+  chainid?: string;                         // from gnoconnect:chainid
+}): Promise<UserResponse<{ hash: string }>>;
+
+type UserResponse<T> =
+  | { status: "Approved"; args: T }
+  | { status: "Rejected" };
+```
+
+A user declining is `Rejected`, not a thrown error: refusing to sign is an
+answer, and only a genuine failure (network, malformed request) rejects the
+promise. User review before signing is mandatory, as for `tx`.
+
+A wallet MAY implement more of the in-page surface (`connect`, `getAccount`,
+`signMessage`, network switching). A page MUST feature-detect every method it
+calls rather than assume, and degrade — to another wallet, a launch link, or
+the copy-paste command — when it is absent. Announcing is not a claim to
+implement everything.
+
+### Announcements are untrusted
+
+Any script running in the page can dispatch `gno:registerWallet`, including
+one injected by a compromised dependency. A page that builds a wallet chooser
+from announcements is rendering attacker-controllable input, so it MUST:
+
+- render `name` as text, never as markup, and clamp its length;
+- accept `icon` only as a `data:image/` URI — a remote URL would both leak a
+  page visit and let the entry render arbitrary fetched content;
+- cap how many announcements it accepts, so a flood cannot push the real
+  wallet out of the list.
+
+None of this authenticates the wallet: the user picking a name from a list is
+the trust decision, exactly as when they install an extension. What the page
+owes them is that the list is legible and cannot be crowded out.
+
 ## Launch Links (external wallets)
 
 Launch links hand an intent off to an external wallet — a mobile app or
