@@ -804,6 +804,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 	config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
 	config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
 	config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
+	config.IdleTimeout = n.config.RPC.IdleTimeout
 	// If necessary adjust global WriteTimeout to ensure it's greater than
 	// TimeoutBroadcastTxCommit.
 	// See https://github.com/tendermint/tendermint/issues/3435
