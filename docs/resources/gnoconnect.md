@@ -80,7 +80,17 @@ producer may author them.
 
 Two hosts are defined: `tx` signs a transaction, `connect` asks for the user's
 on-chain identity. Further hosts (`run`, `sign`) may be added under the same
-scheme. All names and values are percent-encoded.
+scheme.
+
+All names and values are percent-encoded. Note that the obvious way to build a
+link in a browser — `URLSearchParams` — emits
+`application/x-www-form-urlencoded`, which encodes a space as `+` rather than
+`%20`. A wallet parsing strictly per RFC 3986 then reads that `+` as a literal
+plus, and the user reviews a value they never typed. Producers should
+percent-encode (`encodeURIComponent`), and wallets should decode `+` as a space
+in **argument values** — but not in the link's own keys, where a `+` may be
+data: `state` in particular is often base64, and rewriting it would break the
+correlation check it exists for.
 
 ### `tx` — review, sign, broadcast
 
@@ -121,6 +131,25 @@ scheme. All names and values are percent-encoded.
     needs a signature.
 
   User review before signing is mandatory in both modes.
+
+  Sign-only moves real obligations to the producer, and they are easy to miss:
+
+  - **It must be able to broadcast what the wallet signed.** A wallet may sign
+    with a scheme the producer's client does not know — a session key, a
+    multisig — and a client that cannot represent that signature will re-encode
+    the transaction into an invalid one rather than refuse it. The failure
+    surfaces at the very last step and looks like the wallet's fault.
+  - **It owns the errors.** Out-of-gas, a rejected signature, a realm that
+    refuses the call: all arrive at the producer, about a transaction the wallet
+    composed, once the wallet's review screen is gone.
+  - **`status=success` here means _signed_, not _landed_.** Nothing has been
+    broadcast when the callback fires. A producer that treats it as completion —
+    the reasonable reading in the default mode — will report success for a
+    transaction that never reached the chain.
+
+  Prefer the default when the producer has no specific reason to broadcast
+  itself: the wallet built the transaction, resolved the account sequence, and
+  understands its own signatures, so it is better placed to report what happened.
 
 #### `tx` callback results
 
