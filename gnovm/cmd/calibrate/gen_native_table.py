@@ -243,9 +243,18 @@ NATIVE_SPECS_2ARG = [
      r"BenchmarkNative_Merkle_InnerHash_L(\d+)_R(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     # modExp(base, exp, modulus []byte): one modular squaring per exponent
     # bit, each quadratic in the modulus. Pricing the modulus alone leaves
-    # the exponent free. The additive model here still understates the
-    # len(exp)·len(mod)^2 corner, so the fit is only trustworthy over the
-    # benched range — re-run before raising the modulus ceiling.
+    # the exponent free, so listing it here at least makes the exponent
+    # cost something.
+    #
+    # It does not make the entry safe. Cost grows as len(exp)·len(mod)^2 and
+    # an additive model cannot express a product: the fit lands at R^2 below
+    # zero (worse than a flat charge) and undercharges 512-byte exponent
+    # against 512-byte modulus by 14.4x — inside the benched range, not
+    # beyond it. The generator emits a WARN saying so.
+    #
+    # Treat the emitted numbers as a floor to be raised by hand, and do not
+    # ship them until X_modExp enforces the input ceiling they are fit for.
+    # It currently accepts slices of any length.
     ("crypto/modexp", "modExp", 1, "LenBytes", 2, "LenBytes",
      r"BenchmarkNative_ModExp_E(\d+)_M(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
@@ -378,6 +387,24 @@ def fit_2arg(grid):
     separable = bool(np.linalg.matrix_rank(
         np.column_stack([np.ones(len(arr)), arr])) >= 3)
     return (*result, separable)
+
+
+def worst_undercharge_1d(d, base, slope_per_1024):
+    """worst_undercharge for a single-parameter fit.
+
+    A flat entry is the slope_per_1024 == 0 case, which is how an
+    unbounded input ends up priced as a constant: a superlinear native
+    fits a line badly, gets demoted to flat, and then charges its
+    smallest sampled cost for every size. Returns (ratio, n)."""
+    worst = (0.0, 0)
+    for n, nss in d.items():
+        charged = base + slope_per_1024 * n // 1024
+        if charged <= 0:
+            continue
+        ratio = float(np.median(nss)) / charged
+        if ratio > worst[0]:
+            worst = (ratio, n)
+    return worst
 
 
 def worst_undercharge(grid, base, s1_per_1024, s2_per_1024):
@@ -747,14 +774,38 @@ def main():
             base, slope, r2 = fit_linear(d)
             # Demote to flat if either the per-1024 slope rounds to 0 or
             # R² < 0.5 (the line fits worse than a constant mean).
-            if int(round(slope * 1024)) == 0 or r2 < 0.5:
+            demoted = int(round(slope * 1024)) == 0 or r2 < 0.5
+            if demoted:
                 rows.append({"pkg": pkg, "fn": fn, "shape": "flat",
                              "base": base})
-                print(f"NOTE: {pkg}.{fn} demoted to flat (slope={slope:.6f}, R²={r2:.3f})", file=sys.stderr)
+                # Report the spread being flattened. A low R² means the line
+                # fit badly, not that the cost is constant, so state what the
+                # measurements actually did across the sampled range: a native
+                # that grew 2x over 1..4 units will keep growing past 4.
+                meds = {n: float(np.median(v)) for n, v in d.items()}
+                lo_n, hi_n = min(meds), max(meds)
+                growth = meds[hi_n] / meds[lo_n] if meds[lo_n] > 0 else 0.0
+                print(f"NOTE: {pkg}.{fn} demoted to flat (slope={slope:.6f}, "
+                      f"R²={r2:.3f}); measured cost moves {growth:.1f}x over "
+                      f"N={lo_n}..{hi_n}", file=sys.stderr)
             else:
                 rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
                              "base": base, "slope": slope, "r2": r2,
                              "slope_idx": slope_idx, "kind": kind})
+            # Same replay the 2-arg path does, against the integers this
+            # entry will actually emit. A demotion to flat is the dangerous
+            # case: R² is low precisely when cost is superlinear, so the
+            # weakest possible pricing is chosen exactly when the input is
+            # least safe to leave unpriced.
+            emitted_slope = 0 if demoted else int(round(slope * 1024))
+            ratio, wn = worst_undercharge_1d(d, int(round(base)), emitted_slope)
+            if ratio > 2.0:
+                print(f"WARN: {pkg}.{fn} undercharges N={wn} by {ratio:.1f}x "
+                      f"(R²={r2:.3f}"
+                      f"{', demoted to flat' if demoted else ''}). Raise "
+                      f"Base/slope by hand to cover the supported input "
+                      f"ceiling, and record the ceiling in native_gas.go.",
+                      file=sys.stderr)
 
     # 2-D fits.
     for pkg, fn, idx, count_kind, _, post in NATIVE_SPECS_2D:
