@@ -73,33 +73,121 @@ TODO ([discussion](https://github.com/gnolang/gno/issues/3283)).
 
 ## Launch Links (external wallets)
 
-Launch links hand a transaction intent off to an external wallet — a mobile app
-or standalone desktop signer registered under a custom URL scheme — when an
+Launch links hand an intent off to an external wallet — a mobile app or
+standalone desktop signer registered under a custom URL scheme — when an
 in-page provider is not available. Gnoweb emits them from `$help` Execute; any
 producer may author them.
 
+Two hosts are defined: `tx` signs a transaction, `connect` asks for the user's
+on-chain identity. Further hosts (`run`, `sign`) may be added under the same
+scheme. All names and values are percent-encoded.
+
+### `tx` — review, sign, broadcast
+
 ```
-<scheme>://tx?path=<pkgPath>&func=<Foo>&arg.<name>=<value>&send=<coins>&rpc=<rpc>&chainid=<chainid>&callback=<url>
+<scheme>://tx?path=<pkgPath>&func=<Foo>&arg.<name>=<value>&send=<coins>&rpc=<rpc>&chainid=<chainid>&callback=<url>&state=<token>&signer=<address>&broadcast=<bool>
 ```
 
 - `<scheme>` is the wallet's registered custom scheme (e.g.
-  `land.gno.gnokey`). The host is `tx`; future hosts (`run`, `sign`) may be
-  added under the same scheme. Wallets should accept `call` as a silent
-  back-compat alias for `tx` but emit and document only `tx`.
+  `land.gno.gnokey`). Wallets should accept `call` as a silent back-compat
+  alias for the `tx` host but emit and document only `tx`.
 - Function arguments are named like TxLink arguments, but namespaced under
-  `arg.` so realm parameter names cannot collide with the link's own keys
-  (`path`, `func`, `send`, `rpc`, `chainid`, `callback`). Every name and value
-  is percent-encoded. As with TxLinks, a link may prefill only some arguments;
-  the wallet resolves parameter order and remaining fields via `vm/qdoc`.
+  `arg.` so realm parameter names cannot collide with the link's own reserved
+  keys (`path`, `func`, `send`, `rpc`, `chainid`, `callback`, `state`,
+  `signer`, `broadcast`). As with TxLinks, a link may prefill only some
+  arguments; the wallet resolves parameter order and remaining fields via
+  `vm/qdoc`.
 - `send` (optional) is the coin amount to attach, in `gnokey` coin syntax
   (e.g. `1000000ugnot`).
 - `rpc` and `chainid` mirror the `gnoconnect:rpc`/`gnoconnect:chainid`
   metadata of the emitting page, verbatim. `rpc` may be scheme-less
   (`127.0.0.1:26657`); the wallet assumes `http://` when the scheme is
   missing.
-- `callback` (optional) is the URL to reopen after signing. The wallet
-  appends `status` (`success` or `error`) and, on success, the transaction
-  `hash` as query parameters.
+- `callback` (optional) is the URL the wallet reopens with the result.
+- `state` (optional, RECOMMENDED) is an opaque producer-generated token,
+  echoed verbatim in every callback. A callback scheme is public — anything
+  installed can open it — so without `state` a producer cannot tell its own
+  result from one an attacker synthesised. Producers that consume callbacks
+  should always send one and drop responses that match no outstanding request.
+- `signer` (optional) is the address the producer expects to sign, typically
+  carried over from a prior `connect`. The wallet MUST sign with that account
+  and MUST NOT silently sign as another identity; if it is unavailable, refuse
+  and say so rather than substituting a different one.
+- `broadcast` (optional, default `true`) selects the mode:
+  - `true` — the wallet signs **and broadcasts**, returning `hash`.
+  - `false` — **sign-only**: after the same review, the wallet returns the
+    signed transaction and does not broadcast. The producer broadcasts on its
+    own RPC. This suits a dapp that owns its connection to the chain and only
+    needs a signature.
+
+  User review before signing is mandatory in both modes.
+
+#### `tx` callback results
+
+The wallet appends to `callback`, preserving any parameters already there:
+
+```
+<callback>?status=success&hash=<txhash>&state=<echoed>       # broadcast=true
+<callback>?status=success&signedtx=<base64>&state=<echoed>   # broadcast=false
+<callback>?status=cancelled&state=<echoed>                   # user declined
+<callback>?status=error&message=<text>&state=<echoed>        # signing/broadcast failed
+```
+
+`signedtx` is the signed transaction as amino-JSON, base64-encoded.
+
+`state` is echoed on **every** response, including failures, and is absent when
+the request omitted it.
+
+A wallet SHOULD answer every request it accepted — a producer waiting on a
+callback cannot see an error surfaced on the user's device, and without a
+`cancelled` or `error` response it waits indefinitely.
+
+`hash` is a hint, not proof: the callback scheme is public, so a producer
+should confirm the transaction on its own RPC before treating it as landed.
+
+### `connect` — request the user's identity
+
+```
+<scheme>://connect?callback=<url>&state=<token>&rpc=<rpc>&chainid=<chainid>
+```
+
+Asks the wallet which address the user wants to act as — the sign-in step
+before any `tx`. `callback` is **required**: the verb exists only to deliver an
+answer, so a request without a usable one is dropped. `state` behaves as for
+`tx`. `rpc`/`chainid` (optional) name the network the producer expects; the
+wallet may prompt the user to switch before answering.
+
+The wallet MUST ask the user before disclosing anything, and MUST show the
+callback's host: a producer's claimed name is self-asserted and unverifiable,
+so the destination is the only anti-phishing anchor the user has.
+
+```
+<callback>?status=success&address=<bech32>&session=<bech32>&pubkey=<gpub>&chainid=<id>&state=<echoed>
+<callback>?status=cancelled&state=<echoed>
+<callback>?status=error&message=<code>&state=<echoed>
+```
+
+Error codes: `no_active_session`, `network_declined`, `invalid_request`.
+
+The returned identity is **display-level**. It carries no challenge and no
+signature, so it proves nothing about control of the address: treat it as the
+user stating who they are, not as authentication. Authority comes from the
+on-chain `tx` the user reviews and signs. A proof-of-control extension
+(challenge + signature) is left for producers with a backend able to verify one.
+
+### Callback URL rules
+
+A wallet opens `callback`, so it MUST constrain it:
+
+- Accept `https:` and custom app schemes, but **reject** schemes dangerous to
+  open: `javascript:`, `data:`, `file:`, `content:`, `blob:`, `about:`, and
+  (Android) `intent:`.
+- Require an absolute URI with a scheme, no control characters, bounded length.
+- On violation for `connect`, drop the request — there is nowhere to answer.
+  For `tx` the callback is optional, so the wallet MAY still let the user sign,
+  but MUST make clear that the requesting producer will not be notified.
+
+## Supported Clients
 
 - **Gnoweb** (provider)
 - **Adena Wallet** (client)
