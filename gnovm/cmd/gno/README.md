@@ -18,6 +18,7 @@ SUBCOMMANDS
   clean    remove generated and cached data
   doc      show documentation for package or symbol
   env      print gno environment information
+  doctest  executes a specific code block from a markdown file
   fix      update and fix old gno source files
   fmt      gnofmt (reformat) package sources
   list     lists the named packages
