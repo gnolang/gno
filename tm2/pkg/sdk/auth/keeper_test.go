@@ -436,10 +436,12 @@ func TestCalcBlockGasPriceUnboundedMaxGas(t *testing.T) {
 		require.Equal(t, int64(1000), gk.calcBlockGasPrice(price(1000), 1_000_000, -1, params).Price.Amount)
 	})
 
-	// maxGas*ratio < 100 makes the target 0 and every branch divides by it.
-	// With the default ratio of 70 that is MaxGas 0 and 1. MaxGas == 0 is
-	// reachable: getMaximumBlockGas maps it to an infinite gas meter, so
-	// blocks consume gas and EndBlock is reached with gasUsed > 0.
+	// maxGas*ratio < 100 makes the target 0, and both the increase and the
+	// decrease branch divide by it. With the default ratio of 70 that is
+	// MaxGas 0 and 1. MaxGas == 0 is reachable: getMaximumBlockGas maps it to
+	// an infinite gas meter, so blocks consume gas and EndBlock is reached
+	// with gasUsed > 0. gasUsed == 0 is the exception, matching the target
+	// exactly and returning before either division.
 	t.Run("zero target does not panic", func(t *testing.T) {
 		for _, maxGas := range []int64{0, 1} {
 			for _, gasUsed := range []int64{0, 1, 1_000_000} {

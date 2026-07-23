@@ -405,8 +405,9 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
 // two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
 // integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
-// cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
-// point. Down the line, the solution might not be even representable by one simple formula
+// cap nothing (yet); when decreasing we floor the result at the initial gas price, or at 1 when the initial
+// price is 0. A non-positive block gas limit leaves the price unchanged rather than dividing by it. This is
+// just a starting point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
@@ -494,12 +495,14 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// accepts an InitialGasPrice of 0, and 0 is an absorbing state: the
 		// guard at the top of this function reads a stored price of 0 as
 		// "dynamic pricing disabled" and returns early, so no congestion
-		// level can lift the price again. Combined with the min-1 decrement
-		// above, a chain configured that way walks down to 0 in a handful of
-		// under-target blocks and stays there permanently. gno.land's own
-		// genesis sets 1ugnot/1000gas, so the shipped chain has a floor of 1
-		// already; this stops an operator misconfiguration from silently
-		// disabling the mechanism.
+		// level can lift the price again.
+		//
+		// Genesis alone cannot reach it, because installAuthParams seeds the
+		// stored price from InitialGasPrice, so a zero there disables pricing
+		// from block 1 rather than decaying into it. The reachable shape is a
+		// post-genesis change of auth:p:initial_gasprice to 0 on a chain whose
+		// stored price is non-zero: the min-1 decrement then walks it down to
+		// 0 and it stays there permanently.
 		num = maxBig(num, maxBig(initPriceInt, bigOne))
 	}
 
