@@ -237,3 +237,51 @@ func TestCountDeliverableTxs(t *testing.T) {
 		})
 	}
 }
+
+// TestExecTest_InitialHeightMismatch checks that a genesis whose
+// GnoGenesisState.InitialHeight disagrees with GenesisDoc.InitialHeight fails
+// the fork test. The genesis carries no txs, so the tx-count guard cannot catch
+// it: the failure has to come from node startup.
+func TestExecTest_InitialHeightMismatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode: boots a node and loads stdlibs")
+	}
+
+	appState := minimalAppState()
+	appState.PastChainIDs = []string{"test-hardfork-source"}
+	appState.InitialHeight = 999 // GenesisDoc below says 100
+
+	pv := bft.NewMockPV()
+	pk := pv.PubKey()
+
+	genDoc := bft.GenesisDoc{
+		GenesisTime:   time.Now(),
+		ChainID:       "test-hardfork-1",
+		InitialHeight: 100,
+		ConsensusParams: abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1_000_000,
+				MaxDataBytes: 2_000_000,
+				MaxGas:       3_000_000_000,
+				TimeIotaMS:   100,
+			},
+		},
+		Validators: []bft.GenesisValidator{
+			{Address: pk.Address(), PubKey: pk, Power: 10, Name: "test-validator"},
+		},
+		AppState: appState,
+	}
+
+	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
+	require.NoError(t, err)
+
+	path := filepath.Join(t.TempDir(), "genesis.json")
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+
+	io := commands.NewTestIO()
+	cfg := &testCfg{genesis: path, timeout: 3 * time.Minute}
+
+	err = execTest(context.Background(), cfg, io)
+	require.Error(t, err, "fork test must not report PASS on an InitialHeight mismatch")
+	require.ErrorContains(t, err, "InitialHeight mismatch")
+}

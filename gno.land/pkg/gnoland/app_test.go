@@ -454,7 +454,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	assert.PanicsWithError(t,
 		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
 		func() { cfg.InitChainer(testCtx, req) },
-		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
+		"InitChainer must panic on valoper coverage failure: the invariant is unconditionally fatal and must not depend on the caller inspecting ResponseInitChain.Error",
 	)
 }
 
