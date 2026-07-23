@@ -642,6 +642,15 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
+	if debugAssert {
+		// Invariant: every function-local declared type referenced by the
+		// persist-copy must be known to the store — SetType'd at addpkg
+		// (saveFuncLocalTypes) or loaded via GetType — so it must be in
+		// cacheTypes. A miss means a RefType was minted that the store
+		// cannot resolve on reload — the object would be persisted
+		// permanently unreadable.
+		ds.assertNoDanglingLocalTypeRef(o2)
+	}
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
@@ -882,6 +891,108 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
+}
+
+// assertNoDanglingLocalTypeRef (debugAssert only) walks a persist-copy
+// produced by copyValueWithRefs and panics if it references a function-local
+// declared type (RefType whose TypeID carries a location) that is not in
+// cacheTypes. See the SetObject call site for the invariant.
+func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
+	switch cv := val.(type) {
+	case *ArrayValue:
+		for i := range cv.List {
+			ds.assertNoDanglingLocalTypeRefTV(&cv.List[i])
+		}
+	case *StructValue:
+		for i := range cv.Fields {
+			ds.assertNoDanglingLocalTypeRefTV(&cv.Fields[i])
+		}
+	case *MapValue:
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			ds.assertNoDanglingLocalTypeRefTV(&cur.Key)
+			ds.assertNoDanglingLocalTypeRefTV(&cur.Value)
+		}
+	case *FuncValue:
+		ds.assertNoDanglingLocalTypeRefType(cv.Type)
+		for i := range cv.Captures {
+			ds.assertNoDanglingLocalTypeRefTV(&cv.Captures[i])
+		}
+	case *BoundMethodValue:
+		ds.assertNoDanglingLocalTypeRef(cv.Func)
+		ds.assertNoDanglingLocalTypeRefTV(&cv.Receiver)
+	case *Block:
+		for i := range cv.Values {
+			ds.assertNoDanglingLocalTypeRefTV(&cv.Values[i])
+		}
+		ds.assertNoDanglingLocalTypeRefTV(&cv.Blank)
+	case *HeapItemValue:
+		ds.assertNoDanglingLocalTypeRefTV(&cv.Value)
+	case TypeValue:
+		ds.assertNoDanglingLocalTypeRefType(cv.Type)
+	default:
+		// Scalars carry no type refs; PointerValue/SliceValue bases and
+		// RefValue children are separate objects with their own SetObject.
+	}
+}
+
+func (ds *defaultStore) assertNoDanglingLocalTypeRefTV(tv *TypedValue) {
+	ds.assertNoDanglingLocalTypeRefType(tv.T)
+	ds.assertNoDanglingLocalTypeRef(tv.V)
+}
+
+func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
+	switch ct := t.(type) {
+	case RefType:
+		// RefTypes only wrap declared types ("path.Name" or "path[loc].Name",
+		// see refOrCopyType), so a bracket identifies a function-local type.
+		if strings.Contains(ct.ID.String(), "[") {
+			if _, exists := ds.cacheTypes[ct.ID]; exists {
+				return
+			}
+			// Not in this transaction's cache: the type must already be in
+			// the backend, written at addpkg by saveFuncLocalTypes. Raw key
+			// probe (not GetTypeSafe) so the debug-only assert has no amino
+			// decode cost and no cache side effects.
+			if ds.baseStore != nil {
+				key := backendTypeKey(ct.ID)
+				if ds.baseStore.Get(ds.gctx, []byte(key)) != nil {
+					return
+				}
+			}
+			panic(fmt.Sprintf(
+				"dangling function-local type ref %s in persisted value", ct.ID))
+		}
+	case *DeclaredType:
+		ds.assertNoDanglingLocalTypeRefType(ct.Base)
+	case FieldType:
+		ds.assertNoDanglingLocalTypeRefType(ct.Type)
+	case *FuncType:
+		for _, param := range ct.Params {
+			ds.assertNoDanglingLocalTypeRefType(param)
+		}
+		for _, result := range ct.Results {
+			ds.assertNoDanglingLocalTypeRefType(result)
+		}
+	case *SliceType, *ArrayType, *PointerType:
+		ds.assertNoDanglingLocalTypeRefType(ct.Elem())
+	case *MapType:
+		ds.assertNoDanglingLocalTypeRefType(ct.Key)
+		ds.assertNoDanglingLocalTypeRefType(ct.Value)
+	case *tupleType:
+		for _, et := range ct.Elts {
+			ds.assertNoDanglingLocalTypeRefType(et)
+		}
+	case *InterfaceType:
+		for _, method := range ct.Methods {
+			ds.assertNoDanglingLocalTypeRefType(method)
+		}
+	case *StructType:
+		for _, field := range ct.Fields {
+			ds.assertNoDanglingLocalTypeRefType(field)
+		}
+	default:
+		// nil, primitives, TypeType, PackageType, blockType, heapItemType.
+	}
 }
 
 // Convenience
