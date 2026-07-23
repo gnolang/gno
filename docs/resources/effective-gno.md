@@ -1001,34 +1001,6 @@ Not every package needs this. A small, focused, well-tested `p/` library can
 reach a "finished" state where it simply does its job and never needs a new
 version. Aim for that: stable bricks others can build on without surprises.
 
-### Call other realms with `cross`
-
-Realms are composable: one realm can import another and call its functions, the
-same way you import a `p/` package. The difference is the realm boundary. A
-function meant to be invoked from another realm is a *crossing function*,
-declared with a leading `cur realm` parameter:
-
-```go
-// in gno.land/r/some/registry
-func Register(cur realm, id string, h Handler) { /* ... */ }
-```
-
-To actually cross into that realm, wrap your own `cur` in `cross(...)` and
-pass it as the first argument; the
-[`init()` example above](#understand-the-importance-of-init) does exactly this
-with `registry.Register(cross(cur), "myID", myCallback)`.
-
-When you cross, `cur.Previous()` inside the callee is *your* realm, not the
-original user. That shift is what lets a contract act on a caller's behalf,
-and it is the basis for realms that hold and move assets safely. Before
-trusting `cur.Previous()`, check `cur.IsCurrent()`: it verifies the handle is
-the live crossing frame's own `cur` and not a stale or smuggled one. Within
-your own realm, passing `cur` directly instead of `cross(cur)` runs the
-function without crossing, so the realm context does not shift.
-Getting this distinction right is essential for access control, so read
-[the interrealm specification](./gno-interrealm.md) before writing cross-realm
-code: do not reason about callers using Solidity's `msg.sender` intuition.
-
 ### Reuse access control instead of rolling your own
 
 The [contract-level access control](#contract-level-access-control) pattern above
@@ -1082,119 +1054,32 @@ channels: a transaction runs as a single deterministic thread.
 
 ### Know what the Gno standard library gives you
 
-Gno ships a curated subset of Go's standard library, plus a few chain-specific
-packages of its own. Knowing the boundary saves you from reaching for something
-that isn't there.
+Gno ships a curated subset of Go's standard library plus the chain-specific
+`chain` family (events, coins, banker, realm context), which replaced the old
+`std` package. Before reaching for a Go package, check that it exists:
+anything OS-, network-, or reflection-dependent is deliberately absent, and
+`fmt` is replaced by `gno.land/p/nt/ufmt/v0`. Explore with `gno doc <pkg>`;
+the full inventory is in [the standard library reference](./gno-stdlibs.md).
 
-Most pure, deterministic Go packages are available and behave as you would
-expect: `strings`, `strconv`, `bytes`, `bufio`, `sort`, `errors`, `math` and
-`math/bits`, `regexp`, `unicode`, `html`, `path`, `net/url`, and the common
-`encoding/*` codecs like `base64`, `hex`, and `binary`. `time` is present but
-returns block time, as described above.
+### Test the attacker, not just the happy path
 
-Anything that touches the outside world or breaks determinism is deliberately
-absent: `os`, `net/http`, `syscall`, `sync`, `unsafe`, `crypto/rand`, and
-`reflect` (see [Reflection is never
-clear](#reflection-is-never-clear)). `fmt` is absent too; use
-`gno.land/p/nt/ufmt/v0` for formatting.
-
-In their place, Gno adds the `chain` family, which has no Go equivalent:
-
-- `chain`: emit events with `Emit`, plus the `Coin`/`Coins` types and address
-  helpers.
-- `chain/runtime`: chain context: chain ID and domain, block height, the
-  `Realm` type, origin-call assertion, and session info.
-- `chain/banker`: create, send, and inspect native coin balances.
-- `chain/params`: set realm-scoped on-chain parameters (set-only).
-
-These are what the older `std` package became. You can explore any of them from
-the command line with `gno doc <pkg>`, and they are documented in
-[the standard library reference](./gno-stdlibs.md).
-
-### Test your realms
-
-Gno mirrors Go's testing model and adds a few chain-aware tools. There are four
-kinds of test worth knowing:
-
-- **Unit tests** in `*_test.gno`, with the usual `func TestXxx(t *testing.T)`.
-  Run them with `gno test ./...`.
-- **Example tests**, `func ExampleXxx()` with an `// Output:` comment. They
-  double as documentation, since the expected output lives next to the code.
-- **Filetests** in `*_filetest.gno`: a `main` program checked against directives
-  like `// Output:`, `// Error:`, `// Events:`, and `// Realm:`. They are ideal
-  for asserting exact output, a specific panic, or emitted events for a whole
-  program.
-- **txtar integration tests** under `gno.land/pkg/integration/testdata/`, which
-  run end to end against a real node, driving `gnoland` and `gnokey` and
-  asserting on their output.
-
-For realm logic, the `testing` package adds helpers that shape the execution
-context: `testing.NewUserRealm` and `testing.NewCodeRealm` to stand in for an EOA
-or another contract, `testing.SetOriginCaller` and `testing.SetRealm` to control
-who is calling, `testing.IssueCoins` to fund an address, and `testing.SkipHeights`
-to advance blocks. Use them to cover access control and payment paths: for
+The test kinds themselves (unit tests, example tests, filetests, txtar) are
+covered in [the testing guide](./gno-testing.md). What makes realm testing
+different is the execution context, and the `testing` package lets you shape
+it: `testing.NewUserRealm` and `testing.NewCodeRealm` stand in for an EOA or
+another contract, `testing.SetRealm` and `testing.SetOriginCaller` control who
+is calling, `testing.IssueCoins` funds an address, and `testing.SkipHeights`
+advances blocks. Use them to test your realm from the attacker's seat: for
 example, simulate an intermediary realm with `testing.NewCodeRealm` to prove
 your [origin-send payment check](#verifying-inbound-coin-payments) cannot be
 bypassed.
 
-One gap to be aware of: `gno test` does not yet discover `BenchmarkXxx` or
-`FuzzXxx` functions. The `testing` package ships a small fuzzing helper
-(`testing.F`) you can drive from a regular unit test, but there is no
-`go test -fuzz`-style runner.
-
-### Develop locally with gnodev
-
-For the inner development loop, use `gnodev` (in `contribs/gnodev`). It runs
-an in-memory gno.land node and web frontend with hot reload. Point it at your
-package directory: it deploys your code alongside the standard `examples/`,
-pre-funds a local key, and redeploys on every save, replaying previous
-transactions. Edit, save, refresh, repeat, with no manual node setup.
-
-```bash
-gnodev ./path/to/your/realm
-```
-
-Where each tool fits:
-
-- `gno test ./...` is your fastest feedback and should drive day-to-day
-  development. Keep tests beside your code and run them constantly.
-- `gnoland start` runs a full standalone node, useful when you need real genesis,
-  persistence, or multi-node behavior.
-- A shared **testnet** lets others interact with your realm before mainnet. The
-  `staging` network and the rolling `testN` testnets are reachable over RPC and
-  have a faucet for test coins.
-
-### Script transactions with `maketx run`
-
-A `maketx call` invokes a single function. When you need more, `gnokey maketx
-run` executes an entire Gno script, a `package main` with a `main` function, as
-one transaction. Think of it as using Gno like a shell script against the chain:
-you can import realms, make several calls, loop, and compute intermediate
-values, all atomically.
-
-```go
-package main
-
-import "gno.land/r/demo/counter"
-
-func main(cur realm) {
-	for i := 0; i < 5; i++ {
-		counter.Increment(cross(cur))
-	}
-}
-```
-
-```bash
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 mykey ./script.gno
-```
-
-This is handy for multi-step admin tasks, data migrations, or composing several
-realm calls into one transaction. One caveat: a `run` script does not execute as
-a plain account. It runs in an ephemeral realm at `gno.land/e/{youraddr}/run`, so
-a realm that charges for a function must guard with `IsUserCall()` rather than
-`IsUser()`, as explained in [Verifying inbound Coin
-payments](#verifying-inbound-coin-payments). The ephemeral realm can otherwise
-import and call any realm just like regular contract code.
+Two practical notes. `gno test` does not yet discover `BenchmarkXxx` or
+`FuzzXxx` functions; the `testing.F` helper can be driven from a regular unit
+test instead. And for the inner loop, run `gno test` constantly and use
+`gnodev` for hot reload against a real node; reach for `gnoland start` or a
+shared testnet only when you need real genesis, persistence, or other people
+interacting with your realm.
 
 ### Ship more than code
 
@@ -1370,20 +1255,11 @@ data enters the chain only when someone sends a transaction carrying it, so an
 oracle in gno.land is an agreement between a realm and off-chain agents it
 chooses to trust.
 
-The
+Do not build that agreement from scratch: the
 [gnorkle](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/gnorkle)
-framework (`gno.land/p/demo/gnorkle/gnorkle`) structures that agreement. A
-realm registers *feeds*, each describing *tasks* for agents to perform. An
-agent polls the realm for pending tasks, does the off-chain work, and pushes
-the result back through an entrypoint; an *ingester* validates and commits the
-value, and a whitelist controls which agents may provide it.
-
+framework structures it with feeds, tasks, and agent whitelists, and
 [ghverify](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/ghverify)
-(`gno.land/r/gnoland/ghverify`) is a complete deployed example: a user
-requests verification of their GitHub handle, and an off-chain agent checks
-that the handle controls a repository containing the user's address and pushes
-the result back. The realm then serves the verified handle-to-address mapping
-on-chain.
+is a deployed example that maps GitHub handles to addresses this way.
 
 The trust model is explicit: the chain never verifies the off-chain fact, only
 that a whitelisted agent attested to it. Choose your agents accordingly, and
