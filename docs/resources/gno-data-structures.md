@@ -8,7 +8,7 @@ them in your [realms](./realms.md) and [packages](./gno-packages.md).
 | Type | Example | Best For |
 |------|---------|----------|
 | **[Array](#arrays)** | `[5]int` | Fixed-size collections |
-| **[AVL Tree](#avl-trees)** | `avl.Tree` | Large/growing datasets |
+| **[Tree-backed index](#tree-backed-indexes)** | `avl.Tree`, `bptree.BPTree` | Large/growing sorted datasets |
 | **[Map](#maps)** | `map[string]int` | Small key-value stores |
 | **[Slice](#slices)** | `[]string` | Dynamic lists |
 | **[Struct](#structs)** | `type User struct{...}` | Grouped data |
@@ -29,11 +29,19 @@ value := numbers[0]
 
 Arrays are copied when passed to functions. Use pointers to modify them: `func update(arr *[5]int)`.
 
-## AVL Trees
+## Tree-backed Indexes
 
-For large or growing datasets, prefer [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md)
-over maps as it is significantly more efficient in both [gas](./gas-fees.md)
-cost and runtime performance.
+For large or growing sorted datasets, prefer a tree-backed index over a
+persistent map. Tree implementations store nodes or leaf pages separately, so
+reading or writing one key does not require loading the whole collection.
+
+Common choices include:
+
+| Type | Good fit | Tradeoffs |
+|------|----------|-----------|
+| [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
+| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
+| [`avl`](../../examples/gno.land/p/nt/avl/v0/README.md) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/v0/list) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
 
 ```go
 import "gno.land/p/nt/avl/v0"
@@ -64,7 +72,40 @@ users.Iterate("", "", func(key string, value any) bool {
 })
 ```
 
-**Learn more:** [Effective Gno: Prefer avl.Tree over map](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage)
+Use an explicit ID helper for append-like records. `seqid.ID` generates keys
+that preserve numeric order when stored in a tree:
+
+```go
+import (
+    "gno.land/p/nt/avl/v0"
+    "gno.land/p/nt/seqid/v0"
+)
+
+var (
+    nextPostID seqid.ID
+    posts      avl.Tree // seqid string -> Post
+)
+
+func AddPost(post Post) string {
+    id := nextPostID.Next().String()
+    posts.Set(id, post)
+    return id
+}
+```
+
+Add secondary indexes for each lookup path users need:
+
+```go
+var (
+    postsByID     avl.Tree // id -> Post
+    postsByAuthor avl.Tree // author + "/" + id -> id
+)
+```
+
+**Learn more:** [Effective Gno: Choose storage types by access pattern](./effective-gno.md#choose-storage-types-by-access-pattern)
+
+For non-official storage helpers such as unique lists, sets, and queues, see
+[Community Packages](./community-packages.md).
 
 ## Maps
 
@@ -91,7 +132,9 @@ for username, score := range scores {
 **Note**: In Gno, map iteration order follows insertion order, unlike Go which uses
 randomized iteration order due to underlying C hashmap implementation.
 While this makes Gno behavior deterministic, you should still not rely on
-iteration order for correctness to maintain compatibility with Go semantics.
+iteration order for correctness or public `Render` output. Use an explicit
+ordered list or tree-backed index when users depend on stable ordering,
+pagination, or range queries.
 
 ## Slices
 

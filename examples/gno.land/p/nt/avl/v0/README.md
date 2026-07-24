@@ -88,4 +88,4 @@ Object :33 = Node{key="100", value="123", height=0, size=1}
 - [Why should you use an AVL tree instead of a map?](https://howl.moe/posts/2024-09-19-gno-avl-over-maps/) - Howl detailed analysis
 - [Berty's AVL scalability report](https://github.com/gnolang/hackerspace/issues/67) - Real-world testing with up to 20M entries
 - [Wikipedia - AVL tree](https://en.wikipedia.org/wiki/AVL_tree) - Algorithm details and balancing
-- [Effective Gno](https://docs.gno.land/resources/effective-gno#prefer-avltree-over-map-for-scalable-storage) - High-level usage guidance
+- [Effective Gno](https://docs.gno.land/resources/effective-gno#choose-storage-types-by-access-pattern) - High-level storage-type guidance
