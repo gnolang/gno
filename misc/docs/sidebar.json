@@ -39,7 +39,6 @@
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/storage-deposit",
-          "resources/gno-oracles",
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
           "resources/gnodev",

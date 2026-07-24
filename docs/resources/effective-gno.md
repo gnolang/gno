@@ -763,9 +763,10 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland
 
 ### Bring off-chain data on-chain with oracles
 
-An oracle is an agreement with off-chain agents you choose to trust; how to
-build one (feeds, tasks, whitelists, the gnorkle framework) is covered in
-[Oracles](./gno-oracles.md). Do not build the plumbing from scratch.
+An oracle is an agreement with off-chain agents you choose to trust; do not
+build the plumbing (feeds, tasks, agent whitelists) from scratch, use the
+[gnorkle](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/gnorkle)
+framework.
 
 The tip is the trust model: the chain never verifies the off-chain fact, only
 that a whitelisted agent attested to it. Choose your agents accordingly.
