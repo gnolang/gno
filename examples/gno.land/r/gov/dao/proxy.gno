@@ -66,6 +66,17 @@ func (e *ProposalClosedError) Is(target error) bool {
 	return target == ErrProposalClosed
 }
 
+// NewProposalClosedError returns a *ProposalClosedError. Implementations
+// (e.g. gno.land/r/gov/dao/v3/impl) must construct it through this
+// constructor rather than a struct literal: gno only allows a realm to
+// allocate its own types, so `&ProposalClosedError{...}` written in a
+// different realm's source panics with "cannot allocate
+// gno.land/r/gov/dao.ProposalClosedError in realm ...". Calling this
+// function keeps the allocation in dao's own code.
+func NewProposalClosedError(accepted bool) *ProposalClosedError {
+	return &ProposalClosedError{Accepted: accepted}
+}
+
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(cur realm, p string) string {

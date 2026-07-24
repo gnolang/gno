@@ -85,7 +85,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	}
 
 	if status.Denied || status.Accepted {
-		return &dao.ProposalClosedError{Accepted: status.Accepted}
+		return dao.NewProposalClosedError(status.Accepted)
 	}
 
 	if !status.IsAllowed(tie) {
