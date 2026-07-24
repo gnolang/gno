@@ -428,7 +428,7 @@ func TestSentinelsAreDisjoint(t *testing.T) {
 		}
 	}
 
-	closed := error(dao.NewProposalClosedError(true))
+	closed := dao.NewProposalClosedError(true)
 	for _, s := range sentinels {
 		urequire.Equal(t, s == dao.ErrProposalClosed, errors.Is(closed, s))
 	}
