@@ -811,103 +811,43 @@ is `fmt`, which does not exist on-chain; use `gno.land/p/nt/ufmt/v0` instead.
 Chain-specific APIs (events, coins, banker, realm context) live under
 `chain`.
 
-### Test the attacker, not just the happy path
-
-The test kinds are covered in [the testing guide](./gno-testing.md). What
-realm tests add is the execution context: the `testing` package lets you call
-your realm as someone else. `testing.NewUserRealm` and `testing.NewCodeRealm`
-stand in for a user or another contract, `testing.SetRealm` and
-`testing.SetOriginCaller` set the caller, `testing.IssueCoins` and
-`testing.SkipHeights` set up funds and time. Use them to attack your own
-realm: simulate an intermediary contract and prove your
-[payment check](#verifying-inbound-coin-payments) cannot be bypassed.
-
-`gno test` does not discover benchmarks or `FuzzXxx` functions yet; drive the
-`testing.F` helper from a regular test if you need fuzzing.
-
 ### Prefer avl.Tree over map for scalable storage
 
-An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
-entries in one object (accessing any value loads everything), while AVL trees
-store each node separately (accessing a value loads only the search path).
-This makes `avl.Tree` significantly more efficient in both gas usage and
-runtime performance for large or growing datasets.
+A tree works like a `map` for key-value pairs, with one storage-shaping
+difference: a map is stored as one object, so accessing any value loads the
+whole map, while a tree stores each node separately, so an access loads only
+the search path. For large or growing datasets a tree is significantly
+cheaper in both gas and runtime. `avl.Tree` is the historical default;
+`bptree` implements the same interface and is preferred for new code, as
+covered in
+[the next section](#choose-data-structures-by-what-they-touch-in-storage).
 
-**Key differences**:
-
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
-
-**Use `avl.Tree` when you need**:
-
-- Lazy loading (efficient for large datasets - only loads the search path)
-- Efficient range queries (find all keys between "bob" and "charlie")
-- Data that grows over time (user registries, leaderboards)
-- Sorted iteration by key value
-
-**Use `map` when you need**:
-
-- O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
-- Type safety (AVL values are `any` and require type assertions)
+- **Trees**: O(log n) lookup, lazy loading, range queries, iterate in
+  **sorted key order**. Best for data that grows over time.
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**. Best
+  for small, bounded datasets like configuration values.
 
 ```go
-// Map example
-users := make(map[string]User)
-users["bob"] = User{}
-users["alice"] = User{}
-for name := range users { // unspecified order
-	// ...
-}
-user := users["alice"] // O(1) direct access
-
-// AVL example
 var users avl.Tree
 users.Set("bob", &User{})
 users.Set("alice", &User{})
-users.Set("charlie", &User{})
 
-// Iterate all users (sorted alphabetically)
+// Sorted iteration; empty bounds walk everything.
 users.Iterate("", "", func(name string, value any) bool {
-	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User) // Type assertion required - values are any
-	return false // return true to stop iteration
+	user := value.(*User) // values are any, assert the type
+	return false          // true stops the iteration
 })
 
-// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
-// This is O(log n + k) where k = results in range
-users.Iterate("bob", "charlie", func(name string, value any) bool {
-	// Only visits: bob (end is exclusive)
-	user := value.(*User) 
-	return false
-})
-
-// Get a specific user (O(log n))
-// Get returns nil if the key does not exist
+// Get returns nil for a missing key; Has checks existence.
 value := users.Get("alice")
 if value == nil {
 	return nil
 }
 return value.(*User)
-
-// Check if a key exists without retrieving the value
-if users.Has("alice") {
-	// key exists
-}
-
-// Multi-index example - search the same data in different ways
-var (
-	usersById   avl.Tree // Find user by ID
-	usersByName avl.Tree // Find user by name
-)
-
-func AddUser(id, name string) {
-	usersById.Set(id, name)     // Can search by ID
-	usersByName.Set(name, id)   // Can search by name
-}
 ```
 
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+For how trees are stored in Gno's object store, see the
+[avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
 
 ### Choose data structures by what they touch in storage
 
@@ -1300,22 +1240,24 @@ should be able to guess a file's contents from its name alone.
 
 ### Ship more than code
 
-A realm is the on-chain core of your project, but a finished product usually
-ships more around it. Because the source and `Render()` output are public and
-user-facing, treat the realm itself as part of the product: write a `Render()`
-for end users, include a `README.md`, and keep doc comments aimed at readers, as
-covered in [Documentation is for users](#documentation-is-for-users).
+A realm is the on-chain core of your project, not the whole product. Its
+source and `Render()` output are public and user-facing on gnoweb, so treat
+them as your storefront: write a `Render()` a stranger can navigate, add a
+`README.md` (rendered alongside the source), and keep doc comments aimed at
+readers, as covered in
+[Documentation is for users](#documentation-is-for-users).
 
-Off-chain, you will often pair the realm with a client that calls it (a CLI or a
-web frontend), indexers that consume the
-[events](#emit-gno-events-to-make-life-off-chain-easier) you emit, and static
-assets. These live outside the contract but are part of how people actually use
-it.
+Around the contract, plan for a client that drives it (a CLI or a web
+frontend), indexers fed by the
+[events](#emit-gno-events-to-make-life-off-chain-easier) you emit, and the
+assets and docs those need. None of this lives on-chain, but it is most of
+what users actually touch.
 
-Keep the two audiences distinct. A `p/` package is for developers, much like
-an NPM library: give it a clean API, stable versions, and documentation for
-integrators. A realm is for end users, more like an app in an app store: give
-it clear endpoints and a `Render()` that explains itself.
+Keep the two audiences distinct. A `p/` package is for developers, like an
+NPM library: clean API, stable versions, documentation for integrators. A
+realm is for end users, like an app in an app store: clear endpoints and a
+`Render()` that explains itself. If your realm needs a wall of external docs
+to be usable, that work probably belongs in its `Render()`.
 
 ### Treat forking as a feature
 
@@ -1349,3 +1291,17 @@ The repository already works this way in places: `gno.land/p/onbloc/uint256`
 ships lookup tables generated by Go tooling. Generated files stay reviewable
 and auditable on-chain, since readers see the final source, not the
 generator.
+
+### Test the attacker, not just the happy path
+
+The test kinds are covered in [the testing guide](./gno-testing.md). What
+realm tests add is the execution context: the `testing` package lets you call
+your realm as someone else. `testing.NewUserRealm` and `testing.NewCodeRealm`
+stand in for a user or another contract, `testing.SetRealm` and
+`testing.SetOriginCaller` set the caller, `testing.IssueCoins` and
+`testing.SkipHeights` set up funds and time. Use them to attack your own
+realm: simulate an intermediary contract and prove your
+[payment check](#verifying-inbound-coin-payments) cannot be bypassed.
+
+`gno test` does not discover benchmarks or `FuzzXxx` functions yet; drive the
+`testing.F` helper from a regular test if you need fuzzing.
