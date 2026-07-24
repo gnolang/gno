@@ -21,6 +21,51 @@ var allowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
+// Named, exported sentinel errors for VoteOnProposal failure modes (see
+// #3104 / #5998). These are declared here, at the dao package's stable
+// entry point, rather than in a specific implementation (e.g.
+// gno.land/r/gov/dao/v3/impl), because UpdateImpl can swap the underlying
+// implementation behind VoteOnProposal at any time: a sentinel declared in
+// v3/impl would stop matching via errors.Is as soon as a v4 implementation
+// (with its own, distinct sentinel values) took over, even if the error
+// message stayed identical. Callers should check errors.Is(err,
+// dao.ErrAlreadyVoted) etc. against these values, not against an
+// implementation package's own copy.
+var (
+	ErrMemberNotFound    = errors.New("member not found")
+	ErrProposalNotFound  = errors.New("proposal not found")
+	ErrNotAllowedToVote  = errors.New("member on specified tier is not allowed to vote on this proposal")
+	ErrAlreadyVoted      = errors.New("already voted on proposal")
+	ErrInvalidVoteOption = errors.New("voting can only be YES, NO, or ABSTAIN")
+
+	// ErrProposalClosed is the sentinel to check with errors.Is(err,
+	// dao.ErrProposalClosed); the concrete error returned is a
+	// *ProposalClosedError, which also carries whether the proposal was
+	// accepted or denied.
+	ErrProposalClosed = errors.New("proposal closed")
+
+	// ErrDirectCallRequired is returned when VoteOnProposal is invoked by
+	// a realm rather than directly by a user (or a maketx run script).
+	ErrDirectCallRequired = errors.New("proposal voting must be done directly by a user")
+)
+
+// ProposalClosedError indicates a vote was attempted on a proposal that
+// has already been accepted or denied. It implements Is(error) bool (the
+// extension point documented by the errors package) so
+// errors.Is(err, ErrProposalClosed) matches regardless of which outcome
+// the proposal reached.
+type ProposalClosedError struct {
+	Accepted bool
+}
+
+func (e *ProposalClosedError) Error() string {
+	return ufmt.Sprintf("proposal closed. Accepted: %v", e.Accepted)
+}
+
+func (e *ProposalClosedError) Is(target error) bool {
+	return target == ErrProposalClosed
+}
+
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(cur realm, p string) string {

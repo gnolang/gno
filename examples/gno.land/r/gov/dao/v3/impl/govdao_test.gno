@@ -343,7 +343,7 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 	// Voting on a proposal ID that was never created.
 	testing.SetOriginCaller(m1)
 	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(999)))
-	urequire.True(t, errors.Is(err, ErrProposalNotFound), "expected ErrProposalNotFound, got: "+errString(err))
+	urequire.True(t, errors.Is(err, dao.ErrProposalNotFound), "expected ErrProposalNotFound, got: "+errString(err))
 
 	// Create a proposal to exercise the remaining cases against.
 	portfolio := "# portfolio"
@@ -361,17 +361,17 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 	// aren't allowed to vote on a T2-add proposal).
 	testing.SetOriginCaller(m4) // m4 is T3
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
-	urequire.True(t, errors.Is(err, ErrNotAllowedToVote), "expected ErrNotAllowedToVote, got: "+errString(err))
+	urequire.True(t, errors.Is(err, dao.ErrNotAllowedToVote), "expected ErrNotAllowedToVote, got: "+errString(err))
 
 	// An invalid vote option.
 	testing.SetOriginCaller(m1)
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.VoteOption("INVALID"), pid))
-	urequire.True(t, errors.Is(err, ErrInvalidVoteOption), "expected ErrInvalidVoteOption, got: "+errString(err))
+	urequire.True(t, errors.Is(err, dao.ErrInvalidVoteOption), "expected ErrInvalidVoteOption, got: "+errString(err))
 
 	// A vote that succeeds, then a second vote from the same member.
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
-	urequire.True(t, errors.Is(err, ErrAlreadyVoted), "expected ErrAlreadyVoted, got: "+errString(err))
+	urequire.True(t, errors.Is(err, dao.ErrAlreadyVoted), "expected ErrAlreadyVoted, got: "+errString(err))
 
 	// Reach supermajority (for denial, mirroring the proven voting
 	// sequence in TestCreateProposalAndVote) to close the proposal, then
@@ -392,13 +392,47 @@ func TestVoteOnProposalErrors(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m6) // m6 hasn't voted, but the proposal is now closed
 	err = dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
-	urequire.True(t, errors.Is(err, ErrProposalClosed), "expected ErrProposalClosed, got: "+errString(err))
+	urequire.True(t, errors.Is(err, dao.ErrProposalClosed), "expected ErrProposalClosed, got: "+errString(err))
 
 	// errors.As isn't available in gno's stdlib errors package yet, so
 	// assert the concrete type directly.
-	closedErr, ok := err.(*ProposalClosedError)
+	closedErr, ok := err.(*dao.ProposalClosedError)
 	urequire.True(t, ok, "expected *ProposalClosedError")
 	urequire.Equal(t, false, closedErr.Accepted)
+}
+
+// TestSentinelsAreDisjoint verifies that each VoteOnProposal sentinel error
+// matches itself via errors.Is and nothing else -- and that a
+// *ProposalClosedError only matches ErrProposalClosed among the sentinels,
+// not the other way around. Without this, e.g. a ProposalClosedError.Is
+// implementation that always returns true (or accidentally collapsing all
+// sentinels onto one underlying value) would go unnoticed even though
+// TestVoteOnProposalErrors passes, since that test only checks each error
+// against the one sentinel it expects.
+func TestSentinelsAreDisjoint(t *testing.T) {
+	t.Parallel()
+
+	sentinels := []error{
+		dao.ErrMemberNotFound,
+		dao.ErrProposalNotFound,
+		dao.ErrNotAllowedToVote,
+		dao.ErrAlreadyVoted,
+		dao.ErrInvalidVoteOption,
+		dao.ErrProposalClosed,
+		dao.ErrDirectCallRequired,
+	}
+
+	for i, a := range sentinels {
+		for j, b := range sentinels {
+			urequire.Equal(t, i == j, errors.Is(a, b))
+		}
+	}
+
+	closed := error(&dao.ProposalClosedError{Accepted: true})
+	for _, s := range sentinels {
+		urequire.Equal(t, s == dao.ErrProposalClosed, errors.Is(closed, s))
+	}
+	urequire.False(t, errors.Is(dao.ErrProposalClosed, closed))
 }
 
 // errString returns err.Error(), or "<nil>" if err is nil, for building

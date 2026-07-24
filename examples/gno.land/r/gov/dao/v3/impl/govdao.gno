@@ -10,42 +10,6 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-var ErrMemberNotFound = errors.New("member not found")
-
-// Named, exported sentinel errors for VoteOnProposal failure modes (see
-// #3104), so callers can distinguish why a vote failed via errors.Is()
-// instead of parsing the error message. Message text is unchanged from
-// before, to avoid breaking existing callers/tests that check it.
-var (
-	ErrProposalNotFound  = errors.New("proposal not found")
-	ErrNotAllowedToVote  = errors.New("member on specified tier is not allowed to vote on this proposal")
-	ErrAlreadyVoted      = errors.New("already voted on proposal")
-	ErrInvalidVoteOption = errors.New("voting can only be YES, NO, or ABSTAIN")
-
-	// ErrProposalClosed is the sentinel to check with errors.Is(err,
-	// ErrProposalClosed); the concrete error returned is a
-	// *ProposalClosedError, which also carries whether the proposal was
-	// accepted or denied.
-	ErrProposalClosed = errors.New("proposal closed")
-)
-
-// ProposalClosedError indicates a vote was attempted on a proposal that
-// has already been accepted or denied. It implements Is(error) bool (the
-// extension point documented by the errors package) so
-// errors.Is(err, ErrProposalClosed) matches regardless of which outcome
-// the proposal reached.
-type ProposalClosedError struct {
-	Accepted bool
-}
-
-func (e *ProposalClosedError) Error() string {
-	return ufmt.Sprintf("proposal closed. Accepted: %v", e.Accepted)
-}
-
-func (e *ProposalClosedError) Is(target error) bool {
-	return target == ErrProposalClosed
-}
-
 type GovDAO struct {
 	pss    ProposalsStatuses
 	render *render
@@ -106,31 +70,31 @@ func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid
 
 func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	if !g.isValidCall(0, rlm) {
-		return errors.New("proposal voting must be done directly by a user")
+		return dao.ErrDirectCallRequired
 	}
 
 	caller := unsafe.OriginCaller()
 	mem, tie := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
-		return ErrMemberNotFound
+		return dao.ErrMemberNotFound
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)
 	if status == nil {
-		return ErrProposalNotFound
+		return dao.ErrProposalNotFound
 	}
 
 	if status.Denied || status.Accepted {
-		return &ProposalClosedError{Accepted: status.Accepted}
+		return &dao.ProposalClosedError{Accepted: status.Accepted}
 	}
 
 	if !status.IsAllowed(tie) {
-		return ErrNotAllowedToVote
+		return dao.ErrNotAllowedToVote
 	}
 
 	mVoted, _ := status.AllVotes.GetMember(caller)
 	if mVoted != nil {
-		return ErrAlreadyVoted
+		return dao.ErrAlreadyVoted
 	}
 
 	switch r.Option {
@@ -144,7 +108,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.AbstainVotes.SetMember(tie, caller, mem)
 	default:
-		return ErrInvalidVoteOption
+		return dao.ErrInvalidVoteOption
 	}
 
 	return nil
