@@ -47,7 +47,6 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1;
 }
 
 message UnauthorizedUserError {
@@ -81,6 +80,7 @@ message Params {
 	sint64 fixed_set_read_depth100 = 11 [json_name = "fixed_set_read_depth_100"];
 	sint64 fixed_write_depth100 = 12 [json_name = "fixed_write_depth_100"];
 	sint64 iter_next_cost_flat = 13;
-	string code_submission_policy = 14;
-	repeated string code_submitters = 15;
+	sint64 preprocess_gas_per_byte = 14;
+	string code_submission_policy = 15;
+	repeated string code_submitters = 16;
 }

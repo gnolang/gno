@@ -31,6 +31,9 @@ const (
 	valsetProposedPath = "node:valset:proposed"
 	valsetCurrentPath  = "node:valset:current"
 
+	// pubkey_types: chain-managed mirror of the consensus-params validator allow-list, so realms can read it.
+	valsetPubKeyTypesPath = "node:valset:pubkey_types"
+
 	// maxValsetEntries caps len(valset:proposed) at WillSetParam time.
 	// v3 enforces 40 at proposal-creation; this is defense-in-depth at
 	// 2.5x to protect against future writers that bypass v3's cap.
@@ -103,6 +106,15 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
 			panic(fmt.Sprintf("invalid valset:current (chain-internal corruption): %v", err))
+		}
+	case "valset:pubkey_types":
+		// Chain-only mirror; reject user-routed writes (like valset:current).
+		v, _ := ctx.Value(internalWriteCtxKey{}).(bool)
+		if !v {
+			panic("valset:pubkey_types is chain-managed; not writable via params")
+		}
+		if _, ok := value.([]string); !ok {
+			panic(fmt.Sprintf("valset:pubkey_types must be []string, got %T", value))
 		}
 	default:
 		if strings.HasPrefix(key, "p:") {
