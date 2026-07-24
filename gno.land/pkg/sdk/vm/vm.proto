@@ -81,4 +81,6 @@ message Params {
 	sint64 fixed_write_depth100 = 12 [json_name = "fixed_write_depth_100"];
 	sint64 iter_next_cost_flat = 13;
 	sint64 preprocess_gas_per_byte = 14;
+	string code_submission_policy = 15;
+	repeated string code_submitters = 16;
 }
