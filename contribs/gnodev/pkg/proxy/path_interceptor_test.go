@@ -299,6 +299,10 @@ func Render(_ string) string { return "foo" }
 	privKey := secp256k1.GenPrivKey()
 	cfg.Genesis.AppState = integration.GenerateTestingGenesisState(privKey, pkg)
 
+	// Starting a node rewrites an autoselected P2P port in the config with the
+	// port it got, so keep what was asked for to restart with.
+	p2pListenAddr := cfg.TMConfig.P2P.ListenAddress
+
 	// Start the initial node
 	node, _ := integration.TestingInMemoryNode(t, logger, cfg)
 
@@ -308,11 +312,10 @@ func Render(_ string) string { return "foo" }
 		// Stop the current node — this kills the RPC server
 		require.NoError(t, node.Stop())
 
-		// Starting a node rewrites an autoselected P2P port in the config with
-		// the port it got, so reusing cfg would make this node demand that exact
-		// port instead of asking for a free one. The RPC address is the one the
-		// restart has to keep, since the proxy forwards there.
-		cfg.TMConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
+		// Ask for a free P2P port again rather than the one the stopped node
+		// happened to get. The RPC address is the one the restart has to keep,
+		// since the proxy forwards there.
+		cfg.TMConfig.P2P.ListenAddress = p2pListenAddr
 
 		// Start a fresh node on the same address (same cfg)
 		newNode, err := gnoland.NewInMemoryNode(logger, cfg)

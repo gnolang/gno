@@ -869,7 +869,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	propBlock := rs.ProposalBlock
@@ -1561,7 +1561,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, newRoundCh, voteCh, newBlockHeader)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	theBlockHash := rs.ProposalBlock.Hash()
