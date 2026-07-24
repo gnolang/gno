@@ -914,16 +914,19 @@ For a detailed explanation of how AVL trees are stored in Gno's object store, se
 In a realm, a data structure's real cost is how many stored objects an
 operation touches, because modified objects are written back to storage at the
 end of the transaction. That is why
-[avl.Tree beats map](#prefer-avltree-over-map-for-scalable-storage) for large
+[a tree beats a map](#prefer-avltree-over-map-for-scalable-storage) for large
 collections: a `Set` rewrites one path of nodes, while a map or slice is
-persisted as one big object. A few more building blocks are worth knowing:
+persisted as one big object.
 
-- `gno.land/p/nt/bptree/v0` implements the same interface as `avl.Tree` with a
-  B+ tree: configurable fanout, fewer nodes touched per operation, and cheaper
-  in-order iteration over large datasets.
+- Prefer `gno.land/p/nt/bptree/v0` for keyed collections: a B+ tree with
+  configurable fanout, so an operation touches fewer nodes than `avl.Tree`
+  and in-order iteration over large datasets is cheaper. It implements the
+  same interface, so switching is easy.
+- `gno.land/p/nt/avl/v0` remains fine for small trees and where it is already
+  in use; most examples still use it.
 - `gno.land/p/nt/seqid/v0` produces sequential IDs that sort correctly as
-  `avl.Tree` keys, which gives you insertion-ordered listings and clean
-  pagination for free.
+  tree keys, which gives you insertion-ordered listings and clean pagination
+  for free.
 - Small, bounded collections do not need any of this: below a few dozen
   entries a plain slice or map costs less than the tree machinery.
 
