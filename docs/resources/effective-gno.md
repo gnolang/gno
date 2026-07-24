@@ -928,8 +928,7 @@ var (
 )
 
 func init(cur realm) {
-	// This realm only ever creates this one token, so id 0 can't collide.
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
 	UserTeller = Token.CallerTeller()
 }
 
@@ -975,27 +974,36 @@ should be able to guess a file's contents from its name alone.
 
 ### Versioning and upgrades
 
-A published package or realm is immutable: the blockchain will not let anyone
-overwrite it. This is a feature, not a limitation. Importers get a permanent,
-auditable target, and a dependency cannot change under you. The flip side is
-that you cannot edit a deployed contract in place; instead, you publish a new
-version at a new path.
+A deployed package or realm is immutable: "upgrading" means publishing a new
+version at a new path, the `/vN` suffix described in
+[package paths](./gno-packages.md#version-suffixes), and moving callers to
+it. Versions coexist, so old importers keep working against the version they
+pinned while new code targets the latest.
 
-The convention is a `/vN` suffix on the package path, like
-`gno.land/p/nt/avl/v0` or `gno.land/r/sys/validators/v2` and `.../v3`. The
-version is part of the path, not a separate field in `gnomod.toml`, and the
-package name ignores the trailing `/vN` (so `.../validators/v3` is still
-`package validators`). Versions coexist: old importers keep working against the
-exact version they pinned, while new code imports the newer one.
+Design for that from day one. A common pattern is a small proxy or registry
+realm at a stable path that forwards to the current implementation and can be
+repointed by an admin or DAO, keeping previous versions live for rollback.
+`gno.land/r/gov/dao` works this way: the implementation is a variable, not
+code.
 
-Because a realm cannot be mutated, "upgrading" means deploying a new version and
-moving callers to it. A common pattern is a small proxy or registry realm at a
-stable path that forwards to the current implementation and can be repointed by
-an admin or DAO, keeping previous versions live for rollback. `gno.land/r/gov/dao`
-works this way: it delegates to a versioned implementation and tracks a set of
-allowed DAOs so a buggy upgrade can be rolled back to a prior version. For a
-simpler case, `gno.land/r/sys/validators` simply keeps `v2` and `v3` side by
-side.
+```go
+// in gno.land/r/gov/dao, the stable entry point
+
+// dao is the actual govDAO implementation, swapped by proposal.
+var dao DAO
+
+// allowedDAOs are the implementations that may update dao, kept so a
+// breaking upgrade can be rolled back to a previous one.
+var allowedDAOs []string
+
+// Public functions forward to the current implementation.
+func Render(cur realm, p string) string {
+	return dao.Render(cross(cur), cur.PkgPath(), p)
+}
+```
+
+For a simpler case, `gno.land/r/sys/validators` simply keeps `v2` and `v3`
+side by side.
 
 Not every package needs this. A small, focused, well-tested `p/` library can
 reach a "finished" state where it simply does its job and never needs a new
@@ -1029,10 +1037,10 @@ exact calling convention.
 Every validator must execute your code and reach exactly the same result, so the
 GnoVM is strictly deterministic. A few Go habits change as a result.
 
-**Time.** `time.Now()` returns the *block* time, not the machine's wall clock,
-and every call within the same block returns the same instant. It is safe for
-timestamps and deadlines, but expect no real-world precision or sub-block
-resolution. Timers and tickers do not exist.
+**Time.** `time.Now()` returns the block time, and every call within the same
+block returns the same instant. It is safe for timestamps and deadlines, but
+expect no real-world precision or sub-block resolution. Timers and tickers do
+not exist.
 
 **Randomness.** There is no secure source of randomness on-chain. `math/rand` is
 available, but it is a deterministic pseudo-random generator: its own
@@ -1044,42 +1052,36 @@ Use on-chain randomness only for cosmetic or non-adversarial purposes.
 For anything an attacker could profit from biasing, such as a lottery with real
 stakes, use a commit-reveal scheme or an external source instead.
 
-**Ordering.** Unlike Go, where map iteration order is randomized, Gno iterates
-maps in insertion order. This is deterministic, but do not depend on it for
-correctness: Go does not promise it, and insertion order is rarely the order
-you actually want. When you need ordered
-iteration, use an [`avl.Tree`](#prefer-avltree-over-map-for-scalable-storage),
-which iterates in sorted key order. And of course there are no goroutines or
-channels: a transaction runs as a single deterministic thread.
+**Ordering.** Gno [maps iterate deterministically](./gno-data-structures.md#maps),
+unlike Go's randomized order, but do not depend on that for correctness: Go
+does not promise it, and it is rarely the order you actually want. When you
+need ordered iteration, use an
+[`avl.Tree`](#prefer-avltree-over-map-for-scalable-storage), which iterates
+in sorted key order. And of course there are no goroutines or channels: a
+transaction runs as a single deterministic thread.
 
-### Know what the Gno standard library gives you
+### Check the stdlib before assuming Go's
 
-Gno ships a curated subset of Go's standard library plus the chain-specific
-`chain` family (events, coins, banker, realm context), which replaced the old
-`std` package. Before reaching for a Go package, check that it exists:
-anything OS-, network-, or reflection-dependent is deliberately absent, and
-`fmt` is replaced by `gno.land/p/nt/ufmt/v0`. Explore with `gno doc <pkg>`;
-the full inventory is in [the standard library reference](./gno-stdlibs.md).
+Gno's standard library is a curated subset of Go's: before writing code that
+assumes a package, confirm it exists with `gno doc <pkg>` or
+[the standard library reference](./gno-stdlibs.md). The most common surprise
+is `fmt`, which does not exist on-chain; use `gno.land/p/nt/ufmt/v0` instead.
+Chain-specific APIs (events, coins, banker, realm context) live under
+`chain`.
 
 ### Test the attacker, not just the happy path
 
-The test kinds themselves (unit tests, example tests, filetests, txtar) are
-covered in [the testing guide](./gno-testing.md). What makes realm testing
-different is the execution context, and the `testing` package lets you shape
-it: `testing.NewUserRealm` and `testing.NewCodeRealm` stand in for an EOA or
-another contract, `testing.SetRealm` and `testing.SetOriginCaller` control who
-is calling, `testing.IssueCoins` funds an address, and `testing.SkipHeights`
-advances blocks. Use them to test your realm from the attacker's seat: for
-example, simulate an intermediary realm with `testing.NewCodeRealm` to prove
-your [origin-send payment check](#verifying-inbound-coin-payments) cannot be
-bypassed.
+The test kinds are covered in [the testing guide](./gno-testing.md). What
+realm tests add is the execution context: the `testing` package lets you call
+your realm as someone else. `testing.NewUserRealm` and `testing.NewCodeRealm`
+stand in for a user or another contract, `testing.SetRealm` and
+`testing.SetOriginCaller` set the caller, `testing.IssueCoins` and
+`testing.SkipHeights` set up funds and time. Use them to attack your own
+realm: simulate an intermediary contract and prove your
+[payment check](#verifying-inbound-coin-payments) cannot be bypassed.
 
-Two practical notes. `gno test` does not yet discover `BenchmarkXxx` or
-`FuzzXxx` functions; the `testing.F` helper can be driven from a regular unit
-test instead. And for the inner loop, run `gno test` constantly and use
-`gnodev` for hot reload against a real node; reach for `gnoland start` or a
-shared testnet only when you need real genesis, persistence, or other people
-interacting with your realm.
+`gno test` does not discover benchmarks or `FuzzXxx` functions yet; drive the
+`testing.F` helper from a regular test if you need fuzzing.
 
 ### Ship more than code
 
@@ -1250,31 +1252,23 @@ is all you need for expiry checks, so the whole pattern stays a few lines.
 
 ### Bring off-chain data on-chain with oracles
 
-A realm cannot fetch anything: no HTTP, no files, no external reads. Off-chain
-data enters the chain only when someone sends a transaction carrying it, so an
-oracle in gno.land is an agreement between a realm and off-chain agents it
-chooses to trust.
+An oracle is an agreement with off-chain agents you choose to trust; how to
+build one (feeds, tasks, whitelists, the gnorkle framework) is covered in
+[Oracles](./gno-oracles.md). Do not build the plumbing from scratch.
 
-Do not build that agreement from scratch: the
-[gnorkle](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/gnorkle)
-framework structures it with feeds, tasks, and agent whitelists, and
-[ghverify](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/ghverify)
-is a deployed example that maps GitHub handles to addresses this way.
-
-The trust model is explicit: the chain never verifies the off-chain fact, only
-that a whitelisted agent attested to it. Choose your agents accordingly, and
-remember there is no built-in price feed; for anything financial, the oracle
-is the weakest link.
+The tip is the trust model: the chain never verifies the off-chain fact, only
+that a whitelisted agent attested to it. Choose your agents accordingly.
+gno.land has no built-in price feed, so a realm that moves funds based on a
+fed value is only as secure as whoever provides that value: an attacker does
+not need a bug in your code, only a bad number in the feed.
 
 ### Treat forking as a feature
 
-Every realm and package is published source, and the
-[license](https://gno.land/license) plus the
-[project constitution](../CONSTITUTION.md) explicitly
-allow copying and redeploying it. If a contract no longer serves its users, or
-you need a variant its author will not merge, deploy your modified copy at a
-path you control. Since deployed code is immutable, forking is the escape
-hatch: users are never trapped in an abandoned or hostile contract.
+Every realm and package is published source that the
+[license](https://gno.land/license) lets you copy and redeploy. If a contract
+no longer serves its users, or you need a variant its author will not merge,
+deploy your modified copy at a path you control: forking is the escape hatch
+that keeps users out of abandoned or hostile contracts.
 
 The examples tree already works this way. `gno.land/p/onbloc/uint256` is a
 port of the [holiman/uint256](https://github.com/holiman/uint256) Go library
@@ -1297,11 +1291,9 @@ wrapper around `avl.Tree` for the third time, write a small Go program that
 emits it and commit the output like any other file.
 
 The repository already works this way in places: `gno.land/p/onbloc/uint256`
-ships lookup tables generated by Go tooling, and the documentation uses
-[embedmd](https://github.com/campoy/embedmd) (`make -C docs generate`) to copy
-real, compiling source files into markdown instead of hand-maintaining
-snippets. Generated files stay reviewable
-and auditable on-chain, since readers see the final source, not the generator.
+ships lookup tables generated by Go tooling. Generated files stay reviewable
+and auditable on-chain, since readers see the final source, not the
+generator.
 
 ### Pass functions across realms
 
@@ -1329,26 +1321,24 @@ it invites exactly the cross-call above.
 
 ### Know what the frame stack can tell you
 
-`cur.Previous()` on a crossing function's `cur realm` parameter is the everyday
-tool: the unforgeable identity of whoever crossed into you. The frame stack
-offers a few sharper instruments for specific jobs:
+For access control, `cur.Previous()` answers the only question that usually
+matters: who called me. The frame stack can answer a few more specific
+questions:
 
-- `runtime.AssertOriginCall()` panics unless the call is a direct, top-level
-  `maketx call`. Use it for endpoints that must be invoked by a signing user
-  directly, never through another contract or a `maketx run` script.
-- `cur.Previous().IsUserCall()` and `IsUserRun()` distinguish a plain user
-  call from a `maketx run` ephemeral realm; the payment rules in
-  [Verifying inbound Coin payments](#verifying-inbound-coin-payments) hinge on
-  this distinction.
-- `runtime.GetSessionInfo()` reports whether the transaction was signed with a
-  session key, so a realm can apply tighter limits to delegated sessions.
-- `chain/runtime/unsafe` holds the raw stack walkers: `CurrentRealm()`,
-  `PreviousRealm()`, `OriginCaller()`, `OriginSend()`. The package is named
-  `unsafe` deliberately: called from a non-crossing helper,
-  `unsafe.PreviousRealm()` answers relative to the last crossing, not the
-  helper's own caller, and `OriginCaller()` is the `tx.origin` covered in
-  [contract-level access control](#contract-level-access-control).
+- Was I called directly by a person, not through another contract? Use
+  `runtime.AssertOriginCall()`: it panics on anything but a direct
+  `maketx call`.
+- Was I called from a `maketx run` script? `cur.Previous().IsUserRun()` says
+  yes, and `IsUserCall()` means a plain user call. The
+  [payment rules](#verifying-inbound-coin-payments) depend on telling these
+  apart.
+- Was the transaction signed with a session key? `runtime.GetSessionInfo()`
+  tells you, so you can give delegated sessions tighter limits.
 
-If a check matters for security, express it through `cur`; reach into the
-frame stack only when the question is genuinely about the transaction, not
-the caller.
+There is also `chain/runtime/unsafe`, with raw stack walkers like
+`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. The name is a warning.
+Called from a helper function, `PreviousRealm()` does not return the helper's
+caller, and `OriginCaller()` is the `tx.origin` covered in
+[contract-level access control](#contract-level-access-control). Keep
+security checks on `cur`; use the frame stack only for questions about the
+whole transaction, not about your caller.
