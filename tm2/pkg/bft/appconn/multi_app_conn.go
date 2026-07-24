@@ -17,9 +17,13 @@ type AppConns interface {
 	Query() Query
 }
 
-// NewABCIClient returns newly connected client
+// ClientCreator creates ABCI clients for the three Tendermint connections.
 type ClientCreator interface {
+	// NewABCIClient returns a client for mutating connections (consensus, mempool).
 	NewABCIClient() (abcicli.Client, error)
+	// NewReadOnlyABCIClient returns a client for the query connection.
+	// It uses an independent mutex so query calls never block consensus.
+	NewReadOnlyABCIClient() (abcicli.Client, error)
 }
 
 func NewAppConns(clientCreator ClientCreator) AppConns {
@@ -67,8 +71,8 @@ func (app *multi) Query() Query {
 }
 
 func (app *multi) OnStart() error {
-	// query connection
-	querycli, err := app.clientCreator.NewABCIClient()
+	// query connection — uses an independent mutex so queries never block consensus
+	querycli, err := app.clientCreator.NewReadOnlyABCIClient()
 	if err != nil {
 		return errors.Wrap(err, "Error creating ABCI client (query connection)")
 	}

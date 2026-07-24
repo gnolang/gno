@@ -536,13 +536,14 @@ func debugHelp(m *Machine, arg string) error {
 		fmt.Fprintln(m.Debugger.out, t)
 		return nil
 	}
-	t := "The following commands are available:\n\n"
+	var t strings.Builder
+	t.WriteString("The following commands are available:\n\n")
 	for _, name := range debugCmdNames {
 		c := debugCmds[name]
-		t += fmt.Sprintf("%-25s %s\n", c.usage, c.short)
+		t.WriteString(fmt.Sprintf("%-25s %s\n", c.usage, c.short))
 	}
-	t += "\nType help followed by a command for full documentation."
-	fmt.Fprintln(m.Debugger.out, t)
+	t.WriteString("\nType help followed by a command for full documentation.")
+	fmt.Fprintln(m.Debugger.out, t.String())
 	return nil
 }
 
@@ -613,12 +614,17 @@ func debugLineInfo(m *Machine) {
 
 func isMemPackage(st Store, pkgPath string) bool {
 	ds, ok := st.(*defaultStore)
-	return ok && ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath)))
+	return ok && (ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath))) ||
+		ds.iavlStore.Has(ds.gctx, []byte(backendPackageAllButProdKey(pkgPath))))
 }
 
 func fileContent(st Store, pkgPath, name string) (string, error) {
 	if isMemPackage(st, pkgPath) {
-		return st.GetMemFile(pkgPath, name).Body, nil
+		// The package is in the store, but the requested file may not be in it;
+		// guard the nil before dereferencing, then fall through to disk.
+		if mf := st.GetMemFile(pkgPath, name); mf != nil {
+			return mf.Body, nil
+		}
 	}
 	buf, err := os.ReadFile(name)
 	return string(buf), err
@@ -719,8 +725,8 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			}
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
-		tr, _, _, _, _ := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name), nil)
-		if len(tr) == 0 {
+		tr, _, _, _, status := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name))
+		if status != embedLookupFound {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
 		for _, vp := range tr {
