@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/iota_identifier_range.gno:5:6-10: builtin identifiers cannot be shadowed: iota
+// main/iota_identifier_range.gno:5:2-7:3: builtin identifiers cannot be shadowed: iota

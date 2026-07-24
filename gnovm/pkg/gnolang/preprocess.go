@@ -17,6 +17,7 @@ import (
 
 const (
 	blankIdentifier           = "_"
+	iotaIdentifier            = "iota"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
 	TestingBasePkgPath        = "testing"
@@ -1294,18 +1295,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case blankIdentifier:
 					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
 					return n, TRANS_CONTINUE
-				case "iota":
-					// iota is a non-shadowable builtin; reject declaring a new
-					// identifier named "iota" (`iota := 5` or `for iota := range x`)
-					// instead of falling through to the constant-only check below.
-					isDefine := ftype == TRANS_RANGE_KEY || ftype == TRANS_RANGE_VALUE
-					if as, ok := ns[len(ns)-1].(*AssignStmt); ok {
-						isDefine = isDefine || (ftype == TRANS_ASSIGN_LHS && as.Op == DEFINE)
-					}
-					if isDefine {
-						panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", n.Name))
-					}
-
+				case iotaIdentifier:
 					pd := lastDecl(ns)
 					valueDecl, ok := pd.(*ValueDecl)
 					if !ok || !valueDecl.Const {
