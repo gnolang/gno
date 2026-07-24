@@ -29,6 +29,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Registry Pattern](/r/docs/registry) - Register and discover entities in a central directory.
 - [Safe Objects](/r/docs/safeobjects) - A Gno-specific pattern allowing you to expose objects with admin privileges preserved.
 - [Common Solidity Patterns](/r/docs/soliditypatterns) - A list of common Solidity coding practices, converted to Gno equivalents.
+- [Security Patterns](/r/docs/security_patterns) - Compact examples for authenticated mutators and safe Render output.
 
 ## Rendering & UI
 - [Buttons](/r/docs/buttons) - Add buttons to your realm's render.

@@ -73,6 +73,7 @@ make fmt                        # Format all code
   - `go-gno-compatibility.md` — what works and what doesn't vs Go
   - `gno-testing.md` — testing patterns for `.gno` files
   - `gno-packages.md` — package structure and conventions
+  - `gno-security-guide.md` — security patterns and known vulnerability families (see Security below)
 
 ### Go (.go)
 - Format: `gofmt`/`goimports`.
@@ -102,6 +103,8 @@ make fmt                        # Format all code
 - When you see an existing realm using `IsUser()` plus `banker.OriginSend()`, flag it and cross-check nearby `OriginSend` usage.
 - Never return a pointer to a `/p/`-type instance stored in realm state if that type has any exported mutation method (e.g. `avl.Tree.Set`, `avl.Tree.Remove`). Readonly taint does not block method dispatch — borrow rule #2 fires and the write commits under your realm's authority. Return values or narrow read-only views instead.
 - `Render(path string)` receives attacker-controlled input. Never write path segments, user-supplied keys, or free-form string values directly into markdown output. Use `sanitize.InlineText` from `gno.land/p/nt/markdown/sanitize/v0` for inline content.
+
+The audit pattern harness in `misc/audit-pattern-harness/` contains executable fixtures for each of these families. Run it against unfamiliar realm code as a quick sanity check.
 
 ---
 

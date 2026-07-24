@@ -1,0 +1,16 @@
+id: render-markdown
+title: Render path echoed into markdown
+rule: render_markdown_escape
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Sanitize Render path text before writing it into markdown output.
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/render-markdown/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/render-markdown/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0
