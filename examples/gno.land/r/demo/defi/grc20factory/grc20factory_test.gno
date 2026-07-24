@@ -37,6 +37,8 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	testing.SetOriginCaller(admin)
 	NewWithAdmin(cross(cur), "Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
 	NewWithAdmin(cross(cur), "Bar", "BAR", 3, 2_222_000, 6_666, admin)
+	uassert.Equal(t, Bank("FOO").ID(), "gno.land/r/demo/defi/grc20factory.FOO.0000001")
+	uassert.Equal(t, Bank("BAR").ID(), "gno.land/r/demo/defi/grc20factory.BAR.0000002")
 	checkBalances("step1", 1_111_111_000, 1_111_111_000, 0, 0, 0)
 
 	// admin mints to bob.

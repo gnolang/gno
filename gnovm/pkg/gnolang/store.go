@@ -217,7 +217,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
-		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheNodes:   txlog.NewSyncGoMap[Location, BlockNode](),
 		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
@@ -615,8 +615,20 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	if pv.PkgID.IsZero() {
 		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
-	// Rederive pv.fBlocksMap.
-	pv.deriveFBlocksMap(ds)
+	// pv.fBlocksMap is left empty: file blocks load lazily via
+	// GetFileBlock when a function in that file is first called
+	// (see FuncValue.GetParent). Loading a package therefore no longer
+	// reads every file block up front — a call materializes only the
+	// file blocks it touches.
+	//
+	// Preserve historical hydration and gas accounting when there is no
+	// unused file to skip. A package with <= 1 file loads that one block on
+	// first call anyway, so laziness buys nothing there — only a gas shift;
+	// keep the eager path for them (this also keeps master's gas for the
+	// rare import that reads only package-level vars).
+	if len(pv.FNames) <= 1 {
+		pv.deriveFBlocksMap(ds)
+	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated

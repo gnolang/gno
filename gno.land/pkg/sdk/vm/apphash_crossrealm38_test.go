@@ -97,14 +97,22 @@ import (
 // after merging master, so it reflects the bptree store + #5890 + #5891 +
 // this param together.)
 //
-// Hash bumped again by the test-blob-exclusion PR: #5891 stored each package's
-// #allbutprod (test/filetest) blob in the merkleized iavlStore; that PR moves it
-// to the non-merkleized baseStore so test files no longer enter the consensus
-// AppHash. Every genesis stdlib/example package that ships _test.gno files drops
-// its test blob out of the committed root, so the pinned value shifts once.
-// Behavior is unchanged; this is an intentional, consensus-breaking change that
-// ships in a coordinated upgrade (see ADR pr5971).
-const expectedCrossrealm38Hash = "4ffebf2217e292a1eb6a02abca5f7e05c6122571cb334e5f8a2cebc9f6beb440"
+// Hash bumped by the apd -> math/big.Rat PR (#5867): BigdecValue (untyped
+// float constant representation) now amino-serializes in rational form
+// ("1/3") instead of the old decimal string ("0.3333333333"), shifting the
+// committed multistore root for any realm state containing bigdec constants.
+// Behavior is unchanged for all typed values; only the constant-folding
+// arithmetic is corrected (fixes #5862). Re-derived after merging master, so
+// it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
+//
+// Hash bumped again by the test-blob-exclusion PR (#5971): #5891 stored each
+// package's #allbutprod (test/filetest) blob in the merkleized iavlStore; this
+// PR moves it to the non-merkleized baseStore so test files no longer enter the
+// consensus AppHash. Every genesis stdlib/example package that ships _test.gno
+// files drops its test blob out of the committed root, so the pinned value
+// shifts once. Behavior is unchanged; intentional consensus-breaking change
+// (see ADR pr5971). Re-derived after merging master.
+const expectedCrossrealm38Hash = "794f53130efd46975f0f65bc055eca2edd71e5142448b9710fc434683e879dc4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
