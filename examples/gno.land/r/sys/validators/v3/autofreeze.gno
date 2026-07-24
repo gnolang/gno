@@ -7,26 +7,26 @@
 //
 // Design:
 //
-//   Monitors are registered/deregistered by GovDAO (RegisterMonitor /
-//   DeregisterMonitor). Any registered monitor can call AutoFreezeValidator
-//   with a reason and evidence string.
+//	Monitors are registered/deregistered by GovDAO (RegisterMonitor /
+//	DeregisterMonitor). Any registered monitor can call AutoFreezeValidator
+//	with a reason and evidence string.
 //
-//   Every AutoFreezeValidator call is guarded by four on-chain invariants:
+//	Every AutoFreezeValidator call is guarded by four on-chain invariants:
 //
-//   1. Power floor: post-freeze live power must be ≥ 80% of total power.
-//      (Replaces the count-based 2/3 floor used in Phase A.)
+//	1. Power floor: post-freeze live power must be ≥ 80% of total power.
+//	   (Replaces the count-based 2/3 floor used in Phase A.)
 //
-//   2. Auto-frozen cap: at most 1/8 of total power may be auto-frozen at once.
+//	2. Auto-frozen cap: at most 1/8 of total power may be auto-frozen at once.
 //
-//   3. Protected set: validators in protectedSet cannot be auto-frozen.
-//      (GovDAO manages the set.)
+//	3. Protected set: validators in protectedSet cannot be auto-frozen.
+//	   (GovDAO manages the set.)
 //
-//   4. Auto-expiry: auto-frozen entries expire after autoFreezeExpiryBlocks.
-//      ExpireAutoFrozen() can be called by anyone to sweep expired entries
-//      and restore them automatically.
+//	4. Auto-expiry: auto-frozen entries expire after autoFreezeExpiryBlocks.
+//	   ExpireAutoFrozen() can be called by anyone to sweep expired entries
+//	   and restore them automatically.
 //
-//   The monitor is UNTRUSTED for safety. A compromised monitor's worst-case
-//   outcome is bounded and time-limited by invariants 1-4.
+//	The monitor is UNTRUSTED for safety. A compromised monitor's worst-case
+//	outcome is bounded and time-limited by invariants 1-4.
 //
 // Open questions (same as Phase A ADR):
 //   - Phase C: require N-of-M monitor attestation before auto-freeze fires.
