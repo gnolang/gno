@@ -1,17 +1,14 @@
 package abci
 
 import (
+	"slices"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 )
 
 func (params ValidatorParams) IsValidPubKeyTypeURL(pubKeyTypeURL string) bool {
-	for i := range params.PubKeyTypeURLs {
-		if params.PubKeyTypeURLs[i] == pubKeyTypeURL {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(params.PubKeyTypeURLs, pubKeyTypeURL)
 }
 
 func (params ConsensusParams) Hash() []byte {

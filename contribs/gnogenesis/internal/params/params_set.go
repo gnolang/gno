@@ -147,7 +147,7 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 				continue
 			}
 
-			for _, ss := range strings.Split(val, ",") {
+			for ss := range strings.SplitSeq(val, ",") {
 				addr, err := crypto.AddressFromBech32(ss)
 				if err != nil {
 					return fmt.Errorf("unable to parse address %q: %w", ss, err)

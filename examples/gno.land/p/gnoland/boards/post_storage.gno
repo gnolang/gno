@@ -44,8 +44,8 @@ type postStorage struct {
 // Get retruns a post that matches an ID.
 func (s postStorage) Get(id ID) (*Post, bool) {
 	k := makePostKey(id)
-	v, found := s.posts.Get(k)
-	if !found {
+	v := s.posts.Get(k)
+	if v == nil {
 		return nil, false
 	}
 	return v.(*Post), true

@@ -1,4 +1,4 @@
-package tests
+package vm
 
 var abs nat
 

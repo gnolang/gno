@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// runtime error: nil pointer dereference
+// value method main.S.String called using nil *S pointer
