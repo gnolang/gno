@@ -860,11 +860,16 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 
 	res := cfg.baseApp.Deliver(stdTx, ctxFn)
 	if res.IsErr() {
+		var signer string
+		if signers := stdTx.GetSigners(); len(signers) > 0 {
+			signer = signers[0].String()
+		}
 		ctx.Logger().Error(
 			"Unable to deliver genesis tx",
 			"log", res.Log,
 			"error", res.Error,
 			"gas-used", res.GasUsed,
+			"addr", signer,
 		)
 	}
 
