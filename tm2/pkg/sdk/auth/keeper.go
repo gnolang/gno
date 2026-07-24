@@ -405,8 +405,9 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
 // two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
 // integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
-// cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
-// point. Down the line, the solution might not be even representable by one simple formula
+// cap nothing (yet); when decreasing we floor the result at the initial gas price, or at 1 when the initial
+// price is 0. A non-positive block gas limit leaves the price unchanged rather than dividing by it. This is
+// just a starting point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
@@ -429,6 +430,29 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Mul(big.NewInt(maxGas), big.NewInt(params.TargetGasRatio))
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
+
+	// A non-positive target is not a target at all, and both branches below
+	// divide by it. Two ways to get here, both reachable from a genesis that
+	// ValidateConsensusParams accepts:
+	//
+	//   - Block.MaxGas == -1, the "no gas bound" sentinel. Nothing maps it to
+	//     "unbounded" on this path, unlike BaseApp.getMaximumBlockGas and
+	//     NewAnteHandler. big.Int.Div floors, so maxGas*70/100 is -1, every
+	//     gasUsed >= 0 compares above it and takes the increase branch, and
+	//     there the intermediate quotient is negative so the min-1 floor
+	//     clamps it to +1: the price ratchets up by 1 on every block,
+	//     including idle ones, with the decay direction unreachable.
+	//   - maxGas*TargetGasRatio < 100 — with the default ratio of 70 that is
+	//     MaxGas 0 or 1 — makes the target 0 and the division panic. MaxGas 0
+	//     is the other "unbounded" spelling: getMaximumBlockGas turns it into
+	//     an infinite gas meter, so blocks do consume gas and the first
+	//     non-empty block panics in EndBlock.
+	//
+	// In both cases there is no congestion signal to price against, so leave
+	// the price where it is.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
 
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
@@ -466,8 +490,20 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// value of GasPricesChangeCompressor (see issue #5906).
 		diff := maxBig(num, bigOne)
 		num.Sub(lastPriceInt, diff)
-		// gas price should not be less than the initial gas price,
-		num = maxBig(num, initPriceInt)
+		// gas price should not be less than the initial gas price, and
+		// never below 1 whatever the initial price says. Params.Validate
+		// accepts an InitialGasPrice of 0, and 0 is an absorbing state: the
+		// guard at the top of this function reads a stored price of 0 as
+		// "dynamic pricing disabled" and returns early, so no congestion
+		// level can lift the price again.
+		//
+		// Genesis alone cannot reach it, because installAuthParams seeds the
+		// stored price from InitialGasPrice, so a zero there disables pricing
+		// from block 1 rather than decaying into it. The reachable shape is a
+		// post-genesis change of auth:p:initial_gasprice to 0 on a chain whose
+		// stored price is non-zero: the min-1 decrement then walks it down to
+		// 0 and it stays there permanently.
+		num = maxBig(num, maxBig(initPriceInt, bigOne))
 	}
 
 	if !num.IsInt64() {
