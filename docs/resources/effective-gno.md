@@ -397,184 +397,6 @@ clear code is better than clever code.
 
 ## Gno good practices
 
-### Package naming and organization
-
-Your package name must match the last element of the package path (ignoring a
-trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
-the need for named imports.
-
-Ideally, package names should be short and human-readable. This makes it easier
-for other developers to understand what your package does at a glance. Avoid
-using abbreviations or acronyms unless they are widely understood.
-
-Packages and realms can be organized into subdirectories. However, consider that the
-best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
-to how repositories are organized on GitHub.
-
-If you have multiple sublevels of realms, remember that they are actually
-independent realms and won't share data. A good usage could be to have an
-ecosystem of realms, where one realm is about storing the state, another one
-about configuration, etc. But in general, a single realm makes sense.
-
-You can also create small realms to create your ecosystem. For example, you
-could centralize all the authentication for your whole company/organization in
-`r/NAMESPACE/auth`, and then import it in all your contracts.
-
-The `p/` prefix is different. In general, you should use top-level `p/` like
-`p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
-just to have internal libraries that you created to centralize your helpers and
-don't expect that other people will use your helpers, then you should probably
-use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
-
-Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/demo/mypackage/internal`, or
-`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
-sharing the same root as the `internal` package. That is, given a package
-structure as follows:
-
-```
-gno.land/p/demo/mypackage
-├── utils
-└── internal
-	├── helpers
-	└── crypto
-```
-
-The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
-packages can only be imported by `mypackage` and `mypackage/utils`.
-
-This works for both realms and packages, and can be used to create entirely
-restricted packages and realms that are not meant for outside consumption.
-
-### Define types and interfaces in pure packages (p/)
-
-In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
-interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
-for the realm is to become a standard that could be imported by `p/`.
-
-The reason for this is that `p/` can only import `p/`, while `r/` can import
-anything. This separation allows you to define standards in `p/` that can be
-used across multiple realms and packages.
-
-In general, you can just write your `r/` to be an app. But if for some reason
-you introduce a concept that can be reused, it makes sense to have a
-dedicated `p/` so that people can re-use your logic without depending on
-your realm's data.
-
-For instance, if you want to create a token type in a realm, you can use it, and
-other realms can import the realm and compose it. But if you want to create a
-`p/` helper that will create a pattern, then you need to have your interface and
-types defined in `p/` so anything can import it.
-
-By separating your types and interfaces into `p/` and your runtime into `r/`,
-you can create more modular, reusable, and standardized code in Gno. This
-approach allows you to leverage the composability of Gno to build more powerful
-and flexible applications.
-
-### Design your realm as a public API
-
-In Go, all your packages, including your dependencies, are typically treated as
-part of your safe zone, similar to a secure perimeter. The boundary is drawn
-between your program and the rest of the world, which means you secure the API
-itself, potentially with authentication middlewares.
-
-However, in Gno, your realm is the public API. It's exposed to the outside
-world and can be accessed by other realms. Therefore, it's crucial to design
-your realm with the same level of care and security considerations as you would
-a public API.
-
-One approach is to simulate a secure perimeter within your realm by having
-private functions for the logic, and then writing your API layer by adding some
-front-facing API with authentication. This way, you can control access to your
-realm's functionality and ensure that only authorized callers can execute
-certain operations.
-
-```go
-func PublicMethod(cur realm, nb int) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-	caller := cur.Previous().Address()
-	privateMethod(caller, nb)
-}
-
-func privateMethod(caller address, nb int) { /* ... */ }
-```
-
-In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `cur.Previous().Address()`, and
-then passes it to `privateMethod`, which is a private function that performs the
-actual logic. This way, `privateMethod` can only be called from within the
-realm, and it can use the caller's address for authentication or authorization
-checks.
-
-### Emit Gno events to make life off-chain easier
-
-Gno provides users the ability to log specific occurrences that happened in their
-on-chain apps. An `event` log is stored in the ABCI results of each block, and
-these logs can be indexed, filtered, and searched by external services, allowing
-them to monitor the behaviour of on-chain apps.
-
-It is good practice to emit events when any major action in your code is
-triggered. For example, good times to emit an event are after a balance transfer,
-ownership change, profile created, etc. Alternatively, you can view event emission
-as a way to include data for monitoring purposes, given the indexable nature of
-events.
-
-Events consist of a type and a slice of strings representing `key:value` pairs.
-They are emitted with the `Emit()` function, contained in the `chain` package in
-the Gno standard library:
-
-```go
-package events
-
-import "chain"
-
-var owner address
-
-func init(cur realm) {
-	owner = cur.Previous().Address()
-}
-
-func ChangeOwner(cur realm, newOwner address) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
-	caller := cur.Previous().Address()
-
-	if caller != owner {
-		panic("access denied")
-	}
-
-	owner = newOwner
-	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
-}
-
-```
-If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
-of block #43 will contain the following data:
-
-```json
-{
-  "Events": [
-	{
-	  "@type": "/tm.gnoEvent",
-	  "type": "OwnershipChange",
-	  "pkg_path": "gno.land/r/demo/example",
-	  "attrs": [
-		{
-		  "key": "newOwner",
-		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-		}
-	  ]
-	}
-	// other events
-  ]
-}
-```
-
-Read more about events [here](./gno-stdlibs.md#events).
-
 ### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
@@ -659,89 +481,76 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Prefer avl.Tree over map for scalable storage
+### Reuse access control instead of rolling your own
 
-An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
-entries in one object (accessing any value loads everything), while AVL trees
-store each node separately (accessing a value loads only the search path).
-This makes `avl.Tree` significantly more efficient in both gas usage and
-runtime performance for large or growing datasets.
+The [contract-level access control](#contract-level-access-control) pattern above
+is easy to get subtly wrong, and getting it wrong usually means anyone can call
+your admin functions. For common needs, prefer the shared building blocks in
+`p/` rather than reimplementing them:
 
-**Key differences**:
+- `gno.land/p/nt/ownable/v0`: single-owner access control, with transferable and
+  droppable ownership.
+- `gno.land/p/moul/authz`: flexible authorization: member lists, contract- or
+  DAO-backed authority, and auto-accept strategies behind one interface.
+- `gno.land/p/nt/commondao/v0`: a minimal framework for DAOs, with proposals,
+  voting, and member groups, for when a single admin is not enough.
 
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
+For an emergency stop, build a pausable switch on top of `ownable`: an
+owner-gated `paused` flag checked at the top of sensitive endpoints.
 
-**Use `avl.Tree` when you need**:
+These packages get the caller check right for you: the methods that change who
+is in control verify the caller's realm themselves, so an attacker cannot pose
+as the owner. Reusing them means less code to audit and one fewer place to
+make a security mistake. See each package's doc comments and tests for the
+exact calling convention.
 
-- Lazy loading (efficient for large datasets - only loads the search path)
-- Efficient range queries (find all keys between "bob" and "charlie")
-- Data that grows over time (user registries, leaderboards)
-- Sorted iteration by key value
+### Pass functions across realms
 
-**Use `map` when you need**:
+Function values cross realm boundaries freely: a realm can accept a callback,
+store it, and call it later. What does not travel with them is authority.
+A stored function writes state under its home realm: the realm that declared
+it, or, for a closure built by `p/` code, the realm that created it. It never
+writes under the realm that happens to invoke it. So holding another realm's
+callback does not let you write its state, and a callback smuggled into your
+realm cannot write yours. The runtime enforces this with the borrowing rules
+described in [the interrealm specification](./gno-interrealm.md).
 
-- O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
-- Type safety (AVL values are `any` and require type assertions)
+Invoking a stored callback without `cross` also leaves the realm context
+alone: your realm stays the current realm, and the callee cannot tell the
+difference. The dangerous move is the opposite one: cross-calling a
+caller-supplied function value with `cross(cur)` hands the callee your agency,
+because it will see your realm as its caller. Never cross-call an arbitrary
+submitted function; accept only callbacks you have reviewed or whitelisted.
 
-```go
-// Map example
-users := make(map[string]User)
-users["bob"] = User{}
-users["alice"] = User{}
-for name := range users { // unspecified order
-	// ...
-}
-user := users["alice"] // O(1) direct access
+Two practical rules follow. Ownership handles are addresses, not functions:
+`ownable` stores the owner's address. Storing a realm value is not even an
+option, since realm values cannot be persisted at all. And in a realm, never
+expose a function-typed package variable whose type takes a `realm` parameter;
+it invites exactly the cross-call above.
 
-// AVL example
-var users avl.Tree
-users.Set("bob", &User{})
-users.Set("alice", &User{})
-users.Set("charlie", &User{})
+### Know what the frame stack can tell you
 
-// Iterate all users (sorted alphabetically)
-users.Iterate("", "", func(name string, value any) bool {
-	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User) // Type assertion required - values are any
-	return false // return true to stop iteration
-})
+For access control, `cur.Previous()` answers the only question that usually
+matters: who called me. The frame stack can answer a few more specific
+questions:
 
-// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
-// This is O(log n + k) where k = results in range
-users.Iterate("bob", "charlie", func(name string, value any) bool {
-	// Only visits: bob (end is exclusive)
-	user := value.(*User) 
-	return false
-})
+- Was I called directly by a person, not through another contract? Use
+  `runtime.AssertOriginCall()`: it panics on anything but a direct
+  `maketx call`.
+- Was I called from a `maketx run` script? `cur.Previous().IsUserRun()` says
+  yes, and `IsUserCall()` means a plain user call. The
+  [payment rules](#verifying-inbound-coin-payments) depend on telling these
+  apart.
+- Was the transaction signed with a session key? `runtime.GetSessionInfo()`
+  tells you, so you can give delegated sessions tighter limits.
 
-// Get a specific user (O(log n))
-// Get returns nil if the key does not exist
-value := users.Get("alice")
-if value == nil {
-	return nil
-}
-return value.(*User)
-
-// Check if a key exists without retrieving the value
-if users.Has("alice") {
-	// key exists
-}
-
-// Multi-index example - search the same data in different ways
-var (
-	usersById   avl.Tree // Find user by ID
-	usersByName avl.Tree // Find user by name
-)
-
-func AddUser(id, name string) {
-	usersById.Set(id, name)     // Can search by ID
-	usersByName.Set(name, id)   // Can search by name
-}
-```
-
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+There is also `chain/runtime/unsafe`, with raw stack walkers like
+`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. The name is a warning.
+Called from a helper function, `PreviousRealm()` does not return the helper's
+caller, and `OriginCaller()` is the `tx.origin` covered in
+[contract-level access control](#contract-level-access-control). Keep
+security checks on `cur`; use the frame stack only for questions about the
+whole transaction, not about your caller.
 
 ### Construct "safe" objects
 
@@ -949,88 +758,17 @@ versatility.
 
 See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/wugnot
 
-### Suggested file names and layout
+### Bring off-chain data on-chain with oracles
 
-Split a realm into predictably named files. The source is published and
-browsable on-chain, so file names are part of your public interface. There is
-no enforced layout, but a few names recur across the standard examples and are
-worth adopting:
+An oracle is an agreement with off-chain agents you choose to trust; how to
+build one (feeds, tasks, whitelists, the gnorkle framework) is covered in
+[Oracles](./gno-oracles.md). Do not build the plumbing from scratch.
 
-- `<realm>.gno`: the package declaration and main entrypoints, named after the
-  realm itself (the counter realm uses `counter.gno`).
-- `types.gno`: type and interface definitions.
-- `render.gno`: the `Render()` function and its formatting helpers.
-- `admin.gno`: ownership and privileged endpoints.
-- `errors.gno`: sentinel errors and error constructors.
-- `doc.gno`: a package-level doc comment when the overview is long.
-- `gnomod.toml`: module metadata, always present.
-- `README.md`: optional, rendered alongside the source.
-
-For example, [`gno.land/r/gnoland/blog`](../../examples/gno.land/r/gnoland/blog)
-splits its logic into `gnoblog.gno` (the
-package and main API), `admin.gno` (permissions), and `util.gno`, with tests
-beside the files they cover. Keep each file focused on one concern: a reader
-should be able to guess a file's contents from its name alone.
-
-### Versioning and upgrades
-
-A deployed package or realm is immutable: "upgrading" means publishing a new
-version at a new path, the `/vN` suffix described in
-[package paths](./gno-packages.md#version-suffixes), and moving callers to
-it. Versions coexist, so old importers keep working against the version they
-pinned while new code targets the latest.
-
-Design for that from day one. A common pattern is a small proxy or registry
-realm at a stable path that forwards to the current implementation and can be
-repointed by an admin or DAO, keeping previous versions live for rollback.
-`gno.land/r/gov/dao` works this way: the implementation is a variable, not
-code.
-
-```go
-// in gno.land/r/gov/dao, the stable entry point
-
-// dao is the actual govDAO implementation, swapped by proposal.
-var dao DAO
-
-// allowedDAOs are the implementations that may update dao, kept so a
-// breaking upgrade can be rolled back to a previous one.
-var allowedDAOs []string
-
-// Public functions forward to the current implementation.
-func Render(cur realm, p string) string {
-	return dao.Render(cross(cur), cur.PkgPath(), p)
-}
-```
-
-For a simpler case, `gno.land/r/sys/validators` simply keeps `v2` and `v3`
-side by side.
-
-Not every package needs this. A small, focused, well-tested `p/` library can
-reach a "finished" state where it simply does its job and never needs a new
-version. Aim for that: stable bricks others can build on without surprises.
-
-### Reuse access control instead of rolling your own
-
-The [contract-level access control](#contract-level-access-control) pattern above
-is easy to get subtly wrong, and getting it wrong usually means anyone can call
-your admin functions. For common needs, prefer the shared building blocks in
-`p/` rather than reimplementing them:
-
-- `gno.land/p/nt/ownable/v0`: single-owner access control, with transferable and
-  droppable ownership.
-- `gno.land/p/moul/authz`: flexible authorization: member lists, contract- or
-  DAO-backed authority, and auto-accept strategies behind one interface.
-- `gno.land/p/nt/commondao/v0`: a minimal framework for DAOs, with proposals,
-  voting, and member groups, for when a single admin is not enough.
-
-For an emergency stop, build a pausable switch on top of `ownable`: an
-owner-gated `paused` flag checked at the top of sensitive endpoints.
-
-These packages get the caller check right for you: the methods that change who
-is in control verify the caller's realm themselves, so an attacker cannot pose
-as the owner. Reusing them means less code to audit and one fewer place to
-make a security mistake. See each package's doc comments and tests for the
-exact calling convention.
+The tip is the trust model: the chain never verifies the off-chain fact, only
+that a whitelisted agent attested to it. Choose your agents accordingly.
+gno.land has no built-in price feed, so a realm that moves funds based on a
+fed value is only as secure as whoever provides that value: an attacker does
+not need a bug in your code, only a bad number in the feed.
 
 ### Respect determinism: time, randomness, and ordering
 
@@ -1083,24 +821,110 @@ realm: simulate an intermediary contract and prove your
 `gno test` does not discover benchmarks or `FuzzXxx` functions yet; drive the
 `testing.F` helper from a regular test if you need fuzzing.
 
-### Ship more than code
+### Prefer avl.Tree over map for scalable storage
 
-A realm is the on-chain core of your project, but a finished product usually
-ships more around it. Because the source and `Render()` output are public and
-user-facing, treat the realm itself as part of the product: write a `Render()`
-for end users, include a `README.md`, and keep doc comments aimed at readers, as
-covered in [Documentation is for users](#documentation-is-for-users).
+An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
+entries in one object (accessing any value loads everything), while AVL trees
+store each node separately (accessing a value loads only the search path).
+This makes `avl.Tree` significantly more efficient in both gas usage and
+runtime performance for large or growing datasets.
 
-Off-chain, you will often pair the realm with a client that calls it (a CLI or a
-web frontend), indexers that consume the
-[events](#emit-gno-events-to-make-life-off-chain-easier) you emit, and static
-assets. These live outside the contract but are part of how people actually use
-it.
+**Key differences**:
 
-Keep the two audiences distinct. A `p/` package is for developers, much like
-an NPM library: give it a clean API, stable versions, and documentation for
-integrators. A realm is for end users, more like an app in an app store: give
-it clear endpoints and a `Render()` that explains itself.
+- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
+
+**Use `avl.Tree` when you need**:
+
+- Lazy loading (efficient for large datasets - only loads the search path)
+- Efficient range queries (find all keys between "bob" and "charlie")
+- Data that grows over time (user registries, leaderboards)
+- Sorted iteration by key value
+
+**Use `map` when you need**:
+
+- O(1) fast lookups
+- Small bounded datasets (e.g.: configuration values)
+- Type safety (AVL values are `any` and require type assertions)
+
+```go
+// Map example
+users := make(map[string]User)
+users["bob"] = User{}
+users["alice"] = User{}
+for name := range users { // unspecified order
+	// ...
+}
+user := users["alice"] // O(1) direct access
+
+// AVL example
+var users avl.Tree
+users.Set("bob", &User{})
+users.Set("alice", &User{})
+users.Set("charlie", &User{})
+
+// Iterate all users (sorted alphabetically)
+users.Iterate("", "", func(name string, value any) bool {
+	// Order: alice, bob, charlie (sorted by key)
+	user := value.(*User) // Type assertion required - values are any
+	return false // return true to stop iteration
+})
+
+// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
+// This is O(log n + k) where k = results in range
+users.Iterate("bob", "charlie", func(name string, value any) bool {
+	// Only visits: bob (end is exclusive)
+	user := value.(*User) 
+	return false
+})
+
+// Get a specific user (O(log n))
+// Get returns nil if the key does not exist
+value := users.Get("alice")
+if value == nil {
+	return nil
+}
+return value.(*User)
+
+// Check if a key exists without retrieving the value
+if users.Has("alice") {
+	// key exists
+}
+
+// Multi-index example - search the same data in different ways
+var (
+	usersById   avl.Tree // Find user by ID
+	usersByName avl.Tree // Find user by name
+)
+
+func AddUser(id, name string) {
+	usersById.Set(id, name)     // Can search by ID
+	usersByName.Set(name, id)   // Can search by name
+}
+```
+
+For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+
+### Choose data structures by what they touch in storage
+
+In a realm, a data structure's real cost is how many stored objects an
+operation touches, because modified objects are written back to storage at the
+end of the transaction. That is why
+[avl.Tree beats map](#prefer-avltree-over-map-for-scalable-storage) for large
+collections: a `Set` rewrites one path of nodes, while a map or slice is
+persisted as one big object. A few more building blocks are worth knowing:
+
+- `gno.land/p/nt/bptree/v0` implements the same interface as `avl.Tree` with a
+  B+ tree: configurable fanout, fewer nodes touched per operation, and cheaper
+  in-order iteration over large datasets.
+- `gno.land/p/nt/seqid/v0` produces sequential IDs that sort correctly as
+  `avl.Tree` keys, which gives you insertion-ordered listings and clean
+  pagination for free.
+- Small, bounded collections do not need any of this: below a few dozen
+  entries a plain slice or map costs less than the tree machinery.
+
+[Gno data structures](./gno-data-structures.md) covers the basics of each
+container type.
 
 ### Write gas-conscious code
 
@@ -1131,26 +955,134 @@ Measure before optimizing: `gnokey maketx ... -simulate only` reports the gas
 a call would use, and [gas fees](./gas-fees.md) documents pricing, estimation,
 and the storage price split in detail.
 
-### Choose data structures by what they touch in storage
+### Design your realm as a public API
 
-In a realm, a data structure's real cost is how many stored objects an
-operation touches, because modified objects are written back to storage at the
-end of the transaction. That is why
-[avl.Tree beats map](#prefer-avltree-over-map-for-scalable-storage) for large
-collections: a `Set` rewrites one path of nodes, while a map or slice is
-persisted as one big object. A few more building blocks are worth knowing:
+In Go, all your packages, including your dependencies, are typically treated as
+part of your safe zone, similar to a secure perimeter. The boundary is drawn
+between your program and the rest of the world, which means you secure the API
+itself, potentially with authentication middlewares.
 
-- `gno.land/p/nt/bptree/v0` implements the same interface as `avl.Tree` with a
-  B+ tree: configurable fanout, fewer nodes touched per operation, and cheaper
-  in-order iteration over large datasets.
-- `gno.land/p/nt/seqid/v0` produces sequential IDs that sort correctly as
-  `avl.Tree` keys, which gives you insertion-ordered listings and clean
-  pagination for free.
-- Small, bounded collections do not need any of this: below a few dozen
-  entries a plain slice or map costs less than the tree machinery.
+However, in Gno, your realm is the public API. It's exposed to the outside
+world and can be accessed by other realms. Therefore, it's crucial to design
+your realm with the same level of care and security considerations as you would
+a public API.
 
-[Gno data structures](./gno-data-structures.md) covers the basics of each
-container type.
+One approach is to simulate a secure perimeter within your realm by having
+private functions for the logic, and then writing your API layer by adding some
+front-facing API with authentication. This way, you can control access to your
+realm's functionality and ensure that only authorized callers can execute
+certain operations.
+
+```go
+func PublicMethod(cur realm, nb int) {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
+	caller := cur.Previous().Address()
+	privateMethod(caller, nb)
+}
+
+func privateMethod(caller address, nb int) { /* ... */ }
+```
+
+In this example, `PublicMethod` is a public function that can be called by other
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
+then passes it to `privateMethod`, which is a private function that performs the
+actual logic. This way, `privateMethod` can only be called from within the
+realm, and it can use the caller's address for authentication or authorization
+checks.
+
+### Define types and interfaces in pure packages (p/)
+
+In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
+interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
+for the realm is to become a standard that could be imported by `p/`.
+
+The reason for this is that `p/` can only import `p/`, while `r/` can import
+anything. This separation allows you to define standards in `p/` that can be
+used across multiple realms and packages.
+
+In general, you can just write your `r/` to be an app. But if for some reason
+you introduce a concept that can be reused, it makes sense to have a
+dedicated `p/` so that people can re-use your logic without depending on
+your realm's data.
+
+For instance, if you want to create a token type in a realm, you can use it, and
+other realms can import the realm and compose it. But if you want to create a
+`p/` helper that will create a pattern, then you need to have your interface and
+types defined in `p/` so anything can import it.
+
+By separating your types and interfaces into `p/` and your runtime into `r/`,
+you can create more modular, reusable, and standardized code in Gno. This
+approach allows you to leverage the composability of Gno to build more powerful
+and flexible applications.
+
+### Emit Gno events to make life off-chain easier
+
+Gno provides users the ability to log specific occurrences that happened in their
+on-chain apps. An `event` log is stored in the ABCI results of each block, and
+these logs can be indexed, filtered, and searched by external services, allowing
+them to monitor the behaviour of on-chain apps.
+
+It is good practice to emit events when any major action in your code is
+triggered. For example, good times to emit an event are after a balance transfer,
+ownership change, profile created, etc. Alternatively, you can view event emission
+as a way to include data for monitoring purposes, given the indexable nature of
+events.
+
+Events consist of a type and a slice of strings representing `key:value` pairs.
+They are emitted with the `Emit()` function, contained in the `chain` package in
+the Gno standard library:
+
+```go
+package events
+
+import "chain"
+
+var owner address
+
+func init(cur realm) {
+	owner = cur.Previous().Address()
+}
+
+func ChangeOwner(cur realm, newOwner address) {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
+	caller := cur.Previous().Address()
+
+	if caller != owner {
+		panic("access denied")
+	}
+
+	owner = newOwner
+	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
+}
+
+```
+If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
+of block #43 will contain the following data:
+
+```json
+{
+  "Events": [
+	{
+	  "@type": "/tm.gnoEvent",
+	  "type": "OwnershipChange",
+	  "pkg_path": "gno.land/r/demo/example",
+	  "attrs": [
+		{
+		  "key": "newOwner",
+		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+		}
+	  ]
+	}
+	// other events
+  ]
+}
+```
+
+Read more about events [here](./gno-stdlibs.md#events).
 
 ### Model workflows as state machines
 
@@ -1250,17 +1182,133 @@ subscription, extend the current expiry instead of replacing it for renewals,
 or let a caller pay for a different address to gift a subscription. Block time
 is all you need for expiry checks, so the whole pattern stays a few lines.
 
-### Bring off-chain data on-chain with oracles
+### Versioning and upgrades
 
-An oracle is an agreement with off-chain agents you choose to trust; how to
-build one (feeds, tasks, whitelists, the gnorkle framework) is covered in
-[Oracles](./gno-oracles.md). Do not build the plumbing from scratch.
+A deployed package or realm is immutable: "upgrading" means publishing a new
+version at a new path, the `/vN` suffix described in
+[package paths](./gno-packages.md#version-suffixes), and moving callers to
+it. Versions coexist, so old importers keep working against the version they
+pinned while new code targets the latest.
 
-The tip is the trust model: the chain never verifies the off-chain fact, only
-that a whitelisted agent attested to it. Choose your agents accordingly.
-gno.land has no built-in price feed, so a realm that moves funds based on a
-fed value is only as secure as whoever provides that value: an attacker does
-not need a bug in your code, only a bad number in the feed.
+Design for that from day one. A common pattern is a small proxy or registry
+realm at a stable path that forwards to the current implementation and can be
+repointed by an admin or DAO, keeping previous versions live for rollback.
+`gno.land/r/gov/dao` works this way: the implementation is a variable, not
+code.
+
+```go
+// in gno.land/r/gov/dao, the stable entry point
+
+// dao is the actual govDAO implementation, swapped by proposal.
+var dao DAO
+
+// allowedDAOs are the implementations that may update dao, kept so a
+// breaking upgrade can be rolled back to a previous one.
+var allowedDAOs []string
+
+// Public functions forward to the current implementation.
+func Render(cur realm, p string) string {
+	return dao.Render(cross(cur), cur.PkgPath(), p)
+}
+```
+
+For a simpler case, `gno.land/r/sys/validators` simply keeps `v2` and `v3`
+side by side.
+
+Not every package needs this. A small, focused, well-tested `p/` library can
+reach a "finished" state where it simply does its job and never needs a new
+version. Aim for that: stable bricks others can build on without surprises.
+
+### Package naming and organization
+
+Your package name must match the last element of the package path (ignoring a
+trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
+the need for named imports.
+
+Ideally, package names should be short and human-readable. This makes it easier
+for other developers to understand what your package does at a glance. Avoid
+using abbreviations or acronyms unless they are widely understood.
+
+Packages and realms can be organized into subdirectories. However, consider that the
+best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
+to how repositories are organized on GitHub.
+
+If you have multiple sublevels of realms, remember that they are actually
+independent realms and won't share data. A good usage could be to have an
+ecosystem of realms, where one realm is about storing the state, another one
+about configuration, etc. But in general, a single realm makes sense.
+
+You can also create small realms to create your ecosystem. For example, you
+could centralize all the authentication for your whole company/organization in
+`r/NAMESPACE/auth`, and then import it in all your contracts.
+
+The `p/` prefix is different. In general, you should use top-level `p/` like
+`p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
+just to have internal libraries that you created to centralize your helpers and
+don't expect that other people will use your helpers, then you should probably
+use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
+
+Packages which contain `internal` as an element of the path (ie. at the end, or
+in between, like `gno.land/p/demo/mypackage/internal`, or
+`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
+sharing the same root as the `internal` package. That is, given a package
+structure as follows:
+
+```
+gno.land/p/demo/mypackage
+├── utils
+└── internal
+	├── helpers
+	└── crypto
+```
+
+The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
+packages can only be imported by `mypackage` and `mypackage/utils`.
+
+This works for both realms and packages, and can be used to create entirely
+restricted packages and realms that are not meant for outside consumption.
+
+### Suggested file names and layout
+
+Split a realm into predictably named files. The source is published and
+browsable on-chain, so file names are part of your public interface. There is
+no enforced layout, but a few names recur across the standard examples and are
+worth adopting:
+
+- `<realm>.gno`: the package declaration and main entrypoints, named after the
+  realm itself (the counter realm uses `counter.gno`).
+- `types.gno`: type and interface definitions.
+- `render.gno`: the `Render()` function and its formatting helpers.
+- `admin.gno`: ownership and privileged endpoints.
+- `errors.gno`: sentinel errors and error constructors.
+- `doc.gno`: a package-level doc comment when the overview is long.
+- `gnomod.toml`: module metadata, always present.
+- `README.md`: optional, rendered alongside the source.
+
+For example, [`gno.land/r/gnoland/blog`](../../examples/gno.land/r/gnoland/blog)
+splits its logic into `gnoblog.gno` (the
+package and main API), `admin.gno` (permissions), and `util.gno`, with tests
+beside the files they cover. Keep each file focused on one concern: a reader
+should be able to guess a file's contents from its name alone.
+
+### Ship more than code
+
+A realm is the on-chain core of your project, but a finished product usually
+ships more around it. Because the source and `Render()` output are public and
+user-facing, treat the realm itself as part of the product: write a `Render()`
+for end users, include a `README.md`, and keep doc comments aimed at readers, as
+covered in [Documentation is for users](#documentation-is-for-users).
+
+Off-chain, you will often pair the realm with a client that calls it (a CLI or a
+web frontend), indexers that consume the
+[events](#emit-gno-events-to-make-life-off-chain-easier) you emit, and static
+assets. These live outside the contract but are part of how people actually use
+it.
+
+Keep the two audiences distinct. A `p/` package is for developers, much like
+an NPM library: give it a clean API, stable versions, and documentation for
+integrators. A realm is for end users, more like an app in an app store: give
+it clear endpoints and a `Render()` that explains itself.
 
 ### Treat forking as a feature
 
@@ -1294,51 +1342,3 @@ The repository already works this way in places: `gno.land/p/onbloc/uint256`
 ships lookup tables generated by Go tooling. Generated files stay reviewable
 and auditable on-chain, since readers see the final source, not the
 generator.
-
-### Pass functions across realms
-
-Function values cross realm boundaries freely: a realm can accept a callback,
-store it, and call it later. What does not travel with them is authority.
-A stored function writes state under its home realm: the realm that declared
-it, or, for a closure built by `p/` code, the realm that created it. It never
-writes under the realm that happens to invoke it. So holding another realm's
-callback does not let you write its state, and a callback smuggled into your
-realm cannot write yours. The runtime enforces this with the borrowing rules
-described in [the interrealm specification](./gno-interrealm.md).
-
-Invoking a stored callback without `cross` also leaves the realm context
-alone: your realm stays the current realm, and the callee cannot tell the
-difference. The dangerous move is the opposite one: cross-calling a
-caller-supplied function value with `cross(cur)` hands the callee your agency,
-because it will see your realm as its caller. Never cross-call an arbitrary
-submitted function; accept only callbacks you have reviewed or whitelisted.
-
-Two practical rules follow. Ownership handles are addresses, not functions:
-`ownable` stores the owner's address. Storing a realm value is not even an
-option, since realm values cannot be persisted at all. And in a realm, never
-expose a function-typed package variable whose type takes a `realm` parameter;
-it invites exactly the cross-call above.
-
-### Know what the frame stack can tell you
-
-For access control, `cur.Previous()` answers the only question that usually
-matters: who called me. The frame stack can answer a few more specific
-questions:
-
-- Was I called directly by a person, not through another contract? Use
-  `runtime.AssertOriginCall()`: it panics on anything but a direct
-  `maketx call`.
-- Was I called from a `maketx run` script? `cur.Previous().IsUserRun()` says
-  yes, and `IsUserCall()` means a plain user call. The
-  [payment rules](#verifying-inbound-coin-payments) depend on telling these
-  apart.
-- Was the transaction signed with a session key? `runtime.GetSessionInfo()`
-  tells you, so you can give delegated sessions tighter limits.
-
-There is also `chain/runtime/unsafe`, with raw stack walkers like
-`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. The name is a warning.
-Called from a helper function, `PreviousRealm()` does not return the helper's
-caller, and `OriginCaller()` is the `tx.origin` covered in
-[contract-level access control](#contract-level-access-control). Keep
-security checks on `cur`; use the frame stack only for questions about the
-whole transaction, not about your caller.
