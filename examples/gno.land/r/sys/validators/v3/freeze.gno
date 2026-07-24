@@ -2,14 +2,14 @@
 //
 // Authority model:
 //
-//   Both FreezeValidator and UnfreezeValidator are callable by two paths:
+//	Both FreezeValidator and UnfreezeValidator are callable by two paths:
 //
-//   1. GovDAO proposal (always). Any GovDAO member can propose a freeze or
-//      unfreeze via NewFreezeProposalRequest / NewUnfreezeProposalRequest.
+//	1. GovDAO proposal (always). Any GovDAO member can propose a freeze or
+//	   unfreeze via NewFreezeProposalRequest / NewUnfreezeProposalRequest.
 //
-//   2. Direct call by an address in the freezeAdmins list. The list is
-//      managed exclusively by GovDAO (AddFreezeAdmin / RemoveFreezeAdmin).
-//      The list may be empty, in which case only path 1 is available.
+//	2. Direct call by an address in the freezeAdmins list. The list is
+//	   managed exclusively by GovDAO (AddFreezeAdmin / RemoveFreezeAdmin).
+//	   The list may be empty, in which case only path 1 is available.
 //
 // The liveness floor is count-based for this draft (≥2/3 of total
 // validators must remain live after a freeze). Phase B will switch to a
