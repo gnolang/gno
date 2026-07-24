@@ -98,7 +98,7 @@ func TestIsFrozen_DoubleInsert(t *testing.T) {
 		}()
 		frozenSet.Set(addr.String(), frozenEntry{Addr: addr}) // simulates a second freeze attempt
 		// Check the guard directly without calling the crossing function.
-		if _, exists := frozenSet.Get(addr.String()); exists {
+		if frozenSet.Has(addr.String()) {
 			panic("validator is already frozen: " + addr.String())
 		}
 	}()
