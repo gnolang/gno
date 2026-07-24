@@ -134,6 +134,19 @@ functions. Constructors shaped like `NewX() *X { return &X{} }` are ignored as
 fresh allocations; manually inspect constructors that may return aliases to
 shared package state.
 
+### render_map_iteration
+
+Flags `for ... range <m>` inside `Render` where `<m>` is a package-level `map`
+variable, matched at a word boundary so a map `scores` does not flag an
+unrelated `range scoresList`. A map ranged behind a local alias, or built
+inside `Render`, is not detected.
+
+### Line reporting
+
+Sources are gofmt-normalized before matching so irregular spacing cannot defeat
+the rules, but every hit's `file:line` and text are mapped back to the original
+on-disk source, so they stay accurate even on input that was not gofmt-clean.
+
 ### Spec corpus test
 
 `TestAgentPatternContract` verifies that each pattern family's required terms

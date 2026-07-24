@@ -200,6 +200,63 @@ func TestRenderMapIterationRule(t *testing.T) {
 	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
 }
 
+// TestRenderMapIterationWordBoundary ensures "range <map>" is matched only at a
+// word boundary, so a map "scores" does not flag "range scoresList" (an
+// unrelated slice that merely shares a prefix).
+func TestRenderMapIterationWordBoundary(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"var scores = map[string]int{}\n" +
+		"var scoresList = []int{}\n\n" +
+		"func Render(path string) string {\n" +
+		"\tfor _, v := range scoresList {\n" +
+		"\t\t_ = v\n" +
+		"\t}\n" +
+		"\treturn \"\"\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("render_map_iteration", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("unrelated slice sharing the map's prefix was flagged: %+v", hits)
+	}
+}
+
+// TestHitReportsOriginalSourceLine ensures a hit's file:line and text come from
+// the on-disk source, not the gofmt-normalized buffer, even when formatting
+// shifts line numbers (here gofmt collapses the run of blank lines, so the
+// flagged line moves from on-disk line 7 to buffer line 5).
+func TestHitReportsOriginalSourceLine(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" + // 1, 2
+		"func F(cur realm) {\n" + // 3
+		"\n\n\n" + // 4, 5, 6 (collapsed to one by gofmt)
+		"\t_ = cur.Previous()\n" + // 7
+		"}\n" // 8
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit, got %d: %+v", len(hits), hits)
+	}
+	if hits[0].Line != 7 {
+		t.Fatalf("hit line %d does not match on-disk line 7: %+v", hits[0].Line, hits[0])
+	}
+	if hits[0].Text != "_ = cur.Previous()" {
+		t.Fatalf("hit text %q does not match on-disk source", hits[0].Text)
+	}
+}
+
 func TestRunWithFakeGNO(t *testing.T) {
 	tmp := t.TempDir()
 	gno := filepath.Join(tmp, "gno")

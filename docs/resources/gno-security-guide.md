@@ -303,6 +303,17 @@ while holding your own `m.Realm`. Either:
   types so attackers can't supply a matching `/p/`-callback, OR
 - Do not invoke caller callbacks at all; design synchronous APIs.
 
+**Safe by contrast — threading `cur` through your own concrete `/p/`
+functions.** The danger above is a *caller-supplied* `func` or
+`interface` value, not the `realm` token itself. Passing your own `cur`
+down into concrete functions you import from a `/p/` package is safe: a
+realm token grants authority only while `cur.IsCurrent()` holds, and a
+concrete callee cannot be swapped for attacker code the way an interface
+or callback parameter can. This is the interrealm pattern
+[daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64)
+relies on — do not avoid passing `realm` to `/p/` altogether; only avoid
+handing your authority to values the *caller* controls.
+
 ### 5.4 Trusting an interface value without canonical-type check
 
 ```go

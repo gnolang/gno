@@ -32,10 +32,24 @@ func Message() string {
 
 func Render(path string) string {
 	out := "# Security Patterns\n\n"
-	out += "Admin: `" + admin.String() + "`\n\n"
+	out += "This realm demonstrates three defensive patterns; read the source " +
+		"alongside this page:\n\n"
+	out += "1. **Live-realm guard** — `assertAdmin` panics unless " +
+		"`cur.IsCurrent()` holds, so a stale realm token captured elsewhere " +
+		"cannot mutate state.\n"
+	out += "2. **Caller identity via `cur.Previous().Address()`** — the admin " +
+		"check reads the immediate caller, not `OriginCaller()`, so an " +
+		"intermediary realm cannot pass itself off as the user.\n"
+	out += "3. **Sanitized render output** — every value echoed below is run " +
+		"through `p/nt/markdown/sanitize` first, so caller-controlled text " +
+		"cannot inject markdown or break out of a code span.\n\n"
+	// InlineCode wraps in a backtick run wide enough to outscan any backticks
+	// in the content, so a backtick in path cannot close the span early — a
+	// naive "`" + path + "`" would.
+	out += "Admin: " + sanitize.InlineCode(admin.String()) + "\n\n"
 	out += "Message: " + escapeRenderText(message) + "\n"
 	if path != "" {
-		out += "\nPath: `" + escapeRenderText(path) + "`\n"
+		out += "\nPath: " + sanitize.InlineCode(path) + "\n"
 	}
 	return out
 }
