@@ -1092,7 +1092,7 @@ func TestProposeValidBlock(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, unlockCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	propBlock := rs.ProposalBlock
@@ -1153,7 +1153,12 @@ func TestProposeValidBlock(t *testing.T) {
 
 	t.Log("### ONTO ROUND 4")
 
-	ensureNewProposal(proposalCh, height, round)
+	// cs1 proposes the valid block here, but the proposal reaches the state
+	// through the internal message queue, so the propose timeout can win the
+	// race and fire first. Nothing else reads that timeout, and subscriptions
+	// deliver synchronously on the routine that drains the queue, so leaving it
+	// unread stops cs1 from ever reaching its own proposal.
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs = cs1.GetRoundState()
 	assert.True(t, bytes.Equal(rs.ProposalBlock.Hash(), propBlockHash))

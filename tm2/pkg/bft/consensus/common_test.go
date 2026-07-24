@@ -472,6 +472,47 @@ func ensureNewProposal(proposalCh <-chan events.Event, height int64, round int) 
 	}
 }
 
+// ensureNewProposalDespiteTimeout waits for the proposal of a round the node
+// proposes itself, accepting a propose timeout for that same round on the way.
+//
+// The node signs its proposal and hands it to the internal message queue, so a
+// slow enough drain lets the propose timeout fire first. Reading that timeout
+// is what keeps the node running: subscriptions deliver synchronously on the
+// routine that drains the queue, so an unread event stops the round dead.
+func ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh <-chan events.Event, height int64, round int) {
+	deadline := time.After(ensureTimeout)
+
+	for {
+		select {
+		case <-deadline:
+			panic("Timeout expired while waiting for NewProposal event")
+		case msg := <-timeoutProposeCh:
+			timeoutEvent, ok := msg.(cstypes.EventTimeoutPropose)
+			if !ok {
+				panic(fmt.Sprintf("expected a EventTimeoutPropose, got %T. Wrong subscription channel?",
+					msg))
+			}
+			if timeoutEvent.Height != height || timeoutEvent.Round != round {
+				panic(fmt.Sprintf("expected propose timeout for %v/%v, got %v/%v",
+					height, round, timeoutEvent.Height, timeoutEvent.Round))
+			}
+		case msg := <-proposalCh:
+			proposalEvent, ok := msg.(cstypes.EventCompleteProposal)
+			if !ok {
+				panic(fmt.Sprintf("expected a EventCompleteProposal, got %T. Wrong subscription channel?",
+					msg))
+			}
+			if proposalEvent.Height != height {
+				panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
+			}
+			if proposalEvent.Round != round {
+				panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
+			}
+			return
+		}
+	}
+}
+
 func ensureNewValidBlock(validBlockCh <-chan events.Event, height int64, round int) {
 	ensureNewEvent(validBlockCh, height, round, ensureTimeout,
 		"Timeout expired while waiting for NewValidBlock event")

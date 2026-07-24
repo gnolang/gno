@@ -2,6 +2,7 @@ package gnoland
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -64,17 +66,28 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 	n, err := NewInMemoryNode(log.NewTestingLogger(t), cfg)
 	require.NoError(t, err)
 
+	// Record the height carried by the first NewBlock event. n.Ready() only
+	// reports that some block arrived, and the node keeps producing blocks
+	// after that, so reading the block store once Ready() fires races with the
+	// next commit.
+	firstHeight := make(chan int64, 1)
+	var once sync.Once
+	n.EventSwitch().AddListener("first_block_height", func(ev events.Event) {
+		if nb, ok := ev.(bft.EventNewBlock); ok {
+			once.Do(func() { firstHeight <- nb.Block.Height })
+		}
+	})
+
 	require.NoError(t, n.Start())
 	t.Cleanup(func() { require.NoError(t, n.Stop()) })
 
+	var height int64
 	select {
-	case <-n.Ready():
-		// first block committed
+	case height = <-firstHeight:
 	case <-time.After(30 * time.Second):
 		t.Fatal("timeout waiting for node to produce first block")
 	}
 
-	height := n.BlockStore().Height()
 	require.Equal(t, initialHeight, height,
 		"first committed block should be at InitialHeight (%d), got %d", initialHeight, height)
 }
