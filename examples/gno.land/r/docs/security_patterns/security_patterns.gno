@@ -1,4 +1,4 @@
-package securitypatterns
+package security_patterns
 
 import "gno.land/p/nt/markdown/sanitize/v0"
 
