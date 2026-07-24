@@ -1516,6 +1516,7 @@ func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
 
 func backendInertPackagePathKey(path string) string { return "inert_pkg:" + path }
+
 // backendPackageAllButProdKey returns the sibling key holding a package's
 // test/filetest files (everything in an MP*All package but its production
 // subset). It suffixes the package path key with "#allbutprod"; "#" cannot
