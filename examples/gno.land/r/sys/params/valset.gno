@@ -33,6 +33,9 @@ const (
 	valsetProposedKey = "proposed"
 	valsetCurrentKey  = "current"
 
+	// pubkey_types: chain-mirrored validator pubkey-type allow-list (read-only here).
+	valsetPubKeyTypesKey = "pubkey_types"
+
 	// Only this realm may write valset:proposed and valset:dirty.
 	// valset:current is chain-managed (see ctx-sentinel in node_params.go).
 	valsetAuthorizedRealm = "gno.land/r/sys/validators/v3"
@@ -119,6 +122,12 @@ func parseEntry(entry string) (validators.Validator, error) {
 		PubKey:      pkStr,
 		VotingPower: power,
 	}, nil
+}
+
+// GetValsetPubKeyTypes returns the validator pubkey-type allow-list mirrored from consensus params (empty means accept any).
+func GetValsetPubKeyTypes() []string {
+	types, _ := prms.GetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetPubKeyTypesKey)
+	return types
 }
 
 func assertValsetCaller(_ int, rlm realm) {
