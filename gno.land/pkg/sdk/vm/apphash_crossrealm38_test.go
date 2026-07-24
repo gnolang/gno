@@ -104,7 +104,15 @@ import (
 // Behavior is unchanged for all typed values; only the constant-folding
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
-const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
+//
+// Hash bumped again by the test-blob-exclusion PR (#5971): #5891 stored each
+// package's #allbutprod (test/filetest) blob in the merkleized iavlStore; this
+// PR moves it to the non-merkleized baseStore so test files no longer enter the
+// consensus AppHash. Every genesis stdlib/example package that ships _test.gno
+// files drops its test blob out of the committed root, so the pinned value
+// shifts once. Behavior is unchanged; intentional consensus-breaking change
+// (see ADR pr5971). Re-derived after merging master.
+const expectedCrossrealm38Hash = "794f53130efd46975f0f65bc055eca2edd71e5142448b9710fc434683e879dc4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

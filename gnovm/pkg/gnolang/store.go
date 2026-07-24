@@ -1018,6 +1018,12 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	// prod bytes only), and the remaining test/filetest files under a sibling
 	// "#allbutprod" key read only by query paths (see GetMemPackageAll). Other
 	// (already-filtered) types are stored whole under pathkey as before.
+	//
+	// The prod blob lives in the merkleized iavlStore (it is importable code
+	// and part of consensus state), while the #allbutprod sibling lives in the
+	// non-merkleized baseStore: test/filetest files never affect execution, so
+	// they are kept queryable for tooling but deliberately excluded from the
+	// consensus AppHash. See ADR pr5971.
 	if mpkgtype.IsAll() {
 		prod, allButProd := splitProdAllButProd(mpkg)
 		// prod is nil for a package with no production .gno files (e.g. an
@@ -1026,39 +1032,42 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 		// non-.gno files into the #allbutprod sibling so GetMemPackageAll can
 		// reconstruct the full package losslessly.
 		if prod != nil {
-			size += ds.setMemPackageBlob(pathkey, prod)
+			size += ds.setMemPackageBlob(ds.iavlStore, pathkey, prod)
 		}
 		if len(allButProd.Files) > 0 {
-			size += ds.setMemPackageBlob([]byte(backendPackageAllButProdKey(mpkg.Path)), allButProd)
+			size += ds.setMemPackageBlob(ds.baseStore, []byte(backendPackageAllButProdKey(mpkg.Path)), allButProd)
 		}
 	} else {
-		size += ds.setMemPackageBlob(pathkey, mpkg)
+		size += ds.setMemPackageBlob(ds.iavlStore, pathkey, mpkg)
 	}
 }
 
-// DeleteMemPackage removes both the production blob (pkg:<path>) and the
-// #allbutprod sibling for path. It is a no-op for keys that do not exist. Used
-// before a private-package redeploy: AddMemPackage stores an MP*All package as
-// two keys, and its conditional writes are not a full replace across both, so a
-// stale sibling (or, for a now-prod-less package, a stale prod blob) could
-// otherwise survive a re-add and be served by GetMemPackage/GetMemPackageAll.
+// DeleteMemPackage removes both the production blob (pkg:<path>, iavlStore) and
+// the #allbutprod sibling (baseStore) for path. It is a no-op for keys that do
+// not exist. Used before a private-package redeploy: AddMemPackage stores an
+// MP*All package as two keys in two different stores, and its conditional writes
+// are not a full replace across both, so a stale sibling (or, for a now-prod-less
+// package, a stale prod blob) could otherwise survive a re-add and be served by
+// GetMemPackage/GetMemPackageAll.
 func (ds *defaultStore) DeleteMemPackage(path string) {
 	ds.iavlStore.Delete(ds.gctx, []byte(backendPackagePathKey(path)))
-	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+	ds.baseStore.Delete(ds.gctx, []byte(backendPackageAllButProdKey(path)))
 }
 
 // setMemPackageBlob amino-marshals mpkg, charges encode gas, writes it under key
-// in the iavl store, and returns the encoded byte length.
-func (ds *defaultStore) setMemPackageBlob(key []byte, mpkg *std.MemPackage) int {
+// in dst, and returns the encoded byte length. dst is the iavlStore for the
+// consensus-relevant prod blob and the (non-merkleized) baseStore for the
+// #allbutprod test/filetest sibling.
+func (ds *defaultStore) setMemPackageBlob(dst store.Store, key []byte, mpkg *std.MemPackage) int {
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
 	if trace.StoreGasEnabled {
 		trace.Store("ENCODE_MEMPKG", gas, key, len(bz), "none")
 	}
-	ds.iavlStore.Set(ds.gctx, key, bz)
+	dst.Set(ds.gctx, key, bz)
 	if trace.StoreGasEnabled {
-		trace.Store("IAVL_SET_MEMPKG", 0, key, len(bz), "none")
+		trace.Store("SET_MEMPKG", 0, key, len(bz), "none")
 	}
 	return len(bz)
 }
@@ -1146,8 +1155,10 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 
 // getMemPackageAllButProd reads and decodes the "#allbutprod" sibling blob (the
 // test/filetest files) for path, or nil if there is none. Charges decode gas.
+// The sibling lives in the non-merkleized baseStore (see AddMemPackage): it is
+// excluded from the consensus AppHash and only served on query/tooling paths.
 func (ds *defaultStore) getMemPackageAllButProd(path string) *std.MemPackage {
-	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
+	bz := ds.baseStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
 	if bz == nil {
 		return nil
 	}
@@ -1215,19 +1226,29 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 
 	return func(yield func(string) bool) {
-		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
-		defer iter.Close()
+		// Prod blobs live in the merkleized iavlStore; #allbutprod (test/filetest)
+		// siblings live in the non-merkleized baseStore. A package may have only a
+		// sibling (a prod-less, test-only package). Merge both key streams in
+		// sorted order and de-dup by the suffix-trimmed path so each package is
+		// yielded exactly once — whether the two stores are distinct (on-chain) or
+		// the same underlying store (tooling: NewStore(_, base, base), where the
+		// two iterators stay in lockstep and every key compares equal).
+		//
+		// Only "pkg:" keys fall in [startKey,endKey]; object/type/node/index keys
+		// use disjoint prefixes ("oid:"/"tid:"/"node:"/"pkgidx:"), so the baseStore
+		// scan sees siblings only.
+		it1 := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
+		defer it1.Close()
+		it2 := ds.baseStore.Iterator(ds.gctx, startKey, endKey)
+		defer it2.Close()
 
 		var last string
 		var hasLast bool
-		for ; iter.Valid(); iter.Next() {
-			key := string(iter.Key())
-			// A package's prod key (pkg:<path>) and its #allbutprod sibling map
-			// to the same path. Strip the sibling suffix and de-dup so each
-			// package is yielded exactly once — including an empty-prod package
-			// (only a sibling key). Prod and sibling keys for a path are
-			// adjacent in iavl order, so de-dup against the previous suffices.
-			key = strings.TrimSuffix(key, "#allbutprod")
+		emit := func(rawKey string) bool {
+			// A package's prod key (pkg:<path>) and its #allbutprod sibling map to
+			// the same path and are adjacent in the merged key order, so de-dup
+			// against the previous suffices.
+			key := strings.TrimSuffix(rawKey, "#allbutprod")
 			// A prefix containing '#' (impossible in a valid package path,
 			// but reachable from raw query input, e.g. vm/qpaths) can range
 			// over a sibling key whose trimmed form no longer carries the
@@ -1236,14 +1257,44 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 			// "_/" key marker, so path-space comparison would wrongly drop
 			// legitimate stdlib matches.
 			if len(prefix) > 0 && !strings.HasPrefix(key, string(startKey)) {
-				continue
+				return true
 			}
 			path := decodeBackendPackagePathKey(key)
 			if hasLast && path == last {
-				continue
+				return true
 			}
 			last, hasLast = path, true
-			if !yield(path) {
+			return yield(path)
+		}
+
+		for it1.Valid() && it2.Valid() {
+			k1, k2 := string(it1.Key()), string(it2.Key())
+			switch {
+			case k1 < k2:
+				if !emit(k1) {
+					return
+				}
+				it1.Next()
+			case k2 < k1:
+				if !emit(k2) {
+					return
+				}
+				it2.Next()
+			default: // same-store case: identical keys, consume both
+				if !emit(k1) {
+					return
+				}
+				it1.Next()
+				it2.Next()
+			}
+		}
+		for ; it1.Valid(); it1.Next() {
+			if !emit(string(it1.Key())) {
+				return
+			}
+		}
+		for ; it2.Valid(); it2.Next() {
+			if !emit(string(it2.Key())) {
 				return
 			}
 		}
