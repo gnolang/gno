@@ -67,8 +67,8 @@ stderr 'not authorized to submit code'
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/run/hello.gno
 stdout OK!
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
