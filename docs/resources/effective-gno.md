@@ -508,12 +508,13 @@ exact calling convention.
 
 Function values cross realm boundaries freely: a realm can accept a callback,
 store it, and call it later. What does not travel with them is authority.
-A stored function writes state under its home realm: the realm that declared
-it, or, for a closure built by `p/` code, the realm that created it. It never
-writes under the realm that happens to invoke it. So holding another realm's
-callback does not let you write its state, and a callback smuggled into your
-realm cannot write yours. The runtime enforces this with the borrowing rules
-described in [the interrealm specification](./gno-interrealm.md).
+Calling a stored callback is like pressing a button another realm built: the
+code runs, but its writes land in the realm that built it, the declaring
+realm, or, for a closure built by `p/` code, the realm that created it. The
+invoker gains nothing: holding another realm's callback does not let you
+write its state, and a callback smuggled into your realm cannot write yours.
+The runtime enforces this with the borrowing rules described in
+[the interrealm specification](./gno-interrealm.md).
 
 Invoking a stored callback without `cross` also leaves the realm context
 alone: your realm stays the current realm, and the callee cannot tell the
@@ -545,9 +546,11 @@ questions:
   tells you, so you can give delegated sessions tighter limits.
 
 There is also `chain/runtime/unsafe`, with raw stack walkers like
-`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. The name is a warning.
-Called from a helper function, `PreviousRealm()` does not return the helper's
-caller, and `OriginCaller()` is the `tx.origin` covered in
+`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. They are unsafe because
+they answer from wherever they happen to be called: move the call into a
+helper and `PreviousRealm()` no longer means your caller, and nothing
+verifies the answer the way a `cur` handle is verified before you trust it.
+`OriginCaller()` is the `tx.origin` covered in
 [contract-level access control](#contract-level-access-control). Keep
 security checks on `cur`; use the frame stack only for questions about the
 whole transaction, not about your caller.
@@ -559,9 +562,9 @@ secure. It's created with the intent of preventing unauthorized access and
 modifications. This follows the same principle of making a package an API, but
 for a Gno object that can be directly referenced by other realms.
 
-The goal is to create an object which, once instantiated, can be linked and its
-pointer can be "stored" by other realms without issue, because it protects its
-usage completely.
+The goal is an object that other realms can hold and pass around, even by
+pointer, without risk: every method checks its own caller, so the object
+protects itself wherever it is stored.
 
 ```go
 type MySafeStruct struct {
