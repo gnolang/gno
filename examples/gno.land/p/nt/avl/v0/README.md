@@ -24,15 +24,19 @@ func Set(key string, value int) {
 }
 
 func Get(key string) int {
-	// tree.Get returns the value at given key in its raw form,
-	// and a bool to signify the existence of the key-value pair
-	rawValue, exists := tree.Get(key)
-	if !exists {
+	// tree.Get returns the value at given key, or nil if the key does not exist.
+	// Use a type assertion to convert the raw value into the proper type.
+	rawValue := tree.Get(key)
+	if rawValue == nil {
 		panic("value at given key does not exist")
 	}
 
-	// rawValue needs to be converted into the proper type before returning it
 	return rawValue.(int)
+}
+
+func Exists(key string) bool {
+	// tree.Has returns true if the key exists, without retrieving the value.
+	return tree.Has(key)
 }
 ```
 

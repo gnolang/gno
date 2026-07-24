@@ -28,8 +28,8 @@ func (d *Directory) HasPerm(addr address, verb, resource string) bool {
 	}
 
 	// user groups' perms.
-	groups, ok := d.userGroups.Get(addr.String())
-	if ok {
+	groups := d.userGroups.Get(addr.String())
+	if groups != nil {
 		for _, group := range groups.([]string) {
 			if d.getBucketPerms("g:"+group).hasPerm(verb, resource) {
 				return true
@@ -41,8 +41,8 @@ func (d *Directory) HasPerm(addr address, verb, resource string) bool {
 }
 
 func (d *Directory) getBucketPerms(bucket string) perms {
-	res, ok := d.permBuckets.Get(bucket)
-	if ok {
+	res := d.permBuckets.Get(bucket)
+	if res != nil {
 		return res.(perms)
 	}
 	return perms{}
@@ -73,8 +73,8 @@ func (d *Directory) AddGroupPerm(name string, verb, resource string) {
 func (d *Directory) addPermToBucket(bucket string, p perm) {
 	var ps perms
 
-	existing, ok := d.permBuckets.Get(bucket)
-	if ok {
+	existing := d.permBuckets.Get(bucket)
+	if existing != nil {
 		ps = existing.(perms)
 	}
 	ps = append(ps, p)
@@ -83,9 +83,9 @@ func (d *Directory) addPermToBucket(bucket string, p perm) {
 }
 
 func (d *Directory) AddUserToGroup(user address, group string) {
-	existing, ok := d.userGroups.Get(user.String())
+	existing := d.userGroups.Get(user.String())
 	var groups []string
-	if ok {
+	if existing != nil {
 		groups = existing.([]string)
 	}
 	groups = append(groups, group)
