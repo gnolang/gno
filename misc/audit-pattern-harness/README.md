@@ -66,6 +66,10 @@ Current pattern slices:
   state.
 - `render-map-iteration`: public Render output that depends on map iteration
   order.
+- `unsafe-previous-realm`: `unsafe.PreviousRealm()` used in a realm that
+  declares crossing functions (`func F(cur realm, ...)`).
+- `pkg-mutable-pointer`: pointer to a `/p/` type with mutation methods
+  (`*avl.Tree`) exposed as an exported return, field, or var.
 
 Each `expected/*.yaml` record describes one finding family and its fixtures:
 
@@ -140,6 +144,22 @@ Flags `for ... range <m>` inside `Render` where `<m>` is a package-level `map`
 variable, matched at a word boundary so a map `scores` does not flag an
 unrelated `range scoresList`. A map ranged behind a local alias, or built
 inside `Render`, is not detected.
+
+### unsafe_previous_realm
+
+Flags `PreviousRealm()` calls only in files that also declare a crossing
+function (`func F(cur realm, ...)`). A non-crossing helper or a not-yet-migrated
+realm that legitimately uses `chain/runtime/unsafe` is not flagged. Detection is
+per file, so a crossing function in one file and the unsafe call in another (same
+package) are not correlated.
+
+### pkg_mutable_pointer
+
+Flags a pointer to a `/p/` type whose exported methods mutate the receiver,
+exposed as an exported function return, struct field, or package var. The known
+mutable type set is currently `avl.Tree` only; a pointer to another mutable
+`/p/` type, or the type reached behind a local alias, is not detected. Getters
+returning a locally-declared `*T` are already covered by `exported_pointer_leak`.
 
 ### Line reporting
 

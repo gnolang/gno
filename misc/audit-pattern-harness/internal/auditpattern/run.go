@@ -21,6 +21,21 @@ var exportedPointerFuncRE = regexp.MustCompile(`^func\s+([A-Z]\w*)\([^)]*\)\s+\*
 var freshConstructorReturnRE = regexp.MustCompile(`return\s+&[A-Z]\w*\s*\{`)
 var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 
+// crossingFuncRE matches a crossing function declaration (top-level func or
+// method) whose first parameter is the realm capability token `cur realm`.
+var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm\b`)
+
+// pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
+// the receiver, so a pointer to one is a live mutator handle. avl.Tree is the
+// canonical example (Set/Remove/ReverseIterate); extend as more are documented.
+var pkgMutablePointerTypeRE = `\*avl\.Tree\b`
+
+// pkgMutableReturnRE matches an exported function returning a pointer to such a
+// type (guide §5.1a). pkgMutableFieldRE matches an exported struct field or
+// package var of that pointer type (guide §5.1b).
+var pkgMutableReturnRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?[A-Z]\w*\([^)]*\)\s+` + pkgMutablePointerTypeRE)
+var pkgMutableFieldRE = regexp.MustCompile(`^(?:var\s+)?[A-Z]\w*\s+` + pkgMutablePointerTypeRE)
+
 type Options struct {
 	GNOBin string
 }
@@ -140,9 +155,85 @@ func RunRule(rule, dir string) ([]Hit, error) {
 		return exportedPointerLeakHits(dir)
 	case "render_map_iteration":
 		return renderMapIterationHits(dir)
+	case "unsafe_previous_realm":
+		return unsafePreviousRealmHits(dir)
+	case "pkg_mutable_pointer":
+		return pkgMutablePointerHits(dir)
 	default:
 		return nil, fmt.Errorf("unknown rule %q", rule)
 	}
+}
+
+// unsafePreviousRealmHits flags any PreviousRealm() call in a file that also
+// declares a crossing function (`func F(cur realm, ...)`). In a crossing
+// function the caller must be derived from cur.Previous() under a
+// cur.IsCurrent() guard; reaching for chain/runtime/unsafe.PreviousRealm()
+// instead skips the frame check and ignores the cur token (guide §5.8).
+func unsafePreviousRealmHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		src, err := loadGnoSource(file)
+		if err != nil {
+			return nil, err
+		}
+
+		crossing := false
+		for _, line := range src.code {
+			if crossingFuncRE.MatchString(strings.TrimSpace(line)) {
+				crossing = true
+				break
+			}
+		}
+		if !crossing {
+			continue
+		}
+
+		for i, line := range src.code {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if strings.Contains(line, "PreviousRealm()") {
+				hits = append(hits, src.hit(dir, file, i))
+			}
+		}
+	}
+	return hits, nil
+}
+
+// pkgMutablePointerHits flags a pointer to a /p/ type whose exported methods
+// mutate the receiver (avl.Tree) exposed as an exported function return
+// (guide §5.1a) or an exported struct field / package var (guide §5.1b).
+// Readonly taint does not block method dispatch, so such a handle publishes
+// the type's mutators under the realm's authority.
+func pkgMutablePointerHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		src, err := loadGnoSource(file)
+		if err != nil {
+			return nil, err
+		}
+		for i, line := range src.code {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if pkgMutableReturnRE.MatchString(trimmed) || pkgMutableFieldRE.MatchString(trimmed) {
+				hits = append(hits, src.hit(dir, file, i))
+			}
+		}
+	}
+	return hits, nil
 }
 
 func currentGuardHits(dir string) ([]Hit, error) {

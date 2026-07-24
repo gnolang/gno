@@ -200,6 +200,62 @@ func TestRenderMapIterationRule(t *testing.T) {
 	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
 }
 
+func TestUnsafePreviousRealmRule(t *testing.T) {
+	assertRuleCounts(t, "unsafe_previous_realm", "unsafe-previous-realm", 1, 0)
+}
+
+// TestUnsafePreviousRealmIgnoresNonCrossing ensures PreviousRealm() is only
+// flagged in a file that also declares a crossing function; a non-crossing
+// helper that legitimately uses the unsafe API is left alone.
+func TestUnsafePreviousRealmIgnoresNonCrossing(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"import \"chain/runtime/unsafe\"\n\n" +
+		"func caller() address {\n" +
+		"\treturn unsafe.PreviousRealm().Address()\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("unsafe_previous_realm", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("non-crossing helper using the unsafe API was flagged: %+v", hits)
+	}
+}
+
+func TestPkgMutablePointerRule(t *testing.T) {
+	assertRuleCounts(t, "pkg_mutable_pointer", "pkg-mutable-pointer", 2, 0)
+}
+
+// TestPkgMutablePointerIgnoresUnexported ensures an unexported field and an
+// unexported getter of the mutable /p/ type are not flagged — only exported
+// handles publish the mutators.
+func TestPkgMutablePointerIgnoresUnexported(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"import \"gno.land/p/nt/avl/v0\"\n\n" +
+		"var store = avl.NewTree()\n\n" +
+		"type box struct {\n" +
+		"\titems *avl.Tree\n" +
+		"}\n\n" +
+		"func size() int { return store.Size() }\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("pkg_mutable_pointer", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("unexported mutable-pointer handles were flagged: %+v", hits)
+	}
+}
+
 // TestRenderMapIterationWordBoundary ensures "range <map>" is matched only at a
 // word boundary, so a map "scores" does not flag "range scoresList" (an
 // unrelated slice that merely shares a prefix).
@@ -295,6 +351,8 @@ func TestAgentPatternContract(t *testing.T) {
 		"payment-user-call":     {"OriginSend()", "IsUserCall()"},
 		"render-map-iteration":  {"Render", "map iteration"},
 		"render-markdown":       {"Render(path)", "markdown/sanitize"},
+		"unsafe-previous-realm": {"unsafe.PreviousRealm()", "cur realm"},
+		"pkg-mutable-pointer":   {"avl.Tree", "mutation method"},
 	}
 	// Every vulnerable hit must contain the rule's detection signal. Counting
 	// hits alone lets a rule be rewritten to flag a coincidental line (e.g. an
@@ -309,6 +367,8 @@ func TestAgentPatternContract(t *testing.T) {
 		"payment-user-call":     "OriginSend()",
 		"render-map-iteration":  "range ",
 		"render-markdown":       "path",
+		"unsafe-previous-realm": "PreviousRealm()",
+		"pkg-mutable-pointer":   "avl.Tree",
 	}
 
 	corpus := readSpecCorpus(t, specFiles)
