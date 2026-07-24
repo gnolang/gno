@@ -102,7 +102,7 @@ func AutoFreezeValidator(cur realm, addr address, reason, evidence string) {
 	if IsFrozen(addr) {
 		panic("validator is already manually frozen: " + key)
 	}
-	if _, exists := autoFrozenSet.Get(key); exists {
+	if autoFrozenSet.Has(key) {
 		panic("validator is already auto-frozen: " + key)
 	}
 	if _, protected := protectedSet.Get(key); protected {
@@ -246,7 +246,7 @@ func DeregisterMonitor(cur realm, addr address) {
 
 // IsMonitor returns true if addr is a registered monitor.
 func IsMonitor(addr address) bool {
-	_, ok := monitors.Get(addr.String())
+	ok := monitors.Has(addr.String())
 	return ok
 }
 
@@ -281,7 +281,7 @@ func RemoveProtected(cur realm, addr address) {
 
 // IsProtected returns true if addr is in the protected set.
 func IsProtected(addr address) bool {
-	_, ok := protectedSet.Get(addr.String())
+	ok := protectedSet.Has(addr.String())
 	return ok
 }
 
@@ -289,7 +289,7 @@ func IsProtected(addr address) bool {
 
 // IsAutoFrozen returns true if addr is currently auto-frozen.
 func IsAutoFrozen(addr address) bool {
-	_, ok := autoFrozenSet.Get(addr.String())
+	ok := autoFrozenSet.Has(addr.String())
 	return ok
 }
 
@@ -340,7 +340,7 @@ func renderAutoFreeze() string {
 // assertMonitorCaller panics if the OriginCaller is not a registered monitor.
 func assertMonitorCaller(_ realm) {
 	caller := runtimeunsafe.OriginCaller()
-	if _, ok := monitors.Get(caller.String()); !ok {
+	if !monitors.Has(caller.String()) {
 		panic("caller is not a registered monitor: " + caller.String())
 	}
 }

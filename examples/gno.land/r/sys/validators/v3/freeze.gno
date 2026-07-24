@@ -93,8 +93,8 @@ func UnfreezeValidator(cur realm, addr address, reason string) {
 // restores addr to the effective valset with its saved power.
 func NewUnfreezeProposalRequest(cur realm, addr address, reason string) dao.ProposalRequest {
 	key := addr.String()
-	raw, exists := frozenSet.Get(key)
-	if !exists {
+	raw := frozenSet.Get(key)
+	if raw == nil {
 		panic("validator is not frozen: " + key)
 	}
 	entry := raw.(frozenEntry)
@@ -139,7 +139,7 @@ func RemoveFreezeAdmin(cur realm, addr address) {
 
 // IsFreezeAdmin returns true if addr is in the freeze admin list.
 func IsFreezeAdmin(addr address) bool {
-	_, ok := freezeAdmins.Get(addr.String())
+	ok := freezeAdmins.Has(addr.String())
 	return ok
 }
 
@@ -157,7 +157,7 @@ func GetFreezeAdmins() []address {
 
 // IsFrozen returns true if addr is currently frozen.
 func IsFrozen(addr address) bool {
-	_, exists := frozenSet.Get(addr.String())
+	exists := frozenSet.Has(addr.String())
 	return exists
 }
 
@@ -208,7 +208,7 @@ func renderFrozen() string {
 // doFreeze is the shared freeze implementation (auth already checked by caller).
 func doFreeze(cur realm, addr address, reason string) {
 	key := addr.String()
-	if _, exists := frozenSet.Get(key); exists {
+	if frozenSet.Has(key) {
 		panic("validator is already frozen: " + key)
 	}
 
@@ -255,8 +255,8 @@ func doFreeze(cur realm, addr address, reason string) {
 // doUnfreeze is the shared unfreeze implementation (auth already checked).
 func doUnfreeze(cur realm, addr address, reason string) {
 	key := addr.String()
-	raw, exists := frozenSet.Get(key)
-	if !exists {
+	raw := frozenSet.Get(key)
+	if raw == nil {
 		panic("validator is not frozen: " + key)
 	}
 	e := raw.(frozenEntry)
@@ -291,7 +291,7 @@ func assertFreezeOrAdmin(cur realm) {
 		return
 	}
 	caller := runtimeunsafe.OriginCaller()
-	if _, ok := freezeAdmins.Get(caller.String()); ok {
+	if freezeAdmins.Has(caller.String()) {
 		return
 	}
 	panic("caller is not a freeze admin and this is not a GovDAO call; " +
