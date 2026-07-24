@@ -68,7 +68,49 @@ import (
 // their *_test.gno source bytes), which shifts the iavlStore Merkle root. This
 // is the only consensus-relevant change in that PR; verified by bisection that
 // no other change in the PR moves this hash. The shift is therefore expected.
-const expectedCrossrealm38Hash = "133a70aa761f36a99f57f68ed1249ff56cbc42b77fa654534a922dd7993db887"
+//
+// Hash bumped 2026-07-10 (bptree mount PR), two coinciding causes: (1) the
+// test env's main store switched from IAVL to the B+32 bptree store
+// (different commitment structure — every multistore hash moves); (2) the
+// depth gas pins committed into "vm:p" changed (Fixed = Min: 300/200/440 →
+// 100/200/540). Behavior is unchanged (the zrealm_crossrealm38.gno filetest
+// still passes).
+//
+// Hash bumped by the realm.Sub PR (#5890): the realm interface gained
+// Sub/Subpath (shifting its TypeID) and the chain/banker + chain/address
+// stdlib source changed (NewBanker IsCurrent guard, sub-realm helpers) —
+// stdlib MemPackage source bytes are committed into genesis state, so the
+// committed multistore root shifts. The crossrealm38 scenario itself does
+// not use sub-realms; the move is purely the interface/stdlib change and is
+// an intended consensus break for that PR.
+//
+// Hash bumped by the mempackage prod/test storage split (#5891): MP*All
+// packages now store production files under pkg:<path> (typed MP*Prod) and
+// test/filetest files under a pkg:<path>#allbutprod sibling, changing stored
+// package bytes and the committed multistore root. Behavior is unchanged;
+// only the storage encoding shifted.
+//
+// Hash bumped by the preprocess-gas PR (#5892): the new PreprocessGasPerByte
+// vm param (default 1250) has a non-zero default serialized into the genesis
+// vm params state, shifting the committed multistore root. Behavior is
+// unchanged; only the genesis params encoding shifted. (Value re-derived
+// after merging master, so it reflects the bptree store + #5890 + #5891 +
+// this param together.)
+//
+// Hash bumped by the apd -> math/big.Rat PR (#5867): BigdecValue (untyped
+// float constant representation) now amino-serializes in rational form
+// ("1/3") instead of the old decimal string ("0.3333333333"), shifting the
+// committed multistore root for any realm state containing bigdec constants.
+// Behavior is unchanged for all typed values; only the constant-folding
+// arithmetic is corrected (fixes #5862). Re-derived after merging master, so
+// it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
+//
+// Hash bumped by the phase-2 inert-packages PR (#5888): new vm params
+// (code_submission_policy, code_submitters, pkg_approvers) plus inert-storage
+// keying serialize additional defaults into the genesis vm params state,
+// shifting the committed multistore root. Behavior is unchanged (policy
+// defaults to permissionless). Re-derived after merging master.
+const expectedCrossrealm38Hash = "20961c1dbbd55430985813346aacce045bbb739d4e99a31c98d2062e793429e0"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

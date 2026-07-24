@@ -2,6 +2,7 @@ package grc20reg
 
 import (
 	"chain"
+	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -11,27 +12,49 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
+var registry = avl.NewTree() // rlmPath.symbol -> *Token
 
-// Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
+// Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// Use this package's Register to make a token discoverable:
+// The registry key is the canonical fqname rlmPath.symbol (one token per
+// realm+symbol), independent of Token.ID()'s trailing sequence id, so
+// callers can look a token up from the (realm, symbol) pair they already
+// know:
 //
-//	Token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
-//	grc20reg.Register(cross, Token, "")
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
+//	key := grc20reg.Register(cross(cur), Token, "")
 
-func Register(cur realm, token *grc20.Token, slug string) {
+// Register records token under its rlmPath.symbol key and returns that key.
+// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
+// token identities/events unique, but the registry deliberately keys by
+// rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
+// register two tokens under the same symbol (overwrite/alias guard).
+func Register(cur realm, token *grc20.Token, slug string) string {
+	if token == nil {
+		panic("grc20reg: nil token")
+	}
 	if slug != "" {
 		validateSlug(slug)
 	}
 	rlmPath := cur.Previous().PkgPath()
-	key := fqname.Construct(rlmPath, slug)
+	key := fqname.Construct(rlmPath, token.GetSymbol())
+	// Token.ID() == key + "." + <id>; verify the token originates from the
+	// registering realm and symbol.
+	if !strings.HasPrefix(token.ID(), key+".") {
+		panic("grc20reg: token must be registered from its own realm")
+	}
+	if registry.Has(key) {
+		panic("grc20reg: token already registered")
+	}
 	registry.Set(key, token)
 	chain.Emit(
 		registerEvent,
+		"token_path", key,
 		"pkgpath", rlmPath,
 		"slug", slug,
+		"symbol", token.GetSymbol(),
 	)
+	return key
 }
 
 func Get(key string) *grc20.Token {
@@ -59,8 +82,8 @@ func Render(path string) string {
 		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
 			token := tokenI.(*grc20.Token)
-			rlmPath, slug := fqname.Parse(key)
-			rlmLink := fqname.RenderLink(rlmPath, slug)
+			rlmPath, tokenID := fqname.Parse(key)
+			rlmLink := fqname.RenderLink(rlmPath, tokenID)
 			infoLink := "/r/demo/grc20reg:" + key
 			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
 			return false
@@ -72,8 +95,8 @@ func Render(path string) string {
 	default: // specific token
 		key := path
 		token := MustGet(key)
-		rlmPath, slug := fqname.Parse(key)
-		rlmLink := fqname.RenderLink(rlmPath, slug)
+		rlmPath, tokenID := fqname.Parse(key)
+		rlmLink := fqname.RenderLink(rlmPath, tokenID)
 		s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
 		s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
@@ -83,15 +106,21 @@ func Render(path string) string {
 	}
 }
 
-const registerEvent = "register"
+const (
+	registerEvent = "register"
+	maxSlugLen    = 128
+)
 
 func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
 }
 
-// validateSlug panics if the slug contains non-alphanumeric characters.
+// validateSlug panics if the slug is too long or contains non-alphanumeric characters.
 // Only letters, digits, dashes, and underscores are allowed.
 func validateSlug(slug string) {
+	if len(slug) > maxSlugLen {
+		panic("grc20reg: slug too long")
+	}
 	for _, c := range slug {
 		if !isAlphanumeric(c) && c != '_' && c != '-' {
 			panic("grc20reg: invalid slug character: " + string(c))
