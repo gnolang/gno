@@ -27,7 +27,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
 	"/events":     {"/r/devrels/events", GnowebPath},
 	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
-	"/docs":       {"/u/docs", GnowebPath},
+	// "/docs" is served by DocsHandler (embedded repository docs); see docs.go.
 }
 
 // AppConfig contains configuration for gnoweb.
@@ -171,6 +171,14 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle web handler with redirect middleware
 	mux.Handle("/", RedirectMiddleware(httphandler, staticMeta))
+
+	// Serve the embedded repository docs under /docs. The handler is
+	// backed by the github.com/gnolang/gno/docs Go package, which embeds
+	// the docs/ folder at build time. Always-in-sync with the repo, no
+	// copy step, no deploy step.
+	docsHandler := NewDocsHandler(logger, staticMeta, renderer)
+	mux.Handle(DocsURLPrefix, docsHandler)
+	mux.Handle(DocsURLPrefix+"/", docsHandler)
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
