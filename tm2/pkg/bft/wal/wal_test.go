@@ -68,6 +68,33 @@ func TestWALWriterReader(t *testing.T) {
 
 const maxTestMsgSize int64 = 64 * 1024
 
+// TestWALWriterReaderLargeMessage verifies a record above maxTestMsgSize
+// (64KB) -- and above the fixed size the reader used to be hardcoded to --
+// round-trips correctly when both writer and reader are sized for it. This
+// is the actual read path BenchmarkWalRead100KB and up exercise; unlike the
+// benchmarks, this runs under plain `go test` (no -bench needed), so CI
+// actually covers it.
+func TestWALWriterReaderLargeMessage(t *testing.T) {
+	t.Parallel()
+
+	const n = 100 * 1024 // above maxTestMsgSize
+	maxSize := int64(n) + 64
+
+	msg := TimedWALMessage{
+		Time: tmtime.Now().Round(time.Second).UTC(),
+		Msg:  TestMessage{Height: 1, Round: 1, Data: random.RandBytes(n)},
+	}
+
+	buf := new(bytes.Buffer)
+	require.NoError(t, NewWALWriter(buf, maxSize).Write(msg))
+
+	decoded, meta, err := NewWALReader(buf, maxSize).ReadMessage()
+	require.NoError(t, err)
+	require.Nil(t, meta)
+	assert.Equal(t, msg.Msg, decoded.Msg)
+	assert.Equal(t, msg.Time, decoded.Time)
+}
+
 func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal *baseWAL) {
 	t.Helper()
 
@@ -289,5 +316,14 @@ func BenchmarkWalRead100MB(b *testing.B) {
 }
 
 func BenchmarkWalRead1GB(b *testing.B) {
+	// A single iteration peaks around 12.3GB resident (writer + reader
+	// buffers for a 1GB message), which can OOM a CI runner with a
+	// constrained memory budget. Production caps consensus WAL records at
+	// 1MB (maxMsgSize in tm2/pkg/bft/consensus/reactor.go), so this size
+	// is already ~1000x beyond anything the real system ever writes; skip
+	// it by default and keep it available for manual/thorough runs.
+	if testing.Short() {
+		b.Skip("skipping 1GB WAL benchmark in short mode (high memory usage, unrealistic size)")
+	}
 	benchmarkWalRead(b, 1024*1024*1024)
 }
