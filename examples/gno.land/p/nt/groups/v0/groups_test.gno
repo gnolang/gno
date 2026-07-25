@@ -166,8 +166,8 @@ func TestIterateRoles(t *testing.T) {
 	g := newTestGroup(t)
 
 	var names []string
-	stopped := g.IterateRoles(0, 10, func(r *Role) bool {
-		names = append(names, r.Name())
+	stopped := g.IterateRoles(0, 10, func(rr *ReadonlyRole) bool {
+		names = append(names, rr.Name())
 		return false
 	})
 	uassert.False(t, stopped)
@@ -175,27 +175,32 @@ func TestIterateRoles(t *testing.T) {
 
 	// offset/count window.
 	names = nil
-	g.IterateRoles(1, 1, func(r *Role) bool {
-		names = append(names, r.Name())
+	g.IterateRoles(1, 1, func(rr *ReadonlyRole) bool {
+		names = append(names, rr.Name())
 		return false
 	})
 	uassert.Equal(t, "mods", strings.Join(names, ","))
 
 	// Early stop halts iteration, not just the return value.
 	names = nil
-	stopped = g.IterateRoles(0, 10, func(r *Role) bool {
-		names = append(names, r.Name())
+	stopped = g.IterateRoles(0, 10, func(rr *ReadonlyRole) bool {
+		names = append(names, rr.Name())
 		return true
 	})
 	uassert.True(t, stopped)
 	uassert.Equal(t, "admins", strings.Join(names, ","))
 
-	// Yielded roles are mutable; member-set mutation during iteration is
-	// supported (registry mutation is not).
-	g.IterateRoles(0, 10, func(r *Role) bool {
-		r.Members().Add(addr6)
+	// Mutation path: capture names during iteration, revisit via GetRole.
+	names = nil
+	g.IterateRoles(0, 10, func(rr *ReadonlyRole) bool {
+		names = append(names, rr.Name())
 		return false
 	})
+	for _, name := range names {
+		r, found := g.GetRole(name)
+		urequire.True(t, found)
+		r.Members().Add(addr6)
+	}
 	uassert.Equal(t, "admins,mods", strings.Join(g.RolesContaining(addr6), ","))
 }
 

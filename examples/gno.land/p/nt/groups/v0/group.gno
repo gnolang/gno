@@ -132,16 +132,16 @@ func (g *Group) RoleCount() int {
 }
 
 // IterateRoles walks roles in lexicographic name order, starting at offset
-// and visiting up to count roles. Registry mutation (AddRole, RemoveRole)
-// during iteration is not supported; mutating the member sets or meta of
-// visited roles is fine. fn returns true to stop; IterateRoles returns true
-// if stopped early.
-//
-// SECURITY: like GetRole, the yielded *Role values are mutable. Use
-// IterateRoles on a *ReadonlyGroup for cross-realm exposure.
-func (g *Group) IterateRoles(offset, count int, fn func(*Role) bool) (stopped bool) {
+// and visiting up to count roles. The callback receives a *ReadonlyRole —
+// deliberately not a *Role, so that plumbing an untrusted callback into the
+// iteration cannot escalate into role mutation under this realm's authority.
+// To mutate during iteration, capture the name and revisit via GetRole from
+// a trusted context; registry mutation (AddRole, RemoveRole) during
+// iteration is not supported. fn returns true to stop; IterateRoles returns
+// true if stopped early.
+func (g *Group) IterateRoles(offset, count int, fn func(*ReadonlyRole) bool) (stopped bool) {
 	return g.roles.IterateByOffset(offset, count, func(_ string, value any) bool {
-		return fn(value.(*Role))
+		return fn(value.(*Role).Readonly())
 	})
 }
 

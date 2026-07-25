@@ -30,8 +30,12 @@ exported mutator methods is a live write-authority handle under borrow rule
    site picks a semantic deliberately; `Has` never silently consults roles.
 3. **Pagination everywhere** — every iterator takes `offset, count`
    (`IterateRoles` included) so `Render` pages stay gas-bounded.
-   `Group.IterateRoles` yields mutable `*Role` (owner-side, same capability
-   as `GetRole`); `ReadonlyGroup.IterateRoles` wraps each as `*ReadonlyRole`.
+   `IterateRoles` yields `*ReadonlyRole` on both `Group` and
+   `ReadonlyGroup`: yielding mutable `*Role` was considered (symmetric with
+   `GetRole`, no re-lookup) but rejected per the GROUPS.md plan — an owner
+   realm plumbing an untrusted callback into its own iteration must not
+   hand out mutable roles (Apply-class escalation). Owners mutate by
+   capturing names and revisiting via `GetRole`.
 4. **Streaming dedup** — `IterateAll`/`TotalSize` share `visitDistinct`,
    which walks base then roles in name order, dedups via an internal addrset,
    and stops as soon as the requested window is served (no upfront
@@ -52,7 +56,9 @@ exported mutator methods is a live write-authority handle under borrow rule
   for v0 — kills legitimate uses; revisit if misuse shows up in review.
 - **Compile-error filetest pinning field privacy**: not possible — the
   `TypeCheckError` directive is restricted to gnovm-internal test files, so
-  the property rests on compiler visibility rules plus unit tests.
+  the property rests on compiler visibility rules plus unit tests. A
+  positive end-to-end filetest (`filetests/z_readme_filetest.gno`) runs the
+  README scenario instead.
 
 ## Consequences
 
