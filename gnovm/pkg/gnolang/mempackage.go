@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -93,6 +94,13 @@ func IsRealmPath(pkgPath string) bool {
 func IsEphemeralPath(pkgPath string) bool {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil && match.Get("LETTER") == "e"
+}
+
+// IsSyntheticPath determines whether the given pkgPath is a compiler-internal
+// synthetic path (".uverse", ".dontcare", ...). Synthetic packages are never
+// persisted to the store and cannot appear in user source.
+func IsSyntheticPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, ".")
 }
 
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
@@ -205,6 +213,64 @@ func IsTestPkgPath(pkgPath string) bool {
 		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
 		pkgPath == "gno.land/r/tests/vm" ||
 		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
+}
+
+//----------------------------------------
+// Package name and path validation helpers.
+// See https://github.com/gnolang/gno/issues/1571
+
+// reVersionSuffix matches version suffixes (v0, v1, v2, v3, v10, v11, ...).
+// Note: Go convention says v1 should not appear in paths, but Gno allows it
+// for backwards compatibility with existing versioned packages.
+var reVersionSuffix = regexp.MustCompile(`^v(0|[1-9][0-9]*)$`)
+
+// isVersionSuffix returns true if s is a version suffix (v1, v2, v3, ...).
+func isVersionSuffix(s string) bool {
+	return reVersionSuffix.MatchString(s)
+}
+
+// LastPathElement extracts the last meaningful element from a package path.
+// For versioned paths like "gno.land/r/foo/v2" or "gno.land/r/foo/v1", it
+// returns "foo" since version suffixes (v1, v2, ...) are skipped.
+func LastPathElement(pkgPath string) string {
+	pos := strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	pkgPath, last := pkgPath[:pos], pkgPath[pos+1:]
+	if !isVersionSuffix(last) {
+		return last
+	}
+
+	// Version suffix found; return the element before it.
+	pos = strings.LastIndexByte(pkgPath, '/')
+	if pos < 0 {
+		return pkgPath
+	}
+	return pkgPath[pos+1:]
+}
+
+// ValidatePkgNameMatchesPath ensures the declared package name matches the last path element.
+// This prevents confusion where a package at "gno.land/r/foo" declares "package bar".
+// For versioned paths (v1, v2, ...), the package name must match the element before
+// the version suffix (e.g., "gno.land/r/foo/v2" expects "package foo").
+func ValidatePkgNameMatchesPath(pkgName Name, pkgPath string) error {
+	// Reject paths ending in consecutive version suffixes (e.g.
+	// "gno.land/r/demo/foo/v2/v3"): no sensible expected name exists for them.
+	if pos := strings.LastIndexByte(pkgPath, '/'); pos >= 0 && isVersionSuffix(pkgPath[pos+1:]) {
+		rest := pkgPath[:pos]
+		if isVersionSuffix(rest[strings.LastIndexByte(rest, '/')+1:]) {
+			return fmt.Errorf("package path %q must not end with consecutive version suffixes", pkgPath)
+		}
+	}
+	expectedName := LastPathElement(pkgPath)
+	if expectedName == "" {
+		return nil
+	}
+	if string(pkgName) != expectedName {
+		return fmt.Errorf("package name %q does not match path element %q", pkgName, expectedName)
+	}
+	return nil
 }
 
 //----------------------------------------
@@ -1066,6 +1132,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, subRealmSep) {
+		return fmt.Errorf("invalid package/realm path %q: %q is reserved for sub-realm derivation", mpkg.Path, subRealmSep)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {
@@ -1091,6 +1164,14 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
 	}
+	// Validate that package name matches path last element for pkg meant to be deployed on-chain.
+	// See https://github.com/gnolang/gno/issues/1571
+	if mptype == MPUserAll {
+		if err := ValidatePkgNameMatchesPath(Name(mpkg.Name), mpkg.Path); err != nil {
+			return err
+		}
+	}
+
 	// Validate files.
 	if mpkg.IsEmpty() {
 		return fmt.Errorf("package has no files")

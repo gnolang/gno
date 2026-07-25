@@ -8,8 +8,6 @@ import (
 	"slices"
 	"time"
 
-	"dario.cat/mergo"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -75,26 +73,17 @@ type Option func(cfg *Config)
 
 // LoadConfig loads the node configuration from disk
 func LoadConfig(root string) (*Config, error) {
-	// Initialize the config as default
-	var (
-		cfg        = DefaultConfig()
-		configPath = filepath.Join(root, defaultConfigPath)
-	)
+	configPath := filepath.Join(root, defaultConfigPath)
 
 	if !osm.FileExists(configPath) {
 		return nil, fmt.Errorf("config file at %q does not exist", configPath)
 	}
 
-	// Load the configuration
+	// Load the configuration, applying the file's
+	// values on top of the defaults
 	loadedCfg, loadErr := LoadConfigFile(configPath)
 	if loadErr != nil {
 		return nil, loadErr
-	}
-
-	// Merge the loaded config with the default values.
-	// This is done in case the loaded config is missing values
-	if err := mergo.Merge(loadedCfg, cfg); err != nil {
-		return nil, err
 	}
 
 	// Set the root directory
@@ -115,34 +104,28 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 		configPath = filepath.Join(root, defaultConfigPath)
 	)
 
-	// Config doesn't exist, create it
-	// from the default one
+	// Apply the options to the default config
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
 	// Check if the config exists
 	if osm.FileExists(configPath) {
-		// Load the configuration
-		loadedCfg, loadErr := LoadConfigFile(configPath)
-		if loadErr != nil {
+		// Load the configuration, applying the file's values
+		// on top of the defaults and options
+		if loadErr := loadConfigFile(configPath, cfg); loadErr != nil {
 			return nil, loadErr
 		}
 
-		// Merge the loaded config with the default values
-		if err := mergo.Merge(loadedCfg, cfg); err != nil {
-			return nil, err
-		}
-
 		// Set the root directory
-		loadedCfg.SetRootDir(root)
+		cfg.SetRootDir(root)
 
 		// Make sure the directories are initialized
-		if err := loadedCfg.EnsureDirs(); err != nil {
+		if err := cfg.EnsureDirs(); err != nil {
 			return nil, err
 		}
 
-		return loadedCfg, nil
+		return cfg, nil
 	}
 
 	cfg.SetRootDir(root)

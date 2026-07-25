@@ -34,8 +34,8 @@ func (s *basicGRC1155Token) BalanceOf(addr address, tid TokenID) (int64, error) 
 	}
 
 	key := string(tid) + ":" + addr.String()
-	balance, found := s.balances.Get(key)
-	if !found {
+	balance := s.balances.Get(key)
+	if balance == nil {
 		return 0, nil
 	}
 
@@ -74,8 +74,8 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 		return true
 	}
 	key := owner.String() + ":" + operator.String()
-	approved, found := s.operatorApprovals.Get(key)
-	if !found {
+	approved := s.operatorApprovals.Get(key)
+	if approved == nil {
 		return false
 	}
 
