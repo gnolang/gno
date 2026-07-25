@@ -1,6 +1,8 @@
 package permissions
 
 import (
+	"strings"
+
 	"gno.land/p/gnoland/boards"
 )
 
@@ -24,6 +26,10 @@ func WithSuperRole(r boards.Role) Option {
 		}
 
 		name := string(r)
+		if strings.TrimSpace(name) == "" {
+			panic("permissions super role name is required")
+		}
+
 		p.group.AddRole(name)
 		p.superRole = r
 	}

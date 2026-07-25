@@ -1,12 +1,20 @@
 package permissions
 
 import (
+	"strings"
+
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/groups/v0"
 )
 
 // ValidatorFunc defines a function type for permissions validators.
+//
+// SECURITY: validators run inside WithPermission holding the live
+// Permissions value, with full mutation access (SetUserRoles, RemoveUser,
+// AddRole, ...) under the owning realm's authority. Register only functions
+// the owning realm controls, and never expose ValidateFunc or the
+// *Permissions value across a realm boundary.
 type ValidatorFunc func(boards.Permissions, boards.Args) error
 
 // Permissions manages users, roles and permissions.
@@ -66,8 +74,12 @@ func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 		return
 	}
 
-	// Get the role if it exists or otherwise register a new one
 	name := string(r)
+	if strings.TrimSpace(name) == "" {
+		panic("role name is required")
+	}
+
+	// Get the role if it exists or otherwise register a new one
 	role, found := ps.group.GetRole(name)
 	if !found {
 		var err error
@@ -142,6 +154,17 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 		panic("user can only have one role")
 	}
 
+	// Resolve every role name upfront so an invalid name panics before any
+	// state is mutated.
+	newRoles := make([]*groups.Role, len(roles))
+	for i, r := range roles {
+		role, found := ps.group.GetRole(string(r))
+		if !found {
+			panic("invalid role: " + string(r))
+		}
+		newRoles[i] = role
+	}
+
 	// Clear current user roles
 	for _, name := range ps.group.RolesContaining(user) {
 		if role, found := ps.group.GetRole(name); found {
@@ -154,12 +177,7 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 	ps.group.Add(user)
 
 	// Add user to role member sets
-	for _, r := range roles {
-		role, found := ps.group.GetRole(string(r))
-		if !found {
-			panic("invalid role: " + string(r))
-		}
-
+	for _, role := range newRoles {
 		role.Members().Add(user)
 	}
 }

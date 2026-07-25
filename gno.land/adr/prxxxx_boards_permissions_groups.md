@@ -32,12 +32,22 @@ PR 2 may freely delete `exts/storage` and the `Member*` types.
    role `SetMeta/GetMeta` → `Role.SetMeta/Meta` with the same
    `boards.PermissionSet` value type (compliant with the groups meta rule:
    `[]uint64`-backed, no mutator-bearing pointers).
-4. **Bug fixed in passing**: `IterateUsers` previously always returned
-   `stopped == false` (bare `return` discarding the delegate's result); it
-   now propagates the early-stop result. The dead case table in
-   `TestBasicPermissionsIterateUsers` (unused `start`/`count`/`want`
-   fields) now actually drives the subtests, plus an early-stop-halts
-   assertion that the old implementation would fail.
+4. **Intentional behavior deltas** (everything else is preserved exactly;
+   all three are strict improvements, verified old-vs-new by review):
+   - `IterateUsers` previously always returned `stopped == false` (bare
+     `return` discarding the delegate's result); it now propagates the
+     early-stop result. Iteration always halted internally in both — only
+     the reported value was wrong. No in-repo caller branches on it.
+   - `SetUserRoles` with an invalid role name now panics before mutating
+     anything (role names are resolved upfront). The old code cleared the
+     user's existing roles — and dropped root-set membership via the
+     broker — before hitting the panic, leaving partial state observable
+     under `recover()`.
+   - Whitespace-only role names are rejected again. Old commondao
+     trimmed-and-rejected them inside `NewMemberGroup`; `groups.AddRole`
+     only rejects `""`, so `AddRole`/`WithSuperRole` now guard with
+     `strings.TrimSpace` themselves (panic messages differ from the old
+     commondao text).
 
 ## Alternatives considered
 
@@ -55,8 +65,12 @@ PR 2 may freely delete `exts/storage` and the `Member*` types.
 - boards no longer depends on commondao; commondao now has zero external
   consumers, unblocking PR 2's deletion of `member_*.gno` and
   `exts/storage` (~1,285 lines).
-- Behavior is preserved exactly (the full 584-line permissions suite passes
-  unmodified, as do the boards and boards2/v1 + hub suites), except the
-  `IterateUsers` stopped-return fix, which is strictly less wrong.
+- Behavior is preserved exactly (the full 584-line permissions suite passed
+  unmodified before the test additions, as do the boards and boards2/v1 +
+  hub suites) except the three documented deltas above, each strictly less
+  wrong than before.
+- The validator trust boundary is now documented on `ValidatorFunc`:
+  validators run with full mutation access to the live `Permissions` value
+  under the owning realm's authority — owner-controlled functions only.
 - One less indirection layer: no message broker, no storage factory — role
   membership writes go straight into the group.
