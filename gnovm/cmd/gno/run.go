@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -91,8 +92,9 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		c.xVars,
 		"X",
-		"set the value of a package-level string variable, e.g. -X myVar=override (may be repeated); "+
-			"like 'go build -ldflags \"-X ...\"', only simple 'var name = \"...\"' declarations are patched",
+		"set the value of a package-level string variable, e.g. -X main.myVar=override or "+
+			"-X gno.land/r/demo/foo.Version=1.2.3 (may be repeated); like 'go build -ldflags \"-X ...\"', "+
+			"the package path must be given, and only simple 'var name = \"...\"' declarations are patched",
 	)
 }
 
@@ -281,8 +283,13 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// read files
-	files, err := parseFiles(m, args, stderr, cfg.xVars.values)
+	xOverrides := cfg.xVars.forPackage(pkgPath, pkgName)
+	xt := newXTracker()
+	files, err := parseFiles(m, args, stderr, xOverrides, xt)
 	if err != nil {
+		return err
+	}
+	if err := xt.unmatched(xOverrides); err != nil {
 		return err
 	}
 
@@ -344,7 +351,70 @@ func derivePkgPath(arg string) (string, error) {
 	return mod.Module, nil
 }
 
-func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrides map[string]string) ([]*gno.FileNode, error) {
+// xTracker aggregates which -X overrides were matched (as a proper
+// package-level string var) across all files in a package, so a name that
+// isn't found in file1.gno but is in file2.gno doesn't get wrongly
+// reported as unmatched, and a name that's genuinely never found anywhere
+// is reported exactly once at the end, rather than per-file.
+type xTracker struct {
+	matched   map[string]bool
+	wrongKind map[string]bool
+}
+
+func newXTracker() *xTracker {
+	return &xTracker{matched: map[string]bool{}, wrongKind: map[string]bool{}}
+}
+
+func (t *xTracker) record(result xPatchResult) {
+	for _, n := range result.Matched {
+		t.matched[n] = true
+	}
+	// A name reported as WrongKind here might still turn out matched in
+	// another file; it's only finalized as an explanation in unmatched()
+	// once all files have been processed.
+	for _, n := range result.WrongKind {
+		t.wrongKind[n] = true
+	}
+}
+
+// unmatched returns, for each requested override name not found as a
+// proper package-level string var in any processed file, an error
+// explaining why: either it was never found at all, or it was found but
+// isn't a plain string var (a const, a different type, or missing an
+// initializer).
+func (t *xTracker) unmatched(requested map[string]string) error {
+	var notFound, wrongKind []string
+
+	for name := range requested {
+		switch {
+		case t.matched[name]:
+			continue
+		case t.wrongKind[name]:
+			wrongKind = append(wrongKind, name)
+		default:
+			notFound = append(notFound, name)
+		}
+	}
+
+	if len(notFound) == 0 && len(wrongKind) == 0 {
+		return nil
+	}
+
+	sort.Strings(notFound)
+	sort.Strings(wrongKind)
+
+	var msgs []string
+	for _, n := range notFound {
+		msgs = append(msgs, fmt.Sprintf("-X: no such package-level var: %s", n))
+	}
+	for _, n := range wrongKind {
+		msgs = append(msgs, fmt.Sprintf("-X: %s is not a package-level string var with a literal initializer", n))
+	}
+
+	return errors.New(strings.Join(msgs, "\n"))
+}
+
+func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrides map[string]string, xt *xTracker) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
 	for _, fpath := range fpaths {
@@ -353,7 +423,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrid
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(m, subFns, stderr, xOverrides)
+			subFiles, err := parseFiles(m, subFns, stderr, xOverrides, xt)
 			if err != nil {
 				return nil, err
 			}
@@ -367,7 +437,7 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrid
 
 		dir, fname := filepath.Split(fpath)
 		didPanic = catchPanic(dir, fname, stderr, func() {
-			files = append(files, mustReadAndPatchFile(m, fpath, xOverrides))
+			files = append(files, mustReadAndPatchFile(m, fpath, xOverrides, xt))
 		})
 	}
 
@@ -381,14 +451,16 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser, xOverrid
 // package-level string variable declarations (see patchXVars), and parses
 // the (possibly patched) result. It panics on error, like
 // (*gno.Machine).MustReadFile, which it replaces as the read path here so
-// that overrides can be applied before parsing.
-func mustReadAndPatchFile(m *gno.Machine, fpath string, xOverrides map[string]string) *gno.FileNode {
+// that overrides can be applied before parsing. Matches (and non-matches)
+// are recorded into xt for aggregation across every file in the package.
+func mustReadAndPatchFile(m *gno.Machine, fpath string, xOverrides map[string]string, xt *xTracker) *gno.FileNode {
 	bz, err := os.ReadFile(fpath)
 	if err != nil {
 		panic(err)
 	}
 
-	body := patchXVars(fpath, string(bz), xOverrides)
+	body, result := patchXVars(fpath, string(bz), xOverrides)
+	xt.record(result)
 
 	return m.MustParseFile(fpath, body)
 }

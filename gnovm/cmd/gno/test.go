@@ -193,8 +193,9 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		c.xVars,
 		"X",
-		"set the value of a package-level string variable, e.g. -X myVar=override (may be repeated); "+
-			"like 'go build -ldflags \"-X ...\"', only simple 'var name = \"...\"' declarations are patched",
+		"set the value of a package-level string variable, e.g. -X main.myVar=override or "+
+			"-X gno.land/r/demo/foo.Version=1.2.3 (may be repeated); like 'go build -ldflags \"-X ...\"', "+
+			"the package path must be given, and only simple 'var name = \"...\"' declarations are patched",
 	)
 }
 
@@ -446,9 +447,18 @@ func (c *testCmd) testPkg(
 
 	// Read MemPackage with all files.
 	mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
-	if len(c.xVars.values) > 0 {
+	xOverrides := c.xVars.forPackage(mpkg.Path, mpkg.Name)
+	if len(xOverrides) > 0 {
+		xt := newXTracker()
 		for _, f := range mpkg.Files {
-			f.Body = patchXVars(f.Name, f.Body, c.xVars.values)
+			body, result := patchXVars(f.Name, f.Body, xOverrides)
+			f.Body = body
+			xt.record(result)
+		}
+		if err := xt.unmatched(xOverrides); err != nil {
+			io.ErrPrintln(err)
+			buildErrCount++
+			return
 		}
 	}
 	var didPanic, didError bool
