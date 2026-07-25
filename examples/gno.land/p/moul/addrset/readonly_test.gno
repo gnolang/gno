@@ -34,7 +34,7 @@ func TestReadonlySet(t *testing.T) {
 	uassert.False(t, ro.Has(addr1))
 }
 
-func TestReadonlySetIterate(t *testing.T) {
+func TestReadonlySetIterateByOffset(t *testing.T) {
 	var set Set
 	set.Add(address("addr2"))
 	set.Add(address("addr1"))
@@ -42,7 +42,7 @@ func TestReadonlySetIterate(t *testing.T) {
 	ro := set.Readonly()
 
 	var got []address
-	stopped := ro.Iterate(0, 10, func(a address) bool {
+	stopped := ro.IterateByOffset(0, 10, func(a address) bool {
 		got = append(got, a)
 		return false
 	})
@@ -54,16 +54,16 @@ func TestReadonlySetIterate(t *testing.T) {
 
 	// offset/count window.
 	got = nil
-	ro.Iterate(1, 1, func(a address) bool {
+	ro.IterateByOffset(1, 1, func(a address) bool {
 		got = append(got, a)
 		return false
 	})
 	uassert.Equal(t, 1, len(got))
 	uassert.Equal(t, address("addr2"), got[0])
 
-	// Early stop is reported.
+	// Early stop is reported, and iteration actually halts.
 	count := 0
-	stopped = ro.Iterate(0, 10, func(a address) bool {
+	stopped = ro.IterateByOffset(0, 10, func(a address) bool {
 		count++
 		return true
 	})
@@ -72,6 +72,43 @@ func TestReadonlySetIterate(t *testing.T) {
 
 	// Empty set: callback never runs, not stopped.
 	var empty Set
-	stopped = empty.Readonly().Iterate(0, 10, func(a address) bool { return true })
+	stopped = empty.Readonly().IterateByOffset(0, 10, func(a address) bool { return true })
 	uassert.False(t, stopped)
+}
+
+func TestReadonlySetReverseIterateByOffset(t *testing.T) {
+	var set Set
+	set.Add(address("addr1"))
+	set.Add(address("addr2"))
+	set.Add(address("addr3"))
+	ro := set.Readonly()
+
+	var got []address
+	stopped := ro.ReverseIterateByOffset(0, 10, func(a address) bool {
+		got = append(got, a)
+		return false
+	})
+	uassert.False(t, stopped)
+	uassert.Equal(t, 3, len(got))
+	uassert.Equal(t, address("addr3"), got[0]) // descending order
+	uassert.Equal(t, address("addr2"), got[1])
+	uassert.Equal(t, address("addr1"), got[2])
+
+	// offset/count window (offset from the end).
+	got = nil
+	ro.ReverseIterateByOffset(1, 1, func(a address) bool {
+		got = append(got, a)
+		return false
+	})
+	uassert.Equal(t, 1, len(got))
+	uassert.Equal(t, address("addr2"), got[0])
+
+	// Early stop is reported, and iteration actually halts.
+	count := 0
+	stopped = ro.ReverseIterateByOffset(0, 10, func(a address) bool {
+		count++
+		return true
+	})
+	uassert.True(t, stopped)
+	uassert.Equal(t, 1, count)
 }

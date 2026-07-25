@@ -73,9 +73,12 @@ func (rg ReadonlyGroup) RoleCount() int {
 	return rg.group.RoleCount()
 }
 
-// IterateRoles walks every role in name order; see Group.IterateRoles.
-func (rg ReadonlyGroup) IterateRoles(fn func(*ReadonlyRole) bool) (stopped bool) {
-	return rg.group.IterateRoles(fn)
+// IterateRoles walks roles in name order as read-only views; see
+// Group.IterateRoles.
+func (rg ReadonlyGroup) IterateRoles(offset, count int, fn func(*ReadonlyRole) bool) (stopped bool) {
+	return rg.group.IterateRoles(offset, count, func(r *Role) bool {
+		return fn(r.Readonly())
+	})
 }
 
 // --- Aggregations ---

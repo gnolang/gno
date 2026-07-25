@@ -13,12 +13,12 @@ var (
 )
 
 // Group is a container with a base address set plus a registry of named
-// Roles.
+// Roles. The zero value is not usable; construct with NewGroup.
 //
 // # Security
 //
 // A Group, and the *Role values it hands out, are meant to be allocated and
-// held by the consuming realm. Two rules apply at realm boundaries:
+// held by the consuming realm. Three rules apply at realm boundaries:
 //
 //  1. Do not ACCEPT a *Group or *Role from an external/untrusted caller —
 //     subsequent mutations would route to the allocating (attacker)
@@ -27,6 +27,11 @@ var (
 //
 //  2. Do not RETURN a *Group or *Role from any method or function callable
 //     by untrusted realms. Return *ReadonlyGroup or *ReadonlyRole instead.
+//
+//  3. Do not TRUST a *ReadonlyGroup or *ReadonlyRole received from an
+//     untrusted caller — it is a live handle over the sender's data, not a
+//     snapshot; the contents are attacker-controlled and can change between
+//     reads.
 //
 // Both directions matter: exposing a *Group to attacker code is as
 // dangerous as accepting one. The Readonly() views are the only safe
@@ -126,13 +131,17 @@ func (g *Group) RoleCount() int {
 	return g.roles.Size()
 }
 
-// IterateRoles walks every role in lexicographic name order. The callback
-// receives a *ReadonlyRole — mutation during iteration is not supported;
-// capture the name and revisit via GetRole from a trusted context. fn
-// returns true to stop; IterateRoles returns true if stopped early.
-func (g *Group) IterateRoles(fn func(*ReadonlyRole) bool) (stopped bool) {
-	return g.roles.IterateByOffset(0, g.roles.Size(), func(_ string, value any) bool {
-		return fn(value.(*Role).Readonly())
+// IterateRoles walks roles in lexicographic name order, starting at offset
+// and visiting up to count roles. Registry mutation (AddRole, RemoveRole)
+// during iteration is not supported; mutating the member sets or meta of
+// visited roles is fine. fn returns true to stop; IterateRoles returns true
+// if stopped early.
+//
+// SECURITY: like GetRole, the yielded *Role values are mutable. Use
+// IterateRoles on a *ReadonlyGroup for cross-realm exposure.
+func (g *Group) IterateRoles(offset, count int, fn func(*Role) bool) (stopped bool) {
+	return g.roles.IterateByOffset(offset, count, func(_ string, value any) bool {
+		return fn(value.(*Role))
 	})
 }
 
@@ -158,61 +167,71 @@ func (g *Group) HasAny(addr address) bool {
 // all roles, deduplicated. A caller may place the same address in base and
 // in multiple roles; TotalSize counts it once.
 //
-// Implementation note: builds an internal addrset to dedup, costing O(N)
-// memory in the total membership.
+// Implementation note: dedup tracks seen addresses in an internal addrset,
+// costing O(N) memory in the total membership.
 func (g *Group) TotalSize() int {
-	seen := &addrset.Set{}
-	g.collectDistinct(seen, nil)
-	return seen.Size()
+	n := 0
+	g.visitDistinct(func(address) bool {
+		n++
+		return false
+	})
+	return n
 }
 
 // IterateAll walks every distinct address across base + all roles,
 // deduplicated. Order: base first (in addrset order), then roles in name
 // order, skipping addresses already yielded. offset and count apply to the
-// final deduplicated output, not the pre-dedup items. fn returns true to
-// stop; IterateAll returns true if stopped early.
+// deduplicated output, not the pre-dedup items; a negative offset counts as
+// zero. fn returns true to stop; IterateAll returns true if stopped early.
 //
-// Implementation note: builds the full deduplicated view upfront (O(N)
-// memory) even for small count. For paginating a large Group without dedup,
-// use Iterate (base only) or IterateRoles + GetRole.
+// Implementation note: dedup tracks seen addresses in an internal addrset
+// (O(memory) in the addresses scanned); scanning stops as soon as the
+// requested window has been served. For paginating a large Group without
+// dedup, use Iterate (base only) or IterateRoles.
 func (g *Group) IterateAll(offset, count int, fn func(addr address) bool) (stopped bool) {
-	if count <= 0 || offset < 0 {
+	if count <= 0 {
 		return false
 	}
-	var ordered []address
-	g.collectDistinct(&addrset.Set{}, func(a address) {
-		ordered = append(ordered, a)
-	})
-	if offset >= len(ordered) {
-		return false
+	if offset < 0 {
+		offset = 0
 	}
-	end := offset + count
-	if end > len(ordered) {
-		end = len(ordered)
-	}
-	for _, a := range ordered[offset:end] {
+	seen := 0
+	g.visitDistinct(func(a address) bool {
+		if seen < offset {
+			seen++
+			return false
+		}
 		if fn(a) {
+			stopped = true
 			return true
 		}
-	}
-	return false
+		seen++
+		return seen-offset >= count
+	})
+	return stopped
 }
 
-// collectDistinct walks base then roles (name order), recording each
-// address into seen. emit, if non-nil, is called once per distinct address
-// in iteration order (the first time it is seen).
-func (g *Group) collectDistinct(seen *addrset.Set, emit func(addr address)) {
-	visit := func(a address) bool {
-		if seen.Add(a) && emit != nil { // Add returns true when newly added
-			emit(a)
+// visitDistinct walks the base set then every role (in name order), calling
+// visit once per distinct address the first time it is seen. visit returns
+// true to stop the walk early.
+func (g *Group) visitDistinct(visit func(addr address) bool) {
+	seen := &addrset.Set{}
+	done := false
+	record := func(a address) bool {
+		if !seen.Add(a) { // Add returns false when already seen
+			return false
 		}
-		return false
+		done = visit(a)
+		return done
 	}
-	g.base.IterateByOffset(0, g.base.Size(), visit)
+	g.base.IterateByOffset(0, g.base.Size(), record)
+	if done {
+		return
+	}
 	g.roles.IterateByOffset(0, g.roles.Size(), func(_ string, value any) bool {
 		r := value.(*Role)
-		r.members.IterateByOffset(0, r.members.Size(), visit)
-		return false
+		r.members.IterateByOffset(0, r.members.Size(), record)
+		return done
 	})
 }
 

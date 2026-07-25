@@ -28,13 +28,20 @@
 //     by untrusted realms. Return *ReadonlyGroup or *ReadonlyRole instead.
 //     Exposing a mutable handle is exactly as dangerous as accepting one.
 //
-// The Readonly() views are the only safe handles to cross a realm boundary.
+//  3. Do not TRUST a *ReadonlyGroup or *ReadonlyRole received from an
+//     untrusted caller. A readonly view is a live handle over its creator's
+//     data, not a snapshot: the sender controls the contents and can mutate
+//     them between reads. Base authorization and accounting decisions only
+//     on views derived from a Group you allocated yourself.
+//
+// The Readonly() views are the only safe handles to cross a realm boundary —
+// safe to hand out, per rule 3 not blindly safe to consume.
 //
 // # Metadata: do not store mutable pointers
 //
-// Each Role has a free-form "meta any" slot. A value returned from a foreign
-// function/method carries no readonly taint, so a pointer stored in meta can
-// be retrieved by an untrusted reader holding a Readonly() view. A direct
+// Each Role has a free-form "meta any" slot. Meta() returns the stored value
+// as-is, so a pointer stored in meta can be retrieved by an untrusted reader
+// holding a Readonly() view. A direct
 // field write through that pointer is still blocked by the realm-ownership
 // gate, but invoking a MUTATOR METHOD on it (or passing it into a function
 // that mutates by argument) runs under whatever realm allocated it (borrow

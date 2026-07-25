@@ -48,8 +48,8 @@ func (r *Role) Meta() any {
 //
 // SECURITY: do NOT store a pointer whose type has a mutator method (this
 // includes common /p/ types like *addrset.Set or *avl.Tree) if untrusted
-// realms may hold a Readonly() view of this Group. Meta() returns the value
-// untainted, so a foreign reader can invoke that method and borrow rule #2
+// realms may hold a Readonly() view of this Group. Meta() returns the stored
+// value as-is, so a foreign reader can invoke that method and borrow rule #2
 // commits the write under this (the allocating) realm's authority. A direct
 // field write through the pointer is still blocked by the realm-ownership
 // gate — the leak is specifically mutator-method dispatch. Prefer value types

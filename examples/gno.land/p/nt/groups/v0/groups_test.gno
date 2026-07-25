@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	addr0 = address("addr0")
 	addr1 = address("addr1")
 	addr2 = address("addr2")
 	addr3 = address("addr3")
@@ -19,16 +20,20 @@ var (
 
 // newTestGroup builds the fixture used across tests:
 //
-//	base:   addr1, addr3
+//	base:   addr0, addr1, addr3, addr5
 //	admins: addr2, addr3, addr5
 //	mods:   addr1, addr4, addr5
 //
-// Distinct addresses: addr1..addr5 (addr6 is never a member).
+// Overlap topology: addr0 base-only, addr2 admins-only, addr4 mods-only,
+// addr1 base+mods, addr3 base+admins, addr5 base+both roles.
+// Distinct addresses: addr0..addr5 (addr6 is never a member).
 func newTestGroup(t *testing.T) *Group {
 	t.Helper()
 	g := NewGroup()
+	g.Add(addr0)
 	g.Add(addr1)
 	g.Add(addr3)
+	g.Add(addr5)
 
 	admins, err := g.AddRole("admins")
 	urequire.NoError(t, err)
@@ -91,8 +96,14 @@ func TestIterate(t *testing.T) {
 	})
 	uassert.Equal(t, "addr2", joinAddrs(got))
 
-	stopped = g.Iterate(0, 10, func(a address) bool { return true })
+	// Early stop halts iteration, not just the return value.
+	visited := 0
+	stopped = g.Iterate(0, 10, func(a address) bool {
+		visited++
+		return true
+	})
 	uassert.True(t, stopped)
+	uassert.Equal(t, 1, visited)
 
 	// Roles are never consulted.
 	gg := newTestGroup(t)
@@ -101,7 +112,7 @@ func TestIterate(t *testing.T) {
 		got = append(got, a)
 		return false
 	})
-	uassert.Equal(t, "addr1,addr3", joinAddrs(got))
+	uassert.Equal(t, "addr0,addr1,addr3,addr5", joinAddrs(got))
 }
 
 func TestAddRole(t *testing.T) {
@@ -147,7 +158,7 @@ func TestRemoveRole(t *testing.T) {
 
 	// Members of the removed role stay in the base set and other roles.
 	uassert.True(t, g.Has(addr3))     // base
-	uassert.True(t, g.HasAny(addr5))  // still in mods
+	uassert.True(t, g.HasAny(addr5))  // still in base + mods
 	uassert.False(t, g.HasAny(addr2)) // was only in admins
 }
 
@@ -155,15 +166,37 @@ func TestIterateRoles(t *testing.T) {
 	g := newTestGroup(t)
 
 	var names []string
-	stopped := g.IterateRoles(func(rr *ReadonlyRole) bool {
-		names = append(names, rr.Name())
+	stopped := g.IterateRoles(0, 10, func(r *Role) bool {
+		names = append(names, r.Name())
 		return false
 	})
 	uassert.False(t, stopped)
 	uassert.Equal(t, "admins,mods", strings.Join(names, ","))
 
-	stopped = g.IterateRoles(func(rr *ReadonlyRole) bool { return true })
+	// offset/count window.
+	names = nil
+	g.IterateRoles(1, 1, func(r *Role) bool {
+		names = append(names, r.Name())
+		return false
+	})
+	uassert.Equal(t, "mods", strings.Join(names, ","))
+
+	// Early stop halts iteration, not just the return value.
+	names = nil
+	stopped = g.IterateRoles(0, 10, func(r *Role) bool {
+		names = append(names, r.Name())
+		return true
+	})
 	uassert.True(t, stopped)
+	uassert.Equal(t, "admins", strings.Join(names, ","))
+
+	// Yielded roles are mutable; member-set mutation during iteration is
+	// supported (registry mutation is not).
+	g.IterateRoles(0, 10, func(r *Role) bool {
+		r.Members().Add(addr6)
+		return false
+	})
+	uassert.Equal(t, "admins,mods", strings.Join(g.RolesContaining(addr6), ","))
 }
 
 func TestRoleMeta(t *testing.T) {
@@ -182,10 +215,11 @@ func TestRoleMeta(t *testing.T) {
 func TestHasAny(t *testing.T) {
 	g := newTestGroup(t)
 
+	uassert.True(t, g.HasAny(addr0))  // base only
 	uassert.True(t, g.HasAny(addr1))  // base + mods
 	uassert.True(t, g.HasAny(addr2))  // admins only
-	uassert.True(t, g.HasAny(addr3))  // base + admins
 	uassert.True(t, g.HasAny(addr4))  // mods only
+	uassert.True(t, g.HasAny(addr5))  // base + both roles
 	uassert.False(t, g.HasAny(addr6)) // nowhere
 
 	// Base-only member, no roles registered at all.
@@ -199,8 +233,8 @@ func TestTotalSize(t *testing.T) {
 	uassert.Equal(t, 0, NewGroup().TotalSize())
 
 	g := newTestGroup(t)
-	uassert.Equal(t, 2, g.Size())      // base only
-	uassert.Equal(t, 5, g.TotalSize()) // addr1..addr5, deduplicated
+	uassert.Equal(t, 4, g.Size())      // base only
+	uassert.Equal(t, 6, g.TotalSize()) // addr0..addr5, deduplicated
 }
 
 func TestIterateAll(t *testing.T) {
@@ -217,25 +251,35 @@ func TestIterateAll(t *testing.T) {
 	// Order: base first (sorted), then roles in name order, deduplicated.
 	got, stopped := collect(0, 10)
 	uassert.False(t, stopped)
-	uassert.Equal(t, "addr1,addr3,addr2,addr5,addr4", joinAddrs(got))
+	uassert.Equal(t, "addr0,addr1,addr3,addr5,addr2,addr4", joinAddrs(got))
 
 	// offset/count window over the deduplicated output.
 	got, _ = collect(1, 2)
-	uassert.Equal(t, "addr3,addr2", joinAddrs(got))
+	uassert.Equal(t, "addr1,addr3", joinAddrs(got))
 	got, _ = collect(3, 10)
-	uassert.Equal(t, "addr5,addr4", joinAddrs(got))
+	uassert.Equal(t, "addr5,addr2,addr4", joinAddrs(got))
+	// Window straddling skipped duplicates: count applies to deduplicated
+	// output, not to scanned items.
+	got, _ = collect(4, 2)
+	uassert.Equal(t, "addr2,addr4", joinAddrs(got))
 
-	// Degenerate parameters yield nothing.
-	got, stopped = collect(5, 10) // offset == total
+	// Degenerate parameters.
+	got, stopped = collect(6, 10) // offset == total
 	uassert.False(t, stopped)
 	uassert.Equal(t, 0, len(got))
 	got, _ = collect(0, 0)
 	uassert.Equal(t, 0, len(got))
-	got, _ = collect(-1, 10)
-	uassert.Equal(t, 0, len(got))
+	got, _ = collect(-1, 2) // negative offset counts as zero
+	uassert.Equal(t, "addr0,addr1", joinAddrs(got))
 
-	stopped = g.IterateAll(0, 10, func(a address) bool { return true })
+	// Early stop halts iteration, not just the return value.
+	visited := 0
+	stopped = g.IterateAll(0, 10, func(a address) bool {
+		visited++
+		return true
+	})
 	uassert.True(t, stopped)
+	uassert.Equal(t, 1, visited)
 }
 
 func TestRolesContaining(t *testing.T) {
@@ -244,22 +288,25 @@ func TestRolesContaining(t *testing.T) {
 	uassert.Equal(t, "admins,mods", strings.Join(g.RolesContaining(addr5), ","))
 	uassert.Equal(t, "admins", strings.Join(g.RolesContaining(addr2), ","))
 	uassert.Equal(t, "mods", strings.Join(g.RolesContaining(addr1), ",")) // base not consulted
+	uassert.Equal(t, 0, len(g.RolesContaining(addr0)))                    // base-only member
 	uassert.Equal(t, 0, len(g.RolesContaining(addr6)))
 }
 
 func TestRemoveFromAll(t *testing.T) {
 	g := newTestGroup(t)
 
-	uassert.True(t, g.RemoveFromAll(addr5)) // in both roles
+	uassert.True(t, g.RemoveFromAll(addr5)) // base + both roles
 	uassert.False(t, g.HasAny(addr5))
 
-	uassert.True(t, g.RemoveFromAll(addr1)) // in base + mods
-	uassert.False(t, g.Has(addr1))
-	uassert.False(t, g.HasAny(addr1))
+	uassert.True(t, g.RemoveFromAll(addr0)) // base-only: removed reflects the base hit alone
+	uassert.False(t, g.HasAny(addr0))
+
+	uassert.True(t, g.RemoveFromAll(addr2)) // role-only
+	uassert.False(t, g.HasAny(addr2))
 
 	uassert.False(t, g.RemoveFromAll(addr6)) // nowhere
 
-	uassert.Equal(t, 3, g.TotalSize()) // addr2, addr3, addr4 remain
+	uassert.Equal(t, 3, g.TotalSize()) // addr1, addr3, addr4 remain
 	uassert.Equal(t, 2, g.RoleCount()) // roles themselves are kept
 }
 
@@ -268,25 +315,27 @@ func TestReadonlyGroup(t *testing.T) {
 	rg := g.Readonly()
 
 	// Base reads.
-	uassert.True(t, rg.Has(addr1))
+	uassert.True(t, rg.Has(addr0))
 	uassert.False(t, rg.Has(addr2))
-	uassert.Equal(t, 2, rg.Size())
+	uassert.Equal(t, 4, rg.Size())
 	var got []address
-	rg.Iterate(0, 10, func(a address) bool {
+	stopped := rg.Iterate(0, 10, func(a address) bool {
 		got = append(got, a)
 		return false
 	})
-	uassert.Equal(t, "addr1,addr3", joinAddrs(got))
+	uassert.False(t, stopped)
+	uassert.Equal(t, "addr0,addr1,addr3,addr5", joinAddrs(got))
 
 	// Role registry reads.
 	uassert.True(t, rg.HasRole("admins"))
 	uassert.False(t, rg.HasRole("nope"))
 	uassert.Equal(t, 2, rg.RoleCount())
 	var names []string
-	rg.IterateRoles(func(rr *ReadonlyRole) bool {
+	stopped = rg.IterateRoles(0, 10, func(rr *ReadonlyRole) bool {
 		names = append(names, rr.Name())
 		return false
 	})
+	uassert.False(t, stopped)
 	uassert.Equal(t, "admins,mods", strings.Join(names, ","))
 
 	rr, found := rg.GetRole("admins")
@@ -299,13 +348,16 @@ func TestReadonlyGroup(t *testing.T) {
 
 	// Aggregated reads.
 	uassert.True(t, rg.HasAny(addr4))
-	uassert.Equal(t, 5, rg.TotalSize())
+	uassert.False(t, rg.HasAny(addr6))
+	uassert.Equal(t, 6, rg.TotalSize())
 	got = nil
-	rg.IterateAll(0, 10, func(a address) bool {
+	stopped = rg.IterateAll(0, 10, func(a address) bool {
 		got = append(got, a)
 		return false
 	})
-	uassert.Equal(t, "addr1,addr3,addr2,addr5,addr4", joinAddrs(got))
+	uassert.False(t, stopped)
+	uassert.Equal(t, "addr0,addr1,addr3,addr5,addr2,addr4", joinAddrs(got))
+	uassert.True(t, rg.IterateAll(0, 10, func(a address) bool { return true }))
 	uassert.Equal(t, "admins,mods", strings.Join(rg.RolesContaining(addr5), ","))
 }
 
@@ -319,7 +371,7 @@ func TestReadonlyViewsAreLive(t *testing.T) {
 	// Views are thin handles, not snapshots: mutations through the owning
 	// side are immediately visible through previously created views.
 	g.Add(addr6)
-	uassert.Equal(t, 3, rg.Size())
+	uassert.Equal(t, 5, rg.Size())
 	uassert.True(t, rg.Has(addr6))
 
 	admins.Members().Add(addr6)
