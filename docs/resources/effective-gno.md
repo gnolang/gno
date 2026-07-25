@@ -892,7 +892,7 @@ import (
 
 const (
 	fooDecimals = 4
-	fooTokenID  = 0 // unique id per token within the realm; 0 is fine for a single token
+	fooTokenID  = 0
 )
 
 var (
