@@ -537,7 +537,10 @@ func TestValidatePkgNameMatchesPath(t *testing.T) {
 func TestWriteMemPackageTo_FiletestsRoundTrip(t *testing.T) {
 	// Lay out a package following the gno conventions: regular files in
 	// the package dir, filetests in the filetests/ subdir plus one legacy
-	// filetest at the root.
+	// filetest at the root. Bodies are distinct so content assertions can
+	// prove each write landed in the right place.
+	rootBody := "package main\n\nfunc main() { println(\"root\") }\n"
+	subBody := "package main\n\nfunc main() { println(\"sub\") }\n"
 	dir := t.TempDir()
 	writeFile := func(rel, body string) {
 		fpath := filepath.Join(dir, rel)
@@ -546,19 +549,52 @@ func TestWriteMemPackageTo_FiletestsRoundTrip(t *testing.T) {
 	}
 	writeFile("gnomod.toml", "module = \"gno.land/p/demo/rt\"\ngno = \"0.9\"\n")
 	writeFile("rt.gno", "package rt\n")
-	writeFile("root_filetest.gno", "package main\n\nfunc main() {}\n")
-	writeFile("filetests/sub_filetest.gno", "package main\n\nfunc main() {}\n")
+	writeFile("root_filetest.gno", rootBody)
+	writeFile("filetests/sub_filetest.gno", subBody)
 
 	mpkg, err := ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
 	require.NoError(t, err)
 	require.NotNil(t, mpkg.GetFile("sub_filetest.gno")) // flattened name
 
+	// Simulate a transform editing both filetests, and one new filetest
+	// with no on-disk home (must land flat in the package dir).
+	mpkg.GetFile("root_filetest.gno").Body = rootBody + "// edited\n"
+	mpkg.GetFile("sub_filetest.gno").Body = subBody + "// edited\n"
+	newBody := "package main\n\nfunc main() { println(\"new\") }\n"
+	mpkg.Files = append(mpkg.Files, &std.MemFile{Name: "new_filetest.gno", Body: newBody})
+
 	// Write back: every file must land where it was read from, so a
 	// second read succeeds (no duplicate flat copy of sub_filetest.gno).
 	require.NoError(t, WriteMemPackageTo(mpkg, dir))
+	readBack := func(rel string) string {
+		bz, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(bz)
+	}
 	assert.False(t, osFileExists(filepath.Join(dir, "sub_filetest.gno")))
-	assert.True(t, osFileExists(filepath.Join(dir, "filetests", "sub_filetest.gno")))
-	assert.True(t, osFileExists(filepath.Join(dir, "root_filetest.gno")))
+	assert.Equal(t, subBody+"// edited\n", readBack("filetests/sub_filetest.gno"))
+	assert.Equal(t, rootBody+"// edited\n", readBack("root_filetest.gno"))
+	assert.Equal(t, newBody, readBack("new_filetest.gno"))
 	_, err = ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
 	assert.NoError(t, err)
+}
+
+func TestWriteMemPackageTo_RejectsBadNames(t *testing.T) {
+	dir := t.TempDir()
+	mpkg := &std.MemPackage{
+		Name: "rt",
+		Path: "gno.land/p/demo/rt",
+		Files: []*std.MemFile{
+			{Name: "ok.gno", Body: "package rt\n"},
+			{Name: "../evil_filetest.gno", Body: "x"},
+		},
+	}
+	// Non-local name: rejected with no partial writes.
+	require.Error(t, WriteMemPackageTo(mpkg, dir))
+	assert.False(t, osFileExists(filepath.Join(dir, "ok.gno")))
+
+	// Separator-bearing name (would break filetests routing): rejected.
+	mpkg.Files[1].Name = "filetests/x_filetest.gno"
+	require.Error(t, WriteMemPackageTo(mpkg, dir))
+	assert.False(t, osFileExists(filepath.Join(dir, "ok.gno")))
 }

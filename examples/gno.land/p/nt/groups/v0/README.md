@@ -32,15 +32,19 @@ func init() {
 
 ## Three kinds of operations
 
-Every method belongs to exactly one family, so a call site always says
-which semantic it means — checking the base set and checking "anywhere in
-the group" are different questions with different methods.
+Every membership operation belongs to exactly one family, so a call site
+always says which semantic it means — checking the base set and checking
+"anywhere in the group" are different questions with different methods.
 
 | Family | Methods | Looks at |
 |---|---|---|
 | Base set | `Add`, `Remove`, `Has`, `Size`, `Iterate` | base set only |
 | Role registry | `AddRole`, `GetRole`, `HasRole`, `RemoveRole`, `RoleCount`, `IterateRoles` | the named roles |
-| Aggregated | `HasAny`, `TotalSize`, `IterateAll`, `RolesContaining`, `RemoveFromAll` | base + every role, deduplicated |
+| Aggregated | `HasAny`, `TotalSize`, `IterateAll`, `RemoveFromAll` | base + every role, deduplicated |
+| Aggregated | `RolesContaining` | every role — base membership is not a role |
+
+(`NewGroup` and the `Readonly()` views sit outside the families; views are
+covered below.)
 
 So with alice in the base set only and dave in the "council" role only:
 

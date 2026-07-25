@@ -135,10 +135,10 @@ func (g *Group) RoleCount() int {
 // and visiting up to count roles. The callback receives a *ReadonlyRole —
 // deliberately not a *Role, so that plumbing an untrusted callback into the
 // iteration cannot escalate into role mutation under this realm's authority.
-// To mutate during iteration, capture the name and revisit via GetRole from
-// a trusted context; registry mutation (AddRole, RemoveRole) during
-// iteration is not supported. fn returns true to stop; IterateRoles returns
-// true if stopped early.
+// To mutate, capture names during iteration and revisit via GetRole from a
+// trusted context after iteration returns; registry mutation (AddRole,
+// RemoveRole) mid-iteration can panic and abort the transaction. fn returns
+// true to stop; IterateRoles returns true if stopped early.
 func (g *Group) IterateRoles(offset, count int, fn func(*ReadonlyRole) bool) (stopped bool) {
 	return g.roles.IterateByOffset(offset, count, func(_ string, value any) bool {
 		return fn(value.(*Role).Readonly())
@@ -184,8 +184,13 @@ func (g *Group) TotalSize() int {
 // deduplicated output, not the pre-dedup items; a negative offset counts as
 // zero. fn returns true to stop; IterateAll returns true if stopped early.
 //
+// The walk is live: do not mutate the group (base set, member sets, or the
+// role registry) from within fn — registry mutation mid-iteration can panic
+// and abort the transaction. Collect addresses first, mutate after
+// IterateAll returns.
+//
 // Implementation note: dedup tracks seen addresses in an internal addrset
-// (O(memory) in the addresses scanned); scanning stops as soon as the
+// (O(N) memory in the addresses scanned); scanning stops as soon as the
 // requested window has been served. For paginating a large Group without
 // dedup, use Iterate (base only) or IterateRoles.
 func (g *Group) IterateAll(offset, count int, fn func(addr address) bool) (stopped bool) {

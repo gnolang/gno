@@ -17,7 +17,7 @@
 // # Security model
 //
 // A Group, and the *Role values it hands out, are meant to be allocated and
-// held by the consuming realm. Two rules apply at realm boundaries:
+// held by the consuming realm. Three rules apply at realm boundaries:
 //
 //  1. Do not ACCEPT a *Group or *Role from an external/untrusted caller —
 //     subsequent mutations would route to the allocating (attacker)
@@ -39,10 +39,10 @@
 //
 // # Metadata: do not store mutable pointers
 //
-// Each Role has a free-form "meta any" slot. Meta() returns the stored value
-// as-is, so a pointer stored in meta can be retrieved by an untrusted reader
-// holding a Readonly() view. A direct
-// field write through that pointer is still blocked by the realm-ownership
+// Each Role has a free-form "meta any" slot. Meta() returns the stored
+// value as-is, so a pointer stored in meta can be retrieved by an untrusted
+// reader holding a Readonly() view. A direct field write through that
+// pointer is still blocked by the realm-ownership
 // gate, but invoking a MUTATOR METHOD on it (or passing it into a function
 // that mutates by argument) runs under whatever realm allocated it (borrow
 // rule #2) and commits the write. This includes common /p/ types such as
