@@ -1,10 +1,13 @@
 package gnolang
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemPackage_Validate(t *testing.T) {
@@ -529,4 +532,33 @@ func TestValidatePkgNameMatchesPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWriteMemPackageTo_FiletestsRoundTrip(t *testing.T) {
+	// Lay out a package following the gno conventions: regular files in
+	// the package dir, filetests in the filetests/ subdir plus one legacy
+	// filetest at the root.
+	dir := t.TempDir()
+	writeFile := func(rel, body string) {
+		fpath := filepath.Join(dir, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(fpath), 0o755))
+		require.NoError(t, os.WriteFile(fpath, []byte(body), 0o644))
+	}
+	writeFile("gnomod.toml", "module = \"gno.land/p/demo/rt\"\ngno = \"0.9\"\n")
+	writeFile("rt.gno", "package rt\n")
+	writeFile("root_filetest.gno", "package main\n\nfunc main() {}\n")
+	writeFile("filetests/sub_filetest.gno", "package main\n\nfunc main() {}\n")
+
+	mpkg, err := ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
+	require.NoError(t, err)
+	require.NotNil(t, mpkg.GetFile("sub_filetest.gno")) // flattened name
+
+	// Write back: every file must land where it was read from, so a
+	// second read succeeds (no duplicate flat copy of sub_filetest.gno).
+	require.NoError(t, WriteMemPackageTo(mpkg, dir))
+	assert.False(t, osFileExists(filepath.Join(dir, "sub_filetest.gno")))
+	assert.True(t, osFileExists(filepath.Join(dir, "filetests", "sub_filetest.gno")))
+	assert.True(t, osFileExists(filepath.Join(dir, "root_filetest.gno")))
+	_, err = ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
+	assert.NoError(t, err)
 }
