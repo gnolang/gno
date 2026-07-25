@@ -265,10 +265,10 @@ func TestPatchXVars(t *testing.T) {
 		body := "package main\n\n" + // lines 1-2
 			"var Banner = `line one\n" + // line 3
 			"line two\n" + // line 4
-			"line three`\n\n" + // line 5
-			"func main() {\n" + // line 6
-			"\tpanic(\"boom\")\n" + // line 7
-			"}\n" // line 8
+			"line three`\n\n" + // line 5, then blank line 6
+			"func main() {\n" + // line 7
+			"\tpanic(\"boom\")\n" + // line 8
+			"}\n" // line 9
 
 		got, _ := patchXVars("test.gno", body, map[string]string{"Banner": "x"})
 
@@ -291,8 +291,8 @@ func TestPatchXVars(t *testing.T) {
 			return true
 		})
 
-		if panicLine != 7 {
-			t.Errorf("panic() call moved to line %d after patching, want line 7 (unchanged):\n%s", panicLine, got)
+		if panicLine != 8 {
+			t.Errorf("panic() call moved to line %d after patching, want line 8 (unchanged):\n%s", panicLine, got)
 		}
 	})
 }
