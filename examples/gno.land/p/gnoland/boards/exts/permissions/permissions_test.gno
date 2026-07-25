@@ -559,13 +559,15 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 		{
 			name:  "no iteration",
 			start: 50,
+			count: 1,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var i int
-			perms.IterateUsers(0, len(users), func(u boards.User) bool {
+			var visited int
+			stopped := perms.IterateUsers(tc.start, tc.count, func(u boards.User) bool {
+				i := tc.start + visited
 				urequire.True(t, i < len(users), "expect iterator to respect number of users")
 				uassert.Equal(t, users[i].Address, u.Address)
 
@@ -574,11 +576,21 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 					uassert.Equal(t, string(users[i].Roles[j]), string(u.Roles[j]))
 				}
 
-				i++
+				visited++
 				return false
 			})
 
-			uassert.Equal(t, i, len(users), "expect iterator to iterate all users")
+			uassert.False(t, stopped, "expect full iteration not to report an early stop")
+			uassert.Equal(t, tc.want, visited, "expect iterator to visit the windowed users")
 		})
 	}
+
+	// Early stop is reported, and iteration actually halts.
+	var visited int
+	stopped := perms.IterateUsers(0, 10, func(boards.User) bool {
+		visited++
+		return true
+	})
+	uassert.True(t, stopped, "expect early stop to be reported")
+	uassert.Equal(t, 1, visited, "expect iteration to halt on early stop")
 }

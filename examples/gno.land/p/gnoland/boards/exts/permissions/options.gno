@@ -24,7 +24,7 @@ func WithSuperRole(r boards.Role) Option {
 		}
 
 		name := string(r)
-		p.dao.Members().Grouping().Add(name)
+		p.group.AddRole(name)
 		p.superRole = r
 	}
 }
