@@ -892,10 +892,7 @@ import (
 
 const (
 	fooDecimals = 4
-	// Identifies the token within this realm. A realm creating a single token
-	// can use 0; one creating several should draw ids from a shared,
-	// persistent seqid.ID.
-	fooTokenID = 0
+	fooTokenID  = 0 // unique id per token within the realm; 0 is fine for a single token
 )
 
 var (
