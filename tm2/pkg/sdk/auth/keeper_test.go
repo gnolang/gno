@@ -195,10 +195,19 @@ func TestCalcBlockGasPrice(t *testing.T) {
 		require.Equal(t, price(10), gk.calcBlockGasPrice(price(10), targetGas+1, maxGas, disabledParams))
 	})
 
-	t.Run("int64 overflow", func(t *testing.T) {
-		require.PanicsWithValue(t, "The min gas price is out of int64 range", func() {
-			gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params)
-		})
+	t.Run("int64 overflow caps instead of panicking", func(t *testing.T) {
+		require.Equal(t, price(math.MaxInt64), gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params))
+	})
+
+	t.Run("sustained congestion settles at the cap", func(t *testing.T) {
+		p := price(1)
+		for range 2000 {
+			p = gk.calcBlockGasPrice(p, maxGas, maxGas, params)
+		}
+		require.Equal(t, int64(math.MaxInt64), p.Price.Amount)
+
+		// The cap is not absorbing: an idle block still walks the price back.
+		require.Less(t, gk.calcBlockGasPrice(p, 0, maxGas, params).Price.Amount, int64(math.MaxInt64))
 	})
 }
 
@@ -436,12 +445,12 @@ func TestCalcBlockGasPriceUnboundedMaxGas(t *testing.T) {
 		require.Equal(t, int64(1000), gk.calcBlockGasPrice(price(1000), 1_000_000, -1, params).Price.Amount)
 	})
 
-	// maxGas*ratio < 100 makes the target 0, and both the increase and the
-	// decrease branch divide by it. With the default ratio of 70 that is
-	// MaxGas 0 and 1. MaxGas == 0 is reachable: getMaximumBlockGas maps it to
-	// an infinite gas meter, so blocks consume gas and EndBlock is reached
-	// with gasUsed > 0. gasUsed == 0 is the exception, matching the target
-	// exactly and returning before either division.
+	// maxGas*ratio < 100 makes the target 0, which both branches divide by.
+	// With the default ratio of 70 that is MaxGas 0 and 1. MaxGas 0 is
+	// reachable: getMaximumBlockGas maps it to an infinite gas meter, so
+	// blocks consume gas and EndBlock runs with gasUsed > 0. gasUsed == 0 is
+	// the exception, matching the target exactly and returning before either
+	// division.
 	t.Run("zero target does not panic", func(t *testing.T) {
 		for _, maxGas := range []int64{0, 1} {
 			for _, gasUsed := range []int64{0, 1, 1_000_000} {
