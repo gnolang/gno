@@ -196,6 +196,8 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	})
 
 	t.Run("int64 overflow caps instead of panicking", func(t *testing.T) {
+		// Starting below the cap, so returning the price unchanged would fail.
+		require.Equal(t, price(math.MaxInt64), gk.calcBlockGasPrice(price(math.MaxInt64-10), targetGas+1, maxGas, params))
 		require.Equal(t, price(math.MaxInt64), gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params))
 	})
 
@@ -445,12 +447,8 @@ func TestCalcBlockGasPriceUnboundedMaxGas(t *testing.T) {
 		require.Equal(t, int64(1000), gk.calcBlockGasPrice(price(1000), 1_000_000, -1, params).Price.Amount)
 	})
 
-	// maxGas*ratio < 100 makes the target 0, which both branches divide by.
-	// With the default ratio of 70 that is MaxGas 0 and 1. MaxGas 0 is
-	// reachable: getMaximumBlockGas maps it to an infinite gas meter, so
-	// blocks consume gas and EndBlock runs with gasUsed > 0. gasUsed == 0 is
-	// the exception, matching the target exactly and returning before either
-	// division.
+	// maxGas*ratio < 100 makes the target 0, which both branches divide by. At
+	// the default ratio of 70 that is MaxGas 0 and 1.
 	t.Run("zero target does not panic", func(t *testing.T) {
 		for _, maxGas := range []int64{0, 1} {
 			for _, gasUsed := range []int64{0, 1, 1_000_000} {
@@ -502,4 +500,23 @@ func TestCalcBlockGasPriceZeroInitialPrice(t *testing.T) {
 	// Still responsive: from the floor, a full block raises the price again.
 	up := gk.calcBlockGasPrice(next, targetGas+1, maxGas, params)
 	require.Equal(t, int64(2), up.Price.Amount)
+}
+
+// The decrease floor is the initial gas price, not 1. Every other test in this
+// file sets InitialGasPrice to 1, which makes the two indistinguishable.
+func TestCalcBlockGasPriceFloorAboveOne(t *testing.T) {
+	gk := GasPriceKeeper{}
+	const maxGas = int64(3_000_000_000)
+	initial := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 100, Denom: "ugnot"}}
+	params := Params{
+		TargetGasRatio:            70,
+		GasPricesChangeCompressor: 10,
+		InitialGasPrice:           initial,
+	}
+
+	next := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 105, Denom: "ugnot"}}
+	for range 5 {
+		next = gk.calcBlockGasPrice(next, 0, maxGas, params)
+		require.Equal(t, initial, next)
+	}
 }
