@@ -6,7 +6,7 @@
 |-------------------|------------------------------------------|--------------|
 | Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
-| Test13            | https://rpc.test13.testnets.gno.land:443 | `test-13`    |
+| Topaz (current testnet) | https://rpc.topaz.testnets.gno.land:443 | `topaz-1`     |
 
 ### WebSocket endpoints
 
@@ -132,15 +132,15 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test13
+### Topaz
 
-The latest Gno.land testnet, released on the 15th of June, 2026.
+The latest Gno.land testnet.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
+  - Pre-deployed packages and realms are at release tag [chain/topaz](https://github.com/gnolang/gno/releases/tag/chain%2Ftopaz)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
