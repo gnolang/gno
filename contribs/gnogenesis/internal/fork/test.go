@@ -262,15 +262,9 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
-			// Assert that every deliverable tx reached the result handler.
-			// No current code path can break this: the InitChain tx loop
-			// never exits early, and the only txs it skips are the
-			// metadata.Failed ones, which countDeliverableTxs already
-			// excludes. Every other genesis failure is reported through
-			// ResponseInitChain.Error, which aborts the handshake, so
-			// gnoland.NewInMemoryNode above returns the error and we never
-			// get here. The assertion stays as a tripwire for a future
-			// path that skips the handler.
+			// Tripwire: every deliverable tx must reach the result handler.
+			// No current path skips one, and any other genesis failure aborts
+			// the handshake before we get here.
 			expected := int64(countDeliverableTxs(appState.Txs))
 			if processed < expected {
 				return fmt.Errorf(

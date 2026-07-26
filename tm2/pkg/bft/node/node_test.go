@@ -622,3 +622,33 @@ func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.
 	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
 	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
 }
+
+// A genesis file that passes the chain identity guards but does not validate
+// must not replace the persisted doc: the reset writes only after it validates.
+func TestGenesisResetKeepsGoodDocOnInvalidFile(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	require.NoError(t, err)
+	require.Equal(t, int64(100), doc.InitialHeight)
+
+	// Same chain and app hash, but a validator with no voting power.
+	invalid := func() (*types.GenesisDoc, error) {
+		d, derr := probeGenesisDocProvider(pk, 100)()
+		if derr != nil {
+			return nil, derr
+		}
+		d.Validators[0].Power = 0
+		return d, nil
+	}
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, invalid)
+	require.Error(t, err, "an invalid genesis must be refused")
+
+	persisted, lerr := loadGenesisDoc(db)
+	require.NoError(t, lerr)
+	assert.Equal(t, int64(10), persisted.Validators[0].Power,
+		"the invalid doc must not have replaced the persisted one")
+}

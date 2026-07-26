@@ -393,13 +393,10 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// Mirror the allow-list into the params store for realms to read (genesis-immutable).
 	cfg.prmk.SetStrings(ictx, valsetPubKeyTypesPath, allowedKeyTypes)
 
-	// Load app state. A nil AppState, or any type loadAppState does not
-	// recognise, is rejected here and aborts the boot.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
-		// ResponseInitChain.Error carries the cause up to the handshake,
-		// which aborts the boot on it. Log it too, at Error level, so it
-		// still lands for a caller that only prints a summary.
+		// The response Error aborts the handshake; also log it, for a caller
+		// that only prints a summary.
 		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
@@ -427,13 +424,10 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// has lost the operator-keyed management plane for those validators.
 	if cfg.shouldRunValoperCoverageAssertion(req) {
 		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
-			// Panic rather than return a ResponseInitChain.Error.
-			// Handshaker.ReplayBlocks does abort on that field now, so
-			// an error response would stop the boot too — but a panic
-			// does not depend on the caller inspecting it, and this
-			// invariant is unconditionally fatal. The panic propagates
-			// up the boot goroutine (NewNode → Handshaker.ReplayBlocks
-			// → InitChainSync) and crashes the process.
+			// Panic rather than return a ResponseInitChain.Error: this
+			// invariant is fatal whether or not the caller inspects the
+			// response. The panic propagates up the boot goroutine
+			// (NewNode → Handshaker.ReplayBlocks → InitChainSync).
 			panic(fmt.Errorf("genesis valoper coverage assertion failed: %w", err))
 		}
 	}

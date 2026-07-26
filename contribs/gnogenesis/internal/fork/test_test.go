@@ -21,8 +21,9 @@ import (
 )
 
 // writeTestGenesis writes a minimal but valid genesis.json to a temp file.
-// It uses a fresh private validator so the genesis is self-contained.
-func writeTestGenesis(t *testing.T, appState gnoland.GnoGenesisState) string {
+// It uses a fresh private validator so the genesis is self-contained. Each opt
+// is applied to the doc before it is marshaled.
+func writeTestGenesis(t *testing.T, appState gnoland.GnoGenesisState, opts ...func(*bft.GenesisDoc)) string {
 	t.Helper()
 
 	pv := bft.NewMockPV()
@@ -49,6 +50,9 @@ func writeTestGenesis(t *testing.T, appState gnoland.GnoGenesisState) string {
 		},
 		AppState: appState,
 	}
+	for _, opt := range opts {
+		opt(&genDoc)
+	}
 
 	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
 	require.NoError(t, err)
@@ -57,6 +61,12 @@ func writeTestGenesis(t *testing.T, appState gnoland.GnoGenesisState) string {
 	path := filepath.Join(dir, "genesis.json")
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 	return path
+}
+
+// withInitialHeight sets the GenesisDoc InitialHeight, which the hardfork tests
+// vary independently of the one in GnoGenesisState.
+func withInitialHeight(h int64) func(*bft.GenesisDoc) {
+	return func(doc *bft.GenesisDoc) { doc.InitialHeight = h }
 }
 
 func minimalAppState() gnoland.GnoGenesisState {
@@ -164,38 +174,8 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 	appState := minimalAppState()
 	appState.PastChainIDs = []string{"test-hardfork-source"}
 
-	pv := bft.NewMockPV()
-	pk := pv.PubKey()
-
-	genDoc := bft.GenesisDoc{
-		GenesisTime:   time.Now(),
-		ChainID:       "test-hardfork-1",
-		InitialHeight: 100, // hardfork starts at block 100
-		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,
-				MaxDataBytes: 2_000_000,
-				MaxGas:       3_000_000_000,
-				TimeIotaMS:   100,
-			},
-		},
-		Validators: []bft.GenesisValidator{
-			{
-				Address: pk.Address(),
-				PubKey:  pk,
-				Power:   10,
-				Name:    "test-validator",
-			},
-		},
-		AppState: appState,
-	}
-
-	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
-	require.NoError(t, err)
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "genesis.json")
-	require.NoError(t, os.WriteFile(path, data, 0o644))
+	// Hardfork starts at block 100.
+	path := writeTestGenesis(t, appState, withInitialHeight(100))
 
 	io := commands.NewTestIO()
 	cfg := &testCfg{
@@ -203,7 +183,7 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 		timeout: 3 * time.Minute,
 	}
 
-	err = execTest(context.Background(), cfg, io)
+	err := execTest(context.Background(), cfg, io)
 	require.NoError(t, err, "hardfork genesis replay should succeed")
 }
 
@@ -249,39 +229,14 @@ func TestExecTest_InitialHeightMismatch(t *testing.T) {
 
 	appState := minimalAppState()
 	appState.PastChainIDs = []string{"test-hardfork-source"}
-	appState.InitialHeight = 999 // GenesisDoc below says 100
+	appState.InitialHeight = 999 // the GenesisDoc says 100
 
-	pv := bft.NewMockPV()
-	pk := pv.PubKey()
-
-	genDoc := bft.GenesisDoc{
-		GenesisTime:   time.Now(),
-		ChainID:       "test-hardfork-1",
-		InitialHeight: 100,
-		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,
-				MaxDataBytes: 2_000_000,
-				MaxGas:       3_000_000_000,
-				TimeIotaMS:   100,
-			},
-		},
-		Validators: []bft.GenesisValidator{
-			{Address: pk.Address(), PubKey: pk, Power: 10, Name: "test-validator"},
-		},
-		AppState: appState,
-	}
-
-	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
-	require.NoError(t, err)
-
-	path := filepath.Join(t.TempDir(), "genesis.json")
-	require.NoError(t, os.WriteFile(path, data, 0o644))
+	path := writeTestGenesis(t, appState, withInitialHeight(100))
 
 	io := commands.NewTestIO()
 	cfg := &testCfg{genesis: path, timeout: 3 * time.Minute}
 
-	err = execTest(context.Background(), cfg, io)
+	err := execTest(context.Background(), cfg, io)
 	require.Error(t, err, "fork test must not report PASS on an InitialHeight mismatch")
 	require.ErrorContains(t, err, "InitialHeight mismatch")
 }

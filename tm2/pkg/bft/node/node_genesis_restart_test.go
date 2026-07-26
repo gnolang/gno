@@ -9,15 +9,9 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // App that refuses any genesis whose InitialHeight is not wantHeight.
@@ -45,13 +39,9 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	app := &pickyApp{wantHeight: 1}
+	config.LocalApp = app
 
 	build := func(initialHeight int64) (*Node, error) {
-		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
-		require.NoError(t, err)
-		privVal, err := privval.NewPrivValidatorFromConfig(
-			config.Consensus.PrivValidator, nodeKey.PrivKey, log.NewNoopLogger())
-		require.NoError(t, err)
 		provider := func() (*types.GenesisDoc, error) {
 			doc, derr := types.GenesisDocFromFile(genesisFile)
 			if derr != nil {
@@ -61,8 +51,8 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 			doc.AppState = "app-state"
 			return doc, nil
 		}
-		return NewNode(config, privVal, nodeKey, proxy.NewLocalClientCreator(app),
-			provider, DefaultDBProvider, events.NewEventSwitch(), log.NewNoopLogger())
+		return DefaultNewNodeWithGenesisProvider(
+			config, provider, events.NewEventSwitch(), log.NewNoopLogger())
 	}
 
 	// genesis.json says 42; the app wants 1.
@@ -76,32 +66,4 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 	require.NotNil(t, n)
 	assert.Equal(t, int64(1), n.GenesisDoc().InitialHeight, "corrected doc must be the one in use")
 	assert.Equal(t, []int64{42, 1}, app.seen, "the app must see the corrected InitialHeight on the retry")
-}
-
-// A genesis file that passes the chain identity guards but does not validate
-// must not replace the persisted doc: the reset writes only after it validates.
-func TestGenesisResetKeepsGoodDocOnInvalidFile(t *testing.T) {
-	db := dbm.DB(memdb.NewMemDB())
-	pk := ed25519.GenPrivKey().PubKey()
-
-	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
-	require.NoError(t, err)
-	require.Equal(t, int64(100), doc.InitialHeight)
-
-	// Same chain and app hash, but a validator with no voting power.
-	invalid := func() (*types.GenesisDoc, error) {
-		d, derr := probeGenesisDocProvider(pk, 100)()
-		if derr != nil {
-			return nil, derr
-		}
-		d.Validators[0].Power = 0
-		return d, nil
-	}
-	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, invalid)
-	require.Error(t, err, "an invalid genesis must be refused")
-
-	persisted, lerr := loadGenesisDoc(db)
-	require.NoError(t, lerr)
-	assert.Equal(t, int64(10), persisted.Validators[0].Power,
-		"the invalid doc must not have replaced the persisted one")
 }
