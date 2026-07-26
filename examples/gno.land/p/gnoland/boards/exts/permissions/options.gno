@@ -30,7 +30,9 @@ func WithSuperRole(r boards.Role) Option {
 			panic("permissions super role name is required")
 		}
 
-		p.group.AddRole(name)
+		if _, err := p.group.AddRole(name); err != nil {
+			panic(err)
+		}
 		p.superRole = r
 	}
 }

@@ -43,11 +43,15 @@ PR 2 may freely delete `exts/storage` and the `Member*` types.
      user's existing roles — and dropped root-set membership via the
      broker — before hitting the panic, leaving partial state observable
      under `recover()`.
-   - Whitespace-only role names are rejected again. Old commondao
-     trimmed-and-rejected them inside `NewMemberGroup`; `groups.AddRole`
-     only rejects `""`, so `AddRole`/`WithSuperRole` now guard with
-     `strings.TrimSpace` themselves (panic messages differ from the old
-     commondao text).
+   - Empty and whitespace-only role names are rejected in `AddRole`,
+     regardless of super-role configuration. Old commondao
+     trimmed-and-rejected whitespace inside `NewMemberGroup`, but
+     `AddRole("")` silently no-op'd via the unset-superRole sentinel;
+     the guard now lives in `AddRole` itself, above the sentinel.
+     `WithSuperRole` rejects such names too — previously it silently set
+     a super role with no backing role registration (a broken
+     half-state), so that path is a fix, not a restoration. Panic
+     messages differ from the old commondao text.
 
 ## Alternatives considered
 
@@ -74,3 +78,13 @@ PR 2 may freely delete `exts/storage` and the `Member*` types.
   under the owning realm's authority — owner-controlled functions only.
 - One less indirection layer: no message broker, no storage factory — role
   membership writes go straight into the group.
+- The cost profile flips from read-optimized to write-optimized. The old
+  broker kept a per-user reverse index, so role reads were one index
+  lookup; `RolesContaining` now scans all R roles (R = 4 in boards2),
+  making `GetUserRoles`/`HasPermission`/`IterateUsers` roughly 2.2–2.4×
+  the read gas at a 500-member board. In exchange, membership writes drop
+  ~50% gas, per-board storage ~44%, per-membership storage ~61%, and the
+  unchanged boards2 + hub suites net −0.6% to −4.9% gas overall (worst
+  single filetest +1.06%). Reintroducing a reverse index would give those
+  write/storage wins back; not warranted unless a consumer appears with
+  many roles or very hot on-chain role reads at large membership.

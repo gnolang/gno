@@ -69,14 +69,14 @@ func (ps *Permissions) SetPublicPermissions(permissions ...boards.Permission) {
 // AddRole adds a role with one or more assigned permissions.
 // If role exists its permissions are overwritten with the new ones.
 func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boards.Permission) {
-	// If role is the super role it already has all permissions
-	if ps.superRole == r {
-		return
-	}
-
 	name := string(r)
 	if strings.TrimSpace(name) == "" {
 		panic("role name is required")
+	}
+
+	// If role is the super role it already has all permissions
+	if ps.superRole == r {
+		return
 	}
 
 	// Get the role if it exists or otherwise register a new one

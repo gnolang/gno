@@ -489,12 +489,14 @@ func TestBasicPermissionsAddRoleEmptyName(cur realm, t *testing.T) {
 		New(WithSuperRole("  "))
 	}, "expect whitespace only super role names to be rejected")
 
-	// The empty string is not rejected: with no super role configured it
-	// falls into the superRole sentinel early-return and no-ops, matching
-	// the previous commondao-backed behavior.
-	urequire.NotPanics(t, cur, func() {
+	// The empty string is rejected before the superRole sentinel check, so
+	// the outcome doesn't depend on whether a super role is configured.
+	urequire.PanicsWithMessage(t, cur, "role name is required", func() {
 		New().AddRole("", testPermA)
-	}, "expect empty role name to fall into the super role sentinel no-op")
+	}, "expect empty role name to be rejected without a super role")
+	urequire.PanicsWithMessage(t, cur, "role name is required", func() {
+		New(WithSuperRole("owner")).AddRole("", testPermA)
+	}, "expect empty role name to be rejected with a super role")
 }
 
 func TestBasicPermissionsSuperRole(t *testing.T) {
