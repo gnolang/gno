@@ -458,17 +458,21 @@ func ensureNewProposal(proposalCh <-chan events.Event, height int64, round int) 
 	case <-time.After(ensureTimeout):
 		panic("Timeout expired while waiting for NewProposal event")
 	case msg := <-proposalCh:
-		proposalEvent, ok := msg.(cstypes.EventCompleteProposal)
-		if !ok {
-			panic(fmt.Sprintf("expected a EventCompleteProposal, got %T. Wrong subscription channel?",
-				msg))
-		}
-		if proposalEvent.Height != height {
-			panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
-		}
-		if proposalEvent.Round != round {
-			panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
-		}
+		checkProposalEvent(msg, height, round)
+	}
+}
+
+func checkProposalEvent(msg events.Event, height int64, round int) {
+	proposalEvent, ok := msg.(cstypes.EventCompleteProposal)
+	if !ok {
+		panic(fmt.Sprintf("expected a EventCompleteProposal, got %T. Wrong subscription channel?",
+			msg))
+	}
+	if proposalEvent.Height != height {
+		panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
+	}
+	if proposalEvent.Round != round {
+		panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
 	}
 }
 
@@ -497,17 +501,7 @@ func ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh <-chan events.
 					height, round, timeoutEvent.Height, timeoutEvent.Round))
 			}
 		case msg := <-proposalCh:
-			proposalEvent, ok := msg.(cstypes.EventCompleteProposal)
-			if !ok {
-				panic(fmt.Sprintf("expected a EventCompleteProposal, got %T. Wrong subscription channel?",
-					msg))
-			}
-			if proposalEvent.Height != height {
-				panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
-			}
-			if proposalEvent.Round != round {
-				panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
-			}
+			checkProposalEvent(msg, height, round)
 			return
 		}
 	}

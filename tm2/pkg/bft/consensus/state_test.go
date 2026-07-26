@@ -1153,11 +1153,6 @@ func TestProposeValidBlock(t *testing.T) {
 
 	t.Log("### ONTO ROUND 4")
 
-	// cs1 proposes the valid block here, but the proposal reaches the state
-	// through the internal message queue, so the propose timeout can win the
-	// race and fire first. Nothing else reads that timeout, and subscriptions
-	// deliver synchronously on the routine that drains the queue, so leaving it
-	// unread stops cs1 from ever reaching its own proposal.
 	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs = cs1.GetRoundState()
