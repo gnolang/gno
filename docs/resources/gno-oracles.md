@@ -1,9 +1,11 @@
 # Oracles
 
 A realm cannot fetch anything: no HTTP, no files, no external reads. Off-chain
-data enters the chain only when someone sends a transaction carrying it. An
-oracle is therefore an agreement between a realm and off-chain agents it
-chooses to trust to send that data.
+data enters the chain only when someone sends a transaction carrying it. That
+someone is an agent: an ordinary off-chain program submitting transactions
+from its own address, which the chain sees as just another account. An oracle
+is therefore an agreement between a realm and agents it chooses to trust to
+send that data.
 
 ## The gnorkle framework
 
@@ -15,6 +17,62 @@ polls the realm for pending tasks through an entrypoint, does the off-chain
 work, and pushes the result back with an ingest message. An *ingester*
 validates and commits the value to the feed's storage, and whitelists, per
 instance or per feed, control which agents may provide values.
+
+Feeds come in three shapes: a static feed commits one value then locks, a
+continuous feed keeps ingesting and publishes on demand, and a periodic feed
+aggregates the values received in each time window. Only the static feed is
+implemented today.
+
+## Example: publishing a single value
+
+A realm that needs one off-chain fact, say a football match result, embeds an
+instance, whitelists an agent, and registers a
+[single-value static feed](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/gnorkle/feeds/static):
+
+```go
+import (
+	"gno.land/p/demo/gnorkle/feeds/static"
+	"gno.land/p/demo/gnorkle/gnorkle"
+)
+
+var oracle *gnorkle.Instance
+
+func init() {
+	oracle = gnorkle.NewInstance()
+	// "" targets the instance-level whitelist.
+	oracle.AddToWhitelist("", []string{"g1trustedagent..."})
+	oracle.AddFeeds(static.NewSingleValueFeed("match-1", "string", matchTask{}))
+}
+
+// The task carries the data the agent needs to do the off-chain work.
+type matchTask struct{}
+
+func (matchTask) MarshalJSON() ([]byte, error) {
+	return []byte(`{"type":"match_result","match":"match-1"}`), nil
+}
+
+func GnorkleEntrypoint(cur realm, msg string) string {
+	result, err := oracle.HandleMessage(msg, nil)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
+func Result() string {
+	value, _, consumable, err := oracle.GetFeedValue("match-1")
+	if err != nil || !consumable {
+		return "pending"
+	}
+	return value.String
+}
+```
+
+The agent drives the flow with two messages to `GnorkleEntrypoint`.
+`request` returns the JSON definitions of every feed the agent is whitelisted
+for, tasks included. `ingest,match-1,2-1` submits the value: a single-value
+feed commits it on first ingestion and locks, so the result can never be
+overwritten. `Result` then serves the committed value to any caller.
 
 ## Example: verifying a GitHub identity
 
