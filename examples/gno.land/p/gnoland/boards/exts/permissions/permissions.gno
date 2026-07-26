@@ -54,7 +54,7 @@ func New(options ...Option) *Permissions {
 }
 
 // ValidateFunc adds a custom permission validator function.
-// If an existing permission function exists it's ovewritten by the new one.
+// If an existing permission function exists it's overwritten by the new one.
 func (ps *Permissions) ValidateFunc(p boards.Permission, fn ValidatorFunc) {
 	ps.validators.Set(p.String(), fn)
 }
@@ -89,7 +89,7 @@ func (ps *Permissions) AddRole(r boards.Role, p boards.Permission, extra ...boar
 		}
 	}
 
-	// Save permissions within the role meta overwritting any existing permissions
+	// Save permissions within the role meta overwriting any existing permissions
 	permissions := append([]boards.Permission{p}, extra...)
 	role.SetMeta(boards.NewPermissionSet(permissions...))
 }
@@ -200,15 +200,10 @@ func (ps Permissions) UsersCount() int {
 // IterateUsers iterates permissions' users.
 func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (stopped bool) {
 	return ps.group.Iterate(start, count, func(addr address) bool {
-		user := boards.User{Address: addr}
-		if names := ps.group.RolesContaining(addr); names != nil {
-			user.Roles = make([]boards.Role, len(names))
-			for i, name := range names {
-				user.Roles[i] = boards.Role(name)
-			}
-		}
-
-		return fn(user)
+		return fn(boards.User{
+			Address: addr,
+			Roles:   ps.GetUserRoles(addr),
+		})
 	})
 }
 

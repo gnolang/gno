@@ -65,7 +65,7 @@ func TestBasicPermissionsWithPermission(cur realm, t *testing.T) {
 			err: "unauthorized, user g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 doesn't have the required permission",
 		},
 		{
-			name:       "is not a DAO member",
+			name:       "is not a member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: testPermA,
 			setup: func() *Permissions {
@@ -488,6 +488,13 @@ func TestBasicPermissionsAddRoleEmptyName(cur realm, t *testing.T) {
 	urequire.PanicsWithMessage(t, cur, "permissions super role name is required", func() {
 		New(WithSuperRole("  "))
 	}, "expect whitespace only super role names to be rejected")
+
+	// The empty string is not rejected: with no super role configured it
+	// falls into the superRole sentinel early-return and no-ops, matching
+	// the previous commondao-backed behavior.
+	urequire.NotPanics(t, cur, func() {
+		New().AddRole("", testPermA)
+	}, "expect empty role name to fall into the super role sentinel no-op")
 }
 
 func TestBasicPermissionsSuperRole(t *testing.T) {
@@ -505,7 +512,8 @@ func TestBasicPermissionsSuperRole(t *testing.T) {
 	uassert.True(t, perms.HasPermission(user, testPermA))
 	uassert.True(t, perms.HasPermission(user, testPermC))
 
-	// AddRole on the super role is a no-op; it keeps all permissions
+	// AddRole on the super role is a no-op: the super role branch grants
+	// every permission regardless of any meta a mapping would set
 	perms.AddRole(super, testPermB)
 	uassert.True(t, perms.HasPermission(user, testPermA), "expect super role to keep all permissions")
 }
