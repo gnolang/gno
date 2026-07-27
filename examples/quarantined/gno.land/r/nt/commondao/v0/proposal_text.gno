@@ -55,6 +55,9 @@ func (p TextPropDefinition) Title() string               { return p.title }
 func (p TextPropDefinition) Body() string                { return p.body }
 func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
+// isRawTextDefinition marks Title/Body as raw user text the renderer escapes.
+func (TextPropDefinition) isRawTextDefinition() {}
+
 // Threshold returns the tally threshold: text proposals are decided by the
 // constitution's default supermajority rule.
 func (TextPropDefinition) Threshold() commondao.Threshold {

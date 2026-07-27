@@ -54,7 +54,7 @@ func (p subDAOPropDefinition) Body() string {
 	))
 
 	b.WriteString(md.Paragraph(
-		md.Bold("SubDAO Name:") + "\n" + p.name,
+		md.Bold("SubDAO Name:") + "\n" + md.EscapeText(p.name),
 	))
 
 	items := make([]string, 0, p.members.Size())

@@ -19,6 +19,14 @@ import (
 
 const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
 
+// rawTextDefinition marks proposal definitions whose Body returns raw,
+// user-supplied text that the renderer must escape. Definitions that
+// assemble their own markdown escape any embedded user fields themselves
+// and are rendered as trusted markdown.
+type rawTextDefinition interface {
+	isRawTextDefinition()
+}
+
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHome)
@@ -424,10 +432,15 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	res.Write(md.BulletItem(statusItem))
 
-	// Render proposal body
+	// Render proposal body. Definitions that build their own markdown
+	// escape their embedded user fields themselves; only raw-text bodies
+	// are escaped here.
 	if body := def.Body(); body != "" {
 		res.Write(md.H2("Description"))
-		res.Write(md.Paragraph(md.EscapeText(body)))
+		if _, raw := def.(rawTextDefinition); raw {
+			body = md.EscapeText(body)
+		}
+		res.Write(md.Paragraph(body))
 	}
 
 	// Render voting stats and votes
