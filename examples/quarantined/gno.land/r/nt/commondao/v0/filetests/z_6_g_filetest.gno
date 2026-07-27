@@ -25,15 +25,15 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "", "")
-	commondao.UpdateOptions(cross(cur), daoID, false, true, true, false, 0) // Disallow early execution
 
+	// A passed proposal that is not executed before its deadline
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 }
 
 func main(cur realm) {
-	// AllowExecution only gates pre-deadline execution: once the deadline
-	// passes, finalization is permissionless even with the flag off
+	// Past the deadline, finalization is permissionless: a non-council
+	// caller can execute the passed proposal.
 	testing.SetRealm(testing.NewUserRealm(owner))
 	testing.SkipHeights(121000) // 5s blocks: pass the 7 day voting deadline
 

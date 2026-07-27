@@ -10,7 +10,8 @@ import (
 
 // DefaultMaxActiveProposals is the default cap for simultaneously active
 // proposals per DAO. Every active proposal stores a council snapshot, so
-// the cap bounds storage; it can be changed with WithMaxActiveProposals.
+// the cap bounds storage. It is set to this default at construction; a
+// hosting realm may adjust it with SetMaxActiveProposals.
 const DefaultMaxActiveProposals = 32
 
 var (

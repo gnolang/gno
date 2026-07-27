@@ -22,9 +22,9 @@ var (
 	daoID     seqid.ID
 	realmLink = txlink.Realm(pkgPath)
 	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
-	ownership = bptree.NewBPTree32() // string(address) -> []uint64(DAO ID)
 	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
-	options   = bptree.NewBPTree32() // string(ID) -> *Options
+	creators  = bptree.NewBPTree32() // string(address) -> struct{}; consumed-invite marker
+	listed    = bptree.NewBPTree32() // string(ID) -> struct{}; home-index opt-in
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
@@ -43,23 +43,29 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 	return dao
 }
 
-func getOwnership(addr address) []uint64 {
-	if v := ownership.Get(addr.String()); v != nil {
-		return v.([]uint64)
-	}
-	return nil
-}
-
-func getOptions(daoID uint64) *Options {
-	key := makeIDKey(daoID)
-	if v := options.Get(key); v != nil {
-		return v.(*Options)
-	}
-	return nil
-}
-
 func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
+}
+
+// isCreator reports whether an address has already consumed an invite and
+// may create further DAOs without another one.
+func isCreator(addr address) bool {
+	return creators.Has(addr.String())
+}
+
+// isListed reports whether a DAO opted into the realm's public home index.
+func isListed(daoID uint64) bool {
+	return listed.Has(makeIDKey(daoID))
+}
+
+// setListed adds or removes a DAO from the realm's public home index.
+func setListed(daoID uint64, v bool) {
+	key := makeIDKey(daoID)
+	if v {
+		listed.Set(key, struct{}{})
+	} else {
+		listed.Remove(key)
+	}
 }
 
 // subpathOf returns the realm sub-identity subpath that acts for a DAO.
@@ -75,21 +81,14 @@ func daoAddress(daoID uint64) address {
 	return chain.DerivePkgSubAddr(pkgPath, subpathOf(daoID))
 }
 
-func createDAO(name, description string, owner address, members ...address) *commondao.CommonDAO {
+func createDAO(name, description string, members ...address) *commondao.CommonDAO {
 	if len(members) == 0 {
 		panic("a DAO requires at least one initial council member")
 	}
 
 	id := daoID.Next()
 	dao := commondao.New(newDAOOptions(uint64(id), name, description, nil, members)...)
-
-	ids := append(getOwnership(owner), uint64(id))
-	ownership.Set(owner.String(), ids)
-
 	daos.Set(id.String(), dao)
-
-	stored := defaultOptions
-	options.Set(id.String(), &stored)
 	return dao
 }
 
@@ -101,9 +100,6 @@ func createSubDAO(parent *commondao.CommonDAO, name, description string, members
 	// WithParent also registers the new DAO as one of parent's children
 	id := daoID.Next()
 	dao := commondao.New(newDAOOptions(uint64(id), name, description, parent, members)...)
-
-	stored := defaultOptions
-	options.Set(id.String(), &stored)
 	daos.Set(id.String(), dao)
 	return dao
 }

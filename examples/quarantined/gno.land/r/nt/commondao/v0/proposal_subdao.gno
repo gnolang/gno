@@ -76,10 +76,6 @@ func (p subDAOPropDefinition) Body() string {
 }
 
 func (p subDAOPropDefinition) Validate() (err error) {
-	if !getOptions(p.parent.ID()).AllowChildren {
-		return errors.New("SubDAO support is not enabled")
-	}
-
 	p.parent.IterateChildren(func(subDAO *commondao.CommonDAO) bool {
 		if subDAO.Name() == p.name {
 			err = errors.New("a SubDAO with the same name already exists")

@@ -32,10 +32,12 @@ func IsInvited(addr address) bool {
 }
 
 // New creates a new CommonDAO and returns its ID.
-// An invitation is required to be able to create new DAOs.
-// The caller becomes the DAO owner and a council member, optionally
-// together with a newline separated list of additional member addresses.
-// Sub-DAOs are created through proposals (see CreateSubDAOProposal).
+// An invitation is required to start creating DAOs: the transaction
+// origin (an EOA) must hold an invite, which is consumed on its first
+// creation; afterwards that origin may create further DAOs freely. The
+// caller becomes a council member, optionally together with a newline
+// separated list of additional member addresses. Sub-DAOs are created
+// through proposals (see CreateSubDAOProposal).
 func New(cur realm, name, description, members string) uint64 {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
@@ -43,14 +45,18 @@ func New(cur realm, name, description, members string) uint64 {
 	description = strings.TrimSpace(description)
 	assertDAODescriptionIsValid(description)
 
-	caller := cur.Previous().Address()
-	if !hasOwnership(caller) {
-		orig := unsafe.OriginCaller()
+	// The right to create DAOs is granted to invited EOAs, so gate on the
+	// transaction origin. The invite is consumed once; the origin is then
+	// recorded so it can create further DAOs without another invite.
+	orig := unsafe.OriginCaller()
+	if !isCreator(orig) {
 		assertIsInvited(orig)
 		invites.Remove(orig.String())
+		creators.Set(orig.String(), struct{}{})
 	}
 
-	dao := createDAO(name, description, caller, parseInitialMembers(caller, members)...)
+	caller := cur.Previous().Address()
+	dao := createDAO(name, description, parseInitialMembers(caller, members)...)
 	return dao.ID()
 }
 
@@ -64,62 +70,23 @@ func parseInitialMembers(caller address, members string) []address {
 	return append(addrs, caller)
 }
 
-// GetOptions returns a copy of the configuration of a DAO.
-// It panics if caller doesn't have ownership of the DAO instance.
-func GetOptions(cur realm, daoID uint64) Options {
-	if !isOwner(cur.Previous().Address(), daoID) {
-		panic("unauthorized")
+// SetListed adds or removes a DAO from the realm's public home index.
+// Listing is cosmetic — it affects only how this realm presents the DAO
+// in its own UI — so any single council member of the DAO may toggle it,
+// like Resign. It defaults to off.
+func SetListed(cur realm, daoID uint64, listed bool) {
+	dao := mustGetDAO(daoID)
+	if dao.IsDeleted() {
+		panic(commondao.ErrDAOIsDeleted)
 	}
 
-	return *getOptions(daoID)
+	assertCallerIsCouncilMember(cur.Previous().Address(), dao)
+	setListed(daoID, listed)
 }
 
-// UpdateOptions changes the hosting configuration of a DAO.
-// It panics if caller doesn't have ownership of the DAO instance.
-// A maxActiveProposals value below one keeps the current proposal cap.
-func UpdateOptions(cur realm, daoID uint64, allowListing, allowRender, allowChildren, allowExecution bool, maxActiveProposals int) {
-	if !isOwner(cur.Previous().Address(), daoID) {
-		panic("unauthorized")
-	}
-
-	*getOptions(daoID) = Options{
-		AllowListing:   allowListing,
-		AllowRender:    allowRender,
-		AllowChildren:  allowChildren,
-		AllowExecution: allowExecution,
-	}
-
-	// Values below one are ignored by the package cap setter
-	mustGetDAO(daoID).SetMaxActiveProposals(maxActiveProposals)
-}
-
-// IsOwner checks if an address has ownership of a DAO.
-func IsOwner(addr address, daoID uint64) bool {
-	return isOwner(addr, daoID)
-}
-
-// TransferOwnership transfers DAO ownership to a different address.
-// Ownership is indexed by root DAO, so SubDAO IDs are rejected.
-func TransferOwnership(cur realm, daoID uint64, newOwner address) {
-	caller := cur.Previous().Address()
-	assertIsOwner(caller, daoID)
-
-	if mustGetDAO(daoID).Parent() != nil {
-		panic("ownership belongs to the root DAO, transfer using the root DAO ID")
-	}
-
-	if !newOwner.IsValid() {
-		panic("invalid owner address")
-	}
-	ids := getOwnership(caller)
-	for i, id := range ids {
-		if id == daoID {
-			ownership.Set(caller.String(), append(ids[:i], ids[i+1:]...))
-			ownership.Set(newOwner.String(), append(getOwnership(newOwner), id))
-
-			break
-		}
-	}
+// IsListed reports whether a DAO appears in the realm's public home index.
+func IsListed(daoID uint64) bool {
+	return isListed(daoID)
 }
 
 // GetView returns a read only view of a common DAO searched by ID.
@@ -142,10 +109,9 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 // Execute executes a DAO proposal.
 //
 // Executing a proposal that passed early (decided by the default Council
-// rules before its voting deadline) requires execution to be enabled for
-// the DAO and the caller to be a council member. Once the voting deadline
-// has passed execution is permissionless: the tally is deterministic, so
-// anyone can finalize the proposal.
+// rules before its voting deadline) requires the caller to be a council
+// member. Once the voting deadline has passed execution is permissionless:
+// the tally is deterministic, so anyone can finalize the proposal.
 func Execute(cur realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	p := dao.GetProposal(proposalID)
@@ -153,12 +119,10 @@ func Execute(cur realm, daoID, proposalID uint64) {
 		panic(commondao.ErrProposalNotFound)
 	}
 
+	// Before the deadline, only a council member may execute an
+	// early-passed proposal. Once the deadline passes the tally is
+	// deterministic, so finalization is permissionless.
 	if !p.HasVotingDeadlinePassed() {
-		o := getOptions(dao.ID())
-		if !o.AllowExecution {
-			panic("proposal execution is not enabled")
-		}
-
 		assertCallerIsCouncilMember(cur.Previous().Address(), dao)
 	}
 
@@ -202,35 +166,12 @@ func Resign(cur realm, daoID uint64) {
 	}
 }
 
-func hasOwnership(addr address) bool {
-	return ownership.Has(addr.String())
-}
-
 func isInvited(addr address) bool {
 	return invites.Has(addr.String())
 }
 
-func isOwner(addr address, daoID uint64) bool {
-	// Make sure to check the root DAO ID, in case daoID belongs to a SubDAO.
-	// This is required because ownership is assigned to the root DAO.
-	daoID = mustGetDAO(daoID).TopParent().ID()
-
-	for _, id := range getOwnership(addr) {
-		if id == daoID {
-			return true
-		}
-	}
-	return false
-}
-
 func assertIsInvited(addr address) {
 	if !isInvited(addr) {
-		panic("unauthorized")
-	}
-}
-
-func assertIsOwner(addr address, daoID uint64) {
-	if !isOwner(addr, daoID) {
 		panic("unauthorized")
 	}
 }

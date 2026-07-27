@@ -55,8 +55,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	var items []string
 	daos.ReverseIterateByOffset(pages.Offset(), pages.PageSize(), func(_ string, v any) bool {
 		dao := v.(*commondao.CommonDAO)
-		o := getOptions(dao.ID())
-		if o.AllowRender && o.AllowListing {
+		if isListed(dao.ID()) {
 			items = append(items, md.Link(dao.Name(), daoURL(dao.ID())))
 		}
 		return false
@@ -191,14 +190,12 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 			),
 	}
 
-	if getOptions(daoID).AllowChildren {
-		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
-			md.Paragraph(
-				"This type of proposal is used to create SubDAOs, "+
-					"which are used to create tree based DAOs.",
-			),
-		)
-	}
+	cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
+		md.Paragraph(
+			"This type of proposal is used to create SubDAOs, "+
+				"which are used to create tree based DAOs.",
+		),
+	)
 
 	res.Write(md.H2("Create Proposal"))
 	res.Write(md.Paragraph("These are the proposal supported by this DAO:"))
@@ -261,7 +258,6 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 
 func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
-	o := getOptions(dao.ID())
 
 	// Render header
 	res.Write(md.H1(md.EscapeText(dao.Name()) + ": Settings"))
@@ -270,15 +266,12 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
 	res.Write(md.HorizontalRule())
 
-	// Render options
-	table := mdtable.Table{Headers: []string{"Options", "Values"}}
-	table.Append([]string{"Allow listing", strconv.FormatBool(o.AllowListing)})
-	table.Append([]string{"Allow render", strconv.FormatBool(o.AllowRender)})
-	table.Append([]string{"Allow SubDAOs", strconv.FormatBool(o.AllowChildren)})
-	table.Append([]string{"Enable early execution", strconv.FormatBool(o.AllowExecution)})
+	// Render info
+	table := mdtable.Table{Headers: []string{"Setting", "Value"}}
+	table.Append([]string{"Listed", strconv.FormatBool(isListed(dao.ID()))})
 	table.Append([]string{"Max active proposals", strconv.Itoa(dao.MaxActiveProposals())})
 
-	res.Write(md.H2("Options"))
+	res.Write(md.H2("Info"))
 	res.Write(table.String())
 }
 
@@ -358,7 +351,6 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
 	def := p.Definition()
 	record := p.VotingRecord()
-	o := getOptions(dao.ID())
 
 	// Render title
 	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), md.EscapeText(def.Title()), proposalURL(dao.ID(), p.ID())))
@@ -378,7 +370,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 		status = append(status, voteLink(dao.ID(), p.ID()))
 	}
 
-	if isExecutionAllowed(p) && (o.AllowExecution || p.HasVotingDeadlinePassed()) {
+	if isExecutionAllowed(p) {
 		status = append(status, executeLink(dao.ID(), p.ID()))
 	}
 
@@ -408,12 +400,11 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render main menu
 	items := []string{goToDAOLink(dao.ID())}
-	o := getOptions(dao.ID())
 	if votingActive {
 		items = append(items, voteLink(dao.ID(), p.ID()))
 	}
 
-	if isExecutionAllowed(p) && (o.AllowExecution || p.HasVotingDeadlinePassed()) {
+	if isExecutionAllowed(p) {
 		items = append(items, executeLink(dao.ID(), p.ID()))
 	}
 
@@ -546,11 +537,6 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	daoID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
 		panic("invalid DAO ID")
-	}
-
-	o := getOptions(daoID)
-	if o == nil || !o.AllowRender {
-		panic("rendering is not enabled")
 	}
 
 	return mustGetDAO(daoID)

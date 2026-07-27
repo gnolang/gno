@@ -30,9 +30,6 @@ func newTestDAO(t *testing.T, name string, members ...address) *commondao.Common
 
 	dao := commondao.New(opts...)
 	daos.Set(id.String(), dao)
-	options.Set(id.String(), &Options{
-		AllowChildren: true,
-	})
 	return dao
 }
 

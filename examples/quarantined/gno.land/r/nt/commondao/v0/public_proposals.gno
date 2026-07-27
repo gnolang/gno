@@ -63,11 +63,6 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 // - members: Newline separated list of initial SubDAO council addresses (required)
 func CreateSubDAOProposal(cur realm, daoID uint64, name, description, members string) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowChildren {
-		panic("SubDAO support is not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 

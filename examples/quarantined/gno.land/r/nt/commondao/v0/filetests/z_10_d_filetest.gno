@@ -115,11 +115,8 @@ func main() {
 // [Go to DAO](/r/nt/commondao/v0:3)
 //
 // ---
-// ## Options
-// | Options | Values |
+// ## Info
+// | Setting | Value |
 // | --- | --- |
-// | Allow listing | false |
-// | Allow render | true |
-// | Allow SubDAOs | true |
-// | Enable early execution | true |
+// | Listed | false |
 // | Max active proposals | 32 |
