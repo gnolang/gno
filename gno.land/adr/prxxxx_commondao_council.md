@@ -190,9 +190,9 @@ keep full freedom via the `CustomTallier` interface.
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and 71 realm filetests (59 migrated, 12 added for the new
+  cleanly) and 72 realm filetests (59 migrated, 13 added for the new
   surface, including render-escaping goldens for names, bodies and
-  vote reasons).
+  vote reasons, and a dissolved-parent sub-DAO rejection).
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
 - The realm's crossing functions deliberately do **not** open with

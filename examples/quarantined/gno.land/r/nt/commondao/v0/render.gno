@@ -444,7 +444,7 @@ func renderProposalStats(res *mux.ResponseWriter, record *commondao.VotingRecord
 	record.IterateVotesCount(func(c commondao.VoteChoice, voteCount int) bool {
 		percentage := float64(voteCount*100) / totalCount
 
-		table.Append([]string{string(c), strconv.FormatFloat(percentage, 'f', 2, 64) + "%"})
+		table.Append([]string{md.EscapeText(string(c)), strconv.FormatFloat(percentage, 'f', 2, 64) + "%"})
 		return false
 	})
 
@@ -507,7 +507,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.H2("Details"))
 	res.Write(md.BulletItem("User: " + userLink(v.Address)))
-	res.Write(md.BulletItem("Vote: " + string(v.Choice)))
+	res.Write(md.BulletItem("Vote: " + md.EscapeText(string(v.Choice))))
 
 	if v.Reason != "" {
 		res.Write(md.H2("Reason"))
