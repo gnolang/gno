@@ -60,8 +60,3 @@ func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod
 func (TextPropDefinition) Threshold() commondao.Threshold {
 	return commondao.ThresholdSupermajority
 }
-
-func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSupermajority)
-	return outcome == commondao.OutcomePassed, nil
-}

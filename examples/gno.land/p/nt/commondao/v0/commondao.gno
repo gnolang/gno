@@ -21,7 +21,7 @@ var (
 	ErrInvalidVoteChoice     = errors.New("invalid vote choice")
 	ErrMaxActiveProposals    = errors.New("max number of active proposals reached")
 	ErrMaxCapExemptProposals = errors.New("creator already has an active cap exempt proposal")
-	ErrNotCouncilMember      = errors.New("account is not a member of the proposal's electorate")
+	ErrNotElectorateMember   = errors.New("account is not a member of the proposal's electorate")
 	ErrOverflow              = errors.New("next ID overflows uint64")
 	ErrProposalNotFound      = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet  = errors.New("voting deadline not met")
@@ -50,8 +50,8 @@ type CommonDAO struct {
 	children           list.IList
 	council            *addrset.Set
 	genID              seqid.ID
-	activeProposals    ProposalStorage
-	finishedProposals  ProposalStorage
+	activeProposals    *ProposalStorage
+	finishedProposals  *ProposalStorage
 	deleted            bool // Soft delete
 	maxActiveProposals int
 }
@@ -165,12 +165,12 @@ func (dao *CommonDAO) UpdateCouncil(add, remove []address) error {
 }
 
 // ActiveProposals returns active DAO proposals.
-func (dao CommonDAO) ActiveProposals() ProposalStorage {
+func (dao CommonDAO) ActiveProposals() *ProposalStorage {
 	return dao.activeProposals
 }
 
 // FinishedProposals returns finished DAO proposals.
-func (dao CommonDAO) FinishedProposals() ProposalStorage {
+func (dao CommonDAO) FinishedProposals() *ProposalStorage {
 	return dao.finishedProposals
 }
 
@@ -182,6 +182,15 @@ func (dao CommonDAO) IsDeleted() bool {
 // SetDeleted changes DAO's soft delete flag.
 func (dao *CommonDAO) SetDeleted(deleted bool) {
 	dao.deleted = deleted
+}
+
+// SetMaxActiveProposals changes the cap for simultaneously active
+// proposals. Values below one are ignored: a DAO must always be able to
+// propose.
+func (dao *CommonDAO) SetMaxActiveProposals(max int) {
+	if max >= 1 {
+		dao.maxActiveProposals = max
+	}
 }
 
 // Propose creates a new DAO proposal.
@@ -199,22 +208,35 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 		return nil, ErrDAOIsDeleted
 	}
 
-	if d != nil {
-		if _, exempt := d.(CapExempt); exempt {
-			var found bool
-			dao.activeProposals.Iterate(0, dao.activeProposals.Size(), false, func(p *Proposal) bool {
-				if _, ok := p.definition.(CapExempt); ok && p.creator == creator {
-					found = true
-					return true
-				}
-				return false
-			})
-			if found {
-				return nil, ErrMaxCapExemptProposals
+	if d == nil {
+		return nil, ErrProposalDefinitionRequired
+	}
+
+	// Every definition is decided either by the default Council rules or
+	// by custom logic, never both.
+	_, isDefault := d.(DefaultTallier)
+	_, isCustom := d.(CustomTallier)
+	if !isDefault && !isCustom {
+		return nil, ErrMissingTallier
+	}
+	if isDefault && isCustom {
+		return nil, ErrConflictingTalliers
+	}
+
+	if _, exempt := d.(CapExempt); exempt {
+		var found bool
+		dao.activeProposals.Iterate(0, dao.activeProposals.Size(), false, func(p *Proposal) bool {
+			if _, ok := p.definition.(CapExempt); ok && p.creator == creator {
+				found = true
+				return true
 			}
-		} else if dao.activeProposals.Size() >= dao.maxActiveProposals {
-			return nil, ErrMaxActiveProposals
+			return false
+		})
+		if found {
+			return nil, ErrMaxCapExemptProposals
 		}
+	} else if dao.activeProposals.Size() >= dao.maxActiveProposals {
+		return nil, ErrMaxActiveProposals
 	}
 
 	id, ok := dao.genID.TryNext()
@@ -303,7 +325,7 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 	}
 
 	if !p.electorate.Has(member) {
-		return ErrNotCouncilMember
+		return ErrNotElectorateMember
 	}
 
 	if p.HasVotingDeadlinePassed() {
@@ -379,10 +401,10 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 			if TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) == OutcomePassed {
 				p.status = StatusPassed
 			}
-		} else {
+		} else if ct, ok := p.definition.(CustomTallier); ok {
 			ctx := NewVotingContext(p.record.Readonly(), p.Electorate())
 			var passes bool
-			passes, err = p.definition.Tally(ctx)
+			passes, err = ct.Tally(ctx)
 			if err == nil && passes {
 				p.status = StatusPassed
 			}

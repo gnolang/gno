@@ -34,4 +34,4 @@ func main(cur realm) {
 }
 
 // Error:
-// forbidden
+// council update proposals are not enabled

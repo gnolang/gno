@@ -9,9 +9,21 @@ models a DAO as Charter + Council + sub-DAO tree); a tally denominator
 drawn from the whole member pool with abstentions diluting it; no
 treasuries; and DAO instances as registry entries under one realm
 address. This PR fixes the first two and simplifies aggressively; a
-follow-up PR adds per-DAO `cur.Sub` identities and treasuries. The full
-plan with decision log D1-D12 lives in the repository-root COMMONDAO.md
-working document; this ADR records what a reviewer needs.
+follow-up PR adds per-DAO `cur.Sub` identities and treasuries.
+
+## Scope
+
+Deferred to the treasury PR: per-DAO addresses via `cur.Sub(<dao-id>)`
+and proposal-gated treasuries (`:1534-1543`) — nothing here conflicts
+with that design (DAO IDs are monotonic and never reused; the module
+path is fixed regardless of quarantine location; no banker code).
+Out of scope, each its own future work: the Charter
+(Purpose/Description) and Bylaws/Mandates data model with ancestor
+amendment (`:1485-1496`); ancestor council mutation (`:1531-1532`) —
+the ≥1-member creation rule exists precisely because this rescue path
+is absent; and the m-of-n multisig representation (`:1539-1541`), an
+optional alternative whose m ≥ 3 floor deliberately does NOT apply to
+council tallying.
 
 ## Decisions
 
@@ -25,7 +37,7 @@ member groups. commondao deliberately does **not** depend on
 `p/nt/groups` (role machinery is dead weight here; consumers needing
 roles use groups directly, as boards does).
 
-### Boundary-enforced mutability (2/3 juror vote)
+### Boundary-enforced mutability
 
 `CommonDAO` keeps narrow exported mutators (`UpdateCouncil`,
 `SetDeleted`, `Dissolve`, `Propose`, `Vote`, `Execute`, `Withdraw`) and
@@ -33,7 +45,7 @@ the security rule is the groups-package idiom: **the hosting realm
 never returns or accepts `*CommonDAO`**; reads cross realm boundaries
 via recursive readonly views (`ReadonlyCommonDAO`, `ReadonlyProposal`).
 The alternative (package-private mutators + `/p/`-hosted builtin
-definitions) was rejected by a 2/3 vote: its "no dangerous exported
+definitions) was rejected: its "no dangerous exported
 mutators" invariant is unauditable (the dangerous surface includes
 `Vote(member,…)` spoofing, `Children()` returning a mutable list, and
 proposal-storage handles) and it would force realm-param
@@ -101,14 +113,19 @@ snapshots indefinitely (archival is future work).
 
 `DefaultTallier` definitions are re-evaluated after every recorded
 vote (including vote changes — `AddVote` overwrites, and a NO→ABSTAIN
-flip shrinking D may legitimately trigger a pass): supermajority YES
-passes immediately (the proposal stays in active storage until
-executed), NO majority dismisses immediately. `Execute` runs
+flip shrinking D may legitimately trigger a pass): a YES tally at the
+definition's threshold (supermajority by default; `:1504`'s simple
+majority for sub-DAO creation) passes immediately (the proposal stays
+in active storage until executed), and a NO majority dismisses
+immediately. `Execute` runs
 early-passed proposals at once — skipping the re-tally and deadline
 gate but still validating — and the deadline path dismisses undecided
-defaults. Custom definitions keep `Tally(ctx) (bool, error)` evaluated
-only at the deadline and are never early-evaluated (`Propose` rejects
-`DefaultTallier` + `CustomizableVoteChoices` combinations). Statuses:
+defaults. Custom tallies live in the
+`CustomTallier` interface, evaluated only at the deadline and never
+early-evaluated; `Propose` requires every definition to implement
+exactly one of `DefaultTallier`/`CustomTallier` and rejects
+`DefaultTallier` + `CustomizableVoteChoices` combinations.
+`Proposal.ExpectedOutcome()` serves rendering for both kinds. Statuses:
 `StatusRejected` → `StatusDismissed`; `StatusFailed` is reserved for
 validation/executor errors. Realm-side, past-deadline `Execute` is
 permissionless (the tally is deterministic); pre-deadline execution of
@@ -123,7 +140,7 @@ dissolution: the supermajority default. The old quorum knobs and
 plurality selection had no legitimate home: the Governing Documents
 that may override the defaults are exhaustively listed (`:1494-1496`)
 and realm code is not among them. Non-spec-bound DAOs (`:1471-1474`)
-keep full freedom via the `ProposalDefinition.Tally` interface.
+keep full freedom via the `CustomTallier` interface.
 
 ### Lifecycle rules
 
@@ -172,4 +189,22 @@ keep full freedom via the `ProposalDefinition.Tally` interface.
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
 - The realm's `New`/`NewSubDAO` accept a members parameter; ownership
-  and invitation flows are unchanged.
+  and invitation flows are unchanged. The invite check deliberately
+  uses `unsafe.OriginCaller()` (invitations target EOAs; an
+  intermediary realm creating a DAO on an invited user's behalf
+  consumes that user's invite while ownership vests in the caller) —
+  confirmed intended, pre-existing behavior.
+- The realm's owner/Options layer (per-DAO feature flags, owner-gated
+  `UpdateOptions`, owner-direct `NewSubDAO`) is a host-administration
+  surface for non-spec-bound DAOs (`:1471-1474`), not a Governing
+  Document: the four proposal-type flags default off, so a
+  spec-conforming deployment must enable them (as the genesis DAO
+  does for council updates) and route sub-DAO creation through the
+  simple-majority proposal rather than the owner path. `Options`
+  carries no exported mutator methods, and both creation and
+  `UpdateOptions` apply caller option closures to copies so no caller
+  ever holds the persisted `*Options`.
+- Sub-DAOs of a dissolved parent are currently un-dissolvable (their
+  dissolution proposal is hosted in the deleted parent, which rejects
+  proposals); the treasury PR's nearest-live-ancestor rescue covers
+  this, and no funds are at stake before treasuries exist.

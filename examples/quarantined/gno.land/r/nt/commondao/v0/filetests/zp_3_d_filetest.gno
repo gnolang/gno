@@ -31,4 +31,4 @@ func main(cur realm) {
 }
 
 // Error:
-// forbidden
+// dissolution proposals are not enabled

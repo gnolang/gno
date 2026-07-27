@@ -10,18 +10,18 @@ import (
 
 const (
 	StatusActive    ProposalStatus = "active"
-	StatusPassed                   = "passed"
-	StatusDismissed                = "dismissed"
-	StatusExecuted                 = "executed"
-	StatusFailed                   = "failed"
-	StatusWithdrawn                = "withdrawn"
+	StatusPassed    ProposalStatus = "passed"
+	StatusDismissed ProposalStatus = "dismissed"
+	StatusExecuted  ProposalStatus = "executed"
+	StatusFailed    ProposalStatus = "failed"
+	StatusWithdrawn ProposalStatus = "withdrawn"
 )
 
 const (
 	ChoiceNone    VoteChoice = ""
-	ChoiceYes                = "YES"
-	ChoiceNo                 = "NO"
-	ChoiceAbstain            = "ABSTAIN"
+	ChoiceYes     VoteChoice = "YES"
+	ChoiceNo      VoteChoice = "NO"
+	ChoiceAbstain VoteChoice = "ABSTAIN"
 )
 
 // Thresholds for the constitution's default Council voting rules.
@@ -53,6 +53,8 @@ var (
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 	ErrCustomChoicesNotAllowed    = errors.New("default tallier definitions cannot customize vote choices")
+	ErrMissingTallier             = errors.New("proposal definition must implement DefaultTallier or CustomTallier")
+	ErrConflictingTalliers        = errors.New("proposal definition cannot implement both DefaultTallier and CustomTallier")
 )
 
 type (
@@ -86,8 +88,12 @@ type (
 	}
 
 	// ProposalDefinition defines an interface for custom proposal definitions.
-	// These definitions define proposal content and behavior, they esentially
-	// allow the definition for different proposal types.
+	// These definitions define proposal content and behavior, essentially
+	// allowing the definition of different proposal types.
+	//
+	// Every definition must also implement exactly one of DefaultTallier
+	// (decided by the constitution's default Council voting rules) or
+	// CustomTallier (decided by custom logic at the voting deadline).
 	ProposalDefinition interface {
 		// Title returns the proposal title.
 		Title() string
@@ -99,18 +105,8 @@ type (
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// It is used to calculate the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creation date.
 		VotingPeriod() time.Duration
-
-		// Tally counts the number of votes and verifies if proposal passes.
-		// It receives a voting context containing a readonly record with the votes
-		// that has been submitted for the proposal and also the proposal's
-		// electorate (the council snapshot taken at proposal creation).
-		//
-		// Definitions that implement DefaultTallier are decided by
-		// TallyDefault instead; their Tally is only used to report the
-		// expected outcome (e.g. when rendering).
-		Tally(VotingContext) (passes bool, _ error)
 	}
 
 	// DefaultTallier defines an interface for proposal definitions that are
@@ -120,6 +116,16 @@ type (
 	DefaultTallier interface {
 		// Threshold returns the tally threshold for passing the proposal.
 		Threshold() Threshold
+	}
+
+	// CustomTallier defines an interface for proposal definitions that are
+	// decided by custom logic. Custom tallies run once, at the voting
+	// deadline. The context contains a readonly record with the submitted
+	// votes and the proposal's electorate (the council snapshot taken at
+	// proposal creation).
+	CustomTallier interface {
+		// Tally counts the number of votes and verifies if proposal passes.
+		Tally(VotingContext) (passes bool, _ error)
 	}
 
 	// CapExempt defines an interface for proposal definitions that are not
@@ -240,7 +246,7 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 	return p, nil
 }
 
-// ID returns the unique proposal identifies.
+// ID returns the unique proposal identifier.
 func (p Proposal) ID() uint64 {
 	return p.id
 }
@@ -281,7 +287,7 @@ func (p Proposal) Electorate() *addrset.ReadonlySet {
 }
 
 // StatusReason returns an optional reason that lead to the current proposal status.
-// Reason is mostyl useful when a proposal fails.
+// Reason is mostly useful when a proposal fails.
 func (p Proposal) StatusReason() string {
 	return p.statusReason
 }
@@ -323,4 +329,25 @@ func (p Proposal) Validate() error {
 // IsVoteChoiceValid checks if a vote choice is valid for the proposal.
 func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
+}
+
+// ExpectedOutcome returns the outcome the proposal would have if it were
+// decided with the votes submitted so far. Useful for rendering. Custom
+// tally errors report as pending.
+func (p Proposal) ExpectedOutcome() Outcome {
+	if dt, ok := p.definition.(DefaultTallier); ok {
+		return TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold())
+	}
+
+	if ct, ok := p.definition.(CustomTallier); ok {
+		passes, err := ct.Tally(NewVotingContext(p.record.Readonly(), p.Electorate()))
+		if err != nil {
+			return OutcomePending
+		}
+		if passes {
+			return OutcomePassed
+		}
+		return OutcomeDismissed
+	}
+	return OutcomePending
 }

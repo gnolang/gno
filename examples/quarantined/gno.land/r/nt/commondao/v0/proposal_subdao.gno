@@ -87,11 +87,6 @@ func (p subDAOPropDefinition) Validate() (err error) {
 	return err
 }
 
-func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSimpleMajority)
-	return outcome == commondao.OutcomePassed, nil
-}
-
 func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
@@ -103,8 +98,7 @@ func (p subDAOPropDefinition) execute(realm) error {
 		return false
 	})
 
-	subDAO := createSubDAO(p.parent, p.name, nil, members...)
-	p.parent.Children().Append(subDAO)
+	createSubDAO(p.parent, p.name, nil, members...)
 	return nil
 }
 
@@ -145,11 +139,6 @@ func (p dissolvePropDefinition) Validate() (err error) {
 		return errors.New("DAO has been already dissolved")
 	}
 	return nil
-}
-
-func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSupermajority)
-	return outcome == commondao.OutcomePassed, nil
 }
 
 func (p dissolvePropDefinition) Executor() commondao.ExecFunc {

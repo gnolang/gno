@@ -413,9 +413,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		ctx := commondao.NewVotingContext(record.Readonly(), p.Electorate())
-		passes, _ := def.Tally(ctx)
-		if passes {
+		if p.ExpectedOutcome() == commondao.OutcomePassed {
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		} else {
 			res.Write(md.BulletItem("Expected Outcome: **fail** ☒"))

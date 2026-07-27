@@ -33,4 +33,4 @@ func main(cur realm) {
 }
 
 // Error:
-// forbidden
+// SubDAO proposals are not enabled

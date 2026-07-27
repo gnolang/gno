@@ -20,7 +20,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !o.AllowTextProposals {
-		panic("forbidden")
+		panic("text proposals are not enabled")
 	}
 
 	if votingDays > 30 {
@@ -57,7 +57,7 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !o.AllowCouncilUpdate {
-		panic("forbidden")
+		panic("council update proposals are not enabled")
 	}
 
 	caller := cur.Previous().Address()
@@ -88,7 +88,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !(o.AllowSubDAOProposals && o.AllowChildren) {
-		panic("forbidden")
+		panic("SubDAO proposals are not enabled")
 	}
 
 	caller := cur.Previous().Address()
@@ -110,7 +110,8 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 
 // CreateDissolutionProposal creates a new proposal to dissolve a DAO or SubDAO.
 //
-// SubDAOs can only be dissolved by the the parent DAO.
+// SubDAOs can only be dissolved by the parent DAO, which owns and
+// controls its sub-DAOs (docs/CONSTITUTION.md :1507).
 //
 // Parameters:
 // - daoID: ID of the DAO to dissolve (required)
@@ -124,7 +125,7 @@ func CreateDissolutionProposal(cur realm, daoID uint64) uint64 {
 
 	o := getOptions(dao.ID())
 	if !o.AllowDissolutionProposals {
-		panic("forbidden")
+		panic("dissolution proposals are not enabled")
 	}
 
 	caller := cur.Previous().Address()

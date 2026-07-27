@@ -14,7 +14,7 @@ type (
 
 	// Vote defines a single vote.
 	Vote struct {
-		// Address is the address of the user that this vote belons to.
+		// Address is the address of the user that this vote belongs to.
 		Address address
 
 		// Choice contains the voted choice.
@@ -22,17 +22,10 @@ type (
 
 		// Reason contains an optional reason for the vote.
 		Reason string
-
-		// Context can store any custom voting values related to the vote.
-		//
-		// Warning: When using context be careful if references/pointers are
-		// assigned to it because they could potentially be accessed anywhere,
-		// which could lead to unwanted indirect modifications.
-		Context any
 	}
 )
 
-// ReadonlyVotingRecord defines an read only voting record.
+// ReadonlyVotingRecord defines a read only voting record.
 type ReadonlyVotingRecord struct {
 	votes bptree.BPTree // string(address) -> Vote
 	count bptree.BPTree // string(choice) -> int
@@ -52,7 +45,7 @@ func (r ReadonlyVotingRecord) Iterate(offset, count int, reverse bool, fn VoteIt
 	return r.votes.IterateByOffset(offset, count, cb)
 }
 
-// IterateVotesCount iterates voted choices with the amount of votes submited for each.
+// IterateVotesCount iterates voted choices with the amount of votes submitted for each.
 func (r ReadonlyVotingRecord) IterateVotesCount(fn VotesCountIterFn) bool {
 	return r.count.Iterate("", "", func(k string, v any) bool {
 		return fn(VoteChoice(k), v.(int))

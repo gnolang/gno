@@ -34,4 +34,4 @@ func main(cur realm) {
 }
 
 // Error:
-// forbidden
+// text proposals are not enabled

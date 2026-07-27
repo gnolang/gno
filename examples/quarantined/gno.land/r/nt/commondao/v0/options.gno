@@ -1,6 +1,5 @@
 package commondao
 
-// TODO: List default DAO options somewhere to make devs aware of them
 var defaultOptions = Options{
 	AllowRender:    true,
 	AllowChildren:  true,
@@ -12,7 +11,7 @@ var defaultOptions = Options{
 type Option func(*Options)
 
 // Options configures DAO behavior within CommonDAO realm.
-// These options are only valid for the CommonDAO ream, dApps that
+// These options are only valid for the CommonDAO realm; dApps that
 // own a DAO can implement these features by themselves.
 type Options struct {
 	// AllowListing adds the DAO to the public list of realm DAOs.
@@ -36,63 +35,15 @@ type Options struct {
 	// AllowTextProposals allows text-only, non-executable proposals.
 	AllowTextProposals bool
 
-	// AllowSubDAOProposals allows creating SubDAOs though proposals.
+	// AllowSubDAOProposals allows creating SubDAOs through proposals.
 	AllowSubDAOProposals bool
 
-	// AllowDissolutionProposals allows dissolving DAOs though proposals.
+	// AllowDissolutionProposals allows dissolving DAOs through proposals.
 	AllowDissolutionProposals bool
 
 	// MaxActiveProposals caps the number of simultaneously active
 	// proposals. Values below one keep the package default.
 	MaxActiveProposals int
-}
-
-// SetAllowListing toggles DAO public listing support.
-func (o *Options) SetAllowListing(allow bool) {
-	o.AllowListing = allow
-}
-
-// SetAllowRender toggles DAO render support within the CommonDAO realm.
-func (o *Options) SetAllowRender(allow bool) {
-	o.AllowRender = allow
-}
-
-// SetAllowChildren toggles DAO support for SubDAOs.
-// Enabling child DAOs is necessary for hierarchical tree based DAOs.
-func (o *Options) SetAllowChildren(allow bool) {
-	o.AllowChildren = allow
-}
-
-// SetAllowVoting toggles proposal voting support though the CommonDAO realm.
-func (o *Options) SetAllowVoting(allow bool) {
-	o.AllowVoting = allow
-}
-
-// SetAllowExecution toggles proposal execution support though the CommonDAO realm.
-func (o *Options) SetAllowExecution(allow bool) {
-	o.AllowExecution = allow
-}
-
-// SetAllowCouncilUpdate toggles support for council update proposals.
-// This type of proposal allows adding or removing council members.
-func (o *Options) SetAllowCouncilUpdate(allow bool) {
-	o.AllowCouncilUpdate = allow
-}
-
-// SetAllowTextProposals toggles support generic text proposals.
-func (o *Options) SetAllowTextProposals(allow bool) {
-	o.AllowTextProposals = allow
-}
-
-// SetAllowSubDAOProposals toggles support for SubDAO creation proposals.
-// SubDAOs can only be created when DAO children support is enabled.
-func (o *Options) SetAllowSubDAOProposals(allow bool) {
-	o.AllowSubDAOProposals = allow
-}
-
-// SetAllowDissolutionProposals toggles support for DAO dissolution proposals.
-func (o *Options) SetAllowDissolutionProposals(allow bool) {
-	o.AllowDissolutionProposals = allow
 }
 
 // AllowListing configures DAO listing within CommonDAO realm.
@@ -137,7 +88,7 @@ func AllowCouncilUpdate(allow bool) Option {
 	}
 }
 
-// AllowTextProposals configures support generic text proposals.
+// AllowTextProposals configures support for generic text proposals.
 func AllowTextProposals(allow bool) Option {
 	return func(o *Options) {
 		o.AllowTextProposals = allow

@@ -95,11 +95,6 @@ func (p councilUpdatePropDefinition) Validate() (err error) {
 	return err
 }
 
-func (councilUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSupermajority)
-	return outcome == commondao.OutcomePassed, nil
-}
-
 func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }

@@ -64,7 +64,6 @@ func NewSubDAO(cur realm, name string, parentID uint64, members string, options 
 
 	parent := getDAO(parentID)
 	subDAO := createSubDAO(parent, name, options, parseInitialMembers(caller, members)...)
-	parent.Children().Append(subDAO)
 	return subDAO.ID()
 }
 
@@ -94,14 +93,22 @@ func GetOptions(cur realm, daoID uint64) Options {
 
 // UpdateOptions changes the configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
-func UpdateOptions(cur realm, daoID uint64, options ...Option) {
+func UpdateOptions(cur realm, daoID uint64, opts ...Option) {
 	if !isOwner(cur.Previous().Address(), daoID) {
 		panic("unauthorized")
 	}
 
-	o := getOptions(daoID)
-	for _, apply := range options {
-		apply(o)
+	// Apply caller options to a copy so option closures never hold a
+	// reference to the persisted Options value.
+	stored := getOptions(daoID)
+	updated := *stored
+	for _, apply := range opts {
+		apply(&updated)
+	}
+	*stored = updated
+
+	if updated.MaxActiveProposals > 0 {
+		mustGetDAO(daoID).SetMaxActiveProposals(updated.MaxActiveProposals)
 	}
 }
 

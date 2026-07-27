@@ -13,8 +13,9 @@ optional sub-DAO tree.
 ```
 CommonDAO
 ├── council:            *addrset.Set — who may vote
-├── active proposals:   each with an electorate snapshot + voting record
-├── finished proposals: passed / dismissed / executed / failed / withdrawn
+├── active proposals:   active + early passed, each with an electorate
+│                       snapshot and voting record
+├── finished proposals: dismissed / executed / failed / withdrawn
 └── children:           sub-DAOs (each a CommonDAO with a parent pointer)
 ```
 

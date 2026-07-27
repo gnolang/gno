@@ -80,7 +80,11 @@ func createDAO(name string, owner address, o []Option, members ...address) *comm
 	ownership.Set(owner.String(), ids)
 
 	daos.Set(id.String(), dao)
-	options.Set(id.String(), &daoOptions)
+
+	// Persist a fresh copy so option closures never hold a reference to
+	// the stored Options value.
+	stored := daoOptions
+	options.Set(id.String(), &stored)
 	return dao
 }
 
@@ -97,7 +101,8 @@ func createSubDAO(parent *commondao.CommonDAO, name string, o []Option, members 
 	id := daoID.Next()
 	dao := commondao.New(newDAOOptions(uint64(id), name, parent, daoOptions, members)...)
 
-	options.Set(id.String(), &daoOptions)
+	stored := daoOptions
+	options.Set(id.String(), &stored)
 	daos.Set(id.String(), dao)
 
 	rootID := parent.TopParent().ID()
@@ -108,6 +113,7 @@ func createSubDAO(parent *commondao.CommonDAO, name string, o []Option, members 
 	}
 
 	tree.Set(id.String(), dao)
+	parent.Children().Append(dao)
 	return dao
 }
 

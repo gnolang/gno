@@ -54,11 +54,6 @@ func (d defaultPropDef) Threshold() commondao.Threshold {
 	return d.threshold
 }
 
-func (d defaultPropDef) Tally(commondao.VotingContext) (bool, error) {
-	// Never called by Vote/Execute for DefaultTallier definitions
-	return false, nil
-}
-
 func (d defaultPropDef) Executor() commondao.ExecFunc {
 	return func(realm) error {
 		if d.executed != nil {
@@ -148,7 +143,7 @@ func TestUpdateCouncil(t *testing.T) {
 
 	// More removals than members is fine as long as a member survives
 	// (the emptiness check is by identity, not by count)
-	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberE, memberF}))
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberE, memberF, memberG}))
 	uassert.Equal(t, 2, dao.Council().Size())
 
 	// An empty council can be seeded
@@ -254,12 +249,12 @@ func TestVote(t *testing.T) {
 
 	// Only electorate members can vote
 	err := dao.Vote(memberD, p.ID(), commondao.ChoiceYes, "")
-	uassert.ErrorIs(t, err, commondao.ErrNotCouncilMember)
+	uassert.ErrorIs(t, err, commondao.ErrNotElectorateMember)
 
 	// Members added after proposal creation are not in the electorate
 	urequire.NoError(t, dao.UpdateCouncil([]address{memberD}, nil))
 	err = dao.Vote(memberD, p.ID(), commondao.ChoiceYes, "")
-	uassert.ErrorIs(t, err, commondao.ErrNotCouncilMember)
+	uassert.ErrorIs(t, err, commondao.ErrNotElectorateMember)
 
 	// Members removed after proposal creation remain in the electorate
 	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberC}))
