@@ -23,7 +23,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", "")
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }

@@ -24,14 +24,14 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "", members)
+	pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", members)
 
 	p, found := commondao.GetView(daoID).GetProposal(pID)
 	if !found {
@@ -55,6 +55,9 @@ func main(cur realm) {
 //
 // **SubDAO Name:**
 // Foo SubDAO
+//
+// **SubDAO Purpose:**
+// Purpose
 //
 // **Council Members:**
 // - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq

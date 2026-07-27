@@ -81,8 +81,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(md.Blockquote("⚠ This DAO has been dissolved"))
 	}
 
-	// Render header
+	// Render header (Charter: purpose is required, description optional)
 	res.Write(md.H1(md.EscapeText(dao.Name())))
+	res.Write(md.Paragraph(md.Bold("Purpose:") + " " + md.EscapeText(dao.Purpose())))
 	if desc := dao.Description(); desc != "" {
 		res.Write(md.Paragraph(md.EscapeText(desc)))
 	}

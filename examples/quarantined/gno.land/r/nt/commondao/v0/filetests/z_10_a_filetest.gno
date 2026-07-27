@@ -21,7 +21,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "*Pwn* [link](https://evil.example) # H1", "", "")
+	daoID = commondao.New(cross(cur), "*Pwn* [link](https://evil.example) # H1", "Purpose", "", "")
 }
 
 func main() {
@@ -32,6 +32,8 @@ func main() {
 
 // Output:
 // # \*Pwn\* \[link\]\(https://evil\.example\) \# H1
+// **Purpose:** Purpose
+//
 // [View Proposals](/r/nt/commondao/v0:2/proposals) • [View Settings](/r/nt/commondao/v0:2/settings)
 //
 // ---

@@ -23,10 +23,10 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 	{
-		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "", string(user))
+		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", string(user))
 		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 		testing.SetRealm(testing.NewUserRealm(user))
 		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
@@ -38,7 +38,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross(cur), daoID, name, "", string(user))
+	commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", string(user))
 }
 
 // Error:

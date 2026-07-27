@@ -11,13 +11,16 @@ import (
 )
 
 // newSubDAOPropDefinition creates a new proposal definition for adding a SubDAO.
-func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description string, members []address) subDAOPropDefinition {
+func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, description string, members []address) subDAOPropDefinition {
 	if parent == nil {
 		panic("parent DAO is required")
 	}
 
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
+
+	purpose = strings.TrimSpace(purpose)
+	assertDAOPurposeIsValid(purpose)
 
 	description = strings.TrimSpace(description)
 	assertDAODescriptionIsValid(description)
@@ -29,6 +32,7 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description stri
 	return subDAOPropDefinition{
 		parent:      parent,
 		name:        name,
+		purpose:     purpose,
 		description: description,
 		members:     members,
 	}
@@ -38,6 +42,7 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description stri
 type subDAOPropDefinition struct {
 	parent      *commondao.CommonDAO
 	name        string
+	purpose     string
 	description string
 	members     []address
 }
@@ -60,6 +65,10 @@ func (p subDAOPropDefinition) Body() string {
 
 	b.WriteString(md.Paragraph(
 		md.Bold("SubDAO Name:") + "\n" + md.EscapeText(p.name),
+	))
+
+	b.WriteString(md.Paragraph(
+		md.Bold("SubDAO Purpose:") + "\n" + md.EscapeText(p.purpose),
 	))
 
 	if p.description != "" {
@@ -91,7 +100,7 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p subDAOPropDefinition) execute(realm) error {
-	createSubDAO(p.parent, p.name, p.description, p.members...)
+	createSubDAO(p.parent, p.name, p.purpose, p.description, p.members...)
 	return nil
 }
 

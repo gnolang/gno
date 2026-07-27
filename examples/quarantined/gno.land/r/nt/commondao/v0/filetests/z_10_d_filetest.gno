@@ -23,9 +23,9 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID := commondao.New(cross(cur), "Root", "", "")
+	rootID := commondao.New(cross(cur), "Root", "Purpose", "", "")
 	{
-		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "", string(user))
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "Purpose", "", string(user))
 		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
 		commondao.Execute(cross(cur), rootID, pID)
 	}
@@ -47,6 +47,8 @@ func main() {
 
 // Output:
 // # Sub
+// **Purpose:** Purpose
+//
 // [View Proposals](/r/nt/commondao/v0:3/proposals) • [View Settings](/r/nt/commondao/v0:3/settings) • [Go to Parent DAO](/r/nt/commondao/v0:2)
 //
 // ---

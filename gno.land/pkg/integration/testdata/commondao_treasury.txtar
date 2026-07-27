@@ -56,10 +56,10 @@ stdout '400000ugnot'
 gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'Root' -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'Root' -args 'Purpose' -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateSubDAOProposal -args 2 -args 'Child' -args '' -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateSubDAOProposal -args 2 -args 'Child' -args 'Purpose' -args '' -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1

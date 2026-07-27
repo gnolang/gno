@@ -32,6 +32,11 @@ func (r ReadonlyCommonDAO) Name() string {
 	return r.dao.name
 }
 
+// Purpose returns DAO's purpose (part of the Charter).
+func (r ReadonlyCommonDAO) Purpose() string {
+	return r.dao.purpose
+}
+
 // Description returns DAO's description.
 func (r ReadonlyCommonDAO) Description() string {
 	return r.dao.description

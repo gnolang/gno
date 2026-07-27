@@ -25,8 +25,8 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoA = commondao.New(cross(cur), "A", "", "")
-	daoB = commondao.New(cross(cur), "B", "", "")
+	daoA = commondao.New(cross(cur), "A", "Purpose", "", "")
+	daoB = commondao.New(cross(cur), "B", "Purpose", "", "")
 }
 
 func main() {

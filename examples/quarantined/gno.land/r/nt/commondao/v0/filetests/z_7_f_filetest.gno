@@ -22,7 +22,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	parentID = commondao.New(cross(cur), "Parent", "", "")
+	parentID = commondao.New(cross(cur), "Parent", "Purpose", "", "")
 
 	// Dissolve the parent (sole council member passes the supermajority)
 	pID := commondao.CreateDissolutionProposal(cross(cur), parentID, owner)
@@ -35,7 +35,7 @@ func main(cur realm) {
 
 	// A sub-DAO grafted onto a dissolved parent could never be dissolved
 	// itself, so creation must be rejected: dissolved DAOs reject proposals.
-	commondao.CreateSubDAOProposal(cross(cur), parentID, "Child", "", string(user))
+	commondao.CreateSubDAOProposal(cross(cur), parentID, "Child", "Purpose", "", string(user))
 }
 
 // Error:

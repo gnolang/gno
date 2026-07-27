@@ -84,12 +84,12 @@ func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newM
 // - name: A name for the SubDAO (required)
 // - description: A description for the SubDAO
 // - members: Newline separated list of initial SubDAO council addresses (required)
-func CreateSubDAOProposal(cur realm, daoID uint64, name, description, members string) uint64 {
+func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, members string) uint64 {
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newSubDAOPropDefinition(dao, name, description, parseAddresses(members))
+	def := newSubDAOPropDefinition(dao, name, purpose, description, parseAddresses(members))
 	return mustPropose(dao, caller, def)
 }
 

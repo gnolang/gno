@@ -29,7 +29,7 @@ func init(cur realm) {
 
 	// Create the root DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	parentDAO := commondao.New(cross(cur), "Parent DAO", "", "")
+	parentDAO := commondao.New(cross(cur), "Parent DAO", "Purpose", "", "")
 	parentID = parentDAO
 }
 
@@ -38,7 +38,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
 	// SubDAOs are created through a council proposal at simple majority
-	pID := commondao.CreateSubDAOProposal(cross(cur), parentID, name, "Sub charter", string(user))
+	pID := commondao.CreateSubDAOProposal(cross(cur), parentID, name, "Purpose", "Sub charter", string(user))
 	commondao.Vote(cross(cur), parentID, pID, pcommondao.ChoiceYes, "")
 	commondao.Execute(cross(cur), parentID, pID)
 

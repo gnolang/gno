@@ -28,7 +28,7 @@ func init(cur realm) {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New(cross(cur), "Foo", "", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)

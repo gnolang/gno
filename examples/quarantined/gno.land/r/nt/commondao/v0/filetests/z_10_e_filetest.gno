@@ -28,7 +28,7 @@ func init(cur realm) {
 	// A 3-member council keeps the proposal active after one vote, so the
 	// voter can change their choice.
 	members := "g1cyh9qm4y43w38gfk77qxczrhqj2asdr8l7uk54\ng1x95kxqpwvqjf98qpkvsay7tppkh6zs9fr7wwda"
-	daoID = commondao.New(cross(cur), "Foo", "", members)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", members)
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 30)
 
 	// Vote YES, then change to NO: the vote stats must show only NO,

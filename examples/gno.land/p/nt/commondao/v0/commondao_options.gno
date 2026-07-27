@@ -17,6 +17,14 @@ func WithName(name string) Option {
 	}
 }
 
+// WithPurpose assigns a purpose to the DAO. Purpose and description
+// together form the DAO's Charter (docs/CONSTITUTION.md :1485).
+func WithPurpose(purpose string) Option {
+	return func(dao *CommonDAO) {
+		dao.purpose = purpose
+	}
+}
+
 // WithDescription assigns a description to the DAO.
 func WithDescription(description string) Option {
 	return func(dao *CommonDAO) {

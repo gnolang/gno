@@ -23,7 +23,7 @@ func init(cur realm) {
 
 	// Create a DAO owned by user, with user as the only council member
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", "")
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
 	// Dissolve the DAO through a proposal decided by supermajority
 	pID := commondao.CreateDissolutionProposal(cross(cur), daoID, owner)

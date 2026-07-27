@@ -39,18 +39,18 @@ func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
 	dao := newTestDAO(t, "Root", member)
 
 	urequire.PanicsWithMessage(t, cur, "parent DAO is required", func() {
-		newSubDAOPropDefinition(nil, "Sub", "", []address{member})
+		newSubDAOPropDefinition(nil, "Sub", "Purpose", "", []address{member})
 	})
 
 	urequire.PanicsWithMessage(t, cur, "DAO name is empty", func() {
-		newSubDAOPropDefinition(dao, "  ", "", []address{member})
+		newSubDAOPropDefinition(dao, "  ", "Purpose", "", []address{member})
 	})
 
 	urequire.PanicsWithMessage(t, cur, "a SubDAO requires at least one initial council member", func() {
-		newSubDAOPropDefinition(dao, "Sub", "", nil)
+		newSubDAOPropDefinition(dao, "Sub", "Purpose", "", nil)
 	})
 
-	def := newSubDAOPropDefinition(dao, "Sub", "", []address{member})
+	def := newSubDAOPropDefinition(dao, "Sub", "Purpose", "", []address{member})
 	uassert.Equal(t, "New SubDAO: Sub", def.Title())
 	uassert.Equal(t, int(commondao.ThresholdSimpleMajority), int(def.Threshold()))
 	uassert.NotEmpty(t, def.Body())
@@ -62,7 +62,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 
 	dao := newTestDAO(t, "Root2", member)
 
-	def := newSubDAOPropDefinition(dao, "Sub", "", []address{member})
+	def := newSubDAOPropDefinition(dao, "Sub", "Purpose", "", []address{member})
 
 	urequire.NoError(t, def.Executor()(cross(cur)))
 

@@ -38,9 +38,12 @@ func IsInvited(addr address) bool {
 // caller becomes a council member, optionally together with a newline
 // separated list of additional member addresses. Sub-DAOs are created
 // through proposals (see CreateSubDAOProposal).
-func New(cur realm, name, description, members string) uint64 {
+func New(cur realm, name, purpose, description, members string) uint64 {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
+
+	purpose = strings.TrimSpace(purpose)
+	assertDAOPurposeIsValid(purpose)
 
 	description = strings.TrimSpace(description)
 	assertDAODescriptionIsValid(description)
@@ -56,7 +59,7 @@ func New(cur realm, name, description, members string) uint64 {
 	}
 
 	caller := cur.Previous().Address()
-	dao := createDAO(name, description, parseInitialMembers(caller, members)...)
+	dao := createDAO(name, purpose, description, parseInitialMembers(caller, members)...)
 	return dao.ID()
 }
 
@@ -183,6 +186,16 @@ func assertDAONameIsValid(name string) {
 
 	if len(name) > 60 {
 		panic("DAO name is too long, max length is 60 characters")
+	}
+}
+
+func assertDAOPurposeIsValid(purpose string) {
+	if purpose == "" {
+		panic("DAO purpose is empty")
+	}
+
+	if len(purpose) > 250 {
+		panic("DAO purpose is too long, max length is 250 characters")
 	}
 }
 

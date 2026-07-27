@@ -21,7 +21,7 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 
 }
@@ -29,7 +29,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross(cur), daoID, "Name", "", "INVALID")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, "Name", "Purpose", "", "INVALID")
 }
 
 // Error:

@@ -48,6 +48,7 @@ type CommonDAO struct {
 	id                 uint64
 	name               string
 	description        string
+	purpose            string
 	addr               address // derived treasury address, empty when unset
 	parent             *CommonDAO
 	children           list.IList
@@ -83,6 +84,12 @@ func (dao CommonDAO) ID() uint64 {
 // Name returns DAO's name.
 func (dao CommonDAO) Name() string {
 	return dao.name
+}
+
+// Purpose returns the DAO's purpose. Together with the description it
+// forms the DAO's Charter (docs/CONSTITUTION.md :1485).
+func (dao CommonDAO) Purpose() string {
+	return dao.purpose
 }
 
 // Description returns DAO's description.

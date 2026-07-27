@@ -26,7 +26,7 @@ func init(cur realm) {
 
 	// Council is {user, owner}
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", string(owner))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(owner))
 
 	// One day voting period; a 1Y/1N tie leaves the proposal undecided
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 1)

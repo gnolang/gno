@@ -18,8 +18,8 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	listedID := commondao.New(cross(cur), "Shown", "", "")
-	commondao.New(cross(cur), "Hidden", "", "")
+	listedID := commondao.New(cross(cur), "Shown", "Purpose", "", "")
+	commondao.New(cross(cur), "Hidden", "Purpose", "", "")
 
 	commondao.SetListed(cross(cur), listedID, true)
 }

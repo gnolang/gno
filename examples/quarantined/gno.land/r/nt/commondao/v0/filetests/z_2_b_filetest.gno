@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	commondao.New(cross(cur), "", "", "")
+	commondao.New(cross(cur), "", "Purpose", "", "")
 }
 
 // Error:

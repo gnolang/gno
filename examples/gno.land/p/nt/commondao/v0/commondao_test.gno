@@ -654,6 +654,20 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	uassert.True(t, view.IsDeleted())
 }
 
+func TestCharter(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithName("D"),
+		commondao.WithPurpose("to do good"),
+		commondao.WithDescription("a test DAO"),
+	)
+	uassert.Equal(t, "to do good", dao.Purpose())
+	uassert.Equal(t, "a test DAO", dao.Description())
+	uassert.Equal(t, "to do good", dao.Readonly().Purpose())
+
+	// Purpose defaults empty when unset (the realm enforces non-empty).
+	uassert.Equal(t, "", commondao.New().Purpose())
+}
+
 func TestAddressAndTreasuryFrozen(t *testing.T) {
 	dao := commondao.New(commondao.WithAddress(memberA))
 	uassert.Equal(t, string(memberA), string(dao.Address()))

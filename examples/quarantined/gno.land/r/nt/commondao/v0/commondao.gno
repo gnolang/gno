@@ -81,33 +81,34 @@ func daoAddress(daoID uint64) address {
 	return chain.DerivePkgSubAddr(pkgPath, subpathOf(daoID))
 }
 
-func createDAO(name, description string, members ...address) *commondao.CommonDAO {
+func createDAO(name, purpose, description string, members ...address) *commondao.CommonDAO {
 	if len(members) == 0 {
 		panic("a DAO requires at least one initial council member")
 	}
 
 	id := daoID.Next()
-	dao := commondao.New(newDAOOptions(uint64(id), name, description, nil, members)...)
+	dao := commondao.New(newDAOOptions(uint64(id), name, purpose, description, nil, members)...)
 	daos.Set(id.String(), dao)
 	return dao
 }
 
-func createSubDAO(parent *commondao.CommonDAO, name, description string, members ...address) *commondao.CommonDAO {
+func createSubDAO(parent *commondao.CommonDAO, name, purpose, description string, members ...address) *commondao.CommonDAO {
 	if len(members) == 0 {
 		panic("a SubDAO requires at least one initial council member")
 	}
 
 	// WithParent also registers the new DAO as one of parent's children
 	id := daoID.Next()
-	dao := commondao.New(newDAOOptions(uint64(id), name, description, parent, members)...)
+	dao := commondao.New(newDAOOptions(uint64(id), name, purpose, description, parent, members)...)
 	daos.Set(id.String(), dao)
 	return dao
 }
 
-func newDAOOptions(id uint64, name, description string, parent *commondao.CommonDAO, members []address) []commondao.Option {
+func newDAOOptions(id uint64, name, purpose, description string, parent *commondao.CommonDAO, members []address) []commondao.Option {
 	opts := []commondao.Option{
 		commondao.WithID(id),
 		commondao.WithName(name),
+		commondao.WithPurpose(purpose),
 		commondao.WithDescription(description),
 		commondao.WithAddress(daoAddress(id)),
 	}

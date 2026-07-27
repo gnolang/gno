@@ -21,7 +21,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", "")
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 	commondao.SetListed(cross(cur), daoID, true)
 
 	// Dissolve the DAO through a passed proposal

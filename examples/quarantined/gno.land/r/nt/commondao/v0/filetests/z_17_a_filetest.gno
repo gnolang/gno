@@ -25,11 +25,11 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID = commondao.New(cross(cur), "Root", "", "")
+	rootID = commondao.New(cross(cur), "Root", "Purpose", "", "")
 
 	// A sub-DAO whose only council member is `user`
 	{
-		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "", string(user))
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "Purpose", "", string(user))
 		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
 		commondao.Execute(cross(cur), rootID, pID)
 	}
