@@ -44,6 +44,7 @@ const (
 
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
+	ErrInvalidVoterAddress        = errors.New("invalid voter address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )

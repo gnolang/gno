@@ -28,7 +28,7 @@ type (
 // CommonDAO.Vote.
 func NewVote(addr address, choice VoteChoice, reason string) (Vote, error) {
 	if !addr.IsValid() {
-		return Vote{}, ErrInvalidCreatorAddress
+		return Vote{}, ErrInvalidVoterAddress
 	}
 
 	if choice != ChoiceYes && choice != ChoiceNo && choice != ChoiceAbstain {
