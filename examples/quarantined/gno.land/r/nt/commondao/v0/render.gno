@@ -314,6 +314,12 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Treasury proposals", strconv.FormatBool(o.AllowTreasuryProposals)})
 	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
 
+	maxActive := o.MaxActiveProposals
+	if maxActive < 1 {
+		maxActive = commondao.DefaultMaxActiveProposals
+	}
+	table.Append([]string{"Max active proposals", strconv.Itoa(maxActive)})
+
 	res.Write(md.H2("Options"))
 	res.Write(table.String())
 }
@@ -412,7 +418,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 		status = append(status, voteLink(dao.ID(), p.ID()))
 	}
 
-	if o.AllowExecution && isExecutionAllowed(p) {
+	if isExecutionAllowed(p) && (o.AllowExecution || p.HasVotingDeadlinePassed()) {
 		status = append(status, executeLink(dao.ID(), p.ID()))
 	}
 
@@ -447,7 +453,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 		items = append(items, voteLink(dao.ID(), p.ID()))
 	}
 
-	if o.AllowExecution && isExecutionAllowed(p) {
+	if isExecutionAllowed(p) && (o.AllowExecution || p.HasVotingDeadlinePassed()) {
 		items = append(items, executeLink(dao.ID(), p.ID()))
 	}
 

@@ -97,3 +97,4 @@ func main() {
 // | SubDAO creation proposals | false |
 // | Treasury proposals | true |
 // | DAO dissolution proposals | false |
+// | Max active proposals | 32 |

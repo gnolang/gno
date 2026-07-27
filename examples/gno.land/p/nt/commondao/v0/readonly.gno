@@ -138,7 +138,7 @@ func (r ReadonlyProposal) Status() ProposalStatus {
 	return r.p.status
 }
 
-// StatusReason returns an optional reason that lead to the current proposal status.
+// StatusReason returns an optional reason that led to the current proposal status.
 func (r ReadonlyProposal) StatusReason() string {
 	return r.p.statusReason
 }
