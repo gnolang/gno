@@ -137,18 +137,23 @@ func (ndb *nodeDB) getFastIndexVersion() (int64, bool, error) {
 const fastRebuildFlush = 1 << 16
 
 // clearFastIndex stages deletion of every existing 'F' entry, flushing in
-// bounded chunks. After each chunk Commits, the deleted keys are gone from the
-// DB, so re-opening the iterator from the range start finds the remaining keys.
+// bounded chunks. Each chunk resumes AFTER the last staged key rather than
+// re-scanning from the range start: progress must not depend on the staged
+// deletes being applied to the DB between chunks — under rootmulti's
+// CollectingDB the chunk Commit only moves them into the shared collector
+// (applied at the block-level drain), and the iterator reads the underlying
+// DB, so a restart-from-start scan would re-see the same keys forever.
 // Leaves a fresh batch for the caller.
 func (ndb *nodeDB) clearFastIndex() error {
-	prefix := []byte{PrefixFast}
+	start := []byte{PrefixFast}
 	end := []byte{PrefixFast + 1}
 	for {
-		itr, err := ndb.db.Iterator(prefix, end)
+		itr, err := ndb.db.Iterator(start, end)
 		if err != nil {
 			return err
 		}
 		n := 0
+		var last []byte
 		for ; itr.Valid() && n < fastRebuildFlush; itr.Next() {
 			k := itr.Key()
 			kc := make([]byte, len(k))
@@ -157,6 +162,7 @@ func (ndb *nodeDB) clearFastIndex() error {
 				itr.Close()
 				return err
 			}
+			last = kc
 			n++
 		}
 		ierr := itr.Error()
@@ -173,6 +179,7 @@ func (ndb *nodeDB) clearFastIndex() error {
 		if n < fastRebuildFlush {
 			return nil
 		}
+		start = append(last, 0) // resume at the immediate successor of the last staged key
 	}
 }
 
