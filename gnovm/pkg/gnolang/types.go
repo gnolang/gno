@@ -2502,6 +2502,18 @@ func isUntyped(t Type) bool {
 	}
 }
 
+// isInterfaceStaticType reports whether the resolved static type t is an
+// interface. Used at preprocess time to set ATTR_IFACE_CMP from the operands'
+// types as returned by evalStaticTypeOf (which already unwraps a single-result
+// tuple, so t is never a raw *tupleType here).
+func isInterfaceStaticType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	_, ok := baseOf(t).(*InterfaceType)
+	return ok
+}
+
 func isDataByte(t Type) bool {
 	switch t {
 	case DataByteType:

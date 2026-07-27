@@ -988,9 +988,10 @@ func (m *Machine) doOpSwitchClauseCase() {
 	}
 	// A switch tag whose static type is an interface compares like an
 	// interface equality at runtime — uncomparable dynamic types panic.
-	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
+	// ATTR_IFACE_CMP is the preprocess-cached verdict (set only for a
+	// non-type-switch with an interface tag); see preprocess of *SwitchStmt.
 	ss := m.PeekStmt1().(*SwitchStmt)
-	viaIface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
+	viaIface := ss.GetAttribute(ATTR_IFACE_CMP) == true
 	match := isEql(m, cv, tv, viaIface)
 	if match {
 		// matched clause

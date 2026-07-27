@@ -1536,6 +1536,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
+
+				// Cache the interface-comparison verdict for doOpEql/doOpNeq.
+				// Here at the end of the case, only surviving ==/!= nodes remain
+				// (const-folds and shifts returned earlier). Set only when true.
+				if (n.Op == EQL || n.Op == NEQ) &&
+					(isInterfaceStaticType(lt) || isInterfaceStaticType(rt)) {
+					n.SetAttribute(ATTR_IFACE_CMP, true)
+				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
 				// Func type evaluation.
@@ -2998,6 +3006,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
+				// Cache the interface-comparison verdict for the switch tag,
+				// mirroring ==/!=: a non-type-switch whose tag is statically an
+				// interface compares each case like an interface equality
+				// (uncomparable dynamic types panic). op_exec reads
+				// ATTR_IFACE_CMP per clause comparison instead of recomputing.
+				if !n.IsTypeSwitch && n.X != nil &&
+					isInterfaceStaticType(evalStaticTypeOf(store, last, n.X)) {
+					n.SetAttribute(ATTR_IFACE_CMP, true)
+				}
+
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
 					types := map[string]struct{}{}
