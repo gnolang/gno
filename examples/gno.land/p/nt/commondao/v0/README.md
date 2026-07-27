@@ -46,8 +46,8 @@ dao.Execute(p.ID(), cur)
 
 ## Voting rules (the constitutional defaults)
 
-Proposal definitions that implement `DefaultTallier` are decided by
-`TallyDefault` with integer math over the proposal's **electorate
+Every proposal definition returns a `Threshold()`; proposals are decided
+by `TallyDefault` with integer math over the proposal's **electorate
 snapshot** E (the council at `Propose` time):
 
 ```
@@ -64,8 +64,7 @@ every ballot — including changed votes — so a proposal **passes or is
 dismissed the moment the outcome is mathematically settled** and an
 early-passed proposal may be executed before its deadline.
 
-Every proposal definition implements `DefaultTallier`; vote choices are
-fixed at YES/NO/ABSTAIN.
+Vote choices are fixed at YES/NO/ABSTAIN.
 
 ## Council changes
 

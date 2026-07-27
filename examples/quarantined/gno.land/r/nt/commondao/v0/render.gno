@@ -213,7 +213,7 @@ func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 	if balance.IsZero() {
 		res.Write(md.BulletItem("Balance: (empty)"))
 	} else {
-		res.Write(md.BulletItem("Balance: " + balance.String()))
+		res.Write(md.BulletItem("Balance: " + md.EscapeText(balance.String())))
 	}
 
 	if dao.IsTreasuryFrozen() {
@@ -463,8 +463,13 @@ func renderProposalStats(res *mux.ResponseWriter, record commondao.ReadonlyVotin
 	table := mdtable.Table{Headers: []string{"Vote Choices", "Percentage of Votes"}}
 
 	record.IterateVotesCount(func(c commondao.VoteChoice, voteCount int) bool {
-		percentage := float64(voteCount*100) / totalCount
+		// A changed vote leaves a zeroed counter behind; skip it so the
+		// table shows only choices with live votes.
+		if voteCount == 0 {
+			return false
+		}
 
+		percentage := float64(voteCount*100) / totalCount
 		table.Append([]string{md.EscapeText(string(c)), strconv.FormatFloat(percentage, 'f', 2, 64) + "%"})
 		return false
 	})

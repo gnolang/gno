@@ -327,10 +327,9 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 // proposal is active and within the voting period. A member may change
 // their vote by voting again.
 //
-// Proposals decided by the default Council rules (DefaultTallier
-// definitions) are re-evaluated after every recorded vote: a supermajority
-// (or the definition's threshold) of YES decides the proposal immediately,
-// and a simple majority of NO dismisses it immediately.
+// Proposals are re-evaluated after every recorded vote: a YES tally at
+// the definition's threshold decides the proposal immediately, and a
+// simple majority of NO dismisses it immediately.
 func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reason string) error {
 	if dao.deleted {
 		return ErrDAOIsDeleted

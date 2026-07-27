@@ -206,7 +206,7 @@ ever materializes; see Alternatives.)
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and a realm filetest suite (81 at branch HEAD) including
+  cleanly) and a realm filetest suite (92 at branch HEAD) including
   render goldens that pin both escaping of user-controlled text
   (names, bodies, vote reasons) and correct formatting of the built-in
   proposals' markdown bodies, plus a dissolved-parent sub-DAO
