@@ -65,7 +65,8 @@ type multiStore struct {
 	initialVersion int64
 
 	// querySnapshot holds the last fully-committed DB snapshot.
-	// It is swapped atomically by Commit() and read by query paths.
+	// It is swapped atomically by Commit() and LoadVersion() (via
+	// refreshQuerySnapshot) and read by query paths.
 	querySnapshot atomic.Pointer[refSnapshot]
 
 	// collector accumulates every sub-store write (dbadapter cache flush, IAVL
@@ -91,9 +92,10 @@ type multiStore struct {
 	//   rs.snap.Get(...)         ← use-after-free / panic
 	//
 	// snapshotMu prevents this: MultiImmutableCacheWrapWithVersion holds it
-	// as an RLock around Load+acquire, and Commit() holds it as a write-lock
-	// around Swap+release. Because the write-lock excludes all RLocks, no
-	// release() can reach zero while a Load+acquire is in progress.
+	// as an RLock around Load+acquire, and refreshQuerySnapshot (Commit /
+	// LoadVersion) holds it as a write-lock around Swap+release. Because the
+	// write-lock excludes all RLocks, no release() can reach zero while a
+	// Load+acquire is in progress.
 	snapshotMu sync.RWMutex
 }
 
@@ -183,6 +185,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 		}
 		ms.stores = newStores
 		ms.lastCommitID = types.CommitID{}
+		ms.refreshQuerySnapshot()
 		return nil
 	}
 
@@ -224,6 +227,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 
 	ms.lastCommitID = cInfo.CommitID()
 	ms.stores = newStores
+	ms.refreshQuerySnapshot()
 
 	return nil
 }
@@ -276,6 +280,29 @@ func (ms *multiStore) Commit() types.CommitID {
 
 	// Take a fresh snapshot of the now-consistent DB state.
 	// Queries will read from this until the next Commit.
+	ms.refreshQuerySnapshot()
+
+	// Prepare for next version.
+	commitID := types.CommitID{
+		Version: version,
+		Hash:    commitInfo.Hash(),
+	}
+	ms.lastCommitID = commitID
+	return commitID
+}
+
+// refreshQuerySnapshot replaces querySnapshot with a fresh snapshot of the
+// current DB state, releasing the previous one. Called by Commit after the
+// atomic WriteSync, and by LoadVersion so a restarted node has snapshot
+// isolation for queries BEFORE its first commit (otherwise queries would fall
+// back to reading the live DB until the first block lands). No-op on immutable
+// multiStores (their ms.db is already a frozen view) and on backends without
+// snapshot support (queries there fall back to an ImmutableDB over the live
+// DB: unisolated reads, but write-proof).
+func (ms *multiStore) refreshQuerySnapshot() {
+	if ms.storeOpts.Immutable {
+		return
+	}
 	if snap, err := ms.db.NewSnapshot(); err == nil {
 		rs := newRefSnapshot(snap)
 		ms.snapshotMu.Lock()
@@ -285,14 +312,6 @@ func (ms *multiStore) Commit() types.CommitID {
 		}
 		ms.snapshotMu.Unlock()
 	}
-
-	// Prepare for next version.
-	commitID := types.CommitID{
-		Version: version,
-		Hash:    commitInfo.Hash(),
-	}
-	ms.lastCommitID = commitID
-	return commitID
 }
 
 // QuerySnapshot returns the current read-only DB snapshot representing the last
@@ -514,6 +533,22 @@ func (ms *multiStore) constructStore(params storeParams) (store types.CommitStor
 	} else {
 		raw = ms.db
 		prefix = []byte("s/k:" + params.key.Name() + "/")
+	}
+
+	// Immutable multiStores (query views built by MultiImmutableCacheWrapWithVersion)
+	// must read the frozen post-commit view in ms.db (SnapshotDB, or ImmutableDB
+	// on backends without snapshots) — NEVER params.db, which is the LIVE handle
+	// captured at mount time. Routing queries to the live DB let them race the
+	// consensus commit, and (via bptree's fast-index maintenance on load) WRITE
+	// to it — the gno#6011 index poisoning. CONSTRAINT: a dedicated params.db
+	// must be the same physical DB as the multistore's (true for every in-repo
+	// mount, which passes the app DB for both). A genuinely separate store DB
+	// would not be covered by the snapshot: merkleized stores (bptree/iavl)
+	// fail loudly at LoadVersion's commit-id check, but a dbadapter mount
+	// (constant zero CommitID) would silently serve an empty view — do not
+	// mount separate physical DBs.
+	if ms.storeOpts.Immutable {
+		raw = ms.db
 	}
 
 	// On the live multiStore, route sub-store writes through a CollectingDB so

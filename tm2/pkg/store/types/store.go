@@ -148,6 +148,9 @@ type CommitMultiStore interface {
 
 	// Mount a store of type using the given db.
 	// If db == nil, the new store will use the CommitMultiStore db.
+	// A non-nil db MUST be the same physical DB as the CommitMultiStore's:
+	// query snapshots cover only that DB, so a separate one would be invisible
+	// to snapshot-isolated reads (see rootmulti constructStore).
 	MountStoreWithDB(key StoreKey, cons CommitStoreConstructor, db dbm.DB)
 
 	// Panics on a nil key.
