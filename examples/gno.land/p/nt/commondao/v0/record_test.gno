@@ -189,3 +189,111 @@ func TestTallyDefault(t *testing.T) {
 		})
 	}
 }
+
+// refOutcome is an independent restatement of the constitutional tally
+// rule, used to exhaustively cross-check TallyDefault at every boundary.
+func refOutcome(electorateSize, yes, no, abstain int, threshold commondao.Threshold) commondao.Outcome {
+	d := electorateSize - abstain
+	if d <= 0 {
+		return commondao.OutcomePending
+	}
+	passed := false
+	if threshold == commondao.ThresholdSimpleMajority {
+		passed = 2*yes > d // "more than half"
+	} else {
+		passed = 3*yes >= 2*d // "two thirds or more"
+	}
+	if passed {
+		return commondao.OutcomePassed
+	}
+	if 2*no > d { // NO simple majority dismisses (both thresholds)
+		return commondao.OutcomeDismissed
+	}
+	return commondao.OutcomePending
+}
+
+// TestTallyDefaultProperty exhaustively enumerates every electorate size
+// up to 8 and every (yes, no, abstain) split for both thresholds,
+// checking TallyDefault against refOutcome and machine-checking the
+// invariants the ADR argues in prose (mutual exclusivity, the D>0 guard,
+// abstain-shrinks-D monotonicity, and electorate gating).
+func TestTallyDefaultProperty(t *testing.T) {
+	// Eight electorate members plus one non-member "stranger".
+	pool := []address{memberA, memberB, memberC, memberD, memberE, memberF, memberG, memberH}
+	stranger := memberI
+	thresholds := []commondao.Threshold{commondao.ThresholdSupermajority, commondao.ThresholdSimpleMajority}
+
+	for e := 0; e <= len(pool); e++ {
+		for yes := 0; yes <= e; yes++ {
+			for no := 0; no+yes <= e; no++ {
+				for abstain := 0; abstain+no+yes <= e; abstain++ {
+					for _, th := range thresholds {
+						var electorate addrset.Set
+						for i := 0; i < e; i++ {
+							electorate.Add(pool[i])
+						}
+
+						var record commondao.VotingRecord
+						idx := 0
+						put := func(n int, c commondao.VoteChoice) {
+							for i := 0; i < n; i++ {
+								v, err := commondao.NewVote(pool[idx], c, "")
+								urequire.NoError(t, err)
+								record.AddVote(v)
+								idx++
+							}
+						}
+						put(yes, commondao.ChoiceYes)
+						put(no, commondao.ChoiceNo)
+						put(abstain, commondao.ChoiceAbstain)
+						// Remaining electorate members stay silent.
+
+						got := commondao.TallyDefault(record.Readonly(), electorate.Readonly(), th)
+						want := refOutcome(e, yes, no, abstain, th)
+						urequire.Equal(t, int(want), int(got),
+							"TallyDefault disagreed with the reference formula at some (E, yes, no, abstain, threshold)")
+
+						// Invariant: pass and dismiss are mutually exclusive
+						// (yes+no <= D holds since yes+no+abstain <= e).
+						d := e - abstain
+						passSuper := d > 0 && 3*yes >= 2*d
+						passSimple := d > 0 && 2*yes > d
+						dismiss := d > 0 && 2*no > d
+						uassert.False(t, passSuper && dismiss, "supermajority pass and dismiss both fired")
+						uassert.False(t, passSimple && dismiss, "simple pass and dismiss both fired")
+
+						// Invariant: votes from outside the electorate never
+						// change the outcome.
+						sv, err := commondao.NewVote(stranger, commondao.ChoiceYes, "")
+						urequire.NoError(t, err)
+						record.AddVote(sv)
+						gotWithStranger := commondao.TallyDefault(record.Readonly(), electorate.Readonly(), th)
+						uassert.Equal(t, int(got), int(gotWithStranger), "out-of-electorate vote changed the outcome")
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestTallyDefaultDGuard pins the load-bearing D>0 guard: an all-abstain
+// or empty electorate never passes, even at a zero-YES tally.
+func TestTallyDefaultDGuard(t *testing.T) {
+	var empty addrset.Set
+	var record commondao.VotingRecord
+	uassert.Equal(t, int(commondao.OutcomePending),
+		int(commondao.TallyDefault(record.Readonly(), empty.Readonly(), commondao.ThresholdSupermajority)))
+
+	var electorate addrset.Set
+	electorate.Add(memberA)
+	electorate.Add(memberB)
+	v, err := commondao.NewVote(memberA, commondao.ChoiceAbstain, "")
+	urequire.NoError(t, err)
+	record.AddVote(v)
+	v, err = commondao.NewVote(memberB, commondao.ChoiceAbstain, "")
+	urequire.NoError(t, err)
+	record.AddVote(v)
+	// D = 2 - 2 = 0: no YES, must stay pending (not a 3*0 >= 2*0 pass).
+	uassert.Equal(t, int(commondao.OutcomePending),
+		int(commondao.TallyDefault(record.Readonly(), electorate.Readonly(), commondao.ThresholdSupermajority)))
+}
