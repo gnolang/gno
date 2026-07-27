@@ -5,7 +5,6 @@ package zp_1_e_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -15,7 +14,7 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -23,17 +22,16 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
+	daoID = commondao.New(cross(cur), "Foo", "")
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowTextProposals(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateTextProposal(cross(cur), dao.ID(), "", "", 1)
+	commondao.CreateTextProposal(cross(cur), daoID, "", "", 1)
 }
 
 // Error:
-// caller is not a DAO member
+// caller is not a council member

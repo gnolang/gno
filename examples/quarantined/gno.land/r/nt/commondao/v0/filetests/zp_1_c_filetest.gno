@@ -5,7 +5,6 @@ package zp_1_c_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -15,7 +14,7 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -23,18 +22,15 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
-	dao.Members().Add(owner)
+	daoID = commondao.New(cross(cur), "Foo", string(user) + "\n" + string(owner))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowTextProposals(false) // Disallow text proposals
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(false)) // Disallow text proposals
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateTextProposal(cross(cur), dao.ID(), "", "", 0)
+	commondao.CreateTextProposal(cross(cur), daoID, "", "", 0)
 }
 
 // Error:

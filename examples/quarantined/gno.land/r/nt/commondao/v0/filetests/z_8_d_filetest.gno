@@ -26,13 +26,13 @@ func init(cur realm) {
 
 	// Create root DAO with subDAOs
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	rootDAO := commondao.New(cross(cur), "Root DAO")
-	fooDAO := commondao.NewSubDAO(cross(cur), "A", rootDAO.ID())
-	barDAO := commondao.NewSubDAO(cross(cur), "B", fooDAO.ID())
-	commondao.NewSubDAO(cross(cur), "C", barDAO.ID())
-	commondao.NewSubDAO(cross(cur), "D", fooDAO.ID())
+	rootDAO := commondao.New(cross(cur), "Root DAO", "")
+	fooDAO := commondao.NewSubDAO(cross(cur), "A", rootDAO, "")
+	barDAO := commondao.NewSubDAO(cross(cur), "B", fooDAO, "")
+	commondao.NewSubDAO(cross(cur), "C", barDAO, "")
+	commondao.NewSubDAO(cross(cur), "D", fooDAO, "")
 
-	rootID = rootDAO.ID()
+	rootID = rootDAO
 }
 
 func main(cur realm) {
@@ -43,9 +43,7 @@ func main(cur realm) {
 	println("Count =", iter.Count())
 
 	for iter.Next() {
-		if dao := iter.DAO(); dao != nil {
-			println(dao.Name())
-		}
+		println(iter.DAO().Name())
 	}
 }
 

@@ -30,8 +30,9 @@ func IsInvited(addr address) bool {
 
 // New creates a new CommonDAO and returns its ID.
 // An invitation is required to be able to create new DAOs.
-// The caller becomes the DAO owner and the initial council member.
-func New(cur realm, name string, options ...Option) uint64 {
+// The caller becomes the DAO owner and a council member, optionally
+// together with a newline separated list of additional member addresses.
+func New(cur realm, name, members string, options ...Option) uint64 {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
@@ -42,13 +43,14 @@ func New(cur realm, name string, options ...Option) uint64 {
 		invites.Remove(orig.String())
 	}
 
-	dao := createDAO(name, caller, options, caller)
+	dao := createDAO(name, caller, options, parseInitialMembers(caller, members)...)
 	return dao.ID()
 }
 
 // NewSubDAO creates a new SubDAO and returns its ID.
-// The caller becomes the initial council member of the SubDAO.
-func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) uint64 {
+// The caller becomes a council member of the SubDAO, optionally together
+// with a newline separated list of additional member addresses.
+func NewSubDAO(cur realm, name string, parentID uint64, members string, options ...Option) uint64 {
 	caller := cur.Previous().Address()
 	assertIsOwner(caller, parentID)
 
@@ -61,9 +63,23 @@ func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) uint6
 	assertDAONameIsValid(name)
 
 	parent := getDAO(parentID)
-	subDAO := createSubDAO(parent, name, options, caller)
+	subDAO := createSubDAO(parent, name, options, parseInitialMembers(caller, members)...)
 	parent.Children().Append(subDAO)
 	return subDAO.ID()
+}
+
+// parseInitialMembers returns the caller plus the parsed additional
+// members, deduplicated.
+func parseInitialMembers(caller address, members string) []address {
+	set := mustParseStringToAddrset(members)
+	set.Add(caller)
+
+	list := make([]address, 0, set.Size())
+	set.IterateByOffset(0, set.Size(), func(addr address) bool {
+		list = append(list, addr)
+		return false
+	})
+	return list
 }
 
 // GetOptions returns a copy of the configuration of a DAO.

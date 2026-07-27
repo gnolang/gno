@@ -22,22 +22,18 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", string(user))
 
-	commondao.NewSubDAO(cross(cur), name, dao.ID())
+	commondao.NewSubDAO(cross(cur), name, daoID, "")
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowChildren(true)
-	options.SetAllowSubDAOPorposals(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowChildren(true), commondao.AllowSubDAOProposals(true))
 
-	daoID = dao.ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross(cur), daoID, name, "")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, name, string(user))
 }
 
 // Error:

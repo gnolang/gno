@@ -5,7 +5,6 @@ package zp_3_a_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -15,7 +14,7 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -23,28 +22,26 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", string(user))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowDissolutionProposals(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(true))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateDissolutionProposal(cross(cur), dao.ID())
+	pID := commondao.CreateDissolutionProposal(cross(cur), daoID)
 
-	p := dao.ActiveProposals().Get(pID)
-	if p == nil {
+	p, found := commondao.GetView(daoID).GetProposal(pID)
+	if !found {
 		panic("expected proposal to be created")
 	}
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == ("Dissolve DAO: " + dao.Name()))
+	println(p.Title() == ("Dissolve DAO: " + commondao.GetView(daoID).Name()))
 	println(p.VotingDeadline())
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:

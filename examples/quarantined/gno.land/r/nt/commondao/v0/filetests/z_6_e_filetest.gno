@@ -13,7 +13,10 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var daoID uint64
+var (
+	daoID uint64
+	pID   uint64
+)
 
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
@@ -22,13 +25,15 @@ func init(cur realm) {
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	dao := commondao.New(cross(cur), "Foo", commondao.AllowExecution(false)) // Disallow execution
-	daoID = dao.ID()
+	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowExecution(false)) // Disallow execution
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
+	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 
 func main(cur realm) {
-	commondao.Execute(cross(cur), daoID, 0)
+	testing.SetRealm(testing.NewUserRealm(user))
+
+	commondao.Execute(cross(cur), daoID, pID)
 }
 
 // Error:

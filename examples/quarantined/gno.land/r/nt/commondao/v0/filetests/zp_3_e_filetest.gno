@@ -21,12 +21,10 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
+	daoID = commondao.New(cross(cur), "Foo", "")
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowDissolutionProposals(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(true))
 
-	daoID = dao.ID()
 }
 
 func main(cur realm) {
@@ -36,4 +34,4 @@ func main(cur realm) {
 }
 
 // Error:
-// caller is not a DAO member
+// caller is not a council member

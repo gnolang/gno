@@ -21,20 +21,16 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	subDAO := commondao.NewSubDAO(cross(cur), "Bar", dao.ID())
-	subDAO.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "")
+	commondao.NewSubDAO(cross(cur), "Bar", daoID, string(user))
 
-	daoID = dao.ID()
-
-	options := commondao.GetOptions(cross(cur), daoID)
-	options.SetAllowMembersUpdate(false) // Disallow udpating members
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowCouncilUpdate(false)) // Disallow udpating members
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross(cur), daoID, "", "")
+	commondao.CreateCouncilUpdateProposal(cross(cur), daoID, "", "")
 }
 
 // Error:

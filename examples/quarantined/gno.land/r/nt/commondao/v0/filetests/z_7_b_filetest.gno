@@ -22,7 +22,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.NewSubDAO(cross(cur), "Foo", 404)
+	commondao.NewSubDAO(cross(cur), "Foo", 404, "")
 }
 
 // Error:

@@ -5,7 +5,6 @@ package zp_1_a_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -18,7 +17,7 @@ const (
 	votingDays = uint8(1)
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -26,29 +25,26 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
-	dao.Members().Add(owner)
+	daoID = commondao.New(cross(cur), "Foo", string(user) + "\n" + string(owner))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowTextProposals(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateTextProposal(cross(cur), dao.ID(), title, body, votingDays)
+	pID := commondao.CreateTextProposal(cross(cur), daoID, title, body, votingDays)
 
-	p := dao.ActiveProposals().Get(pID)
-	if p == nil {
+	p, found := commondao.GetView(daoID).GetProposal(pID)
+	if !found {
 		panic("expected proposal to be created")
 	}
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == title)
+	println(p.Title() == title)
 	println(p.VotingDeadline())
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:

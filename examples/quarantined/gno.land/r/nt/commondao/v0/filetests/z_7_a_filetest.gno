@@ -29,28 +29,29 @@ func init(cur realm) {
 
 	// Create the root DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	parentDAO := commondao.New(cross(cur), "Parent DAO", commondao.AllowChildren(true))
-	parentID = parentDAO.ID()
+	parentDAO := commondao.New(cross(cur), "Parent DAO", "", commondao.AllowChildren(true))
+	parentID = parentDAO
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
-	dao := commondao.NewSubDAO(cross(cur), name, parentID)
-	if dao == nil {
-		panic("expected subDAO to be created")
-	}
+	subID := commondao.NewSubDAO(cross(cur), name, parentID, "")
+	view := commondao.GetView(subID)
 
-	println(dao.Name() == name)
-	println(dao.Parent().ID() == parentID)
+	println(view.Name() == name)
+
+	parent, found := view.Parent()
+	println(found && parent.ID() == parentID)
 
 	// Check that SubDAO is added as a child to the parent DAO
-	if v, ok := dao.Parent().Children().Get(0); ok && v != nil {
-		if subDAO, ok := v.(*pcommondao.CommonDAO); ok {
-			println(subDAO.ID() == dao.ID())
-		}
-	}
+	childFound := false
+	parent.IterateChildren(func(child pcommondao.ReadonlyCommonDAO) bool {
+		childFound = child.ID() == subID
+		return childFound
+	})
+	println(childFound)
 }
 
 // Output:

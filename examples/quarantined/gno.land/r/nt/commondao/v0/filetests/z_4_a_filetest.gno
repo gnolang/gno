@@ -24,21 +24,18 @@ func init(cur realm) {
 	// Create a couple of DAOs
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	commondao.New(cross(cur), "A")
-	daoID = commondao.New(cross(cur), name).ID()
-	commondao.New(cross(cur), "C")
+	commondao.New(cross(cur), "A", "")
+	daoID = commondao.New(cross(cur), name, "")
+	commondao.New(cross(cur), "C", "")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	dao := commondao.Get(cross(cur), daoID)
-	if dao == nil {
-		panic("expected DAO to be found")
-	}
+	view := commondao.GetView(daoID)
 
-	println(dao.Name() == name)
-	println(dao.ID() == daoID)
+	println(view.Name() == name)
+	println(view.ID() == daoID)
 }
 
 // Output:

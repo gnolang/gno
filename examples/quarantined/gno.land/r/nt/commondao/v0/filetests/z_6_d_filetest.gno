@@ -5,7 +5,6 @@ package z_6_d_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -15,7 +14,7 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
@@ -25,16 +24,13 @@ func init(cur realm) {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	dao = commondao.New(cross(cur), "Foo")
-
-	// Configure DAO
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", string(user))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Execute(cross(cur), dao.ID(), 404)
+	commondao.Execute(cross(cur), daoID, 404)
 }
 
 // Error:

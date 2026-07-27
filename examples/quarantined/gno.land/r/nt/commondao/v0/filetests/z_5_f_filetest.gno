@@ -23,8 +23,7 @@ func init(cur realm) {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	dao := commondao.New(cross(cur), "Foo", commondao.AllowVoting(false)) // Disallow voting
-	daoID = dao.ID()
+	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowVoting(false)) // Disallow voting
 }
 
 func main(cur realm) {

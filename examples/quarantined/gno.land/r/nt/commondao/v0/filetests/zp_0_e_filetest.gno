@@ -26,19 +26,16 @@ func init(cur realm) {
 
 	// Create root DAO with a subDAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", string(user))
 
-	daoID = dao.ID()
 
-	options := commondao.GetOptions(cross(cur), daoID)
-	options.SetAllowMembersUpdate(true)
+	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowCouncilUpdate(true))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross(cur), daoID, "not-an-address", "")
+	commondao.CreateCouncilUpdateProposal(cross(cur), daoID, "not-an-address", "")
 }
 
 // Error:
