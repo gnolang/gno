@@ -96,6 +96,19 @@ type dualTallierDef struct{ propDef }
 
 func (dualTallierDef) Threshold() commondao.Threshold { return commondao.ThresholdSupermajority }
 
+// ctxCheckDef records the voting context its custom tally receives.
+type ctxCheckDef struct {
+	propDef
+	votes      *int
+	electorate *int
+}
+
+func (d ctxCheckDef) Tally(ctx commondao.VotingContext) (bool, error) {
+	*d.votes = ctx.VotingRecord.Size()
+	*d.electorate = ctx.Electorate.Size()
+	return true, nil
+}
+
 func TestNew(t *testing.T) {
 	dao := commondao.New()
 	uassert.Equal(t, uint64(0), dao.ID())
@@ -365,6 +378,30 @@ func TestVoteEarlyTermination(t *testing.T) {
 	})
 }
 
+func TestExpectedOutcome(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+	)
+
+	// Default rule proposals report the live tally
+	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
+	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, "")) // 3*2 >= 2*3
+	uassert.Equal(t, int(commondao.OutcomePassed), int(p.ExpectedOutcome()))
+
+	// Custom tallier proposals report their Tally result; errors as pending
+	p = dao.MustPropose(memberA, propDef{period: time.Hour, passes: true})
+	uassert.Equal(t, int(commondao.OutcomePassed), int(p.ExpectedOutcome()))
+	p = dao.MustPropose(memberB, propDef{period: time.Hour, passes: false})
+	uassert.Equal(t, int(commondao.OutcomeDismissed), int(p.ExpectedOutcome()))
+	p = dao.MustPropose(memberC, propDef{period: time.Hour, passes: true, err: errors.New("boom")})
+	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
+}
+
 func TestExecute(cur realm, t *testing.T) {
 	t.Run("early passed proposals execute before the deadline", func(t *testing.T) {
 		executed := false
@@ -464,6 +501,50 @@ func TestExecute(cur realm, t *testing.T) {
 		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
 		uassert.Equal(t, "stale", p.StatusReason())
 		uassert.False(t, executed, "expect executor to not run when validation fails")
+	})
+
+	t.Run("executors cannot re-enter Execute for the same proposal", func(t *testing.T) {
+		var (
+			dao      = commondao.New(commondao.WithCouncilMember(memberA))
+			execs    int
+			innerErr error
+			pid      uint64
+		)
+		p := dao.MustPropose(memberA, execFnPropDef{
+			propDef: propDef{passes: true},
+			fn: func(cur realm) error {
+				execs++
+				innerErr = dao.Execute(pid, cur)
+				return nil
+			},
+		})
+		pid = p.ID()
+
+		urequire.NoError(t, dao.Execute(pid, cur))
+		uassert.Equal(t, 1, execs, "expect executor to run exactly once")
+		uassert.ErrorIs(t, innerErr, commondao.ErrProposalNotFound)
+		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
+		uassert.Equal(t, 1, dao.FinishedProposals().Size())
+	})
+
+	t.Run("custom talliers receive the record and electorate", func(t *testing.T) {
+		dao := commondao.New(
+			commondao.WithCouncilMember(memberA),
+			commondao.WithCouncilMember(memberB),
+		)
+		var votes, electorate int
+		p := dao.MustPropose(memberA, ctxCheckDef{
+			propDef:    propDef{period: time.Hour},
+			votes:      &votes,
+			electorate: &electorate,
+		})
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+
+		testing.SkipHeights(721) // 5s blocks: pass the 1h voting deadline
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
+		uassert.Equal(t, 1, votes)
+		uassert.Equal(t, 2, electorate)
 	})
 
 	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {

@@ -26,7 +26,9 @@ type Options struct {
 	// AllowVoting enables proposal voting support.
 	AllowVoting bool
 
-	// AllowExecution enables proposal execution support.
+	// AllowExecution allows executing early-passed proposals before their
+	// voting deadline. Execution of passed proposals after the deadline is
+	// always permitted.
 	AllowExecution bool
 
 	// AllowCouncilUpdate allows proposals that add and/or remove council members.
@@ -74,7 +76,7 @@ func AllowVoting(allow bool) Option {
 	}
 }
 
-// AllowExecution configures DAO support for executing proposals through CommonDAO realm.
+// AllowExecution configures DAO support for executing early-passed proposals before their voting deadline.
 func AllowExecution(allow bool) Option {
 	return func(o *Options) {
 		o.AllowExecution = allow

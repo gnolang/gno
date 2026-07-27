@@ -24,7 +24,7 @@ func init(cur realm) {
 
 	commondao.CreateTextProposal(cross(cur), daoID, "First", "Body", 0)
 
-	// Tightening the cap below the current count blocks new proposals
+	// Tightening the cap to the current count blocks new proposals
 	// without touching existing ones
 	commondao.UpdateOptions(cross(cur), daoID, commondao.MaxActiveProposals(1))
 }

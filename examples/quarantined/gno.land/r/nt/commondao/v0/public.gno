@@ -63,6 +63,10 @@ func NewSubDAO(cur realm, name string, parentID uint64, members string, options 
 	assertDAONameIsValid(name)
 
 	parent := getDAO(parentID)
+	if parent.IsDeleted() {
+		panic("DAO has already been dissolved")
+	}
+
 	subDAO := createSubDAO(parent, name, options, parseInitialMembers(caller, members)...)
 	return subDAO.ID()
 }

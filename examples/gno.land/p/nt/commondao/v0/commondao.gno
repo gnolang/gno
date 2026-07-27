@@ -389,6 +389,11 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 		return ErrExecutionNotAllowed
 	}
 
+	// The proposal leaves active storage before any definition code
+	// (Validate, Tally, the executor) runs, so a re-entrant Execute
+	// call cannot run it twice.
+	dao.activeProposals.Remove(p.id)
+
 	// IMPORTANT, from this point on, any error is going to result
 	// in a proposal failure and execute will succeed.
 
@@ -412,7 +417,8 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 
 		// Undecided or dismissed proposals are dismissed at the deadline
 		if err == nil && p.status != StatusPassed {
-			dao.dismiss(p)
+			p.status = StatusDismissed
+			dao.finishedProposals.Add(p)
 			return nil
 		}
 	}
@@ -437,7 +443,6 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 
 	// Whichever the outcome of the validation, tallying
 	// and execution consider the proposal finished.
-	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
 	return nil
 }

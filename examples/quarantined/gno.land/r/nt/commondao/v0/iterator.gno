@@ -20,7 +20,7 @@ func NewIterator(cur realm, rootID uint64, options ...IteratorOption) Iterator {
 	}
 
 	size := it.tree.Size()
-	if it.current > size {
+	if it.current < 0 || it.current > size {
 		it.current = size
 	}
 

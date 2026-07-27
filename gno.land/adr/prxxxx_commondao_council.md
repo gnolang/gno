@@ -168,6 +168,10 @@ keep full freedom via the `CustomTallier` interface.
   design (idempotent semantics): adding an existing member or
   removing a stranger is a legal no-op, so concurrent updates cannot
   invalidate each other.
+- `Execute` removes the proposal from active storage **before** any
+  definition code (`Validate`, `Tally`, the executor) runs, so a
+  re-entrant `Execute` from inside an executor finds no proposal and
+  cannot run it twice.
 
 ## Alternatives considered
 
@@ -186,8 +190,9 @@ keep full freedom via the `CustomTallier` interface.
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and 68 realm filetests (59 migrated, 9 added for the new
-  surface).
+  cleanly) and 71 realm filetests (59 migrated, 12 added for the new
+  surface, including render-escaping goldens for names, bodies and
+  vote reasons).
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
 - The realm's crossing functions deliberately do **not** open with

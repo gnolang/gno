@@ -75,9 +75,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Render header
-	res.Write(md.H1(dao.Name()))
+	res.Write(md.H1(md.EscapeText(dao.Name())))
 	if desc := dao.Description(); desc != "" {
-		res.Write(md.Paragraph(desc))
+		res.Write(md.Paragraph(md.EscapeText(desc)))
 	}
 
 	// Render main menu
@@ -105,26 +105,24 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	if dao.Children().Len() > 0 {
 		r := parseRealmPath(req.RawPath)
 		dissolvedVisible := r.Query.Has("dissolved") || dao.IsDeleted()
-		if dissolvedVisible || !dao.IsDeleted() {
-			res.Write(md.H2("Tree"))
+		res.Write(md.H2("Tree"))
 
-			// Render toggle only when DAO is not dissolved,
-			// otherwise render the whole tree when DAO is dissolved
-			if !dao.IsDeleted() {
-				var toggleLink string
-				if dissolvedVisible {
-					r.Query.Del("dissolved")
-					toggleLink = md.Link("hide", r.String())
-				} else {
-					r.Query.Add("dissolved", "")
-					toggleLink = md.Link("show", r.String())
-				}
-
-				res.Write(md.Paragraph("Dissolved: " + toggleLink))
+		// Render toggle only when DAO is not dissolved,
+		// otherwise render the whole tree when DAO is dissolved
+		if !dao.IsDeleted() {
+			var toggleLink string
+			if dissolvedVisible {
+				r.Query.Del("dissolved")
+				toggleLink = md.Link("hide", r.String())
+			} else {
+				r.Query.Add("dissolved", "")
+				toggleLink = md.Link("show", r.String())
 			}
 
-			renderTree(res, dao, "", dissolvedVisible)
+			res.Write(md.Paragraph("Dissolved: " + toggleLink))
 		}
+
+		renderTree(res, dao, "", dissolvedVisible)
 	}
 
 	// Render latest proposals
@@ -249,7 +247,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	o := getOptions(dao.ID())
 
 	// Render header
-	res.Write(md.H1(dao.Name() + ": Settings"))
+	res.Write(md.H1(md.EscapeText(dao.Name()) + ": Settings"))
 
 	// Render main menu
 	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
@@ -260,7 +258,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Allow Render", strconv.FormatBool(o.AllowRender)})
 	table.Append([]string{"Allow SubDAOs", strconv.FormatBool(o.AllowChildren)})
 	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
-	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
+	table.Append([]string{"Enable early execution", strconv.FormatBool(o.AllowExecution)})
 	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
 	table.Append([]string{"Council update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
 	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
@@ -274,7 +272,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
 
 	// Render header
-	res.Write(md.H1(dao.Name() + ": Proposals"))
+	res.Write(md.H1(md.EscapeText(dao.Name()) + ": Proposals"))
 
 	// Render main menu
 	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
@@ -422,7 +420,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	statusItem := "Status: " + md.Bold(string(p.Status()))
 	if reason := p.StatusReason(); reason != "" {
-		statusItem += " • " + md.Italic(reason)
+		statusItem += " • " + md.Italic(md.EscapeText(reason))
 	}
 	res.Write(md.BulletItem(statusItem))
 
