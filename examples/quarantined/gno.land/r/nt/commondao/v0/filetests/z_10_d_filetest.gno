@@ -112,7 +112,7 @@ func main() {
 //
 //
 // <gno-columns-sep>
-// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=3&description=&members=&name=)
+// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=3&description=&members=&name=&purpose=)
 //
 // This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
 //

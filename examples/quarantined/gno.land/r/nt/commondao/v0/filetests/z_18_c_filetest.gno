@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_10_a_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_18_c_filetest
 
-package z_10_a_filetest
+package z_18_c_filetest
 
 import (
 	"strconv"
@@ -21,18 +21,18 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "*Pwn* [link](https://evil.example) # H1", "Purpose", "", "")
+	// The Purpose is user-controlled Charter text: markdown metacharacters
+	// must render escaped, never as live markup.
+	daoID = commondao.New(cross(cur), "Foo", "*Evil* [x](https://evil.example) # H1", "", "")
 }
 
 func main() {
-	// DAO names are user controlled: markdown metacharacters must
-	// render escaped, never as markup
 	println(commondao.Render(strconv.FormatUint(daoID, 10)))
 }
 
 // Output:
-// # \*Pwn\* \[link\]\(https://evil\.example\) \# H1
-// **Purpose:** Purpose
+// # Foo
+// **Purpose:** \*Evil\* \[x\]\(https://evil\.example\) \# H1
 //
 // [View Proposals](/r/nt/commondao/v0:2/proposals) • [View Settings](/r/nt/commondao/v0:2/settings)
 //

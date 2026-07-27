@@ -9,8 +9,7 @@ is composed of Purpose and Description)."* Bylaws and Mandates are an explicit
 had `description` but no `purpose`, so it was out of compliance on the single
 mandatory clause. This PR closes that gap.
 
-Scope was set by a three-reviewer design convergence (recorded in
-`CHARTER_DESIGN.md`): ship the Charter now; defer the optional Bylaws/Mandates
+Scope was set by a three-reviewer design convergence: ship the Charter now; defer the optional Bylaws/Mandates
 document store and all document/Charter amendment to a follow-up, so this
 change stays a mechanical, low-risk addition.
 

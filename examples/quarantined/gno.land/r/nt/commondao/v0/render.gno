@@ -621,6 +621,7 @@ func newSubDAOLink(daoID uint64) string {
 		"CreateSubDAOProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"name", "",
+		"purpose", "",
 		"description", "",
 		"members", "",
 	))
