@@ -71,12 +71,14 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		IsActive: isActive(u.WebQuery, "Actions"),
 	}
 
+	/* Hide the Fork button until we have publishing support
 	forkLink := HeaderLink{
 		Label:    "Fork",
 		URL:      forkURL.EncodeWebURL(),
 		Icon:     "ico-link",
 		IsActive: isActive(u.WebQuery, "Fork"),
 	}
+	*/
 
 	runLink := HeaderLink{
 		Label:    "Run",
@@ -100,11 +102,13 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModeUser:
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
-		return []HeaderLink{contentLink, sourceLink, forkLink}
+		// Hide the Fork button until we have publishing support
+		return []HeaderLink{contentLink, sourceLink /* , forkLink */}
 	case mode == ViewModePlayground:
 		return []HeaderLink{}
 	default:
-		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink, forkLink, runLink}
+		// Hide the Fork button until we have publishing support
+		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink /* forkLink, */, runLink}
 	}
 }
 

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
-
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -3073,11 +3071,11 @@ func BenchmarkOpDec_BigInt_4096(b *testing.B) { benchOpDec_BigInt(b, 4096) }
 // Uses strings.Repeat to build a number like "1234567890123..." of the given length.
 func makeBigDec(digits int) BigdecValue {
 	s := strings.Repeat("1234567890", (digits/10)+1)[:digits]
-	d, _, err := apd.NewFromString(s)
-	if err != nil {
-		panic(err)
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		panic("invalid bigdec string: " + s)
 	}
-	return BigdecValue{V: d}
+	return BigdecValue{V: r}
 }
 
 // --- doOpAdd BigDec ---
@@ -4649,6 +4647,39 @@ func BenchmarkOpPrecall_BoundMethod(b *testing.B) {
 	reportBenchops(b)
 }
 
+// BenchmarkOpPrecall_BoundMethod_Lazy measures the interface-dispatched (lazy)
+// bound-method path: Func==nil, so doOpPrecall resolves the concrete method +
+// receiver at call time (resolveLazyBound walks the saved operand). This is the
+// cost of every interface method call (i.M()); compare with the concrete
+// BenchmarkOpPrecall_BoundMethod above. Value operand (re-walks every call).
+func BenchmarkOpPrecall_BoundMethod_Lazy(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	ft, _, dt, sv := benchMethodSetup(m.Alloc)
+	bmv := &BoundMethodValue{
+		Func:     nil,                      // lazy: resolved at call
+		Receiver: TypedValue{T: dt, V: sv}, // saved operand (value)
+		Method:   "DoStuff",
+	}
+	cx := &CallExpr{NumArgs: 1}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: ft, V: bmv})         // bound method
+		m.PushValue(TypedValue{T: IntType, N: i2n(1)}) // arg
+		m.PushExpr(cx)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpPrecall()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Frames = m.Frames[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 // --- doOpCall with receiver (method call) ---
 
 func BenchmarkOpCall_Method(b *testing.B) {
@@ -4875,10 +4906,10 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 		cfr := m.LastFrame()
 		for range nDefers {
 			cfr.PushDefer(Defer{
-				Func:   fv,
-				Args:   []TypedValue{},
-				Source: &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-				Parent: &Block{},
+				Callable: fv,
+				Args:     []TypedValue{},
+				Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
+				Parent:   &Block{},
 			})
 		}
 		m.PushOp(OpReturnCallDefers) // will be consumed by the op

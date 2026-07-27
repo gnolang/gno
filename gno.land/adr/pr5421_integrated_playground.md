@@ -24,7 +24,10 @@ extensions with no additional runtime dependencies:
 
 ### 1. `/_/play` — Playground scratch pad
 
-A multi-file code editor backed by a plain `<textarea>` (no CodeMirror yet).
+A multi-file code editor backed by CodeMirror (Go/TOML modes, via the shared
+`@gnoweb/js/code-editor` component integrated in #5674). The `<textarea>` is
+retained as a hidden, progressively-enhanced fallback that also carries the
+initial code into the editor.
 Supports:
 - URL sharing via `?code=` query parameter (base64-encoded)
 - Multi-file mode via `// --- filename.gno ---` separators
@@ -88,8 +91,9 @@ and `/_/api/funcs` without CSP violations.
 - **Server-side gno run / gno test:** Would require sandboxing, resource
   limits, and execution isolation. Out of scope for this PR; instructions are
   printed instead.
-- **CodeMirror editor:** Better UX but adds a non-trivial JS dependency.
-  Deferred; the `<textarea>` approach is functional and upgradeable in place.
+- **CodeMirror editor:** Adopted (#5674) via the shared `@gnoweb/js/code-editor`
+  component — Go/TOML syntax modes, with the `<textarea>` kept as a hidden
+  progressive-enhancement fallback.
 - **Separate gnostudio service:** Breaks the single-binary model. The goal is
   to keep gnoweb self-contained.
 - **Stimulus.js or other controller framework:** The codebase already has a

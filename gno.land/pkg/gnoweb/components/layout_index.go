@@ -199,7 +199,7 @@ func IndexLayout(data IndexData) Component {
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
-	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, PlaygroundViewType, RunViewType:
+	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, PlaygroundViewType, RunViewType, OverviewViewType:
 		dataLayout.IsDevmodView = true
 	}
 

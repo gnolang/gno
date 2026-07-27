@@ -23,22 +23,19 @@ const (
 	ProofOpBptreeCommitment = "ics23:bptree"
 )
 
-// FastIndexEnabled controls whether stores built by StoreConstructor enable the
-// bptree fast index — an unauthenticated read accelerator outside the Merkle
-// commitment (see bptree.FastIndexOption). It is a package-level toggle because
-// StoreConstructor's signature is fixed by CommitStoreConstructor and
-// types.StoreOptions is shared with the IAVL store. Set it before stores are
-// mounted (e.g. at process init). Off by default; toggling it does not change
-// the app hash, so nodes may differ without forking.
-var FastIndexEnabled bool
-
 // StoreConstructor implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	var bopts []bp.Option
-	if FastIndexEnabled {
-		bopts = append(bopts, bp.FastIndexOption(true))
-	}
-	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger(), bopts...)
+	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger())
+	return UnsafeNewStore(tree, opts)
+}
+
+// FastStoreConstructor is StoreConstructor with the bptree fast index enabled
+// (see bptree.FastIndexOption for what the index is and what it costs).
+// Store-level notes: the first Load over an existing non-indexed DB rebuilds
+// the whole index (long on large DBs, and a rebuild error fails the load),
+// and charged gas is index-independent (depth params × tree size).
+func FastStoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
+	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger(), bp.FastIndexOption(true))
 	return UnsafeNewStore(tree, opts)
 }
 
@@ -86,7 +83,9 @@ func (st *Store) SetInitialVersion(v int64) {
 // expectedDepth100 returns log₃₂(size) in 100x fixed-point — the B+32
 // traversal depth in node reads. log₃₂ = log₂/5, so the ×100 scaling becomes
 // ×20, preserving the fractional precision integer division would truncate.
-// Floored at 100 (one op).
+// Floored at 100 (one op). Downstream Min-floor gas params and the gnogenesis
+// fork fingerprint are derived from this formula; see
+// gno.land/pkg/sdk/vm/params.go before changing it.
 func expectedDepth100(size int64) int64 {
 	if size <= 1 {
 		return 100

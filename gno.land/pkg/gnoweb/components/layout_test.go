@@ -119,7 +119,9 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 6, "expected dev links with State, Actions, Fork, Run for home mode")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, enrichedData.Links.Dev, 6, "expected dev links with State, Actions, Fork, Run for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 5, "expected dev links with State, Actions, Run for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -208,13 +210,15 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 
 	// Test realm mode (default case)
 	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
-	assert.Len(t, links, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	// Hide the Fork button until we have publishing support
+	//assert.Len(t, links, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	assert.Len(t, links, 5, "expected Content, State, Source, Actions, Run links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "State", links[1].Label)
 	assert.Equal(t, "Source", links[2].Label)
 	assert.Equal(t, "Actions", links[3].Label)
-	assert.Equal(t, "Fork", links[4].Label)
-	assert.Equal(t, "Run", links[5].Label)
+	// assert.Equal(t, "Fork", links[4].Label)
+	assert.Equal(t, "Run", links[4].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -226,10 +230,12 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 
 	// Test package mode
 	links := StaticHeaderDevLinks(u, ViewModePackage, false)
-	assert.Len(t, links, 3, "expected Content, Source, Fork links")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, links, 3, "expected Content, Source, Fork links")
+	assert.Len(t, links, 2, "expected Content, Source links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
-	assert.Equal(t, "Fork", links[2].Label)
+	// assert.Equal(t, "Fork", links[2].Label)
 }
 
 func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
@@ -281,7 +287,9 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, enriched.Links.Dev, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	assert.Len(t, enriched.Links.Dev, 5, "expected Content, State, Source, Actions, Run links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {

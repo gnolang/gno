@@ -273,6 +273,108 @@ func TestClearFlag(t *testing.T) {
 	assert.False(t, account.hasFlag(flagTokenLockWhitelisted), "Expected flagTokenLockWhitelisted to be cleared")
 }
 
+func TestGnoTxMetadata_ProvenanceFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("source constants", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "base", SourceBase)
+		assert.Equal(t, "historical", SourceHistorical)
+		assert.Equal(t, "patched", SourcePatched)
+		assert.Equal(t, "migration", SourceMigration)
+	})
+
+	t.Run("amino JSON omitempty when fields unset", func(t *testing.T) {
+		t.Parallel()
+		meta := &GnoTxMetadata{BlockHeight: 100}
+
+		bz, err := amino.MarshalJSON(meta)
+		require.NoError(t, err)
+
+		s := string(bz)
+		assert.NotContains(t, s, `"source"`)
+		assert.NotContains(t, s, `"note"`)
+		assert.NotContains(t, s, `"original_tx"`)
+	})
+
+	t.Run("amino JSON roundtrip preserves provenance fields", func(t *testing.T) {
+		t.Parallel()
+		originalTx := std.Tx{
+			Msgs: []std.Msg{
+				bank.MsgSend{
+					FromAddress: crypto.Address{0x42},
+					ToAddress:   crypto.Address{0x43},
+					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1234)),
+				},
+			},
+			Fee:  std.Fee{GasWanted: 10, GasFee: std.NewCoin(ugnot.Denom, 1000000)},
+			Memo: "original tx body",
+		}
+
+		meta := &GnoTxMetadata{
+			Timestamp:   1700000000,
+			BlockHeight: 1950,
+			ChainID:     "gnoland-1",
+			Source:      SourcePatched,
+			Note:        "API drift on params.ProposeAddUnrestrictedAcctsRequest (post-#5669)",
+			OriginalTx:  &originalTx,
+		}
+
+		bz, err := amino.MarshalJSON(meta)
+		require.NoError(t, err)
+
+		var got GnoTxMetadata
+		require.NoError(t, amino.UnmarshalJSON(bz, &got))
+
+		assert.Equal(t, meta.Source, got.Source)
+		assert.Equal(t, meta.Note, got.Note)
+		require.NotNil(t, got.OriginalTx)
+		assert.Equal(t, originalTx.Memo, got.OriginalTx.Memo)
+		assert.Equal(t, originalTx.Fee.GasWanted, got.OriginalTx.Fee.GasWanted)
+		require.Len(t, got.OriginalTx.Msgs, 1)
+	})
+
+	t.Run("amino binary roundtrip preserves provenance fields", func(t *testing.T) {
+		t.Parallel()
+		// GnoTxMetadata is consensus-serialized into genesis via the amino
+		// binary (pb3) codec, so exercise that path directly — the nested
+		// OriginalTx message is the highest-risk field.
+		originalTx := std.Tx{
+			Msgs: []std.Msg{
+				bank.MsgSend{
+					FromAddress: crypto.Address{0x42},
+					ToAddress:   crypto.Address{0x43},
+					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1234)),
+				},
+			},
+			Fee:  std.Fee{GasWanted: 10, GasFee: std.NewCoin(ugnot.Denom, 1000000)},
+			Memo: "original tx body",
+		}
+
+		meta := &GnoTxMetadata{
+			Timestamp:   1700000000,
+			BlockHeight: 1950,
+			ChainID:     "gnoland-1",
+			Source:      SourcePatched,
+			Note:        "API drift on params.ProposeAddUnrestrictedAcctsRequest (post-#5669)",
+			OriginalTx:  &originalTx,
+		}
+
+		bz, err := amino.Marshal(meta)
+		require.NoError(t, err)
+
+		var got GnoTxMetadata
+		require.NoError(t, amino.Unmarshal(bz, &got))
+
+		assert.Equal(t, meta.Source, got.Source)
+		assert.Equal(t, meta.Note, got.Note)
+		require.NotNil(t, got.OriginalTx)
+		assert.Equal(t, originalTx.Memo, got.OriginalTx.Memo)
+		assert.Equal(t, originalTx.Fee.GasWanted, got.OriginalTx.Fee.GasWanted)
+		require.Len(t, got.OriginalTx.Msgs, 1)
+	})
+}
+
 func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 	t.Parallel()
 

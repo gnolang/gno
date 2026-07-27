@@ -45,8 +45,8 @@ func set(owner, k, v string) string {
 		return StatusNoWriteAccess
 	}
 	var keystore *KeyStore
-	keystoreInterface, exists := data.Get(owner)
-	if !exists {
+	keystoreInterface := data.Get(owner)
+	if keystoreInterface == nil {
 		keystore = &KeyStore{
 			Owner: origOwner,
 			Data:  avl.Tree{},
@@ -74,8 +74,8 @@ func remove(owner, k string) string {
 		return StatusNoWriteAccess
 	}
 	var keystore *KeyStore
-	keystoreInterface, exists := data.Get(owner)
-	if !exists {
+	keystoreInterface := data.Get(owner)
+	if keystoreInterface == nil {
 		keystore = &KeyStore{
 			Owner: origOwner,
 			Data:  avl.Tree{},
@@ -101,13 +101,13 @@ func Get(k string) string {
 // get (private) returns a value for a key
 // read-only
 func get(owner, k string) string {
-	keystoreInterface, exists := data.Get(owner)
-	if !exists {
+	keystoreInterface := data.Get(owner)
+	if keystoreInterface == nil {
 		return StatusNoUser
 	}
 	keystore := keystoreInterface.(*KeyStore)
-	val, found := keystore.Data.Get(k)
-	if !found {
+	val := keystore.Data.Get(k)
+	if val == nil {
 		return StatusNotFound
 	}
 	return val.(string)
@@ -121,8 +121,8 @@ func Size() string {
 }
 
 func size(owner string) string {
-	keystoreInterface, exists := data.Get(owner)
-	if !exists {
+	keystoreInterface := data.Get(owner)
+	if keystoreInterface == nil {
 		return StatusNoUser
 	}
 	keystore := keystoreInterface.(*KeyStore)
@@ -153,8 +153,8 @@ func Render(p string) string {
 		})
 	case 1:
 		owner := args[0]
-		keystoreInterface, exists := data.Get(owner)
-		if !exists {
+		keystoreInterface := data.Get(owner)
+		if keystoreInterface == nil {
 			return StatusNoUser
 		}
 		ks := keystoreInterface.(*KeyStore)

@@ -63,7 +63,7 @@ var (
 	diskBuildBatch    = flag.Int64("disk-build-batch", 25_000, "keys per SaveVersion while building the fixture")
 	diskWarmupOps     = flag.Int("disk-warmup-ops", 0, "untimed ops before measurement to warm the node LRU (random gets for the Get benches; whole blocks for BlockWrite). A fresh tree starts cold and reported counts average over every iteration, so size this to several times the node cache: ~50000 for the default 10K cache, ~1500000 for a 330K cache")
 	diskReloadEvery   = flag.Int("disk-reload-every", 100_000, "reload latest every N read ops to bound resident memory (the node LRU stays warm across reloads)")
-	diskCommittedRead = flag.Bool("disk-committed-read", false, "read the Get/GetMiss benches through a committed snapshot held at the latest version (the ABCI-query path that the bptree fast index serves) instead of the working-tree Get, which is index-free")
+	diskCommittedRead = flag.Bool("disk-committed-read", false, "read the Get/GetMiss benches through a committed snapshot held at the latest version (the ABCI-query path) instead of the working-tree Get; for index-on bptree both paths serve from the fast index while the tree is clean (always true in these benches), so the flag now matters mainly for exercising the snapshot machinery itself")
 	diskFactory       = flag.String("disk-factory", "", "limit disk populate/benchmarks to one backend: iavl|bptree|bptree-fast (empty = all). Lets processes populate in parallel into one -disk-dir. bptree-fast reuses the bptree fixture (run it after bptree, not concurrently).")
 	diskVerbose       = flag.Bool("disk-verbose", false, "stream live populate progress to stderr: keys/sec + time split across set/save/prune/reload")
 	diskVerboseEvery  = flag.Duration("disk-verbose-every", time.Minute, "reporting interval for -disk-verbose")
@@ -475,18 +475,18 @@ func ensureDiskFixture(b *testing.B, f treeFactory, n uint64) diskFixture {
 }
 
 // pointReadFn returns the per-op read function for the Get benches plus a closer.
-// By default it's the working-tree Get (index-free for bptree); with
-// -disk-committed-read it's a point read through a single committed snapshot held
-// at the latest version — the ABCI-query path, where the bptree fast index
-// engages (iavl's fast nodes engage on either path). The snapshot is opened ONCE
-// and reused for the whole loop — deliberately not MutableTree.GetVersioned, which
+// By default it's the working-tree Get; with -disk-committed-read it's a point
+// read through a single committed snapshot held at the latest version — the
+// ABCI-query path. See the flag's help for mode semantics (for index-on trees
+// both modes serve the fast path on these clean fixtures). The snapshot is
+// opened ONCE and reused for the whole loop — deliberately not MutableTree.GetVersioned, which
 // re-opens (GetImmutable) per call: a per-read open adds its root read to every op
 // and would inflate reads/op by ~1 for every tree, hiding the index's win. Node
 // memory stays bounded by the shared LRU since the snapshot pins only its root.
 //
 // Contract: a disk read bench must route EVERY lookup through the returned read fn
 // (warmup included), never fx.tree.Get directly — otherwise -disk-committed-read is
-// silently ignored for that bench and it measures the index-free working tree.
+// silently ignored for that bench and it measures the working-tree path instead.
 func pointReadFn(b *testing.B, fx diskFixture) (read func([]byte) ([]byte, error), closeFn func()) {
 	b.Helper()
 	if !*diskCommittedRead {
@@ -533,13 +533,11 @@ func BenchmarkDiskGetRandom(b *testing.B) {
 					}
 				}
 			}
-			// reads/op = node DB reads (Get) per point read. With
-			// -disk-committed-read, IAVL and bptree-fast both ~1 (their fast
-			// layer returns the value in one read); plain bptree ~height (full
-			// node walk + out-of-line value fetch). Without the flag, reads route
-			// through the index-free working tree for every tree. Fold around the
-			// untimed reload so its reads aren't counted; each reload interval is
-			// one convergence segment.
+			// reads/op = node DB reads (Get) per point read. IAVL and
+			// bptree-fast both ~1 (their fast layer returns the value in one
+			// read); plain bptree ~height (full node walk + out-of-line value
+			// fetch). Fold around the untimed reload so its reads aren't
+			// counted; each reload interval is one convergence segment.
 			rm := newReadMeter(fx.db)
 			b.ResetTimer()
 			segStart := 0
