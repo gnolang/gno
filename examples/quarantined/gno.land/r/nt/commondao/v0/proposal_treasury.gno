@@ -82,7 +82,7 @@ func (p treasurySpendPropDefinition) Body() string {
 	var b strings.Builder
 
 	b.WriteString(md.Paragraph(md.Bold("Recipient:") + "\n" + userLink(p.to)))
-	b.WriteString(md.Paragraph(md.Bold("Amount:") + "\n" + p.coin.String()))
+	b.WriteString(md.Paragraph(md.Bold("Amount:") + "\n" + md.EscapeText(p.coin.String())))
 
 	return b.String()
 }

@@ -194,6 +194,20 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 					"when it passes and is executed.",
 			),
 		)
+
+		cols = append(cols, md.Paragraph(treasuryClawbackLink(daoID))+
+			md.Paragraph(
+				"This type of proposal sweeps a descendant DAO's treasury to "+
+					"the descendant's parent DAO.",
+			),
+		)
+
+		cols = append(cols, md.Paragraph(treasuryFreezeLink(daoID))+
+			md.Paragraph(
+				"This type of proposal freezes or unfreezes a descendant DAO's "+
+					"treasury. While frozen, no treasury spend can execute.",
+			),
+		)
 	}
 
 	if o.AllowCouncilUpdate {
@@ -642,6 +656,23 @@ func dissolveSubDAOLink(daoID uint64) string {
 		"CreateDissolutionProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"destination", "",
+	))
+}
+
+func treasuryClawbackLink(daoID uint64) string {
+	return md.Link("Treasury Clawback", realmLink.Call(
+		"CreateTreasuryClawbackProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"targetID", "",
+	))
+}
+
+func treasuryFreezeLink(daoID uint64) string {
+	return md.Link("Treasury Freeze", realmLink.Call(
+		"CreateTreasuryFreezeProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"targetID", "",
+		"frozen", "true",
 	))
 }
 

@@ -67,6 +67,18 @@ func main() {
 // This type of proposal sends coins from the DAO's own treasury when it passes and is executed.
 //
 //
+// <gno-columns-sep>
+// [Treasury Clawback](/r/nt/commondao/v0$help&func=CreateTreasuryClawbackProposal&daoID=3&targetID=)
+//
+// This type of proposal sweeps a descendant DAO's treasury to the descendant's parent DAO.
+//
+//
+// <gno-columns-sep>
+// [Treasury Freeze](/r/nt/commondao/v0$help&func=CreateTreasuryFreezeProposal&daoID=3&frozen=true&targetID=)
+//
+// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no treasury spend can execute.
+//
+//
 // </gno-columns>
 //
 // # Sub: Settings
