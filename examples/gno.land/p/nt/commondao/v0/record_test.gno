@@ -297,3 +297,18 @@ func TestTallyDefaultDGuard(t *testing.T) {
 	uassert.Equal(t, int(commondao.OutcomePending),
 		int(commondao.TallyDefault(record.Readonly(), electorate.Readonly(), commondao.ThresholdSupermajority)))
 }
+
+// TestVotingRecordReVoteSameChoice pins that re-voting the identical choice
+// is idempotent: AddVote decrements the previous choice then increments the
+// new one, so a same-choice re-vote nets to zero — the counter must stay 1,
+// not double-count.
+func TestVotingRecordReVoteSameChoice(t *testing.T) {
+	var record commondao.VotingRecord
+
+	record.AddVote(mustNewVote(t, memberA, commondao.ChoiceYes))
+	updated := record.AddVote(mustNewVote(t, memberA, commondao.ChoiceYes))
+
+	uassert.True(t, updated, "expect a re-vote to be an update")
+	uassert.Equal(t, 1, record.Size())
+	uassert.Equal(t, 1, record.VoteCount(commondao.ChoiceYes))
+}
