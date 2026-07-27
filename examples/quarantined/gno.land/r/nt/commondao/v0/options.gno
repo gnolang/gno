@@ -30,8 +30,8 @@ type Options struct {
 	// AllowExecution enables proposal execution support.
 	AllowExecution bool
 
-	// AllowMembersUpdate allows creating a proposal to update DAO members.
-	AllowMembersUpdate bool
+	// AllowCouncilUpdate allows creating a proposal to update DAO members.
+	AllowCouncilUpdate bool
 
 	// AllowTextProposals allows text-only, non-executable proposals.
 	AllowTextProposals bool
@@ -41,6 +41,10 @@ type Options struct {
 
 	// AllowDissolutionProposals allows dissolving DAOs though proposals.
 	AllowDissolutionProposals bool
+
+	// MaxActiveProposals caps the number of simultaneously active
+	// proposals. Values below one keep the package default.
+	MaxActiveProposals int
 }
 
 // SetAllowListing toggles DAO public listing support.
@@ -69,10 +73,10 @@ func (o *Options) SetAllowExecution(allow bool) {
 	o.AllowExecution = allow
 }
 
-// SetAllowMembersUpdate toggles support for DAO members update proposals.
-// This type of proposal allows adding or removing DAO members.
-func (o *Options) SetAllowMembersUpdate(allow bool) {
-	o.AllowMembersUpdate = allow
+// SetAllowCouncilUpdate toggles support for council update proposals.
+// This type of proposal allows adding or removing council members.
+func (o *Options) SetAllowCouncilUpdate(allow bool) {
+	o.AllowCouncilUpdate = allow
 }
 
 // SetAllowTextProposals toggles support generic text proposals.
@@ -80,9 +84,9 @@ func (o *Options) SetAllowTextProposals(allow bool) {
 	o.AllowTextProposals = allow
 }
 
-// SetAllowSubDAOPorposals toggles support for SubDAO creation proposals.
+// SetAllowSubDAOProposals toggles support for SubDAO creation proposals.
 // SubDAOs can only be created when DAO children support is enabled.
-func (o *Options) SetAllowSubDAOPorposals(allow bool) {
+func (o *Options) SetAllowSubDAOProposals(allow bool) {
 	o.AllowSubDAOProposals = allow
 }
 
@@ -126,10 +130,10 @@ func AllowExecution(allow bool) Option {
 	}
 }
 
-// AllowMembersUpdate configures support for DAO members update proposals.
-func AllowMembersUpdate(allow bool) Option {
+// AllowCouncilUpdate configures support for council update proposals.
+func AllowCouncilUpdate(allow bool) Option {
 	return func(o *Options) {
-		o.AllowMembersUpdate = allow
+		o.AllowCouncilUpdate = allow
 	}
 }
 
@@ -140,8 +144,8 @@ func AllowTextProposals(allow bool) Option {
 	}
 }
 
-// AllowSubDAOPorposals configures support for SubDAO creation proposals.
-func AllowSubDAOPorposals(allow bool) Option {
+// AllowSubDAOProposals configures support for SubDAO creation proposals.
+func AllowSubDAOProposals(allow bool) Option {
 	return func(o *Options) {
 		o.AllowSubDAOProposals = allow
 	}
@@ -151,5 +155,13 @@ func AllowSubDAOPorposals(allow bool) Option {
 func AllowDissolutionProposals(allow bool) Option {
 	return func(o *Options) {
 		o.AllowDissolutionProposals = allow
+	}
+}
+
+// MaxActiveProposals configures the cap for simultaneously active proposals.
+// Values below one keep the default cap.
+func MaxActiveProposals(max int) Option {
+	return func(o *Options) {
+		o.MaxActiveProposals = max
 	}
 }

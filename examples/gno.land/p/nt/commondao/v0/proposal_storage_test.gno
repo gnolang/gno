@@ -10,7 +10,7 @@ import (
 )
 
 func TestProposalStorageAdd(t *testing.T) {
-	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", propDef{})
 	s := commondao.NewProposalStorage()
 	initialSize := s.Size()
 
@@ -22,7 +22,7 @@ func TestProposalStorageAdd(t *testing.T) {
 }
 
 func TestProposalStorageGet(t *testing.T) {
-	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", propDef{})
 	s := commondao.NewProposalStorage()
 	s.Add(p)
 
@@ -33,7 +33,7 @@ func TestProposalStorageGet(t *testing.T) {
 }
 
 func TestProposalStorageRemove(t *testing.T) {
-	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", propDef{})
 	s := commondao.NewProposalStorage()
 	s.Add(p)
 
@@ -51,7 +51,7 @@ func TestProposalStorageIterate(t *testing.T) {
 	)
 
 	for _, id := range ids {
-		p, _ := commondao.NewProposal(id, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+		p, _ := commondao.NewProposal(id, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", propDef{})
 		s.Add(p)
 	}
 

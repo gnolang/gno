@@ -21,6 +21,7 @@ type testPropDef struct{}
 func (testPropDef) Title() string                               { return "" }
 func (testPropDef) Body() string                                { return "" }
 func (testPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
+func (testPropDef) Threshold() commondao.Threshold              { return commondao.ThresholdSupermajority }
 func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
 func (testPropDef) Executor() commondao.ExecFunc {
@@ -31,10 +32,7 @@ func (testPropDef) Executor() commondao.ExecFunc {
 }
 
 func init() {
-	dao = commondao.New(
-		commondao.WithMember(member),
-		commondao.DisableVotingDeadlineCheck(), // Disable to be able to execute before voting deadline
-	)
+	dao = commondao.New(commondao.WithCouncilMember(member))
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
@@ -42,8 +40,16 @@ func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definition has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
-	// Should be able to execute before voting deadline because deadline check is disabled
-	err := dao.Execute(proposal.ID(), cur)
+	// A supermajority of YES decides the proposal immediately
+	err := dao.Vote(member, proposal.ID(), commondao.ChoiceYes, "")
+	if err != nil {
+		panic(err)
+	}
+
+	println(string(proposal.Status()))
+
+	// Proposals decided early can be executed before the voting deadline
+	err = dao.Execute(proposal.ID(), cur)
 	if err != nil {
 		panic(err)
 	}
@@ -53,5 +59,6 @@ func main(cur realm) {
 }
 
 // Output:
+// passed
 // true
 // executed

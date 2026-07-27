@@ -2,8 +2,8 @@ package commondao
 
 import (
 	"errors"
-	"math"
 
+	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/bptree/v0"
 )
 
@@ -112,112 +112,59 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 	return
 }
 
-// FindMostVotedChoice returns the most voted choice.
-// ChoiceNone is returned when there is a tie between different
-// voting choices or when the voting record has are no votes.
-func FindMostVotedChoice(r ReadonlyVotingRecord) VoteChoice {
-	var (
-		choice                  VoteChoice
-		currentCount, prevCount int
-	)
+// TallyDefault applies the constitution's default Council voting rules
+// over a proposal's electorate.
+//
+// Only votes cast by electorate members are counted. The tally denominator
+// D is the electorate size minus the number of ABSTAIN votes: abstaining
+// shrinks the denominator (deference), while not voting counts against
+// passage (silence is opposition). With integer math:
+//
+//	D = |electorate| - abstains
+//	supermajority:   passed    ⇔ D > 0 && 3*yes >= 2*D
+//	simple majority: passed    ⇔ D > 0 && 2*yes > D
+//	both:            dismissed ⇔ 2*no > D
+//
+// Passing is checked before dismissal; within one electorate both can never
+// hold at once (yes+no <= D makes each pair contradictory). When D is zero
+// or negative (an empty electorate, or every member abstained) the outcome
+// stays pending: nothing can pass with zero YES votes.
+func TallyDefault(r ReadonlyVotingRecord, electorate *addrset.ReadonlySet, t Threshold) Outcome {
+	var yes, no, abstain int
+	r.Iterate(0, r.Size(), false, func(v Vote) bool {
+		if !electorate.Has(v.Address) {
+			return false
+		}
 
-	r.IterateVotesCount(func(c VoteChoice, count int) bool {
-		if currentCount <= count {
-			choice = c
-			prevCount = currentCount
-			currentCount = count
+		switch v.Choice {
+		case ChoiceYes:
+			yes++
+		case ChoiceNo:
+			no++
+		case ChoiceAbstain:
+			abstain++
 		}
 		return false
 	})
 
-	if prevCount < currentCount {
-		return choice
-	}
-	return ChoiceNone
-}
-
-// SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
-// Vote choice is a majority when chosen by more than half of the votes.
-// Absolute majority considers abstentions when counting votes.
-func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
-	choice := FindMostVotedChoice(r)
-	if choice != ChoiceNone && r.VoteCount(choice) > int(membersCount/2) {
-		return choice, true
-	}
-	return ChoiceNone, false
-}
-
-// SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
-// Abstentions are considered when calculating the super majority choice.
-func SelectChoiceBySuperMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
-	if membersCount < 3 {
-		return ChoiceNone, false
+	d := electorate.Size() - abstain
+	if d <= 0 {
+		return OutcomePending
 	}
 
-	choice := FindMostVotedChoice(r)
-	if choice != ChoiceNone && r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
-		return choice, true
-	}
-	return ChoiceNone, false
-}
-
-// SelectChoiceByPlurality selects the vote choice by plurality.
-// The choice will be considered a majority if it has votes and if there is no other
-// choice with the same number of votes. A tie won't be considered majority.
-func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
-	var (
-		choice       VoteChoice
-		currentCount int
-		isMajority   bool
-	)
-
-	r.IterateVotesCount(func(c VoteChoice, count int) bool {
-		// Don't consider explicit abstentions or invalid votes
-		if c == ChoiceAbstain || c == ChoiceNone {
-			return false
+	switch t {
+	case ThresholdSimpleMajority:
+		if 2*yes > d {
+			return OutcomePassed
 		}
-
-		if currentCount < count {
-			choice = c
-			currentCount = count
-			isMajority = true
-		} else if currentCount == count {
-			isMajority = false
+	default:
+		if 3*yes >= 2*d {
+			return OutcomePassed
 		}
-		return false
-	})
-
-	if isMajority {
-		return choice, true
-	}
-	return ChoiceNone, false
-}
-
-// CollectVotes returns an voting record containing votes of members from one or more groups.
-// Returned tree uses member account address as key and `commondao.Vote` as value.
-func CollectVotes(ctx VotingContext, groups ...string) (*VotingRecord, error) {
-	if len(groups) == 0 {
-		return nil, errors.New("one or more group names are required to collect votes")
 	}
 
-	var (
-		votes    VotingRecord
-		grouping = ctx.Members.Grouping()
-	)
-
-	for _, name := range groups {
-		group, found := grouping.Get(name)
-		if !found {
-			return nil, errors.New("member group not found: " + name)
-		}
-
-		group.Members().IterateByOffset(0, group.Members().Size(), func(member address) bool {
-			v, found := ctx.VotingRecord.GetVote(member)
-			if found {
-				votes.AddVote(v)
-			}
-			return false
-		})
+	if 2*no > d {
+		return OutcomeDismissed
 	}
-	return &votes, nil
+	return OutcomePending
 }

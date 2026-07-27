@@ -24,13 +24,6 @@ func WithDescription(description string) Option {
 	}
 }
 
-// WithSlug assigns a URL slug to the DAO.
-func WithSlug(slug string) Option {
-	return func(dao *CommonDAO) {
-		dao.slug = slug
-	}
-}
-
 // WithParent assigns a parent DAO.
 func WithParent(p *CommonDAO) Option {
 	return func(dao *CommonDAO) {
@@ -38,30 +31,20 @@ func WithParent(p *CommonDAO) Option {
 	}
 }
 
-// WithChildren assigns one or more direct child SubDAOs to the DAO.
-func WithChildren(children ...*CommonDAO) Option {
+// WithCouncilMember assigns a council member to the DAO.
+func WithCouncilMember(addr address) Option {
 	return func(dao *CommonDAO) {
-		for _, subDAO := range children {
-			dao.children.Append(subDAO)
-		}
+		dao.council.Add(addr)
 	}
 }
 
-// WithMember assigns a member to the DAO.
-func WithMember(addr address) Option {
+// WithMaxActiveProposals sets the cap for simultaneously active proposals.
+// Values below one are ignored: a DAO must always be able to propose.
+func WithMaxActiveProposals(max int) Option {
 	return func(dao *CommonDAO) {
-		dao.members.Add(addr)
-	}
-}
-
-// WithMemberStorage assigns a custom member storage to the DAO.
-// An empty member storage is used by default if the specified storage is nil.
-func WithMemberStorage(s MemberStorage) Option {
-	return func(dao *CommonDAO) {
-		if s == nil {
-			s = NewMemberStorage()
+		if max >= 1 {
+			dao.maxActiveProposals = max
 		}
-		dao.members = s
 	}
 }
 
@@ -86,20 +69,5 @@ func WithFinishedProposalStorage(s ProposalStorage) Option {
 			s = NewProposalStorage()
 		}
 		dao.finishedProposals = s
-	}
-}
-
-// DisableVotingDeadlineCheck disables voting deadline check when voting or executing proposals.
-// By default CommonDAO checks that the proposal voting deadline has not been met when a new vote
-// is submitted, before registering the vote, and on proposal execution it also checks that voting
-// deadline has been met before executing a proposal.
-//
-// Disabling these checks can be useful in different use cases, moving the responsibility to check
-// the deadline to the commondao package caller. One example where this could be useful would be
-// in case where 100% or a required number of members of a DAO vote on a proposal and reach consensus
-// before the deadline is met, otherwise proposal would have to wait until deadline to be executed.
-func DisableVotingDeadlineCheck() Option {
-	return func(dao *CommonDAO) {
-		dao.disableVotingDeadlineCheck = true
 	}
 }

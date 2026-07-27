@@ -2,6 +2,7 @@ package commondao
 
 import (
 	"testing"
+	"time"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/commondao/v0"
@@ -9,277 +10,117 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-var _ commondao.ProposalDefinition = (*subDAOPropDefinition)(nil)
+var (
+	_ commondao.ProposalDefinition = (*subDAOPropDefinition)(nil)
+	_ commondao.DefaultTallier     = (*subDAOPropDefinition)(nil)
+	_ commondao.ProposalDefinition = (*dissolvePropDefinition)(nil)
+	_ commondao.DefaultTallier     = (*dissolvePropDefinition)(nil)
+)
 
-func TestSubDAOPropDefinitionTally(cur realm, t *testing.T) {
-	cases := []struct {
-		name    string
-		members []address
-		votes   []commondao.Vote
-		err     error
-		success bool
-	}{
-		{
-			name: "succeed",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceYes,
-				},
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceYes,
-				},
-				{
-					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-					Choice:  commondao.ChoiceYes,
-				},
-			},
-			success: true,
-		},
-		{
-			name: "fail",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-					Choice:  commondao.ChoiceNo,
-				},
-			},
-		},
-		{
-			name: "fail with no votes",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			err: commondao.ErrNoQuorum,
-		},
-		{
-			name: "no quorum",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceYes,
-				},
-			},
-			err: commondao.ErrNoQuorum,
-		},
+// newTestDAO registers a DAO in the realm state so definitions that read
+// realm options can be tested.
+func newTestDAO(t *testing.T, name string, members ...address) *commondao.CommonDAO {
+	t.Helper()
+
+	id := daoID.Next()
+	opts := []commondao.Option{
+		commondao.WithID(uint64(id)),
+		commondao.WithName(name),
+	}
+	for _, m := range members {
+		opts = append(opts, commondao.WithCouncilMember(m))
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var (
-				p       subDAOPropDefinition
-				record  commondao.VotingRecord
-				members = commondao.NewMemberStorage()
-			)
+	dao := commondao.New(opts...)
+	daos.Set(id.String(), dao)
+	options.Set(id.String(), &Options{
+		AllowChildren:        true,
+		AllowSubDAOProposals: true,
+	})
+	return dao
+}
 
-			for _, m := range tc.members {
-				members.Add(m)
-			}
+func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
+	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 
-			for _, v := range tc.votes {
-				record.AddVote(v)
-			}
+	dao := newTestDAO(t, "Root", member)
 
-			ctx := commondao.MustNewVotingContext(&record, members)
+	var members addrset.Set
+	members.Add(member)
 
-			success, err := p.Tally(ctx)
+	urequire.PanicsWithMessage(t, cur, "parent DAO is required", func() {
+		newSubDAOPropDefinition(nil, "Sub", &members)
+	})
 
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err, "expect an error")
-				uassert.False(t, success, "expect tally to fail")
-				return
-			}
+	urequire.PanicsWithMessage(t, cur, "DAO name is empty", func() {
+		newSubDAOPropDefinition(dao, "  ", &members)
+	})
 
-			urequire.NoError(t, err, "expect no error")
-			uassert.Equal(t, tc.success, success, "expect tally success to match")
-		})
-	}
+	urequire.PanicsWithMessage(t, cur, "a SubDAO requires at least one initial council member", func() {
+		newSubDAOPropDefinition(dao, "Sub", &addrset.Set{})
+	})
+
+	def := newSubDAOPropDefinition(dao, "Sub", &members)
+	uassert.Equal(t, "New SubDAO: Sub", def.Title())
+	uassert.Equal(t, int(commondao.ThresholdSimpleMajority), int(def.Threshold()))
+	uassert.NotEmpty(t, def.Body())
+	uassert.NoError(t, def.Validate())
 }
 
 func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
-	// Create a parent DAO
-	parentDAO := createDAO("Foo", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", nil)
-	urequire.Equal(t, 0, parentDAO.Children().Len(), "expected no initial SubDAOs")
+	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 
-	// Initialize some members for the SubDAO
+	dao := newTestDAO(t, "Root2", member)
+
 	var members addrset.Set
-	members.Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	members.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	members.Add(member)
+	def := newSubDAOPropDefinition(dao, "Sub", &members)
 
-	// Create the proposal and execute it
-	name := "Bar"
-	p := newSubDAOPropDefinition(parentDAO, name, &members)
-	fn := p.Executor()
-	err := fn(cross(cur))
-	urequire.NoError(t, err, "expected no execution error")
-
-	// Expect SubDAO to be created
-	urequire.Equal(t, 1, parentDAO.Children().Len(), "expected SubDAO to be created")
-	subDAOAny, _ := parentDAO.Children().Get(0)
-	subDAO := subDAOAny.(*commondao.CommonDAO)
-
-	// Make sure SubDAO is indexed properly
-	subDAO = getDAO(subDAO.ID())
-	urequire.True(t, subDAO != nil, "expected SubDAO to be indexed by the realm")
-
-	// Make sure SubDAO values are the right ones
-	uassert.Equal(t, name, subDAO.Name(), "expected SubDAO name to match")
-	uassert.Equal(t, 2, subDAO.Members().Size(), "expected SubDAO to have two members")
-
-	var i int
-	subDAO.Members().IterateByOffset(0, subDAO.Members().Size(), func(addr address) bool {
-		s, _ := members.Tree().GetByIndex(i)
-		urequire.Equal(t, address(s), addr, "expected member to be found")
-		i++
-		return false
+	urequire.NotPanics(t, cur, func() {
+		commondao.MustExecute(def, cur)
 	})
-}
 
-func TestDissolvePropDefinitionTally(cur realm, t *testing.T) {
-	cases := []struct {
-		name    string
-		members []address
-		votes   []commondao.Vote
-		err     error
-		success bool
-	}{
-		{
-			name: "succeed",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceYes,
-				},
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceYes,
-				},
-				{
-					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-					Choice:  commondao.ChoiceYes,
-				},
-			},
-			success: true,
-		},
-		{
-			name: "fail",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-					Choice:  commondao.ChoiceNo,
-				},
-			},
-		},
-		{
-			name: "fail with no votes",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			err: commondao.ErrNoQuorum,
-		},
-		{
-			name: "no quorum",
-			members: []address{
-				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
-			},
-			votes: []commondao.Vote{
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceYes,
-				},
-			},
-			err: commondao.ErrNoQuorum,
-		},
-	}
+	urequire.Equal(t, 1, dao.Children().Len(), "expect one SubDAO")
+	subDAO, _ := dao.Children().Get(0)
+	sub := subDAO.(*commondao.CommonDAO)
+	uassert.Equal(t, "Sub", sub.Name())
+	uassert.True(t, sub.Council().Has(member))
+	uassert.Equal(t, 1, sub.Council().Size())
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var (
-				p       dissolvePropDefinition
-				record  commondao.VotingRecord
-				members = commondao.NewMemberStorage()
-			)
-
-			for _, m := range tc.members {
-				members.Add(m)
-			}
-
-			for _, v := range tc.votes {
-				record.AddVote(v)
-			}
-
-			ctx := commondao.MustNewVotingContext(&record, members)
-
-			success, err := p.Tally(ctx)
-
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err, "expect an error")
-				uassert.False(t, success, "expect tally to fail")
-				return
-			}
-
-			urequire.NoError(t, err, "expect no error")
-			uassert.Equal(t, tc.success, success, "expect tally success to match")
-		})
-	}
+	// A second SubDAO with the same name is rejected at validation
+	uassert.ErrorContains(t, def.Validate(), "a SubDAO with the same name already exists")
 }
 
 func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
-	dao := commondao.New()
-	urequire.False(t, dao.IsDeleted(), "expected DAO not to be soft deleted by default")
+	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
 
-	p := newDissolvePropDefinition(dao)
-	fn := p.Executor()
-	err := fn(cross(cur))
-	urequire.NoError(t, err, "expected no execution error")
+	dao := newTestDAO(t, "Root3", member)
 
-	uassert.True(t, dao.IsDeleted(), "expected DAO to be soft deleted")
+	urequire.PanicsWithMessage(t, cur, "SubDAO is required", func() {
+		newDissolvePropDefinition(nil)
+	})
+
+	def := newDissolvePropDefinition(dao)
+	uassert.Equal(t, "Dissolve DAO: Root3", def.Title())
+	uassert.Equal(t, int(commondao.ThresholdSupermajority), int(def.Threshold()))
+	uassert.NoError(t, def.Validate())
+
+	// Dissolution voids in-flight proposals before soft deleting the DAO
+	p := dao.MustPropose(member, TextPropDefinition{
+		title:        "Pending",
+		body:         "pending",
+		votingPeriod: time.Hour,
+	})
+
+	urequire.NotPanics(t, cur, func() {
+		commondao.MustExecute(def, cur)
+	})
+
+	uassert.True(t, dao.IsDeleted())
+	uassert.Equal(t, 0, dao.ActiveProposals().Size())
+	uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+	uassert.Equal(t, "DAO dissolved", p.StatusReason())
+
+	// Dissolved DAOs cannot be dissolved again
+	uassert.ErrorContains(t, def.Validate(), "already dissolved")
 }

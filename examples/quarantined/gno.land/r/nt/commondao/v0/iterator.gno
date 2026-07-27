@@ -64,9 +64,9 @@ func (it *Iterator) Next() bool {
 	return true
 }
 
-// DAO returns the current DAO.
-func (it Iterator) DAO() *commondao.CommonDAO {
-	return it.dao
+// DAO returns a read only view of the current DAO.
+func (it Iterator) DAO() commondao.ReadonlyCommonDAO {
+	return it.dao.Readonly()
 }
 
 // Path returns the current DAO path.

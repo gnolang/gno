@@ -7,8 +7,6 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spaming
-
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(cur realm, invitee address) {
@@ -18,7 +16,7 @@ func Invite(cur realm, invitee address) {
 
 	dao := mustGetDAO(CommonDAOID)
 	caller := cur.Previous().Address()
-	if !dao.Members().Has(caller) {
+	if !dao.Council().Has(caller) {
 		panic("unauthorized")
 	}
 
@@ -30,9 +28,10 @@ func IsInvited(addr address) bool {
 	return isInvited(addr)
 }
 
-// New creates a new CommonDAO.
+// New creates a new CommonDAO and returns its ID.
 // An invitation is required to be able to create new DAOs.
-func New(cur realm, name string, options ...Option) *commondao.CommonDAO {
+// The caller becomes the DAO owner and the initial council member.
+func New(cur realm, name string, options ...Option) uint64 {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
@@ -43,11 +42,13 @@ func New(cur realm, name string, options ...Option) *commondao.CommonDAO {
 		invites.Remove(orig.String())
 	}
 
-	return createDAO(name, caller, options)
+	dao := createDAO(name, caller, options, caller)
+	return dao.ID()
 }
 
-// NewSubDAO creates a new SubDAO.
-func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
+// NewSubDAO creates a new SubDAO and returns its ID.
+// The caller becomes the initial council member of the SubDAO.
+func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) uint64 {
 	caller := cur.Previous().Address()
 	assertIsOwner(caller, parentID)
 
@@ -60,19 +61,32 @@ func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) *comm
 	assertDAONameIsValid(name)
 
 	parent := getDAO(parentID)
-	subDAO := createSubDAO(parent, name, options)
+	subDAO := createSubDAO(parent, name, options, caller)
 	parent.Children().Append(subDAO)
-	return subDAO
+	return subDAO.ID()
 }
 
-// GetOptions returns the configuration of a DAO.
+// GetOptions returns a copy of the configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
-func GetOptions(cur realm, daoID uint64) *Options {
+func GetOptions(cur realm, daoID uint64) Options {
 	if !isOwner(cur.Previous().Address(), daoID) {
 		panic("unauthorized")
 	}
 
-	return getOptions(daoID)
+	return *getOptions(daoID)
+}
+
+// UpdateOptions changes the configuration of a DAO.
+// It panics if caller doesn't have ownership of the DAO instance.
+func UpdateOptions(cur realm, daoID uint64, options ...Option) {
+	if !isOwner(cur.Previous().Address(), daoID) {
+		panic("unauthorized")
+	}
+
+	o := getOptions(daoID)
+	for _, apply := range options {
+		apply(o)
+	}
 }
 
 // IsOwner checks if an address has ownership of a DAO.
@@ -81,9 +95,14 @@ func IsOwner(addr address, daoID uint64) bool {
 }
 
 // TransferOwnership transfers DAO ownership to a different address.
+// Ownership is indexed by root DAO, so SubDAO IDs are rejected.
 func TransferOwnership(cur realm, daoID uint64, newOwner address) {
 	caller := cur.Previous().Address()
 	assertIsOwner(caller, daoID)
+
+	if mustGetDAO(daoID).Parent() != nil {
+		panic("ownership belongs to the root DAO, transfer using the root DAO ID")
+	}
 
 	if !newOwner.IsValid() {
 		panic("invalid owner address")
@@ -99,12 +118,9 @@ func TransferOwnership(cur realm, daoID uint64, newOwner address) {
 	}
 }
 
-// Get returns a common DAO searched by ID.
-// It panics if caller doesn't have ownership of the DAO instance.
-// Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
-func Get(cur realm, daoID uint64) *commondao.CommonDAO {
-	assertIsOwner(cur.Previous().Address(), daoID)
-	return mustGetDAO(daoID)
+// GetView returns a read only view of a common DAO searched by ID.
+func GetView(daoID uint64) commondao.ReadonlyCommonDAO {
+	return mustGetDAO(daoID).Readonly()
 }
 
 // GetSize returns the number of SubDAOs under a specified root DAO.
@@ -119,6 +135,8 @@ func GetSize(cur realm, rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
+// Voting is allowed to the members of the proposal's electorate: the
+// council snapshot taken when the proposal was created.
 func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
@@ -127,8 +145,6 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 	}
 
 	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
-
 	err := dao.Vote(caller, proposalID, vote, reason)
 	if err != nil {
 		panic(err)
@@ -136,18 +152,64 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 }
 
 // Execute executes a DAO proposal.
+//
+// Executing a proposal that passed early (decided by the default Council
+// rules before its voting deadline) requires execution to be enabled for
+// the DAO and the caller to be a council member. Once the voting deadline
+// has passed execution is permissionless: the tally is deterministic, so
+// anyone can finalize the proposal.
 func Execute(cur realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
-	o := getOptions(dao.ID())
-	if !o.AllowExecution {
-		panic("proposal execution is not enabled")
+	p := dao.GetProposal(proposalID)
+	if p == nil {
+		panic(commondao.ErrProposalNotFound)
 	}
 
-	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
+	if !p.HasVotingDeadlinePassed() {
+		o := getOptions(dao.ID())
+		if !o.AllowExecution {
+			panic("proposal execution is not enabled")
+		}
+
+		assertCallerIsCouncilMember(cur.Previous().Address(), dao)
+	}
 
 	err := dao.Execute(proposalID, cur)
 	if err != nil {
+		panic(err)
+	}
+}
+
+// Withdraw withdraws an active DAO proposal that has no votes.
+// Only the proposal creator can withdraw it.
+func Withdraw(cur realm, daoID, proposalID uint64) {
+	dao := mustGetDAO(daoID)
+	p := dao.GetProposal(proposalID)
+	if p == nil {
+		panic(commondao.ErrProposalNotFound)
+	}
+
+	if p.Creator() != cur.Previous().Address() {
+		panic("only the proposal creator can withdraw it")
+	}
+
+	if err := dao.Withdraw(proposalID); err != nil {
+		panic(err)
+	}
+}
+
+// Resign removes the caller from a DAO council.
+// The last remaining council member cannot resign.
+func Resign(cur realm, daoID uint64) {
+	dao := mustGetDAO(daoID)
+	if dao.IsDeleted() {
+		panic(commondao.ErrDAOIsDeleted)
+	}
+
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	if err := dao.UpdateCouncil(nil, []address{caller}); err != nil {
 		panic(err)
 	}
 }
@@ -195,8 +257,8 @@ func assertDAONameIsValid(name string) {
 	}
 }
 
-func assertCallerIsMember(caller address, dao *commondao.CommonDAO) {
-	if !dao.Members().Has(caller) {
-		panic("caller is not a DAO member")
+func assertCallerIsCouncilMember(caller address, dao *commondao.CommonDAO) {
+	if !dao.Council().Has(caller) {
+		panic("caller is not a council member")
 	}
 }

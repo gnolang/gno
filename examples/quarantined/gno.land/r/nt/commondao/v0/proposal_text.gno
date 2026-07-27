@@ -14,7 +14,7 @@ const (
 )
 
 // NewTextPropDefinition creates a new general text proposal definition.
-func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time.Duration) TextPropDefinition {
+func NewTextPropDefinition(title, body string, votingPeriod time.Duration) TextPropDefinition {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -37,15 +37,10 @@ func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time
 		panic("minimum proposal voting period is one day")
 	}
 
-	if quorum < commondao.QuorumOneThird {
-		panic("minimum quorum allowed is one third (0.33)")
-	}
-
 	return TextPropDefinition{
 		title:        title,
 		body:         body,
 		votingPeriod: votingPeriod,
-		quorum:       quorum,
 	}
 }
 
@@ -54,21 +49,19 @@ func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time
 type TextPropDefinition struct {
 	title, body  string
 	votingPeriod time.Duration
-	quorum       float64
 }
 
 func (p TextPropDefinition) Title() string               { return p.title }
 func (p TextPropDefinition) Body() string                { return p.body }
 func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
-func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(p.quorum, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
-	}
+// Threshold returns the tally threshold: text proposals are decided by the
+// constitution's default supermajority rule.
+func (TextPropDefinition) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
 
-	c, success := commondao.SelectChoiceByPlurality(ctx.VotingRecord)
-	if success {
-		return c == commondao.ChoiceYes, nil
-	}
-	return false, nil
+func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
+	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSupermajority)
+	return outcome == commondao.OutcomePassed, nil
 }

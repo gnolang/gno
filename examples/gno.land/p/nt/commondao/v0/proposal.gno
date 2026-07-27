@@ -4,32 +4,43 @@ import (
 	"errors"
 	"time"
 
+	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/bptree/v0"
 )
 
 const (
 	StatusActive    ProposalStatus = "active"
 	StatusPassed                   = "passed"
-	StatusRejected                 = "rejected"
+	StatusDismissed                = "dismissed"
 	StatusExecuted                 = "executed"
 	StatusFailed                   = "failed"
 	StatusWithdrawn                = "withdrawn"
 )
 
 const (
-	ChoiceNone       VoteChoice = ""
-	ChoiceYes                   = "YES"
-	ChoiceNo                    = "NO"
-	ChoiceNoWithVeto            = "NO WITH VETO"
-	ChoiceAbstain               = "ABSTAIN"
+	ChoiceNone    VoteChoice = ""
+	ChoiceYes                = "YES"
+	ChoiceNo                 = "NO"
+	ChoiceAbstain            = "ABSTAIN"
 )
 
+// Thresholds for the constitution's default Council voting rules.
 const (
-	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
-	QuorumMoreThanHalf         = 0.51
-	QuorumTwoThirds            = 0.66
-	QuorumThreeFourths         = 0.75
-	QuorumFull                 = 1
+	// ThresholdSupermajority passes with "two thirds or more" of the
+	// tally denominator. The default for Council decisions.
+	ThresholdSupermajority Threshold = iota
+
+	// ThresholdSimpleMajority passes with "more than half" of the
+	// tally denominator. The Constitution assigns it to specific
+	// decisions, e.g. sub-DAO creation.
+	ThresholdSimpleMajority
+)
+
+// Outcomes of tallying a proposal under the default Council rules.
+const (
+	OutcomePending Outcome = iota
+	OutcomePassed
+	OutcomeDismissed
 )
 
 // MaxCustomVoteChoices defines the maximum number of custom
@@ -40,8 +51,8 @@ var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
+	ErrCustomChoicesNotAllowed    = errors.New("default tallier definitions cannot customize vote choices")
 )
 
 type (
@@ -50,6 +61,12 @@ type (
 
 	// VoteChoice defines a type for proposal vote choices.
 	VoteChoice string
+
+	// Threshold defines a type for the default tally thresholds.
+	Threshold int
+
+	// Outcome defines a type for default tally outcomes.
+	Outcome int
 
 	// ExecFunc defines a type for functions that executes proposals.
 	ExecFunc func(realm) error
@@ -60,7 +77,8 @@ type (
 		status         ProposalStatus
 		definition     ProposalDefinition
 		creator        address
-		record         *VotingRecord // TODO: Add support for multiple voting records
+		record         *VotingRecord
+		electorate     *addrset.Set // council snapshot taken at Propose
 		statusReason   string
 		voteChoices    *bptree.BPTree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
@@ -86,8 +104,32 @@ type (
 
 		// Tally counts the number of votes and verifies if proposal passes.
 		// It receives a voting context containing a readonly record with the votes
-		// that has been submitted for the proposal and also the list of DAO members.
+		// that has been submitted for the proposal and also the proposal's
+		// electorate (the council snapshot taken at proposal creation).
+		//
+		// Definitions that implement DefaultTallier are decided by
+		// TallyDefault instead; their Tally is only used to report the
+		// expected outcome (e.g. when rendering).
 		Tally(VotingContext) (passes bool, _ error)
+	}
+
+	// DefaultTallier defines an interface for proposal definitions that are
+	// decided by the constitution's default Council voting rules at the
+	// returned threshold. These proposals are evaluated after every recorded
+	// vote and can pass or be dismissed before their voting deadline.
+	DefaultTallier interface {
+		// Threshold returns the tally threshold for passing the proposal.
+		Threshold() Threshold
+	}
+
+	// CapExempt defines an interface for proposal definitions that are not
+	// counted against the DAO's active proposals cap. Exempt definitions are
+	// instead bounded to one active proposal per creator, so that proposals
+	// which remove members (and therefore must never be blockable by a full
+	// cap) stay bounded.
+	CapExempt interface {
+		// CapExempt marks the definition as exempt.
+		CapExempt()
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -147,6 +189,10 @@ func MustExecute(e Executable, rlm realm) {
 }
 
 // NewProposal creates a new DAO proposal.
+//
+// The proposal is created with an empty electorate; only CommonDAO.Propose
+// populates the electorate with the council snapshot, so proposals created
+// directly through NewProposal reject all votes.
 func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
 		return nil, ErrProposalDefinitionRequired
@@ -163,12 +209,18 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 		definition:     d,
 		creator:        creator,
 		record:         &VotingRecord{},
+		electorate:     &addrset.Set{},
 		voteChoices:    bptree.NewBPTree32(),
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
 	}
 
 	if v, ok := d.(CustomizableVoteChoices); ok {
+		// Custom choices make the default YES/NO/ABSTAIN tally unsound
+		if _, isDefault := d.(DefaultTallier); isDefault {
+			return nil, ErrCustomChoicesNotAllowed
+		}
+
 		choices := v.CustomVoteChoices()
 		if len(choices) > MaxCustomVoteChoices {
 			return nil, ErrMaxCustomVoteChoices
@@ -219,6 +271,15 @@ func (p Proposal) VotingRecord() *VotingRecord {
 	return p.record
 }
 
+// Electorate returns the proposal's electorate: a read only view of the
+// council snapshot taken when the proposal was created. Members added to
+// the council afterwards vote on the next proposal; members removed or
+// resigned afterwards remain in the electorate (their silence counts
+// against passage).
+func (p Proposal) Electorate() *addrset.ReadonlySet {
+	return p.electorate.Readonly()
+}
+
 // StatusReason returns an optional reason that lead to the current proposal status.
 // Reason is mostyl useful when a proposal fails.
 func (p Proposal) StatusReason() string {
@@ -246,9 +307,10 @@ func (p Proposal) HasVotingDeadlinePassed() bool {
 }
 
 // Validate validates that a proposal is valid for the current state.
-// Validation is done when proposal status is active and when the definition supports validation.
+// Validation is done when the proposal can still be executed (status is
+// active or passed) and when the definition supports validation.
 func (p Proposal) Validate() error {
-	if p.status != StatusActive {
+	if p.status != StatusActive && p.status != StatusPassed {
 		return nil
 	}
 
@@ -261,45 +323,4 @@ func (p Proposal) Validate() error {
 // IsVoteChoiceValid checks if a vote choice is valid for the proposal.
 func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
-}
-
-// Tally counts votes and updates proposal status with the current outcome.
-// Proposal status is updated to "passed" when proposal is approved
-// or to "rejected" if proposal doesn't pass.
-func (p *Proposal) Tally(members MemberStorage) error {
-	if p.status != StatusActive {
-		return ErrStatusIsNotActive
-	}
-
-	ctx := MustNewVotingContext(p.VotingRecord(), members)
-	passes, err := p.Definition().Tally(ctx)
-	if err != nil {
-		return err
-	}
-
-	if passes {
-		p.status = StatusPassed
-	} else {
-		p.status = StatusRejected
-	}
-	return nil
-}
-
-// IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
-	if members.Size() <= 0 || quorum <= 0 {
-		return false
-	}
-
-	var totalCount int
-	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
-		// Don't count explicit abstentions or invalid votes
-		if c != ChoiceNone && c != ChoiceAbstain {
-			totalCount += r.VoteCount(c)
-		}
-		return false
-	})
-
-	percentage := float64(totalCount) / float64(members.Size())
-	return percentage >= quorum
 }

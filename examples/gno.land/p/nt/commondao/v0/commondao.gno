@@ -3,47 +3,67 @@ package commondao
 import (
 	"errors"
 
+	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/seqid/v0"
 )
 
-// PathSeparator is the separator character used in DAO paths.
-const PathSeparator = "/"
+// DefaultMaxActiveProposals is the default cap for simultaneously active
+// proposals per DAO. Every active proposal stores a council snapshot, so
+// the cap bounds storage; it can be changed with WithMaxActiveProposals.
+const DefaultMaxActiveProposals = 32
 
 var (
-	ErrExecutionNotAllowed  = errors.New("proposal must pass before execution")
-	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
-	ErrNotMember            = errors.New("account is not a member of the DAO")
-	ErrOverflow             = errors.New("next ID overflows uint64")
-	ErrProposalNotFound     = errors.New("proposal not found")
-	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
-	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
-	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
+	ErrCouncilUpdateOverlap  = errors.New("council update adds and removes the same address")
+	ErrDAOIsDeleted          = errors.New("DAO is deleted")
+	ErrEmptyCouncil          = errors.New("council update would remove every council member")
+	ErrExecutionNotAllowed   = errors.New("proposal must be active or passed to be executed")
+	ErrInvalidVoteChoice     = errors.New("invalid vote choice")
+	ErrMaxActiveProposals    = errors.New("max number of active proposals reached")
+	ErrMaxCapExemptProposals = errors.New("creator already has an active cap exempt proposal")
+	ErrNotCouncilMember      = errors.New("account is not a member of the proposal's electorate")
+	ErrOverflow              = errors.New("next ID overflows uint64")
+	ErrProposalNotFound      = errors.New("proposal not found")
+	ErrVotingDeadlineNotMet  = errors.New("voting deadline not met")
+	ErrVotingDeadlinePassed  = errors.New("voting deadline has passed")
+	ErrWithdrawalNotAllowed  = errors.New("withdrawal not allowed for proposals with votes")
 )
 
 // CommonDAO defines a DAO.
+//
+// # Security
+//
+// A *CommonDAO is a mutable handle: its exported mutators (UpdateCouncil,
+// SetDeleted, Propose, Vote, Execute, Withdraw) are meant for the realm
+// that owns the DAO. Three rules apply at realm boundaries:
+//
+//  1. Do not ACCEPT a *CommonDAO from an external/untrusted caller.
+//  2. Do not RETURN a *CommonDAO from any function callable by untrusted
+//     realms — return dao.Readonly() (a ReadonlyCommonDAO view) instead.
+//  3. Do not TRUST a readonly view received from an untrusted caller: it
+//     is a live handle over the sender's data.
 type CommonDAO struct {
-	id                         uint64
-	slug                       string
-	name                       string
-	description                string
-	parent                     *CommonDAO
-	children                   list.IList
-	members                    MemberStorage
-	genID                      seqid.ID
-	activeProposals            ProposalStorage
-	finishedProposals          ProposalStorage
-	deleted                    bool // Soft delete
-	disableVotingDeadlineCheck bool
+	id                 uint64
+	name               string
+	description        string
+	parent             *CommonDAO
+	children           list.IList
+	council            *addrset.Set
+	genID              seqid.ID
+	activeProposals    ProposalStorage
+	finishedProposals  ProposalStorage
+	deleted            bool // Soft delete
+	maxActiveProposals int
 }
 
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
-		children:          &list.List{},
-		members:           NewMemberStorage(),
-		activeProposals:   NewProposalStorage(),
-		finishedProposals: NewProposalStorage(),
+		children:           &list.List{},
+		council:            &addrset.Set{},
+		activeProposals:    NewProposalStorage(),
+		finishedProposals:  NewProposalStorage(),
+		maxActiveProposals: DefaultMaxActiveProposals,
 	}
 	for _, apply := range options {
 		apply(dao)
@@ -56,11 +76,6 @@ func (dao CommonDAO) ID() uint64 {
 	return dao.id
 }
 
-// Slug returns DAO's URL slug.
-func (dao CommonDAO) Slug() string {
-	return dao.slug
-}
-
 // Name returns DAO's name.
 func (dao CommonDAO) Name() string {
 	return dao.name
@@ -69,21 +84,6 @@ func (dao CommonDAO) Name() string {
 // Description returns DAO's description.
 func (dao CommonDAO) Description() string {
 	return dao.description
-}
-
-// Path returns the full path to the DAO.
-// Paths are normally used when working with hierarchical
-// DAOs and is created by concatenating DAO slugs.
-func (dao CommonDAO) Path() string {
-	// NOTE: Path could be a value but there might be use cases where dynamic path is useful (?)
-	parent := dao.Parent()
-	if parent != nil {
-		prefix := parent.Path()
-		if prefix != "" {
-			return prefix + PathSeparator + dao.slug
-		}
-	}
-	return dao.slug
 }
 
 // Parent returns the parent DAO.
@@ -108,9 +108,60 @@ func (dao *CommonDAO) TopParent() *CommonDAO {
 	return dao
 }
 
-// Members returns the list of DAO members.
-func (dao CommonDAO) Members() MemberStorage {
-	return dao.members
+// Council returns a read only view of the DAO council.
+//
+// The council is the set of addresses entitled to vote. It changes only
+// through UpdateCouncil (normally called by a council update proposal
+// executor) or constructor options.
+func (dao CommonDAO) Council() *addrset.ReadonlySet {
+	return dao.council.Readonly()
+}
+
+// UpdateCouncil adds and removes council members as idempotent set
+// operations: adding an existing member or removing an absent one is a
+// no-op, so concurrently passed council updates merge deterministically in
+// execution order, and a full council replacement in a single update is
+// legal.
+//
+// The final set is (council ∪ add) \ remove. An update that adds and
+// removes the same address is rejected, and an update whose final set
+// would empty a non-empty council returns ErrEmptyCouncil: executors must
+// propagate the error (failing the proposal) instead of panicking, which
+// would revert the transaction and leave the proposal stuck.
+func (dao *CommonDAO) UpdateCouncil(add, remove []address) error {
+	for _, a := range add {
+		for _, r := range remove {
+			if a == r {
+				return ErrCouncilUpdateOverlap
+			}
+		}
+	}
+
+	// The final set can only be empty when nothing is added: overlap is
+	// rejected above, so any added address survives its own update.
+	if dao.council.Size() > 0 && len(add) == 0 {
+		empty := true
+		dao.council.IterateByOffset(0, dao.council.Size(), func(member address) bool {
+			for _, r := range remove {
+				if r == member {
+					return false // removed: keep looking for a survivor
+				}
+			}
+			empty = false
+			return true
+		})
+		if empty {
+			return ErrEmptyCouncil
+		}
+	}
+
+	for _, a := range add {
+		dao.council.Add(a)
+	}
+	for _, r := range remove {
+		dao.council.Remove(r)
+	}
+	return nil
 }
 
 // ActiveProposals returns active DAO proposals.
@@ -118,7 +169,7 @@ func (dao CommonDAO) ActiveProposals() ProposalStorage {
 	return dao.activeProposals
 }
 
-// FinishedProposalsi returns finished DAO proposals.
+// FinishedProposals returns finished DAO proposals.
 func (dao CommonDAO) FinishedProposals() ProposalStorage {
 	return dao.finishedProposals
 }
@@ -134,7 +185,38 @@ func (dao *CommonDAO) SetDeleted(deleted bool) {
 }
 
 // Propose creates a new DAO proposal.
+//
+// The proposal's electorate is the council snapshot taken now: members
+// added later vote on the next proposal; members removed later remain in
+// the electorate, where their silence counts against passage.
+//
+// The number of simultaneously active proposals is capped. Definitions
+// implementing CapExempt (e.g. council updates, which must never be
+// blockable by a full cap) are exempt but bounded to one active proposal
+// per creator.
 func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal, error) {
+	if dao.deleted {
+		return nil, ErrDAOIsDeleted
+	}
+
+	if d != nil {
+		if _, exempt := d.(CapExempt); exempt {
+			var found bool
+			dao.activeProposals.Iterate(0, dao.activeProposals.Size(), false, func(p *Proposal) bool {
+				if _, ok := p.definition.(CapExempt); ok && p.creator == creator {
+					found = true
+					return true
+				}
+				return false
+			})
+			if found {
+				return nil, ErrMaxCapExemptProposals
+			}
+		} else if dao.activeProposals.Size() >= dao.maxActiveProposals {
+			return nil, ErrMaxActiveProposals
+		}
+	}
+
 	id, ok := dao.genID.TryNext()
 	if !ok {
 		return nil, ErrOverflow
@@ -144,6 +226,12 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 	if err != nil {
 		return nil, err
 	}
+
+	// Snapshot the current council as the proposal's electorate
+	dao.council.IterateByOffset(0, dao.council.Size(), func(member address) bool {
+		p.electorate.Add(member)
+		return false
+	})
 
 	dao.activeProposals.Add(p)
 	return p, nil
@@ -168,12 +256,16 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Withdraw withdraws a proposal that has no votes.
-// Only proposals without votes can be withdrawn, and once
+// Only active proposals without votes can be withdrawn, and once
 // withdrawn they are considered finished.
 func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
+	}
+
+	if p.status != StatusActive {
+		return ErrStatusIsNotActive
 	}
 
 	if p.VotingRecord().Size() > 0 {
@@ -188,12 +280,17 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 
 // Vote submits a new vote for a proposal.
 //
-// By default votes are only allowed to members of the DAO when the proposal is active,
-// and within the voting period. No votes are allowed once the voting deadline passes.
-// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
+// Votes are only allowed to members of the proposal's electorate while the
+// proposal is active and within the voting period. A member may change
+// their vote by voting again.
+//
+// Proposals decided by the default Council rules (DefaultTallier
+// definitions) are re-evaluated after every recorded vote: a supermajority
+// (or the definition's threshold) of YES decides the proposal immediately,
+// and a simple majority of NO dismisses it immediately.
 func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reason string) error {
-	if !dao.Members().Has(member) {
-		return ErrNotMember
+	if dao.deleted {
+		return ErrDAOIsDeleted
 	}
 
 	p := dao.activeProposals.Get(proposalID)
@@ -201,7 +298,15 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 		return ErrProposalNotFound
 	}
 
-	if !dao.disableVotingDeadlineCheck && p.HasVotingDeadlinePassed() {
+	if p.status != StatusActive {
+		return ErrStatusIsNotActive
+	}
+
+	if !p.electorate.Has(member) {
+		return ErrNotCouncilMember
+	}
+
+	if p.HasVotingDeadlinePassed() {
 		return ErrVotingDeadlinePassed
 	}
 
@@ -214,32 +319,52 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 		Choice:  c,
 		Reason:  reason,
 	})
+
+	// Early termination: default rule proposals are decided the moment
+	// the outcome is mathematically settled. A passed proposal stays in
+	// the active storage until executed; a dismissed one is finished.
+	if dt, ok := p.definition.(DefaultTallier); ok {
+		switch TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) {
+		case OutcomePassed:
+			p.status = StatusPassed
+		case OutcomeDismissed:
+			dao.dismiss(p)
+		}
+	}
 	return nil
 }
 
 // Execute executes a proposal.
 //
-// By default active proposals can only be executed after their voting deadline passes.
-// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
+// Proposals that already passed (decided early by the default Council
+// rules) execute immediately. Active proposals are tallied and executed
+// once their voting deadline passes: proposals decided by the default
+// rules are dismissed unless passed, while custom definitions decide
+// through their Tally method.
 //
 // rlm is the realm authority threaded into the executor via cross(rlm).
 // Execute itself is not a crossing function (rlm sits in a non-first
 // parameter slot) because /p/ production code cannot declare crossing
 // functions — callers pass `cur` directly as the rlm argument.
 func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
+	if dao.deleted {
+		return ErrDAOIsDeleted
+	}
+
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
 	}
 
-	// Proposal must be active or have passed to be executed
-	if p.status != StatusActive && p.status != StatusPassed {
+	switch p.status {
+	case StatusPassed:
+		// Decided early: execute now, before the voting deadline
+	case StatusActive:
+		if !p.HasVotingDeadlinePassed() {
+			return ErrVotingDeadlineNotMet
+		}
+	default:
 		return ErrExecutionNotAllowed
-	}
-
-	// Execution must be done after voting deadline
-	if !dao.disableVotingDeadlineCheck && !p.HasVotingDeadlinePassed() {
-		return ErrVotingDeadlineNotMet
 	}
 
 	// IMPORTANT, from this point on, any error is going to result
@@ -248,11 +373,24 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	// Validate proposal before execution
 	err := p.Validate()
 
-	// Tally votes and update proposal status to "passed" or "rejected"
-	if err == nil {
-		err = p.Tally(dao.Members())
-		if err == nil && p.Status() == StatusRejected {
-			// Don't try to execute proposal if it's been rejected
+	// Tally proposals that are still active after their deadline
+	if err == nil && p.status == StatusActive {
+		if dt, ok := p.definition.(DefaultTallier); ok {
+			if TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) == OutcomePassed {
+				p.status = StatusPassed
+			}
+		} else {
+			ctx := NewVotingContext(p.record.Readonly(), p.Electorate())
+			var passes bool
+			passes, err = p.definition.Tally(ctx)
+			if err == nil && passes {
+				p.status = StatusPassed
+			}
+		}
+
+		// Undecided or dismissed proposals are dismissed at the deadline
+		if err == nil && p.status != StatusPassed {
+			dao.dismiss(p)
 			return nil
 		}
 	}
@@ -279,4 +417,29 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
 	return nil
+}
+
+// dismiss finishes a proposal as dismissed.
+func (dao *CommonDAO) dismiss(p *Proposal) {
+	p.status = StatusDismissed
+	dao.activeProposals.Remove(p.id)
+	dao.finishedProposals.Add(p)
+}
+
+// Dissolve soft deletes the DAO after dismissing every in-flight proposal
+// (both still-active and passed-but-unexecuted ones). Dissolution is
+// terminal: a deleted DAO rejects proposals, votes and executions, so
+// nothing may remain pending.
+func (dao *CommonDAO) Dissolve(reason string) {
+	var pending []*Proposal
+	dao.activeProposals.Iterate(0, dao.activeProposals.Size(), false, func(p *Proposal) bool {
+		pending = append(pending, p)
+		return false
+	})
+
+	for _, p := range pending {
+		p.statusReason = reason
+		dao.dismiss(p)
+	}
+	dao.deleted = true
 }

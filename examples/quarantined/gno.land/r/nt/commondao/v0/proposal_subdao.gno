@@ -19,6 +19,10 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name string, members *
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
+	if members == nil || members.Size() == 0 {
+		panic("a SubDAO requires at least one initial council member")
+	}
+
 	return subDAOPropDefinition{
 		parent:  parent,
 		name:    name,
@@ -36,6 +40,12 @@ type subDAOPropDefinition struct {
 func (p subDAOPropDefinition) Title() string             { return "New SubDAO: " + p.name }
 func (subDAOPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// Threshold returns the tally threshold: the constitution grants SubDAO
+// creation at a simple majority of the Council.
+func (subDAOPropDefinition) Threshold() commondao.Threshold {
+	return commondao.ThresholdSimpleMajority
+}
+
 func (p subDAOPropDefinition) Body() string {
 	var b strings.Builder
 
@@ -47,17 +57,15 @@ func (p subDAOPropDefinition) Body() string {
 		md.Bold("SubDAO Name:") + "\n" + p.name,
 	))
 
-	if p.members != nil && p.members.Size() > 0 {
-		items := make([]string, 0, p.members.Size())
-		p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
-			items = append(items, addr.String())
-			return false
-		})
+	items := make([]string, 0, p.members.Size())
+	p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
+		items = append(items, addr.String())
+		return false
+	})
 
-		b.WriteString(md.Paragraph(
-			md.Bold("Members:") + "\n" + md.BulletList(items),
-		))
-	}
+	b.WriteString(md.Paragraph(
+		md.Bold("Council Members:") + "\n" + md.BulletList(items),
+	))
 
 	return b.String()
 }
@@ -80,15 +88,8 @@ func (p subDAOPropDefinition) Validate() (err error) {
 }
 
 func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
-	}
-
-	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
-	if success {
-		return c == commondao.ChoiceYes, nil
-	}
-	return false, nil
+	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSimpleMajority)
+	return outcome == commondao.OutcomePassed, nil
 }
 
 func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
@@ -96,15 +97,13 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p subDAOPropDefinition) execute(realm) error {
-	subDAO := createSubDAO(p.parent, p.name, nil)
+	members := make([]address, 0, p.members.Size())
+	p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
+		members = append(members, addr)
+		return false
+	})
 
-	if p.members != nil {
-		p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
-			subDAO.Members().Add(addr)
-			return false
-		})
-	}
-
+	subDAO := createSubDAO(p.parent, p.name, nil, members...)
 	p.parent.Children().Append(subDAO)
 	return nil
 }
@@ -126,6 +125,12 @@ type dissolvePropDefinition struct {
 func (p dissolvePropDefinition) Title() string             { return "Dissolve DAO: " + p.dao.Name() }
 func (dissolvePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// Threshold returns the tally threshold: the constitution is silent on
+// dissolution, so the supermajority default applies.
+func (dissolvePropDefinition) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
+
 func (p dissolvePropDefinition) Body() string {
 	var b strings.Builder
 
@@ -137,21 +142,14 @@ func (p dissolvePropDefinition) Body() string {
 
 func (p dissolvePropDefinition) Validate() (err error) {
 	if p.dao.IsDeleted() {
-		return errors.New("DAO has been already dissolveed")
+		return errors.New("DAO has been already dissolved")
 	}
 	return nil
 }
 
 func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
-	}
-
-	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
-	if success {
-		return c == commondao.ChoiceYes, nil
-	}
-	return false, nil
+	outcome := commondao.TallyDefault(ctx.VotingRecord, ctx.Council, commondao.ThresholdSupermajority)
+	return outcome == commondao.OutcomePassed, nil
 }
 
 func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
@@ -159,6 +157,8 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p dissolvePropDefinition) execute(realm) error {
-	p.dao.SetDeleted(true)
+	// Dissolution voids the DAO's in-flight proposals before soft deleting
+	// it, so nothing remains pending on a DAO that rejects execution.
+	p.dao.Dissolve("DAO dissolved")
 	return nil
 }

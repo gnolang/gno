@@ -13,11 +13,9 @@ func init(cur realm) {
 		commondao.WithDescription(
 			"This DAO is responsible for managing `commondao` realm functionalities.",
 		),
+		commondao.WithCouncilMember("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"), // @devx
+		commondao.WithCouncilMember("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // @moul
 	)
-
-	// Add initial members
-	dao.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	dao.Members().Add("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 
 	// Index DAO
 	daos.Set(id.String(), dao)
@@ -33,6 +31,6 @@ func init(cur realm) {
 		AllowRender:        true,
 		AllowVoting:        true,
 		AllowExecution:     true,
-		AllowMembersUpdate: true,
+		AllowCouncilUpdate: true,
 	})
 }

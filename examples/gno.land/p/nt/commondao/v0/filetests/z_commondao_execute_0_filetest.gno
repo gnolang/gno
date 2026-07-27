@@ -32,7 +32,7 @@ func (testPropDef) Executor() commondao.ExecFunc {
 }
 
 func init() {
-	dao = commondao.New(commondao.WithMember(member))
+	dao = commondao.New(commondao.WithCouncilMember(member))
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 

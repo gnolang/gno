@@ -63,17 +63,18 @@ func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
 }
 
-func createDAO(name string, owner address, o []Option) *commondao.CommonDAO {
-	id := daoID.Next()
-	dao := commondao.New(
-		commondao.WithID(uint64(id)),
-		commondao.WithName(name),
-	)
+func createDAO(name string, owner address, o []Option, members ...address) *commondao.CommonDAO {
+	if len(members) == 0 {
+		panic("a DAO requires at least one initial council member")
+	}
 
 	daoOptions := defaultOptions
 	for _, apply := range o {
 		apply(&daoOptions)
 	}
+
+	id := daoID.Next()
+	dao := commondao.New(newDAOOptions(uint64(id), name, nil, daoOptions, members)...)
 
 	ids := append(getOwnership(owner), uint64(id))
 	ownership.Set(owner.String(), ids)
@@ -83,18 +84,18 @@ func createDAO(name string, owner address, o []Option) *commondao.CommonDAO {
 	return dao
 }
 
-func createSubDAO(parent *commondao.CommonDAO, name string, o []Option) *commondao.CommonDAO {
-	id := daoID.Next()
-	dao := commondao.New(
-		commondao.WithID(uint64(id)),
-		commondao.WithParent(parent),
-		commondao.WithName(name),
-	)
+func createSubDAO(parent *commondao.CommonDAO, name string, o []Option, members ...address) *commondao.CommonDAO {
+	if len(members) == 0 {
+		panic("a SubDAO requires at least one initial council member")
+	}
 
 	daoOptions := defaultOptions
 	for _, apply := range o {
 		apply(&daoOptions)
 	}
+
+	id := daoID.Next()
+	dao := commondao.New(newDAOOptions(uint64(id), name, parent, daoOptions, members)...)
 
 	options.Set(id.String(), &daoOptions)
 	daos.Set(id.String(), dao)
@@ -108,4 +109,21 @@ func createSubDAO(parent *commondao.CommonDAO, name string, o []Option) *commond
 
 	tree.Set(id.String(), dao)
 	return dao
+}
+
+func newDAOOptions(id uint64, name string, parent *commondao.CommonDAO, o Options, members []address) []commondao.Option {
+	opts := []commondao.Option{
+		commondao.WithID(id),
+		commondao.WithName(name),
+	}
+	if parent != nil {
+		opts = append(opts, commondao.WithParent(parent))
+	}
+	if o.MaxActiveProposals > 0 {
+		opts = append(opts, commondao.WithMaxActiveProposals(o.MaxActiveProposals))
+	}
+	for _, m := range members {
+		opts = append(opts, commondao.WithCouncilMember(m))
+	}
+	return opts
 }

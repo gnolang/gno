@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/commondao/v0"
 )
 
 // CreateTextProposal creates a new general text proposal.
@@ -29,7 +28,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 	}
 
 	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
+	assertCallerIsCouncilMember(caller, dao)
 
 	var votingPeriod time.Duration
 	if votingDays == 0 {
@@ -38,7 +37,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 		votingPeriod = time.Hour * 24 * time.Duration(votingDays)
 	}
 
-	def := NewTextPropDefinition(title, body, commondao.QuorumOneThird, votingPeriod)
+	def := NewTextPropDefinition(title, body, votingPeriod)
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)
@@ -47,25 +46,26 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 	return p.ID()
 }
 
-// CreateMembersUpdateProposal creates a new proposal to add and/or remove DAO members.
+// CreateCouncilUpdateProposal creates a new proposal to add and/or remove
+// council members.
 //
 // Parameters:
 // - daoID: ID of the root DAO (required)
-// - newMembers: Comma separated list of addresses to add as members
-// - removeMembers: Comma separated list of member addresses to remove
-func CreateMembersUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {
+// - newMembers: Newline separated list of addresses to add to the council
+// - removeMembers: Newline separated list of council addresses to remove
+func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
-	if !o.AllowMembersUpdate {
+	if !o.AllowCouncilUpdate {
 		panic("forbidden")
 	}
 
 	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
+	assertCallerIsCouncilMember(caller, dao)
 
 	toAdd := mustParseStringToAddrset(newMembers)
 	toRemove := mustParseStringToAddrset(removeMembers)
-	def := newMembersUpdatePropDefinition(dao, toAdd, toRemove)
+	def := newCouncilUpdatePropDefinition(dao, toAdd, toRemove)
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)
@@ -83,7 +83,7 @@ func CreateMembersUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 // Parameters:
 // - daoID: ID of the parent DAO (required)
 // - name: A name for the SubDAO (required)
-// - members: Comma separated list of addresses to add as members
+// - members: Newline separated list of initial SubDAO council addresses (required)
 func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
@@ -92,7 +92,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 	}
 
 	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
+	assertCallerIsCouncilMember(caller, dao)
 
 	daoMembers := mustParseStringToAddrset(members)
 	def := newSubDAOPropDefinition(dao, name, &daoMembers)
@@ -110,7 +110,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 
 // CreateDissolutionProposal creates a new proposal to dissolve a DAO or SubDAO.
 //
-// SubDAOs can only be dissolveed by the the parent DAO.
+// SubDAOs can only be dissolved by the the parent DAO.
 //
 // Parameters:
 // - daoID: ID of the DAO to dissolve (required)
@@ -128,7 +128,7 @@ func CreateDissolutionProposal(cur realm, daoID uint64) uint64 {
 	}
 
 	caller := cur.Previous().Address()
-	assertCallerIsMember(caller, dao)
+	assertCallerIsCouncilMember(caller, dao)
 
 	def := newDissolvePropDefinition(dissolveDAO)
 	p, err := dao.Propose(caller, def)

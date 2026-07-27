@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
@@ -92,12 +93,12 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.Paragraph(strings.Join(menu, " • ")))
 	res.Write(md.HorizontalRule())
 
-	// Render members
-	members := dao.Members()
-	if members.Size() == 0 {
-		res.Write(md.Paragraph(md.Bold("⚠ The DAO has no members")))
+	// Render council
+	council := dao.Council()
+	if council.Size() == 0 {
+		res.Write(md.Paragraph(md.Bold("⚠ The DAO has no council members")))
 	} else {
-		renderMembers(res, req.RawPath, members)
+		renderCouncil(res, req.RawPath, council)
 	}
 
 	// Render organization tree
@@ -178,7 +179,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
-	if o.AllowMembersUpdate {
+	if o.AllowCouncilUpdate {
 		cols = append(cols, md.Paragraph(updateMembersLink(daoID))+
 			md.Paragraph(
 				"This type of proposal can be used to add new members to this DAO "+
@@ -200,15 +201,15 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 	res.Write(md.Columns(cols, false))
 }
 
-func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
-	pages, err := pager.New(path, members.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
+func renderCouncil(res *mux.ResponseWriter, path string, council *addrset.ReadonlySet) {
+	pages, err := pager.New(path, council.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
-	table := mdtable.Table{Headers: []string{"Members"}}
-	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr address) bool {
+	table := mdtable.Table{Headers: []string{"Council"}}
+	council.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr address) bool {
 		table.Append([]string{userLink(addr)})
 		return false
 	})
@@ -261,7 +262,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
 	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
 	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
-	table.Append([]string{"Members Update proposals", strconv.FormatBool(o.AllowMembersUpdate)})
+	table.Append([]string{"Members Update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
 	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
 	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
 
@@ -412,7 +413,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		ctx := commondao.MustNewVotingContext(record, dao.Members())
+		ctx := commondao.NewVotingContext(record.Readonly(), p.Electorate())
 		passes, _ := def.Tally(ctx)
 		if passes {
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
