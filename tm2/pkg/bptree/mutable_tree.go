@@ -483,17 +483,12 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 	return t.ndb.SaveNode(node)
 }
 
-// Load loads the latest version from the DB.
+// Load loads the latest version from the DB and performs fast-index
+// maintenance. For the LIVE store only (single-threaded startup); read-only
+// consumers use LoadReadonly.
 func (t *MutableTree) Load() (int64, error) {
-	if err := t.ndb.discoverVersions(); err != nil {
-		return 0, err
-	}
-	latest := t.ndb.getLatestVersion()
-	if latest == 0 {
-		return 0, nil
-	}
-	v, err := t.LoadVersion(latest)
-	if err != nil {
+	v, err := t.LoadReadonly()
+	if err != nil || v == 0 {
 		return v, err
 	}
 	// Build the fast index from the loaded latest root if it is absent/stale
@@ -506,6 +501,24 @@ func (t *MutableTree) Load() (int64, error) {
 		return v, err
 	}
 	return v, nil
+}
+
+// LoadReadonly loads the latest version WITHOUT fast-index maintenance
+// (Load's ensureFastIndex can rebuild the index, i.e. WRITE). For read-only
+// consumers — the store layer's immutable/query views, which may sit on a
+// snapshot or read-only DB and may run concurrently with the live writer —
+// loading must never mutate shared persistent state. Fast-index READS remain
+// available (newImmutable wires imm.fast from the tree options; staleness is
+// handled by fastGet's version guard).
+func (t *MutableTree) LoadReadonly() (int64, error) {
+	if err := t.ndb.discoverVersions(); err != nil {
+		return 0, err
+	}
+	latest := t.ndb.getLatestVersion()
+	if latest == 0 {
+		return 0, nil
+	}
+	return t.LoadVersion(latest)
 }
 
 // LoadVersion loads a specific version from the DB.

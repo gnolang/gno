@@ -205,10 +205,22 @@ func (ndb *nodeDB) dropFastIndex() (err error) {
 }
 
 // ensureFastIndex rebuilds the fast index from the latest root if it is absent
-// or stale (the stamp != the loaded version). Called from Load when the feature
-// is on. The index is advisory, so a stale/missing index is never wrong, only
-// slower; a rebuild error is returned to Load's caller (the loaded tree is still
-// usable, and a retry Load re-attempts the rebuild).
+// or BEHIND the loaded version (stamp < version: versions were committed with
+// the feature off). Called from Load when the feature is on. The index is
+// advisory, so a stale/missing index is never wrong, only slower; a rebuild
+// error is returned to Load's caller (the loaded tree is still usable, and a
+// retry Load re-attempts the rebuild).
+//
+// A stamp AHEAD of the loaded version (stamp > version) must NOT rebuild: the
+// stamp and each version's records commit in one atomic batch, so at rest they
+// are equal — observing a newer stamp means this tree is a stale reader racing
+// a newer commit (or the DB was externally rewound). Rebuilding here would
+// rewrite the whole index from an outdated root — old values under a stamp
+// later commits re-validate — which is exactly the gno#6011 poisoning. Reads
+// stay safe without a rebuild: fastGet distrusts entries newer than the
+// reader's version. NOTE: after external rollback/DB surgery, delete the stamp
+// (PrefixMeta‖"fastidx") to force a rebuild — old-timeline entries would
+// otherwise become trusted again once the chain re-passes their versions.
 func (t *MutableTree) ensureFastIndex() error {
 	if !t.ndb.opts.FastIndex {
 		return nil
@@ -217,8 +229,12 @@ func (t *MutableTree) ensureFastIndex() error {
 	if err != nil {
 		return err
 	}
-	if ok && stamp == t.version {
-		return nil // already complete through the loaded version
+	if ok && stamp >= t.version {
+		if stamp > t.version {
+			t.ndb.logger.Warn("bptree: fast index stamp ahead of loaded version; skipping rebuild",
+				"stamp", stamp, "version", t.version)
+		}
+		return nil // complete through the loaded version
 	}
 	return t.rebuildFastIndex()
 }
