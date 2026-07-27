@@ -18,6 +18,8 @@ import (
 //
 // The default voting period is 7 days.
 func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays uint8) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	if votingDays > 30 {
 		panic("maximum proposal voting period is 30 days")
@@ -45,6 +47,8 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 // - newMembers: Newline separated list of addresses to add to the council
 // - removeMembers: Newline separated list of council addresses to remove
 func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 
 	caller := cur.Previous().Address()
@@ -67,6 +71,8 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 // - newMembers: Newline separated list of addresses to add to the council
 // - removeMembers: Newline separated list of council addresses to remove
 func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newMembers, removeMembers string) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 
 	caller := cur.Previous().Address()
@@ -85,6 +91,8 @@ func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newM
 // - description: A description for the SubDAO
 // - members: Newline separated list of initial SubDAO council addresses (required)
 func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, members string) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
@@ -109,6 +117,8 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, m
 // - daoID: ID of the DAO to dissolve (required)
 // - destination: sweep destination, root DAOs only
 func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uint64 {
+	assertCurrent(cur)
+
 	// When DAO to dissolve is a SubDAO make sure that proposal is created
 	// in the parent DAO, or in the nearest non-dissolved ancestor when
 	// parents were dissolved first.
@@ -137,6 +147,8 @@ func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uin
 // - denom: coin denomination, e.g. "ugnot" (required)
 // - amount: coin amount, must be positive (required)
 func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom string, amount int64) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
@@ -155,6 +167,8 @@ func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom stri
 // - daoID: ID of the proposing ancestor DAO (required)
 // - targetID: ID of the descendant DAO to claw back (required)
 func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
@@ -174,6 +188,8 @@ func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 // - targetID: ID of the descendant DAO to freeze or unfreeze (required)
 // - frozen: true to freeze the target's treasury, false to unfreeze
 func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool) uint64 {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)

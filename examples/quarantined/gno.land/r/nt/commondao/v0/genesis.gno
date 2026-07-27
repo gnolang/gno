@@ -1,6 +1,10 @@
 package commondao
 
 func init(cur realm) {
+	// Fail closed if deployed off the package path treasury addresses
+	// derive from (see assertRunningPath).
+	assertRunningPath()
+
 	// Create the realm's own DAO, governed by its maintainers. There is
 	// no owner: after the ownership re-scope the realm administers nothing
 	// about a DAO except its home-index listing, which the realm DAO sets

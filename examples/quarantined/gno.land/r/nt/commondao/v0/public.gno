@@ -1,18 +1,46 @@
 package commondao
 
 import (
-	// unsafe is used only for OriginCaller in New: invitations target
-	// EOAs, so the invite is keyed to and consumed by the transaction
-	// origin. Caller authentication everywhere uses cur.Previous().
+	// unsafe is used in two places, both reading the frame (never for
+	// authorization by pkgpath): OriginCaller in New (invitations target
+	// EOAs, so the invite is keyed to the transaction origin) and
+	// CurrentRealm in assertRunningPath (deploy-time path check). Caller
+	// authentication everywhere uses cur.Previous().
 	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/commondao/v0"
 )
 
+// assertCurrent guards every public crossing entry. Authentication reads
+// cur.Previous() and the treasury executors mint cur.Sub(...); both require
+// cur to be the live top-of-frame realm (AGENTS.md / interrealm-v2). Every
+// entry is only reachable via a cross today, so this is defense-in-depth
+// against a future non-crossing caller.
+func assertCurrent(cur realm) {
+	if !cur.IsCurrent() {
+		panic("commondao: cur realm is not current")
+	}
+}
+
+// assertRunningPath fails closed if this realm is deployed at a package
+// path other than pkgPath. Treasury addresses derive from the pkgPath
+// const (daoAddress), while the treasury executors mint under the running
+// realm's own path (cur.Sub). Those agree only when the running path is
+// pkgPath; a copy deployed elsewhere would read balances at one address
+// and send from another, turning a clean StatusFailed into a mismatch. We
+// reject that at genesis rather than silently diverge.
+func assertRunningPath() {
+	if got := unsafe.CurrentRealm().PkgPath(); got != pkgPath {
+		panic("commondao: realm deployed at " + got + ", expected " + pkgPath)
+	}
+}
+
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(cur realm, invitee address) {
+	assertCurrent(cur)
+
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
@@ -39,6 +67,8 @@ func IsInvited(addr address) bool {
 // separated list of additional member addresses. Sub-DAOs are created
 // through proposals (see CreateSubDAOProposal).
 func New(cur realm, name, purpose, description, members string) uint64 {
+	assertCurrent(cur)
+
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
@@ -78,6 +108,8 @@ func parseInitialMembers(caller address, members string) []address {
 // in its own UI — so any single council member of the DAO may toggle it,
 // like Resign. It defaults to off.
 func SetListed(cur realm, daoID uint64, listed bool) {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	if dao.IsDeleted() {
 		panic(commondao.ErrDAOIsDeleted)
@@ -101,6 +133,8 @@ func GetView(daoID uint64) commondao.ReadonlyCommonDAO {
 // Voting is allowed to the members of the proposal's electorate: the
 // council snapshot taken when the proposal was created.
 func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	err := dao.Vote(caller, proposalID, vote, reason)
@@ -116,6 +150,8 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 // member. Once the voting deadline has passed execution is permissionless:
 // the tally is deterministic, so anyone can finalize the proposal.
 func Execute(cur realm, daoID, proposalID uint64) {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	p := dao.GetProposal(proposalID)
 	if p == nil {
@@ -138,6 +174,8 @@ func Execute(cur realm, daoID, proposalID uint64) {
 // Withdraw withdraws an active DAO proposal that has no votes.
 // Only the proposal creator can withdraw it.
 func Withdraw(cur realm, daoID, proposalID uint64) {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	p := dao.GetProposal(proposalID)
 	if p == nil {
@@ -156,6 +194,8 @@ func Withdraw(cur realm, daoID, proposalID uint64) {
 // Resign removes the caller from a DAO council.
 // The last remaining council member cannot resign.
 func Resign(cur realm, daoID uint64) {
+	assertCurrent(cur)
+
 	dao := mustGetDAO(daoID)
 	if dao.IsDeleted() {
 		panic(commondao.ErrDAOIsDeleted)
