@@ -180,7 +180,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 	}
 
 	if o.AllowCouncilUpdate {
-		cols = append(cols, md.Paragraph(updateMembersLink(daoID))+
+		cols = append(cols, md.Paragraph(updateCouncilLink(daoID))+
 			md.Paragraph(
 				"This type of proposal can be used to add new members to this DAO "+
 					"and also to remove existing ones.",
@@ -262,7 +262,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
 	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
 	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
-	table.Append([]string{"Members Update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
+	table.Append([]string{"Council update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
 	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
 	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
 
@@ -582,9 +582,9 @@ func textProposalLink(daoID uint64) string {
 	))
 }
 
-func updateMembersLink(daoID uint64) string {
-	return md.Link("Update Members", realmLink.Call(
-		"CreateMembersUpdateProposal",
+func updateCouncilLink(daoID uint64) string {
+	return md.Link("Update Council", realmLink.Call(
+		"CreateCouncilUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"newMembers", "",
 		"removeMembers", "",
@@ -628,5 +628,10 @@ func isVotingPeriodActive(p *commondao.Proposal) bool {
 }
 
 func isExecutionAllowed(p *commondao.Proposal) bool {
+	// Early passed proposals can be executed right away; active proposals
+	// can be finalized once their voting deadline passes.
+	if p.Status() == commondao.StatusPassed {
+		return true
+	}
 	return p.Status() == commondao.StatusActive && !time.Now().Before(p.VotingDeadline())
 }

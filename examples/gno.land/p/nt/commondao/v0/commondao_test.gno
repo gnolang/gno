@@ -81,6 +81,14 @@ type execFnPropDef struct {
 
 func (d execFnPropDef) Executor() commondao.ExecFunc { return d.fn }
 
+// validatingExecPropDef is a default rule definition with state validation.
+type validatingExecPropDef struct {
+	defaultPropDef
+	err *error
+}
+
+func (d validatingExecPropDef) Validate() error { return *d.err }
+
 func TestNew(t *testing.T) {
 	dao := commondao.New()
 	uassert.Equal(t, uint64(0), dao.ID())
@@ -138,6 +146,11 @@ func TestUpdateCouncil(t *testing.T) {
 	uassert.True(t, dao.Council().Has(memberC))
 	uassert.True(t, dao.Council().Has(memberD))
 
+	// More removals than members is fine as long as a member survives
+	// (the emptiness check is by identity, not by count)
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberE, memberF}))
+	uassert.Equal(t, 2, dao.Council().Size())
+
 	// An empty council can be seeded
 	empty := commondao.New()
 	urequire.NoError(t, empty.UpdateCouncil(nil, nil))
@@ -191,6 +204,44 @@ func TestProposeCap(t *testing.T) {
 	uassert.ErrorIs(t, err, commondao.ErrMaxCapExemptProposals)
 	_, err = dao.Propose(memberB, exemptPropDef{defaultPropDef{period: time.Hour}})
 	urequire.NoError(t, err)
+}
+
+func TestProposeCapSlotFrees(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+		commondao.WithMaxActiveProposals(1),
+	)
+
+	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	_, err := dao.Propose(memberA, defaultPropDef{period: time.Hour})
+	urequire.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+
+	// An immediate NO majority dismissal frees the slot
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceNo, ""))
+	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceNo, ""))
+	urequire.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+
+	_, err = dao.Propose(memberA, defaultPropDef{period: time.Hour})
+	urequire.NoError(t, err)
+}
+
+func TestDissolve(t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA))
+
+	// An early passed (but unexecuted) proposal is still in-flight
+	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+	dao.Dissolve("gone")
+
+	uassert.True(t, dao.IsDeleted())
+	uassert.Equal(t, 0, dao.ActiveProposals().Size())
+	uassert.Equal(t, 1, dao.FinishedProposals().Size())
+	uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+	uassert.Equal(t, "gone", p.StatusReason())
 }
 
 func TestVote(t *testing.T) {
@@ -379,6 +430,57 @@ func TestExecute(cur realm, t *testing.T) {
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
 		uassert.Equal(t, 1, dao.Council().Size(), "expect council unchanged")
+	})
+
+	t.Run("early passed proposals still validate", func(t *testing.T) {
+		executed := false
+		stale := errors.New("stale")
+		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		p := dao.MustPropose(memberA, validatingExecPropDef{
+			defaultPropDef: defaultPropDef{period: time.Hour, executed: &executed},
+			err:            &stale,
+		})
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
+		uassert.Equal(t, "stale", p.StatusReason())
+		uassert.False(t, executed, "expect executor to not run when validation fails")
+	})
+
+	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {
+		dao := commondao.New(
+			commondao.WithCouncilMember(memberA),
+			commondao.WithCouncilMember(memberB),
+			commondao.WithCouncilMember(memberC),
+		)
+		p1 := dao.MustPropose(memberA, execFnPropDef{
+			propDef: propDef{passes: true},
+			fn: func(realm) error {
+				return dao.UpdateCouncil([]address{memberD}, []address{memberA})
+			},
+		})
+		p2 := dao.MustPropose(memberB, execFnPropDef{
+			propDef: propDef{passes: true},
+			fn: func(realm) error {
+				// Removing memberA again is an idempotent no-op
+				return dao.UpdateCouncil([]address{memberE}, []address{memberA})
+			},
+		})
+
+		urequire.NoError(t, dao.Execute(p1.ID(), cur))
+		urequire.NoError(t, dao.Execute(p2.ID(), cur))
+		urequire.Equal(t, string(commondao.StatusExecuted), string(p1.Status()))
+		urequire.Equal(t, string(commondao.StatusExecuted), string(p2.Status()))
+
+		uassert.Equal(t, 4, dao.Council().Size())
+		uassert.False(t, dao.Council().Has(memberA))
+		uassert.True(t, dao.Council().Has(memberB))
+		uassert.True(t, dao.Council().Has(memberC))
+		uassert.True(t, dao.Council().Has(memberD))
+		uassert.True(t, dao.Council().Has(memberE))
 	})
 
 	t.Run("deleted DAOs reject execution", func(t *testing.T) {

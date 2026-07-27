@@ -146,6 +146,13 @@ func TestTallyDefault(t *testing.T) {
 			want:       commondao.OutcomePassed,
 		},
 		{
+			name:       "simple majority minimal boundary passes",
+			electorate: []address{memberA, memberB, memberC},
+			yes:        []address{memberA, memberB}, // 2*2 == D+1
+			threshold:  commondao.ThresholdSimpleMajority,
+			want:       commondao.OutcomePassed,
+		},
+		{
 			name:       "votes from outside the electorate are not counted",
 			electorate: []address{memberA, memberB},
 			yes:        []address{memberC, memberD}, // strangers

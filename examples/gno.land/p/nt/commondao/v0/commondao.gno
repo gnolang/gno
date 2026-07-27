@@ -410,6 +410,7 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 		p.statusReason = err.Error()
 	} else {
 		p.status = StatusExecuted
+		p.statusReason = ""
 	}
 
 	// Whichever the outcome of the validation, tallying

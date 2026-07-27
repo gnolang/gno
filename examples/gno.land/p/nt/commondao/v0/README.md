@@ -3,320 +3,101 @@
 > A fully audited version will be published as a subsequent release.
 > Use in production at your own risk.
 
+# commondao
 
-# CommonDAO Package
+Governance primitives following the Common DAO Spec
+(`docs/CONSTITUTION.md`, Appendix): a `CommonDAO` is a **Council** (a
+set of addresses with equal voting power), a proposal lifecycle, and an
+optional sub-DAO tree.
 
-CommonDAO is a general-purpose package that provides support to implement
-custom Decentralized Autonomous Organizations (DAO) on Gno.land.
+```
+CommonDAO
+├── council:            *addrset.Set — who may vote
+├── active proposals:   each with an electorate snapshot + voting record
+├── finished proposals: passed / dismissed / executed / failed / withdrawn
+└── children:           sub-DAOs (each a CommonDAO with a parent pointer)
+```
 
-It offers a minimal and flexible framework for building DAOs, with customizable
-options that adapt across multiple use cases.
-
-## Core Types
-
-Package contains some core types which are important in any DAO implementation,
-these are **CommonDAO**, **ProposalDefinition**, **Proposal** and **Vote**.
-
-### 1. CommonDAO Type
-
-CommonDAO type is the main type used to define DAOs, allowing standalone DAO
-creation or hierarchical tree based ones.
-
-During creation, it accepts many optional arguments some of which are handy
-depending on the DAO type. For example, standalone DAOs might use IDs, a name
-and description to uniquely identify individual DAOs; Hierarchical ones might
-choose to use slugs instead of IDs, or even a mix of both.
-
-#### DAO Creation Examples
-
-Standalone DAO:
+## Quick start
 
 ```go
 import "gno.land/p/nt/commondao/v0"
 
-dao := commondao.New(
-    commondao.WithID(1),
-    commondao.WithName("MyDAO"),
-    commondao.WithDescription("An example DAO"),
-    commondao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-    commondao.WithMember("g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun"),
-)
-```
-
-Hierarchical DAO:
-
-```go
-import "gno.land/p/nt/commondao/v0"
-
-dao := commondao.New(
-    commondao.WithSlug("parent"),
-    commondao.WithName("ParentDAO"),
-    commondao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+var dao = commondao.New(
+    commondao.WithName("My DAO"),
+    commondao.WithCouncilMember(founder),
 )
 
-subDAO := commondao.New(
-    commondao.WithSlug("child"),
-    commondao.WithName("ChildDAO"),
-    commondao.WithParent(dao),
-)
+// Council members propose; the council snapshot taken here is the
+// proposal's electorate.
+p, _ := dao.Propose(founder, myDefinition)
+
+// Electorate members vote; default rule proposals can be decided the
+// moment the outcome is settled.
+dao.Vote(founder, p.ID(), commondao.ChoiceYes, "")
+
+// Execute runs passed proposals (early passed ones immediately, active
+// ones once their voting deadline passes).
+dao.Execute(p.ID(), cur)
 ```
 
-### 2. ProposalDefinition Type
+## Voting rules (the constitutional defaults)
 
-Proposal definitions are the way proposal types are implemented in `commondao`.
-Definitions are required when creating a new proposal because they define the
-behavior of the proposal.
+Proposal definitions that implement `DefaultTallier` are decided by
+`TallyDefault` with integer math over the proposal's **electorate
+snapshot** E (the council at `Propose` time):
 
-Generally speaking, proposals can be divided in two types, one are the
-*general* (a.k.a. *text proposals*), and the other are the *executable* ones.
-The difference is that *executable* ones modify the blockchain state when they
-are executed after they have been approved, while *general* ones don't, they
-are usually used to signal or measure sentiment, for example regarding a
-relevant issue.
-
-Creating a new proposal type requires implementing the following interface:
-
-```go
-type ProposalDefinition interface {
-    // Title returns proposal title.
-    Title() string
-
-    // Body returns proposal's body.
-    // It usually contains description or values that are specific to
-    // the proposal, like a description of the proposal's motivation
-    // or the list of values that would be applied when the proposal
-    // is approved.
-    Body() string
-
-    // VotingPeriod returns the period where votes are allowed after
-    // proposal creation. It's used to calculate the voting deadline
-    // from the proposal's creationd date.
-    VotingPeriod() time.Duration
-
-    // Tally counts the number of votes and verifies if proposal passes.
-    // It receives a voting context containing a readonly record with the votes
-    // that has been submitted for the proposal and also the list of DAO members.
-    Tally(VotingContext) (passes bool, _ error)
-}
+```
+D = |E| - abstains                 // the tally denominator
+supermajority:   pass ⇔ D > 0 && 3*yes >= 2*D   ("two thirds or more")
+simple majority: pass ⇔ D > 0 && 2*yes > D       ("more than half")
+dismiss (both):       ⇔ 2*no > D
+undecided at deadline ⇒ dismissed
 ```
 
-This minimal interface is the one required for *general proposal types*. Here
-the most important method is the `Tally()` one. It's used to check whether a
-proposal passes or not.
+Abstaining shrinks the denominator (deference); not voting counts
+against passage (silence is opposition). Votes are re-evaluated after
+every ballot — including changed votes — so a proposal **passes or is
+dismissed the moment the outcome is mathematically settled** and an
+early-passed proposal may be executed before its deadline.
 
-Within `Tally()` votes can be counted using different rules depending on the
-proposal type, some proposal types might decide if there is consensus by using
-super majority while others might decide using plurality for example, or even
-just counting that a minimum number of certain positive votes have been
-submitted to approve a proposal.
+Custom definitions implement `ProposalDefinition.Tally(VotingContext)`
+instead and are tallied once, at the deadline. Definitions may also
+customize vote choices (`CustomizableVoteChoices`) — but not combined
+with `DefaultTallier`.
 
-CommonDAO provides a couple of helpers for this, to cover some cases:
-- `SelectChoiceByAbsoluteMajority()`
-- `SelectChoiceBySuperMajority()` (using a 2/3s threshold)
-- `SelectChoiceByPlurality()`
+## Council changes
 
-#### 2.1. Executable Proposals
+`UpdateCouncil(add, remove)` applies idempotent set operations: the
+final set is `(council ∪ add) \ remove`, duplicate adds and absent
+removes are no-ops (so concurrently passed updates merge in execution
+order), full replacement in one call is legal, and an update that
+would empty a non-empty council returns `ErrEmptyCouncil` — executors
+propagate the error to fail the proposal cleanly.
 
-Proposal definitions have optional features that could be implemented to extend
-the proposal type behaviour. One of those is required to enable execution
-support.
+## Proposal lifecycle
 
-A proposal can be executable implementing the **Executable** interface as part
-of the new proposal definition:
+`Propose` (capped by `WithMaxActiveProposals`; `CapExempt` definitions
+such as council updates bypass the cap, bounded to one active proposal
+per creator) → `Vote` (electorate-gated, deadline-gated, rejects
+non-active proposals) → `Execute` (early-passed: immediately, still
+validating; active: after the deadline, dismissing undecided
+proposals) or `Withdraw` (active, zero votes). `Dissolve` dismisses
+every in-flight proposal and soft deletes the DAO; deleted DAOs reject
+proposals, votes, and executions.
 
-```go
-type Executable interface {
-    // Executor returns a function to execute the proposal.
-    Executor() func(realm) error
-}
-```
+## Realm boundaries
 
-The crossing function returned by the `Executor()` method is where the realm
-changes are made once the proposal is executed.
+A `*CommonDAO` is a mutable handle for the realm that owns it:
 
-Other features can be enabled by implementing the **Validable** interface and
-the **CustomizableVoteChoices** one, as a way to separate pre-execution
-validation and to support proposal voting choices different than the default
-ones (YES, NO and ABSTAIN).
+1. Do not ACCEPT a `*CommonDAO` from an untrusted caller.
+2. Do not RETURN a `*CommonDAO` — return `dao.Readonly()`, a
+   `ReadonlyCommonDAO` view whose whole reachable graph is read-only
+   (`ReadonlyProposal` flattens `Title()`/`Body()` and never exposes
+   the `ProposalDefinition`, whose executor would otherwise be
+   callable under your realm's authority).
+3. Do not TRUST a readonly view received from an untrusted caller —
+   it is a live handle over the sender's data.
 
-### 3. Proposal Type
-
-Proposals are key for governance, they are the main mechanic that allows DAO
-members to engage on governance.
-
-They are usually not created directly but though **CommonDAO** instances, by
-calling the `CommonDAO.Propose()` or `CommonDAO.MustPropose()` methods. Though,
-alternatively, proposals could be added to CommonDAO's active proposals storage
-using `CommonDAO.ActiveProposals().Add()`.
-
-```go
-import (
-    "gno.land/p/nt/commondao/v0"
-    "gno.land/r/example/mydao"
-)
-
-dao := commondao.New()
-creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-propDef := mydao.NewGeneralProposalDefinition("Title", "Description")
-proposal := dao.MustPropose(creator, propDef)
-```
-
-#### 3.1. Voting on Proposals
-
-The preferred way to submit a vote, once a proposal is created, is by calling
-the `CommonDAO.Vote()` method because it performs sanity checks before a vote
-is considered valid; Alternatively votes can be directly added without sanity
-checks to the proposal's voting record by calling
-`Proposal.VotingRecord().AddVote()`.
-
-#### 3.2. Voting Record
-
-Each proposal keeps track of their submitted votes within an internal voting
-record. CommonDAO package defines it as a **VotingRecord** type.
-
-The voting record of a proposal can be getted by calling its
-`Proposal.VotingRecord()` method.
-
-Right now proposals have a single voting record but the plan is to support
-multiple voting records per proposal as an optional feature, which could be
-used in cases where a proposal must track votes in multiple independent
-records, for example in cases where a proposal could be promoted to a different
-DAO with a different set of members.
-
-#### 4. Vote Type
-
-Vote type defines the structure to store information for individual proposal
-votes. Apart from the normally mandatory `Address` and voting `Choice` fields,
-there are two optional fields that can be useful in different use cases; These
-fields are `Reason` which can store a string with the reason for the vote, and
-`Context` which can be used to store generic values related to the vote, for
-example vote weight information.
-
-It's *very important* to be careful when using the `Context` field, in case
-references/pointers are assigned to it because they could potentially be
-accessed anywhere, which could lead to unwanted indirect modifications.
-
-Vote type is defined as:
-
-```go
-type Vote struct {
-    // Address is the address of the user that this vote belons to.
-    Address address
-
-    // Choice contains the voted choice.
-    Choice VoteChoice
-
-    // Reason contains an optional reason for the vote.
-    Reason string
-
-    // Context can store any custom voting values related to the vote.
-    Context any
-}
-```
-
-## Secondary Types
-
-There are other types which can be handy for some implementations which might
-require to store DAO members or proposals in a custom location, or that might
-need member grouping support.
-
-### 1. MemberStorage and ProposalStorage Types
-
-These two types allows storing and iterating DAO members and proposals. They
-support DAO implementations that might require storing either members or
-proposals in an external realm other than the DAO realm.
-
-CommonDAO package provides implementations that use AVL trees under the hood
-for storage and lookup.
-
-Custom implementations are supported though the **MemberStorage** and
-**ProposalStorage** interfaces:
-
-```go
-type MemberStorage interface {
-	// Size returns the number of members in the storage.
-	Size() int
-
-	// Has checks if a member exists in the storage.
-	Has(address) bool
-
-	// Add adds a member to the storage.
-	Add(address) bool
-
-	// Remove removes a member from the storage.
-	Remove(address) bool
-
-	// Grouping returns member groups when supported.
-	Grouping() MemberGrouping
-
-	// IterateByOffset iterates members starting at the given offset.
-	IterateByOffset(offset, count int, fn func(address) bool)
-}
-
-type ProposalStorage interface {
-	// Has checks if a proposal exists.
-	Has(id uint64) bool
-
-	// Get returns a proposal or nil when proposal doesn't exist.
-	Get(id uint64) *Proposal
-
-	// Add adds a proposal to the storage.
-	Add(*Proposal)
-
-	// Remove removes a proposal from the storage.
-	Remove(id uint64)
-
-	// Size returns the number of proposals that the storage contains.
-	Size() int
-
-	// Iterate iterates proposals.
-	Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool
-}
-```
-
-### 2. MemberGrouping and MemberGroup Types
-
-Members grouping is an optional feature that provides support for DAO members
-grouping.
-
-Grouping can be useful for DAOs that require grouping users by roles or tiers
-for example.
-
-The **MemberGrouping** type is a collection of member groups, while the
-**MemberGroup** is a group of members with metadata.
-
-#### Grouping by Role Example
-
-```go
-import "gno.land/p/nt/commondao/v0"
-
-storage := commondao.NewMemberStorageWithGrouping()
-
-// Add a member that doesn't belong to any group
-storage.Add("g1...a")
-
-// Create a member group for owners
-owners, err := storage.Grouping().Add("owners")
-if err != nil {
-  panic(err)
-}
-
-// Add a member to the owners group
-owners.Members().Add("g1...b")
-
-// Add voting power to owners group metadata
-owners.SetMeta(3)
-
-// Create a member group for moderators
-moderators, err := storage.Grouping().Add("moderators")
-if err != nil {
-  panic(err)
-}
-
-// Add voting power to moderators group metadata
-moderators.SetMeta(1)
-
-// Add members to the moderators group
-moderators.Members().Add("g1...c")
-moderators.Members().Add("g1...d")
-```
+See `gno.land/r/nt/commondao/v0` for the reference realm hosting many
+DAOs with ownership, invitations, options, and rendering.

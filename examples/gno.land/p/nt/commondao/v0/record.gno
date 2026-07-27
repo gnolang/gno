@@ -1,14 +1,9 @@
 package commondao
 
 import (
-	"errors"
-
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/bptree/v0"
 )
-
-// ErrVoteExists indicates that a user already voted.
-var ErrVoteExists = errors.New("user already voted")
 
 type (
 	// VoteIterFn defines a callback to iterate votes.
