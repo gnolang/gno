@@ -74,9 +74,16 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 		t.Fatal("timeout waiting for node to produce first block")
 	}
 
-	height := n.BlockStore().Height()
-	require.Equal(t, initialHeight, height,
-		"first committed block should be at InitialHeight (%d), got %d", initialHeight, height)
+	// Assert on which heights exist in the block store, not on the current
+	// tip: Ready() closes on the first EventNewBlock, delivered off the
+	// consensus goroutine, so the node can already have committed the next
+	// block by the time this runs.
+	bs := n.BlockStore()
+	require.GreaterOrEqual(t, bs.Height(), initialHeight)
+	require.NotNil(t, bs.LoadBlock(initialHeight),
+		"block at InitialHeight (%d) should be committed", initialHeight)
+	require.Nil(t, bs.LoadBlock(initialHeight-1),
+		"no block below InitialHeight (%d) should exist; the chain must not start at 1", initialHeight)
 }
 
 // AppState must be a GnoGenesisState value: loadAppState rejects a
