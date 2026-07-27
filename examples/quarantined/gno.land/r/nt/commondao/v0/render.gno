@@ -79,6 +79,12 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	// Render header messages
 	if dao.IsDeleted() {
 		res.Write(md.Blockquote("⚠ This DAO has been dissolved"))
+		// A dissolved DAO with no live proper ancestor can never move funds
+		// again (its own council is gone and no ancestor can claw back), so
+		// warn that late deposits to its treasury address are unrecoverable.
+		if !hasLiveProperAncestor(dao) {
+			res.Write(md.Blockquote("⚠ No live ancestor DAO remains: coins sent to this treasury address can no longer be recovered."))
+		}
 	}
 
 	// Render header (Charter: purpose is required, description optional)
