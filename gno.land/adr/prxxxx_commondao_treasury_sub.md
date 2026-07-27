@@ -130,3 +130,13 @@ council has authority over it; documented, accepted.
   stability, z_10_d treasury rendering) plus definition unit tests; no
   funds can move without a passed proposal — the only `SendCoins` call
   sites are the three executors above.
+- The filetests run against the in-memory `TestBanker`, so
+  `gno.land/pkg/integration/testdata/commondao_treasury.txtar` proves
+  the production path end to end on a real node: a real bank send
+  funds the derived dao/1 address, an overdrawn spend is rejected at
+  creation, a passed spend debits the DAO account and credits the
+  destination through the real bank keeper, and a parent clawback
+  sweeps a funded child treasury DAO-to-DAO (source account emptied,
+  parent credited). The test patches the genesis council to the test
+  key and switches `AllowTreasuryProposals` on in `defaultOptions`
+  (the realm option is variadic-only, unreachable from `maketx call`).
