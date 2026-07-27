@@ -263,10 +263,17 @@ func (ms *multiStore) Commit() types.CommitID {
 	commitInfo := commitStores(version, ms.stores)
 
 	// Feed metadata into the same collector as IAVL/dbadapter writes so a
-	// single drain covers all four write sites.
+	// single drain covers all four write sites. The Write() must precede
+	// Drain: batch ops enter the collector only on Write, and metadata that
+	// missed this drain would persist a block late (store data at N with
+	// commitInfo at N-1 after a crash).
 	metaBatch := ms.collector.NewBatch()
+	defer metaBatch.Close()
 	setCommitInfo(metaBatch, version, commitInfo)
 	setLatestVersion(metaBatch, version)
+	if err := metaBatch.Write(); err != nil {
+		panic("rootmulti: Commit() metadata write failed: " + err.Error())
+	}
 
 	// Drain the collector into a real batch and flush atomically.
 	realBatch := ms.db.NewBatch()
