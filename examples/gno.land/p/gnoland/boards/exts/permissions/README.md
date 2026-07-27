@@ -1,8 +1,8 @@
 # Boards Permissions Extension
 
 This is a `gno.land/p/gnoland/boards` package extension that provides a custom
-`Permissions` implementation that uses an underlying DAO to manage users and
-roles.
+`Permissions` implementation that uses an underlying `gno.land/p/nt/groups`
+group to manage users and roles.
 
 It also supports optionally setting validation functions to be triggered by the
 `WithPermission()` method before a callback is called. Validators allows adding
