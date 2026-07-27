@@ -98,6 +98,13 @@ presents a DAO in its own UI*.
   freeze, dissolution, and orphan-rescue key only off parent pointers and
   `IsDeleted`/`IsTreasuryFrozen` — never off owner/`Options`. The treasury
   integration txtar passes unchanged.
+- **Package cleanup:** removed the now-unused `TopParent()` whole-tree
+  resolver — the mechanism behind fault #1 (root-owner-controls-subtree). No
+  authority path ever jumps to the root: control resolves only via one-level
+  `Parent()` and proper-ancestor walks (`assertIsProperAncestor`). A later
+  three-reviewer pass over the ownership+parent model confirmed the authority
+  map collapses to exactly two axes (a DAO's own Council and its ancestor
+  chain) with no residual owner axis.
 - **Tests:** deleted 10 filetests whose sole intent was a removed behavior
   (owner transfer, per-DAO flag toggling, owner cap-tuning + the jammed-cap
   trap, the `AllowChildren`/`AllowExecution` gates); rewrote `z_6_g` to pin

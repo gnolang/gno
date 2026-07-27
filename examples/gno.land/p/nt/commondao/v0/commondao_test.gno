@@ -114,7 +114,7 @@ func TestNew(t *testing.T) {
 	uassert.Equal(t, "test", dao.Description())
 	uassert.Equal(t, 2, dao.Council().Size())
 	uassert.True(t, dao.Council().Has(memberA))
-	uassert.Equal(t, "root", dao.TopParent().Name())
+	uassert.Equal(t, "root", dao.Parent().Name())
 }
 
 func TestUpdateCouncil(t *testing.T) {

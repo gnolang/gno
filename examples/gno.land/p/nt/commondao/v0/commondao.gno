@@ -10,8 +10,9 @@ import (
 
 // DefaultMaxActiveProposals is the default cap for simultaneously active
 // proposals per DAO. Every active proposal stores a council snapshot, so
-// the cap bounds storage. It is set to this default at construction; a
-// hosting realm may adjust it with SetMaxActiveProposals.
+// the cap bounds storage. It is applied at construction; a hosting realm
+// may override it per DAO via SetMaxActiveProposals (the reference realm
+// keeps this default).
 const DefaultMaxActiveProposals = 32
 
 var (
@@ -134,16 +135,6 @@ func (dao CommonDAO) IterateChildren(fn func(*CommonDAO) bool) (stopped bool) {
 		return stopped
 	})
 	return stopped
-}
-
-// TopParent returns the topmost parent DAO.
-// The top parent is the root of the DAO tree.
-func (dao *CommonDAO) TopParent() *CommonDAO {
-	parent := dao.Parent()
-	if parent != nil {
-		return parent.TopParent()
-	}
-	return dao
 }
 
 // Council returns a read only view of the DAO council.
