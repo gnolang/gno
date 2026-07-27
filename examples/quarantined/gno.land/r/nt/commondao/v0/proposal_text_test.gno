@@ -15,7 +15,7 @@ var (
 	_ commondao.DefaultTallier     = (*textPropDefinition)(nil)
 )
 
-func TesttextPropDefinitionNew(cur realm, t *testing.T) {
+func TestTextPropDefinitionNew(cur realm, t *testing.T) {
 	urequire.PanicsWithMessage(t, cur, "proposal title is empty", func() {
 		newTextPropDefinition("  ", "body", time.Hour*24)
 	})

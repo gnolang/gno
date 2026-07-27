@@ -12,7 +12,7 @@ import (
 // CreateTextProposal creates a new general text proposal.
 //
 // Parameters:
-// - daoID: ID of the root DAO (required)
+// - daoID: ID of the DAO (required)
 // - title: Title of the proposal (required)
 // - body: Body of the proposal (required)
 // - votingDays: The number of days where proposal accepts votes.
@@ -42,7 +42,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 // council members.
 //
 // Parameters:
-// - daoID: ID of the root DAO (required)
+// - daoID: ID of the DAO (required)
 // - newMembers: Newline separated list of addresses to add to the council
 // - removeMembers: Newline separated list of council addresses to remove
 func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {

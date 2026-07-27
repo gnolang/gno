@@ -34,8 +34,9 @@ var (
 // # Security
 //
 // A *CommonDAO is a mutable handle: its exported mutators (UpdateCouncil,
-// Dissolve, Propose, Vote, Execute, Withdraw) are meant for the realm
-// that owns the DAO. Three rules apply at realm boundaries:
+// Dissolve, Propose, Vote, Execute, Withdraw, SetTreasuryFrozen,
+// SetMaxActiveProposals) are meant for the realm that owns the DAO.
+// Three rules apply at realm boundaries:
 //
 //  1. Do not ACCEPT a *CommonDAO from an external/untrusted caller.
 //  2. Do not RETURN a *CommonDAO from any function callable by untrusted
@@ -121,9 +122,10 @@ func (dao CommonDAO) ChildrenCount() int {
 // IterateChildren iterates the direct children DAOs.
 func (dao CommonDAO) IterateChildren(fn func(*CommonDAO) bool) (stopped bool) {
 	dao.children.ForEach(func(_ int, v any) bool {
-		return fn(v.(*CommonDAO))
+		stopped = fn(v.(*CommonDAO))
+		return stopped
 	})
-	return
+	return stopped
 }
 
 // TopParent returns the topmost parent DAO.

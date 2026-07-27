@@ -25,7 +25,9 @@ type (
 	}
 )
 
-// ReadonlyVotingRecord defines a read only voting record.
+// ReadonlyVotingRecord defines a read only voting record. It is a
+// point-in-time copy, not a live handle: fetch it, read it, and re-fetch
+// rather than holding it across votes.
 type ReadonlyVotingRecord struct {
 	votes bptree.BPTree // string(address) -> Vote
 	count bptree.BPTree // string(choice) -> int

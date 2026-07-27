@@ -90,7 +90,7 @@ type validatingExecPropDef struct {
 
 func (d validatingExecPropDef) Validate() error { return *d.err }
 
-// bareDef implements neither DefaultTallier nor CustomTallier.
+// bareDef does not implement DefaultTallier.
 type bareDef struct{}
 
 func (bareDef) Title() string               { return "Bare" }

@@ -65,8 +65,7 @@ dismissed the moment the outcome is mathematically settled** and an
 early-passed proposal may be executed before its deadline.
 
 Every proposal definition implements `DefaultTallier`; vote choices are
-fixed at YES/NO/ABSTAIN. (An earlier custom-tallier hook was removed as
-unconsumed — reintroducing one is purely additive.)
+fixed at YES/NO/ABSTAIN.
 
 ## Council changes
 

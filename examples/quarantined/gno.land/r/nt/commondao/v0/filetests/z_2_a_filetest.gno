@@ -29,9 +29,10 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
-	daoID := commondao.New(cross(cur), name, "", "")
+	daoID := commondao.New(cross(cur), name, "Root charter", "")
 
 	println(commondao.GetView(daoID).Name() == name)
+	println(commondao.GetView(daoID).Description())
 	println(commondao.IsOwner(realmAddr, daoID))
 	println(commondao.IsInvited(user))
 	println(commondao.GetOptions(cross(cur), daoID).AllowChildren)
@@ -39,6 +40,7 @@ func main(cur realm) {
 
 // Output:
 // true
+// Root charter
 // true
 // false
 // true

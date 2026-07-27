@@ -18,9 +18,9 @@ var (
 
 type testPropDef struct{}
 
-func (testPropDef) Title() string                               { return "" }
-func (testPropDef) Body() string                                { return "" }
-func (testPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
+func (testPropDef) Title() string                  { return "" }
+func (testPropDef) Body() string                   { return "" }
+func (testPropDef) VotingPeriod() time.Duration    { return time.Hour } // Voting ends in 1 hour
 func (testPropDef) Threshold() commondao.Threshold { return commondao.ThresholdSupermajority }
 
 func (testPropDef) Executor() commondao.ExecFunc {

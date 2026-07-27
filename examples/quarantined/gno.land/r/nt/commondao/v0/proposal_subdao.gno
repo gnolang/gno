@@ -63,6 +63,12 @@ func (p subDAOPropDefinition) Body() string {
 		md.Bold("SubDAO Name:") + "\n" + md.EscapeText(p.name),
 	))
 
+	if p.description != "" {
+		b.WriteString(md.Paragraph(
+			md.Bold("SubDAO Description:") + "\n" + md.EscapeText(p.description),
+		))
+	}
+
 	items := make([]string, 0, p.members.Size())
 	p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
 		items = append(items, addr.String())

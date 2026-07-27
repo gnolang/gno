@@ -40,7 +40,7 @@ roles use groups directly, as boards does).
 ### Boundary-enforced mutability
 
 `CommonDAO` keeps narrow exported mutators (`UpdateCouncil`,
-`SetDeleted`, `Dissolve`, `Propose`, `Vote`, `Execute`, `Withdraw`) and
+`Dissolve`, `Propose`, `Vote`, `Execute`, `Withdraw`) and
 the security rule is the groups-package idiom: **the hosting realm
 never returns or accepts `*CommonDAO`**; reads cross realm boundaries
 via recursive readonly views (`ReadonlyCommonDAO`, `ReadonlyProposal`).
@@ -49,11 +49,11 @@ definitions) was rejected: its "no dangerous exported
 mutators" invariant is unauditable (the dangerous surface includes
 `Vote(member,…)` spoofing, `Children()` returning a mutable list, and
 proposal-storage handles) and it would force realm-param
-authentication sprawl inside a data library. Five former leak points
-closed: `Get()` → ungated `GetView()`; `New`/`NewSubDAO` return the
-DAO ID (and seed the council at creation); `Iterator.DAO()` returns
-the view; `GetOptions()` returns a value copy (mutation via the new
-owner-gated `UpdateOptions`). `ReadonlyProposal` flattens
+authentication sprawl inside a data library. The former leak points were
+closed: `Get()` → ungated `GetView()`; creation entry points return
+the DAO ID (and seed the council at creation); `GetOptions()` returns
+a value copy (mutation via the owner-gated `UpdateOptions`).
+`ReadonlyProposal` flattens
 `Title()`/`Body()` and **never exposes `ProposalDefinition`** — a
 definition's `Executor()` is a bound method over realm state, so
 exposing it would let any holder execute pending proposals under the
@@ -209,8 +209,8 @@ ever materializes; see Alternatives.)
   one authority relay, `dao.Execute(id, cur)`, passes the realm's own
   genuine `cur`). AGENTS.md's blanket always-guard rule predates this
   distinction and should be reconciled with the interrealm ADR.
-- The realm's `New`/`NewSubDAO` accept a members parameter; ownership
-  and invitation flows are unchanged. The invite check deliberately
+- The realm's `New` accepts description and members parameters;
+  ownership and invitation flows are unchanged. The invite check deliberately
   uses `unsafe.OriginCaller()` (invitations target EOAs; an
   intermediary realm creating a DAO on an invited user's behalf
   consumes that user's invite while ownership vests in the caller) —
