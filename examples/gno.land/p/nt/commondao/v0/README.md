@@ -109,4 +109,4 @@ A `*CommonDAO` is a mutable handle for the realm that owns it:
    it is a live handle over the sender's data.
 
 See `gno.land/r/nt/commondao/v0` for the reference realm hosting many
-DAOs with ownership, invitations, options, and rendering.
+DAOs with invitations, council governance, treasuries, and rendering.

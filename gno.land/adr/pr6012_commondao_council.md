@@ -58,8 +58,8 @@ mutators" invariant is unauditable (the dangerous surface includes
 proposal-storage handles) and it would force realm-param
 authentication sprawl inside a data library. The former leak points were
 closed: `Get()` → ungated `GetView()`; creation entry points return
-the DAO ID (and seed the council at creation); `GetOptions()` returns
-a value copy (mutation via the owner-gated `UpdateOptions`).
+the DAO ID (and seed the council at creation); the owner/`GetOptions`
+surface referenced here was later removed (see Consequences).
 `ReadonlyProposal` flattens
 `Title()`/`Body()` and **never exposes `ProposalDefinition`** — a
 definition's `Executor()` is a bound method over realm state, so
@@ -137,8 +137,9 @@ Statuses:
 `StatusRejected` → `StatusDismissed`; `StatusFailed` is reserved for
 validation/executor errors. Realm-side, past-deadline `Execute` is
 permissionless (the tally is deterministic); pre-deadline execution of
-early-passed proposals keeps the `AllowExecution` + council-member
-gates.
+early-passed proposals keeps the council-member gate (the
+`AllowExecution` flag was later removed — see the superseding note in
+Consequences).
 
 ### Built-in thresholds (quorum/plurality removal is required)
 
@@ -221,25 +222,20 @@ ever materializes; see Alternatives.)
   one authority relay, `dao.Execute(id, cur)`, passes the realm's own
   genuine `cur`). AGENTS.md's blanket always-guard rule predates this
   distinction and should be reconciled with the interrealm ADR.
-- The realm's `New` accepts description and members parameters;
-  ownership and invitation flows are unchanged. The invite check deliberately
-  uses `unsafe.OriginCaller()` (invitations target EOAs; an
-  intermediary realm creating a DAO on an invited user's behalf
-  consumes that user's invite while ownership vests in the caller) —
-  confirmed intended, pre-existing behavior.
-- The realm's owner/Options layer is a host-administration surface
-  only: `Options` carries exactly the hosting concerns (`AllowListing`,
-  `AllowRender`, `AllowChildren`, `AllowExecution` for pre-deadline
-  execution) plus the proposal cap, set through a flat, CLI-callable
-  `UpdateOptions`. Governance powers (text, council update, treasury
-  and dissolution proposals) follow the Common DAO Spec defaults and
-  cannot be switched off — an earlier per-type flag layer defaulted
-  everything off (producing DAOs that could pass no proposal) behind
-  variadic option closures unreachable from `maketx call`, and was
-  removed by the same review that removed owner-direct `NewSubDAO`:
-  sub-DAO creation flows only through the `:1504` simple-majority
-  proposal, gated by `AllowChildren`. `New` takes a description so the
-  Charter (`:1485`) has a creation-time slot.
+- The realm's `New` accepts description and members parameters. The
+  invite check deliberately uses `unsafe.OriginCaller()` (invitations
+  target EOAs) — confirmed intended, pre-existing behavior. `New` takes
+  a description so the Charter (`:1485`) has a creation-time slot.
+- **Superseded — see `pr6012_commondao_ownership_rescope.md`.** This PR
+  originally shipped an owner/`Options` host layer (`AllowListing`,
+  `AllowRender`, `AllowChildren`, `AllowExecution`, an owner-tunable
+  cap, `GetOptions`/`UpdateOptions`/`TransferOwnership`). A later design
+  review on the same branch removed it entirely: authority now follows
+  only the spec's two axes (a DAO's own council; its parent chain), the
+  sole surviving host bit is an opt-in `listed` flag, and creation
+  gating moved to an origin-keyed `creators` set. The paragraphs below
+  and any earlier reference to `GetOptions`/`UpdateOptions`/owner gates
+  describe the removed layer.
 - Sub-DAOs of a dissolved parent are currently un-dissolvable (their
   dissolution proposal is hosted in the deleted parent, which rejects
   proposals); the treasury PR's nearest-live-ancestor rescue covers
