@@ -91,7 +91,7 @@ type multiStore struct {
 	//   rs.acquire()             (snapshot already closed!)
 	//   rs.snap.Get(...)         ← use-after-free / panic
 	//
-	// snapshotMu prevents this: MultiImmutableCacheWrapWithVersion holds it
+	// snapshotMu prevents this: immutableAtVersion (the query paths) holds it
 	// as an RLock around Load+acquire, and refreshQuerySnapshot (Commit /
 	// LoadVersion) holds it as a write-lock around Swap+release. Because the
 	// write-lock excludes all RLocks, no release() can reach zero while a
@@ -102,6 +102,7 @@ type multiStore struct {
 var (
 	_ types.CommitMultiStore = (*multiStore)(nil)
 	_ types.Queryable        = (*multiStore)(nil)
+	_ types.ImmutableQueryer = (*multiStore)(nil)
 )
 
 func NewMultiStore(db dbm.DB) *multiStore {
@@ -383,8 +384,12 @@ func (ms *multiStore) MultiWrite() {
 	panic("unexpected .MultiWrite() on rootmulti.Store. Commit()?")
 }
 
-// Implements CommitMultiStore.
-func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, func(), error) {
+// immutableAtVersion builds a read-only multiStore over the frozen post-commit
+// query snapshot (or an ImmutableDB over the live DB on backends without
+// snapshot support), loaded at version. The returned release func MUST be
+// called when done — it drops the snapshot reference that blocks Commit from
+// closing the snapshot mid-read.
+func (ms *multiStore) immutableAtVersion(version int64) (*multiStore, func(), error) {
 	var db dbm.DB
 	var release func()
 
@@ -398,7 +403,8 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 		db = dbm.NewSnapshotDB(rs.snap)
 	} else {
 		// Backend doesn't support snapshots (e.g. non-PebbleDB in tests).
-		// Fall back to ImmutableDB over the live DB — same behaviour as before.
+		// Fall back to ImmutableDB over the live DB — unisolated reads, but
+		// write-proof (read-only no-op batches).
 		release = func() {}
 		db = dbm.NewImmutableDB(ms.db)
 	}
@@ -416,12 +422,41 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 		release() // don't leak the snapshot ref on error
 		return nil, nil, err
 	}
+	return ims, release, nil
+}
 
+// Implements CommitMultiStore.
+func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, func(), error) {
+	ims, release, err := ms.immutableAtVersion(version)
+	if err != nil {
+		return nil, nil, err
+	}
 	stores := make(map[types.StoreKey]types.Store, len(ims.stores))
 	for storeKey, store := range ims.stores {
 		stores[storeKey] = immut.New(store)
 	}
 	return cachemulti.New(stores, ims.keysByName), release, nil
+}
+
+// QueryImmutable serves an ABCI store query from the frozen post-commit
+// snapshot at req.Height — the same isolation MultiImmutableCacheWrapWithVersion
+// gives custom queries — so .store queries on the concurrent query connection
+// never read live mutable store state. A non-nil error means no snapshot view
+// could be built for that height (height <= 0 pre-first-commit, pruned
+// heights); the caller is expected to fall back to the legacy live-query path,
+// preserving the existing response surface for those corners.
+func (ms *multiStore) QueryImmutable(req abci.RequestQuery) (abci.ResponseQuery, error) {
+	if req.Height <= 0 {
+		// No committed state to snapshot (and LoadVersion(0) would silently
+		// serve empty stores rather than the legacy height-resolution).
+		return abci.ResponseQuery{}, fmt.Errorf("no committed state at height %d", req.Height)
+	}
+	ims, release, err := ms.immutableAtVersion(req.Height)
+	if err != nil {
+		return abci.ResponseQuery{}, err
+	}
+	defer release()
+	return ims.Query(req), nil
 }
 
 // Implements MultiStore.

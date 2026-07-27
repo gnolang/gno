@@ -58,6 +58,15 @@ type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
 }
 
+// ImmutableQueryer is the optional capability of serving a store query from a
+// frozen post-commit snapshot, so queries running concurrently with commits
+// (the query ABCI connection has its own mutex) never read live mutable store
+// state. A non-nil error means no snapshot view exists for req.Height (e.g.
+// pre-first-commit, pruned height); callers fall back to Queryable.
+type ImmutableQueryer interface {
+	QueryImmutable(req abci.RequestQuery) (abci.ResponseQuery, error)
+}
+
 // Useful for debugging.
 type Printer interface {
 	Print()
