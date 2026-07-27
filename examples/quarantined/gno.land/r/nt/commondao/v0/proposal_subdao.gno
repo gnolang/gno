@@ -170,6 +170,11 @@ func (p dissolvePropDefinition) execute(cur realm) error {
 		b.SendCoins(sub.Address(), dest, balance)
 	}
 
+	// Drop the DAO from the home index: a dissolved DAO can no longer be
+	// unlisted through SetListed (it rejects deleted DAOs), so unlist it
+	// here rather than leave it stuck in the listing.
+	setListed(p.dao.ID(), false)
+
 	// Dissolution voids the DAO's in-flight proposals before soft deleting
 	// it, so nothing remains pending on a DAO that rejects execution.
 	p.dao.Dissolve("DAO dissolved")

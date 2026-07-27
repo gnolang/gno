@@ -236,7 +236,8 @@ ever materializes; see Alternatives.)
   gating moved to an origin-keyed `creators` set. The paragraphs below
   and any earlier reference to `GetOptions`/`UpdateOptions`/owner gates
   describe the removed layer.
-- Sub-DAOs of a dissolved parent are currently un-dissolvable (their
-  dissolution proposal is hosted in the deleted parent, which rejects
-  proposals); the treasury PR's nearest-live-ancestor rescue covers
-  this, and no funds are at stake before treasuries exist.
+- Sub-DAOs of a dissolved parent remain dissolvable: the treasury
+  follow-up added nearest-live-ancestor hosting to
+  `CreateDissolutionProposal` (their dissolution proposal climbs to the
+  nearest non-deleted ancestor), so the "un-dissolvable orphan" concern
+  noted during the council PR is resolved at branch HEAD.
