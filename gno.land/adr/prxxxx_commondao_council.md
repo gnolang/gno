@@ -190,11 +190,12 @@ keep full freedom via the `CustomTallier` interface.
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and 73 realm filetests (59 migrated, 14 added for the new
+  cleanly) and 73 realm filetests at this stage (59 migrated, 14 added for the new
   surface, including render goldens that pin both escaping of
   user-controlled text (names, bodies, vote reasons) and correct
   formatting of the built-in proposals' markdown bodies, plus a
-  dissolved-parent sub-DAO rejection).
+  dissolved-parent sub-DAO rejection). The treasury follow-up ADR adds
+  more on the same branch.
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
 - The realm's crossing functions deliberately do **not** open with

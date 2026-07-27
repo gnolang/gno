@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/commondao/v0"
 )
 
 // CreateTextProposal creates a new general text proposal.
@@ -39,12 +40,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 	}
 
 	def := NewTextPropDefinition(title, body, votingPeriod)
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateCouncilUpdateProposal creates a new proposal to add and/or remove
@@ -67,16 +63,7 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	toAdd := mustParseStringToAddrset(newMembers)
 	toRemove := mustParseStringToAddrset(removeMembers)
 	def := newCouncilUpdatePropDefinition(dao, toAdd, toRemove)
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = p.Validate(); err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateSubDAOProposal creates a new proposal to create a new SubDAO.
@@ -97,16 +84,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 
 	daoMembers := mustParseStringToAddrset(members)
 	def := newSubDAOPropDefinition(dao, name, &daoMembers)
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = p.Validate(); err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateDissolutionProposal creates a new proposal to dissolve a DAO or SubDAO.
@@ -146,16 +124,7 @@ func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uin
 	assertCallerIsCouncilMember(caller, dao)
 
 	def := newDissolvePropDefinition(dissolveDAO, destination)
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = p.Validate(); err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateTreasurySpendProposal creates a new proposal to send coins from
@@ -177,16 +146,7 @@ func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom stri
 	assertCallerIsCouncilMember(caller, dao)
 
 	def := newTreasurySpendPropDefinition(dao, to, chain.NewCoin(denom, amount))
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = p.Validate(); err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateTreasuryClawbackProposal creates a new proposal for an ancestor
@@ -210,16 +170,7 @@ func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 
 	target := mustGetDAO(targetID)
 	def := newTreasuryClawbackPropDefinition(dao, target)
-	p, err := dao.Propose(caller, def)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = p.Validate(); err != nil {
-		panic(err)
-	}
-
-	return p.ID()
+	return mustPropose(dao, caller, def)
 }
 
 // CreateTreasuryFreezeProposal creates a new proposal for an ancestor DAO
@@ -243,6 +194,13 @@ func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool
 
 	target := mustGetDAO(targetID)
 	def := newTreasuryFreezePropDefinition(dao, target, frozen)
+	return mustPropose(dao, caller, def)
+}
+
+// mustPropose submits a proposal and validates it for the current state,
+// panicking on any error. Validation also reruns inside Execute, so this
+// only fails fast at creation.
+func mustPropose(dao *commondao.CommonDAO, caller address, def commondao.ProposalDefinition) uint64 {
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)

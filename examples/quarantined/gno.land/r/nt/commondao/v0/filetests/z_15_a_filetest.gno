@@ -39,9 +39,14 @@ func main() {
 	// The address is a pure derivation from the realm path and DAO ID
 	derived := chain.DerivePkgSubAddr("gno.land/r/nt/commondao/v0", "dao/"+strconv.FormatUint(daoA, 10))
 	println("derived:", a == derived)
+
+	// The genesis DAO carries a derived address too
+	g := commondao.GetView(1).Address()
+	println("genesis:", g == chain.DerivePkgSubAddr("gno.land/r/nt/commondao/v0", "dao/1"))
 }
 
 // Output:
 // valid: true
 // distinct: true
 // derived: true
+// genesis: true

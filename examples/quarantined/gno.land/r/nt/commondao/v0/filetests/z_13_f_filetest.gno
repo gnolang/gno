@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_12_a_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_13_f_filetest
 
-package z_12_a_filetest
+package z_13_f_filetest
 
 import (
 	"chain"
@@ -29,35 +29,36 @@ func init(cur realm) {
 	rootID = commondao.New(cross(cur), "Root", "",
 		commondao.AllowChildren(true),
 		commondao.AllowTreasuryProposals(true),
+		commondao.AllowDissolutionProposals(true),
 	)
 	subID = commondao.NewSubDAO(cross(cur), "Sub", rootID, "")
 
-	testing.IssueCoins(commondao.GetView(subID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 750)))
+	testing.IssueCoins(commondao.GetView(subID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 800)))
+
+	fID := commondao.CreateTreasuryFreezeProposal(cross(cur), rootID, subID, true)
+	commondao.Vote(cross(cur), rootID, fID, pdao.ChoiceYes, "")
+	commondao.Execute(cross(cur), rootID, fID)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// The ancestor claws back the sub-DAO treasury at simple majority
-	pID := commondao.CreateTreasuryClawbackProposal(cross(cur), rootID, subID)
+	// A frozen treasury does not block dissolution: the sweep sends the
+	// funds where a clawback would put them
+	pID := commondao.CreateDissolutionProposal(cross(cur), subID, "")
 	commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), rootID, pID)
 
+	view := commondao.GetView(subID)
+	println("deleted:", view.IsDeleted())
+	println("frozen:", view.IsTreasuryFrozen())
 	b := banker.NewReadonlyBanker()
-	println("sub treasury:", b.GetCoins(commondao.GetView(subID).Address()).String())
-	println("root treasury:", b.GetCoins(commondao.GetView(rootID).Address()).String())
-
-	// Clawing back an already-empty treasury executes as a no-op
-	pID = commondao.CreateTreasuryClawbackProposal(cross(cur), rootID, subID)
-	commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
-	commondao.Execute(cross(cur), rootID, pID)
-	p, _ := commondao.GetView(rootID).GetProposal(pID)
-	println("empty clawback:", string(p.Status()))
+	println("sub treasury:", b.GetCoins(view.Address()).String())
 	println("root treasury:", b.GetCoins(commondao.GetView(rootID).Address()).String())
 }
 
 // Output:
+// deleted: true
+// frozen: true
 // sub treasury:
-// root treasury: 750ugnot
-// empty clawback: executed
-// root treasury: 750ugnot
+// root treasury: 800ugnot

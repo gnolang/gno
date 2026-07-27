@@ -113,11 +113,20 @@ council has authority over it; documented, accepted.
   (breaking; quarantined realm, no live state). `Options` gains
   `AllowTreasuryProposals` (default off).
 - Package surface: `WithAddress`, `Address()`, `SetTreasuryFrozen`,
-  `IsTreasuryFrozen`, mirrored on `ReadonlyCommonDAO`.
+  `IsTreasuryFrozen`; the getters (never the mutator) are mirrored on
+  `ReadonlyCommonDAO`.
 - Render: DAO pages show the treasury address, live balances
-  (readonly banker), and a frozen warning.
-- 18 new filetests (z_11 spend lifecycle/gates, z_12 clawback,
-  z_13 dissolution sweeps + orphan rescue, z_14 freeze, z_15 address
-  stability) plus definition unit tests; no funds can move without a
-  passed proposal — the only `SendCoins` call sites are the three
-  executors above.
+  (readonly banker), and a frozen warning; the genesis DAO enables
+  treasury and dissolution proposals so donated funds stay governable
+  (its options are otherwise immutable — the owner is the realm's own
+  address).
+- Validation and rendering read the stored address while executors
+  spend from the freshly minted sub-identity; both flow from the single
+  `newDAOOptions` construction funnel (`WithAddress(daoAddress(id))`)
+  and z_15_a pins the equality on-chain.
+- 25 new filetests (z_11 spend lifecycle/gates, z_12 clawback incl.
+  the grandparent case pinning the fixed parent destination, z_13
+  dissolution sweeps + orphan rescue, z_14 freeze, z_15 address
+  stability, z_10_d treasury rendering) plus definition unit tests; no
+  funds can move without a passed proposal — the only `SendCoins` call
+  sites are the three executors above.

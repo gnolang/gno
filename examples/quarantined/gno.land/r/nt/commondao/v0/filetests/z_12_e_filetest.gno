@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_13_d_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_12_e_filetest
 
-package z_13_d_filetest
+package z_12_e_filetest
 
 import (
 	"chain"
@@ -29,40 +29,30 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	rootID = commondao.New(cross(cur), "Root", "",
 		commondao.AllowChildren(true),
-		commondao.AllowDissolutionProposals(true),
+		commondao.AllowTreasuryProposals(true),
 	)
 	midID = commondao.NewSubDAO(cross(cur), "Mid", rootID, "")
 	leafID = commondao.NewSubDAO(cross(cur), "Leaf", midID, "")
 
-	testing.IssueCoins(commondao.GetView(leafID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 150)))
-
-	// Dissolve the middle DAO first, orphaning the leaf
-	pID := commondao.CreateDissolutionProposal(cross(cur), midID, "")
-	commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
-	commondao.Execute(cross(cur), rootID, pID)
+	testing.IssueCoins(commondao.GetView(leafID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 420)))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// The leaf's dissolution proposal is hosted in the nearest live
-	// ancestor (the root), because its parent is already dissolved
-	pID := commondao.CreateDissolutionProposal(cross(cur), leafID, "")
+	// The grandparent proposes; swept funds must land on the target's
+	// parent (one step up the tree), never on the proposing DAO
+	pID := commondao.CreateTreasuryClawbackProposal(cross(cur), rootID, leafID)
 	commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), rootID, pID)
 
-	println("mid deleted:", commondao.GetView(midID).IsDeleted())
-	println("leaf deleted:", commondao.GetView(leafID).IsDeleted())
-
-	// The orphan's sweep goes to its (deleted) parent's treasury, where
-	// the funds stay clawback-rescuable by the live root
 	b := banker.NewReadonlyBanker()
 	println("leaf treasury:", b.GetCoins(commondao.GetView(leafID).Address()).String())
 	println("mid treasury:", b.GetCoins(commondao.GetView(midID).Address()).String())
+	println("root treasury:", b.GetCoins(commondao.GetView(rootID).Address()).String())
 }
 
 // Output:
-// mid deleted: true
-// leaf deleted: true
 // leaf treasury:
-// mid treasury: 150ugnot
+// mid treasury: 420ugnot
+// root treasury:

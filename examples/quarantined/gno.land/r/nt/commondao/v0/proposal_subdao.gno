@@ -51,7 +51,7 @@ func (p subDAOPropDefinition) Body() string {
 	var b strings.Builder
 
 	b.WriteString(md.Paragraph(
-		md.Bold("Parent DAO:") + "\n" + md.Link(p.parent.Name(), daoURL(p.parent.ID())),
+		md.Bold("Parent DAO:") + "\n" + daoMDLink(p.parent),
 	))
 
 	b.WriteString(md.Paragraph(
@@ -145,7 +145,7 @@ func (p dissolvePropDefinition) Body() string {
 	var b strings.Builder
 
 	b.WriteString(md.Bold("DAO:") + "\n")
-	b.WriteString(md.Link(p.dao.Name(), daoURL(p.dao.ID())))
+	b.WriteString(daoMDLink(p.dao))
 
 	return b.String()
 }

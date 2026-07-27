@@ -16,6 +16,9 @@
 // deadline are dismissed. Custom talliers are evaluated once, at the
 // deadline.
 //
+// A DAO may carry a treasury address and frozen flag; the package only
+// stores them - hosting realms derive the address and move the funds.
+//
 // A *CommonDAO is a mutable handle for the realm that owns it: never
 // accept one from, or return one to, an untrusted realm - readonly views
 // (CommonDAO.Readonly) are the only safe handles to cross a realm

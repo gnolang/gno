@@ -16,6 +16,8 @@ CommonDAO
 ├── active proposals:   active + early passed, each with an electorate
 │                       snapshot and voting record
 ├── finished proposals: dismissed / executed / failed / withdrawn
+├── treasury:           a derived address + frozen flag (funds moved by
+│                       the hosting realm, never by this package)
 └── children:           sub-DAOs (each a CommonDAO with a parent pointer)
 ```
 
@@ -88,6 +90,15 @@ validating; active: after the deadline, dismissing undecided
 proposals) or `Withdraw` (active, zero votes). `Dissolve` dismisses
 every in-flight proposal and soft deletes the DAO; deleted DAOs reject
 proposals, votes, and executions.
+
+## Treasury
+
+The package stores a treasury `address` (`WithAddress`, `Address()`) and
+a frozen flag (`SetTreasuryFrozen`, `IsTreasuryFrozen`) but never moves
+funds — hosting realms derive the address (typically a realm
+sub-identity via `chain.DerivePkgSubAddr`), mint `cur.Sub(...)` in
+proposal executors, and enforce the frozen flag there. See the
+reference realm's treasury proposals for the constitutional pattern.
 
 ## Realm boundaries
 

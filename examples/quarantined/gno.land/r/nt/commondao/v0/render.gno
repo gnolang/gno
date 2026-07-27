@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain/banker"
 	"strconv"
 	"strings"
 	"time"
@@ -188,6 +187,15 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
+	if o.AllowTreasuryProposals {
+		cols = append(cols, md.Paragraph(treasurySpendLink(daoID))+
+			md.Paragraph(
+				"This type of proposal sends coins from the DAO's own treasury "+
+					"when it passes and is executed.",
+			),
+		)
+	}
+
 	if o.AllowCouncilUpdate {
 		cols = append(cols, md.Paragraph(updateCouncilLink(daoID))+
 			md.Paragraph(
@@ -214,7 +222,7 @@ func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 	res.Write(md.H2("Treasury"))
 	res.Write(md.BulletItem("Address: " + string(dao.Address())))
 
-	balance := banker.NewReadonlyBanker().GetCoins(dao.Address())
+	balance := treasuryBalance(dao)
 	if balance.IsZero() {
 		res.Write(md.BulletItem("Balance: (empty)"))
 	} else {
@@ -633,6 +641,17 @@ func dissolveSubDAOLink(daoID uint64) string {
 	return md.Link("Dissolve DAO", realmLink.Call(
 		"CreateDissolutionProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
+		"destination", "",
+	))
+}
+
+func treasurySpendLink(daoID uint64) string {
+	return md.Link("Treasury Spend", realmLink.Call(
+		"CreateTreasurySpendProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"to", "",
+		"denom", "ugnot",
+		"amount", "",
 	))
 }
 
