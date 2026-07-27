@@ -674,7 +674,58 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	})
 	uassert.Equal(t, 1, visited)
 
+	// Registering dao as a child of parent is visible through the view
+	parent.Children().Append(dao)
+	uassert.Equal(t, 1, parentView.ChildrenCount())
+	childID := uint64(0)
+	parentView.IterateChildren(func(child commondao.ReadonlyCommonDAO) bool {
+		childID = child.ID()
+		return false
+	})
+	uassert.Equal(t, uint64(7), childID)
+
+	// A withdrawn proposal is visible through the finished-proposals view
+	fp := dao.MustPropose(memberA, propDef{period: time.Hour})
+	urequire.NoError(t, dao.Withdraw(fp.ID()))
+	uassert.Equal(t, 1, view.FinishedProposalsSize())
+	finished := 0
+	view.IterateFinishedProposals(0, 10, false, func(commondao.ReadonlyProposal) bool {
+		finished++
+		return false
+	})
+	uassert.Equal(t, 1, finished)
+
+	// Recorded votes are visible through the voting-record view
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	pv, _ = view.GetProposal(p.ID())
+	yes := 0
+	pv.VotingRecord().IterateVotesCount(func(c commondao.VoteChoice, count int) bool {
+		if c == commondao.ChoiceYes {
+			yes = count
+		}
+		return false
+	})
+	uassert.Equal(t, 1, yes)
+
 	// Views are live handles
 	dao.SetDeleted(true)
 	uassert.True(t, view.IsDeleted())
+}
+
+func TestSetMaxActiveProposals(t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA))
+
+	dao.SetMaxActiveProposals(2)
+	_ = dao.MustPropose(memberA, propDef{period: time.Hour})
+	_ = dao.MustPropose(memberA, propDef{period: time.Hour})
+	_, err := dao.Propose(memberA, propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+
+	// Values below the floor are ignored (the floor is 1, not 0/negative)
+	dao.SetMaxActiveProposals(0)
+	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+	dao.SetMaxActiveProposals(-5)
+	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 }
