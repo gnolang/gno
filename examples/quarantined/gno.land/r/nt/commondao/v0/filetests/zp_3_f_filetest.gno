@@ -27,7 +27,7 @@ func init(cur realm) {
 	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(true))
 
 	// Dissolve the DAO through a proposal decided by supermajority
-	pID := commondao.CreateDissolutionProposal(cross(cur), daoID)
+	pID := commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 	commondao.Vote(cross(cur), daoID, pID, pcommondao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 }
@@ -36,7 +36,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// A dissolved DAO rejects new proposals
-	commondao.CreateDissolutionProposal(cross(cur), daoID)
+	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 }
 
 // Error:

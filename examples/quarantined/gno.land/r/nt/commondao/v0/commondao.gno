@@ -1,18 +1,26 @@
 package commondao
 
 import (
+	"chain"
+	"strconv"
+
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
+// pkgPath is this realm's package path, fixed regardless of quarantine
+// location. DAO treasury addresses derive from it, so they are stable
+// across logic upgrades.
+const pkgPath = "gno.land/r/nt/commondao/v0"
+
 // CommonDAOID is the ID of the realm's DAO.
 const CommonDAOID uint64 = 1
 
 var (
 	daoID     seqid.ID
-	realmLink = txlink.Realm("gno.land/r/nt/commondao/v0")
+	realmLink = txlink.Realm(pkgPath)
 	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
 	ownership = bptree.NewBPTree32() // string(address) -> []uint64(DAO ID)
 	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
@@ -61,6 +69,19 @@ func getOptions(daoID uint64) *Options {
 
 func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
+}
+
+// subpathOf returns the realm sub-identity subpath that acts for a DAO.
+func subpathOf(daoID uint64) string {
+	return "dao/" + strconv.FormatUint(daoID, 10)
+}
+
+// daoAddress derives a DAO's treasury address: the address of the realm
+// sub-identity cur.Sub(subpathOf(daoID)) that executors mint to move its
+// funds. Pure derivation; DAO IDs are never reused, so the address is
+// collision free and stable.
+func daoAddress(daoID uint64) address {
+	return chain.DerivePkgSubAddr(pkgPath, subpathOf(daoID))
 }
 
 func createDAO(name string, owner address, o []Option, members ...address) *commondao.CommonDAO {
@@ -121,6 +142,7 @@ func newDAOOptions(id uint64, name string, parent *commondao.CommonDAO, o Option
 	opts := []commondao.Option{
 		commondao.WithID(id),
 		commondao.WithName(name),
+		commondao.WithAddress(daoAddress(id)),
 	}
 	if parent != nil {
 		opts = append(opts, commondao.WithParent(parent))

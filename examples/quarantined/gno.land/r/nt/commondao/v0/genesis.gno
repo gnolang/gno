@@ -10,6 +10,7 @@ func init(cur realm) {
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
 		commondao.WithName("Common DAO"),
+		commondao.WithAddress(daoAddress(uint64(id))),
 		commondao.WithDescription(
 			"This DAO is responsible for managing `commondao` realm functionalities.",
 		),

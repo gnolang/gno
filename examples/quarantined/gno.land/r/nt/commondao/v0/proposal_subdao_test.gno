@@ -97,10 +97,10 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	dao := newTestDAO(t, "Root3", member)
 
 	urequire.PanicsWithMessage(t, cur, "SubDAO is required", func() {
-		newDissolvePropDefinition(nil)
+		newDissolvePropDefinition(nil, "")
 	})
 
-	def := newDissolvePropDefinition(dao)
+	def := newDissolvePropDefinition(dao, member)
 	uassert.Equal(t, "Dissolve DAO: Root3", def.Title())
 	uassert.Equal(t, int(commondao.ThresholdSupermajority), int(def.Threshold()))
 	uassert.NoError(t, def.Validate())

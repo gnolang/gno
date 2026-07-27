@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_3_d_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_11_b_filetest
 
-package zp_3_d_filetest
+package z_11_b_filetest
 
 import (
 	"testing"
@@ -20,15 +20,14 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross(cur), "Foo", "")
-
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(false))
 }
 
 func main(cur realm) {
-	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
+	testing.SetRealm(testing.NewUserRealm(user))
+
+	commondao.CreateTreasurySpendProposal(cross(cur), daoID, owner, "ugnot", 1)
 }
 
 // Error:
-// dissolution proposals are not enabled
+// treasury proposals are not enabled

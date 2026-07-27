@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"chain"
 	"strings"
 	"time"
 
@@ -111,15 +112,28 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 
 // CreateDissolutionProposal creates a new proposal to dissolve a DAO or SubDAO.
 //
 // SubDAOs can only be dissolved by the parent DAO, which owns and
-// controls its sub-DAOs (docs/CONSTITUTION.md :1507).
+// controls its sub-DAOs (docs/CONSTITUTION.md :1507). When the parent is
+// itself already dissolved, the proposal is hosted in the nearest
+// non-dissolved ancestor, so orphans below a dissolved middle DAO remain
+// dissolvable.
+//
+// Dissolution sweeps any remaining treasury balance. A sub-DAO's sweep
+// goes to its parent and destination must be empty; a root DAO has no
+// parent, so a valid destination address is required.
 //
 // Parameters:
 // - daoID: ID of the DAO to dissolve (required)
-func CreateDissolutionProposal(cur realm, daoID uint64) uint64 {
-	// When DAO to dissolve is a SubDAO make sure that proposal is created in the parent DAO
+// - destination: sweep destination, root DAOs only
+func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uint64 {
+	// When DAO to dissolve is a SubDAO make sure that proposal is created
+	// in the parent DAO, or in the nearest non-dissolved ancestor when
+	// parents were dissolved first.
 	dao := mustGetDAO(daoID)
 	dissolveDAO := dao
 	if parent := dao.Parent(); parent != nil {
+		for parent.IsDeleted() && parent.Parent() != nil {
+			parent = parent.Parent()
+		}
 		dao = parent
 	}
 
@@ -131,7 +145,104 @@ func CreateDissolutionProposal(cur realm, daoID uint64) uint64 {
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newDissolvePropDefinition(dissolveDAO)
+	def := newDissolvePropDefinition(dissolveDAO, destination)
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
+
+// CreateTreasurySpendProposal creates a new proposal to send coins from
+// the DAO's own treasury (docs/CONSTITUTION.md :1542-1543).
+//
+// Parameters:
+// - daoID: ID of the DAO whose treasury is spent (required)
+// - to: recipient address (required)
+// - denom: coin denomination, e.g. "ugnot" (required)
+// - amount: coin amount, must be positive (required)
+func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom string, amount int64) uint64 {
+	dao := mustGetDAO(daoID)
+	o := getOptions(daoID)
+	if !o.AllowTreasuryProposals {
+		panic("treasury proposals are not enabled")
+	}
+
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	def := newTreasurySpendPropDefinition(dao, to, chain.NewCoin(denom, amount))
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
+
+// CreateTreasuryClawbackProposal creates a new proposal for an ancestor
+// DAO to sweep a descendant DAO's full treasury balance to the target's
+// parent (docs/CONSTITUTION.md :1507). The proposing DAO must be a
+// proper ancestor of the target; a target's own options can never block
+// an ancestor's clawback.
+//
+// Parameters:
+// - daoID: ID of the proposing ancestor DAO (required)
+// - targetID: ID of the descendant DAO to claw back (required)
+func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
+	dao := mustGetDAO(daoID)
+	o := getOptions(daoID)
+	if !o.AllowTreasuryProposals {
+		panic("treasury proposals are not enabled")
+	}
+
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	target := mustGetDAO(targetID)
+	def := newTreasuryClawbackPropDefinition(dao, target)
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
+
+// CreateTreasuryFreezeProposal creates a new proposal for an ancestor DAO
+// to freeze or unfreeze a descendant DAO's treasury. While frozen, no
+// treasury spend can execute. Only a proper ancestor can unfreeze — the
+// frozen DAO's own council cannot.
+//
+// Parameters:
+// - daoID: ID of the proposing ancestor DAO (required)
+// - targetID: ID of the descendant DAO to freeze or unfreeze (required)
+// - frozen: true to freeze the target's treasury, false to unfreeze
+func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool) uint64 {
+	dao := mustGetDAO(daoID)
+	o := getOptions(daoID)
+	if !o.AllowTreasuryProposals {
+		panic("treasury proposals are not enabled")
+	}
+
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	target := mustGetDAO(targetID)
+	def := newTreasuryFreezePropDefinition(dao, target, frozen)
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)

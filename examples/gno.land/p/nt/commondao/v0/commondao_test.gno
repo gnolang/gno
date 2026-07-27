@@ -712,6 +712,24 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	uassert.True(t, view.IsDeleted())
 }
 
+func TestAddressAndTreasuryFrozen(t *testing.T) {
+	dao := commondao.New(commondao.WithAddress(memberA))
+	uassert.Equal(t, string(memberA), string(dao.Address()))
+
+	view := dao.Readonly()
+	uassert.Equal(t, string(memberA), string(view.Address()))
+
+	// Unset addresses are empty
+	uassert.Equal(t, "", string(commondao.New().Address()))
+
+	uassert.False(t, dao.IsTreasuryFrozen())
+	dao.SetTreasuryFrozen(true)
+	uassert.True(t, dao.IsTreasuryFrozen())
+	uassert.True(t, view.IsTreasuryFrozen())
+	dao.SetTreasuryFrozen(false)
+	uassert.False(t, view.IsTreasuryFrozen())
+}
+
 func TestSetMaxActiveProposals(t *testing.T) {
 	dao := commondao.New(commondao.WithCouncilMember(memberA))
 

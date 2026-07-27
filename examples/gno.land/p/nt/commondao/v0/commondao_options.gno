@@ -24,6 +24,15 @@ func WithDescription(description string) Option {
 	}
 }
 
+// WithAddress assigns a treasury address to the DAO. Hosting realms
+// derive it, typically as a realm sub-identity address
+// (chain.DerivePkgSubAddr) so each DAO owns a distinct account.
+func WithAddress(addr address) Option {
+	return func(dao *CommonDAO) {
+		dao.addr = addr
+	}
+}
+
 // WithParent assigns a parent DAO.
 func WithParent(p *CommonDAO) Option {
 	return func(dao *CommonDAO) {

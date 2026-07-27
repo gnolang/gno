@@ -30,7 +30,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateDissolutionProposal(cross(cur), daoID)
+	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 }
 
 // Error:

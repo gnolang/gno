@@ -30,7 +30,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateDissolutionProposal(cross(cur), daoID)
+	pID := commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 
 	p, found := commondao.GetView(daoID).GetProposal(pID)
 	if !found {

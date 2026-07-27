@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"chain/banker"
 	"strconv"
 	"strings"
 	"time"
@@ -109,6 +110,8 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		renderCouncil(res, req.RawPath, council)
 	}
 
+	renderTreasury(res, dao)
+
 	// Render organization tree
 	if dao.Children().Len() > 0 {
 		r := parseRealmPath(req.RawPath)
@@ -207,6 +210,22 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 	res.Write(md.Columns(cols, false))
 }
 
+func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
+	res.Write(md.H2("Treasury"))
+	res.Write(md.BulletItem("Address: " + string(dao.Address())))
+
+	balance := banker.NewReadonlyBanker().GetCoins(dao.Address())
+	if balance.IsZero() {
+		res.Write(md.BulletItem("Balance: (empty)"))
+	} else {
+		res.Write(md.BulletItem("Balance: " + balance.String()))
+	}
+
+	if dao.IsTreasuryFrozen() {
+		res.Write(md.Paragraph(md.Bold("⚠ The treasury is frozen: spends cannot execute until a proper ancestor DAO unfreezes it")))
+	}
+}
+
 func renderCouncil(res *mux.ResponseWriter, path string, council *addrset.ReadonlySet) {
 	pages, err := pager.New(path, council.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
 	if err != nil {
@@ -270,6 +289,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
 	table.Append([]string{"Council update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
 	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
+	table.Append([]string{"Treasury proposals", strconv.FormatBool(o.AllowTreasuryProposals)})
 	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
 
 	res.Write(md.H2("Options"))

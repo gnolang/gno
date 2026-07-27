@@ -40,6 +40,10 @@ type Options struct {
 	// AllowSubDAOProposals allows creating SubDAOs through proposals.
 	AllowSubDAOProposals bool
 
+	// AllowTreasuryProposals allows treasury spend proposals, and the
+	// ancestor clawback/freeze controls over descendant treasuries.
+	AllowTreasuryProposals bool
+
 	// AllowDissolutionProposals allows dissolving DAOs through proposals.
 	AllowDissolutionProposals bool
 
@@ -101,6 +105,15 @@ func AllowTextProposals(allow bool) Option {
 func AllowSubDAOProposals(allow bool) Option {
 	return func(o *Options) {
 		o.AllowSubDAOProposals = allow
+	}
+}
+
+// AllowTreasuryProposals configures support for treasury proposals:
+// spends from the DAO's own treasury, and the ancestor clawback/freeze
+// controls over descendant treasuries.
+func AllowTreasuryProposals(allow bool) Option {
+	return func(o *Options) {
+		o.AllowTreasuryProposals = allow
 	}
 }
 

@@ -31,7 +31,7 @@ func init(cur realm) {
 	)
 
 	// Dissolve the parent (sole council member passes the supermajority)
-	pID := commondao.CreateDissolutionProposal(cross(cur), parentID)
+	pID := commondao.CreateDissolutionProposal(cross(cur), parentID, owner)
 	commondao.Vote(cross(cur), parentID, pID, pcommondao.ChoiceYes, "")
 	commondao.Execute(cross(cur), parentID, pID)
 }

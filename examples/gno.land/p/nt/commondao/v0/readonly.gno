@@ -37,9 +37,19 @@ func (r ReadonlyCommonDAO) Description() string {
 	return r.dao.description
 }
 
+// Address returns the DAO's treasury address, or empty when unset.
+func (r ReadonlyCommonDAO) Address() address {
+	return r.dao.addr
+}
+
 // IsDeleted returns true when DAO has been soft deleted.
 func (r ReadonlyCommonDAO) IsDeleted() bool {
 	return r.dao.deleted
+}
+
+// IsTreasuryFrozen checks if the DAO's treasury is frozen.
+func (r ReadonlyCommonDAO) IsTreasuryFrozen() bool {
+	return r.dao.treasuryFrozen
 }
 
 // Council returns a read only view of the DAO council.

@@ -38,3 +38,8 @@ func main() {
 // | Council |
 // | --- |
 // | g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 |
+//
+//
+// ## Treasury
+// - Address: g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2
+// - Balance: (empty)

@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_3_d_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_12_b_filetest
 
-package zp_3_d_filetest
+package z_12_b_filetest
 
 import (
 	"testing"
@@ -20,15 +20,15 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "")
-
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(false))
+	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowTreasuryProposals(true))
 }
 
 func main(cur realm) {
-	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
+	testing.SetRealm(testing.NewUserRealm(user))
+
+	// A DAO can never claw back its own treasury
+	commondao.CreateTreasuryClawbackProposal(cross(cur), daoID, daoID)
 }
 
 // Error:
-// dissolution proposals are not enabled
+// a DAO cannot target its own treasury

@@ -46,6 +46,7 @@ type CommonDAO struct {
 	id                 uint64
 	name               string
 	description        string
+	addr               address // derived treasury address, empty when unset
 	parent             *CommonDAO
 	children           list.IList
 	council            *addrset.Set
@@ -53,6 +54,7 @@ type CommonDAO struct {
 	activeProposals    *ProposalStorage
 	finishedProposals  *ProposalStorage
 	deleted            bool // Soft delete
+	treasuryFrozen     bool
 	maxActiveProposals int
 }
 
@@ -84,6 +86,25 @@ func (dao CommonDAO) Name() string {
 // Description returns DAO's description.
 func (dao CommonDAO) Description() string {
 	return dao.description
+}
+
+// Address returns the DAO's treasury address, assigned at creation with
+// WithAddress. The package never derives or uses the address itself:
+// hosting realms derive it (e.g. from a realm sub-identity) and operate
+// its funds through their own banker. Empty when unset.
+func (dao CommonDAO) Address() address {
+	return dao.addr
+}
+
+// IsTreasuryFrozen checks if the DAO's treasury is frozen. The package
+// stores the flag only; hosting realms enforce it when moving funds.
+func (dao CommonDAO) IsTreasuryFrozen() bool {
+	return dao.treasuryFrozen
+}
+
+// SetTreasuryFrozen freezes or unfreezes the DAO's treasury.
+func (dao *CommonDAO) SetTreasuryFrozen(frozen bool) {
+	dao.treasuryFrozen = frozen
 }
 
 // Parent returns the parent DAO.

@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"chain/banker"
 	"errors"
 	"strings"
 	"time"
@@ -102,18 +103,33 @@ func (p subDAOPropDefinition) execute(realm) error {
 	return nil
 }
 
-// newDissolvePropDefinition creates a new proposal definition for dissolving a SubDAO.
-func newDissolvePropDefinition(dao *commondao.CommonDAO) dissolvePropDefinition {
+// newDissolvePropDefinition creates a new proposal definition for
+// dissolving a DAO. Dissolution sweeps any remaining treasury balance:
+// sub-DAO sweeps go to the parent (fixed, not nameable — the same place
+// a clawback would put the funds); a root DAO has no parent, so its
+// dissolution requires an explicit destination. Both rules are
+// state-independent: parent pointers never change after construction.
+func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) dissolvePropDefinition {
 	if dao == nil {
 		panic("SubDAO is required")
 	}
+	if dao.Parent() != nil {
+		if destination != "" {
+			panic("sub-DAO dissolution sweeps to the parent DAO; destination must be empty")
+		}
+	} else {
+		if !destination.IsValid() {
+			panic("root DAO dissolution requires a valid sweep destination")
+		}
+	}
 
-	return dissolvePropDefinition{dao}
+	return dissolvePropDefinition{dao, destination}
 }
 
 // dissolvePropDefinition defines a proposal type for dissolving a SubDAO.
 type dissolvePropDefinition struct {
-	dao *commondao.CommonDAO
+	dao         *commondao.CommonDAO
+	destination address // sweep destination, root DAOs only
 }
 
 func (p dissolvePropDefinition) Title() string             { return "Dissolve DAO: " + p.dao.Name() }
@@ -145,7 +161,23 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p dissolvePropDefinition) execute(realm) error {
+func (p dissolvePropDefinition) execute(cur realm) error {
+	// Sweep any remaining treasury before soft deleting: no council
+	// remains afterwards to pass a spend. Sub-DAO funds go to the parent;
+	// root funds go to the destination named at proposal creation. A
+	// frozen treasury does not block dissolution — the sweep sends the
+	// funds where a clawback would.
+	if balance := treasuryBalance(p.dao); !balance.IsZero() {
+		dest := p.destination
+		if parent := p.dao.Parent(); parent != nil {
+			dest = parent.Address()
+		}
+
+		sub := cur.Sub(subpathOf(p.dao.ID()))
+		b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
+		b.SendCoins(sub.Address(), dest, balance)
+	}
+
 	// Dissolution voids the DAO's in-flight proposals before soft deleting
 	// it, so nothing remains pending on a DAO that rejects execution.
 	p.dao.Dissolve("DAO dissolved")
