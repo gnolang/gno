@@ -286,7 +286,7 @@ func (p Proposal) Electorate() *addrset.ReadonlySet {
 	return p.electorate.Readonly()
 }
 
-// StatusReason returns an optional reason that lead to the current proposal status.
+// StatusReason returns an optional reason that led to the current proposal status.
 // Reason is mostly useful when a proposal fails.
 func (p Proposal) StatusReason() string {
 	return p.statusReason

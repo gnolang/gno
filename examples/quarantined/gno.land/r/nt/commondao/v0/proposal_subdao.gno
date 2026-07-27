@@ -136,7 +136,7 @@ func (p dissolvePropDefinition) Body() string {
 
 func (p dissolvePropDefinition) Validate() (err error) {
 	if p.dao.IsDeleted() {
-		return errors.New("DAO has been already dissolved")
+		return errors.New("DAO has already been dissolved")
 	}
 	return nil
 }

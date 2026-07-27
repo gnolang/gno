@@ -122,5 +122,5 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	uassert.Equal(t, "DAO dissolved", p.StatusReason())
 
 	// Dissolved DAOs cannot be dissolved again
-	uassert.ErrorContains(t, def.Validate(), "already dissolved")
+	uassert.ErrorContains(t, def.Validate(), "has already been dissolved")
 }

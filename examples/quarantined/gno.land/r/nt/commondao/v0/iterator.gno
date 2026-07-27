@@ -20,6 +20,10 @@ func NewIterator(cur realm, rootID uint64, options ...IteratorOption) Iterator {
 	}
 
 	size := it.tree.Size()
+	if it.current > size {
+		it.current = size
+	}
+
 	if it.count > 0 {
 		it.maxIndex = it.current + it.count
 		if it.maxIndex > size {
@@ -38,7 +42,6 @@ func NewIterator(cur realm, rootID uint64, options ...IteratorOption) Iterator {
 type Iterator struct {
 	tree                     rotree.IReadOnlyTree
 	count, current, maxIndex int
-	path                     string
 	dao                      *commondao.CommonDAO
 }
 
@@ -53,13 +56,12 @@ func (it *Iterator) Next() bool {
 		return false
 	}
 
-	path, v := it.tree.GetByIndex(it.current)
+	_, v := it.tree.GetByIndex(it.current)
 	if v == nil {
 		return false
 	}
 
 	it.dao = v.(*commondao.CommonDAO)
-	it.path = path
 	it.current++
 	return true
 }
@@ -67,9 +69,4 @@ func (it *Iterator) Next() bool {
 // DAO returns a read only view of the current DAO.
 func (it Iterator) DAO() commondao.ReadonlyCommonDAO {
 	return it.dao.Readonly()
-}
-
-// Path returns the current DAO path.
-func (it Iterator) Path() string {
-	return it.path
 }

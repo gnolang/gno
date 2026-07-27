@@ -29,7 +29,7 @@ type Options struct {
 	// AllowExecution enables proposal execution support.
 	AllowExecution bool
 
-	// AllowCouncilUpdate allows creating a proposal to update DAO members.
+	// AllowCouncilUpdate allows proposals that add and/or remove council members.
 	AllowCouncilUpdate bool
 
 	// AllowTextProposals allows text-only, non-executable proposals.

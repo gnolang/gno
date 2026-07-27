@@ -23,7 +23,7 @@ func Invite(cur realm, invitee address) {
 	invites.Set(invitee.String(), caller.String())
 }
 
-// IsInvited check if an address has an invitation to the realm.
+// IsInvited checks if an address has an invitation to the realm.
 func IsInvited(addr address) bool {
 	return isInvited(addr)
 }
@@ -144,17 +144,6 @@ func TransferOwnership(cur realm, daoID uint64, newOwner address) {
 // GetView returns a read only view of a common DAO searched by ID.
 func GetView(daoID uint64) commondao.ReadonlyCommonDAO {
 	return mustGetDAO(daoID).Readonly()
-}
-
-// GetSize returns the number of SubDAOs under a specified root DAO.
-func GetSize(cur realm, rootID uint64) int {
-	assertIsOwner(cur.Previous().Address(), rootID)
-
-	tree := getTree(rootID)
-	if tree == nil {
-		return 0
-	}
-	return tree.Size()
 }
 
 // Vote submits a vote for a DAO proposal.

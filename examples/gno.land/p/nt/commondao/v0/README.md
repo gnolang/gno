@@ -29,8 +29,8 @@ var dao = commondao.New(
     commondao.WithCouncilMember(founder),
 )
 
-// Council members propose; the council snapshot taken here is the
-// proposal's electorate.
+// The council snapshot taken at Propose is the proposal's electorate.
+// (The package does not gate who proposes — hosting realms do.)
 p, _ := dao.Propose(founder, myDefinition)
 
 // Electorate members vote; default rule proposals can be decided the
@@ -62,8 +62,10 @@ every ballot — including changed votes — so a proposal **passes or is
 dismissed the moment the outcome is mathematically settled** and an
 early-passed proposal may be executed before its deadline.
 
-Custom definitions implement `ProposalDefinition.Tally(VotingContext)`
-instead and are tallied once, at the deadline. Definitions may also
+Custom definitions implement the `CustomTallier` interface
+(`Tally(VotingContext) (bool, error)`) instead and are tallied once, at
+the deadline — every definition must implement exactly one of
+`DefaultTallier`/`CustomTallier`. Definitions may also
 customize vote choices (`CustomizableVoteChoices`) — but not combined
 with `DefaultTallier`.
 

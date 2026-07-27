@@ -182,11 +182,11 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 	if o.AllowCouncilUpdate {
 		cols = append(cols, md.Paragraph(updateCouncilLink(daoID))+
 			md.Paragraph(
-				"This type of proposal can be used to add new members to this DAO "+
+				"This type of proposal can be used to add new council members to this DAO "+
 					"and also to remove existing ones.",
 			)+
 			md.Paragraph(
-				"A single proposal allows new members to be added and any number of existing ones "+
+				"A single proposal allows new council members to be added and any number of existing ones "+
 					"removed within the same proposal.",
 			),
 		)
@@ -429,7 +429,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	// Render proposal body
 	if body := def.Body(); body != "" {
 		res.Write(md.H2("Description"))
-		res.Write(md.Paragraph(body))
+		res.Write(md.Paragraph(md.EscapeText(body)))
 	}
 
 	// Render voting stats and votes
@@ -486,7 +486,7 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	member := address(req.GetVar("address"))
 	if !member.IsValid() {
-		res.Write("Invalid address")
+		res.Write("invalid address")
 		return
 	}
 
@@ -494,7 +494,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	p := mustGetProposalFromRequest(req, dao)
 	v, found := p.VotingRecord().GetVote(member)
 	if !found {
-		res.Write("Vote not found")
+		res.Write("vote not found")
 		return
 	}
 
@@ -513,7 +513,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 
 	if v.Reason != "" {
 		res.Write(md.H2("Reason"))
-		res.Write(v.Reason)
+		res.Write(md.EscapeText(v.Reason))
 	}
 }
 
@@ -521,12 +521,12 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	rawID := req.GetVar("daoID")
 	daoID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
-		panic("Invalid DAO ID")
+		panic("invalid DAO ID")
 	}
 
 	o := getOptions(daoID)
 	if o == nil || !o.AllowRender {
-		panic("Forbidden")
+		panic("rendering is not enabled")
 	}
 
 	return mustGetDAO(daoID)
@@ -536,12 +536,12 @@ func mustGetProposalFromRequest(req *mux.Request, dao *commondao.CommonDAO) *com
 	rawID := req.GetVar("proposalID")
 	proposalID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
-		panic("Invalid proposal ID")
+		panic("invalid proposal ID")
 	}
 
 	p := dao.GetProposal(proposalID)
 	if p == nil {
-		panic("Proposal not found")
+		panic("proposal not found")
 	}
 	return p
 }

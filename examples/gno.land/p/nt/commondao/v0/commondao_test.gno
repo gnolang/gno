@@ -84,6 +84,18 @@ type validatingExecPropDef struct {
 
 func (d validatingExecPropDef) Validate() error { return *d.err }
 
+// bareDef implements neither DefaultTallier nor CustomTallier.
+type bareDef struct{}
+
+func (bareDef) Title() string               { return "Bare" }
+func (bareDef) Body() string                { return "" }
+func (bareDef) VotingPeriod() time.Duration { return time.Hour }
+
+// dualTallierDef implements both DefaultTallier and CustomTallier.
+type dualTallierDef struct{ propDef }
+
+func (dualTallierDef) Threshold() commondao.Threshold { return commondao.ThresholdSupermajority }
+
 func TestNew(t *testing.T) {
 	dao := commondao.New()
 	uassert.Equal(t, uint64(0), dao.ID())
@@ -167,6 +179,15 @@ func TestPropose(t *testing.T) {
 	urequire.NoError(t, dao.UpdateCouncil([]address{memberB}, nil))
 	uassert.Equal(t, 1, p.Electorate().Size())
 	uassert.False(t, p.Electorate().Has(memberB))
+
+	// Definitions must exist and implement exactly one of
+	// DefaultTallier/CustomTallier
+	_, err = dao.Propose(memberA, nil)
+	uassert.ErrorIs(t, err, commondao.ErrProposalDefinitionRequired)
+	_, err = dao.Propose(memberA, bareDef{})
+	uassert.ErrorIs(t, err, commondao.ErrMissingTallier)
+	_, err = dao.Propose(memberA, dualTallierDef{propDef{period: time.Hour}})
+	uassert.ErrorIs(t, err, commondao.ErrConflictingTalliers)
 
 	// Deleted DAOs reject proposals
 	deleted := commondao.New(commondao.WithCouncilMember(memberA))

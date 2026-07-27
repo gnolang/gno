@@ -177,17 +177,27 @@ keep full freedom via the `CustomTallier` interface.
 - Keeping `IsQuorumReached`/plurality for the built-ins: not
   permitted by the Governing-Documents rule above.
 - `/p/`-hosted built-in definitions with package-private mutators:
-  rejected by the D7 vote (see above).
+  rejected by a 2/3 review vote for boundary-enforced mutability (see
+  "Boundary-enforced mutability" above).
 
 ## Consequences
 
 - Net −2,600+ lines; float-free deterministic tallying; the tally,
   snapshot, and boundary rules are pinned by a package test suite
-  (13-case tally boundary table, snapshot gating both directions,
+  (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and 59 migrated realm filetests.
+  cleanly) and 68 realm filetests (59 migrated, 9 added for the new
+  surface).
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
+- The realm's crossing functions deliberately do **not** open with
+  `cur.IsCurrent()` guards: per `gnovm/adr/interrealm_v2.md`, crossing
+  functions do not require the check because the runtime ensures it is
+  always true — the guard exists for the `(_ int, rlm realm)`
+  *non-crossing* borrowing pattern, which this realm never uses (its
+  one authority relay, `dao.Execute(id, cur)`, passes the realm's own
+  genuine `cur`). AGENTS.md's blanket always-guard rule predates this
+  distinction and should be reconciled with the interrealm ADR.
 - The realm's `New`/`NewSubDAO` accept a members parameter; ownership
   and invitation flows are unchanged. The invite check deliberately
   uses `unsafe.OriginCaller()` (invitations target EOAs; an
