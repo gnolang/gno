@@ -29,12 +29,12 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
-	daoID := commondao.New(cross(cur), name, "")
+	daoID := commondao.New(cross(cur), name, "", "")
 
 	println(commondao.GetView(daoID).Name() == name)
 	println(commondao.IsOwner(realmAddr, daoID))
 	println(commondao.IsInvited(user))
-	println(commondao.GetOptions(cross(cur), daoID).AllowVoting)
+	println(commondao.GetOptions(cross(cur), daoID).AllowChildren)
 }
 
 // Output:

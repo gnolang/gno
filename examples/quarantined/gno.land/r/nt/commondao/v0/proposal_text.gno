@@ -13,8 +13,8 @@ const (
 	minTextVotingPeriod = time.Hour * 24
 )
 
-// NewTextPropDefinition creates a new general text proposal definition.
-func NewTextPropDefinition(title, body string, votingPeriod time.Duration) TextPropDefinition {
+// newTextPropDefinition creates a new general text proposal definition.
+func newTextPropDefinition(title, body string, votingPeriod time.Duration) textPropDefinition {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -37,29 +37,29 @@ func NewTextPropDefinition(title, body string, votingPeriod time.Duration) TextP
 		panic("minimum proposal voting period is one day")
 	}
 
-	return TextPropDefinition{
+	return textPropDefinition{
 		title:        title,
 		body:         body,
 		votingPeriod: votingPeriod,
 	}
 }
 
-// TextPropDefinition defines a proposal type for general text proposals.
+// textPropDefinition defines a proposal type for general text proposals.
 // These type of proposals are not executable so nothing happens when they pass.
-type TextPropDefinition struct {
+type textPropDefinition struct {
 	title, body  string
 	votingPeriod time.Duration
 }
 
-func (p TextPropDefinition) Title() string               { return p.title }
-func (p TextPropDefinition) Body() string                { return p.body }
-func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
+func (p textPropDefinition) Title() string               { return p.title }
+func (p textPropDefinition) Body() string                { return p.body }
+func (p textPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
 // isRawTextDefinition marks Title/Body as raw user text the renderer escapes.
-func (TextPropDefinition) isRawTextDefinition() {}
+func (textPropDefinition) isRawTextDefinition() {}
 
 // Threshold returns the tally threshold: text proposals are decided by the
 // constitution's default supermajority rule.
-func (TextPropDefinition) Threshold() commondao.Threshold {
+func (textPropDefinition) Threshold() commondao.Threshold {
 	return commondao.ThresholdSupermajority
 }

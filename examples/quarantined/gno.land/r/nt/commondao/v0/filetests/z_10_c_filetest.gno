@@ -21,11 +21,11 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID := commondao.New(cross(cur), "Foo", "", commondao.AllowChildren(true), commondao.AllowSubDAOProposals(true))
+	daoID := commondao.New(cross(cur), "Foo", "", "")
 
 	// The SubDAO name is user controlled; the proposal body is pre-built
 	// markdown chrome that must render formatted, with the name escaped.
-	pID := commondao.CreateSubDAOProposal(cross(cur), daoID, "*Evil* [x](https://evil.example)", string(owner))
+	pID := commondao.CreateSubDAOProposal(cross(cur), daoID, "*Evil* [x](https://evil.example)", "", string(owner))
 	proposalPath = strconv.FormatUint(daoID, 10) + "/proposals/" + strconv.FormatUint(pID, 10)
 }
 

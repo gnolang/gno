@@ -120,12 +120,9 @@ in active storage until executed), and a NO majority dismisses
 immediately. `Execute` runs
 early-passed proposals at once — skipping the re-tally and deadline
 gate but still validating — and the deadline path dismisses undecided
-defaults. Custom tallies live in the
-`CustomTallier` interface, evaluated only at the deadline and never
-early-evaluated; `Propose` requires every definition to implement
-exactly one of `DefaultTallier`/`CustomTallier` and rejects
-`DefaultTallier` + `CustomizableVoteChoices` combinations.
-`Proposal.ExpectedOutcome()` serves rendering for both kinds. Statuses:
+defaults. `Propose` requires every definition to implement
+`DefaultTallier`; `Proposal.ExpectedOutcome()` serves rendering.
+Statuses:
 `StatusRejected` → `StatusDismissed`; `StatusFailed` is reserved for
 validation/executor errors. Realm-side, past-deadline `Execute` is
 permissionless (the tally is deterministic); pre-deadline execution of
@@ -139,8 +136,9 @@ CouncilUpdate: supermajority (`:1529-1530`). SubDAO creation:
 dissolution: the supermajority default. The old quorum knobs and
 plurality selection had no legitimate home: the Governing Documents
 that may override the defaults are exhaustively listed (`:1494-1496`)
-and realm code is not among them. Non-spec-bound DAOs (`:1471-1474`)
-keep full freedom via the `CustomTallier` interface.
+and realm code is not among them. (Non-spec-bound DAOs would regain
+full freedom through an additive custom-tallier hook if a consumer
+ever materializes; see Alternatives.)
 
 ### Lifecycle rules
 
@@ -183,6 +181,12 @@ keep full freedom via the `CustomTallier` interface.
 - `/p/`-hosted built-in definitions with package-private mutators:
   rejected by a 2/3 review vote for boundary-enforced mutability (see
   "Boundary-enforced mutability" above).
+- A `CustomTallier` escape hatch (custom tally logic evaluated at the
+  deadline) and `CustomizableVoteChoices` shipped in early revisions:
+  removed by a design-simplicity review as consumer-less speculation —
+  custom choices also persisted a per-proposal choice tree. Reintroducing
+  either is purely additive (`DefaultTallier` + `ErrMissingTallier`
+  remain the seam).
 
 ## Consequences
 
@@ -190,12 +194,11 @@ keep full freedom via the `CustomTallier` interface.
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and 73 realm filetests at this stage (59 migrated, 14 added for the new
-  surface, including render goldens that pin both escaping of
-  user-controlled text (names, bodies, vote reasons) and correct
-  formatting of the built-in proposals' markdown bodies, plus a
-  dissolved-parent sub-DAO rejection). The treasury follow-up ADR adds
-  more on the same branch.
+  cleanly) and a realm filetest suite (81 at branch HEAD) including
+  render goldens that pin both escaping of user-controlled text
+  (names, bodies, vote reasons) and correct formatting of the built-in
+  proposals' markdown bodies, plus a dissolved-parent sub-DAO
+  rejection. The treasury follow-up ADR adds more on the same branch.
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
 - The realm's crossing functions deliberately do **not** open with
@@ -212,16 +215,19 @@ keep full freedom via the `CustomTallier` interface.
   intermediary realm creating a DAO on an invited user's behalf
   consumes that user's invite while ownership vests in the caller) —
   confirmed intended, pre-existing behavior.
-- The realm's owner/Options layer (per-DAO feature flags, owner-gated
-  `UpdateOptions`, owner-direct `NewSubDAO`) is a host-administration
-  surface for non-spec-bound DAOs (`:1471-1474`), not a Governing
-  Document: the four proposal-type flags default off, so a
-  spec-conforming deployment must enable them (as the genesis DAO
-  does for council updates) and route sub-DAO creation through the
-  simple-majority proposal rather than the owner path. `Options`
-  carries no exported mutator methods, and both creation and
-  `UpdateOptions` apply caller option closures to copies so no caller
-  ever holds the persisted `*Options`.
+- The realm's owner/Options layer is a host-administration surface
+  only: `Options` carries exactly the hosting concerns (`AllowListing`,
+  `AllowRender`, `AllowChildren`, `AllowExecution` for pre-deadline
+  execution) plus the proposal cap, set through a flat, CLI-callable
+  `UpdateOptions`. Governance powers (text, council update, treasury
+  and dissolution proposals) follow the Common DAO Spec defaults and
+  cannot be switched off — an earlier per-type flag layer defaulted
+  everything off (producing DAOs that could pass no proposal) behind
+  variadic option closures unreachable from `maketx call`, and was
+  removed by the same review that removed owner-direct `NewSubDAO`:
+  sub-DAO creation flows only through the `:1504` simple-majority
+  proposal, gated by `AllowChildren`. `New` takes a description so the
+  Charter (`:1485`) has a creation-time slot.
 - Sub-DAOs of a dissolved parent are currently un-dissolvable (their
   dissolution proposal is hosted in the deleted parent, which rejects
   proposals); the treasury PR's nearest-live-ancestor rescue covers

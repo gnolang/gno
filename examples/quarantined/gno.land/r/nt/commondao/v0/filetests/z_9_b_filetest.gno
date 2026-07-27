@@ -21,7 +21,7 @@ func init(cur realm) {
 
 	// Council is {user} only
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "")
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 }
 
 func main(cur realm) {

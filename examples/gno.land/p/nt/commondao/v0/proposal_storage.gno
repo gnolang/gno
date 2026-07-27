@@ -5,23 +5,18 @@ import (
 	"gno.land/p/nt/seqid/v0"
 )
 
-// NewProposalStorage creates a new proposal storage.
-func NewProposalStorage() *ProposalStorage {
-	return &ProposalStorage{bptree.NewBPTree32()}
+// newProposalStorage creates a new proposal storage.
+func newProposalStorage() *proposalStorage {
+	return &proposalStorage{bptree.NewBPTree32()}
 }
 
-// ProposalStorage stores proposals indexed by ID.
-type ProposalStorage struct {
+// proposalStorage stores proposals indexed by ID.
+type proposalStorage struct {
 	storage *bptree.BPTree // string(proposal ID) -> *Proposal
 }
 
-// Has checks if a proposal exists.
-func (s ProposalStorage) Has(id uint64) bool {
-	return s.storage.Has(makeProposalKey(id))
-}
-
 // Get returns a proposal or nil when proposal doesn't exist.
-func (s ProposalStorage) Get(id uint64) *Proposal {
+func (s proposalStorage) Get(id uint64) *Proposal {
 	if v := s.storage.Get(makeProposalKey(id)); v != nil {
 		return v.(*Proposal)
 	}
@@ -29,7 +24,7 @@ func (s ProposalStorage) Get(id uint64) *Proposal {
 }
 
 // Add adds a proposal to the storage.
-func (s *ProposalStorage) Add(p *Proposal) {
+func (s *proposalStorage) Add(p *Proposal) {
 	if p == nil {
 		return
 	}
@@ -38,17 +33,17 @@ func (s *ProposalStorage) Add(p *Proposal) {
 }
 
 // Remove removes a proposal from the storage.
-func (s *ProposalStorage) Remove(id uint64) {
+func (s *proposalStorage) Remove(id uint64) {
 	s.storage.Remove(makeProposalKey(id))
 }
 
 // Size returns the number of proposals that the storage contains.
-func (s ProposalStorage) Size() int {
+func (s proposalStorage) Size() int {
 	return s.storage.Size()
 }
 
 // Iterate iterates proposals.
-func (s ProposalStorage) Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
+func (s proposalStorage) Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
 	if fn == nil {
 		return false
 	}

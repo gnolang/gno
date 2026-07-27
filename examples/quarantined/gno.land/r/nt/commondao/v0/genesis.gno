@@ -27,16 +27,9 @@ func init(cur realm) {
 	ownership.Set(cur.Address().String(), []uint64{CommonDAOID})
 
 	// Save DAO configuration
-	// Treasury and dissolution proposals are enabled so any funds donated
-	// to the realm DAO's treasury stay reachable by governance (options
-	// are otherwise immutable: the owner is the realm's own address).
 	options.Set(id.String(), &Options{
-		AllowListing:              true,
-		AllowRender:               true,
-		AllowVoting:               true,
-		AllowExecution:            true,
-		AllowCouncilUpdate:        true,
-		AllowTreasuryProposals:    true,
-		AllowDissolutionProposals: true,
+		AllowListing:   true,
+		AllowRender:    true,
+		AllowExecution: true,
 	})
 }

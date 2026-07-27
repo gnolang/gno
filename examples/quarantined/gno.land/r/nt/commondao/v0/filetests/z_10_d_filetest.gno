@@ -23,11 +23,13 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID := commondao.New(cross(cur), "Root", "",
-		commondao.AllowChildren(true),
-		commondao.AllowTreasuryProposals(true),
-	)
-	subID = commondao.NewSubDAO(cross(cur), "Sub", rootID, "", commondao.AllowTreasuryProposals(true))
+	rootID := commondao.New(cross(cur), "Root", "", "")
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "", string(user))
+		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), rootID, pID)
+	}
+	subID = 3
 
 	testing.IssueCoins(commondao.GetView(subID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 1234)))
 
@@ -62,6 +64,26 @@ func main() {
 // These are the proposal supported by this DAO:
 //
 // <gno-columns>
+// [General Proposal](/r/nt/commondao/v0$help&func=CreateTextProposal&body=&daoID=3&title=&votingDays=7)
+//
+// This type of proposal is also known as text proposal which can be used for example to get consensus on initiatives without actually making any change on-chain.
+//
+//
+// <gno-columns-sep>
+// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=3&description=&members=&name=)
+//
+// This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
+//
+//
+// <gno-columns-sep>
+// [Dissolve DAO](/r/nt/commondao/v0$help&func=CreateDissolutionProposal&daoID=3&destination=)
+//
+// This type of proposal can be used to dissolve DAOs and SubDAOs.
+//
+// Dissolving a DAO can't be undone, once the dissolution proposal passes and is executed DAO will be readonly.
+//
+//
+// <gno-columns-sep>
 // [Treasury Spend](/r/nt/commondao/v0$help&func=CreateTreasurySpendProposal&amount=&daoID=3&denom=ugnot&to=)
 //
 // This type of proposal sends coins from the DAO's own treasury when it passes and is executed.
@@ -79,6 +101,14 @@ func main() {
 // This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no treasury spend can execute.
 //
 //
+// <gno-columns-sep>
+// [Update Council](/r/nt/commondao/v0$help&func=CreateCouncilUpdateProposal&daoID=3&newMembers=&removeMembers=)
+//
+// This type of proposal can be used to add new council members to this DAO and also to remove existing ones.
+//
+// A single proposal allows new council members to be added and any number of existing ones removed within the same proposal.
+//
+//
 // </gno-columns>
 //
 // # Sub: Settings
@@ -88,13 +118,8 @@ func main() {
 // ## Options
 // | Options | Values |
 // | --- | --- |
-// | Allow Render | true |
+// | Allow listing | false |
+// | Allow render | true |
 // | Allow SubDAOs | true |
-// | Enable Voting | true |
 // | Enable early execution | true |
-// | Text Proposals | false |
-// | Council update proposals | false |
-// | SubDAO creation proposals | false |
-// | Treasury proposals | true |
-// | DAO dissolution proposals | false |
 // | Max active proposals | 32 |

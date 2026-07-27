@@ -5,16 +5,14 @@
 // Package commondao provides governance primitives following the Common
 // DAO Spec (docs/CONSTITUTION.md, Appendix): a CommonDAO is a Council (a
 // set of addresses with equal voting power), a proposal lifecycle decided
-// by the constitution's default voting rules (or custom talliers), and an
-// optional sub-DAO tree.
+// by the constitution's default voting rules, and an optional sub-DAO
+// tree.
 //
-// Proposals snapshot the council as their electorate at creation.
-// Default-rule proposals are decided the moment the outcome is
-// mathematically settled: with integer math over D = |electorate| -
-// abstains, a supermajority (3*yes >= 2*D) passes, a NO majority
-// (2*no > D) dismisses, and proposals still undecided at their voting
-// deadline are dismissed. Custom talliers are evaluated once, at the
-// deadline.
+// Proposals snapshot the council as their electorate at creation and
+// are decided the moment the outcome is mathematically settled: with
+// integer math over D = |electorate| - abstains, a supermajority
+// (3*yes >= 2*D) passes, a NO majority (2*no > D) dismisses, and
+// proposals still undecided at their voting deadline are dismissed.
 //
 // A DAO may carry a treasury address and frozen flag; the package only
 // stores them - hosting realms derive the address and move the funds.

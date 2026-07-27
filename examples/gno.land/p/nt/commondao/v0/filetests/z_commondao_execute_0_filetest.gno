@@ -21,8 +21,10 @@ type testPropDef struct{}
 
 func (testPropDef) Title() string                               { return "" }
 func (testPropDef) Body() string                                { return "" }
-func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
-func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
+func (testPropDef) VotingPeriod() time.Duration { return time.Hour }
+func (testPropDef) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
 
 func (testPropDef) Executor() commondao.ExecFunc {
 	return func(realm) error {
@@ -33,7 +35,16 @@ func (testPropDef) Executor() commondao.ExecFunc {
 
 func init() {
 	dao = commondao.New(commondao.WithCouncilMember(member))
-	proposal = dao.MustPropose(member, testPropDef{})
+	var err error
+	proposal, err = dao.Propose(member, testPropDef{})
+	if err != nil {
+		panic(err)
+	}
+
+	// A single YES from the one-member council passes the proposal early
+	if err := dao.Vote(member, proposal.ID(), commondao.ChoiceYes, ""); err != nil {
+		panic(err)
+	}
 }
 
 func main(cur realm) {

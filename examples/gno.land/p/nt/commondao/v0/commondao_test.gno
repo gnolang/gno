@@ -23,20 +23,26 @@ const (
 	memberI address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 )
 
-// propDef is a base custom proposal definition (not a DefaultTallier).
+// propDef is a base proposal definition decided by the default rules.
 type propDef struct {
 	title  string
 	body   string
 	period time.Duration
-	passes bool
-	err    error
 }
 
 func (d propDef) Title() string               { return d.title }
 func (d propDef) Body() string                { return d.body }
 func (d propDef) VotingPeriod() time.Duration { return d.period }
-func (d propDef) Tally(commondao.VotingContext) (bool, error) {
-	return d.passes, d.err
+func (propDef) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
+
+// mustPropose creates a proposal or fails the test.
+func mustPropose(t *testing.T, dao *commondao.CommonDAO, creator address, d commondao.ProposalDefinition) *commondao.Proposal {
+	t.Helper()
+	p, err := dao.Propose(creator, d)
+	urequire.NoError(t, err, "propose")
+	return p
 }
 
 // defaultPropDef is decided by the constitution's default rules.
@@ -91,31 +97,13 @@ func (bareDef) Title() string               { return "Bare" }
 func (bareDef) Body() string                { return "" }
 func (bareDef) VotingPeriod() time.Duration { return time.Hour }
 
-// dualTallierDef implements both DefaultTallier and CustomTallier.
-type dualTallierDef struct{ propDef }
-
-func (dualTallierDef) Threshold() commondao.Threshold { return commondao.ThresholdSupermajority }
-
-// ctxCheckDef records the voting context its custom tally receives.
-type ctxCheckDef struct {
-	propDef
-	votes      *int
-	electorate *int
-}
-
-func (d ctxCheckDef) Tally(ctx commondao.VotingContext) (bool, error) {
-	*d.votes = ctx.VotingRecord.Size()
-	*d.electorate = ctx.Electorate.Size()
-	return true, nil
-}
-
 func TestNew(t *testing.T) {
 	dao := commondao.New()
 	uassert.Equal(t, uint64(0), dao.ID())
 	uassert.Equal(t, "", dao.Name())
 	uassert.Equal(t, 0, dao.Council().Size())
-	uassert.Equal(t, 0, dao.ActiveProposals().Size())
-	uassert.Equal(t, 0, dao.FinishedProposals().Size())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 0, dao.FinishedProposalsSize())
 	uassert.False(t, dao.IsDeleted())
 	urequire.True(t, dao.Parent() == nil, "expect no parent")
 
@@ -184,7 +172,7 @@ func TestPropose(t *testing.T) {
 	p, err := dao.Propose(memberA, propDef{period: time.Hour})
 	urequire.NoError(t, err)
 	uassert.Equal(t, uint64(1), p.ID())
-	uassert.Equal(t, 1, dao.ActiveProposals().Size())
+	uassert.Equal(t, 1, dao.ActiveProposalsSize())
 	urequire.True(t, dao.GetProposal(p.ID()) != nil, "expect proposal to be found")
 
 	// The electorate is the council snapshot taken at proposal creation
@@ -193,18 +181,15 @@ func TestPropose(t *testing.T) {
 	uassert.Equal(t, 1, p.Electorate().Size())
 	uassert.False(t, p.Electorate().Has(memberB))
 
-	// Definitions must exist and implement exactly one of
-	// DefaultTallier/CustomTallier
+	// Definitions must exist and be decided by the default Council rules
 	_, err = dao.Propose(memberA, nil)
 	uassert.ErrorIs(t, err, commondao.ErrProposalDefinitionRequired)
 	_, err = dao.Propose(memberA, bareDef{})
 	uassert.ErrorIs(t, err, commondao.ErrMissingTallier)
-	_, err = dao.Propose(memberA, dualTallierDef{propDef{period: time.Hour}})
-	uassert.ErrorIs(t, err, commondao.ErrConflictingTalliers)
 
 	// Deleted DAOs reject proposals
 	deleted := commondao.New(commondao.WithCouncilMember(memberA))
-	deleted.SetDeleted(true)
+	deleted.Dissolve("test")
 	_, err = deleted.Propose(memberA, propDef{})
 	uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
 }
@@ -243,7 +228,7 @@ func TestProposeCapSlotFrees(t *testing.T) {
 		commondao.WithMaxActiveProposals(1),
 	)
 
-	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 	_, err := dao.Propose(memberA, defaultPropDef{period: time.Hour})
 	urequire.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 
@@ -260,15 +245,15 @@ func TestDissolve(t *testing.T) {
 	dao := commondao.New(commondao.WithCouncilMember(memberA))
 
 	// An early passed (but unexecuted) proposal is still in-flight
-	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
 
 	dao.Dissolve("gone")
 
 	uassert.True(t, dao.IsDeleted())
-	uassert.Equal(t, 0, dao.ActiveProposals().Size())
-	uassert.Equal(t, 1, dao.FinishedProposals().Size())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
 	uassert.Equal(t, "gone", p.StatusReason())
 }
@@ -279,7 +264,7 @@ func TestVote(t *testing.T) {
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
 	)
-	p := dao.MustPropose(memberA, propDef{period: time.Hour})
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
 
 	// Only electorate members can vote
 	err := dao.Vote(memberD, p.ID(), commondao.ChoiceYes, "")
@@ -308,12 +293,12 @@ func TestVote(t *testing.T) {
 	err = dao.Vote(memberA, 404, commondao.ChoiceYes, "")
 	uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
 
-	expired := dao.MustPropose(memberA, propDef{}) // zero voting period
+	expired := mustPropose(t, dao, memberA, propDef{}) // zero voting period
 	err = dao.Vote(memberA, expired.ID(), commondao.ChoiceYes, "")
 	uassert.ErrorIs(t, err, commondao.ErrVotingDeadlinePassed)
 
 	// Deleted DAOs reject votes
-	dao.SetDeleted(true)
+	dao.Dissolve("test")
 	err = dao.Vote(memberA, p.ID(), commondao.ChoiceYes, "")
 	uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
 }
@@ -329,7 +314,7 @@ func TestVoteEarlyTermination(t *testing.T) {
 
 	t.Run("supermajority YES passes immediately", func(t *testing.T) {
 		dao := newDAO()
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 		uassert.Equal(t, string(commondao.StatusActive), string(p.Status()))
@@ -338,21 +323,21 @@ func TestVoteEarlyTermination(t *testing.T) {
 		uassert.Equal(t, string(commondao.StatusPassed), string(p.Status()))
 
 		// Passed proposals stay active (pending execution) but reject votes
-		uassert.Equal(t, 1, dao.ActiveProposals().Size())
+		uassert.Equal(t, 1, dao.ActiveProposalsSize())
 		err := dao.Vote(memberC, p.ID(), commondao.ChoiceNo, "")
 		uassert.ErrorIs(t, err, commondao.ErrStatusIsNotActive)
 	})
 
 	t.Run("NO majority dismisses immediately", func(t *testing.T) {
 		dao := newDAO()
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceNo, ""))
 		urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceNo, ""))
 
 		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
-		uassert.Equal(t, 0, dao.ActiveProposals().Size())
-		uassert.Equal(t, 1, dao.FinishedProposals().Size())
+		uassert.Equal(t, 0, dao.ActiveProposalsSize())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("abstain flip can trigger a pass", func(t *testing.T) {
@@ -363,7 +348,7 @@ func TestVoteEarlyTermination(t *testing.T) {
 			commondao.WithCouncilMember(memberD),
 			commondao.WithCouncilMember(memberE),
 		)
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 		urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, ""))
@@ -386,27 +371,20 @@ func TestExpectedOutcome(t *testing.T) {
 	)
 
 	// Default rule proposals report the live tally
-	p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
 	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
 	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, "")) // 3*2 >= 2*3
 	uassert.Equal(t, int(commondao.OutcomePassed), int(p.ExpectedOutcome()))
 
-	// Custom tallier proposals report their Tally result; errors as pending
-	p = dao.MustPropose(memberA, propDef{period: time.Hour, passes: true})
-	uassert.Equal(t, int(commondao.OutcomePassed), int(p.ExpectedOutcome()))
-	p = dao.MustPropose(memberB, propDef{period: time.Hour, passes: false})
-	uassert.Equal(t, int(commondao.OutcomeDismissed), int(p.ExpectedOutcome()))
-	p = dao.MustPropose(memberC, propDef{period: time.Hour, passes: true, err: errors.New("boom")})
-	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
 }
 
 func TestExecute(cur realm, t *testing.T) {
 	t.Run("early passed proposals execute before the deadline", func(t *testing.T) {
 		executed := false
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour, executed: &executed})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, executed: &executed})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 		urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
@@ -414,13 +392,13 @@ func TestExecute(cur realm, t *testing.T) {
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.True(t, executed)
 		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
-		uassert.Equal(t, 0, dao.ActiveProposals().Size())
-		uassert.Equal(t, 1, dao.FinishedProposals().Size())
+		uassert.Equal(t, 0, dao.ActiveProposalsSize())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("active proposals cannot execute before the deadline", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
 		err := dao.Execute(p.ID(), cur)
 		uassert.ErrorIs(t, err, commondao.ErrVotingDeadlineNotMet)
@@ -428,58 +406,34 @@ func TestExecute(cur realm, t *testing.T) {
 
 	t.Run("undecided default proposals are dismissed at the deadline", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, defaultPropDef{}) // zero voting period
+		p := mustPropose(t, dao, memberA, defaultPropDef{}) // zero voting period
 
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
-		uassert.Equal(t, 1, dao.FinishedProposals().Size())
-	})
-
-	t.Run("custom definitions tally at the deadline", func(t *testing.T) {
-		executed := false
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, execFnPropDef{
-			propDef: propDef{passes: true},
-			fn: func(realm) error {
-				executed = true
-				return nil
-			},
-		})
-
-		urequire.NoError(t, dao.Execute(p.ID(), cur))
-		uassert.True(t, executed)
-		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
-
-		p = dao.MustPropose(memberA, propDef{passes: false})
-		urequire.NoError(t, dao.Execute(p.ID(), cur))
-		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
-
-		p = dao.MustPropose(memberA, propDef{passes: true, err: errors.New("boom")})
-		urequire.NoError(t, dao.Execute(p.ID(), cur))
-		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
-		uassert.Equal(t, "boom", p.StatusReason())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("executor errors fail the proposal", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, defaultPropDef{period: time.Hour, execErr: errors.New("exec boom")})
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, execErr: errors.New("exec boom")})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
 		uassert.Equal(t, "exec boom", p.StatusReason())
-		uassert.Equal(t, 1, dao.FinishedProposals().Size())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("emptying council updates fail the proposal", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, execFnPropDef{
-			propDef: propDef{passes: true},
+		p := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
 			fn: func(realm) error {
 				return dao.UpdateCouncil(nil, []address{memberA})
 			},
 		})
 
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
 		uassert.Equal(t, 1, dao.Council().Size(), "expect council unchanged")
@@ -489,7 +443,7 @@ func TestExecute(cur realm, t *testing.T) {
 		executed := false
 		stale := errors.New("stale")
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, validatingExecPropDef{
+		p := mustPropose(t, dao, memberA, validatingExecPropDef{
 			defaultPropDef: defaultPropDef{period: time.Hour, executed: &executed},
 			err:            &stale,
 		})
@@ -510,8 +464,8 @@ func TestExecute(cur realm, t *testing.T) {
 			innerErr error
 			pid      uint64
 		)
-		p := dao.MustPropose(memberA, execFnPropDef{
-			propDef: propDef{passes: true},
+		p := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
 			fn: func(cur realm) error {
 				execs++
 				innerErr = dao.Execute(pid, cur)
@@ -520,31 +474,12 @@ func TestExecute(cur realm, t *testing.T) {
 		})
 		pid = p.ID()
 
+		urequire.NoError(t, dao.Vote(memberA, pid, commondao.ChoiceYes, ""))
 		urequire.NoError(t, dao.Execute(pid, cur))
 		uassert.Equal(t, 1, execs, "expect executor to run exactly once")
 		uassert.ErrorIs(t, innerErr, commondao.ErrProposalNotFound)
 		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
-		uassert.Equal(t, 1, dao.FinishedProposals().Size())
-	})
-
-	t.Run("custom talliers receive the record and electorate", func(t *testing.T) {
-		dao := commondao.New(
-			commondao.WithCouncilMember(memberA),
-			commondao.WithCouncilMember(memberB),
-		)
-		var votes, electorate int
-		p := dao.MustPropose(memberA, ctxCheckDef{
-			propDef:    propDef{period: time.Hour},
-			votes:      &votes,
-			electorate: &electorate,
-		})
-		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
-
-		testing.SkipHeights(721) // 5s blocks: pass the 1h voting deadline
-		urequire.NoError(t, dao.Execute(p.ID(), cur))
-		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
-		uassert.Equal(t, 1, votes)
-		uassert.Equal(t, 2, electorate)
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {
@@ -553,19 +488,24 @@ func TestExecute(cur realm, t *testing.T) {
 			commondao.WithCouncilMember(memberB),
 			commondao.WithCouncilMember(memberC),
 		)
-		p1 := dao.MustPropose(memberA, execFnPropDef{
-			propDef: propDef{passes: true},
+		p1 := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
 			fn: func(realm) error {
 				return dao.UpdateCouncil([]address{memberD}, []address{memberA})
 			},
 		})
-		p2 := dao.MustPropose(memberB, execFnPropDef{
-			propDef: propDef{passes: true},
+		p2 := mustPropose(t, dao, memberB, execFnPropDef{
+			propDef: propDef{period: time.Hour},
 			fn: func(realm) error {
 				// Removing memberA again is an idempotent no-op
 				return dao.UpdateCouncil([]address{memberE}, []address{memberA})
 			},
 		})
+
+		for _, p := range []*commondao.Proposal{p1, p2} {
+			urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+			urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, ""))
+		}
 
 		urequire.NoError(t, dao.Execute(p1.ID(), cur))
 		urequire.NoError(t, dao.Execute(p2.ID(), cur))
@@ -582,8 +522,8 @@ func TestExecute(cur realm, t *testing.T) {
 
 	t.Run("deleted DAOs reject execution", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
-		p := dao.MustPropose(memberA, propDef{passes: true})
-		dao.SetDeleted(true)
+		p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+		dao.Dissolve("test")
 
 		err := dao.Execute(p.ID(), cur)
 		uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
@@ -604,24 +544,24 @@ func TestWithdraw(t *testing.T) {
 	)
 
 	// Proposals without votes can be withdrawn
-	p := dao.MustPropose(memberA, propDef{period: time.Hour})
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
 	urequire.NoError(t, dao.Withdraw(p.ID()))
 	uassert.Equal(t, string(commondao.StatusWithdrawn), string(p.Status()))
-	uassert.Equal(t, 0, dao.ActiveProposals().Size())
-	uassert.Equal(t, 1, dao.FinishedProposals().Size())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 1, dao.FinishedProposalsSize())
 
 	// Withdrawn proposals cannot be withdrawn again
 	err := dao.Withdraw(p.ID())
 	uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
 
 	// Proposals with votes cannot be withdrawn
-	p = dao.MustPropose(memberA, propDef{period: time.Hour})
+	p = mustPropose(t, dao, memberA, propDef{period: time.Hour})
 	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceAbstain, ""))
 	err = dao.Withdraw(p.ID())
 	uassert.ErrorIs(t, err, commondao.ErrWithdrawalNotAllowed)
 
 	// Early passed proposals cannot be withdrawn
-	p2 := dao.MustPropose(memberA, defaultPropDef{period: time.Hour})
+	p2 := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 	urequire.NoError(t, dao.Vote(memberA, p2.ID(), commondao.ChoiceYes, ""))
 	urequire.NoError(t, dao.Vote(memberB, p2.ID(), commondao.ChoiceYes, ""))
 	urequire.Equal(t, string(commondao.StatusPassed), string(p2.Status()))
@@ -638,7 +578,7 @@ func TestReadonlyCommonDAO(t *testing.T) {
 		commondao.WithParent(parent),
 		commondao.WithCouncilMember(memberA),
 	)
-	p := dao.MustPropose(memberA, propDef{title: "T", body: "B", period: time.Hour})
+	p := mustPropose(t, dao, memberA, propDef{title: "T", body: "B", period: time.Hour})
 
 	view := dao.Readonly()
 	uassert.Equal(t, uint64(7), view.ID())
@@ -665,7 +605,6 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	uassert.Equal(t, memberA, pv.Creator())
 	uassert.Equal(t, 1, pv.Electorate().Size())
 	uassert.Equal(t, 0, pv.VotingRecord().Size())
-	uassert.Equal(t, 3, len(pv.VoteChoices()))
 
 	visited := 0
 	view.IterateActiveProposals(0, 10, false, func(commondao.ReadonlyProposal) bool {
@@ -674,8 +613,7 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	})
 	uassert.Equal(t, 1, visited)
 
-	// Registering dao as a child of parent is visible through the view
-	parent.Children().Append(dao)
+	// WithParent registered dao as a child of parent at construction
 	uassert.Equal(t, 1, parentView.ChildrenCount())
 	childID := uint64(0)
 	parentView.IterateChildren(func(child commondao.ReadonlyCommonDAO) bool {
@@ -685,7 +623,7 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	uassert.Equal(t, uint64(7), childID)
 
 	// A withdrawn proposal is visible through the finished-proposals view
-	fp := dao.MustPropose(memberA, propDef{period: time.Hour})
+	fp := mustPropose(t, dao, memberA, propDef{period: time.Hour})
 	urequire.NoError(t, dao.Withdraw(fp.ID()))
 	uassert.Equal(t, 1, view.FinishedProposalsSize())
 	finished := 0
@@ -708,7 +646,7 @@ func TestReadonlyCommonDAO(t *testing.T) {
 	uassert.Equal(t, 1, yes)
 
 	// Views are live handles
-	dao.SetDeleted(true)
+	dao.Dissolve("test")
 	uassert.True(t, view.IsDeleted())
 }
 
@@ -734,10 +672,12 @@ func TestSetMaxActiveProposals(t *testing.T) {
 	dao := commondao.New(commondao.WithCouncilMember(memberA))
 
 	dao.SetMaxActiveProposals(2)
-	_ = dao.MustPropose(memberA, propDef{period: time.Hour})
-	_ = dao.MustPropose(memberA, propDef{period: time.Hour})
+	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
 	_, err := dao.Propose(memberA, propDef{period: time.Hour})
 	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+
+	uassert.Equal(t, 2, dao.MaxActiveProposals())
 
 	// Values below the floor are ignored (the floor is 1, not 0/negative)
 	dao.SetMaxActiveProposals(0)

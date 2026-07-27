@@ -5,6 +5,7 @@ package z_12_c_filetest
 import (
 	"testing"
 
+	pdao "gno.land/p/nt/commondao/v0"
 	"gno.land/r/nt/commondao/v0"
 )
 
@@ -23,9 +24,19 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID := commondao.New(cross(cur), "Root", "", commondao.AllowChildren(true))
-	subA = commondao.NewSubDAO(cross(cur), "A", rootID, "", commondao.AllowTreasuryProposals(true))
-	subB = commondao.NewSubDAO(cross(cur), "B", rootID, "")
+	rootID := commondao.New(cross(cur), "Root", "", "")
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "A", "", string(user))
+		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), rootID, pID)
+	}
+	subA = 3
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "B", "", string(user))
+		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), rootID, pID)
+	}
+	subB = 4
 }
 
 func main(cur realm) {

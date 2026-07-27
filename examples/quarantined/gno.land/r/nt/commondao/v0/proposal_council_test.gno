@@ -75,7 +75,9 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 		def := newCouncilUpdatePropDefinition(dao, add, remove)
 
 		urequire.NotPanics(t, cur, func() {
-			commondao.MustExecute(def, cur)
+			if err := def.Executor()(cross(cur)); err != nil {
+				panic(err)
+			}
 		})
 		uassert.True(t, dao.Council().Has(memberB))
 		uassert.False(t, dao.Council().Has(memberA))

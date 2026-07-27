@@ -32,9 +32,13 @@ func IsInvited(addr address) bool {
 // An invitation is required to be able to create new DAOs.
 // The caller becomes the DAO owner and a council member, optionally
 // together with a newline separated list of additional member addresses.
-func New(cur realm, name, members string, options ...Option) uint64 {
+// Sub-DAOs are created through proposals (see CreateSubDAOProposal).
+func New(cur realm, name, description, members string) uint64 {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
+
+	description = strings.TrimSpace(description)
+	assertDAODescriptionIsValid(description)
 
 	caller := cur.Previous().Address()
 	if !hasOwnership(caller) {
@@ -43,32 +47,8 @@ func New(cur realm, name, members string, options ...Option) uint64 {
 		invites.Remove(orig.String())
 	}
 
-	dao := createDAO(name, caller, options, parseInitialMembers(caller, members)...)
+	dao := createDAO(name, description, caller, parseInitialMembers(caller, members)...)
 	return dao.ID()
-}
-
-// NewSubDAO creates a new SubDAO and returns its ID.
-// The caller becomes a council member of the SubDAO, optionally together
-// with a newline separated list of additional member addresses.
-func NewSubDAO(cur realm, name string, parentID uint64, members string, options ...Option) uint64 {
-	caller := cur.Previous().Address()
-	assertIsOwner(caller, parentID)
-
-	parentOptions := getOptions(parentID)
-	if !parentOptions.AllowChildren {
-		panic("SubDAO support is not enabled")
-	}
-
-	name = strings.TrimSpace(name)
-	assertDAONameIsValid(name)
-
-	parent := getDAO(parentID)
-	if parent.IsDeleted() {
-		panic("DAO has already been dissolved")
-	}
-
-	subDAO := createSubDAO(parent, name, options, parseInitialMembers(caller, members)...)
-	return subDAO.ID()
 }
 
 // parseInitialMembers returns the caller plus the parsed additional
@@ -95,25 +75,23 @@ func GetOptions(cur realm, daoID uint64) Options {
 	return *getOptions(daoID)
 }
 
-// UpdateOptions changes the configuration of a DAO.
+// UpdateOptions changes the hosting configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
-func UpdateOptions(cur realm, daoID uint64, opts ...Option) {
+// A maxActiveProposals value below one keeps the current proposal cap.
+func UpdateOptions(cur realm, daoID uint64, allowListing, allowRender, allowChildren, allowExecution bool, maxActiveProposals int) {
 	if !isOwner(cur.Previous().Address(), daoID) {
 		panic("unauthorized")
 	}
 
-	// Apply caller options to a copy so option closures never hold a
-	// reference to the persisted Options value.
-	stored := getOptions(daoID)
-	updated := *stored
-	for _, apply := range opts {
-		apply(&updated)
+	*getOptions(daoID) = Options{
+		AllowListing:   allowListing,
+		AllowRender:    allowRender,
+		AllowChildren:  allowChildren,
+		AllowExecution: allowExecution,
 	}
-	*stored = updated
 
-	if updated.MaxActiveProposals > 0 {
-		mustGetDAO(daoID).SetMaxActiveProposals(updated.MaxActiveProposals)
-	}
+	// Values below one are ignored by the package cap setter
+	mustGetDAO(daoID).SetMaxActiveProposals(maxActiveProposals)
 }
 
 // IsOwner checks if an address has ownership of a DAO.
@@ -155,11 +133,6 @@ func GetView(daoID uint64) commondao.ReadonlyCommonDAO {
 // council snapshot taken when the proposal was created.
 func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
-	o := getOptions(dao.ID())
-	if !o.AllowVoting {
-		panic("voting is not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	err := dao.Vote(caller, proposalID, vote, reason)
 	if err != nil {
@@ -270,6 +243,12 @@ func assertDAONameIsValid(name string) {
 
 	if len(name) > 60 {
 		panic("DAO name is too long, max length is 60 characters")
+	}
+}
+
+func assertDAODescriptionIsValid(description string) {
+	if len(description) > 250 {
+		panic("DAO description is too long, max length is 250 characters")
 	}
 }
 

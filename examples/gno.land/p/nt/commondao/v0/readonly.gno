@@ -168,11 +168,6 @@ func (r ReadonlyProposal) Body() string {
 	return r.p.definition.Body()
 }
 
-// VoteChoices returns the list of vote choices allowed for the proposal.
-func (r ReadonlyProposal) VoteChoices() []VoteChoice {
-	return r.p.VoteChoices()
-}
-
 // VotingRecord returns a read only record with the submitted votes.
 func (r ReadonlyProposal) VotingRecord() ReadonlyVotingRecord {
 	return r.p.record.Readonly()

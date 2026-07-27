@@ -20,7 +20,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowDissolutionProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 }
 
 func main(cur realm) {

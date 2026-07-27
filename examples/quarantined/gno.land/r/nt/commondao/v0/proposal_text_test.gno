@@ -11,32 +11,32 @@ import (
 )
 
 var (
-	_ commondao.ProposalDefinition = (*TextPropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*TextPropDefinition)(nil)
+	_ commondao.ProposalDefinition = (*textPropDefinition)(nil)
+	_ commondao.DefaultTallier     = (*textPropDefinition)(nil)
 )
 
-func TestTextPropDefinitionNew(cur realm, t *testing.T) {
+func TesttextPropDefinitionNew(cur realm, t *testing.T) {
 	urequire.PanicsWithMessage(t, cur, "proposal title is empty", func() {
-		NewTextPropDefinition("  ", "body", time.Hour*24)
+		newTextPropDefinition("  ", "body", time.Hour*24)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "proposal title is too long, max length is 255 chars", func() {
-		NewTextPropDefinition(strings.Repeat("a", maxTextTitle+1), "body", time.Hour*24)
+		newTextPropDefinition(strings.Repeat("a", maxTextTitle+1), "body", time.Hour*24)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "proposal body is empty", func() {
-		NewTextPropDefinition("title", "  ", time.Hour*24)
+		newTextPropDefinition("title", "  ", time.Hour*24)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "proposal body is too long, max length is 15000 chars", func() {
-		NewTextPropDefinition("title", strings.Repeat("a", maxTextBody+1), time.Hour*24)
+		newTextPropDefinition("title", strings.Repeat("a", maxTextBody+1), time.Hour*24)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "minimum proposal voting period is one day", func() {
-		NewTextPropDefinition("title", "body", time.Hour)
+		newTextPropDefinition("title", "body", time.Hour)
 	})
 
-	def := NewTextPropDefinition(" title ", " body ", time.Hour*48)
+	def := newTextPropDefinition(" title ", " body ", time.Hour*48)
 	uassert.Equal(t, "title", def.Title())
 	uassert.Equal(t, "body", def.Body())
 	uassert.Equal(t, int64(time.Hour*48), int64(def.VotingPeriod()))

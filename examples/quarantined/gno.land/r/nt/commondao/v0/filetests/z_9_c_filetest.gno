@@ -22,8 +22,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", string(owner))
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", string(owner))
 
 	// Dissolve the DAO through a proposal
 	pID := commondao.CreateDissolutionProposal(cross(cur), daoID, owner)

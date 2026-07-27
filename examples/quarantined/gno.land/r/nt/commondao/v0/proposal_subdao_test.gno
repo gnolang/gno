@@ -34,8 +34,7 @@ func newTestDAO(t *testing.T, name string, members ...address) *commondao.Common
 	dao := commondao.New(opts...)
 	daos.Set(id.String(), dao)
 	options.Set(id.String(), &Options{
-		AllowChildren:        true,
-		AllowSubDAOProposals: true,
+		AllowChildren: true,
 	})
 	return dao
 }
@@ -49,18 +48,18 @@ func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
 	members.Add(member)
 
 	urequire.PanicsWithMessage(t, cur, "parent DAO is required", func() {
-		newSubDAOPropDefinition(nil, "Sub", &members)
+		newSubDAOPropDefinition(nil, "Sub", "", &members)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "DAO name is empty", func() {
-		newSubDAOPropDefinition(dao, "  ", &members)
+		newSubDAOPropDefinition(dao, "  ", "", &members)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "a SubDAO requires at least one initial council member", func() {
-		newSubDAOPropDefinition(dao, "Sub", &addrset.Set{})
+		newSubDAOPropDefinition(dao, "Sub", "", &addrset.Set{})
 	})
 
-	def := newSubDAOPropDefinition(dao, "Sub", &members)
+	def := newSubDAOPropDefinition(dao, "Sub", "", &members)
 	uassert.Equal(t, "New SubDAO: Sub", def.Title())
 	uassert.Equal(t, int(commondao.ThresholdSimpleMajority), int(def.Threshold()))
 	uassert.NotEmpty(t, def.Body())
@@ -74,15 +73,16 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 
 	var members addrset.Set
 	members.Add(member)
-	def := newSubDAOPropDefinition(dao, "Sub", &members)
+	def := newSubDAOPropDefinition(dao, "Sub", "", &members)
 
-	urequire.NotPanics(t, cur, func() {
-		commondao.MustExecute(def, cur)
+	urequire.NoError(t, def.Executor()(cross(cur)))
+
+	urequire.Equal(t, 1, dao.ChildrenCount(), "expect one SubDAO")
+	var sub *commondao.CommonDAO
+	dao.IterateChildren(func(child *commondao.CommonDAO) bool {
+		sub = child
+		return true
 	})
-
-	urequire.Equal(t, 1, dao.Children().Len(), "expect one SubDAO")
-	subDAO, _ := dao.Children().Get(0)
-	sub := subDAO.(*commondao.CommonDAO)
 	uassert.Equal(t, "Sub", sub.Name())
 	uassert.True(t, sub.Council().Has(member))
 	uassert.Equal(t, 1, sub.Council().Size())
@@ -106,18 +106,17 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	uassert.NoError(t, def.Validate())
 
 	// Dissolution voids in-flight proposals before soft deleting the DAO
-	p := dao.MustPropose(member, TextPropDefinition{
+	p, err := dao.Propose(member, textPropDefinition{
 		title:        "Pending",
 		body:         "pending",
 		votingPeriod: time.Hour,
 	})
+	urequire.NoError(t, err)
 
-	urequire.NotPanics(t, cur, func() {
-		commondao.MustExecute(def, cur)
-	})
+	urequire.NoError(t, def.Executor()(cross(cur)))
 
 	uassert.True(t, dao.IsDeleted())
-	uassert.Equal(t, 0, dao.ActiveProposals().Size())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
 	uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
 	uassert.Equal(t, "DAO dissolved", p.StatusReason())
 

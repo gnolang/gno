@@ -26,12 +26,13 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID = commondao.New(cross(cur), "Root", "",
-		commondao.AllowChildren(true),
-		commondao.AllowTreasuryProposals(true),
-		commondao.AllowDissolutionProposals(true),
-	)
-	subID = commondao.NewSubDAO(cross(cur), "Sub", rootID, "")
+	rootID = commondao.New(cross(cur), "Root", "", "")
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "", string(user))
+		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), rootID, pID)
+	}
+	subID = 3
 
 	// Freeze the sub-DAO, then dissolve it (the dissolution sweep runs on
 	// an empty treasury), then fund its address afterwards: coins landing

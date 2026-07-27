@@ -25,8 +25,7 @@ func init(cur realm) {
 
 	// Create a new DAO owned by user1, with user1 as the only council member
 	testing.SetRealm(testing.NewUserRealm(user1))
-	daoID = commondao.New(cross(cur), "Foo", "")
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 
 	// Create a new proposal
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)

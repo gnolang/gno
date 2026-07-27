@@ -5,6 +5,7 @@ package zp_3_b_filetest
 import (
 	"testing"
 
+	pdao "gno.land/p/nt/commondao/v0"
 	"gno.land/r/nt/commondao/v0"
 )
 
@@ -24,12 +25,19 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "", string(user))
 
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowDissolutionProposals(true))
 
 	// Create a SubDAO to be dissolved
-	subID = commondao.NewSubDAO(cross(cur), "Bar", daoID, "")
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, "Bar", "", string(user))
+		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
+		testing.SetRealm(testing.NewUserRealm(user))
+		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
+		commondao.Execute(cross(cur), daoID, pID)
+	}
+	subID = 3
 }
 
 func main(cur realm) {

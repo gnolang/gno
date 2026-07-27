@@ -24,7 +24,6 @@ var (
 	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
 	ownership = bptree.NewBPTree32() // string(address) -> []uint64(DAO ID)
 	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
-	trees     = bptree.NewBPTree32() // string(root ID) -> bptree.BPTree(string(DAO ID) -> *commondao.CommonDAO)
 	options   = bptree.NewBPTree32() // string(ID) -> *Options
 )
 
@@ -42,14 +41,6 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 		panic("DAO not found")
 	}
 	return dao
-}
-
-func getTree(rootID uint64) *bptree.BPTree {
-	key := makeIDKey(rootID)
-	if v := trees.Get(key); v != nil {
-		return v.(*bptree.BPTree)
-	}
-	return nil
 }
 
 func getOwnership(addr address) []uint64 {
@@ -84,71 +75,48 @@ func daoAddress(daoID uint64) address {
 	return chain.DerivePkgSubAddr(pkgPath, subpathOf(daoID))
 }
 
-func createDAO(name string, owner address, o []Option, members ...address) *commondao.CommonDAO {
+func createDAO(name, description string, owner address, members ...address) *commondao.CommonDAO {
 	if len(members) == 0 {
 		panic("a DAO requires at least one initial council member")
 	}
 
-	daoOptions := defaultOptions
-	for _, apply := range o {
-		apply(&daoOptions)
-	}
-
 	id := daoID.Next()
-	dao := commondao.New(newDAOOptions(uint64(id), name, nil, daoOptions, members)...)
+	dao := commondao.New(newDAOOptions(uint64(id), name, description, nil, members)...)
 
 	ids := append(getOwnership(owner), uint64(id))
 	ownership.Set(owner.String(), ids)
 
 	daos.Set(id.String(), dao)
 
-	// Persist a fresh copy so option closures never hold a reference to
-	// the stored Options value.
-	stored := daoOptions
+	stored := defaultOptions
 	options.Set(id.String(), &stored)
 	return dao
 }
 
-func createSubDAO(parent *commondao.CommonDAO, name string, o []Option, members ...address) *commondao.CommonDAO {
+func createSubDAO(parent *commondao.CommonDAO, name, description string, members ...address) *commondao.CommonDAO {
 	if len(members) == 0 {
 		panic("a SubDAO requires at least one initial council member")
 	}
 
-	daoOptions := defaultOptions
-	for _, apply := range o {
-		apply(&daoOptions)
-	}
-
+	// WithParent also registers the new DAO as one of parent's children
 	id := daoID.Next()
-	dao := commondao.New(newDAOOptions(uint64(id), name, parent, daoOptions, members)...)
+	dao := commondao.New(newDAOOptions(uint64(id), name, description, parent, members)...)
 
-	stored := daoOptions
+	stored := defaultOptions
 	options.Set(id.String(), &stored)
 	daos.Set(id.String(), dao)
-
-	rootID := parent.TopParent().ID()
-	tree := getTree(rootID)
-	if tree == nil {
-		tree = bptree.NewBPTree32()
-		trees.Set(makeIDKey(rootID), tree)
-	}
-
-	tree.Set(id.String(), dao)
-	parent.Children().Append(dao)
 	return dao
 }
 
-func newDAOOptions(id uint64, name string, parent *commondao.CommonDAO, o Options, members []address) []commondao.Option {
+func newDAOOptions(id uint64, name, description string, parent *commondao.CommonDAO, members []address) []commondao.Option {
 	opts := []commondao.Option{
 		commondao.WithID(id),
 		commondao.WithName(name),
+		commondao.WithDescription(description),
 		commondao.WithAddress(daoAddress(id)),
 	}
 	if parent != nil {
 		opts = append(opts, commondao.WithParent(parent))
-	}
-	if o.MaxActiveProposals > 0 {
-		opts = append(opts, commondao.WithMaxActiveProposals(o.MaxActiveProposals))
 	}
 	for _, m := range members {
 		opts = append(opts, commondao.WithCouncilMember(m))

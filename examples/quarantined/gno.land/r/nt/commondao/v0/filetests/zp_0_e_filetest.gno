@@ -26,10 +26,9 @@ func init(cur realm) {
 
 	// Create root DAO with a subDAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "", string(user))
 
 
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowCouncilUpdate(true))
 }
 
 func main(cur realm) {

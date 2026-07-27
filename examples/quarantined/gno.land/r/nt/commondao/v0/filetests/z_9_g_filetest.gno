@@ -20,13 +20,13 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowTextProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 
 	commondao.CreateTextProposal(cross(cur), daoID, "First", "Body", 0)
 
 	// Tightening the cap to the current count blocks new proposals
 	// without touching existing ones
-	commondao.UpdateOptions(cross(cur), daoID, commondao.MaxActiveProposals(1))
+	commondao.UpdateOptions(cross(cur), daoID, false, true, true, true, 1)
 }
 
 func main(cur realm) {

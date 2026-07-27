@@ -21,14 +21,14 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New(cross(cur), "Foo", "")
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 }
 
 func main(cur realm) {
 	// Use a caller that is not the owner of the DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm"))
 
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowVoting(false))
+	commondao.UpdateOptions(cross(cur), daoID, false, true, true, true, 0)
 }
 
 // Error:

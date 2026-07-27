@@ -12,7 +12,7 @@ import (
 )
 
 // newSubDAOPropDefinition creates a new proposal definition for adding a SubDAO.
-func newSubDAOPropDefinition(parent *commondao.CommonDAO, name string, members *addrset.Set) subDAOPropDefinition {
+func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description string, members *addrset.Set) subDAOPropDefinition {
 	if parent == nil {
 		panic("parent DAO is required")
 	}
@@ -20,22 +20,27 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name string, members *
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
+	description = strings.TrimSpace(description)
+	assertDAODescriptionIsValid(description)
+
 	if members == nil || members.Size() == 0 {
 		panic("a SubDAO requires at least one initial council member")
 	}
 
 	return subDAOPropDefinition{
-		parent:  parent,
-		name:    name,
-		members: members,
+		parent:      parent,
+		name:        name,
+		description: description,
+		members:     members,
 	}
 }
 
 // subDAOPropDefinition defines a proposal type for adding a SubDAO.
 type subDAOPropDefinition struct {
-	parent  *commondao.CommonDAO
-	name    string
-	members *addrset.Set
+	parent      *commondao.CommonDAO
+	name        string
+	description string
+	members     *addrset.Set
 }
 
 func (p subDAOPropDefinition) Title() string             { return "New SubDAO: " + p.name }
@@ -72,13 +77,11 @@ func (p subDAOPropDefinition) Body() string {
 }
 
 func (p subDAOPropDefinition) Validate() (err error) {
-	options := getOptions(p.parent.ID())
-	if !(options.AllowSubDAOProposals && options.AllowChildren) {
+	if !getOptions(p.parent.ID()).AllowChildren {
 		return errors.New("SubDAO support is not enabled")
 	}
 
-	p.parent.Children().ForEach(func(_ int, v any) bool {
-		subDAO := v.(*commondao.CommonDAO)
+	p.parent.IterateChildren(func(subDAO *commondao.CommonDAO) bool {
 		if subDAO.Name() == p.name {
 			err = errors.New("a SubDAO with the same name already exists")
 			return true
@@ -99,7 +102,7 @@ func (p subDAOPropDefinition) execute(realm) error {
 		return false
 	})
 
-	createSubDAO(p.parent, p.name, nil, members...)
+	createSubDAO(p.parent, p.name, p.description, members...)
 	return nil
 }
 

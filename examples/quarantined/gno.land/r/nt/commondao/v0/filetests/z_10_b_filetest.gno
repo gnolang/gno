@@ -25,7 +25,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowTextProposals(true), commondao.AllowVoting(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 
 	pID := commondao.CreateTextProposal(cross(cur), daoID, "*Title* [t](https://evil.example)", "**Body** with <img src=x> and [b](https://evil.example)", 0)
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "*reason* [r](https://evil.example)")

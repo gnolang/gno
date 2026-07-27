@@ -5,6 +5,7 @@ package zp_2_f_filetest
 import (
 	"testing"
 
+	pdao "gno.land/p/nt/commondao/v0"
 	"gno.land/r/nt/commondao/v0"
 )
 
@@ -22,18 +23,22 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "", string(user))
 
-	commondao.NewSubDAO(cross(cur), name, daoID, "")
-
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowChildren(true), commondao.AllowSubDAOProposals(true))
-
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "", string(user))
+		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
+		testing.SetRealm(testing.NewUserRealm(user))
+		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
+		commondao.Execute(cross(cur), daoID, pID)
+	}
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross(cur), daoID, name, string(user))
+	commondao.CreateSubDAOProposal(cross(cur), daoID, name, "", string(user))
 }
 
 // Error:

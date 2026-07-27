@@ -22,9 +22,8 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", string(user) + "\n" + string(owner))
+	daoID = commondao.New(cross(cur), "Foo", "", string(user) + "\n" + string(owner))
 
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
 }
 
 func main(cur realm) {

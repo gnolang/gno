@@ -21,16 +21,16 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "")
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 
 	// Disallow SubDAO creation
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowSubDAOProposals(false))
+	commondao.UpdateOptions(cross(cur), daoID, false, true, false, true, 0)
 
 }
 
 func main(cur realm) {
-	commondao.CreateSubDAOProposal(cross(cur), daoID, "", "")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, "", "", "")
 }
 
 // Error:
-// SubDAO proposals are not enabled
+// SubDAO support is not enabled

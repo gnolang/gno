@@ -34,7 +34,7 @@ var (
 // # Security
 //
 // A *CommonDAO is a mutable handle: its exported mutators (UpdateCouncil,
-// SetDeleted, Propose, Vote, Execute, Withdraw) are meant for the realm
+// Dissolve, Propose, Vote, Execute, Withdraw) are meant for the realm
 // that owns the DAO. Three rules apply at realm boundaries:
 //
 //  1. Do not ACCEPT a *CommonDAO from an external/untrusted caller.
@@ -51,8 +51,8 @@ type CommonDAO struct {
 	children           list.IList
 	council            *addrset.Set
 	genID              seqid.ID
-	activeProposals    *ProposalStorage
-	finishedProposals  *ProposalStorage
+	activeProposals    *proposalStorage
+	finishedProposals  *proposalStorage
 	deleted            bool // Soft delete
 	treasuryFrozen     bool
 	maxActiveProposals int
@@ -63,8 +63,8 @@ func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
 		children:           &list.List{},
 		council:            &addrset.Set{},
-		activeProposals:    NewProposalStorage(),
-		finishedProposals:  NewProposalStorage(),
+		activeProposals:    newProposalStorage(),
+		finishedProposals:  newProposalStorage(),
 		maxActiveProposals: DefaultMaxActiveProposals,
 	}
 	for _, apply := range options {
@@ -113,10 +113,17 @@ func (dao CommonDAO) Parent() *CommonDAO {
 	return dao.parent
 }
 
-// Children returns a list with the direct DAO children.
-// Each item in the list is a reference to a CommonDAO instance.
-func (dao CommonDAO) Children() list.IList {
-	return dao.children
+// ChildrenCount returns the number of direct children DAOs.
+func (dao CommonDAO) ChildrenCount() int {
+	return dao.children.Len()
+}
+
+// IterateChildren iterates the direct children DAOs.
+func (dao CommonDAO) IterateChildren(fn func(*CommonDAO) bool) (stopped bool) {
+	dao.children.ForEach(func(_ int, v any) bool {
+		return fn(v.(*CommonDAO))
+	})
+	return
 }
 
 // TopParent returns the topmost parent DAO.
@@ -185,14 +192,25 @@ func (dao *CommonDAO) UpdateCouncil(add, remove []address) error {
 	return nil
 }
 
-// ActiveProposals returns active DAO proposals.
-func (dao CommonDAO) ActiveProposals() *ProposalStorage {
-	return dao.activeProposals
+// ActiveProposalsSize returns the number of active proposals, including
+// early passed proposals that were not executed yet.
+func (dao CommonDAO) ActiveProposalsSize() int {
+	return dao.activeProposals.Size()
 }
 
-// FinishedProposals returns finished DAO proposals.
-func (dao CommonDAO) FinishedProposals() *ProposalStorage {
-	return dao.finishedProposals
+// IterateActiveProposals iterates active proposals ordered by ID.
+func (dao CommonDAO) IterateActiveProposals(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
+	return dao.activeProposals.Iterate(offset, count, reverse, fn)
+}
+
+// FinishedProposalsSize returns the number of finished proposals.
+func (dao CommonDAO) FinishedProposalsSize() int {
+	return dao.finishedProposals.Size()
+}
+
+// IterateFinishedProposals iterates finished proposals ordered by ID.
+func (dao CommonDAO) IterateFinishedProposals(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
+	return dao.finishedProposals.Iterate(offset, count, reverse, fn)
 }
 
 // IsDeleted returns true when DAO has been soft deleted.
@@ -200,9 +218,9 @@ func (dao CommonDAO) IsDeleted() bool {
 	return dao.deleted
 }
 
-// SetDeleted changes DAO's soft delete flag.
-func (dao *CommonDAO) SetDeleted(deleted bool) {
-	dao.deleted = deleted
+// MaxActiveProposals returns the cap for simultaneously active proposals.
+func (dao CommonDAO) MaxActiveProposals() int {
+	return dao.maxActiveProposals
 }
 
 // SetMaxActiveProposals changes the cap for simultaneously active
@@ -233,15 +251,9 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 		return nil, ErrProposalDefinitionRequired
 	}
 
-	// Every definition is decided either by the default Council rules or
-	// by custom logic, never both.
-	_, isDefault := d.(DefaultTallier)
-	_, isCustom := d.(CustomTallier)
-	if !isDefault && !isCustom {
+	// Every definition is decided by the default Council voting rules.
+	if _, ok := d.(DefaultTallier); !ok {
 		return nil, ErrMissingTallier
-	}
-	if isDefault && isCustom {
-		return nil, ErrConflictingTalliers
 	}
 
 	if _, exempt := d.(CapExempt); exempt {
@@ -265,7 +277,7 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 		return nil, ErrOverflow
 	}
 
-	p, err := NewProposal(uint64(id), creator, d)
+	p, err := newProposal(uint64(id), creator, d)
 	if err != nil {
 		return nil, err
 	}
@@ -278,15 +290,6 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 
 	dao.activeProposals.Add(p)
 	return p, nil
-}
-
-// MustPropose creates a new DAO proposal or panics on error.
-func (dao *CommonDAO) MustPropose(creator address, d ProposalDefinition) *Proposal {
-	p, err := dao.Propose(creator, d)
-	if err != nil {
-		panic(err)
-	}
-	return p
 }
 
 // GetProposal returns a proposal or nil when proposal is not found.
@@ -311,7 +314,7 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 		return ErrStatusIsNotActive
 	}
 
-	if p.VotingRecord().Size() > 0 {
+	if p.record.Size() > 0 {
 		return ErrWithdrawalNotAllowed
 	}
 
@@ -380,10 +383,8 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 // Execute executes a proposal.
 //
 // Proposals that already passed (decided early by the default Council
-// rules) execute immediately. Active proposals are tallied and executed
-// once their voting deadline passes: proposals decided by the default
-// rules are dismissed unless passed, while custom definitions decide
-// through their Tally method.
+// rules) execute immediately. Active proposals are tallied once their
+// voting deadline passes and are dismissed unless passed.
 //
 // rlm is the realm authority threaded into the executor via cross(rlm).
 // Execute itself is not a crossing function (rlm sits in a non-first
@@ -421,23 +422,16 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	// Validate proposal before execution
 	err := p.Validate()
 
-	// Tally proposals that are still active after their deadline
+	// Tally proposals that are still active after their deadline;
+	// undecided proposals are dismissed
 	if err == nil && p.status == StatusActive {
 		if dt, ok := p.definition.(DefaultTallier); ok {
 			if TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) == OutcomePassed {
 				p.status = StatusPassed
 			}
-		} else if ct, ok := p.definition.(CustomTallier); ok {
-			ctx := NewVotingContext(p.record.Readonly(), p.Electorate())
-			var passes bool
-			passes, err = ct.Tally(ctx)
-			if err == nil && passes {
-				p.status = StatusPassed
-			}
 		}
 
-		// Undecided or dismissed proposals are dismissed at the deadline
-		if err == nil && p.status != StatusPassed {
+		if p.status != StatusPassed {
 			p.status = StatusDismissed
 			dao.finishedProposals.Add(p)
 			return nil

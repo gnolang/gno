@@ -20,11 +20,6 @@ import (
 // The default voting period is 7 days.
 func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays uint8) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowTextProposals {
-		panic("text proposals are not enabled")
-	}
-
 	if votingDays > 30 {
 		panic("maximum proposal voting period is 30 days")
 	}
@@ -39,7 +34,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 		votingPeriod = time.Hour * 24 * time.Duration(votingDays)
 	}
 
-	def := NewTextPropDefinition(title, body, votingPeriod)
+	def := newTextPropDefinition(title, body, votingPeriod)
 	return mustPropose(dao, caller, def)
 }
 
@@ -52,10 +47,6 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 // - removeMembers: Newline separated list of council addresses to remove
 func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowCouncilUpdate {
-		panic("council update proposals are not enabled")
-	}
 
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
@@ -71,19 +62,20 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 // Parameters:
 // - daoID: ID of the parent DAO (required)
 // - name: A name for the SubDAO (required)
+// - description: A description for the SubDAO
 // - members: Newline separated list of initial SubDAO council addresses (required)
-func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 {
+func CreateSubDAOProposal(cur realm, daoID uint64, name, description, members string) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
-	if !(o.AllowSubDAOProposals && o.AllowChildren) {
-		panic("SubDAO proposals are not enabled")
+	if !o.AllowChildren {
+		panic("SubDAO support is not enabled")
 	}
 
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
 	daoMembers := mustParseStringToAddrset(members)
-	def := newSubDAOPropDefinition(dao, name, &daoMembers)
+	def := newSubDAOPropDefinition(dao, name, description, &daoMembers)
 	return mustPropose(dao, caller, def)
 }
 
@@ -115,11 +107,6 @@ func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uin
 		dao = parent
 	}
 
-	o := getOptions(dao.ID())
-	if !o.AllowDissolutionProposals {
-		panic("dissolution proposals are not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
@@ -137,11 +124,6 @@ func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uin
 // - amount: coin amount, must be positive (required)
 func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom string, amount int64) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowTreasuryProposals {
-		panic("treasury proposals are not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
@@ -160,11 +142,6 @@ func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom stri
 // - targetID: ID of the descendant DAO to claw back (required)
 func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowTreasuryProposals {
-		panic("treasury proposals are not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
@@ -184,11 +161,6 @@ func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 // - frozen: true to freeze the target's treasury, false to unfreeze
 func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool) uint64 {
 	dao := mustGetDAO(daoID)
-	o := getOptions(daoID)
-	if !o.AllowTreasuryProposals {
-		panic("treasury proposals are not enabled")
-	}
-
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 

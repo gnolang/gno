@@ -63,7 +63,7 @@ func TestTreasurySpendPropDefinition(cur realm, t *testing.T) {
 	dao.SetTreasuryFrozen(false)
 
 	// Dissolved DAOs reject spends
-	dao.SetDeleted(true)
+	dao.Dissolve("test")
 	uassert.ErrorContains(t, def.Validate(), "DAO has already been dissolved")
 }
 

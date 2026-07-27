@@ -21,7 +21,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "*Pwn* [link](https://evil.example) # H1", "")
+	daoID = commondao.New(cross(cur), "*Pwn* [link](https://evil.example) # H1", "", "")
 }
 
 func main() {
@@ -43,3 +43,53 @@ func main() {
 // ## Treasury
 // - Address: g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2
 // - Balance: (empty)
+// ## Create Proposal
+// These are the proposal supported by this DAO:
+//
+// <gno-columns>
+// [General Proposal](/r/nt/commondao/v0$help&func=CreateTextProposal&body=&daoID=2&title=&votingDays=7)
+//
+// This type of proposal is also known as text proposal which can be used for example to get consensus on initiatives without actually making any change on-chain.
+//
+//
+// <gno-columns-sep>
+// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=2&description=&members=&name=)
+//
+// This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
+//
+//
+// <gno-columns-sep>
+// [Dissolve DAO](/r/nt/commondao/v0$help&func=CreateDissolutionProposal&daoID=2&destination=)
+//
+// This type of proposal can be used to dissolve DAOs and SubDAOs.
+//
+// Dissolving a DAO can't be undone, once the dissolution proposal passes and is executed DAO will be readonly.
+//
+//
+// <gno-columns-sep>
+// [Treasury Spend](/r/nt/commondao/v0$help&func=CreateTreasurySpendProposal&amount=&daoID=2&denom=ugnot&to=)
+//
+// This type of proposal sends coins from the DAO's own treasury when it passes and is executed.
+//
+//
+// <gno-columns-sep>
+// [Treasury Clawback](/r/nt/commondao/v0$help&func=CreateTreasuryClawbackProposal&daoID=2&targetID=)
+//
+// This type of proposal sweeps a descendant DAO's treasury to the descendant's parent DAO.
+//
+//
+// <gno-columns-sep>
+// [Treasury Freeze](/r/nt/commondao/v0$help&func=CreateTreasuryFreezeProposal&daoID=2&frozen=true&targetID=)
+//
+// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no treasury spend can execute.
+//
+//
+// <gno-columns-sep>
+// [Update Council](/r/nt/commondao/v0$help&func=CreateCouncilUpdateProposal&daoID=2&newMembers=&removeMembers=)
+//
+// This type of proposal can be used to add new council members to this DAO and also to remove existing ones.
+//
+// A single proposal allows new council members to be added and any number of existing ones removed within the same proposal.
+//
+//
+// </gno-columns>

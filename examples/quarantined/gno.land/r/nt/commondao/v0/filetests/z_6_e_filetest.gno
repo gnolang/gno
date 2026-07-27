@@ -25,8 +25,8 @@ func init(cur realm) {
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowExecution(false)) // Disallow execution
-	commondao.UpdateOptions(cross(cur), daoID, commondao.AllowTextProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
+	commondao.UpdateOptions(cross(cur), daoID, false, true, true, false, 0) // Disallow early execution
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 

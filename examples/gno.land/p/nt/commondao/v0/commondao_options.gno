@@ -33,10 +33,14 @@ func WithAddress(addr address) Option {
 	}
 }
 
-// WithParent assigns a parent DAO.
+// WithParent assigns a parent DAO and registers the DAO as one of the
+// parent's children, keeping both sides of the tree wired in one step.
 func WithParent(p *CommonDAO) Option {
 	return func(dao *CommonDAO) {
 		dao.parent = p
+		if p != nil {
+			p.children.Append(dao)
+		}
 	}
 }
 

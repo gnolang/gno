@@ -64,12 +64,9 @@ every ballot — including changed votes — so a proposal **passes or is
 dismissed the moment the outcome is mathematically settled** and an
 early-passed proposal may be executed before its deadline.
 
-Custom definitions implement the `CustomTallier` interface
-(`Tally(VotingContext) (bool, error)`) instead and are tallied once, at
-the deadline — every definition must implement exactly one of
-`DefaultTallier`/`CustomTallier`. Definitions may also
-customize vote choices (`CustomizableVoteChoices`) — but not combined
-with `DefaultTallier`.
+Every proposal definition implements `DefaultTallier`; vote choices are
+fixed at YES/NO/ABSTAIN. (An earlier custom-tallier hook was removed as
+unconsumed — reintroducing one is purely additive.)
 
 ## Council changes
 

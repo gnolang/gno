@@ -23,7 +23,7 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	daoID = commondao.New(cross(cur), "Foo", "", commondao.AllowDissolutionProposals(true))
+	daoID = commondao.New(cross(cur), "Foo", "", "")
 
 	testing.IssueCoins(commondao.GetView(daoID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 650)))
 }

@@ -112,7 +112,7 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	renderTreasury(res, dao)
 
 	// Render organization tree
-	if dao.Children().Len() > 0 {
+	if dao.ChildrenCount() > 0 {
 		r := parseRealmPath(req.RawPath)
 		dissolvedVisible := r.Query.Has("dissolved") || dao.IsDeleted()
 		res.Write(md.H2("Tree"))
@@ -136,10 +136,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Render latest proposals
-	proposals := dao.ActiveProposals()
-	if proposals.Size() > 0 {
+	if dao.ActiveProposalsSize() > 0 {
 		res.Write(md.H2("Latest Proposals"))
-		proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
+		dao.IterateActiveProposals(0, 3, true, func(p *commondao.Proposal) bool {
 			renderProposalsListItem(res, dao, p)
 			return false
 		})
@@ -157,7 +156,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		o    = getOptions(daoID)
 	)
 
-	if o.AllowTextProposals {
+	{
 		cols = append(cols, md.Paragraph(textProposalLink(daoID))+
 			md.Paragraph(
 				"This type of proposal is also known as text proposal which can be used for example "+
@@ -166,7 +165,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
-	if o.AllowSubDAOProposals {
+	if o.AllowChildren {
 		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
 			md.Paragraph(
 				"This type of proposal is used to create SubDAOs, "+
@@ -175,7 +174,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
-	if o.AllowDissolutionProposals {
+	{
 		cols = append(cols, md.Paragraph(dissolveSubDAOLink(daoID))+
 			md.Paragraph(
 				"This type of proposal can be used to dissolve DAOs and SubDAOs.",
@@ -187,7 +186,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
-	if o.AllowTreasuryProposals {
+	{
 		cols = append(cols, md.Paragraph(treasurySpendLink(daoID))+
 			md.Paragraph(
 				"This type of proposal sends coins from the DAO's own treasury "+
@@ -210,7 +209,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 		)
 	}
 
-	if o.AllowCouncilUpdate {
+	{
 		cols = append(cols, md.Paragraph(updateCouncilLink(daoID))+
 			md.Paragraph(
 				"This type of proposal can be used to add new council members to this DAO "+
@@ -221,10 +220,6 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 					"removed within the same proposal.",
 			),
 		)
-	}
-
-	if len(cols) == 0 {
-		return
 	}
 
 	res.Write(md.H2("Create Proposal"))
@@ -278,12 +273,7 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 	res.Write(indent + md.BulletItem(daoLink))
 
 	indent += "  "
-	dao.Children().ForEach(func(_ int, v any) bool {
-		subDAO, ok := v.(*commondao.CommonDAO)
-		if !ok {
-			return false
-		}
-
+	dao.IterateChildren(func(subDAO *commondao.CommonDAO) bool {
 		if showDissolved || !subDAO.IsDeleted() {
 			renderTree(res, subDAO, indent, showDissolved)
 		}
@@ -304,21 +294,11 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render options
 	table := mdtable.Table{Headers: []string{"Options", "Values"}}
-	table.Append([]string{"Allow Render", strconv.FormatBool(o.AllowRender)})
+	table.Append([]string{"Allow listing", strconv.FormatBool(o.AllowListing)})
+	table.Append([]string{"Allow render", strconv.FormatBool(o.AllowRender)})
 	table.Append([]string{"Allow SubDAOs", strconv.FormatBool(o.AllowChildren)})
-	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
 	table.Append([]string{"Enable early execution", strconv.FormatBool(o.AllowExecution)})
-	table.Append([]string{"Text Proposals", strconv.FormatBool(o.AllowTextProposals)})
-	table.Append([]string{"Council update proposals", strconv.FormatBool(o.AllowCouncilUpdate)})
-	table.Append([]string{"SubDAO creation proposals", strconv.FormatBool(o.AllowSubDAOProposals)})
-	table.Append([]string{"Treasury proposals", strconv.FormatBool(o.AllowTreasuryProposals)})
-	table.Append([]string{"DAO dissolution proposals", strconv.FormatBool(o.AllowDissolutionProposals)})
-
-	maxActive := o.MaxActiveProposals
-	if maxActive < 1 {
-		maxActive = commondao.DefaultMaxActiveProposals
-	}
-	table.Append([]string{"Max active proposals", strconv.Itoa(maxActive)})
+	table.Append([]string{"Max active proposals", strconv.Itoa(dao.MaxActiveProposals())})
 
 	res.Write(md.H2("Options"))
 	res.Write(table.String())
@@ -335,18 +315,20 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.HorizontalRule())
 
 	// Render proposals
-	if dao.ActiveProposals().Size() == 0 && dao.FinishedProposals().Size() == 0 {
+	if dao.ActiveProposalsSize() == 0 && dao.FinishedProposalsSize() == 0 {
 		res.Write(md.Paragraph(md.Bold("⚠ The DAO has no proposals")))
 		return
 	}
 
-	proposals := dao.ActiveProposals()
+	size := dao.ActiveProposalsSize()
+	iterate := dao.IterateActiveProposals
 	renderFinished := req.Query.Has("finished")
 	if renderFinished {
-		proposals = dao.FinishedProposals()
+		size = dao.FinishedProposalsSize()
+		iterate = dao.IterateFinishedProposals
 	}
 
-	pages, err := pager.New(req.RawPath, proposals.Size(), pager.WithPageSize(8))
+	pages, err := pager.New(req.RawPath, size, pager.WithPageSize(8))
 	if err != nil {
 		res.Write(err.Error())
 		return
@@ -375,14 +357,14 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.Paragraph("View: " + viewLink + " • Sort by: " + sortLink))
 
-	if proposals.Size() == 0 {
+	if size == 0 {
 		if renderFinished {
 			res.Write(md.Paragraph("Currently there are no finished proposals"))
 		} else {
 			res.Write(md.Paragraph("Currently there are no active proposals"))
 		}
 	} else {
-		proposals.Iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
+		iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
 			renderProposalsListItem(res, dao, p)
 			return false
 		})
@@ -414,7 +396,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	}
 
 	// Render actions
-	if o.AllowVoting && isVotingPeriodActive(p) {
+	if isVotingPeriodActive(p) {
 		status = append(status, voteLink(dao.ID(), p.ID()))
 	}
 
@@ -449,7 +431,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	// Render main menu
 	items := []string{goToDAOLink(dao.ID())}
 	o := getOptions(dao.ID())
-	if o.AllowVoting && votingActive {
+	if votingActive {
 		items = append(items, voteLink(dao.ID(), p.ID()))
 	}
 
@@ -498,7 +480,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func renderProposalStats(res *mux.ResponseWriter, record *commondao.VotingRecord) {
+func renderProposalStats(res *mux.ResponseWriter, record commondao.ReadonlyVotingRecord) {
 	totalCount := float64(record.Size())
 	table := mdtable.Table{Headers: []string{"Vote Choices", "Percentage of Votes"}}
 
@@ -653,6 +635,7 @@ func newSubDAOLink(daoID uint64) string {
 		"CreateSubDAOProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"name", "",
+		"description", "",
 		"members", "",
 	))
 }

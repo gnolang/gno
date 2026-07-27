@@ -32,7 +32,11 @@ func (testPropDef) Executor() commondao.ExecFunc {
 
 func init() {
 	dao = commondao.New(commondao.WithCouncilMember(member))
-	proposal = dao.MustPropose(member, testPropDef{})
+	var err error
+	proposal, err = dao.Propose(member, testPropDef{})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main(cur realm) {

@@ -27,11 +27,13 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	rootID = commondao.New(cross(cur), "Root", "",
-		commondao.AllowChildren(true),
-		commondao.AllowTreasuryProposals(true),
-	)
-	subID = commondao.NewSubDAO(cross(cur), "Sub", rootID, "", commondao.AllowTreasuryProposals(true))
+	rootID = commondao.New(cross(cur), "Root", "", "")
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), rootID, "Sub", "", string(user))
+		commondao.Vote(cross(cur), rootID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), rootID, pID)
+	}
+	subID = 3
 
 	testing.IssueCoins(commondao.GetView(subID).Address(), chain.NewCoins(chain.NewCoin("ugnot", 500)))
 

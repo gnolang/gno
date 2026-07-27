@@ -31,8 +31,8 @@ funds.
 
 `CreateTreasurySpendProposal(daoID, to, denom, amount)` — single-coin,
 supermajority (the default passage rule; no spend-specific mandate),
-gated by the proposing DAO's `AllowTreasuryProposals` option (default
-off, like every proposal-type flag). All spend preconditions live in
+available to every council like the other constitutional powers. All
+spend preconditions live in
 `Validate`, which runs at proposal creation and again inside `Execute`
 immediately before the executor: a treasury frozen, drained, or
 dissolved after the proposal passed fails it cleanly (`StatusFailed`,
@@ -50,8 +50,8 @@ Generalized from the Core-DAO wording (`:245-248`) to the whole tree
 under `:1507` — a deliberate plan choice. Both are decided at **simple
 majority** and validated as **strictly proper** ancestry
 (`target.Parent()` walked upward; self-targeting rejected), so a DAO
-can never claw back or unfreeze itself. A target's own Options can
-never block an ancestor (the gate is on the proposing DAO only).
+can never claw back or unfreeze itself. A target can never block an
+ancestor's controls.
 
 - **Clawback** sweeps the target's full balance at execution time to a
   **fixed, non-nameable destination: the target's parent** — funds move
@@ -110,23 +110,21 @@ council has authority over it; documented, accepted.
 - New realm surface: `CreateTreasurySpendProposal`,
   `CreateTreasuryClawbackProposal`, `CreateTreasuryFreezeProposal`,
   and a `destination` parameter on `CreateDissolutionProposal`
-  (breaking; quarantined realm, no live state). `Options` gains
-  `AllowTreasuryProposals` (default off).
+  (breaking; quarantined realm, no live state).
 - Package surface: `WithAddress`, `Address()`, `SetTreasuryFrozen`,
   `IsTreasuryFrozen`; the getters (never the mutator) are mirrored on
   `ReadonlyCommonDAO`.
 - Render: DAO pages show the treasury address, live balances
-  (readonly banker), and a frozen warning; the genesis DAO enables
-  treasury and dissolution proposals so donated funds stay governable
-  (its options are otherwise immutable — the owner is the realm's own
-  address).
+  (readonly banker), and a frozen warning. Treasury and dissolution
+  proposals are always available to councils, so funds donated to any
+  DAO (including the genesis DAO) stay governable.
 - Validation and rendering read the stored address while executors
   spend from the freshly minted sub-identity; both flow from the single
   `newDAOOptions` construction funnel (`WithAddress(daoAddress(id))`)
   and z_15_a pins the equality on-chain.
-- 25 new filetests (z_11 spend lifecycle/gates, z_12 clawback incl.
-  the grandparent case pinning the fixed parent destination, z_13
-  dissolution sweeps + orphan rescue, z_14 freeze, z_15 address
+- Treasury filetest families (z_11 spend lifecycle, z_12 clawback
+  incl. the grandparent case pinning the fixed parent destination,
+  z_13 dissolution sweeps + orphan rescue, z_14 freeze, z_15 address
   stability, z_10_d treasury rendering) plus definition unit tests; no
   funds can move without a passed proposal — the only `SendCoins` call
   sites are the three executors above.
