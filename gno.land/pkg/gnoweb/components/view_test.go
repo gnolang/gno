@@ -287,11 +287,11 @@ func TestHelpView(t *testing.T) {
 }
 
 func TestDirectoryView(t *testing.T) {
-	pkgPath := "example/path"
+	pkgPath := "/r/example/path"
 	files := []string{"file1.gno", "file2.gno"}
 	fileCounter := 2
 	linkType := DirLinkTypeSource
-	mode := ViewModePackage
+	mode := ViewModeRealm
 
 	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode)
 
@@ -307,8 +307,23 @@ func TestDirectoryView(t *testing.T) {
 	assert.Equal(t, len(files), len(dirData.FilesLinks), "expected %d files, got %d", len(files), len(dirData.FilesLinks))
 	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
 	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
+	assert.True(t, dirData.IsRealm, "expected IsRealm to be true")
+	assert.Equal(t, pkgPath, dirData.RenderURL, "expected RenderURL %s, got %s", pkgPath, dirData.RenderURL)
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestDirectoryView_PackageHasNoRenderURL(t *testing.T) {
+	view := DirectoryView("/p/example/path", []string{"file1.gno"}, 1, DirLinkTypeSource, ViewModePackage)
+
+	templateComponent, ok := view.Component.(*TemplateComponent)
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+	dirData, ok := templateComponent.data.(DirData)
+	assert.True(t, ok, "expected DirData type in component data")
+
+	assert.False(t, dirData.IsRealm, "expected IsRealm to be false")
+	assert.Empty(t, dirData.RenderURL, "expected RenderURL to be empty")
 }
 
 func TestDirLinkType_LinkPrefix(t *testing.T) {

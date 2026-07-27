@@ -1,5 +1,7 @@
 package components
 
+import "strings"
+
 const DirectoryViewType ViewType = "dir-view"
 
 type DirData struct {
@@ -8,6 +10,8 @@ type DirData struct {
 	FilesLinks  FilesLinks
 	Mode        ViewMode
 	Readme      Component
+	IsRealm     bool
+	RenderURL   string
 }
 
 type DirLinkType int
@@ -51,11 +55,19 @@ func buildFilesLinks(files []string, linkType DirLinkType, pkgPath string) Files
 
 // DirectoryView creates a directory view
 func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType, mode ViewMode, readme ...Component) *View {
+	isRealm := strings.HasPrefix(pkgPath, "/r/")
+	renderURL := ""
+	if isRealm {
+		renderURL = strings.TrimSuffix(pkgPath, "/")
+	}
+
 	viewData := DirData{
 		PkgPath:     pkgPath,
 		FilesLinks:  buildFilesLinks(files, linkType, pkgPath),
 		FileCounter: fileCounter,
 		Mode:        mode,
+		IsRealm:     isRealm,
+		RenderURL:   renderURL,
 	}
 	if len(readme) > 0 {
 		viewData.Readme = readme[0]
