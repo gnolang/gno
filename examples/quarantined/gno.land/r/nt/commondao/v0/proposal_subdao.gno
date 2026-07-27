@@ -167,7 +167,9 @@ func (p dissolvePropDefinition) execute(cur realm) error {
 	// remains afterwards to pass a spend. Sub-DAO funds go to the parent;
 	// root funds go to the destination named at proposal creation. A
 	// frozen treasury does not block dissolution — the sweep sends the
-	// funds where a clawback would.
+	// funds where a clawback would. Full-balance send: cost is O(denoms);
+	// a denom-flooded DAO can push this past block gas, blocking
+	// dissolution (known limitation — see the treasury ADR §Sweep gas-bomb).
 	if balance := treasuryBalance(p.dao); !balance.IsZero() {
 		dest := p.destination
 		if parent := p.dao.Parent(); parent != nil {

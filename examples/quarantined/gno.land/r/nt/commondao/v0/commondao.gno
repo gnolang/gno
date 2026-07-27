@@ -12,7 +12,10 @@ import (
 
 // pkgPath is this realm's package path, fixed regardless of quarantine
 // location. DAO treasury addresses derive from it, so they are stable
-// across logic upgrades.
+// across a SAME-PATH redeploy. Moving to a different package path (e.g.
+// .../v1) changes cur.Sub derivation and would strand existing treasuries
+// unless a drain executor ran first (see gnovm/adr/pr5890_realm_sub.md
+// §Cross-host identity); this realm ships no such migration executor.
 const pkgPath = "gno.land/r/nt/commondao/v0"
 
 // CommonDAOID is the ID of the realm's DAO.

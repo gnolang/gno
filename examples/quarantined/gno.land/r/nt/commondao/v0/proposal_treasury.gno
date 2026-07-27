@@ -188,6 +188,9 @@ func (p treasuryClawbackPropDefinition) execute(cur realm) error {
 	}
 
 	// A proper ancestor exists, so the target always has a parent.
+	// Full-balance send: cost is O(number of denoms held). A target dusted
+	// with many realm-minted denoms can push this past block gas (known
+	// limitation — see the treasury ADR §Sweep gas-bomb).
 	sub := cur.Sub(subpathOf(p.target.ID()))
 	b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 	b.SendCoins(sub.Address(), p.target.Parent().Address(), balance)

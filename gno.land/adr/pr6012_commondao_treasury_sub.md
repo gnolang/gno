@@ -100,7 +100,29 @@ non-dissolved ancestor** (z_13_d). If every ancestor including the
 root is dissolved, the orphan can no longer be dissolved or clawed
 back — but its own council keeps full spend power (spend proposals are
 self-hosted) and, if frozen, the orphan-unfreeze rescue above applies,
-so no funds are ever stranded.
+so a **living** orphan's funds are never stranded. Coins deposited to a
+DAO's address *after* it is dissolved are a separate, accepted case: a
+deleted DAO rejects Propose, so only a live proper ancestor can recover
+them (clawback-on-deleted); a dissolved **root** has no ancestor, so its
+later deposits are unrecoverable by design (burned). A dissolved-DAO
+render warning is a recommended follow-up.
+
+### Sweep gas-bomb (known limitation)
+
+Clawback and the dissolution sweep move the target's **full** multi-denom
+balance in one `banker.SendCoins`, an O(number-of-denoms) operation. Coin
+denominations are realm-mintable without limit and any address can be
+funded permissionlessly, so an attacker can dust a DAO's (public,
+pre-derivable) address with enough distinct `pkgpath:name` denoms that the
+sweep exceeds the block gas limit — after which clawback **and**
+dissolution abort on out-of-gas and can never complete, locking the DAO's
+funds and its governance. There is no theft and no atomicity break
+(out-of-gas reverts the whole tx; the proposal stays Passed and
+re-executable), and single-coin spends are immune. The root cause is a
+chain-wide missing per-account denom-count cap, not a commondao-specific
+authorization flaw. Mitigations deferred to a follow-up: batch the sweep
+across executions, or sweep a bounded denom allowlist. Recorded as a known
+limitation.
 
 ## Alternatives considered
 
