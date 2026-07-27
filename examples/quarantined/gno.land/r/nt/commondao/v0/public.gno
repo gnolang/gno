@@ -54,15 +54,11 @@ func New(cur realm, name, description, members string) uint64 {
 // parseInitialMembers returns the caller plus the parsed additional
 // members, deduplicated.
 func parseInitialMembers(caller address, members string) []address {
-	set := mustParseStringToAddrset(members)
-	set.Add(caller)
-
-	list := make([]address, 0, set.Size())
-	set.IterateByOffset(0, set.Size(), func(addr address) bool {
-		list = append(list, addr)
-		return false
-	})
-	return list
+	addrs := parseAddresses(members)
+	if containsAddress(addrs, caller) {
+		return addrs
+	}
+	return append(addrs, caller)
 }
 
 // GetOptions returns a copy of the configuration of a DAO.

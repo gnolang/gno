@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/commondao/v0"
 )
 
 // newSubDAOPropDefinition creates a new proposal definition for adding a SubDAO.
-func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description string, members *addrset.Set) subDAOPropDefinition {
+func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description string, members []address) subDAOPropDefinition {
 	if parent == nil {
 		panic("parent DAO is required")
 	}
@@ -23,7 +22,7 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, description stri
 	description = strings.TrimSpace(description)
 	assertDAODescriptionIsValid(description)
 
-	if members == nil || members.Size() == 0 {
+	if len(members) == 0 {
 		panic("a SubDAO requires at least one initial council member")
 	}
 
@@ -40,7 +39,7 @@ type subDAOPropDefinition struct {
 	parent      *commondao.CommonDAO
 	name        string
 	description string
-	members     *addrset.Set
+	members     []address
 }
 
 func (p subDAOPropDefinition) Title() string             { return "New SubDAO: " + p.name }
@@ -69,14 +68,8 @@ func (p subDAOPropDefinition) Body() string {
 		))
 	}
 
-	items := make([]string, 0, p.members.Size())
-	p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
-		items = append(items, addr.String())
-		return false
-	})
-
 	b.WriteString(md.Paragraph(
-		md.Bold("Council Members:") + "\n" + md.BulletList(items),
+		md.Bold("Council Members:") + "\n" + md.BulletList(addrStrings(p.members)),
 	))
 
 	return b.String()
@@ -102,13 +95,7 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p subDAOPropDefinition) execute(realm) error {
-	members := make([]address, 0, p.members.Size())
-	p.members.IterateByOffset(0, p.members.Size(), func(addr address) bool {
-		members = append(members, addr)
-		return false
-	})
-
-	createSubDAO(p.parent, p.name, p.description, members...)
+	createSubDAO(p.parent, p.name, p.description, p.members...)
 	return nil
 }
 

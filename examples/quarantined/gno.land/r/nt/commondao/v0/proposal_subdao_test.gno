@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
@@ -12,9 +11,7 @@ import (
 
 var (
 	_ commondao.ProposalDefinition = (*subDAOPropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*subDAOPropDefinition)(nil)
 	_ commondao.ProposalDefinition = (*dissolvePropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*dissolvePropDefinition)(nil)
 )
 
 // newTestDAO registers a DAO in the realm state so definitions that read
@@ -44,22 +41,19 @@ func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
 
 	dao := newTestDAO(t, "Root", member)
 
-	var members addrset.Set
-	members.Add(member)
-
 	urequire.PanicsWithMessage(t, cur, "parent DAO is required", func() {
-		newSubDAOPropDefinition(nil, "Sub", "", &members)
+		newSubDAOPropDefinition(nil, "Sub", "", []address{member})
 	})
 
 	urequire.PanicsWithMessage(t, cur, "DAO name is empty", func() {
-		newSubDAOPropDefinition(dao, "  ", "", &members)
+		newSubDAOPropDefinition(dao, "  ", "", []address{member})
 	})
 
 	urequire.PanicsWithMessage(t, cur, "a SubDAO requires at least one initial council member", func() {
-		newSubDAOPropDefinition(dao, "Sub", "", &addrset.Set{})
+		newSubDAOPropDefinition(dao, "Sub", "", nil)
 	})
 
-	def := newSubDAOPropDefinition(dao, "Sub", "", &members)
+	def := newSubDAOPropDefinition(dao, "Sub", "", []address{member})
 	uassert.Equal(t, "New SubDAO: Sub", def.Title())
 	uassert.Equal(t, int(commondao.ThresholdSimpleMajority), int(def.Threshold()))
 	uassert.NotEmpty(t, def.Body())
@@ -71,9 +65,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 
 	dao := newTestDAO(t, "Root2", member)
 
-	var members addrset.Set
-	members.Add(member)
-	def := newSubDAOPropDefinition(dao, "Sub", "", &members)
+	def := newSubDAOPropDefinition(dao, "Sub", "", []address{member})
 
 	urequire.NoError(t, def.Executor()(cross(cur)))
 

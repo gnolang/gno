@@ -135,6 +135,5 @@ council has authority over it; documented, accepted.
   creation, a passed spend debits the DAO account and credits the
   destination through the real bank keeper, and a parent clawback
   sweeps a funded child treasury DAO-to-DAO (source account emptied,
-  parent credited). The test patches the genesis council to the test
-  key and switches `AllowTreasuryProposals` on in `defaultOptions`
-  (the realm option is variadic-only, unreachable from `maketx call`).
+  parent credited). The test patches the genesis council to the test key; the sub-DAO
+  itself is created through the proposal flow on the real node.

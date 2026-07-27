@@ -11,11 +11,8 @@ import (
 
 var (
 	_ commondao.ProposalDefinition = (*treasurySpendPropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*treasurySpendPropDefinition)(nil)
 	_ commondao.ProposalDefinition = (*treasuryClawbackPropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*treasuryClawbackPropDefinition)(nil)
 	_ commondao.ProposalDefinition = (*treasuryFreezePropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*treasuryFreezePropDefinition)(nil)
 )
 
 // newTestTree builds an in-memory root -> mid -> leaf DAO chain.

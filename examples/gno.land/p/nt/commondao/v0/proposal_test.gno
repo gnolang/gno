@@ -37,11 +37,6 @@ func TestProposalNew(t *testing.T) {
 		uassert.Equal(t, "", p.StatusReason())
 		uassert.False(t, p.HasVotingDeadlinePassed())
 
-		// The vote choices are fixed by the default voting rules
-		uassert.True(t, p.IsVoteChoiceValid(commondao.ChoiceYes))
-		uassert.True(t, p.IsVoteChoiceValid(commondao.ChoiceNo))
-		uassert.True(t, p.IsVoteChoiceValid(commondao.ChoiceAbstain))
-		uassert.False(t, p.IsVoteChoiceValid(commondao.VoteChoice("FOO")))
 	})
 }
 

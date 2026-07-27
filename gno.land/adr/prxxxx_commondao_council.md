@@ -17,13 +17,20 @@ Deferred to the treasury PR: per-DAO addresses via `cur.Sub(<dao-id>)`
 and proposal-gated treasuries (`:1534-1543`) — nothing here conflicts
 with that design (DAO IDs are monotonic and never reused; the module
 path is fixed regardless of quarantine location; no banker code).
-Out of scope, each its own future work: the Charter
+Out of scope: the Charter
 (Purpose/Description) and Bylaws/Mandates data model with ancestor
-amendment (`:1485-1496`); ancestor council mutation (`:1531-1532`) —
-the ≥1-member creation rule exists precisely because this rescue path
-is absent; and the m-of-n multisig representation (`:1539-1541`), an
-optional alternative whose m ≥ 3 floor deliberately does NOT apply to
-council tallying.
+amendment (`:1485-1496`), and the m-of-n multisig representation
+(`:1539-1541`), an optional alternative whose m ≥ 3 floor deliberately
+does NOT apply to council tallying. Ancestor council mutation
+(`:1531-1532`) is the next follow-up, not merely out of scope: the
+≥1-member creation rule exists precisely because this rescue path is
+absent, the treasury PR built all its machinery (proper-ancestor
+validation, ancestor-hosted proposals), and with treasuries live a
+root DAO whose council goes silent strands its funds (sub-DAO funds
+stay clawback-rescuable). Related tension recorded, no code change:
+`:250-253` reserves assigned-but-unused funds absent a Constitutional
+Amendment — an off-chain restriction the clawback power cannot
+machine-check.
 
 ## Decisions
 
@@ -111,17 +118,21 @@ snapshots indefinitely (archival is future work).
 
 ### Early termination (spec default)
 
-`DefaultTallier` definitions are re-evaluated after every recorded
-vote (including vote changes — `AddVote` overwrites, and a NO→ABSTAIN
-flip shrinking D may legitimately trigger a pass): a YES tally at the
-definition's threshold (supermajority by default; `:1504`'s simple
-majority for sub-DAO creation) passes immediately (the proposal stays
-in active storage until executed), and a NO majority dismisses
-immediately. `Execute` runs
+Proposals are re-evaluated after every recorded vote (including vote
+changes — `AddVote` overwrites, and a NO→ABSTAIN flip shrinking D may
+legitimately trigger a pass): a YES tally at the definition's
+threshold passes immediately (the proposal stays in active storage
+until executed), and a NO majority dismisses immediately. `:1522`'s
+"decided immediately by a supermajority" is read as "at the decision
+rule's threshold": a sub-DAO creation proposal (`:1504` simple
+majority) also passes early at its own threshold — one denominator
+rule, one early-decision rule, per-type thresholds. `Execute` runs
 early-passed proposals at once — skipping the re-tally and deadline
 gate but still validating — and the deadline path dismisses undecided
-defaults. `Propose` requires every definition to implement
-`DefaultTallier`; `Proposal.ExpectedOutcome()` serves rendering.
+proposals before validation (a proposal that never passed archives as
+Dismissed, never Failed). `Threshold()` is part of `ProposalDefinition`
+itself — every proposal is decided by the constitutional rules, checked
+at compile time; `Proposal.ExpectedOutcome()` serves rendering.
 Statuses:
 `StatusRejected` → `StatusDismissed`; `StatusFailed` is reserved for
 validation/executor errors. Realm-side, past-deadline `Execute` is
@@ -184,9 +195,10 @@ ever materializes; see Alternatives.)
 - A `CustomTallier` escape hatch (custom tally logic evaluated at the
   deadline) and `CustomizableVoteChoices` shipped in early revisions:
   removed by a design-simplicity review as consumer-less speculation —
-  custom choices also persisted a per-proposal choice tree. Reintroducing
-  either is purely additive (`DefaultTallier` + `ErrMissingTallier`
-  remain the seam).
+  custom choices also persisted a per-proposal choice tree. A follow-up
+  review folded `Threshold()` into `ProposalDefinition` itself; a future
+  custom tallier is reintroduced additively as an optional interface
+  checked before the default rules.
 
 ## Consequences
 

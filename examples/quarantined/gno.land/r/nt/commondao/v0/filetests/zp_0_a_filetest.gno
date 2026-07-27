@@ -51,8 +51,8 @@ func main(cur realm) {
 // true
 //
 // **Council Members to Add:**
-// - g147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d
 // - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
+// - g147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d
 //
 //
 // **Council Members to Remove:**

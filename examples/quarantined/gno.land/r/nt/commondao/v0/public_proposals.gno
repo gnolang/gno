@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/commondao/v0"
 )
 
@@ -51,9 +50,7 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	toAdd := mustParseStringToAddrset(newMembers)
-	toRemove := mustParseStringToAddrset(removeMembers)
-	def := newCouncilUpdatePropDefinition(dao, toAdd, toRemove)
+	def := newCouncilUpdatePropDefinition(dao, parseAddresses(newMembers), parseAddresses(removeMembers))
 	return mustPropose(dao, caller, def)
 }
 
@@ -74,8 +71,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, description, members st
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	daoMembers := mustParseStringToAddrset(members)
-	def := newSubDAOPropDefinition(dao, name, description, &daoMembers)
+	def := newSubDAOPropDefinition(dao, name, description, parseAddresses(members))
 	return mustPropose(dao, caller, def)
 }
 
@@ -185,11 +181,10 @@ func mustPropose(dao *commondao.CommonDAO, caller address, def commondao.Proposa
 	return p.ID()
 }
 
-func mustParseStringToAddrset(s string) (set addrset.Set) {
-	if s == "" {
-		return
-	}
-
+// parseAddresses parses a newline separated list of addresses,
+// deduplicated, panicking on invalid entries.
+func parseAddresses(s string) []address {
+	var addrs []address
 	for _, raw := range strings.Split(s, "\n") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
@@ -201,9 +196,19 @@ func mustParseStringToAddrset(s string) (set addrset.Set) {
 			panic("invalid address: " + addr.String())
 		}
 
-		if !set.Has(addr) {
-			set.Add(addr)
+		if !containsAddress(addrs, addr) {
+			addrs = append(addrs, addr)
 		}
 	}
-	return set
+	return addrs
+}
+
+// containsAddress checks if an address is present in a list.
+func containsAddress(addrs []address, addr address) bool {
+	for _, a := range addrs {
+		if a == addr {
+			return true
+		}
+	}
+	return false
 }

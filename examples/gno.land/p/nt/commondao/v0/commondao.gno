@@ -253,11 +253,6 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 		return nil, ErrProposalDefinitionRequired
 	}
 
-	// Every definition is decided by the default Council voting rules.
-	if _, ok := d.(DefaultTallier); !ok {
-		return nil, ErrMissingTallier
-	}
-
 	if _, exempt := d.(CapExempt); exempt {
 		var found bool
 		dao.activeProposals.Iterate(0, dao.activeProposals.Size(), false, func(p *Proposal) bool {
@@ -358,7 +353,7 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 		return ErrVotingDeadlinePassed
 	}
 
-	if !p.IsVoteChoiceValid(c) {
+	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
 		return ErrInvalidVoteChoice
 	}
 
@@ -368,16 +363,14 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 		Reason:  reason,
 	})
 
-	// Early termination: default rule proposals are decided the moment
-	// the outcome is mathematically settled. A passed proposal stays in
-	// the active storage until executed; a dismissed one is finished.
-	if dt, ok := p.definition.(DefaultTallier); ok {
-		switch TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) {
-		case OutcomePassed:
-			p.status = StatusPassed
-		case OutcomeDismissed:
-			dao.dismiss(p)
-		}
+	// Early termination: proposals are decided the moment the outcome is
+	// mathematically settled. A passed proposal stays in the active
+	// storage until executed; a dismissed one is finished.
+	switch TallyDefault(p.record.Readonly(), p.Electorate(), p.definition.Threshold()) {
+	case OutcomePassed:
+		p.status = StatusPassed
+	case OutcomeDismissed:
+		dao.dismiss(p)
 	}
 	return nil
 }
@@ -414,31 +407,29 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	}
 
 	// The proposal leaves active storage before any definition code
-	// (Validate, Tally, the executor) runs, so a re-entrant Execute
-	// call cannot run it twice.
+	// (Validate, the executor) runs, so a re-entrant Execute call
+	// cannot run it twice.
 	dao.activeProposals.Remove(p.id)
 
-	// IMPORTANT, from this point on, any error is going to result
-	// in a proposal failure and execute will succeed.
-
-	// Validate proposal before execution
-	err := p.Validate()
-
 	// Tally proposals that are still active after their deadline;
-	// undecided proposals are dismissed
-	if err == nil && p.status == StatusActive {
-		if dt, ok := p.definition.(DefaultTallier); ok {
-			if TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold()) == OutcomePassed {
-				p.status = StatusPassed
-			}
-		}
-
-		if p.status != StatusPassed {
+	// undecided proposals are dismissed. Vote already decides settled
+	// outcomes, so this re-tally only matters for definitions whose
+	// Threshold is not constant.
+	if p.status == StatusActive {
+		if TallyDefault(p.record.Readonly(), p.Electorate(), p.definition.Threshold()) == OutcomePassed {
+			p.status = StatusPassed
+		} else {
 			p.status = StatusDismissed
 			dao.finishedProposals.Add(p)
 			return nil
 		}
 	}
+
+	// IMPORTANT, from this point on, any error is going to result
+	// in a proposal failure and execute will succeed.
+
+	// Validate the passed proposal before execution
+	err := p.Validate()
 
 	// Execute proposal only if it's executable
 	if err == nil {

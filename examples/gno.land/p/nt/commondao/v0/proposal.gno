@@ -46,7 +46,6 @@ var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
-	ErrMissingTallier             = errors.New("proposal definition must implement DefaultTallier")
 )
 
 type (
@@ -81,9 +80,6 @@ type (
 	// ProposalDefinition defines an interface for custom proposal definitions.
 	// These definitions define proposal content and behavior, essentially
 	// allowing the definition of different proposal types.
-	//
-	// Every definition must also implement DefaultTallier: proposals are
-	// decided by the constitution's default Council voting rules.
 	ProposalDefinition interface {
 		// Title returns the proposal title.
 		Title() string
@@ -97,14 +93,11 @@ type (
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
 		// It is used to calculate the voting deadline from the proposal's creation date.
 		VotingPeriod() time.Duration
-	}
 
-	// DefaultTallier defines an interface for proposal definitions that are
-	// decided by the constitution's default Council voting rules at the
-	// returned threshold. These proposals are evaluated after every recorded
-	// vote and can pass or be dismissed before their voting deadline.
-	DefaultTallier interface {
 		// Threshold returns the tally threshold for passing the proposal.
+		// Proposals are decided by the constitution's default Council voting
+		// rules: re-evaluated after every recorded vote, they can pass or be
+		// dismissed before their voting deadline.
 		Threshold() Threshold
 	}
 
@@ -138,10 +131,6 @@ type (
 // The proposal is created with an empty electorate; Propose populates it
 // with the council snapshot.
 func newProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
-	if d == nil {
-		return nil, ErrProposalDefinitionRequired
-	}
-
 	if !creator.IsValid() {
 		return nil, ErrInvalidCreatorAddress
 	}
@@ -230,16 +219,8 @@ func (p Proposal) Validate() error {
 	return nil
 }
 
-// IsVoteChoiceValid checks if a vote choice is valid for the proposal.
-func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
-	return c == ChoiceYes || c == ChoiceNo || c == ChoiceAbstain
-}
-
 // ExpectedOutcome returns the outcome the proposal would have if it were
 // decided with the votes submitted so far. Useful for rendering.
 func (p Proposal) ExpectedOutcome() Outcome {
-	if dt, ok := p.definition.(DefaultTallier); ok {
-		return TallyDefault(p.record.Readonly(), p.Electorate(), dt.Threshold())
-	}
-	return OutcomePending
+	return TallyDefault(p.record.Readonly(), p.Electorate(), p.definition.Threshold())
 }

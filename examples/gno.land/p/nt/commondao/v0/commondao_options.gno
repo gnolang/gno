@@ -50,13 +50,3 @@ func WithCouncilMember(addr address) Option {
 		dao.council.Add(addr)
 	}
 }
-
-// WithMaxActiveProposals sets the cap for simultaneously active proposals.
-// Values below one are ignored: a DAO must always be able to propose.
-func WithMaxActiveProposals(max int) Option {
-	return func(dao *CommonDAO) {
-		if max >= 1 {
-			dao.maxActiveProposals = max
-		}
-	}
-}

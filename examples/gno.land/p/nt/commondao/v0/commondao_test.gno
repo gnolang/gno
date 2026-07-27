@@ -90,13 +90,6 @@ type validatingExecPropDef struct {
 
 func (d validatingExecPropDef) Validate() error { return *d.err }
 
-// bareDef does not implement DefaultTallier.
-type bareDef struct{}
-
-func (bareDef) Title() string               { return "Bare" }
-func (bareDef) Body() string                { return "" }
-func (bareDef) VotingPeriod() time.Duration { return time.Hour }
-
 func TestNew(t *testing.T) {
 	dao := commondao.New()
 	uassert.Equal(t, uint64(0), dao.ID())
@@ -181,11 +174,9 @@ func TestPropose(t *testing.T) {
 	uassert.Equal(t, 1, p.Electorate().Size())
 	uassert.False(t, p.Electorate().Has(memberB))
 
-	// Definitions must exist and be decided by the default Council rules
+	// Definitions are required
 	_, err = dao.Propose(memberA, nil)
 	uassert.ErrorIs(t, err, commondao.ErrProposalDefinitionRequired)
-	_, err = dao.Propose(memberA, bareDef{})
-	uassert.ErrorIs(t, err, commondao.ErrMissingTallier)
 
 	// Deleted DAOs reject proposals
 	deleted := commondao.New(commondao.WithCouncilMember(memberA))
@@ -195,10 +186,8 @@ func TestPropose(t *testing.T) {
 }
 
 func TestProposeCap(t *testing.T) {
-	dao := commondao.New(
-		commondao.WithCouncilMember(memberA),
-		commondao.WithMaxActiveProposals(2),
-	)
+	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao.SetMaxActiveProposals(2)
 
 	_, err := dao.Propose(memberA, propDef{period: time.Hour})
 	urequire.NoError(t, err)
@@ -225,8 +214,8 @@ func TestProposeCapSlotFrees(t *testing.T) {
 		commondao.WithCouncilMember(memberA),
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
-		commondao.WithMaxActiveProposals(1),
 	)
+	dao.SetMaxActiveProposals(1)
 
 	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 	_, err := dao.Propose(memberA, defaultPropDef{period: time.Hour})
@@ -411,6 +400,21 @@ func TestExecute(cur realm, t *testing.T) {
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
 		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
 		uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	})
+
+	t.Run("undecided proposals dismiss before validation", func(t *testing.T) {
+		// A proposal that never passed archives as Dismissed even when its
+		// definition no longer validates: dismissal is the truthful status
+		// and the executor could never have run.
+		stale := errors.New("stale")
+		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		p := mustPropose(t, dao, memberA, validatingExecPropDef{
+			defaultPropDef: defaultPropDef{}, // zero voting period
+			err:            &stale,
+		})
+
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
 	})
 
 	t.Run("executor errors fail the proposal", func(t *testing.T) {

@@ -78,7 +78,7 @@ propagate the error to fail the proposal cleanly.
 
 ## Proposal lifecycle
 
-`Propose` (capped by `WithMaxActiveProposals`; `CapExempt` definitions
+`Propose` (capped via `SetMaxActiveProposals`; `CapExempt` definitions
 such as council updates bypass the cap, bounded to one active proposal
 per creator) → `Vote` (electorate-gated, deadline-gated, rejects
 non-active proposals) → `Execute` (early-passed: immediately, still

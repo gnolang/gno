@@ -12,7 +12,6 @@ import (
 
 var (
 	_ commondao.ProposalDefinition = (*textPropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*textPropDefinition)(nil)
 )
 
 func TestTextPropDefinitionNew(cur realm, t *testing.T) {

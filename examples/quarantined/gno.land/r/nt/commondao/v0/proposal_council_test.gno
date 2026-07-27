@@ -3,7 +3,6 @@ package commondao
 import (
 	"testing"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
@@ -11,7 +10,6 @@ import (
 
 var (
 	_ commondao.ProposalDefinition = (*councilUpdatePropDefinition)(nil)
-	_ commondao.DefaultTallier     = (*councilUpdatePropDefinition)(nil)
 	_ commondao.CapExempt          = (*councilUpdatePropDefinition)(nil)
 )
 
@@ -21,16 +19,14 @@ func TestCouncilUpdatePropDefinitionNew(cur realm, t *testing.T) {
 	dao := commondao.New(commondao.WithCouncilMember(member))
 
 	urequire.PanicsWithMessage(t, cur, "DAO is required", func() {
-		newCouncilUpdatePropDefinition(nil, addrset.Set{}, addrset.Set{})
+		newCouncilUpdatePropDefinition(nil, nil, nil)
 	})
 
 	urequire.PanicsWithMessage(t, cur, "no council members were specified to be added or removed", func() {
-		newCouncilUpdatePropDefinition(dao, addrset.Set{}, addrset.Set{})
+		newCouncilUpdatePropDefinition(dao, nil, nil)
 	})
 
-	var add addrset.Set
-	add.Add(member)
-	def := newCouncilUpdatePropDefinition(dao, add, addrset.Set{})
+	def := newCouncilUpdatePropDefinition(dao, []address{member}, nil)
 
 	uassert.Equal(t, "Council Update", def.Title())
 	uassert.Equal(t, int(commondao.ThresholdSupermajority), int(def.Threshold()))
@@ -47,16 +43,11 @@ func TestCouncilUpdatePropDefinitionValidate(t *testing.T) {
 
 	// Membership is not validated: adding an existing member or removing a
 	// stranger is legal (idempotent set semantics)
-	var add, remove addrset.Set
-	add.Add(memberA)
-	remove.Add(memberB)
-	def := newCouncilUpdatePropDefinition(dao, add, remove)
+	def := newCouncilUpdatePropDefinition(dao, []address{memberA}, []address{memberB})
 	uassert.NoError(t, def.Validate())
 
 	// Adding and removing the same address is rejected
-	var overlap addrset.Set
-	overlap.Add(memberB)
-	def = newCouncilUpdatePropDefinition(dao, overlap, overlap)
+	def = newCouncilUpdatePropDefinition(dao, []address{memberB}, []address{memberB})
 	uassert.ErrorContains(t, def.Validate(), "address is added and removed at once")
 }
 
@@ -69,10 +60,7 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 	t.Run("add and remove", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
 
-		var add, remove addrset.Set
-		add.Add(memberB)
-		remove.Add(memberA)
-		def := newCouncilUpdatePropDefinition(dao, add, remove)
+		def := newCouncilUpdatePropDefinition(dao, []address{memberB}, []address{memberA})
 
 		urequire.NotPanics(t, cur, func() {
 			if err := def.Executor()(cross(cur)); err != nil {
@@ -87,9 +75,7 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 	t.Run("emptying the council fails", func(t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
 
-		var remove addrset.Set
-		remove.Add(memberA)
-		def := newCouncilUpdatePropDefinition(dao, addrset.Set{}, remove)
+		def := newCouncilUpdatePropDefinition(dao, nil, []address{memberA})
 
 		err := def.execute(cur)
 		uassert.ErrorIs(t, err, commondao.ErrEmptyCouncil)

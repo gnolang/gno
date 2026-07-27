@@ -151,73 +151,51 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
-	var (
-		cols []string
-		o    = getOptions(daoID)
-	)
-
-	{
-		cols = append(cols, md.Paragraph(textProposalLink(daoID))+
+	cols := []string{
+		md.Paragraph(textProposalLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal is also known as text proposal which can be used for example "+
 					"to get consensus on initiatives without actually making any change on-chain.",
 			),
-		)
-	}
-
-	if o.AllowChildren {
-		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
+		md.Paragraph(updateCouncilLink(daoID)) +
 			md.Paragraph(
-				"This type of proposal is used to create SubDAOs, "+
-					"which are used to create tree based DAOs.",
+				"This type of proposal can be used to add new council members to this DAO "+
+					"and also to remove existing ones.",
+			) +
+			md.Paragraph(
+				"A single proposal allows new council members to be added and any number of existing ones "+
+					"removed within the same proposal.",
 			),
-		)
-	}
-
-	{
-		cols = append(cols, md.Paragraph(dissolveSubDAOLink(daoID))+
+		md.Paragraph(dissolveSubDAOLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal can be used to dissolve DAOs and SubDAOs.",
-			)+
+			) +
 			md.Paragraph(
 				"Dissolving a DAO can't be undone, once the dissolution proposal passes "+
 					"and is executed DAO will be readonly.",
 			),
-		)
-	}
-
-	{
-		cols = append(cols, md.Paragraph(treasurySpendLink(daoID))+
+		md.Paragraph(treasurySpendLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal sends coins from the DAO's own treasury "+
 					"when it passes and is executed.",
 			),
-		)
-
-		cols = append(cols, md.Paragraph(treasuryClawbackLink(daoID))+
+		md.Paragraph(treasuryClawbackLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal sweeps a descendant DAO's treasury to "+
 					"the descendant's parent DAO.",
 			),
-		)
-
-		cols = append(cols, md.Paragraph(treasuryFreezeLink(daoID))+
+		md.Paragraph(treasuryFreezeLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal freezes or unfreezes a descendant DAO's "+
 					"treasury. While frozen, no treasury spend can execute.",
 			),
-		)
 	}
 
-	{
-		cols = append(cols, md.Paragraph(updateCouncilLink(daoID))+
+	if getOptions(daoID).AllowChildren {
+		cols = append(cols, md.Paragraph(newSubDAOLink(daoID))+
 			md.Paragraph(
-				"This type of proposal can be used to add new council members to this DAO "+
-					"and also to remove existing ones.",
-			)+
-			md.Paragraph(
-				"A single proposal allows new council members to be added and any number of existing ones "+
-					"removed within the same proposal.",
+				"This type of proposal is used to create SubDAOs, "+
+					"which are used to create tree based DAOs.",
 			),
 		)
 	}

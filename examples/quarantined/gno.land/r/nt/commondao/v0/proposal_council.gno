@@ -5,19 +5,18 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/commondao/v0"
 )
 
 // newCouncilUpdatePropDefinition creates a new proposal definition for
 // adding/removing council members.
-func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) councilUpdatePropDefinition {
+func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove []address) councilUpdatePropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
 
-	if add.Size() == 0 && remove.Size() == 0 {
+	if len(add) == 0 && len(remove) == 0 {
 		panic("no council members were specified to be added or removed")
 	}
 
@@ -34,7 +33,7 @@ func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove addrse
 // final set would empty a non-empty council fails at execution.
 type councilUpdatePropDefinition struct {
 	dao             *commondao.CommonDAO
-	toAdd, toRemove addrset.Set
+	toAdd, toRemove []address
 }
 
 func (councilUpdatePropDefinition) Title() string               { return "Council Update" }
@@ -54,45 +53,33 @@ func (councilUpdatePropDefinition) Threshold() commondao.Threshold {
 func (p councilUpdatePropDefinition) Body() string {
 	var b strings.Builder
 
-	if p.toAdd.Size() > 0 {
-		items := make([]string, 0, p.toAdd.Size())
-		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
-			items = append(items, addr.String())
-			return false
-		})
-
+	if len(p.toAdd) > 0 {
 		b.WriteString(md.Paragraph(
-			md.Bold("Council Members to Add:") + "\n" + md.BulletList(items),
+			md.Bold("Council Members to Add:") + "\n" + md.BulletList(addrStrings(p.toAdd)),
 		))
 	}
 
-	if p.toRemove.Size() > 0 {
-		items := make([]string, 0, p.toRemove.Size())
-		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr address) bool {
-			items = append(items, addr.String())
-			return false
-		})
-
+	if len(p.toRemove) > 0 {
 		b.WriteString(md.Paragraph(
-			md.Bold("Council Members to Remove:") + "\n" + md.BulletList(items),
+			md.Bold("Council Members to Remove:") + "\n" + md.BulletList(addrStrings(p.toRemove)),
 		))
 	}
 
 	return b.String()
 }
 
-func (p councilUpdatePropDefinition) Validate() (err error) {
+func (p councilUpdatePropDefinition) Validate() error {
 	// Membership is intentionally not validated: adds and removes are
 	// idempotent, so updates passed concurrently merge cleanly instead of
 	// failing on addresses that another update already added or removed.
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
-		if p.toRemove.Has(addr) {
-			err = errors.New("address is added and removed at once: " + addr.String())
-			return true
+	for _, a := range p.toAdd {
+		for _, r := range p.toRemove {
+			if a == r {
+				return errors.New("address is added and removed at once: " + a.String())
+			}
 		}
-		return false
-	})
-	return err
+	}
+	return nil
 }
 
 func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
@@ -100,17 +87,14 @@ func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p councilUpdatePropDefinition) execute(realm) error {
-	add := make([]address, 0, p.toAdd.Size())
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr address) bool {
-		add = append(add, addr)
-		return false
-	})
+	return p.dao.UpdateCouncil(p.toAdd, p.toRemove)
+}
 
-	remove := make([]address, 0, p.toRemove.Size())
-	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr address) bool {
-		remove = append(remove, addr)
-		return false
-	})
-
-	return p.dao.UpdateCouncil(add, remove)
+// addrStrings converts addresses for markdown list rendering.
+func addrStrings(addrs []address) []string {
+	items := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		items = append(items, a.String())
+	}
+	return items
 }

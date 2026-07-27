@@ -53,9 +53,11 @@ func main() {
 //
 //
 // <gno-columns-sep>
-// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=2&description=&members=&name=)
+// [Update Council](/r/nt/commondao/v0$help&func=CreateCouncilUpdateProposal&daoID=2&newMembers=&removeMembers=)
 //
-// This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
+// This type of proposal can be used to add new council members to this DAO and also to remove existing ones.
+//
+// A single proposal allows new council members to be added and any number of existing ones removed within the same proposal.
 //
 //
 // <gno-columns-sep>
@@ -85,11 +87,9 @@ func main() {
 //
 //
 // <gno-columns-sep>
-// [Update Council](/r/nt/commondao/v0$help&func=CreateCouncilUpdateProposal&daoID=2&newMembers=&removeMembers=)
+// [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=2&description=&members=&name=)
 //
-// This type of proposal can be used to add new council members to this DAO and also to remove existing ones.
-//
-// A single proposal allows new council members to be added and any number of existing ones removed within the same proposal.
+// This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
 //
 //
 // </gno-columns>

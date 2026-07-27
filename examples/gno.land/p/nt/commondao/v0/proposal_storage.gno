@@ -44,10 +44,6 @@ func (s proposalStorage) Size() int {
 
 // Iterate iterates proposals.
 func (s proposalStorage) Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
-	if fn == nil {
-		return false
-	}
-
 	cb := func(_ string, v any) bool { return fn(v.(*Proposal)) }
 
 	if reverse {
