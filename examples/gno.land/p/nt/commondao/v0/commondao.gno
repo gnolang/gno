@@ -358,9 +358,9 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 	}
 
 	p.record.AddVote(Vote{
-		Address: member,
-		Choice:  c,
-		Reason:  reason,
+		addr:   member,
+		choice: c,
+		reason: reason,
 	})
 
 	// Early termination: proposals are decided the moment the outcome is

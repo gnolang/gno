@@ -207,7 +207,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 
 func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 	res.Write(md.H2("Treasury"))
-	res.Write(md.BulletItem("Address: " + string(dao.Address())))
+	res.Write(md.BulletItem("Address: " + md.EscapeText(string(dao.Address()))))
 
 	balance := treasuryBalance(dao)
 	if balance.IsZero() {
@@ -485,12 +485,12 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 
 	table := mdtable.Table{Headers: []string{"Users", "Votes"}}
 	record.Iterate(pages.Offset(), pages.PageSize(), false, func(v commondao.Vote) bool {
-		voteDetails := md.Link(string(v.Choice), voteURL(dao.ID(), p.ID(), v.Address))
-		if v.Reason != "" {
+		voteDetails := md.Link(string(v.Choice()), voteURL(dao.ID(), p.ID(), v.Address()))
+		if v.Reason() != "" {
 			voteDetails += " with a reason"
 		}
 
-		table.Append([]string{userLink(v.Address), voteDetails})
+		table.Append([]string{userLink(v.Address()), voteDetails})
 		return false
 	})
 
@@ -527,12 +527,12 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.HorizontalRule())
 
 	res.Write(md.H2("Details"))
-	res.Write(md.BulletItem("User: " + userLink(v.Address)))
-	res.Write(md.BulletItem("Vote: " + md.EscapeText(string(v.Choice))))
+	res.Write(md.BulletItem("User: " + userLink(v.Address())))
+	res.Write(md.BulletItem("Vote: " + md.EscapeText(string(v.Choice()))))
 
-	if v.Reason != "" {
+	if v.Reason() != "" {
 		res.Write(md.H2("Reason"))
-		res.Write(md.EscapeText(v.Reason))
+		res.Write(md.EscapeText(v.Reason()))
 	}
 }
 

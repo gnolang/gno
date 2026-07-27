@@ -5,9 +5,18 @@ import (
 
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 
 	"gno.land/p/nt/commondao/v0"
 )
+
+// mustNewVote builds a reason-less vote or fails the test.
+func mustNewVote(t *testing.T, addr address, c commondao.VoteChoice) commondao.Vote {
+	t.Helper()
+	v, err := commondao.NewVote(addr, c, "")
+	urequire.NoError(t, err, "new vote")
+	return v
+}
 
 func TestVotingRecordDefaults(t *testing.T) {
 	var record commondao.VotingRecord
@@ -23,11 +32,9 @@ func TestVotingRecordDefaults(t *testing.T) {
 func TestVotingRecordAddVote(t *testing.T) {
 	var record commondao.VotingRecord
 
-	updated := record.AddVote(commondao.Vote{
-		Address: memberA,
-		Choice:  commondao.ChoiceYes,
-		Reason:  "foo",
-	})
+	vote, err := commondao.NewVote(memberA, commondao.ChoiceYes, "foo")
+	urequire.NoError(t, err)
+	updated := record.AddVote(vote)
 	uassert.False(t, updated, "expect first vote to be an insert")
 	uassert.Equal(t, 1, record.Size())
 	uassert.Equal(t, 1, record.VoteCount(commondao.ChoiceYes))
@@ -35,20 +42,17 @@ func TestVotingRecordAddVote(t *testing.T) {
 
 	v, found := record.GetVote(memberA)
 	uassert.True(t, found)
-	uassert.Equal(t, string(commondao.ChoiceYes), string(v.Choice))
-	uassert.Equal(t, "foo", v.Reason)
+	uassert.Equal(t, string(commondao.ChoiceYes), string(v.Choice()))
+	uassert.Equal(t, "foo", v.Reason())
 
 	// Voting again overwrites the previous vote and updates the counters
-	updated = record.AddVote(commondao.Vote{
-		Address: memberA,
-		Choice:  commondao.ChoiceNo,
-	})
+	updated = record.AddVote(mustNewVote(t, memberA, commondao.ChoiceNo))
 	uassert.True(t, updated, "expect second vote to be an update")
 	uassert.Equal(t, 1, record.Size())
 	uassert.Equal(t, 0, record.VoteCount(commondao.ChoiceYes))
 	uassert.Equal(t, 1, record.VoteCount(commondao.ChoiceNo))
 
-	record.AddVote(commondao.Vote{Address: memberB, Choice: commondao.ChoiceNo})
+	record.AddVote(mustNewVote(t, memberB, commondao.ChoiceNo))
 	uassert.Equal(t, 2, record.Size())
 	uassert.Equal(t, 2, record.VoteCount(commondao.ChoiceNo))
 
@@ -170,13 +174,13 @@ func TestTallyDefault(t *testing.T) {
 				electorate.Add(m)
 			}
 			for _, m := range tc.yes {
-				record.AddVote(commondao.Vote{Address: m, Choice: commondao.ChoiceYes})
+				record.AddVote(mustNewVote(t, m, commondao.ChoiceYes))
 			}
 			for _, m := range tc.no {
-				record.AddVote(commondao.Vote{Address: m, Choice: commondao.ChoiceNo})
+				record.AddVote(mustNewVote(t, m, commondao.ChoiceNo))
 			}
 			for _, m := range tc.abstain {
-				record.AddVote(commondao.Vote{Address: m, Choice: commondao.ChoiceAbstain})
+				record.AddVote(mustNewVote(t, m, commondao.ChoiceAbstain))
 			}
 
 			got := commondao.TallyDefault(record.Readonly(), electorate.Readonly(), tc.threshold)

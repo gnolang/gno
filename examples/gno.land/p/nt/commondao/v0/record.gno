@@ -12,22 +12,51 @@ type (
 	// VotesCountIterFn defines a callback to iterate voted choices.
 	VotesCountIterFn func(_ VoteChoice, voteCount int) (stop bool)
 
-	// Vote defines a single vote.
+	// Vote defines a single vote. Its fields are unexported so instances
+	// cannot be forged or reshaped outside the package: votes enter a
+	// record only through CommonDAO.Vote's gates.
 	Vote struct {
-		// Address is the address of the user that this vote belongs to.
-		Address address
-
-		// Choice contains the voted choice.
-		Choice VoteChoice
-
-		// Reason contains an optional reason for the vote.
-		Reason string
+		addr   address
+		choice VoteChoice
+		reason string
 	}
 )
 
-// ReadonlyVotingRecord defines a read only voting record. It is a
-// point-in-time copy, not a live handle: fetch it, read it, and re-fetch
-// rather than holding it across votes.
+// NewVote creates a vote, validating the address and choice. It exists
+// so external code can build records to independently re-verify a tally
+// with TallyDefault; votes reach a DAO's own records only through
+// CommonDAO.Vote.
+func NewVote(addr address, choice VoteChoice, reason string) (Vote, error) {
+	if !addr.IsValid() {
+		return Vote{}, ErrInvalidCreatorAddress
+	}
+
+	if choice != ChoiceYes && choice != ChoiceNo && choice != ChoiceAbstain {
+		return Vote{}, ErrInvalidVoteChoice
+	}
+
+	return Vote{addr: addr, choice: choice, reason: reason}, nil
+}
+
+// Address returns the address of the account that submitted the vote.
+func (v Vote) Address() address {
+	return v.addr
+}
+
+// Choice returns the voted choice.
+func (v Vote) Choice() VoteChoice {
+	return v.choice
+}
+
+// Reason returns the optional reason for the vote.
+func (v Vote) Reason() string {
+	return v.reason
+}
+
+// ReadonlyVotingRecord defines a read only voting record. The copy
+// shares tree nodes with the live record, so a held value can go stale
+// in surprising ways: fetch it, read it, and re-fetch rather than
+// holding it across votes.
 type ReadonlyVotingRecord struct {
 	votes bptree.BPTree // string(address) -> Vote
 	count bptree.BPTree // string(choice) -> int
@@ -89,16 +118,16 @@ func (r VotingRecord) Readonly() ReadonlyVotingRecord {
 // If a vote for the same user already exists is overwritten.
 func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 	// Get previous member vote if it exists
-	v := r.votes.Get(vote.Address.String())
+	v := r.votes.Get(vote.addr.String())
 
 	// When a previous vote exists update counter for the previous choice
-	updated = r.votes.Set(vote.Address.String(), vote)
+	updated = r.votes.Set(vote.addr.String(), vote)
 	if updated {
 		prev := v.(Vote)
-		r.count.Set(string(prev.Choice), r.VoteCount(prev.Choice)-1)
+		r.count.Set(string(prev.choice), r.VoteCount(prev.choice)-1)
 	}
 
-	r.count.Set(string(vote.Choice), r.VoteCount(vote.Choice)+1)
+	r.count.Set(string(vote.choice), r.VoteCount(vote.choice)+1)
 	return
 }
 
@@ -122,11 +151,11 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 func TallyDefault(r ReadonlyVotingRecord, electorate *addrset.ReadonlySet, t Threshold) Outcome {
 	var yes, no, abstain int
 	r.Iterate(0, r.Size(), false, func(v Vote) bool {
-		if !electorate.Has(v.Address) {
+		if !electorate.Has(v.addr) {
 			return false
 		}
 
-		switch v.Choice {
+		switch v.choice {
 		case ChoiceYes:
 			yes++
 		case ChoiceNo:

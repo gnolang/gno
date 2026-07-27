@@ -11,6 +11,17 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
+// hasLiveProperAncestor checks if any proper ancestor of dao is not
+// dissolved.
+func hasLiveProperAncestor(dao *commondao.CommonDAO) bool {
+	for p := dao.Parent(); p != nil; p = p.Parent() {
+		if !p.IsDeleted() {
+			return true
+		}
+	}
+	return false
+}
+
 // isProperAncestor checks if dao is a proper ancestor of target.
 // Parent pointers are set only at construction and no re-parenting path
 // exists, so ancestry is stable for the lifetime of a proposal.
@@ -236,6 +247,15 @@ func (p treasuryFreezePropDefinition) Body() string {
 }
 
 func (p treasuryFreezePropDefinition) Validate() error {
+	// Orphan rescue: when every proper ancestor is dissolved, the freezing
+	// authority class is extinct, so the target's own council may restore
+	// the constitutional default by unfreezing itself. Without this, a
+	// frozen DAO orphaned by its ancestors' dissolution would hold its
+	// funds locked forever. Freezing - and any self-targeting while a
+	// live ancestor exists - stays ancestor-only.
+	if !p.frozen && p.dao.ID() == p.target.ID() && !hasLiveProperAncestor(p.target) {
+		return nil
+	}
 	return assertIsProperAncestor(p.dao, p.target)
 }
 

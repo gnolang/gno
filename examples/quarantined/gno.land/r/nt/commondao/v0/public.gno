@@ -1,6 +1,9 @@
 package commondao
 
 import (
+	// unsafe is used only for OriginCaller in New: invitations target
+	// EOAs, so the invite is keyed to and consumed by the transaction
+	// origin. Caller authentication everywhere uses cur.Previous().
 	"chain/runtime/unsafe"
 	"strings"
 

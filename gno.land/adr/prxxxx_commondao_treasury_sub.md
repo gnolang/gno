@@ -67,7 +67,15 @@ ancestor's controls.
 - **Freeze** sets the per-DAO flag; it does not cascade (ancestors
   freeze each descendant explicitly), and only a proper-ancestor
   proposal can unfreeze — the frozen council cannot free itself
-  (z_14_b).
+  (z_14_b). The flag lives on the target, so any live proper ancestor
+  can unfreeze after the freezing ancestor dissolves (z_14_e). **Orphan
+  rescue**: when every proper ancestor is dissolved the freezing
+  authority class is extinct, so — and only then — the target's own
+  council may pass an unfreeze on itself (never a freeze), restoring
+  the constitutional default and unlocking its funds (z_14_f). Without
+  this, dissolving a frozen descendant's whole ancestor chain locked
+  its treasury forever. The invariant preserved: no live ancestor's
+  freeze can ever be undone by the target.
 - **No re-parenting invariant**: parent pointers are set only at
   construction (`WithParent`, used only by `createSubDAO`) and no
   re-parenting path exists. A future re-parent feature would be a
@@ -89,8 +97,10 @@ would be bypassable by donating dust mid-vote). A frozen DAO can still
 be dissolved. Orphans below a dissolved middle DAO stay dissolvable:
 `CreateDissolutionProposal` hosts the proposal in the **nearest
 non-dissolved ancestor** (z_13_d). If every ancestor including the
-root is dissolved, the orphan is unreachable by governance — no live
-council has authority over it; documented, accepted.
+root is dissolved, the orphan can no longer be dissolved or clawed
+back — but its own council keeps full spend power (spend proposals are
+self-hosted) and, if frozen, the orphan-unfreeze rescue above applies,
+so no funds are ever stranded.
 
 ## Alternatives considered
 

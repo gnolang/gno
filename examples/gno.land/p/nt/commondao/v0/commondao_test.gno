@@ -16,10 +16,10 @@ const (
 	memberB address = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
 	memberC address = "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"
 	memberD address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
-	memberE address = "g1e5tpaw2eaklsgy0dl5rhzkjppe9nlwd8mb4c9a"
-	memberF address = "g1fefhhtstt2fhtwnl25gy2mmtwv0go72zvczmgn"
-	memberG address = "g1g4ymvyk3axhs9parntwaeq5g02te3f2wc2lahw"
-	memberH address = "g1hy6zry03hg5d8le9s7w4fxme6pdrhr55c8lqjs"
+	memberE address = "g1yx35a8f4lhhhrarljrgr37u55gkqdrl0949ycf"
+	memberF address = "g1cyh9qm4y43w38gfk77qxczrhqj2asdr8l7uk54"
+	memberG address = "g1x95kxqpwvqjf98qpkvsay7tppkh6zs9fr7wwda"
+	memberH address = "g12m7ryva2vsw3twqdtuc9awufwzwtk5al4v4ksd"
 	memberI address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 )
 
