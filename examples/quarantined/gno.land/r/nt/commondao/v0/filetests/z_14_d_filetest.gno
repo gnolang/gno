@@ -58,4 +58,4 @@ func main(cur realm) {
 }
 
 // Error:
-// a DAO cannot target its own treasury
+// a DAO cannot target itself

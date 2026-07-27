@@ -88,7 +88,7 @@ func TestTreasuryClawbackPropDefinition(cur realm, t *testing.T) {
 	// no clawback authority
 	uassert.ErrorContains(t,
 		newTreasuryClawbackPropDefinition(root, root).Validate(),
-		"a DAO cannot target its own treasury")
+		"a DAO cannot target itself")
 	uassert.ErrorContains(t,
 		newTreasuryClawbackPropDefinition(leaf, root).Validate(),
 		"DAO is not an ancestor of the target DAO")
@@ -120,7 +120,7 @@ func TestTreasuryFreezePropDefinition(cur realm, t *testing.T) {
 	uassert.NoError(t, newTreasuryFreezePropDefinition(mid, leaf, true).Validate())
 	uassert.ErrorContains(t,
 		newTreasuryFreezePropDefinition(leaf, leaf, false).Validate(),
-		"a DAO cannot target its own treasury")
+		"a DAO cannot target itself")
 	uassert.ErrorContains(t,
 		newTreasuryFreezePropDefinition(leaf, mid, true).Validate(),
 		"DAO is not an ancestor of the target DAO")

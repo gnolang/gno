@@ -22,12 +22,14 @@ Out of scope: the Charter
 amendment (`:1485-1496`), and the m-of-n multisig representation
 (`:1539-1541`), an optional alternative whose m ≥ 3 floor deliberately
 does NOT apply to council tallying. Ancestor council mutation
-(`:1531-1532`) is the next follow-up, not merely out of scope: the
-≥1-member creation rule exists precisely because this rescue path is
-absent, the treasury PR built all its machinery (proper-ancestor
-validation, ancestor-hosted proposals), and with treasuries live a
-root DAO whose council goes silent strands its funds (sub-DAO funds
-stay clawback-rescuable). Related tension recorded, no code change:
+(`:1531-1532`) is now implemented (`CreateAncestorCouncilUpdateProposal`
+/ `ancestorCouncilUpdatePropDefinition`): a proper-ancestor DAO adds or
+removes a descendant's council members by its own supermajority,
+reusing the treasury `assertIsProperAncestor` gate. The ≥1-member
+creation rule and the last-member-resign block are kept as
+defense-in-depth (a root DAO has no ancestor to rescue it), but a stuck
+or empty *descendant* council is now recoverable by any live ancestor.
+Related tension recorded, no code change:
 `:250-253` reserves assigned-but-unused funds absent a Constitutional
 Amendment — an off-chain restriction the clawback power cannot
 machine-check.

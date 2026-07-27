@@ -78,6 +78,12 @@ func main() {
 //
 //
 // <gno-columns-sep>
+// [Ancestor Council Update](/r/nt/commondao/v0$help&func=CreateAncestorCouncilUpdateProposal&daoID=3&newMembers=&removeMembers=&targetID=)
+//
+// This type of proposal lets this DAO, as an ancestor, add or remove council members of one of its descendant DAOs — the rescue path for a descendant whose council is stuck or empty.
+//
+//
+// <gno-columns-sep>
 // [Dissolve DAO](/r/nt/commondao/v0$help&func=CreateDissolutionProposal&daoID=3&destination=)
 //
 // This type of proposal can be used to dissolve DAOs and SubDAOs.

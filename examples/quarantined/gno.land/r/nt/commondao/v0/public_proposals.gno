@@ -54,6 +54,29 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	return mustPropose(dao, caller, def)
 }
 
+// CreateAncestorCouncilUpdateProposal creates a proposal for an ancestor
+// DAO to add and/or remove members of a descendant's council
+// (docs/CONSTITUTION.md :1531-1532) — the rescue path for a stuck or
+// empty descendant council. It is hosted and voted in the ancestor
+// (daoID) and decided by supermajority; the proposing DAO must be a
+// proper ancestor of the target, verified at proposal validation.
+//
+// Parameters:
+// - daoID: ID of the proposing ancestor DAO (required)
+// - targetID: ID of the descendant DAO whose council changes (required)
+// - newMembers: Newline separated list of addresses to add to the council
+// - removeMembers: Newline separated list of council addresses to remove
+func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newMembers, removeMembers string) uint64 {
+	dao := mustGetDAO(daoID)
+
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	target := mustGetDAO(targetID)
+	def := newAncestorCouncilUpdatePropDefinition(dao, target, parseAddresses(newMembers), parseAddresses(removeMembers))
+	return mustPropose(dao, caller, def)
+}
+
 // CreateSubDAOProposal creates a new proposal to create a new SubDAO.
 //
 // Parameters:

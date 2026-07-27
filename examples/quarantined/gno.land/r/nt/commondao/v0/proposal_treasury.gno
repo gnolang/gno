@@ -40,7 +40,7 @@ func isProperAncestor(dao, target *commondao.CommonDAO) bool {
 // itself.
 func assertIsProperAncestor(dao, target *commondao.CommonDAO) error {
 	if target.ID() == dao.ID() {
-		return errors.New("a DAO cannot target its own treasury")
+		return errors.New("a DAO cannot target itself")
 	}
 	if !isProperAncestor(dao, target) {
 		return errors.New("DAO is not an ancestor of the target DAO")

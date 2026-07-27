@@ -165,6 +165,12 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 				"A single proposal allows new council members to be added and any number of existing ones "+
 					"removed within the same proposal.",
 			),
+		md.Paragraph(ancestorCouncilUpdateLink(daoID)) +
+			md.Paragraph(
+				"This type of proposal lets this DAO, as an ancestor, add or "+
+					"remove council members of one of its descendant DAOs — the "+
+					"rescue path for a descendant whose council is stuck or empty.",
+			),
 		md.Paragraph(dissolveSubDAOLink(daoID)) +
 			md.Paragraph(
 				"This type of proposal can be used to dissolve DAOs and SubDAOs.",
@@ -594,6 +600,16 @@ func updateCouncilLink(daoID uint64) string {
 	return md.Link("Update Council", realmLink.Call(
 		"CreateCouncilUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
+		"newMembers", "",
+		"removeMembers", "",
+	))
+}
+
+func ancestorCouncilUpdateLink(daoID uint64) string {
+	return md.Link("Ancestor Council Update", realmLink.Call(
+		"CreateAncestorCouncilUpdateProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"targetID", "",
 		"newMembers", "",
 		"removeMembers", "",
 	))

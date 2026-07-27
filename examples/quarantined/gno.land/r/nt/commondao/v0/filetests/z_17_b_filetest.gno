@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_12_b_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_17_b_filetest
 
-package z_12_b_filetest
+package z_17_b_filetest
 
 import (
 	"testing"
@@ -26,8 +26,9 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// A DAO can never claw back its own treasury
-	commondao.CreateTreasuryClawbackProposal(cross(cur), daoID, daoID)
+	// A DAO cannot modify its own council through the ancestor path
+	// (self-mutation goes through CreateCouncilUpdateProposal instead).
+	commondao.CreateAncestorCouncilUpdateProposal(cross(cur), daoID, daoID, string(owner), "")
 }
 
 // Error:
