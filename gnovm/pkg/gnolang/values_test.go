@@ -397,3 +397,44 @@ func TestComputeMapKey_collisions(t *testing.T) {
 		})
 	}
 }
+
+func TestMapKeyOmitType(t *testing.T) {
+	tt := []struct {
+		expr string
+		want bool
+	}{
+		// Concrete key types: the prefix is identical for every key.
+		{`map[int]int{}`, true},
+		{`map[string]int{}`, true},
+		{`map[[2]int]int{}`, true},
+		{`map[struct{ a int }]int{}`, true},
+		// Interface key types: the prefix is what separates int(1) from int64(1).
+		{`map[any]int{}`, false},
+		{`map[error]int{}`, false},
+		// The VALUE type must not influence the decision. A predicate written
+		// against mt.Elem() instead of mt.Key inverts both of these.
+		{`map[int]any{}`, true},
+		{`map[any]any{}`, false},
+	}
+	for _, tc := range tt {
+		t.Run(tc.expr, func(t *testing.T) {
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
+			vals := m.Eval(m.MustParseExpr(tc.expr))
+			require.Len(t, vals, 1)
+			mt := baseOf(vals[0].T).(*MapType)
+			assert.Equal(t, tc.want, mapKeyOmitType(mt))
+		})
+	}
+}
+
+func TestMapKeyOmitType_declaredKey(t *testing.T) {
+	// The map[address]T shape: a DeclaredType wrapping a concrete base.
+	// baseOf must unwrap it, or the ubiquitous realm case misses the win.
+	declared := &DeclaredType{Name: "Address", Base: StringType}
+	assert.True(t, mapKeyOmitType(&MapType{Key: declared, Value: IntType}))
+
+	// A DeclaredType wrapping an interface must still keep its prefix.
+	declaredIface := &DeclaredType{Name: "Stringer", Base: &InterfaceType{}}
+	assert.False(t, mapKeyOmitType(&MapType{Key: declaredIface, Value: IntType}))
+}

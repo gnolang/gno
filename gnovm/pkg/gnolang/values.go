@@ -1806,6 +1806,21 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
+// mapKeyOmitType reports whether ComputeMapKey may omit the leading TypeID
+// prefix for keys of mt.
+//
+// Omitting is safe exactly when the static key type is not an interface: every
+// key in such a map necessarily carries the same tv.T, so the prefix is
+// identical for every entry and discriminates nothing. For an interface key
+// type the prefix is load-bearing — it is what keeps int(1) from colliding
+// with int64(1), which serialize to the same eight value bytes.
+//
+// Note mt.Key, not mt.Elem(): (*MapType).Elem() returns the *value* type.
+// See gnovm/adr/prxxxx_computemapkey_concrete_key_prefix.md.
+func mapKeyOmitType(mt *MapType) bool {
+	return baseOf(mt.Key).Kind() != InterfaceKind
+}
+
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
