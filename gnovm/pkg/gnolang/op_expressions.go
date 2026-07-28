@@ -583,7 +583,7 @@ func (m *Machine) doOpMapLit() {
 		for i := range ne {
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv, false)
+			ptr, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv, false)
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}

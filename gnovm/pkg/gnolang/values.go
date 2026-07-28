@@ -1035,12 +1035,19 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue, omitKeyType bool) PointerValue {
+//
+// oldKeyObject is the first object of the stored key that this assignment
+// displaces, captured before the stored key is overwritten, or nil when the
+// key is new or carries no object. Returning it here lets callers re-parent
+// the map key in the ownership tree without computing the map key a second
+// time. See gnovm/adr/prxxxx_computemapkey_concrete_key_prefix.md.
+func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue, omitKeyType bool) (pv PointerValue, oldKeyObject Object) {
 	mv.ensureVmap(store, omitKeyType)
 	// If NaN, instead of computing map key, just append to List.
 	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
+			oldKeyObject = mli.Key.GetFirstObject(store)
 			// When assigning to a map item, the key is always equal to that of the
 			// last assignment; this is mostly noticeable in the case of -0 / 0:
 			// https://go.dev/play/p/iNPDR4FQlRv
@@ -1049,7 +1056,7 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 				TV:    &mli.Value,
 				Base:  mv,
 				Index: PointerIndexMap,
-			}
+			}, oldKeyObject
 		}
 	}
 	mli := mv.List.Append(alloc, key)
@@ -1059,7 +1066,7 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 		TV:    &mli.Value,
 		Base:  mv,
 		Index: PointerIndexMap,
-	}
+	}, nil
 }
 
 // Like GetPointerForKey, but does not create a slot if key
@@ -2429,28 +2436,24 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 		mv := tv.V.(*MapValue)
 
-		// vmap is built lazily, and the direct read below must not observe a
-		// nil index: a nil-map read yields ok == false, leaving oldObject nil
-		// so DidUpdate skips the DecRefCount branch and orphans the displaced
-		// stored key. Task 3 folds this block into GetPointerForKey.
-		mv.ensureVmap(store, false)
-
+		// Resolve the key's lazily-loaded children BEFORE copying. Copy()
+		// shallow-copies an unresolved RefValue child (TypedValue.Copy's
+		// default branch) and the fill inside GetPointerForKey would then
+		// point that copy at the shared store object, so the stored map key
+		// would alias the caller's graph and mutate after insertion.
+		// ComputeMapKey used to provide this fill incidentally by running
+		// before the copy; now that it runs once, inside GetPointerForKey,
+		// the resolve has to be explicit.
+		fillMapKeyRefs(store, iv)
+		ivk := iv.Copy(alloc)
 		// if a key is getting attached, we should update it with the new one,
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
-		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(m, store, false)
-		if !isNaN {
-			k, ok := mv.vmap[key]
-			if ok {
-				oldObject = k.Key.GetFirstObject(store)
-			}
-		}
-
-		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(m, alloc, store, ivk, false)
+		// GetPointerForKey hands back the displaced stored key's object, so
+		// the map key is computed once per assignment instead of twice.
+		pv, oldObject := mv.GetPointerForKey(m, alloc, store, ivk, false)
 		if pv.TV.IsUndefined() {
-			vt := baseOf(tv.T).(*MapType).Value
+			vt := bt.Value
 			if vt.Kind() != InterfaceKind {
 				// this will get assigned over but the zero-init still
 				// walks struct fields; use the caller's alloc.
