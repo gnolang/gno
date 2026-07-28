@@ -21,10 +21,12 @@ package rootmulti_test
 //     fast-index maintenance: the stamp is never read, nothing can write.
 //  2. Even a FULL Load() straddling the commit (stamp ahead of the loaded
 //     version) must NOT rebuild: ensureFastIndex treats stamp > version as
-//     "stale reader" and leaves the index alone.
+//     "out-of-contract racing reader or external rewind" and fails loud,
+//     leaving the index untouched.
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"testing"
 
@@ -128,16 +130,19 @@ func TestFastIndex_NoStaleRebuildOnRacingQueryLoad(t *testing.T) {
 	commit(map[string][]byte{string(acct): midVal, "filler-d": []byte("x4")})
 
 	// --- Layer 2: a FULL Load() (maintenance-capable) whose stamp read
-	// straddles the next commit must skip the rebuild (stamp > version), not
-	// rewrite the index from its older root.
+	// straddles the next commit observes stamp > version and must FAIL LOUD —
+	// neither rewriting the index from its older root (the gno#6011 poisoning)
+	// nor silently proceeding.
 	hdb2 := &hookDB{DB: db}
 	hdb2.onStampGet = func() {
 		commit(map[string][]byte{string(acct): newVal, "filler-e": []byte("x5")})
 	}
 	racingTree := bp.NewMutableTreeWithDB(
 		dbm.NewPrefixDB(hdb2, []byte("s/_/")), 256, bp.NewNopLogger(), bp.FastIndexOption(true))
-	if _, err := racingTree.Load(); err != nil {
-		t.Fatalf("racing full load: %v", err)
+	if _, err := racingTree.Load(); err == nil {
+		t.Fatal("racing full Load succeeded; want a stamp-ahead error")
+	} else if !strings.Contains(err.Error(), "ahead of the loaded version") {
+		t.Fatalf("racing full Load failed with the wrong error: %v", err)
 	}
 	if !hdb2.hasFired() {
 		t.Fatal("test setup: full Load did not read the stamp (hook unfired)")

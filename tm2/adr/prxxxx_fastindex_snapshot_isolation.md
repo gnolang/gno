@@ -70,10 +70,15 @@ Layered defense — any one of the first three layers stops the incident:
    READS keep working (advisory `fastGet` with its version guard).
 2. **Stale-reader guard** (`ensureFastIndex`): rebuild only when the stamp is
    missing or BEHIND the loaded version. The stamp commits atomically with
-   each version's records, so a stamp AHEAD of the loaded version means the
-   observer is a stale reader racing a newer commit; rebuilding from its
-   older root is exactly the poisoning. Skips log a warning. This also
-   protects direct library users outside the store layer.
+   each version's records, so a stamp AHEAD of the loaded version means
+   either an out-of-contract reader racing a newer commit (rebuilding from
+   its older root is exactly the poisoning) or an externally rewound DB
+   (old-timeline entries may lurk). Both FAIL LOUD instead of proceeding:
+   post-fix the only in-contract caller is the single-threaded startup Load,
+   where the error blocks boot until the operator deletes the stamp (forcing
+   a rebuild) or resyncs — the production store constructors use a nop
+   logger, so a warning would be invisible. This also protects direct
+   library users outside the store layer.
 3. **Snapshot routing** (`rootmulti.constructStore`): immutable multistores
    read `ms.db` — the frozen post-commit SnapshotDB (or ImmutableDB fallback)
    — even for dedicated-db mounts. Constraint: a dedicated `params.db` must
@@ -162,4 +167,6 @@ Layered defense — any one of the first three layers stops the incident:
   to force a full rebuild at the next start, or resync. The same applies
   after any external rollback/DB surgery: rollback tooling must delete the
   stamp, since old-timeline entries become trusted again once the chain
-  re-passes their versions.
+  re-passes their versions. A rewound DB whose stamp is ahead of its latest
+  version now refuses to load (stamp-ahead error) rather than booting
+  silently; the remediation is the same stamp deletion.

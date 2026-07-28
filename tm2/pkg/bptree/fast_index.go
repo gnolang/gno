@@ -218,16 +218,19 @@ func (ndb *nodeDB) dropFastIndex() (err error) {
 // error is returned to Load's caller (the loaded tree is still usable, and a
 // retry Load re-attempts the rebuild).
 //
-// A stamp AHEAD of the loaded version (stamp > version) must NOT rebuild: the
-// stamp and each version's records commit in one atomic batch, so at rest they
-// are equal — observing a newer stamp means this tree is a stale reader racing
-// a newer commit (or the DB was externally rewound). Rebuilding here would
-// rewrite the whole index from an outdated root — old values under a stamp
-// later commits re-validate — which is exactly the gno#6011 poisoning. Reads
-// stay safe without a rebuild: fastGet distrusts entries newer than the
-// reader's version. NOTE: after external rollback/DB surgery, delete the stamp
-// (PrefixMeta‖"fastidx") to force a rebuild — old-timeline entries would
-// otherwise become trusted again once the chain re-passes their versions.
+// A stamp AHEAD of the loaded version (stamp > version) is an ERROR, never a
+// rebuild: the stamp and each version's records commit in one atomic batch, so
+// at rest they are equal. A newer stamp therefore means either (a) this tree
+// is an out-of-contract reader racing a newer commit — rebuilding from its
+// outdated root would rewrite the whole index to old values under a stamp
+// later commits re-validate, exactly the gno#6011 poisoning (in-contract
+// query paths use LoadReadonly and never reach here) — or (b) the DB was
+// externally rewound (partial restore, manual surgery), in which case
+// old-timeline entries may exist that would regain trust as the chain
+// re-passes their versions, and the operator must decide: delete the stamp
+// (PrefixMeta‖"fastidx") to force a rebuild from the surviving root, or
+// resync. Failing loud covers both: (a) gets a hard error instead of a
+// silently degraded load, (b) cannot boot into silent divergence.
 func (t *MutableTree) ensureFastIndex() error {
 	if !t.ndb.opts.FastIndex {
 		return nil
@@ -236,14 +239,16 @@ func (t *MutableTree) ensureFastIndex() error {
 	if err != nil {
 		return err
 	}
-	if ok && stamp >= t.version {
-		if stamp > t.version {
-			t.ndb.logger.Warn("bptree: fast index stamp ahead of loaded version; skipping rebuild",
-				"stamp", stamp, "version", t.version)
-		}
-		return nil // complete through the loaded version
+	if !ok || stamp < t.version {
+		return t.rebuildFastIndex()
 	}
-	return t.rebuildFastIndex()
+	if stamp > t.version {
+		return fmt.Errorf("bptree: fast index stamp (%d) is ahead of the loaded version (%d): "+
+			"the DB was rewound externally, or this load races a newer commit; "+
+			"refusing to trust or rebuild the index — delete the fast-index stamp "+
+			"(PrefixMeta%q) to force a rebuild at the next load, or resync", stamp, t.version, "fastidx")
+	}
+	return nil // stamp == version: complete through the loaded version
 }
 
 // rebuildFastIndex clears any stale 'F' entries, then re-derives the index from
