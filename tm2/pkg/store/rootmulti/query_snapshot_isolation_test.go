@@ -67,7 +67,7 @@ func TestQueryView_SnapshotIsolationUnderPruning(t *testing.T) {
 	}
 
 	st := view.GetStore(mainKey)
-	for i := 0; i < keyspace; i++ {
+	for i := range keyspace {
 		wantBlk := i*5/keyspace + 1 // the block (1..5) that last wrote key i
 		want := fmt.Sprintf("v%d/%d", wantBlk, i)
 		got := st.Get(nil, kname(i)) // panics on pruned nodes under live routing

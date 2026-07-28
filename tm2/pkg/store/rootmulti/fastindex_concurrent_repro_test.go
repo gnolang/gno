@@ -53,7 +53,7 @@ func TestFastIndex_ConcurrentQueryCommit(t *testing.T) {
 
 	// Query hammer goroutines: the surfaces the RPC/query connection exercises
 	// concurrently with consensus in production.
-	for g := 0; g < 4; g++ {
+	for g := range 4 {
 		wg.Add(1)
 		go func(g int) {
 			defer wg.Done()
@@ -73,7 +73,7 @@ func TestFastIndex_ConcurrentQueryCommit(t *testing.T) {
 						continue // height pruned/not yet visible — fine
 					}
 					st := cacheMS.GetStore(mainKey)
-					for i := 0; i < 8; i++ {
+					for range 8 {
 						st.Get(nil, kname(qrng.Intn(keyspace)))
 					}
 					release()
@@ -94,7 +94,7 @@ func TestFastIndex_ConcurrentQueryCommit(t *testing.T) {
 						continue
 					}
 					st := cacheMS.GetStore(mainKey)
-					for i := 0; i < 8; i++ {
+					for range 8 {
 						st.Get(nil, kname(qrng.Intn(keyspace)))
 					}
 					release()
@@ -108,7 +108,7 @@ func TestFastIndex_ConcurrentQueryCommit(t *testing.T) {
 		cms := ms.MultiCacheWrap()
 		st := cms.GetStore(mainKey)
 		n := 1 + rng.Intn(60)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			k := kname(rng.Intn(keyspace))
 			if rng.Intn(6) == 0 {
 				st.Delete(nil, k)

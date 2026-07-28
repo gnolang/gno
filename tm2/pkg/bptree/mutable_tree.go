@@ -32,8 +32,11 @@ import (
 // VersionExists, and AvailableVersions are likewise safe to call concurrently
 // with the writer.
 //
-// The gno ABCI path satisfies this contract by serializing all store access
-// through the connection mutex.
+// The gno ABCI path satisfies this contract by serializing all MUTATOR and
+// working-tree access through the shared consensus/mempool connection mutex.
+// The query connection runs on its OWN mutex, concurrently — query paths must
+// only use the committed-snapshot surfaces above (the store layer routes them
+// through read-only snapshot views; see rootmulti's query snapshot).
 type MutableTree struct {
 	root      Node  // nil for empty tree
 	lastSaved Node  // committed root: rollback target, and the clean-session witness gating fast-index reads (see fastReadable)
@@ -632,8 +635,11 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 // registering as a version reader. For long-lived snapshots that have no Close
 // hook (e.g. the store's immutable LoadVersion view) — registering them would
 // pin the version against pruning forever. Such a snapshot is not protected
-// against a concurrent prune of its version (acceptable: prune and queries are
-// serialized by the ABCI mutex today).
+// against a concurrent prune of its version by REGISTRATION; the store layer's
+// query views are protected by the frozen DB snapshot they read through
+// (rootmulti's query snapshot). On backends without snapshot support the
+// fallback reads the live DB, so a held view racing a prune of its version
+// fails loudly on the missing records.
 func (t *MutableTree) GetImmutableUnregistered(version int64) (*ImmutableTree, error) {
 	return t.getImmutable(version, false)
 }

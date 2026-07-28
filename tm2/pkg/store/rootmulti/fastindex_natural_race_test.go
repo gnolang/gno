@@ -68,10 +68,8 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 	var height atomic.Int64
 	height.Store(int64(blk))
 	var wg sync.WaitGroup
-	for g := 0; g < 8; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 8 {
+		wg.Go(func() {
 			for !stop.Load() {
 				h := height.Load()
 				if h < 2 {
@@ -85,12 +83,12 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 				cacheMS.GetStore(mainKey) // construction already did the damage, if any
 				release()
 			}
-		}()
+		})
 	}
 
 	// Update blocks: each block touches a disjoint 10-key slice exactly once.
 	const updateBlocks = 1900
-	for u := 0; u < updateBlocks; u++ {
+	for u := range updateBlocks {
 		blk++
 		from := (u * 10) % total
 		commit(from, from+10, blk)
@@ -106,7 +104,7 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 		t.Fatalf("plain load: %v", err)
 	}
 	stale := 0
-	for i := 0; i < total; i++ {
+	for i := range total {
 		k := kname(i)
 		want := oracle[string(k)]
 		got, err := plain.Get(k)

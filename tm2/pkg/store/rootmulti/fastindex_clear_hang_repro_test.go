@@ -38,7 +38,7 @@ func TestFastIndex_RebuildOverCollectingDB(t *testing.T) {
 	// Step 1: fast-ON tree over the raw db — persist `entries` F entries and
 	// the stamp at version 1.
 	on := bp.NewMutableTreeWithDB(db, 1024, bp.NewNopLogger(), bp.FastIndexOption(true))
-	for i := 0; i < entries; i++ {
+	for i := range entries {
 		if _, err := on.Set(key(i), []byte("v1")); err != nil {
 			t.Fatalf("set: %v", err)
 		}

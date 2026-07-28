@@ -28,6 +28,9 @@ import (
 )
 
 func TestFastIndex_RootmultiPipelineFuzz(t *testing.T) {
+	if testing.Short() {
+		t.Skip("30-seed x 3-mode pipeline fuzz (~20s); CI runs it (no -short)")
+	}
 	for seed := int64(1); seed <= 30; seed++ {
 		t.Run(fmt.Sprintf("seed=%d", seed), func(t *testing.T) {
 			runPipelineFuzz(t, seed, false, false)
@@ -92,7 +95,7 @@ func runPipelineFuzz(t *testing.T, seed int64, prune, upgrade bool) {
 		bst := cms.GetStore(baseKey)
 		bst.Set(nil, []byte("_lastHeader"), fmt.Appendf(nil, "hdr%d", blk))
 		n := 1 + rng.Intn(120)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			k := kname(rng.Intn(keyspace))
 			if rng.Intn(5) == 0 {
 				st.Delete(nil, k)
