@@ -204,11 +204,9 @@ func (ndb *nodeDB) dropFastIndex() (err error) {
 	return ndb.clearFastIndex()
 }
 
-// ensureFastIndex rebuilds the fast index from the latest root if it is absent
-// or stale (the stamp != the loaded version). Called from Load when the feature
-// is on. The index is advisory, so a stale/missing index is never wrong, only
-// slower; a rebuild error is returned to Load's caller (the loaded tree is still
-// usable, and a retry Load re-attempts the rebuild).
+// ensureFastIndex ensures that the fast index is valid for the loaded tree.
+// A tree loaded from an older version is treated as a stale reader and never
+// updates the shared fast index.
 func (t *MutableTree) ensureFastIndex() error {
 	if !t.ndb.opts.FastIndex {
 		return nil
@@ -217,7 +215,7 @@ func (t *MutableTree) ensureFastIndex() error {
 	if err != nil {
 		return err
 	}
-	if ok && stamp == t.version {
+	if ok && stamp >= t.version {
 		return nil // already complete through the loaded version
 	}
 	return t.rebuildFastIndex()

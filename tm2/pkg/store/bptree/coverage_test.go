@@ -7,6 +7,7 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bp "github.com/gnolang/gno/tm2/pkg/bptree"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -146,6 +147,26 @@ func TestCoverage_LoadVersionImmutable(t *testing.T) {
 
 	val := st2.Get(nil, []byte("lv"))
 	require.Equal(t, []byte("v1"), val)
+}
+
+// TestImmutableLoadVersionDoesNotMaintainFastIndex ensures immutable loads
+// read the requested root without attempting fast-index writes.
+func TestImmutableLoadVersionDoesNotMaintainFastIndex(t *testing.T) {
+	db := memdb.NewMemDB()
+	writer := StoreConstructor(db, types.StoreOptions{}).(*Store)
+	writer.Set(nil, []byte("key"), []byte("value"))
+	writer.Commit()
+
+	snapshot, err := db.NewSnapshot()
+	require.NoError(t, err)
+	defer snapshot.Close()
+
+	opts := types.StoreOptions{Immutable: true}
+	reader := FastStoreConstructor(dbm.NewSnapshotDB(snapshot), opts).(*Store)
+	require.NotPanics(t, func() {
+		require.NoError(t, reader.LoadVersion(1))
+	})
+	require.Equal(t, []byte("value"), reader.Get(nil, []byte("key")))
 }
 
 func TestCoverage_ImmutableStoreCommitPanics(t *testing.T) {

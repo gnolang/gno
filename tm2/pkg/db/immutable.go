@@ -61,12 +61,12 @@ func (idb *ImmutableDB) NewSnapshot() (Snapshot, error) {
 
 // Implements DB.
 func (idb *ImmutableDB) NewBatch() Batch {
-	return nil // XXX
+	return &snapshotNoopBatch{}
 }
 
 // Implements DB.
 func (idb *ImmutableDB) NewBatchWithSize(_ int) Batch {
-	return nil // XXX
+	return &snapshotNoopBatch{}
 }
 
 // Implements DB.

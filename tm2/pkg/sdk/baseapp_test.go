@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
@@ -964,7 +965,11 @@ func TestSimulateConcurrentNoPanic(t *testing.T) {
 		}))
 	}
 
-	app := setupBaseApp(t, anteOpt, routerOpt)
+	db := memdb.NewMemDB()
+	app := NewBaseApp(t.Name(), defaultLogger(), db, baseKey, mainKey, anteOpt, routerOpt)
+	app.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	app.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, app.LoadLatestVersion())
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	tx := newTxCounter(0, 0)

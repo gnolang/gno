@@ -130,6 +130,9 @@ func (ms *multiStore) MountStoreWithDB(key types.StoreKey, cons types.CommitStor
 	if key == nil {
 		panic("MountIAVLStore() key cannot be nil")
 	}
+	if db != nil && db != ms.db {
+		panic("rootmulti: mounted DB must be nil or the root DB")
+	}
 	if _, ok := ms.storesParams[key]; ok {
 		panic(fmt.Sprintf("Store duplicate store key %v", key))
 	}
@@ -510,6 +513,9 @@ func (ms *multiStore) constructStore(params storeParams) (store types.CommitStor
 	var prefix []byte
 	if params.db != nil {
 		raw = params.db
+		if ms.storeOpts.Immutable {
+			raw = ms.db
+		}
 		prefix = []byte("s/_/")
 	} else {
 		raw = ms.db

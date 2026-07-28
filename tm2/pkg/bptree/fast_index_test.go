@@ -279,6 +279,65 @@ func TestFastIndex_EagerStampAvoidsRebuild(t *testing.T) {
 	}
 }
 
+// TestFastIndex_NewerStampDoesNotRebuildOlderRoot ensures a stale reader
+// cannot overwrite a fast index maintained by a newer committed version.
+func TestFastIndex_NewerStampDoesNotRebuildOlderRoot(t *testing.T) {
+	db := memdb.NewMemDB()
+	tr := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
+	key := []byte("key")
+	mustSet(t, tr, key, []byte("authoritative"))
+	v1 := mustSave(t, tr)
+
+	doctorFastEntry(t, tr, db, key, v1, []byte("sentinel"))
+	if err := tr.ndb.setFastIndexVersion(v1 + 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.ndb.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tr.ensureFastIndex(); err != nil {
+		t.Fatal(err)
+	}
+	stamp, ok, err := tr.ndb.getFastIndexVersion()
+	if err != nil || !ok || stamp != v1+1 {
+		t.Fatalf("stamp = (%d, %t, %v); want (%d, true, nil)", stamp, ok, err, v1+1)
+	}
+	got, ok := tr.ndb.fastGet(key, v1)
+	if !ok || string(got) != "sentinel" {
+		t.Fatalf("fast entry changed = (%q, %t); want sentinel unchanged", got, ok)
+	}
+}
+
+// TestFastIndex_OlderStampStillRebuildsLatestRoot ensures writer startup still
+// repairs an index whose stamp is behind the authoritative latest root.
+func TestFastIndex_OlderStampStillRebuildsLatestRoot(t *testing.T) {
+	db := memdb.NewMemDB()
+	tr := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
+	mustSet(t, tr, []byte("key"), []byte("v1"))
+	v1 := mustSave(t, tr)
+	mustSet(t, tr, []byte("key"), []byte("v2"))
+	v2 := mustSave(t, tr)
+
+	if err := tr.ndb.setFastIndexVersion(v1); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.ndb.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.ensureFastIndex(); err != nil {
+		t.Fatal(err)
+	}
+	stamp, ok, err := tr.ndb.getFastIndexVersion()
+	if err != nil || !ok || stamp != v2 {
+		t.Fatalf("stamp = (%d, %t, %v); want (%d, true, nil)", stamp, ok, err, v2)
+	}
+	got, err := tr.Get([]byte("key"))
+	if err != nil || string(got) != "v2" {
+		t.Fatalf("Get = %q, %v; want v2", got, err)
+	}
+}
+
 // TestFastIndex_VersionCheckRejectsNewer: a committed snapshot at S must never
 // see a value written after S, even though the index points at the newer entry.
 func TestFastIndex_VersionCheckRejectsNewer(t *testing.T) {

@@ -186,7 +186,9 @@ func (st *Store) LoadVersion(ver int64) error {
 		return nil // version 0 is always "empty"
 	}
 	if st.opts.Immutable {
-		if _, err := st.mtree.Load(); err != nil {
+		// Loads only the requested root without performing writer-only
+		// fast-index maintenance.
+		if _, err := st.mtree.LoadVersion(ver); err != nil {
 			return err
 		}
 		// Long-lived immutable store view, never Closed → load UNREGISTERED so

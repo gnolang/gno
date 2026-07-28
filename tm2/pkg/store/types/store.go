@@ -146,8 +146,10 @@ type CommitMultiStore interface {
 	Committer
 	MultiStore
 
-	// Mount a store of type using the given db.
-	// If db == nil, the new store will use the CommitMultiStore db.
+	// MountStoreWithDB mounts a store. If db is non-nil, the store is mounted
+	// using the root DB directly. Otherwise, it is mounted under a
+	// store-specific prefix. A non-nil db must be the same DB used to construct
+	// the CommitMultiStore.
 	MountStoreWithDB(key StoreKey, cons CommitStoreConstructor, db dbm.DB)
 
 	// Panics on a nil key.
