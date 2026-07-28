@@ -185,6 +185,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			if sessRes, sessAbort := checkSessionRestrictions(newCtx, tx); sessAbort {
 				return newCtx, sessRes, true
 			}
+			if cspRes, cspAbort := checkCodeSubmissionPolicy(newCtx, tx, vmk); cspAbort {
+				return newCtx, cspRes, true
+			}
 			return
 		},
 	)
@@ -1182,6 +1185,43 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 					"msg %s/%s%s not permitted by session AllowPaths %v",
 					msg.Route(), msg.Type(), pkgPathSuffix(msg),
 					sessionAllowPathsRaw(sess),
+				))), true
+			}
+		}
+	}
+	return sdk.Result{}, false
+}
+
+// checkCodeSubmissionPolicy enforces the vm code_submission_policy param.
+// When policy is "permissioned", MsgAddPackage and MsgRun are rejected unless
+// every signer of those messages appears in the CodeSubmitters allowlist.
+// Called after the auth ante handler so signatures are already verified.
+func checkCodeSubmissionPolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, bool) {
+	params := vmk.GetParams(ctx)
+	policy := params.CodeSubmissionPolicy
+	if policy == "" {
+		policy = vm.CodeSubmissionPolicyPermissionless
+	}
+	if policy == vm.CodeSubmissionPolicyPermissionless {
+		return sdk.Result{}, false
+	}
+	allowed := make(map[string]struct{}, len(params.CodeSubmitters))
+	for _, a := range params.CodeSubmitters {
+		allowed[a.String()] = struct{}{}
+	}
+	for _, msg := range tx.GetMsgs() {
+		if msg.Route() != "vm" {
+			continue
+		}
+		t := msg.Type()
+		if t != "add_package" && t != "run" {
+			continue
+		}
+		for _, signer := range msg.GetSigners() {
+			if _, ok := allowed[signer.String()]; !ok {
+				return sdk.ABCIResultFromError(std.ErrUnauthorized(fmt.Sprintf(
+					"address %s is not authorized to submit code (code_submission_policy=%s)",
+					signer, policy,
 				))), true
 			}
 		}

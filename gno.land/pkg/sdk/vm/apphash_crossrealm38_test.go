@@ -104,7 +104,13 @@ import (
 // Behavior is unchanged for all typed values; only the constant-folding
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
-const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
+//
+// Hash bumped by the code_submission_policy PR (#5885): two new vm params
+// (code_submission_policy default "permissionless", code_submitters default
+// empty) are serialized into the genesis vm params state, shifting the
+// committed multistore root. Behavior is unchanged (policy defaults to
+// permissionless). Re-derived after merging master.
+const expectedCrossrealm38Hash = "1099be82dd5ca9fd964a6dd66c0cc37a98146302694145d43ef6fa7279b7ea46"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
