@@ -438,3 +438,21 @@ func TestMapKeyOmitType_declaredKey(t *testing.T) {
 	declaredIface := &DeclaredType{Name: "Stringer", Base: &InterfaceType{}}
 	assert.False(t, mapKeyOmitType(&MapType{Key: declaredIface, Value: IntType}))
 }
+
+func TestMapValue_vmapBuiltLazily(t *testing.T) {
+	store := NewStore(nil, nil, nil)
+	m := NewMachine("main", store)
+
+	// A MapValue shaped the way amino decode leaves one: List populated,
+	// vmap nil. fillTypesOfValue no longer builds the index.
+	mv := &MapValue{List: &MapList{}}
+	key := m.Eval(m.MustParseExpr(`"alpha"`))[0]
+	val := m.Eval(m.MustParseExpr(`int(42)`))[0]
+	mv.List.Append(nil, key).Value = val
+	require.Nil(t, mv.vmap, "index must not exist before first keyed access")
+
+	got, ok := mv.GetValueForKey(nil, store, &key, false)
+	require.True(t, ok, "lookup must build the index on demand")
+	assert.Equal(t, int64(42), got.GetInt())
+	assert.NotNil(t, mv.vmap, "index must be memoized after first access")
+}

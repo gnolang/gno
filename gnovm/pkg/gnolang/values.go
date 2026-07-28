@@ -907,7 +907,13 @@ type MapValue struct {
 	ObjectInfo
 	List *MapList
 
-	vmap map[MapKey]*MapListItem // nil if uninitialized
+	// In-memory key index, rebuilt from List and never persisted. nil means
+	// "not built yet" — the usual case for a MapValue that came from amino
+	// decode. Built on first keyed access by ensureVmap, because the static
+	// key type needed for the TypeID-prefix decision is not in scope at load
+	// time. Maps that are only ranged over, printed or measured walk List and
+	// never pay for an index.
+	vmap map[MapKey]*MapListItem
 }
 
 type MapKey string
@@ -1000,15 +1006,39 @@ func (mv *MapValue) MakeMap() {
 	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
+// ensureVmap builds the key index if it is absent.
+//
+// The build is deliberately unmetered (nil *Machine), matching the load-time
+// build in fillTypesOfValue that it replaces. Gas therefore cannot depend on
+// whether a map was already resident in the store cache — the property that
+// would otherwise make lazy construction a consensus hazard.
+//
+// omitKeyType MUST be the value that later lookups pass, or every key misses.
+// Callers derive it from the map's static type via mapKeyOmitType, so one
+// value feeds both build and lookup and they cannot diverge.
+func (mv *MapValue) ensureVmap(store Store, omitKeyType bool) {
+	if mv.vmap != nil {
+		return
+	}
+	mv.vmap = make(map[MapKey]*MapListItem, mv.List.Size)
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		mk, isNaN := cur.Key.ComputeMapKey(nil, store, omitKeyType)
+		if !isNaN {
+			mv.vmap[mk] = cur
+		}
+	}
+}
+
 func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue, omitKeyType bool) PointerValue {
+	mv.ensureVmap(store, omitKeyType)
 	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
 			// When assigning to a map item, the key is always equal to that of the
@@ -1034,9 +1064,10 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue, omitKeyType bool) (val TypedValue, ok bool) {
+	mv.ensureVmap(store, omitKeyType)
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if isNaN {
 		return
 	}
@@ -1051,9 +1082,10 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 // that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
+func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue, omitKeyType bool) (deletedKey *TypedValue) {
+	mv.ensureVmap(store, omitKeyType)
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if isNaN {
 		return nil
 	}
@@ -2397,6 +2429,12 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 		mv := tv.V.(*MapValue)
 
+		// vmap is built lazily, and the direct read below must not observe a
+		// nil index: a nil-map read yields ok == false, leaving oldObject nil
+		// so DidUpdate skips the DecRefCount branch and orphans the displaced
+		// stored key. Task 3 folds this block into GetPointerForKey.
+		mv.ensureVmap(store, false)
+
 		// if a key is getting attached, we should update it with the new one,
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
@@ -2410,7 +2448,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(m, alloc, store, ivk)
+		pv := mv.GetPointerForKey(m, alloc, store, ivk, false)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
