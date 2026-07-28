@@ -1900,7 +1900,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
-		// colors.ColoredBytes().
+		// colors.ColoredBytes() — for interface-keyed maps and interface
+		// fields/elements, which are the cases that still reach here.
+		// Concrete key types omit this entirely (see mapKeyOmitType).
 		bz = append(bz, tv.T.TypeID().Bytes()...)
 		bz = append(bz, ':') // type/value separator
 	}
@@ -2451,7 +2453,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		// https://github.com/gnolang/gno/pull/4114
 		// GetPointerForKey hands back the displaced stored key's object, so
 		// the map key is computed once per assignment instead of twice.
-		pv, oldObject := mv.GetPointerForKey(m, alloc, store, ivk, false)
+		pv, oldObject := mv.GetPointerForKey(m, alloc, store, ivk, mapKeyOmitType(bt))
 		if pv.TV.IsUndefined() {
 			vt := bt.Value
 			if vt.Kind() != InterfaceKind {

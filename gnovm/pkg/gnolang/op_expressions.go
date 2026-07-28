@@ -18,7 +18,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m, m.Store, iv, false)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv, mapKeyOmitType(ct))
 			if exists {
 				*xv = vv // reuse as result
 			} else {
@@ -49,7 +49,7 @@ func (m *Machine) doOpIndex2() {
 			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m, m.Store, iv, false)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv, mapKeyOmitType(ct))
 			if exists {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
@@ -573,17 +573,15 @@ func (m *Machine) doOpMapLit() {
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	m.Alloc.checkConstructionTime(mt)
-	// bt := baseOf(at).(*MapType)
 	// construct new map value.
 	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
-		// TODO: future optimization
-		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
+		omitKeyType := mapKeyOmitType(baseOf(mt).(*MapType))
 		for i := range ne {
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
-			ptr, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv, false)
+			ptr, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv, omitKeyType)
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}

@@ -2,8 +2,8 @@
 package main
 
 // A declared key type over a primitive — the map[address]T shape that
-// dominates gno.land realms. The key's own bytes are short, so the omitted
-// TypeID prefix ("main.Address") is a large fraction of the charge.
+// dominates gno.land realms. The omitted TypeID prefix ("main.Address")
+// is ~29% of the bytes hashed but only ~6 of the 98 gas charged per access.
 
 type Address string
 
@@ -19,4 +19,4 @@ func main() {
 // 1
 
 // Gas:
-// 125449
+// 124849
