@@ -1,0 +1,98 @@
+# Security regression for the typeHasPrivateDep cache (see
+# gnovm/adr/pr5923_type_privacy_dependency_cache.md).
+#
+# assertTypeIsPublic short-circuits on a memoized "does this type reach a
+# private package" verdict keyed by TypeID. TypeID does NOT encode package
+# privacy — privacy is read from the PackageValue during the walk — so the
+# same TypeID yields verdict=false while a path is built public and
+# verdict=true once it is deployed private. If a verdict computed against a
+# speculative (public) build of a path could enter the shared, process-
+# lived cache, a later real PRIVATE deployment of that path would have its
+# enforcement walk skipped on the node that computed it, but not on other
+# nodes — a consensus fork, and a private type leaking into a public realm.
+#
+# The exploit vector is `maketx ... -simulate only`: simulation is an ABCI
+# query answered by a single node and never replicated. Here we simulate
+# deploying gno.land/r/zz/priv as a PUBLIC package (its gnomod omits
+# `private`), then really deploy it PRIVATE, then call Leak, which persists
+# an array of nil pointers to the private type into a public realm —
+# carrying the private TYPE but no private OBJECT, so only the type-privacy
+# check (not assertObjectIsPublic) can catch it.
+#
+# The cache only promotes verdicts from committing (DeliverTx) transactions,
+# so the simulation's verdict is discarded and Leak is rejected on every
+# node. This test FAILS (Leak wrongly succeeds) if verdicts from
+# non-committing transactions ever reach the shared cache.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/zz/pub -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Poison attempt: simulate a PUBLIC build of the priv path (one node only).
+gnokey maketx addpkg -pkgdir $WORK/priv_public -pkgpath gno.land/r/zz/priv -simulate only -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+
+# Real deployment of the path as PRIVATE.
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/zz/priv -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Leak must be rejected: it persists a value carrying the private type into
+# a public realm. A poisoned cache would skip the check and let it through.
+! gnokey maketx call -pkgpath gno.land/r/zz/priv -func Leak -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot persist object of type defined in the private realm gno.land/r/zz/priv'
+
+-- pub/gnomod.toml --
+module = "gno.land/r/zz/pub"
+gno = "0.9"
+
+-- pub/pub.gno --
+package pub
+
+var Slot any
+
+func Save(cur realm, v any) {
+	Slot = v
+}
+
+-- priv/gnomod.toml --
+module = "gno.land/r/zz/priv"
+gno = "0.9"
+private = true
+
+-- priv/priv.gno --
+package priv
+
+import "gno.land/r/zz/pub"
+
+type Data struct {
+	N int
+}
+
+// Persisted at deploy time, so the deploy's own commit memoizes Data.
+var keep = &Data{N: 0}
+
+// Carries the private type but no object from the private realm.
+func Leak(cur realm) {
+	var arr [3]*Data
+	pub.Save(cross(cur), arr)
+}
+
+-- priv_public/gnomod.toml --
+module = "gno.land/r/zz/priv"
+gno = "0.9"
+
+-- priv_public/priv.gno --
+package priv
+
+import "gno.land/r/zz/pub"
+
+type Data struct {
+	N int
+}
+
+var keep = &Data{N: 0}
+
+func Leak(cur realm) {
+	var arr [3]*Data
+	pub.Save(cross(cur), arr)
+}

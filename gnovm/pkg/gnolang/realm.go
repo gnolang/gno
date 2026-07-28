@@ -1262,17 +1262,27 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 // never find a violation in t for ANY realm, so callers can skip that
 // walk entirely.
 //
-// The verdict is memoized on the store's process-lived typePrivacyCache,
-// keyed by t's TypeID. TypeID keying (rather than a field on the Type
-// object) is essential: every transaction reloads types as fresh objects
-// from a per-tx cacheTypes map, so a field on the object would never
-// survive the commit boundary this optimization exists to span. TypeID
-// identifies a type's full structure, and hasPrivateDep is a pure,
-// immutable function of that structure plus package privacy (itself
-// immutable), so the verdict is stable for the life of the process.
+// The verdict is memoized on the store, keyed by t's TypeID. TypeID
+// keying (rather than a field on the Type object) is essential: every
+// transaction reloads types as fresh objects from a per-tx cacheTypes
+// map, so a field on the object would never survive the commit boundary
+// this optimization exists to span.
 //
-// Only the verdict for t itself (the queried root) is cached — never the
-// intermediate nodes reached during the walk. A root's DFS visits its
+// A freshly computed verdict is buffered on the transaction and promoted
+// to the shared, cross-transaction cache only when the transaction
+// commits (see bufferTypePrivacyVerdict). This is a SECURITY requirement,
+// not just tidiness: TypeID does not encode package privacy, and privacy
+// is read from the PackageValue during the walk, so a query or simulation
+// that builds a path as public computes verdict=false for that path's
+// types — and if that leaked into the shared cache, a subsequent real
+// deployment of the same path as private would have its enforcement walk
+// skipped on nodes that served the query but not on others, diverging
+// consensus. Buffering + commit-gating discards such speculative verdicts;
+// only committed package privacy (which never changes for a given path)
+// ever reaches the shared cache.
+//
+// Only the verdict for t itself (the queried root) is memoized — never
+// the intermediate nodes reached during the walk. A root's DFS visits its
 // entire reachable closure before returning, so the root's answer is
 // correct regardless of cycles. Intermediate nodes reached only through a
 // cycle can resolve to an under-approximation mid-walk (a back-edge
@@ -1284,30 +1294,32 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 // per-node scheme had to exclude from caching entirely.
 func typeHasPrivateDep(store Store, t Type) bool {
 	tid := t.TypeID()
-	cache := storeTypePrivacyCache(store)
-	if cache != nil {
-		if verdict, ok := cache.get(tid); ok {
+	ds := asDefaultStore(store)
+	if ds != nil {
+		if verdict, ok := ds.typePrivacyVerdict(tid); ok {
 			return verdict
 		}
 	}
 	verdict := computeTypeHasPrivateDep(store, t, map[TypeID]bool{})
-	if cache != nil {
-		cache.set(tid, verdict) // root only; see doc comment.
+	if ds != nil {
+		ds.bufferTypePrivacyVerdict(tid, verdict) // root only; promoted on commit.
 	}
 	return verdict
 }
 
-// storeTypePrivacyCache returns the store's shared type-privacy memo, or
-// nil for a store implementation that doesn't carry one (in which case
-// typeHasPrivateDep still returns the correct answer, just uncached).
-func storeTypePrivacyCache(store Store) *typePrivacyCache {
-	if ds, ok := store.(*defaultStore); ok {
-		return ds.typePrivacyCache
+// asDefaultStore unwraps store to the *defaultStore carrying the
+// type-privacy cache/buffer, or nil for a store implementation that
+// doesn't have one (in which case typeHasPrivateDep still returns the
+// correct answer, just uncached).
+func asDefaultStore(store Store) *defaultStore {
+	switch s := store.(type) {
+	case *defaultStore:
+		return s
+	case transactionStore:
+		return s.defaultStore
+	default:
+		return nil
 	}
-	if ts, ok := store.(transactionStore); ok {
-		return ts.defaultStore.typePrivacyCache
-	}
-	return nil
 }
 
 // computeTypeHasPrivateDep is the uncached OR-reachability walk backing

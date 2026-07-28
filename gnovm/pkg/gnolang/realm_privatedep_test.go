@@ -59,7 +59,8 @@ func TestTypeHasPrivateDep_TransitiveViaField(t *testing.T) {
 // walk once a type is proven to have no private dependency anywhere.
 // That's only sound if the answer is memoized, not just correct on a
 // single call — mutating package privacy after the first call must not
-// change the cached verdict.
+// change the verdict returned within the same (uncommitted) transaction,
+// which reads back its own buffered result.
 func TestTypeHasPrivateDep_CachesResult(t *testing.T) {
 	t.Parallel()
 	store, pubPath, _ := newPrivateDepTestStore(t)
@@ -71,22 +72,20 @@ func TestTypeHasPrivateDep_CachesResult(t *testing.T) {
 	}
 
 	pv := store.GetPackage(pubPath, false)
-	pv.Private = true // simulate a stale/incorrect lookup; must not affect the cached answer
+	pv.Private = true // simulate a stale/incorrect lookup; must not affect the buffered answer
 
 	if typeHasPrivateDep(store, pub) {
-		t.Fatal("typeHasPrivateDep() after store mutation = true, want false (cached result must survive)")
+		t.Fatal("typeHasPrivateDep() after store mutation = true, want false (buffered result must survive)")
 	}
 }
 
-// The store-level, TypeID-keyed cache must survive a transaction boundary
-// — this is the whole point of the redesign. Each transaction reloads
-// types as fresh objects, so a verdict computed under one transaction
-// must be reachable by a later transaction querying the same TypeID.
-//
-// Regression test for the original design, where the memo lived on the
-// per-tx Type object and never survived the commit it was supposed to
-// span.
-func TestTypeHasPrivateDep_CacheSurvivesTransaction(t *testing.T) {
+// A verdict must reach the shared, cross-transaction cache only when the
+// transaction that computed it COMMITS (transactionStore.Write) — and
+// once committed, it must survive to later transactions, which reload
+// types as fresh objects sharing the same TypeID. This is both the whole
+// point of the redesign (survive the commit boundary) and its security
+// gate (uncommitted verdicts stay private to their transaction).
+func TestTypeHasPrivateDep_VerdictPromotedOnCommitAndSurvives(t *testing.T) {
 	t.Parallel()
 	db := memdb.NewMemDB()
 	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
@@ -102,33 +101,99 @@ func TestTypeHasPrivateDep_CacheSurvivesTransaction(t *testing.T) {
 	tx1.Write()
 	w1.Write()
 
-	first := st.GetType("gno.vm/t/hello.Coin").(*DeclaredType)
-	tid := first.TypeID()
-	typeHasPrivateDep(st, first)
-
-	if _, ok := storeTypePrivacyCache(st).get(tid); !ok {
-		t.Fatal("verdict not memoized after the first walk")
-	}
-
-	// A later transaction gets a fresh Type object for the same TypeID.
-	// The shared, TypeID-keyed cache must already hold the verdict.
+	// Compute the verdict inside a fresh transaction.
 	w2 := tm2Store.CacheWrap()
 	tx2 := st.BeginTransaction(w2, w2, nil, nil)
-	second := tx2.GetType("gno.vm/t/hello.Coin").(*DeclaredType)
-	if first == second {
-		t.Fatal("precondition failed: expected a distinct Type object in the second transaction")
+	coin := tx2.GetType("gno.vm/t/hello.Coin").(*DeclaredType)
+	tid := coin.TypeID()
+	typeHasPrivateDep(tx2, coin)
+
+	// Before commit: buffered on tx2, NOT in the shared cache.
+	if _, ok := asDefaultStore(st).typePrivacyCache.get(tid); ok {
+		t.Fatal("verdict reached the shared cache before the transaction committed")
 	}
-	if _, ok := storeTypePrivacyCache(tx2).get(second.TypeID()); !ok {
-		t.Fatal("verdict does not survive the transaction boundary: cache miss in the next transaction")
+	if _, ok := asDefaultStore(tx2).pendingTypePrivacy[tid]; !ok {
+		t.Fatal("verdict was not buffered on the computing transaction")
+	}
+
+	tx2.Write() // commit
+
+	// After commit: promoted to the shared cache.
+	if _, ok := asDefaultStore(st).typePrivacyCache.get(tid); !ok {
+		t.Fatal("verdict not promoted to the shared cache on commit")
+	}
+
+	// A later transaction gets a distinct Type object for the same TypeID
+	// and must see the committed verdict.
+	w3 := tm2Store.CacheWrap()
+	tx3 := st.BeginTransaction(w3, w3, nil, nil)
+	third := tx3.GetType("gno.vm/t/hello.Coin").(*DeclaredType)
+	if coin == third {
+		t.Fatal("precondition failed: expected a distinct Type object in the later transaction")
+	}
+	if _, ok := asDefaultStore(tx3).typePrivacyVerdict(third.TypeID()); !ok {
+		t.Fatal("committed verdict does not survive to the next transaction")
+	}
+}
+
+// Security regression for the simulation cache-poisoning bug: a verdict
+// computed by a transaction that never commits (a query, a simulation, or
+// a rolled-back tx) must NOT leak into the shared cache. Otherwise a
+// simulated PUBLIC build of a path could cache verdict=false and let a
+// later PRIVATE deployment of that path skip its enforcement walk on
+// nodes that served the simulation — diverging consensus. The full
+// public-then-private end-to-end scenario is
+// gno.land/pkg/integration/testdata/typecache_poison.txtar; this pins the
+// store-level mechanism (an uncommitted verdict is never promoted).
+func TestTypeHasPrivateDep_UncommittedVerdictDoesNotLeak(t *testing.T) {
+	t.Parallel()
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	// Deploy the package so later transactions can load it from backend.
+	w1 := tm2Store.CacheWrap()
+	tx1 := st.BeginTransaction(w1, w1, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "gno.vm/t/hello", Store: tx1, Output: io.Discard})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd, Name: "hello", Path: "gno.vm/t/hello",
+		Files: []*std.MemFile{{Name: "hello.gno", Body: "package hello\n\ntype Coin struct{ Amount int }\n"}},
+	}, true)
+	tx1.Write()
+	w1.Write()
+
+	// A transaction computes the verdict but is DISCARDED (no Write) —
+	// models a simulation or query.
+	w2 := tm2Store.CacheWrap()
+	tx2 := st.BeginTransaction(w2, w2, nil, nil)
+	coin := tx2.GetType("gno.vm/t/hello.Coin").(*DeclaredType)
+	tid := coin.TypeID()
+	typeHasPrivateDep(tx2, coin)
+	if _, ok := asDefaultStore(tx2).pendingTypePrivacy[tid]; !ok {
+		t.Fatal("precondition failed: verdict was not even buffered on the computing tx")
+	}
+	// tx2 is intentionally never committed.
+
+	if _, ok := asDefaultStore(st).typePrivacyCache.get(tid); ok {
+		t.Fatal("a verdict from an uncommitted transaction leaked into the shared cache")
+	}
+
+	// A later transaction must still see a cold shared cache for this
+	// TypeID (it would recompute against whatever privacy is committed
+	// then — not trust the discarded verdict).
+	w3 := tm2Store.CacheWrap()
+	tx3 := st.BeginTransaction(w3, w3, nil, nil)
+	if _, ok := asDefaultStore(tx3).typePrivacyCache.get(tid); ok {
+		t.Fatal("discarded verdict is visible to a later transaction")
 	}
 }
 
 // A DeclaredType with a method is self-referential (the method's receiver
-// is the type itself), so it forms a cycle. The redesign caches the
-// queried root regardless of cycles, so a method-bearing type must
-// memoize — the original per-node scheme discarded the whole walk on any
-// cycle and never cached these (the common case, since most user types
-// carry methods).
+// is the type itself), so it forms a cycle. The redesign memoizes the
+// queried root regardless of cycles, so a method-bearing type must be
+// buffered (and thus committable) — the original per-node scheme
+// discarded the whole walk on any cycle and never cached these (the
+// common case, since most user types carry methods).
 func TestTypeHasPrivateDep_MethodBearingTypeIsCached(t *testing.T) {
 	t.Parallel()
 	db := memdb.NewMemDB()
@@ -147,19 +212,20 @@ func TestTypeHasPrivateDep_MethodBearingTypeIsCached(t *testing.T) {
 		t.Fatal("precondition failed: expected Coin to carry a method")
 	}
 	typeHasPrivateDep(tx, dt)
+	tx.Write() // commit so the verdict is promoted to the shared cache
 
-	if _, ok := storeTypePrivacyCache(tx).get(dt.TypeID()); !ok {
+	if _, ok := asDefaultStore(st).typePrivacyCache.get(dt.TypeID()); !ok {
 		t.Fatal("a method-bearing type was not memoized (the self-cycle via the method receiver must not block caching)")
 	}
 }
 
 // A self-referential type (e.g. a linked-list node) must not infinite-
 // loop, must resolve to the correct verdict, AND — unlike the previous
-// design — must be cached at the queried root. Self-reference in real Gno
-// always goes through a *DeclaredType (DeclaredType.TypeID() is a nominal
-// PkgPath+Name hash, not a structural walk, which keeps TypeID() itself
-// from infinite-recursing); a raw anonymous *StructType can't close the
-// loop, so the test builds the cycle the way the preprocessor would.
+// design — must be memoized at the queried root. Self-reference in real
+// Gno always goes through a *DeclaredType (DeclaredType.TypeID() is a
+// nominal PkgPath+Name hash, not a structural walk, which keeps TypeID()
+// itself from infinite-recursing); a raw anonymous *StructType can't close
+// the loop, so the test builds the cycle the way the preprocessor would.
 func TestTypeHasPrivateDep_SelfReferentialIsCached(t *testing.T) {
 	t.Parallel()
 	store, pubPath, _ := newPrivateDepTestStore(t)
@@ -172,7 +238,8 @@ func TestTypeHasPrivateDep_SelfReferentialIsCached(t *testing.T) {
 	if typeHasPrivateDep(store, nodeDT) {
 		t.Fatal("typeHasPrivateDep() = true, want false for a self-referential type with no private dependency")
 	}
-	if _, ok := storeTypePrivacyCache(store).get(nodeDT.TypeID()); !ok {
+	// Memoized (buffered), not discarded as the old sawCycle rule would.
+	if _, ok := asDefaultStore(store).typePrivacyVerdict(nodeDT.TypeID()); !ok {
 		t.Fatal("a self-referential type's root verdict was not memoized")
 	}
 }

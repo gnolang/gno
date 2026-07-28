@@ -80,12 +80,46 @@ cross-contaminate.
 may always use its own types, private or not) — that part depends on
 *which* realm is asking and can't be cached realm-independently. But
 "does this type touch *any* private package at all" does not depend on
-the caller: package privacy (`PackageValue.Private`) is set once at
-package creation and never mutated (verified — no other write site). So
-the verdict is a pure, immutable function of `TypeID` for the life of
-the process, safe to cache and safe to share across the concurrent-query
-path (a race can only recompute the same value, never disagree; the
+the caller. It does, however, depend on package privacy, which `TypeID`
+does not encode — so a verdict is only stable once the packages it
+reaches are **committed** (a path deploys once and its privacy never
+changes thereafter). This subtlety is the subject of the commit-gating
+below, and it is why the shared cache is safe to keep for the life of
+the process and safe to share across the concurrent-query read path (a
+race can only recompute the same committed value, never disagree; the
 mutex is for memory-safety, not value-correctness).
+
+**Commit-gating — a second security flaw found in review, and the fix.**
+The store-level, TypeID-keyed design above still had a critical hole,
+caught in the second review round (PR #5923). `TypeID` identifies a
+type's *structure* but not the *privacy* of the package that declares it
+— and privacy is read from the `PackageValue` at walk time. So the same
+`TypeID` yields verdict=false while a path is built **public** and
+verdict=true once that path is deployed **private**. Simulation makes
+this reachable: `maketx ... -simulate only` is an ABCI query answered by
+one node and never replicated. An attacker simulates deploying a path as
+public (poisoning that node's cache with verdict=false for the path's
+types), then really deploys the path as private and persists a value
+carrying the private *type* but no private *object* (e.g. an array of
+nil `*Data` pointers) into a public realm. On the node that served the
+simulation, `assertTypeIsPublic` finds the cached false and skips the
+enforcement walk; on every other node it recomputes true and panics.
+That is a consensus fork plus a private-type leak
+(`gno.land/pkg/integration/testdata/typecache_poison.txtar` is the
+end-to-end repro; it fails if this regresses).
+
+The fix: a freshly computed verdict is **buffered per-transaction**
+(`defaultStore.pendingTypePrivacy`) and promoted to the shared cache
+only when the transaction **commits** — i.e. in `transactionStore.Write`,
+which the vm keeper's `endTxHook` invokes solely on a successful
+`DeliverTx` (`gno.land/pkg/gnoland/app.go`). A query, a simulation, or a
+transaction that panics/rolls back never calls `Write`, so its verdicts
+— possibly computed against a speculative view of package privacy — are
+discarded. Only committed package privacy ever reaches the shared cache,
+and committed privacy is immutable, so the cross-transaction cache is
+sound. Reads consult the shared (committed) cache first, then the
+transaction's own pending buffer, so within one transaction the memo
+still avoids repeat walks.
 
 **Cache only the queried root — this dissolves the cycle problem.**
 Only the verdict for `t` itself (the type passed in, i.e. the object's
@@ -186,13 +220,19 @@ updating in one place.
   cache state instead of consensus state — forking a chain across a
   validator set with mixed uptime. `typecache_restart_gas.txtar` fails
   immediately if that invariant breaks.
-- **Correctness rests on `TypeID` → privacy being immutable per
-  process**: `TypeID` uniquely identifies a type's structure, and a
-  package path's privacy never changes once created. A code reviewer
-  independently validated this over 5000 random type graphs with random
-  private subsets, querying in shuffled rounds so earlier cached answers
-  feed later ones: the memoized answer never disagreed with a cache-free
-  walk.
+- **Correctness rests on committed `TypeID` → privacy being immutable**:
+  `TypeID` uniquely identifies a type's structure but not the privacy of
+  the packages it reaches, so only *committed* verdicts are stable —
+  hence the commit-gating above, which keeps speculative (query/
+  simulation) verdicts out of the shared cache. A committed path's
+  privacy never changes. A code reviewer independently validated the
+  reachability logic over 5000 random type graphs with random private
+  subsets, querying in shuffled rounds so earlier cached answers feed
+  later ones: the memoized answer never disagreed with a cache-free walk.
+- **Security regression tests**: the simulation-poisoning consensus fork
+  is pinned end-to-end by
+  `gno.land/pkg/integration/testdata/typecache_poison.txtar` and at the
+  store level by `TestTypeHasPrivateDep_UncommittedVerdictDoesNotLeak`.
 - Restarting a node cold-starts this cache; no persistence is needed —
   the type graph is reconstructed during normal startup, and the first
   post-restart commit repopulates the cache exactly as the first commit
