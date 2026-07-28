@@ -50,7 +50,7 @@ func benchModExp(b *testing.B, n int) {
 	base := make([]byte, n)
 	exp := make([]byte, n)
 	mod := make([]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		base[i] = byte(i + 1)
 		exp[i] = byte(i + 3)
 		mod[i] = 0xFF // large odd modulus
@@ -127,7 +127,7 @@ func benchBN254PairingCheck(b *testing.B, pairs int) {
 	b.Helper()
 	chunk := mustHex(bn254PairingChunkHex)
 	input := make([]byte, 0, len(chunk)*pairs)
-	for i := 0; i < pairs; i++ {
+	for range pairs {
 		input = append(input, chunk...)
 	}
 	m := newDispatchMachine(1)

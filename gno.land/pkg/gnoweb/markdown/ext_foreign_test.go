@@ -235,11 +235,11 @@ func TestForeign_DepthCapAt5_FifthRefused(t *testing.T) {
 	// (cap is 4 across the gno-* family).
 	var b strings.Builder
 	b.WriteString("\n\n")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		b.WriteString("<gno-foreign>\n")
 	}
 	b.WriteString("deepest body\n")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		b.WriteString("</gno-foreign>\n")
 	}
 	b.WriteString("\n")

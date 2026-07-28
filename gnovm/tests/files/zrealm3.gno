@@ -17,7 +17,7 @@ func init() {
 	}
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	root = &Node{
 		Key: "new",
 	}

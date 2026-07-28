@@ -42,10 +42,11 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
-	contentURL, sourceURL, helpURL := u, u, u
+	contentURL, sourceURL, helpURL, stateURL := u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
+	stateURL.WebQuery = url.Values{"state": {""}}
 
 	contentLink := HeaderLink{
 		Label:    "Content",
@@ -68,6 +69,13 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		IsActive: isActive(u.WebQuery, "Actions"),
 	}
 
+	stateLink := HeaderLink{
+		Label:    "State",
+		URL:      stateURL.EncodeWebURL(),
+		Icon:     "ico-state",
+		IsActive: isActive(u.WebQuery, "State"),
+	}
+
 	switch {
 	case static:
 		return []HeaderLink{contentLink}
@@ -78,7 +86,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink}
 	default:
-		return []HeaderLink{contentLink, sourceLink, actionsLink}
+		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink}
 	}
 }
 
@@ -97,7 +105,9 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state")
+	case "State":
+		return webQuery.Has("state")
 	case "Source":
 		return webQuery.Has("source")
 	case "Actions":

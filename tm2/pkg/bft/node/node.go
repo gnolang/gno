@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -509,7 +511,24 @@ func NewNode(config *cfg.Config,
 	var discoveryReactor *discovery.Reactor
 
 	if config.P2P.PeerExchange {
-		discoveryReactor = discovery.NewReactor()
+		// Set up the persistent peer store so discovered peers survive restarts.
+		// The store file lives in the config directory alongside the node key.
+		addrBookPath := config.P2P.AddrBookFile()
+
+		if err := osm.EnsureDir(filepath.Dir(addrBookPath), cfg.DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("unable to create address book directory, %w", err)
+		}
+
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
+		}
+
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 

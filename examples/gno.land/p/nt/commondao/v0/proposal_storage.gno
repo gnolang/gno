@@ -42,7 +42,7 @@ func (s proposalStorage) Has(id uint64) bool {
 
 // Get returns a proposal or nil when proposal doesn't exist.
 func (s proposalStorage) Get(id uint64) *Proposal {
-	if v, found := s.storage.Get(makeProposalKey(id)); found {
+	if v := s.storage.Get(makeProposalKey(id)); v != nil {
 		return v.(*Proposal)
 	}
 	return nil

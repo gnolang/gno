@@ -1,6 +1,5 @@
 package main
 
-
 func main() {
 	var s int = 1
 	var y int

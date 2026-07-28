@@ -116,8 +116,8 @@ func (s Schema) GetDefault(name string) (value interface{}, found bool) {
 // GetDefaultByIndex returns the default value for a field by it's index.
 func (s Schema) GetDefaultByIndex(index int) (value interface{}, found bool) {
 	key := castIntToKey(index)
-	v, found := s.defaults.Get(key)
-	if !found {
+	v := s.defaults.Get(key)
+	if v == nil {
 		return nil, false
 	}
 

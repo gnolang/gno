@@ -67,8 +67,6 @@ Please provide detailed answers to the following questions to ensure transparenc
 4. Contact details
 5. Why are you interested in validating on **gno.land**?
 6. What contributions have you made or are willing to make to **gno.land**?
-7. Your node architecture. For example, do you run sentry nodes to shield your validator?
-8. How do you handle backups? Describe your backup strategy for keys and node data.
 
 ---
 

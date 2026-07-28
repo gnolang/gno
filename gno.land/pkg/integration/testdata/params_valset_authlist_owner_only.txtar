@@ -38,7 +38,7 @@ stderr 'caller is not superuser'
 
 # Attack 2: even without auth-list membership, attacker tries to call
 # UpdateSigningKey directly. Must reject — not in member's auth list.
-! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test attacker
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test attacker
 stderr 'caller is not in authorized list'
 
 # Attack 3: attacker tries DeleteFromAuthList — same owner check

@@ -22,7 +22,7 @@ func TestMutableTreeFuzz(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
 	mirror := make(map[string]string)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		op := r.Intn(10)
 
 		switch {

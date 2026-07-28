@@ -29,7 +29,7 @@ Explore Gno through our comprehensive documentation:
   manage accounts, and interact with the blockchain
 - **[For Builders](./docs#build-on-gnoland)** - Start writing smart contracts, 
   understand the Gno language, and deploy your applications  
-- **[Resources](./docs#resources)** - Technical specifications, best 
+- **[Reference](./docs#reference)** - Technical specifications, best 
   practices, and advanced topics
 
 Visit [gno.land](https://gno.land) to see live smart contracts in action.
@@ -86,7 +86,7 @@ repository.
   resources
 - [Gnoscan](https://gnoscan.io) - Blockchain explorer
 - [Gno Studio](https://gno.studio) - Web IDE for Gno development
-- [Become a Gnome](./docs/builders/become-a-gnome.md) - Join the contributor 
+- [Contributor guide](./docs/builders/contributor-guide.md) - Join the contributor 
   community
 
 **Connect & Get Help:**

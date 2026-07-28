@@ -225,11 +225,11 @@ func (coins Coins) String() string {
 		return ""
 	}
 
-	out := ""
+	var out strings.Builder
 	for _, coin := range coins {
-		out += fmt.Sprintf("%v,", coin.String())
+		out.WriteString(fmt.Sprintf("%v,", coin.String()))
 	}
-	return out[:len(out)-1]
+	return out.String()[:len(out.String())-1]
 }
 
 // IsValid asserts the Coins are sorted, have positive amount,

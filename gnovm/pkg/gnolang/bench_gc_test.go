@@ -35,7 +35,7 @@ func buildGCGraph(nObjects int) Value {
 	blockSource.Body = Body{}
 
 	// --- Create StructValues ---
-	for i := 0; i < nStruct; i++ {
+	for range nStruct {
 		nFields := 3 + rng.Intn(3) // 3-5 fields
 		sv := &StructValue{
 			Fields: make([]TypedValue, nFields),
@@ -48,7 +48,7 @@ func buildGCGraph(nObjects int) Value {
 	}
 
 	// --- Create ArrayValues ---
-	for i := 0; i < nArray; i++ {
+	for range nArray {
 		nElems := 5 + rng.Intn(6) // 5-10 elements
 		av := &ArrayValue{
 			List: make([]TypedValue, nElems),
@@ -60,7 +60,7 @@ func buildGCGraph(nObjects int) Value {
 	}
 
 	// --- Create Blocks ---
-	for i := 0; i < nBlock; i++ {
+	for range nBlock {
 		nVals := 3 + rng.Intn(3) // 3-5 values
 		b := &Block{
 			Source: blockSource,
@@ -73,7 +73,7 @@ func buildGCGraph(nObjects int) Value {
 	}
 
 	// --- Create FuncValues ---
-	for i := 0; i < nFunc; i++ {
+	for range nFunc {
 		nCaptures := 1 + rng.Intn(3) // 1-3 captures
 		fv := &FuncValue{
 			PkgPath:  "bench",
@@ -87,7 +87,7 @@ func buildGCGraph(nObjects int) Value {
 	}
 
 	// --- Create HeapItemValues ---
-	for i := 0; i < nHeap; i++ {
+	for range nHeap {
 		hiv := &HeapItemValue{
 			Value: TypedValue{T: IntType},
 		}
@@ -95,14 +95,14 @@ func buildGCGraph(nObjects int) Value {
 	}
 
 	// --- Create MapValues ---
-	for i := 0; i < nMap; i++ {
+	for range nMap {
 		mv := &MapValue{}
 		mv.MakeMap()
 		nEntries := 2 + rng.Intn(2) // 2-3 entries
 		// We need a non-nil allocator for MapList.Append since it
 		// calls AllocateMapItem. Use a large-limit allocator.
 		tmpAlloc := NewAllocator(1 << 40)
-		for j := 0; j < nEntries; j++ {
+		for range nEntries {
 			item := mv.List.Append(tmpAlloc, TypedValue{T: IntType})
 			item.Value = TypedValue{T: IntType}
 		}
@@ -134,7 +134,7 @@ func buildGCGraph(nObjects int) Value {
 			}
 			// Set parent to a random block.
 			if rng.Intn(2) == 0 {
-				for tries := 0; tries < 5; tries++ {
+				for range 5 {
 					candidate := all[rng.Intn(len(all))]
 					if b, ok := candidate.(*Block); ok && b != v {
 						v.Parent = b
@@ -149,7 +149,7 @@ func buildGCGraph(nObjects int) Value {
 				}
 			}
 			// Set parent to a random block.
-			for tries := 0; tries < 5; tries++ {
+			for range 5 {
 				candidate := all[rng.Intn(len(all))]
 				if b, ok := candidate.(*Block); ok {
 					v.Parent = b

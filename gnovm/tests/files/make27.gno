@@ -19,7 +19,7 @@ func shouldPanic(f func()) {
 }
 
 func main() {
-	length := int(^uint(0) >> 1) // max int
+	length := int(^uint(0) >> 1)                     // max int
 	shouldPanic(func() { _ = make([]int, length) })  // AllocateListArray
 	shouldPanic(func() { _ = make([]byte, length) }) // AllocateDataArray
 	println("ok")
