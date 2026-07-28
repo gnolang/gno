@@ -288,9 +288,13 @@ what a page should persist when remembering a choice.
 
 ### `provider` — what the page calls
 
-The provider carries the wallet's methods. The one a transaction producer
-needs mirrors the `tx` launch link field for field, so both transports carry
-the same intent:
+The provider carries the wallet's methods. The one a transaction producer needs
+carries the same **transaction intent** as the `tx` launch link
+(path/func/args/send/network — built by one function, so the two cannot drift),
+but not the same **envelope**: a launch link adds out-of-band delivery
+(`callback`, `state`) and a mode selector (`broadcast`) that a direct call, which
+simply returns a `Promise`, does not need. A direct call is also not URL-bounded,
+so it carries large arguments a launch link cannot (see Payload size).
 
 ```ts
 signAndSubmitTransaction(tx: {
@@ -311,11 +315,17 @@ A user declining is `Rejected`, not a thrown error: refusing to sign is an
 answer, and only a genuine failure (network, malformed request) rejects the
 promise. User review before signing is mandatory, as for `tx`.
 
-A wallet MAY implement more of the in-page surface (`connect`, `getAccount`,
-`signMessage`, network switching). A page MUST feature-detect every method it
-calls rather than assume, and degrade — to another wallet, a launch link, or
-the copy-paste command — when it is absent. Announcing is not a claim to
-implement everything.
+`signAndSubmitTransaction` is the core method: one call, signed and broadcast,
+returning the `hash`. A wallet MAY implement more of the in-page surface —
+`connect`, `getAccount`, `signMessage`, network switching, and the optional
+analogues of the launch-link extras: sign-only (return the signed tx instead of
+broadcasting), a signer pin, or a multi-message call. A page MUST feature-detect
+every method it calls rather than assume, and degrade — to another wallet, a
+launch link, or the copy-paste command — when it is absent. Announcing is not a
+claim to implement everything: the same additive forward-compatibility contract
+as launch links applies (see Forward compatibility) — capabilities are only ever
+added, never repurposed, and a page degrades on any method it does not
+recognise.
 
 ### Announcements are untrusted
 
