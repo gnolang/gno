@@ -1539,6 +1539,54 @@ func TestQuery(t *testing.T) {
 	require.Equal(t, value, res.Value)
 }
 
+// TestStoreQueryConcurrentWithCommit verifies that a latest-height store query
+// can run concurrently with Commit. Run with -race.
+func TestStoreQueryConcurrentWithCommit(t *testing.T) {
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	app.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{ChainID: "test-chain", Height: 1},
+	})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	query := abci.RequestQuery{
+		Path: ".store/main/key",
+		Data: []byte("key"),
+	}
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	var queries atomic.Int64
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		app.Query(query)
+		queries.Add(1)
+		close(ready)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				app.Query(query)
+				queries.Add(1)
+			}
+		}
+	})
+
+	<-ready
+	for height := int64(2); height <= 20; height++ {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: height},
+		})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+	}
+	close(done)
+	wg.Wait()
+	require.Greater(t, queries.Load(), int64(1))
+}
+
 func TestGetMaximumBlockGas(t *testing.T) {
 	app := setupBaseApp(t)
 
