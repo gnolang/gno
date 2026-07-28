@@ -8,12 +8,6 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
-
 // Test permission constants
 const (
 	testPermA boards.Permission = iota
@@ -71,7 +65,7 @@ func TestBasicPermissionsWithPermission(cur realm, t *testing.T) {
 			err: "unauthorized, user g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 doesn't have the required permission",
 		},
 		{
-			name:       "is not a DAO member",
+			name:       "is not a member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: testPermA,
 			setup: func() *Permissions {
@@ -262,7 +256,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
 			got := perms.HasRole(tc.user, tc.role)
-			uassert.Equal(t, got, tc.want)
+			uassert.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -472,6 +466,106 @@ func TestBasicPermissionsSetUserRoles(cur realm, t *testing.T) {
 	}
 }
 
+func TestBasicPermissionsAddRoleOverwrite(t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+
+	perms := New()
+	perms.AddRole("foo", testPermA)
+	perms.SetUserRoles(user, "foo")
+
+	// Re-adding an existing role replaces its permissions and keeps members
+	perms.AddRole("foo", testPermB)
+	uassert.True(t, perms.HasRole(user, "foo"), "expect role members to be kept")
+	uassert.False(t, perms.HasPermission(user, testPermA), "expect old permissions to be revoked")
+	uassert.True(t, perms.HasPermission(user, testPermB), "expect new permissions to be granted")
+}
+
+func TestBasicPermissionsAddRoleEmptyName(cur realm, t *testing.T) {
+	urequire.PanicsWithMessage(t, cur, "role name is required", func() {
+		New().AddRole("  ", testPermA)
+	}, "expect whitespace only role names to be rejected")
+
+	urequire.PanicsWithMessage(t, cur, "permissions super role name is required", func() {
+		New(WithSuperRole("  "))
+	}, "expect whitespace only super role names to be rejected")
+
+	// The empty string is rejected before the superRole sentinel check, so
+	// the outcome doesn't depend on whether a super role is configured.
+	urequire.PanicsWithMessage(t, cur, "role name is required", func() {
+		New().AddRole("", testPermA)
+	}, "expect empty role name to be rejected without a super role")
+	urequire.PanicsWithMessage(t, cur, "role name is required", func() {
+		New(WithSuperRole("owner")).AddRole("", testPermA)
+	}, "expect empty role name to be rejected with a super role")
+}
+
+func TestBasicPermissionsSuperRole(t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	super := boards.Role("owner")
+
+	perms := New(WithSuperRole(super))
+	urequire.True(t, perms.RoleExists(super), "expect super role to exist")
+	urequire.False(t, perms.RoleExists("unknown"))
+
+	// Super role members get every permission without explicit mapping
+	perms.SetUserRoles(user, super)
+	urequire.True(t, perms.HasRole(user, super))
+	uassert.True(t, perms.HasUser(user))
+	uassert.True(t, perms.HasPermission(user, testPermA))
+	uassert.True(t, perms.HasPermission(user, testPermC))
+
+	// AddRole on the super role is a no-op: the super role branch grants
+	// every permission regardless of any meta a mapping would set
+	perms.AddRole(super, testPermB)
+	uassert.True(t, perms.HasPermission(user, testPermA), "expect super role to keep all permissions")
+}
+
+func TestBasicPermissionsHasUserUsersCount(t *testing.T) {
+	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	guest := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+
+	perms := New()
+	perms.AddRole("foo", testPermA)
+	urequire.Equal(t, 0, perms.UsersCount())
+	urequire.False(t, perms.HasUser(member))
+
+	// A user added only through a role counts as a user
+	perms.SetUserRoles(member, "foo")
+	urequire.True(t, perms.HasUser(member), "expect role holder to be a user")
+	urequire.Equal(t, 1, perms.UsersCount())
+
+	// A guest without roles counts as a user
+	perms.SetUserRoles(guest)
+	urequire.True(t, perms.HasUser(guest))
+	urequire.Equal(t, 2, perms.UsersCount())
+
+	// Clearing roles keeps the user and doesn't change the count
+	perms.SetUserRoles(member)
+	urequire.True(t, perms.HasUser(member), "expect user to remain after roles are cleared")
+	urequire.Equal(t, 2, perms.UsersCount())
+
+	// Re-assigning roles must not double count
+	perms.SetUserRoles(member, "foo")
+	urequire.Equal(t, 2, perms.UsersCount())
+}
+
+func TestBasicPermissionsSetUserRolesPanicKeepsState(cur realm, t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+
+	perms := New()
+	perms.AddRole("a", testPermA)
+	perms.SetUserRoles(user, "a")
+
+	urequire.PanicsWithMessage(t, cur, "invalid role: nope", func() {
+		perms.SetUserRoles(user, "nope")
+	}, "expect invalid role to panic")
+
+	// The failed call must not have mutated state
+	uassert.True(t, perms.HasUser(user))
+	uassert.True(t, perms.HasRole(user, "a"))
+	uassert.Equal(t, 1, perms.UsersCount())
+}
+
 func TestBasicPermissionsRemoveUser(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -507,7 +601,26 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 	}
 }
 
+func TestBasicPermissionsRemoveUserWithRoles(t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+
+	perms := New()
+	perms.AddRole("foo", testPermA)
+	perms.AddRole("bar", testPermB)
+	perms.SetUserRoles(user, "foo", "bar")
+
+	urequire.True(t, perms.RemoveUser(user), "expect role holder to be removed")
+
+	uassert.False(t, perms.HasUser(user), "expect removed user to not exist")
+	uassert.False(t, perms.HasRole(user, "foo"), "expect removed user to keep no roles")
+	uassert.False(t, perms.HasPermission(user, testPermA), "expect removed user to keep no permissions")
+	uassert.Equal(t, 0, len(perms.GetUserRoles(user)))
+	uassert.Equal(t, 0, perms.UsersCount())
+	uassert.False(t, perms.RemoveUser(user), "expect second removal to report user not found")
+}
+
 func TestBasicPermissionsIterateUsers(t *testing.T) {
+	// Users are listed sorted by address, including a roleless guest.
 	users := []boards.User{
 		{
 			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -521,13 +634,18 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 			Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
 			Roles:   []boards.Role{"bar"},
 		},
+		{
+			Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+		},
 	}
 
 	perms := New()
 	perms.AddRole("foo", testPermA)
 	perms.AddRole("bar", testPermB)
-	for _, u := range users {
-		perms.SetUserRoles(u.Address, u.Roles...)
+	// Add users in reverse order to pin that iteration is address-sorted,
+	// not insertion-ordered.
+	for i := len(users) - 1; i >= 0; i-- {
+		perms.SetUserRoles(users[i].Address, users[i].Roles...)
 	}
 
 	cases := []struct {
@@ -537,12 +655,12 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 		{
 			name:  "exceed users count",
 			count: 50,
-			want:  3,
+			want:  4,
 		},
 		{
 			name:  "exact users count",
-			count: 3,
-			want:  3,
+			count: 4,
+			want:  4,
 		},
 		{
 			name:  "two users",
@@ -559,13 +677,15 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 		{
 			name:  "no iteration",
 			start: 50,
+			count: 1,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var i int
-			perms.IterateUsers(0, len(users), func(u boards.User) bool {
+			var visited int
+			stopped := perms.IterateUsers(tc.start, tc.count, func(u boards.User) bool {
+				i := tc.start + visited
 				urequire.True(t, i < len(users), "expect iterator to respect number of users")
 				uassert.Equal(t, users[i].Address, u.Address)
 
@@ -574,11 +694,21 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 					uassert.Equal(t, string(users[i].Roles[j]), string(u.Roles[j]))
 				}
 
-				i++
+				visited++
 				return false
 			})
 
-			uassert.Equal(t, i, len(users), "expect iterator to iterate all users")
+			uassert.False(t, stopped, "expect full iteration not to report an early stop")
+			uassert.Equal(t, tc.want, visited, "expect iterator to visit the windowed users")
 		})
 	}
+
+	// Early stop is reported, and iteration actually halts.
+	var visited int
+	stopped := perms.IterateUsers(0, 10, func(boards.User) bool {
+		visited++
+		return true
+	})
+	uassert.True(t, stopped, "expect early stop to be reported")
+	uassert.Equal(t, 1, visited, "expect iteration to halt on early stop")
 }

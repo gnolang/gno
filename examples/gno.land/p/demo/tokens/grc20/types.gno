@@ -73,22 +73,22 @@ type Teller interface {
 	TransferFrom(_ int, rlm realm, from, to address, amount int64) error
 }
 
-// Token represents a fungible token with a name, symbol, and a certain number
-// of decimal places. It maintains a ledger for tracking balances and allowances
-// of addresses.
+// Token represents a fungible token with an ID, name, symbol, and a certain
+// number of decimal places. It maintains a ledger for tracking balances and
+// allowances of addresses.
 //
 // The Token struct provides methods for retrieving token metadata, such as the
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
+	// Identifier precomputed in NewToken to make ID() a cheap field read.
+	id string
 	// Name of the token (e.g., "Dummy Token").
 	name string
 	// Symbol of the token (e.g., "DUMMY").
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
-	// Original realm of the token (e.g., "gno.land/r/demo/foo20").
-	origRealm string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 }
@@ -128,12 +128,11 @@ var (
 )
 
 // Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because Token.ID() = origRealm + "." + symbol is
-// emitted in events and used as the canonical registry key; banning `.`
-// `/` and whitespace here prevents downstream parsers from being fooled
-// by ambiguous IDs (e.g. an attacker emitting tokens whose ID parses as
-// belonging to a victim realm). Name is for display only and allows
-// any valid UTF-8 except control characters.
+// grc20reg.validateSlug because it is included in Token.ID(), which is
+// emitted in events and frequently used as a registry slug; banning `.` `/`
+// and whitespace here prevents downstream parsers from being fooled by
+// ambiguous IDs. Name is for display only and allows any valid UTF-8 except
+// control characters.
 const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11

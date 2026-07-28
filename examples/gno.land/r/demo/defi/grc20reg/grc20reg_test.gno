@@ -13,12 +13,10 @@ import (
 
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
-	realmAddr := cur.PkgPath()
-	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
 	ledger.Mint(cur.Address(), 1234567)
 	// register
-	Register(cross(cur), token, "mySlug")
-	key := realmAddr + ".TST"
+	key := Register(cross(cur), token, "mySlug")
 	regToken := Get(key)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
@@ -42,6 +40,15 @@ func TestRegistry(cur realm, t *testing.T) {
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)
+
+	// The registry keys by rlmPath.symbol, so a second token with the same
+	// symbol in the same realm is rejected even though its Token.ID() differs
+	// (distinct trailing sequence id). See TestRegisterRejectsOverwrite.
+	second, _ := grc20.NewToken("Second", "TST", 4, 1, cur)
+	urequire.NotEqual(t, token.ID(), second.ID()) // ids are decoupled from symbol
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		Register(cross(cur), second, "")
+	})
 }
 
 func TestRegistryWrappers(cur realm, t *testing.T) {
@@ -55,13 +62,10 @@ func TestRegistryWrappers(cur realm, t *testing.T) {
 	realmAddr := chain.PackageAddress(realmCaller)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
-	// #5907 keys the registry by token.ID() (pkgpath.SYMBOL), not the bare
-	// pkgpath, so look up the wrappers by the token's canonical id.
-	tokenKey := token.ID()
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	urequire.NoError(t, ledger.Mint(realmAddr, 200))
-	Register(cross(cur), token, "")
+	tokenKey := Register(cross(cur), token, "")
 	uassert.Equal(t, "TestToken", GetName(tokenKey))
 	uassert.Equal(t, "TST", GetSymbol(tokenKey))
 	uassert.Equal(t, 4, GetDecimals(tokenKey))
@@ -96,14 +100,14 @@ func TestRegistryWrappers(cur realm, t *testing.T) {
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_overwrite"))
-	token, ledger := grc20.NewToken(0, cur, "Bar", "BAR", 4)
+	token, ledger := grc20.NewToken("Bar", "BAR", 4, 0, cur)
 	ledger.Mint(cur.Address(), 11)
-	Register(cross(cur), token, "")
+	key := Register(cross(cur), token, "")
 
-	urequire.Equal(t, "BAR", Get(token.ID()).GetSymbol())
-	urequire.Equal(t, int64(11), Get(token.ID()).BalanceOf(cur.Address()))
+	urequire.Equal(t, "BAR", Get(key).GetSymbol())
+	urequire.Equal(t, int64(11), Get(key).BalanceOf(cur.Address()))
 
-	replacement, _ := grc20.NewToken(0, cur, "Replacement", "BAR", 6)
+	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, 0, cur)
 	urequire.AbortsContains(t, cur, "token already registered", func() {
 		Register(cross(cur), replacement, "")
 	})
@@ -111,7 +115,7 @@ func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 
 func TestRegisterRejectsAliasedTokenPaths(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_alias"))
-	token, _ := grc20.NewToken(0, cur, "Aliased Token", "ALIAS", 4)
+	token, _ := grc20.NewToken("Aliased Token", "ALIAS", 4, 0, cur)
 	Register(cross(cur), token, "first")
 
 	urequire.AbortsContains(t, cur, "token already registered", func() {
@@ -121,7 +125,7 @@ func TestRegisterRejectsAliasedTokenPaths(cur realm, t *testing.T) {
 
 func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_source"))
-	token, _ := grc20.NewToken(0, cur, "Mismatch Token", "MISMATCH", 4)
+	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, 0, cur)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_target"))
 	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {

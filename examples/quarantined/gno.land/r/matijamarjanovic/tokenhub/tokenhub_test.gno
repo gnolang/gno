@@ -9,14 +9,14 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
-const (
-	tokenhubPkgPath  = "gno.land/r/matijamarjanovic/tokenhub"
-	testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
-)
+const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
+
+var nextGRC20ID seqid.ID
 
 // newTestNFT constructs an NFT through a same-realm cross so NewBasicNFT's
 // IsCurrent + non-empty PkgPath checks pass.
@@ -31,12 +31,14 @@ func newTestNFT(_ int, rlm realm, name, symbol string) *grc721.BasicNFT {
 func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken(0, cur, "Test Token", "TEST", 6)
+	token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next(), cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
-	uassert.Equal(t, tokenhubPkgPath+".TEST", key)
+	// The registry key is the token's rlmPath.symbol; Token.ID() extends it
+	// with a trailing sequence id.
+	uassert.True(t, strings.HasPrefix(token.ID(), key+"."), "registry key should be the token's rlmPath.symbol prefix")
 
-	retrievedToken := GetToken(tokenhubPkgPath + ".TEST")
+	retrievedToken := GetToken(key)
 
 	urequire.True(t, retrievedToken != nil, "Should retrieve registered token")
 	uassert.Equal(t, "Test Token", retrievedToken.GetName(), "Token name should match")
@@ -83,14 +85,14 @@ func TestGRC1155Registration(cur realm, t *testing.T) {
 func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, ledger := grc20.NewToken(0, cur, "Balance Token", "BAL", 6)
-	RegisterToken(cross(cur), token, "balance_token")
+	token, ledger := grc20.NewToken("Balance Token", "BAL", 6, nextGRC20ID.Next(), cur)
+	key := RegisterToken(cross(cur), token, "balance_token")
 	holder := unsafe.CurrentRealm().Address()
 	ledger.Mint(holder, 1000)
 
 	balances := GetUserTokenBalances(holder.String())
 	uassert.True(t, strings.Contains(balances,
-		"Token:"+tokenhubPkgPath+".BAL:1000"), "Should show correct GRC20 balance")
+		"Token:"+key+":1000"), "Should show correct GRC20 balance")
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -110,7 +112,7 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 
 	nonZeroBalances := GetUserTokenBalancesNonZero(holder.String())
 	uassert.True(t, strings.Contains(nonZeroBalances,
-		"Token:"+tokenhubPkgPath+".BAL:1000"), "Should show non-zero GRC20 balance")
+		"Token:"+key+":1000"), "Should show non-zero GRC20 balance")
 }
 
 func TestErrorCases(cur realm, t *testing.T) {
@@ -133,11 +135,11 @@ func TestErrorCases(cur realm, t *testing.T) {
 func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	grc20Token, _ := grc20.NewToken(0, cur, "Listing Token", "LST", 6)
-	RegisterToken(cross(cur), grc20Token, "listing_token")
+	grc20Token, _ := grc20.NewToken("Listing Token", "LST", 6, nextGRC20ID.Next(), cur)
+	grc20Key := RegisterToken(cross(cur), grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
-	uassert.True(t, strings.Contains(grc20List, "Token:"+tokenhubPkgPath+".LST"),
+	uassert.True(t, strings.Contains(grc20List, "Token:"+grc20Key),
 		"GetAllGRC20Tokens should list registered token")
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
@@ -160,7 +162,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 	completeList := GetAllRegistered()
 	uassert.True(t, strings.Contains(completeList, "NFT:"+testRealmPkgPath+".listing_nft.1"),
 		"GetAllTokens should list NFTs")
-	uassert.True(t, strings.Contains(completeList, "Token:"+tokenhubPkgPath+".LST"),
+	uassert.True(t, strings.Contains(completeList, "Token:"+grc20Key),
 		"GetAllTokens should list GRC20 tokens")
 	uassert.True(t, strings.Contains(completeList, "MultiToken:"+testRealmPkgPath+".listing_mt"),
 		"GetAllTokens should list multi-tokens")
@@ -169,10 +171,10 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 func TestMustGetFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken(0, cur, "Must Token", "MUST", 6)
-	RegisterToken(cross(cur), token, "must_token")
+	token, _ := grc20.NewToken("Must Token", "MUST", 6, nextGRC20ID.Next(), cur)
+	key := RegisterToken(cross(cur), token, "must_token")
 
-	retrievedToken := MustGetToken(tokenhubPkgPath + ".MUST")
+	retrievedToken := MustGetToken(key)
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
 
 	// Under the unified declaring-realm borrow, calling MustGetToken

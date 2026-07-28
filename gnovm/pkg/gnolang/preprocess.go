@@ -1571,7 +1571,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Out of bounds errors are usually handled during evalConst().
 						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isDecimalInteger(bd.V) {
+								if !bd.IsInt() {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))
@@ -2067,9 +2067,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// Interface... what can we do?
 								} else if fv := ftv.GetUnboundFunc(); fv != nil {
 									// fv == nil: typed-nil crossing func (e.g.
-									// `var f func(cur realm); f(cur)`); fall
-									// through, runtime will panic with
-									// "call of nil function".
+									// `var f func(cur realm); f(cur)`) or a
+									// lazy interface bind (no concrete func
+									// until call time); fall through, the
+									// runtime check covers both.
 									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
 											fv.PkgPath, n.Func, ctxpn.PkgPath))
@@ -2504,14 +2505,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel, nil)
-					if aerr {
+					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					switch status {
+					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, ctxpn.PkgPath))
-					} else if tr == nil {
+					case embedLookupAmbiguous:
+						panic(fmt.Sprintf("ambiguous selector %s in %s",
+							n.Sel, cxt.String()))
+					case embedLookupNone:
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+					// embedLookupFound guarantees tr != nil below.
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -2586,7 +2592,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// bound method or underlying.
 					// NOTE: unexported field access is already checked
-					// by findEmbeddedFieldType above (aerr).
+					// by findEmbeddedFieldType above (status).
 					n.Path = tr[len(tr)-1]
 
 					// n.Path = cxt.GetPathForName(n.Sel)
