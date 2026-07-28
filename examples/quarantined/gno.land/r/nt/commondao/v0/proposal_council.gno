@@ -86,7 +86,7 @@ func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p councilUpdatePropDefinition) execute(realm) error {
+func (p councilUpdatePropDefinition) execute(_ int, sub realm) error {
 	return p.dao.UpdateCouncil(p.toAdd, p.toRemove)
 }
 
@@ -175,7 +175,7 @@ func (p ancestorCouncilUpdatePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p ancestorCouncilUpdatePropDefinition) execute(realm) error {
+func (p ancestorCouncilUpdatePropDefinition) execute(_ int, sub realm) error {
 	return p.target.UpdateCouncil(p.toAdd, p.toRemove)
 }
 

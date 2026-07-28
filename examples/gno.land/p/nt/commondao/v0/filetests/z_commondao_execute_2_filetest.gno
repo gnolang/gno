@@ -2,7 +2,6 @@
 package test
 
 import (
-	"testing"
 	"time"
 
 	"gno.land/p/nt/commondao/v0"
@@ -24,7 +23,7 @@ func (testPropDef) VotingPeriod() time.Duration    { return time.Hour } // Votin
 func (testPropDef) Threshold() commondao.Threshold { return commondao.ThresholdSupermajority }
 
 func (testPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
+	return func(_ int, sub realm) error {
 		executed = true
 		return nil
 	}
@@ -40,9 +39,6 @@ func init() {
 }
 
 func main(cur realm) {
-	// Make sure proposal is executed in a realm different than the one where definition has been defined
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
-
 	// A supermajority of YES decides the proposal immediately
 	err := dao.Vote(member, proposal.ID(), commondao.ChoiceYes, "")
 	if err != nil {
@@ -51,8 +47,9 @@ func main(cur realm) {
 
 	println(string(proposal.Status()))
 
-	// Proposals decided early can be executed before the voting deadline
-	err = dao.Execute(proposal.ID(), cur)
+	// Proposals decided early can be executed before the voting deadline.
+	// The host mints the DAO-scoped sub and passes it into Execute.
+	err = dao.Execute(proposal.ID(), cur.Sub("dao/1"))
 	if err != nil {
 		panic(err)
 	}

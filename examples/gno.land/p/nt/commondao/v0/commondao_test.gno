@@ -61,7 +61,7 @@ func (d defaultPropDef) Threshold() commondao.Threshold {
 }
 
 func (d defaultPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
+	return func(_ int, sub realm) error {
 		if d.executed != nil {
 			*d.executed = true
 		}
@@ -432,7 +432,7 @@ func TestExecute(cur realm, t *testing.T) {
 		dao := commondao.New(commondao.WithCouncilMember(memberA))
 		p := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
-			fn: func(realm) error {
+			fn: func(_ int, sub realm) error {
 				return dao.UpdateCouncil(nil, []address{memberA})
 			},
 		})
@@ -470,9 +470,9 @@ func TestExecute(cur realm, t *testing.T) {
 		)
 		p := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
-			fn: func(cur realm) error {
+			fn: func(_ int, sub realm) error {
 				execs++
-				innerErr = dao.Execute(pid, cur)
+				innerErr = dao.Execute(pid, sub)
 				return nil
 			},
 		})
@@ -494,13 +494,13 @@ func TestExecute(cur realm, t *testing.T) {
 		)
 		p1 := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
-			fn: func(realm) error {
+			fn: func(_ int, sub realm) error {
 				return dao.UpdateCouncil([]address{memberD}, []address{memberA})
 			},
 		})
 		p2 := mustPropose(t, dao, memberB, execFnPropDef{
 			propDef: propDef{period: time.Hour},
-			fn: func(realm) error {
+			fn: func(_ int, sub realm) error {
 				// Removing memberA again is an idempotent no-op
 				return dao.UpdateCouncil([]address{memberE}, []address{memberA})
 			},

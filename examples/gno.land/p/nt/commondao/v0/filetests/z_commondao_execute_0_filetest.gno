@@ -2,8 +2,6 @@
 package test
 
 import (
-	"chain/runtime/unsafe"
-	"testing"
 	"time"
 
 	"gno.land/p/nt/commondao/v0"
@@ -12,9 +10,10 @@ import (
 const member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
-	dao          *commondao.CommonDAO
-	proposal     *commondao.Proposal
-	executorPath string
+	dao        *commondao.CommonDAO
+	proposal   *commondao.Proposal
+	subValid   bool
+	subAddress address
 )
 
 type testPropDef struct{}
@@ -27,8 +26,13 @@ func (testPropDef) Threshold() commondao.Threshold {
 }
 
 func (testPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
-		executorPath = unsafe.PreviousRealm().PkgPath()
+	// Executors are non-crossing: they must not rely on
+	// unsafe.PreviousRealm() for realm identity (there is no crossing frame
+	// for the executor). The DAO-scoped identity is the sub passed by the
+	// host, which the executor can read and move value from.
+	return func(_ int, sub realm) error {
+		subValid = sub.Address().IsValid()
+		subAddress = sub.Address()
 		return nil
 	}
 }
@@ -48,17 +52,19 @@ func init() {
 }
 
 func main(cur realm) {
-	// Make sure proposal is executed in a realm different than the one where definition has been defined
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
-
-	err := dao.Execute(proposal.ID(), cur)
+	// The host mints the DAO-scoped sub and passes it into Execute; the
+	// executor runs with that sub as its value-movement authority.
+	sub := cur.Sub("dao/1")
+	err := dao.Execute(proposal.ID(), sub)
 
 	println(err == nil)
 	println(string(proposal.Status()))
-	println(executorPath)
+	println(subValid)
+	println(subAddress == sub.Address())
 }
 
 // Output:
 // true
 // executed
-// gno.land/r/testing/dao
+// true
+// true

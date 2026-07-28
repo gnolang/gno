@@ -40,8 +40,9 @@ p, _ := dao.Propose(founder, myDefinition)
 dao.Vote(founder, p.ID(), commondao.ChoiceYes, "")
 
 // Execute runs passed proposals (early passed ones immediately, active
-// ones once their voting deadline passes).
-dao.Execute(p.ID(), cur)
+// ones once their voting deadline passes). The host mints a DAO-scoped
+// sub-identity and passes it as the executor's value-movement authority.
+dao.Execute(p.ID(), sub)
 ```
 
 ## Voting rules (the constitutional defaults)
@@ -91,9 +92,13 @@ proposals, votes, and executions.
 The package stores a treasury `address` (`WithAddress`, `Address()`) and
 a frozen flag (`SetTreasuryFrozen`, `IsTreasuryFrozen`) but never moves
 funds — hosting realms derive the address (typically a realm
-sub-identity via `chain.DerivePkgSubAddr`), mint `cur.Sub(...)` in
-proposal executors, and enforce the frozen flag there. See the
-reference realm's treasury proposals for the constitutional pattern.
+sub-identity via `chain.DerivePkgSubAddr`) and enforce the frozen flag.
+`Execute` runs the executor with the DAO-scoped sub-identity the host
+passes as its value-movement authority: a fund-moving definition builds
+its banker from that `sub`, so value moves are structurally bounded to
+that one DAO address. A definition implementing `Funded` names the DAO
+whose sub funds it (e.g. clawback sweeps the target, not the host). See
+the reference realm's treasury proposals for the constitutional pattern.
 
 ## Realm boundaries
 

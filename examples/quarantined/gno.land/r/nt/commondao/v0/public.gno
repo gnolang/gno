@@ -13,10 +13,10 @@ import (
 )
 
 // assertCurrent guards every public crossing entry. Authentication reads
-// cur.Previous() and the treasury executors mint cur.Sub(...); both require
-// cur to be the live top-of-frame realm (AGENTS.md / interrealm-v2). Every
-// entry is only reachable via a cross today, so this is defense-in-depth
-// against a future non-crossing caller.
+// cur.Previous() and Execute mints cur.Sub(...) for the executor; both
+// require cur to be the live top-of-frame realm (AGENTS.md / interrealm-v2).
+// Every entry is only reachable via a cross today, so this is
+// defense-in-depth against a future non-crossing caller.
 func assertCurrent(cur realm) {
 	if !cur.IsCurrent() {
 		panic("commondao: cur realm is not current")
@@ -25,7 +25,7 @@ func assertCurrent(cur realm) {
 
 // assertRunningPath fails closed if this realm is deployed at a package
 // path other than pkgPath. Treasury addresses derive from the pkgPath
-// const (daoAddress), while the treasury executors mint under the running
+// const (daoAddress), while Execute mints the DAO sub under the running
 // realm's own path (cur.Sub). Those agree only when the running path is
 // pkgPath; a copy deployed elsewhere would read balances at one address
 // and send from another, turning a clean StatusFailed into a mismatch. We
@@ -165,7 +165,19 @@ func Execute(cur realm, daoID, proposalID uint64) {
 		assertCallerIsCouncilMember(cur.Previous().Address(), dao)
 	}
 
-	err := dao.Execute(proposalID, cur)
+	// Mint the sub-identity that funds the executor and pass it in. The
+	// operative DAO is the host by default; a fund-moving definition
+	// (Funded) may name a different DAO (e.g. clawback sweeps the target,
+	// sub-DAO dissolution sweeps the dissolved descendant). Non-fund
+	// executors ignore the sub. The sub is terminal and RealmSend-only, so
+	// the executor can move value only from this one DAO address.
+	op := dao
+	if f, ok := p.Definition().(commondao.Funded); ok {
+		op = f.FundingDAO()
+	}
+	sub := cur.Sub(subpathOf(op.ID()))
+
+	err := dao.Execute(proposalID, sub)
 	if err != nil {
 		panic(err)
 	}

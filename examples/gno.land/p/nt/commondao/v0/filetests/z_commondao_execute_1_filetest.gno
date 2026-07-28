@@ -25,7 +25,7 @@ func (testPropDef) Threshold() commondao.Threshold {
 }
 
 func (testPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
+	return func(_ int, sub realm) error {
 		return errors.New("test error")
 	}
 }
@@ -45,7 +45,7 @@ func init() {
 }
 
 func main(cur realm) {
-	err := dao.Execute(proposal.ID(), cur)
+	err := dao.Execute(proposal.ID(), cur.Sub("dao/1"))
 	if err != nil {
 		panic(err)
 	}

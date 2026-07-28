@@ -64,7 +64,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 
 	def := newSubDAOPropDefinition(dao, "Sub", "Purpose", "", []address{member})
 
-	urequire.NoError(t, def.Executor()(cross(cur)))
+	urequire.NoError(t, def.Executor()(0, cur))
 
 	urequire.Equal(t, 1, dao.ChildrenCount(), "expect one SubDAO")
 	var sub *commondao.CommonDAO
@@ -102,7 +102,7 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	})
 	urequire.NoError(t, err)
 
-	urequire.NoError(t, def.Executor()(cross(cur)))
+	urequire.NoError(t, def.Executor()(0, cur))
 
 	uassert.True(t, dao.IsDeleted())
 	uassert.Equal(t, 0, dao.ActiveProposalsSize())

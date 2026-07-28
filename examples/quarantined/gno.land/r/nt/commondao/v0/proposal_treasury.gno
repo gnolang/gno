@@ -118,12 +118,16 @@ func (p treasurySpendPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p treasurySpendPropDefinition) execute(cur realm) error {
-	// cur is this realm's live frame: mint the DAO's sub-identity and
-	// send from it. Banker sends move bank balances without invoking
-	// recipient code, so there is no reentrancy vector. Validate ran in
-	// this same Execute call, so the balance check is current.
-	sub := cur.Sub(subpathOf(p.dao.ID()))
+// FundingDAO returns the DAO whose treasury funds the spend: its own.
+func (p treasurySpendPropDefinition) FundingDAO() *commondao.CommonDAO {
+	return p.dao
+}
+
+func (p treasurySpendPropDefinition) execute(_ int, sub realm) error {
+	// sub is this DAO's sub-identity, minted by the host: send from it.
+	// Banker sends move bank balances without invoking recipient code, so
+	// there is no reentrancy vector. Validate ran in this same Execute
+	// call, so the balance check is current.
 	b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 	b.SendCoins(sub.Address(), p.to, chain.NewCoins(p.coin))
 	return nil
@@ -181,17 +185,23 @@ func (p treasuryClawbackPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p treasuryClawbackPropDefinition) execute(cur realm) error {
+// FundingDAO returns the DAO whose treasury the clawback sweeps: the
+// target, not the proposing ancestor that hosts the proposal.
+func (p treasuryClawbackPropDefinition) FundingDAO() *commondao.CommonDAO {
+	return p.target
+}
+
+func (p treasuryClawbackPropDefinition) execute(_ int, sub realm) error {
 	balance := treasuryBalance(p.target)
 	if balance.IsZero() {
 		return nil
 	}
 
-	// A proper ancestor exists, so the target always has a parent.
-	// Full-balance send: cost is O(number of denoms held). A target dusted
-	// with many realm-minted denoms can push this past block gas (known
-	// limitation — see the treasury ADR §Sweep gas-bomb).
-	sub := cur.Sub(subpathOf(p.target.ID()))
+	// sub is the target's sub-identity, minted by the host. A proper
+	// ancestor exists, so the target always has a parent. Full-balance
+	// send: cost is O(number of denoms held). A target dusted with many
+	// realm-minted denoms can push this past block gas (known limitation —
+	// see the treasury ADR §Sweep gas-bomb).
 	b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 	b.SendCoins(sub.Address(), p.target.Parent().Address(), balance)
 	return nil
@@ -266,7 +276,7 @@ func (p treasuryFreezePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p treasuryFreezePropDefinition) execute(realm) error {
+func (p treasuryFreezePropDefinition) execute(_ int, sub realm) error {
 	p.target.SetTreasuryFrozen(p.frozen)
 	return nil
 }

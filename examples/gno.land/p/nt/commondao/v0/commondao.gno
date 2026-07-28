@@ -379,11 +379,12 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 // rules) execute immediately. Active proposals are tallied once their
 // voting deadline passes and are dismissed unless passed.
 //
-// rlm is the realm authority threaded into the executor via cross(rlm).
-// Execute itself is not a crossing function (rlm sits in a non-first
-// parameter slot) because /p/ production code cannot declare crossing
-// functions — callers pass `cur` directly as the rlm argument.
-func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
+// sub is the DAO-scoped sub-identity that the host mints and passes into
+// the executor as its value-movement authority (see ExecFunc). The
+// executor is non-crossing, so it is called directly. Execute itself is
+// not a crossing function (sub sits in a non-first parameter slot)
+// because /p/ production code cannot declare crossing functions.
+func (dao *CommonDAO) Execute(proposalID uint64, sub realm) error {
 	if dao.deleted {
 		return ErrDAOIsDeleted
 	}
@@ -433,7 +434,7 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	if err == nil {
 		if e, ok := p.Definition().(Executable); ok {
 			if fn := e.Executor(); fn != nil {
-				err = fn(cross(rlm))
+				err = fn(0, sub)
 			}
 		}
 	}

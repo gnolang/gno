@@ -33,7 +33,7 @@ func (probePropDef) Threshold() commondao.Threshold {
 }
 
 func (probePropDef) Executor() commondao.ExecFunc {
-	return func(cur realm) error {
+	return func(_ int, sub realm) error {
 		execCount++
 		activeSizeDuringExec = dao.ActiveProposalsSize()
 		return nil
@@ -54,7 +54,7 @@ func init() {
 }
 
 func main(cur realm) {
-	err := dao.Execute(proposal.ID(), cur)
+	err := dao.Execute(proposal.ID(), cur.Sub("dao/1"))
 
 	println("outer err nil:", err == nil)
 	println("status:", string(proposal.Status()))

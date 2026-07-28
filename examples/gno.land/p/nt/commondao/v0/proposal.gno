@@ -62,8 +62,15 @@ type (
 	// Outcome defines a type for default tally outcomes.
 	Outcome int
 
-	// ExecFunc defines a type for functions that executes proposals.
-	ExecFunc func(realm) error
+	// ExecFunc defines a type for functions that execute proposals.
+	//
+	// The leading int makes ExecFunc non-crossing: the host runs it
+	// directly (no cross), so the executor inherits the caller's realm
+	// authority for storage but holds no realm cur of its own. The realm
+	// argument is a DAO-scoped sub-identity the host mints and passes so
+	// value moves (e.g. banker RealmSend) are bounded to that one DAO
+	// address; executors that move no funds ignore it. The int is unused.
+	ExecFunc func(int, realm) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
@@ -124,6 +131,18 @@ type (
 	Executable interface {
 		// Executor returns a function to execute the proposal.
 		Executor() ExecFunc
+	}
+
+	// Funded is an optional interface for proposal definitions whose
+	// executor moves funds. It declares the DAO whose sub-identity
+	// address funds the executor: the host mints that DAO's sub and
+	// passes it to the ExecFunc. Definitions that do not implement Funded
+	// receive the proposal's own DAO sub by default. The returned DAO
+	// must be the one the definition validates its fund movement against
+	// (e.g. the DAO being spent, swept or dissolved).
+	Funded interface {
+		// FundingDAO returns the DAO whose sub-address funds the executor.
+		FundingDAO() *CommonDAO
 	}
 )
 

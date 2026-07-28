@@ -63,7 +63,7 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 		def := newCouncilUpdatePropDefinition(dao, []address{memberB}, []address{memberA})
 
 		urequire.NotPanics(t, cur, func() {
-			if err := def.Executor()(cross(cur)); err != nil {
+			if err := def.Executor()(0, cur); err != nil {
 				panic(err)
 			}
 		})
@@ -77,7 +77,7 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 
 		def := newCouncilUpdatePropDefinition(dao, nil, []address{memberA})
 
-		err := def.execute(cur)
+		err := def.execute(0, cur)
 		uassert.ErrorIs(t, err, commondao.ErrEmptyCouncil)
 		uassert.Equal(t, 1, dao.Council().Size())
 	})
@@ -123,7 +123,7 @@ func TestAncestorCouncilUpdatePropDefinition(cur realm, t *testing.T) {
 
 	// The executor mutates the target's council.
 	var newMember address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
-	urequire.NoError(t, newAncestorCouncilUpdatePropDefinition(root, leaf, []address{newMember}, []address{member}).Executor()(cross(cur)))
+	urequire.NoError(t, newAncestorCouncilUpdatePropDefinition(root, leaf, []address{newMember}, []address{member}).Executor()(0, cur))
 	uassert.True(t, leaf.Council().Has(newMember))
 	uassert.False(t, leaf.Council().Has(member))
 }

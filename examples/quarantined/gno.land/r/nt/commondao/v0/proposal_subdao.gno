@@ -99,7 +99,7 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p subDAOPropDefinition) execute(realm) error {
+func (p subDAOPropDefinition) execute(_ int, sub realm) error {
 	createSubDAO(p.parent, p.name, p.purpose, p.description, p.members...)
 	return nil
 }
@@ -162,21 +162,28 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-func (p dissolvePropDefinition) execute(cur realm) error {
+// FundingDAO returns the DAO whose treasury the dissolution sweeps: the
+// DAO being dissolved. For a sub-DAO the proposal is hosted in an
+// ancestor, so the operative DAO differs from the host.
+func (p dissolvePropDefinition) FundingDAO() *commondao.CommonDAO {
+	return p.dao
+}
+
+func (p dissolvePropDefinition) execute(_ int, sub realm) error {
 	// Sweep any remaining treasury before soft deleting: no council
 	// remains afterwards to pass a spend. Sub-DAO funds go to the parent;
 	// root funds go to the destination named at proposal creation. A
 	// frozen treasury does not block dissolution — the sweep sends the
-	// funds where a clawback would. Full-balance send: cost is O(denoms);
-	// a denom-flooded DAO can push this past block gas, blocking
-	// dissolution (known limitation — see the treasury ADR §Sweep gas-bomb).
+	// funds where a clawback would. sub is the dissolved DAO's sub-identity,
+	// minted by the host. Full-balance send: cost is O(denoms); a
+	// denom-flooded DAO can push this past block gas, blocking dissolution
+	// (known limitation — see the treasury ADR §Sweep gas-bomb).
 	if balance := treasuryBalance(p.dao); !balance.IsZero() {
 		dest := p.destination
 		if parent := p.dao.Parent(); parent != nil {
 			dest = parent.Address()
 		}
 
-		sub := cur.Sub(subpathOf(p.dao.ID()))
 		b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 		b.SendCoins(sub.Address(), dest, balance)
 	}
