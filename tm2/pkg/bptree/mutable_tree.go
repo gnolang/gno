@@ -521,7 +521,7 @@ func (t *MutableTree) LoadReadonly() (int64, error) {
 	if latest == 0 {
 		return 0, nil
 	}
-	return t.LoadVersion(latest)
+	return t.loadVersionDiscovered(latest)
 }
 
 // LoadVersion loads a specific version from the DB.
@@ -543,6 +543,16 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
+	return t.loadVersionDiscovered(version)
+}
+
+// loadVersionDiscovered is LoadVersion's body after version discovery: it
+// loads version using the already-refreshed first/latest counters. Split out
+// so LoadReadonly — which has just discovered versions to FIND the latest —
+// doesn't pay a second full PrefixRoot scan. The scan is O(retained versions)
+// (~700k at gno.land's default syncable retention) and sits on the per-query
+// store-construction path, so the duplication was the dominant per-query cost.
+func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 
 	nkBytes, _, err := t.ndb.GetRoot(version)

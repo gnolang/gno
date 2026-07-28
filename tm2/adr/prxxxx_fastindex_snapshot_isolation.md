@@ -131,9 +131,13 @@ Layered defense — any one of the first three layers stops the incident:
   `Commit` between the WriteSync and the snapshot refresh (commitInfo durable,
   snapshot one behind) — read-only and no worse than the pre-fix behavior.
   Each `.store` query now pays the same per-query store construction that
-  custom queries already paid (including a `discoverVersions` root scan — a
-  pre-existing cost, now shared; a future optimization could cache the latest
-  version).
+  custom queries already paid. The dominant term is `discoverVersions`' full
+  root scan, O(retained versions) — measured ~200 ms/query at gno.land's
+  default syncable retention (705,600 roots) while the scan ran twice per
+  load; `loadVersionDiscovered` removes the duplicate scan, halving every
+  query path's construction cost relative to master. A follow-up can make
+  immutable loads O(1): the requested version is already known, so only the
+  latest-version lookup needs a cheaper source than a scan.
 - CollectingDB read-your-writes narrowed for BATCH ops: staged batch ops are
   visible to `CollectingDB.Get` only after `batch.Write()` (previously at
   `Set` time). No in-repo consumer read back unwritten batch ops (bptree
