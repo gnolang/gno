@@ -81,7 +81,11 @@ func TestFastIndex_RebuildOverCollectingDB(t *testing.T) {
 	var res loadResult
 	select {
 	case res = <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
+		// 60s, not 30s: the legitimate fixed-path work (build 70k entries +
+		// rebuild + drain) takes ~20s here and a loaded CI runner is slower;
+		// the watchdog only needs to sit well below the pre-fix behavior
+		// (unbounded re-scan), not tight. The package -timeout is the backstop.
 		t.Fatalf("REGRESSED: rebuild did not terminate (clearFastIndex loop); %d ops staged", collector.Len())
 	}
 	if res.err != nil {

@@ -66,6 +66,7 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 
 	var stop atomic.Bool
 	var height atomic.Int64
+	var queryLoads atomic.Int64 // successful query-view loads, for the race floor
 	height.Store(int64(blk))
 	var wg sync.WaitGroup
 	for range 8 {
@@ -82,6 +83,7 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 				}
 				cacheMS.GetStore(mainKey) // construction already did the damage, if any
 				release()
+				queryLoads.Add(1)
 			}
 		})
 	}
@@ -96,6 +98,14 @@ func TestFastIndex_NaturalQueryCommitRace(t *testing.T) {
 	}
 	stop.Store(true)
 	wg.Wait()
+
+	// Race floor: if the query goroutines never actually interleaved with the
+	// committing writer (a fully-serialized scheduler), a zero-stale result
+	// below would be vacuous. Require that they did substantial concurrent
+	// work, so a genuine regression can't hide behind a quiet runner.
+	if n := queryLoads.Load(); n < int64(updateBlocks) {
+		t.Fatalf("query goroutines barely ran (%d loads over %d blocks); race not exercised", n, updateBlocks)
+	}
 
 	// Audit persisted fast index against the tree, from fresh handles.
 	pdb := dbm.NewPrefixDB(db, []byte("s/_/"))

@@ -1,15 +1,20 @@
 package rootmulti_test
 
-// Repro harness for https://github.com/gnolang/gno/issues/6011: drives the
+// Single-threaded pipeline guard for the gno#6011 fix set. It drives the
 // bptree store through the REAL production write pipeline — rootmulti
-// multiStore -> CollectingDB (shared BatchCollector, no-op sub-batches) ->
-// PrefixDB("s/_/") -> bptree — across blocks, restarts, crash-restarts,
-// fast-index upgrades, and pruning, and after every commit audits the
-// persisted fast index against an oracle and the authoritative tree.
+// multiStore -> CollectingDB (shared BatchCollector, buffered sub-batches) ->
+// PrefixDB("s/_/") -> bptree — across blocks, clean/crash restarts,
+// fast-index upgrades (off->on rebuild), and pruning, asserting after every
+// commit that the persisted fast index matches an oracle and the
+// authoritative tree, and that each load re-seeds the query snapshot.
 //
-// The existing store tests drive Store directly over a plain memdb, which
-// bypasses the collector pipeline entirely; #6011 demonstrates persisted
-// stale fast-index state on a production DB, so the pipeline is a suspect.
+// This does NOT reproduce #6011 itself — that is a concurrency race between
+// the query connection and consensus commits, covered by the natural-race
+// and concurrent tests. It guards the pieces the fix depends on that are
+// observable single-threaded: buffered-collector batch semantics, LoadVersion
+// query-snapshot seeding, and index parity across write/restart/upgrade/prune
+// schedules. The existing store tests drive Store directly over a plain
+// memdb, bypassing the collector pipeline entirely.
 
 import (
 	"bytes"
