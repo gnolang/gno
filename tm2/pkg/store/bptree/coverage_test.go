@@ -169,6 +169,49 @@ func TestImmutableLoadVersionDoesNotMaintainFastIndex(t *testing.T) {
 	require.Equal(t, []byte("value"), reader.Get(nil, []byte("key")))
 }
 
+func TestImmutableLoadLatestVersionDoesNotMaintainFastIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		stale bool
+	}{
+		{name: "missing stamp"},
+		{name: "stale stamp", stale: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := memdb.NewMemDB()
+			opts := types.StoreOptions{}
+			opts.KeepRecent = 100
+			writer := StoreConstructor(db, opts).(*Store)
+			if tc.stale {
+				writer = FastStoreConstructor(db, opts).(*Store)
+			}
+			writer.Set(nil, []byte("key"), []byte("v1"))
+			writer.Commit()
+			if tc.stale {
+				writer = StoreConstructor(db, opts).(*Store)
+				require.NoError(t, writer.LoadLatestVersion())
+				writer.Set(nil, []byte("key"), []byte("v2"))
+				writer.Commit()
+			}
+
+			snapshot, err := db.NewSnapshot()
+			require.NoError(t, err)
+			defer snapshot.Close()
+
+			reader := FastStoreConstructor(
+				dbm.NewSnapshotDB(snapshot),
+				types.StoreOptions{Immutable: true},
+			).(*Store)
+			require.NoError(t, reader.LoadLatestVersion())
+			want := []byte("v1")
+			if tc.stale {
+				want = []byte("v2")
+			}
+			require.Equal(t, want, reader.Get(nil, []byte("key")))
+		})
+	}
+}
+
 func TestCoverage_ImmutableStoreCommitPanics(t *testing.T) {
 	db := memdb.NewMemDB()
 	opts := types.StoreOptions{}

@@ -162,6 +162,15 @@ func (st *Store) GetStoreOptions() types.StoreOptions     { return st.opts }
 func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
 func (st *Store) LoadLatestVersion() error {
+	if st.opts.Immutable {
+		latestV, err := st.mtree.GetLatestVersion()
+		if err != nil {
+			return err
+		}
+		if latestV != 0 {
+			return st.LoadVersion(latestV)
+		}
+	}
 	// Load discovers versions and loads the latest
 	latestV, err := st.mtree.Load()
 	if err != nil {

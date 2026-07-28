@@ -16,12 +16,10 @@ import (
 // byte-identical to the committed snapshot at its version.
 //
 // Trust contract: index currency is verified by Load (ensureFastIndex rebuilds
-// on a stamp mismatch) and preserved from then on by eager same-batch
+// a missing or older stamp) and preserved from then on by eager same-batch
 // maintenance (Set/Remove/SaveVersion) and by Import dropping the index up
-// front. A tree reached ONLY via LoadVersion — never Load — over a DB whose
-// later versions were committed with the feature off is outside the contract:
-// nothing re-verifies the stamp there. The in-repo store layer always goes
-// through Load.
+// front. Immutable snapshots also require a stamp at least as new as their
+// version, so read-only LoadVersion paths safely fall back without maintenance.
 //
 // Properties:
 //   - Not in the Merkle commitment — an unauthenticated accelerator, like cosmos
@@ -34,11 +32,11 @@ import (
 //   - Maintained in the SAME batch as the tree (Set/Remove stage into ndb.batch,
 //     committed atomically by SaveVersion → Commit), so it can never disagree
 //     with the committed tree, even across a crash.
-//   - ADVISORY on read: a hit is trusted only when its version ≤ the snapshot
-//     version (else the entry is newer than the reader's snapshot); a miss,
-//     a too-new entry, or a corrupt/too-short entry all fall back to the
-//     authoritative tree walk. Index completeness is therefore a performance
-//     property, never a correctness one.
+//   - ADVISORY on read: an immutable snapshot requires stamp ≥ snapshot version,
+//     then trusts a hit only when its version ≤ the snapshot version. A miss,
+//     untrusted stamp, too-new entry, or corrupt/too-short entry falls back to
+//     the authoritative tree walk. Index completeness is therefore a
+//     performance property, never a correctness one.
 
 // fastDBKey builds the fast-index DB key: PrefixFast ‖ userKey.
 func fastDBKey(userKey []byte) []byte {

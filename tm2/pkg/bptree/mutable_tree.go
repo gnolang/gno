@@ -485,10 +485,10 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 
 // Load loads the latest version from the DB.
 func (t *MutableTree) Load() (int64, error) {
-	if err := t.ndb.discoverVersions(); err != nil {
+	latest, err := t.GetLatestVersion()
+	if err != nil {
 		return 0, err
 	}
-	latest := t.ndb.getLatestVersion()
 	if latest == 0 {
 		return 0, nil
 	}
@@ -524,10 +524,10 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	// (matching IAVL behavior which returns latestVersion, not targetVersion).
 	// Refreshing first/latest on a path that later errors is harmless: they
 	// are re-derived counters, not session state.
-	if err := t.ndb.discoverVersions(); err != nil {
+	latestVersion, err := t.GetLatestVersion()
+	if err != nil {
 		return 0, err
 	}
-	latestVersion := t.ndb.getLatestVersion()
 
 	nkBytes, _, err := t.ndb.GetRoot(version)
 	if err != nil {
@@ -563,6 +563,15 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	t.lastSaved = root
 	t.poisoned = nil // full session replacement
 	return latestVersion, nil
+}
+
+// GetLatestVersion discovers and returns the latest persisted version without
+// performing fast-index maintenance.
+func (t *MutableTree) GetLatestVersion() (int64, error) {
+	if err := t.ndb.discoverVersions(); err != nil {
+		return 0, err
+	}
+	return t.ndb.getLatestVersion(), nil
 }
 
 // LoadVersionForOverwriting is not supported — it would leak values and nodes.
@@ -656,6 +665,10 @@ func (t *MutableTree) getImmutable(version int64, register bool) (*ImmutableTree
 		return nil, err
 	}
 	imm := t.newImmutable(root, version, true)
+	if imm.fast {
+		stamp, ok, err := t.ndb.getFastIndexVersion()
+		imm.fast = err == nil && ok && stamp >= version
+	}
 	imm.registered = reg
 	return imm, nil
 }
