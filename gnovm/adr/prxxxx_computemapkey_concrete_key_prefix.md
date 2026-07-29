@@ -2,12 +2,33 @@
 
 ## Status
 
-Design approved, not yet implemented. Written against master `d14a03770`.
+Implemented on branch `claude/using-superpowers-eebc09`. Written against
+master `d14a03770`.
 
 This is a gas *reduction*: it removes metered work outright, so charged gas
 drops immediately without a recalibration pass through `cmd/calibrate`.
 
 ## Context
+
+**Measured after implementation, this ADR's own premise turned out to be the
+smaller of two wins, and the framing below is ordered accordingly.** The
+prefix omission proposed here saves ~6 of the 98 gas charged per access on
+the `map[address]T` shape that motivated it — the prefix is ~29% of the bytes
+hashed, but only ~6% of the `ComputeMapKey` charge and **0.48% of program
+gas** of the `compute_map_key_concrete_key` golden's total (see below),
+because the 80-unit `OpCPUComputeMapKey`
+per-call constant (`machine.go:1661`) dominates at realistic key sizes. While
+implementing it, a second and much larger issue surfaced: every map *write*
+was computing `ComputeMapKey` on its key **twice** — once by the caller to
+look up a possibly-preexisting key, again inside `GetPointerForKey`.
+Deduplicating that costs nothing to fix once it's noticed, and it dwarfs the
+prefix removal: **-36.4%** on `compute_map_key_big_bytes`
+(36827018 → 23405158 gas) and **-35.2%** on `compute_map_key_big_struct`
+(186401382 → 120708884 gas), against the prefix's own **-0.48%** on
+`compute_map_key_concrete_key` (125449 → 124849 gas). See
+[Measured Results](#measured-results) for the full table. An ADR that oversells
+its own headline is worse than useless to the next reader, so: the dominant
+result in this document is the incidental one, not the one in the title.
 
 `TypedValue.ComputeMapKey` (`gnovm/pkg/gnolang/values.go:1815`) serializes a
 map key into a `MapKey` string used as the Go-level index into
@@ -140,6 +161,45 @@ silently wrong for `map[any]int` (prefix dropped, `int(1)` collides with
 `int64(1)`) and needlessly pessimal for `map[address]any` (prefix retained
 for no reason). The TODO is replaced, not revived.
 
+**RESOLVED: can `omitKeyType` ever reach `ComputeMapKey` true with `tv.T ==
+nil`?** `ComputeMapKey` carries a `debug`-build assertion for exactly this
+(`values.go:1874-1880`: `omitType` with `tv.T == nil` is "should not
+happen"). This was an open question when the ADR was written; it is not
+reachable, and not for the reason the original filetest plan assumed.
+
+`gnovm/tests/files/map53.gno`'s `ptrs[nil]` case does **not** establish it —
+tracing it shows why. `ptrs` is `map[*node]string`, a concrete key type, so
+`mapKeyOmitType` returns `true` for every access against it. The key value is
+a nil `*node`, but its `tv.T` is still the `*PointerType` for `*node`, not
+nil — Gno's nil is a typed nil, and `iv.T` is unaffected by `iv.V == nil`. So
+this case never reaches the `tv.T == nil` branch at all. Worse: even if it
+somehow did, the assertion's premise — "if `tv.T` were nil, would probing
+with `omitType=true` diverge from probing with `omitType=false`?" — collapses
+identically either way, because `tv.T == nil` returns `nilStr` in both cases
+(`values.go:1874-1880`, the special case runs before `omitType` is even
+consulted). A test built on this path would pass whether the assertion held
+or not, telling us nothing.
+
+The real reason is structural, not test-shaped: `defaultTypedValue`
+(`values.go:3110-3115`) returns a `TypedValue` with `T == nil` **only** for
+`*InterfaceType` — every other branch (array, struct, slice, map, ...) sets
+`T: t`. A nil `T` can therefore only occupy an interface-typed slot. And
+`mapKeyOmitType` (like the nested `omitTypes` rule it composes with) returns
+`false` — i.e. keep the prefix — precisely for interface-kinded slots. The
+one case that can produce a nil `T` is exactly the case the predicate always
+routes to `omitType=false`. The panic branch is dead code by construction,
+not by having been tested into confidence.
+
+This can only be established by argument today, not by running the
+assertion: `go test -tags debug ./gnovm/pkg/gnolang/` panics in package init
+on pristine master (`sealUverseTypes` → `(*InterfaceType).TypeID`: "generic
+type has no TypeID", `uverse.go:1966`) — a pre-existing, unrelated bug, so
+the `debug` build tag cannot currently be used to exercise this assertion at
+all, confirmed on both `master` and this branch. Do not delete the assertion
+on the strength of this argument; it is cheap, correct, and guards an
+invariant that could silently break under a future change to
+`defaultTypedValue` or `mapKeyOmitType`.
+
 ### 3. No new field on `MapValue`
 
 `omitKeyType` is recomputed at each call site — one `Kind()` comparison,
@@ -177,10 +237,48 @@ lines.
 
 Secondary win: `GetLength` reads `List.Size` and map iteration walks `List`,
 neither of which touches `vmap`. A stored map that is only ranged over or
-measured now builds no `vmap` at all, instead of paying one `ComputeMapKey`
-per entry on load.
+measured avoids the serialization and `TypeID` work `ComputeMapKey` would
+have done per entry — but not the walk itself. See §6: a cheap
+`fillMapKeyRefs` pass still visits every key on load, because that walk does
+double duty as the deep ref-resolver composite keys depend on.
 
-### 6. Call sites
+### 6. `fillMapKeyRefs`: the ref-resolver `ComputeMapKey` was quietly providing
+
+This is the single most surprising consequence of moving `vmap` off the load
+path, so it gets its own subsection rather than a footnote.
+
+`ComputeMapKey` resolves refs as a **side effect** of serializing a composite
+key: for array elements and struct fields it calls `fillValueTV` on each
+child before appending that child's bytes (`values.go:1949`, `:1973`). The
+eager `vmap` build in `fillTypesOfValue` therefore was not just an index
+build — it was also the deep ref-resolver for every composite map key loaded
+from the store. `gnovm/tests/files/map39b.gno` depends on this: it stores,
+reloads and prints a map with a struct key holding a `RefValue` field, and
+printing walks the *key*, not just the value.
+
+Removing the eager build's `ComputeMapKey` call (§5) removes that side
+effect. `fillMapKeyRefs` (`realm.go:1901-1923`) replaces it with an explicit
+walk that mirrors `ComputeMapKey`'s traversal exactly — array elements only
+when `av.Data == nil` (a byte array has no `List`), struct fields except the
+blank identifier, recursing through both, and deliberately *not* following
+pointer keys, since `ComputeMapKey` hashes a pointer by address without
+dereferencing it.
+
+**The same coupling bit a second time**, later in this same implementation.
+Task 3 (§8) folds the caller's pre-lookup `ComputeMapKey` call into
+`GetPointerForKey`, so that call — which also used to run before
+`iv.Copy(alloc)` in `GetPointerAtIndex` and, as a side effect, resolve the
+key's refs before the copy — now runs *after* the copy, inside the accessor.
+`TypedValue.Copy`'s default branch shallow-copies an unresolved `RefValue`
+child, so without a fix the stored key aliased the caller's live object
+graph until it was next resolved: `gnovm/tests/files/zrealm_map8.gno` pins
+this by mutating the source key variable after assignment and asserting the
+stored key does not change. The fix is `fillMapKeyRefs(store, iv)` called
+explicitly at `values.go:2449`, immediately before `iv.Copy(alloc)` at
+`values.go:2450`, so the resolve happens before the copy again — this time
+as a deliberate call instead of an accident of ordering.
+
+### 7. Call sites
 
 Five sites supply `omitKeyType` from a `*MapType` they already hold:
 
@@ -192,22 +290,24 @@ Five sites supply `omitKeyType` from a `*MapType` they already hold:
 | `GetPointerAtIndex` — `values.go:2379` | has `bt` |
 | `delete` builtin — `uverse.go:1237` | type switch currently discards the `*MapType`; bind it |
 
-### 7. The direct `vmap` read at `values.go:2389-2395` moves into the accessor
+### 8. The direct `vmap` read at `values.go:2389-2395` moves into the accessor
 
 `GetPointerAtIndex` reads `mv.vmap` outside any accessor, so post-change it
 would observe a nil map on a freshly loaded value. It is folded into
 `GetPointerForKey`.
 
 Doing so also removes a redundant computation that is independent of this
-lead: the block computes `iv.ComputeMapKey(...)` to look up the pre-existing
-key, then calls `GetPointerForKey`, which computes **the identical key
-again** at `values.go:1011`. Every map *write* currently pays
+lead — and, per the measurements in Context, is the larger of the two gas
+wins in this change: the block computes `iv.ComputeMapKey(...)` to look up
+the pre-existing key, then calls `GetPointerForKey`, which computes **the
+identical key again** at `values.go:1011`. Every map *write* currently pays
 `ComputeMapKey` twice. `GetPointerForKey` already has the old
 `*MapListItem` in hand at `values.go:1013` — the same item the caller was
 reaching for — so it can return the displaced key's object to the caller
-instead of the caller pre-computing it. This deduplication is a larger gas
-reduction than the prefix removal itself, and folding the read in is
-unavoidable regardless.
+instead of the caller pre-computing it. Folding the read in is unavoidable
+regardless of the gas win, because §5 already removed the load-time build
+this code was implicitly relying on; §6 covers the ref-resolution ordering
+hazard this reshuffle introduced.
 
 ## Determinism and state compatibility
 
@@ -226,13 +326,19 @@ unavoidable regardless.
 ## Consequences
 
 - Charged gas drops on every get/set/delete against a concrete-keyed map, by
-  `(len(TypeID) + 1) * 4 / 10` per access, plus the second, larger reduction
-  from deduplicating the map-write key computation.
-- Loading a stored map no longer costs O(entries) `ComputeMapKey` unless the
-  map is actually indexed.
+  `(len(TypeID) + 1) * 4 / 10` per access — the change this ADR is named
+  for — plus a second, larger and unnamed reduction from deduplicating the
+  map-write key computation (§8). See Measured Results below: the second
+  effect outweighs the first by roughly two orders of magnitude on
+  byte/struct-heavy keys.
+- Loading a stored map no longer pays `ComputeMapKey`'s serialization and
+  `TypeID` work per entry unless the map is actually indexed. It is **not**
+  true that no work happens at load: `fillMapKeyRefs` (§6) still walks every
+  key, because that walk is also the deep ref-resolver composite keys need.
+  What is avoided is specifically the encode-and-hash work, not the traversal.
 - Three accessor signatures change: each gains an `omitKeyType` parameter, and
   `GetPointerForKey` additionally returns the displaced key's object (per
-  §7). All callers are in-tree (`gnovm/pkg/gnolang`); `MapValue`'s exported
+  §8). All callers are in-tree (`gnovm/pkg/gnolang`); `MapValue`'s exported
   surface is otherwise untouched.
 - No other code reads `vmap` directly. Iteration (`op_exec.go:391`), GC
   (`garbage_collector.go:320`), allocation accounting (`alloc.go:852`),
@@ -245,6 +351,43 @@ unavoidable regardless.
   readability is narrowed accordingly.
 - Gas goldens under `gnovm/tests/files/gas/` that exercise map access must be
   regenerated.
+
+### Measured Results
+
+Both changes are gas *reductions* with no calibration pass needed. Test
+bodies (loop counts, key sizes) are byte-identical before and after in every
+golden below — only the `// Gas:` comment changed in each commit — so the
+percentages are directly comparable.
+
+**Deduplicating the double `ComputeMapKey` call on map writes** (§8, commit
+`c2bb1d0a5`) — the larger, unplanned win:
+
+| Golden | Before | After | Δ |
+|---|---:|---:|---:|
+| `compute_map_key_big_bytes` | 36827018 | 23405158 | **-36.4%** |
+| `compute_map_key_big_struct` | 186401382 | 120708884 | **-35.2%** |
+| `compute_map_key_small_bytes` | 7974 | 7877 | -1.2% |
+| `compute_map_key_small_struct` | 6109 | 5677 | -7.1% |
+
+**Omitting the TypeID prefix for concrete key types** (this ADR's named
+decision, commit `08024d145`) — the smaller, planned win:
+
+| Golden | Before | After | Δ |
+|---|---:|---:|---:|
+| `compute_map_key_concrete_key` | 125449 | 124849 | -600 total (100 writes × 6/access; `TypeID` `"main.Address"`, 12+1 bytes) |
+| `compute_map_key_big_bytes` | 23405158 | 23405151 | -7 (`TypeID` `"[33554432]uint8"`, 15+1 bytes) |
+| `compute_map_key_small_bytes` | 7877 | 7873 | -4 (`TypeID` `"[32]uint8"`, 9+1 bytes) |
+| `compute_map_key_big_struct` | 120708884 | 120708884 | unchanged — `map[any]int`, interface-keyed, prefix correctly retained |
+| `compute_map_key_small_struct` | 5677 | 5677 | unchanged — same reason |
+
+Per-access arithmetic for the `map[address]T` shape, with
+`OpCPUComputeMapKey = 80` (`machine.go:1661`) and the per-byte slope charged
+as `bytes*4/10`: **80 + 45*4/10 = 98** gas before this change, **80 + 32*4/10
+= 92** gas after. The 13-byte prefix is ~29% of the 45 bytes hashed, but only
+~6% of the 98-gas `ComputeMapKey` charge and 0.48% of program gas
+(600 of 125449, the `compute_map_key_concrete_key` golden's total before this
+change) — confirming the Context section's framing: the constant per-call
+charge, not the per-byte one, dominates at realistic key sizes.
 
 ## Alternatives considered
 
@@ -283,11 +426,8 @@ Filetests targeting the cases that break if the predicate is wrong:
 - `map[any]K` holding `int(1)`, `int64(1)` and `uint64(1)` — must remain
   three distinct entries. This is the case the stale TODO's `Elem()` version
   would have failed.
-- A concrete-keyed map indexed by a key whose `tv.T` is nil, against the
-  `debug`-build panic at `values.go:1821-1825` (`omitType` with `tv.T == nil`
-  is "should not happen"). Confirms preprocess types the key before it
-  reaches here, or bounds the case if it does not.
-- `map[*T]V` with a nil pointer key.
+- `map[*T]V` with a nil pointer key (`gnovm/tests/files/map53.gno`,
+  `ptrs[nil]`).
 - NaN keys, covering the `isNaN` skip in both the lazy build and lookups.
 - Struct- and array-keyed maps with interface-typed fields/elements, checking
   the nested `omitTypes` rule still composes with the new top-level one.
@@ -308,6 +448,33 @@ regenerated `gnovm/tests/files/gas/compute_map_key_*.gno` goldens.
 
 Before/after gas numbers must be compared with the test bodies held
 identical — same loop counts, same key sizes — per `AGENTS.md`.
+
+### Maintainer note: gas-golden fragility
+
+Two traps a future editor of `gnovm/tests/files/gas/*.gno` will hit, neither
+specific to this change but both encountered while producing it:
+
+- **A `// Gas:` golden is coupled to the source file's line count, not its
+  content.** Every line the parser walks — including a blank line or a
+  comment — advances position-tracking state that is itself metered.
+  Measured on this branch: inserting one blank line into a gas filetest costs
+  ~226 gas; adding one comment *token* (regardless of the comment's length)
+  costs ~1 gas. Comment length itself is free. Consequence: editing a
+  comment's wording in a gas filetest is safe; changing its line count, or
+  adding/removing blank lines, requires either preserving the line count
+  exactly or resyncing the golden with `-update-golden-tests` (see below) —
+  do not hand-adjust the number to compensate.
+- **Gas subtests only pass in a FULL `-run Files` run.** Running the `gas/`
+  subset in isolation (`-run 'Files/^gas'` or similar) warms the filetest
+  harness's caches differently than a full run does, and nine goldens
+  inflate by a constant ~113 gas as a result (one, `slice_alloc`, by ~461) —
+  reproducible on unmodified `master`, unrelated to this change. The
+  committed goldens are the full-run numbers. **Never judge a gas delta, and
+  never invoke `-update-golden-tests`, from a subset run** — it would bake
+  the inflated subset numbers into the goldens and break the full run for
+  everyone else. Always use the complete
+  `go test ./gnovm/pkg/gnolang/ -run Files -test.short` invocation for both
+  checking and updating.
 
 ## Out of scope
 
