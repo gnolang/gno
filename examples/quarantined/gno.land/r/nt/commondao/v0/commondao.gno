@@ -121,5 +121,12 @@ func newDAOOptions(id uint64, name, purpose, description string, parent *commond
 	for _, m := range members {
 		opts = append(opts, commondao.WithCouncilMember(m))
 	}
+
+	// Register the full proposal kind catalog: every new DAO (genesis,
+	// user-created or sub-DAO) starts with all kinds enabled, and kinds are
+	// toggled afterwards through CreateSetProposalKindProposal.
+	for _, k := range proposalKindCatalog {
+		opts = append(opts, commondao.WithProposalKind(k))
+	}
 	return opts
 }

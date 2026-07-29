@@ -27,6 +27,9 @@ func newTestDAO(t *testing.T, name string, members ...address) *commondao.Common
 	for _, m := range members {
 		opts = append(opts, commondao.WithCouncilMember(m))
 	}
+	for _, k := range proposalKindCatalog {
+		opts = append(opts, commondao.WithProposalKind(k))
+	}
 
 	dao := commondao.New(opts...)
 	daos.Set(id.String(), dao)
@@ -95,10 +98,10 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	uassert.NoError(t, def.Validate())
 
 	// Dissolution voids in-flight proposals before soft deleting the DAO
-	p, err := dao.Propose(member, textPropDefinition{
+	p, err := dao.Propose(member, kindText, textArgs{
 		title:        "Pending",
 		body:         "pending",
-		votingPeriod: time.Hour,
+		votingPeriod: time.Hour * 24,
 	})
 	urequire.NoError(t, err)
 

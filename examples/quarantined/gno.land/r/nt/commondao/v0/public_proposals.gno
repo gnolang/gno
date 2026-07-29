@@ -35,8 +35,7 @@ func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays 
 		votingPeriod = time.Hour * 24 * time.Duration(votingDays)
 	}
 
-	def := newTextPropDefinition(title, body, votingPeriod)
-	return mustPropose(dao, caller, def)
+	return mustPropose(dao, caller, kindText, textArgs{title, body, votingPeriod})
 }
 
 // CreateCouncilUpdateProposal creates a new proposal to add and/or remove
@@ -54,8 +53,8 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newCouncilUpdatePropDefinition(dao, parseAddresses(newMembers), parseAddresses(removeMembers))
-	return mustPropose(dao, caller, def)
+	args := councilUpdateArgs{parseAddresses(newMembers), parseAddresses(removeMembers)}
+	return mustPropose(dao, caller, kindCouncilUpdate, args)
 }
 
 // CreateAncestorCouncilUpdateProposal creates a proposal for an ancestor
@@ -79,8 +78,8 @@ func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newM
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	def := newAncestorCouncilUpdatePropDefinition(dao, target, parseAddresses(newMembers), parseAddresses(removeMembers))
-	return mustPropose(dao, caller, def)
+	args := ancestorCouncilUpdateArgs{target, parseAddresses(newMembers), parseAddresses(removeMembers)}
+	return mustPropose(dao, caller, kindAncestorCouncilUpdate, args)
 }
 
 // CreateSubDAOProposal creates a new proposal to create a new SubDAO.
@@ -97,8 +96,8 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, m
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newSubDAOPropDefinition(dao, name, purpose, description, parseAddresses(members))
-	return mustPropose(dao, caller, def)
+	args := subDAOArgs{name, purpose, description, parseAddresses(members)}
+	return mustPropose(dao, caller, kindSubDAO, args)
 }
 
 // CreateDissolutionProposal creates a new proposal to dissolve a DAO or SubDAO.
@@ -134,8 +133,9 @@ func CreateDissolutionProposal(cur realm, daoID uint64, destination address) uin
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newDissolvePropDefinition(dissolveDAO, destination)
-	return mustPropose(dao, caller, def)
+	// The host (nearest live ancestor) gates and votes the proposal, while
+	// the definition operates on the dissolved descendant carried in args.
+	return mustPropose(dao, caller, kindDissolve, dissolveArgs{dissolveDAO, destination})
 }
 
 // CreateTreasurySpendProposal creates a new proposal to send coins from
@@ -153,8 +153,8 @@ func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom stri
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	def := newTreasurySpendPropDefinition(dao, to, chain.NewCoin(denom, amount))
-	return mustPropose(dao, caller, def)
+	args := treasurySpendArgs{to, chain.NewCoin(denom, amount)}
+	return mustPropose(dao, caller, kindTreasurySpend, args)
 }
 
 // CreateTreasuryClawbackProposal creates a new proposal for an ancestor
@@ -174,8 +174,7 @@ func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	def := newTreasuryClawbackPropDefinition(dao, target)
-	return mustPropose(dao, caller, def)
+	return mustPropose(dao, caller, kindTreasuryClawback, treasuryClawbackArgs{target})
 }
 
 // CreateTreasuryFreezeProposal creates a new proposal for an ancestor DAO
@@ -195,15 +194,15 @@ func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	def := newTreasuryFreezePropDefinition(dao, target, frozen)
-	return mustPropose(dao, caller, def)
+	return mustPropose(dao, caller, kindTreasuryFreeze, treasuryFreezeArgs{target, frozen})
 }
 
-// mustPropose submits a proposal and validates it for the current state,
-// panicking on any error. Validation also reruns inside Execute, so this
-// only fails fast at creation.
-func mustPropose(dao *commondao.CommonDAO, caller address, def commondao.ProposalDefinition) uint64 {
-	p, err := dao.Propose(caller, def)
+// mustPropose submits a proposal through one of the DAO's registered
+// proposal kinds and validates it for the current state, panicking on any
+// error. Validation also reruns inside Execute, so this only fails fast at
+// creation.
+func mustPropose(dao *commondao.CommonDAO, caller address, kind string, args any) uint64 {
+	p, err := dao.Propose(caller, kind, args)
 	if err != nil {
 		panic(err)
 	}

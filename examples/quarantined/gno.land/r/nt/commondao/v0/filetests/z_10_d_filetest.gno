@@ -117,6 +117,12 @@ func main() {
 // This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
 //
 //
+// <gno-columns-sep>
+// [Set Proposal Kind](/r/nt/commondao/v0$help&func=CreateSetProposalKindProposal&daoID=3&enabled=true&kindName=)
+//
+// This type of proposal enables or disables one of the realm's proposal kinds for this DAO. Disabling a kind blocks new proposals of that kind while in-flight ones still vote and execute.
+//
+//
 // </gno-columns>
 //
 // # Sub: Settings
