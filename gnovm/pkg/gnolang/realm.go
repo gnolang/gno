@@ -1887,7 +1887,7 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // fillMapKeyRefs resolves RefValues nested inside a composite map key.
 //
 // ComputeMapKey resolves them incidentally, by calling fillValueTV on every
-// array element and struct field it serializes (values.go:1940, :1964). The
+// array element and struct field it serializes (values.go:1949, :1973). The
 // eager vmap build that used to live in fillTypesOfValue therefore doubled as
 // a deep-resolve pass over every stored map key, and printing a stored map
 // relies on it — see gnovm/tests/files/map39b.gno. Now that the index is
