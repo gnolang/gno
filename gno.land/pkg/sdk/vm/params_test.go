@@ -32,6 +32,9 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100) +
 		fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100) +
 		fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat) +
+		fmt.Sprintf("CodeSubmissionPolicy: %q\n", p.CodeSubmissionPolicy) +
+		fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters) +
+		fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers) +
 		fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte)
 
 	// Assert: check if the result matches the expected string.

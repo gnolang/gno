@@ -685,6 +685,31 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
+	// If the chain is operating in "inert" submission mode, store the package
+	// without typechecking or execution. It becomes callable only after an
+	// approver sends MsgEnablePackage.
+	if vm.GetParams(ctx).CodeSubmissionPolicy == CodeSubmissionPolicyInert {
+		gm, err := gnomod.ParseMemPackage(memPkg)
+		if err != nil {
+			return ErrInvalidPackage(err.Error())
+		}
+		gm.Module = pkgPath
+		gm.AddPkg.Creator = creator.String()
+		gm.AddPkg.Height = int(ctx.BlockHeight())
+		memPkg.SetFile("gnomod.toml", gm.WriteString())
+		if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+			return err
+		}
+		if err := vm.checkCLASignature(ctx, creator); err != nil {
+			return err
+		}
+		if err := vm.bank.SendCoins(ctx, creator, gno.DerivePkgCryptoAddr(pkgPath), send); err != nil {
+			return err
+		}
+		gnostore.AddInertPackage(memPkg)
+		return nil
+	}
+
 	opts := gno.TypeCheckOptions{
 		Getter:     gnostore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
@@ -822,6 +847,85 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	)
 
 	return nil
+}
+
+// EnablePackage activates an inert package: runs the typechecker and
+// initializes the package so it becomes importable and callable on-chain.
+// Only addresses listed in Params.PkgApprovers may call this.
+func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err error) {
+	params := vm.GetParams(ctx)
+	if !isApprover(params.PkgApprovers, msg.Approver) {
+		return std.ErrUnauthorized(fmt.Sprintf(
+			"address %s is not a pkg approver", msg.Approver))
+	}
+	gnostore := vm.getGnoTransactionStore(ctx)
+	memPkg := gnostore.GetInertPackage(msg.PkgPath)
+	if memPkg == nil {
+		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
+	}
+	// Typecheck the stored package.
+	opts := gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	if _, err = gno.TypeCheckMemPackage(memPkg, opts); err != nil {
+		return ErrTypeCheck(err)
+	}
+	// Execute and persist the package.
+	ctx = ContextWithParamsAccum(ctx)
+	msgCtx := stdlibs.ExecContext{
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     vm.getChainDomainParam(ctx),
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    msg.Approver.Bech32(),
+		OriginSend:      std.Coins{},
+		OriginSendSpent: new(std.Coins),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, msg.Approver),
+	}
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:            "",
+		Output:             vm.Output,
+		Store:              gnostore,
+		Alloc:              gnostore.GetAllocator(),
+		Context:            msgCtx,
+		GasMeter:           ctx.GasMeter(),
+		BoundedPanicRender: true,
+	})
+	defer m2.Release()
+	defer doRecover(m2, &err)
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
+	m2.RunMemPackage(memPkg, true)
+	// Remove from inert store now that it is active.
+	gnostore.DelInertPackage(msg.PkgPath)
+	return nil
+}
+
+// isApprover reports whether addr is in the approvers list.
+func isApprover(approvers []crypto.Address, addr crypto.Address) bool {
+	return slices.Contains(approvers, addr)
+}
+
+// DisablePackage moves an active package back to inert state.
+// NOTE: full disable requires evicting executed objects from the base store,
+// which is not yet implemented. This stub is provided for interface completeness.
+func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error {
+	params := vm.GetParams(ctx)
+	if !isApprover(params.PkgApprovers, msg.Approver) {
+		return std.ErrUnauthorized(fmt.Sprintf(
+			"address %s is not a pkg approver", msg.Approver))
+	}
+	// TODO: evict executed package objects from baseStore and move source back
+	// to inert_pkg key. Tracked in a follow-up PR.
+	return std.ErrUnknownRequest("disable_package is not yet implemented")
 }
 
 // Call calls a public Gno function (for delivertx).

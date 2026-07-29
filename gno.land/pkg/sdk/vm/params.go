@@ -14,6 +14,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+// CodeSubmissionPolicy controls who may submit MsgAddPackage and MsgRun, and
+// how submitted packages are processed.
+type CodeSubmissionPolicy string
+
+const (
+	// CodeSubmissionPolicyPermissionless allows any address to submit code (default).
+	CodeSubmissionPolicyPermissionless CodeSubmissionPolicy = "permissionless"
+	// CodeSubmissionPolicyPermissioned restricts code submission to addresses
+	// listed in Params.CodeSubmitters.
+	CodeSubmissionPolicyPermissioned CodeSubmissionPolicy = "permissioned"
+	// CodeSubmissionPolicyInert accepts packages from any address but stores them
+	// without typechecking or execution (inert state). Packages become callable
+	// only after an approver sends MsgEnablePackage.
+	CodeSubmissionPolicyInert CodeSubmissionPolicy = "inert"
+)
+
 const (
 	sysNamesPkgDefault             = "gno.land/r/sys/names"
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
@@ -21,6 +37,7 @@ const (
 	depositDefault                 = "600000000ugnot"
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
+	codeSubmissionPolicyDefault    = CodeSubmissionPolicyPermissionless
 
 	// Depth pins for the reference store: B+32 mounted with the fast index
 	// (storebptree.FastStoreConstructor), calibrated at 100M items, 10K node
@@ -78,7 +95,19 @@ type Params struct {
 	// the type-check/preprocess gas charge. Charged per .gno source byte at
 	// MsgAddPackage and MsgRun; it is NOT part of store.GasConfig (charged
 	// directly in the keeper), so it has no ApplyToGasConfig entry.
+	//
+	// Kept immediately after IterNextCostFlat (amino field 14) so its wire
+	// number matches master; the code-submission fields below take 15/16/17.
 	PreprocessGasPerByte int64 `json:"preprocess_gas_per_byte" yaml:"preprocess_gas_per_byte"`
+
+	// CodeSubmissionPolicy controls who may submit MsgAddPackage/MsgRun and
+	// how packages are processed on arrival. Defaults to "permissionless".
+	CodeSubmissionPolicy CodeSubmissionPolicy `json:"code_submission_policy" yaml:"code_submission_policy"`
+	// CodeSubmitters is the allowlist used when CodeSubmissionPolicy == "permissioned".
+	CodeSubmitters []crypto.Address `json:"code_submitters" yaml:"code_submitters"`
+	// PkgApprovers may call MsgEnablePackage / MsgDisablePackage.
+	// Required when CodeSubmissionPolicy == "inert".
+	PkgApprovers []crypto.Address `json:"pkg_approvers" yaml:"pkg_approvers"`
 }
 
 // NewParams creates a new Params object
@@ -97,6 +126,7 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		FixedSetReadDepth100: minSetReadDepth100,
 		FixedWriteDepth100:   minWriteDepth100,
 		IterNextCostFlat:     iterNextCostFlat,
+		CodeSubmissionPolicy: codeSubmissionPolicyDefault,
 		PreprocessGasPerByte: preprocessGasPerByte,
 	}
 }
@@ -126,6 +156,9 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100))
 	sb.WriteString(fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100))
 	sb.WriteString(fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat))
+	sb.WriteString(fmt.Sprintf("CodeSubmissionPolicy: %q\n", p.CodeSubmissionPolicy))
+	sb.WriteString(fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters))
+	sb.WriteString(fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers))
 	sb.WriteString(fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte))
 	return sb.String()
 }
@@ -189,6 +222,21 @@ func (p Params) Validate() error {
 	if p.IterNextCostFlat > maxIterNextCostFlat {
 		return fmt.Errorf("IterNextCostFlat must be <= %d, got %d", maxIterNextCostFlat, p.IterNextCostFlat)
 	}
+	switch p.CodeSubmissionPolicy {
+	case CodeSubmissionPolicyPermissionless, CodeSubmissionPolicyPermissioned,
+		CodeSubmissionPolicyInert:
+		// valid
+	case "":
+		// treat empty as permissionless (zero-value compat)
+	default:
+		return fmt.Errorf("invalid code_submission_policy %q", p.CodeSubmissionPolicy)
+	}
+	if err := validateAddressSlice("CodeSubmitters", p.CodeSubmitters); err != nil {
+		return err
+	}
+	if err := validateAddressSlice("PkgApprovers", p.PkgApprovers); err != nil {
+		return err
+	}
 	// Cap PreprocessGasPerByte at 100_000 (80x the default, far above the
 	// measured cost) to give governance headroom while preventing an absurd
 	// proposal from making deploys impossibly expensive.
@@ -198,6 +246,46 @@ func (p Params) Validate() error {
 	}
 	if p.PreprocessGasPerByte > maxPreprocessGasPerByte {
 		return fmt.Errorf("PreprocessGasPerByte must be <= %d, got %d", maxPreprocessGasPerByte, p.PreprocessGasPerByte)
+	}
+	return nil
+}
+
+// mustParseAddressStrings decodes a repeated (string-array) governance param
+// into typed addresses. Both code_submitters and pkg_approvers are set via the
+// strings param path (params.NewSysParamStringsPropRequest / SetStrings); the
+// keeper stores the raw string array and GetParams decodes it element-wise back
+// into the typed []crypto.Address field. Validation is strict — no trimming, no
+// skipping of empty entries — precisely so this matches what GetParams later
+// decodes: any entry accepted here must round-trip, otherwise a value could
+// pass validation yet make every subsequent GetParams panic. A comma-separated
+// single string does NOT round-trip and is unsupported.
+//
+// This mirrors the convention introduced for code_submitters in Phase 1
+// (#5885), so the two changes compose without divergence.
+func mustParseAddressStrings(paramName string, value any) []crypto.Address {
+	ss := sdkparams.MustParamStrings(paramName, value)
+	addrs := make([]crypto.Address, 0, len(ss))
+	for _, s := range ss {
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid %s address %q: %v", paramName, s, err))
+		}
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+func validateAddressSlice(name string, addrs []crypto.Address) error {
+	seen := make(map[string]struct{}, len(addrs))
+	for i, addr := range addrs {
+		if addr.IsZero() {
+			return fmt.Errorf("%s[%d] is a zero address", name, i)
+		}
+		key := addr.String()
+		if _, dup := seen[key]; dup {
+			return fmt.Errorf("%s contains duplicate address %s", name, key)
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }
@@ -316,6 +404,12 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.FixedWriteDepth100 = sdkparams.MustParamInt64("fixed_write_depth_100", value)
 	case "p:iter_next_cost_flat":
 		params.IterNextCostFlat = sdkparams.MustParamInt64("iter_next_cost_flat", value)
+	case "p:code_submission_policy":
+		params.CodeSubmissionPolicy = CodeSubmissionPolicy(sdkparams.MustParamString("code_submission_policy", value))
+	case "p:code_submitters":
+		params.CodeSubmitters = mustParseAddressStrings("code_submitters", value)
+	case "p:pkg_approvers":
+		params.PkgApprovers = mustParseAddressStrings("pkg_approvers", value)
 	case "p:preprocess_gas_per_byte":
 		params.PreprocessGasPerByte = sdkparams.MustParamInt64("preprocess_gas_per_byte", value)
 	default:
