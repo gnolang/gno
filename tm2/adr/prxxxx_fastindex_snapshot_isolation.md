@@ -15,7 +15,9 @@ fast path (PR #5937) during block execution, diverging the node's state.
 
 The root cause is a chain of four interacting design gaps, reproduced both
 deterministically and under natural concurrency
-(`tm2/pkg/store/rootmulti/fastindex_*_test.go`):
+(`tm2/pkg/store/rootmulti/fastindex_*_test.go`, and end-to-end through the
+real app + ABCI proxy topology in
+`gno.land/pkg/gnoland/app_query_race_test.go`):
 
 1. **Snapshot bypass.** `rootmulti.constructStore` routed mounts with a
    dedicated db (`params.db != nil`) to that LIVE db even when building the
@@ -59,6 +61,9 @@ Adjacent bugs found during the investigation:
   constructs batches eagerly (bptree, IAVL's BatchWithFlusher).
 - The restart window: `querySnapshot` was only installed by `Commit()`, so a
   restarted node's queries fell back to the live DB until its first block.
+- `BaseApp.LastBlockHeight` — every query handler's height-0 resolution, on
+  the concurrent query connection — read `ms.lastCommitID` unsynchronized
+  against Commit/LoadVersion writes; now published via an atomic pointer.
 
 ## Decision
 
