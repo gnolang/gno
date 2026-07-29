@@ -41,6 +41,11 @@ func main(cur realm) {
 	out := commondao.Render(strconv.FormatUint(daoID, 10))
 	println("create link after disable:", strings.Contains(out, "CreateTextProposal"))
 
+	// ...and the settings kinds row drops the kind name (sorted row would
+	// read "subdao, text, treasury\-clawback" when enabled)
+	out = commondao.Render(strconv.FormatUint(daoID, 10) + "/settings")
+	println("settings row lists text after disable:", strings.Contains(out, "subdao, text"))
+
 	// Re-enable the kind through a second governance proposal
 	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", true)
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
@@ -59,6 +64,7 @@ func main(cur realm) {
 // Output:
 // after disable: false
 // create link after disable: false
+// settings row lists text after disable: false
 // after re-enable: true
 // create link after re-enable: true
 // created: 3
