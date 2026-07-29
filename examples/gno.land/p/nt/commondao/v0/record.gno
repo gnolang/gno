@@ -54,8 +54,8 @@ func (v Vote) Reason() string {
 }
 
 // ReadonlyVotingRecord defines a read only voting record. The copy
-// shares tree nodes with the live record, so a held value can go stale
-// in surprising ways: fetch it, read it, and re-fetch rather than
+// captures the live record's tree roots by value, so a held value can go
+// stale in surprising ways: fetch it, read it, and re-fetch rather than
 // holding it across votes.
 type ReadonlyVotingRecord struct {
 	votes bptree.BPTree // string(address) -> Vote

@@ -14,7 +14,9 @@ The planned arbitrary-execution proposal kind breaks that: it runs a
 proposer-authored closure `func(_ int, sub realm) error` that holds the DAO's
 `sub` and can call back into the realm — including `commondao.Execute(cross(sub),
 anyDAO, pid)` (post-deadline Execute is permissionless, and `cross(sub)` yields
-a fresh primary cur that can mint any DAO's sub). This ADR lands the latch
+a fresh primary cur that can mint any DAO's sub — see
+`pr6012_commondao_exec_scope.md` for the sub-identity and `cross(sub)`
+semantics). This ADR lands the latch
 first, as a prerequisite, so the assumption becomes a structural invariant
 before any re-entrant executor exists.
 

@@ -6,10 +6,10 @@ The proposal system is the package's governance core: `Propose` /
 `Vote` / `Execute` / `Withdraw` in
 `examples/gno.land/p/nt/commondao/v0/commondao.gno`, the default tally
 `TallyDefault` in `record.gno`, the status machine and
-`ProposalDefinition` interface in `proposal.gno`, and the eight realm
+`ProposalDefinition` interface in `proposal.gno`, and the nine realm
 definition types (text, self/ancestor council-update, sub-DAO, dissolve,
-treasury spend/clawback/freeze). It was reviewed against a frozen invariant
-set (P1–P20 in `PROPOSAL_REVIEW.md`), converged by a three-reviewer plan
+treasury spend/clawback/freeze, and set-proposal-kind). It was reviewed
+against a frozen invariant set (P1–P20), converged by a three-reviewer plan
 audit that verified every invariant, the type matrix, and the tally math
 directly against source.
 

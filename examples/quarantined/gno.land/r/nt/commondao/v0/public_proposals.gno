@@ -87,6 +87,7 @@ func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newM
 // Parameters:
 // - daoID: ID of the parent DAO (required)
 // - name: A name for the SubDAO (required)
+// - purpose: A purpose for the SubDAO (required)
 // - description: A description for the SubDAO
 // - members: Newline separated list of initial SubDAO council addresses (required)
 func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, members string) uint64 {
