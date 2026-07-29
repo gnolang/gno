@@ -3,7 +3,7 @@
 ## Status
 
 Implemented on branch `claude/using-superpowers-eebc09`. Written against
-master `d14a03770`.
+master `d1a33f574`.
 
 This is a gas *reduction*: it removes metered work outright, so charged gas
 drops immediately without a recalibration pass through `cmd/calibrate`.
@@ -30,7 +30,7 @@ prefix removal: **-36.4%** on `compute_map_key_big_bytes`
 its own headline is worse than useless to the next reader, so: the dominant
 result in this document is the incidental one, not the one in the title.
 
-`TypedValue.ComputeMapKey` (`gnovm/pkg/gnolang/values.go:1815`) serializes a
+`TypedValue.ComputeMapKey` (`gnovm/pkg/gnolang/values.go:1869`) serializes a
 map key into a `MapKey` string used as the Go-level index into
 `MapValue.vmap`. Unless `omitType` is set, it prepends the key's full
 `TypeID` plus a `':'` separator:
@@ -43,7 +43,7 @@ if !omitType {
 ```
 
 Every byte appended to `bz` is charged via `OpCPUSlopeComputeMapKeyByte`
-(`values.go:1841-1845`).
+(`values.go:1895-1899`).
 
 The prefix exists to discriminate keys whose *dynamic* type varies — for a
 `map[any]int`, `int(1)` and `int64(1)` both serialize to the same eight
@@ -54,7 +54,7 @@ on every get, set and delete.
 
 The recursion already knows this. Array elements and struct fields pass
 `omitTypes` derived from the element/field type
-(`values.go:1891`, `values.go:1918`):
+(`values.go:1947`, `values.go:1974`):
 
 ```go
 omitTypes := bt.Elem().Kind() != InterfaceKind
@@ -146,8 +146,8 @@ no longer appended at all.
 omitKeyType := baseOf(mt.Key).Kind() != InterfaceKind
 ```
 
-`baseOf` unwraps a `DeclaredType` around the key (`type M map[any]int`), and
-`mt.Key` — **not** `mt.Elem()` — selects the key type.
+`baseOf` unwraps a `DeclaredType` around the key (`type Address string;
+map[Address]int`), and `mt.Key` — **not** `mt.Elem()` — selects the key type.
 
 This matters: the stale TODO at `op_expressions.go:582` reads
 
@@ -210,7 +210,7 @@ the "not yet built" sentinel. `MapValue`'s layout is untouched, so
 The sentinel does not collide with the existing "nil if uninitialized"
 meaning. An uninitialized *Gno* map is represented by `tv.V == nil` and is
 checked before any accessor runs (`op_expressions.go:17`, `:47`,
-`values.go:2380`, `uverse.go:1239`); `alloc.NewMap` always calls `MakeMap`
+`values.go:2436`, `uverse.go:1239`); `alloc.NewMap` always calls `MakeMap`
 (`alloc.go:640-646`), so a live map's `vmap` is non-nil from birth. The three
 constructors that leave it nil are amino decode (`pb3_gen.go:1446`), the
 persistence copy (`realm.go:1729`) and the JSON export copy
@@ -225,9 +225,25 @@ against. The field comment is updated to say so.
 from `List` with that same flag when nil. Build and lookup therefore agree
 by construction — one value feeds both, so they cannot diverge.
 
-The build passes `nil` for the `*Machine`, preserving today's gas semantics
-exactly: this work is unmetered on the load path today, and stays unmetered
-after the move. Consequence: gas for existing realms can only decrease.
+The build passes `nil` for the `*Machine`, preserving today's *VM* gas
+semantics exactly: `ComputeMapKey`'s own `OpCPUComputeMapKey` /
+`OpCPUSlopeComputeMapKeyByte` charges stay suppressed, same as today. That is
+not the whole story, though: the array/struct branches of the lazy build
+(via `ComputeMapKey`, and via `fillMapKeyRefs` which replaces it, §6) still
+call `fillValueTV` → `store.GetObject`, which charges backend I/O gas and
+`GasAminoDecode` (`store.go:542`) on the STORE meter, independently of the
+nil `*Machine`. For almost every realm this nets out to a decrease, because
+those objects were going to be loaded eventually regardless (by the read or
+write that follows) and the eager build no longer front-loads that cost.
+**One narrow shape is an exception and does not decrease**: a composite map
+key with a NaN float field positioned before an object-bearing field.
+`ComputeMapKey`'s struct/array loops return early on the first NaN, so
+master's `ComputeMapKey`-driven eager build never reached the later field
+and left it unresolved; `fillMapKeyRefs` has no such abort and resolves it,
+paying the store-gas cost master's build skipped. See §6 and
+`gnovm/tests/files/zrealm_map10.gno`. So: gas for existing realms decreases
+in the general case, but is not monotonically non-increasing for every
+shape.
 
 ### 5. The eager build is removed
 
@@ -276,7 +292,26 @@ this by mutating the source key variable after assignment and asserting the
 stored key does not change. The fix is `fillMapKeyRefs(store, iv)` called
 explicitly at `values.go:2449`, immediately before `iv.Copy(alloc)` at
 `values.go:2450`, so the resolve happens before the copy again — this time
-as a deliberate call instead of an accident of ordering.
+as a deliberate call instead of an accident of ordering. The same aliasing
+class exists in `doOpMapLit` for map *literal* keys (`m[k] = v`'s copy is not
+the only insert path); it is fixed the same way —
+`fillMapKeyRefs(m.Store, &kvs[i*2])` before the copy — and pinned by
+`gnovm/tests/files/zrealm_map9.gno`. This one is a pre-existing defect
+(reproduces on master too), included here because it is the same bug class
+this ADR's own reshuffling exposed at the other call site, not a regression
+introduced by this change.
+
+**`fillMapKeyRefs` is not gas-neutral relative to `ComputeMapKey`'s
+traversal in one narrow shape.** `ComputeMapKey`'s struct/array loops abort
+on the first NaN field or element at any depth; `fillMapKeyRefs` does not.
+For a composite key with a NaN float field positioned *before* an
+object-bearing field, master's `ComputeMapKey`-driven eager build never
+reached the later field, so it stayed an unresolved `RefValue` after a store
+round-trip — printing it showed `ref(...)`. `fillMapKeyRefs` resolves it
+regardless, showing the correct expanded value (same bug class as
+`map39b.gno`), at the cost of the `store.GetObject` call master's build
+skipped for that shape. See §4's gas note and
+`gnovm/tests/files/zrealm_map10.gno`.
 
 ### 7. Call sites
 
@@ -286,8 +321,8 @@ Five sites supply `omitKeyType` from a `*MapType` they already hold:
 |---|---|
 | `doOpIndex1` — `op_expressions.go:15` | has `ct := baseOf(xv.T).(*MapType)` |
 | `doOpIndex2` — `op_expressions.go:45` | has `ct` |
-| `doOpMapLit` — `op_expressions.go:586` | has `mt`; replaces the stale TODO at `:582` |
-| `GetPointerAtIndex` — `values.go:2379` | has `bt` |
+| `doOpMapLit` — `op_expressions.go:590` | has `mt`; replaces the stale TODO at `:582` |
+| `GetPointerAtIndex` — `values.go:2397` | has `bt` |
 | `delete` builtin — `uverse.go:1237` | type switch currently discards the `*MapType`; bind it |
 
 ### 8. The direct `vmap` read at `values.go:2389-2395` moves into the accessor
@@ -313,9 +348,14 @@ hazard this reshuffle introduced.
 
 - `omitKeyType` is a pure function of the map's static key type, which is
   fixed at map construction and identical on every node.
-- Nothing observable depends on *when* `vmap` is built, because the build is
-  unmetered. Store-cache residency therefore cannot leak into gas — the
-  property that would otherwise make lazy construction a consensus hazard.
+- Nothing observable depends on *when* `vmap` is built. The build's own VM
+  gas (`OpCPUComputeMapKey`/`OpCPUSlopeComputeMapKeyByte`) stays suppressed
+  by the nil `*Machine` either way, and while `fillMapKeyRefs`'s
+  `store.GetObject` calls do charge STORE gas (see §4), that charge is a
+  pure function of which objects the key's static shape requires loading —
+  identical on every node, regardless of cache residency. Store-cache
+  warmth therefore cannot leak into gas — the property that would otherwise
+  make lazy construction a consensus hazard.
 - `MapKey` is never persisted: `vmap` is unexported, absent from the amino
   image, and already reconstructed from `List` on load. `copyValueWithRefs`
   omits it when writing a `MapValue` (`realm.go:1729`). The encoding is free
@@ -347,7 +387,7 @@ hazard this reshuffle introduced.
   the lazy build is invisible to them.
 - `MapKey` values for concrete-keyed maps lose their type prefix, so
   `colors.ColoredBytes()` debug output for those maps shows the value bytes
-  without a leading type name. The `values.go:1846-1849` comment about human
+  without a leading type name. The `values.go:1901-1905` comment about human
   readability is narrowed accordingly.
 - Gas goldens under `gnovm/tests/files/gas/` that exercise map access must be
   regenerated.
