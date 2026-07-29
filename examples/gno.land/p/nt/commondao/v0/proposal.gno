@@ -64,12 +64,21 @@ type (
 
 	// ExecFunc defines a type for functions that execute proposals.
 	//
-	// The leading int makes ExecFunc non-crossing: the host runs it
-	// directly (no cross), so the executor inherits the caller's realm
-	// authority for storage but holds no realm cur of its own. The realm
-	// argument is a DAO-scoped sub-identity the host mints and passes so
-	// value moves (e.g. banker RealmSend) are bounded to that one DAO
-	// address; executors that move no funds ignore it. The int is unused.
+	// The leading int makes ExecFunc non-crossing: the host calls it
+	// directly (no cross), so the executor holds no realm cur of its own —
+	// only the realm argument, a DAO-scoped sub-identity the host mints and
+	// passes. Fund-moving executors send through that sub (e.g. banker
+	// RealmSend), which is terminal and bounded to one DAO address;
+	// executors that move no funds ignore it. The int is unused.
+	//
+	// Authority note: the sub is a least-authority DEFAULT, not a sandbox.
+	// An executor is trusted realm code; because the sub is the executor's
+	// only current realm value, it could regain the host realm's primary
+	// authority via an explicit cross(sub) into a crossing function. That is
+	// a visible, auditable call the reference realm's executors never make,
+	// so their blast radius is one treasury — but a realm that runs
+	// untrusted or user-registered executors gets no such guarantee. See ADR
+	// pr6012_commondao_exec_scope.
 	ExecFunc func(int, realm) error
 
 	// Proposal defines a DAO proposal.
