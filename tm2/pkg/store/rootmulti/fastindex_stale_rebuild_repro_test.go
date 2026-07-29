@@ -106,11 +106,15 @@ func TestFastIndex_NoStaleRebuildOnRacingQueryLoad(t *testing.T) {
 	commit(map[string][]byte{string(acct): oldVal, "filler-b": []byte("x2")})
 	commit(map[string][]byte{"filler-c": []byte("x3")})
 
-	// --- Layer 1: the immutable-store load path must never read (or write)
-	// the fast index. The store is built by hand the way the PRE-fix
-	// constructStore built it — over the LIVE db — which is exactly the
-	// configuration that used to write the poison; post-fix its load must be
-	// maintenance-free regardless of routing.
+	// --- Layer 1: an immutable-store load is READ-ONLY and version-correct
+	// even when a commit races it. The store is built by hand over the LIVE db
+	// (the PRE-fix configuration that used to write the poison). The load reads
+	// the fast-index stamp exactly once — the getImmutable snapshot gate, an
+	// advisory read, not maintenance — and the hook lands block N (acct→midVal)
+	// during that read. A view pinned at version 2 must return the version-2
+	// value: the gate keeps the index on (stamp ≥ 2), and fastGet's per-entry
+	// guard rejects the racing newer entry and walks to the version-2 root.
+	// Write-freedom is asserted by the end-of-test raw-DB audit below.
 	hdb := &hookDB{DB: db}
 	hdb.onStampGet = func() {
 		commit(map[string][]byte{string(acct): midVal, "filler-d": []byte("x4")})
@@ -122,12 +126,12 @@ func TestFastIndex_NoStaleRebuildOnRacingQueryLoad(t *testing.T) {
 	if err := queryStore.LoadVersion(2); err != nil {
 		t.Fatalf("query-path LoadVersion: %v", err)
 	}
-	if hdb.hasFired() {
-		t.Fatal("immutable store load read the fast-index stamp: the read-only load performed index maintenance")
+	if !hdb.hasFired() {
+		t.Fatal("immutable load did not read the fast-index stamp (getImmutable gate probe unfired)")
 	}
-	// The racing commit never happened (hook unfired) — apply block N now so
-	// the account's authoritative value moves past the fast-index entry.
-	commit(map[string][]byte{string(acct): midVal, "filler-d": []byte("x4")})
+	if got := queryStore.Get(nil, acct); !bytes.Equal(got, oldVal) {
+		t.Fatalf("version-2 view returned %q; want %q (gate on, per-entry guard rejects the racing entry)", got, oldVal)
+	}
 
 	// --- Layer 2: a FULL Load() (maintenance-capable) whose stamp read
 	// straddles the next commit observes stamp > version and must FAIL LOUD —

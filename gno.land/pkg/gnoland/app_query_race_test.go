@@ -272,12 +272,14 @@ func TestQueryRace_FastIndexParity(t *testing.T) {
 	stop.Store(true)
 	hammerGroup.Wait()
 
-	// On the fixed code the query path performs no index maintenance, so the
-	// stamp is never read outside startup: the hook must not have fired. (On
-	// the unfixed code it fires on the first hammer query and the audit below
-	// reports the poisoning.)
+	// The hook fires only on a stamp read through the LIVE DB handle. On the
+	// fixed code the query path never touches the live handle — it loads
+	// read-only from the frozen snapshot (the getImmutable stamp gate reads the
+	// snapshot's stamp, which bypasses this hook), so the hook must not have
+	// fired. (On the unfixed code the query's index maintenance reads the live
+	// stamp, fires the hook, and the audit below reports the poisoning.)
 	require.False(t, hooked.fired.Load(),
-		"query path read the fast-index stamp: query-side index maintenance is back")
+		"query path read the live fast-index stamp: query-side index maintenance is back")
 	require.Positive(t, queryLoads.Load(), "hammer performed no successful queries")
 
 	// Shut the app down and audit the persisted fast index from the raw DB,

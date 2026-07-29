@@ -512,8 +512,10 @@ func (t *MutableTree) Load() (int64, error) {
 // consumers — the store layer's immutable/query views, which may sit on a
 // snapshot or read-only DB and may run concurrently with the live writer —
 // loading must never mutate shared persistent state. Fast-index READS remain
-// available (newImmutable wires imm.fast from the tree options; staleness is
-// handled by fastGet's version guard).
+// available for snapshots taken via getImmutable, which gates them on the
+// stamp covering the snapshot version and on fastGet's per-entry version guard;
+// a bare working-tree read after LoadReadonly is outside the trust contract
+// (see fast_index.go).
 func (t *MutableTree) LoadReadonly() (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
@@ -686,6 +688,19 @@ func (t *MutableTree) getImmutable(version int64, register bool) (*ImmutableTree
 		return nil, err
 	}
 	imm := t.newImmutable(root, version, true)
+	// Gate the fast-index read path on stamp coverage: only trust the index if
+	// it is complete THROUGH this snapshot's version. A stamp behind `version`
+	// (e.g. versions committed with the feature off, or a rebuild not yet
+	// durable) can hold entries that are stale for keys updated in
+	// (stamp, version]; those entries pass fastGet's per-entry guard
+	// (vkVersion ≤ version) yet differ from the tree. The load paths avoid
+	// maintenance (LoadReadonly) so they can't refresh the stamp; this read-only
+	// re-verification is what keeps them safe. One point read per snapshot view;
+	// a read/checksum error degrades to the authoritative walk (fast off).
+	if imm.fast {
+		stamp, ok, err := t.ndb.getFastIndexVersion()
+		imm.fast = err == nil && ok && stamp >= version
+	}
 	imm.registered = reg
 	return imm, nil
 }
