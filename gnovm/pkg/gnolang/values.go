@@ -1008,10 +1008,22 @@ func (mv *MapValue) MakeMap() {
 
 // ensureVmap builds the key index if it is absent.
 //
-// The build is deliberately unmetered (nil *Machine), matching the load-time
-// build in fillTypesOfValue that it replaces. Gas therefore cannot depend on
-// whether a map was already resident in the store cache — the property that
-// would otherwise make lazy construction a consensus hazard.
+// The build passes a nil *Machine, matching the load-time build in
+// fillTypesOfValue that it replaces, so ComputeMapKey's own VM gas
+// (OpCPUComputeMapKey / OpCPUSlopeComputeMapKeyByte) stays suppressed here
+// exactly as it did there. That is NOT the same as saying the build is
+// unmetered outright: its array/struct branches still call fillValueTV on
+// each child, which can call store.GetObject and charge STORE gas on the
+// store meter, independently of the nil *Machine. In practice this is a
+// no-op in the common case, but only because every key was already
+// deep-resolved at load time by fillMapKeyRefs (realm.go) — which mirrors
+// this same traversal for exactly that reason. Narrowing fillMapKeyRefs's
+// walk in the future (e.g. to stop at the first NaN, matching ComputeMapKey)
+// would silently reintroduce first-touch store gas here. Gas therefore
+// cannot depend on whether a map was already resident in the store cache —
+// store gas is a deterministic function of which objects the key's static
+// shape requires loading, not of cache warmth — the property that would
+// otherwise make lazy construction a consensus hazard.
 //
 // omitKeyType MUST be the value that later lookups pass, or every key misses.
 // Callers derive it from the map's static type via mapKeyOmitType, so one

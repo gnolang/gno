@@ -440,19 +440,29 @@ func TestMapKeyOmitType_declaredKey(t *testing.T) {
 }
 
 func TestMapValue_vmapBuiltLazily(t *testing.T) {
-	store := NewStore(nil, nil, nil)
-	m := NewMachine("main", store)
+	// omitKeyType=false covers the map[any]K shape (interface key, prefix
+	// kept); omitKeyType=true covers the map[string]K / map[address]K shape
+	// production actually uses for a concrete string key like "alpha" — the
+	// build and the lookup must agree on the same flag in both cases, or
+	// the lookup silently misses.
+	for _, omitKeyType := range []bool{false, true} {
+		t.Run(fmt.Sprintf("omitKeyType=%v", omitKeyType), func(t *testing.T) {
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
 
-	// A MapValue shaped the way amino decode leaves one: List populated,
-	// vmap nil. fillTypesOfValue no longer builds the index.
-	mv := &MapValue{List: &MapList{}}
-	key := m.Eval(m.MustParseExpr(`"alpha"`))[0]
-	val := m.Eval(m.MustParseExpr(`int(42)`))[0]
-	mv.List.Append(nil, key).Value = val
-	require.Nil(t, mv.vmap, "index must not exist before first keyed access")
+			// A MapValue shaped the way amino decode leaves one: List
+			// populated, vmap nil. fillTypesOfValue no longer builds the
+			// index.
+			mv := &MapValue{List: &MapList{}}
+			key := m.Eval(m.MustParseExpr(`"alpha"`))[0]
+			val := m.Eval(m.MustParseExpr(`int(42)`))[0]
+			mv.List.Append(nil, key).Value = val
+			require.Nil(t, mv.vmap, "index must not exist before first keyed access")
 
-	got, ok := mv.GetValueForKey(nil, store, &key, false)
-	require.True(t, ok, "lookup must build the index on demand")
-	assert.Equal(t, int64(42), got.GetInt())
-	assert.NotNil(t, mv.vmap, "index must be memoized after first access")
+			got, ok := mv.GetValueForKey(nil, store, &key, omitKeyType)
+			require.True(t, ok, "lookup must build the index on demand")
+			assert.Equal(t, int64(42), got.GetInt())
+			assert.NotNil(t, mv.vmap, "index must be memoized after first access")
+		})
+	}
 }
