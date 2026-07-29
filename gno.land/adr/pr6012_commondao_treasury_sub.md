@@ -38,8 +38,9 @@ immediately before the executor: a treasury frozen, drained, or
 dissolved after the proposal passed fails it cleanly (`StatusFailed`,
 coins untouched) instead of panicking the tx and stranding it Passed.
 Concurrent over-committing spends therefore fail in execution order
-(pinned by z_11_f). The executor mints the DAO's sub-identity and
-sends via `banker.NewBanker(BankerTypeRealmSend, sub)` — the only
+(pinned by z_11_f). The host `Execute` wrapper mints the DAO's
+sub-identity and passes it in; the executor sends from that sub via
+`banker.NewBanker(BankerTypeRealmSend, sub)` — the only
 banker type permitted for sub-identities; banker sends move bank-keeper
 balances without invoking recipient code, so there is no reentrancy
 vector on top of Execute's remove-before-run rule.
@@ -104,8 +105,9 @@ so a **living** orphan's funds are never stranded. Coins deposited to a
 DAO's address *after* it is dissolved are a separate, accepted case: a
 deleted DAO rejects Propose, so only a live proper ancestor can recover
 them (clawback-on-deleted); a dissolved **root** has no ancestor, so its
-later deposits are unrecoverable by design (burned). A dissolved-DAO
-render warning is a recommended follow-up.
+later deposits are unrecoverable by design (burned). Render warns on a
+dissolved DAO, and specifically flags the unrecoverable case when no
+live proper ancestor remains.
 
 ### Sweep gas-bomb (known limitation)
 

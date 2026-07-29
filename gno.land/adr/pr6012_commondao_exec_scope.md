@@ -136,7 +136,7 @@ clawback family, which all fail on a mis-wire) and sub-DAO dissolution
 - Realm surface: the `Execute` wrapper computes the operative DAO and
   mints its sub; the three fund-movers rebuild their banker from the
   passed `sub` (their own `cur.Sub` removed) and declare `FundingDAO()`
-  (spend/dissolve → `p.dao`, clawback → `p.target`); the four non-fund
+  (spend/dissolve → `p.dao`, clawback → `p.target`); the non-fund
   executors ignore `sub`.
 - Tests: `z_commondao_execute_0` rewritten for the non-crossing
   executor — the stale `unsafe.PreviousRealm()` cross-identity
@@ -144,6 +144,6 @@ clawback family, which all fail on a mis-wire) and sub-DAO dissolution
   frame for realm identity), replaced with checks that it ran and
   received a usable `sub`; the re-entrancy probe (`z_commondao_execute_3`)
   and the standard `_test.gno` fakes adopt the new signature. Both gno
-  suites (package + realm, 114 filetests) and all five commondao txtars
+  suites (package + realm) and all five commondao txtars
   pass; the txtars exercise the operative-sub path on a real node
   including the host≠operative clawback and dissolution sweeps.

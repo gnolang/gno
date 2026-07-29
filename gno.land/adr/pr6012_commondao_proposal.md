@@ -9,9 +9,9 @@ The proposal system is the package's governance core: `Propose` /
 `ProposalDefinition` interface in `proposal.gno`, and the nine realm
 definition types (text, self/ancestor council-update, sub-DAO, dissolve,
 treasury spend/clawback/freeze, and set-proposal-kind). It was reviewed
-against a frozen invariant set (P1–P20), converged by a three-reviewer plan
-audit that verified every invariant, the type matrix, and the tally math
-directly against source.
+against a frozen invariant set, converged by a three-reviewer audit that
+verified every invariant, the type matrix, and the tally math directly
+against source.
 
 The review found **no MAJOR correctness or security defect**. The tally math
 is already exhaustively pinned by `TestTallyDefaultProperty` (every
@@ -87,7 +87,7 @@ are not re-litigated.
     (counter stays 1). Mutation-verified against a skip-decrement-when-
     unchanged mutant, which the pre-existing different-choice test misses.
 - The exhaustive `TestTallyDefaultProperty` already pinned the D-math (both
-  boundaries and the `D≤0` guard); the four gaps the plan first guessed
-  (in-flight council change, late vote, CapExempt-per-creator,
-  deadline-dismissal) were found already pinned and needed no new tests.
+  boundaries and the `D≤0` guard); four candidate gaps (in-flight council
+  change, late vote, CapExempt-per-creator, deadline-dismissal) were found
+  already pinned and needed no new tests.
 - Package + realm suites and the treasury txtar remain green.

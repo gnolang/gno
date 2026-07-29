@@ -209,21 +209,21 @@ ever materializes; see Alternatives.)
   snapshot, and boundary rules are pinned by a package test suite
   (14-case tally boundary table, snapshot gating both directions,
   early-termination lifecycle, cap + exemption, would-empty-fails-
-  cleanly) and a realm filetest suite (92 at branch HEAD) including
+  cleanly) and a realm filetest suite including
   render goldens that pin both escaping of user-controlled text
   (names, bodies, vote reasons) and correct formatting of the built-in
   proposals' markdown bodies, plus a dissolved-parent sub-DAO
   rejection. The treasury follow-up ADR adds more on the same branch.
 - Breaking API changes throughout (quarantined realm; not deployed to
   any chain — no live state exists).
-- The realm's crossing functions deliberately do **not** open with
-  `cur.IsCurrent()` guards: per `gnovm/adr/interrealm_v2.md`, crossing
-  functions do not require the check because the runtime ensures it is
-  always true — the guard exists for the `(_ int, rlm realm)`
-  *non-crossing* borrowing pattern, which this realm never uses (its
-  one authority relay, `dao.Execute(id, cur)`, passes the realm's own
-  genuine `cur`). AGENTS.md's blanket always-guard rule predates this
-  distinction and should be reconciled with the interrealm ADR.
+- The realm opens every public crossing entry with `assertCurrent(cur)`
+  (a `cur.IsCurrent()` check), per AGENTS.md. (An earlier revision of
+  this ADR argued the guards were unnecessary under interrealm v2; that
+  reasoning was reversed later on the same branch — the guards were
+  added, and the authority relay was rescoped so `Execute` mints a
+  DAO-scoped sub-identity and calls `dao.Execute(proposalID, sub)`
+  rather than passing the realm's own `cur`. See
+  `pr6012_commondao_exec_scope.md`.)
 - The realm's `New` accepts description and members parameters. The
   invite check deliberately uses `unsafe.OriginCaller()` (invitations
   target EOAs) — confirmed intended, pre-existing behavior. `New` takes

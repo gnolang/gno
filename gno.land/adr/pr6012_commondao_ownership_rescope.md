@@ -112,4 +112,5 @@ presents a DAO in its own UI*.
   `z_16_a`/`z_16_b` for `SetListed` (member toggles on/off; non-member
   rejected). The multi-DAO-per-invite tests (`z_4_a`, `z_15_a`) pass unchanged
   under the `creators` re-home. Settings-page goldens shrink from the four-flag
-  Options table to a two-row Info table (Listed, Max active proposals).
+  Options table to a small Info table (Listed, Max active proposals; a
+  Proposal-kinds row was later added by the proposal-kind registry).
