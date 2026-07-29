@@ -62,6 +62,16 @@ func (r ReadonlyCommonDAO) Council() *addrset.ReadonlySet {
 	return r.dao.council.Readonly()
 }
 
+// HasKind checks if a proposal kind is registered on the DAO.
+func (r ReadonlyCommonDAO) HasKind(name string) bool {
+	return r.dao.HasKind(name)
+}
+
+// KindNames returns the names of the registered proposal kinds, sorted.
+func (r ReadonlyCommonDAO) KindNames() []string {
+	return r.dao.KindNames()
+}
+
 // Parent returns a read only view of the parent DAO when there is one.
 func (r ReadonlyCommonDAO) Parent() (_ ReadonlyCommonDAO, found bool) {
 	if r.dao.parent == nil {

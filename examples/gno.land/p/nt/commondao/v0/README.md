@@ -13,6 +13,8 @@ optional sub-DAO tree.
 ```
 CommonDAO
 ├── council:            *addrset.Set — who may vote
+├── kinds:              registered ProposalKind factories — what may be
+│                       proposed (name → New(dao, args))
 ├── active proposals:   active + early passed, each with an electorate
 │                       snapshot and voting record
 ├── finished proposals: dismissed / executed / failed / withdrawn
@@ -26,14 +28,29 @@ CommonDAO
 ```go
 import "gno.land/p/nt/commondao/v0"
 
+// A proposal kind names one proposal type and builds its definitions.
+type textKind struct{}
+
+func (textKind) Name() string { return "text" }
+func (textKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+    text, ok := args.(string) // validate args, build the definition
+    if !ok || text == "" {
+        return nil, errors.New("a proposal text is required")
+    }
+    return textDefinition{text}, nil
+}
+
 var dao = commondao.New(
     commondao.WithName("My DAO"),
     commondao.WithCouncilMember(founder),
+    commondao.WithProposalKind(textKind{}), // a type is proposable iff registered
 )
 
+// Propose looks the kind up in the DAO's registry and calls its New
+// factory with the host DAO and args to build the frozen definition.
 // The council snapshot taken at Propose is the proposal's electorate.
 // (The package does not gate who proposes — hosting realms do.)
-p, _ := dao.Propose(founder, myDefinition)
+p, _ := dao.Propose(founder, "text", "hello world")
 
 // Electorate members vote; default rule proposals can be decided the
 // moment the outcome is settled.
@@ -76,16 +93,27 @@ order), full replacement in one call is legal, and an update that
 would empty a non-empty council returns `ErrEmptyCouncil` — executors
 propagate the error to fail the proposal cleanly.
 
+## Proposal kinds
+
+Proposal types are registered on the DAO, not passed per proposal: a
+`ProposalKind` couples a registry name with a `New(dao, args)` factory,
+and `Propose(creator, kind, args)` accepts exactly the kinds registered
+(`WithProposalKind` at construction; `RegisterKind`/`DeregisterKind`
+afterwards, typically from a governance proposal executor). The registry
+is read only at `Propose`: deregistering a kind blocks new proposals but
+never touches in-flight ones, whose definitions were frozen at creation.
+`HasKind`/`KindNames` expose the registry, also on the readonly view.
+
 ## Proposal lifecycle
 
-`Propose` (capped via `SetMaxActiveProposals`; `CapExempt` definitions
-such as council updates bypass the cap, bounded to one active proposal
-per creator) → `Vote` (electorate-gated, deadline-gated, rejects
-non-active proposals) → `Execute` (early-passed: immediately, still
-validating; active: after the deadline, dismissing undecided
-proposals) or `Withdraw` (active, zero votes). `Dissolve` dismisses
-every in-flight proposal and soft deletes the DAO; deleted DAOs reject
-proposals, votes, and executions.
+`Propose` (kind-gated as above; capped via `SetMaxActiveProposals`;
+`CapExempt` definitions such as council updates bypass the cap, bounded
+to one active proposal per creator) → `Vote` (electorate-gated,
+deadline-gated, rejects non-active proposals) → `Execute`
+(early-passed: immediately, still validating; active: after the
+deadline, dismissing undecided proposals) or `Withdraw` (active, zero
+votes). `Dissolve` dismisses every in-flight proposal and soft deletes
+the DAO; deleted DAOs reject proposals, votes, and executions.
 
 ## Treasury
 

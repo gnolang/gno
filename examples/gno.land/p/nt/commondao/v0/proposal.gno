@@ -118,6 +118,23 @@ type (
 		Threshold() Threshold
 	}
 
+	// ProposalKind defines an interface for proposal kinds: named factories
+	// for proposal definitions, registered per DAO. A kind is both the
+	// registry key (Name) and the factory (New) for one proposal type, and
+	// a DAO accepts proposals of exactly the kinds registered on it
+	// (CommonDAO.RegisterKind).
+	ProposalKind interface {
+		// Name returns the kind name used as registry key, e.g. "treasury-spend".
+		Name() string
+
+		// New validates args and builds the proposal definition. Propose
+		// passes the host DAO itself, so kind authors can never mis-wire
+		// the host; proposal targets and parameters come via args. The
+		// returned definition's instance data is frozen at Propose like
+		// any proposal definition.
+		New(dao *CommonDAO, args any) (ProposalDefinition, error)
+	}
+
 	// CapExempt defines an interface for proposal definitions that are not
 	// counted against the DAO's active proposals cap. Exempt definitions are
 	// instead bounded to one active proposal per creator, so that proposals

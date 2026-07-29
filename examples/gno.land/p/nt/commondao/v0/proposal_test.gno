@@ -19,10 +19,10 @@ type validablePropDef struct {
 func (d validablePropDef) Validate() error { return d.err }
 
 func TestProposalNew(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 
 	t.Run("creator must be valid", func(t *testing.T) {
-		_, err := dao.Propose(address(""), propDef{})
+		_, err := dao.Propose(address(""), "probe", propDef{})
 		uassert.ErrorIs(t, err, commondao.ErrInvalidCreatorAddress)
 	})
 
@@ -41,7 +41,7 @@ func TestProposalNew(t *testing.T) {
 }
 
 func TestProposalValidate(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 
 	t.Run("non validable definitions are always valid", func(t *testing.T) {
 		p := mustPropose(t, dao, memberA, propDef{period: time.Hour})

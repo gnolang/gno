@@ -23,6 +23,32 @@ const (
 	memberI address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 )
 
+// probeKind is a pass-through proposal kind for tests: args is the
+// proposal definition itself.
+type probeKind struct{}
+
+func (probeKind) Name() string { return "probe" }
+func (probeKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+	d, _ := args.(commondao.ProposalDefinition)
+	return d, nil
+}
+
+// namedKind is a probe kind with a configurable name.
+type namedKind string
+
+func (k namedKind) Name() string { return string(k) }
+func (namedKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	return propDef{period: time.Hour}, nil
+}
+
+// failingKind is a probe kind whose factory always fails.
+type failingKind struct{ err error }
+
+func (failingKind) Name() string { return "failing" }
+func (k failingKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	return nil, k.err
+}
+
 // propDef is a base proposal definition decided by the default rules.
 type propDef struct {
 	title  string
@@ -37,10 +63,10 @@ func (propDef) Threshold() commondao.Threshold {
 	return commondao.ThresholdSupermajority
 }
 
-// mustPropose creates a proposal or fails the test.
+// mustPropose creates a proposal through the probe kind or fails the test.
 func mustPropose(t *testing.T, dao *commondao.CommonDAO, creator address, d commondao.ProposalDefinition) *commondao.Proposal {
 	t.Helper()
-	p, err := dao.Propose(creator, d)
+	p, err := dao.Propose(creator, "probe", d)
 	urequire.NoError(t, err, "propose")
 	return p
 }
@@ -97,6 +123,7 @@ func TestNew(t *testing.T) {
 	uassert.Equal(t, 0, dao.Council().Size())
 	uassert.Equal(t, 0, dao.ActiveProposalsSize())
 	uassert.Equal(t, 0, dao.FinishedProposalsSize())
+	uassert.Equal(t, 0, len(dao.KindNames()))
 	uassert.False(t, dao.IsDeleted())
 	urequire.True(t, dao.Parent() == nil, "expect no parent")
 
@@ -118,7 +145,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestUpdateCouncil(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 
 	// Idempotent set semantics
 	urequire.NoError(t, dao.UpdateCouncil([]address{memberB, memberB}, nil))
@@ -160,9 +187,12 @@ func TestUpdateCouncil(t *testing.T) {
 }
 
 func TestPropose(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
 
-	p, err := dao.Propose(memberA, propDef{period: time.Hour})
+	p, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	urequire.NoError(t, err)
 	uassert.Equal(t, uint64(1), p.ID())
 	uassert.Equal(t, 1, dao.ActiveProposalsSize())
@@ -175,37 +205,43 @@ func TestPropose(t *testing.T) {
 	uassert.False(t, p.Electorate().Has(memberB))
 
 	// Definitions are required
-	_, err = dao.Propose(memberA, nil)
+	_, err = dao.Propose(memberA, "probe", nil)
 	uassert.ErrorIs(t, err, commondao.ErrProposalDefinitionRequired)
 
 	// Deleted DAOs reject proposals
-	deleted := commondao.New(commondao.WithCouncilMember(memberA))
+	deleted := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
 	deleted.Dissolve("test")
-	_, err = deleted.Propose(memberA, propDef{})
+	_, err = deleted.Propose(memberA, "probe", propDef{})
 	uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
 }
 
 func TestProposeCap(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
 	dao.SetMaxActiveProposals(2)
 
-	_, err := dao.Propose(memberA, propDef{period: time.Hour})
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	urequire.NoError(t, err)
-	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	urequire.NoError(t, err)
 
 	// The cap rejects further proposals
-	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 
 	// Cap exempt definitions bypass the cap
-	_, err = dao.Propose(memberA, exemptPropDef{defaultPropDef{period: time.Hour}})
+	_, err = dao.Propose(memberA, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
 	urequire.NoError(t, err)
 
 	// But are bounded to one active exempt proposal per creator
-	_, err = dao.Propose(memberA, exemptPropDef{defaultPropDef{period: time.Hour}})
+	_, err = dao.Propose(memberA, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
 	uassert.ErrorIs(t, err, commondao.ErrMaxCapExemptProposals)
-	_, err = dao.Propose(memberB, exemptPropDef{defaultPropDef{period: time.Hour}})
+	_, err = dao.Propose(memberB, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
 	urequire.NoError(t, err)
 }
 
@@ -214,11 +250,12 @@ func TestProposeCapSlotFrees(t *testing.T) {
 		commondao.WithCouncilMember(memberA),
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
 	)
 	dao.SetMaxActiveProposals(1)
 
 	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
-	_, err := dao.Propose(memberA, defaultPropDef{period: time.Hour})
+	_, err := dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
 	urequire.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 
 	// An immediate NO majority dismissal frees the slot
@@ -226,12 +263,15 @@ func TestProposeCapSlotFrees(t *testing.T) {
 	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceNo, ""))
 	urequire.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
 
-	_, err = dao.Propose(memberA, defaultPropDef{period: time.Hour})
+	_, err = dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
 	urequire.NoError(t, err)
 }
 
 func TestDissolve(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
 
 	// An early passed (but unexecuted) proposal is still in-flight
 	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
@@ -252,6 +292,7 @@ func TestVote(t *testing.T) {
 		commondao.WithCouncilMember(memberA),
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
 	)
 	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
 
@@ -298,6 +339,7 @@ func TestVoteEarlyTermination(t *testing.T) {
 			commondao.WithCouncilMember(memberA),
 			commondao.WithCouncilMember(memberB),
 			commondao.WithCouncilMember(memberC),
+			commondao.WithProposalKind(probeKind{}),
 		)
 	}
 
@@ -336,6 +378,7 @@ func TestVoteEarlyTermination(t *testing.T) {
 			commondao.WithCouncilMember(memberC),
 			commondao.WithCouncilMember(memberD),
 			commondao.WithCouncilMember(memberE),
+			commondao.WithProposalKind(probeKind{}),
 		)
 		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
@@ -357,6 +400,7 @@ func TestExpectedOutcome(t *testing.T) {
 		commondao.WithCouncilMember(memberA),
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
 	)
 
 	// Default rule proposals report the live tally
@@ -372,7 +416,7 @@ func TestExpectedOutcome(t *testing.T) {
 func TestExecute(cur realm, t *testing.T) {
 	t.Run("early passed proposals execute before the deadline", func(t *testing.T) {
 		executed := false
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, executed: &executed})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
@@ -386,7 +430,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("active proposals cannot execute before the deadline", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
 		err := dao.Execute(p.ID(), cur)
@@ -394,7 +438,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("undecided default proposals are dismissed at the deadline", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, defaultPropDef{}) // zero voting period
 
 		urequire.NoError(t, dao.Execute(p.ID(), cur))
@@ -407,7 +451,7 @@ func TestExecute(cur realm, t *testing.T) {
 		// definition no longer validates: dismissal is the truthful status
 		// and the executor could never have run.
 		stale := errors.New("stale")
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, validatingExecPropDef{
 			defaultPropDef: defaultPropDef{}, // zero voting period
 			err:            &stale,
@@ -418,7 +462,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("executor errors fail the proposal", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, execErr: errors.New("exec boom")})
 
 		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
@@ -429,7 +473,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("emptying council updates fail the proposal", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
 			fn: func(_ int, sub realm) error {
@@ -446,7 +490,7 @@ func TestExecute(cur realm, t *testing.T) {
 	t.Run("early passed proposals still validate", func(t *testing.T) {
 		executed := false
 		stale := errors.New("stale")
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, validatingExecPropDef{
 			defaultPropDef: defaultPropDef{period: time.Hour, executed: &executed},
 			err:            &stale,
@@ -463,7 +507,7 @@ func TestExecute(cur realm, t *testing.T) {
 
 	t.Run("executors cannot re-enter Execute for the same proposal", func(t *testing.T) {
 		var (
-			dao      = commondao.New(commondao.WithCouncilMember(memberA))
+			dao      = commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 			execs    int
 			innerErr error
 			pid      uint64
@@ -491,6 +535,7 @@ func TestExecute(cur realm, t *testing.T) {
 			commondao.WithCouncilMember(memberA),
 			commondao.WithCouncilMember(memberB),
 			commondao.WithCouncilMember(memberC),
+			commondao.WithProposalKind(probeKind{}),
 		)
 		p1 := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
@@ -525,7 +570,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("deleted DAOs reject execution", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
 		dao.Dissolve("test")
 
@@ -534,7 +579,7 @@ func TestExecute(cur realm, t *testing.T) {
 	})
 
 	t.Run("unknown proposals are rejected", func(t *testing.T) {
-		dao := commondao.New(commondao.WithCouncilMember(memberA))
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 		err := dao.Execute(404, cur)
 		uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
 	})
@@ -545,6 +590,7 @@ func TestWithdraw(t *testing.T) {
 		commondao.WithCouncilMember(memberA),
 		commondao.WithCouncilMember(memberB),
 		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
 	)
 
 	// Proposals without votes can be withdrawn
@@ -581,6 +627,7 @@ func TestReadonlyCommonDAO(t *testing.T) {
 		commondao.WithDescription("test"),
 		commondao.WithParent(parent),
 		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
 	)
 	p := mustPropose(t, dao, memberA, propDef{title: "T", body: "B", period: time.Hour})
 
@@ -687,21 +734,96 @@ func TestAddressAndTreasuryFrozen(t *testing.T) {
 }
 
 func TestSetMaxActiveProposals(t *testing.T) {
-	dao := commondao.New(commondao.WithCouncilMember(memberA))
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 
 	dao.SetMaxActiveProposals(2)
 	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
 	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
-	_, err := dao.Propose(memberA, propDef{period: time.Hour})
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 
 	uassert.Equal(t, 2, dao.MaxActiveProposals())
 
 	// Values below the floor are ignored (the floor is 1, not 0/negative)
 	dao.SetMaxActiveProposals(0)
-	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 	dao.SetMaxActiveProposals(-5)
-	_, err = dao.Propose(memberA, propDef{period: time.Hour})
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
 	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+}
+
+func TestKindRegistry(cur realm, t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA))
+
+	// A fresh DAO has no registered kinds
+	uassert.False(t, dao.HasKind("probe"))
+	uassert.Equal(t, 0, len(dao.KindNames()))
+
+	// Proposing through an unregistered kind is rejected
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// Registered kinds create proposals
+	urequire.NoError(t, dao.RegisterKind(probeKind{}))
+	uassert.True(t, dao.HasKind("probe"))
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+
+	// Nil kinds and empty kind names are rejected
+	err = dao.RegisterKind(nil)
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindRequired)
+	err = dao.RegisterKind(namedKind(""))
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindRequired)
+
+	// Duplicate kind names are rejected
+	err = dao.RegisterKind(probeKind{})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindExists)
+
+	// KindNames is sorted by name
+	urequire.NoError(t, dao.RegisterKind(namedKind("zeta")))
+	urequire.NoError(t, dao.RegisterKind(namedKind("alpha")))
+	names := dao.KindNames()
+	urequire.Equal(t, 3, len(names))
+	uassert.Equal(t, "alpha", names[0])
+	uassert.Equal(t, "probe", names[1])
+	uassert.Equal(t, "zeta", names[2])
+
+	// The readonly view mirrors the registry reads
+	view := dao.Readonly()
+	uassert.True(t, view.HasKind("alpha"))
+	uassert.False(t, view.HasKind("beta"))
+	uassert.Equal(t, 3, len(view.KindNames()))
+
+	// Deregistering an absent kind is rejected
+	err = dao.DeregisterKind("beta")
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// Deregistering blocks new proposals of the kind...
+	urequire.NoError(t, dao.DeregisterKind("probe"))
+	uassert.False(t, dao.HasKind("probe"))
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// ...but never touches in-flight proposals: the frozen definition
+	// still votes and decides (vote-integrity)
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+	// Kind factory errors propagate out of Propose
+	boom := errors.New("bad args")
+	urequire.NoError(t, dao.RegisterKind(failingKind{err: boom}))
+	_, err = dao.Propose(memberA, "failing", nil)
+	uassert.ErrorIs(t, err, boom)
+	uassert.Equal(t, 1, dao.ActiveProposalsSize(), "expect no proposal from a failing factory")
+
+	// Construction options panic on registration errors
+	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindRequired.Error(), func() {
+		commondao.New(commondao.WithProposalKind(nil))
+	})
+	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindExists.Error(), func() {
+		commondao.New(
+			commondao.WithProposalKind(probeKind{}),
+			commondao.WithProposalKind(probeKind{}),
+		)
+	})
 }

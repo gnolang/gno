@@ -8,6 +8,10 @@
 // by the constitution's default voting rules, and an optional sub-DAO
 // tree.
 //
+// Proposal types are registered per DAO: a ProposalKind couples a
+// registry name with a definition factory, and Propose(creator, kind,
+// args) accepts exactly the kinds registered on the DAO.
+//
 // Proposals snapshot the council as their electorate at creation and
 // are decided the moment the outcome is mathematically settled: with
 // integer math over D = |electorate| - abstains, a supermajority

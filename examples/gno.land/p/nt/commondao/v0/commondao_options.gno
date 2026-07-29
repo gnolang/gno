@@ -58,3 +58,14 @@ func WithCouncilMember(addr address) Option {
 		dao.council.Add(addr)
 	}
 }
+
+// WithProposalKind registers a proposal kind on the DAO.
+// It panics when the kind is nil, has an empty name, or its name is
+// already registered.
+func WithProposalKind(k ProposalKind) Option {
+	return func(dao *CommonDAO) {
+		if err := dao.RegisterKind(k); err != nil {
+			panic(err)
+		}
+	}
+}

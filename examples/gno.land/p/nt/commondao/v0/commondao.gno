@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/seqid/v0"
 )
@@ -25,6 +26,9 @@ var (
 	ErrMaxCapExemptProposals = errors.New("creator already has an active cap exempt proposal")
 	ErrNotElectorateMember   = errors.New("account is not a member of the proposal's electorate")
 	ErrOverflow              = errors.New("next ID overflows uint64")
+	ErrProposalKindExists    = errors.New("proposal kind already registered")
+	ErrProposalKindNotFound  = errors.New("proposal kind not found")
+	ErrProposalKindRequired  = errors.New("proposal kind is required")
 	ErrProposalNotFound      = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet  = errors.New("voting deadline not met")
 	ErrVotingDeadlinePassed  = errors.New("voting deadline has passed")
@@ -37,7 +41,8 @@ var (
 //
 // A *CommonDAO is a mutable handle: its exported mutators (UpdateCouncil,
 // Dissolve, Propose, Vote, Execute, Withdraw, SetTreasuryFrozen,
-// SetMaxActiveProposals) are meant for the realm that owns the DAO.
+// SetMaxActiveProposals, RegisterKind, DeregisterKind) are meant for the
+// realm that owns the DAO.
 // Three rules apply at realm boundaries:
 //
 //  1. Do not ACCEPT a *CommonDAO from an external/untrusted caller.
@@ -55,6 +60,7 @@ type CommonDAO struct {
 	children           list.IList
 	council            *addrset.Set
 	genID              seqid.ID
+	kinds              *bptree.BPTree // proposal kind name -> ProposalKind
 	activeProposals    *proposalStorage
 	finishedProposals  *proposalStorage
 	deleted            bool // Soft delete
@@ -67,6 +73,7 @@ func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
 		children:           &list.List{},
 		council:            &addrset.Set{},
+		kinds:              bptree.NewBPTree32(),
 		activeProposals:    newProposalStorage(),
 		finishedProposals:  newProposalStorage(),
 		maxActiveProposals: DefaultMaxActiveProposals,
@@ -233,7 +240,58 @@ func (dao *CommonDAO) SetMaxActiveProposals(max int) {
 	}
 }
 
+// RegisterKind registers a proposal kind by its name.
+//
+// Registered kinds are the only way to create proposals: Propose looks
+// kinds up by name and calls their New factory, so a proposal type is
+// proposable iff its kind is registered. Like SetTreasuryFrozen, this
+// mutator is meant for the realm that owns the DAO (typically called at
+// DAO creation and by governance proposal executors).
+func (dao *CommonDAO) RegisterKind(k ProposalKind) error {
+	if k == nil || k.Name() == "" {
+		return ErrProposalKindRequired
+	}
+	if dao.kinds.Has(k.Name()) {
+		return ErrProposalKindExists
+	}
+	dao.kinds.Set(k.Name(), k)
+	return nil
+}
+
+// DeregisterKind removes a proposal kind by name.
+//
+// Deregistering only blocks new proposals: the registry is read at
+// Propose time only, so in-flight proposals of the kind keep their
+// frozen definition and still vote and execute.
+func (dao *CommonDAO) DeregisterKind(name string) error {
+	if _, removed := dao.kinds.Remove(name); !removed {
+		return ErrProposalKindNotFound
+	}
+	return nil
+}
+
+// HasKind checks if a proposal kind is registered.
+func (dao CommonDAO) HasKind(name string) bool {
+	return dao.kinds.Has(name)
+}
+
+// KindNames returns the names of the registered proposal kinds, sorted.
+func (dao CommonDAO) KindNames() []string {
+	names := make([]string, 0, dao.kinds.Size())
+	dao.kinds.IterateByOffset(0, dao.kinds.Size(), func(name string, _ any) bool {
+		names = append(names, name)
+		return false
+	})
+	return names
+}
+
 // Propose creates a new DAO proposal.
+//
+// Proposals are created through registered proposal kinds: the kind is
+// looked up by name in the DAO's registry and its New factory builds the
+// proposal definition from args. The registry is read only here and the
+// definition is frozen once the proposal is created, so deregistering a
+// kind later never touches in-flight proposals.
 //
 // The proposal's electorate is the council snapshot taken now: members
 // added later vote on the next proposal; members removed later remain in
@@ -243,9 +301,19 @@ func (dao *CommonDAO) SetMaxActiveProposals(max int) {
 // implementing CapExempt (e.g. council updates, which must never be
 // blockable by a full cap) are exempt but bounded to one active proposal
 // per creator.
-func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal, error) {
+func (dao *CommonDAO) Propose(creator address, kind string, args any) (*Proposal, error) {
 	if dao.deleted {
 		return nil, ErrDAOIsDeleted
+	}
+
+	v := dao.kinds.Get(kind)
+	if v == nil {
+		return nil, ErrProposalKindNotFound
+	}
+
+	d, err := v.(ProposalKind).New(dao, args)
+	if err != nil {
+		return nil, err
 	}
 
 	if d == nil {

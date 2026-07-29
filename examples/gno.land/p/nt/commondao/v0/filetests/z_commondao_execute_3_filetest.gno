@@ -40,10 +40,20 @@ func (probePropDef) Executor() commondao.ExecFunc {
 	}
 }
 
+type probePropKind struct{}
+
+func (probePropKind) Name() string { return "probe" }
+func (probePropKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	return probePropDef{}, nil
+}
+
 func init() {
-	dao = commondao.New(commondao.WithCouncilMember(member))
+	dao = commondao.New(
+		commondao.WithCouncilMember(member),
+		commondao.WithProposalKind(probePropKind{}),
+	)
 	var err error
-	proposal, err = dao.Propose(member, probePropDef{})
+	proposal, err = dao.Propose(member, "probe", nil)
 	if err != nil {
 		panic(err)
 	}
