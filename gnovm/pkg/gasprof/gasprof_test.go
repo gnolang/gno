@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -59,10 +61,8 @@ func TestCursor_descendAscendAndFolded(t *testing.T) {
 	s.sync(0) // Run returns
 
 	require.False(t, s.p.Empty())
-	var b bytes.Buffer
-	require.NoError(t, s.p.WriteFolded(&b))
 	// Root has no gas (not emitted). Run flat=3+2=5, Insert flat=8.
-	require.Equal(t, "(root);Run 5\n(root);Run;Insert 8\n", b.String())
+	require.Equal(t, "(root);Run 5\n(root);Run;Insert 8\n", folded(s.p))
 }
 
 func TestCursor_popAscendsOne(t *testing.T) {
@@ -76,9 +76,7 @@ func TestCursor_popAscendsOne(t *testing.T) {
 	s.pop()  // extra pop at root is a no-op (must not underflow)
 	s.cpu(1) // now at root
 
-	var b bytes.Buffer
-	require.NoError(t, s.p.WriteFolded(&b))
-	require.Equal(t, "(root) 1\n(root);Run 2\n(root);Run;f 8\n", b.String())
+	require.Equal(t, "(root) 1\n(root);Run 2\n(root);Run;f 8\n", folded(s.p))
 }
 
 // The O(1) Pop path (used by PopFrame) must produce the exact same tree as the
@@ -121,9 +119,7 @@ func TestCursor_popEqualsSyncDepth(t *testing.T) {
 				}
 			}
 		}
-		var b bytes.Buffer
-		require.NoError(t, p.WriteFolded(&b))
-		return b.String()
+		return folded(p)
 	}
 
 	require.Equal(t, run(true), run(false), "Pop and SyncDepth must yield identical trees")
@@ -150,11 +146,9 @@ func TestCursor_recursionBuildsTower(t *testing.T) {
 	s.cpu(4)
 	s.sync(0) // unwind everything at once (like an abort)
 
-	var b bytes.Buffer
-	require.NoError(t, s.p.WriteFolded(&b))
 	require.Equal(t,
 		"(root);Run;fib 1\n(root);Run;fib;fib 2\n(root);Run;fib;fib;fib 4\n",
-		b.String())
+		folded(s.p))
 }
 
 func TestCursor_reEntryAccumulates(t *testing.T) {
@@ -241,9 +235,7 @@ func TestChargesBeforeAnyFrameGoToRoot(t *testing.T) {
 	s.cpu(9) // charged before entering any call frame
 	s.enter("Run")
 	s.cpu(1)
-	var b bytes.Buffer
-	require.NoError(t, s.p.WriteFolded(&b))
-	require.Equal(t, "(root) 9\n(root);Run 1\n", b.String())
+	require.Equal(t, "(root) 9\n(root);Run 1\n", folded(s.p))
 }
 
 func TestDimensions_bucketedByDescriptor(t *testing.T) {
@@ -553,4 +545,28 @@ func gunzip(t *testing.T, b []byte) []byte {
 	require.NoError(t, err)
 	require.NoError(t, gz.Close())
 	return out
+}
+
+// folded renders the call tree as Brendan-Gregg "folded" stacks
+// ("root;child;leaf gas"), one line per node with non-zero gas, root first.
+// Test-only: it gives these tests a single-string snapshot of the whole tree
+// shape and its values. The value is the node's net gas (gross minus refunds),
+// which is fine here because these fixtures charge and refund on the same node;
+// production output never nets refunds (see NodeStats).
+func folded(p *Profiler) string {
+	var b strings.Builder
+	var path []string
+	var walk func(n *node)
+	walk = func(n *node) {
+		path = append(path, n.name)
+		if g := n.grossTotal() - n.flat[dimRefund]; g != 0 {
+			fmt.Fprintf(&b, "%s %d\n", strings.Join(path, ";"), g)
+		}
+		for _, k := range n.order {
+			walk(n.children[k])
+		}
+		path = path[:len(path)-1]
+	}
+	walk(p.root)
+	return b.String()
 }

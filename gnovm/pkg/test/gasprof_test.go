@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Phase 2: gasProfileStoreMeters routes store I/O and amino gas into the
+// gasProfileStoreMeters routes store I/O and amino gas into the
 // profiler's store dimension when profiling, and returns (nil, nil) otherwise
 // so normal gno test charges no store gas.
 func TestGasProfileStoreMeters(t *testing.T) {

@@ -90,27 +90,25 @@ func TestGasProf_attributionAndConservation(t *testing.T) {
 
 	require.Len(t, res, 1)
 
-	var fb strings.Builder
-	require.NoError(t, prof.WriteFolded(&fb))
-	folded := fb.String()
+	nodes := prof.Nodes()
 
 	// Qualified frame identities the machine must produce.
-	require.Contains(t, folded, "gno.land/r/demo/attr.Run")
-	require.Contains(t, folded, "gno.land/r/demo/attr.triangular")
-	require.Contains(t, folded, "gno.land/r/demo/attr.fib")
-	require.Contains(t, folded, "(*gno.land/r/demo/attr.Tree).Insert") // pointer method
-	require.Contains(t, folded, "gno.land/r/demo/attr.(anonymous)")    // closure
+	require.NotNil(t, prof.Node("gno.land/r/demo/attr.Run"))
+	require.NotNil(t, prof.Node("gno.land/r/demo/attr.triangular"))
+	require.NotNil(t, prof.Node("gno.land/r/demo/attr.fib"))
+	require.NotNil(t, prof.Node("(*gno.land/r/demo/attr.Tree).Insert")) // pointer method
+	require.NotNil(t, prof.Node("gno.land/r/demo/attr.(anonymous)"))    // closure
 	// Full call chain Run -> Insert -> triangular attributed correctly.
-	require.Contains(t, folded,
-		"gno.land/r/demo/attr.Run;(*gno.land/r/demo/attr.Tree).Insert;gno.land/r/demo/attr.triangular")
-	// Recursion shows as repeated fib frames within a single stack.
-	require.Regexp(t, `attr\.fib;gno\.land/r/demo/attr\.fib`, folded)
+	requireEdge(t, nodes, "gno.land/r/demo/attr.Run", "(*gno.land/r/demo/attr.Tree).Insert")
+	requireEdge(t, nodes, "(*gno.land/r/demo/attr.Tree).Insert", "gno.land/r/demo/attr.triangular")
+	// Recursion nests a fib frame directly under another fib frame.
+	requireEdge(t, nodes, "gno.land/r/demo/attr.fib", "gno.land/r/demo/attr.fib")
 
-	// Both dimensions captured in Phase 1; store is not wired on this surface.
+	// cpu and alloc are captured here; the test surface charges no store gas.
 	tot := prof.Totals()
 	require.Positive(t, tot.CPU, "cpu gas captured")
 	require.Positive(t, tot.Alloc, "alloc gas captured")
-	require.Zero(t, tot.Store, "store gas is not charged on the test surface (Phase 2)")
+	require.Zero(t, tot.Store, "store gas is not charged on the test surface")
 
 	// Reconciliation invariant: the profile's dimensions sum exactly to the gas
 	// the meter recorded for this call. Nothing dropped, nothing double-counted.
@@ -164,16 +162,14 @@ func TestGasProf_deferAndRecoveredPanic(t *testing.T) {
 	gc1 := m.GasMeter.GasConsumed()
 	require.Len(t, res, 1)
 
-	var fb strings.Builder
-	require.NoError(t, prof.WriteFolded(&fb))
-	folded := fb.String()
+	nodes := prof.Nodes()
 
 	// leaf's pre-panic charge landed on leaf, under guarded.
-	require.Contains(t, folded, "deferp.guarded;gno.land/r/demo/deferp.leaf")
+	requireEdge(t, nodes, "gno.land/r/demo/deferp.guarded", "gno.land/r/demo/deferp.leaf")
 	// The deferred closure ran and charged gas under guarded (not stranded on leaf).
-	require.Contains(t, folded, "deferp.guarded;gno.land/r/demo/deferp.(anonymous)")
+	requireEdge(t, nodes, "gno.land/r/demo/deferp.guarded", "gno.land/r/demo/deferp.(anonymous)")
 	// cleanup, called from the deferred closure, is attributed to it.
-	require.Contains(t, folded, "deferp.(anonymous);gno.land/r/demo/deferp.cleanup")
+	requireEdge(t, nodes, "gno.land/r/demo/deferp.(anonymous)", "gno.land/r/demo/deferp.cleanup")
 	// Cursor survived the unwind: the profile still reconciles.
 	require.Equal(t, gc1-gc0, netGas(prof.Totals()))
 }
@@ -312,4 +308,41 @@ func TestGasProf_disableRestoresMeters(t *testing.T) {
 	require.Equal(t, origAllocMeter, m.Alloc.GetGasMeter(), "alloc meter restored exactly")
 	_, stillWrapped := m.GasMeter.(interface{ Unwrap() stypes.GasMeter })
 	require.False(t, stillWrapped, "wrapper removed")
+}
+
+// requireEdge asserts the call tree holds a direct parent -> child edge.
+// Stricter than substring-matching a rendered tree: it pins the actual
+// parent/child relationship rather than two names appearing near each other.
+func requireEdge(t *testing.T, nodes []gasprof.NodeStats, parent, child string) {
+	t.Helper()
+	for _, n := range nodes {
+		if n.Func == child && n.Parent == parent {
+			return
+		}
+	}
+	t.Fatalf("no call-tree edge %q -> %q", parent, child)
+}
+
+// Attaching a profiler to an already-profiled machine must not wrap the meter a
+// second time: a double wrap records every charge twice, so the profile would
+// no longer reconcile with the meter. Sharing one profiler across machines is
+// unaffected — that is one attach per machine.
+func TestGasProf_attachIsIdempotent(t *testing.T) {
+	const pkgPath = "gno.land/r/demo/attr"
+	m := newGasProfMachine(t, pkgPath, gasProfAttrSrc)
+	defer m.Release()
+
+	prof := m.EnableGasProfiler()
+	require.NotNil(t, prof)
+	gc0 := m.GasMeter.GasConsumed()
+
+	m.AttachGasProfiler(prof) // second attach: must be a no-op
+	m.AttachGasProfiler(gasprof.New())
+
+	res := m.Eval(Call(X("Run")))
+	require.Len(t, res, 1)
+	m.DisableGasProfiler()
+
+	require.Equal(t, m.GasMeter.GasConsumed()-gc0, netGas(prof.Totals()),
+		"gas recorded once, not once per attach")
 }

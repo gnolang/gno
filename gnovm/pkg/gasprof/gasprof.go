@@ -23,7 +23,6 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"io"
-	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -237,48 +236,61 @@ func (m *meter) IsOutOfGas() bool              { return m.inner.IsOutOfGas() }
 // Output
 // ---------------------------------------------------------------------------
 
-// WriteFolded writes Brendan-Gregg "folded" stacks ("root;child;leaf gas"),
-// one per node with non-zero gas, root-first. The value is the node's flat
-// total gas (cpu+alloc+store+other, minus refunds). Input format for
-// flame-graph tools.
-func (p *Profiler) WriteFolded(w io.Writer) error {
-	var path []string
-	var walk func(n *node) error
-	walk = func(n *node) error {
-		path = append(path, n.name)
-		if g := n.flatTotal(); g != 0 {
-			var line []byte
-			for i, name := range path {
-				if i > 0 {
-					line = append(line, ';')
-				}
-				line = append(line, name...)
-			}
-			line = append(line, ' ')
-			line = strconv.AppendInt(line, g, 10)
-			line = append(line, '\n')
-			if _, err := w.Write(line); err != nil {
-				return err
-			}
-		}
+// NodeStats reports one call-tree node: where it sits and the gas charged
+// directly to it (flat, not including callees), split by dimension. Refund is
+// reported positively and is never netted into the others: a refund is booked
+// to whichever node was executing when it was applied, which may not be the
+// node originally charged, so a per-node "gross minus refund" can be negative
+// and is not a meaningful quantity.
+type NodeStats struct {
+	Func   string
+	File   string
+	Line   int
+	Depth  int    // 0 for the root node
+	Parent string // empty for the root node
+
+	CPU, Alloc, Store, Other, Refund int64
+}
+
+// Gross is the billable gas charged directly to this node, before refunds.
+func (n NodeStats) Gross() int64 { return n.CPU + n.Alloc + n.Store + n.Other }
+
+// Nodes returns every call-tree node, root first, parents before children, in
+// the order frames were first entered.
+func (p *Profiler) Nodes() []NodeStats {
+	var out []NodeStats
+	var walk func(n *node, depth int, parent string)
+	walk = func(n *node, depth int, parent string) {
+		out = append(out, NodeStats{
+			Func: n.name, File: n.file, Line: n.line,
+			Depth: depth, Parent: parent,
+			CPU: n.flat[dimCPU], Alloc: n.flat[dimAlloc], Store: n.flat[dimStore],
+			Other: n.flat[dimOther], Refund: n.flat[dimRefund],
+		})
 		for _, k := range n.order {
-			if err := walk(n.children[k]); err != nil {
-				return err
-			}
+			walk(n.children[k], depth+1, n.name)
 		}
-		path = path[:len(path)-1]
-		return nil
 	}
-	return walk(p.root)
+	walk(p.root, 0, "")
+	return out
+}
+
+// Node returns the first node with the given function name, or nil when the
+// tree holds no such frame. A recursive function appears once per stack depth;
+// this returns the shallowest occurrence.
+func (p *Profiler) Node(name string) *NodeStats {
+	for _, n := range p.Nodes() {
+		if n.Func == name {
+			return &n
+		}
+	}
+	return nil
 }
 
 // grossTotal is the billable gas before refunds (cpu+alloc+store+other).
 func (n *node) grossTotal() int64 {
 	return n.flat[dimCPU] + n.flat[dimAlloc] + n.flat[dimStore] + n.flat[dimOther]
 }
-
-// flatTotal is the net gas (gross minus refunds).
-func (n *node) flatTotal() int64 { return n.grossTotal() - n.flat[dimRefund] }
 
 // WritePprof writes a gzip-compressed pprof profile with one value index per
 // dimension: [cpu, alloc, store, other, refund, total].

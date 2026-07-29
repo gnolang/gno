@@ -1450,8 +1450,8 @@ func (m *Machine) incrCPU(cycles int64) {
 // EnableGasProfiler turns on source-level gas profiling with a fresh profiler:
 // it installs a GasMeter decorator that attributes every charge (CPU, alloc,
 // and — once a surface charges it — store gas) to the current gno call frame,
-// and enables the frame-lifecycle cursor. Requires a GasMeter (Phase 1 target:
-// gno test). Returns nil if no meter is installed, else the new profiler.
+// and enables the frame-lifecycle cursor. Requires a GasMeter; returns nil if
+// no meter is installed, else the new profiler.
 // See gnovm/adr/pr5967_gas_profiler.md.
 func (m *Machine) EnableGasProfiler() *gasprof.Profiler {
 	if m.GasMeter == nil {
@@ -1481,6 +1481,14 @@ func (m *Machine) SetGasProfilerCursor(p *gasprof.Profiler) {
 // cursor resets to root for this machine's execution. No-op without a meter.
 func (m *Machine) AttachGasProfiler(p *gasprof.Profiler) {
 	if m.GasMeter == nil {
+		return
+	}
+	// Wrapping the meter twice would record every charge twice, so attaching
+	// to an already-profiled machine is a no-op. This also covers
+	// SetGasProfilerCursor followed by AttachGasProfiler: on the on-chain path
+	// the meter is already wrapped upstream. Sharing one profiler across
+	// several machines is unaffected — that is one attach per machine.
+	if m.gasProfiler != nil {
 		return
 	}
 	p.Reset() // fresh cursor for this machine's execution context

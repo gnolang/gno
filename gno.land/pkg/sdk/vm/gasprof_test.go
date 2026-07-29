@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Phase 3a: profiling a real on-chain tx through the keeper. Unlike the gno
-// test surface (Phase 2), the on-chain path shares one meter across every
-// dimension, so wrapping it once at MakeGnoTransactionStore captures cpu, alloc,
-// AND store gas — and the profile reconciles exactly with the tx meter.
+// Profiling a real on-chain tx through the keeper. Unlike the gno test
+// surface, the on-chain path shares one meter across every dimension, so
+// wrapping it once at MakeGnoTransactionStore captures cpu, alloc, AND store
+// gas, and the profile reconciles exactly with the tx meter.
 func TestVMKeeperGasProfile(t *testing.T) {
 	env := setupTestEnv()
 
@@ -53,7 +53,7 @@ func Append(cur realm, n int) int {
 	tot := prof.Totals()
 	require.Positive(t, tot.CPU, "cpu gas captured")
 	require.Positive(t, tot.Alloc, "alloc gas captured")
-	require.Positive(t, tot.Store, "store gas captured on-chain (the Phase 3 win)")
+	require.Positive(t, tot.Store, "store gas captured on-chain")
 	require.Equal(t, int64(12_345), tot.Other, "(ante) snapshot booked into the tree")
 
 	// Reconciliation: the whole tree (ante + all dimensions minus refunds)
@@ -62,13 +62,16 @@ func Append(cur realm, n int) int {
 	require.Equal(t, ctx.GasMeter().GasConsumed(), net,
 		"profile reconciles with the tx meter")
 
-	// Attribution: the called function is a nested node (leading ';' proves it
-	// has a parent, trailing ' ' that it's a folded value line), and the (ante)
-	// snapshot node is present.
-	var fb strings.Builder
-	require.NoError(t, prof.WriteFolded(&fb))
-	require.Contains(t, fb.String(), ";gno.land/r/test.Append ")
-	require.Contains(t, fb.String(), "(root);(ante) ")
+	// Attribution: the called function is a nested node with gas of its own,
+	// and the (ante) snapshot sits directly under the root.
+	appended := prof.Node("gno.land/r/test.Append")
+	require.NotNil(t, appended, "called function present in the tree")
+	require.Positive(t, appended.Depth, "attributed under a caller, not the root")
+	require.Positive(t, appended.Gross(), "charged gas of its own")
+
+	ante := prof.Node("(ante)")
+	require.NotNil(t, ante, "(ante) snapshot node present")
+	require.Equal(t, "(root)", ante.Parent, "(ante) booked directly under the root")
 }
 
 // Without WithGasProfile, MakeGnoTransactionStore installs no wrapper, so tx
@@ -155,7 +158,16 @@ func main() {
 	net := tot.CPU + tot.Alloc + tot.Store + tot.Other - tot.Refund
 	require.Equal(t, ctx.GasMeter().GasConsumed(), net, "Run profile reconciles with the tx meter")
 
-	var fb strings.Builder
-	require.NoError(t, prof.WriteFolded(&fb))
-	require.Contains(t, fb.String(), ".main ", "main() attributed with gas")
+	// MsgRun executes in an ephemeral realm whose path embeds the caller's
+	// address, so match the frame by suffix rather than hardcoding it.
+	var mainGross int64
+	var found bool
+	for _, n := range prof.Nodes() {
+		if strings.HasSuffix(n.Func, "/run.main") {
+			mainGross, found = n.Gross(), true
+			break
+		}
+	}
+	require.True(t, found, "run.main present in the tree")
+	require.Positive(t, mainGross, "main() attributed with gas")
 }

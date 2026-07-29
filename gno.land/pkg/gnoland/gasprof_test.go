@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Phase 3b: the dev-only .app/profiletx ABCI query runs a tx through Simulate
+// The dev-only .app/profiletx ABCI query runs a tx through Simulate
 // with gas profiling and returns a pprof profile of its gas usage.
 func TestApp_gasProfileQuery(t *testing.T) {
 	t.Parallel()
