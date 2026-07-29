@@ -20,9 +20,13 @@ package commondao
 // (e.g. casting a council vote) rides those paths.
 //
 // A rejected nested Execute panics. Thrown across the cross() boundary the
-// re-entrant call arrived through, that aborts the whole transaction. On every
-// normal return the deferred leaveExecute clears the flag; a panic aborts and
-// rolls back the realm, so the flag can never leak across transactions.
+// re-entrant call arrived through, that aborts the whole transaction.
+//
+// The deferred leaveExecute lowers the flag on normal returns (and on any
+// same-transaction recovered panic). Cross-transaction safety does NOT rely on
+// that defer — a rejected re-entry aborts the transaction, and the aborted
+// transaction's realm writes (including this flag) are never committed, so a
+// later transaction can never observe it stuck true.
 var executing bool
 
 // enterExecute raises the re-entrancy latch, panicking if it is already raised

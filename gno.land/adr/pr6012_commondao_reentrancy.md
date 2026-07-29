@@ -50,7 +50,12 @@ re-entrant call arrived through — aborts the whole transaction.
   non-re-entrancy; any realm embedding `/p/nt/commondao` and running re-entrant
   executors must guard its own `Execute` gateway, as this realm does. The
   realm's public `Execute` is the sole caller of `dao.Execute`, so one guard
-  there is complete for this realm.
+  there is complete for this realm. **Note for the future execution kind:** the
+  package `CommonDAO.Execute` is exported and unguarded, and `CommonDAO.Parent()`
+  returns a live `*CommonDAO`, so the realm-side latch covers re-entry only via
+  the public gateway. The arbitrary-execution kind must ensure its closures
+  cannot obtain a `*CommonDAO` handle and call the package `Execute` directly —
+  that path would bypass this latch.
 - **Global (one bool), not per-DAO.** `Execute` is latched; `Vote`, `Create*`,
   `Withdraw`, `Resign` are not — no executor re-enters them, legitimate
   executors need them (sub-DAO creation, the dissolution sweep), and a proposal
@@ -87,11 +92,20 @@ re-entrant call arrived through — aborts the whole transaction.
   `assertCurrent`. New file `reentrancy.gno` holds the latch and helpers.
 - No existing flow changes: no current executor nests `Execute`, so all package
   and realm filetests and all five commondao txtars stay green. The flag is
-  raised/lowered within a single `Execute`; it cannot leak across transactions
-  (defer clears it on normal returns; a panic aborts and rolls back the realm).
+  raised/lowered within a single `Execute`; it cannot leak across transactions.
+  On a normal return the defer lowers it; on a rejected re-entry the panic
+  aborts the transaction and the aborted tx's realm writes (including the flag)
+  are never committed — cross-tx safety rests on that commit-gate rollback, not
+  on the defer.
 - A unit test (`reentrancy_test.gno`) pins the mechanism directly: a nested
   `enterExecute` panics, `leaveExecute` clears the latch. Mutation-verified:
-  removing the guard fails exactly that test. End-to-end re-entry through a real
-  closure ships with the arbitrary-execution kind.
+  removing the guard fails exactly that test. The full end-to-end chain (a
+  re-entrant closure → `Execute(cross(sub), …)` → the latch panic → an
+  unrecoverable, whole-tx abort) was confirmed in post-review with a throwaway
+  probe kind. It is not landed as a green regression test yet because the latch
+  panic is unrecoverable (so a `_test.gno` cannot assert it green) and filetests
+  cannot register a custom kind; the green end-to-end pin lands with the
+  arbitrary-execution kind, which exposes a public `Create*` a filetest
+  `// Error:` can drive.
 - "One executor per transaction" is now a structural, local, machine-checked
   invariant rather than an emergent property.
