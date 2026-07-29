@@ -255,18 +255,15 @@ type NodeStats struct {
 // Gross is the billable gas charged directly to this node, before refunds.
 func (n NodeStats) Gross() int64 { return n.CPU + n.Alloc + n.Store + n.Other }
 
-// Nodes returns every call-tree node, root first, parents before children, in
-// the order frames were first entered.
+// Nodes returns every call-tree node in pre-order (each parent before its
+// children), with a node's children in the order their frames were first
+// entered. Pre-order plus Depth reconstructs the tree; Parent is a convenience
+// and is ambiguous when the same name appears in several places.
 func (p *Profiler) Nodes() []NodeStats {
 	var out []NodeStats
 	var walk func(n *node, depth int, parent string)
 	walk = func(n *node, depth int, parent string) {
-		out = append(out, NodeStats{
-			Func: n.name, File: n.file, Line: n.line,
-			Depth: depth, Parent: parent,
-			CPU: n.flat[dimCPU], Alloc: n.flat[dimAlloc], Store: n.flat[dimStore],
-			Other: n.flat[dimOther], Refund: n.flat[dimRefund],
-		})
+		out = append(out, n.stats(depth, parent))
 		for _, k := range n.order {
 			walk(n.children[k], depth+1, n.name)
 		}
@@ -275,13 +272,38 @@ func (p *Profiler) Nodes() []NodeStats {
 	return out
 }
 
-// Node returns the first node with the given function name, or nil when the
-// tree holds no such frame. A recursive function appears once per stack depth;
-// this returns the shallowest occurrence.
+func (n *node) stats(depth int, parent string) NodeStats {
+	return NodeStats{
+		Func: n.name, File: n.file, Line: n.line,
+		Depth: depth, Parent: parent,
+		CPU: n.flat[dimCPU], Alloc: n.flat[dimAlloc], Store: n.flat[dimStore],
+		Other: n.flat[dimOther], Refund: n.flat[dimRefund],
+	}
+}
+
+// Node returns the shallowest node with the given function name, or nil when
+// the tree holds no such frame. When a name appears at several depths — a
+// recursive function, or a helper reached from more than one caller — the
+// outermost occurrence wins. The result is a detached snapshot: mutating it
+// does not affect the profile.
 func (p *Profiler) Node(name string) *NodeStats {
-	for _, n := range p.Nodes() {
-		if n.Func == name {
-			return &n
+	// Breadth-first, so the shallowest match wins and a hit near the root does
+	// not walk (or allocate) the whole tree.
+	type item struct {
+		n      *node
+		depth  int
+		parent string
+	}
+	queue := []item{{p.root, 0, ""}}
+	for len(queue) > 0 {
+		it := queue[0]
+		queue = queue[1:]
+		if it.n.name == name {
+			s := it.n.stats(it.depth, it.parent)
+			return &s
+		}
+		for _, k := range it.n.order {
+			queue = append(queue, item{it.n.children[k], it.depth + 1, it.n.name})
 		}
 	}
 	return nil

@@ -570,3 +570,25 @@ func folded(p *Profiler) string {
 	walk(p.root)
 	return b.String()
 }
+
+// Node documents that it returns the SHALLOWEST match. A pre-order walk would
+// hand back a deeper occurrence when an earlier branch nests the same name, so
+// the lookup is breadth-first.
+func TestNodeReturnsShallowestMatch(t *testing.T) {
+	s := newSim()
+	s.enter("A")
+	s.enter("X") // depth 2, entered first
+	s.cpu(100)
+	s.pop()
+	s.pop()
+	s.enter("X") // depth 1, entered second
+	s.cpu(7)
+
+	n := s.p.Node("X")
+	require.NotNil(t, n)
+	require.Equal(t, 1, n.Depth, "shallowest occurrence wins")
+	require.Equal(t, "(root)", n.Parent)
+	require.Equal(t, int64(7), n.CPU)
+
+	require.Nil(t, s.p.Node("nope"))
+}

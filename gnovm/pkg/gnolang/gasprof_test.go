@@ -317,6 +317,11 @@ func requireEdge(t *testing.T, nodes []gasprof.NodeStats, parent, child string) 
 	t.Helper()
 	for _, n := range nodes {
 		if n.Func == child && n.Parent == parent {
+			// The folded-string assertions this replaced only rendered nodes
+			// with non-zero gas, so keep that requirement: without it, booking
+			// every charge to the root still leaves the tree shape intact and
+			// the edge assertions green.
+			require.Positive(t, n.Gross(), "edge %q -> %q carries no gas", parent, child)
 			return
 		}
 	}

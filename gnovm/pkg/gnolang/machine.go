@@ -57,6 +57,9 @@ type Machine struct {
 	// nil check is the only cost when profiling is disabled.
 	// See gnovm/adr/pr5967_gas_profiler.md.
 	gasProfiler *gasprof.Profiler
+	// gasMeterWrapped records that AttachGasProfiler wrapped this machine's
+	// meter, so DisableGasProfiler only unwinds what it installed.
+	gasMeterWrapped bool
 	// savedAllocMeter holds m.Alloc's meter before profiling wrapped it, so
 	// DisableGasProfiler can restore it exactly.
 	savedAllocMeter store.GasMeter
@@ -1450,16 +1453,16 @@ func (m *Machine) incrCPU(cycles int64) {
 // EnableGasProfiler turns on source-level gas profiling with a fresh profiler:
 // it installs a GasMeter decorator that attributes every charge (CPU, alloc,
 // and — once a surface charges it — store gas) to the current gno call frame,
-// and enables the frame-lifecycle cursor. Requires a GasMeter; returns nil if
-// no meter is installed, else the new profiler.
+// and enables the frame-lifecycle cursor. Requires a GasMeter, and declines on a
+// machine whose meter is already profiled. Returns the profiler actually driving
+// this machine, or nil when none was installed.
 // See gnovm/adr/pr5967_gas_profiler.md.
 func (m *Machine) EnableGasProfiler() *gasprof.Profiler {
 	if m.GasMeter == nil {
 		return nil
 	}
-	p := gasprof.New()
-	m.AttachGasProfiler(p)
-	return p
+	m.AttachGasProfiler(gasprof.New())
+	return m.gasProfiler
 }
 
 // SetGasProfilerCursor enables cursor tracking with a profiler whose meter
@@ -1469,7 +1472,11 @@ func (m *Machine) EnableGasProfiler() *gasprof.Profiler {
 // it does not touch the meter — it only drives the call-tree cursor. The cursor
 // resets to root so this machine's frames form a clean subtree.
 func (m *Machine) SetGasProfilerCursor(p *gasprof.Profiler) {
-	if p == nil {
+	// Declining on an already-profiled machine keeps the meter and the cursor
+	// pointed at the same profiler: pointing them at different ones records
+	// gas into one while frame events drive the other, which silently strands
+	// every charge on that profiler's root.
+	if p == nil || m.gasProfiler != nil {
 		return
 	}
 	p.Reset()
@@ -1483,18 +1490,21 @@ func (m *Machine) AttachGasProfiler(p *gasprof.Profiler) {
 	if m.GasMeter == nil {
 		return
 	}
-	// Wrapping the meter twice would record every charge twice, so attaching
-	// to an already-profiled machine is a no-op. This also covers
-	// SetGasProfilerCursor followed by AttachGasProfiler: on the on-chain path
-	// the meter is already wrapped upstream. Sharing one profiler across
-	// several machines is unaffected — that is one attach per machine.
-	if m.gasProfiler != nil {
+	// Decline when this meter is already a profiling wrapper: wrapping a wrapper
+	// records every charge twice. Checking the meter rather than m.gasProfiler
+	// also covers a sub-machine that inherited an already-wrapped meter from a
+	// profiled tx (NewMachine picks up the preprocess allocator's meter), where
+	// m.gasProfiler is nil yet the meter is wrapped. Sharing one profiler across
+	// several machines is unaffected: that is one attach per machine, each with
+	// its own meter.
+	if _, wrapped := m.GasMeter.(interface{ Unwrap() store.GasMeter }); wrapped {
 		return
 	}
 	p.Reset() // fresh cursor for this machine's execution context
 	m.gasProfiler = p
 	w := gasprof.WrapMeter(m.GasMeter, p)
 	m.GasMeter = w
+	m.gasMeterWrapped = true
 	if m.Alloc != nil {
 		// Route allocation gas through the wrapper too. The allocator holds its
 		// own meter reference (which may be nil, e.g. the gno-test allocator);
@@ -1513,6 +1523,14 @@ func (m *Machine) DisableGasProfiler() {
 		return
 	}
 	m.gasProfiler = nil
+	// Only unwind what this machine installed. A cursor-only machine (the
+	// on-chain path) shares a meter wrapped upstream: unwrapping it here would
+	// drop the rest of the tx from the profile, and restoring a nil
+	// savedAllocMeter would stop alloc gas being charged altogether.
+	if !m.gasMeterWrapped {
+		return
+	}
+	m.gasMeterWrapped = false
 	if w, ok := m.GasMeter.(interface{ Unwrap() store.GasMeter }); ok {
 		m.GasMeter = w.Unwrap()
 		if m.Alloc != nil {
