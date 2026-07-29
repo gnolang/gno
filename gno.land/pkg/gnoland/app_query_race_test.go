@@ -167,7 +167,7 @@ func TestQueryRace_FastIndexParity(t *testing.T) {
 			return nil, err
 		}
 		if res.IsErr() || len(res.Data) == 0 || string(res.Data) == "null" {
-			return nil, fmt.Errorf("account query failed: %v %q", res.Error, res.Log)
+			return nil, fmt.Errorf("account query failed: %w (log: %q)", res.Error, res.Log)
 		}
 		var acct GnoAccount
 		if err := amino.UnmarshalJSON(res.Data, &acct); err != nil {
