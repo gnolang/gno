@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_get_board_01_filetest
+
+package z_get_board_01_filetest
 
 import (
 	"testing"
@@ -12,16 +14,16 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/test"))
 
 	// Calling as a non Boards2 sub realm should fail
-	boards2.GetBoard(bid)
+	boards2.GetBoard(cross(cur), bid)
 }
 
 // Error:

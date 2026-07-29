@@ -6,9 +6,9 @@ loadpkg gno.land/p/nt/ufmt/v0
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 360001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 620001ugnot -gas-wanted 8_500_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 700001ugnot -gas-wanted 9_500_000 -chainid=tendermint_test test1
 
 ## validate initial state
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
@@ -17,47 +17,56 @@ gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 0'
 
 ## execute NonCrossingMutation
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-stderr 'cannot modify external-realm or non-realm object'
-gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 0, value = 0'
-
-## execute CrossingMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## interrealm v2: borrow rule #1 borrows m.Realm = /r/borrowrealm for the duration
+## of borrowrealm.Mutate(); the write `value++` is now a same-realm
+## mutation and succeeds. (Pre-interrealm-v2: panicked on readonly taint.)
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 1'
 
-## execute NonCrossingObjectMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## execute CrossingMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 1, value = 1'
+stdout 'Object\.value = 0, value = 2'
+
+## execute NonCrossingObjectMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test2
+gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
+stdout 'Object\.value = 1, value = 2'
 
 ## execute ObjectMutationRootedAtCaller
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 390001ugnot -gas-wanted 3_900_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 1'
 
 ## execute CallMutateObject
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 310001ugnot -gas-wanted 3_100_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 2, value = 1'
+stdout 'Object\.value = 2, value = 2'
 
 ## execute InspectRealmsCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 290001ugnot -gas-wanted 2_900_000 -chainid=tendermint_test test2
 
 ## execute InspectRealmsNonCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 290001ugnot -gas-wanted 2_900_000 -chainid=tendermint_test test2
 
 ## execute MutateObjectWithBorrowCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 310001ugnot -gas-wanted 3_100_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 3, value = 1'
+stdout 'Object\.value = 3, value = 2'
 
 ## execute MutateCrossingObjectRootedAtCaller
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-stderr 'cannot directly modify readonly tainted object'
+## interrealm v2: callerrealm.obj was created by `borrowrealm.NewObject()` in
+## callerrealm's init. borrow rule #1 during NewObject made m.Realm =
+## /r/borrowrealm, so the composite literal &ObjectImplem{} was stamped
+## with PkgID = /r/borrowrealm. Cross-call to MutateCrossingObject-
+## RootedAtCaller shifts m.Realm to /r/borrowrealm, matching the
+## object's PkgID — write succeeds. (Pre-interrealm-v2: the object's storage-
+## owner was deduced as callerrealm from the package var rooting it,
+## so the cross-call's m.Realm = borrowrealm didn't match, panicked.)
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
-stdout 'obj\.value = 1'
+stdout 'obj\.value = 2'
 
 -- callerrealm/gnomod.toml --
 module = "gno.land/r/test/callerrealm"
@@ -82,7 +91,7 @@ func NonCrossingMutation(cur realm) {
 }
 
 func CrossingMutation(cur realm) {
- 	borrowrealm.MutateCrossing(cross)
+ 	borrowrealm.MutateCrossing(cross(cur))
 }
 
 func NonCrossingObjectMutation(cur realm) {
@@ -98,7 +107,7 @@ func CallMutateObject(cur realm) {
 }
 
 func InspectRealmsCrossing(cur realm) {
- 	borrowrealm.InspectRealmsCrossing(cross)
+ 	borrowrealm.InspectRealmsCrossing(cross(cur))
 }
 
 func InspectRealmsNonCrossing(cur realm) {
@@ -106,15 +115,15 @@ func InspectRealmsNonCrossing(cur realm) {
 }
 
 func MutateObjectWithBorrowCrossing(cur realm) {
- 	borrowrealm.MutateObjectWithBorrowCrossing(cross)
+ 	borrowrealm.MutateObjectWithBorrowCrossing(cross(cur))
 }
 
 func MutateCrossingObject(cur realm) {
- 	borrowrealm.Object.MutateCrossing(cross)
+ 	borrowrealm.Object.MutateCrossing(cross(cur))
 }
 
 func MutateCrossingObjectRootedAtCaller(cur realm) {
- 	obj.MutateCrossingObjectRootedAtCaller(cross)
+ 	obj.MutateCrossingObjectRootedAtCaller(cross(cur))
 }
 
 func Render(_ string) string {
@@ -217,10 +226,10 @@ gno = "0.9"
 -- utils/utils.gno --
 package utils
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func AssertCurrentRealmPkgPath(expected string) {
-	currentRealm := runtime.CurrentRealm().PkgPath()
+	currentRealm := unsafe.CurrentRealm().PkgPath()
 	if currentRealm != expected {
 		if expected == "" {
 			expected = "empty"
@@ -230,7 +239,7 @@ func AssertCurrentRealmPkgPath(expected string) {
 }
 
 func AssertPreviousRealmPkgPath(expected string) {
-	previousRealm := runtime.PreviousRealm().PkgPath()
+	previousRealm := unsafe.PreviousRealm().PkgPath()
 	if previousRealm != expected {
 		if expected == "" {
 			expected = "empty"

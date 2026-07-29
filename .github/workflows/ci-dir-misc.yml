@@ -32,5 +32,3 @@ jobs:
     with:
       modulepath: misc/${{ matrix.program }}
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}

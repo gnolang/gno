@@ -125,7 +125,7 @@ type Transform func(ns []Node, ftype TransField, index int, n Node, stage TransS
 // returns the transcribe code returned for n.
 // returns new node nn to replace n.
 func Transcribe(n Node, t Transform) (nn Node) {
-	if reflect.TypeOf(n).Kind() != reflect.Ptr {
+	if reflect.TypeOf(n).Kind() != reflect.Pointer {
 		panic("Transcribe() expects a non-pointer concrete Node struct")
 	}
 	ns := make([]Node, 0, 32)

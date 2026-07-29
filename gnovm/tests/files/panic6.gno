@@ -11,18 +11,18 @@ func main() {
 	// The expression is: *(*doublePtr)
 	// The VM/Runtime must evaluate the INNER (*doublePtr) first
 	// to get the address for the OUTER (*).
-	
+
 	// CRASH OCCURS HERE inside the first dereference.
-	val := **doublePtr 
+	val := **doublePtr
 
 	// This line is never reached
 	fmt.Println("2. Success:", val)
 }
 
 // Stacktrace:
-// panic: nil pointer dereference
+// panic: runtime error: nil pointer dereference
 // main<VPBlock(1,0)>()
 //     main/panic6.gno:16
 
 // Error:
-// nil pointer dereference
+// runtime error: nil pointer dereference

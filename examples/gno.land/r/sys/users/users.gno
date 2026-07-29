@@ -1,11 +1,11 @@
 package users
 
-import "gno.land/p/nt/avl/v0/rotree"
+import "gno.land/p/nt/bptree/v0/rotree"
 
 // ResolveName returns the latest UserData of a specific user by name or alias
 func ResolveName(name string) (data *UserData, isCurrent bool) {
-	raw, ok := nameStore.Get(name)
-	if !ok {
+	raw := nameStore.Get(name)
+	if raw == nil {
 		return nil, false
 	}
 
@@ -19,8 +19,8 @@ func ResolveName(name string) (data *UserData, isCurrent bool) {
 
 // ResolveAddress returns the latest UserData of a specific user by address
 func ResolveAddress(addr address) *UserData {
-	raw, ok := addressStore.Get(addr.String())
-	if !ok {
+	raw := addressStore.Get(addr.String())
+	if raw == nil {
 		return nil
 	}
 

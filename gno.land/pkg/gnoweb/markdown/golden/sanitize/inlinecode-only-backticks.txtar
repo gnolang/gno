@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineCode
+// CONTEXT: %s
+-- input.md --
+```
+-- output.md --
+```` ``` ````
+-- output.html --
+<p><code>```</code></p>

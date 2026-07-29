@@ -33,8 +33,8 @@ func init() {
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
-func main() {
-	err := dao.Execute(proposal.ID())
+func main(cur realm) {
+	err := dao.Execute(proposal.ID(), cur)
 	if err != nil {
 		panic(err)
 	}

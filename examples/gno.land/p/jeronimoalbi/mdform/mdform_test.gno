@@ -9,7 +9,13 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestNew(t *testing.T) {
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
+func TestNew(cur realm, t *testing.T) {
 	tests := []struct {
 		name     string
 		attrs    []string
@@ -46,17 +52,17 @@ func TestNew(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form to be created")
+			urequire.NotPanics(t, cur, fn, "expect form to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}
 }
 
-func TestFormInput(t *testing.T) {
+func TestFormInput(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -116,17 +122,17 @@ func TestFormInput(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form input to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form input to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form input to be created")
+			urequire.NotPanics(t, cur, fn, "expect form input to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}
 }
 
-func TestFormRadio(t *testing.T) {
+func TestFormRadio(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -189,17 +195,17 @@ func TestFormRadio(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form radio input to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form radio input to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form radio input to be created")
+			urequire.NotPanics(t, cur, fn, "expect form radio input to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}
 }
 
-func TestFormCheckbox(t *testing.T) {
+func TestFormCheckbox(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -262,17 +268,17 @@ func TestFormCheckbox(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form checkbox input to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form checkbox input to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form checkbox input to be created")
+			urequire.NotPanics(t, cur, fn, "expect form checkbox input to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}
 }
 
-func TestFormTextarea(t *testing.T) {
+func TestFormTextarea(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -320,17 +326,17 @@ func TestFormTextarea(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form textarea to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form textarea to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form textarea to be created")
+			urequire.NotPanics(t, cur, fn, "expect form textarea to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}
 }
 
-func TestFormSelect(t *testing.T) {
+func TestFormSelect(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -381,11 +387,11 @@ func TestFormSelect(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, fn, "expect form textarea to fail")
+				urequire.PanicsWithMessage(t, cur, tc.err, fn, "expect form textarea to fail")
 				return
 			}
 
-			urequire.NotPanics(t, fn, "expect form textarea to be created")
+			urequire.NotPanics(t, cur, fn, "expect form textarea to be created")
 			uassert.Equal(t, tc.markdown, markdown, "expected markdown to match")
 		})
 	}

@@ -44,15 +44,28 @@ func MustAddressFromString(str string) (addr Address) {
 }
 
 func AddressFromPreimage(bz []byte) Address {
-	addr := AddressFromBytes(tmhash.SumTruncated(bz))
+	addr := MustAddressFromBytes(tmhash.SumTruncated(bz))
 	return addr
 }
 
-func AddressFromBytes(bz []byte) (ret Address) {
+// AddressFromBytes returns an Address from the bytes in bz.
+// It returns an error if bz has an unexpected address byte length.
+func AddressFromBytes(bz []byte) (ret Address, err error) {
 	if len(bz) != AddressSize {
-		panic(fmt.Errorf("unexpected address byte length. expected %v, got %v", AddressSize, len(bz)))
+		err = fmt.Errorf("unexpected address byte length. expected %v, got %v", AddressSize, len(bz))
+		return
 	}
 	copy(ret[:], bz)
+	return
+}
+
+// MustAddressFromBytes returns an Address from the bytes in bz.
+// It panics if bz has an unexpected address byte length.
+func MustAddressFromBytes(bz []byte) (ret Address) {
+	ret, err := AddressFromBytes(bz)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 

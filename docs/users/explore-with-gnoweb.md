@@ -42,7 +42,7 @@ Let's break it down:
 
 ## Viewing Rendered Content
 
-Realms can implement a special `Render()` function that returns HTML-like content:
+Realms can implement a special `Render()` function that returns Markdown content:
 
 `gnoweb` is a minimalistic web server that serves as a unified frontend for all
 realms in Gno.land. It uses ABCI queries to get the latest state of a specific

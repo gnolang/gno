@@ -122,10 +122,10 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 		ChainID:     tmconfig.ChainID(),
 		ConsensusParams: abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,     // 1MB,
-				MaxDataBytes: 2_000_000,     // 2MB,
-				MaxGas:       3_000_000_000, // 3B gas
-				TimeIotaMS:   100,           // 100ms
+				MaxTxBytes:   1_000_000,      // 1MB,
+				MaxDataBytes: 2_000_000,      // 2MB,
+				MaxGas:       30_000_000_000, // 30B gas (calibrated for LMDB 59K per read)
+				TimeIotaMS:   100,            // 100ms
 			},
 		},
 		Validators: []bft.GenesisValidator{
@@ -181,16 +181,19 @@ func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []gn
 	return genesisTXs
 }
 
+// defaultListenAddr is the listen address for in-memory test nodes. ":0" lets
+// the kernel pick a free port, so concurrent nodes (and restarts) never
+// collide on a fixed port.
+const defaultListenAddr = "tcp://127.0.0.1:0"
+
 // DefaultTestingTMConfig constructs the default Tendermint configuration for testing.
 func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
-	const defaultListner = "tcp://127.0.0.1:0"
-
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
 	tmconfig.Consensus.WALDisabled = true
 	tmconfig.Consensus.SkipTimeoutCommit = false
 	tmconfig.Consensus.CreateEmptyBlocks = false
-	tmconfig.RPC.ListenAddress = defaultListner
-	tmconfig.P2P.ListenAddress = defaultListner
+	tmconfig.RPC.ListenAddress = defaultListenAddr
+	tmconfig.P2P.ListenAddress = defaultListenAddr
 	return tmconfig
 }
 

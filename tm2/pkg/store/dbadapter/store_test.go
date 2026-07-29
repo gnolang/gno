@@ -24,42 +24,42 @@ func TestAccessors(t *testing.T) {
 		value = []byte("value")
 	)
 	mockDB.EXPECT().Get(gomock.Eq(key)).Times(1).Return(value, nil)
-	require.True(t, bytes.Equal(value, store.Get(key)))
+	require.True(t, bytes.Equal(value, store.Get(nil, key)))
 
 	mockDB.EXPECT().Get(gomock.Eq(key)).Times(1).Return(nil, errFoo)
-	require.Panics(t, func() { store.Get(key) })
+	require.Panics(t, func() { store.Get(nil, key) })
 
 	mockDB.EXPECT().Has(gomock.Eq(key)).Times(1).Return(true, nil)
-	require.True(t, store.Has(key))
+	require.True(t, store.Has(nil, key))
 
 	mockDB.EXPECT().Has(gomock.Eq(key)).Times(1).Return(false, nil)
-	require.False(t, store.Has(key))
+	require.False(t, store.Has(nil, key))
 
 	mockDB.EXPECT().Has(gomock.Eq(key)).Times(1).Return(false, errFoo)
-	require.Panics(t, func() { store.Has(key) })
+	require.Panics(t, func() { store.Has(nil, key) })
 
 	mockDB.EXPECT().Set(gomock.Eq(key), gomock.Eq(value)).Times(1).Return(nil)
-	require.NotPanics(t, func() { store.Set(key, value) })
+	require.NotPanics(t, func() { store.Set(nil, key, value) })
 
 	mockDB.EXPECT().Set(gomock.Eq(key), gomock.Eq(value)).Times(1).Return(errFoo)
-	require.Panics(t, func() { store.Set(key, value) })
+	require.Panics(t, func() { store.Set(nil, key, value) })
 
 	mockDB.EXPECT().Delete(gomock.Eq(key)).Times(1).Return(nil)
-	require.NotPanics(t, func() { store.Delete(key) })
+	require.NotPanics(t, func() { store.Delete(nil, key) })
 
 	mockDB.EXPECT().Delete(gomock.Eq(key)).Times(1).Return(errFoo)
-	require.Panics(t, func() { store.Delete(key) })
+	require.Panics(t, func() { store.Delete(nil, key) })
 
 	start, end := []byte("start"), []byte("end")
 	mockDB.EXPECT().Iterator(gomock.Eq(start), gomock.Eq(end)).Times(1).Return(nil, nil)
-	require.NotPanics(t, func() { store.Iterator(start, end) })
+	require.NotPanics(t, func() { store.Iterator(nil, start, end) })
 
 	mockDB.EXPECT().Iterator(gomock.Eq(start), gomock.Eq(end)).Times(1).Return(nil, errFoo)
-	require.Panics(t, func() { store.Iterator(start, end) })
+	require.Panics(t, func() { store.Iterator(nil, start, end) })
 
 	mockDB.EXPECT().ReverseIterator(gomock.Eq(start), gomock.Eq(end)).Times(1).Return(nil, nil)
-	require.NotPanics(t, func() { store.ReverseIterator(start, end) })
+	require.NotPanics(t, func() { store.ReverseIterator(nil, start, end) })
 
 	mockDB.EXPECT().ReverseIterator(gomock.Eq(start), gomock.Eq(end)).Times(1).Return(nil, errFoo)
-	require.Panics(t, func() { store.ReverseIterator(start, end) })
+	require.Panics(t, func() { store.ReverseIterator(nil, start, end) })
 }

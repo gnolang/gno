@@ -1,12 +1,13 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // ----------------------------------------
@@ -73,7 +74,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -81,15 +82,19 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
+	// Per-N CPU gas for BigInt equality.
+	if lv.T != nil && lv.T.Kind() == BigintKind {
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
+	}
 	// set result in lv.
-	res := isEql(m.Store, lv, rv)
+	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -99,10 +104,31 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m.Store, lv, rv)
+	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
+}
+
+// isInterfaceCmp reports whether either operand of bx is statically an
+// interface. A true result tells isEql to apply Go's interface-comparison
+// rule, under which isEql panics on an uncomparable dynamic type.
+func isInterfaceCmp(bx *BinaryExpr) bool {
+	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
+}
+
+func hasInterfaceStaticType(x Expr) bool {
+	if x == nil {
+		return false
+	}
+	// cachedStaticTypeOf unwraps a single-result CallExpr's 1-element tuple,
+	// so a function call returning an interface is recognized as a boundary.
+	t := cachedStaticTypeOf(x)
+	if t == nil {
+		return false
+	}
+	_, ok := baseOf(t).(*InterfaceType)
+	return ok
 }
 
 func (m *Machine) doOpLss() {
@@ -115,8 +141,10 @@ func (m *Machine) doOpLss() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
+
 	// set the result in lv.
-	res := isLss(lv, rv)
+	res := isLss(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -133,7 +161,7 @@ func (m *Machine) doOpLeq() {
 	}
 
 	// set the result in lv.
-	res := isLeq(lv, rv)
+	res := isLeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -150,7 +178,7 @@ func (m *Machine) doOpGtr() {
 	}
 
 	// set the result in lv.
-	res := isGtr(lv, rv)
+	res := isGtr(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -167,7 +195,7 @@ func (m *Machine) doOpGeq() {
 	}
 
 	// set the result in lv.
-	res := isGeq(lv, rv)
+	res := isGeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -183,6 +211,26 @@ func (m *Machine) doOpAdd() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case StringKind:
+		// String concat charges flat CPU gas; the per-byte O(N) copy cost
+		// is absorbed by alloc gas via alloc.NewString(len(lv)+len(rv))
+		// in addAssign below. BenchmarkOpAdd_String_{10..100MB_10MB}
+		// confirms alloc gas ≥ 3× the ns/op(pure) CPU cost across all
+		// sizes on reference hardware — see cmd/calibrate/plot_fits.py
+		// 'Add (string)' family plotted against sum(|A|,|B|).
+		m.incrCPU(OpCPUAddString)
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUAddFloat)
+	default:
+		m.incrCPU(OpCPUAddInt)
+	}
+
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntAdd)
+	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecAdd)
+
 	// add rv to lv.
 	addAssign(m.Alloc, lv, rv)
 }
@@ -196,6 +244,17 @@ func (m *Machine) doOpSub() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUSubFloat)
+	default:
+		m.incrCPU(OpCPUSubInt)
+	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntSub)
+	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 
 	// sub rv from lv.
 	subAssign(lv, rv)
@@ -211,6 +270,8 @@ func (m *Machine) doOpBor() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBor)
+
 	// lv | rv
 	borAssign(lv, rv)
 }
@@ -224,6 +285,8 @@ func (m *Machine) doOpXor() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntXor)
 
 	// lv ^ rv
 	xorAssign(lv, rv)
@@ -239,6 +302,17 @@ func (m *Machine) doOpMul() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUMulFloat)
+	default:
+		m.incrCPU(OpCPUMulInt)
+	}
+
+	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntMulQ)
+	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecMulQ)
+
 	// lv * rv
 	mulAssign(lv, rv)
 }
@@ -252,6 +326,17 @@ func (m *Machine) doOpQuo() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUQuoFloat)
+	default:
+		m.incrCPU(OpCPUQuoInt)
+	}
+
+	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntQuoQ)
+	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecQuoQ)
 
 	// lv / rv
 	err := quoAssign(lv, rv)
@@ -269,6 +354,9 @@ func (m *Machine) doOpRem() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	// Per-N gas for BigInt (quadratic, similar to Quo).
+	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntRemQ)
 
 	// lv % rv
 	err := remAssign(lv, rv)
@@ -289,6 +377,11 @@ func (m *Machine) doOpShl() {
 		}
 	}
 
+	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	if lv.T == UntypedBigintType {
+		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+	}
+
 	// lv << rv
 	shlAssign(m, lv, rv)
 }
@@ -305,6 +398,9 @@ func (m *Machine) doOpShr() {
 		}
 	}
 
+	// Per-N gas for BigInt Shr: charge per-kilobit of input bit width.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShr)
+
 	// lv >> rv
 	shrAssign(m, lv, rv)
 }
@@ -318,6 +414,8 @@ func (m *Machine) doOpBand() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBand)
 
 	// lv & rv
 	bandAssign(lv, rv)
@@ -333,6 +431,8 @@ func (m *Machine) doOpBandn() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBandn)
+
 	// lv &^ rv
 	bandnAssign(lv, rv)
 }
@@ -340,8 +440,16 @@ func (m *Machine) doOpBandn() {
 // ----------------------------------------
 // logic functions
 
+// isEql reports whether lv and rv are equal. viaIface is true when the
+// comparison crosses an interface boundary: the operands are statically
+// interface-typed, or we recursed into an interface-typed field or element.
+// At such a boundary Go panics if the dynamic type is uncomparable. The check
+// uses isComparable, which is itself recursive, so it fires at the boundary
+// and names the dynamic type there (e.g. an enclosing struct) rather than the
+// uncomparable leaf reached by deeper recursion.
+//
 // TODO: can be much faster.
-func isEql(store Store, lv, rv *TypedValue) bool {
+func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -354,11 +462,27 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
+	// Both sides share one dynamic type now. If we reached it through an
+	// interface and it is uncomparable, Go panics naming it.
+	if viaIface && !isComparable(lv.T) {
+		m.Panic(typedRuntimeError(fmt.Sprintf(
+			"runtime error: comparing uncomparable type %s",
+			lv.T.String(),
+		)))
+	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
 	case StringKind:
-		return (lv.GetString() == rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		if len(ls) != len(rs) {
+			return false
+		}
+		// Charge gas proportional to string length, since Go's == on
+		// strings is O(N).
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUSlopeBytesCmp))
+		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
 	case Int8Kind:
@@ -388,14 +512,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) == 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) == 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) == 0
 	case ArrayKind:
 		la := lv.V.(*ArrayValue)
 		ra := rv.V.(*ArrayValue)
 		at := baseOf(lv.T).(*ArrayType)
-		et := at.Elt
 		if debug {
 			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
@@ -405,10 +526,20 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
+		// Fast path for byte arrays (Data representation).
+		if la.Data != nil {
+			m.incrCPU(overflow.Mulp(int64(len(la.Data)), OpCPUSlopeBytesCmp))
+			return bytes.Equal(la.Data, ra.Data)
+		}
+		et := at.Elt
+		// An interface-typed element is a fresh boundary: the recursive call
+		// gets viaIface=true and checks the element's own dynamic type.
+		elemIsIface := baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
-			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
-			if !isEql(store, &li, &ri) {
+			m.incrCPU(OpCPUEql)
+			li := la.GetElementPointer(m.Store, i, et).Deref()
+			ri := ra.GetElementPointer(m.Store, i, et).Deref()
+			if !isEql(m, &li, &ri, elemIsIface) {
 				return false
 			}
 		}
@@ -416,8 +547,8 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
+		lt := baseOf(lv.T).(*StructType)
 		if debug {
-			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
@@ -427,33 +558,34 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range ls.Fields {
-			lf := ls.GetPointerToInt(store, i).Deref()
-			rf := rs.GetPointerToInt(store, i).Deref()
-			if !isEql(store, &lf, &rf) {
+			if lt.Fields[i].Name == blankIdentifier {
+				continue
+			}
+			m.incrCPU(OpCPUEql)
+			lf := ls.GetPointerToInt(m.Store, i).Deref()
+			rf := rs.GetPointerToInt(m.Store, i).Deref()
+			// An interface-typed field is a fresh boundary: the recursive call
+			// gets viaIface=true and checks the field's own dynamic type.
+			fieldIsIface := baseOf(lt.Fields[i].Type).Kind() == InterfaceKind
+			if !isEql(m, &lf, &rf, fieldIsIface) {
 				return false
 			}
 		}
 		return true
-	case MapKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("map can only be compared with `nil`")
+	case InterfaceKind:
+		// Dynamic types are unwrapped before reaching isEql, so T is
+		// InterfaceType only when both sides have no dynamic content.
+		if lv.V != nil || rv.V != nil {
+			if debug {
+				panic("isEql: unexpected non-nil InterfaceType (dynamic type should have been unwrapped)")
 			}
+			return false
 		}
-		return lv.V == rv.V
-	case SliceKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("slice can only be compared with `nil`")
-			}
-		}
-		return lv.V == rv.V
-	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
-		}
+		return true
+	case MapKind, SliceKind, FuncKind:
+		// Uncomparable kinds. A via-interface comparison of these is caught by
+		// the comparability check above before reaching here, so the only way
+		// in is `m == nil` (one side nil), which is a legal pointer compare.
 		return lv.V == rv.V
 	case PointerKind:
 		if lv.T != rv.T &&
@@ -479,10 +611,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 }
 
 // TODO: can be much faster.
-func isLss(lv, rv *TypedValue) bool {
+func isLss(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() < rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -512,9 +647,7 @@ func isLss(lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) < 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) < 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) < 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator < not defined for %s",
@@ -523,10 +656,13 @@ func isLss(lv, rv *TypedValue) bool {
 	}
 }
 
-func isLeq(lv, rv *TypedValue) bool {
+func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() <= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -556,9 +692,7 @@ func isLeq(lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) <= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) <= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) <= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator <= not defined for %s",
@@ -567,10 +701,13 @@ func isLeq(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGtr(lv, rv *TypedValue) bool {
+func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() > rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -600,9 +737,7 @@ func isGtr(lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) > 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) > 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) > 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator > not defined for %s",
@@ -611,10 +746,13 @@ func isGtr(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGeq(lv, rv *TypedValue) bool {
+func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() >= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:
@@ -644,15 +782,96 @@ func isGeq(lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) >= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) >= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) >= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator >= not defined for %s",
 			lv.T.Kind(),
 		))
 	}
+}
+
+// ratOverflowBits is the size ceiling (in bits) above which we promote a
+// big.Rat to a bounded big.Float representation, matching go/constant which
+// switches representations past the same 4096-bit threshold.
+const ratOverflowBits = 4096
+
+// ratOverflows reports whether either component of r exceeds ratOverflowBits.
+// Callers use this signal to promote to big.Float rather than reject.
+func ratOverflows(r *big.Rat) bool {
+	return r.Num().BitLen() > ratOverflowBits ||
+		r.Denom().BitLen() > ratOverflowBits
+}
+
+// wrapRatOrPromote wraps r as a BigdecValue in rat form if it fits within
+// ratOverflowBits, or promotes it to a 512-bit big.Float form otherwise.
+// This mirrors go/constant's automatic switch from big.Rat to big.Float at
+// the same 4096-bit threshold: extreme exponents no longer allocate massive
+// integers, and huge-magnitude constants are handled the way Go handles them.
+func wrapRatOrPromote(r *big.Rat) BigdecValue {
+	if ratOverflows(r) {
+		return BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).SetRat(r)}
+	}
+	return BigdecValue{V: r}
+}
+
+// bigdecArith runs op on two BigdecValues, staying in rat form when both
+// inputs are rat-form and the result fits within ratOverflowBits, and
+// promoting to 512-bit big.Float otherwise (matching go/constant).
+func bigdecArith(lb, rb BigdecValue,
+	ratOp func(z, x, y *big.Rat) *big.Rat,
+	floatOp func(z, x, y *big.Float) *big.Float,
+) BigdecValue {
+	if lb.IsFloat() || rb.IsFloat() {
+		z := new(big.Float).SetPrec(BigdecFloatPrec)
+		return BigdecValue{F: floatOp(z, lb.AsFloat(), rb.AsFloat())}
+	}
+	result := ratOp(new(big.Rat), lb.V, rb.V)
+	return wrapRatOrPromote(result)
+}
+
+func bigdecAdd(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Add, (*big.Float).Add)
+}
+
+func bigdecSub(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Sub, (*big.Float).Sub)
+}
+
+func bigdecMul(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Mul, (*big.Float).Mul)
+}
+
+func bigdecQuo(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Quo, (*big.Float).Quo)
+}
+
+// bigdecCmp compares lb and rb, promoting to a common form. Returns -1, 0, +1
+// per the usual convention.
+func bigdecCmp(lb, rb BigdecValue) int {
+	if lb.IsFloat() || rb.IsFloat() {
+		return lb.AsFloat().Cmp(rb.AsFloat())
+	}
+	return lb.V.Cmp(rb.V)
+}
+
+// parseBigdecLiteral parses a decimal or hex-float literal into a BigdecValue.
+// It probes via big.ParseFloat first (cheap, bounded) so extreme magnitudes
+// never allocate the giant big.Rat numerator/denominator; literals within
+// ratOverflowBits stay in exact rat form.
+func parseBigdecLiteral(s, kind string) BigdecValue {
+	f, _, err := big.ParseFloat(s, 0, BigdecFloatPrec, big.ToNearestEven)
+	if err != nil {
+		panic(fmt.Sprintf("invalid %s constant: %s", kind, s))
+	}
+	if exp := f.MantExp(nil); exp > ratOverflowBits || exp < -ratOverflowBits {
+		return BigdecValue{F: f}
+	}
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok || ratOverflows(r) {
+		return BigdecValue{F: f}
+	}
+	return BigdecValue{V: r}
 }
 
 // for doOpAdd and doOpAddAssign.
@@ -695,16 +914,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecAdd(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -751,16 +961,7 @@ func subAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		diff := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: diff}
+		lv.V = bigdecSub(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -807,14 +1008,7 @@ func mulAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		prod := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
-		}
-		lv.V = BigdecValue{V: prod}
+		lv.V = bigdecMul(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -826,7 +1020,7 @@ func mulAssign(lv, rv *TypedValue) {
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -901,17 +1095,11 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+		rb := rv.GetBigDec()
+		if rb.Sign() == 0 {
 			return expt
 		}
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		quo := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec division error: %v", err))
-		}
-		lv.V = BigdecValue{V: quo}
+		lv.V = bigdecQuo(lv.GetBigDec(), rb)
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -925,7 +1113,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedRuntimeError("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1160,121 +1348,105 @@ func xorAssign(lv, rv *TypedValue) {
 	}
 }
 
+// maxBigintShift caps shift amounts for UntypedBigintType to prevent
+// DoS via huge allocations (e.g., 1 << 1_000_000_000).
+const maxBigintShift = 10000
+
+// shlCheckOverflow panics with "constant overflows" if val << shift > maxVal.
+// For shifts larger than 64, any non-zero value overflows any fixed-width
+// integer type, avoiding expensive big.Int computation.
+func shlCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
+	if val.Sign() == 0 {
+		return // 0 << anything = 0
+	}
+	if shift > 64 || new(big.Int).Lsh(val, uint(shift)).Cmp(maxVal) == 1 {
+		panic(`constant overflows`)
+	}
+}
+
+// shrCheckOverflow panics with "constant overflows" if val >> shift > maxVal.
+func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
+	r := new(big.Int).Rsh(val, uint(shift))
+	if r.Cmp(maxVal) == 1 {
+		panic(`constant overflows`)
+	}
+}
+
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
-
-	checkOverflow := func(v func() bool) {
-		if m.Stage == StagePre && !v() {
-			panic(`constant overflows`)
-		}
+	if rv.Sign() < 0 {
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
+
+	shift := rv.GetUint()
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt)) != 1
-		})
-
-		lv.SetInt(lv.GetInt() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(lv.GetInt()), shift, big.NewInt(math.MaxInt))
+		}
+		lv.SetInt(lv.GetInt() << shift)
 	case Int8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
-		})
-
-		lv.SetInt8(lv.GetInt8() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt8())), shift, big.NewInt(math.MaxInt8))
+		}
+		lv.SetInt8(lv.GetInt8() << shift)
 	case Int16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
-		})
-
-		lv.SetInt16(lv.GetInt16() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt16())), shift, big.NewInt(math.MaxInt16))
+		}
+		lv.SetInt16(lv.GetInt16() << shift)
 	case Int32Type, UntypedRuneType:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
-		})
-
-		lv.SetInt32(lv.GetInt32() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(int64(lv.GetInt32())), shift, big.NewInt(math.MaxInt32))
+		}
+		lv.SetInt32(lv.GetInt32() << shift)
 	case Int64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
-		})
-
-		lv.SetInt64(lv.GetInt64() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(big.NewInt(lv.GetInt64()), shift, big.NewInt(math.MaxInt64))
+		}
+		lv.SetInt64(lv.GetInt64() << shift)
 	case UintType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
-		})
-
-		lv.SetUint(lv.GetUint() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(lv.GetUint()), shift, new(big.Int).SetUint64(math.MaxUint))
+		}
+		lv.SetUint(lv.GetUint() << shift)
 	case Uint8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetUint8(lv.GetUint8() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint8())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetUint8(lv.GetUint8() << shift)
 	case DataByteType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetDataByte())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetDataByte(lv.GetDataByte() << shift)
 	case Uint16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
-		})
-
-		lv.SetUint16(lv.GetUint16() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint16())), shift, big.NewInt(math.MaxUint16))
+		}
+		lv.SetUint16(lv.GetUint16() << shift)
 	case Uint32Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
-		})
-
-		lv.SetUint32(lv.GetUint32() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint32())), shift, big.NewInt(math.MaxUint32))
+		}
+		lv.SetUint32(lv.GetUint32() << shift)
 	case Uint64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
-		})
-
-		lv.SetUint64(lv.GetUint64() << rv.GetUint())
+		if m.Stage == StagePre {
+			shlCheckOverflow(new(big.Int).SetUint64(lv.GetUint64()), shift, new(big.Int).SetUint64(math.MaxUint64))
+		}
+		lv.SetUint64(lv.GetUint64() << shift)
 	case UntypedBigintType:
+		if shift > maxBigintShift {
+			panic(fmt.Sprintf(
+				"shift amount %d exceeds maximum %d",
+				shift, maxBigintShift,
+			))
+		}
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Lsh(lb, uint(rv.GetUint()))
+		lb = new(big.Int).Lsh(lb, uint(shift))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -1286,119 +1458,73 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
-
-	checkOverflow := func(v func() bool) {
-		if m.Stage == StagePre && !v() {
-			panic(`constant overflows`)
-		}
+	if rv.Sign() < 0 {
+		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
+
+	shift := rv.GetUint()
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
 	case IntType:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt)) != 1
-		})
-
-		lv.SetInt(lv.GetInt() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(lv.GetInt()), shift, big.NewInt(math.MaxInt))
+		}
+		lv.SetInt(lv.GetInt() >> shift)
 	case Int8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
-		})
-
-		lv.SetInt8(lv.GetInt8() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt8())), shift, big.NewInt(math.MaxInt8))
+		}
+		lv.SetInt8(lv.GetInt8() >> shift)
 	case Int16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
-		})
-
-		lv.SetInt16(lv.GetInt16() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt16())), shift, big.NewInt(math.MaxInt16))
+		}
+		lv.SetInt16(lv.GetInt16() >> shift)
 	case Int32Type, UntypedRuneType:
-		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
-		})
-
-		lv.SetInt32(lv.GetInt32() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(int64(lv.GetInt32())), shift, big.NewInt(math.MaxInt32))
+		}
+		lv.SetInt32(lv.GetInt32() >> shift)
 	case Int64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
-		})
-
-		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(big.NewInt(lv.GetInt64()), shift, big.NewInt(math.MaxInt64))
+		}
+		lv.SetInt64(lv.GetInt64() >> shift)
 	case UintType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
-		})
-
-		lv.SetUint(lv.GetUint() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(lv.GetUint()), shift, new(big.Int).SetUint64(math.MaxUint))
+		}
+		lv.SetUint(lv.GetUint() >> shift)
 	case Uint8Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint8())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetUint8(lv.GetUint8() >> shift)
 	case DataByteType:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
-		})
-
-		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetDataByte())), shift, big.NewInt(math.MaxUint8))
+		}
+		lv.SetDataByte(lv.GetDataByte() >> shift)
 	case Uint16Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
-		})
-
-		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint16())), shift, big.NewInt(math.MaxUint16))
+		}
+		lv.SetUint16(lv.GetUint16() >> shift)
 	case Uint32Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
-		})
-
-		lv.SetUint32(lv.GetUint32() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(uint64(lv.GetUint32())), shift, big.NewInt(math.MaxUint32))
+		}
+		lv.SetUint32(lv.GetUint32() >> shift)
 	case Uint64Type:
-		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
-
-			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
-		})
-
-		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
+		if m.Stage == StagePre {
+			shrCheckOverflow(new(big.Int).SetUint64(lv.GetUint64()), shift, new(big.Int).SetUint64(math.MaxUint64))
+		}
+		lv.SetUint64(lv.GetUint64() >> shift)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rsh(lb, uint(rv.GetUint()))
+		lb = new(big.Int).Rsh(lb, uint(shift))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(

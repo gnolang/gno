@@ -49,7 +49,7 @@ func BenchmarkRemove(b *testing.B) {
 	cache := cache.New(1000)
 	existentKeyMirror := [][]byte{}
 	// Populate cache
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		key := randBytes(1000)
 
 		existentKeyMirror = append(existentKeyMirror, key)

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +57,67 @@ func TestValidate(t *testing.T) {
 			name: "Invalid TargetGasRatio",
 			params: Params{
 				TargetGasRatio: 150,
+			},
+			expectsError: true,
+		},
+		{
+			name: "Invalid SigVerifyCostSecp256k1",
+			params: Params{
+				SigVerifyCostSecp256k1: 0,
+			},
+			expectsError: true,
+		},
+		{
+			name: "Invalid TxSizeCostPerByte",
+			params: Params{
+				MaxMemoBytes:           256,
+				TxSigLimit:             10,
+				SigVerifyCostED25519:   100,
+				SigVerifyCostSecp256k1: 200,
+				TxSizeCostPerByte:      -1,
+			},
+			expectsError: true,
+		},
+		{
+			name: "Invalid FeeCollector empty",
+			params: Params{
+				MaxMemoBytes:              256,
+				TxSigLimit:                10,
+				TxSizeCostPerByte:         1,
+				SigVerifyCostED25519:      100,
+				SigVerifyCostSecp256k1:    200,
+				GasPricesChangeCompressor: 1,
+				TargetGasRatio:            50,
+			},
+			expectsError: true,
+		},
+		{
+			name: "Invalid InitialGasPrice negative gas",
+			params: Params{
+				MaxMemoBytes:              256,
+				TxSigLimit:                10,
+				TxSizeCostPerByte:         1,
+				SigVerifyCostED25519:      100,
+				SigVerifyCostSecp256k1:    200,
+				GasPricesChangeCompressor: 1,
+				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
+				InitialGasPrice:           std.GasPrice{Gas: -1, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+			},
+			expectsError: true,
+		},
+		{
+			name: "Invalid InitialGasPrice negative price amount",
+			params: Params{
+				MaxMemoBytes:              256,
+				TxSigLimit:                10,
+				TxSizeCostPerByte:         1,
+				SigVerifyCostED25519:      100,
+				SigVerifyCostSecp256k1:    200,
+				GasPricesChangeCompressor: 1,
+				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
+				InitialGasPrice:           std.GasPrice{Gas: 1, Price: std.Coin{Denom: "ugnot", Amount: -5}},
 			},
 			expectsError: true,
 		},
@@ -186,6 +248,82 @@ func TestWillSetParam(t *testing.T) {
 			value:       "not_int64",
 			shouldPanic: true,
 		},
+		// tx_size_cost_per_byte
+		{
+			name:        "valid tx_size_cost_per_byte",
+			key:         "p:tx_size_cost_per_byte",
+			value:       int64(20),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for tx_size_cost_per_byte",
+			key:         "p:tx_size_cost_per_byte",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid tx_size_cost_per_byte value",
+			key:         "p:tx_size_cost_per_byte",
+			value:       int64(0),
+			shouldPanic: true,
+		},
+		// sig_verify_cost_ed25519
+		{
+			name:        "valid sig_verify_cost_ed25519",
+			key:         "p:sig_verify_cost_ed25519",
+			value:       int64(500),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for sig_verify_cost_ed25519",
+			key:         "p:sig_verify_cost_ed25519",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid sig_verify_cost_ed25519 value",
+			key:         "p:sig_verify_cost_ed25519",
+			value:       int64(-1),
+			shouldPanic: true,
+		},
+		// sig_verify_cost_secp256k1
+		{
+			name:        "valid sig_verify_cost_secp256k1",
+			key:         "p:sig_verify_cost_secp256k1",
+			value:       int64(1000),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for sig_verify_cost_secp256k1",
+			key:         "p:sig_verify_cost_secp256k1",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid sig_verify_cost_secp256k1 value",
+			key:         "p:sig_verify_cost_secp256k1",
+			value:       int64(0),
+			shouldPanic: true,
+		},
+		// gas_price_change_compressor
+		{
+			name:        "valid gas_price_change_compressor",
+			key:         "p:gas_price_change_compressor",
+			value:       int64(15),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for gas_price_change_compressor",
+			key:         "p:gas_price_change_compressor",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid gas_price_change_compressor value",
+			key:         "p:gas_price_change_compressor",
+			value:       int64(0),
+			shouldPanic: true,
+		},
 		{
 			name:        "valid target_gas_ratio",
 			key:         "p:target_gas_ratio",
@@ -257,7 +395,7 @@ func TestWillSetParamExhaustive(t *testing.T) {
 	const format = "unknown auth param key: %q"
 	assert.Equal(t, fmt.Sprintf(format, "doesnotexist"), call("doesnotexist"))
 
-	typ := reflect.TypeOf(Params{})
+	typ := reflect.TypeFor[Params]()
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		jsonTag, _, _ := strings.Cut(field.Tag.Get("json"), ",")

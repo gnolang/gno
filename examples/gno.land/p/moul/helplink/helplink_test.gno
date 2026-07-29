@@ -85,12 +85,13 @@ func TestFuncURL(t *testing.T) {
 }
 
 func TestHome(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/helplink"))
 	cd := runtime.ChainDomain()
 	tests := []struct {
 		realm_XXX Realm
 		want      string
 	}{
-		{"", "$help"},
+		{"", "/r/test/helplink$help"},
 		{Realm(cd + "/r/lorem/ipsum"), "/r/lorem/ipsum$help"},
 		{"gno.world/r/lorem/ipsum", "https://gno.world/r/lorem/ipsum$help"},
 	}

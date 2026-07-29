@@ -4,11 +4,31 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"unicode/utf8"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
+
+// runeStrFromInt64 converts an integer value to the string containing the
+// UTF-8 representation of the code point, per the Go spec: values outside the
+// range of valid Unicode code points convert to "�". Values within
+// [0, utf8.MaxRune] are handled by Go's native string(rune) conversion, which
+// already maps the surrogate halves in that range to "�" as well.
+func runeStrFromInt64(v int64) string {
+	if v < 0 || v > utf8.MaxRune {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
+
+// runeStrFromUint64 is like runeStrFromInt64 for unsigned values.
+func runeStrFromUint64(v uint64) string {
+	if v > utf8.MaxRune {
+		return string(utf8.RuneError)
+	}
+	return string(rune(v))
+}
 
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
@@ -131,7 +151,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -419,7 +439,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetInt64())))
+			tv.V = alloc.NewString(runeStrFromInt64(tv.GetInt64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -494,7 +514,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -778,7 +798,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
-			tv.V = alloc.NewString(string(rune(tv.GetUint64())))
+			tv.V = alloc.NewString(runeStrFromUint64(tv.GetUint64()))
 			tv.T = t
 			tv.ClearNum()
 		default:
@@ -991,13 +1011,19 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
+			x := softfloat.F64to32(tv.GetFloat64())
 			validate(Float64Kind, Float32Kind, func() bool {
-				// TODO(morgan): Doesn't account for loss of precision in
-				// subnromal value, doesn't account for negative values.
-				return softfloat.Fle64(tv.GetFloat64(), math.Float64bits(float64(math.MaxFloat32)))
+				// Constant float conversions may round (including to
+				// subnormals or MaxFloat32), but must not overflow to
+				// ±Inf. Check the rounded result, either sign.
+				return x&^softfloat.NegZero32 != softfloat.Inf32
 			})
 
-			x := softfloat.F64to32(tv.GetFloat64())
+			// Narrowing can underflow a nonzero negative to -0;
+			// constant conversions have no signed zero.
+			if isConst && x == softfloat.NegZero32 {
+				x = 0
+			}
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
@@ -1150,7 +1176,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(nilAllocator, nil, tv, t, false)
+			ConvertTo(nil, nil, tv, t, false)
 		}
 	default:
 		panic(fmt.Sprintf(
@@ -1240,7 +1266,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = BigintValue{V: big.NewInt(int64(sv))}
 	case BigdecKind:
 		dst.ClearNum()
-		dst.V = BigdecValue{V: apd.New(int64(sv), 0)}
+		dst.V = BigdecValue{V: new(big.Rat).SetInt64(int64(sv))}
 	default:
 		panic(fmt.Sprintf("unexpected target %v", k))
 	}
@@ -1286,10 +1312,12 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 24 for float32
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
-		if bf.IsInf() {
+		f32, acc := bf.Float32()
+		// A big.Float made from a big.Int is never Inf; overflow shows
+		// up in the rounded result.
+		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
 		}
-		f32, acc := bf.Float32()
 		if f32 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float32 (too close to zero)")
 		}
@@ -1300,10 +1328,10 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.V = nil
 		// 53 for float64
 		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
-		if bf.IsInf() {
+		f64, acc := bf.Float64()
+		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
 		}
-		f64, acc := bf.Float64()
 		if f64 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float64 (too close to zero)")
 		}
@@ -1311,7 +1339,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		return // done
 	case BigdecKind:
 		dst.T = t
-		dst.V = BigdecValue{V: apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(bi), 0)}
+		dst.V = BigdecValue{V: new(big.Rat).SetInt(bi)}
 		return // done
 	default:
 		panic(fmt.Sprintf(
@@ -1381,65 +1409,66 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	}
 }
 
+// posZero returns f with the sign bit cleared when f is zero. Constant
+// conversions have no signed zero (golang/go#12621): any constant that
+// converts to zero — an underflowing negative or a literal -0.0 — yields +0.
+func posZero[F float32 | float64](f F) F {
+	if f == 0 {
+		return 0
+	}
+	return f
+}
+
 func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
-	bd := bdv.V
 	switch k {
 	case BigintKind:
-		if !isDecimalInteger(bd) {
+		if !bdv.IsInt() {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bd.String(),
+				bigdecValueErrString(bdv),
 			))
 		}
 		dst.T = t
-		dst.V = BigintValue{V: toBigInt(bd)}
-		return // done
+		dst.V = BigintValue{V: bigdecToBigInt(bdv)}
+		return
 	case BoolKind:
 		panic("cannot convert untyped bigdec to bool")
 	case InterfaceKind:
 		dst.T = Float64Type
 		dst.V = nil
-		f, _ := bd.Float64()
-		dst.SetFloat64(math.Float64bits(f))
+		f := bigdecToFloat64(bdv)
+		dst.SetFloat64(math.Float64bits(posZero(f)))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		if !isDecimalInteger(bd) {
+		if !bdv.IsInt() {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",
-				bd.String(),
+				bigdecValueErrString(bdv),
 			))
 		}
-		ConvertUntypedBigintTo(dst, BigintValue{V: toBigInt(bd)}, t)
+		ConvertUntypedBigintTo(dst, BigintValue{V: bigdecToBigInt(bdv)}, t)
 		return
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, err := bd.Float64()
-		if err != nil {
-			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
-		}
-
-		bf := big.NewFloat(f64)
-		f32, _ := bf.Float32()
+		f32 := bigdecToFloat32(bdv)
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
+		f32 = posZero(f32)
 		dst.SetFloat32(math.Float32bits(f32))
 		return
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, err := bd.Float64()
-		if err != nil {
-			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
-		}
+		f64 := bigdecToFloat64(bdv)
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
-		dst.SetFloat64(math.Float64bits(f64))
+		dst.SetFloat64(math.Float64bits(posZero(f64)))
 		return
 	default:
 		panic(fmt.Sprintf(
@@ -1448,34 +1477,96 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	}
 }
 
-// ----------------------------------------
-// apd.Decimal utility
-
-func isDecimalInteger(d *apd.Decimal) bool {
-	d2 := apd.New(0, 0)
-	res, err := apd.BaseContext.RoundToIntegralExact(d2, d)
-	if err != nil {
-		panic("should not happen")
+// bigdecToFloat64 renders bdv as the nearest float64, handling both Rat and
+// Float representations. big.Rat.Float64 and big.Float.Float64 are both
+// deterministic (they build the IEEE 754 bit pattern via math.Ldexp / direct
+// bit manipulation, not hardware FP arithmetic).
+func bigdecToFloat64(bdv BigdecValue) float64 {
+	if bdv.IsFloat() {
+		f, _ := bdv.F.Float64()
+		return f
 	}
-	integer := !res.Inexact()
-	return integer
+	if bdv.V == nil {
+		return 0
+	}
+	f, _ := bdv.V.Float64()
+	return f
 }
 
-func toBigInt(d *apd.Decimal) *big.Int {
-	d2 := apd.New(0, 0)
-	_, err := apd.BaseContext.RoundToIntegralExact(d2, d)
-	if err != nil {
-		panic("should not happen")
+// bigdecToFloat32 renders bdv as the nearest float32, handling both Rat and
+// Float representations. big.Rat.Float32 and big.Float.Float32 are both
+// deterministic (they build the IEEE 754 bit pattern via math.Ldexp / direct
+// bit manipulation, not hardware FP arithmetic).
+func bigdecToFloat32(bdv BigdecValue) float32 {
+	if bdv.IsFloat() {
+		f, _ := bdv.F.Float32()
+		return f
 	}
-	d2s := d2.String()
-	bi := big.NewInt(0)
-	_, ok := bi.SetString(d2s, 10)
-	if !ok {
-		panic(fmt.Sprintf(
-			"invalid integer constant: %s",
-			d2s))
+	if bdv.V == nil {
+		return 0
 	}
-	return bi
+	f, _ := bdv.V.Float32()
+	return f
+}
+
+// bigdecToBigInt extracts the integer value of bdv. Caller must have already
+// verified bdv.IsInt().
+func bigdecToBigInt(bdv BigdecValue) *big.Int {
+	if bdv.IsFloat() {
+		bi, _ := bdv.F.Int(nil)
+		return bi
+	}
+	if bdv.V == nil {
+		return new(big.Int)
+	}
+	return new(big.Int).Set(bdv.V.Num())
+}
+
+// bigdecValueErrString renders bdv for user-facing error messages, delegating
+// to bigdecErrString for the rat form.
+func bigdecValueErrString(bdv BigdecValue) string {
+	if bdv.IsFloat() {
+		return bdv.F.Text('g', -1)
+	}
+	if bdv.V == nil {
+		return "0"
+	}
+	return bigdecErrString(bdv.V)
+}
+
+// ----------------------------------------
+// big.Rat utility
+
+// bigdecErrString renders r for user-facing error messages. It returns the
+// minimal decimal form for terminating decimals (matching source literals
+// like 1.2 or 3.14), and falls back to the rational form a/b otherwise
+// (e.g. the result of 1.0/3.0). This preserves parity with the pre-branch
+// apd.Decimal.String() output, which could only ever produce decimal form.
+func bigdecErrString(r *big.Rat) string {
+	if r.IsInt() {
+		return r.Num().String()
+	}
+	// A rational a/b (in lowest terms) is a terminating decimal iff every
+	// prime factor of b is 2 or 5. Strip those factors from a copy of b.
+	d := new(big.Int).Set(r.Denom())
+	for d.Bit(0) == 0 {
+		d.Rsh(d, 1)
+	}
+	five := big.NewInt(5)
+	for new(big.Int).Mod(d, five).Sign() == 0 {
+		d.Quo(d, five)
+	}
+	if d.Cmp(big.NewInt(1)) != 0 {
+		return r.RatString()
+	}
+	// Terminating: bit-length of the original denominator is an ample upper
+	// bound on the fractional digits needed; trim trailing zeros.
+	s := r.FloatString(r.Denom().BitLen())
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimSuffix(s, ".")
+	}
+	return s
 }
 
 // IsExactBigDec checks if v is a BigdecValue that can be represented
@@ -1483,7 +1574,7 @@ func toBigInt(d *apd.Decimal) *big.Int {
 // underlying value has no fractional component.
 func IsExactBigDec(v Value) bool {
 	if bd, ok := v.(BigdecValue); ok {
-		return isDecimalInteger(bd.V)
+		return bd.IsInt()
 	}
 	return false
 }

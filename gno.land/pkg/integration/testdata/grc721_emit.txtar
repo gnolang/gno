@@ -5,59 +5,99 @@ loadpkg gno.land/r/foo721 $WORK/foo721
 gnoland start
 
 # Mint
-gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 920001ugnot -gas-wanted 9_200_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+
+# SetTokenURI
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetTokenURI -args 1 -args testuri -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"TokenUriUpdate\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+
+# SetMetadata
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetMetadata -args 1 -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"MetadataUpdate\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"}.*\]'
 
 # Approve
-gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 890001ugnot -gas-wanted 8_900_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # SetApprovalForAll
-gnokey maketx call -pkgpath gno.land/r/foo721 -func SetApprovalForAll -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args false  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"ApprovalForAll\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"approved\",\"value\":\"false\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetApprovalForAll -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args false  -gas-fee 880001ugnot -gas-wanted 8_800_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"ApprovalForAll\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"approved\",\"value\":\"false\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # TransferFrom
-gnokey maketx call -pkgpath gno.land/r/foo721 -func TransferFrom -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Transfer\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"from\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+gnokey maketx call -pkgpath gno.land/r/foo721 -func TransferFrom -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 990001ugnot -gas-wanted 9_900_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"Transfer\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"from\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # Burn
-gnokey maketx call -pkgpath gno.land/r/foo721 -func Burn -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Burn\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"from\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+gnokey maketx call -pkgpath gno.land/r/foo721 -func Burn -args 1  -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"Burn\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"from\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 
 -- foo721/foo721.gno --
 package foo721
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/demo/tokens/grc721"
 )
 
+// metadataNFT is the subset of grc721's unexported *metadataNFT used by
+// this realm. The concrete type is unexported, so we bind it through an
+// interface to hold it in a package-level var.
+type metadataNFT interface {
+	Mint(to address, tid grc721.TokenID) error
+	Burn(tid grc721.TokenID) error
+	Approve(caller, to address, tid grc721.TokenID) error
+	SetApprovalForAll(caller, operator address, approved bool) error
+	TransferFrom(caller, from, to address, tid grc721.TokenID) error
+	SetTokenURI(caller address, tid grc721.TokenID, tURI grc721.TokenURI) (bool, error)
+	SetTokenMetadata(caller address, tid grc721.TokenID, metadata grc721.Metadata) error
+}
+
 var (
 	admin address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
+	foo   metadataNFT
 )
+
+func init(cur realm) {
+	foo = grc721.NewNFTWithMetadata(0, cur, "FooNFT", "FNFT")
+}
 
 // Setters
 
 func Approve(cur realm, user address, tid grc721.TokenID) {
-	err := foo.Approve(user, tid)
+	caller := cur.Previous().Address()
+	err := foo.Approve(caller, user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func SetApprovalForAll(cur realm, user address, approved bool) {
-	err := foo.SetApprovalForAll(user, approved)
+	caller := cur.Previous().Address()
+	err := foo.SetApprovalForAll(caller, user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
-	err := foo.TransferFrom(from, to, tid)
+	caller := cur.Previous().Address()
+	err := foo.TransferFrom(caller, from, to, tid)
 	if err != nil {
+		panic(err)
+	}
+}
+
+func SetTokenURI(cur realm, tid grc721.TokenID, uri string) {
+	caller := cur.Previous().Address()
+	if _, err := foo.SetTokenURI(caller, tid, grc721.TokenURI(uri)); err != nil {
+		panic(err)
+	}
+}
+
+func SetMetadata(cur realm, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
+	if err := foo.SetTokenMetadata(caller, tid, grc721.Metadata{}); err != nil {
 		panic(err)
 	}
 }
@@ -65,7 +105,7 @@ func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
 // Admin
 
 func Mint(cur realm, to address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -74,7 +114,7 @@ func Mint(cur realm, to address, tid grc721.TokenID) {
 }
 
 func Burn(cur realm, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

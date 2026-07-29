@@ -22,11 +22,11 @@ func (testPropDef) Executor() commondao.ExecFunc {
 	}
 }
 
-func main() {
+func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definition has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
-	commondao.MustExecute(testPropDef{})
+	commondao.MustExecute(testPropDef{}, cur)
 }
 
 // Error:
