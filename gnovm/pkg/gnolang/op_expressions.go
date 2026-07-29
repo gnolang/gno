@@ -580,7 +580,7 @@ func (m *Machine) doOpMapLit() {
 		omitKeyType := mapKeyOmitType(baseOf(mt).(*MapType))
 		for i := range ne {
 			// Resolve the key's lazily-loaded children BEFORE copying, same
-			// reasoning as the GetPointerAtIndex call site (values.go:2449):
+			// reasoning as the GetPointerAtIndex call site (values.go:2461):
 			// Copy() shallow-copies an unresolved RefValue child, and the
 			// fill inside GetPointerForKey would then point that copy at the
 			// shared store object, aliasing the stored key to the source.

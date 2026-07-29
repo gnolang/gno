@@ -2,6 +2,10 @@
 
 ## Status
 
+Line references are anchored to this branch's final commit unless marked
+"pre-change", which denotes the code as it stood on master `d1a33f574` and is
+used in the Context and Diagnosis sections below.
+
 Implemented on branch `claude/using-superpowers-eebc09`. Written against
 master `d1a33f574`.
 
@@ -30,7 +34,7 @@ prefix removal: **-36.4%** on `compute_map_key_big_bytes`
 its own headline is worse than useless to the next reader, so: the dominant
 result in this document is the incidental one, not the one in the title.
 
-`TypedValue.ComputeMapKey` (`gnovm/pkg/gnolang/values.go:1869`) serializes a
+`TypedValue.ComputeMapKey` (`gnovm/pkg/gnolang/values.go:1881`) serializes a
 map key into a `MapKey` string used as the Go-level index into
 `MapValue.vmap`. Unless `omitType` is set, it prepends the key's full
 `TypeID` plus a `':'` separator:
@@ -43,7 +47,7 @@ if !omitType {
 ```
 
 Every byte appended to `bz` is charged via `OpCPUSlopeComputeMapKeyByte`
-(`values.go:1895-1899`).
+(`values.go:1907-1911`).
 
 The prefix exists to discriminate keys whose *dynamic* type varies — for a
 `map[any]int`, `int(1)` and `int64(1)` both serialize to the same eight
@@ -54,15 +58,15 @@ on every get, set and delete.
 
 The recursion already knows this. Array elements and struct fields pass
 `omitTypes` derived from the element/field type
-(`values.go:1947`, `values.go:1974`):
+(`values.go:1959`, `values.go:1986`):
 
 ```go
 omitTypes := bt.Elem().Kind() != InterfaceKind
 ```
 
-Only the top-level call never does. All three entry points hardcode `false`:
-`GetPointerForKey` (`values.go:1011`), `GetValueForKey` (`values.go:1039`),
-`DeleteForKey` (`values.go:1056`).
+Only the top-level call never does. All three entry points hardcoded `false`
+(pre-change `values.go:1011`, `:1039`, `:1056` — `GetPointerForKey`,
+`GetValueForKey`, `DeleteForKey` respectively).
 
 `map[address]T` and `map[NamedType]T` are ubiquitous in gno.land realms, and
 their key types are `DeclaredType`s, whose `TypeID()` (`types.go:1931`) is
@@ -87,7 +91,7 @@ type MapValue struct {
 ```
 
 `vmap` is rebuilt from `List` on load, inside the `*MapValue` case of
-`fillTypesOfValue(store Store, val Value)` (`realm.go:1934-1948`):
+`fillTypesOfValue(store Store, val Value)` (pre-change `realm.go:1934-1948`):
 
 ```go
 case *MapValue:
@@ -149,7 +153,7 @@ omitKeyType := baseOf(mt.Key).Kind() != InterfaceKind
 `baseOf` unwraps a `DeclaredType` around the key (`type Address string;
 map[Address]int`), and `mt.Key` — **not** `mt.Elem()` — selects the key type.
 
-This matters: the stale TODO at `op_expressions.go:582` reads
+This matters: the stale TODO, at pre-change `op_expressions.go:582`, read
 
 ```go
 // omitType := baseOf(mt).Elem().Kind() != InterfaceKind
@@ -163,7 +167,7 @@ for no reason). The TODO is replaced, not revived.
 
 **RESOLVED: can `omitKeyType` ever reach `ComputeMapKey` true with `tv.T ==
 nil`?** `ComputeMapKey` carries a `debug`-build assertion for exactly this
-(`values.go:1874-1880`: `omitType` with `tv.T == nil` is "should not
+(`values.go:1885-1893`: `omitType` with `tv.T == nil` is "should not
 happen"). This was an open question when the ADR was written; it is not
 reachable, and not for the reason the original filetest plan assumed.
 
@@ -176,12 +180,12 @@ this case never reaches the `tv.T == nil` branch at all. Worse: even if it
 somehow did, the assertion's premise — "if `tv.T` were nil, would probing
 with `omitType=true` diverge from probing with `omitType=false`?" — collapses
 identically either way, because `tv.T == nil` returns `nilStr` in both cases
-(`values.go:1874-1880`, the special case runs before `omitType` is even
+(`values.go:1885-1893`, the special case runs before `omitType` is even
 consulted). A test built on this path would pass whether the assertion held
 or not, telling us nothing.
 
 The real reason is structural, not test-shaped: `defaultTypedValue`
-(`values.go:3110-3115`) returns a `TypedValue` with `T == nil` **only** for
+(`values.go:3122-3127`) returns a `TypedValue` with `T == nil` **only** for
 `*InterfaceType` — every other branch (array, struct, slice, map, ...) sets
 `T: t`. A nil `T` can therefore only occupy an interface-typed slot. And
 `mapKeyOmitType` (like the nested `omitTypes` rule it composes with) returns
@@ -210,7 +214,7 @@ the "not yet built" sentinel. `MapValue`'s layout is untouched, so
 The sentinel does not collide with the existing "nil if uninitialized"
 meaning. An uninitialized *Gno* map is represented by `tv.V == nil` and is
 checked before any accessor runs (`op_expressions.go:17`, `:47`,
-`values.go:2436`, `uverse.go:1239`); `alloc.NewMap` always calls `MakeMap`
+`values.go:2449`, `uverse.go:1239`); `alloc.NewMap` always calls `MakeMap`
 (`alloc.go:640-646`), so a live map's `vmap` is non-nil from birth. The three
 constructors that leave it nil are amino decode (`pb3_gen.go:1446`), the
 persistence copy (`realm.go:1729`) and the JSON export copy
@@ -265,7 +269,7 @@ path, so it gets its own subsection rather than a footnote.
 
 `ComputeMapKey` resolves refs as a **side effect** of serializing a composite
 key: for array elements and struct fields it calls `fillValueTV` on each
-child before appending that child's bytes (`values.go:1949`, `:1973`). The
+child before appending that child's bytes (`values.go:1959`, `:1986`). The
 eager `vmap` build in `fillTypesOfValue` therefore was not just an index
 build — it was also the deep ref-resolver for every composite map key loaded
 from the store. `gnovm/tests/files/map39b.gno` depends on this: it stores,
@@ -290,8 +294,8 @@ child, so without a fix the stored key aliased the caller's live object
 graph until it was next resolved: `gnovm/tests/files/zrealm_map8.gno` pins
 this by mutating the source key variable after assignment and asserting the
 stored key does not change. The fix is `fillMapKeyRefs(store, iv)` called
-explicitly at `values.go:2449`, immediately before `iv.Copy(alloc)` at
-`values.go:2450`, so the resolve happens before the copy again — this time
+explicitly at `values.go:2461`, immediately before `iv.Copy(alloc)` at
+`values.go:2462`, so the resolve happens before the copy again — this time
 as a deliberate call instead of an accident of ordering. The same aliasing
 class exists in `doOpMapLit` for map *literal* keys (`m[k] = v`'s copy is not
 the only insert path); it is fixed the same way —
@@ -322,10 +326,10 @@ Five sites supply `omitKeyType` from a `*MapType` they already hold:
 | `doOpIndex1` — `op_expressions.go:15` | has `ct := baseOf(xv.T).(*MapType)` |
 | `doOpIndex2` — `op_expressions.go:45` | has `ct` |
 | `doOpMapLit` — `op_expressions.go:590` | has `mt`; replaces the stale TODO at `:582` |
-| `GetPointerAtIndex` — `values.go:2397` | has `bt` |
+| `GetPointerAtIndex` — `values.go:2409` | has `bt` |
 | `delete` builtin — `uverse.go:1237` | type switch currently discards the `*MapType`; bind it |
 
-### 8. The direct `vmap` read at `values.go:2389-2395` moves into the accessor
+### 8. The direct `vmap` read (pre-change `values.go:2389-2395`) moves into the accessor
 
 `GetPointerAtIndex` reads `mv.vmap` outside any accessor, so post-change it
 would observe a nil map on a freshly loaded value. It is folded into
@@ -387,7 +391,7 @@ hazard this reshuffle introduced.
   the lazy build is invisible to them.
 - `MapKey` values for concrete-keyed maps lose their type prefix, so
   `colors.ColoredBytes()` debug output for those maps shows the value bytes
-  without a leading type name. The `values.go:1901-1905` comment about human
+  without a leading type name. The `values.go:1913-1917` comment about human
   readability is narrowed accordingly.
 - Gas goldens under `gnovm/tests/files/gas/` that exercise map access must be
   regenerated.
