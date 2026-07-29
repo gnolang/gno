@@ -87,10 +87,10 @@ Layered defense — any one of the first three layers stops the incident:
 3. **Snapshot routing** (`rootmulti.constructStore`): immutable multistores
    read `ms.db` — the frozen post-commit SnapshotDB (or ImmutableDB fallback)
    — even for dedicated-db mounts. Constraint: a dedicated `params.db` must
-   be the same physical DB as the multistore's (true for every in-repo
-   mount); a genuinely separate merkleized store DB fails loudly at
-   LoadVersion's commit-id check (a dbadapter mount would not — its CommitID
-   is always zero — so separate physical DBs must not be mounted).
+   be the same physical DB as the multistore's — now ENFORCED at mount time
+   (`MountStoreWithDB` panics otherwise; see Alternatives), closing the
+   dbadapter escape hatch where a separate DB would have loaded with a
+   zero CommitID and served silently-empty state.
    - Companion (hard prerequisite): `ImmutableDB.NewBatch` returns a shared
      read-only no-op batch (Set/Delete discarded, Write panics) instead of
      nil.
@@ -119,7 +119,26 @@ Layered defense — any one of the first three layers stops the incident:
 ## Alternatives considered
 
 - **Per-store snapshots for genuinely-separate dedicated DBs**: rejected;
-  no in-repo mount needs it, and the failure mode without it is loud.
+  no in-repo mount needs it, and the constraint is now enforced — a non-nil
+  mount DB that isn't the multistore's own panics in `MountStoreWithDB`,
+  turning a first-query failure (misrouted reads / silently-empty state) into
+  a startup failure.
+- **Relationship to PR #6013** (notJoon, first fix for the same incident):
+  two pieces adopted with co-author credit. (1) The `MountStoreWithDB`
+  root-DB guard above — a separate mounted DB would bypass the atomic
+  collector drain (writes vanish) and, on this branch, be misrouted away
+  from the query snapshot. (2) The `getImmutable` stamp gate: an immutable
+  snapshot drops fast reads unless the stamp covers its version — read-only
+  re-verification closing the "LoadVersion-only readers are outside the trust
+  contract" caveat that `LoadReadonly` widened (concretely reachable in the
+  post-toggle-restart, pre-first-commit window, where a rebuild sits in the
+  collector while the query snapshot still holds the old on-disk stamp). Its
+  `ensureFastIndex` relaxation (stamp ahead ⇒ skip silently) is rejected:
+  after layers 1–3 only a writer load can observe stamp-ahead, which means an
+  external rewind; skipping boots a node whose old-timeline entries become
+  trusted again once the chain re-passes their versions, and the production
+  nop logger makes a warning invisible. Fail-loud with the stamp-deletion
+  remediation stands.
 - **Serializing queries with the consensus mutex**: rejected; reintroduces
   the query-blocks-consensus latency #5431 removed, and does not fix the
   design gap (write-capable read paths).
@@ -166,6 +185,19 @@ Layered defense — any one of the first three layers stops the incident:
   that ends without a `Commit()` must flush explicitly.
 - Startup rebuilds over CollectingDB still stage the whole index in memory
   until the next drain (unchanged; bounded by index size). Documented cost.
+  This same window — rebuild in the collector while the query snapshot holds
+  the pre-rebuild on-disk stamp — is why the `getImmutable` stamp gate is a
+  correctness fix, not only hardening: without it a query in that window
+  trusts the not-yet-rebuilt stale entries. Follow-up (out of scope): the
+  rebuild is not durable until the first block commit and is lost on a crash
+  before it — a resync or a bounded/streamed rebuild would remove the RAM
+  spike and the durability gap.
+- The `getImmutable` stamp gate costs one point read per immutable snapshot
+  view built via `getImmutable` (custom and `.store` queries, the ABCI proof
+  snapshot, and live-tree `GetVersioned`), and zero on the consensus
+  execution path (`MutableTree.Get`) and on working-tree proof generation
+  (which never consults the index). A read or checksum error on the stamp
+  degrades to the authoritative walk.
 - **Operator remediation for already-poisoned nodes**: the fixes prevent new
   poisoning but cannot detect existing stale entries (their stamp claims
   currency). Delete the fast-index stamp (`s/_/M` ‖ `fastidx` in the app DB)
