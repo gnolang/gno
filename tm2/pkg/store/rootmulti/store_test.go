@@ -43,6 +43,25 @@ func TestStoreMount(t *testing.T) {
 	require.Panics(t, func() { store.MountStoreWithDB(dup1, iavl.StoreConstructor, db) })
 }
 
+// TestStoreMountRejectsSeparateDB ensures dedicated mounts cannot bypass the
+// root DB's atomic commit and query-snapshot boundary: a non-nil mount DB must
+// be the multistore's own DB (writes drain into ms.db; immutable query views
+// are routed to ms.db's snapshot).
+func TestStoreMountRejectsSeparateDB(t *testing.T) {
+	t.Parallel()
+
+	rootDB := memdb.NewMemDB()
+	store := NewMultiStore(rootDB)
+
+	require.Panics(t, func() {
+		store.MountStoreWithDB(
+			types.NewStoreKey("separate"),
+			iavl.StoreConstructor,
+			memdb.NewMemDB(),
+		)
+	})
+}
+
 func TestCacheMultiStoreWithVersion(t *testing.T) {
 	t.Parallel()
 

@@ -137,6 +137,14 @@ func (ms *multiStore) MountStoreWithDB(key types.StoreKey, cons types.CommitStor
 	if key == nil {
 		panic("MountIAVLStore() key cannot be nil")
 	}
+	// A non-nil db must be the multistore's own DB. Sub-store writes drain
+	// through ms.collector into ms.db regardless of params.db (a separate DB
+	// would silently receive no writes), and immutable query views are routed
+	// to ms.db's snapshot in constructStore (a separate DB would misroute
+	// reads). Enforce the invariant the rest of the layer relies on.
+	if db != nil && db != ms.db {
+		panic("rootmulti: mounted DB must be nil or the root DB")
+	}
 	if _, ok := ms.storesParams[key]; ok {
 		panic(fmt.Sprintf("Store duplicate store key %v", key))
 	}
@@ -596,12 +604,9 @@ func (ms *multiStore) constructStore(params storeParams) (store types.CommitStor
 	// captured at mount time. Routing queries to the live DB let them race the
 	// consensus commit, and (via bptree's fast-index maintenance on load) WRITE
 	// to it — the gno#6011 index poisoning. CONSTRAINT: a dedicated params.db
-	// must be the same physical DB as the multistore's (true for every in-repo
-	// mount, which passes the app DB for both). A genuinely separate store DB
-	// would not be covered by the snapshot: merkleized stores (bptree/iavl)
-	// fail loudly at LoadVersion's commit-id check, but a dbadapter mount
-	// (constant zero CommitID) would silently serve an empty view — do not
-	// mount separate physical DBs.
+	// must be the same physical DB as the multistore's — enforced at mount time
+	// (MountStoreWithDB panics otherwise), so this reroute is always addressing
+	// the same DB the writes drained into.
 	if ms.storeOpts.Immutable {
 		raw = ms.db
 	}
