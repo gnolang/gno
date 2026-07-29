@@ -464,3 +464,53 @@ func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
 		})
 	}
 }
+
+// TestMemPackageTestBlobExcludedFromConsensusStore asserts that a package's
+// test/filetest files (#allbutprod sibling) are written to the non-merkleized
+// baseStore and NOT to the merkleized iavlStore, so they never enter the
+// consensus AppHash — while the production blob stays in iavlStore and the full
+// package (prod + test) remains reconstructable via GetMemPackageAll.
+func TestMemPackageTestBlobExcludedFromConsensusStore(t *testing.T) {
+	baseDB, iavlDB := memdb.NewMemDB(), memdb.NewMemDB()
+	base := dbadapter.StoreConstructor(baseDB, storetypes.StoreOptions{})
+	iavl := dbadapter.StoreConstructor(iavlDB, storetypes.StoreOptions{})
+	store := NewStore(nil, base, iavl)
+
+	path := "gno.land/r/demo/split"
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPUserAll,
+		Name: "split",
+		Path: path,
+		Files: []*std.MemFile{
+			{Name: "split.gno", Body: "package split\n\nfunc Prod() int { return 1 }\n"},
+			{Name: "split_test.gno", Body: "package split\n\nfunc TestX() {}\n"},
+		},
+	}, MPUserAll)
+
+	prodKey := []byte(backendPackagePathKey(path))
+	testKey := []byte(backendPackageAllButProdKey(path))
+
+	// Prod blob: iavlStore only (consensus state).
+	require.True(t, iavl.Has(nil, prodKey), "prod blob must be in the merkleized iavlStore")
+	require.False(t, base.Has(nil, prodKey), "prod blob must not leak into baseStore")
+	// Test/filetest blob: baseStore only (excluded from consensus AppHash).
+	require.True(t, base.Has(nil, testKey), "test blob must be in the non-merkleized baseStore")
+	require.False(t, iavl.Has(nil, testKey), "test blob must NOT enter the merkleized iavlStore")
+
+	// Prod-only view excludes test files; full view includes them.
+	prod := store.GetMemPackage(path)
+	require.NotNil(t, prod)
+	require.Equal(t, []string{"split.gno"}, memFileNames(prod), "GetMemPackage must return prod files only")
+
+	all := store.GetMemPackageAll(path)
+	require.NotNil(t, all)
+	require.Equal(t, []string{"split.gno", "split_test.gno"}, memFileNames(all), "GetMemPackageAll must reconstruct prod + test files")
+}
+
+func memFileNames(mpkg *std.MemPackage) []string {
+	names := make([]string, len(mpkg.Files))
+	for i, f := range mpkg.Files {
+		names[i] = f.Name
+	}
+	return names
+}
