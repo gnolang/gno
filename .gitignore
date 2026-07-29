@@ -51,4 +51,3 @@ wal/
 # Gnoweb frontend
 node_modules/
 .scratch/
-config/
