@@ -152,6 +152,14 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 func Execute(cur realm, daoID, proposalID uint64) {
 	assertCurrent(cur)
 
+	// Re-entrancy latch: a proposal executor must not trigger another
+	// Execute. Without this, an executor could finalize a second proposal
+	// mid-run — e.g. dissolve its own DAO and leave this frame finalizing on
+	// a deleted DAO. The latch is global (one executor per tx); it does not
+	// block Vote/Create*, so an executor may still act as its DAO elsewhere.
+	enterExecute()
+	defer leaveExecute()
+
 	dao := mustGetDAO(daoID)
 	p := dao.GetProposal(proposalID)
 	if p == nil {
