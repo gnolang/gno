@@ -311,6 +311,9 @@ type setProposalKindPropDefinition struct {
 	enabled  bool
 }
 
+// Title returns the proposal title as raw text: the renderer escapes
+// every definition title, so escaping the kind name here (unlike in Body,
+// which the renderer trusts as markdown) would double-escape it.
 func (p setProposalKindPropDefinition) Title() string {
 	if p.enabled {
 		return "Enable Proposal Kind: " + p.kindName

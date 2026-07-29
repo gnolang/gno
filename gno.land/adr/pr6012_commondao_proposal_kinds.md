@@ -106,11 +106,17 @@ new proposals of that kind.
 - Realm surface: `proposal_kinds.gno` (catalog, governance kind,
   `CreateSetProposalKindProposal`, `IsProposalKindEnabled`); `Create*`
   wrapper signatures unchanged; the DAO page's Create Proposal section
-  lists only registered kinds (goldens gained one additive entry).
+  and the settings page list only registered kinds (goldens gained
+  additive entries).
 - Tests: z_19_a (gate: deregistered kind fails at create with "proposal
   kind not found", others work), z_19_b (vote-integrity), z_19_c
-  (disable/re-enable round-trip), z_19_d (supermajority pin, 5-member
-  council), z_19_e (non-member rejected), z_19_f (self-brick guard).
-  Mutation-verified: threshold weakened → exactly z_19_d fails; guard
-  removed → exactly z_19_f fails; partial catalog at creation → 61
-  filetests fail. Both gno suites and all five commondao txtars green.
+  (disable/re-enable round-trip, render kind-filter), z_19_d
+  (supermajority pin, 5-member council), z_19_e (non-member rejected),
+  z_19_f (self-brick guard). A realm unit test pins every creation
+  validation of the governance kind; the package test pins that a
+  deregistered kind's in-flight proposal still executes and that the
+  factory receives the host DAO. Mutation-verified: threshold weakened →
+  exactly z_19_d fails; guard removed → z_19_f and the unit test fail;
+  each validation branch deleted → the unit test fails; render filter
+  removed → z_19_c fails; partial catalog at creation → ~60 filetests
+  fail. Both gno suites and all five commondao txtars green.

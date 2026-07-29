@@ -332,6 +332,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table := mdtable.Table{Headers: []string{"Setting", "Value"}}
 	table.Append([]string{"Listed", strconv.FormatBool(isListed(dao.ID()))})
 	table.Append([]string{"Max active proposals", strconv.Itoa(dao.MaxActiveProposals())})
+	table.Append([]string{"Proposal kinds", md.EscapeText(strings.Join(dao.KindNames(), ", "))})
 
 	res.Write(md.H2("Info"))
 	res.Write(table.String())

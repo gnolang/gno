@@ -49,6 +49,15 @@ func (k failingKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefin
 	return nil, k.err
 }
 
+// hostKind is a probe kind that records the host DAO passed to its factory.
+type hostKind struct{ host **commondao.CommonDAO }
+
+func (hostKind) Name() string { return "host" }
+func (k hostKind) New(dao *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	*k.host = dao
+	return propDef{period: time.Hour}, nil
+}
+
 // propDef is a base proposal definition decided by the default rules.
 type propDef struct {
 	title  string
@@ -805,16 +814,25 @@ func TestKindRegistry(cur realm, t *testing.T) {
 	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
 
 	// ...but never touches in-flight proposals: the frozen definition
-	// still votes and decides (vote-integrity)
+	// still votes, decides and executes (vote-integrity)
 	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
 	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+	urequire.NoError(t, dao.Execute(p.ID(), cur))
+	uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
 
 	// Kind factory errors propagate out of Propose
 	boom := errors.New("bad args")
 	urequire.NoError(t, dao.RegisterKind(failingKind{err: boom}))
 	_, err = dao.Propose(memberA, "failing", nil)
 	uassert.ErrorIs(t, err, boom)
-	uassert.Equal(t, 1, dao.ActiveProposalsSize(), "expect no proposal from a failing factory")
+	uassert.Equal(t, 0, dao.ActiveProposalsSize(), "expect no proposal from a failing factory")
+
+	// Propose hands the kind factory the host DAO itself
+	var host *commondao.CommonDAO
+	urequire.NoError(t, dao.RegisterKind(hostKind{host: &host}))
+	_, err = dao.Propose(memberA, "host", nil)
+	urequire.NoError(t, err)
+	uassert.True(t, host == dao, "expect the kind factory to receive the host DAO")
 
 	// Construction options panic on registration errors
 	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindRequired.Error(), func() {

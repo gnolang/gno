@@ -134,3 +134,4 @@ func main() {
 // | --- | --- |
 // | Listed | false |
 // | Max active proposals | 32 |
+// | Proposal kinds | ancestor\-council\-update, council\-update, dissolve, proposal\-kinds, subdao, text, treasury\-clawback, treasury\-freeze, treasury\-spend |
