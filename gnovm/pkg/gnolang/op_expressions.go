@@ -579,6 +579,12 @@ func (m *Machine) doOpMapLit() {
 		kvs := m.PopValues(ne * 2)
 		omitKeyType := mapKeyOmitType(baseOf(mt).(*MapType))
 		for i := range ne {
+			// Resolve the key's lazily-loaded children BEFORE copying, same
+			// reasoning as the GetPointerAtIndex call site (values.go:2449):
+			// Copy() shallow-copies an unresolved RefValue child, and the
+			// fill inside GetPointerForKey would then point that copy at the
+			// shared store object, aliasing the stored key to the source.
+			fillMapKeyRefs(m.Store, &kvs[i*2])
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
 			ptr, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv, omitKeyType)
