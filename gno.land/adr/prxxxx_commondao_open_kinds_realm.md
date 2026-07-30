@@ -1,5 +1,20 @@
 # ADR: commondao open kind-registration — reference realm rewire (M2)
 
+> **Superseded in part by `prxxxx_commondao_unify_kinds.md`.** That ADR collapses
+> the two governance kinds this ADR wired (`proposal-kinds` via
+> `CreateSetProposalKindProposal`, and `register-kind` via the by-value
+> `CreateRegisterKindProposal`) into ONE permanent `manage-kinds` kind with
+> symmetric register/deregister wrappers. Concretely: `optInProposalKinds`
+> becomes `{ExecutionKind{}}` only (decision 3); the two /p/-default propose
+> paths of decision 4 become `CreateRegisterKindProposal` (now **by name**),
+> `CreateDeregisterKindProposal`, and `CreateRegisterCustomKindProposal` (by
+> value), all going through `manage-kinds`; the self-brick moves from the /p/
+> `register-kind` name to a two-layer realm guard on `manage-kinds`
+> (`New` + `Validate`). Decision 1 (host handle via args-capture), decision 2
+> (`FundingDAOID`), decision 5 (render escape-by-default), and the
+> `CreateExecutionProposal` opt-in gate all stand unchanged. The historical text
+> below is kept for the record.
+
 ## Context
 
 `prxxxx_commondao_open_kinds_pkg.md` (M1) narrowed the `/p/` package:

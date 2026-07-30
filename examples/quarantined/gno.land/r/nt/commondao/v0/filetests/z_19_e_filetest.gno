@@ -25,9 +25,9 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	// Only council members can propose kind toggles
+	// Only council members can propose kind changes
 	testing.SetRealm(testing.NewUserRealm(stranger))
-	commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", false)
+	commondao.CreateDeregisterKindProposal(cross(cur), daoID, "text")
 }
 
 // Error:

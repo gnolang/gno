@@ -1,6 +1,6 @@
-// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_19_f_filetest
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_20_f_filetest
 
-package z_19_f_filetest
+package z_20_f_filetest
 
 import (
 	"testing"
@@ -24,11 +24,12 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	// Self-brick guard: deregistering the manage-kinds kind itself would
-	// leave the DAO unable to ever manage its kinds, so it fails at creation
 	testing.SetRealm(testing.NewUserRealm(user))
-	commondao.CreateDeregisterKindProposal(cross(cur), daoID, "manage-kinds")
+
+	// No-op deregister: the execution kind is opt-in and not seeded, so a
+	// council vote to deregister an absent kind is rejected at creation.
+	commondao.CreateDeregisterKindProposal(cross(cur), daoID, "execution")
 }
 
 // Error:
-// the manage-kinds kind cannot be deregistered
+// proposal kind is not enabled

@@ -114,24 +114,27 @@ only a trusted caller can populate (an external proposer cannot obtain a
 `*CommonDAO`), captures it in the definition, and mutates in its
 `Executor` — which runs only after the vote passes.
 
-### Default kinds
+### The `ExecutionKind` concrete kind
 
-The package ships two default kinds, `/p/`-typed so any realm can seed
-them, registered together by `WithDefaultKinds()`:
+The package ships exactly one concrete kind, `/p/`-typed so any realm can
+seed it with `WithProposalKind(ExecutionKind{})` or register it later
+with `RegisterKind`:
 
 - **`ExecutionKind`** (`"execution"`) runs an arbitrary `ExecFunc`
   supplied by the proposer (`ExecutionArgs{Title, Body, Fn}`) on
   approval. The `Fn` closure is frozen at `Propose` (vote-integrity), so
   it **must be authored in a persistent realm** — a closure created by a
   `maketx run` script does not persist to `Execute` and cannot run.
-- **`RegisterKindKind`** (`"register-kind"`) registers a new proposal
-  kind on a DAO through governance (`RegisterKindArgs{DAO, Kind}`; the
-  `DAO` handle comes from a trusted caller). Its reserved name **cannot be
-  deregistered** (`DeregisterKind` returns `ErrCannotDeregisterRegisterKind`),
-  so governance-driven registration can never be bricked.
 
 A registered foreign-realm kind runs under its **defining** realm's
 authority — registering one is a governance trust grant, not a sandbox.
+
+The package ships **no** governance meta-kinds. `RegisterKind` /
+`DeregisterKind` are plain registry primitives with no reserved names:
+any registered kind can be removed. Managing a DAO's kind set through
+governance — and keeping a managing kind un-removable so a DAO can always
+recover — is the consuming realm's policy, built on these primitives (see
+the reference realm's `manage-kinds` kind).
 
 ## Proposal lifecycle
 

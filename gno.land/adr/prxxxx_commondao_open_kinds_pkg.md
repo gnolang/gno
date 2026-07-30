@@ -1,5 +1,17 @@
 # ADR: commondao open kind-registration + /p/ default kinds (package layer, M1)
 
+> **Superseded in part by `prxxxx_commondao_unify_kinds.md`.** That ADR reverses
+> **R3** below: /p/ no longer ships a `register-kind` default kind
+> (`RegisterKindKind`/`RegisterKindArgs`), no longer ships `WithDefaultKinds`,
+> and `DeregisterKind` is now a plain primitive with **no** self-brick
+> (`ErrCannotDeregisterRegisterKind` removed). /p/ keeps only the `ProposalKind`
+> interface, the registry primitives, `WithProposalKind`, and the one concrete
+> `ExecutionKind`. Governance kind-management (the anti-brick self-lock included)
+> is now the consuming realm's policy — see the realm's `manage-kinds` kind.
+> Decisions 1–3 (readonly `New`, args-capture, the two latches) and the R2
+> execution kind stand unchanged. The historical R3/decision-4 text below is
+> kept for the record.
+
 ## Context
 
 `pr6012_commondao_proposal_kinds.md` made proposal types a per-DAO registry

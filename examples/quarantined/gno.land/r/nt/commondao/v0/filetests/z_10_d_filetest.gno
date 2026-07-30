@@ -118,9 +118,9 @@ func main() {
 //
 //
 // <gno-columns-sep>
-// [Set Proposal Kind](/r/nt/commondao/v0$help&func=CreateSetProposalKindProposal&daoID=3&enabled=true&kindName=)
+// [Register Proposal Kind](/r/nt/commondao/v0$help&func=CreateRegisterKindProposal&daoID=3&kindName=) • [Deregister Proposal Kind](/r/nt/commondao/v0$help&func=CreateDeregisterKindProposal&daoID=3&kindName=)
 //
-// This type of proposal enables or disables one of the realm's proposal kinds for this DAO. Disabling a kind blocks new proposals of that kind while in-flight ones still vote and execute.
+// This type of proposal registers one of the realm's catalog proposal kinds on this DAO by name, or deregisters a kind. Deregistering a kind blocks new proposals of that kind while in-flight ones still vote and execute. The manage-kinds kind itself cannot be deregistered.
 //
 //
 // </gno-columns>
@@ -134,4 +134,4 @@ func main() {
 // | --- | --- |
 // | Listed | false |
 // | Max active proposals | 32 |
-// | Proposal kinds | ancestor\-council\-update, council\-update, dissolve, proposal\-kinds, subdao, text, treasury\-clawback, treasury\-freeze, treasury\-spend |
+// | Proposal kinds | ancestor\-council\-update, council\-update, dissolve, manage\-kinds, subdao, text, treasury\-clawback, treasury\-freeze, treasury\-spend |

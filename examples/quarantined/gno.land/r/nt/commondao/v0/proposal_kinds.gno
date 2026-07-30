@@ -12,8 +12,9 @@ import (
 
 // Proposal kind names: the per-DAO registry keys for every proposal type
 // this realm can host. A DAO accepts proposals of exactly the kinds
-// registered on it. The full catalog is registered at DAO creation and
-// kinds are toggled afterwards through CreateSetProposalKindProposal.
+// registered on it. The default kinds are registered at DAO creation and
+// the kind set is managed afterwards through the manage-kinds kind
+// (CreateRegisterKindProposal / CreateDeregisterKindProposal).
 const (
 	kindText                  = "text"
 	kindCouncilUpdate         = "council-update"
@@ -23,14 +24,13 @@ const (
 	kindTreasurySpend         = "treasury-spend"
 	kindTreasuryClawback      = "treasury-clawback"
 	kindTreasuryFreeze        = "treasury-freeze"
-	kindProposalKinds         = "proposal-kinds"
+	kindManageKinds           = "manage-kinds"
 
-	// Opt-in kinds from the /p/ package. They are part of the catalog (so
-	// catalogKind resolves them and CreateSetProposalKindProposal can toggle
-	// them) but are NOT default-seeded: a DAO gains them only after a
-	// supermajority enable. Names must match the package's reserved names.
-	kindExecution    = "execution"     // commondao.ExecutionKind
-	kindRegisterKind = "register-kind" // commondao.RegisterKindKind
+	// Opt-in kind from the /p/ package. It is part of the catalog (so
+	// catalogKind resolves it and manage-kinds can register it by name) but
+	// is NOT default-seeded: a DAO gains it only after a supermajority
+	// register. The name must match the package's kind name.
+	kindExecution = "execution" // commondao.ExecutionKind
 )
 
 // errInvalidProposalArgs reports a proposal kind invoked with the wrong
@@ -41,8 +41,8 @@ var errInvalidProposalArgs = errors.New("invalid proposal arguments")
 // defaultProposalKinds lists the proposal kinds seeded on every new DAO
 // (genesis, user-created or sub-DAO), in display order. Kinds are stateless
 // singletons that wrap the definition constructors. This is the DAO's
-// starting governance surface; kinds are toggled afterwards through
-// CreateSetProposalKindProposal.
+// starting governance surface; the kind set is managed afterwards through
+// the manage-kinds kind.
 var defaultProposalKinds = []commondao.ProposalKind{
 	textKind{},
 	councilUpdateKind{},
@@ -52,23 +52,21 @@ var defaultProposalKinds = []commondao.ProposalKind{
 	treasurySpendKind{},
 	treasuryClawbackKind{},
 	treasuryFreezeKind{},
-	proposalKindsKind{},
+	manageKindsKind{},
 }
 
 // optInProposalKinds lists the opt-in /p/ proposal kinds: they are part of
 // the catalog but NOT default-seeded, so a DAO gains them only after a
-// supermajority CreateSetProposalKindProposal enable.
+// supermajority manage-kinds register.
 var optInProposalKinds = []commondao.ProposalKind{
 	commondao.ExecutionKind{},
-	commondao.RegisterKindKind{},
 }
 
 // proposalKindCatalog lists every proposal kind this realm can host, in
-// display order: the default-seeded kinds plus the opt-in /p/ kinds
-// (execution, register-kind). catalogKind resolves against this list, so
-// CreateSetProposalKindProposal can enable an opt-in kind that is not
-// seeded. The executor set stays closed because only catalog kinds are ever
-// registered on a DAO.
+// display order: the default-seeded kinds plus the opt-in /p/ kind
+// (execution). catalogKind resolves against this list, so manage-kinds can
+// register an opt-in kind by name that is not seeded. The executor set stays
+// closed because only catalog kinds are ever registered on a DAO by name.
 var proposalKindCatalog = append(
 	append([]commondao.ProposalKind{}, defaultProposalKinds...),
 	optInProposalKinds...,
@@ -83,30 +81,6 @@ func catalogKind(name string) commondao.ProposalKind {
 		}
 	}
 	return nil
-}
-
-// CreateSetProposalKindProposal creates a proposal to enable or disable
-// one of the realm's proposal kinds on a DAO.
-//
-// The proposal is hosted and voted in the DAO itself and decided by
-// supermajority. Enabling registers the catalog kind on the DAO and
-// disabling deregisters it, which blocks new proposals of that kind while
-// in-flight ones still vote and execute. The proposal-kinds kind itself
-// can never be disabled, so a DAO always keeps the ability to re-enable
-// kinds.
-//
-// Parameters:
-// - daoID: ID of the DAO (required)
-// - kindName: name of the proposal kind to enable or disable (required)
-// - enabled: true to enable the kind, false to disable it
-func CreateSetProposalKindProposal(cur realm, daoID uint64, kindName string, enabled bool) uint64 {
-	assertCurrent(cur)
-
-	dao := mustGetDAO(daoID)
-	caller := cur.Previous().Address()
-	assertCallerIsCouncilMember(caller, dao)
-
-	return mustPropose(dao, caller, kindProposalKinds, setProposalKindArgs{dao, kindName, enabled})
 }
 
 // IsProposalKindEnabled checks if a proposal kind is enabled (registered)
@@ -308,98 +282,142 @@ func (treasuryFreezeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commonda
 	return newTreasuryFreezePropDefinition(a.host, a.target, a.frozen), nil
 }
 
-// setProposalKindArgs carries CreateSetProposalKindProposal parameters to
-// the proposal-kinds kind. dao is the host DAO whose registry the executor
+// manageKindsArgs carries the manage-kinds wrapper parameters to the
+// manage-kinds kind. dao is the host DAO whose registry the executor
 // mutates: New receives only a readonly view, so the trusted wrapper passes
 // the mutable host handle through args (captured from its own mustGetDAO).
-type setProposalKindArgs struct {
-	dao      *commondao.CommonDAO
-	kindName string
-	enabled  bool
+//
+// A proposal is one of three shapes, all populated only by a trusted
+// wrapper:
+//   - register by name: remove=false, name set, kind=nil (catalog lookup);
+//   - register by value: remove=false, kind set (foreign, name ignored);
+//   - deregister by name: remove=true, name set.
+type manageKindsArgs struct {
+	dao    *commondao.CommonDAO
+	remove bool
+	name   string
+	kind   commondao.ProposalKind
 }
 
-// proposalKindsKind creates governance proposals that enable or disable
-// one of the realm's proposal kinds on the host DAO.
-type proposalKindsKind struct{}
+// manageKindsKind creates governance proposals that register or deregister
+// a proposal kind on the host DAO — the DAO's one permanent capability to
+// manage which kinds it accepts. Registering adds a kind (by catalog name,
+// or by value for a foreign kind supplied by a realm caller); deregistering
+// removes one, which blocks new proposals of that kind while in-flight ones
+// still vote and execute. It is decided by supermajority and cannot itself
+// be deregistered (the self-brick guard below), so a DAO always keeps the
+// ability to manage its kind set.
+type manageKindsKind struct{}
 
-func (proposalKindsKind) Name() string { return kindProposalKinds }
+func (manageKindsKind) Name() string { return kindManageKinds }
 
-func (proposalKindsKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
-	a, ok := args.(setProposalKindArgs)
+func (manageKindsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
+	a, ok := args.(manageKindsArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
 
-	if catalogKind(a.kindName) == nil {
+	if a.remove {
+		// Deregister by name. Reject no-ops so a council vote is always
+		// about an actual change, and reject the self-brick: manage-kinds
+		// is the only un-deregisterable kind, so a DAO can never lose the
+		// ability to manage its kind set.
+		if !dao.HasKind(a.name) {
+			return nil, errors.New("proposal kind is not enabled")
+		}
+		if a.name == kindManageKinds {
+			return nil, errors.New("the manage-kinds kind cannot be deregistered")
+		}
+		return manageKindsPropDefinition(a), nil
+	}
+
+	// Register. A foreign kind supplied by a realm caller (by value) is not
+	// catalog-resolved and carries its own name; otherwise the name must
+	// resolve against the catalog. Either way reject a no-op (already
+	// registered) so a council vote is always about an actual change.
+	name := a.name
+	if a.kind != nil {
+		name = a.kind.Name()
+		if name == "" {
+			return nil, errors.New("proposal kind requires a name")
+		}
+	} else if catalogKind(a.name) == nil {
 		return nil, errors.New("unknown proposal kind")
 	}
-
-	// Self-brick guard: a DAO must always keep the ability to re-enable
-	// kinds, so the governance kind itself can never be disabled.
-	if !a.enabled && a.kindName == kindProposalKinds {
-		return nil, errors.New("the proposal-kinds kind cannot be disabled")
-	}
-
-	// Reject no-ops so a council vote is always about an actual change.
-	// The host handle comes from the trusted wrapper via args (see
-	// setProposalKindArgs); use it for the current-state check.
-	if a.enabled && a.dao.HasKind(a.kindName) {
+	if dao.HasKind(name) {
 		return nil, errors.New("proposal kind is already enabled")
 	}
-	if !a.enabled && !a.dao.HasKind(a.kindName) {
-		return nil, errors.New("proposal kind is not enabled")
-	}
 
-	return setProposalKindPropDefinition{
-		dao:      a.dao,
-		kindName: a.kindName,
-		enabled:  a.enabled,
-	}, nil
+	return manageKindsPropDefinition(a), nil
 }
 
-// setProposalKindPropDefinition defines a proposal type for enabling or
-// disabling one of the realm's proposal kinds on a DAO. Disabling only
-// blocks new proposals: the kind registry is read at Propose time only, so
-// in-flight proposals of a disabled kind still vote and execute.
-type setProposalKindPropDefinition struct {
-	dao      *commondao.CommonDAO
-	kindName string
-	enabled  bool
+// manageKindsPropDefinition defines a proposal type for registering or
+// deregistering one of the realm's proposal kinds on a DAO. Deregistering
+// only blocks new proposals: the kind registry is read at Propose time
+// only, so in-flight proposals of a deregistered kind still vote and
+// execute.
+type manageKindsPropDefinition struct {
+	dao    *commondao.CommonDAO
+	remove bool
+	name   string
+	kind   commondao.ProposalKind
+}
+
+// displayName returns the kind name this proposal acts on: the supplied
+// kind's own name for a register-by-value, else the catalog name.
+func (p manageKindsPropDefinition) displayName() string {
+	if p.kind != nil {
+		return p.kind.Name()
+	}
+	return p.name
 }
 
 // Title returns the proposal title as raw text: the renderer escapes
 // every definition title, so escaping the kind name here (unlike in Body,
 // which the renderer trusts as markdown) would double-escape it.
-func (p setProposalKindPropDefinition) Title() string {
-	if p.enabled {
-		return "Enable Proposal Kind: " + p.kindName
+func (p manageKindsPropDefinition) Title() string {
+	if p.remove {
+		return "Deregister Proposal Kind: " + p.displayName()
 	}
-	return "Disable Proposal Kind: " + p.kindName
+	return "Register Proposal Kind: " + p.displayName()
 }
 
-func (setProposalKindPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+func (manageKindsPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
 // isTrustedMarkdownBody marks Body as self-assembled markdown; the embedded
 // kind name is escaped in Body itself (defense in depth).
-func (setProposalKindPropDefinition) isTrustedMarkdownBody() {}
+func (manageKindsPropDefinition) isTrustedMarkdownBody() {}
 
 // Threshold returns the tally threshold: changing which proposal kinds a
 // DAO accepts alters its governance surface, so the supermajority default
 // applies.
-func (setProposalKindPropDefinition) Threshold() commondao.Threshold {
+func (manageKindsPropDefinition) Threshold() commondao.Threshold {
 	return commondao.ThresholdSupermajority
 }
 
-func (p setProposalKindPropDefinition) Body() string {
+// Validate re-asserts the self-brick at Execute time (Validate reruns
+// inside Execute): the manage-kinds kind can never be deregistered, so a
+// DAO always keeps the ability to manage its kind set. This is a
+// defense-in-depth second layer behind the New check, now that the /p/
+// package no longer locks any name.
+func (p manageKindsPropDefinition) Validate() error {
+	if p.remove && p.name == kindManageKinds {
+		return errors.New("the manage-kinds kind cannot be deregistered")
+	}
+	return nil
+}
+
+func (p manageKindsPropDefinition) Body() string {
 	var b strings.Builder
 
-	// The kind name is validated against the catalog at proposal creation;
-	// it is escaped anyway as defense in depth.
-	b.WriteString(md.Paragraph(md.Bold("Proposal Kind:") + "\n" + md.EscapeText(p.kindName)))
+	// The kind name is validated (against the catalog for a register by
+	// name, or the supplied kind's own name); it is escaped anyway as
+	// defense in depth.
+	b.WriteString(md.Paragraph(md.Bold("Proposal Kind:") + "\n" + md.EscapeText(p.displayName())))
 
-	action := "enabled: new proposals of this kind can be created."
-	if !p.enabled {
-		action = "disabled: no new proposal of this kind can be created. " +
+	action := "registered: new proposals of this kind can be created."
+	if p.remove {
+		action = "deregistered: no new proposal of this kind can be created. " +
 			"In-flight proposals of the kind still vote and execute."
 	}
 	b.WriteString(md.Paragraph(md.Bold("Effect:") + "\nThe proposal kind is " + action))
@@ -407,17 +425,23 @@ func (p setProposalKindPropDefinition) Body() string {
 	return b.String()
 }
 
-func (p setProposalKindPropDefinition) Executor() commondao.ExecFunc {
+func (p manageKindsPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-// execute toggles the kind, returning any registry error so a race between
-// two concurrently passed toggles fails the later proposal cleanly
-// (StatusFailed) instead of panicking the transaction. It moves no funds,
-// so the definition is not Funded and ignores sub.
-func (p setProposalKindPropDefinition) execute(_ int, sub realm) error {
-	if p.enabled {
-		return p.dao.RegisterKind(catalogKind(p.kindName))
+// execute registers or deregisters the kind, returning any registry error
+// unchanged so a race between two concurrently passed manage-kinds
+// proposals fails the later one cleanly (StatusFailed) instead of panicking
+// the transaction. catalogKind is a process-global immutable lookup, so a
+// name valid at New still resolves here; the executor does not re-resolve
+// or re-validate beyond the Validate self-brick. It moves no funds, so the
+// definition is not Funded and ignores sub.
+func (p manageKindsPropDefinition) execute(_ int, sub realm) error {
+	if p.remove {
+		return p.dao.DeregisterKind(p.name)
 	}
-	return p.dao.DeregisterKind(p.kindName)
+	if p.kind != nil {
+		return p.dao.RegisterKind(p.kind)
+	}
+	return p.dao.RegisterKind(catalogKind(p.name))
 }

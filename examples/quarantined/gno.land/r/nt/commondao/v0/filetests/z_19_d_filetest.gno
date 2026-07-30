@@ -11,10 +11,10 @@ import (
 	"gno.land/r/nt/commondao/v0"
 )
 
-// Proposal kind toggles are decided by SUPERMAJORITY: with a 5-member
+// Manage-kinds proposals are decided by SUPERMAJORITY: with a 5-member
 // council, 3 YES votes (a simple majority) settle nothing (3*3 < 2*5), so
 // the proposal stays active and cannot be executed before its deadline. A
-// mutant deciding the toggle by simple majority would pass it early here.
+// mutant deciding it by simple majority would pass it early here.
 const (
 	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
@@ -37,7 +37,7 @@ func init(cur realm) {
 	members := strings.Join([]string{owner.String(), moul.String(), memD.String(), memE.String()}, "\n")
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", members)
 
-	pID = commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", false)
+	pID = commondao.CreateDeregisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")

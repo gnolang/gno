@@ -62,23 +62,13 @@ func WithCouncilMember(addr address) Option {
 // WithProposalKind registers a proposal kind on the DAO.
 // It panics when the kind is nil, has an empty name, or its name is
 // already registered.
+//
+// The package ships one concrete kind, ExecutionKind; seed it with
+// WithProposalKind(ExecutionKind{}).
 func WithProposalKind(k ProposalKind) Option {
 	return func(dao *CommonDAO) {
 		if err := dao.RegisterKind(k); err != nil {
 			panic(err)
 		}
-	}
-}
-
-// WithDefaultKinds registers the package's default proposal kinds on the
-// DAO: ExecutionKind (arbitrary-execution) and RegisterKindKind
-// (governance-driven kind registration). It is batteries-included seeding
-// for external realms; a realm may instead register these selectively via
-// RegisterKind. Like WithProposalKind it panics on a registration error
-// (e.g. a name collision with an already-registered kind).
-func WithDefaultKinds() Option {
-	return func(dao *CommonDAO) {
-		WithProposalKind(ExecutionKind{})(dao)
-		WithProposalKind(RegisterKindKind{})(dao)
 	}
 }

@@ -26,9 +26,9 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	// Governance-disable the text kind: new text proposals are blocked
+	// Governance-deregister the text kind: new text proposals are blocked
 	// (see z_19_a for the terminal rejection)
-	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", false)
+	pID := commondao.CreateDeregisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 }
@@ -46,8 +46,8 @@ func main(cur realm) {
 	out = commondao.Render(strconv.FormatUint(daoID, 10) + "/settings")
 	println("settings row lists text after disable:", strings.Contains(out, "subdao, text"))
 
-	// Re-enable the kind through a second governance proposal
-	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", true)
+	// Re-register the kind by name through a second governance proposal
+	pID := commondao.CreateRegisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 	println("after re-enable:", commondao.IsProposalKindEnabled(daoID, "text"))

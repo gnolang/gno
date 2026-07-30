@@ -25,8 +25,8 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	// Governance-disable the text kind
-	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", false)
+	// Governance-deregister the text kind
+	pID := commondao.CreateDeregisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 }

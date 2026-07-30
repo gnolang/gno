@@ -202,7 +202,7 @@ func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool
 // ExecFunc on approval, through the /p/ execution kind.
 //
 // The execution kind is opt-in: it is not seeded on new DAOs and must be
-// enabled first through a supermajority CreateSetProposalKindProposal.
+// registered first through a supermajority CreateRegisterKindProposal.
 // This wrapper takes an ExecFunc closure, which cannot be encoded in a CLI
 // transaction, so it is reachable only from a persistent realm that imports
 // this one; the closure must be authored there so it survives
@@ -229,31 +229,79 @@ func CreateExecutionProposal(cur realm, daoID uint64, title, body string, fn com
 	return mustPropose(dao, caller, kindExecution, commondao.ExecutionArgs{Title: title, Body: body, Fn: fn})
 }
 
-// CreateRegisterKindProposal creates a proposal that registers a new
-// proposal kind on the DAO through governance, through the /p/
-// register-kind kind.
+// CreateRegisterKindProposal creates a proposal to register one of the
+// realm's catalog proposal kinds on a DAO by name, through the permanent
+// manage-kinds kind (e.g. register "execution").
 //
-// The register-kind kind is opt-in: it is not seeded on new DAOs and must
-// be enabled first through a supermajority CreateSetProposalKindProposal.
-// This wrapper takes a ProposalKind value, which cannot be encoded in a CLI
-// transaction, so it is reachable only from a persistent realm that imports
-// this one and supplies the kind. The registered kind then runs under its
-// defining realm's authority (a governance trust grant, not a sandbox).
+// The proposal is hosted and voted in the DAO itself and decided by
+// supermajority; on approval the named catalog kind is registered, so new
+// proposals of that kind can be created. The manage-kinds kind is seeded
+// on every DAO, so this path is always available.
 //
 // Parameters:
 // - daoID: ID of the DAO (required)
-// - kind: the proposal kind to register on approval (required)
-func CreateRegisterKindProposal(cur realm, daoID uint64, kind commondao.ProposalKind) uint64 {
+// - kindName: name of the catalog proposal kind to register (required)
+func CreateRegisterKindProposal(cur realm, daoID uint64, kindName string) uint64 {
 	assertCurrent(cur)
 
 	dao := mustGetDAO(daoID)
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	// Opt-in gate: refuse unless the DAO enabled the register-kind kind.
-	assertKindEnabled(dao, kindRegisterKind)
+	return mustPropose(dao, caller, kindManageKinds, manageKindsArgs{dao: dao, name: kindName})
+}
 
-	return mustPropose(dao, caller, kindRegisterKind, commondao.RegisterKindArgs{DAO: dao, Kind: kind})
+// CreateDeregisterKindProposal creates a proposal to deregister a proposal
+// kind from a DAO by name, through the permanent manage-kinds kind.
+//
+// The proposal is hosted and voted in the DAO itself and decided by
+// supermajority; on approval the kind is deregistered, which blocks new
+// proposals of that kind while in-flight ones still vote and execute. The
+// manage-kinds kind itself cannot be deregistered, so a DAO always keeps
+// the ability to manage its kind set (and to re-register a catalog kind by
+// name).
+//
+// Parameters:
+// - daoID: ID of the DAO (required)
+// - kindName: name of the proposal kind to deregister (required)
+func CreateDeregisterKindProposal(cur realm, daoID uint64, kindName string) uint64 {
+	assertCurrent(cur)
+
+	dao := mustGetDAO(daoID)
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	return mustPropose(dao, caller, kindManageKinds, manageKindsArgs{dao: dao, remove: true, name: kindName})
+}
+
+// CreateRegisterCustomKindProposal creates a proposal to register a foreign
+// proposal kind on a DAO by value, through the permanent manage-kinds kind.
+//
+// The kind is a ProposalKind value, which cannot be encoded in a CLI
+// transaction, so this wrapper is reachable only from a persistent realm
+// that imports this one and supplies the kind. On approval the kind runs
+// under its defining realm's authority (a governance trust grant, not a
+// sandbox).
+//
+// Inert-to-propose on THIS realm: registering a foreign kind here has no
+// effect a user can act on, because every Create* wrapper hardcodes its own
+// kind and mustPropose is unexported — there is no propose path for an
+// arbitrary registered kind. It is useful only to a downstream realm that
+// imports /p/ and authors its own propose wrapper for the registered kind
+// (or to a future generic propose path). It is kept so that capability is
+// not silently dropped.
+//
+// Parameters:
+// - daoID: ID of the DAO (required)
+// - kind: the proposal kind to register on approval (required)
+func CreateRegisterCustomKindProposal(cur realm, daoID uint64, kind commondao.ProposalKind) uint64 {
+	assertCurrent(cur)
+
+	dao := mustGetDAO(daoID)
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	return mustPropose(dao, caller, kindManageKinds, manageKindsArgs{dao: dao, kind: kind})
 }
 
 // assertKindEnabled panics unless a proposal kind is registered (enabled)

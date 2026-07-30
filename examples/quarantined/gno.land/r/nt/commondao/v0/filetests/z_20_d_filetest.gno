@@ -19,8 +19,8 @@ const (
 var daoID uint64
 
 // customDef / customKind is a foreign proposal kind defined in this
-// persistent realm and registered on a DAO through governance via
-// CreateRegisterKindProposal.
+// persistent realm and registered on a DAO by value through governance via
+// CreateRegisterCustomKindProposal.
 type customDef struct{}
 
 func (customDef) Title() string               { return "Custom" }
@@ -41,26 +41,25 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
-
-	// register-kind is opt-in: enable it through governance first.
-	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "register-kind", true)
-	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
-	commondao.Execute(cross(cur), daoID, pID)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
-	println("register-kind enabled:", commondao.IsProposalKindEnabled(daoID, "register-kind"))
 	println("custom enabled before:", commondao.IsProposalKindEnabled(daoID, "custom"))
 
-	// Governance-register the foreign kind on the DAO.
-	pID := commondao.CreateRegisterKindProposal(cross(cur), daoID, customKind{})
+	// Governance-register the foreign kind by value through the permanent
+	// manage-kinds kind (no opt-in enable needed: manage-kinds is seeded).
+	pID := commondao.CreateRegisterCustomKindProposal(cross(cur), daoID, customKind{})
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 	println("custom enabled after:", commondao.IsProposalKindEnabled(daoID, "custom"))
+
+	// Inert-to-propose on THIS realm: the kind is registered, but there is
+	// no propose path for it (every Create* wrapper hardcodes its own kind
+	// and mustPropose is unexported). It is useful only to a downstream
+	// realm that authors its own propose wrapper.
 }
 
 // Output:
-// register-kind enabled: true
 // custom enabled before: false
 // custom enabled after: true

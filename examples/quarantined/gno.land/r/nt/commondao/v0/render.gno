@@ -22,11 +22,11 @@ const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
 // trustedMarkdownBody marks proposal definitions whose Body returns
 // markdown the definition assembled itself (escaping any embedded user
 // fields with md.EscapeText). Those bodies are rendered verbatim. Every
-// other body — including the /p/ default kinds (execution, register-kind),
-// whose definitions are package-typed and so cannot implement this
-// realm-local marker — is treated as raw, user-supplied text and escaped
-// by the renderer. The render layer is the single escape point: definitions
-// return raw text and opt out only when they render their own markup.
+// other body — including the /p/ execution kind, whose definition is
+// package-typed and so cannot implement this realm-local marker — is
+// treated as raw, user-supplied text and escaped by the renderer. The
+// render layer is the single escape point: definitions return raw text and
+// opt out only when they render their own markup.
 type trustedMarkdownBody interface {
 	isTrustedMarkdownBody()
 }
@@ -242,12 +242,14 @@ func renderCreateProposalSection(dao *commondao.CommonDAO, res *mux.ResponseWrit
 				),
 		},
 		{
-			kindProposalKinds,
-			md.Paragraph(setProposalKindLink(daoID)) +
+			kindManageKinds,
+			md.Paragraph(registerKindLink(daoID)+" • "+deregisterKindLink(daoID)) +
 				md.Paragraph(
-					"This type of proposal enables or disables one of the realm's "+
-						"proposal kinds for this DAO. Disabling a kind blocks new "+
-						"proposals of that kind while in-flight ones still vote and execute.",
+					"This type of proposal registers one of the realm's catalog "+
+						"proposal kinds on this DAO by name, or deregisters a kind. "+
+						"Deregistering a kind blocks new proposals of that kind while "+
+						"in-flight ones still vote and execute. The manage-kinds kind "+
+						"itself cannot be deregistered.",
 				),
 		},
 	}
@@ -722,12 +724,19 @@ func treasurySpendLink(daoID uint64) string {
 	))
 }
 
-func setProposalKindLink(daoID uint64) string {
-	return md.Link("Set Proposal Kind", realmLink.Call(
-		"CreateSetProposalKindProposal",
+func registerKindLink(daoID uint64) string {
+	return md.Link("Register Proposal Kind", realmLink.Call(
+		"CreateRegisterKindProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"kindName", "",
-		"enabled", "true",
+	))
+}
+
+func deregisterKindLink(daoID uint64) string {
+	return md.Link("Deregister Proposal Kind", realmLink.Call(
+		"CreateDeregisterKindProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"kindName", "",
 	))
 }
 

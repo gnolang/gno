@@ -14,9 +14,12 @@
 // registered on the DAO. New receives only a readonly view, so it cannot
 // mutate the DAO before the vote; a kind that must mutate state on
 // execution captures its target *CommonDAO from args (populated only by
-// trusted callers) and mutates in its executor. The package ships two
-// default kinds — an arbitrary-execution kind and a governance-driven
-// register-kind kind — seeded together via WithDefaultKinds.
+// trusted callers) and mutates in its executor. RegisterKind /
+// DeregisterKind / HasKind / KindNames and the WithProposalKind option
+// are the registry primitives; the package ships one concrete kind,
+// ExecutionKind (arbitrary execution), and no governance meta-kinds —
+// managing a DAO's kind set through governance is the consuming realm's
+// job.
 //
 // Proposals snapshot the council as their electorate at creation and
 // are decided the moment the outcome is mathematically settled: with

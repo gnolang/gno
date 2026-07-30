@@ -17,8 +17,6 @@ import (
 const DefaultMaxActiveProposals = 32
 
 var (
-	ErrCannotDeregisterRegisterKind = errors.New("the register-kind proposal kind cannot be deregistered")
-
 	ErrCouncilUpdateOverlap  = errors.New("council update adds and removes the same address")
 	ErrDAOIsDeleted          = errors.New("DAO is deleted")
 	ErrEmptyCouncil          = errors.New("council update would remove every council member")
@@ -268,14 +266,11 @@ func (dao *CommonDAO) RegisterKind(k ProposalKind) error {
 // Propose time only, so in-flight proposals of the kind keep their
 // frozen definition and still vote and execute.
 //
-// The reserved register-kind name cannot be deregistered: removing it
-// would brick governance-driven registration (the only way to add kinds
-// back once the owning realm no longer holds the handle), so the call
-// returns ErrCannotDeregisterRegisterKind instead.
+// This is a plain registry primitive with no reserved names: any
+// registered kind can be removed. A consuming realm that must keep a
+// kind un-removable (e.g. a governance kind that manages the kind set)
+// enforces that as its own policy, not through this package.
 func (dao *CommonDAO) DeregisterKind(name string) error {
-	if name == registerKindName {
-		return ErrCannotDeregisterRegisterKind
-	}
 	if _, removed := dao.kinds.Remove(name); !removed {
 		return ErrProposalKindNotFound
 	}

@@ -30,8 +30,8 @@ func init(cur realm) {
 	// A text proposal is created while its kind is still enabled
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 
-	// Governance-disable the text kind after the proposal exists
-	gID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "text", false)
+	// Governance-deregister the text kind after the proposal exists
+	gID := commondao.CreateDeregisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, gID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, gID)
 }

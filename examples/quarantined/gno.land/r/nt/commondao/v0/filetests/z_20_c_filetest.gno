@@ -26,7 +26,7 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	pID := commondao.CreateSetProposalKindProposal(cross(cur), daoID, "execution", true)
+	pID := commondao.CreateRegisterKindProposal(cross(cur), daoID, "execution")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
 }
