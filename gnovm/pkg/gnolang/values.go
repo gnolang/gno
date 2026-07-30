@@ -1052,7 +1052,7 @@ func (mv *MapValue) GetLength() int {
 // displaces, captured before the stored key is overwritten, or nil when the
 // key is new or carries no object. Returning it here lets callers re-parent
 // the map key in the ownership tree without computing the map key a second
-// time. See gnovm/adr/prxxxx_computemapkey_concrete_key_prefix.md.
+// time. See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
 func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue, omitKeyType bool) (pv PointerValue, oldKeyObject Object) {
 	mv.ensureVmap(store, omitKeyType)
 	// If NaN, instead of computing map key, just append to List.
@@ -1867,7 +1867,7 @@ func (tv *TypedValue) Sign() int {
 // with int64(1), which serialize to the same eight value bytes.
 //
 // Note mt.Key, not mt.Elem(): (*MapType).Elem() returns the *value* type.
-// See gnovm/adr/prxxxx_computemapkey_concrete_key_prefix.md.
+// See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
 func mapKeyOmitType(mt *MapType) bool {
 	return baseOf(mt.Key).Kind() != InterfaceKind
 }

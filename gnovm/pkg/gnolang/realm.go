@@ -1897,7 +1897,7 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // av.Data == nil (a byte array has no List), struct fields except blank
 // identifiers, recursing through both. Pointer keys are deliberately not
 // followed — ComputeMapKey hashes a pointer by address without dereferencing
-// it. See gnovm/adr/prxxxx_computemapkey_concrete_key_prefix.md.
+// it. See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
 func fillMapKeyRefs(store Store, tv *TypedValue) {
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
