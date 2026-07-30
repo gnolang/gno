@@ -5,9 +5,8 @@ import "testing"
 // TestExecuteReentrancyLatch pins the latch mechanism directly: a nested
 // enterExecute (which is what a re-entrant Execute reaches) must panic, and
 // leaveExecute must clear the latch so the next execution can proceed. The
-// end-to-end re-entry through a real proposal closure ships with the
-// arbitrary-execution proposal kind (the closed catalog has no re-entering
-// executor to drive it today).
+// end-to-end re-entry through a real proposal closure that crosses back into
+// Execute is covered by the z_20_i filetest.
 func TestExecuteReentrancyLatch(t *testing.T) {
 	leaveExecute() // ensure a clean starting state
 

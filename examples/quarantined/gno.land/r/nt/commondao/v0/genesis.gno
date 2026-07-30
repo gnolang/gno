@@ -5,10 +5,9 @@ func init(cur realm) {
 	// derive from (see assertRunningPath).
 	assertRunningPath()
 
-	// Create the realm's own DAO, governed by its maintainers. There is
-	// no owner: after the ownership re-scope the realm administers nothing
-	// about a DAO except its home-index listing, which the realm DAO sets
-	// for itself here.
+	// Create the realm's own DAO, governed by its maintainers. There is no
+	// owner: the realm administers nothing about a DAO except its home-index
+	// listing, which the realm DAO sets for itself here.
 	dao := createDAO(
 		"Common DAO",
 		"Govern and maintain the commondao reference realm.",

@@ -33,13 +33,13 @@ The realm `Execute` wrapper picks the **operative DAO** and mints its
 sub before calling into the package:
 
 ```
-op := dao                                  // host DAO by default
-if f, ok := p.Definition().(commondao.Funded); ok { op = f.FundingDAO() }
-sub := cur.Sub(subpathOf(op.ID()))
+op := daoID                                // host DAO by default
+if f, ok := p.Definition().(Funded); ok { op = f.FundingDAOID() }
+sub := cur.Sub(subpathOf(op))
 err := dao.Execute(proposalID, sub)        // package calls fn(0, sub)
 ```
 
-`Funded` is a new optional interface (`FundingDAO() *CommonDAO`) that a
+`Funded` is a new optional interface (`FundingDAOID() uint64`) that a
 fund-moving definition implements to name the DAO whose address funds
 its executor: clawback names the **target**, sub-DAO dissolution names
 the **dissolved descendant**, ordinary spend and every non-fund
@@ -89,7 +89,7 @@ the stored `daoAddress` const or the realm refuses to run at genesis.
 
 ### Residual author-time concern (not a runtime hole)
 
-A mis-wired `FundingDAO()` would make the wrapper mint the *wrong*
+A mis-wired `FundingDAOID()` would make the wrapper mint the *wrong*
 DAO's sub and the executor would draw from that DAO's treasury. This is
 **not** caught by `pkgAddr == from` (both sides are the minted sub's own
 address, so the check is vacuous here), and it is **not** an authority
@@ -135,9 +135,9 @@ clawback family, which all fail on a mis-wire) and sub-DAO dissolution
   `Funded` interface.
 - Realm surface: the `Execute` wrapper computes the operative DAO and
   mints its sub; the three fund-movers rebuild their banker from the
-  passed `sub` (their own `cur.Sub` removed) and declare `FundingDAO()`
-  (spend/dissolve → `p.dao`, clawback → `p.target`); the non-fund
-  executors ignore `sub`.
+  passed `sub` (their own `cur.Sub` removed) and declare `FundingDAOID()`
+  (spend/dissolve → `p.dao.ID()`, clawback → `p.target.ID()`); the
+  non-fund executors ignore `sub`.
 - Tests: `z_commondao_execute_0` rewritten for the non-crossing
   executor — the stale `unsafe.PreviousRealm()` cross-identity
   assertion is gone (an executor is non-crossing and must not read the
