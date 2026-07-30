@@ -31,9 +31,10 @@ type ExecutionArgs struct {
 // own execution kind.
 //
 // The executor moves value only through the DAO-scoped sub the host
-// passes (see ExecFunc); ExecutionKind is not Funded, so it always
-// receives its own DAO's sub. The closure is frozen at Propose
-// (vote-integrity: the exact code is fixed before the vote).
+// passes (see ExecFunc): the host mints and passes that sub, so the
+// executor receives whichever DAO's sub the host decides (its own DAO's by
+// default). The closure is frozen at Propose (vote-integrity: the exact
+// code is fixed before the vote).
 type ExecutionKind struct{}
 
 // Name returns the execution kind's registry name.

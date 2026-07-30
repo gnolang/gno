@@ -1,5 +1,33 @@
 # ADR: commondao unify proposal-kinds + register-kind into one manage-kinds kind
 
+> **Amended by the no-smell cleanup (same PR series).** The final shape drops
+> three residuals this ADR introduced:
+>
+> - **Reference-realm registration is by-NAME only.** The by-value wrapper
+>   `CreateRegisterCustomKindProposal` (decisions 1, 2, 5; and the "kept and
+>   documented" alternative) is **DELETED**: on this realm a by-value-registered
+>   foreign kind is inert (no propose path), so it was governance dead weight.
+>   The `kind commondao.ProposalKind` field is dropped from the manage-kinds
+>   args/definition — the shape is now `{dao, remove, name}`, register and
+>   deregister both by name. The by-value capability stays available in `/p/`
+>   (`WithProposalKind` / `RegisterKind`) as a documented downstream pattern
+>   (see `/p/` `doc.gno` / README "Extending commondao in your own realm"), not
+>   a governance wrapper. The two surviving wrappers are
+>   `CreateRegisterKindProposal` (by name) and `CreateDeregisterKindProposal`.
+> - **The args/definition twin is collapsed.** `manageKindsArgs` and
+>   `manageKindsPropDefinition` were byte-identical structs joined by a
+>   rename-only conversion; they are now ONE type, `manageKindsProposal` (the
+>   definition IS the args type — `New` type-asserts it, validates, returns it).
+> - **"enabled" → "registered".** `IsProposalKindEnabled` →
+>   `HasProposalKind`; `assertKindEnabled` → `assertKindRegistered`; the error
+>   strings become "already registered" / "proposal kind is not registered:
+>   <name>". `Funded` also moved from `/p/` to the realm (host-consumed, not
+>   package-dispatched; see `prxxxx_commondao_open_kinds_pkg.md`). Filetest
+>   `z_20_d` (register-custom) is replaced by a by-name deregister/re-register
+>   round trip. The self-brick and the `CreateExecutionProposal` gate are
+>   unchanged and still mutation-verified (z_19_f, z_20_b). The body below is
+>   kept for the record.
+
 ## Context
 
 `prxxxx_commondao_open_kinds_pkg.md` (M1) and `prxxxx_commondao_open_kinds_realm.md`

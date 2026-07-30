@@ -27,7 +27,7 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	// A text proposal is created while its kind is still enabled
+	// A text proposal is created while its kind is still registered
 	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 
 	// Governance-deregister the text kind after the proposal exists
@@ -41,7 +41,7 @@ func main(cur realm) {
 
 	// The kind registry is read only at Propose, so the in-flight proposal
 	// created before the kind was deregistered still votes and executes
-	println("text enabled:", commondao.IsProposalKindEnabled(daoID, "text"))
+	println("text registered:", commondao.HasProposalKind(daoID, "text"))
 
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
@@ -51,5 +51,5 @@ func main(cur realm) {
 }
 
 // Output:
-// text enabled: false
+// text registered: false
 // status: executed

@@ -136,6 +136,33 @@ governance — and keeping a managing kind un-removable so a DAO can always
 recover — is the consuming realm's policy, built on these primitives (see
 the reference realm's `manage-kinds` kind).
 
+## Extending commondao in your own realm
+
+The package is pure mechanism; every governance policy lives in the
+consuming realm. To add your own proposal type:
+
+1. **Author a `ProposalKind`** — `Name()` plus
+   `New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error)`. Make
+   the definition `Executable` if it mutates on approval. If its executor
+   moves funds from a DAO other than the host, have the **host** realm
+   consume a `Funded`-style contract (`FundingDAOID() uint64`): minting a
+   DAO sub needs the host's `cur`, so it is host-consumed, not
+   package-dispatched — define it in your realm.
+2. **Seed it** — the owning realm holds the handle, so no proposal is
+   needed: `commondao.New(WithProposalKind(YourKind{}), …)` at
+   construction, or `dao.RegisterKind(YourKind{})` directly.
+3. **Author a typed, CLI-friendly wrapper**
+   `CreateYourProposal(cur realm, daoID uint64, …params…)` that
+   council-gates the caller, builds the args, and calls `Propose`.
+4. **Optionally add a governance toggle** — a `manage-kinds`-style kind
+   whose executor calls `RegisterKind`/`DeregisterKind`, kept itself
+   un-deregisterable, if the council should manage kinds at runtime.
+
+**Trust boundary:** `New` gets only a `ReadonlyCommonDAO`; the mutable
+`*CommonDAO` reaches a definition only via args your trusted wrapper
+populates; the executor gets the DAO's terminal, RealmSend-only sub. See
+the reference realm for a worked example.
+
 ## Proposal lifecycle
 
 `Propose` (kind-gated as above; capped via `SetMaxActiveProposals`;
@@ -156,10 +183,12 @@ sub-identity via `chain.DerivePkgSubAddr`) and enforce the frozen flag.
 `Execute` runs the executor with the DAO-scoped sub-identity the host
 passes as its value-movement authority: a fund-moving definition builds
 its banker from that `sub`, so value moves are structurally bounded to
-that one DAO address. A definition implementing `Funded` names, by ID
-(`FundingDAOID`), the DAO whose sub funds it (e.g. clawback sweeps the
-target, not the host); the host resolves that ID to mint the sub. See
-the reference realm's treasury proposals for the constitutional pattern.
+that one DAO address. Which DAO's sub the host mints is the host's
+decision — minting a sub needs the host realm's `cur`, so the package
+cannot make it — typically the proposal's own DAO, but a fund-moving
+definition may direct the host to a different DAO (e.g. clawback sweeps
+the target, not the host). See the reference realm's treasury proposals
+and its host-side `Funded` contract for the constitutional pattern.
 
 ## Realm boundaries
 

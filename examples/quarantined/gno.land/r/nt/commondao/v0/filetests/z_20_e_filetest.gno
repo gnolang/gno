@@ -33,4 +33,4 @@ func main(cur realm) {
 }
 
 // Error:
-// proposal kind is already enabled
+// proposal kind is already registered

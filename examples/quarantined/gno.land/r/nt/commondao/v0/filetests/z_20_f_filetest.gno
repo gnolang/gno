@@ -32,4 +32,4 @@ func main(cur realm) {
 }
 
 // Error:
-// proposal kind is not enabled
+// proposal kind is not registered: execution

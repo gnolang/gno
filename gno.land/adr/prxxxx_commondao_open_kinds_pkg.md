@@ -9,8 +9,17 @@
 > `ExecutionKind`. Governance kind-management (the anti-brick self-lock included)
 > is now the consuming realm's policy — see the realm's `manage-kinds` kind.
 > Decisions 1–3 (readonly `New`, args-capture, the two latches) and the R2
-> execution kind stand unchanged. The historical R3/decision-4 text below is
-> kept for the record.
+> execution kind stand unchanged. **Amended by the later no-smell cleanup:** the
+> `Funded` interface (decision 2) moved OUT of `/p/` to the reference realm — it
+> is host-consumed (minting a DAO sub needs the host's `cur`), never
+> package-dispatched, so `/p/` structurally cannot honor it and had no functional
+> caller. `FundingDAOID() uint64` (the shape) is unchanged; only its home moved.
+> The two per-DAO latches (decision 3) also gained a documentation reconciliation
+> with the realm-global latch (they are complementary layers — see the realm's
+> `reentrancy.gno` and the superseding banner on `pr6012_commondao_reentrancy.md`),
+> no code change. `default_kinds.gno` was renamed `execution_kind.gno` (it holds
+> only `ExecutionKind`/`ExecutionArgs`). The historical R3/decision-4 text below
+> is kept for the record.
 
 ## Context
 

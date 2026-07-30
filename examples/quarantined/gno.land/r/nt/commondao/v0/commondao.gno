@@ -123,7 +123,7 @@ func newDAOOptions(id uint64, name, purpose, description string, parent *commond
 	}
 
 	// Seed the default proposal kinds: every new DAO (genesis, user-created
-	// or sub-DAO) starts with these enabled. The opt-in catalog kind
+	// or sub-DAO) starts with these registered. The opt-in catalog kind
 	// (execution) is deliberately NOT seeded — a DAO gains it only after a
 	// supermajority CreateRegisterKindProposal.
 	for _, k := range defaultProposalKinds {

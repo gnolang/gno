@@ -143,6 +143,25 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 	}
 }
 
+// Funded is the optional contract a proposal definition implements when its
+// executor moves funds from a DAO other than the proposal's host: it names,
+// by ID, the DAO whose sub-identity address funds the executor. Execute
+// resolves that DAO, mints its terminal RealmSend-only sub and passes it to
+// the ExecFunc; a definition that does not implement Funded receives the
+// host DAO's own sub by default. The returned ID must identify the DAO the
+// definition validates its fund movement against (e.g. the DAO being spent,
+// swept or dissolved).
+//
+// It lives realm-side, not in /p/: minting a DAO sub needs the host realm's
+// cur (cur.Sub), so only the host — never the package — can honor it. /p/
+// dispatches CapExempt/Executable/Validable itself, but Execute (the host)
+// is the sole consumer of Funded, so the package has no reason to know it.
+type Funded interface {
+	// FundingDAOID returns the ID of the DAO whose sub-address funds the
+	// executor.
+	FundingDAOID() uint64
+}
+
 // Execute executes a DAO proposal.
 //
 // Executing a proposal that passed early (decided by the default Council
@@ -180,7 +199,7 @@ func Execute(cur realm, daoID, proposalID uint64) {
 	// executors ignore the sub. The sub is terminal and RealmSend-only, so
 	// the executor can move value only from this one DAO address.
 	op := daoID
-	if f, ok := p.Definition().(commondao.Funded); ok {
+	if f, ok := p.Definition().(Funded); ok {
 		op = f.FundingDAOID()
 	}
 	sub := cur.Sub(subpathOf(op))

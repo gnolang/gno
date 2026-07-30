@@ -9,18 +9,10 @@ import (
 )
 
 var (
-	_ commondao.ProposalDefinition = (*manageKindsPropDefinition)(nil)
-	_ commondao.Validable          = (*manageKindsPropDefinition)(nil)
+	_ commondao.ProposalDefinition = manageKindsProposal{}
+	_ commondao.Validable          = manageKindsProposal{}
+	_ commondao.Executable         = manageKindsProposal{}
 )
-
-// probeKind is a foreign proposal kind with a configurable name, for the
-// register-by-value cases.
-type probeKind string
-
-func (k probeKind) Name() string { return string(k) }
-func (probeKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
-	return nil, nil
-}
 
 func TestManageKindsKindNew(t *testing.T) {
 	// The test DAO registers the full catalog; deregister the text kind so
@@ -31,22 +23,18 @@ func TestManageKindsKindNew(t *testing.T) {
 
 	cases := []struct {
 		name string
-		args manageKindsArgs
+		args manageKindsProposal
 		err  string
 	}{
 		// Register by name.
-		{"register unknown kind", manageKindsArgs{dao: dao, name: "unknown"}, "unknown proposal kind"},
-		{"register an enabled kind", manageKindsArgs{dao: dao, name: kindCouncilUpdate}, "proposal kind is already enabled"},
-		{"register a catalog kind", manageKindsArgs{dao: dao, name: kindText}, ""},
-		{"register the opt-in execution kind", manageKindsArgs{dao: dao, name: kindExecution}, ""},
-		// Register by value (foreign kind).
-		{"register a foreign kind by value", manageKindsArgs{dao: dao, kind: probeKind("custom")}, ""},
-		{"register a nil-named kind by value", manageKindsArgs{dao: dao, kind: probeKind("")}, "proposal kind requires a name"},
-		{"register an already-enabled kind by value", manageKindsArgs{dao: dao, kind: probeKind(kindCouncilUpdate)}, "proposal kind is already enabled"},
+		{"register unknown kind", manageKindsProposal{dao: dao, name: "unknown"}, "unknown proposal kind"},
+		{"register a registered kind", manageKindsProposal{dao: dao, name: kindCouncilUpdate}, "proposal kind is already registered"},
+		{"register a catalog kind", manageKindsProposal{dao: dao, name: kindText}, ""},
+		{"register the opt-in execution kind", manageKindsProposal{dao: dao, name: kindExecution}, ""},
 		// Deregister by name.
-		{"deregister an absent kind", manageKindsArgs{dao: dao, remove: true, name: kindText}, "proposal kind is not enabled"},
-		{"deregister the manage-kinds kind", manageKindsArgs{dao: dao, remove: true, name: kindManageKinds}, "the manage-kinds kind cannot be deregistered"},
-		{"deregister an enabled kind", manageKindsArgs{dao: dao, remove: true, name: kindCouncilUpdate}, ""},
+		{"deregister an absent kind", manageKindsProposal{dao: dao, remove: true, name: kindText}, "proposal kind is not registered: " + kindText},
+		{"deregister the manage-kinds kind", manageKindsProposal{dao: dao, remove: true, name: kindManageKinds}, "the manage-kinds kind cannot be deregistered"},
+		{"deregister a registered kind", manageKindsProposal{dao: dao, remove: true, name: kindCouncilUpdate}, ""},
 	}
 
 	for _, tc := range cases {
@@ -60,12 +48,13 @@ func TestManageKindsKindNew(t *testing.T) {
 			}
 
 			urequire.NoError(t, err)
-			d, ok := def.(manageKindsPropDefinition)
-			urequire.True(t, ok, "expect a manageKindsPropDefinition")
+			// New returns the args value unchanged as the definition (the
+			// collapsed args/definition type): the two must be equal.
+			d, ok := def.(manageKindsProposal)
+			urequire.True(t, ok, "expect a manageKindsProposal")
 			uassert.True(t, d.dao == dao, "expect the definition to keep the host DAO")
 			uassert.Equal(t, tc.args.remove, d.remove)
 			uassert.Equal(t, tc.args.name, d.name)
-			uassert.True(t, d.kind == tc.args.kind, "expect the definition to keep the supplied kind")
 		})
 	}
 }
@@ -78,16 +67,16 @@ func TestManageKindsValidateSelfBrick(t *testing.T) {
 
 	// A manage-kinds deregister slips past New (constructed directly here);
 	// Validate is the backstop that still rejects it.
-	brick := manageKindsPropDefinition{dao: dao, remove: true, name: kindManageKinds}
+	brick := manageKindsProposal{dao: dao, remove: true, name: kindManageKinds}
 	err := brick.Validate()
 	urequire.Error(t, err)
 	uassert.Equal(t, "the manage-kinds kind cannot be deregistered", err.Error())
 
 	// Deregistering any other kind validates cleanly.
-	ok := manageKindsPropDefinition{dao: dao, remove: true, name: kindText}
+	ok := manageKindsProposal{dao: dao, remove: true, name: kindText}
 	uassert.NoError(t, ok.Validate())
 
 	// A register never trips the self-brick regardless of name.
-	reg := manageKindsPropDefinition{dao: dao, name: kindManageKinds}
+	reg := manageKindsProposal{dao: dao, name: kindManageKinds}
 	uassert.NoError(t, reg.Validate())
 }

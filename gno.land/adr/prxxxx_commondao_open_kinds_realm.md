@@ -12,7 +12,18 @@
 > `register-kind` name to a two-layer realm guard on `manage-kinds`
 > (`New` + `Validate`). Decision 1 (host handle via args-capture), decision 2
 > (`FundingDAOID`), decision 5 (render escape-by-default), and the
-> `CreateExecutionProposal` opt-in gate all stand unchanged. The historical text
+> `CreateExecutionProposal` opt-in gate all stand unchanged.
+>
+> **Further amended by the no-smell cleanup:** reference-realm registration is
+> now by-NAME only — `CreateRegisterCustomKindProposal` (the by-value wrapper) is
+> DELETED as inert-on-this-realm, and the by-value capability is documented as a
+> `/p/` downstream pattern rather than a governance wrapper (the two surviving
+> wrappers are `CreateRegisterKindProposal` by name and
+> `CreateDeregisterKindProposal`). The `Funded` interface of decision 2 moved
+> from `/p/` to the realm (host-consumed, not package-dispatched);
+> `FundingDAOID` itself is unchanged. Terminology went "enabled" → "registered"
+> (`HasProposalKind`, `assertKindRegistered`). See
+> `prxxxx_commondao_unify_kinds.md` for the full cleanup. The historical text
 > below is kept for the record.
 
 ## Context

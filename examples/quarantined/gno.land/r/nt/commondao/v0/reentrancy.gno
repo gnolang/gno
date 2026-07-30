@@ -1,18 +1,35 @@
 package commondao
 
-// executing is the re-entrancy latch. It is set while a proposal executor is
-// running (inside Execute) and rejects any nested Execute — an executor must
-// never trigger another execution, whether of the same DAO or a different one,
-// directly or by crossing back in as its DAO.
+// executing is this realm's GLOBAL re-entrancy latch, the outer of two
+// complementary layers. It is set while a proposal executor is running
+// (inside the public Execute) and rejects any nested Execute — an executor
+// must never trigger another execution, whether of the same DAO or a
+// different one, directly or by crossing back in as its DAO.
 //
-// It is realm module state: a mutable /p/ package global is forbidden (writing
-// one panics the borrow/stamping rule), and the latch must be writable. A
-// single bool suffices because the invariant is global — at most one executor
-// runs per transaction. Keying it per-DAO would let an executor nest an
-// Execute of a different DAO (re-opening a conditional-execution "free option")
-// and would demand a scattered target-latch check at every DAO-mutating
-// executor; the global bool makes "one executor per tx" a structural, local,
-// unforgettable invariant instead.
+// The two layers guard different invariants and neither subsumes the other:
+//
+//   - The /p/ CommonDAO carries per-DAO `executing` / `proposing` FIELDS
+//     (see the package's commondao.gno). Being fields on the owning DAO
+//     object, they are writable where a mutable /p/ global is not, so they
+//     travel with a standalone /p/ consumer that never wrote a realm-global
+//     latch: they give every consumer same-DAO re-entrancy protection (a
+//     nested Execute or Propose on the SAME DAO).
+//   - This realm-global bool adds what a per-DAO field structurally cannot:
+//     it enforces one-executor-per-transaction across ALL DAOs, closing the
+//     cross-DAO straddle a per-DAO latch misses — the ancestor-hosted
+//     dissolution/clawback case, where an executor running under DAO A's
+//     Execute nests an Execute that deletes a DIFFERENT DAO out from under
+//     A. A latch keyed on the executing DAO never fires there; a target
+//     latch would demand a scattered check at every DAO-mutating executor.
+//     The single global bool makes "one executor per tx" a local,
+//     unforgettable invariant instead, and also shuts the conditional-
+//     execution "free option" (nest a different DAO's Execute, observe
+//     in-tx, panic to revert).
+//
+// It is realm module state: a mutable /p/ package global is forbidden
+// (writing one panics the borrow/stamping rule), and the latch must be
+// writable. This global is the realm's, complementing — not replacing — the
+// /p/ per-DAO fields.
 //
 // Vote / Create* / Withdraw / Resign are deliberately NOT latched: no executor
 // re-enters them, legitimate executors need them (sub-DAO creation, the

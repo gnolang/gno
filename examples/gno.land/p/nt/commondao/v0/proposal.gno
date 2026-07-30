@@ -161,19 +161,6 @@ type (
 		// Executor returns a function to execute the proposal.
 		Executor() ExecFunc
 	}
-
-	// Funded is an optional interface for proposal definitions whose
-	// executor moves funds. It declares, by ID, the DAO whose sub-identity
-	// address funds the executor: the host resolves that DAO, mints its
-	// sub and passes it to the ExecFunc. Definitions that do not implement
-	// Funded receive the proposal's own DAO sub by default. The returned
-	// ID must identify the DAO the definition validates its fund movement
-	// against (e.g. the DAO being spent, swept or dissolved).
-	Funded interface {
-		// FundingDAOID returns the ID of the DAO whose sub-address funds
-		// the executor.
-		FundingDAOID() uint64
-	}
 )
 
 // newProposal creates a new DAO proposal.

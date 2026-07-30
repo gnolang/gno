@@ -34,4 +34,39 @@
 // accept one from, or return one to, an untrusted realm - readonly views
 // (CommonDAO.Readonly) are the only safe handles to cross a realm
 // boundary. See the package README for details.
+//
+// # Extending commondao in your own realm
+//
+// This package is pure mechanism: it ships the ExecutionKind concrete kind
+// and the registry primitives, and leaves every governance policy to the
+// consuming realm. To add a proposal type of your own:
+//
+//   - Author a ProposalKind: a type with Name() string and
+//     New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error). Make
+//     the definition Executable (Executor() returns an ExecFunc) if it
+//     mutates state on approval. If its executor moves funds from a DAO other
+//     than the proposal's host, have the HOST realm consume a Funded-style
+//     contract (FundingDAOID() uint64) — minting a DAO sub needs the host's
+//     cur, so this contract is host-consumed, not package-dispatched; define
+//     it in your realm, as the reference realm does.
+//   - Seed it. The owning realm holds the DAO handle, so no proposal is
+//     needed: pass commondao.New(WithProposalKind(YourKind{}), …) at
+//     construction, or call dao.RegisterKind(YourKind{}) directly.
+//   - Author a typed, CLI-friendly wrapper
+//     CreateYourProposal(cur realm, daoID uint64, …params…): council-gate the
+//     caller, build the args struct, and call Propose. This is the only
+//     public entry, so the args-capture trust boundary holds.
+//   - Optionally add a runtime governance toggle. If the council should
+//     register/deregister kinds by vote (rather than only at construction),
+//     author a manage-kinds-style ProposalKind whose executor calls
+//     RegisterKind/DeregisterKind, and keep that managing kind itself
+//     un-deregisterable so the DAO can always recover.
+//
+// Trust boundary: New receives only a ReadonlyCommonDAO, so a kind — even an
+// externally authored one — cannot mutate the host at Propose time. The
+// mutable *CommonDAO reaches a definition only through args, which your
+// trusted wrapper populates (an external proposer cannot obtain one). On
+// execution the host passes the DAO's terminal, RealmSend-only sub, so a
+// fund-moving executor is bounded to that one DAO address. See the reference
+// realm gno.land/r/nt/commondao/v0 for a full worked example.
 package commondao

@@ -27,19 +27,19 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// The execution kind is NOT seeded on new DAOs. Creating an execution
-	// proposal before the DAO enables the kind is refused by the opt-in
-	// enable-gate (assertKindEnabled). Removing that gate would let this
+	// proposal before the DAO registers the kind is refused by the opt-in
+	// register-gate (assertKindRegistered). Removing that gate would let this
 	// call reach Propose, which rejects the unregistered kind with a
 	// different message ("proposal kind not found") — this golden pins the
 	// gate.
-	println("execution enabled:", commondao.IsProposalKindEnabled(daoID, "execution"))
+	println("execution registered:", commondao.HasProposalKind(daoID, "execution"))
 	commondao.CreateExecutionProposal(cross(cur), daoID, "Run it", "Body", func(_ int, _ realm) error {
 		return nil
 	})
 }
 
 // Output:
-// execution enabled: false
+// execution registered: false
 
 // Error:
-// proposal kind is not enabled: execution
+// proposal kind is not registered: execution

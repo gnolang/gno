@@ -35,16 +35,16 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// The text kind is deregistered while every other kind still works
-	println("text enabled:", commondao.IsProposalKindEnabled(daoID, "text"))
+	println("text registered:", commondao.HasProposalKind(daoID, "text"))
 	pID := commondao.CreateCouncilUpdateProposal(cross(cur), daoID, string(owner), "")
 	println("council update created:", pID)
 
-	// Creating a proposal of the disabled kind is rejected
+	// Creating a proposal of the deregistered kind is rejected
 	commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 
 // Output:
-// text enabled: false
+// text registered: false
 // council update created: 2
 
 // Error:

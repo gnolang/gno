@@ -36,7 +36,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
-	println("execution enabled:", commondao.IsProposalKindEnabled(daoID, "execution"))
+	println("execution registered:", commondao.HasProposalKind(daoID, "execution"))
 
 	// The closure is authored in this persistent realm, so it survives
 	// Propose->Execute. It sets a package var so execution is observable.
@@ -52,6 +52,6 @@ func main(cur realm) {
 }
 
 // Output:
-// execution enabled: true
+// execution registered: true
 // created: 2
 // closure ran: true

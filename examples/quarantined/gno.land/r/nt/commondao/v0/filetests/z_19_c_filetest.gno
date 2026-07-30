@@ -35,26 +35,26 @@ func init(cur realm) {
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
-	println("after disable:", commondao.IsProposalKindEnabled(daoID, "text"))
+	println("after deregister:", commondao.HasProposalKind(daoID, "text"))
 
-	// The DAO page drops the disabled kind's create link
+	// The DAO page drops the deregistered kind's create link
 	out := commondao.Render(strconv.FormatUint(daoID, 10))
-	println("create link after disable:", strings.Contains(out, "CreateTextProposal"))
+	println("create link after deregister:", strings.Contains(out, "CreateTextProposal"))
 
 	// ...and the settings kinds row drops the kind name (sorted row would
-	// read "subdao, text, treasury\-clawback" when enabled)
+	// read "subdao, text, treasury\-clawback" when registered)
 	out = commondao.Render(strconv.FormatUint(daoID, 10) + "/settings")
-	println("settings row lists text after disable:", strings.Contains(out, "subdao, text"))
+	println("settings row lists text after deregister:", strings.Contains(out, "subdao, text"))
 
 	// Re-register the kind by name through a second governance proposal
 	pID := commondao.CreateRegisterKindProposal(cross(cur), daoID, "text")
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
-	println("after re-enable:", commondao.IsProposalKindEnabled(daoID, "text"))
+	println("after re-register:", commondao.HasProposalKind(daoID, "text"))
 
-	// ...and shows it again once the kind is re-enabled
+	// ...and shows it again once the kind is re-registered
 	out = commondao.Render(strconv.FormatUint(daoID, 10))
-	println("create link after re-enable:", strings.Contains(out, "CreateTextProposal"))
+	println("create link after re-register:", strings.Contains(out, "CreateTextProposal"))
 
 	// Text proposals can be created again
 	tID := commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
@@ -62,9 +62,9 @@ func main(cur realm) {
 }
 
 // Output:
-// after disable: false
-// create link after disable: false
-// settings row lists text after disable: false
-// after re-enable: true
-// create link after re-enable: true
+// after deregister: false
+// create link after deregister: false
+// settings row lists text after deregister: false
+// after re-register: true
+// create link after re-register: true
 // created: 3
