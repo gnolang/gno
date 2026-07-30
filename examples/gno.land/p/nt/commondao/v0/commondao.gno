@@ -330,8 +330,11 @@ func (dao *CommonDAO) Propose(creator address, kind string, args any) (*Proposal
 		panic("commondao: re-entrant Propose is not allowed")
 	}
 	dao.proposing = true
+	// Deferred so a panicking New cannot leave the latch stuck (which would
+	// brick every future Propose on this DAO for a consumer that recovers
+	// the panic within the transaction); mirrors the executing latch.
+	defer func() { dao.proposing = false }()
 	d, err := v.(ProposalKind).New(dao.Readonly(), args)
-	dao.proposing = false
 	if err != nil {
 		return nil, err
 	}

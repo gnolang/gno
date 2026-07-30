@@ -60,6 +60,19 @@ func (k hostKind) New(dao commondao.ReadonlyCommonDAO, _ any) (commondao.Proposa
 	return propDef{period: time.Hour}, nil
 }
 
+// reProposeKind.New re-enters Propose on the captured DAO. Only a trusted
+// kind holding the handle can attempt this (external kinds get a readonly
+// view); the proposing latch must panic before the nested Propose runs.
+type reProposeKind struct{ dao *commondao.CommonDAO }
+
+func (reProposeKind) Name() string { return "re-propose" }
+func (k reProposeKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	// "probe" is registered, so this reaches the proposing latch (not the
+	// kind-lookup) and panics.
+	k.dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
+	return defaultPropDef{period: time.Hour}, nil
+}
+
 // propDef is a base proposal definition decided by the default rules.
 type propDef struct {
 	title  string
@@ -543,6 +556,18 @@ func TestExecute(cur realm, t *testing.T) {
 			dao.Execute(p1.ID(), cur)
 		})
 		uassert.Equal(t, 1, execs, "expect executor to run exactly once")
+	})
+
+	t.Run("kinds cannot re-enter Propose", func(t *testing.T) {
+		// The per-DAO proposing latch panics on a re-entrant Propose from
+		// inside a kind's New. Removing the latch would let the nested
+		// Propose proceed. (The latch also, via defer, cannot stay stuck
+		// if New panics.)
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		urequire.NoError(t, dao.RegisterKind(reProposeKind{dao: dao}))
+		uassert.PanicsWithMessage(t, cur, "commondao: re-entrant Propose is not allowed", func() {
+			dao.Propose(memberA, "re-propose", nil)
+		})
 	})
 
 	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {
