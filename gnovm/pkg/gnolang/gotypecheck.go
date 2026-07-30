@@ -174,7 +174,7 @@ type TypeCheckOptions struct {
 	// TestGetter, which reads a test-stdlib overlay from the node's local
 	// filesystem — putting node-local state into a gas-metered consensus
 	// computation. That forked topaz-1 at block 301381. See
-	// gno.land/adr/prxxxx_prod_only_typecheck_at_addpackage.md.
+	// gno.land/adr/pr6025_prod_only_typecheck_at_addpackage.md.
 	//
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
