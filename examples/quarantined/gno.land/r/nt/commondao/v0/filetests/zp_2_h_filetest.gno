@@ -27,7 +27,6 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-
 }
 
 func main(cur realm) {

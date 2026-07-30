@@ -27,7 +27,6 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-
 	// Create a SubDAO to be dissolved
 	{
 		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, "Bar", "Purpose", "", string(user))

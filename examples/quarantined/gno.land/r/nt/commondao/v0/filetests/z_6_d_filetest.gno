@@ -5,7 +5,6 @@ package z_6_d_filetest
 import (
 	"testing"
 
-
 	"gno.land/r/nt/commondao/v0"
 )
 
