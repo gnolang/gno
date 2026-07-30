@@ -122,10 +122,11 @@ func newDAOOptions(id uint64, name, purpose, description string, parent *commond
 		opts = append(opts, commondao.WithCouncilMember(m))
 	}
 
-	// Register the full proposal kind catalog: every new DAO (genesis,
-	// user-created or sub-DAO) starts with all kinds enabled, and kinds are
-	// toggled afterwards through CreateSetProposalKindProposal.
-	for _, k := range proposalKindCatalog {
+	// Seed the default proposal kinds: every new DAO (genesis, user-created
+	// or sub-DAO) starts with these enabled. The opt-in catalog kinds
+	// (execution, register-kind) are deliberately NOT seeded — a DAO gains
+	// them only after a supermajority CreateSetProposalKindProposal enable.
+	for _, k := range defaultProposalKinds {
 		opts = append(opts, commondao.WithProposalKind(k))
 	}
 	return opts

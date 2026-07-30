@@ -27,7 +27,7 @@ func newTestDAO(t *testing.T, name string, members ...address) *commondao.Common
 	for _, m := range members {
 		opts = append(opts, commondao.WithCouncilMember(m))
 	}
-	for _, k := range proposalKindCatalog {
+	for _, k := range defaultProposalKinds {
 		opts = append(opts, commondao.WithProposalKind(k))
 	}
 

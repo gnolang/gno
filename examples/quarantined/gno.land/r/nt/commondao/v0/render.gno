@@ -19,12 +19,16 @@ import (
 
 const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
 
-// rawTextDefinition marks proposal definitions whose Body returns raw,
-// user-supplied text that the renderer must escape. Definitions that
-// assemble their own markdown escape any embedded user fields themselves
-// and are rendered as trusted markdown.
-type rawTextDefinition interface {
-	isRawTextDefinition()
+// trustedMarkdownBody marks proposal definitions whose Body returns
+// markdown the definition assembled itself (escaping any embedded user
+// fields with md.EscapeText). Those bodies are rendered verbatim. Every
+// other body — including the /p/ default kinds (execution, register-kind),
+// whose definitions are package-typed and so cannot implement this
+// realm-local marker — is treated as raw, user-supplied text and escaped
+// by the renderer. The render layer is the single escape point: definitions
+// return raw text and opt out only when they render their own markup.
+type trustedMarkdownBody interface {
+	isTrustedMarkdownBody()
 }
 
 func Render(path string) string {
@@ -494,12 +498,12 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	res.Write(md.BulletItem(statusItem))
 
-	// Render proposal body. Definitions that build their own markdown
-	// escape their embedded user fields themselves; only raw-text bodies
-	// are escaped here.
+	// Render proposal body. Bodies are raw user text and escaped here by
+	// default; only definitions that assemble their own markdown (marked
+	// trustedMarkdownBody) are rendered verbatim.
 	if body := def.Body(); body != "" {
 		res.Write(md.H2("Description"))
-		if _, raw := def.(rawTextDefinition); raw {
+		if _, trusted := def.(trustedMarkdownBody); !trusted {
 			body = md.EscapeText(body)
 		}
 		res.Write(md.Paragraph(body))

@@ -83,6 +83,10 @@ type treasurySpendPropDefinition struct {
 func (treasurySpendPropDefinition) Title() string               { return "Treasury Spend" }
 func (treasurySpendPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// isTrustedMarkdownBody marks Body as self-assembled markdown; the embedded
+// recipient and amount are formatted by md helpers / EscapeText in Body.
+func (treasurySpendPropDefinition) isTrustedMarkdownBody() {}
+
 // Threshold returns the tally threshold: the constitution attaches no
 // spend-specific rule, so the supermajority default applies.
 func (treasurySpendPropDefinition) Threshold() commondao.Threshold {
@@ -118,9 +122,10 @@ func (p treasurySpendPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-// FundingDAO returns the DAO whose treasury funds the spend: its own.
-func (p treasurySpendPropDefinition) FundingDAO() *commondao.CommonDAO {
-	return p.dao
+// FundingDAOID returns the ID of the DAO whose treasury funds the spend:
+// its own (the host).
+func (p treasurySpendPropDefinition) FundingDAOID() uint64 {
+	return p.dao.ID()
 }
 
 func (p treasurySpendPropDefinition) execute(_ int, sub realm) error {
@@ -159,6 +164,9 @@ type treasuryClawbackPropDefinition struct {
 func (treasuryClawbackPropDefinition) Title() string               { return "Treasury Clawback" }
 func (treasuryClawbackPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// isTrustedMarkdownBody marks Body as self-assembled markdown (a DAO link).
+func (treasuryClawbackPropDefinition) isTrustedMarkdownBody() {}
+
 // Threshold returns the tally threshold: simple majority, the
 // constitutional wording for this ancestor power.
 func (treasuryClawbackPropDefinition) Threshold() commondao.Threshold {
@@ -185,10 +193,10 @@ func (p treasuryClawbackPropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-// FundingDAO returns the DAO whose treasury the clawback sweeps: the
-// target, not the proposing ancestor that hosts the proposal.
-func (p treasuryClawbackPropDefinition) FundingDAO() *commondao.CommonDAO {
-	return p.target
+// FundingDAOID returns the ID of the DAO whose treasury the clawback
+// sweeps: the target, not the proposing ancestor that hosts the proposal.
+func (p treasuryClawbackPropDefinition) FundingDAOID() uint64 {
+	return p.target.ID()
 }
 
 func (p treasuryClawbackPropDefinition) execute(_ int, sub realm) error {
@@ -238,6 +246,9 @@ func (p treasuryFreezePropDefinition) Title() string {
 }
 
 func (treasuryFreezePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+
+// isTrustedMarkdownBody marks Body as self-assembled markdown (a DAO link).
+func (treasuryFreezePropDefinition) isTrustedMarkdownBody() {}
 
 // Threshold returns the tally threshold: simple majority, matching the
 // clawback power it safeguards.

@@ -24,6 +24,13 @@ const (
 	kindTreasuryClawback      = "treasury-clawback"
 	kindTreasuryFreeze        = "treasury-freeze"
 	kindProposalKinds         = "proposal-kinds"
+
+	// Opt-in kinds from the /p/ package. They are part of the catalog (so
+	// catalogKind resolves them and CreateSetProposalKindProposal can toggle
+	// them) but are NOT default-seeded: a DAO gains them only after a
+	// supermajority enable. Names must match the package's reserved names.
+	kindExecution    = "execution"     // commondao.ExecutionKind
+	kindRegisterKind = "register-kind" // commondao.RegisterKindKind
 )
 
 // errInvalidProposalArgs reports a proposal kind invoked with the wrong
@@ -31,11 +38,12 @@ const (
 // fires on a realm bug, never on user input.
 var errInvalidProposalArgs = errors.New("invalid proposal arguments")
 
-// proposalKindCatalog lists every proposal kind this realm can host, in
-// display order. Kinds are stateless singletons that wrap the definition
-// constructors; the executor set stays closed because only catalog kinds
-// are ever registered on a DAO.
-var proposalKindCatalog = []commondao.ProposalKind{
+// defaultProposalKinds lists the proposal kinds seeded on every new DAO
+// (genesis, user-created or sub-DAO), in display order. Kinds are stateless
+// singletons that wrap the definition constructors. This is the DAO's
+// starting governance surface; kinds are toggled afterwards through
+// CreateSetProposalKindProposal.
+var defaultProposalKinds = []commondao.ProposalKind{
 	textKind{},
 	councilUpdateKind{},
 	ancestorCouncilUpdateKind{},
@@ -46,6 +54,25 @@ var proposalKindCatalog = []commondao.ProposalKind{
 	treasuryFreezeKind{},
 	proposalKindsKind{},
 }
+
+// optInProposalKinds lists the opt-in /p/ proposal kinds: they are part of
+// the catalog but NOT default-seeded, so a DAO gains them only after a
+// supermajority CreateSetProposalKindProposal enable.
+var optInProposalKinds = []commondao.ProposalKind{
+	commondao.ExecutionKind{},
+	commondao.RegisterKindKind{},
+}
+
+// proposalKindCatalog lists every proposal kind this realm can host, in
+// display order: the default-seeded kinds plus the opt-in /p/ kinds
+// (execution, register-kind). catalogKind resolves against this list, so
+// CreateSetProposalKindProposal can enable an opt-in kind that is not
+// seeded. The executor set stays closed because only catalog kinds are ever
+// registered on a DAO.
+var proposalKindCatalog = append(
+	append([]commondao.ProposalKind{}, defaultProposalKinds...),
+	optInProposalKinds...,
+)
 
 // catalogKind returns a catalog kind by name, or nil when the name is not
 // part of the catalog.
@@ -79,7 +106,7 @@ func CreateSetProposalKindProposal(cur realm, daoID uint64, kindName string, ena
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	return mustPropose(dao, caller, kindProposalKinds, setProposalKindArgs{kindName, enabled})
+	return mustPropose(dao, caller, kindProposalKinds, setProposalKindArgs{dao, kindName, enabled})
 }
 
 // IsProposalKindEnabled checks if a proposal kind is enabled (registered)
@@ -100,7 +127,7 @@ type textKind struct{}
 
 func (textKind) Name() string { return kindText }
 
-func (textKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (textKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(textArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
@@ -109,8 +136,11 @@ func (textKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefinit
 }
 
 // councilUpdateArgs carries CreateCouncilUpdateProposal parameters to the
-// council-update kind.
+// council-update kind. dao is the host DAO whose own council the executor
+// mutates: New receives only a readonly view, so the trusted wrapper passes
+// the mutable host handle through args (captured from its own mustGetDAO).
 type councilUpdateArgs struct {
+	dao    *commondao.CommonDAO
 	add    []address
 	remove []address
 }
@@ -121,17 +151,21 @@ type councilUpdateKind struct{}
 
 func (councilUpdateKind) Name() string { return kindCouncilUpdate }
 
-func (councilUpdateKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (councilUpdateKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(councilUpdateArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newCouncilUpdatePropDefinition(dao, a.add, a.remove), nil
+	return newCouncilUpdatePropDefinition(a.dao, a.add, a.remove), nil
 }
 
 // ancestorCouncilUpdateArgs carries CreateAncestorCouncilUpdateProposal
-// parameters to the ancestor-council-update kind.
+// parameters to the ancestor-council-update kind. host is the proposing
+// ancestor DAO (read for the ancestry check); target is the descendant
+// whose council the executor mutates. Both handles come from the trusted
+// wrapper via args, since New receives only a readonly view.
 type ancestorCouncilUpdateArgs struct {
+	host   *commondao.CommonDAO
 	target *commondao.CommonDAO
 	add    []address
 	remove []address
@@ -143,16 +177,20 @@ type ancestorCouncilUpdateKind struct{}
 
 func (ancestorCouncilUpdateKind) Name() string { return kindAncestorCouncilUpdate }
 
-func (ancestorCouncilUpdateKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (ancestorCouncilUpdateKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(ancestorCouncilUpdateArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newAncestorCouncilUpdatePropDefinition(dao, a.target, a.add, a.remove), nil
+	return newAncestorCouncilUpdatePropDefinition(a.host, a.target, a.add, a.remove), nil
 }
 
 // subDAOArgs carries CreateSubDAOProposal parameters to the subdao kind.
+// parent is the host DAO the new SubDAO is created under; the executor
+// mutates it (wiring the child in), so the trusted wrapper passes the
+// mutable host handle through args, since New receives only a readonly view.
 type subDAOArgs struct {
+	parent      *commondao.CommonDAO
 	name        string
 	purpose     string
 	description string
@@ -164,12 +202,12 @@ type subDAOKind struct{}
 
 func (subDAOKind) Name() string { return kindSubDAO }
 
-func (subDAOKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (subDAOKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(subDAOArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newSubDAOPropDefinition(dao, a.name, a.purpose, a.description, a.members), nil
+	return newSubDAOPropDefinition(a.parent, a.name, a.purpose, a.description, a.members), nil
 }
 
 // dissolveArgs carries CreateDissolutionProposal parameters to the
@@ -187,7 +225,7 @@ type dissolveKind struct{}
 
 func (dissolveKind) Name() string { return kindDissolve }
 
-func (dissolveKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (dissolveKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(dissolveArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
@@ -196,8 +234,12 @@ func (dissolveKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDef
 }
 
 // treasurySpendArgs carries CreateTreasurySpendProposal parameters to the
-// treasury-spend kind.
+// treasury-spend kind. dao is the host DAO whose own treasury funds the
+// spend (its sub is the funding source, see FundingDAOID); the trusted
+// wrapper passes the mutable host handle through args, since New receives
+// only a readonly view.
 type treasurySpendArgs struct {
+	dao  *commondao.CommonDAO
 	to   address
 	coin chain.Coin
 }
@@ -208,17 +250,22 @@ type treasurySpendKind struct{}
 
 func (treasurySpendKind) Name() string { return kindTreasurySpend }
 
-func (treasurySpendKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (treasurySpendKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(treasurySpendArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newTreasurySpendPropDefinition(dao, a.to, a.coin), nil
+	return newTreasurySpendPropDefinition(a.dao, a.to, a.coin), nil
 }
 
 // treasuryClawbackArgs carries CreateTreasuryClawbackProposal parameters
-// to the treasury-clawback kind.
+// to the treasury-clawback kind. host is the proposing ancestor DAO (read
+// for the ancestry check); target is the descendant whose treasury the
+// executor sweeps (its sub is the funding source, see FundingDAOID). Both
+// handles come from the trusted wrapper via args, since New receives only
+// a readonly view.
 type treasuryClawbackArgs struct {
+	host   *commondao.CommonDAO
 	target *commondao.CommonDAO
 }
 
@@ -228,17 +275,21 @@ type treasuryClawbackKind struct{}
 
 func (treasuryClawbackKind) Name() string { return kindTreasuryClawback }
 
-func (treasuryClawbackKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (treasuryClawbackKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(treasuryClawbackArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newTreasuryClawbackPropDefinition(dao, a.target), nil
+	return newTreasuryClawbackPropDefinition(a.host, a.target), nil
 }
 
 // treasuryFreezeArgs carries CreateTreasuryFreezeProposal parameters to
-// the treasury-freeze kind.
+// the treasury-freeze kind. host is the proposing ancestor DAO (read for
+// the ancestry / orphan-rescue check); target is the descendant whose
+// treasury the executor freezes or unfreezes. Both handles come from the
+// trusted wrapper via args, since New receives only a readonly view.
 type treasuryFreezeArgs struct {
+	host   *commondao.CommonDAO
 	target *commondao.CommonDAO
 	frozen bool
 }
@@ -249,17 +300,20 @@ type treasuryFreezeKind struct{}
 
 func (treasuryFreezeKind) Name() string { return kindTreasuryFreeze }
 
-func (treasuryFreezeKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (treasuryFreezeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(treasuryFreezeArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	return newTreasuryFreezePropDefinition(dao, a.target, a.frozen), nil
+	return newTreasuryFreezePropDefinition(a.host, a.target, a.frozen), nil
 }
 
 // setProposalKindArgs carries CreateSetProposalKindProposal parameters to
-// the proposal-kinds kind.
+// the proposal-kinds kind. dao is the host DAO whose registry the executor
+// mutates: New receives only a readonly view, so the trusted wrapper passes
+// the mutable host handle through args (captured from its own mustGetDAO).
 type setProposalKindArgs struct {
+	dao      *commondao.CommonDAO
 	kindName string
 	enabled  bool
 }
@@ -270,7 +324,7 @@ type proposalKindsKind struct{}
 
 func (proposalKindsKind) Name() string { return kindProposalKinds }
 
-func (proposalKindsKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (proposalKindsKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	a, ok := args.(setProposalKindArgs)
 	if !ok {
 		return nil, errInvalidProposalArgs
@@ -287,15 +341,17 @@ func (proposalKindsKind) New(dao *commondao.CommonDAO, args any) (commondao.Prop
 	}
 
 	// Reject no-ops so a council vote is always about an actual change.
-	if a.enabled && dao.HasKind(a.kindName) {
+	// The host handle comes from the trusted wrapper via args (see
+	// setProposalKindArgs); use it for the current-state check.
+	if a.enabled && a.dao.HasKind(a.kindName) {
 		return nil, errors.New("proposal kind is already enabled")
 	}
-	if !a.enabled && !dao.HasKind(a.kindName) {
+	if !a.enabled && !a.dao.HasKind(a.kindName) {
 		return nil, errors.New("proposal kind is not enabled")
 	}
 
 	return setProposalKindPropDefinition{
-		dao:      dao,
+		dao:      a.dao,
 		kindName: a.kindName,
 		enabled:  a.enabled,
 	}, nil
@@ -322,6 +378,10 @@ func (p setProposalKindPropDefinition) Title() string {
 }
 
 func (setProposalKindPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+
+// isTrustedMarkdownBody marks Body as self-assembled markdown; the embedded
+// kind name is escaped in Body itself (defense in depth).
+func (setProposalKindPropDefinition) isTrustedMarkdownBody() {}
 
 // Threshold returns the tally threshold: changing which proposal kinds a
 // DAO accepts alters its governance surface, so the supermajority default

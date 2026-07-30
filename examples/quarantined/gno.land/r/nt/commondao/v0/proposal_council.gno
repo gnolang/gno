@@ -39,6 +39,10 @@ type councilUpdatePropDefinition struct {
 func (councilUpdatePropDefinition) Title() string               { return "Council Update" }
 func (councilUpdatePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// isTrustedMarkdownBody marks Body as self-assembled markdown; the renderer
+// renders it verbatim (embedded addresses are formatted by md helpers).
+func (councilUpdatePropDefinition) isTrustedMarkdownBody() {}
+
 // CapExempt exempts council updates from the active proposals cap: a
 // council member who fills the cap must never be able to block their own
 // removal. Exempt proposals are bounded to one active one per creator.
@@ -127,6 +131,9 @@ type ancestorCouncilUpdatePropDefinition struct {
 
 func (ancestorCouncilUpdatePropDefinition) Title() string               { return "Ancestor Council Update" }
 func (ancestorCouncilUpdatePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+
+// isTrustedMarkdownBody marks Body as self-assembled markdown.
+func (ancestorCouncilUpdatePropDefinition) isTrustedMarkdownBody() {}
 
 // Threshold returns the tally threshold: ancestor council modification
 // requires a supermajority (:1531-1532).

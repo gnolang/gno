@@ -50,6 +50,10 @@ type subDAOPropDefinition struct {
 func (p subDAOPropDefinition) Title() string             { return "New SubDAO: " + p.name }
 func (subDAOPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// isTrustedMarkdownBody marks Body as self-assembled markdown; the embedded
+// user fields (name, purpose, description) are escaped in Body itself.
+func (subDAOPropDefinition) isTrustedMarkdownBody() {}
+
 // Threshold returns the tally threshold: the constitution grants SubDAO
 // creation at a simple majority of the Council.
 func (subDAOPropDefinition) Threshold() commondao.Threshold {
@@ -136,6 +140,9 @@ type dissolvePropDefinition struct {
 func (p dissolvePropDefinition) Title() string             { return "Dissolve DAO: " + p.dao.Name() }
 func (dissolvePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
+// isTrustedMarkdownBody marks Body as self-assembled markdown (a DAO link).
+func (dissolvePropDefinition) isTrustedMarkdownBody() {}
+
 // Threshold returns the tally threshold: the constitution is silent on
 // dissolution, so the supermajority default applies.
 func (dissolvePropDefinition) Threshold() commondao.Threshold {
@@ -162,11 +169,11 @@ func (p dissolvePropDefinition) Executor() commondao.ExecFunc {
 	return p.execute
 }
 
-// FundingDAO returns the DAO whose treasury the dissolution sweeps: the
-// DAO being dissolved. For a sub-DAO the proposal is hosted in an
-// ancestor, so the operative DAO differs from the host.
-func (p dissolvePropDefinition) FundingDAO() *commondao.CommonDAO {
-	return p.dao
+// FundingDAOID returns the ID of the DAO whose treasury the dissolution
+// sweeps: the DAO being dissolved. For a sub-DAO the proposal is hosted in
+// an ancestor, so the operative DAO differs from the host.
+func (p dissolvePropDefinition) FundingDAOID() uint64 {
+	return p.dao.ID()
 }
 
 func (p dissolvePropDefinition) execute(_ int, sub realm) error {

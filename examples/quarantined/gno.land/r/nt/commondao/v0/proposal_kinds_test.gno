@@ -34,7 +34,7 @@ func TestProposalKindsKindNew(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			def, err := proposalKindsKind{}.New(dao, setProposalKindArgs{tc.kindName, tc.enabled})
+			def, err := proposalKindsKind{}.New(dao.Readonly(), setProposalKindArgs{dao, tc.kindName, tc.enabled})
 
 			if tc.err != "" {
 				urequire.Error(t, err)

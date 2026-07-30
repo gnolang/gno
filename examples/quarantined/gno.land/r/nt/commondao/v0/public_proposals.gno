@@ -53,7 +53,7 @@ func CreateCouncilUpdateProposal(cur realm, daoID uint64, newMembers, removeMemb
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	args := councilUpdateArgs{parseAddresses(newMembers), parseAddresses(removeMembers)}
+	args := councilUpdateArgs{dao, parseAddresses(newMembers), parseAddresses(removeMembers)}
 	return mustPropose(dao, caller, kindCouncilUpdate, args)
 }
 
@@ -78,7 +78,7 @@ func CreateAncestorCouncilUpdateProposal(cur realm, daoID, targetID uint64, newM
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	args := ancestorCouncilUpdateArgs{target, parseAddresses(newMembers), parseAddresses(removeMembers)}
+	args := ancestorCouncilUpdateArgs{dao, target, parseAddresses(newMembers), parseAddresses(removeMembers)}
 	return mustPropose(dao, caller, kindAncestorCouncilUpdate, args)
 }
 
@@ -97,7 +97,7 @@ func CreateSubDAOProposal(cur realm, daoID uint64, name, purpose, description, m
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	args := subDAOArgs{name, purpose, description, parseAddresses(members)}
+	args := subDAOArgs{dao, name, purpose, description, parseAddresses(members)}
 	return mustPropose(dao, caller, kindSubDAO, args)
 }
 
@@ -154,7 +154,7 @@ func CreateTreasurySpendProposal(cur realm, daoID uint64, to address, denom stri
 	caller := cur.Previous().Address()
 	assertCallerIsCouncilMember(caller, dao)
 
-	args := treasurySpendArgs{to, chain.NewCoin(denom, amount)}
+	args := treasurySpendArgs{dao, to, chain.NewCoin(denom, amount)}
 	return mustPropose(dao, caller, kindTreasurySpend, args)
 }
 
@@ -175,7 +175,7 @@ func CreateTreasuryClawbackProposal(cur realm, daoID, targetID uint64) uint64 {
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	return mustPropose(dao, caller, kindTreasuryClawback, treasuryClawbackArgs{target})
+	return mustPropose(dao, caller, kindTreasuryClawback, treasuryClawbackArgs{dao, target})
 }
 
 // CreateTreasuryFreezeProposal creates a new proposal for an ancestor DAO
@@ -195,7 +195,74 @@ func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool
 	assertCallerIsCouncilMember(caller, dao)
 
 	target := mustGetDAO(targetID)
-	return mustPropose(dao, caller, kindTreasuryFreeze, treasuryFreezeArgs{target, frozen})
+	return mustPropose(dao, caller, kindTreasuryFreeze, treasuryFreezeArgs{dao, target, frozen})
+}
+
+// CreateExecutionProposal creates a proposal that runs an arbitrary
+// ExecFunc on approval, through the /p/ execution kind.
+//
+// The execution kind is opt-in: it is not seeded on new DAOs and must be
+// enabled first through a supermajority CreateSetProposalKindProposal.
+// This wrapper takes an ExecFunc closure, which cannot be encoded in a CLI
+// transaction, so it is reachable only from a persistent realm that imports
+// this one; the closure must be authored there so it survives
+// Propose→Execute (a `maketx run` script's closure does not persist).
+//
+// Parameters:
+// - daoID: ID of the DAO (required)
+// - title: proposal title (raw text, escaped when rendered)
+// - body: proposal body (raw text, escaped when rendered)
+// - fn: the closure executed on approval (required, non-nil)
+func CreateExecutionProposal(cur realm, daoID uint64, title, body string, fn commondao.ExecFunc) uint64 {
+	assertCurrent(cur)
+
+	dao := mustGetDAO(daoID)
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	// Opt-in gate: refuse unless the DAO enabled the execution kind. Without
+	// this, arbitrary code execution would ride on a name a disabled DAO
+	// never opted into. Propose also rejects an unregistered kind, but this
+	// fails fast with a clear message before any definition is built.
+	assertKindEnabled(dao, kindExecution)
+
+	return mustPropose(dao, caller, kindExecution, commondao.ExecutionArgs{Title: title, Body: body, Fn: fn})
+}
+
+// CreateRegisterKindProposal creates a proposal that registers a new
+// proposal kind on the DAO through governance, through the /p/
+// register-kind kind.
+//
+// The register-kind kind is opt-in: it is not seeded on new DAOs and must
+// be enabled first through a supermajority CreateSetProposalKindProposal.
+// This wrapper takes a ProposalKind value, which cannot be encoded in a CLI
+// transaction, so it is reachable only from a persistent realm that imports
+// this one and supplies the kind. The registered kind then runs under its
+// defining realm's authority (a governance trust grant, not a sandbox).
+//
+// Parameters:
+// - daoID: ID of the DAO (required)
+// - kind: the proposal kind to register on approval (required)
+func CreateRegisterKindProposal(cur realm, daoID uint64, kind commondao.ProposalKind) uint64 {
+	assertCurrent(cur)
+
+	dao := mustGetDAO(daoID)
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	// Opt-in gate: refuse unless the DAO enabled the register-kind kind.
+	assertKindEnabled(dao, kindRegisterKind)
+
+	return mustPropose(dao, caller, kindRegisterKind, commondao.RegisterKindArgs{DAO: dao, Kind: kind})
+}
+
+// assertKindEnabled panics unless a proposal kind is registered (enabled)
+// on the DAO. Used to gate the opt-in propose paths so they work only after
+// the DAO enabled the kind through governance.
+func assertKindEnabled(dao *commondao.CommonDAO, name string) {
+	if !dao.HasKind(name) {
+		panic("proposal kind is not enabled: " + name)
+	}
 }
 
 // mustPropose submits a proposal through one of the DAO's registered
