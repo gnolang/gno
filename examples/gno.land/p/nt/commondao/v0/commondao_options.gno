@@ -69,3 +69,16 @@ func WithProposalKind(k ProposalKind) Option {
 		}
 	}
 }
+
+// WithDefaultKinds registers the package's default proposal kinds on the
+// DAO: ExecutionKind (arbitrary-execution) and RegisterKindKind
+// (governance-driven kind registration). It is batteries-included seeding
+// for external realms; a realm may instead register these selectively via
+// RegisterKind. Like WithProposalKind it panics on a registration error
+// (e.g. a name collision with an already-registered kind).
+func WithDefaultKinds() Option {
+	return func(dao *CommonDAO) {
+		WithProposalKind(ExecutionKind{})(dao)
+		WithProposalKind(RegisterKindKind{})(dao)
+	}
+}

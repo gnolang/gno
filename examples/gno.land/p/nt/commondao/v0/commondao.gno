@@ -17,6 +17,8 @@ import (
 const DefaultMaxActiveProposals = 32
 
 var (
+	ErrCannotDeregisterRegisterKind = errors.New("the register-kind proposal kind cannot be deregistered")
+
 	ErrCouncilUpdateOverlap  = errors.New("council update adds and removes the same address")
 	ErrDAOIsDeleted          = errors.New("DAO is deleted")
 	ErrEmptyCouncil          = errors.New("council update would remove every council member")
@@ -66,6 +68,8 @@ type CommonDAO struct {
 	deleted            bool // Soft delete
 	treasuryFrozen     bool
 	maxActiveProposals int
+	proposing          bool // re-entrancy latch around a kind's New in Propose
+	executing          bool // re-entrancy latch around Execute
 }
 
 // New creates a new common DAO.
@@ -263,7 +267,15 @@ func (dao *CommonDAO) RegisterKind(k ProposalKind) error {
 // Deregistering only blocks new proposals: the registry is read at
 // Propose time only, so in-flight proposals of the kind keep their
 // frozen definition and still vote and execute.
+//
+// The reserved register-kind name cannot be deregistered: removing it
+// would brick governance-driven registration (the only way to add kinds
+// back once the owning realm no longer holds the handle), so the call
+// returns ErrCannotDeregisterRegisterKind instead.
 func (dao *CommonDAO) DeregisterKind(name string) error {
+	if name == registerKindName {
+		return ErrCannotDeregisterRegisterKind
+	}
 	if _, removed := dao.kinds.Remove(name); !removed {
 		return ErrProposalKindNotFound
 	}
@@ -311,7 +323,15 @@ func (dao *CommonDAO) Propose(creator address, kind string, args any) (*Proposal
 		return nil, ErrProposalKindNotFound
 	}
 
-	d, err := v.(ProposalKind).New(dao, args)
+	// Re-entrancy latch: a kind's New must not trigger another Propose on
+	// this DAO (e.g. via a captured handle), which could nest factory
+	// calls or grow active storage unboundedly before the first returns.
+	if dao.proposing {
+		panic("commondao: re-entrant Propose is not allowed")
+	}
+	dao.proposing = true
+	d, err := v.(ProposalKind).New(dao.Readonly(), args)
+	dao.proposing = false
 	if err != nil {
 		return nil, err
 	}
@@ -456,6 +476,16 @@ func (dao *CommonDAO) Execute(proposalID uint64, sub realm) error {
 	if dao.deleted {
 		return ErrDAOIsDeleted
 	}
+
+	// Re-entrancy latch: an executor must not re-enter Execute on this
+	// DAO. Remove-before-run already stops the same proposal from running
+	// twice; this additionally blocks an executor from executing a
+	// different proposal of the same DAO mid-execution.
+	if dao.executing {
+		panic("commondao: re-entrant Execute is not allowed")
+	}
+	dao.executing = true
+	defer func() { dao.executing = false }()
 
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {

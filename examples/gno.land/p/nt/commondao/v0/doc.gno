@@ -9,8 +9,14 @@
 // tree.
 //
 // Proposal types are registered per DAO: a ProposalKind couples a
-// registry name with a definition factory, and Propose(creator, kind,
-// args) accepts exactly the kinds registered on the DAO.
+// registry name with a definition factory New(dao ReadonlyCommonDAO,
+// args), and Propose(creator, kind, args) accepts exactly the kinds
+// registered on the DAO. New receives only a readonly view, so it cannot
+// mutate the DAO before the vote; a kind that must mutate state on
+// execution captures its target *CommonDAO from args (populated only by
+// trusted callers) and mutates in its executor. The package ships two
+// default kinds — an arbitrary-execution kind and a governance-driven
+// register-kind kind — seeded together via WithDefaultKinds.
 //
 // Proposals snapshot the council as their electorate at creation and
 // are decided the moment the outcome is mathematically settled: with

@@ -28,7 +28,7 @@ const (
 type probeKind struct{}
 
 func (probeKind) Name() string { return "probe" }
-func (probeKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (probeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	d, _ := args.(commondao.ProposalDefinition)
 	return d, nil
 }
@@ -37,7 +37,7 @@ func (probeKind) New(_ *commondao.CommonDAO, args any) (commondao.ProposalDefini
 type namedKind string
 
 func (k namedKind) Name() string { return string(k) }
-func (namedKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+func (namedKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
 	return propDef{period: time.Hour}, nil
 }
 
@@ -45,16 +45,18 @@ func (namedKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinitio
 type failingKind struct{ err error }
 
 func (failingKind) Name() string { return "failing" }
-func (k failingKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+func (k failingKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
 	return nil, k.err
 }
 
-// hostKind is a probe kind that records the host DAO passed to its factory.
-type hostKind struct{ host **commondao.CommonDAO }
+// hostKind is a probe kind that records the ID of the readonly host view
+// passed to its factory. New receives only a ReadonlyCommonDAO (no mutable
+// handle), so the kind can identify the host but cannot mutate it.
+type hostKind struct{ hostID *uint64 }
 
 func (hostKind) Name() string { return "host" }
-func (k hostKind) New(dao *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
-	*k.host = dao
+func (k hostKind) New(dao commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	*k.hostID = dao.ID()
 	return propDef{period: time.Hour}, nil
 }
 
@@ -514,29 +516,33 @@ func TestExecute(cur realm, t *testing.T) {
 		uassert.False(t, executed, "expect executor to not run when validation fails")
 	})
 
-	t.Run("executors cannot re-enter Execute for the same proposal", func(t *testing.T) {
+	t.Run("executors cannot re-enter Execute", func(t *testing.T) {
+		// The per-DAO executing latch panics on a re-entrant Execute of
+		// the same DAO (aborting the tx), even for a different proposal
+		// than the one currently executing. Removing the latch would let
+		// the re-entrant call proceed.
 		var (
-			dao      = commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
-			execs    int
-			innerErr error
-			pid      uint64
+			dao   = commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+			execs int
+			pid2  uint64
 		)
-		p := mustPropose(t, dao, memberA, execFnPropDef{
+		p1 := mustPropose(t, dao, memberA, execFnPropDef{
 			propDef: propDef{period: time.Hour},
 			fn: func(_ int, sub realm) error {
 				execs++
-				innerErr = dao.Execute(pid, sub)
-				return nil
+				return dao.Execute(pid2, sub) // re-entrant: must panic
 			},
 		})
-		pid = p.ID()
+		p2 := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+		pid2 = p2.ID()
 
-		urequire.NoError(t, dao.Vote(memberA, pid, commondao.ChoiceYes, ""))
-		urequire.NoError(t, dao.Execute(pid, cur))
+		urequire.NoError(t, dao.Vote(memberA, p1.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Vote(memberA, pid2, commondao.ChoiceYes, ""))
+
+		uassert.PanicsWithMessage(t, cur, "commondao: re-entrant Execute is not allowed", func() {
+			dao.Execute(p1.ID(), cur)
+		})
 		uassert.Equal(t, 1, execs, "expect executor to run exactly once")
-		uassert.ErrorIs(t, innerErr, commondao.ErrProposalNotFound)
-		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
-		uassert.Equal(t, 1, dao.FinishedProposalsSize())
 	})
 
 	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {
@@ -827,12 +833,12 @@ func TestKindRegistry(cur realm, t *testing.T) {
 	uassert.ErrorIs(t, err, boom)
 	uassert.Equal(t, 0, dao.ActiveProposalsSize(), "expect no proposal from a failing factory")
 
-	// Propose hands the kind factory the host DAO itself
-	var host *commondao.CommonDAO
-	urequire.NoError(t, dao.RegisterKind(hostKind{host: &host}))
+	// Propose hands the kind factory a readonly view of the host DAO
+	var hostID uint64 = 999 // sentinel: New must overwrite it
+	urequire.NoError(t, dao.RegisterKind(hostKind{hostID: &hostID}))
 	_, err = dao.Propose(memberA, "host", nil)
 	urequire.NoError(t, err)
-	uassert.True(t, host == dao, "expect the kind factory to receive the host DAO")
+	uassert.Equal(t, dao.ID(), hostID, "expect the kind factory to receive a readonly view of the host DAO")
 
 	// Construction options panic on registration errors
 	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindRequired.Error(), func() {

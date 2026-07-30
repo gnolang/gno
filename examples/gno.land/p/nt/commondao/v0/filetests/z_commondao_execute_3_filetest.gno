@@ -43,7 +43,7 @@ func (probePropDef) Executor() commondao.ExecFunc {
 type probePropKind struct{}
 
 func (probePropKind) Name() string { return "probe" }
-func (probePropKind) New(_ *commondao.CommonDAO, _ any) (commondao.ProposalDefinition, error) {
+func (probePropKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
 	return probePropDef{}, nil
 }
 

@@ -128,11 +128,14 @@ type (
 		Name() string
 
 		// New validates args and builds the proposal definition. Propose
-		// passes the host DAO itself, so kind authors can never mis-wire
-		// the host; proposal targets and parameters come via args. The
-		// returned definition's instance data is frozen at Propose like
-		// any proposal definition.
-		New(dao *CommonDAO, args any) (ProposalDefinition, error)
+		// passes a ReadonlyCommonDAO view of the host DAO, so New is a
+		// pure factory that cannot mutate the host or its tree before the
+		// vote; proposal targets and parameters come via args. A kind that
+		// must mutate state on execution receives the target *CommonDAO
+		// through args (which only trusted callers can populate), captures
+		// it, and mutates in its Executor. The returned definition's
+		// instance data is frozen at Propose like any proposal definition.
+		New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error)
 	}
 
 	// CapExempt defines an interface for proposal definitions that are not
@@ -160,15 +163,16 @@ type (
 	}
 
 	// Funded is an optional interface for proposal definitions whose
-	// executor moves funds. It declares the DAO whose sub-identity
-	// address funds the executor: the host mints that DAO's sub and
-	// passes it to the ExecFunc. Definitions that do not implement Funded
-	// receive the proposal's own DAO sub by default. The returned DAO
-	// must be the one the definition validates its fund movement against
-	// (e.g. the DAO being spent, swept or dissolved).
+	// executor moves funds. It declares, by ID, the DAO whose sub-identity
+	// address funds the executor: the host resolves that DAO, mints its
+	// sub and passes it to the ExecFunc. Definitions that do not implement
+	// Funded receive the proposal's own DAO sub by default. The returned
+	// ID must identify the DAO the definition validates its fund movement
+	// against (e.g. the DAO being spent, swept or dissolved).
 	Funded interface {
-		// FundingDAO returns the DAO whose sub-address funds the executor.
-		FundingDAO() *CommonDAO
+		// FundingDAOID returns the ID of the DAO whose sub-address funds
+		// the executor.
+		FundingDAOID() uint64
 	}
 )
 

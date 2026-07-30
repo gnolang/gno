@@ -14,7 +14,7 @@ optional sub-DAO tree.
 CommonDAO
 ├── council:            *addrset.Set — who may vote
 ├── kinds:              registered ProposalKind factories — what may be
-│                       proposed (name → New(dao, args))
+│                       proposed (name → New(readonly dao, args))
 ├── active proposals:   active + early passed, each with an electorate
 │                       snapshot and voting record
 ├── finished proposals: dismissed / executed / failed / withdrawn
@@ -32,7 +32,7 @@ import "gno.land/p/nt/commondao/v0"
 type textKind struct{}
 
 func (textKind) Name() string { return "text" }
-func (textKind) New(dao *commondao.CommonDAO, args any) (commondao.ProposalDefinition, error) {
+func (textKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
     text, ok := args.(string) // validate args, build the definition
     if !ok || text == "" {
         return nil, errors.New("a proposal text is required")
@@ -47,9 +47,10 @@ var dao = commondao.New(
 )
 
 // Propose looks the kind up in the DAO's registry and calls its New
-// factory with the host DAO and args to build the frozen definition.
-// The council snapshot taken at Propose is the proposal's electorate.
-// (The package does not gate who proposes — hosting realms do.)
+// factory with a readonly view of the host DAO and args to build the
+// frozen definition. The council snapshot taken at Propose is the
+// proposal's electorate. (The package does not gate who proposes —
+// hosting realms do.)
 p, _ := dao.Propose(founder, "text", "hello world")
 
 // Electorate members vote; default rule proposals can be decided the
@@ -96,13 +97,41 @@ propagate the error to fail the proposal cleanly.
 ## Proposal kinds
 
 Proposal types are registered on the DAO, not passed per proposal: a
-`ProposalKind` couples a registry name with a `New(dao, args)` factory,
-and `Propose(creator, kind, args)` accepts exactly the kinds registered
+`ProposalKind` couples a registry name with a
+`New(dao ReadonlyCommonDAO, args)` factory, and
+`Propose(creator, kind, args)` accepts exactly the kinds registered
 (`WithProposalKind` at construction; `RegisterKind`/`DeregisterKind`
 afterwards, typically from a governance proposal executor). The registry
 is read only at `Propose`: deregistering a kind blocks new proposals but
 never touches in-flight ones, whose definitions were frozen at creation.
 `HasKind`/`KindNames` expose the registry, also on the readonly view.
+
+`New` receives only a **`ReadonlyCommonDAO`**, so a kind — including an
+externally-authored or user-registered one — cannot mutate the host DAO
+(or its tree) at `Propose` time, before the vote. A kind that must mutate
+state on execution takes the target `*CommonDAO` through `args`, which
+only a trusted caller can populate (an external proposer cannot obtain a
+`*CommonDAO`), captures it in the definition, and mutates in its
+`Executor` — which runs only after the vote passes.
+
+### Default kinds
+
+The package ships two default kinds, `/p/`-typed so any realm can seed
+them, registered together by `WithDefaultKinds()`:
+
+- **`ExecutionKind`** (`"execution"`) runs an arbitrary `ExecFunc`
+  supplied by the proposer (`ExecutionArgs{Title, Body, Fn}`) on
+  approval. The `Fn` closure is frozen at `Propose` (vote-integrity), so
+  it **must be authored in a persistent realm** — a closure created by a
+  `maketx run` script does not persist to `Execute` and cannot run.
+- **`RegisterKindKind`** (`"register-kind"`) registers a new proposal
+  kind on a DAO through governance (`RegisterKindArgs{DAO, Kind}`; the
+  `DAO` handle comes from a trusted caller). Its reserved name **cannot be
+  deregistered** (`DeregisterKind` returns `ErrCannotDeregisterRegisterKind`),
+  so governance-driven registration can never be bricked.
+
+A registered foreign-realm kind runs under its **defining** realm's
+authority — registering one is a governance trust grant, not a sandbox.
 
 ## Proposal lifecycle
 
@@ -124,8 +153,9 @@ sub-identity via `chain.DerivePkgSubAddr`) and enforce the frozen flag.
 `Execute` runs the executor with the DAO-scoped sub-identity the host
 passes as its value-movement authority: a fund-moving definition builds
 its banker from that `sub`, so value moves are structurally bounded to
-that one DAO address. A definition implementing `Funded` names the DAO
-whose sub funds it (e.g. clawback sweeps the target, not the host). See
+that one DAO address. A definition implementing `Funded` names, by ID
+(`FundingDAOID`), the DAO whose sub funds it (e.g. clawback sweeps the
+target, not the host); the host resolves that ID to mint the sub. See
 the reference realm's treasury proposals for the constitutional pattern.
 
 ## Realm boundaries
