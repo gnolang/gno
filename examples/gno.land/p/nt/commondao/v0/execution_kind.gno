@@ -35,6 +35,14 @@ type ExecutionArgs struct {
 // executor receives whichever DAO's sub the host decides (its own DAO's by
 // default). The closure is frozen at Propose (vote-integrity: the exact
 // code is fixed before the vote).
+//
+// This kind applies NO policy check to the closure beyond a non-nil Fn: it
+// runs the arbitrary code as-is. A realm that has treasury constraints (e.g.
+// a freeze flag) should NOT catalog this kind directly; instead it should
+// author its own execution kind whose definition wraps the closure with a
+// Validable check that enforces those constraints (blocking execution while
+// frozen, etc.), so arbitrary execution cannot bypass them. The reference
+// realm gno.land/r/nt/commondao/v0 does exactly this.
 type ExecutionKind struct{}
 
 // Name returns the execution kind's registry name.

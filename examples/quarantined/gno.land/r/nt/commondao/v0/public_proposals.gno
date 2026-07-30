@@ -199,14 +199,30 @@ func CreateTreasuryFreezeProposal(cur realm, daoID, targetID uint64, frozen bool
 }
 
 // CreateExecutionProposal creates a proposal that runs an arbitrary
-// ExecFunc on approval, through the /p/ execution kind.
+// ExecFunc as the DAO's own sub on approval, through the realm's execution
+// kind.
 //
 // The execution kind is opt-in: it is not seeded on new DAOs and must be
 // registered first through a supermajority CreateRegisterKindProposal.
-// This wrapper takes an ExecFunc closure, which cannot be encoded in a CLI
-// transaction, so it is reachable only from a persistent realm that imports
-// this one; the closure must be authored there so it survives
-// Propose→Execute (a `maketx run` script's closure does not persist).
+//
+// Freeze policy: an execution proposal moves value under the DAO's own
+// authority, so it is subject to the treasury freeze exactly like a spend.
+// This wrapper fails fast when the treasury is already frozen, and the
+// definition re-checks at Execute (so a freeze landing after the proposal
+// passed fails it cleanly, StatusFailed, no funds leaving). An ancestor's
+// clawback/dissolution is a separate power and is not blocked by freeze.
+//
+// Sharp edges (known limitations):
+//   - The fn closure cannot be encoded in a CLI transaction, so this wrapper
+//     is reachable only from a PERSISTENT realm that imports this one and is
+//     a council member of the DAO (a realm-in-council). The closure must be
+//     authored in that realm so it survives Propose→Execute; a `maketx run`
+//     script's closure does not persist and cannot execute later.
+//   - A closure that panics or runs out of gas aborts the whole Execute tx, so
+//     the proposal is stuck Active (every retry re-aborts) and can never
+//     finalize. The only recovery is dissolving the DAO (Dissolve dismisses
+//     in-flight proposals). Author closures that return an error instead of
+//     panicking so a bad execution fails cleanly (StatusFailed) and releases.
 //
 // Parameters:
 // - daoID: ID of the DAO (required)
@@ -226,7 +242,16 @@ func CreateExecutionProposal(cur realm, daoID uint64, title, body string, fn com
 	// fails fast with a clear message before any definition is built.
 	assertKindRegistered(dao, kindExecution)
 
-	return mustPropose(dao, caller, kindExecution, commondao.ExecutionArgs{Title: title, Body: body, Fn: fn})
+	// Freeze gate: a frozen DAO cannot initiate any treasury movement, so
+	// refuse an execution proposal up front (fail-fast; the definition's
+	// Validate re-checks at create and execute). Without this an execution
+	// proposal could drain a frozen DAO's own treasury, defeating an
+	// ancestor's freeze.
+	if dao.IsTreasuryFrozen() {
+		panic(errTreasuryFrozen)
+	}
+
+	return mustPropose(dao, caller, kindExecution, executionArgs{dao: dao, title: title, body: body, fn: fn})
 }
 
 // CreateRegisterKindProposal creates a proposal to register one of the

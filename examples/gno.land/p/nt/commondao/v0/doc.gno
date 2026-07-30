@@ -37,9 +37,11 @@
 //
 // # Extending commondao in your own realm
 //
-// This package is pure mechanism: it ships the ExecutionKind concrete kind
-// and the registry primitives, and leaves every governance policy to the
-// consuming realm. To add a proposal type of your own:
+// This package is mostly mechanism: it ships the ExecutionKind concrete kind
+// (with a default voting policy) and the registry primitives, and leaves the
+// rest of governance policy — which kinds a DAO accepts, how it manages them,
+// and any per-kind constraints such as a treasury freeze — to the consuming
+// realm. To add a proposal type of your own:
 //
 //   - Author a ProposalKind: a type with Name() string and
 //     New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error). Make
@@ -49,6 +51,13 @@
 //     contract (FundingDAOID() uint64) — minting a DAO sub needs the host's
 //     cur, so this contract is host-consumed, not package-dispatched; define
 //     it in your realm, as the reference realm does.
+//   - Apply your own policy. ExecutionKind runs the closure as-is (no check
+//     beyond a non-nil Fn), so if your realm has treasury constraints (e.g. a
+//     freeze flag) do NOT catalog ExecutionKind directly: author your own
+//     execution kind whose definition wraps the closure with a Validable
+//     check (Validate() error) enforcing those constraints, so arbitrary
+//     execution cannot bypass them. The reference realm does this so a frozen
+//     DAO cannot drain its own treasury through an execution proposal.
 //   - Seed it. The owning realm holds the DAO handle, so no proposal is
 //     needed: pass commondao.New(WithProposalKind(YourKind{}), …) at
 //     construction, or call dao.RegisterKind(YourKind{}) directly.

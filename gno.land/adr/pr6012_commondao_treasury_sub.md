@@ -69,7 +69,20 @@ ancestor's controls.
   freeze each descendant explicitly), and only a proper-ancestor
   proposal can unfreeze — the frozen council cannot free itself
   (z_14_b). The flag lives on the target, so any live proper ancestor
-  can unfreeze after the freezing ancestor dissolves (z_14_e). **Orphan
+  can unfreeze after the freezing ancestor dissolves (z_14_e).
+  **Freeze = no self-initiated treasury movement, period.** The flag
+  blocks *every* way the target's own council can move its funds, not
+  just the treasury-spend kind: the realm's execution kind (arbitrary
+  `ExecFunc` run as the DAO's own sub) is freeze-gated the same way, at
+  proposal creation and again inside `Execute` (z_20_g rejects the
+  create; z_20_h fails a standing passed execution proposal cleanly once
+  the target is frozen, funds untouched). Without this, a frozen DAO
+  could drain its own treasury through an execution proposal, defeating
+  the ancestor's freeze. What freeze does **not** block is an ancestor's
+  action *on* the frozen target: clawback and dissolution stay valid
+  against a frozen descendant (freeze→clawback is the intended flow), so
+  the freeze gate is applied only to the target's self-initiated
+  movement, never to clawback/dissolution. **Orphan
   rescue**: when every proper ancestor is dissolved the freezing
   authority class is extinct, so — and only then — the target's own
   council may pass an unfreeze on itself (never a freeze), restoring
@@ -159,9 +172,11 @@ limitation.
 - Treasury filetest families (z_11 spend lifecycle, z_12 clawback
   incl. the grandparent case pinning the fixed parent destination,
   z_13 dissolution sweeps + orphan rescue, z_14 freeze, z_15 address
-  stability, z_10_d treasury rendering) plus definition unit tests; no
-  funds can move without a passed proposal — the only `SendCoins` call
-  sites are the three executors above.
+  stability, z_10_d treasury rendering, z_20_g/z_20_h execution-kind
+  freeze gate at create/execute) plus definition unit tests; no funds
+  can move without a passed proposal — the `SendCoins` call sites are the
+  three treasury executors above, and any arbitrary-execution closure the
+  realm's execution kind runs (itself freeze-gated).
 - The filetests run against the in-memory `TestBanker`, so
   `gno.land/pkg/integration/testdata/commondao_treasury.txtar` proves
   the production path end to end on a real node: a real bank send

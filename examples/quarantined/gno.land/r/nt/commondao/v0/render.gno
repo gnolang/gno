@@ -230,7 +230,7 @@ func renderCreateProposalSection(dao *commondao.CommonDAO, res *mux.ResponseWrit
 			md.Paragraph(treasuryFreezeLink(daoID)) +
 				md.Paragraph(
 					"This type of proposal freezes or unfreezes a descendant DAO's "+
-						"treasury. While frozen, no treasury spend can execute.",
+						"treasury. While frozen, no funds can leave the treasury.",
 				),
 		},
 		{
@@ -282,7 +282,7 @@ func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 	}
 
 	if dao.IsTreasuryFrozen() {
-		res.Write(md.Paragraph(md.Bold("⚠ The treasury is frozen: spends cannot execute until a proper ancestor DAO unfreezes it")))
+		res.Write(md.Paragraph(md.Bold("⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it")))
 	}
 }
 

@@ -91,7 +91,7 @@ func main() {
 // <gno-columns-sep>
 // [Treasury Freeze](/r/nt/commondao/v0$help&func=CreateTreasuryFreezeProposal&daoID=2&frozen=true&targetID=)
 //
-// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no treasury spend can execute.
+// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no funds can leave the treasury.
 //
 //
 // <gno-columns-sep>

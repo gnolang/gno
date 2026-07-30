@@ -122,9 +122,19 @@ with `RegisterKind`:
 
 - **`ExecutionKind`** (`"execution"`) runs an arbitrary `ExecFunc`
   supplied by the proposer (`ExecutionArgs{Title, Body, Fn}`) on
-  approval. The `Fn` closure is frozen at `Propose` (vote-integrity), so
-  it **must be authored in a persistent realm** — a closure created by a
-  `maketx run` script does not persist to `Execute` and cannot run.
+  approval, under a default policy (7-day voting period, supermajority
+  threshold) and no check on the closure beyond a non-nil `Fn`. The `Fn`
+  closure is frozen at `Propose` (vote-integrity), so it **must be
+  authored in a persistent realm** — a closure created by a `maketx run`
+  script does not persist to `Execute` and cannot run.
+
+  Because it applies no policy to the closure, a realm with treasury
+  constraints (e.g. a freeze flag) should **not** catalog `ExecutionKind`
+  directly: it should author its own execution kind whose definition wraps
+  the closure with a `Validable` check enforcing those constraints, so
+  arbitrary execution cannot bypass them. The reference realm does this to
+  keep a frozen DAO from draining its own treasury via an execution
+  proposal.
 
 A registered foreign-realm kind runs under its **defining** realm's
 authority — registering one is a governance trust grant, not a sandbox.
@@ -138,8 +148,11 @@ the reference realm's `manage-kinds` kind).
 
 ## Extending commondao in your own realm
 
-The package is pure mechanism; every governance policy lives in the
-consuming realm. To add your own proposal type:
+The package is mostly mechanism: it ships the `ExecutionKind` concrete
+kind (with a default voting policy) and the registry primitives, and
+leaves the rest of governance policy — which kinds a DAO accepts, how it
+manages them, and any per-kind constraints such as a treasury freeze — to
+the consuming realm. To add your own proposal type:
 
 1. **Author a `ProposalKind`** — `Name()` plus
    `New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error)`. Make

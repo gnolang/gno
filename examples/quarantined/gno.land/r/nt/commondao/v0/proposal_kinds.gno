@@ -26,11 +26,16 @@ const (
 	kindTreasuryFreeze        = "treasury-freeze"
 	kindManageKinds           = "manage-kinds"
 
-	// Opt-in kind from the /p/ package. It is part of the catalog (so
-	// catalogKind resolves it and manage-kinds can register it by name) but
-	// is NOT default-seeded: a DAO gains it only after a supermajority
-	// register. The name must match the package's kind name.
-	kindExecution = "execution" // commondao.ExecutionKind
+	// Opt-in kind. It is part of the catalog (so catalogKind resolves it and
+	// manage-kinds can register it by name) but is NOT default-seeded: a DAO
+	// gains it only after a supermajority register.
+	//
+	// It is a realm-side kind (executionKind), not the bare /p/
+	// commondao.ExecutionKind: the realm wraps the arbitrary-exec closure with
+	// its own Validable freeze policy so a frozen DAO cannot drain its own
+	// treasury through an execution proposal (the /p/ kind carries no such
+	// policy). The name still matches the /p/ kind's name.
+	kindExecution = "execution"
 )
 
 // errInvalidProposalArgs reports a proposal kind invoked with the wrong
@@ -39,10 +44,10 @@ const (
 var errInvalidProposalArgs = errors.New("invalid proposal arguments")
 
 // defaultProposalKinds lists the proposal kinds seeded on every new DAO
-// (genesis, user-created or sub-DAO), in display order. Kinds are stateless
-// singletons that wrap the definition constructors. This is the DAO's
-// starting governance surface; the kind set is managed afterwards through
-// the manage-kinds kind.
+// (genesis, user-created or sub-DAO). Kinds are stateless singletons that
+// wrap the definition constructors. This is the DAO's starting governance
+// surface; the kind set is managed afterwards through the manage-kinds kind.
+// Ordering here is immaterial — render.gno owns the presentation order.
 var defaultProposalKinds = []commondao.ProposalKind{
 	textKind{},
 	councilUpdateKind{},
@@ -55,18 +60,21 @@ var defaultProposalKinds = []commondao.ProposalKind{
 	manageKindsKind{},
 }
 
-// optInProposalKinds lists the opt-in /p/ proposal kinds: they are part of
-// the catalog but NOT default-seeded, so a DAO gains them only after a
-// supermajority manage-kinds register.
+// optInProposalKinds lists the opt-in proposal kinds: they are part of the
+// catalog but NOT default-seeded, so a DAO gains them only after a
+// supermajority manage-kinds register. The execution kind is realm-side
+// (executionKind), not the bare /p/ ExecutionKind, so it can carry the
+// realm's freeze policy (see kindExecution).
 var optInProposalKinds = []commondao.ProposalKind{
-	commondao.ExecutionKind{},
+	executionKind{},
 }
 
-// proposalKindCatalog lists every proposal kind this realm can host, in
-// display order: the default-seeded kinds plus the opt-in /p/ kind
-// (execution). catalogKind resolves against this list, so manage-kinds can
-// register an opt-in kind by name that is not seeded. The executor set stays
-// closed because only catalog kinds are ever registered on a DAO by name.
+// proposalKindCatalog lists every proposal kind this realm can host: the
+// default-seeded kinds plus the opt-in kind (execution). catalogKind
+// resolves against this list, so manage-kinds can register an opt-in kind by
+// name that is not seeded. The executor set stays closed because only catalog
+// kinds are ever registered on a DAO by name. Ordering here is immaterial —
+// render.gno owns the presentation order.
 var proposalKindCatalog = append(
 	append([]commondao.ProposalKind{}, defaultProposalKinds...),
 	optInProposalKinds...,
@@ -279,6 +287,95 @@ func (treasuryFreezeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commonda
 		return nil, errInvalidProposalArgs
 	}
 	return newTreasuryFreezePropDefinition(a.host, a.target, a.frozen), nil
+}
+
+// errTreasuryFrozen reports an execution proposal blocked because the host
+// DAO's treasury is frozen. It is a sentinel so the freeze gate is greppable
+// and testable (the create-time panic and the Validate-time failure share
+// this one message).
+var errTreasuryFrozen = errors.New("commondao: treasury is frozen")
+
+// executionArgs carries CreateExecutionProposal parameters to the execution
+// kind. dao is the host DAO whose own sub runs the closure and whose freeze
+// flag the definition enforces; the trusted wrapper passes the mutable host
+// handle through args (captured from its own mustGetDAO), since New receives
+// only a readonly view. fn is the closure executed on approval.
+type executionArgs struct {
+	dao   *commondao.CommonDAO
+	title string
+	body  string
+	fn    commondao.ExecFunc
+}
+
+// executionKind creates proposals that run an arbitrary ExecFunc as the host
+// DAO's own sub on approval. It is the realm-side counterpart of the /p/
+// commondao.ExecutionKind: identical arbitrary-exec mechanism, but wrapped
+// with the realm's Validable freeze policy (executionPropDefinition.Validate)
+// so a frozen DAO cannot drain its own treasury through it — the /p/ kind
+// carries no such policy. This is the pattern the /p/ extension docs
+// recommend for an arbitrary-exec closure: wrap it with your realm's own
+// checks.
+type executionKind struct{}
+
+func (executionKind) Name() string { return kindExecution }
+
+func (executionKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
+	a, ok := args.(executionArgs)
+	if !ok {
+		return nil, errInvalidProposalArgs
+	}
+	if a.fn == nil {
+		return nil, commondao.ErrExecutionFuncRequired
+	}
+	// Defense in depth: pin the args-captured host to the readonly host that
+	// Propose passed to New, so the definition's freeze check and the /p/
+	// executor's sub can never target different DAOs (the trusted wrapper
+	// always passes matching handles today; this asserts the contract).
+	if a.dao.ID() != dao.ID() {
+		return nil, errInvalidProposalArgs
+	}
+	return executionPropDefinition{dao: a.dao, title: a.title, body: a.body, fn: a.fn}, nil
+}
+
+// executionPropDefinition defines a proposal that runs an arbitrary ExecFunc
+// as the host DAO's own sub on approval. Its Validate blocks execution while
+// the host treasury is frozen, so an execution proposal can never move funds
+// out of a frozen DAO — matching the treasury-spend freeze gate.
+type executionPropDefinition struct {
+	dao   *commondao.CommonDAO
+	title string
+	body  string
+	fn    commondao.ExecFunc
+}
+
+// Title and Body return raw, user-supplied text: like the /p/ execution
+// definition (executionDef) and unlike the self-assembled bodies, this
+// definition does not implement trustedMarkdownBody, so the renderer escapes
+// both.
+func (p executionPropDefinition) Title() string { return p.title }
+func (p executionPropDefinition) Body() string  { return p.body }
+
+func (executionPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+
+// Threshold returns the tally threshold: arbitrary execution runs code under
+// the DAO's authority, so the supermajority default applies.
+func (executionPropDefinition) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
+
+// Validate runs at proposal creation and again inside Execute: a treasury
+// frozen after the proposal passed still blocks it cleanly (StatusFailed, no
+// funds leave) instead of letting the closure run against a frozen DAO. Freeze
+// = no self-initiated treasury movement, spend and execution alike.
+func (p executionPropDefinition) Validate() error {
+	if p.dao.IsTreasuryFrozen() {
+		return errTreasuryFrozen
+	}
+	return nil
+}
+
+func (p executionPropDefinition) Executor() commondao.ExecFunc {
+	return p.fn
 }
 
 // manageKindsProposal is both the manage-kinds args struct and the proposal

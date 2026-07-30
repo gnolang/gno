@@ -261,9 +261,9 @@ func (p treasuryFreezePropDefinition) Body() string {
 
 	b.WriteString(md.Paragraph(md.Bold("Target DAO:") + "\n" + daoMDLink(p.target)))
 
-	action := "frozen: no treasury spend can execute until a proper ancestor unfreezes it."
+	action := "frozen: no funds can leave the treasury until a proper ancestor unfreezes it."
 	if !p.frozen {
-		action = "unfrozen: treasury spends can execute again."
+		action = "unfrozen: funds can leave the treasury again."
 	}
 	b.WriteString(md.Paragraph(md.Bold("Effect:") + "\nThe target's treasury is " + action))
 

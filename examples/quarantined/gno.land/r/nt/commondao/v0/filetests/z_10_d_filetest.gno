@@ -60,7 +60,7 @@ func main() {
 // ## Treasury
 // - Address: g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
 // - Balance: 1234ugnot
-// **⚠ The treasury is frozen: spends cannot execute until a proper ancestor DAO unfreezes it**
+// **⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it**
 //
 // ## Create Proposal
 // These are the proposal supported by this DAO:
@@ -108,7 +108,7 @@ func main() {
 // <gno-columns-sep>
 // [Treasury Freeze](/r/nt/commondao/v0$help&func=CreateTreasuryFreezeProposal&daoID=3&frozen=true&targetID=)
 //
-// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no treasury spend can execute.
+// This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no funds can leave the treasury.
 //
 //
 // <gno-columns-sep>
