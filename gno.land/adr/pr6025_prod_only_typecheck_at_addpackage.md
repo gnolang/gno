@@ -63,14 +63,20 @@ so `gofs` holds production files plus same-package `_test.gno`; `filterTests`
 strips the latter. The resulting set is exactly `MPFProd` — what the VM
 executes. No file can therefore run without having been type-checked.
 
-Skipping the later passes cannot change the *production* verdict either:
-go/types over a larger file set can only add errors, never remove them, so a
-package whose production files fail alone still fails. What is no longer caught
-is errors arising only from the combination — chiefly a test file redeclaring a
-production symbol (`issue_2763`) — where the production code is valid on its own
-and is what runs. Production code also cannot borrow declarations from test
-files: it is checked without them, so such a reference is undefined
-(`addpkg_testfile_typecheck.txtar` pins both directions).
+Skipping the later passes cannot change the *production* verdict either — but
+not because a larger file set can only add errors. It can remove them: a test
+file may define a symbol that resolves an otherwise-undefined production
+reference. The guarantee comes from **ordering**, not monotonicity. The
+production-only pass runs first and any error returns immediately (`gotypecheck.go`,
+"Fail early: there's no point checking the others"), so a failing production
+verdict never reached the later passes and they could not have rescued it.
+Production code therefore cannot borrow declarations from test files: such a
+reference is undefined and rejected, before and after this change.
+
+What is no longer caught is errors arising only from the combination — chiefly a
+test file redeclaring a production symbol (`issue_2763`) — where the production
+code is valid on its own and is what runs.
+`addpkg_testfile_typecheck.txtar` pins both directions.
 
 **Every file is still parsed.** `GoParseMemPackage` runs over the full
 `MPUserAll` mempackage before any type-checking, so a syntax error anywhere —
