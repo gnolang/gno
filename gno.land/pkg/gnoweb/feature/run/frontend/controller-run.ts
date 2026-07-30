@@ -11,8 +11,8 @@ export class RunController extends BaseController {
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
-	private declare dryRunCmdEl: HTMLElement;
-	private declare executeCmdEl: HTMLElement;
+	private declare dryRunEl: HTMLInputElement;
+	private declare cmdEl: HTMLElement;
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
@@ -25,10 +25,10 @@ export class RunController extends BaseController {
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
-		this.dryRunCmdEl = this.getTarget("dryRunCmd") as HTMLElement;
-		this.executeCmdEl = this.getTarget("executeCmd") as HTMLElement;
+		this.dryRunEl = this.getTarget("dryRun") as HTMLInputElement;
+		this.cmdEl = this.getTarget("cmd") as HTMLElement;
 
-		if (!this.editorEl || !this.dryRunCmdEl || !this.executeCmdEl) return;
+		if (!this.editorEl || !this.cmdEl) return;
 
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
@@ -42,7 +42,7 @@ export class RunController extends BaseController {
 		});
 
 		this._setupInputListeners();
-		this._updateCommands();
+		this._updateCommand();
 	}
 
 	private _buildTemplate(): string {
@@ -58,11 +58,12 @@ func main() {
 	}
 
 	private _setupInputListeners(): void {
-		const update = (): void => this._updateCommands();
+		const update = (): void => this._updateCommand();
 		this.keyEl.addEventListener("input", update);
 		this.gasWantedEl.addEventListener("input", update);
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
+		this.dryRunEl.addEventListener("change", update);
 	}
 
 	private _buildCmd(dryRun: boolean): string {
@@ -99,9 +100,8 @@ func main() {
 		return parts.join(" \\\n");
 	}
 
-	private _updateCommands(): void {
-		this.dryRunCmdEl.textContent = this._buildCmd(true);
-		this.executeCmdEl.textContent = this._buildCmd(false);
+	private _updateCommand(): void {
+		this.cmdEl.textContent = this._buildCmd(this.dryRunEl.checked);
 	}
 
 	public resetCode(): void {

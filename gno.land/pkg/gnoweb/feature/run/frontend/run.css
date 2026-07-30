@@ -60,3 +60,26 @@
 	font-weight: var(--g-font-semibold);
 	color: var(--s-color-text-primary);
 }
+
+.b-run-command-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	cursor: pointer;
+
+	input[type="checkbox"] {
+		width: var(--g-space-4);
+		height: var(--g-space-4);
+		flex-shrink: 0;
+		accent-color: var(--s-color-bg-brand-default);
+		cursor: pointer;
+	}
+
+	label {
+		cursor: pointer;
+	}
+
+	&:hover .b-run-command-label {
+		color: var(--s-color-text-brand-default);
+	}
+}

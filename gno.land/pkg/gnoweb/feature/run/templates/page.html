@@ -61,43 +61,29 @@ UI - Run (maketx run) scratchpad
     </div>
   </div>
 
-  <!-- Generated commands -->
+  <!-- Generated command -->
   <div class="b-run-commands">
-    <h3 class="b-content-h3">Generated Commands</h3>
+    <h3 class="b-content-h3">Generated Command</h3>
     <p class="u-color-muted">
       Save the code above as <code class="u-font-mono">script.gno</code> using
-      the <strong>Download</strong> link above, then run one of these commands:
+      the <strong>Download</strong> link above, then run this command:
     </p>
 
-    <!-- Dry run -->
     <div class="b-run-command-block">
       <div class="b-run-command-header">
-        <h4 class="b-run-command-label">Dry Run</h4>
-        <span class="u-color-muted u-text-sm">simulates without broadcasting</span>
+        <div class="b-run-command-toggle">
+          <input type="checkbox" id="run-dry-run" data-run-target="dryRun" />
+          <label for="run-dry-run" class="b-run-command-label">Dry Run</label>
+        </div>
+        <span class="u-color-muted u-text-sm">(simulates without broadcasting)</span>
       </div>
       <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"
-          data-copy-remote-value="run-dry-run-cmd" class="btn-copy"
+          data-copy-remote-value="run-cmd" class="btn-copy"
           aria-label="Copy Command">
           {{ template "ui/copy" }}
         </button>
-        <pre><code><span class="u-font-mono" data-copy-target="run-dry-run-cmd" data-run-target="dryRunCmd"></span></code></pre>
-      </div>
-    </div>
-
-    <!-- Execute -->
-    <div class="b-run-command-block">
-      <div class="b-run-command-header">
-        <h4 class="b-run-command-label">Execute</h4>
-        <span class="u-color-muted u-text-sm">broadcasts and runs on-chain</span>
-      </div>
-      <div class="b-code u-mb-2">
-        <button data-controller="copy" data-action="click->copy#copy"
-          data-copy-remote-value="run-execute-cmd" class="btn-copy"
-          aria-label="Copy Command">
-          {{ template "ui/copy" }}
-        </button>
-        <pre><code><span class="u-font-mono" data-copy-target="run-execute-cmd" data-run-target="executeCmd"></span></code></pre>
+        <pre><code><span class="u-font-mono" data-copy-target="run-cmd" data-run-target="cmd"></span></code></pre>
       </div>
     </div>
   </div>
