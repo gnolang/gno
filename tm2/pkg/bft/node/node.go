@@ -546,6 +546,14 @@ func NewNode(config *cfg.Config,
 		p2pLogger.Error("invalid persistent peer address", "err", err)
 	}
 
+	// Parse the seed node addresses
+	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
+	)
+	for _, err = range errs {
+		p2pLogger.Error("invalid seed address", "err", err)
+	}
+
 	// Parse the private peer IDs
 	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
 		splitAndTrimEmpty(config.P2P.PrivatePeerIDs, ",", " "),
@@ -557,6 +565,7 @@ func NewNode(config *cfg.Config,
 	// Prepare the misc switch options
 	opts := []p2p.SwitchOption{
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithSeeds(seedAddrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
@@ -693,6 +702,16 @@ func (n *Node) OnStart() error {
 
 	// Dial the persistent peers
 	n.sw.DialPeers(peerAddrs...)
+
+	// Dial the seed nodes for bootstrapping.
+	// Unlike persistent peers, seeds are not kept alive
+	// by the switch redial loop
+	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.Seeds, ",", " "))
+	for _, err := range errs {
+		n.Logger.Error("invalid seed address", "err", err)
+	}
+
+	n.sw.DialPeers(seedAddrs...)
 
 	// If early start, wait for genesis time now (RPC+P2P already running).
 	if n.earlyStart {

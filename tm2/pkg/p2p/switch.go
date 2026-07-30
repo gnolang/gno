@@ -71,6 +71,7 @@ type MultiplexSwitch struct {
 
 	peers           PeerSet  // currently active peer set (live connections)
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
+	seeds           sync.Map // ID -> *NetAddress; bootstrap peers, not kept alive
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
