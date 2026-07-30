@@ -22,11 +22,12 @@ const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
 // trustedMarkdownBody marks proposal definitions whose Body returns
 // markdown the definition assembled itself (escaping any embedded user
 // fields with md.EscapeText). Those bodies are rendered verbatim. Every
-// other body — including the /p/ execution kind, whose definition is
-// package-typed and so cannot implement this realm-local marker — is
-// treated as raw, user-supplied text and escaped by the renderer. The
-// render layer is the single escape point: definitions return raw text and
-// opt out only when they render their own markup.
+// other body — including the execution kind, whose Body is the proposer's
+// raw text — is treated as user-supplied and escaped by the renderer. A
+// definition from an imported package cannot implement this realm-local
+// marker either, so it is escaped too. The render layer is the single escape
+// point: definitions return raw text and opt out only when they render their
+// own markup.
 type trustedMarkdownBody interface {
 	isTrustedMarkdownBody()
 }
@@ -163,8 +164,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 func renderCreateProposalSection(dao *commondao.CommonDAO, res *mux.ResponseWriter) {
 	daoID := dao.ID()
 
-	// One entry per catalog kind, in display order. Only the kinds
-	// registered on the DAO are rendered.
+	// One entry per link-encodable catalog kind, in display order (the
+	// execution kind has no entry: its closure cannot be encoded in a
+	// help link). Only the kinds registered on the DAO are rendered.
 	entries := []struct {
 		kind string
 		text string

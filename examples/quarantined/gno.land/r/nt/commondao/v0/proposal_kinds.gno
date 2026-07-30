@@ -296,12 +296,11 @@ func (treasuryFreezeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commonda
 var errTreasuryFrozen = errors.New("commondao: treasury is frozen")
 
 // executionArgs carries CreateExecutionProposal parameters to the execution
-// kind. dao is the host DAO whose own sub runs the closure and whose freeze
-// flag the definition enforces; the trusted wrapper passes the mutable host
-// handle through args (captured from its own mustGetDAO), since New receives
-// only a readonly view. fn is the closure executed on approval.
+// kind: a title, a body, and the closure executed on approval. Unlike the
+// governance kinds, the execution kind captures no mutable handle — its only
+// use of the DAO is a freeze-flag read, so its definition holds the readonly
+// host view Propose passes to New rather than a *CommonDAO from args.
 type executionArgs struct {
-	dao   *commondao.CommonDAO
 	title string
 	body  string
 	fn    commondao.ExecFunc
@@ -327,14 +326,11 @@ func (executionKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.P
 	if a.fn == nil {
 		return nil, commondao.ErrExecutionFuncRequired
 	}
-	// Defense in depth: pin the args-captured host to the readonly host that
-	// Propose passed to New, so the definition's freeze check and the /p/
-	// executor's sub can never target different DAOs (the trusted wrapper
-	// always passes matching handles today; this asserts the contract).
-	if a.dao.ID() != dao.ID() {
-		return nil, errInvalidProposalArgs
-	}
-	return executionPropDefinition{dao: a.dao, title: a.title, body: a.body, fn: a.fn}, nil
+	// The definition captures the readonly host view Propose passed here, not a
+	// handle from args: its only use of the DAO is the Validate freeze read. No
+	// mutable handle means no host-identity pin is needed — the view is the
+	// host by construction.
+	return executionPropDefinition{dao: dao, title: a.title, body: a.body, fn: a.fn}, nil
 }
 
 // executionPropDefinition defines a proposal that runs an arbitrary ExecFunc
@@ -342,7 +338,7 @@ func (executionKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.P
 // the host treasury is frozen, so an execution proposal can never move funds
 // out of a frozen DAO — matching the treasury-spend freeze gate.
 type executionPropDefinition struct {
-	dao   *commondao.CommonDAO
+	dao   commondao.ReadonlyCommonDAO
 	title string
 	body  string
 	fn    commondao.ExecFunc
@@ -380,8 +376,8 @@ func (p executionPropDefinition) Executor() commondao.ExecFunc {
 
 // manageKindsProposal is both the manage-kinds args struct and the proposal
 // definition it produces: manageKindsKind.New validates it and returns it
-// unchanged (they were byte-identical, so there is one type, not a
-// rename-only twin). dao is the host DAO whose registry the executor
+// unchanged (one type serves both the args and definition roles). dao is the
+// host DAO whose registry the executor
 // mutates: New receives only a readonly view, so the trusted wrapper passes
 // the mutable host handle through args (captured from its own mustGetDAO).
 //
@@ -415,6 +411,14 @@ func (manageKindsKind) Name() string { return kindManageKinds }
 func (manageKindsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	p, ok := args.(manageKindsProposal)
 	if !ok {
+		return nil, errInvalidProposalArgs
+	}
+	// Defense in depth: this kind captures a mutable host handle from args (it
+	// must, to register/deregister on Execute) while the checks below read the
+	// readonly host Propose passed here. Pin them to the same DAO so a future
+	// wrapper can never validate against one registry and mutate another (the
+	// trusted wrapper always passes matching handles today).
+	if p.dao.ID() != dao.ID() {
 		return nil, errInvalidProposalArgs
 	}
 
@@ -471,8 +475,7 @@ func (manageKindsProposal) Threshold() commondao.Threshold {
 // Validate re-asserts the self-brick at Execute time (Validate reruns
 // inside Execute): the manage-kinds kind can never be deregistered, so a
 // DAO always keeps the ability to manage its kind set. This is a
-// defense-in-depth second layer behind the New check, now that the /p/
-// package no longer locks any name.
+// defense-in-depth second layer behind the New check.
 func (p manageKindsProposal) Validate() error {
 	if p.remove && p.name == kindManageKinds {
 		return errors.New("the manage-kinds kind cannot be deregistered")

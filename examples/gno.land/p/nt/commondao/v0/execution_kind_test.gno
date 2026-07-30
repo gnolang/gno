@@ -56,19 +56,19 @@ func TestExecutionKind(cur realm, t *testing.T) {
 }
 
 // TestDeregisterKind pins that DeregisterKind is a plain primitive with no
-// reserved names: any registered kind can be removed (there is no /p/
-// self-brick — anti-brick is now the consuming realm's policy), and an
-// unknown name reports ErrProposalKindNotFound.
+// reserved names: any registered kind can be removed (anti-brick is the
+// consuming realm's policy, not a /p/ lock), and an unknown name reports
+// ErrProposalKindNotFound.
 func TestDeregisterKind(t *testing.T) {
 	dao := commondao.New(
 		commondao.WithCouncilMember(memberA),
 		commondao.WithProposalKind(commondao.ExecutionKind{}),
-		// "register-kind" used to be un-deregisterable; it is now just an
-		// ordinary registered kind and must deregister like any other.
+		// A kind whose name sounds reserved is still ordinary: /p/ reserves no
+		// names, so it deregisters like any other.
 		commondao.WithProposalKind(namedKind("register-kind")),
 	)
 
-	// Any registered kind deregisters, including the former reserved name.
+	// Any registered kind deregisters, including the reserved-sounding name.
 	urequire.NoError(t, dao.DeregisterKind("register-kind"))
 	uassert.False(t, dao.HasKind("register-kind"))
 

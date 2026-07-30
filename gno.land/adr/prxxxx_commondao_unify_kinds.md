@@ -92,8 +92,18 @@ realm-global `executing` latch.
 
 Seeding: `defaultProposalKinds` swaps `proposalKindsKind{}` →
 `manageKindsKind{}` (still 9 default kinds). `optInProposalKinds` becomes just
-`{ExecutionKind{}}` (foreign registration now goes through `manage-kinds`, not a
-/p/ meta-kind). Catalog = defaults ∪ opt-in, as before.
+the one opt-in execution kind (foreign registration now goes through
+`manage-kinds`, not a /p/ meta-kind). Catalog = defaults ∪ opt-in, as before.
+
+> **Post-unify refinement (freeze fix + hardening).** The opt-in kind is the
+> **realm-side** `executionKind{}`, not the bare /p/ `ExecutionKind{}`: the realm
+> wraps the arbitrary-exec closure with a `Validable` freeze policy so a frozen
+> DAO cannot drain its own treasury through an execution proposal (see
+> `pr6012_commondao_treasury_sub.md`). That definition captures only the
+> **readonly** host view `New` receives — its sole use of the DAO is the freeze
+> read — so it holds no mutable handle and needs no host-identity pin. The one
+> kind that *does* capture a mutable handle, `manage-kinds`, carries that pin
+> (`p.dao.ID() == dao.ID()`) as defense in depth.
 
 ### 2. Naming / semantic swap of `CreateRegisterKindProposal`
 
@@ -197,8 +207,14 @@ alphabetical slot).
   API (z_20_d → `CreateRegisterCustomKindProposal`; new z_20_e/z_20_f pin the
   no-op register/deregister rejections). z_10_a/z_10_d/z_18_c goldens
   regenerated (link-only).
-- **Mutation-verified:** removing the `manage-kinds` self-brick from `New` fails
-  the self-brick filetest (z_19_f); removing `assertKindEnabled` from
-  `CreateExecutionProposal` fails its gate filetest (z_20_b).
+- **Mutation-verified:** the self-brick holds in two layers — z_19_f pins the
+  *behavior* (self-brick at creation, where `mustPropose` runs `Validate`), so
+  removing the `New` layer alone leaves it green; removing **both** the `New` and
+  `Validate` layers fails z_19_f, and each layer individually is pinned by the
+  realm unit tests (`TestManageKindsKindNew`, `TestManageKindsValidateSelfBrick`).
+  Removing the opt-in gate (`assertKindRegistered`) from `CreateExecutionProposal`
+  fails its gate filetest (z_20_b). The realm execution kind's factory
+  (args / nil-fn / freeze `Validate`) is pinned by `TestExecutionKindNew`, and the
+  `manage-kinds` host-identity pin by `TestManageKindsKindNewHostPin`.
 - No new attack surface: the args-capture trust boundary, the readonly-`New`
   guarantee, and the re-entrancy latch are all unchanged.

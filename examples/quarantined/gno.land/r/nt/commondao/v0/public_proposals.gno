@@ -242,16 +242,17 @@ func CreateExecutionProposal(cur realm, daoID uint64, title, body string, fn com
 	// fails fast with a clear message before any definition is built.
 	assertKindRegistered(dao, kindExecution)
 
-	// Freeze gate: a frozen DAO cannot initiate any treasury movement, so
-	// refuse an execution proposal up front (fail-fast; the definition's
-	// Validate re-checks at create and execute). Without this an execution
-	// proposal could drain a frozen DAO's own treasury, defeating an
-	// ancestor's freeze.
+	// Freeze gate (intentional defense in depth): a frozen DAO cannot initiate
+	// any treasury movement, so refuse up front here even though the
+	// definition's Validate re-checks the same flag at create and at execute.
+	// Redundant on purpose — two independent layers on the "no funds leave a
+	// frozen DAO" invariant. Without it an execution proposal could drain a
+	// frozen DAO's own treasury, defeating an ancestor's freeze.
 	if dao.IsTreasuryFrozen() {
 		panic(errTreasuryFrozen)
 	}
 
-	return mustPropose(dao, caller, kindExecution, executionArgs{dao: dao, title: title, body: body, fn: fn})
+	return mustPropose(dao, caller, kindExecution, executionArgs{title: title, body: body, fn: fn})
 }
 
 // CreateRegisterKindProposal creates a proposal to register one of the

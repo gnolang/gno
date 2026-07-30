@@ -5,7 +5,9 @@
 > `CreateSetProposalKindProposal`, and `register-kind` via the by-value
 > `CreateRegisterKindProposal`) into ONE permanent `manage-kinds` kind with
 > symmetric register/deregister wrappers. Concretely: `optInProposalKinds`
-> becomes `{ExecutionKind{}}` only (decision 3); the two /p/-default propose
+> becomes the one opt-in execution kind (decision 3; later refined to the
+> realm-side freeze-aware `executionKind{}` — see the refinement note in
+> `prxxxx_commondao_unify_kinds.md`); the two /p/-default propose
 > paths of decision 4 become `CreateRegisterKindProposal` (now **by name**),
 > `CreateDeregisterKindProposal`, and `CreateRegisterCustomKindProposal` (by
 > value), all going through `manage-kinds`; the self-brick moves from the /p/

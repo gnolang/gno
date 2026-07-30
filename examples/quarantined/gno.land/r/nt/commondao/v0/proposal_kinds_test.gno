@@ -15,7 +15,7 @@ var (
 )
 
 func TestManageKindsKindNew(t *testing.T) {
-	// The test DAO registers the full catalog; deregister the text kind so
+	// The test DAO registers the 9 default kinds; deregister the text kind so
 	// the table has an absent catalog kind to register and to reject
 	// deregistering.
 	dao := newTestDAO(t, "KindsHost")
@@ -57,6 +57,59 @@ func TestManageKindsKindNew(t *testing.T) {
 			uassert.Equal(t, tc.args.name, d.name)
 		})
 	}
+}
+
+// TestExecutionKindNew pins the realm execution kind's factory: args
+// validation, the nil-closure guard, and the Validable freeze policy that
+// blocks execution while the host treasury is frozen. Without this, removing
+// the nil-fn check or the freeze read from executionKind is invisible to the
+// suite (no filetest constructs the kind directly).
+func TestExecutionKindNew(t *testing.T) {
+	dao := newTestDAO(t, "ExecHost")
+	fn := commondao.ExecFunc(func(_ int, _ realm) error { return nil })
+
+	// Wrong args type is a realm bug, reported as invalid args.
+	_, err := executionKind{}.New(dao.Readonly(), textArgs{})
+	uassert.ErrorIs(t, err, errInvalidProposalArgs)
+
+	// A nil closure is rejected with the /p/ sentinel.
+	_, err = executionKind{}.New(dao.Readonly(), executionArgs{title: "T", body: "B", fn: nil})
+	uassert.ErrorIs(t, err, commondao.ErrExecutionFuncRequired)
+
+	// Happy path: the definition carries the title, body and closure and
+	// defaults to a supermajority threshold.
+	def, err := executionKind{}.New(dao.Readonly(), executionArgs{title: "T", body: "B", fn: fn})
+	urequire.NoError(t, err)
+	epd, ok := def.(executionPropDefinition)
+	urequire.True(t, ok, "expect an executionPropDefinition")
+	uassert.Equal(t, "T", epd.Title())
+	uassert.Equal(t, "B", epd.Body())
+	uassert.True(t, epd.Threshold() == commondao.ThresholdSupermajority)
+	urequire.True(t, epd.Executor() != nil, "expect a non-nil executor")
+
+	// Freeze policy: Validate passes while unfrozen and blocks once the host
+	// treasury is frozen (the definition holds the live readonly host view).
+	uassert.NoError(t, epd.Validate())
+	dao.SetTreasuryFrozen(true)
+	uassert.ErrorIs(t, epd.Validate(), errTreasuryFrozen)
+}
+
+// TestManageKindsKindNewHostPin pins the manage-kinds host-identity guard:
+// the kind captures a mutable host handle from args but validates against the
+// readonly host Propose passes, so a handle for a different DAO than the one
+// being proposed on is rejected — a wrapper can never validate one registry
+// and mutate another.
+func TestManageKindsKindNewHostPin(t *testing.T) {
+	host := newTestDAO(t, "PinHost")
+	other := newTestDAO(t, "PinOther")
+
+	_, err := manageKindsKind{}.New(host.Readonly(), manageKindsProposal{dao: other, name: kindText})
+	uassert.ErrorIs(t, err, errInvalidProposalArgs)
+
+	// Matching handles pass the pin and then the normal register/deregister
+	// checks (deregistering a registered default validates cleanly).
+	_, err = manageKindsKind{}.New(host.Readonly(), manageKindsProposal{dao: host, remove: true, name: kindText})
+	uassert.NoError(t, err)
 }
 
 // TestManageKindsValidateSelfBrick pins the second (Execute-time) self-brick
