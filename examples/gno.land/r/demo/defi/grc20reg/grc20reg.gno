@@ -30,7 +30,6 @@ var registry = avl.NewTree() // rlmPath.symbol -> *Token
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
 // register two tokens under the same symbol (overwrite/alias guard).
 func Register(cur realm, token *grc20.Token, slug string) string {
-	assertCurrent(cur)
 	if token == nil {
 		panic("grc20reg: nil token")
 	}
@@ -101,21 +100,18 @@ func Allowance(tokenKey string, owner, spender address) int64 {
 // Transfer moves tokens owned by the immediate caller. A direct user call
 // spends the user's balance; a realm cross-call spends the calling realm's.
 func Transfer(cur realm, tokenKey string, to address, amount int64) {
-	assertCurrent(cur)
 	checkErr(MustGet(tokenKey).CallerTeller().Transfer(0, cur, to, amount))
 }
 
 // Approve sets an allowance owned by the immediate caller. A direct user call
 // uses the user's allowance; a realm cross-call uses the calling realm's.
 func Approve(cur realm, tokenKey string, spender address, amount int64) {
-	assertCurrent(cur)
 	checkErr(MustGet(tokenKey).CallerTeller().Approve(0, cur, spender, amount))
 }
 
 // TransferFrom spends an allowance as the immediate caller. A direct user is
 // the spender; for a realm cross-call, the calling realm is the spender.
 func TransferFrom(cur realm, tokenKey string, from, to address, amount int64) {
-	assertCurrent(cur)
 	checkErr(MustGet(tokenKey).CallerTeller().TransferFrom(0, cur, from, to, amount))
 }
 
@@ -159,12 +155,6 @@ const (
 
 func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
-}
-
-func assertCurrent(cur realm) {
-	if !cur.IsCurrent() {
-		panic(grc20.ErrSpoofedRealm)
-	}
 }
 
 func checkErr(err error) {
