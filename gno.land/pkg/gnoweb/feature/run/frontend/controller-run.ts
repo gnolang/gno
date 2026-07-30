@@ -1,6 +1,9 @@
 import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
 import { BaseController } from "@gnoweb/js/controller.js";
 
+// Terminates the heredoc that carries the script.
+const HEREDOC_DELIMITER = "__GNO_EOF__";
+
 export class RunController extends BaseController {
 	private declare pkgPath: string;
 	private declare pkgAlias: string;
@@ -12,6 +15,7 @@ export class RunController extends BaseController {
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
 	private declare dryRunEl: HTMLInputElement;
+	private declare includeScriptEl: HTMLInputElement;
 	private declare cmdEl: HTMLElement;
 	private declare editor: CodeEditor;
 
@@ -26,6 +30,7 @@ export class RunController extends BaseController {
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
 		this.dryRunEl = this.getTarget("dryRun") as HTMLInputElement;
+		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
 		this.cmdEl = this.getTarget("cmd") as HTMLElement;
 
 		if (!this.editorEl || !this.cmdEl) return;
@@ -35,6 +40,7 @@ export class RunController extends BaseController {
 			content: this._buildTemplate(),
 			fileName: "script.gno",
 			isDarkMode: isDarkMode(),
+			onChange: () => this._updateCommand(),
 		});
 
 		this.on("theme:changed", () => {
@@ -64,6 +70,7 @@ func main() {
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
 		this.dryRunEl.addEventListener("change", update);
+		this.includeScriptEl.addEventListener("change", update);
 	}
 
 	private _buildCmd(dryRun: boolean): string {
@@ -100,8 +107,18 @@ func main() {
 		return parts.join(" \\\n");
 	}
 
+	// Wraps the editor content in a quoted heredoc so the script can be written
+	// from the same paste as the command.
+	private _buildHeredoc(): string {
+		const code = this.editor.getCode().replace(/\n+$/, "");
+		return `cat > script.gno <<'${HEREDOC_DELIMITER}'\n${code}\n${HEREDOC_DELIMITER}`;
+	}
+
 	private _updateCommand(): void {
-		this.cmdEl.textContent = this._buildCmd(this.dryRunEl.checked);
+		const cmd = this._buildCmd(this.dryRunEl.checked);
+		this.cmdEl.textContent = this.includeScriptEl.checked
+			? `${this._buildHeredoc()}\n\n${cmd}`
+			: cmd;
 	}
 
 	public resetCode(): void {

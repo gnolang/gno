@@ -64,18 +64,21 @@ UI - Run (maketx run) scratchpad
   <!-- Generated command -->
   <div class="b-run-commands">
     <h3 class="b-content-h3">Generated Command</h3>
-    <p class="u-color-muted">
-      Save the code above as <code class="u-font-mono">script.gno</code> using
-      the <strong>Download</strong> link above, then run this command:
-    </p>
 
     <div class="b-run-command-block">
       <div class="b-run-command-header">
         <div class="b-run-command-toggle">
           <input type="checkbox" id="run-dry-run" data-run-target="dryRun" />
           <label for="run-dry-run" class="b-run-command-label">Dry Run</label>
+          <span class="u-color-muted u-text-sm">(simulates without broadcasting)</span>
         </div>
-        <span class="u-color-muted u-text-sm">(simulates without broadcasting)</span>
+        <div class="b-run-command-toggle">
+          <input type="checkbox" id="run-include-script" data-run-target="includeScript" checked />
+          <label for="run-include-script" class="b-run-command-label">Include script</label>
+          {{/* Only one of these is shown; see .b-run-command-hint-* in run.css. */}}
+          <span class="u-color-muted u-text-sm b-run-command-hint-on">(writes script.gno and runs the command)</span>
+          <span class="u-color-muted u-text-sm b-run-command-hint-off">(save the code above as script.gno using the Download link, then run this command)</span>
+        </div>
       </div>
       <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"

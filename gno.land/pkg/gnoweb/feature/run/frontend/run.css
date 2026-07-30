@@ -50,8 +50,10 @@
 
 .b-run-command-header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--g-space-2);
+	column-gap: var(--g-space-4);
+	row-gap: var(--g-space-1);
 	margin-block-end: var(--g-space-2);
 	font-size: var(--g-font-size-100);
 }
@@ -77,6 +79,11 @@
 
 	label {
 		cursor: pointer;
+	}
+
+	input:checked ~ .b-run-command-hint-off,
+	input:not(:checked) ~ .b-run-command-hint-on {
+		display: none;
 	}
 
 	&:hover .b-run-command-label {

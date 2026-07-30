@@ -48,6 +48,7 @@ export interface CodeEditorOptions {
 	fileName: string;
 	isDarkMode: boolean;
 	onRun?: () => void;
+	onChange?: () => void;
 }
 
 export class CodeEditor {
@@ -82,6 +83,15 @@ export class CodeEditor {
 						},
 					},
 				]),
+			);
+		}
+
+		if (opts.onChange) {
+			const changeHandler = opts.onChange;
+			extensions.push(
+				EditorView.updateListener.of((update) => {
+					if (update.docChanged) changeHandler();
+				}),
 			);
 		}
 
