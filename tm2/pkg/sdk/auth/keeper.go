@@ -375,6 +375,13 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
+	// At the ceiling no transaction above 1000 gas wanted can pay the minimum
+	// fee, and the write below is skipped once the price stops moving, so this
+	// is the only signal an operator gets that the chain is refusing work.
+	if newGasPrice.Price.Amount == math.MaxInt64 {
+		ctx.Logger().Error("block gas price is at the int64 ceiling, transactions cannot pay for it",
+			"gasPrice", newGasPrice.String(), "gasUsed", gasUsed, "maxBlockGas", maxBlockGas)
+	}
 	// Skip the write when the price is unchanged — e.g. it already sits at the
 	// floor, the block was exactly at target, or dynamic pricing is disabled
 	// (stored price 0 or TargetGasRatio == 0). Now that empty blocks are no

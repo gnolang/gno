@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/big"
 	"testing"
@@ -521,4 +523,25 @@ func TestCalcBlockGasPriceFloorAboveOne(t *testing.T) {
 		next = gk.calcBlockGasPrice(next, 0, maxGas, params)
 		require.Equal(t, initial, next)
 	}
+}
+
+// A chain at the ceiling stops writing the price, so the log is the only thing
+// that tells an operator the mempool is refusing everything.
+func TestUpdateGasPriceCeilingLogs(t *testing.T) {
+	env := setupTestEnv()
+	var buf bytes.Buffer
+	ctx := env.ctx.WithLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	meter := store.NewGasMeter(math.MaxInt64)
+	meter.ConsumeGas(ctx.ConsensusParams().Block.MaxGas, "full block")
+	ctx = ctx.WithBlockGasMeter(meter)
+
+	env.gk.SetGasPrice(ctx, std.GasPrice{Gas: 1000, Price: std.Coin{Amount: math.MaxInt64 - 10, Denom: "ugnot"}})
+	env.gk.UpdateGasPrice(ctx)
+	require.Equal(t, int64(math.MaxInt64), env.gk.LastGasPrice(ctx).Price.Amount)
+	require.Contains(t, buf.String(), "int64 ceiling")
+
+	buf.Reset()
+	env.gk.SetGasPrice(ctx, std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1000, Denom: "ugnot"}})
+	env.gk.UpdateGasPrice(ctx)
+	require.NotContains(t, buf.String(), "int64 ceiling", "logged below the ceiling")
 }
