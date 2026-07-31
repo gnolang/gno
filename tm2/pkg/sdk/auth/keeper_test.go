@@ -209,9 +209,35 @@ func TestCalcBlockGasPrice(t *testing.T) {
 			p = gk.calcBlockGasPrice(p, maxGas, maxGas, params)
 		}
 		require.Equal(t, int64(math.MaxInt64), p.Price.Amount)
+		require.Equal(t, int64(1000), p.Gas, "the clamp keeps the denominator")
+		require.Equal(t, "ugnot", p.Price.Denom, "the clamp keeps the denom")
 
-		// The cap is not absorbing: an idle block still walks the price back.
-		require.Less(t, gk.calcBlockGasPrice(p, 0, maxGas, params).Price.Amount, int64(math.MaxInt64))
+		// The cap is a pause, not a trap: idle blocks walk the price all the way
+		// back to the floor. A change to the floor, the compressor or the min-1
+		// decrement that stranded the price up here would hang this loop.
+		idle := 0
+		for p.Price.Amount != 1 {
+			p = gk.calcBlockGasPrice(p, 0, maxGas, params)
+			idle++
+			require.Less(t, idle, 1000, "the price does not return to the floor")
+		}
+	})
+
+	// Only the increase branch can leave int64 range, so the clamp is the right
+	// saturation direction. Every decrease result lands in [1, max(last, initial)],
+	// including at the largest initial price Params.Validate accepts.
+	t.Run("decreasing stays in range", func(t *testing.T) {
+		for _, last := range []int64{1, 2, 1000, math.MaxInt64 / 2, math.MaxInt64 - 1, math.MaxInt64} {
+			for _, initial := range []int64{0, 1, 1000, math.MaxInt64} {
+				p := params
+				p.InitialGasPrice = price(initial)
+				got := gk.calcBlockGasPrice(price(last), 0, maxGas, p)
+				require.LessOrEqual(t, got.Price.Amount, max(last, initial),
+					"last=%d initial=%d", last, initial)
+				require.GreaterOrEqual(t, got.Price.Amount, int64(1),
+					"last=%d initial=%d", last, initial)
+			}
+		}
 	})
 }
 
