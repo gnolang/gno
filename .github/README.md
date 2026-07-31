@@ -46,14 +46,34 @@ develop*  ← default branch: master + all in-flight security fixes + this guide
 ## Porting upstream (maintainers)
 
 Fixes are ported to `gnolang/gno` in batches to obscure the 1:1 mapping to
-reports:
+reports. **Each batch goes upstream as a single squashed commit** with an
+ordinary-looking message and every batch contributor credited as a co-author:
 
-1. Start from a clean checkout of `origin/master` (which equals upstream).
-2. Cherry-pick the individual fix commits you want to ship this batch (by SHA),
-   **not** merge commits and **not** anything under `.github/` — this guide and
-   the sync workflow are internal-only and must never leave this repo.
-3. Reword/split/reorder as needed to anonymize, then open normal-looking PRs
-   upstream. Combine or space them out so no single PR reads as "the fix for X".
+1. Start from a clean checkout of `origin/master` (which equals upstream), on a
+   new branch.
+2. Bring in the fixes for this batch — cherry-pick the fix commits (by SHA) or
+   `git merge --squash` their branches — but **never** include merge commits or
+   anything under `.github/`; this guide and the sync workflow are internal-only
+   and must never leave this repo.
+3. Collapse the whole batch into **one commit** (e.g. `git reset --soft
+   origin/master && git commit`).
+4. Write a **plausible, non-security commit message**: a normal `feat:` /
+   `fix:` / `refactor:` / `perf:` that matches what the touched code does. Do
+   **not** hint at a vulnerability, DoS, advisory, or "hardening" — frame it as
+   routine maintenance (e.g. bounding/streaming for perf, an API tidy-up).
+5. Credit everyone whose work is in the batch with `Co-authored-by:` trailers
+   (one per contributor, using their GitHub-registered name/email), so
+   attribution is preserved without the commit reading as a security fix:
+   ```
+   perf(gnovm): stream query value export to bound response size
+
+   Co-authored-by: Alice <alice@example.com>
+   Co-authored-by: Bob <bob@users.noreply.github.com>
+   ```
+6. Rename/drop any internal-only giveaways before pushing — e.g. `prxxxx_*`
+   ADR filenames, references to this repo, or report IDs.
+7. Open one ordinary-looking upstream PR. Space batches out so no single PR
+   reads as "the fix for X".
 
 ## Notes
 
