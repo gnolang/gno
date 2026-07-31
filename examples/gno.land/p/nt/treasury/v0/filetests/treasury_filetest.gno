@@ -10,6 +10,7 @@ import (
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/treasury/v0"
+	"gno.land/p/onbloc/identifier"
 )
 
 func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
@@ -41,7 +42,7 @@ func main(cur realm) {
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	token, ledger := grc20.NewToken("TestToken", "TEST", 0, 0, cur)
+	token, ledger := grc20.NewToken("TestToken", "TEST", 0, identifier.NewGenerator(0, cur), cur)
 	ledger.Mint(ownerAddr, amount)
 
 	grc20Lister := func() map[string]*grc20.Token {

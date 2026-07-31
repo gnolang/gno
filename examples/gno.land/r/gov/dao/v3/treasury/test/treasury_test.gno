@@ -3,14 +3,11 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 	"sort"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname/v0"
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/uassert/v0"
@@ -26,7 +23,6 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-var nextTokenID seqid.ID
 var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
@@ -83,19 +79,21 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 		keys        = make([]string, 0, len(tokenNames))
 	)
 
+	// One persistent generator so every token minted here gets a distinct ID.
+	gen := grc20reg.IdentifierGenerator()
 	for _, name := range tokenNames {
 		// Create the token.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
+		token, ledger := grc20.NewToken(name, symbol, 0, gen, rlm)
 
-		// Register the token.
-		grc20reg.Register(cross(rlm), token, symbol)
+		// Register the token; the returned key is Token.ID(), which the
+		// registry now keys by.
+		key := grc20reg.Register(cross(rlm), token, symbol)
 
 		// Mint tokens to the specified address.
 		ledger.Mint(toMint, mintAmount)
 
 		// Add the token and key to the lists.
-		key := fqname.Construct(unsafe.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
 		keys = append(keys, key)
 	}

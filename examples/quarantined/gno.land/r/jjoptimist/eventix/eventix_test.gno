@@ -11,6 +11,7 @@ import (
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
+	"gno.land/p/onbloc/identifier"
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to
@@ -97,7 +98,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var token *grc20.Token
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
-		token, ledger = grc20.NewToken("Test Token", "TEST", 6, 0, cur)
+		token, ledger = grc20.NewToken("Test Token", "TEST", 6, identifier.NewGenerator(0, cur), cur)
 	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
