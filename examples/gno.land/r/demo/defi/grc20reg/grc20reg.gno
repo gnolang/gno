@@ -10,6 +10,7 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -90,7 +91,7 @@ func Render(path string) string {
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key
-			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
+			s += "- " + md.Bold(sanitize.InlineText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
 			return false
 		})
 		if count == 0 {
@@ -102,8 +103,8 @@ func Render(path string) string {
 		token := MustGet(key)
 		rlmPath, slug := fqname.Parse(key)
 		rlmLink := fqname.RenderLink(rlmPath, slug)
-		s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
-		s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
+		s := ufmt.Sprintf("# %s\n", sanitize.InlineText(token.GetName()))
+		s += "- symbol: " + md.Bold(sanitize.InlineText(token.GetSymbol())) + "\n"
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
 		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
 		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
