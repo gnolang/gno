@@ -16,11 +16,11 @@ const FeeDenominator = 10000
 const RoyaltyUpdateEvent = "RoyaltyUpdate"
 
 var (
-	ErrInvalidReceiver   = errors.New("invalid royalty receiver")
-	ErrInvalidBps        = errors.New("royalty bps out of range")
-	ErrTokenNotMinted    = errors.New("token is not minted")
-	ErrMaxBpsRange       = errors.New("maxBps out of range (0..10000)")
-	ErrInvalidSalePrice  = errors.New("invalid sale price (negative or would overflow)")
+	ErrInvalidReceiver  = errors.New("invalid royalty receiver")
+	ErrInvalidBps       = errors.New("royalty bps out of range")
+	ErrTokenNotMinted   = errors.New("token is not minted")
+	ErrMaxBpsRange      = errors.New("maxBps out of range (0..10000)")
+	ErrInvalidSalePrice = errors.New("invalid sale price (negative or would overflow)")
 )
 
 var zeroAddress = address("")
