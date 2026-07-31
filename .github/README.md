@@ -77,8 +77,17 @@ ordinary-looking message and every batch contributor credited as a co-author:
 
 ## Notes
 
-- CI (the inherited gno workflows) runs on PRs to `develop`, so fixes are tested
-  against real upstream code.
+- CI runs the inherited gno `ci-*` test workflows on PRs to `develop`, so fixes
+  are tested against real upstream code. The **upstream-only** workflows
+  (deploys, releases, CodeQL, FOSSA, the Discord/GitHub bots, and PR-hygiene
+  automation) were removed from `develop` — they need secrets, deploy targets,
+  or GitHub Advanced Security that this private fork doesn't have, and only
+  produced noise. `master` still carries the full upstream set, but those never
+  run there (the mirror push uses `GITHUB_TOKEN`, which doesn't trigger
+  workflows). Re-add anything here on `develop` if you want it.
+- The `ci-*` jobs occasionally fail at the checkout step with "Repository not
+  found" — a transient private-repo hiccup, not a real failure. Just re-run the
+  job (`gh run rerun <id> --failed`).
 - If the sync Action ever fails, it usually means someone pushed to `master` by
   mistake — reset `master` back to `gnolang/gno:master` and move the change onto
   a `dev/...` branch.
