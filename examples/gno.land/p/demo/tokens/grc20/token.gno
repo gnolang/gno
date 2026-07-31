@@ -6,31 +6,30 @@ import (
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/onbloc/identifier"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + gen.NextID()
+// — a short fixed-length GeneratorID code
+// (e.g. "gno.land/r/demo/defi/foo20.FOO.n94thn18fc78c").
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
-// fabricate a Token claiming to belong to a different package.
+// fabricate a Token claiming to belong to a different package. For the same
+// reason gen must belong to the calling realm — gen.PackagePath() must equal
+// rlm.PkgPath() — so a realm cannot mint tokens through another realm's
+// generator.
 //
-// Realms that create multiple tokens should allocate id from one persistent
-// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
-//
-//	var nextTokenID seqid.ID
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
-//
-// A realm that creates only a single token can pass 0 directly, since no
-// other token of that realm can collide with it.
+// A realm keeps one persistent identifier.Generator, shared by every creation
+// path, so IDs never repeat — even for tokens sharing a symbol.
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
-func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+func NewToken(name, symbol string, decimals int, gen *identifier.Generator, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -47,13 +46,17 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
+	if gen == nil {
+		panic(ErrNilGenerator)
+	}
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:       pkgPath + "." + symbol + "." + id.String(),
-		name:     name,
-		symbol:   symbol,
-		decimals: decimals,
-		ledger:   ledger,
+		id:             pkgPath + "." + symbol + "." + gen.NextID(),
+		identifierPath: gen.PackagePath(),
+		name:           name,
+		symbol:         symbol,
+		decimals:       decimals,
+		ledger:         ledger,
 	}
 	ledger.token = token
 	return token, ledger
@@ -112,6 +115,11 @@ func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 // It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
 	return tok.id
+}
+
+// IdentifierPath returns the package path of the generator that issued the token's id.
+func (tok *Token) IdentifierPath() string {
+	return tok.identifierPath
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
