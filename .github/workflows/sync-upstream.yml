@@ -1,0 +1,47 @@
+# Internal to gno-fixes: keep `master` a pristine mirror of gnolang/gno:master.
+#
+# This workflow runs from the default branch (develop) and fast-forwards the
+# `master` branch to upstream. `master` is never committed to directly, so the
+# push is always a clean fast-forward; a non-FF failure is a signal that
+# something was pushed to `master` by mistake (see .github/README.md).
+#
+# This file, like everything under .github/ here, is internal and must not be
+# ported upstream.
+name: sync-upstream
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly, offset to avoid the top-of-hour rush
+  workflow_dispatch: {}
+
+# Never run more than one sync at a time.
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for the origin push credentials)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward master from gnolang/gno
+        run: |
+          set -euo pipefail
+          git config user.name "gno-fixes-bot"
+          git config user.email "gno-fixes-bot@users.noreply.github.com"
+          git remote add upstream https://github.com/gnolang/gno.git
+          git fetch --no-tags upstream master
+
+          # Fast-forward-only push: fails loudly if `master` has diverged,
+          # which means someone committed to the mirror by mistake.
+          if ! git push origin "refs/remotes/upstream/master:refs/heads/master"; then
+            echo "::error::Could not fast-forward master from upstream — it has diverged. See .github/README.md."
+            exit 1
+          fi
