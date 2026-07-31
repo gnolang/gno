@@ -2,6 +2,7 @@ package grc20reg
 
 import (
 	"chain"
+	"errors"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -12,35 +13,38 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath.symbol -> *Token
+var registry = avl.NewTree() // rlmPath.slug -> *Token
 
 // Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// The registry key is the canonical fqname rlmPath.symbol (one token per
-// realm+symbol), independent of Token.ID()'s trailing sequence id, so
-// callers can look a token up from the (realm, symbol) pair they already
-// know:
+// Token.ID() is the token identity (rlmPath.symbol.id). The registry slug is
+// a caller-chosen lookup alias, independent of the token's identity:
 //
 //	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
-//	key := grc20reg.Register(cross(cur), Token, "")
+//	key := grc20reg.Register(cross(cur), Token, "my-token")
 
-// Register records token under its rlmPath.symbol key and returns that key.
-// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
-// token identities/events unique, but the registry deliberately keys by
-// rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
-// register two tokens under the same symbol (overwrite/alias guard).
+// Register records token under rlmPath.slug and returns that registry key.
+// The registering realm is responsible for allocating unique Token IDs and
+// for deciding whether one token should be registered under multiple aliases.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
 	}
-	if slug != "" {
-		validateSlug(slug)
+	// Reject stale or forged realm frames before trusting cur.Previous() as
+	// the registering realm.
+	if !cur.IsCurrent() {
+		panic("grc20reg: rlm is not the caller's live cur")
+	}
+	if slug == "" {
+		panic("grc20reg: empty slug")
+	}
+	if err := validateSlug(slug); err != nil {
+		panic(err.Error())
 	}
 	rlmPath := cur.Previous().PkgPath()
-	key := fqname.Construct(rlmPath, token.GetSymbol())
-	// Token.ID() == key + "." + <id>; verify the token originates from the
-	// registering realm and symbol.
-	if !strings.HasPrefix(token.ID(), key+".") {
+	key := fqname.Construct(rlmPath, slug)
+	tokenIDPrefix := fqname.Construct(rlmPath, token.GetSymbol()) + "."
+	if !strings.HasPrefix(token.ID(), tokenIDPrefix) {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 	if registry.Has(key) {
@@ -53,6 +57,7 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
+		"token_id", token.ID(),
 	)
 	return key
 }
@@ -82,8 +87,8 @@ func Render(path string) string {
 		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
 			token := tokenI.(*grc20.Token)
-			rlmPath, tokenID := fqname.Parse(key)
-			rlmLink := fqname.RenderLink(rlmPath, tokenID)
+			rlmPath, slug := fqname.Parse(key)
+			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key
 			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
 			return false
@@ -95,8 +100,8 @@ func Render(path string) string {
 	default: // specific token
 		key := path
 		token := MustGet(key)
-		rlmPath, tokenID := fqname.Parse(key)
-		rlmLink := fqname.RenderLink(rlmPath, tokenID)
+		rlmPath, slug := fqname.Parse(key)
+		rlmLink := fqname.RenderLink(rlmPath, slug)
 		s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
 		s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
@@ -115,17 +120,18 @@ func GetRegistry() *rotree.ReadOnlyTree {
 	return rotree.Wrap(registry, nil)
 }
 
-// validateSlug panics if the slug is too long or contains non-alphanumeric characters.
+// validateSlug rejects slugs that are too long or contain non-alphanumeric characters.
 // Only letters, digits, dashes, and underscores are allowed.
-func validateSlug(slug string) {
+func validateSlug(slug string) error {
 	if len(slug) > maxSlugLen {
-		panic("grc20reg: slug too long")
+		return errors.New("grc20reg: slug too long")
 	}
 	for _, c := range slug {
 		if !isAlphanumeric(c) && c != '_' && c != '-' {
-			panic("grc20reg: invalid slug character: " + string(c))
+			return errors.New("grc20reg: invalid slug character: " + string(c))
 		}
 	}
+	return nil
 }
 
 func isAlphanumeric(c rune) bool {

@@ -34,9 +34,8 @@ func TestTokenRegistration(cur realm, t *testing.T) {
 	token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next(), cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
-	// The registry key is the token's rlmPath.symbol; Token.ID() extends it
-	// with a trailing sequence id.
-	uassert.True(t, strings.HasPrefix(token.ID(), key+"."), "registry key should be the token's rlmPath.symbol prefix")
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.test_token", key, "registry key should use the caller-provided slug")
+	uassert.True(t, strings.HasPrefix(token.ID(), "gno.land/r/matijamarjanovic/tokenhub.TEST."), "token ID should retain realm, symbol, and sequence id")
 
 	retrievedToken := GetToken(key)
 

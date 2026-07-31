@@ -127,12 +127,10 @@ var (
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
 )
 
-// Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because it is included in Token.ID(), which is
-// emitted in events and frequently used as a registry slug; banning `.` `/`
-// and whitespace here prevents downstream parsers from being fooled by
-// ambiguous IDs. Name is for display only and allows any valid UTF-8 except
-// control characters.
+// Construction limits. Symbol is restricted to [A-Za-z0-9_-] because it is
+// included in Token.ID(), which is emitted in events. Registry aliases are
+// chosen and validated separately by grc20reg. Name is for display only and
+// allows any valid UTF-8 except control characters.
 const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11
