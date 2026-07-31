@@ -448,7 +448,9 @@ func TestCalcBlockGasPriceUnboundedMaxGas(t *testing.T) {
 	})
 
 	// maxGas*ratio < 100 makes the target 0, which both branches divide by. At
-	// the default ratio of 70 that is MaxGas 0 and 1.
+	// the default ratio of 70 that is MaxGas 0 and 1. The gasUsed 0 rows are the
+	// exception: the usage equals the target, so they return before either
+	// division and pass without the guard too.
 	t.Run("zero target does not panic", func(t *testing.T) {
 		for _, maxGas := range []int64{0, 1} {
 			for _, gasUsed := range []int64{0, 1, 1_000_000} {

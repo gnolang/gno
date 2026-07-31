@@ -406,9 +406,9 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
 // two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
 // integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
-// cap at the largest int64 price; when decreasing we floor the result at the initial gas price, or at 1. An
-// unbounded block gas limit leaves the price unchanged. This is just a starting point. Down the line, the
-// solution might not be even representable by one simple formula
+// cap at the largest int64 price; when decreasing we floor the result at the initial gas price, and never
+// below 1. A block gas limit that yields no positive target leaves the price unchanged. This is just a
+// starting point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
@@ -432,8 +432,10 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
-	// An unbounded MaxGas leaves no target to price against, and both branches
-	// below divide by it.
+	// No positive target, so there is no congestion to price against. Either
+	// MaxGas is one of the two unbounded spellings, -1 or 0, or it is too small
+	// for the ratio to reach 1. At 0 the branches below would divide by zero; at
+	// -1 the price would ratchet up by 1 on every block, idle ones included.
 	if targetGasInt.Sign() <= 0 {
 		return lastGasPrice
 	}
@@ -457,7 +459,8 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// increase at least 1
 		diff := maxBig(num, bigOne)
 		num.Add(lastPriceInt, diff)
-		// XXX should we cap it with a max gas price?
+		// XXX should we cap it with a configured max gas price? The clamp below
+		// is only the int64 ceiling, not a policy one.
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
 		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
