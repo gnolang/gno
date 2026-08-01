@@ -39,7 +39,9 @@ sub := cur.Sub(subpathOf(op))
 err := dao.Execute(proposalID, sub)        // package calls fn(0, sub)
 ```
 
-`Funded` is a new optional interface (`FundingDAOID() uint64`) that a
+`Funded` is a new optional interface (`FundingDAOID() uint64` — since
+moved realm-side, where its only consumer lives; see
+`prxxxx_commondao_open_kinds_realm.md`) that a
 fund-moving definition implements to name the DAO whose address funds
 its executor: clawback names the **target**, sub-DAO dissolution names
 the **dissolved descendant**, ordinary spend and every non-fund
@@ -132,7 +134,7 @@ clawback family, which all fail on a mis-wire) and sub-DAO dissolution
 - Package surface (breaking; quarantined realm + package, no live
   state): `ExecFunc` is now `func(int, realm) error`; `Execute` takes
   `(proposalID uint64, sub realm)` and calls `fn(0, sub)`; new optional
-  `Funded` interface.
+  `Funded` interface (since moved realm-side).
 - Realm surface: the `Execute` wrapper computes the operative DAO and
   mints its sub; the three fund-movers rebuild their banker from the
   passed `sub` (their own `cur.Sub` removed) and declare `FundingDAOID()`
@@ -144,6 +146,6 @@ clawback family, which all fail on a mis-wire) and sub-DAO dissolution
   frame for realm identity), replaced with checks that it ran and
   received a usable `sub`; the re-entrancy probe (`z_commondao_execute_3`)
   and the standard `_test.gno` fakes adopt the new signature. Both gno
-  suites (package + realm) and all five commondao txtars
+  suites (package + realm) and all commondao txtars
   pass; the txtars exercise the operative-sub path on a real node
   including the host≠operative clawback and dissolution sweeps.

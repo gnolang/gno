@@ -166,8 +166,9 @@ ever materializes; see Alternatives.)
   proposal fails cleanly.
 - DAO creation requires ≥1 council member; `Resign` refuses the last
   member. (Ancestor governance — the spec's rescue path for empty
-  councils — is deferred, so an empty council would be permanently
-  inert.)
+  councils — has since shipped as `ancestor-council-update`, so an
+  empty or stuck descendant council is recoverable by any live proper
+  ancestor; see the Scope section above.)
 - `Dissolve` dismisses every in-flight proposal (reason "DAO
   dissolved") before soft deleting; deleted DAOs reject `Propose`,
   `Vote`, `Execute`, and `Resign`. Dissolution is terminal.

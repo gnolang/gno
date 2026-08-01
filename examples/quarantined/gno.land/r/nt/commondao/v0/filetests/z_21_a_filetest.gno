@@ -15,15 +15,16 @@
 // "policy" realm that sits on M's council and authors the closure.
 //
 // Transaction sequence (each commondao.* / policy-realm call is one tx):
-//   setup: create M; register the execution kind on M; create P with {user, M}
-//   in P:  1. CreateTextProposal      (user)         -> propP
-//          2. Vote YES on propP        (user)         [propP: 1/2, active]
-//   in M:  3. CreateExecutionProposal  (policy realm) -> propM
-//                closure := Vote YES on (P, propP) as M
-//          4. Vote YES on propM        (M's council)
-//          5. Execute propM            -> runs closure -> M votes YES in P
-//                                                        [propP: 2/2, passed]
-//   in P:  6. Execute propP            -> Executed
+//
+//	setup: create M; register the execution kind on M; create P with {user, M}
+//	in P:  1. CreateTextProposal      (user)         -> propP
+//	       2. Vote YES on propP        (user)         [propP: 1/2, active]
+//	in M:  3. CreateExecutionProposal  (policy realm) -> propM
+//	             closure := Vote YES on (P, propP) as M
+//	       4. Vote YES on propM        (M's council)
+//	       5. Execute propM            -> runs closure -> M votes YES in P
+//	                                                     [propP: 2/2, passed]
+//	in P:  6. Execute propP            -> Executed
 package z_21_a_filetest
 
 import (

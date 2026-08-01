@@ -57,6 +57,19 @@ func TestAmendBylawsKindNew(t *testing.T) {
 	_, err = amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: badPath})
 	uassert.ErrorIs(t, err, bylaws.ErrInvalidPath)
 
+	// The mandates/ folder is reserved: mandates are set at creation or by
+	// an ancestor, never by the council's own amendment power.
+	mandate, err := bylaws.DiffTexts("mandates/spend.md", "", "Spend only by vote.", false)
+	urequire.NoError(t, err)
+	_, err = amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: mandate})
+	urequire.Error(t, err)
+	uassert.True(t, strings.Contains(err.Error(), "mandates are not council-amendable"), "expect the mandates reservation")
+	bare, err := bylaws.DiffTexts("mandates", "", "x", false)
+	urequire.NoError(t, err)
+	_, err = amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: bare})
+	urequire.Error(t, err)
+	uassert.True(t, strings.Contains(err.Error(), "mandates are not council-amendable"), "expect the bare-path reservation")
+
 	// Stale-at-create: a patch whose base does not match the current
 	// document is rejected up front.
 	stale := bylaws.Patch{Path: "bylaws/a.md", Base: bylaws.HashText("not the base"), Ops: []bylaws.Op{{Type: bylaws.OpInsert, Text: "x"}}}
@@ -79,7 +92,7 @@ func TestAmendBylawsKindNew(t *testing.T) {
 	uassert.ErrorIs(t, err, bylaws.ErrInvalidPatch)
 
 	// Happy path: the definition renders the change, titles by action, and
-	// applies the simple-majority threshold.
+	// applies the supermajority default threshold.
 	def, err := amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: freshPatch("Quorum is half.")})
 	urequire.NoError(t, err)
 	abp, ok := def.(amendBylawsProposal)
@@ -130,7 +143,7 @@ func TestAmendBylawsLifecycle(t *testing.T) {
 
 	newDef := func(text string) amendBylawsProposal {
 		t.Helper()
-		p, err := set.Diff("mandates/spend.md", text)
+		p, err := set.Diff("bylaws/spend.md", text)
 		urequire.NoError(t, err)
 		def, err := amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: p})
 		urequire.NoError(t, err)
@@ -141,7 +154,7 @@ func TestAmendBylawsLifecycle(t *testing.T) {
 	create := newDef("Spend only by vote.")
 	uassert.NoError(t, create.Validate())
 	urequire.NoError(t, create.execute(0, nil))
-	text, _ := set.Get("mandates/spend.md")
+	text, _ := set.Get("bylaws/spend.md")
 	uassert.Equal(t, "Spend only by vote.", text)
 
 	// Two amendments race from the same base: the first applies, the
@@ -151,12 +164,12 @@ func TestAmendBylawsLifecycle(t *testing.T) {
 	urequire.NoError(t, winner.execute(0, nil))
 	uassert.ErrorIs(t, loser.Validate(), bylaws.ErrStalePatch)
 	uassert.ErrorIs(t, loser.execute(0, nil), bylaws.ErrStalePatch)
-	text, _ = set.Get("mandates/spend.md")
+	text, _ = set.Get("bylaws/spend.md")
 	uassert.Equal(t, "Spend only by supermajority vote.", text)
 
 	// Removal: an empty proposed text removes the document.
 	remove := newDef("")
-	uassert.Equal(t, "Remove Bylaws Document: mandates/spend.md", remove.Title())
+	uassert.Equal(t, "Remove Bylaws Document: bylaws/spend.md", remove.Title())
 	urequire.NoError(t, remove.execute(0, nil))
-	uassert.False(t, set.Has("mandates/spend.md"))
+	uassert.False(t, set.Has("bylaws/spend.md"))
 }

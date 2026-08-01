@@ -302,8 +302,12 @@ func CreateDeregisterKindProposal(cur realm, daoID uint64, kindName string) uint
 }
 
 // CreateAmendBylawsProposal creates a proposal to add, amend or remove one
-// of the DAO's bylaws/mandates documents with a verifiable diff patch (see
-// gno.land/p/nt/bylaws/v0). The payload is an encoded patch — build it with
+// of the DAO's bylaws documents with a verifiable diff patch (see
+// gno.land/p/nt/bylaws/v0). The mandates/ folder is reserved: the
+// Constitution grants a council self-power over its Bylaws only, so
+// mandates change from above (creation or an ancestor's amendment — not
+// implemented yet), never through this proposal.
+// The payload is an encoded patch — build it with
 // AmendBylawsPayload (e.g. through a vm/qeval query) or with
 // bylaws.Diff(...).Encode() from a realm. The patch pins the sha256 of the
 // document text it was diffed against, so an amendment racing a concurrent

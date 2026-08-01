@@ -107,7 +107,7 @@ re-entrant call arrived through — aborts the whole transaction.
 - `public.gno` `Execute` gains `enterExecute(); defer leaveExecute()` after
   `assertCurrent`. New file `reentrancy.gno` holds the latch and helpers.
 - No existing flow changes: no current executor nests `Execute`, so all package
-  and realm filetests and all five commondao txtars stay green. The flag is
+  and realm filetests and all commondao txtars stay green. The flag is
   raised/lowered within a single `Execute`; it cannot leak across transactions.
   On a normal return the defer lowers it; on a rejected re-entry the panic
   aborts the transaction and the aborted tx's realm writes (including the flag)
@@ -118,7 +118,9 @@ re-entrant call arrived through — aborts the whole transaction.
   removing the guard fails exactly that test. The full end-to-end chain (a
   re-entrant closure → `Execute(cross(sub), …)` → the latch panic → an
   unrecoverable, whole-tx abort) was confirmed in post-review with a throwaway
-  probe kind. It is not landed as a green regression test yet because the latch
+  probe kind. (Since landed: `z_20_i` is that green end-to-end pin,
+  mutation-verified, added with the execution kind.) At this ADR's time it
+  was not landed as a green regression test because the latch
   panic is unrecoverable (so a `_test.gno` cannot assert it green) and filetests
   cannot register a custom kind; the green end-to-end pin lands with the
   arbitrary-execution kind, which exposes a public `Create*` a filetest

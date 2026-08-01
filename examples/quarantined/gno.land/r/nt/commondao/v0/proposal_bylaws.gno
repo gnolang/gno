@@ -2,6 +2,7 @@ package commondao
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"gno.land/p/moul/md"
@@ -38,6 +39,13 @@ func bylawsOf(daoID uint64) *bylaws.Bylaws {
 	b := bylaws.New()
 	bylawsSets.Set(makeIDKey(daoID), b)
 	return b
+}
+
+// isMandatesPath reports whether a document path is in the reserved
+// mandates/ folder (or is the bare "mandates" file). Mandates are not
+// council-self-amendable; see amendBylawsKind.New.
+func isMandatesPath(path string) bool {
+	return path == "mandates" || strings.HasPrefix(path, "mandates/")
 }
 
 // amendBylawsProposal is both the amend-bylaws args struct and the
@@ -84,6 +92,14 @@ func (amendBylawsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao
 	}
 	if !bylaws.IsValidPath(p.patch.Path) {
 		return nil, bylaws.ErrInvalidPath
+	}
+	// The Constitution grants a council self-power over its BYLAWS only;
+	// Mandates are changed from above (creation or an ancestor's Simple
+	// Majority — the ancestor amendment path, not implemented yet). Reserve
+	// the mandates/ folder so self-amendment cannot author what only an
+	// ancestor may.
+	if isMandatesPath(p.patch.Path) {
+		return nil, errors.New("mandates are not council-amendable: they are set at creation or by an ancestor (ancestor amendment is not implemented yet)")
 	}
 
 	// Freshness fail-fast: reject a patch that is already stale at

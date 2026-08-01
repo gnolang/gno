@@ -109,7 +109,7 @@ func main() {
 // <gno-columns-sep>
 // [Amend Bylaws](/r/nt/commondao/v0$help&func=CreateAmendBylawsProposal&daoID=2&payload=)
 //
-// This type of proposal adds, amends or removes one of the DAO's bylaws and mandates documents with a diff patch pinned to the current document text. Build the payload with the AmendBylawsPayload query function.
+// This type of proposal adds, amends or removes one of the DAO's bylaws documents with a diff patch pinned to the current document text (the mandates folder is reserved: mandates are set from above, not by the council). Build the payload with the AmendBylawsPayload query function.
 //
 //
 // </gno-columns>

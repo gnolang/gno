@@ -19,15 +19,17 @@ of introducing a second diff implementation.
 
 ### 1. A standalone, governance-agnostic `/p/` package
 
-`gno.land/p/nt/bylaws/v0` stores one DAO's documents as an `avl.Tree` of
-`path -> text` and amends them only through verifiable patches. It knows
-nothing about DAOs, councils or votes — the consuming realm decides *who*
-may amend; the package makes amendments *verifiable and deterministic*.
+`gno.land/p/nt/bylaws/v0` stores one DAO's documents as a sorted tree of
+`path -> text` (a fanout-32 B+ tree since
+`prxxxx_commondao_bptree_storage.md`; originally `avl.Tree`) and amends
+them only through verifiable patches. It knows nothing about DAOs,
+councils or votes — the consuming realm decides *who* may amend; the
+package makes amendments *verifiable and deterministic*.
 
 - **Documents** are plaintext keyed by a slash path
   (`"mandates/treasury.md"`). Folders are a naming convention — a folder
   exists exactly when a document path has it as a prefix; listing one is
-  a sorted `avl` prefix scan. No folder objects (an *empty* folder is not
+  a sorted prefix scan. No folder objects (an *empty* folder is not
   representable; the requirement's "files or folders of files" does not
   need one).
 - **Path charset is restricted** to `[a-zA-Z0-9._-/]` with non-empty
@@ -98,6 +100,14 @@ on every DAO, not opt-in.
   path, fails fast on a stale base, renders `display` via `Format` —
   which also validates the script, so a malformed patch never becomes a
   proposal — and only then rejects no-op amendments.
+- **The `mandates/` folder is reserved from self-amendment** (the bare
+  `mandates` path too). The Constitution grants a council self-power
+  over its *Bylaws* only (`:1501`); Mandates come from above — creation
+  or an ancestor's amendment (`:1491`, deferred) — so the kind rejects
+  mandates paths, preserving the charter ADR's recorded conservative
+  reading. Until the ancestor path ships, mandates are simply not
+  writable through this realm. Reads and the store stay generic ("Bylaws
+  & Mandates"): ancestor-authored mandates will live in the same set.
 - **Threshold: Supermajority.** Self-amendment is a council decision the
   Constitution grants with no special threshold (`:1501`), so the
   default council rule applies — the same default as every other kind
@@ -156,7 +166,7 @@ on every DAO, not opt-in.
 
 ## Consequences
 
-- New package `p/nt/bylaws/v0` (~330 LOC + tests): store, patch engine,
+- New package `p/nt/bylaws/v0` (~450 LOC + tests): store, patch engine,
   wire codec; only mutation is `Apply`.
 - Realm: `proposal_bylaws.gno` (kind + state), wrapper + payload helper,
   two public reads, render page/link/entry, `kindAmendBylaws` in the
@@ -165,7 +175,9 @@ on every DAO, not opt-in.
   kinds row). New filetests z_22_a (governance lifecycle:
   create/amend/list/render/remove), z_22_b (stale race →
   `StatusFailed`, no clobber), z_22_c (stale at create → rejected,
-  terminal). Unit tests: package (path rules, diff/apply lifecycle,
+  terminal), z_22_d (hostile multi-line content escaped on both the
+  proposal page and the bylaws page; marker-spoof defeated), z_22_e
+  (mandates/ reservation → rejected, terminal). Unit tests: package (path rules, diff/apply lifecycle,
   stale, bad scripts, unicode, codec round-trip + malformed, format,
   noop) and realm (`TestAmendBylawsKindNew` guards,
   `TestAmendBylawsLifecycle` executor + race + removal).

@@ -46,8 +46,8 @@ func main(cur realm) {
 	commondao.Execute(cross(cur), daoID, pID)
 	println("amended:", commondao.GetBylawsDoc(daoID, "bylaws/quorum.md"))
 
-	// Add a mandate, then list the whole set (sorted).
-	payload = commondao.AmendBylawsPayload(daoID, "mandates/spend.md", "Spend only by vote.")
+	// Add a second document, then list the whole set (sorted).
+	payload = commondao.AmendBylawsPayload(daoID, "bylaws/spend.md", "Spend only by vote.")
 	pID = commondao.CreateAmendBylawsProposal(cross(cur), daoID, payload)
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
@@ -58,19 +58,19 @@ func main(cur realm) {
 	// The bylaws page renders every document with its base hash.
 	println(commondao.Render(strconv.FormatUint(daoID, 10) + "/bylaws"))
 
-	// Remove the mandate: an empty proposed text is a remove patch.
-	payload = commondao.AmendBylawsPayload(daoID, "mandates/spend.md", "")
+	// Remove it: an empty proposed text is a remove patch.
+	payload = commondao.AmendBylawsPayload(daoID, "bylaws/spend.md", "")
 	pID = commondao.CreateAmendBylawsProposal(cross(cur), daoID, payload)
 	commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
 	commondao.Execute(cross(cur), daoID, pID)
-	println("removed:", commondao.GetBylawsDoc(daoID, "mandates/spend.md") == "")
+	println("removed:", commondao.GetBylawsDoc(daoID, "bylaws/spend.md") == "")
 }
 
 // Output:
 // created: Quorum is half the council.
 // amended: Quorum is two thirds of the council.
 // doc: bylaws/quorum.md
-// doc: mandates/spend.md
+// doc: bylaws/spend.md
 // # Foo: Bylaws & Mandates
 // [Go to DAO](/r/nt/commondao/v0:2)
 //
@@ -82,7 +82,7 @@ func main(cur realm) {
 //
 // Quorum is two thirds of the council.
 //
-// ## mandates/spend\.md
+// ## bylaws/spend\.md
 // sha256: c890333668c0f8104cf5a6607139f61a962f51077c5e2c8cb3933930ff5e9dc5
 //
 //

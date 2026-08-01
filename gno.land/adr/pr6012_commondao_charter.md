@@ -43,6 +43,18 @@ change stays a mechanical, low-risk addition.
 
 ## Deferred to a follow-up PR (design recorded so it is not relitigated)
 
+> **Partially superseded by `prxxxx_commondao_bylaws.md`.** The follow-up
+> shipped self-BYLAWS amendment only, as a standalone `p/nt/bylaws/v0`
+> package (not the package-side maps sketched below) with different caps
+> (content ≤ 64 KiB, path ≤ 200 B, and no per-store document cap — each
+> document already costs a passed proposal). The conservative reading
+> below IS enforced: the realm's amend-bylaws kind rejects the reserved
+> `mandates/` folder, so mandates change only from above (creation or the
+> ancestor amendment path, still deferred). Charter amendment and the
+> ancestor-document proposal remain deferred, contrary to the "ships with
+> the follow-up" line above. The self-Bylaws threshold interpretation
+> below (supermajority default) is what shipped.
+
 - **Bylaws and Mandates** as package-side, per-DAO **flat path-keyed maps**
   (`path → content`, slashes standing in for folders — empty folders are not
   represented, an accepted loss), with caps (content ≤ ~16 KB, ≤ ~64 documents
