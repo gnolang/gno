@@ -379,7 +379,7 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	// fee, and the write below is skipped once the price stops moving, so this
 	// is the only signal an operator gets that the chain is refusing work.
 	if newGasPrice.Price.Amount == math.MaxInt64 {
-		ctx.Logger().Error("block gas price is at the int64 ceiling, transactions cannot pay for it",
+		gk.Logger(ctx).Error("block gas price is at the int64 ceiling, transactions cannot pay for it",
 			"gasPrice", newGasPrice.String(), "gasUsed", gasUsed, "maxBlockGas", maxBlockGas)
 	}
 	// Skip the write when the price is unchanged — e.g. it already sits at the
@@ -402,6 +402,11 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 			Key:   "func",
 			Value: attribute.StringValue("UpdateGasPrice"),
 		})
+}
+
+// Logger returns a module-specific logger.
+func (gk GasPriceKeeper) Logger(ctx sdk.Context) *slog.Logger {
+	return ctx.Logger().With("module", ModuleName)
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
