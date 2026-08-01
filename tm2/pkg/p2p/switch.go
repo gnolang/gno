@@ -21,8 +21,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
-// defaultDialTimeout is the default wait time for a dial to succeed
-var defaultDialTimeout = 3 * time.Second
+var (
+	// defaultDialTimeout is the default wait time for a dial to succeed
+	defaultDialTimeout = 3 * time.Second
+
+	// seedDialInterval is the minimum wait time between two seed dial rounds
+	seedDialInterval = 30 * time.Second
+)
 
 type reactorPeerBehavior struct {
 	chDescs      []*conn.ChannelDescriptor
@@ -157,6 +162,11 @@ func (sw *MultiplexSwitch) OnStart() error {
 	// peer disconnects, and attempts to reconnect
 	// to them
 	go sw.runRedialLoop(sw.ctx)
+
+	// Run the seed dial routine.
+	// The seed dial routine falls back to the seed nodes
+	// whenever the switch has run out of peers to dial
+	go sw.runSeedDialLoop(sw.ctx)
 
 	return nil
 }
@@ -496,6 +506,97 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			clearBackoffItem(ev.PeerID)
 		}
 	}
+}
+
+// runSeedDialLoop starts the seed node dial loop.
+// Seeds are bootstrap peers: they are dialed once on node start, and afterwards
+// only when the switch has run out of peers to dial. The loop ticks on a fixed
+// interval, which doubles as the minimum delay between two dial rounds
+func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
+	ticker := time.NewTicker(seedDialInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			sw.Logger.Debug("seed dial context canceled")
+
+			return
+		case <-ticker.C:
+			sw.dialSeed()
+		}
+	}
+}
+
+// hasDialableItem returns a flag indicating if the dial queue holds an item
+// that can be dialed right now. The queue is time-sorted (ascending), so a head
+// item scheduled in the future means every queued item is currently backing off
+func (sw *MultiplexSwitch) hasDialableItem() bool {
+	item := sw.dialQueue.Peek()
+
+	return item != nil && !time.Now().Before(item.Time)
+}
+
+// dialSeed dials a single seed node, picked at random, if the switch has
+// nothing left to dial. Seeds go through the regular outbound dial path, so
+// they are subject to the maximum outbound peer limit like any other peer
+func (sw *MultiplexSwitch) dialSeed() {
+	// Check if there is anything left to dial.
+	// As long as the switch has dialable peers, the seeds are not needed
+	if sw.hasDialableItem() {
+		return
+	}
+
+	// Gather the seeds that are neither connected nor already queued
+	var (
+		peers      = sw.Peers()
+		candidates = make([]*types.NetAddress, 0)
+	)
+
+	sw.seeds.Range(func(key, value any) bool {
+		var (
+			id   = key.(types.ID)
+			addr = value.(*types.NetAddress)
+		)
+
+		if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+			candidates = append(candidates, addr)
+		}
+
+		return true
+	})
+
+	if len(candidates) == 0 {
+		// No seed is worth dialing
+		return
+	}
+
+	// Dial a single seed. Queuing every seed at once would fill the outbound
+	// peer slots with bootstrap connections; if this one turns out to be
+	// unreachable, the next round picks another candidate
+	addr := candidates[randomIndex(len(candidates))]
+
+	sw.Logger.Info(
+		"dialing seed node",
+		"address", addr.String(),
+	)
+
+	sw.DialPeers(addr)
+}
+
+// randomIndex returns a random index within [0, n).
+// It falls back to the first index if the random source is unavailable
+func randomIndex(n int) int {
+	if n <= 1 {
+		return 0
+	}
+
+	var randBytes [8]byte
+	if _, err := rand.Read(randBytes[:]); err != nil {
+		return 0
+	}
+
+	return int(binary.NativeEndian.Uint64(randBytes[:]) % uint64(n))
 }
 
 // calculateBackoff calculates the backoff interval by exponentiating the base interval
