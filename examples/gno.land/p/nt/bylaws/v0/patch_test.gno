@@ -171,15 +171,54 @@ func TestDecodePatchRejectsMalformed(t *testing.T) {
 		"v0:a.md::K0;",                 // zero count
 		"v0:a.md::K-1;",                // negative count
 		"v0:a.md::Kx;",                 // non-numeric count
+		"v0:a.md::K05;",                // non-canonical count (leading zero)
+		"v0:a.md::K+5;",                // non-canonical count (sign)
+		"v0:a.md::I+5:hello;",          // non-canonical insert length
 		"v0:a.md::K1",                  // missing terminator
 		"v0:a.md::I0:;",                // empty insert
 		"v0:a.md",                      // missing base separator
 		"v0:a.md::K99999999999999999;", // over MaxDocLen
+		"v0:a.md::I1:\xc3;",            // insert is not valid UTF-8
 	}
 	for _, s := range bad {
 		_, err := DecodePatch(s)
 		uassert.Error(t, err, "expect decode error: "+s)
 	}
+}
+
+func TestDecodePatchMaxOps(t *testing.T) {
+	// Exactly MaxOps ops decode; one more is rejected. (Shape-only: the
+	// script need not fit any document to decode.)
+	payload := "v0:a.md::" + strings.Repeat("K1;", MaxOps)
+	_, err := DecodePatch(payload)
+	uassert.NoError(t, err)
+
+	_, err = DecodePatch(payload + "K1;")
+	uassert.ErrorIs(t, err, ErrInvalidPatch)
+}
+
+func TestEncodeDecodeMultibyteInsert(t *testing.T) {
+	// The insert length prefix is a BYTE length: pin the exact wire form
+	// for a multi-byte literal so a rune-length regression cannot pass.
+	p, err := DiffTexts("a.md", "", "héllo ✓ wörld", false)
+	urequire.NoError(t, err)
+	enc := p.Encode()
+	uassert.Equal(t, "v0:a.md::I17:héllo ✓ wörld;", enc)
+
+	dec, err := DecodePatch(enc)
+	urequire.NoError(t, err)
+	b := New()
+	urequire.NoError(t, b.Apply(dec))
+	text, _ := b.Get("a.md")
+	uassert.Equal(t, "héllo ✓ wörld", text)
+}
+
+func TestDiffTextsRejectsInvalidUTF8(t *testing.T) {
+	_, err := DiffTexts("a.md", "", "bad \xc3 byte", false)
+	uassert.ErrorIs(t, err, ErrInvalidText)
+
+	_, err = DiffTexts("a.md", "bad \xc3 base", "fine", true)
+	uassert.ErrorIs(t, err, ErrInvalidText)
 }
 
 func TestFormat(t *testing.T) {
@@ -201,6 +240,53 @@ func TestFormat(t *testing.T) {
 	// hash's job, checked by Apply, not Format.)
 	_, err = p.Format("short")
 	uassert.ErrorIs(t, err, ErrInvalidPatch)
+}
+
+func TestDiffPrefixSuffixTrim(t *testing.T) {
+	b := New()
+	mustCreate(t, b, "a.md", "The quick brown fox jumps over the lazy dog.")
+
+	// A small middle edit yields Keep(prefix), the middle change, and
+	// Keep(suffix): the payload carries only the changed region.
+	p, err := b.Diff("a.md", "The quick red fox jumps over the lazy dog.")
+	urequire.NoError(t, err)
+	urequire.True(t, len(p.Ops) >= 3, "expect trimmed script")
+	uassert.True(t, p.Ops[0].Type == OpKeep, "expect leading keep")
+	uassert.True(t, p.Ops[len(p.Ops)-1].Type == OpKeep, "expect trailing keep")
+	urequire.NoError(t, b.Apply(p))
+	text, _ := b.Get("a.md")
+	uassert.Equal(t, "The quick red fox jumps over the lazy dog.", text)
+}
+
+func TestDiffLargeRewriteFallsBackToReplace(t *testing.T) {
+	// Two texts with a shared prefix/suffix but a differing middle beyond
+	// the Myers budget: Diff must fall back to a whole-middle replace
+	// (bounded ops, no quadratic diff) that still replays exactly.
+	base := "HEAD\n" + strings.Repeat("ab", 600) + "\nTAIL"
+	proposed := "HEAD\n" + strings.Repeat("cd", 600) + "\nTAIL"
+
+	p, err := DiffTexts("big.md", base, proposed, true)
+	urequire.NoError(t, err)
+	urequire.True(t, len(p.Ops) <= 4, "expect fallback replace, got ops count")
+
+	b := New()
+	create, err := b.Diff("big.md", base)
+	urequire.NoError(t, err)
+	urequire.NoError(t, b.Apply(create))
+	urequire.NoError(t, b.Apply(p))
+	text, _ := b.Get("big.md")
+	uassert.Equal(t, proposed, text)
+}
+
+func TestFormatMarkerSpoof(t *testing.T) {
+	// A multi-line insert literal gets every line marker-prefixed, so an
+	// embedded "- fake" line cannot masquerade as a deletion marker.
+	p, err := DiffTexts("a.md", "", "x\n- fake deletion", false)
+	urequire.NoError(t, err)
+	out, err := p.Format("")
+	urequire.NoError(t, err)
+	uassert.True(t, strings.Contains(out, "+ x\n+ - fake deletion\n"), "expect per-line insert markers")
+	uassert.False(t, strings.Contains(out, "\n- fake deletion"), "expect no bare deletion-marker line")
 }
 
 func TestNoopPatch(t *testing.T) {

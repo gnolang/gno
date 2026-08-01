@@ -14,6 +14,7 @@ var (
 	_ commondao.ProposalDefinition = amendBylawsProposal{}
 	_ commondao.Validable          = amendBylawsProposal{}
 	_ commondao.Executable         = amendBylawsProposal{}
+	_ trustedMarkdownBody          = amendBylawsProposal{}
 )
 
 // TestAmendBylawsKindNew pins the amend-bylaws factory: args validation,
@@ -44,6 +45,18 @@ func TestAmendBylawsKindNew(t *testing.T) {
 	_, err = amendBylawsKind{}.New(other.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: freshPatch("one")})
 	uassert.ErrorIs(t, err, errInvalidProposalArgs)
 
+	// Set-identity pin: the args-captured set must be the host's canonical
+	// set — a matching daoID with a different DAO's set is rejected, so a
+	// wrapper can never validate one DAO's documents and amend another's.
+	otherSet := bylawsOf(other.ID())
+	_, err = amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: otherSet, patch: freshPatch("one")})
+	uassert.ErrorIs(t, err, errInvalidProposalArgs)
+
+	// Invalid document paths fail fast at creation.
+	badPath := bylaws.Patch{Path: "bad path", Base: "", Ops: []bylaws.Op{{Type: bylaws.OpInsert, Text: "x"}}}
+	_, err = amendBylawsKind{}.New(dao.Readonly(), amendBylawsProposal{daoID: dao.ID(), set: set, patch: badPath})
+	uassert.ErrorIs(t, err, bylaws.ErrInvalidPath)
+
 	// Stale-at-create: a patch whose base does not match the current
 	// document is rejected up front.
 	stale := bylaws.Patch{Path: "bylaws/a.md", Base: bylaws.HashText("not the base"), Ops: []bylaws.Op{{Type: bylaws.OpInsert, Text: "x"}}}
@@ -73,8 +86,39 @@ func TestAmendBylawsKindNew(t *testing.T) {
 	urequire.True(t, ok, "expect an amendBylawsProposal")
 	uassert.Equal(t, "Add Bylaws Document: bylaws/a.md", abp.Title())
 	uassert.True(t, strings.Contains(abp.Body(), "Quorum is half."), "expect body to show the inserted text")
-	uassert.True(t, abp.Threshold() == commondao.ThresholdSimpleMajority, "expect simple majority")
+	uassert.True(t, strings.Contains(abp.Body(), "bylaws/a\\.md"), "expect the path escaped in the body")
+	uassert.True(t, abp.Threshold() == commondao.ThresholdSupermajority, "expect the supermajority default")
 	urequire.True(t, abp.Executor() != nil, "expect a non-nil executor")
+}
+
+// TestAmendBylawsIsolation pins that amendments are keyed per DAO: two
+// DAOs hold the same path independently and amending one never touches
+// the other.
+func TestAmendBylawsIsolation(t *testing.T) {
+	dao1 := newTestDAO(t, "IsoOne")
+	dao2 := newTestDAO(t, "IsoTwo")
+	set1, set2 := bylawsOf(dao1.ID()), bylawsOf(dao2.ID())
+
+	p1, err := set1.Diff("bylaws/x.md", "text one")
+	urequire.NoError(t, err)
+	urequire.NoError(t, set1.Apply(p1))
+
+	p2, err := set2.Diff("bylaws/x.md", "text two")
+	urequire.NoError(t, err)
+	urequire.NoError(t, set2.Apply(p2))
+
+	t1, _ := set1.Get("bylaws/x.md")
+	t2, _ := set2.Get("bylaws/x.md")
+	uassert.Equal(t, "text one", t1)
+	uassert.Equal(t, "text two", t2)
+
+	// Amend one; the other is untouched.
+	p1b, err := set1.Diff("bylaws/x.md", "")
+	urequire.NoError(t, err)
+	urequire.NoError(t, set1.Apply(p1b))
+	uassert.False(t, set1.Has("bylaws/x.md"))
+	t2, _ = set2.Get("bylaws/x.md")
+	uassert.Equal(t, "text two", t2)
 }
 
 // TestAmendBylawsLifecycle pins the executor and the stale re-check: the

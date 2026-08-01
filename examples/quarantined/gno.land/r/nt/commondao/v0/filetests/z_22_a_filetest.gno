@@ -78,12 +78,16 @@ func main(cur realm) {
 // ## bylaws/quorum\.md
 // sha256: 20fd0dbce30ca94d0c6210a877e7b7c50c81c9b66e60265a5a9b6125805db799
 //
-// Quorum is two thirds of the council\.
+//
+//
+// Quorum is two thirds of the council.
 //
 // ## mandates/spend\.md
 // sha256: c890333668c0f8104cf5a6607139f61a962f51077c5e2c8cb3933930ff5e9dc5
 //
-// Spend only by vote\.
+//
+//
+// Spend only by vote.
 //
 //
 // removed: true

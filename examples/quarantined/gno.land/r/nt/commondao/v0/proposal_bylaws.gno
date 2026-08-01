@@ -4,9 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"gno.land/p/moul/md"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bylaws/v0"
 	"gno.land/p/nt/commondao/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // bylawsSets stores each DAO's governing documents (bylaws and
@@ -57,40 +59,53 @@ type amendBylawsProposal struct {
 // patch pins the sha256 of the document text it was diffed against, so a
 // passed amendment that raced a concurrent change to the same document
 // fails cleanly (StatusFailed) instead of clobbering it. Decided by
-// simple majority: the Constitution sets that bar for charter, bylaws
-// and mandate changes.
+// supermajority: this is the council amending its OWN governing
+// documents, which the Constitution grants with no special threshold, so
+// the default council rule applies. (The Constitution's simple-majority
+// clause for charter/bylaws/mandate changes is an ANCESTOR power — a
+// parent amending a descendant's documents — which this realm does not
+// implement yet.)
 type amendBylawsKind struct{}
 
 func (amendBylawsKind) Name() string { return kindAmendBylaws }
 
 func (amendBylawsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
 	p, ok := args.(amendBylawsProposal)
-	if !ok || p.set == nil {
+	if !ok {
 		return nil, errInvalidProposalArgs
 	}
-	// Defense in depth: pin the args-captured document set to the readonly
-	// host Propose passed here, so a future wrapper can never validate
-	// against one DAO's documents and amend another's (the trusted wrapper
-	// always passes matching handles today).
-	if p.daoID != dao.ID() {
+	// Defense in depth: pin the proposal to the readonly host Propose
+	// passed here AND pin the args-captured document set to that host's
+	// canonical set, so a future wrapper can never validate against one
+	// DAO's documents and amend another's (the trusted wrapper always
+	// passes matching handles today).
+	if p.daoID != dao.ID() || p.set == nil || p.set != bylawsView(p.daoID) {
 		return nil, errInvalidProposalArgs
+	}
+	if !bylaws.IsValidPath(p.patch.Path) {
+		return nil, bylaws.ErrInvalidPath
 	}
 
 	// Freshness fail-fast: reject a patch that is already stale at
 	// creation (Validate re-checks at execution).
-	cur, _ := p.set.Get(p.patch.Path)
-	if p.set.Hash(p.patch.Path) != p.patch.Base {
-		return nil, bylaws.ErrStalePatch
+	cur, exists := p.set.Get(p.patch.Path)
+	curHash := ""
+	if exists {
+		curHash = bylaws.HashText(cur)
 	}
-	if p.patch.IsNoop() {
-		return nil, errors.New("bylaws amendment must change the document")
+	if p.patch.Base != curHash {
+		return nil, bylaws.ErrStalePatch
 	}
 
 	// Rendering the change also validates the edit script against the
-	// current text, so a malformed patch never becomes a proposal.
+	// current text, so a malformed patch never becomes a proposal; only
+	// then reject the well-formed do-nothing shapes.
 	display, err := p.patch.Format(cur)
 	if err != nil {
 		return nil, err
+	}
+	if p.patch.IsNoop() {
+		return nil, errors.New("bylaws amendment must change the document")
 	}
 	p.display = display
 	return p, nil
@@ -109,19 +124,29 @@ func (p amendBylawsProposal) Title() string {
 	return verb + " Bylaws Document: " + p.patch.Path
 }
 
-// Body returns the change summary as raw text (document content and
-// proposer-supplied insertions), so the renderer escapes it like the
-// execution kind's body.
+// isTrustedMarkdownBody marks Body as self-assembled markdown: the path
+// is escaped inline and the change summary goes through sanitize.Block,
+// which preserves the summary's line structure (an inline escape would
+// fold newlines and collapse multi-line documents to one line) while
+// escaping block-level hazards, so document text and proposer-supplied
+// insertions cannot inject markup. Format marker-prefixes every literal
+// line, so a literal cannot masquerade as a summary marker either.
+func (amendBylawsProposal) isTrustedMarkdownBody() {}
+
 func (p amendBylawsProposal) Body() string {
-	return "Document: " + p.patch.Path + "\n\n" + p.display
+	return md.Paragraph(md.Bold("Document:")+" "+md.EscapeText(p.patch.Path)) +
+		sanitize.Block(p.display)
 }
 
 func (amendBylawsProposal) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
-// Threshold returns the tally threshold: the Constitution decides
-// charter, bylaws and mandate changes by simple majority.
+// Threshold returns the tally threshold: amending the DAO's own
+// governing documents is a council decision with no special
+// constitutional threshold, so the supermajority default applies (the
+// Constitution's simple-majority clause covers ancestor-initiated
+// amendment, not implemented here).
 func (amendBylawsProposal) Threshold() commondao.Threshold {
-	return commondao.ThresholdSimpleMajority
+	return commondao.ThresholdSupermajority
 }
 
 // Validate re-asserts patch freshness at execution (Validate reruns

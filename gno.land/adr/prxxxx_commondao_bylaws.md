@@ -5,8 +5,11 @@
 The Common DAO Spec (`docs/CONSTITUTION.md:1485-1508`) gives every DAO a
 Charter (Purpose + Description — already two commondao fields) and,
 optionally, **Bylaws and Mandates**: "named plaintext files or folders of
-plaintext files," changeable by a **Simple Majority** vote. Nothing in the
-tree stored those documents or amended them. Three candidate designs were
+plaintext files." A DAO's Council may change its own Bylaws by proposal
+(`:1501`, no special threshold → the default council supermajority), and
+any **ancestor** may change a descendant's Charter/Bylaws/Mandates by
+Simple Majority (`:1491` — GovDAO by Supermajority). Nothing in the tree
+stored those documents or amended them. Three candidate designs were
 drafted (whole-document replace; line-hunk patches; edit-script replay)
 and the edit-script design was chosen: it literally applies a diff patch
 and reuses the repo's existing tested Myers diff (`p/onbloc/diff`) instead
@@ -43,10 +46,21 @@ coalesced to run-length ops — `Keep(n)`/`Delete(n)` address the base
 positionally by rune count, only `Insert(text)` carries bytes, so a small
 edit to a large document is a small patch.
 
-- **Produce**: `Diff` runs `onbloc/diff.MyersDiff(current, proposed)` and
-  coalesces. Char-level (the library as-is); a line-level producer would
-  be a drop-in upgrade behind the same Patch/replay shape if payloads
-  ever prove large.
+- **Produce**: `Diff` trims the common prefix and suffix, runs
+  `onbloc/diff.MyersDiff` on the differing middles and coalesces; past a
+  budget (`maxMyersRunes`, 1024 combined runes) it falls back to
+  replacing the whole middle in one delete+insert. The trim keeps
+  ordinary human edits minimal; the budget avoids Myers's
+  O((N+M)·D) memory cliff on wholesale rewrites (which previously blew
+  the VM allocation limit around 2 KiB) and provably bounds `Diff`
+  output far below `MaxOps`. Char-level (the library as-is); a
+  line-level producer would be a drop-in upgrade behind the same
+  Patch/replay shape.
+- **Texts are valid UTF-8**, enforced at both untrusted boundaries
+  (`DiffTexts` and `DecodePatch` insert literals): documents are
+  plaintext, and the invariant keeps Keep/Delete rune math byte-faithful
+  (an invalid byte sequence would otherwise be silently rewritten to
+  U+FFFD by a later Keep's rune round-trip).
 - **Apply**: verify `hash(current) == Base`, then replay — Keep emits
   base runes and advances, Delete advances, Insert emits — and require
   the script to consume the base exactly. Content verification is the
@@ -60,10 +74,13 @@ edit to a large document is a small patch.
 - **Wire format** (`Encode`/`DecodePatch`):
   `v0:<path>:<base>:K<n>;D<n>;I<len>:<bytes>;…` — inserts are
   length-prefixed by byte length, so no escaping exists to get wrong.
-  Plain strings, CLI/qeval-encodable (unlike the execution kind's
-  closure). `Format(base)` renders the change (kept-run markers, deleted
-  and inserted text) for proposal bodies; it is raw text the renderer
-  escapes.
+  Counts are strictly canonical (no sign, no leading zero), so
+  `DecodePatch` accepts exactly `Encode`'s output shape and the codec is
+  a true inverse pair. Plain strings, CLI/qeval-encodable (unlike the
+  execution kind's closure). `Format(base)` renders the change for
+  proposal bodies: kept runs collapse to a marker and every deleted and
+  inserted line is marker-prefixed (`- `/`+ `), so a multi-line literal
+  cannot masquerade as the summary's own markers.
 
 ### 3. Realm wiring: a tenth default kind, `amend-bylaws`
 
@@ -75,12 +92,18 @@ on every DAO, not opt-in.
 
 - `amendBylawsProposal` is args+definition collapsed (the manage-kinds
   pattern) carrying `{daoID, set, patch, display}`. `New` pins
-  `daoID == dao.ID()` (host-identity, like manage-kinds), fails fast on a
-  stale base, rejects no-op amendments, and renders `display` via
-  `Format` — which also validates the script, so a malformed patch never
-  becomes a proposal.
-- **Threshold: SimpleMajority** (`CONSTITUTION.md:1491`) — the first
-  built-in kind below supermajority.
+  `daoID == dao.ID()` AND `set == bylawsView(daoID)` (the set-identity
+  pin makes the "a wrapper can never validate one DAO's documents and
+  amend another's" claim structural, not conventional), validates the
+  path, fails fast on a stale base, renders `display` via `Format` —
+  which also validates the script, so a malformed patch never becomes a
+  proposal — and only then rejects no-op amendments.
+- **Threshold: Supermajority.** Self-amendment is a council decision the
+  Constitution grants with no special threshold (`:1501`), so the
+  default council rule applies — the same default as every other kind
+  without an explicit constitutional bar. (`:1491`'s Simple Majority is
+  the *ancestor* power over a descendant's documents; see "deliberately
+  out".)
 - `Validate` re-asserts freshness (runs again inside Execute): an
   amendment that raced a concurrent change fails cleanly
   (`StatusFailed`), matching the treasury/manage-kinds convention. The
@@ -90,18 +113,31 @@ on every DAO, not opt-in.
   gated), `AmendBylawsPayload(daoID, path, proposed)` (read-only payload
   builder for vm/qeval — uses the non-creating `bylawsView`, so queries
   never write), `GetBylawsDoc`, `ListBylawsDocs`.
-- Render: a `{daoID}/bylaws` page (escaped paths and text + per-document
-  sha256, since document content is council-controlled input), a DAO-menu
-  link when documents exist, and a create-proposal entry.
+- Render: documents are multi-line, so both display surfaces go through
+  `sanitize.Block` (line structure preserved, block-level hazards
+  escaped, inline formatting/links preserved — an inline escape would
+  fold every document to one line): the `{daoID}/bylaws` page (escaped
+  path + per-document sha256 + Block'd text, paginated 5 per page) and
+  the proposal body, which is `trustedMarkdownBody` self-assembled
+  markdown (escaped path + Block'd change summary). A DAO-menu link
+  appears when documents exist, plus a create-proposal entry.
 
 ### 4. What is deliberately out
 
-History/undo (the proposal archive is the audit trail), 3-way merge and
-conflict resolution, rename/move ops, cross-document atomic patches,
-ancestor-bylaws aggregation in render (ancestors' documents bind per the
-Constitution, but aggregating them is a display concern deferred until
-wanted), and any `Set` back door — mutation is only through a verified
-patch, which is what makes on-chain review meaningful.
+- **Ancestor-initiated amendment** (`:1491`: an ancestor amends a
+  descendant's Charter/Bylaws/Mandates at Simple Majority, GovDAO at
+  Supermajority). Not implemented yet; the natural shape is an
+  ancestor-hosted variant like `ancestor-council-update` /
+  `treasury-clawback` (host = proposing ancestor, target = descendant's
+  set). Until then the ancestor rescue path for hostile bylaws is
+  council replacement.
+- **Charter amendment** (purpose/description are fixed at creation) —
+  same deferred bucket.
+- History/undo (the proposal archive is the audit trail), 3-way merge
+  and conflict resolution, rename/move ops, cross-document atomic
+  patches, ancestor-bylaws aggregation in render, and any `Set` back
+  door — mutation is only through a verified patch, which is what makes
+  on-chain review meaningful.
 
 ## Alternatives considered
 

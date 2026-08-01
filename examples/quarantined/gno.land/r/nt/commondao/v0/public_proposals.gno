@@ -309,8 +309,8 @@ func CreateDeregisterKindProposal(cur realm, daoID uint64, kindName string) uint
 // document text it was diffed against, so an amendment racing a concurrent
 // change to the same document fails cleanly instead of clobbering it; a
 // patch already stale at creation is rejected here. Amendments are decided
-// by simple majority (the Constitution's bar for charter, bylaws and
-// mandate changes).
+// by supermajority — the default council rule; the Constitution names no
+// special threshold for a council amending its own documents.
 //
 // Parameters:
 // - daoID: ID of the DAO (required)

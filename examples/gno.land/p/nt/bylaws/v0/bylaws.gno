@@ -38,6 +38,7 @@ const (
 var (
 	ErrInvalidPath  = errors.New("bylaws: invalid document path")
 	ErrInvalidPatch = errors.New("bylaws: invalid patch")
+	ErrInvalidText  = errors.New("bylaws: text is not valid UTF-8")
 	ErrStalePatch   = errors.New("bylaws: document changed since the patch base")
 	ErrDocTooLarge  = errors.New("bylaws: document exceeds the maximum size")
 )
@@ -81,8 +82,9 @@ func (b *Bylaws) Hash(path string) string {
 }
 
 // List returns the sorted document paths under a prefix. An empty prefix
-// lists every document; a folder is listed with its trailing slash (e.g.
-// "mandates/").
+// lists every document. The prefix is a raw path prefix: include the
+// trailing slash to scope to a folder (e.g. "mandates/"), or "mandates"
+// also matches a sibling file like "mandates-old.md".
 func (b *Bylaws) List(prefix string) []string {
 	paths := []string{}
 	b.Iterate(prefix, func(path, _ string) bool {

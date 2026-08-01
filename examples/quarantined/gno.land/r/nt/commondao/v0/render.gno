@@ -11,6 +11,7 @@ import (
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/commondao/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -377,15 +378,30 @@ func renderBylaws(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	// Documents are plaintext with council-controlled content: escape both
-	// the path and the text. The hash is what an amendment payload must pin
-	// (AmendBylawsPayload reads it for you).
-	set.Iterate("", func(path, text string) bool {
+	paths := set.List("")
+	pages, err := pager.New(req.RawPath, len(paths), pager.WithPageSize(5))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	// Documents are multi-line plaintext with council-controlled content:
+	// the path is escaped inline and the text goes through sanitize.Block,
+	// which preserves paragraph structure (an inline escape would fold the
+	// whole document to one line) while escaping block-level hazards. The
+	// hash is what an amendment payload must pin (AmendBylawsPayload reads
+	// it for you).
+	for i := pages.Offset(); i < len(paths) && i < pages.Offset()+pages.PageSize(); i++ {
+		path := paths[i]
+		text, _ := set.Get(path)
 		res.Write(md.H2(md.EscapeText(path)))
 		res.Write(md.Paragraph("sha256: " + set.Hash(path)))
-		res.Write(md.Paragraph(md.EscapeText(text)))
-		return false
-	})
+		res.Write(sanitize.Block(text))
+	}
+
+	if pages.HasPages() {
+		res.Write(md.Paragraph(pager.Picker(pages)))
+	}
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
