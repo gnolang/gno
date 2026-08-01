@@ -123,6 +123,12 @@ func main() {
 // This type of proposal registers one of the realm's catalog proposal kinds on this DAO by name, or deregisters a kind. Deregistering a kind blocks new proposals of that kind while in-flight ones still vote and execute. The manage-kinds kind itself cannot be deregistered.
 //
 //
+// <gno-columns-sep>
+// [Amend Bylaws](/r/nt/commondao/v0$help&func=CreateAmendBylawsProposal&daoID=3&payload=)
+//
+// This type of proposal adds, amends or removes one of the DAO's bylaws and mandates documents with a diff patch pinned to the current document text. Build the payload with the AmendBylawsPayload query function.
+//
+//
 // </gno-columns>
 //
 // # Sub: Settings
@@ -134,4 +140,4 @@ func main() {
 // | --- | --- |
 // | Listed | false |
 // | Max active proposals | 32 |
-// | Proposal kinds | ancestor\-council\-update, council\-update, dissolve, manage\-kinds, subdao, text, treasury\-clawback, treasury\-freeze, treasury\-spend |
+// | Proposal kinds | amend\-bylaws, ancestor\-council\-update, council\-update, dissolve, manage\-kinds, subdao, text, treasury\-clawback, treasury\-freeze, treasury\-spend |

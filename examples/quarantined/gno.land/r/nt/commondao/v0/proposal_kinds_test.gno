@@ -15,7 +15,7 @@ var (
 )
 
 func TestManageKindsKindNew(t *testing.T) {
-	// The test DAO registers the 9 default kinds; deregister the text kind so
+	// The test DAO registers the default kinds; deregister the text kind so
 	// the table has an absent catalog kind to register and to reject
 	// deregistering.
 	dao := newTestDAO(t, "KindsHost")

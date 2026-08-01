@@ -37,6 +37,7 @@ func Render(path string) string {
 	router.HandleFunc("", renderHome)
 	router.HandleFunc("{daoID}", renderDAO)
 	router.HandleFunc("{daoID}/settings", renderSettings)
+	router.HandleFunc("{daoID}/bylaws", renderBylaws)
 	router.HandleFunc("{daoID}/proposals", renderProposalsList)
 	router.HandleFunc("{daoID}/proposals/{proposalID}", renderProposal)
 	router.HandleFunc("{daoID}/proposals/{proposalID}/vote/{address}", renderProposalVote)
@@ -103,6 +104,10 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	menu := []string{
 		md.Link("View Proposals", daoProposalsURL(dao.ID())),
 		md.Link("View Settings", settingsURL(dao.ID())),
+	}
+
+	if set := bylawsView(dao.ID()); set != nil && set.Size() > 0 {
+		menu = append(menu, md.Link("View Bylaws & Mandates", bylawsURL(dao.ID())))
 	}
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
@@ -254,6 +259,16 @@ func renderCreateProposalSection(dao *commondao.CommonDAO, res *mux.ResponseWrit
 						"itself cannot be deregistered.",
 				),
 		},
+		{
+			kindAmendBylaws,
+			md.Paragraph(amendBylawsLink(daoID)) +
+				md.Paragraph(
+					"This type of proposal adds, amends or removes one of the DAO's "+
+						"bylaws and mandates documents with a diff patch pinned to the "+
+						"current document text. Build the payload with the "+
+						"AmendBylawsPayload query function.",
+				),
+		},
 	}
 
 	var cols []string
@@ -344,6 +359,33 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.H2("Info"))
 	res.Write(table.String())
+}
+
+func renderBylaws(res *mux.ResponseWriter, req *mux.Request) {
+	dao := mustGetDAOFromRequest(req)
+
+	// Render header
+	res.Write(md.H1(md.EscapeText(dao.Name()) + ": Bylaws & Mandates"))
+
+	// Render main menu
+	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
+	res.Write(md.HorizontalRule())
+
+	set := bylawsView(dao.ID())
+	if set == nil || set.Size() == 0 {
+		res.Write(md.Paragraph("This DAO has no bylaws or mandates documents."))
+		return
+	}
+
+	// Documents are plaintext with council-controlled content: escape both
+	// the path and the text. The hash is what an amendment payload must pin
+	// (AmendBylawsPayload reads it for you).
+	set.Iterate("", func(path, text string) bool {
+		res.Write(md.H2(md.EscapeText(path)))
+		res.Write(md.Paragraph("sha256: " + set.Hash(path)))
+		res.Write(md.Paragraph(md.EscapeText(text)))
+		return false
+	})
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -739,6 +781,14 @@ func deregisterKindLink(daoID uint64) string {
 		"CreateDeregisterKindProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"kindName", "",
+	))
+}
+
+func amendBylawsLink(daoID uint64) string {
+	return md.Link("Amend Bylaws", realmLink.Call(
+		"CreateAmendBylawsProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"payload", "",
 	))
 }
 

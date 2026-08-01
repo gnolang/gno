@@ -129,6 +129,30 @@ func GetView(daoID uint64) commondao.ReadonlyCommonDAO {
 	return mustGetDAO(daoID).Readonly()
 }
 
+// GetBylawsDoc returns the text of a DAO's bylaws/mandates document, or
+// an empty string when the document does not exist (a stored document is
+// never empty).
+func GetBylawsDoc(daoID uint64, path string) string {
+	mustGetDAO(daoID)
+
+	if set := bylawsView(daoID); set != nil {
+		text, _ := set.Get(path)
+		return text
+	}
+	return ""
+}
+
+// ListBylawsDocs returns the sorted paths of a DAO's bylaws/mandates
+// documents under a prefix (empty prefix lists all).
+func ListBylawsDocs(daoID uint64, prefix string) []string {
+	mustGetDAO(daoID)
+
+	if set := bylawsView(daoID); set != nil {
+		return set.List(prefix)
+	}
+	return nil
+}
+
 // Vote submits a vote for a DAO proposal.
 // Voting is allowed to the members of the proposal's electorate: the
 // council snapshot taken when the proposal was created.

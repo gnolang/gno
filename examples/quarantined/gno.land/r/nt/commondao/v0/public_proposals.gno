@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/nt/bylaws/v0"
 	"gno.land/p/nt/commondao/v0"
 )
 
@@ -298,6 +299,63 @@ func CreateDeregisterKindProposal(cur realm, daoID uint64, kindName string) uint
 	assertCallerIsCouncilMember(caller, dao)
 
 	return mustPropose(dao, caller, kindManageKinds, manageKindsProposal{dao: dao, remove: true, name: kindName})
+}
+
+// CreateAmendBylawsProposal creates a proposal to add, amend or remove one
+// of the DAO's bylaws/mandates documents with a verifiable diff patch (see
+// gno.land/p/nt/bylaws/v0). The payload is an encoded patch — build it with
+// AmendBylawsPayload (e.g. through a vm/qeval query) or with
+// bylaws.Diff(...).Encode() from a realm. The patch pins the sha256 of the
+// document text it was diffed against, so an amendment racing a concurrent
+// change to the same document fails cleanly instead of clobbering it; a
+// patch already stale at creation is rejected here. Amendments are decided
+// by simple majority (the Constitution's bar for charter, bylaws and
+// mandate changes).
+//
+// Parameters:
+// - daoID: ID of the DAO (required)
+// - payload: encoded bylaws patch (required)
+func CreateAmendBylawsProposal(cur realm, daoID uint64, payload string) uint64 {
+	assertCurrent(cur)
+
+	dao := mustGetDAO(daoID)
+	caller := cur.Previous().Address()
+	assertCallerIsCouncilMember(caller, dao)
+
+	patch, err := bylaws.DecodePatch(payload)
+	if err != nil {
+		panic(err)
+	}
+
+	return mustPropose(dao, caller, kindAmendBylaws, amendBylawsProposal{
+		daoID: daoID,
+		set:   bylawsOf(daoID),
+		patch: patch,
+	})
+}
+
+// AmendBylawsPayload builds the CreateAmendBylawsProposal payload that
+// changes a DAO's document at path to the proposed text: a new path adds a
+// document, empty proposed text removes one. It diffs against the
+// document's current text and pins its hash, so build the payload fresh
+// (e.g. through a vm/qeval query) and propose promptly — a payload built
+// against superseded text is rejected. Read-only.
+func AmendBylawsPayload(daoID uint64, path, proposed string) string {
+	mustGetDAO(daoID)
+
+	var (
+		cur    string
+		exists bool
+	)
+	if set := bylawsView(daoID); set != nil {
+		cur, exists = set.Get(path)
+	}
+
+	p, err := bylaws.DiffTexts(path, cur, proposed, exists)
+	if err != nil {
+		panic(err)
+	}
+	return p.Encode()
 }
 
 // assertKindRegistered panics unless a proposal kind is registered on the

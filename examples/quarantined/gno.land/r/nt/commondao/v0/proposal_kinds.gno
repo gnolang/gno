@@ -25,6 +25,7 @@ const (
 	kindTreasuryClawback      = "treasury-clawback"
 	kindTreasuryFreeze        = "treasury-freeze"
 	kindManageKinds           = "manage-kinds"
+	kindAmendBylaws           = "amend-bylaws"
 
 	// Opt-in kind. It is part of the catalog (so catalogKind resolves it and
 	// manage-kinds can register it by name) but is NOT default-seeded: a DAO
@@ -58,6 +59,7 @@ var defaultProposalKinds = []commondao.ProposalKind{
 	treasuryClawbackKind{},
 	treasuryFreezeKind{},
 	manageKindsKind{},
+	amendBylawsKind{},
 }
 
 // optInProposalKinds lists the opt-in proposal kinds: they are part of the
