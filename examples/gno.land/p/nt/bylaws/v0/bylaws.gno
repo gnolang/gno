@@ -95,7 +95,8 @@ func (b *Bylaws) List(prefix string) []string {
 }
 
 // Iterate walks the documents under a prefix in sorted path order until
-// fn returns true. It returns true when the walk was stopped by fn.
+// fn returns true. It returns true when the walk was stopped by fn. The
+// set must not be amended during iteration (no Apply from fn).
 func (b *Bylaws) Iterate(prefix string, fn func(path, text string) bool) bool {
 	end := ""
 	if prefix != "" {

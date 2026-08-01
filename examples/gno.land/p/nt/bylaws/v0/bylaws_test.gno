@@ -75,6 +75,15 @@ func TestStoreReads(t *testing.T) {
 	uassert.Equal(t, "bylaws/quorum.md", folder[0])
 	uassert.Equal(t, "bylaws/voting.md", folder[1])
 
+	// The prefix is raw: without the trailing slash it also matches a
+	// sibling file sharing the prefix (documented List behavior).
+	mustCreate(t, b, "mandates-old.md", "Superseded.")
+	raw := b.List("mandates")
+	urequire.Equal(t, 2, len(raw))
+	uassert.Equal(t, "mandates-old.md", raw[0])
+	uassert.Equal(t, "mandates/treasury.md", raw[1])
+	uassert.Equal(t, 1, len(b.List("mandates/")))
+
 	// Iterate stops when fn returns true.
 	count := 0
 	stopped := b.Iterate("", func(path, text string) bool {
