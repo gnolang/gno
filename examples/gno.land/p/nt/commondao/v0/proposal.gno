@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/addrset/v0"
 )
 
 const (

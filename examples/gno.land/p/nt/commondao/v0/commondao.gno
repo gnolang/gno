@@ -3,7 +3,7 @@ package commondao
 import (
 	"errors"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/addrset/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/seqid/v0"

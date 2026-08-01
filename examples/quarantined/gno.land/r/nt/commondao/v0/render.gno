@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"gno.land/p/jeronimoalbi/pager"
-	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/nt/addrset/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"

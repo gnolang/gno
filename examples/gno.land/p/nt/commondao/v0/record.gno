@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/addrset/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 

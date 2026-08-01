@@ -23,7 +23,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 const (
@@ -45,12 +45,12 @@ var (
 
 // Bylaws is one DAO's set of governing documents, keyed by path.
 type Bylaws struct {
-	docs *avl.Tree // path (string) -> document text (string, never empty)
+	docs *bptree.BPTree // path (string) -> document text (string, never empty)
 }
 
 // New creates an empty document set.
 func New() *Bylaws {
-	return &Bylaws{docs: avl.NewTree()}
+	return &Bylaws{docs: bptree.NewBPTree32()}
 }
 
 // Get returns a document's text and whether it exists.
@@ -100,7 +100,8 @@ func (b *Bylaws) Iterate(prefix string, fn func(path, text string) bool) bool {
 	end := ""
 	if prefix != "" {
 		// Path bytes are all < 0x7f (see IsValidPath), so every key with
-		// the prefix sorts before prefix+"\x7f".
+		// the prefix sorts before prefix+"\x7f". The tree iterates the
+		// half-open range [start, end) in sorted key order.
 		end = prefix + "\x7f"
 	}
 	return b.docs.Iterate(prefix, end, func(key string, value any) bool {

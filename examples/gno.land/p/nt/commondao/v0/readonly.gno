@@ -3,7 +3,7 @@ package commondao
 import (
 	"time"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/addrset/v0"
 )
 
 // ReadonlyCommonDAO is a read only view of a CommonDAO. It exposes only
