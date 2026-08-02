@@ -74,16 +74,16 @@ func main(cur realm) {
 // ## Description
 // **Document:** bylaws/policy\.md
 //
+// ```
+// + # Heading injection
+// +
+// + <div>html block</div>
+// +
+// + [link](https://attacker.example)
+// +
+// + plain closing line
 //
-//
-// \+ # Heading injection
-// \+
-// \+ <div>html block</div>
-// \+
-// \+ [link](https://attacker.example)
-// \+
-// \+ plain closing line
-//
+// ```
 //
 //
 //
@@ -102,13 +102,13 @@ func main(cur realm) {
 // ## Description
 // **Document:** bylaws/policy\.md
 //
-//
-//
+// ```
 // = 96 unchanged
-// \+
-// \+ - spoofed deletion marker
-// \+ = 9 unchanged
+// +
+// + - spoofed deletion marker
+// + = 9 unchanged
 //
+// ```
 //
 //
 //

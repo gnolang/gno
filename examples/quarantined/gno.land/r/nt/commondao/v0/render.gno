@@ -69,7 +69,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		// Its own block: an unterminated error line glues itself onto
 		// whatever is written next (renderCouncil returns into renderDAO,
 		// which goes straight on to write the Treasury heading).
-		res.Write(md.Paragraph(err.Error()))
+		res.Write(md.Paragraph(md.EscapeText(err.Error())))
 		return
 	}
 
@@ -330,7 +330,7 @@ func renderCouncil(res *mux.ResponseWriter, path string, council *addrset.Readon
 		// Its own block: an unterminated error line glues itself onto
 		// whatever is written next (renderCouncil returns into renderDAO,
 		// which goes straight on to write the Treasury heading).
-		res.Write(md.Paragraph(err.Error()))
+		res.Write(md.Paragraph(md.EscapeText(err.Error())))
 		return
 	}
 
@@ -407,7 +407,7 @@ func renderBylaws(res *mux.ResponseWriter, req *mux.Request) {
 		// Its own block: an unterminated error line glues itself onto
 		// whatever is written next (renderCouncil returns into renderDAO,
 		// which goes straight on to write the Treasury heading).
-		res.Write(md.Paragraph(err.Error()))
+		res.Write(md.Paragraph(md.EscapeText(err.Error())))
 		return
 	}
 
@@ -417,7 +417,14 @@ func renderBylaws(res *mux.ResponseWriter, req *mux.Request) {
 	// whole document to one line) while escaping block-level hazards. The
 	// hash is what an amendment payload must pin (AmendBylawsPayload reads
 	// it for you).
-	for i := pages.Offset(); i < len(paths) && i < pages.Offset()+pages.PageSize(); i++ {
+	// Clamp the offset: pager.New rejects page 0 and pages past the end but
+	// accepts a negative page, and unlike the tree-backed pagers this one
+	// indexes a slice — a raw negative offset panics the whole render.
+	start := pages.Offset()
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i < len(paths) && i < start+pages.PageSize(); i++ {
 		path := paths[i]
 		text, _ := set.Get(path)
 		res.Write(md.H2(md.EscapeText(path)))
@@ -454,15 +461,6 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 		iterate = dao.IterateFinishedProposals
 	}
 
-	pages, err := pager.New(req.RawPath, size, pager.WithPageSize(8))
-	if err != nil {
-		// Its own block: an unterminated error line glues itself onto
-		// whatever is written next (renderCouncil returns into renderDAO,
-		// which goes straight on to write the Treasury heading).
-		res.Write(md.Paragraph(err.Error()))
-		return
-	}
-
 	var viewLink, sortLink string
 
 	r := parseRealmPath(req.RawPath)
@@ -488,18 +486,29 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.Paragraph("View: " + viewLink + " • Sort by: " + sortLink))
 
+	// The empty view is handled before the pager: pager.New reports a total
+	// of zero as "invalid page number" for every page including page 1,
+	// which the other view's Picker links to — so switching into an empty
+	// view would answer with an error instead of the empty-state message.
 	if size == 0 {
 		if renderFinished {
 			res.Write(md.Paragraph("Currently there are no finished proposals"))
 		} else {
 			res.Write(md.Paragraph("Currently there are no active proposals"))
 		}
-	} else {
-		iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
-			renderProposalsListItem(res, dao, p)
-			return false
-		})
+		return
 	}
+
+	pages, err := pager.New(req.RawPath, size, pager.WithPageSize(8))
+	if err != nil {
+		res.Write(md.Paragraph(md.EscapeText(err.Error())))
+		return
+	}
+
+	iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
+		renderProposalsListItem(res, dao, p)
+		return false
+	})
 
 	// Render pager
 	if pages.HasPages() {
@@ -581,18 +590,27 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
 		// Vote settles the outcome early — it flips a proposal to passed or
-		// dismissed the moment the tally allows — so a still-active proposal
-		// is by construction undecided and this renders "pending". The
-		// decided arms exist so the line stays truthful if early
-		// termination ever changes; rendering "fail" for "nobody has voted
-		// yet" would not be.
+		// dismissed the moment the tally allows — so while voting is open a
+		// still-active proposal is undecided, and "pending" is the honest
+		// label ("fail" would read as a prediction of defeat on a proposal
+		// nobody has voted on yet). Once the deadline has passed no further
+		// vote is accepted and Execute's re-tally dismisses an undecided
+		// proposal, so there "pending" would be the misleading one.
+		//
+		// The decided arms are reachable in principle: /p/ honors a
+		// non-constant Threshold (see ProposalDefinition.Threshold), though
+		// every definition in this realm returns a constant.
 		switch p.ExpectedOutcome() {
 		case commondao.OutcomePassed:
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		case commondao.OutcomeDismissed:
 			res.Write(md.BulletItem("Expected Outcome: **dismiss** ☒"))
 		default:
-			res.Write(md.BulletItem("Expected Outcome: **pending** ⏳"))
+			if votingActive {
+				res.Write(md.BulletItem("Expected Outcome: **pending** ⏳"))
+			} else {
+				res.Write(md.BulletItem("Expected Outcome: **dismiss** ☒"))
+			}
 		}
 	}
 
@@ -656,7 +674,7 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 		// Its own block: an unterminated error line glues itself onto
 		// whatever is written next (renderCouncil returns into renderDAO,
 		// which goes straight on to write the Treasury heading).
-		res.Write(md.Paragraph(err.Error()))
+		res.Write(md.Paragraph(md.EscapeText(err.Error())))
 		return
 	}
 

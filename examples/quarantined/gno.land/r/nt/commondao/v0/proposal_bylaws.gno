@@ -9,7 +9,6 @@ import (
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bylaws/v0"
 	"gno.land/p/nt/commondao/v0"
-	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // bylawsSets stores each DAO's governing documents (bylaws and
@@ -141,17 +140,21 @@ func (p amendBylawsProposal) Title() string {
 }
 
 // isTrustedMarkdownBody marks Body as self-assembled markdown: the path
-// is escaped inline and the change summary goes through sanitize.Block,
-// which preserves the summary's line structure (an inline escape would
-// fold newlines and collapse multi-line documents to one line) while
-// escaping block-level hazards, so document text and proposer-supplied
-// insertions cannot inject markup. Format marker-prefixes every literal
-// line, so a literal cannot masquerade as a summary marker either.
+// is escaped inline and the change summary is emitted as a fenced code
+// block.
 func (amendBylawsProposal) isTrustedMarkdownBody() {}
 
 func (p amendBylawsProposal) Body() string {
+	// A code block, not sanitize.Block: the summary's "+" lines are the
+	// proposer's inserted literal text, and Block deliberately preserves
+	// inline formatting AND inline links — which would render a live
+	// attacker-controlled link on the page councils read before voting
+	// (the same reason renderProposal escapes untrusted bodies inline).
+	// A fence keeps the diff's line structure, which an inline escape
+	// would fold away, and neutralizes markup; md.CodeBlock widens the
+	// fence to outscan any backticks in the content.
 	return md.Paragraph(md.Bold("Document:")+" "+md.EscapeText(p.patch.Path)) +
-		sanitize.Block(p.display)
+		md.CodeBlock(p.display)
 }
 
 func (amendBylawsProposal) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
