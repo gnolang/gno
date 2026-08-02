@@ -120,7 +120,15 @@ func parseLineTag(line []byte) GnoColumnTag {
 			return GnoColumnTagClose
 		}
 	case "gno-columns-sep":
-		if tok.Type == html.SelfClosingTagToken {
+		// Both the bare and the self-closing spelling, as documented
+		// above. The separator has no content and no end tag, so a bare
+		// `<gno-columns-sep>` is a start token — which is what
+		// p/moul/md's Columns helper emits. Rejecting it left the line to
+		// be parsed as a CommonMark type-7 HTML block, which runs to the
+		// next blank line and therefore swallowed the first line of the
+		// following column (silently dropped when raw HTML is disabled,
+		// as it is by default).
+		if tok.Type == html.SelfClosingTagToken || tok.Type == html.StartTagToken {
 			return GnoColumnTagSep
 		}
 	}
