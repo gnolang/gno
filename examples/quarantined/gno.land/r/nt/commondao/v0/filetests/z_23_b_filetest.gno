@@ -27,10 +27,15 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	// Twelve DAOs (IDs 2..13). List the ten oldest; the two newest stay
+	// Twenty DAOs (IDs 2..21). List the ten oldest; the rest stay
 	// unlisted, so a window taken over all DAOs would start on entries
 	// that never render.
-	for i := 0; i < 12; i++ {
+	//
+	// The counts are deliberately far apart: 11 listed is 2 pages, 21
+	// total is 3. Were the pager sized on daos.Size() the extra page
+	// would exist and render empty, so ?page=3 below discriminates the
+	// pagination total — not just the iteration source.
+	for i := 0; i < 20; i++ {
 		id := commondao.New(cross(cur), "DAO "+strconv.Itoa(i+1), "Purpose", "", "")
 		if i < 10 {
 			commondao.SetListed(cross(cur), id, true)
@@ -43,6 +48,10 @@ func main() {
 	// size of ten: page 1 is full and page 2 holds the remainder.
 	println(commondao.Render(""))
 	println(commondao.Render("?page=2"))
+
+	// Past the end of the LISTED set: there is no third page. Sized on
+	// every DAO there would be, and it would render empty.
+	println(commondao.Render("?page=3"))
 }
 
 // Output:
@@ -77,3 +86,10 @@ func main() {
 //
 //
 // [«](?page=1) | page 2 of 2 | \-
+//
+//
+// # Common DAO
+// ---
+// This realm can be used to create CommonDAO instances based on [commondao](/p/nt/commondao/v0/) package.
+//
+// invalid page number
