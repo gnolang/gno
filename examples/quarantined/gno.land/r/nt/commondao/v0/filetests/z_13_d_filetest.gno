@@ -61,15 +61,20 @@ func main(cur realm) {
 	println("mid deleted:", commondao.GetView(midID).IsDeleted())
 	println("leaf deleted:", commondao.GetView(leafID).IsDeleted())
 
-	// The orphan's sweep goes to its (deleted) parent's treasury, where
-	// the funds stay clawback-rescuable by the live root
+	// The orphan's sweep skips the dissolved parent and lands on the
+	// nearest LIVE ancestor. Sweeping onto the dead mid would leave the
+	// funds usable only through a further clawback — and lost outright
+	// once the root is dissolved too, since a deleted DAO cannot be
+	// clawed back.
 	b := banker.NewReadonlyBanker()
 	println("leaf treasury:", b.GetCoins(commondao.GetView(leafID).Address()).String())
-	println("mid treasury:", b.GetCoins(commondao.GetView(midID).Address()).String())
+	println("mid treasury (dissolved, skipped):", b.GetCoins(commondao.GetView(midID).Address()).String())
+	println("root treasury (nearest live ancestor):", b.GetCoins(commondao.GetView(rootID).Address()).String())
 }
 
 // Output:
 // mid deleted: true
 // leaf deleted: true
 // leaf treasury:
-// mid treasury: 150ugnot
+// mid treasury (dissolved, skipped):
+// root treasury (nearest live ancestor): 150ugnot

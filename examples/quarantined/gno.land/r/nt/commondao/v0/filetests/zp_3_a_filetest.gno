@@ -49,3 +49,6 @@ func main(cur realm) {
 // 2009-02-20 23:31:30 +0000 UTC
 // **DAO:**
 // [Foo](/r/nt/commondao/v0:2)
+//
+// **Sweep destination:**
+// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq

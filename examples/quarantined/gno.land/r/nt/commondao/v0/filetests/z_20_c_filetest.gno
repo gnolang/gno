@@ -52,9 +52,14 @@ func main(cur realm) {
 	println("title escaped:", strings.Contains(out, `\*Pwn\* \# H1`))
 	println("body escaped:", strings.Contains(out, `\[link\]\(https://evil\.example\) \# Injected`))
 	println("raw H1 injected:", strings.Contains(out, "\n# Injected"))
+
+	// The council is told the proposal runs code it cannot read; the
+	// proposer's own prose must never be the only thing on the page.
+	println("arbitrary-code disclosure shown:", strings.Contains(out, "runs arbitrary code with the DAO's own authority"))
 }
 
 // Output:
 // title escaped: true
 // body escaped: true
 // raw H1 injected: false
+// arbitrary-code disclosure shown: true

@@ -346,12 +346,26 @@ type executionPropDefinition struct {
 	fn    commondao.ExecFunc
 }
 
-// Title and Body return raw, user-supplied text: like the /p/ execution
-// definition (executionDef) and unlike the self-assembled bodies, this
-// definition does not implement trustedMarkdownBody, so the renderer escapes
-// both.
+// Title returns raw, user-supplied text; the renderer escapes every
+// definition title.
 func (p executionPropDefinition) Title() string { return p.title }
-func (p executionPropDefinition) Body() string  { return p.body }
+
+// isTrustedMarkdownBody marks Body as self-assembled: it prepends the
+// realm's own standing warning and escapes the proposer's text itself.
+func (executionPropDefinition) isTrustedMarkdownBody() {}
+
+// Body prefixes the proposer's description with a disclosure. The closure
+// is frozen at Propose, so what executes cannot change after voting starts
+// — but it also cannot be shown: a function value has no rendering, and
+// the title and description are whatever the proposer chose to write. A
+// council voting on this kind is approving code it cannot read, so say so
+// rather than let prose stand alone.
+func (p executionPropDefinition) Body() string {
+	return md.Blockquote("⚠ This proposal runs arbitrary code with the DAO's own authority, "+
+		"including its treasury. The code is fixed when the proposal is created but cannot be "+
+		"displayed here — verify the proposing realm before voting.") +
+		md.Paragraph(md.EscapeText(p.body))
+}
 
 func (executionPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 

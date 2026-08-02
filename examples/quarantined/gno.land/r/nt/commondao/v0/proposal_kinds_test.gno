@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/commondao/v0"
@@ -83,7 +84,11 @@ func TestExecutionKindNew(t *testing.T) {
 	epd, ok := def.(executionPropDefinition)
 	urequire.True(t, ok, "expect an executionPropDefinition")
 	uassert.Equal(t, "T", epd.Title())
-	uassert.Equal(t, "B", epd.Body())
+	// The body is self-assembled: the realm's arbitrary-code disclosure
+	// followed by the proposer's (escaped) description.
+	uassert.True(t, strings.Contains(epd.Body(), "runs arbitrary code with the DAO's own authority"),
+		"expect the arbitrary-code disclosure")
+	uassert.True(t, strings.Contains(epd.Body(), "B"), "expect the proposer description")
 	uassert.True(t, epd.Threshold() == commondao.ThresholdSupermajority)
 	urequire.True(t, epd.Executor() != nil, "expect a non-nil executor")
 

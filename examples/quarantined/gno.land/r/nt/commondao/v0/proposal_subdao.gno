@@ -152,8 +152,16 @@ func (dissolvePropDefinition) Threshold() commondao.Threshold {
 func (p dissolvePropDefinition) Body() string {
 	var b strings.Builder
 
-	b.WriteString(md.Bold("DAO:") + "\n")
-	b.WriteString(daoMDLink(p.dao))
+	b.WriteString(md.Paragraph(md.Bold("DAO:") + "\n" + daoMDLink(p.dao)))
+
+	// A root dissolution sweeps the entire treasury to an address named at
+	// proposal creation. Show it — it is the one dissolution shape with a
+	// free-form destination, and voters cannot judge the proposal without
+	// it (a spend renders its recipient for the same reason). Sub-DAO
+	// dissolution has no destination: it always sweeps up the tree.
+	if p.destination != "" {
+		b.WriteString(md.Paragraph(md.Bold("Sweep destination:") + "\n" + userLink(p.destination)))
+	}
 
 	return b.String()
 }
@@ -188,6 +196,16 @@ func (p dissolvePropDefinition) execute(_ int, sub realm) error {
 	if balance := treasuryBalance(p.dao); !balance.IsZero() {
 		dest := p.destination
 		if parent := p.dao.Parent(); parent != nil {
+			// Sweep to the nearest LIVE ancestor, mirroring the walk
+			// CreateDissolutionProposal uses to pick the host. Sending to a
+			// dissolved intermediate would deposit the balance on a dead
+			// DAO: only a further clawback could rescue it, and once the
+			// whole chain is dissolved it is lost outright. A dissolution
+			// proposal can only be hosted by a live ancestor (a deleted DAO
+			// rejects Propose), so one always exists.
+			for parent.IsDeleted() && parent.Parent() != nil {
+				parent = parent.Parent()
+			}
 			dest = parent.Address()
 		}
 
