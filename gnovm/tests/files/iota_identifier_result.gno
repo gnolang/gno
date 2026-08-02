@@ -10,4 +10,3 @@ func main() {
 
 // Error:
 // main/iota_identifier_result.gno:3:1-5:2: builtin identifiers cannot be shadowed: iota
-
