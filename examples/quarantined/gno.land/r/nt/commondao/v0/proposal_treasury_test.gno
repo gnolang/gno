@@ -125,3 +125,31 @@ func TestTreasuryFreezePropDefinition(cur realm, t *testing.T) {
 		newTreasuryFreezePropDefinition(leaf, mid, true).Validate(),
 		"DAO is not an ancestor of the target DAO")
 }
+
+// TestTreasuryFreezeBlastRadius pins that a freeze touches exactly its
+// target. Freezing is deliberately not transitive — an ancestor freezes
+// each descendant explicitly — so a change that made it cascade would
+// let one vote lock a whole subtree's treasuries, and one that let it
+// reach upward would let a descendant's freeze bind its own parent.
+// Neither direction was covered.
+func TestTreasuryFreezeBlastRadius(cur realm, t *testing.T) {
+	root, mid, leaf := newTestTree()
+
+	// Downward: freezing the middle DAO leaves its descendant alone.
+	urequire.NoError(t, newTreasuryFreezePropDefinition(root, mid, true).Executor()(0, cur))
+	uassert.True(t, mid.IsTreasuryFrozen(), "target must be frozen")
+	uassert.False(t, leaf.IsTreasuryFrozen(), "freeze must not cascade to descendants")
+	uassert.False(t, root.IsTreasuryFrozen(), "freeze must not touch the proposing ancestor")
+
+	urequire.NoError(t, newTreasuryFreezePropDefinition(root, mid, false).Executor()(0, cur))
+	uassert.False(t, mid.IsTreasuryFrozen(), "unfreeze must clear the target")
+
+	// Upward: freezing a grandchild leaves the DAO in between alone. The
+	// grandchild leg is what catches an upward reach — with root->mid the
+	// target's parent IS the proposing ancestor, so the two are
+	// indistinguishable.
+	urequire.NoError(t, newTreasuryFreezePropDefinition(root, leaf, true).Executor()(0, cur))
+	uassert.True(t, leaf.IsTreasuryFrozen(), "target must be frozen")
+	uassert.False(t, mid.IsTreasuryFrozen(), "freeze must not touch the target's parent")
+	uassert.False(t, root.IsTreasuryFrozen(), "freeze must not touch the proposing ancestor")
+}
