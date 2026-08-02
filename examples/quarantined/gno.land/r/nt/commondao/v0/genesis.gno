@@ -1,6 +1,6 @@
 package commondao
 
-func init(cur realm) {
+func init() {
 	// Fail closed if deployed off the package path treasury addresses
 	// derive from (see assertRunningPath).
 	assertRunningPath()
