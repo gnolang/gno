@@ -36,7 +36,7 @@ var columnTagNames = map[GnoColumnTag]string{
 	GnoColumnTagOpen:  "ColumnTagOpen",
 	GnoColumnTagClose: "ColumnTagClose",
 
-	GnoColumnTagSep: "ColumnTagSepClose",
+	GnoColumnTagSep: "ColumnTagSep",
 }
 
 // GnoColumnNode represents a semantic tree for a "column".
@@ -122,12 +122,19 @@ func parseLineTag(line []byte) GnoColumnTag {
 	case "gno-columns-sep":
 		// Both the bare and the self-closing spelling, as documented
 		// above. The separator has no content and no end tag, so a bare
-		// `<gno-columns-sep>` is a start token — which is what
-		// p/moul/md's Columns helper emits. Rejecting it left the line to
-		// be parsed as a CommonMark type-7 HTML block, which runs to the
-		// next blank line and therefore swallowed the first line of the
-		// following column (silently dropped when raw HTML is disabled,
-		// as it is by default).
+		// `<gno-columns-sep>` is a start token — and it is the spelling
+		// every emitter in the tree actually produces (p/moul/md's
+		// Columns/ColumnsN, p/demo/blog, and hand-written pages such as
+		// r/gnoland/home).
+		//
+		// Rejecting it left the line to be parsed as a CommonMark type-7
+		// HTML block, which runs to the next blank line — so it swallowed
+		// everything up to that blank line, silently dropped whenever raw
+		// HTML is disabled, as it is by default. Usually that was the
+		// following column's first line, but when a separator is followed
+		// immediately by `</gno-columns>` (the padded-flush shape
+		// p/demo/blog emits) it ate the close tag, leaving the block open
+		// and pulling the rest of the document inside the column.
 		if tok.Type == html.SelfClosingTagToken || tok.Type == html.StartTagToken {
 			return GnoColumnTagSep
 		}
