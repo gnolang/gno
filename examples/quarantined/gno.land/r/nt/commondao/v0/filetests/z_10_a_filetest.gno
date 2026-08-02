@@ -68,7 +68,8 @@ func main() {
 // This type of proposal lets this DAO, as an ancestor, add or remove council members of one of its descendant DAOs — the rescue path for a descendant whose council is stuck or empty.
 //
 //
-// <gno-columns-sep>
+// </gno-columns>
+// <gno-columns>
 // [Dissolve DAO](/r/nt/commondao/v0$help&func=CreateDissolutionProposal&daoID=2&destination=)
 //
 // This type of proposal can be used to dissolve DAOs and SubDAOs.
@@ -88,7 +89,8 @@ func main() {
 // This type of proposal sweeps a descendant DAO's treasury to the descendant's parent DAO.
 //
 //
-// <gno-columns-sep>
+// </gno-columns>
+// <gno-columns>
 // [Treasury Freeze](/r/nt/commondao/v0$help&func=CreateTreasuryFreezeProposal&daoID=2&frozen=true&targetID=)
 //
 // This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no funds can leave the treasury.
@@ -106,7 +108,8 @@ func main() {
 // This type of proposal registers one of the realm's catalog proposal kinds on this DAO by name, or deregisters a kind. Deregistering a kind blocks new proposals of that kind while in-flight ones still vote and execute. The manage-kinds kind itself cannot be deregistered.
 //
 //
-// <gno-columns-sep>
+// </gno-columns>
+// <gno-columns>
 // [Amend Bylaws](/r/nt/commondao/v0$help&func=CreateAmendBylawsProposal&daoID=2&payload=)
 //
 // This type of proposal adds, amends or removes one of the DAO's bylaws documents with a diff patch pinned to the current document text (the mandates folder is reserved: mandates are set from above, not by the council). Build the payload with the AmendBylawsPayload query function.

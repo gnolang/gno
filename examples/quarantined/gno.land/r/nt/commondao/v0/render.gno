@@ -53,16 +53,19 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		md.Link("commondao", "/p/nt/commondao/v0/"),
 	))
 
-	pages, err := pager.New(req.RawPath, daos.Size(), pager.WithPageSize(10))
+	// Paginate over the LISTED set, not every DAO: listing is opt-in and
+	// off by default, so a window over all DAOs could be entirely unlisted
+	// — rendering an empty page that also drops the pager (the len==0 guard
+	// below), stranding the listed DAOs on unreachable later pages.
+	pages, err := pager.New(req.RawPath, listed.Size(), pager.WithPageSize(10))
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
 	var items []string
-	daos.ReverseIterateByOffset(pages.Offset(), pages.PageSize(), func(_ string, v any) bool {
-		dao := v.(*commondao.CommonDAO)
-		if isListed(dao.ID()) {
+	listed.ReverseIterateByOffset(pages.Offset(), pages.PageSize(), func(_ string, v any) bool {
+		if dao := getDAO(v.(uint64)); dao != nil {
 			items = append(items, md.Link(dao.Name(), daoURL(dao.ID())))
 		}
 		return false
@@ -286,7 +289,9 @@ func renderCreateProposalSection(dao *commondao.CommonDAO, res *mux.ResponseWrit
 
 	res.Write(md.H2("Create Proposal"))
 	res.Write(md.Paragraph("These are the proposal supported by this DAO:"))
-	res.Write(md.Columns(cols, false))
+	// Wrap at 3 per row: gnoweb renders at most 4 columns per row, and a
+	// DAO with every kind registered has up to ten cards.
+	res.Write(md.ColumnsN(cols, 3, false))
 }
 
 func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
@@ -438,6 +443,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	var viewLink, sortLink string
 
 	r := parseRealmPath(req.RawPath)
+	r.Query.Del("page") // a view switch resets to page 1 (the other view may have fewer pages)
 	if renderFinished {
 		r.Query.Del("finished")
 		viewLink = md.Link("active", r.String())
@@ -447,6 +453,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	r = parseRealmPath(req.RawPath)
+	r.Query.Del("page") // a sort switch resets to page 1
 	reverseSort := r.Query.Get("order") != "asc"
 	if reverseSort {
 		r.Query.Set("order", "asc")

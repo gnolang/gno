@@ -27,7 +27,7 @@ var (
 	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
 	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
 	creators  = bptree.NewBPTree32() // string(address) -> struct{}; consumed-invite marker
-	listed    = bptree.NewBPTree32() // string(ID) -> struct{}; home-index opt-in
+	listed    = bptree.NewBPTree32() // string(ID) -> uint64(ID); home-index opt-in
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
@@ -65,7 +65,9 @@ func isListed(daoID uint64) bool {
 func setListed(daoID uint64, v bool) {
 	key := makeIDKey(daoID)
 	if v {
-		listed.Set(key, struct{}{})
+		// Store the ID as the value so renderHome can paginate over the
+		// listed set directly (keys are cford32-encoded, order-preserving).
+		listed.Set(key, daoID)
 	} else {
 		listed.Remove(key)
 	}
