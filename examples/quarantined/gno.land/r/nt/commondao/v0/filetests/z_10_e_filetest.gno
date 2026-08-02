@@ -52,7 +52,7 @@ func main() {
 // ## Details
 // - Proposer: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 // - Submit Time: Fri, 13 Feb 2009 23:31:30 UTC
-// - Expected Outcome: **fail** ☒
+// - Expected Outcome: **pending** ⏳
 // - Status: **active**
 // ## Description
 // Body

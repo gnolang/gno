@@ -53,13 +53,23 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		md.Link("commondao", "/p/nt/commondao/v0/"),
 	))
 
+	// Nothing listed: render just the header. pager.New reports a total of
+	// zero as "invalid page number" for every page including page 1, which
+	// its own Picker links to.
+	if listed.Size() == 0 {
+		return
+	}
+
 	// Paginate over the LISTED set, not every DAO: listing is opt-in and
 	// off by default, so a window over all DAOs could be entirely unlisted
 	// — rendering an empty page that also drops the pager (the len==0 guard
 	// below), stranding the listed DAOs on unreachable later pages.
 	pages, err := pager.New(req.RawPath, listed.Size(), pager.WithPageSize(10))
 	if err != nil {
-		res.Write(err.Error())
+		// Its own block: an unterminated error line glues itself onto
+		// whatever is written next (renderCouncil returns into renderDAO,
+		// which goes straight on to write the Treasury heading).
+		res.Write(md.Paragraph(err.Error()))
 		return
 	}
 
@@ -306,14 +316,21 @@ func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 	}
 
 	if dao.IsTreasuryFrozen() {
-		res.Write(md.Paragraph(md.Bold("⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it")))
+		// Blockquote, not a bold paragraph: a paragraph directly after the
+		// balance bullet is a lazy continuation of that list item, so the
+		// warning would render inside the bullet instead of as its own
+		// block. Matches the dissolved-DAO banners.
+		res.Write(md.Blockquote("⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it"))
 	}
 }
 
 func renderCouncil(res *mux.ResponseWriter, path string, council *addrset.ReadonlySet) {
 	pages, err := pager.New(path, council.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
 	if err != nil {
-		res.Write(err.Error())
+		// Its own block: an unterminated error line glues itself onto
+		// whatever is written next (renderCouncil returns into renderDAO,
+		// which goes straight on to write the Treasury heading).
+		res.Write(md.Paragraph(err.Error()))
 		return
 	}
 
@@ -387,7 +404,10 @@ func renderBylaws(res *mux.ResponseWriter, req *mux.Request) {
 	paths := set.List("")
 	pages, err := pager.New(req.RawPath, len(paths), pager.WithPageSize(5))
 	if err != nil {
-		res.Write(err.Error())
+		// Its own block: an unterminated error line glues itself onto
+		// whatever is written next (renderCouncil returns into renderDAO,
+		// which goes straight on to write the Treasury heading).
+		res.Write(md.Paragraph(err.Error()))
 		return
 	}
 
@@ -436,7 +456,10 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	pages, err := pager.New(req.RawPath, size, pager.WithPageSize(8))
 	if err != nil {
-		res.Write(err.Error())
+		// Its own block: an unterminated error line glues itself onto
+		// whatever is written next (renderCouncil returns into renderDAO,
+		// which goes straight on to write the Treasury heading).
+		res.Write(md.Paragraph(err.Error()))
 		return
 	}
 
@@ -520,7 +543,9 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Check that proposal has no issues
 	if err := p.Validate(); err != nil {
-		res.Write(md.Blockquote("⚠ **ERROR**: " + err.Error()))
+		// Escape the error text (the bold label is ours): a definition's
+		// Validate may embed user-supplied values in its message.
+		res.Write(md.Blockquote("⚠ **ERROR**: " + md.EscapeText(err.Error())))
 	}
 
 	votingActive := isVotingPeriodActive(p)
@@ -555,10 +580,19 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
-		if p.ExpectedOutcome() == commondao.OutcomePassed {
+		// Vote settles the outcome early — it flips a proposal to passed or
+		// dismissed the moment the tally allows — so a still-active proposal
+		// is by construction undecided and this renders "pending". The
+		// decided arms exist so the line stays truthful if early
+		// termination ever changes; rendering "fail" for "nobody has voted
+		// yet" would not be.
+		switch p.ExpectedOutcome() {
+		case commondao.OutcomePassed:
 			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
-		} else {
-			res.Write(md.BulletItem("Expected Outcome: **fail** ☒"))
+		case commondao.OutcomeDismissed:
+			res.Write(md.BulletItem("Expected Outcome: **dismiss** ☒"))
+		default:
+			res.Write(md.BulletItem("Expected Outcome: **pending** ⏳"))
 		}
 	}
 
@@ -574,6 +608,13 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	if body := def.Body(); body != "" {
 		res.Write(md.H2("Description"))
 		if _, trusted := def.(trustedMarkdownBody); !trusted {
+			// Inline escape, deliberately: it neutralizes inline markup and
+			// links in proposer-supplied text. sanitize.Block would preserve
+			// the body's line structure but also its inline links — a
+			// phishing vector on a page councils read before voting. The
+			// cost is that a multi-line body renders as one line; a
+			// structure-preserving fix must escape inline per line rather
+			// than switch to Block (see z_10_b, which pins the escaping).
 			body = md.EscapeText(body)
 		}
 		res.Write(md.Paragraph(body))
@@ -612,7 +653,10 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 	record := p.VotingRecord()
 	pages, err := pager.New(path, record.Size(), pager.WithPageQueryParam("votes"), pager.WithPageSize(5))
 	if err != nil {
-		res.Write(err.Error())
+		// Its own block: an unterminated error line glues itself onto
+		// whatever is written next (renderCouncil returns into renderDAO,
+		// which goes straight on to write the Treasury heading).
+		res.Write(md.Paragraph(err.Error()))
 		return
 	}
 
@@ -636,28 +680,39 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 }
 
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
-	member := address(req.GetVar("address"))
-	if !member.IsValid() {
-		res.Write("invalid address")
-		return
-	}
-
+	// Resolve the DAO and proposal before validating the address, so a bad
+	// daoID is reported as such instead of being blamed on the address, and
+	// write the header first so every branch below is a navigable page
+	// rather than a bare dead-end string.
 	dao := mustGetDAOFromRequest(req)
 	p := mustGetProposalFromRequest(req, dao)
-	v, found := p.VotingRecord().GetVote(member)
-	if !found {
-		res.Write("vote not found")
-		return
-	}
 
 	links := []string{
 		goToDAOLink(dao.ID()),
 		goToProposalLink(dao.ID(), p.ID()),
 	}
 
-	res.Write(ufmt.Sprintf("# Vote: Proposal #%d\n", p.ID()))
+	res.Write(md.H1(ufmt.Sprintf("Vote: Proposal #%d", p.ID())))
 	res.Write(md.Paragraph(strings.Join(links, " • ")))
 	res.Write(md.HorizontalRule())
+
+	member := address(req.GetVar("address"))
+	if !member.IsValid() {
+		res.Write(md.Paragraph("Invalid address."))
+		return
+	}
+
+	v, found := p.VotingRecord().GetVote(member)
+	if !found {
+		// Distinguish the two ways a vote can be absent: a member who has
+		// not voted yet is an ordinary state, an outsider is not.
+		if p.Electorate().Has(member) {
+			res.Write(md.Paragraph("This council member has not voted on this proposal yet."))
+		} else {
+			res.Write(md.Paragraph("This account is not a member of the proposal's electorate."))
+		}
+		return
+	}
 
 	res.Write(md.H2("Details"))
 	res.Write(md.BulletItem("User: " + userLink(v.Address())))
@@ -665,7 +720,9 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 
 	if v.Reason() != "" {
 		res.Write(md.H2("Reason"))
-		res.Write(md.EscapeText(v.Reason()))
+		// Inline escape for the same reason as a proposal body: a voter's
+		// reason is untrusted text, so its inline links must not render.
+		res.Write(md.Paragraph(md.EscapeText(v.Reason())))
 	}
 }
 

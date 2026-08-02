@@ -60,7 +60,8 @@ func main() {
 // ## Treasury
 // - Address: g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
 // - Balance: 1234ugnot
-// **⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it**
+//
+// > ⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it
 //
 // ## Create Proposal
 // These are the proposal supported by this DAO:
