@@ -115,6 +115,13 @@ type (
 		// Proposals are decided by the constitution's default Council voting
 		// rules: re-evaluated after every recorded vote, they can pass or be
 		// dismissed before their voting deadline.
+		//
+		// Threshold is read on every Vote (for early passage) AND again in
+		// the post-deadline re-tally inside Execute. Return a CONSTANT value:
+		// a threshold that loosens over a proposal's lifetime can let the
+		// deadline re-tally pass with fewer YES votes than voters faced when
+		// they cast under the stricter earlier value. A changing threshold is
+		// honored, but the definition author owns that consequence.
 		Threshold() Threshold
 	}
 

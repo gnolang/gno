@@ -122,22 +122,40 @@ later deposits are unrecoverable by design (burned). Render warns on a
 dissolved DAO, and specifically flags the unrecoverable case when no
 live proper ancestor remains.
 
-### Sweep gas-bomb (known limitation)
+### Denom-flood gas-bomb (known limitation)
 
-Clawback and the dissolution sweep move the target's **full** multi-denom
-balance in one `banker.SendCoins`, an O(number-of-denoms) operation. Coin
-denominations are realm-mintable without limit and any address can be
+The bank keeper stores each account's coins as **one amino blob**, read
+and rewritten whole on any movement (`GetAccount`/`SetAccount`), and store
+gas is charged per byte of that blob (`ReadCostPerByte`/`WriteCostPerByte`
+× `len(blob)`). So **every** touch of a treasury account is
+O(number-of-denoms) — not just the clawback/dissolution sweep (which moves
+the full multi-denom balance in one `banker.SendCoins`), but also a
+single-coin spend, whose `Validate` reads the account (`GetCoins`) at both
+propose and execute and whose executor reads and rewrites the source
+account in `SendCoins`.
+
+Coin denominations are realm-mintable without limit and any address can be
 funded permissionlessly, so an attacker can dust a DAO's (public,
-pre-derivable) address with enough distinct `pkgpath:name` denoms that the
-sweep exceeds the block gas limit — after which clawback **and**
-dissolution abort on out-of-gas and can never complete, locking the DAO's
-funds and its governance. There is no theft and no atomicity break
-(out-of-gas reverts the whole tx; the proposal stays Passed and
-re-executable), and single-coin spends are immune. The root cause is a
-chain-wide missing per-account denom-count cap, not a commondao-specific
-authorization flaw. Mitigations deferred to a follow-up: batch the sweep
-across executions, or sweep a bounded denom allowlist. Recorded as a known
-limitation.
+pre-derivable — sequential ID) address with enough distinct `pkgpath:name`
+denoms that **any** fund-movement tx exceeds the per-tx/block gas limit —
+after which spend, clawback, **and** dissolution all abort on out-of-gas
+and can never complete, locking the DAO's funds and its governance
+entirely. (A read-only balance query costs the same O(#denoms), so even
+`treasuryBalance` render becomes expensive.)
+
+There is no theft and no atomicity break (out-of-gas reverts the whole tx;
+the proposal stays Passed and re-executable). **Correction to an earlier
+draft: single-coin spends are NOT immune** — the whole-account-blob read
+and write makes them the same order as the sweep, so the flood locks the
+DAO completely rather than leaving spends as an escape hatch (verified: a
+single-coin spend's account read/write is O(#denoms), within ~5% of a
+full sweep). The root cause is a chain-wide missing per-account
+denom-count cap, not a commondao-specific authorization flaw, and there is
+no commondao-side mitigation for the read (the bank exposes no
+single-denom account read — `GetCoins` materializes the whole account).
+Mitigations therefore live at the chain level (per-account denom cap) or
+in a follow-up that batches the sweep across executions / bounds it to a
+denom allowlist. Recorded as a known limitation.
 
 ## Alternatives considered
 
