@@ -59,7 +59,7 @@ var (
 )
 
 func init(cur realm) {
-	foo = grc721.NewNFTWithMetadata(0, cur, "FooNFT", "FNFT")
+	foo = grc721.NewNFTWithMetadata("FooNFT", "FNFT", cur)
 }
 
 // Setters

@@ -112,7 +112,15 @@ import (
 // consensus-breaking change, even though no behavior changes. Confirmed by
 // reverting that comment alone, which restores the previous hash. No
 // executable code was touched.
-const expectedCrossrealm38Hash = "7b4bcfa6765f197dc7a3ad7e01deaca765526ae258275358059aad1b3c01946e"
+//
+// Bumped by the realm-param-last refactor (#6033), again from a
+// doc-comment-only edit to a stdlib source: chain/runtime/unsafe's
+// CurrentRealm comment stops recommending `_ int, rlm realm` and recommends a
+// trailing `rlm realm` instead. Same mechanism as the chain/banker bump above
+// — stdlib .gno bytes are committed state, comments included. Confirmed by
+// running this test at the merge base (ddb752cac), where the previous hash
+// still holds; the branch touches no executable code in gnovm or tm2.
+const expectedCrossrealm38Hash = "322f8afe278910c8e0512d556d27d22b22d19756917486aca24989d8f9e6e7fd"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

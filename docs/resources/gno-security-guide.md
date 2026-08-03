@@ -190,8 +190,8 @@ Realm authors using GRC20 must:
 
 1. Store `*PrivateLedger` in a **lowercase** package-level variable.
 2. Expose only authenticated entry points (`func Transfer(cur realm,
-   to address, amount int64) { userTeller.Transfer(0, cur, to,
-   amount) }`).
+   to address, amount int64) { userTeller.Transfer(to, amount,
+   cur) }`).
 3. If accepting a `Teller` from external callers, gate with
    `IsCanonicalTeller(t)` before dispatching its methods.
 4. Never import `gno.land/r/tests/vm/test20` (its `PrivateLedger` is
@@ -307,7 +307,7 @@ while holding your own `m.Realm`. Either:
 
 ```go
 func DoBanking(t grc20.Teller) {
-    t.Transfer(0, cur, addr, amount)   // who is t? could be Evil{Teller}
+    t.Transfer(addr, amount, cur)   // who is t? could be Evil{Teller}
 }
 ```
 
