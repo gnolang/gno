@@ -22,15 +22,55 @@
 	}
 }
 
-/* Title + Reset/Download row. Unlike .b-content-header this carries no page-grid
-   placement, so it works both standalone and embedded in a card. */
-.b-run-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--g-space-2);
-	margin-block-end: var(--g-space-3);
+/* Collapsible wrapper for the embedded block, so a card does not lead with an
+   editor. The native marker is already hidden globally (04-elements.css); the
+   arrow is the <svg> in the summary. */
+.b-run-details {
+	margin-block-start: var(--g-space-3);
+
+	summary {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-2);
+
+		& > svg {
+			transform: rotate(-90deg);
+		}
+
+		/* Only the title reacts to hover — the buttons have their own affordance. */
+		&:hover .title {
+			color: var(--s-color-text-link-hover);
+			text-decoration: underline;
+		}
+
+		/* .c-icon is sized in em, so the buttons only match the standalone run
+		   page if they inherit the same font-size. There they sit in
+		   .b-content-header .header-info, which sets --g-font-size-100. */
+		.b-btns {
+			margin-inline-start: auto;
+			font-size: var(--g-font-size-100);
+		}
+
+		/* Size these the same as on the standalone run page, where they sit in
+		   .b-content-header and collapse to icon-only below xl. See the
+		   "Responsive label-hide" rule in 06-blocks.css. */
+		.b-inline-btn > span {
+			display: none;
+
+			@media (--xl) {
+				display: inline;
+			}
+		}
+	}
+
+	/* The actions apply to the editor, so they are noise while it is hidden. */
+	&:not([open]) summary .b-btns {
+		display: none;
+	}
+
+	&[open] summary > svg {
+		transform: rotate(0deg);
+	}
 }
 
 .b-run-settings {

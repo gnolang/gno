@@ -188,26 +188,32 @@ UI - Help Function component
          the copy controller resolves its target with a document-wide
          querySelector, so a shared key would make every button copy the first
          card's command. */}}
-    <div class="b-run b-run--embedded"
+    <details class="b-run-details"
       data-controller="run"
+      data-action="toggle->run#refreshEditor"
       data-run-pkg-path-value="{{ $data.PkgPath }}"
       data-run-pkg-alias-value="{{ $data.PkgAlias }}"
       data-run-remote-value="{{ $data.Remote }}"
       data-run-chain-id-value="{{ $data.ChainId }}">
 
-      <div class="b-run-header">
-        <h3 class="title">Run Script</h3>
-        <div class="b-btns">
-          <button class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
-            <svg class="c-icon"><use href="#ico-code"></use></svg>
-            <span>Reset</span>
-          </button>
-          <button class="b-inline-btn c-with-icon" data-action="click->run#downloadCode" title="Download script as .gno file">
-            <svg class="c-icon"><use href="#ico-ddl"></use></svg>
-            <span>Download</span>
-          </button>
-        </div>
-      </div>
+    <summary class="b-run-summary c-with-icon">
+      <svg class="c-icon"><use href="#ico-arrow"></use></svg>
+      <h3 class="title">Run Script</h3>
+      {{/* Buttons are interactive content, so clicking one acts on the button
+           without toggling the <details>. Hidden while collapsed via CSS. */}}
+      <span class="b-btns">
+        <button class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
+          <svg class="c-icon"><use href="#ico-code"></use></svg>
+          <span>Reset</span>
+        </button>
+        <button class="b-inline-btn c-with-icon" data-action="click->run#downloadCode" title="Download script as .gno file">
+          <svg class="c-icon"><use href="#ico-ddl"></use></svg>
+          <span>Download</span>
+        </button>
+      </span>
+    </summary>
+
+    <div class="b-run b-run--embedded">
 
       <!-- Code editor -->
       <div class="b-code-editor-area">
@@ -273,6 +279,7 @@ UI - Help Function component
       </div>
 
     </div>
+    </details>
   </article>
   {{ end }}
 </div>

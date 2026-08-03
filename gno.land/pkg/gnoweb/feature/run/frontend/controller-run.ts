@@ -137,6 +137,13 @@ func main() {
 			: cmd;
 	}
 
+	// When the block sits inside a collapsed <details>, the editor is built in a
+	// container with no layout, so it measures itself as empty. Re-measure once
+	// the section is revealed.
+	public refreshEditor(): void {
+		this.editor?.view.requestMeasure();
+	}
+
 	public resetCode(): void {
 		this.editor.setCode(this._buildTemplate());
 	}

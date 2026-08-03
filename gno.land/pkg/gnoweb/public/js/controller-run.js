@@ -22,4 +22,4 @@ func main() {
 ${e}
 ${jh}`}_updateCommand(){let e=this._buildCmd(this.dryRunEl.checked);this.cmdEl.textContent=this.includeScriptEl.checked?`${this._buildHeredoc()}
 
-${e}`:e}resetCode(){this.editor.setCode(this._buildTemplate())}downloadCode(){let e=new Blob([this.editor.getCode()],{type:"text/plain"}),t=URL.createObjectURL(e),i=document.createElement("a");i.href=t,i.download="script.gno",i.click(),URL.revokeObjectURL(t)}};export{Gh as RunController};
+${e}`:e}refreshEditor(){this.editor?.view.requestMeasure()}resetCode(){this.editor.setCode(this._buildTemplate())}downloadCode(){let e=new Blob([this.editor.getCode()],{type:"text/plain"}),t=URL.createObjectURL(e),i=document.createElement("a");i.href=t,i.download="script.gno",i.click(),URL.revokeObjectURL(t)}};export{Gh as RunController};
