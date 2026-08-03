@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	commondao.CreateMembersUpdateProposal(cross(cur), 404, "", "")
+	commondao.CreateCouncilUpdateProposal(cross(cur), 404, "", "")
 }
 
 // Error:
