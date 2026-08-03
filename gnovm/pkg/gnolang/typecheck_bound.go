@@ -11,8 +11,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-// typeExpansionBudget bounds the number of nodes that go/types' validType walk
-// would visit for any single named type in a package.
+// typeExpansionBudget bounds the total number of nodes that go/types' validType
+// walk would visit for a package's named types.
 //
 // go/types validates that named types do not "expand" indefinitely
 // (src/go/types/validtype.go). Its walk follows value-containment edges only —
@@ -31,19 +31,35 @@ import (
 //
 // checkTypeExpansionBound computes that same node-visit count, but WITH the
 // memoization validType lacks, making it linear, and rejects the package before
-// go/types runs if any named type's count exceeds the budget. The budget is a
-// deterministic count (not a wall-clock limit), so the check is consensus-safe.
+// go/types runs if the count exceeds the budget.
 //
-// 100_000 is set from measurement, not guessed: across all stdlib and example
-// packages (357 packages, 877 named types) the largest expansion count is 35, so
-// this leaves ~3 orders of magnitude of headroom and never false-rejects honest
-// code — even large generated packages stay in the low thousands. Because the
-// DoS is exponential (counts of 2^40+), any budget between honest code and the
-// blowup separates them cleanly. At the bound, go/types' validType walk takes
-// ~8ms (measured, ~80ns/node on Apple Silicon go1.25; more on slower hardware) —
-// bounded and one-time per gas-paying tx, not the unbounded hang it replaces.
-// The budget is a deterministic node count (not a wall-clock limit), so the
-// check is consensus-safe.
+// The budget is the TOTAL over the package's declared named types, because
+// go/types calls validType once per declaration: the walk a transaction pays for
+// is the sum, not the largest single type. Bounding only the largest leaves the
+// sum unbounded, which is how this guard was first written and what it cost.
+//
+// 1_000_000 is set from measurement, not guessed: the largest per-package total
+// in real code is 181, measured over all stdlibs and examples including their
+// test files, and pinned by TestHonestTypeExpansionUnderBudget so it cannot rot.
+// At the budget the walk costs ~21ms (~21ns/node on Apple Silicon go1.25; more on
+// slower hardware). Because the bound is a total it also caps value-containment
+// DEPTH near 1000, since a linear chain of depth d totals ~d^2 nodes; that is
+// honest arithmetic, not a fan-out special case, and it is orders of magnitude
+// past any real type.
+//
+// Note the budget is PER PACKAGE, which is not the same as per transaction: one
+// MsgAddPackage re-type-checks (and so re-guards) every transitive user
+// dependency, because the keeper's type-check cache holds only stdlibs and is
+// cloned per tx; and a deploying package's prod declarations are walked twice,
+// once for the prod Check and once with its in-package tests. So the walk a
+// single tx can buy is ~2 * (packages checked) * budget, and the dependency count
+// is bounded only by what was deployed earlier — bytes the importing tx does not
+// pay for. Bounding the per-transaction sum is the next step up and wants its own
+// calibration; see adr/pr4264_lint_transpile.md, which also records the
+// alternatives weighed (gas-metering the walk, a governance Param).
+//
+// The budget is a deterministic node count, not a wall-clock limit, so the check
+// is consensus-safe.
 //
 // MAINTENANCE: cost() below mirrors validType's containment edges for the go1.17
 // subset Gno accepts. Two classes of construct are NOT modelled here because
@@ -66,7 +82,7 @@ import (
 // validType is finally memoized (golang/go#65711), or if Gno ever accepts
 // generics/type-sets/dot imports (they would then have to be counted here, not
 // rejected) — under-counting a live edge would silently reopen the DoS.
-const typeExpansionBudget = 100_000
+const typeExpansionBudget = 1_000_000
 
 // pkgResolver returns the parsed Go source files of an already-deployed
 // dependency package, or nil when the package should be treated as a leaf:
@@ -75,7 +91,7 @@ const typeExpansionBudget = 100_000
 // across import boundaries, which is required because go/types' validType walk
 // re-expands imported named types WITHOUT memoizing across packages
 // (golang/go#65711) — so a doubling chain split over several packages stays
-// under the per-package budget while the walk doubles at every link.
+// under each package's own budget while the walk doubles at every link.
 type pkgResolver func(pkgPath string) []*ast.File
 
 // typeKey identifies a named type by its declaring package path and name.
@@ -98,38 +114,84 @@ type pkgDecls struct {
 	byName map[string][]declWithImports
 }
 
+// expansionPkgCache caches the parsed sources and type declarations of resolved
+// DEPENDENCY packages. One cache is shared by every expansionChecker of a single
+// type check, because typeCheckMemPackage — and so this guard — runs once per
+// imported package: without sharing, each nesting level re-fetches and re-parses
+// its own dependencies, making dependency parsing quadratic in the import graph.
+//
+// It holds resolved sources only. A checker's own entry package is kept outside
+// the cache (see expansionChecker.own): the entry is seeded with whichever
+// file set its caller is type-checking, which for a top-level package includes
+// test files, and must never be served in place of a dependency's prod-only
+// sources, nor vice versa.
+//
+// Not safe for concurrent use; a cache belongs to one gnoImporter, whose type
+// checks are sequential.
+type expansionPkgCache struct {
+	files map[string][]*ast.File
+	decls map[string]*pkgDecls
+}
+
+func newExpansionPkgCache() *expansionPkgCache {
+	return &expansionPkgCache{
+		files: make(map[string][]*ast.File),
+		decls: make(map[string]*pkgDecls),
+	}
+}
+
 // expansionChecker computes, with the memoization validType lacks, the node
 // count validType would visit — following value-containment edges within AND
 // across packages. Memoization is keyed by (package, name), so the cross-package
 // walk that validType runs exponentially is computed linearly here.
 type expansionChecker struct {
-	resolve  pkgResolver
-	files    map[string][]*ast.File // parsed files per pkg path (entry pre-seeded)
-	decls    map[string]*pkgDecls   // decls per pkg path
-	memo     map[typeKey]uint64
-	visiting map[typeKey]bool
+	resolve   pkgResolver
+	entryPath string
+	own       *expansionPkgCache // entry package only; never shared with siblings
+	shared    *expansionPkgCache // resolved dependencies
+	memo      map[typeKey]uint64
+	visiting  map[typeKey]bool
 }
 
-func newExpansionChecker(resolve pkgResolver) *expansionChecker {
+// newExpansionChecker returns a checker for entryPath, whose files are gofs.
+// shared may be nil, in which case the checker gets a private cache.
+func newExpansionChecker(entryPath string, gofs []*ast.File, resolve pkgResolver, shared *expansionPkgCache) *expansionChecker {
 	if resolve == nil {
 		resolve = func(string) []*ast.File { return nil }
 	}
-	return &expansionChecker{
-		resolve:  resolve,
-		files:    make(map[string][]*ast.File),
-		decls:    make(map[string]*pkgDecls),
-		memo:     make(map[typeKey]uint64),
-		visiting: make(map[typeKey]bool),
+	if shared == nil {
+		shared = newExpansionPkgCache()
 	}
+	own := newExpansionPkgCache()
+	own.files[entryPath] = gofs // seed the entry package; never fetch it
+	return &expansionChecker{
+		resolve:   resolve,
+		entryPath: entryPath,
+		own:       own,
+		shared:    shared,
+		memo:      make(map[typeKey]uint64),
+		visiting:  make(map[typeKey]bool),
+	}
+}
+
+// cacheFor returns the cache owning pkgPath: this checker's private one for its
+// entry package, the shared one for resolved dependencies. Keeping the entry out
+// of the shared cache is what makes sharing safe — see expansionPkgCache.
+func (c *expansionChecker) cacheFor(pkgPath string) *expansionPkgCache {
+	if pkgPath == c.entryPath {
+		return c.own
+	}
+	return c.shared
 }
 
 // filesFor returns a package's parsed files, resolving (and caching) on demand.
 func (c *expansionChecker) filesFor(pkgPath string) []*ast.File {
-	if fs, ok := c.files[pkgPath]; ok {
+	cache := c.cacheFor(pkgPath)
+	if fs, ok := cache.files[pkgPath]; ok {
 		return fs
 	}
 	fs := c.resolve(pkgPath)
-	c.files[pkgPath] = fs
+	cache.files[pkgPath] = fs
 	return fs
 }
 
@@ -173,7 +235,8 @@ func (c *expansionChecker) fileImports(gof *ast.File) map[string]string {
 // On name collision we keep all candidates and take the highest cost — a safe
 // over-approximation that never under-counts.
 func (c *expansionChecker) declsFor(pkgPath string) *pkgDecls {
-	if pd, ok := c.decls[pkgPath]; ok {
+	cache := c.cacheFor(pkgPath)
+	if pd, ok := cache.decls[pkgPath]; ok {
 		return pd
 	}
 	pd := &pkgDecls{byName: make(map[string][]declWithImports)}
@@ -187,7 +250,7 @@ func (c *expansionChecker) declsFor(pkgPath string) *pkgDecls {
 			return true
 		})
 	}
-	c.decls[pkgPath] = pd
+	cache.decls[pkgPath] = pd
 	return pd
 }
 
@@ -244,9 +307,6 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 				mult = 1 // embedded field
 			}
 			total = satAdd(total, satMul(mult, c.cost(f.Type, pkgPath, imports)))
-			if total > typeExpansionBudget {
-				return total
-			}
 		}
 		return total
 	case *ast.InterfaceType:
@@ -256,9 +316,6 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 				continue // method: a func signature, not recursed
 			}
 			total = satAdd(total, c.cost(f.Type, pkgPath, imports)) // embedded type
-			if total > typeExpansionBudget {
-				return total
-			}
 		}
 		return total
 	case *ast.Ident:
@@ -286,34 +343,43 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 // use checkTypeExpansionBoundImports to follow value-containment across packages.
 // See typeExpansionBudget.
 func checkTypeExpansionBound(fset *token.FileSet, gofs []*ast.File) error {
-	return checkTypeExpansionBoundImports(fset, "", gofs, nil)
+	return checkTypeExpansionBoundImports(fset, "", gofs, nil, nil)
 }
 
 // checkTypeExpansionBoundImports is checkTypeExpansionBound with cross-package
 // resolution: entryPath is the deploying package's path, and resolve fetches the
-// parsed source of its (already-deployed) dependencies.
-func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs []*ast.File, resolve pkgResolver) error {
-	c := newExpansionChecker(resolve)
-	c.files[entryPath] = gofs // seed the entry package; do not fetch it
+// parsed source of its (already-deployed) dependencies. cache, if non-nil, is
+// shared with the other type checks of the same importer so each dependency is
+// parsed once rather than once per nesting level.
+func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs []*ast.File, resolve pkgResolver, cache *expansionPkgCache) error {
+	c := newExpansionChecker(entryPath, gofs, resolve, cache)
 
-	// Report the earliest-declared offending type, so the error is deterministic
-	// regardless of map iteration order (the message can reach consensus-visible
-	// tx results).
-	var off *ast.TypeSpec
-	var offVal uint64
+	// go/types runs validType once per declared named type, so the walk this
+	// transaction pays for is the SUM over declarations — that is what the budget
+	// bounds. Cost every declaration (not every name: a name declared more than
+	// once is validated once per declaration). The total is order-independent, and
+	// so is the verdict; for the message we name the costliest declaration, ties
+	// broken by position, which is both deterministic (positions are unique) and
+	// more useful than whichever declaration happened to cross the running total.
+	var total, worstCost uint64
+	var worst *ast.TypeSpec
 	for _, specs := range c.declsFor(entryPath).byName {
 		for _, d := range specs {
-			if v := satAdd(1, c.cost(d.spec.Type, entryPath, d.imports)); v > typeExpansionBudget &&
-				(off == nil || d.spec.Name.Pos() < off.Name.Pos()) {
-				off, offVal = d.spec, v
+			cost := satAdd(1, c.cost(d.spec.Type, entryPath, d.imports))
+			total = satAdd(total, cost)
+			if worst == nil || cost > worstCost ||
+				(cost == worstCost && d.spec.Name.Pos() < worst.Name.Pos()) {
+				worst, worstCost = d.spec, cost
 			}
 		}
 	}
-	if off != nil {
+	if total > typeExpansionBudget {
 		return fmt.Errorf(
-			"%s: type %s expands to at least %d nodes during type validation, "+
-				"exceeding the limit of %d (possible denial-of-service vector)",
-			fset.Position(off.Name.Pos()), off.Name.Name, offVal, typeExpansionBudget)
+			"%s: this package's named types expand to %d nodes during type "+
+				"validation, exceeding the limit of %d (largest: type %s at %d) "+
+				"(possible denial-of-service vector)",
+			fset.Position(worst.Name.Pos()), total, typeExpansionBudget,
+			worst.Name.Name, worstCost)
 	}
 	return nil
 }
@@ -327,10 +393,13 @@ func (gimp *gnoImporter) expansionPkgResolver() pkgResolver {
 		// lives in user types and is fully counted — a user chain doubling over a
 		// stdlib type still explodes the user-side count and trips the budget. A
 		// stdlib type cannot import user packages, so its own expansion is fixed
-		// and small (measured max ~29 across all stdlibs), independent of input.
+		// and small, independent of input: measured max 28 over all stdlib types,
+		// and only 19 (regexp.Regexp) over the EXPORTED ones, which are the only
+		// ones a user package can name.
 		//
 		// So this only under-counts by a bounded per-reference constant, never
-		// hides a fan-out. We deliberately do NOT fetch stdlib source: go/types
+		// hides a fan-out, and does not compound with the aggregate budget (see
+		// the ADR). We deliberately do NOT fetch stdlib source: go/types
 		// serves stdlib imports from its result cache without a store read, so
 		// fetching here would add store gas the deploy otherwise never pays.
 		// (Counting stdlibs exactly is possible via a table precomputed at stdlib

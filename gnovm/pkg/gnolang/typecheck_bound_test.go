@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"slices"
 	"strings"
 	"testing"
 
@@ -42,13 +43,28 @@ func fanOutSrc(depth int) string {
 }
 
 // doublingPkgSrc builds an importable package whose exported T tops a doubling
-// chain of the given depth. At depth 12 T's expansion (~57k) sits just under
+// chain of the given depth. Callers pick a depth whose total stays under
 // typeExpansionBudget, so the package is accepted on its own and only a further
 // cross-package multiplication pushes a dependent over.
 func doublingPkgSrc(pkgName string, depth int) string {
 	return fmt.Sprintf("package %s\ntype t0 struct{ v int }\n", pkgName) +
 		doublingChain("t", 1, depth) +
 		fmt.Sprintf("type T struct{ a, b [0]t%d }\n", depth)
+}
+
+// makeBoundResolver returns a pkgResolver that parses source from a fixed map,
+// treating any other path (unknown/stdlib) as a leaf.
+func makeBoundResolver(t *testing.T, fset *token.FileSet, srcs map[string]string) pkgResolver {
+	t.Helper()
+	return func(pkgPath string) []*ast.File {
+		src, ok := srcs[pkgPath]
+		if !ok {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, pkgPath+".go", src, parser.SkipObjectResolution)
+		require.NoError(t, err)
+		return []*ast.File{f}
+	}
 }
 
 // genericFanOutSrc routes the doubling through a generic type parameter: the
@@ -101,9 +117,21 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 			false,
 		},
 		{
+			// Depth alone must not read as fan-out: each level contains the
+			// previous one once, so the walk is linear per type.
 			"deep linear chain passes",
-			linearChainSrc(2000),
+			linearChainSrc(900),
 			false,
+		},
+		{
+			// ... but the budget bounds the AGGREGATE walk, and a linear chain of
+			// depth d costs ~d^2 in total (each of the d types costs O(d)), so an
+			// extreme depth is rejected on honest arithmetic rather than as a
+			// special case: validType really does visit ~4M nodes here. The cap
+			// lands near depth 1000, orders of magnitude past any real type.
+			"extreme linear depth rejected on aggregate cost",
+			linearChainSrc(2000),
+			true,
 		},
 		{
 			// Pointers break value containment exactly as validType does, so a
@@ -360,35 +388,131 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 	}
 
 	fset := token.NewFileSet()
-	// makeResolver returns a pkgResolver that parses source from a fixed map,
-	// treating any other path (unknown/stdlib) as a leaf.
-	makeResolver := func(srcs map[string]string) pkgResolver {
-		return func(pkgPath string) []*ast.File {
-			src, ok := srcs[pkgPath]
-			if !ok {
-				return nil
-			}
-			f, err := parser.ParseFile(fset, pkgPath+".go", src, parser.SkipObjectResolution)
-			require.NoError(t, err)
-			return []*ast.File{f}
-		}
-	}
 
 	// Deploying p5 must be rejected: the imported chain doubles across packages.
-	resolve := makeResolver(pkgs)
+	resolve := makeBoundResolver(t, fset, pkgs)
 	err := checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/p5",
-		resolve("gno.land/r/foobar/p5"), resolve)
+		resolve("gno.land/r/foobar/p5"), resolve, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "denial-of-service")
 
 	// A package that imports only a small dependency must NOT be rejected.
-	okResolve := makeResolver(map[string]string{
+	okResolve := makeBoundResolver(t, fset, map[string]string{
 		"gno.land/r/foobar/dep": "package dep\ntype T struct{ a, b int }\n",
 		"gno.land/r/foobar/u":   "package u\nimport \"gno.land/r/foobar/dep\"\ntype U struct{ a, b, c, d [0]dep.T }\n",
 	})
 	err = checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/u",
-		okResolve("gno.land/r/foobar/u"), okResolve)
+		okResolve("gno.land/r/foobar/u"), okResolve, nil)
 	assert.NoError(t, err)
+}
+
+// TestCheckTypeExpansionBoundAggregate pins that the budget bounds the TOTAL
+// walk, not the largest single type. go/types runs validType once per declared
+// type, so many individually-cheap types sharing one chain sum to a walk no
+// per-type cap would catch: each type here costs ~7k nodes, but a few hundred of
+// them — under 6KB of source — push the package's total past the budget.
+func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
+	t.Parallel()
+
+	// A depth-10 chain (total ~14k) plus n types that each hang one array off its
+	// tip, so each costs ~7166 and none is individually remarkable.
+	src := func(n int) string {
+		var b strings.Builder
+		b.WriteString(fanOutSrc(10))
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, "type A%d struct{ x [0]T10 }\n", i)
+		}
+		return b.String()
+	}
+
+	for _, tc := range []struct {
+		name    string
+		n       int
+		wantErr bool
+	}{
+		{"under the aggregate budget passes", 100, false},
+		{"over the aggregate budget rejected", 140, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fset, gofs := parseBoundSrc(t, src(tc.n))
+			err := checkTypeExpansionBound(fset, gofs)
+			if !tc.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "denial-of-service")
+
+			// The rejection must be entirely due to the aggregate: no single
+			// declaration reaches the budget, so no per-type cap would catch it.
+			c := newExpansionChecker("", gofs, nil, nil)
+			var worst uint64
+			var worstName string
+			for _, specs := range c.declsFor("").byName {
+				for _, d := range specs {
+					if v := satAdd(1, c.cost(d.spec.Type, "", d.imports)); v > worst {
+						worst, worstName = v, d.spec.Name.Name
+					}
+				}
+			}
+			assert.Less(t, worst, uint64(typeExpansionBudget),
+				"costliest single type (%s) must stay under the budget", worstName)
+		})
+	}
+}
+
+// TestExpansionPkgCacheSharing pins that sharing one cache across the nested
+// type checks of an importer — which is what makes dependency parsing linear
+// rather than quadratic in the import graph — does not change any verdict. In
+// particular a package's own (entry) file set must never be served from, or
+// leak into, the cache of resolved dependency sources.
+func TestExpansionPkgCacheSharing(t *testing.T) {
+	t.Parallel()
+
+	pkgs := map[string]string{
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 13),
+	}
+	for i, prev := 1, "p0"; i <= 4; i++ {
+		name := fmt.Sprintf("p%d", i)
+		pkgs["gno.land/r/foobar/"+name] = fmt.Sprintf(
+			"package %s\nimport \"gno.land/r/foobar/%s\"\ntype T struct{ a, b [0]%s.T }\n",
+			name, prev, prev)
+		prev = name
+	}
+
+	fset := token.NewFileSet()
+	resolve := makeBoundResolver(t, fset, pkgs)
+	rejects := func(pkgPath string, cache *expansionPkgCache) bool {
+		return checkTypeExpansionBoundImports(fset, pkgPath, resolve(pkgPath), resolve, cache) != nil
+	}
+
+	paths := []string{
+		"gno.land/r/foobar/p0", "gno.land/r/foobar/p1", "gno.land/r/foobar/p2",
+		"gno.land/r/foobar/p3", "gno.land/r/foobar/p4",
+	}
+	// Baseline: every package checked with its own private cache. The fixture is
+	// only meaningful if it produces both verdicts.
+	private := map[string]bool{}
+	var verdicts []bool
+	for _, pp := range paths {
+		private[pp] = rejects(pp, nil)
+		verdicts = append(verdicts, private[pp])
+	}
+	require.Contains(t, verdicts, false, "fixture must accept some packages")
+	require.Contains(t, verdicts, true, "fixture must reject some packages")
+
+	// Now all of them through one shared cache, in both directions — a poisoned
+	// entry would surface whichever order the importer happens to visit them in.
+	reversed := slices.Clone(paths)
+	slices.Reverse(reversed)
+	for _, order := range [][]string{paths, reversed} {
+		shared := newExpansionPkgCache()
+		for _, pp := range order {
+			assert.Equal(t, private[pp], rejects(pp, shared),
+				"package %s: shared cache (order %v) changed the verdict", pp, order)
+		}
+	}
 }
 
 // TestCheckTypeExpansionBoundLinearTime asserts the guard itself is linear: a

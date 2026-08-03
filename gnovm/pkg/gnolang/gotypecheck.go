@@ -197,6 +197,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		tgetter:   newMemoizingGetter(gimpGetterWrapper{mpkg, opts.TestGetter}),
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
+		expCache:  newExpansionPkgCache(),
 		fset:      opts.Fset,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
@@ -242,10 +243,14 @@ type gnoImporter struct {
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
 	permCache TypeCheckCache
-	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
-	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	// expCache is shared by the type-expansion guard across this importer's
+	// nested type checks, so each dependency is parsed once for the guard
+	// instead of once per nesting level. See expansionPkgCache.
+	expCache *expansionPkgCache
+	fset     *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
+	cfg      *types.Config
+	errors   []error  // there may be many for a single import
+	stack    []string // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -489,7 +494,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// boundaries (validType re-expands imported types without memoizing), so a
 	// fan-out split over several packages is still caught. See
 	// checkTypeExpansionBoundImports.
-	if errs = checkTypeExpansionBoundImports(gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver()); errs != nil {
+	if errs = checkTypeExpansionBoundImports(gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache); errs != nil {
 		return nil, errs
 	}
 
