@@ -42,6 +42,19 @@ export function isDarkMode(): boolean {
 	return document.documentElement.getAttribute("data-theme") === "dark";
 }
 
+// cspNonce reads the per-response Content-Security-Policy nonce that the server
+// embeds in <meta name="csp-nonce">. Under a strict CSP (style-src without
+// 'unsafe-inline'), CodeMirror's runtime-injected <style> elements are blocked
+// unless they carry this nonce. Returns "" when no nonce is present (e.g. the
+// server runs without strict headers), in which case CodeMirror behaves as before.
+export function cspNonce(): string {
+	return (
+		document
+			.querySelector<HTMLMetaElement>('meta[name="csp-nonce"]')
+			?.getAttribute("content") ?? ""
+	);
+}
+
 export interface CodeEditorOptions {
 	parent: HTMLElement;
 	content: string;
@@ -56,7 +69,9 @@ export class CodeEditor {
 	private readonly themeCompartment = new Compartment();
 
 	constructor(opts: CodeEditorOptions) {
+		const nonce = cspNonce();
 		const extensions: Extension[] = [
+			...(nonce ? [EditorView.cspNonce.of(nonce)] : []),
 			lineNumbers(),
 			highlightActiveLine(),
 			highlightActiveLineGutter(),
