@@ -1082,12 +1082,42 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
 				genDoc.AppHash, freshDoc.AppHash)
 		}
+		// Same chain, so the remaining doc fields are safe to refresh. Before
+		// the genesis is applied nothing is committed, so a corrected genesis
+		// file replaces the persisted doc and state record outright.
+		if !genesisApplied(stateDB) {
+			return resetToGenesisDoc(stateDB, freshDoc)
+		}
 		genDoc.AppState = freshDoc.AppState
 	}
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
 		return sm.State{}, nil, err
 	}
+	return state, genDoc, nil
+}
+
+// genesisApplied reports whether InitChain completed for this data dir:
+// ReplayBlocks saves the genesis ABCI responses right after it returns, and
+// height 0 is never pruned. Probed with Has, so a running chain does not pay
+// to decode a blob that holds one entry per genesis tx.
+func genesisApplied(stateDB dbm.DB) bool {
+	ok, err := stateDB.Has(sm.CalcABCIResponsesKey(0))
+	return err == nil && ok
+}
+
+// resetToGenesisDoc makes genDoc authoritative, replacing the persisted doc and
+// rebuilding the state record from it. Only valid before the genesis is
+// applied: the stale records then include the InitialHeight alignment
+// ReplayBlocks writes before calling InitChain, and booting a corrected genesis
+// against the old heights is exactly what this undoes.
+func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *types.GenesisDoc, error) {
+	state, err := sm.MakeGenesisState(genDoc)
+	if err != nil {
+		return sm.State{}, nil, err
+	}
+	saveGenesisDoc(stateDB, genDoc)
+	sm.SaveState(stateDB, state)
 	return state, genDoc, nil
 }
 
