@@ -50,8 +50,19 @@ func (rs *refSnapshot) release() {
 // cacheMultiStore which is for cache-wrapping other MultiStores. It implements
 // the CommitMultiStore interface.
 type multiStore struct {
-	db           dbm.DB
-	lastCommitID types.CommitID
+	db dbm.DB
+
+	// lastCommitID is written by the consensus goroutine (Commit,
+	// LoadVersion) and read by the query connection, which runs on its own
+	// mutex — proxy.NewReadOnlyABCIClient hands it a queryMtx independent of
+	// the consensus/mempool mtx, so Query and Commit are concurrent by
+	// design. baseapp's handleQueryStore/handleQueryCustom reach it through
+	// LastCommitID() whenever a query omits a height. Guard both ends:
+	// CommitID is a {Version, Hash} pair, so an unsynchronized reader can
+	// also observe a new version next to the previous hash.
+	lastCommitIDMu sync.RWMutex
+	lastCommitID   types.CommitID
+
 	storeOpts    types.StoreOptions
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
@@ -182,7 +193,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			newStores[key] = store
 		}
 		ms.stores = newStores
-		ms.lastCommitID = types.CommitID{}
+		ms.setLastCommitID(types.CommitID{})
 		return nil
 	}
 
@@ -222,7 +233,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 		newStores[key] = store
 	}
 
-	ms.lastCommitID = cInfo.CommitID()
+	ms.setLastCommitID(cInfo.CommitID())
 	ms.stores = newStores
 
 	return nil
@@ -233,7 +244,15 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) LastCommitID() types.CommitID {
+	ms.lastCommitIDMu.RLock()
+	defer ms.lastCommitIDMu.RUnlock()
 	return ms.lastCommitID
+}
+
+func (ms *multiStore) setLastCommitID(id types.CommitID) {
+	ms.lastCommitIDMu.Lock()
+	ms.lastCommitID = id
+	ms.lastCommitIDMu.Unlock()
 }
 
 // Implements Committer/CommitStore.
@@ -251,10 +270,11 @@ func (ms *multiStore) Commit() types.CommitID {
 	// must land at the chain's InitialHeight so multistore version equals
 	// real chain height. Subsequent commits auto-increment.
 	var version int64
-	if ms.lastCommitID.Version == 0 && ms.initialVersion > 0 {
+	lastVersion := ms.LastCommitID().Version
+	if lastVersion == 0 && ms.initialVersion > 0 {
 		version = ms.initialVersion
 	} else {
-		version = ms.lastCommitID.Version + 1
+		version = lastVersion + 1
 	}
 	commitInfo := commitStores(version, ms.stores)
 
@@ -291,7 +311,7 @@ func (ms *multiStore) Commit() types.CommitID {
 		Version: version,
 		Hash:    commitInfo.Hash(),
 	}
-	ms.lastCommitID = commitID
+	ms.setLastCommitID(commitID)
 	return commitID
 }
 

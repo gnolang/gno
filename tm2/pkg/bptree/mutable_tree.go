@@ -619,8 +619,16 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 // registering as a version reader. For long-lived snapshots that have no Close
 // hook (e.g. the store's immutable LoadVersion view) — registering them would
 // pin the version against pruning forever. Such a snapshot is not protected
-// against a concurrent prune of its version (acceptable: prune and queries are
-// serialized by the ABCI mutex today).
+// against a concurrent prune of its version.
+//
+// Queries are NOT serialized against pruning by an ABCI mutex: the query
+// connection gets its own lock (proxy.NewReadOnlyABCIClient hands it a queryMtx
+// independent of the consensus/mempool mtx), so a query runs while consensus
+// commits and prunes. What makes the store's use safe is that its query view is
+// built over a frozen DB snapshot (rootmulti installs a db.Snapshot per commit
+// and MultiImmutableCacheWrapWithVersion reads through it), which a later prune
+// cannot mutate. On a backend without snapshot support rootmulti falls back to
+// the live DB, and then this snapshot really is unprotected.
 func (t *MutableTree) GetImmutableUnregistered(version int64) (*ImmutableTree, error) {
 	return t.getImmutable(version, false)
 }
