@@ -104,7 +104,15 @@ import (
 // Behavior is unchanged for all typed values; only the constant-folding
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
-const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
+//
+// Bumped again by a doc-comment-only edit to chain/banker's package comment
+// (the NewBanker capability-persistence warning). Stdlib .gno sources are
+// stored in chain state, so their bytes — comments included — are covered by
+// the multistore root: editing a comment in a stdlib package is a
+// consensus-breaking change, even though no behavior changes. Confirmed by
+// reverting that comment alone, which restores the previous hash. No
+// executable code was touched.
+const expectedCrossrealm38Hash = "7b4bcfa6765f197dc7a3ad7e01deaca765526ae258275358059aad1b3c01946e"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

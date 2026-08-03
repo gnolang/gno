@@ -4,9 +4,6 @@ package z_5_e_filetest
 
 import (
 	"testing"
-	"time"
-
-	pdao "gno.land/p/nt/commondao/v0"
 
 	"gno.land/r/nt/commondao/v0"
 )
@@ -16,17 +13,9 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-type propDef struct{}
-
-func (propDef) Title() string                          { return "" }
-func (propDef) Body() string                           { return "" }
-func (propDef) VotingPeriod() time.Duration            { return time.Hour }
-func (propDef) Validate() error                        { return nil }
-func (propDef) Tally(pdao.VotingContext) (bool, error) { return false, nil }
-
 var (
-	daoID    uint64
-	proposal *pdao.Proposal
+	daoID uint64
+	pID   uint64
 )
 
 func init(cur realm) {
@@ -34,23 +23,20 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// Create a new DAO which gives ownership to `test`
+	// Create a new DAO whose caller (`test`) becomes a council member
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	daoID = dao.ID()
-
-	// Configure DAO
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 	// Create a new proposal
-	proposal, _ = dao.Propose(user, propDef{})
+	testing.SetRealm(testing.NewUserRealm(user))
+	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross(cur), daoID, proposal.ID(), "invalid", "")
+	commondao.Vote(cross(cur), daoID, pID, "invalid", "")
 }
 
 // Error:
