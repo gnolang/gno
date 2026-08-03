@@ -16,16 +16,52 @@ interface Wallet {
 	install_url: string;
 }
 
-// The two kinds of candidate the chooser merges: a wallet that announced
-// itself in the page (extension, called directly) and a registry entry
-// (external app, reached by launch link).
+// A legacy extension: it announces nothing and exposes no provider surface,
+// it just writes a global and cancels the submit. Identified by that global,
+// which is also the only name we can show for it.
+interface LegacyWallet {
+	name: string;
+	icon: string; // always empty: there is nothing to read it from
+}
+
+const LEGACY_PROVIDERS: { global: string; name: string }[] = [
+	{ global: "adena", name: "Adena" },
+	{ global: "gnoconnect", name: "GnoConnect" },
+];
+
+// The three kinds of candidate the chooser merges: a wallet that announced
+// itself in the page (extension, called directly), a registry entry (external
+// app, reached by launch link), and a legacy extension (reached by handing it
+// back the submit it expects to intercept).
 type Candidate =
 	| { kind: "in-page"; wallet: GnoWallet }
-	| { kind: "external"; wallet: Wallet };
+	| { kind: "external"; wallet: Wallet }
+	| { kind: "legacy"; wallet: LegacyWallet };
 
 // The registry is parsed lazily on first submit and shared across the
 // per-function controller instances.
 let registryCache: Wallet[] | undefined;
+
+// One window listener for the page, not one per function form: a $help page
+// has a controller per function, and every submit is dispatched to all
+// window-capture listeners. Handlers are keyed by their form.
+//
+// Capture phase: a legacy extension listens on document and cancels the event
+// there, which is downstream of this. Capture always reaches window first,
+// whatever order the listeners were added in, so this is the only place the
+// page is certain to be asked at all.
+const handlers = new Map<HTMLElement, (event: Event) => void>();
+let listening = false;
+
+function listen(): void {
+	if (listening) return;
+	listening = true;
+	window.addEventListener(
+		"submit",
+		(event) => handlers.get(event.target as HTMLElement)?.(event),
+		true,
+	);
+}
 
 // WalletLaunchController routes the Execute submit to a wallet: an in-page
 // one announced over gno:registerWallet (any device), or an external one from
@@ -36,6 +72,9 @@ export class WalletLaunchController extends BaseController {
 	declare _funcName: string;
 	declare _pkgPath: string;
 	declare _discovery: ReturnType<typeof getWallets>;
+	// Set while re-dispatching a submit meant for a legacy extension, so the
+	// handler below lets that one through instead of reopening the chooser.
+	private _passThrough = false;
 
 	protected connect(): void {
 		this.initializeDOM({});
@@ -55,7 +94,8 @@ export class WalletLaunchController extends BaseController {
 		this._pkgPath =
 			article?.getAttribute("data-action-function-pkgpath-value") || "";
 
-		this.element.addEventListener("submit", this._onSubmit.bind(this));
+		handlers.set(this.element, this._onSubmit.bind(this));
+		listen();
 	}
 
 	// A missing/malformed registry disables external-wallet routing.
@@ -123,11 +163,29 @@ export class WalletLaunchController extends BaseController {
 	}
 
 	// A legacy extension that owns the submit by intercepting it, without
-	// announcing itself. Only consulted when nothing announced: a wallet that
-	// speaks the announce protocol is chosen explicitly instead.
-	private _hasLegacyProvider(): boolean {
+	// announcing itself.
+	private _legacyProvider(): Candidate | null {
 		const w = window as unknown as Record<string, unknown>;
-		return Boolean(w.adena || w.gnoconnect);
+		const found = LEGACY_PROVIDERS.find(({ global }) => Boolean(w[global]));
+		return found
+			? { kind: "legacy", wallet: { name: found.name, icon: "" } }
+			: null;
+	}
+
+	// Hand the submit back so a legacy extension's own interceptor sees it.
+	// Reaching it any other way is impossible: it exposes nothing to call, and
+	// it only acts on the event this page has just taken.
+	private _passToLegacy(): void {
+		const form = this.element as HTMLFormElement;
+		this._passThrough = true;
+		if (typeof form.requestSubmit === "function") {
+			form.requestSubmit();
+			return;
+		}
+		// Older Safari: re-dispatch by hand, and submit natively if the
+		// extension turns out not to claim it after all.
+		const event = new Event("submit", { bubbles: true, cancelable: true });
+		if (form.dispatchEvent(event)) form.submit();
 	}
 
 	// Current page URL minus wallet result params, so repeated round trips
@@ -157,7 +215,7 @@ export class WalletLaunchController extends BaseController {
 		return tx;
 	}
 
-	// Compose "<scheme>://tx?path=&func=&arg.<name>=&...". Args are named,
+	// Compose "<scheme>://sendtx?path=&func=&arg.<name>=&...". Args are named,
 	// prefixed "arg." so realm parameter names can't collide with the link's
 	// own keys (path, func, send, rpc, chainid, callback).
 	private _buildLink(wallet: Wallet): string {
@@ -172,7 +230,7 @@ export class WalletLaunchController extends BaseController {
 		if (tx.chainid) parts.push(`chainid=${enc(tx.chainid)}`);
 		parts.push(`callback=${enc(this._callbackURL())}`);
 
-		return `${wallet.scheme}://tx?${parts.join("&")}`;
+		return `${wallet.scheme}://sendtx?${parts.join("&")}`;
 	}
 
 	private _openWallet(wallet: Wallet): void {
@@ -183,10 +241,10 @@ export class WalletLaunchController extends BaseController {
 	// without implementing the tx surface, so a missing method falls back to
 	// the native submit rather than dead-ending Execute.
 	private async _signInPage(wallet: GnoWallet): Promise<void> {
-		const sign = wallet.provider?.signAndSubmitTransaction;
+		const sign = wallet.provider?.sendTx;
 		if (typeof sign !== "function") {
 			this.warn(
-				`wallet "${wallet.info.name}" announced no signAndSubmitTransaction; continuing in browser`,
+				`wallet "${wallet.info.name}" announced no sendTx; continuing in browser`,
 			);
 			(this.element as HTMLFormElement).submit();
 			return;
@@ -216,6 +274,11 @@ export class WalletLaunchController extends BaseController {
 	// Candidates for this submit: wallets announced in the page (any device)
 	// plus, on mobile, the registry's external apps. Desktop external wallets
 	// need the cross-device QR, a deferred follow-up.
+	//
+	// A legacy extension is listed only alongside them, never alone: on its
+	// own it still owns the submit by intercepting it, which is one tap fewer
+	// and today's behaviour. It is appended last — it is the entry we know
+	// least about.
 	private _candidates(): Candidate[] {
 		const inPage: Candidate[] = this._discovery
 			.get()
@@ -223,26 +286,32 @@ export class WalletLaunchController extends BaseController {
 		const external: Candidate[] = this._isMobile()
 			? this._wallets().map((wallet) => ({ kind: "external", wallet }))
 			: [];
-		return [...inPage, ...external];
+		if (inPage.length === 0 && external.length === 0) return [];
+
+		const legacy = this._legacyProvider();
+		return legacy ? [...inPage, ...external, legacy] : [...inPage, ...external];
 	}
 
 	private _onSubmit(event: Event): void {
+		// Our own re-dispatch on the way to a legacy extension.
+		if (this._passThrough) {
+			this._passThrough = false;
+			return;
+		}
+
 		const candidates = this._candidates();
 		if (candidates.length === 0) {
 			// Nothing to route to: the native submit (TxLink navigation), and
 			// with it any legacy extension interception, proceeds untouched.
 			return;
 		}
-		// A legacy extension owns the submit, but only while no wallet has
-		// announced itself — an announced wallet is picked by the user here.
-		if (
-			this._hasLegacyProvider() &&
-			!candidates.some((c) => c.kind === "in-page")
-		) {
-			return;
-		}
 
 		event.preventDefault();
+		// Claim the event before the document-capture listener a legacy
+		// extension installs — otherwise it signs whatever the user was still
+		// choosing between. stopPropagation, not stopImmediatePropagation:
+		// other window-capture listeners (analytics) are not competing for it.
+		event.stopPropagation();
 		this._openChooser(candidates);
 	}
 
@@ -319,7 +388,7 @@ export class WalletLaunchController extends BaseController {
 			// here, an app takes them out of the browser and back.
 			const kind = document.createElement("span");
 			kind.className = "b-wallet-chooser__kind";
-			kind.textContent = candidate.kind === "in-page" ? "Extension" : "App";
+			kind.textContent = candidate.kind === "external" ? "App" : "Extension";
 			btn.appendChild(kind);
 
 			btn.addEventListener("click", () => {
@@ -334,8 +403,10 @@ export class WalletLaunchController extends BaseController {
 	private _pick(candidate: Candidate): void {
 		if (candidate.kind === "in-page") {
 			void this._signInPage(candidate.wallet);
-		} else {
+		} else if (candidate.kind === "external") {
 			this._openWallet(candidate.wallet);
+		} else {
+			this._passToLegacy();
 		}
 	}
 
