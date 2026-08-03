@@ -46,14 +46,26 @@ import (
 // check is consensus-safe.
 //
 // MAINTENANCE: cost() below mirrors validType's containment edges for the go1.17
-// subset Gno accepts. validType also walks two go1.18 edges — generic
-// instantiation (type-argument substitution) and interface type-set terms
-// (unions, ~T) — but cost() does NOT follow them: checkNoGenerics rejects those
-// constructs before this runs, so they never reach validType. Revisit this file
-// if a toolchain upgrade adds a go1.17-reachable edge, if validType is finally
-// memoized (golang/go#65711), or if Gno ever accepts generics/type-sets (they
-// would then have to be counted here, not rejected) — under-counting a live edge
-// would silently reopen the DoS.
+// subset Gno accepts. Two classes of construct are NOT modelled here because
+// they are rejected before this runs; each rejection is therefore a precondition
+// of this guard's soundness, not an independent nicety:
+//
+//   - go1.18 generic instantiation (type-argument substitution) and interface
+//     type-set terms (unions, ~T). validType walks both, but cost() does not
+//     follow them; checkNoGenerics rejects them.
+//   - dot imports. cost() cannot see a dot-imported type's expansion (namedCost
+//     resolves in the declaring package only); checkNoDotImports rejects them.
+//
+// Two further edges are under-counted rather than rejected, and stay safe only
+// because their source is fixed and cannot grow with input: imported stdlib
+// types (see expansionPkgResolver) and the `realm`/`address` names from the
+// .gnobuiltins.gno shim, which is injected AFTER these guards run and so is
+// scored as a leaf. Both are bounded by construction; see the ADR.
+//
+// Revisit this file if a toolchain upgrade adds a go1.17-reachable edge, if
+// validType is finally memoized (golang/go#65711), or if Gno ever accepts
+// generics/type-sets/dot imports (they would then have to be counted here, not
+// rejected) — under-counting a live edge would silently reopen the DoS.
 const typeExpansionBudget = 100_000
 
 // pkgResolver returns the parsed Go source files of an already-deployed
@@ -141,6 +153,7 @@ func (c *expansionChecker) fileImports(gof *ast.File) map[string]string {
 		name := ""
 		if imp.Name != nil {
 			// "_" (side-effect) and "." (dot) imports introduce no selector name.
+			// (Dot imports are separately rejected; see checkNoDotImports.)
 			if imp.Name.Name == "_" || imp.Name.Name == "." {
 				continue
 			}
@@ -424,6 +437,39 @@ func checkNoGenerics(fset *token.FileSet, gofs []*ast.File) error {
 	if off.IsValid() {
 		return fmt.Errorf("%s: %s are not supported (Gno targets go1.17)",
 			fset.Position(off), what)
+	}
+	return nil
+}
+
+// errDotImports is the one wording for Gno's dot-import ban, shared with the
+// preprocessor's own rejection so the two enforcement sites cannot drift.
+const errDotImports = "dot imports are not allowed in Gno"
+
+// checkNoDotImports rejects dot imports before the package reaches go/types.
+// The preprocessor already rejects them, but on the deploy path it runs AFTER
+// the type checker, so a dot import would spend the unmetered validType CPU
+// first. It is also a hole in the bound above: a dot-imported type is named by a
+// bare identifier, which namedCost scores as a leaf while validType expands it
+// in full across the import boundary. Rejecting is preferred to counting because
+// dot-import visibility is per file while namedCost memoizes per (package,
+// name); see adr/pr4264_lint_transpile.md for the full argument.
+//
+// Like the guards above it reports the earliest-positioned offender, so the
+// error does not depend on file order (it can reach consensus-visible results).
+func checkNoDotImports(fset *token.FileSet, gofs []*ast.File) error {
+	var off token.Pos
+	for _, gof := range gofs {
+		for _, imp := range gof.Imports {
+			if imp.Name == nil || imp.Name.Name != "." {
+				continue
+			}
+			if !off.IsValid() || imp.Name.Pos() < off {
+				off = imp.Name.Pos()
+			}
+		}
+	}
+	if off.IsValid() {
+		return fmt.Errorf("%s: %s", fset.Position(off), errDotImports)
 	}
 	return nil
 }

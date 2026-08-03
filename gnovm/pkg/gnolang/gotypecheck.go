@@ -466,14 +466,20 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Pre-type-check guards, run before the (unmetered) Go type
-	// checker. Both defend the validType walk, which go/types runs unmetered at
-	// deploy time (VMKeeper.AddPackage / MsgRun) and cannot be interrupted.
+	// checker. All three defend the validType walk, which go/types runs
+	// unmetered at deploy time (VMKeeper.AddPackage / MsgRun) and cannot be
+	// interrupted.
 	//
 	// First reject go1.18 generics syntax (type parameters and interface type
 	// sets). Gno targets go1.17 and does not support them, but go/types would
 	// still walk such types — and their fan-out drives validType exponential.
 	// See checkNoGenerics.
 	if errs = checkNoGenerics(gofset, allgofs); errs != nil {
+		return nil, errs
+	}
+	// Then reject dot imports: unsupported in Gno, and invisible to the bound
+	// below. See checkNoDotImports.
+	if errs = checkNoDotImports(gofset, allgofs); errs != nil {
 		return nil, errs
 	}
 	// Then bound pathological type-expansion fan-out among the remaining

@@ -101,3 +101,45 @@ init, so no cold/warm gas skew) and look it up per reference. It was considered
 and deferred: it is cross-module (gnovm type-check API + gno.land keeper) and
 buys exactness for a leaf that is already bounded-safe, with no package flipping
 accept/reject at the current counts. Revisit if stdlib expansion ever grows.
+
+## Decision: dot imports are rejected before go/types, not counted
+
+`checkTypeExpansionBound` resolves an unqualified type name in the **declaring
+package** only (`namedCost`), and scores anything it cannot resolve — builtins,
+type parameters, unresolvable qualifiers — as a leaf worth 1 node. A dot-imported
+type is referenced by a bare identifier, so it lands in that leaf case while
+`validType` expands it in full across the import boundary without memoizing. The
+result is the cross-package hole again, reached by an unqualified name: a chain
+written as `pkg.T` is rejected in microseconds, while the identical containment
+shape written as `T` under `import . "pkg"` passes the budget and leaves go/types
+churning inside `validType` for tens of seconds.
+
+Gno never accepted dot imports — the preprocessor panics on them — but on the
+deploy path preprocess runs *after* the type checker, so that rejection lands
+only once the unmetered CPU has already been spent. `checkNoDotImports` therefore
+rejects them in the same pre-type-check step as `checkNoGenerics`, for the same
+reason and with the same placement argument.
+
+Why reject rather than teach the cost model to count them:
+
+- **Dot-import visibility is per file; the memo is per package.** `namedCost` is
+  keyed `(package, name)`, which is sound exactly because an unqualified type
+  name resolves in package scope. Two files of one package may dot-import
+  different packages that each export `T`, so counting would need either a
+  per-file memo key (weakening the memoization that makes this guard linear) or a
+  package-wide max over every dot-imported package (an over-count, and a new
+  false-rejection path on honest code).
+- **The leaf cases stay provably safe.** "An unqualified type name resolves in
+  the declaring package or is a bounded leaf" is the invariant that justifies
+  every `return 1` in `cost()`/`namedCost`. Dot imports are the sole construct
+  that breaks it; removing them keeps the invariant statable in one line instead
+  of leaving a resolution fallback whose completeness must be re-derived on every
+  future edit.
+- **No blast radius.** No `.gno` file in the stdlibs, examples, or testdata uses a
+  dot import (the sole occurrence, `gnovm/tests/backup/import2.gno`, is not
+  referenced by any test), so nothing false-rejects.
+
+Consequence: the guard's soundness now rests on two syntactic preconditions —
+no generics/type-sets, no dot imports — both recorded in the `MAINTENANCE:` note
+on `typeExpansionBudget`. If either rejection is ever relaxed, the corresponding
+edge must be counted in `cost()` first.

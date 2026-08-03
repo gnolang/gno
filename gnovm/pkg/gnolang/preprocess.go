@@ -414,7 +414,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 				nx := &n.NameExpr
 				nn := nx.Name
 				if nn == "." {
-					panic("dot imports not allowed in gno")
+					panic(errDotImports)
 				}
 				if nn == "" { // use default
 					pv := store.GetPackage(n.PkgPath, true)
@@ -5494,7 +5494,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		case blankIdentifier: // no definition
 			return
 		case ".": // dot import
-			panic("dot imports not allowed in Gno")
+			panic(errDotImports)
 		}
 		// NOTE imports usually must happen with a file,
 		// and so last is usually a *FileNode, but for

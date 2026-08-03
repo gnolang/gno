@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,16 +23,32 @@ func parseBoundSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
 	return fset, []*ast.File{f}
 }
 
-// fanOutSrc builds a value-containment "doubling" chain of the given depth:
-// each level embeds the previous one twice by value, the classic exponential
-// vector for go/types' validType walk.
-func fanOutSrc(depth int) string {
+// doublingChain emits levels lo..hi of a value-containment "doubling" chain of
+// types named <prefix>N: each level embeds the previous one twice by value, the
+// classic exponential vector for go/types' validType walk. The caller declares
+// the base level <prefix>0, which is what the chain bottoms out in.
+func doublingChain(prefix string, lo, hi int) string {
 	var b strings.Builder
-	b.WriteString("package x\ntype T0 struct{ v int }\n")
-	for i := 1; i <= depth; i++ {
-		fmt.Fprintf(&b, "type T%d struct{ a, b [0]T%d }\n", i, i-1)
+	for i := lo; i <= hi; i++ {
+		fmt.Fprintf(&b, "type %s%d struct{ a, b [0]%s%d }\n", prefix, i, prefix, i-1)
 	}
 	return b.String()
+}
+
+// fanOutSrc builds a standalone package holding a doubling chain of the given
+// depth.
+func fanOutSrc(depth int) string {
+	return "package x\ntype T0 struct{ v int }\n" + doublingChain("T", 1, depth)
+}
+
+// doublingPkgSrc builds an importable package whose exported T tops a doubling
+// chain of the given depth. At depth 12 T's expansion (~57k) sits just under
+// typeExpansionBudget, so the package is accepted on its own and only a further
+// cross-package multiplication pushes a dependent over.
+func doublingPkgSrc(pkgName string, depth int) string {
+	return fmt.Sprintf("package %s\ntype t0 struct{ v int }\n", pkgName) +
+		doublingChain("t", 1, depth) +
+		fmt.Sprintf("type T struct{ a, b [0]t%d }\n", depth)
 }
 
 // genericFanOutSrc routes the doubling through a generic type parameter: the
@@ -223,6 +240,103 @@ func TestCheckNoGenerics(t *testing.T) {
 	}
 }
 
+func TestCheckNoDotImports(t *testing.T) {
+	t.Parallel()
+
+	// As with checkNoGenerics, the rejection message reaches the
+	// consensus-hashed tx result, so pin its exact wording.
+	tt := []struct {
+		name    string
+		src     string
+		wantMsg string
+	}{
+		{"no imports passes", "package x\ntype S struct{ a int }\n", ""},
+		{"named import passes", "package x\nimport \"io\"\nvar _ io.Reader\n", ""},
+		{"aliased import passes", "package x\nimport zz \"io\"\nvar _ zz.Reader\n", ""},
+		{"blank import passes", "package x\nimport _ \"io\"\n", ""},
+		{
+			"dot import rejected",
+			"package x\nimport . \"io\"\nvar _ Reader\n",
+			"bound.go:2:8: dot imports are not allowed in Gno",
+		},
+		{
+			// Grouped form, and the earliest dot import must be the one reported
+			// even when a later import is also a dot import.
+			"grouped dot imports report the earliest",
+			"package x\nimport (\n\t\"io\"\n\t. \"errors\"\n\t. \"strings\"\n)\n",
+			"bound.go:4:2: dot imports are not allowed in Gno",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fset, gofs := parseBoundSrc(t, tc.src)
+			err := checkNoDotImports(fset, gofs)
+			if tc.wantMsg != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestDotImportFanOutRejected covers the dot-import variant of hole #3: a
+// dot-imported type is named by a bare identifier, which the bound scores as a
+// leaf, so the cross-package expansion goes uncounted and the deploy reaches
+// go/types. Both arms run the whole TypeCheckMemPackage path, and the qualified
+// arm is the control: identical containment, but reached through pkg.T, so the
+// bound sees it and rejects on its own.
+func TestDotImportFanOutRejected(t *testing.T) {
+	t.Parallel()
+
+	// The dependency is under budget on its own, so it is legitimately
+	// deployable; the entry package continues the chain over its T, and its own
+	// local chain also stays under budget.
+	dep := &std.MemPackage{
+		Type: MPUserProd, Name: "dep", Path: "gno.land/p/demo/dep",
+		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 12)}},
+	}
+	getter := mockPackageGetter{dep}
+
+	tt := []struct {
+		name    string
+		head    string
+		wantMsg string
+	}{
+		{
+			"qualified",
+			"package fan\nimport \"gno.land/p/demo/dep\"\ntype u0 struct{ a, b [0]dep.T }\n",
+			"denial-of-service",
+		},
+		{
+			"dot",
+			"package fan\nimport . \"gno.land/p/demo/dep\"\ntype u0 struct{ a, b [0]T }\n",
+			errDotImports,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			mpkg := &std.MemPackage{
+				Type: MPUserProd, Name: "fan", Path: "gno.land/p/demo/fan",
+				Files: []*std.MemFile{{
+					Name: "fan.gno",
+					Body: tc.head + doublingChain("u", 1, 9),
+				}},
+			}
+			_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+				Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantMsg)
+		})
+	}
+}
+
 // TestCheckTypeExpansionBoundImports covers hole #3: a value-containment fan-out
 // split across an import chain. Each package is under the per-package budget, but
 // validType re-expands imported types without memoizing, so the cumulative walk
@@ -232,14 +346,9 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 
 	// p0: a doubling chain whose count (~57k) is legitimately under budget on its
 	// own; p1 embeds p0.T four times, pushing the cross-package count over.
-	pkgs := map[string]string{}
-	var p0 strings.Builder
-	p0.WriteString("package p0\ntype t0 struct{ v int }\n")
-	for i := 1; i <= 12; i++ {
-		fmt.Fprintf(&p0, "type t%d struct{ a, b [0]t%d }\n", i, i-1)
+	pkgs := map[string]string{
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 12),
 	}
-	p0.WriteString("type T struct{ a, b [0]t12 }\n")
-	pkgs["gno.land/r/foobar/p0"] = p0.String()
 
 	// p1..p5: each embeds the previous package's T four times.
 	for i, prev := 1, "p0"; i <= 5; i++ {
