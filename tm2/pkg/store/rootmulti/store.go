@@ -51,17 +51,17 @@ func (rs *refSnapshot) release() {
 // the CommitMultiStore interface.
 type multiStore struct {
 	db           dbm.DB
-	lastCommitID types.CommitID
+	lastCommitID atomic.Pointer[types.CommitID]
 	storeOpts    types.StoreOptions
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
 	keysByName   map[string]types.StoreKey
 
-	// initialVersion, when > 0 and lastCommitID.Version == 0, is the version
+	// initialVersion, when > 0 and LastCommitID().Version == 0, is the version
 	// the next Commit() will produce. Set once via SetInitialVersion (called
 	// from BaseApp.InitChain when GenesisDoc.InitialHeight > 1) and consumed
 	// on the first Commit; not persisted (after the first commit,
-	// lastCommitID.Version is the source of truth).
+	// LastCommitID().Version is the source of truth).
 	initialVersion int64
 
 	// querySnapshot holds the last fully-committed DB snapshot.
@@ -182,7 +182,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			newStores[key] = store
 		}
 		ms.stores = newStores
-		ms.lastCommitID = types.CommitID{}
+		ms.lastCommitID.Store(&types.CommitID{})
 		return nil
 	}
 
@@ -222,7 +222,8 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 		newStores[key] = store
 	}
 
-	ms.lastCommitID = cInfo.CommitID()
+	commitID := cInfo.CommitID()
+	ms.lastCommitID.Store(&commitID)
 	ms.stores = newStores
 
 	return nil
@@ -233,7 +234,10 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) LastCommitID() types.CommitID {
-	return ms.lastCommitID
+	if commitID := ms.lastCommitID.Load(); commitID != nil {
+		return *commitID
+	}
+	return types.CommitID{}
 }
 
 // Implements Committer/CommitStore.
@@ -251,10 +255,11 @@ func (ms *multiStore) Commit() types.CommitID {
 	// must land at the chain's InitialHeight so multistore version equals
 	// real chain height. Subsequent commits auto-increment.
 	var version int64
-	if ms.lastCommitID.Version == 0 && ms.initialVersion > 0 {
+	lastVersion := ms.LastCommitID().Version
+	if lastVersion == 0 && ms.initialVersion > 0 {
 		version = ms.initialVersion
 	} else {
-		version = ms.lastCommitID.Version + 1
+		version = lastVersion + 1
 	}
 	commitInfo := commitStores(version, ms.stores)
 
@@ -291,7 +296,7 @@ func (ms *multiStore) Commit() types.CommitID {
 		Version: version,
 		Hash:    commitInfo.Hash(),
 	}
-	ms.lastCommitID = commitID
+	ms.lastCommitID.Store(&commitID)
 	return commitID
 }
 

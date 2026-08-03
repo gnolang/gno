@@ -468,7 +468,7 @@ func TestCommitAtomicBatchWithCacheFlush(t *testing.T) {
 	// batch actually carried IAVL nodes AND rootmulti metadata to persistence.
 	reload := newMultiStoreWithMounts(db)
 	require.NoError(t, reload.LoadLatestVersion())
-	require.Equal(t, cid.Version, reload.lastCommitID.Version)
+	require.Equal(t, cid.Version, reload.LastCommitID().Version)
 	require.Equal(t, []byte("v1"),
 		reload.getStoreByName("store1").Get(nil, []byte("k1")))
 	require.Equal(t, []byte("v2"),
