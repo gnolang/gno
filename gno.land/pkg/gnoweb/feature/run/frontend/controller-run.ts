@@ -67,7 +67,7 @@ func main() {
 
 	private _buildCmd(dryRun: boolean): string {
 		const key = this.keyEl.value.trim() || "<key-name>";
-		const gasWanted = this.gasWantedEl.value.trim() || "2000000";
+		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
 		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
 		const send = this.sendEl.value.trim();
 
