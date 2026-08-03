@@ -6,7 +6,7 @@
 |-------------------|------------------------------------------|--------------|
 | Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
-| Topaz (current testnet) | https://rpc.topaz.testnets.gno.land:443 | `topaz-1`     |
+| Topaz / Test14    | https://rpc.topaz.testnets.gno.land:443  | `topaz-1`    |
 
 ### WebSocket endpoints
 

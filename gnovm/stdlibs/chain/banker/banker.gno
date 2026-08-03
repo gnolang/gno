@@ -16,6 +16,22 @@ import (
 // gno.land/pkg/integration/testdata/banker_persistence.txtar for the
 // full cross-realm capability-persistence behavior.
 //
+// SECURITY: because the struct persists and NewBanker authorizes only at
+// construction (SendCoins re-checks nothing but pkgAddr == from), minting
+// a banker is an IRREVOCABLE grant of spending authority over that
+// address. Passing a realm value to code you do not fully trust is
+// therefore equivalent to handing over that authority permanently: the
+// callee can mint a banker, keep it in a package-level var, and spend in
+// later transactions with no further involvement from you. Unlike the
+// realm value itself — which cannot be persisted (refusePersistRealmHIV)
+// and cannot be reused once stale — the banker has no expiry, no
+// revocation, and no liveness re-check. This applies with equal force to
+// sub-realm identities (cur.Sub): the sub token is ephemeral, but a
+// banker minted from it is not, so any access check your realm performs
+// before spending (a frozen flag, an allowlist, a paused switch) is
+// bypassed entirely by a retained banker, which reaches the bank keeper
+// without re-entering your code.
+//
 // Banker panics on errors instead of returning errors.
 // This also helps simplify the interface and prevent
 // hidden bugs (e.g. ignoring errors)
