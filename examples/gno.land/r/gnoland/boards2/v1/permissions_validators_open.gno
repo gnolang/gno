@@ -154,7 +154,7 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 }
 
 func checkAccountHasAmount(addr address, amount int64) error {
-	bnk := banker.NewBanker(banker.BankerTypeReadonly)
+	bnk := banker.NewReadonlyBanker()
 	coins := bnk.GetCoins(addr)
 	if coins.AmountOf("ugnot") < RequiredAccountAmount {
 		amount = amount / 1_000_000 // ugnot -> GNOT

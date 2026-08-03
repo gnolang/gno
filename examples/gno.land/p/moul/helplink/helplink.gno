@@ -16,6 +16,7 @@ package helplink
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/moul/txlink"
@@ -47,7 +48,8 @@ type Realm string
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		return ""
+		curPath := unsafe.CurrentRealm().PkgPath()
+		return strings.TrimPrefix(curPath, chainDomain)
 	}
 
 	// local realm -> /realm

@@ -41,7 +41,7 @@ and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for tech
 
 ### Banker
 A Tendermint2 module that is natively embedded into the Gno language, via the
-`std` package. Used for manipulating Coins within Gno.
+`chain/banker` package. Used for manipulating Coins within Gno.
 
 ### Block
 A fundamental unit in a blockchain that contains a collection of validated
@@ -167,7 +167,7 @@ Gno.land networks, similar to WalletConnect in Ethereum.
 ### gnodev
 A development tool which provides a local Gno.land node with hot-reloading,
 state preservation, and a `gnoweb` interface for testing.
-See [Local Development with gnodev](../builders/local-dev-with-gnodev.md).
+See [Local development with `gnodev`](./gnodev.md).
 
 ### gnokey
 The official command-line keychain and client for Gno.land, allowing keypair

@@ -17,8 +17,8 @@ import (
 	pm "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
 type testEnv struct {
@@ -44,16 +44,16 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
-	// Mount db store and iavlstore
+	// Mount db store and the main (bptree) state store
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, storebptree.FastStoreConstructor, db) // production code-path parity; charged gas is index-independent
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id", Height: 42}, log.NewNoopLogger())
 
 	prmk := pm.NewParamsKeeper(iavlCapKey)
-	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount, std.ProtoBaseSessionAccount)
 	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
 
@@ -75,6 +75,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()
+	vmk.PopulateStdlibCache()
 	vmh := NewHandler(vmk)
 
 	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}

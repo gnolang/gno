@@ -2,6 +2,7 @@
 package uassert
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -62,18 +63,13 @@ func False(t TestingT, value bool, msgs ...string) bool {
 	return true
 }
 
-// ErrorIs asserts the given error matches the target error
+// ErrorIs asserts the given error matches the target error using errors.Is,
+// which traverses the error chain looking for a match.
 func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	t.Helper()
 
-	if err == nil || target == nil {
-		return err == target
-	}
-
-	// XXX: if errors.Is(err, target) return true
-
-	if err.Error() != target.Error() {
-		return fail(t, msgs, "error mismatch, expected %s, got %s", target.Error(), err.Error())
+	if !errors.Is(err, target) {
+		return fail(t, msgs, "error mismatch, expected %s, got %s", target, err)
 	}
 
 	return true
@@ -83,8 +79,13 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 // (panics when crossing another realm).
 // Use PanicsWithMessage for asserting local panics within the same realm.
 //
+// `rlm` is threaded into the callback via cross(rlm) when f is func(realm).
+// It is ignored for func() callbacks. /p/ production code cannot declare
+// crossing functions, so rlm is taken as the second (non-first) parameter
+// — callers pass `cur` directly.
+//
 // NOTE: This relies on gno's `revive` mechanism to catch aborts.
-func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
+func AbortsWithMessage(t TestingT, rlm realm, msg string, f any, msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
@@ -95,7 +96,7 @@ func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	case func():
 		r = revive(f) // revive() captures the value passed to panic()
 	case func(realm):
-		r = revive(func() { f(cross) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}
@@ -121,7 +122,8 @@ func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 
 // AbortsContains asserts that the code inside the specified func aborts
 // (panics when crossing another realm) and the abort message contains the specified substring.
-func AbortsContains(t TestingT, substr string, f any, msgs ...string) bool {
+// See AbortsWithMessage for `rlm` semantics.
+func AbortsContains(t TestingT, rlm realm, substr string, f any, msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
@@ -131,7 +133,7 @@ func AbortsContains(t TestingT, substr string, f any, msgs ...string) bool {
 	if fn, ok := f.(func()); ok {
 		r = revive(fn)
 	} else if fn, ok := f.(func(realm)); ok {
-		r = revive(func() { fn(cross) })
+		r = revive(func() { fn(cross(rlm)) })
 	} else {
 		panic("f must be of type func() or func(realm)")
 	}
@@ -155,7 +157,8 @@ func AbortsContains(t TestingT, substr string, f any, msgs ...string) bool {
 // NotAborts asserts that the code inside the specified func does NOT abort
 // when crossing an execution boundary.
 // Note: Consider using NotPanics which checks for both panics and aborts.
-func NotAborts(t TestingT, f any, msgs ...string) bool {
+// See AbortsWithMessage for `rlm` semantics.
+func NotAborts(t TestingT, rlm realm, f any, msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
@@ -166,7 +169,7 @@ func NotAborts(t TestingT, f any, msgs ...string) bool {
 	case func():
 		r = revive(f) // revive() captures the value passed to panic()
 	case func(realm):
-		r = revive(func() { f(cross) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}
@@ -188,10 +191,11 @@ func NotAborts(t TestingT, f any, msgs ...string) bool {
 // PanicsWithMessage asserts that the code inside the specified func panics
 // locally within the same execution realm.
 // Use AbortsWithMessage for asserting panics that cross execution boundaries (aborts).
-func PanicsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
+// See AbortsWithMessage for `rlm` semantics.
+func PanicsWithMessage(t TestingT, rlm realm, msg string, f any, msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
+	didPanic, panicValue := checkDidPanic(f, rlm)
 	if !didPanic {
 		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
 	}
@@ -206,10 +210,11 @@ func PanicsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 
 // PanicsContains asserts that the code inside the specified func panics
 // locally within the same execution realm and the panic message contains the specified substring.
-func PanicsContains(t TestingT, substr string, f any, msgs ...string) bool {
+// See AbortsWithMessage for `rlm` semantics.
+func PanicsContains(t TestingT, rlm realm, substr string, f any, msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
+	didPanic, panicValue := checkDidPanic(f, rlm)
 	if !didPanic {
 		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
 	}
@@ -223,7 +228,8 @@ func PanicsContains(t TestingT, substr string, f any, msgs ...string) bool {
 
 // NotPanics asserts that the code inside the specified func does NOT panic
 // (within the same realm) or abort (due to a cross-realm panic).
-func NotPanics(t TestingT, f any, msgs ...string) bool {
+// See AbortsWithMessage for `rlm` semantics.
+func NotPanics(t TestingT, rlm realm, f any, msgs ...string) bool {
 	t.Helper()
 
 	var panicVal any
@@ -244,7 +250,7 @@ func NotPanics(t TestingT, f any, msgs ...string) bool {
 		case func():
 			f()
 		case func(realm):
-			f(cross)
+			f(cross(rlm))
 		default:
 			panic("f must be of type func() or func(realm)")
 		}

@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: before realm chrome\n%s\nafter realm chrome
+-- input.md --
+<!DOCTYPE attacker>
+-- output.md --
+
+
+\<!DOCTYPE attacker>
+
+-- output.html --
+<p>before realm chrome</p>
+<p>&lt;!DOCTYPE attacker&gt;</p>
+<p>after realm chrome</p>

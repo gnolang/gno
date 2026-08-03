@@ -250,7 +250,7 @@ func TestListDelete(t *testing.T) {
 			initialSize := l.Size()
 			err := l.Delete(tt.deleteIndices...)
 			if err != nil && tt.expectedErr != nil {
-				uassert.Equal(t, tt.expectedErr.Error(), err.Error())
+				uassert.ErrorIs(t, err, tt.expectedErr)
 			} else {
 				uassert.Equal(t, tt.expectedErr, err)
 			}
@@ -539,7 +539,7 @@ func TestEdgeCases(t *testing.T) {
 				uassert.Equal(t, 0, l.TotalSize())
 				uassert.Equal(t, nil, l.Get(0))
 				err := l.Delete(0)
-				uassert.Equal(t, ErrOutOfBounds.Error(), err.Error())
+				uassert.ErrorIs(t, err, ErrOutOfBounds)
 			},
 		},
 		{
@@ -570,7 +570,7 @@ func TestEdgeCases(t *testing.T) {
 				err := l.Delete(1)
 				uassert.Equal(t, nil, err)
 				err = l.Delete(1)
-				uassert.Equal(t, ErrDeleted.Error(), err.Error())
+				uassert.ErrorIs(t, err, ErrDeleted)
 			},
 		},
 		{
@@ -1411,7 +1411,7 @@ func TestSet(t *testing.T) {
 			err := l.Set(tt.index, tt.value)
 
 			if tt.expectedErr != nil {
-				uassert.Equal(t, tt.expectedErr.Error(), err.Error())
+				uassert.ErrorIs(t, err, tt.expectedErr)
 			} else {
 				uassert.Equal(t, nil, err)
 			}

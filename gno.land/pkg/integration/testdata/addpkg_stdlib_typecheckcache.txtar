@@ -25,7 +25,7 @@
 
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/timeuser -pkgpath gno.land/r/$test1_user_addr/timeuser -gas-fee 1000000ugnot -gas-wanted 2700000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/timeuser -pkgpath gno.land/r/$test1_user_addr/timeuser -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
 stdout OK!
 
 -- timeuser/gnomod.toml --

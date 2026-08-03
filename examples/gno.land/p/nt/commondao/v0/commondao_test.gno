@@ -11,420 +11,868 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
+const (
+	memberA address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	memberB address = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
+	memberC address = "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"
+	memberD address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	memberE address = "g1yx35a8f4lhhhrarljrgr37u55gkqdrl0949ycf"
+	memberF address = "g1cyh9qm4y43w38gfk77qxczrhqj2asdr8l7uk54"
+	memberG address = "g1x95kxqpwvqjf98qpkvsay7tppkh6zs9fr7wwda"
+	memberH address = "g12m7ryva2vsw3twqdtuc9awufwzwtk5al4v4ksd"
+	memberI address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+)
+
+// probeKind is a pass-through proposal kind for tests: args is the
+// proposal definition itself.
+type probeKind struct{}
+
+func (probeKind) Name() string { return "probe" }
+func (probeKind) New(_ commondao.ReadonlyCommonDAO, args any) (commondao.ProposalDefinition, error) {
+	d, _ := args.(commondao.ProposalDefinition)
+	return d, nil
+}
+
+// namedKind is a probe kind with a configurable name.
+type namedKind string
+
+func (k namedKind) Name() string { return string(k) }
+func (namedKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	return propDef{period: time.Hour}, nil
+}
+
+// failingKind is a probe kind whose factory always fails.
+type failingKind struct{ err error }
+
+func (failingKind) Name() string { return "failing" }
+func (k failingKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	return nil, k.err
+}
+
+// hostKind is a probe kind that records the ID of the readonly host view
+// passed to its factory. New receives only a ReadonlyCommonDAO (no mutable
+// handle), so the kind can identify the host but cannot mutate it.
+type hostKind struct{ hostID *uint64 }
+
+func (hostKind) Name() string { return "host" }
+func (k hostKind) New(dao commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	*k.hostID = dao.ID()
+	return propDef{period: time.Hour}, nil
+}
+
+// reProposeKind.New re-enters Propose on the captured DAO. Only a trusted
+// kind holding the handle can attempt this (external kinds get a readonly
+// view); the proposing latch must panic before the nested Propose runs.
+type reProposeKind struct{ dao *commondao.CommonDAO }
+
+func (reProposeKind) Name() string { return "re-propose" }
+func (k reProposeKind) New(_ commondao.ReadonlyCommonDAO, _ any) (commondao.ProposalDefinition, error) {
+	// "probe" is registered, so this reaches the proposing latch (not the
+	// kind-lookup) and panics.
+	k.dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
+	return defaultPropDef{period: time.Hour}, nil
+}
+
+// propDef is a base proposal definition decided by the default rules.
+type propDef struct {
+	title  string
+	body   string
+	period time.Duration
+}
+
+func (d propDef) Title() string               { return d.title }
+func (d propDef) Body() string                { return d.body }
+func (d propDef) VotingPeriod() time.Duration { return d.period }
+func (propDef) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
+}
+
+// mustPropose creates a proposal through the probe kind or fails the test.
+func mustPropose(t *testing.T, dao *commondao.CommonDAO, creator address, d commondao.ProposalDefinition) *commondao.Proposal {
+	t.Helper()
+	p, err := dao.Propose(creator, "probe", d)
+	urequire.NoError(t, err, "propose")
+	return p
+}
+
+// defaultPropDef is decided by the constitution's default rules.
+type defaultPropDef struct {
+	period    time.Duration
+	threshold commondao.Threshold
+	executed  *bool
+	execErr   error
+}
+
+func (defaultPropDef) Title() string                 { return "Default" }
+func (defaultPropDef) Body() string                  { return "" }
+func (d defaultPropDef) VotingPeriod() time.Duration { return d.period }
+func (d defaultPropDef) Threshold() commondao.Threshold {
+	return d.threshold
+}
+
+func (d defaultPropDef) Executor() commondao.ExecFunc {
+	return func(_ int, sub realm) error {
+		if d.executed != nil {
+			*d.executed = true
+		}
+		return d.execErr
+	}
+}
+
+// exemptPropDef is exempt from the active proposals cap.
+type exemptPropDef struct{ defaultPropDef }
+
+func (exemptPropDef) CapExempt() {}
+
+// execFnPropDef executes an arbitrary function on approval.
+type execFnPropDef struct {
+	propDef
+	fn commondao.ExecFunc
+}
+
+func (d execFnPropDef) Executor() commondao.ExecFunc { return d.fn }
+
+// validatingExecPropDef is a default rule definition with state validation.
+type validatingExecPropDef struct {
+	defaultPropDef
+	err *error
+}
+
+func (d validatingExecPropDef) Validate() error { return *d.err }
+
 func TestNew(t *testing.T) {
-	cases := []struct {
-		name    string
-		parent  *commondao.CommonDAO
-		members []address
-	}{
-		{
-			name:    "with parent",
-			parent:  commondao.New(),
-			members: []address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
-		},
-		{
-			name:    "without parent",
-			members: []address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
-		},
-		{
-			name: "multiple members",
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
-		},
-		{
-			name: "no members",
-		},
+	dao := commondao.New()
+	uassert.Equal(t, uint64(0), dao.ID())
+	uassert.Equal(t, "", dao.Name())
+	uassert.Equal(t, 0, dao.Council().Size())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 0, dao.FinishedProposalsSize())
+	uassert.Equal(t, 0, len(dao.KindNames()))
+	uassert.False(t, dao.IsDeleted())
+	urequire.True(t, dao.Parent() == nil, "expect no parent")
+
+	parent := commondao.New(commondao.WithName("root"))
+	dao = commondao.New(
+		commondao.WithID(7),
+		commondao.WithName("child"),
+		commondao.WithDescription("test"),
+		commondao.WithParent(parent),
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+	)
+	uassert.Equal(t, uint64(7), dao.ID())
+	uassert.Equal(t, "child", dao.Name())
+	uassert.Equal(t, "test", dao.Description())
+	uassert.Equal(t, 2, dao.Council().Size())
+	uassert.True(t, dao.Council().Has(memberA))
+	uassert.Equal(t, "root", dao.Parent().Name())
+}
+
+func TestUpdateCouncil(t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+
+	// Idempotent set semantics
+	urequire.NoError(t, dao.UpdateCouncil([]address{memberB, memberB}, nil))
+	uassert.Equal(t, 2, dao.Council().Size())
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberC})) // absent remove
+	uassert.Equal(t, 2, dao.Council().Size())
+
+	// Overlapping add/remove is rejected
+	err := dao.UpdateCouncil([]address{memberC}, []address{memberC})
+	uassert.ErrorIs(t, err, commondao.ErrCouncilUpdateOverlap)
+
+	// Emptying a non-empty council is rejected
+	err = dao.UpdateCouncil(nil, []address{memberA, memberB})
+	uassert.ErrorIs(t, err, commondao.ErrEmptyCouncil)
+	uassert.Equal(t, 2, dao.Council().Size())
+
+	// Removing all but one is allowed
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberA}))
+	uassert.Equal(t, 1, dao.Council().Size())
+	uassert.True(t, dao.Council().Has(memberB))
+
+	// Full council replacement in a single update is legal
+	urequire.NoError(t, dao.UpdateCouncil([]address{memberC, memberD}, []address{memberB}))
+	uassert.Equal(t, 2, dao.Council().Size())
+	uassert.False(t, dao.Council().Has(memberB))
+	uassert.True(t, dao.Council().Has(memberC))
+	uassert.True(t, dao.Council().Has(memberD))
+
+	// More removals than members is fine as long as a member survives
+	// (the emptiness check is by identity, not by count)
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberE, memberF, memberG}))
+	uassert.Equal(t, 2, dao.Council().Size())
+
+	// An empty council can be seeded
+	empty := commondao.New()
+	urequire.NoError(t, empty.UpdateCouncil(nil, nil))
+	urequire.NoError(t, empty.UpdateCouncil([]address{memberA}, nil))
+	uassert.Equal(t, 1, empty.Council().Size())
+}
+
+func TestPropose(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
+
+	p, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	urequire.NoError(t, err)
+	uassert.Equal(t, uint64(1), p.ID())
+	uassert.Equal(t, 1, dao.ActiveProposalsSize())
+	urequire.True(t, dao.GetProposal(p.ID()) != nil, "expect proposal to be found")
+
+	// The electorate is the council snapshot taken at proposal creation
+	uassert.Equal(t, 1, p.Electorate().Size())
+	urequire.NoError(t, dao.UpdateCouncil([]address{memberB}, nil))
+	uassert.Equal(t, 1, p.Electorate().Size())
+	uassert.False(t, p.Electorate().Has(memberB))
+
+	// Definitions are required
+	_, err = dao.Propose(memberA, "probe", nil)
+	uassert.ErrorIs(t, err, commondao.ErrProposalDefinitionRequired)
+
+	// Deleted DAOs reject proposals
+	deleted := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
+	deleted.Dissolve("test")
+	_, err = deleted.Propose(memberA, "probe", propDef{})
+	uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
+}
+
+func TestProposeCap(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
+	dao.SetMaxActiveProposals(2)
+
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	urequire.NoError(t, err)
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	urequire.NoError(t, err)
+
+	// The cap rejects further proposals
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+
+	// Cap exempt definitions bypass the cap
+	_, err = dao.Propose(memberA, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
+	urequire.NoError(t, err)
+
+	// But are bounded to one active exempt proposal per creator
+	_, err = dao.Propose(memberA, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
+	uassert.ErrorIs(t, err, commondao.ErrMaxCapExemptProposals)
+	_, err = dao.Propose(memberB, "probe", exemptPropDef{defaultPropDef{period: time.Hour}})
+	urequire.NoError(t, err)
+}
+
+func TestProposeCapSlotFrees(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
+	)
+	dao.SetMaxActiveProposals(1)
+
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+	_, err := dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
+	urequire.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+
+	// An immediate NO majority dismissal frees the slot
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceNo, ""))
+	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceNo, ""))
+	urequire.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+
+	_, err = dao.Propose(memberA, "probe", defaultPropDef{period: time.Hour})
+	urequire.NoError(t, err)
+}
+
+func TestDissolve(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
+
+	// An early passed (but unexecuted) proposal is still in-flight
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+	dao.Dissolve("gone")
+
+	uassert.True(t, dao.IsDeleted())
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+	uassert.Equal(t, "gone", p.StatusReason())
+}
+
+func TestVote(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
+	)
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+
+	// Only electorate members can vote
+	err := dao.Vote(memberD, p.ID(), commondao.ChoiceYes, "")
+	uassert.ErrorIs(t, err, commondao.ErrNotElectorateMember)
+
+	// Members added after proposal creation are not in the electorate
+	urequire.NoError(t, dao.UpdateCouncil([]address{memberD}, nil))
+	err = dao.Vote(memberD, p.ID(), commondao.ChoiceYes, "")
+	uassert.ErrorIs(t, err, commondao.ErrNotElectorateMember)
+
+	// Members removed after proposal creation remain in the electorate
+	urequire.NoError(t, dao.UpdateCouncil(nil, []address{memberC}))
+	urequire.NoError(t, dao.Vote(memberC, p.ID(), commondao.ChoiceAbstain, ""))
+
+	// Invalid choices are rejected
+	err = dao.Vote(memberA, p.ID(), commondao.VoteChoice("FOO"), "")
+	uassert.ErrorIs(t, err, commondao.ErrInvalidVoteChoice)
+
+	// Members can vote and change their vote
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceNo, ""))
+	uassert.Equal(t, 0, p.VotingRecord().VoteCount(commondao.ChoiceYes))
+	uassert.Equal(t, 1, p.VotingRecord().VoteCount(commondao.ChoiceNo))
+
+	// Unknown proposals and deadlines are rejected
+	err = dao.Vote(memberA, 404, commondao.ChoiceYes, "")
+	uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
+
+	expired := mustPropose(t, dao, memberA, propDef{}) // zero voting period
+	err = dao.Vote(memberA, expired.ID(), commondao.ChoiceYes, "")
+	uassert.ErrorIs(t, err, commondao.ErrVotingDeadlinePassed)
+
+	// Deleted DAOs reject votes
+	dao.Dissolve("test")
+	err = dao.Vote(memberA, p.ID(), commondao.ChoiceYes, "")
+	uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
+}
+
+func TestVoteEarlyTermination(t *testing.T) {
+	newDAO := func() *commondao.CommonDAO {
+		return commondao.New(
+			commondao.WithCouncilMember(memberA),
+			commondao.WithCouncilMember(memberB),
+			commondao.WithCouncilMember(memberC),
+			commondao.WithProposalKind(probeKind{}),
+		)
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			membersCount := len(tc.members)
-			options := []commondao.Option{commondao.WithParent(tc.parent)}
-			for _, m := range tc.members {
-				options = append(options, commondao.WithMember(m))
-			}
+	t.Run("supermajority YES passes immediately", func(t *testing.T) {
+		dao := newDAO()
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
 
-			dao := commondao.New(options...)
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		uassert.Equal(t, string(commondao.StatusActive), string(p.Status()))
 
-			if tc.parent == nil {
-				uassert.Equal(t, nil, dao.Parent())
-			} else {
-				uassert.NotEqual(t, nil, dao.Parent())
-			}
+		urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, ""))
+		uassert.Equal(t, string(commondao.StatusPassed), string(p.Status()))
 
-			uassert.False(t, dao.IsDeleted(), "expect DAO not to be soft deleted by default")
-			urequire.Equal(t, membersCount, dao.Members().Size(), "dao members")
+		// Passed proposals stay active (pending execution) but reject votes
+		uassert.Equal(t, 1, dao.ActiveProposalsSize())
+		err := dao.Vote(memberC, p.ID(), commondao.ChoiceNo, "")
+		uassert.ErrorIs(t, err, commondao.ErrStatusIsNotActive)
+	})
 
-			var i int
-			dao.Members().IterateByOffset(0, membersCount, func(addr address) bool {
-				uassert.Equal(t, tc.members[i], addr)
-				i++
-				return false
-			})
+	t.Run("NO majority dismisses immediately", func(t *testing.T) {
+		dao := newDAO()
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceNo, ""))
+		urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceNo, ""))
+
+		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+		uassert.Equal(t, 0, dao.ActiveProposalsSize())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	})
+
+	t.Run("abstain flip can trigger a pass", func(t *testing.T) {
+		dao := commondao.New(
+			commondao.WithCouncilMember(memberA),
+			commondao.WithCouncilMember(memberB),
+			commondao.WithCouncilMember(memberC),
+			commondao.WithCouncilMember(memberD),
+			commondao.WithCouncilMember(memberE),
+			commondao.WithProposalKind(probeKind{}),
+		)
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Vote(memberC, p.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Vote(memberD, p.ID(), commondao.ChoiceNo, ""))
+		urequire.NoError(t, dao.Vote(memberE, p.ID(), commondao.ChoiceNo, ""))
+		uassert.Equal(t, string(commondao.StatusActive), string(p.Status())) // 9 < 10
+
+		// NO -> ABSTAIN shrinks the denominator: D=4, 3*3 >= 2*4
+		urequire.NoError(t, dao.Vote(memberE, p.ID(), commondao.ChoiceAbstain, ""))
+		uassert.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+	})
+}
+
+func TestExpectedOutcome(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
+	)
+
+	// Default rule proposals report the live tally
+	p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	uassert.Equal(t, int(commondao.OutcomePending), int(p.ExpectedOutcome()))
+	urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, "")) // 3*2 >= 2*3
+	uassert.Equal(t, int(commondao.OutcomePassed), int(p.ExpectedOutcome()))
+
+}
+
+func TestExecute(cur realm, t *testing.T) {
+	t.Run("early passed proposals execute before the deadline", func(t *testing.T) {
+		executed := false
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, executed: &executed})
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.True(t, executed)
+		uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
+		uassert.Equal(t, 0, dao.ActiveProposalsSize())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	})
+
+	t.Run("active proposals cannot execute before the deadline", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+
+		err := dao.Execute(p.ID(), cur)
+		uassert.ErrorIs(t, err, commondao.ErrVotingDeadlineNotMet)
+	})
+
+	t.Run("undecided default proposals are dismissed at the deadline", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, defaultPropDef{}) // zero voting period
+
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	})
+
+	t.Run("undecided proposals dismiss before validation", func(t *testing.T) {
+		// A proposal that never passed archives as Dismissed even when its
+		// definition no longer validates: dismissal is the truthful status
+		// and the executor could never have run.
+		stale := errors.New("stale")
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, validatingExecPropDef{
+			defaultPropDef: defaultPropDef{}, // zero voting period
+			err:            &stale,
 		})
-	}
-}
 
-func TestCommonDAOMembersAdd(t *testing.T) {
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao := commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusDismissed), string(p.Status()))
+	})
 
-	added := dao.Members().Add(member)
-	urequire.True(t, added)
+	t.Run("executor errors fail the proposal", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour, execErr: errors.New("exec boom")})
 
-	uassert.Equal(t, 2, dao.Members().Size())
-	uassert.True(t, dao.Members().Has(member))
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
+		uassert.Equal(t, "exec boom", p.StatusReason())
+		uassert.Equal(t, 1, dao.FinishedProposalsSize())
+	})
 
-	added = dao.Members().Add(member)
-	urequire.False(t, added)
-}
-
-func TestCommonDAOMembersRemove(t *testing.T) {
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao := commondao.New(commondao.WithMember(member))
-
-	removed := dao.Members().Remove(member)
-	urequire.True(t, removed)
-
-	removed = dao.Members().Remove(member)
-	urequire.False(t, removed)
-}
-
-func TestCommonDAOMembersHas(t *testing.T) {
-	cases := []struct {
-		name   string
-		member address
-		dao    *commondao.CommonDAO
-		want   bool
-	}{
-		{
-			name:   "member",
-			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			dao:    commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")),
-			want:   true,
-		},
-		{
-			name:   "not a dao member",
-			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			dao:    commondao.New(commondao.WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")),
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := tc.dao.Members().Has(tc.member)
-			uassert.Equal(t, got, tc.want)
+	t.Run("emptying council updates fail the proposal", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
+			fn: func(_ int, sub realm) error {
+				return dao.UpdateCouncil(nil, []address{memberA})
+			},
 		})
-	}
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
+		uassert.Equal(t, 1, dao.Council().Size(), "expect council unchanged")
+	})
+
+	t.Run("early passed proposals still validate", func(t *testing.T) {
+		executed := false
+		stale := errors.New("stale")
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, validatingExecPropDef{
+			defaultPropDef: defaultPropDef{period: time.Hour, executed: &executed},
+			err:            &stale,
+		})
+
+		urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+		urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+
+		urequire.NoError(t, dao.Execute(p.ID(), cur))
+		uassert.Equal(t, string(commondao.StatusFailed), string(p.Status()))
+		uassert.Equal(t, "stale", p.StatusReason())
+		uassert.False(t, executed, "expect executor to not run when validation fails")
+	})
+
+	t.Run("executors cannot re-enter Execute", func(t *testing.T) {
+		// The per-DAO executing latch panics on a re-entrant Execute of
+		// the same DAO (aborting the tx), even for a different proposal
+		// than the one currently executing. Removing the latch would let
+		// the re-entrant call proceed.
+		var (
+			dao   = commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+			execs int
+			pid2  uint64
+		)
+		p1 := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
+			fn: func(_ int, sub realm) error {
+				execs++
+				return dao.Execute(pid2, sub) // re-entrant: must panic
+			},
+		})
+		p2 := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+		pid2 = p2.ID()
+
+		urequire.NoError(t, dao.Vote(memberA, p1.ID(), commondao.ChoiceYes, ""))
+		urequire.NoError(t, dao.Vote(memberA, pid2, commondao.ChoiceYes, ""))
+
+		uassert.PanicsWithMessage(t, cur, "commondao: re-entrant Execute is not allowed", func() {
+			dao.Execute(p1.ID(), cur)
+		})
+		uassert.Equal(t, 1, execs, "expect executor to run exactly once")
+	})
+
+	t.Run("kinds cannot re-enter Propose", func(t *testing.T) {
+		// The per-DAO proposing latch panics on a re-entrant Propose from
+		// inside a kind's New. Removing the latch would let the nested
+		// Propose proceed. (The latch also, via defer, cannot stay stuck
+		// if New panics.)
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		urequire.NoError(t, dao.RegisterKind(reProposeKind{dao: dao}))
+		uassert.PanicsWithMessage(t, cur, "commondao: re-entrant Propose is not allowed", func() {
+			dao.Propose(memberA, "re-propose", nil)
+		})
+	})
+
+	t.Run("concurrent council updates merge in execution order", func(t *testing.T) {
+		dao := commondao.New(
+			commondao.WithCouncilMember(memberA),
+			commondao.WithCouncilMember(memberB),
+			commondao.WithCouncilMember(memberC),
+			commondao.WithProposalKind(probeKind{}),
+		)
+		p1 := mustPropose(t, dao, memberA, execFnPropDef{
+			propDef: propDef{period: time.Hour},
+			fn: func(_ int, sub realm) error {
+				return dao.UpdateCouncil([]address{memberD}, []address{memberA})
+			},
+		})
+		p2 := mustPropose(t, dao, memberB, execFnPropDef{
+			propDef: propDef{period: time.Hour},
+			fn: func(_ int, sub realm) error {
+				// Removing memberA again is an idempotent no-op
+				return dao.UpdateCouncil([]address{memberE}, []address{memberA})
+			},
+		})
+
+		for _, p := range []*commondao.Proposal{p1, p2} {
+			urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+			urequire.NoError(t, dao.Vote(memberB, p.ID(), commondao.ChoiceYes, ""))
+		}
+
+		urequire.NoError(t, dao.Execute(p1.ID(), cur))
+		urequire.NoError(t, dao.Execute(p2.ID(), cur))
+		urequire.Equal(t, string(commondao.StatusExecuted), string(p1.Status()))
+		urequire.Equal(t, string(commondao.StatusExecuted), string(p2.Status()))
+
+		uassert.Equal(t, 4, dao.Council().Size())
+		uassert.False(t, dao.Council().Has(memberA))
+		uassert.True(t, dao.Council().Has(memberB))
+		uassert.True(t, dao.Council().Has(memberC))
+		uassert.True(t, dao.Council().Has(memberD))
+		uassert.True(t, dao.Council().Has(memberE))
+	})
+
+	t.Run("deleted DAOs reject execution", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+		dao.Dissolve("test")
+
+		err := dao.Execute(p.ID(), cur)
+		uassert.ErrorIs(t, err, commondao.ErrDAOIsDeleted)
+	})
+
+	t.Run("unknown proposals are rejected", func(t *testing.T) {
+		dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
+		err := dao.Execute(404, cur)
+		uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
+	})
 }
 
-func TestCommonDAOPropose(t *testing.T) {
-	cases := []struct {
-		name    string
-		setup   func() *commondao.CommonDAO
-		creator address
-		def     commondao.ProposalDefinition
-		err     error
-	}{
-		{
-			name:    "success",
-			setup:   func() *commondao.CommonDAO { return commondao.New() },
-			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			def:     testPropDef{},
-		},
-		{
-			name:  "nil definition",
-			setup: func() *commondao.CommonDAO { return commondao.New() },
-			err:   commondao.ErrProposalDefinitionRequired,
-		},
-		{
-			name:  "invalid creator address",
-			setup: func() *commondao.CommonDAO { return commondao.New() },
-			def:   testPropDef{},
-			err:   commondao.ErrInvalidCreatorAddress,
-		},
-	}
+func TestWithdraw(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithCouncilMember(memberA),
+		commondao.WithCouncilMember(memberB),
+		commondao.WithCouncilMember(memberC),
+		commondao.WithProposalKind(probeKind{}),
+	)
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := tc.setup()
+	// Proposals without votes can be withdrawn
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	urequire.NoError(t, dao.Withdraw(p.ID()))
+	uassert.Equal(t, string(commondao.StatusWithdrawn), string(p.Status()))
+	uassert.Equal(t, 0, dao.ActiveProposalsSize())
+	uassert.Equal(t, 1, dao.FinishedProposalsSize())
 
-			p, err := dao.Propose(tc.creator, tc.def)
+	// Withdrawn proposals cannot be withdrawn again
+	err := dao.Withdraw(p.ID())
+	uassert.ErrorIs(t, err, commondao.ErrProposalNotFound)
 
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
+	// Proposals with votes cannot be withdrawn
+	p = mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceAbstain, ""))
+	err = dao.Withdraw(p.ID())
+	uassert.ErrorIs(t, err, commondao.ErrWithdrawalNotAllowed)
 
-			urequire.NoError(t, err)
-
-			found := dao.ActiveProposals().Has(p.ID())
-			urequire.True(t, found, "proposal not found")
-			uassert.Equal(t, p.Creator(), tc.creator)
-		})
-	}
+	// Early passed proposals cannot be withdrawn
+	p2 := mustPropose(t, dao, memberA, defaultPropDef{period: time.Hour})
+	urequire.NoError(t, dao.Vote(memberA, p2.ID(), commondao.ChoiceYes, ""))
+	urequire.NoError(t, dao.Vote(memberB, p2.ID(), commondao.ChoiceYes, ""))
+	urequire.Equal(t, string(commondao.StatusPassed), string(p2.Status()))
+	err = dao.Withdraw(p2.ID())
+	uassert.ErrorIs(t, err, commondao.ErrStatusIsNotActive)
 }
 
-func TestCommonDAOWithdraw(t *testing.T) {
-	cases := []struct {
-		name       string
-		proposalID uint64
-		setup      func() *commondao.CommonDAO
-		err        error
-	}{
-		{
-			name:       "success",
-			proposalID: 1,
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
-				return dao
-			},
-		},
-		{
-			name:       "proposal not found",
-			proposalID: 404,
-			setup: func() *commondao.CommonDAO {
-				return commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
-			},
-			err: commondao.ErrProposalNotFound,
-		},
-		{
-			name:       "withdrawal not allowed",
-			proposalID: 1,
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(commondao.WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{votingPeriod: time.Hour})
-				dao.Vote(member, p.ID(), commondao.ChoiceYes, "")
-				return dao
-			},
-			err: commondao.ErrWithdrawalNotAllowed,
-		},
-	}
+func TestReadonlyCommonDAO(t *testing.T) {
+	parent := commondao.New(commondao.WithName("root"))
+	dao := commondao.New(
+		commondao.WithID(7),
+		commondao.WithName("child"),
+		commondao.WithDescription("test"),
+		commondao.WithParent(parent),
+		commondao.WithCouncilMember(memberA),
+		commondao.WithProposalKind(probeKind{}),
+	)
+	p := mustPropose(t, dao, memberA, propDef{title: "T", body: "B", period: time.Hour})
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := tc.setup()
+	view := dao.Readonly()
+	uassert.Equal(t, uint64(7), view.ID())
+	uassert.Equal(t, "child", view.Name())
+	uassert.Equal(t, "test", view.Description())
+	uassert.False(t, view.IsDeleted())
+	uassert.Equal(t, 1, view.Council().Size())
+	uassert.Equal(t, 1, view.ActiveProposalsSize())
+	uassert.Equal(t, 0, view.FinishedProposalsSize())
+	uassert.Equal(t, 0, view.ChildrenCount())
 
-			err := dao.Withdraw(tc.proposalID)
+	parentView, found := view.Parent()
+	urequire.True(t, found, "expect parent view")
+	uassert.Equal(t, "root", parentView.Name())
+	_, found = parentView.Parent()
+	uassert.False(t, found)
 
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
+	pv, found := view.GetProposal(p.ID())
+	urequire.True(t, found, "expect proposal view")
+	uassert.Equal(t, p.ID(), pv.ID())
+	uassert.Equal(t, "T", pv.Title())
+	uassert.Equal(t, "B", pv.Body())
+	uassert.Equal(t, string(commondao.StatusActive), string(pv.Status()))
+	uassert.Equal(t, memberA, pv.Creator())
+	uassert.Equal(t, 1, pv.Electorate().Size())
+	uassert.Equal(t, 0, pv.VotingRecord().Size())
 
-			urequire.NoError(t, err)
-		})
-	}
+	visited := 0
+	view.IterateActiveProposals(0, 10, false, func(commondao.ReadonlyProposal) bool {
+		visited++
+		return false
+	})
+	uassert.Equal(t, 1, visited)
+
+	// WithParent registered dao as a child of parent at construction
+	uassert.Equal(t, 1, parentView.ChildrenCount())
+	childID := uint64(0)
+	parentView.IterateChildren(func(child commondao.ReadonlyCommonDAO) bool {
+		childID = child.ID()
+		return false
+	})
+	uassert.Equal(t, uint64(7), childID)
+
+	// A withdrawn proposal is visible through the finished-proposals view
+	fp := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	urequire.NoError(t, dao.Withdraw(fp.ID()))
+	uassert.Equal(t, 1, view.FinishedProposalsSize())
+	finished := 0
+	view.IterateFinishedProposals(0, 10, false, func(commondao.ReadonlyProposal) bool {
+		finished++
+		return false
+	})
+	uassert.Equal(t, 1, finished)
+
+	// Recorded votes are visible through the voting-record view
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	pv, _ = view.GetProposal(p.ID())
+	yes := 0
+	pv.VotingRecord().IterateVotesCount(func(c commondao.VoteChoice, count int) bool {
+		if c == commondao.ChoiceYes {
+			yes = count
+		}
+		return false
+	})
+	uassert.Equal(t, 1, yes)
+
+	// Views are live handles
+	dao.Dissolve("test")
+	uassert.True(t, view.IsDeleted())
 }
 
-func TestCommonDAOVote(t *testing.T) {
-	cases := []struct {
-		name       string
-		setup      func() *commondao.CommonDAO
-		member     address
-		choice     commondao.VoteChoice
-		proposalID uint64
-		err        error
-	}{
-		{
-			name: "success",
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
-				return dao
-			},
-			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     commondao.ChoiceYes,
-			proposalID: 1,
-		},
-		{
-			name: "success with custom vote choice",
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{
-					votingPeriod: time.Hour,
-					voteChoices:  []commondao.VoteChoice{"FOO", "BAR"},
-				})
-				return dao
-			},
-			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     commondao.VoteChoice("BAR"),
-			proposalID: 1,
-		},
-		{
-			name: "success with deadline check disabled",
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(
-					commondao.WithMember(member),
-					commondao.DisableVotingDeadlineCheck(),
-				)
-				dao.Propose(member, testPropDef{})
-				return dao
-			},
-			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     commondao.ChoiceYes,
-			proposalID: 1,
-		},
-		{
-			name: "invalid vote choice",
-			setup: func() *commondao.CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
-				return dao
-			},
-			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     commondao.VoteChoice("invalid"),
-			proposalID: 1,
-			err:        commondao.ErrInvalidVoteChoice,
-		},
-		{
-			name:   "not a member",
-			setup:  func() *commondao.CommonDAO { return commondao.New() },
-			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice: commondao.ChoiceAbstain,
-			err:    commondao.ErrNotMember,
-		},
-		{
-			name: "proposal not found",
-			setup: func() *commondao.CommonDAO {
-				return commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
-			},
-			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     commondao.ChoiceAbstain,
-			proposalID: 42,
-			err:        commondao.ErrProposalNotFound,
-		},
-	}
+func TestCharter(t *testing.T) {
+	dao := commondao.New(
+		commondao.WithName("D"),
+		commondao.WithPurpose("to do good"),
+		commondao.WithDescription("a test DAO"),
+	)
+	uassert.Equal(t, "to do good", dao.Purpose())
+	uassert.Equal(t, "a test DAO", dao.Description())
+	uassert.Equal(t, "to do good", dao.Readonly().Purpose())
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := tc.setup()
-
-			err := dao.Vote(tc.member, tc.proposalID, tc.choice, "")
-
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
-
-			urequire.NoError(t, err)
-
-			p := dao.ActiveProposals().Get(tc.proposalID)
-			urequire.NotEqual(t, nil, p, "proposal not found")
-
-			record := p.VotingRecord()
-			uassert.True(t, record.HasVoted(tc.member))
-			uassert.Equal(t, record.VoteCount(tc.choice), 1)
-		})
-	}
+	// Purpose defaults empty when unset (the realm enforces non-empty).
+	uassert.Equal(t, "", commondao.New().Purpose())
 }
 
-func TestCommonDAOExecute(t *testing.T) {
-	errTest := errors.New("test")
-	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-	cases := []struct {
-		name         string
-		setup        func() *commondao.CommonDAO
-		proposalID   uint64
-		status       commondao.ProposalStatus
-		statusReason string
-		err          error
-	}{
-		{
-			name: "success",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{tallyResult: true}) // Non crossing definition
-				return dao
-			},
-			status:     commondao.StatusExecuted,
-			proposalID: 1,
-		},
-		{
-			name:       "proposal not found",
-			setup:      func() *commondao.CommonDAO { return commondao.New() },
-			proposalID: 1,
-			err:        commondao.ErrProposalNotFound,
-		},
-		{
-			name: "execution not allowed",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
-				p.Tally(dao.Members())
-				return dao
-			},
-			proposalID: 1,
-			err:        commondao.ErrExecutionNotAllowed,
-		},
-		{
-			name: "voting deadline not met",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{votingPeriod: time.Minute * 5})
-				return dao
-			},
-			proposalID: 1,
-			err:        commondao.ErrVotingDeadlineNotMet,
-		},
-		{
-			name: "validation error",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{
-					validationErr: errTest,
-					tallyResult:   true,
-				})
-				return dao
-			},
-			proposalID:   1,
-			status:       commondao.StatusFailed,
-			statusReason: errTest.Error(),
-		},
-		{
-			name: "tally error",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{tallyErr: errTest})
-				return dao
-			},
-			proposalID:   1,
-			status:       commondao.StatusFailed,
-			statusReason: errTest.Error(),
-		},
-	}
+func TestAddressAndTreasuryFrozen(t *testing.T) {
+	dao := commondao.New(commondao.WithAddress(memberA))
+	uassert.Equal(t, string(memberA), string(dao.Address()))
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := tc.setup()
+	view := dao.Readonly()
+	uassert.Equal(t, string(memberA), string(view.Address()))
 
-			err := dao.Execute(tc.proposalID)
+	// Unset addresses are empty
+	uassert.Equal(t, "", string(commondao.New().Address()))
 
-			if tc.err != nil {
-				urequire.Error(t, err, "expected an error")
-				urequire.ErrorIs(t, err, tc.err, "expect error to match")
-				return
-			}
+	uassert.False(t, dao.IsTreasuryFrozen())
+	dao.SetTreasuryFrozen(true)
+	uassert.True(t, dao.IsTreasuryFrozen())
+	uassert.True(t, view.IsTreasuryFrozen())
+	dao.SetTreasuryFrozen(false)
+	uassert.False(t, view.IsTreasuryFrozen())
+}
 
-			urequire.NoError(t, err, "expect no error")
+func TestSetMaxActiveProposals(t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA), commondao.WithProposalKind(probeKind{}))
 
-			found := dao.ActiveProposals().Has(tc.proposalID)
-			urequire.False(t, found, "proposal should not be active")
+	dao.SetMaxActiveProposals(2)
+	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	_ = mustPropose(t, dao, memberA, propDef{period: time.Hour})
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
 
-			p := dao.FinishedProposals().Get(tc.proposalID)
-			urequire.NotEqual(t, nil, p, "proposal must be found")
-			uassert.Equal(t, string(p.Status()), string(tc.status), "status must match")
-			uassert.Equal(t, string(p.StatusReason()), string(tc.statusReason), "status reason must match")
-		})
-	}
+	uassert.Equal(t, 2, dao.MaxActiveProposals())
+
+	// Values below the floor are ignored (the floor is 1, not 0/negative)
+	dao.SetMaxActiveProposals(0)
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+	dao.SetMaxActiveProposals(-5)
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrMaxActiveProposals)
+}
+
+func TestKindRegistry(cur realm, t *testing.T) {
+	dao := commondao.New(commondao.WithCouncilMember(memberA))
+
+	// A fresh DAO has no registered kinds
+	uassert.False(t, dao.HasKind("probe"))
+	uassert.Equal(t, 0, len(dao.KindNames()))
+
+	// Proposing through an unregistered kind is rejected
+	_, err := dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// Registered kinds create proposals
+	urequire.NoError(t, dao.RegisterKind(probeKind{}))
+	uassert.True(t, dao.HasKind("probe"))
+	p := mustPropose(t, dao, memberA, propDef{period: time.Hour})
+
+	// Nil kinds and empty kind names are rejected
+	err = dao.RegisterKind(nil)
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindRequired)
+	err = dao.RegisterKind(namedKind(""))
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindRequired)
+
+	// Duplicate kind names are rejected
+	err = dao.RegisterKind(probeKind{})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindExists)
+
+	// KindNames is sorted by name
+	urequire.NoError(t, dao.RegisterKind(namedKind("zeta")))
+	urequire.NoError(t, dao.RegisterKind(namedKind("alpha")))
+	names := dao.KindNames()
+	urequire.Equal(t, 3, len(names))
+	uassert.Equal(t, "alpha", names[0])
+	uassert.Equal(t, "probe", names[1])
+	uassert.Equal(t, "zeta", names[2])
+
+	// The readonly view mirrors the registry reads
+	view := dao.Readonly()
+	uassert.True(t, view.HasKind("alpha"))
+	uassert.False(t, view.HasKind("beta"))
+	uassert.Equal(t, 3, len(view.KindNames()))
+
+	// Deregistering an absent kind is rejected
+	err = dao.DeregisterKind("beta")
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// Deregistering blocks new proposals of the kind...
+	urequire.NoError(t, dao.DeregisterKind("probe"))
+	uassert.False(t, dao.HasKind("probe"))
+	_, err = dao.Propose(memberA, "probe", propDef{period: time.Hour})
+	uassert.ErrorIs(t, err, commondao.ErrProposalKindNotFound)
+
+	// ...but never touches in-flight proposals: the frozen definition
+	// still votes, decides and executes (vote-integrity)
+	urequire.NoError(t, dao.Vote(memberA, p.ID(), commondao.ChoiceYes, ""))
+	urequire.Equal(t, string(commondao.StatusPassed), string(p.Status()))
+	urequire.NoError(t, dao.Execute(p.ID(), cur))
+	uassert.Equal(t, string(commondao.StatusExecuted), string(p.Status()))
+
+	// Kind factory errors propagate out of Propose
+	boom := errors.New("bad args")
+	urequire.NoError(t, dao.RegisterKind(failingKind{err: boom}))
+	_, err = dao.Propose(memberA, "failing", nil)
+	uassert.ErrorIs(t, err, boom)
+	uassert.Equal(t, 0, dao.ActiveProposalsSize(), "expect no proposal from a failing factory")
+
+	// Propose hands the kind factory a readonly view of the host DAO
+	var hostID uint64 = 999 // sentinel: New must overwrite it
+	urequire.NoError(t, dao.RegisterKind(hostKind{hostID: &hostID}))
+	_, err = dao.Propose(memberA, "host", nil)
+	urequire.NoError(t, err)
+	uassert.Equal(t, dao.ID(), hostID, "expect the kind factory to receive a readonly view of the host DAO")
+
+	// Construction options panic on registration errors
+	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindRequired.Error(), func() {
+		commondao.New(commondao.WithProposalKind(nil))
+	})
+	uassert.PanicsWithMessage(t, cur, commondao.ErrProposalKindExists.Error(), func() {
+		commondao.New(
+			commondao.WithProposalKind(probeKind{}),
+			commondao.WithProposalKind(probeKind{}),
+		)
+	})
 }

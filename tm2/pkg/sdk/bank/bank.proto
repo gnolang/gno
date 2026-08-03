@@ -18,3 +18,11 @@ message MsgSend {
 	string to_address = 2;
 	string amount = 3;
 }
+
+message GenesisState {
+	Params params = 1;
+}
+
+message Params {
+	repeated string restricted_denoms = 1;
+}

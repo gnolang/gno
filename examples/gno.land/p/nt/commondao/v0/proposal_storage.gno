@@ -1,48 +1,23 @@
 package commondao
 
 import (
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
-// ProposalStorage defines an interface for proposal storages.
-type ProposalStorage interface {
-	// Has checks if a proposal exists.
-	Has(id uint64) bool
-
-	// Get returns a proposal or nil when proposal doesn't exist.
-	Get(id uint64) *Proposal
-
-	// Add adds a proposal to the storage.
-	Add(*Proposal)
-
-	// Remove removes a proposal from the storage.
-	Remove(id uint64)
-
-	// Size returns the number of proposals that the storage contains.
-	Size() int
-
-	// Iterate iterates proposals.
-	Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool
+// newProposalStorage creates a new proposal storage.
+func newProposalStorage() *proposalStorage {
+	return &proposalStorage{bptree.NewBPTree32()}
 }
 
-// NewProposalStorage creates a new proposal storage.
-func NewProposalStorage() ProposalStorage {
-	return &proposalStorage{avl.NewTree()}
-}
-
+// proposalStorage stores proposals indexed by ID.
 type proposalStorage struct {
-	storage *avl.Tree // string(proposal ID) -> *Proposal
-}
-
-// Has checks if a proposal exists.
-func (s proposalStorage) Has(id uint64) bool {
-	return s.storage.Has(makeProposalKey(id))
+	storage *bptree.BPTree // string(proposal ID) -> *Proposal
 }
 
 // Get returns a proposal or nil when proposal doesn't exist.
 func (s proposalStorage) Get(id uint64) *Proposal {
-	if v, found := s.storage.Get(makeProposalKey(id)); found {
+	if v := s.storage.Get(makeProposalKey(id)); v != nil {
 		return v.(*Proposal)
 	}
 	return nil
@@ -69,10 +44,6 @@ func (s proposalStorage) Size() int {
 
 // Iterate iterates proposals.
 func (s proposalStorage) Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
-	if fn == nil {
-		return false
-	}
-
 	cb := func(_ string, v any) bool { return fn(v.(*Proposal)) }
 
 	if reverse {

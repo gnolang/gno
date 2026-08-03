@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers/proposal_test
+// PKGPATH: gno.land/r/test/proposal
 // SEND: 20000000ugnot
 
-package proposal_test
+package proposal
 
 import (
 	"testing"
@@ -24,20 +24,23 @@ const (
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetOriginCaller(g1user)
-	daoinit.InitWithUsers(g1user)
+	daoinit.InitWithUsers(cross(cur), g1user)
 }
 
-func main() {
-	testing.SetOriginCaller(g1user)
-	// Register a validator
-	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
-	// Try to make a proposal for a non-existing validator
+func main(cur realm) {
+	// Register a validator: OriginCaller must equal operator addr (squat guard).
+	testing.SetOriginCaller(validAddress)
+	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 
+	// Switch back to g1user for the GovDAO proposal submission.
+	testing.SetOriginCaller(g1user)
+
+	// Try to make a proposal for a non-existing validator
 	if err := revive(func() {
-		pr := proposal.NewValidatorProposalRequest(cross, otherAddress)
-		dao.MustCreateProposal(cross, pr)
+		pr := proposal.NewValidatorProposalRequest(cross(cur), otherAddress)
+		dao.MustCreateProposal(cross(cur), pr)
 	}); err != nil {
 		println("r: ", err)
 	}

@@ -30,7 +30,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 	prmk := params.NewParamsKeeper(authCapKey)
 
-	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount)
+	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount, std.ProtoBaseSessionAccount)
 	bankk := NewDummyBankKeeper(acck, prmk.ForModule("dummybank"))
 	gk := NewGasPriceKeeper(authCapKey)
 

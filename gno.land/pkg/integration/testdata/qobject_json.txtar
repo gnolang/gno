@@ -1,0 +1,50 @@
+# Test vm/qobject_json and vm/qobject_binary endpoints.
+
+loadpkg gno.land/r/test/obj $WORK/realm
+
+gnoland start
+
+# qobject_json: invalid ObjectID format should error
+! gnokey query vm/qobject_json --data "invalid"
+stderr 'invalid expression'
+
+# qobject_json: valid format but non-existent object
+! gnokey query vm/qobject_json --data "0000000000000000000000000000000000000000:999"
+stderr 'object not found'
+
+# qobject_binary: invalid ObjectID format should error
+! gnokey query vm/qobject_binary --data "invalid"
+stderr 'invalid expression'
+
+# qeval_json: verify RefValue with ObjectID appears for persisted pointer
+gnokey query vm/qeval_json --data "gno.land/r/test/obj.GetPointer()"
+cmp stdout getpointer.stdout.golden
+
+# qobject_json: resolve the HeapItemValue ObjectID — must inline the wrapper
+# and show a RefValue (single-hop) for the inner Item struct.
+gnokey query vm/qobject_json --data "08fac97482b733b2035b59fff3b5e13f0e453257:4"
+cmp stdout getobject.stdout.golden
+
+-- getpointer.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PointerType","Elt":{"@type":"/gno.RefType","ID":"gno.land/r/test/obj.Item"}},"V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:4","Hash":"291be0f405abc15ffc4cb008e7a030f69a7ce2e1"},"Index":"0"}}]}
+-- getobject.stdout.golden --
+height: 0
+data: {"objectid":"08fac97482b733b2035b59fff3b5e13f0e453257:4","value":{"@type":"/gno.HeapItemValue","ObjectInfo":{"ID":"08fac97482b733b2035b59fff3b5e13f0e453257:4","Hash":"291be0f405abc15ffc4cb008e7a030f69a7ce2e1","OwnerID":"08fac97482b733b2035b59fff3b5e13f0e453257:3","ModTime":"0","RefCount":"1","LastObjectSize":"340"},"Value":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/obj.Item"},"V":{"@type":"/gno.RefValue","ObjectID":"08fac97482b733b2035b59fff3b5e13f0e453257:5","Hash":"89c79af1dcd0818b1bf59fed8e5d0fa5464143f0"}}}}
+-- realm/gnomod.toml --
+module = "gno.land/r/test/obj"
+gno = "0.9"
+
+-- realm/realm.gno --
+package obj
+
+type Item struct {
+	Name  string
+	Value int
+}
+
+var myItem = &Item{Name: "test", Value: 123}
+
+func GetPointer() *Item {
+	return myItem
+}

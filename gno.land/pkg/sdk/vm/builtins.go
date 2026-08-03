@@ -79,29 +79,81 @@ func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 	}
 }
 
-// The key has the format <module>:(<realm>:)?<paramname>.
+// The key has the format <module>:(<realm>:)?<paramname>. Each Set
+// wraps in setWithCheck for module-prefix validation, then captures
+// the byte delta returned by the params keeper and feeds it to
+// recordParamsDelta for per-realm storage-deposit accounting. The
+// keeper's Set methods do their own internal Get-with-nil-gctx to
+// compute the delta — no separate metered read is needed here.
+// See gno.land/pkg/sdk/vm/params_deposit.go.
 func (prm *SDKParams) SetString(key string, value string) {
-	prm.setWithCheck(key, func() { prm.pmk.SetString(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetString(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
-	prm.setWithCheck(key, func() { prm.pmk.SetBool(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetBool(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	prm.setWithCheck(key, func() { prm.pmk.SetInt64(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetInt64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.setWithCheck(key, func() { prm.pmk.SetUint64(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetUint64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
-	prm.setWithCheck(key, func() { prm.pmk.SetBytes(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetBytes(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
 }
 
 func (prm *SDKParams) SetStrings(key string, value []string) {
-	prm.setWithCheck(key, func() { prm.pmk.SetStrings(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		diff := prm.pmk.SetStrings(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
+	})
+}
+
+// ParamsInterface read methods (G1). Reads do not require module
+// registration since they're idempotent and read-only — but they do
+// require a colon-prefix to keep the API symmetric with writes.
+
+func (prm *SDKParams) GetString(key string, ptr *string) bool {
+	return prm.pmk.GetString(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetBool(key string, ptr *bool) bool {
+	return prm.pmk.GetBool(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetInt64(key string, ptr *int64) bool {
+	return prm.pmk.GetInt64(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetUint64(key string, ptr *uint64) bool {
+	return prm.pmk.GetUint64(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetBytes(key string, ptr *[]byte) bool {
+	return prm.pmk.GetBytes(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetStrings(key string, ptr *[]string) bool {
+	return prm.pmk.GetStrings(prm.ctx, key, ptr)
 }
 
 func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {

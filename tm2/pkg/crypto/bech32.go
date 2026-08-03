@@ -21,7 +21,7 @@ func AddressFromBech32(bech32str string) (Address, error) {
 	if err != nil {
 		return Address{}, err
 	} else {
-		return AddressFromBytes(bz), nil
+		return AddressFromBytes(bz)
 	}
 }
 
