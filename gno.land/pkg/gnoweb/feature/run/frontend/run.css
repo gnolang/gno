@@ -9,6 +9,30 @@
 	padding-bottom: var(--g-space-24);
 }
 
+/* The block is also embedded per-function inside the action page's cards, where
+   the page-level sizing above does not apply. */
+.b-run--embedded {
+	min-height: 0;
+	grid-column: auto;
+	padding-bottom: 0;
+
+	.b-code-editor {
+		height: 30vh;
+		min-height: 200px;
+	}
+}
+
+/* Title + Reset/Download row. Unlike .b-content-header this carries no page-grid
+   placement, so it works both standalone and embedded in a card. */
+.b-run-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	margin-block-end: var(--g-space-3);
+}
+
 .b-run-settings {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);

@@ -2,6 +2,7 @@ package components
 
 import (
 	"html/template"
+	"path"
 	"strings"
 
 	// for error types
@@ -32,6 +33,12 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+}
+
+// PkgAlias returns the last segment of the import path. It seeds the script
+// template in the run scratchpad, matching run.RunData.PkgAlias.
+func (d HelpData) PkgAlias() string {
+	return path.Base(d.PkgPath)
 }
 
 type HelpTocData struct {

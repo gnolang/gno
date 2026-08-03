@@ -10,7 +10,12 @@ export class RunController extends BaseController {
 	private declare remote: string;
 	private declare chainId: string;
 	private declare editorEl: HTMLElement;
-	private declare keyEl: HTMLInputElement;
+	// Absent when the block is embedded in a page that already has a key input
+	// (the action page); then the key arrives via "address:changed" instead.
+	private declare keyEl: HTMLInputElement | null;
+	// `declare` + assigned in connect(): connect() runs during super(), so a
+	// field initialiser here would not exist yet when the first render reads it.
+	private declare broadcastKey: string;
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
@@ -25,7 +30,8 @@ export class RunController extends BaseController {
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
 		this.editorEl = this.getTarget("editor") as HTMLElement;
-		this.keyEl = this.getTarget("key") as HTMLInputElement;
+		this.keyEl = this.getTarget("key") as HTMLInputElement | null;
+		this.broadcastKey = "";
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
@@ -47,6 +53,16 @@ export class RunController extends BaseController {
 			this.editor.changeTheme(isDarkMode());
 		});
 
+		// Without a key field of its own, follow the page-level Key/Address input
+		// that the action-header controller broadcasts (it replays the stored
+		// value once every controller is ready).
+		if (!this.keyEl) {
+			this.on("address:changed", (event: Event) => {
+				this.broadcastKey = (event as CustomEvent).detail?.address ?? "";
+				this._updateCommand();
+			});
+		}
+
 		this._setupInputListeners();
 		this._updateCommand();
 	}
@@ -65,7 +81,7 @@ func main() {
 
 	private _setupInputListeners(): void {
 		const update = (): void => this._updateCommand();
-		this.keyEl.addEventListener("input", update);
+		this.keyEl?.addEventListener("input", update);
 		this.gasWantedEl.addEventListener("input", update);
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
@@ -74,7 +90,7 @@ func main() {
 	}
 
 	private _buildCmd(dryRun: boolean): string {
-		const key = this.keyEl.value.trim() || "<key-name>";
+		const key = (this.keyEl?.value ?? this.broadcastKey).trim() || "ADDRESS";
 		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
 		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
 		const send = this.sendEl.value.trim();
