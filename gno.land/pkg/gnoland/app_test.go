@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -1502,7 +1503,7 @@ func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Appli
 	prmk := params.NewParamsKeeper(mainKey)
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)

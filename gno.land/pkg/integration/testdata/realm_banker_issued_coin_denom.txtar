@@ -43,7 +43,7 @@ stdout '31330/gno.land/r/test/realm_banker:ugnot'
 gnokey maketx send -send "5000000ugnot" -to ${test2_user_addr} -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
 
 ## transfer coin
-gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid=tendermint_test test2
+gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 180001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test2
 
 ## check sender balance
 gnokey query bank/balances/${test2_user_addr}
@@ -100,14 +100,15 @@ gno = "0.9"
 package token
 
 import (
+	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
+
 -- short/gnomod.toml --
 module = "gno.land/r/test/realm_banker"
 gno = "0.9"
@@ -116,18 +117,18 @@ gno = "0.9"
 package realm_banker
 
 import (
+	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.RemoveCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
@@ -138,18 +139,18 @@ gno = "0.9"
 package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
 import (
+	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.RemoveCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 -- invalid_realm_denom/gnomod.toml --
 module = "gno.land/r/test/invalid_realm_denom"

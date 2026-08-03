@@ -56,3 +56,9 @@ node_modules/
 # root (e.g. config/addrbook.json). Root-anchored so nested config/
 # package directories are never hidden.
 /config/
+
+# built contribs/misc binaries (produced by `go build ./...` inside a submodule)
+/contribs/gnobr/gnobr
+/contribs/gnokeykc/gnokeykc
+/contribs/gnomd/gnomd
+/misc/stdlib_diff/stdlib_diff

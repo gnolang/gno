@@ -30,6 +30,10 @@ func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	return coins
 }
 
+// GetCoin reads one denom without touching any other — the O(1) accessor the
+// balance split exists to provide. GetCoins costs O(denoms held) and an address
+// does not control how many denoms it has been sent.
+
 func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
 	from := crypto.MustAddressFromString(string(b32from))
 	to := crypto.MustAddressFromString(string(b32to))
@@ -43,17 +47,36 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 	panic("not yet implemented")
 }
 
+// assertIssuable re-checks in Go that denom is realm-qualified.
+//
+// chain/banker's assertCoinDenom already enforces the full
+// "/" + pkgPath + ":" + base shape, but it lives in interpreted stdlib source
+// and neither X_bankerIssueCoin nor this type validated anything. That was
+// tolerable while the prefix was only a naming convention. It is not now: the
+// prefix is what separates denoms a realm may create from those it may not, so a
+// bare denom reaching here would let a realm mint the chain's own gas denom.
+//
+// Note this is not the storage-tier question — that is an allowlist in the bank
+// (ViewKeeper.inAccountTier), and the two must not be conflated.
+func assertIssuable(denom string) {
+	if !std.IsRealmDenom(denom) {
+		panic("cannot issue or remove a non realm-qualified denom: " + denom)
+	}
+}
+
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
+	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
+	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}

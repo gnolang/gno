@@ -145,7 +145,7 @@ func TestViewKeeper(t *testing.T) {
 
 	env := setupTestEnv()
 	ctx := env.ctx
-	view := NewViewKeeper(env.acck)
+	view := NewViewKeeper(env.acck, env.key, accountTierTestDenoms)
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
@@ -172,8 +172,11 @@ func setupSessionCtx(t *testing.T, env testEnv, masterCoins, spendLimit std.Coin
 	t.Helper()
 	masterAddr := crypto.AddressFromPreimage([]byte("master"))
 	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(masterCoins)
 	env.acck.SetAccount(env.ctx, masterAcc)
+	// Seed through the bank, not acc.SetCoins: the bank routes each denom to
+	// whichever tier owns it, and writing the account object directly would put
+	// split-tier denoms where nothing reads them.
+	require.NoError(t, env.bankk.SetCoins(env.ctx, masterAddr, masterCoins))
 
 	sessionPub := crypto.AddressFromPreimage([]byte("session"))
 	// ProtoBaseSessionAccount creates a *BaseSessionAccount directly.
@@ -269,7 +272,7 @@ func TestSessionInputOutputCoinsPerInput(t *testing.T) {
 	// session-scoped and should pass freely.
 	otherAddr := crypto.AddressFromPreimage([]byte("other"))
 	otherAcc := env.acck.NewAccountWithAddress(ctx, otherAddr)
-	otherAcc.SetCoins(std.NewCoins(std.NewCoin("foo", 500)))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, otherAddr, std.NewCoins(std.NewCoin("foo", 500))))
 	env.acck.SetAccount(ctx, otherAcc)
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
@@ -323,9 +326,8 @@ func TestNonSessionSendCoinsNoOp(t *testing.T) {
 	ctx := env.ctx // no SessionAccountsContextKey
 
 	addr := crypto.AddressFromPreimage([]byte("addr"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 1000)))
-	env.acck.SetAccount(ctx, acc)
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	require.NoError(t, env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foo", 1000))))
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
 	require.NoError(t, env.bankk.SendCoins(ctx, addr, recipient, std.NewCoins(std.NewCoin("foo", 500))))
@@ -483,9 +485,8 @@ func TestSessionHighWaterMarkAfterRefund(t *testing.T) {
 	// Give the "refund source" a balance so SendCoinsUnrestricted can
 	// credit master without requiring minting.
 	refundSrc := crypto.AddressFromPreimage([]byte("storage-deposit-addr"))
-	acc := env.acck.NewAccountWithAddress(ctx, refundSrc)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 500)))
-	env.acck.SetAccount(ctx, acc)
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, refundSrc))
+	require.NoError(t, env.bankk.SetCoins(ctx, refundSrc, std.NewCoins(std.NewCoin("foo", 500))))
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
 

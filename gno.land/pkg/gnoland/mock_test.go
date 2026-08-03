@@ -151,12 +151,12 @@ func (m *mockBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.
 	return nil
 }
 
-func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
-func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
 func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
@@ -168,6 +168,10 @@ func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.
 
 func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	return true
+}
+
+func (m *mockBankKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	return 0
 }
 
 type mockAuthKeeper struct{}

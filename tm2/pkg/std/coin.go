@@ -685,7 +685,7 @@ var (
 // the Gno side from both directions.
 const maxBaseDenomLength = 16
 
-// maxDenomLength is the longest a denom may be, in bytes — 274 today, being a
+// MaxDenomLength is the longest a denom may be, in bytes — 274 today, being a
 // 256-byte package path, a 16-byte base name, and the two separators. The
 // charset is ASCII-only, so bytes and characters are the same thing here.
 //
@@ -703,21 +703,37 @@ const maxBaseDenomLength = 16
 // Those two caps only cover realm issuance, whereas ValidateDenom is the gate
 // every denom passes through whatever its origin, so restating them here is
 // what extends the limit to denoms arriving from a decoded transaction, a
-// genesis file, or bank params. Denom bytes are not free: Coins serialize into
-// the account object as one comma-joined string, so every byte of every denom
-// is re-read and re-written on each balance change.
-const maxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
+// genesis file, or bank params.
+//
+// Denom bytes are not free, and for a balance held in its own store key this cap
+// is the only thing bounding them, since store keys are not gas-metered. See
+// tm2/pkg/sdk/bank/balance.go.
+const MaxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
 
 func ValidateDenom(denom string) error {
 	// Length first: cheaper than the pattern, and it names the real problem
 	// instead of a generic "invalid denom".
-	if len(denom) > maxDenomLength {
-		return fmt.Errorf("denom length %d exceeds limit %d", len(denom), maxDenomLength)
+	if len(denom) > MaxDenomLength {
+		return fmt.Errorf("denom length %d exceeds limit %d", len(denom), MaxDenomLength)
 	}
 	if !reDnm.MatchString(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)
 	}
 	return nil
+}
+
+// IsRealmDenom reports whether denom is one a realm may issue.
+//
+// This answers who may *create* a denom, not where its balance is stored — that
+// is an allowlist in the bank (ViewKeeper.inAccountTier). Do not conflate them:
+// an IBC voucher is neither realm-issuable nor account-tier.
+//
+// chain.CoinDenom builds a realm denom as "/" + pkgPath + ":" + base and
+// reDnmString's leading class is [a-z\/], so a leading "/" identifies exactly
+// the realm-issuable set. Enforced at SDKBanker.IssueCoin, which makes it a
+// security boundary: without it a realm could mint the chain's gas denom.
+func IsRealmDenom(denom string) bool {
+	return strings.HasPrefix(denom, "/")
 }
 
 func mustValidateDenom(denom string) {

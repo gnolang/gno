@@ -40,6 +40,9 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 }
 
 // QueryAccount retrieves account information for a given address.
+//
+// The returned account's Coins field holds only the chain's gas denom. Every
+// other denom lives in its own store key; query bank/balances for the full set.
 func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err

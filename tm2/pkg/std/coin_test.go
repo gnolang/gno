@@ -101,7 +101,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// TestValidateDenomLength checks maxDenomLength against the limits it is
+// TestValidateDenomLength checks MaxDenomLength against the limits it is
 // derived from rather than against a copy of the number, so that if
 // pkgPathLimit ever moves the test moves with it.
 func TestValidateDenomLength(t *testing.T) {
@@ -123,14 +123,14 @@ func TestValidateDenomLength(t *testing.T) {
 			"measuring anything the issuance path can actually build")
 
 	longestDenom := "/" + longestPath + ":" + strings.Repeat("b", maxBaseDenomLength)
-	require.Len(t, longestDenom, maxDenomLength,
-		"maxDenomLength must equal the longest denom the issuance path can build")
+	require.Len(t, longestDenom, MaxDenomLength,
+		"MaxDenomLength must equal the longest denom the issuance path can build")
 	require.NoError(t, ValidateDenom(longestDenom))
 
 	// One byte over is rejected, and says so specifically.
 	tooLong := longestDenom + "b"
 	require.EqualError(t, ValidateDenom(tooLong),
-		fmt.Sprintf("denom length %d exceeds limit %d", len(tooLong), maxDenomLength))
+		fmt.Sprintf("denom length %d exceeds limit %d", len(tooLong), MaxDenomLength))
 
 	// The limit also holds on the decode path, where untrusted input arrives:
 	// ParseCoins and Coin/Coins.UnmarshalAmino all funnel through ParseCoin.
@@ -938,4 +938,51 @@ func TestContainOneOfDenom(t *testing.T) {
 
 	// only return true when the value is posible
 	require.False(t, zero.ContainOneOfDenom(restrictList))
+}
+
+// TestIsRealmDenom pins which denoms a realm may issue, against the leading-class
+// property it derives from. It must test the *first* character, not whether a "/"
+// appears anywhere. This is not the storage-tier predicate — that is an allowlist
+// in the bank — so the two groups below are "realm may issue" and "realm may
+// not", never "split tier" and "account tier".
+func TestIsRealmDenom(t *testing.T) {
+	t.Parallel()
+
+	mayIssue := []string{
+		"/gno.land/r/demo/foo:gold",
+		"/gno.land/r/my-org/token:gold",
+		"/a.b:c",
+	}
+	mayNotIssue := []string{
+		"ugnot",
+		"atom",
+		"foo-bar",
+		// Interior and trailing slashes: legal denoms that are NOT realm-issued.
+		// A substring test rather than a prefix test would mis-tier these.
+		"gno.land/r/demo/foo:gold",
+		"ugnot/evil",
+		"a/b",
+	}
+
+	for _, denom := range mayIssue {
+		require.NoError(t, ValidateDenom(denom), "test denom must be valid: %s", denom)
+		require.True(t, IsRealmDenom(denom), "%s is realm-issuable", denom)
+	}
+	for _, denom := range mayNotIssue {
+		require.NoError(t, ValidateDenom(denom), "test denom must be valid: %s", denom)
+		require.False(t, IsRealmDenom(denom),
+			"%s has no leading slash, so a realm may not issue it", denom)
+	}
+
+	// The predicate must agree with the leading class reDnmString admits: a valid
+	// denom starts with "/" or a lowercase letter and nothing else, so
+	// IsRealmDenom partitions the whole space of valid denoms.
+	for i := range 256 {
+		denom := string([]byte{byte(i)}) + "aaa"
+		if ValidateDenom(denom) != nil {
+			continue
+		}
+		require.Equal(t, denom[0] == '/', IsRealmDenom(denom),
+			"IsRealmDenom must key on the first byte alone: %q", denom)
+	}
 }

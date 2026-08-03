@@ -757,6 +757,17 @@ Returns `Coins` owned by `address`.
 ```go
 coins := banker.GetCoins(addr)
 ```
+
+:::info Cost grows with the number of denominations held
+
+`GetCoins` returns *every* denomination the address holds, so it costs gas in
+proportion to how many that is — and an address can be sent denominations it
+never asked for (see [IssueCoin](#issuecoin)), so that cost is not under its
+control. If you only care about one denomination, use
+[GetCoin](#getcoin) instead; its cost does not grow with the rest.
+
+:::
+
 ---
 
 ### SendCoins
@@ -787,9 +798,27 @@ Issues `amount` of coin with a denomination `denom` to address `addr`.
 banker.IssueCoin(addr, denom, amount)
 ```
 
+:::warning Issuing needs no consent from the recipient
+
+`addr` is arbitrary. A realm can issue its coins to any address without that
+address agreeing, and the recipient cannot refuse or dispose of them — only the
+issuing realm may [RemoveCoin](#removecoin), and there is no burn. Do not treat
+"this address holds our coin" as evidence that its owner opted in to anything.
+
+Because of this, realm-issued balances are stored per denomination, outside the
+account object, so that coins an address was sent unsolicited cannot make that
+address's own transactions more expensive.
+
+:::
+
 :::info Coin denominations
 
-`Banker` methods expect qualified denomination of the coins. Read more [here](#coindenom).
+`IssueCoin` and `RemoveCoin` require a qualified denomination — `"/" + pkgPath +
+":" + name`, as built by [CoinDenom](#coindenom) — and a realm may only issue
+under its own `pkgPath`. The leading `/` is what distinguishes a realm-issued
+denomination from one defined at genesis, such as `ugnot`; a realm cannot issue
+the latter. `GetCoins` and `SendCoins` take whatever denomination the coin
+actually has, qualified or not. (`TotalCoin` is not yet implemented.)
 
 :::
 
@@ -797,6 +826,9 @@ banker.IssueCoin(addr, denom, amount)
 
 ### RemoveCoin
 Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
+
+Only the realm that issued a denomination may remove it, and it may do so from
+any holder without their consent.
 
 ##### Parameters
 - `addr` **address** to remove coins from

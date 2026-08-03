@@ -5,10 +5,12 @@ import (
 	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // bank.Keeper defines a module interface that facilitates the transfer of
@@ -19,8 +21,8 @@ type BankKeeperI interface {
 	InputOutputCoins(ctx sdk.Context, inputs []Input, outputs []Output) error
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 
-	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
-	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
+	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 
@@ -41,9 +43,12 @@ type BankKeeper struct {
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
+//
+// accountDenoms is the allowlist of denoms held inside the account object; see
+// balance.go. Everything else gets its own key. Pass the chain's gas denoms.
+func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI, key store.StoreKey, accountDenoms []string) BankKeeper {
 	return BankKeeper{
-		ViewKeeper: NewViewKeeper(acck),
+		ViewKeeper: NewViewKeeper(acck, key, accountDenoms),
 		acck:       acck,
 		prmk:       pk,
 	}
@@ -90,8 +95,7 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, in.Address, in.Coins); err != nil {
 			return err
 		}
-		_, err := bank.SubtractCoins(ctx, in.Address, in.Coins)
-		if err != nil {
+		if err := bank.SubtractCoins(ctx, in.Address, in.Coins); err != nil {
 			return err
 		}
 
@@ -106,8 +110,7 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 	}
 
 	for _, out := range outputs {
-		_, err := bank.AddCoins(ctx, out.Address, out.Coins)
-		if err != nil {
+		if err := bank.AddCoins(ctx, out.Address, out.Coins); err != nil {
 			return err
 		}
 
@@ -169,12 +172,10 @@ func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAdd
 // SendCoinsUnrestricted is used for paying gas.
 // It bypasses vesting and session-spend checks.
 func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
-	_, err := bank.subtractCoinsUnrestricted(ctx, fromAddr, amt)
-	if err != nil {
+	if err := bank.subtractCoinsUnrestricted(ctx, fromAddr, amt); err != nil {
 		return err
 	}
-	_, err = bank.AddCoins(ctx, toAddr, amt)
-	return err
+	return bank.AddCoins(ctx, toAddr, amt)
 }
 
 func (bank BankKeeper) sendCoins(
@@ -183,13 +184,11 @@ func (bank BankKeeper) sendCoins(
 	toAddr crypto.Address,
 	amt std.Coins,
 ) error {
-	_, err := bank.SubtractCoins(ctx, fromAddr, amt)
-	if err != nil {
+	if err := bank.SubtractCoins(ctx, fromAddr, amt); err != nil {
 		return err
 	}
 
-	_, err = bank.AddCoins(ctx, toAddr, amt)
-	if err != nil {
+	if err := bank.AddCoins(ctx, toAddr, amt); err != nil {
 		return err
 	}
 
@@ -231,45 +230,88 @@ func (bank BankKeeper) upgradeVestingAccount(ctx sdk.Context, acc std.Account) s
 	return baseAcc
 }
 
+// splitByTier partitions amt by where each denom is stored. Both halves keep
+// amt's ascending order, so each can be used directly as std.Coins.
+func (view ViewKeeper) splitByTier(amt std.Coins) (split, account std.Coins) {
+	for _, coin := range amt {
+		if view.inAccountTier(coin.Denom) {
+			account = append(account, coin)
+		} else {
+			split = append(split, coin)
+		}
+	}
+	return split, account
+}
+
+// ensureAccount creates addr's account if it has none, and returns it.
+//
+// Receiving coins has always created the account, and that must not change: an
+// address with no account cannot sign a transaction (auth.GetSignerAcc), so a
+// recipient funded without one would hold visible but permanently unspendable
+// coins. Account creation also allocates an account number from a global
+// counter, so *when* it happens is consensus state.
+func (bank BankKeeper) ensureAccount(ctx sdk.Context, addr crypto.Address) std.Account {
+	acc := bank.acck.GetAccount(ctx, addr)
+	if acc == nil {
+		acc = bank.acck.NewAccountWithAddress(ctx, addr)
+		bank.acck.SetAccount(ctx, acc)
+	}
+	return acc
+}
+
+// setAccountTierCoins replaces the account-tier balances in addr's account
+// object. acc is the account if the caller already has it, else nil.
+func (bank BankKeeper) setAccountTierCoins(ctx sdk.Context, acc std.Account, addr crypto.Address, coins std.Coins) error {
+	if acc == nil {
+		acc = bank.ensureAccount(ctx, addr)
+	}
+	if err := acc.SetCoins(coins); err != nil {
+		return err
+	}
+	bank.acck.SetAccount(ctx, acc)
+	return nil
+}
+
 // SubtractCoins subtracts amt from the coins at the addr.
 //
-// Enforces vesting: if the account is a VestingAccount, the amount must
-// not exceed the spendable (unlocked) coins at the current block time.
-func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+// Enforces vesting: if the account is a VestingAccount, the amount must not
+// exceed the spendable (unlocked) balance at the current block time.
+func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
-		return nil, std.ErrInvalidCoins(amt.String())
+		return std.ErrInvalidCoins(amt.String())
 	}
 
-	oldCoins := std.NewCoins()
-	acc := bank.acck.GetAccount(ctx, addr)
-	if acc != nil {
-		oldCoins = acc.GetCoins()
-	}
+	// Once the schedule completes the account becomes a plain BaseAccount, so
+	// later transfers skip the vesting check entirely.
+	acc := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
 
-	// Vesting enforcement: the amount subtracted must be spendable.
-	// Once the vesting schedule completes, the account is upgraded to a
-	// plain BaseAccount so future transfers skip vesting checks entirely.
-	acc = bank.upgradeVestingAccount(ctx, acc)
+	// The schedule is checked one denom at a time, reading only the denoms being
+	// spent — never the whole balance set, which is what makes this O(len(amt))
+	// rather than O(n). It is deliberately tier-agnostic: a genesis balances file
+	// may name a "/"-prefixed denom (ValidateDenom accepts one), so locking is
+	// not assumed to apply only to the account-object tier. GetBalance routes
+	// each denom to wherever it actually lives.
 	if va, ok := acc.(std.VestingAccount); ok {
-		spendable := std.SpendableCoins(va, ctx.BlockTime())
-		if !spendable.IsAllGTE(amt) {
-			return nil, std.ErrVestingLockedCoins(fmt.Sprintf(
-				"insufficient spendable coins; %s < %s (locked=%s)",
-				spendable, amt, va.LockedCoins(ctx.BlockTime()),
-			))
+		locked := va.LockedCoins(ctx.BlockTime())
+		for _, coin := range amt {
+			lockedAmt := locked.AmountOf(coin.Denom)
+			if lockedAmt == 0 {
+				continue
+			}
+			// The schedule can lock more than the account holds, once an
+			// unrestricted transfer has spent into the locked portion. Clamp so
+			// the error reports nothing spendable rather than a negative.
+			spendable := max(bank.GetBalance(ctx, addr, coin.Denom)-lockedAmt, 0)
+			if spendable < coin.Amount {
+				return std.ErrVestingLockedCoins(fmt.Sprintf(
+					"insufficient spendable coins; %d%s < %s (locked=%s)",
+					spendable, coin.Denom, coin, locked,
+				))
+			}
 		}
 	}
 
-	newCoins := oldCoins.SubUnsafe(amt)
-	if !newCoins.IsValid() {
-		err := std.ErrInsufficientCoins(
-			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
-		)
-		return nil, err
-	}
-	err := bank.SetCoins(ctx, addr, newCoins)
-
-	return newCoins, err
+	return bank.subtract(ctx, acc, addr, amt)
 }
 
 // subtractCoinsUnrestricted performs raw coin subtraction without vesting or
@@ -277,69 +319,159 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 // and other system-level transfers.
 //
 // Still upgrades fully-vested accounts to BaseAccount when the schedule ends.
-func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
-		return nil, std.ErrInvalidCoins(amt.String())
+		return std.ErrInvalidCoins(amt.String())
+	}
+	acc := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
+	return bank.subtract(ctx, acc, addr, amt)
+}
+
+// subtract debits amt: one key per split-tier denom, plus at most one account
+// write for the account-tier denoms. No vesting or session checks.
+//
+// acc is the account as the caller already read it, or nil. Threaded in only to
+// avoid re-decoding it; pass nil if you do not have it.
+//
+// Relies on amt holding each denom at most once, which std.Coins guarantees and
+// every caller checks via amt.IsValid(). A repeated denom would have both
+// entries compute their remainder from the same starting balance, so the last
+// write would win and one debit would vanish.
+//
+// Every debit is checked before any is written, so returning an error leaves
+// balances untouched. The previous whole-account implementation validated the
+// resulting Coins before its single write and was therefore atomic by
+// construction; nothing here should be less safe. A transaction abort would
+// usually roll a partial debit back, but that puts the invariant in the caller,
+// and it does not hold for a caller that logs and continues.
+func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins) error {
+	// A non-positive amount turns this debit into a credit, on either tier, so
+	// reject it before splitting. Every caller validates amt, so this cannot fire
+	// today; it is here because neither tier defends itself otherwise:
+	//
+	//   - split tier: the check is `old < coin.Amount`, which a negative passes
+	//     since old is never negative. The subtraction then credits, or overflows
+	//     to a negative that only encodeBalance catches.
+	//   - account tier: Coins.SubUnsafe followed by IsValid validates the
+	//     *result*, and a negative debit produces a larger positive result, which
+	//     is perfectly valid. Subtracting -500 from 100 yields 600.
+	//
+	// With every amount positive, and each checked against the balance below, no
+	// subtraction here can overflow.
+	if err := assertPositiveAmounts(amt); err != nil {
+		return err
 	}
 
-	oldCoins := std.NewCoins()
-	acc := bank.acck.GetAccount(ctx, addr)
-	if acc != nil {
-		oldCoins = acc.GetCoins()
+	split, account := bank.splitByTier(amt)
+
+	// Carry each new balance with its denom rather than in a positionally
+	// aligned slice: an index mistake here would write one denom's balance to
+	// another denom's key, which no type would catch.
+	debited := make(std.Coins, len(split))
+	for i, coin := range split {
+		old := bank.getSplitBalance(ctx, addr, coin.Denom)
+		if old < coin.Amount {
+			return std.ErrInsufficientCoins(fmt.Sprintf(
+				"insufficient account funds; %d%s < %s", old, coin.Denom, coin))
+		}
+		debited[i] = std.Coin{Denom: coin.Denom, Amount: old - coin.Amount}
 	}
 
-	// Upgrade fully-vested accounts even on unrestricted transfers.
-	bank.upgradeVestingAccount(ctx, acc)
-
-	newCoins := oldCoins.SubUnsafe(amt)
-	if !newCoins.IsValid() {
-		err := std.ErrInsufficientCoins(
-			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
-		)
-		return nil, err
+	var newCoins std.Coins
+	if len(account) > 0 {
+		oldCoins := std.NewCoins()
+		if acc != nil {
+			oldCoins = bank.accountTierCoins(acc)
+		}
+		newCoins = oldCoins.SubUnsafe(account)
+		if !newCoins.IsValid() {
+			return std.ErrInsufficientCoins(fmt.Sprintf(
+				"insufficient account funds; %s < %s", oldCoins, account))
+		}
 	}
-	err := bank.SetCoins(ctx, addr, newCoins)
 
-	return newCoins, err
+	// The account write goes first because it is the only step that can still
+	// fail — setAccountTierCoins returns Account.SetCoins's error — while
+	// setSplitBalance cannot, every balance having been checked non-negative
+	// above. With the fallible step first, a failure leaves nothing written.
+	// AddCoins orders its writes the same way, for the same reason.
+	if len(account) > 0 {
+		if err := bank.setAccountTierCoins(ctx, acc, addr, newCoins); err != nil {
+			return err
+		}
+	}
+	for _, coin := range debited {
+		bank.setSplitBalance(ctx, addr, coin.Denom, coin.Amount)
+	}
+	return nil
 }
 
 // AddCoins adds amt to the coins at the addr.
-func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
-		return nil, std.ErrInvalidCoins(amt.String())
+		return std.ErrInvalidCoins(amt.String())
+	}
+	split, account := bank.splitByTier(amt)
+
+	// Sum every new balance before writing any, for the same reason subtract
+	// checks before writing: a failure partway must not leave some credits
+	// applied and others not.
+	credited := make(std.Coins, len(split))
+	for i, coin := range split {
+		old := bank.getSplitBalance(ctx, addr, coin.Denom)
+		sum, ok := overflow.Add(old, coin.Amount)
+		if !ok {
+			// Matches std.Coins.Add, which panics rather than wrapping. A silent
+			// wrap here would mint coins out of a negative balance.
+			panic(fmt.Sprintf("coin add overflow: %d%s + %s", old, coin.Denom, coin))
+		}
+		credited[i] = std.Coin{Denom: coin.Denom, Amount: sum}
 	}
 
-	oldCoins := bank.GetCoins(ctx, addr)
-	newCoins := oldCoins.Add(amt)
+	// Receiving coins creates the account whichever tier they land in.
+	acc := bank.ensureAccount(ctx, addr)
 
-	if !newCoins.IsValid() {
-		return amt, std.ErrInsufficientCoins(
-			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
-		)
+	// The account-tier credit goes first: Coins.Add panics on overflow, so doing
+	// it before the split writes keeps the whole credit all-or-nothing.
+	if len(account) > 0 {
+		if err := acc.SetCoins(bank.accountTierCoins(acc).Add(account)); err != nil {
+			return err
+		}
+		bank.acck.SetAccount(ctx, acc)
 	}
-
-	err := bank.SetCoins(ctx, addr, newCoins)
-	return newCoins, err
+	for _, coin := range credited {
+		bank.setSplitBalance(ctx, addr, coin.Denom, coin.Amount)
+	}
+	return nil
 }
 
-// SetCoins sets the coins at the addr.
+// SetCoins replaces every balance at addr.
+//
+// Replace-all is only meaningful at genesis and in tests; ordinary transfers use
+// AddCoins/SubtractCoins, which touch one key per split-tier denom moved. Balances
+// present but absent from amt are deleted, so this is a replacement and not a
+// merge.
+//
+// Cost is O(denoms currently held), and each removal is a full store write, so
+// this is not safe to call on an address whose denom count an attacker controls —
+// clearing a few hundred would exceed the block gas limit. Every caller today
+// runs at genesis, where the count is known.
 func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}
+	split, account := bank.splitByTier(amt)
 
-	acc := bank.acck.GetAccount(ctx, addr)
-	if acc == nil {
-		acc = bank.acck.NewAccountWithAddress(ctx, addr)
+	// splitCoins fully drains and closes its iterator before returning, so there
+	// is no live iteration to invalidate by deleting here.
+	for _, coin := range bank.splitCoins(ctx, addr) {
+		bank.setSplitBalance(ctx, addr, coin.Denom, 0)
+	}
+	for _, coin := range split {
+		bank.setSplitBalance(ctx, addr, coin.Denom, coin.Amount)
 	}
 
-	err := acc.SetCoins(amt)
-	if err != nil {
-		panic(err)
-	}
-
-	bank.acck.SetAccount(ctx, acc)
-	return nil
+	return bank.setAccountTierCoins(ctx, nil, addr, account)
 }
 
 // ----------------------------------------
@@ -349,6 +481,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 // account balances.
 type ViewKeeperI interface {
 	GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins
+	GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64
 	HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool
 }
 
@@ -357,11 +490,88 @@ var _ ViewKeeperI = ViewKeeper{}
 // ViewKeeper implements a read only keeper implementation of ViewKeeperI.
 type ViewKeeper struct {
 	acck auth.AccountKeeper
+	// key holds split-tier balances; see balance.go.
+	key store.StoreKey
+	// accountDenoms is the allowlist of denoms kept in the account object.
+	accountDenoms map[string]struct{}
 }
 
 // NewViewKeeper returns a new ViewKeeper.
-func NewViewKeeper(acck auth.AccountKeeper) ViewKeeper {
-	return ViewKeeper{acck: acck}
+//
+// accountDenoms is the allowlist of denoms held inside the account object.
+func NewViewKeeper(acck auth.AccountKeeper, key store.StoreKey, accountDenoms []string) ViewKeeper {
+	allow := make(map[string]struct{}, len(accountDenoms))
+	for _, denom := range accountDenoms {
+		// The account tier is a metered blob shared by every denom in it, so an
+		// entry here is a security decision, not a config detail: a realm-issuable
+		// denom on this list would reinstate the unbounded-growth attack the split
+		// exists to close. Reject at construction, where the chain fails to start,
+		// rather than at the first mint.
+		if err := std.ValidateDenom(denom); err != nil {
+			panic(fmt.Sprintf("invalid account-tier denom %q: %v", denom, err))
+		}
+		if std.IsRealmDenom(denom) {
+			panic(fmt.Sprintf("account-tier denom %q is realm-issuable", denom))
+		}
+		allow[denom] = struct{}{}
+	}
+	return ViewKeeper{acck: acck, key: key, accountDenoms: allow}
+}
+
+// inAccountTier reports whether denom's balance lives inside the account object
+// rather than in its own key.
+//
+// An allowlist, not a pattern: the account tier exists only because the account
+// object is written on every transaction anyway (for the sequence bump), so a
+// balance kept there rides along at no extra cost. That argument holds for the
+// denoms used to pay gas and for nothing else. Anything absent from the list —
+// realm-issued coins, IBC vouchers, any future denom — gets its own key, where
+// its count cannot affect the holder's other transactions.
+//
+// Deliberately closed rather than open: a new kind of denom is split by default,
+// so arriving at the account tier requires an explicit decision.
+func (view ViewKeeper) inAccountTier(denom string) bool {
+	_, ok := view.accountDenoms[denom]
+	return ok
+}
+
+// accountTierCoins returns the balances held inside acc, asserting that every
+// one of them belongs to the account tier. Returns nil for a nil account.
+//
+// This is the mirror of the assertion in splitCoins, and it covers the direction
+// the allowlist is actually expected to move: shrinking it is how a chain
+// migrates to a fully split layout. Run such a binary against unmigrated state
+// and a denom sits in the account object while the keeper believes it is split —
+// GetCoins would sum both homes while GetBalance saw only one, so a balance would
+// read as spendable that is not. A denom must live in exactly one tier; fail
+// loudly at the first read rather than report a number nobody can spend.
+func (view ViewKeeper) accountTierCoins(acc std.Account) std.Coins {
+	if acc == nil {
+		return nil
+	}
+	coins := acc.GetCoins()
+	for _, coin := range coins {
+		if !view.inAccountTier(coin.Denom) {
+			panic(fmt.Sprintf(
+				"denom %q is in the account object but not in the account tier: "+
+					"the allowlist changed without migrating existing balances", coin.Denom))
+		}
+	}
+	return coins
+}
+
+// assertPositiveAmounts rejects any non-positive amount.
+//
+// Only subtract needs this. AddCoins validates its own amt via Coins.IsValid, so
+// it is defended already; subtract is internal and inherits nothing, and its
+// arithmetic inverts on a negative — see the call site.
+func assertPositiveAmounts(amt std.Coins) error {
+	for _, coin := range amt {
+		if coin.Amount <= 0 {
+			return std.ErrInvalidCoins(fmt.Sprintf("non-positive debit: %s", coin))
+		}
+	}
+	return nil
 }
 
 // Logger returns a module-specific logger.
@@ -369,16 +579,70 @@ func (view ViewKeeper) Logger(ctx sdk.Context) *slog.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 }
 
-// GetCoins returns the coins at the addr.
+// GetCoins returns every coin held at addr, from both tiers.
+//
+// The two are merged rather than concatenated. An earlier version could
+// concatenate, because the split tier held only "/"-prefixed denoms which sort
+// below everything else; with an allowlist that no longer holds — a split denom
+// such as "atom" sorts before an account-tier "ugnot" — so neither order is
+// universally ascending. Coins.Add is a merge over sorted sets, and the tiers
+// are disjoint by construction, so no two amounts are ever summed.
+//
+// Costs O(number of split-tier denoms held). Use GetBalance when one denom will
+// do — that is the whole point of the split.
 func (view ViewKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins {
-	acc := view.acck.GetAccount(ctx, addr)
-	if acc == nil {
+	split := view.splitCoins(ctx, addr)
+	account := view.accountTierCoins(view.acck.GetAccount(ctx, addr))
+	switch {
+	case len(split) == 0 && len(account) == 0:
 		return std.NewCoins()
+	case len(split) == 0:
+		// The common case on a chain whose only account-tier denom is the gas
+		// denom: no merge, no copy.
+		return account
+	case len(account) == 0:
+		return split
 	}
-	return acc.GetCoins()
+	// AddUnsafe, not Add: Add re-runs ValidateDenom — a regexp — over every
+	// denom in the result, which at a few dozen denoms costs more than the
+	// iteration that produced them, and bank/balances reaches this with no gas
+	// limit at all. Both inputs are already valid (each denom passed
+	// ValidateDenom on the way in) and the tiers are disjoint, so there is
+	// nothing for the revalidation to find. splitCoins asserts its own ordering.
+	return split.AddUnsafe(account)
+}
+
+// GetBalance returns addr's balance of one denom without reading any other. This
+// is the O(1) accessor.
+func (view ViewKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	// Bound the denom before touching anything. No balance can exist for an
+	// over-long denom, since every write validates, so returning zero is exact —
+	// and this is the only thing standing between a caller-supplied string and
+	// work proportional to its length: inAccountTier hashes the whole string,
+	// BalanceKey copies it, and the cache store retains a copy of the key for the
+	// life of the transaction while charging a flat rate. The bound has to be
+	// checked first for any of that to be avoided.
+	if len(denom) > std.MaxDenomLength {
+		return 0
+	}
+	if !view.inAccountTier(denom) {
+		return view.getSplitBalance(ctx, addr, denom)
+	}
+	return view.accountTierCoins(view.acck.GetAccount(ctx, addr)).AmountOf(denom)
 }
 
 // HasCoins returns whether or not an account has at least amt coins.
+//
+// Checked per denom so that holding many unrelated denoms costs nothing here. An
+// empty amt is satisfied, as under the previous IsAllGTE. The two differ on one
+// unreachable edge — a zero-amount entry against an empty balance set, which
+// IsAllGTE rejected and this accepts — because valid std.Coins never carry a
+// zero amount.
 func (view ViewKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
-	return view.GetCoins(ctx, addr).IsAllGTE(amt)
+	for _, coin := range amt {
+		if view.GetBalance(ctx, addr, coin.Denom) < coin.Amount {
+			return false
+		}
+	}
+	return true
 }

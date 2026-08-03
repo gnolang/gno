@@ -390,22 +390,27 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
 func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
-	coins := acc.GetCoins()
-
 	if !fees.IsValid() {
 		return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", fees)))
 	}
 
-	// verify the account has enough funds to pay for fees
-	diff := coins.SubUnsafe(fees)
-	if !diff.IsValid() {
-		return abciResult(std.ErrInsufficientFunds(
-			fmt.Sprintf("insufficient funds to pay for fees; %s < %s", coins, fees),
-		))
+	// Verify the account has enough funds to pay for fees, one fee denom at a
+	// time. Read through the bank rather than acc.GetCoins(): a balance does not
+	// necessarily live in the account object, since realm-issued denoms have
+	// their own keys, and the fee denom is whatever the transaction names.
+	// Reading only the fee denoms also keeps this independent of how many other
+	// denoms the payer happens to hold.
+	addr := acc.GetAddress()
+	for _, fee := range fees {
+		if balance := bk.GetBalance(ctx, addr, fee.Denom); balance < fee.Amount {
+			return abciResult(std.ErrInsufficientFunds(
+				fmt.Sprintf("insufficient funds to pay for fees; %d%s < %s", balance, fee.Denom, fee),
+			))
+		}
 	}
 
 	// Sending coins is unrestricted to pay for gas fees
-	err := bk.SendCoinsUnrestricted(ctx, acc.GetAddress(), collector, fees)
+	err := bk.SendCoinsUnrestricted(ctx, addr, collector, fees)
 	if err != nil {
 		return abciResult(err)
 	}

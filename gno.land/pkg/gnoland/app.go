@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -109,8 +110,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 
 	prmk := params.NewParamsKeeper(mainKey)
+	// Denoms held inside the account object rather than in their own keys. Only
+	// the gas denom qualifies: the account object is written on every transaction
+	// anyway, so a balance there is free, and that is the whole justification.
+	// Everything else is split out. See tm2/pkg/sdk/bank/balance.go.
+	accountTierDenoms := []string{ugnot.Denom}
+
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, accountTierDenoms)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput

@@ -44,14 +44,30 @@ func TestBalances(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &coins))
 	require.True(t, coins.IsZero())
 
-	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 10)))
-	env.acck.SetAccount(env.ctx, acc)
+	// Seed through the keeper, not by writing the account object directly: "foo"
+	// is a split-tier denom, so putting it in the account object builds a state
+	// the keeper cannot produce, and the assertion would then hold even if tier
+	// routing were entirely broken.
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, std.NewCoins(std.NewCoin("foo", 10))))
 	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error)
 	require.NotNil(t, res)
 	require.NoError(t, amino.UnmarshalJSON(res.Data, &coins))
 	require.True(t, coins.AmountOf("foo") == 10)
+}
+
+// A malformed address must report an error. Before the fix the error was written
+// into res and then overwritten by the success path, so a bad address came back as
+// an empty balance — indistinguishable from an address holding nothing.
+func TestBalancesRejectsMalformedAddress(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	h := NewHandler(env.bankk)
+	res := h.Query(env.ctx, abci.RequestQuery{
+		Path: "bank/balances/not-a-bech32-address",
+	})
+	require.NotNil(t, res.Error, "a malformed address must not report an empty balance")
 }
 
 func TestQuerierRouteNotFound(t *testing.T) {
