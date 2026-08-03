@@ -8,7 +8,7 @@
         "items": [
           "users/discover-gnoland",
           "users/explore-with-gnoweb",
-          "users/interact-with-gnokey",
+          "users/using-gnokey",
           "users/example-boards",
           "users/third-party-wallets",
           "users/power-users"
@@ -41,7 +41,7 @@
           "resources/storage-deposit",
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
-          "resources/gnodev",
+          "resources/gnodev-reference",
           "resources/gno-testing",
           "resources/realms",
           "resources/gno-interrealm",
