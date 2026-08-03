@@ -350,8 +350,13 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 	// Define a Content Security Policy (CSP) to restrict the sources of
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
-	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
+	//
+	// style-src carries a per-response nonce (%[1]s) so CodeMirror's
+	// runtime-injected <style> elements are allowed without relaxing the policy
+	// to 'unsafe-inline'. The nonce is generated per request below and echoed
+	// into <meta name="csp-nonce"> for the frontend to pass to CodeMirror.
+	cspTemplate := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self' 'nonce-%%[1]s'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
 		imgSrc.String(),
 		remote,
 	)
@@ -372,8 +377,13 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 
 		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
-			// Set `csp` defined above.
-			w.Header().Set("Content-Security-Policy", csp)
+			// Generate a fresh per-response nonce and thread it through both the
+			// CSP header and the request context, so the rendered HTML embeds the
+			// same value (see WithCSPNonce / <meta name="csp-nonce">).
+			nonce := gnoweb.NewCSPNonce()
+			r = r.WithContext(gnoweb.WithCSPNonce(r.Context(), nonce))
+
+			w.Header().Set("Content-Security-Policy", fmt.Sprintf(cspTemplate, nonce))
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to

@@ -55,6 +55,7 @@ type HeadData struct {
 	Remote            string
 	ChainId           string
 	BuildTime         string
+	CSPNonce          string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.

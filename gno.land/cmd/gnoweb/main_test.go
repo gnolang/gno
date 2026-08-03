@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,6 +112,11 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if !strings.Contains(csp, "connect-src 'self'") {
 		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self', got '%s'", csp)
 	}
+	// style-src must carry a per-response nonce so CodeMirror's injected styles are allowed
+	// without relaxing the policy to 'unsafe-inline'.
+	if !strings.Contains(csp, "style-src 'self' 'nonce-") {
+		t.Errorf("Expected Content-Security-Policy style-src to carry a nonce, got '%s'", csp)
+	}
 	if res.Header.Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Errorf("Expected Strict-Transport-Security 'max-age=31536000', got '%s'", res.Header.Get("Strict-Transport-Security"))
 	}
@@ -119,6 +125,38 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
+	}
+}
+
+func TestSecureHeadersMiddlewareNonceMatchesContext(t *testing.T) {
+	// The nonce echoed in the CSP header must equal the one exposed to downstream
+	// handlers via the request context (which they embed in <meta name="csp-nonce">),
+	// and it must be freshly generated per response.
+	var seen []string
+	handler := SecureHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, gnoweb.CSPNonceFromContext(r.Context()))
+		w.Write([]byte("OK"))
+	}), true, "http://example.com")
+
+	do := func() string {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("GET", "http://example.com", nil))
+		return rec.Result().Header.Get("Content-Security-Policy")
+	}
+
+	csp1, csp2 := do(), do()
+
+	if len(seen) != 2 || seen[0] == "" || seen[1] == "" {
+		t.Fatalf("expected two non-empty context nonces, got %v", seen)
+	}
+	if !strings.Contains(csp1, "'nonce-"+seen[0]+"'") {
+		t.Errorf("CSP header nonce does not match context nonce: header=%q ctx=%q", csp1, seen[0])
+	}
+	if seen[0] == seen[1] {
+		t.Errorf("expected a fresh nonce per response, got the same value twice: %q", seen[0])
+	}
+	if csp1 == csp2 {
+		t.Errorf("expected CSP headers to differ per response due to nonce, both were %q", csp1)
 	}
 }
 
