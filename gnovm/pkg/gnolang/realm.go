@@ -8,6 +8,7 @@ package gnolang
 // first require the validation of blocknode locations.
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -115,6 +116,18 @@ func PkgIDFromPkgPath(path string) PkgID {
 	}
 	actual, _ := pkgIDFromPkgPathCache.LoadOrStore(path, pkgID)
 	return *actual.(*PkgID)
+}
+
+// eq reports pid == o. Equivalent to the == operator, but hand-unrolled
+// into three word compares: the generic [20]byte array equality lowers
+// to a runtime.memequal call, which is too slow for DidUpdate — the
+// per-write hook called on every mutation of realm-owned state.
+// Endianness is irrelevant for equality; NativeEndian loads compile to
+// single MOVs.
+func (pid PkgID) eq(o PkgID) bool {
+	return binary.NativeEndian.Uint64(pid.Hashlet[0:8]) == binary.NativeEndian.Uint64(o.Hashlet[0:8]) &&
+		binary.NativeEndian.Uint64(pid.Hashlet[8:16]) == binary.NativeEndian.Uint64(o.Hashlet[8:16]) &&
+		binary.NativeEndian.Uint32(pid.Hashlet[16:20]) == binary.NativeEndian.Uint32(o.Hashlet[16:20])
 }
 
 // IsStdlibPkg returns true if this PkgID is for a standard library package.
@@ -315,10 +328,17 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	if po == nil || !po.GetIsReal() {
+	if po == nil {
 		return // do nothing.
 	}
-	if poPkgID := po.GetObjectID().PkgID; poPkgID != rlm.ID {
+	// Fetch each object's *ObjectInfo once: subsequent accessor calls
+	// are concrete and inline, where calling through the Object
+	// interface would dynamically dispatch on every access.
+	poi := po.GetObjectInfo()
+	if !poi.GetIsReal() {
+		return // do nothing.
+	}
+	if poPkgID := poi.ID.PkgID; !poPkgID.eq(rlm.ID) {
 		// The write target isn't the active realm's own data, yet the
 		// pre-check (IsReadonly) allowed it. The one legitimate case is a
 		// transient stdlib self-mutation: a stdlib method runs with the
@@ -354,41 +374,43 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
-	rlm.MarkDirty(po)
+	rlm.markDirty(po, poi)
 
 	if co != nil {
-		coPkgID := co.GetObjectID().PkgID
-		if coPkgID.IsImmutablePkg() && coPkgID != rlm.ID {
+		coi := co.GetObjectInfo()
+		coPkgID := coi.ID.PkgID
+		if coPkgID.IsImmutablePkg() && !coPkgID.eq(rlm.ID) {
 			// Skip — immutable package objects (stdlib, /p/) don't need
 			// refcount tracking when referenced from a different realm.
 		} else {
-			co.IncRefCount()
-			if co.GetRefCount() > 1 {
-				if !co.GetIsEscaped() {
-					rlm.MarkNewEscaped(co)
+			coi.IncRefCount()
+			if coi.GetRefCount() > 1 {
+				if !coi.GetIsEscaped() {
+					rlm.markNewEscaped(co, coi)
 				}
 			}
-			if co.GetIsReal() {
-				rlm.MarkDirty(co)
+			if coi.GetIsReal() {
+				rlm.markDirty(co, coi)
 			} else {
-				co.SetOwner(po)
-				rlm.MarkNewReal(co)
+				coi.SetOwner(po)
+				rlm.markNewReal(co, coi)
 			}
 		}
 	}
 
 	if xo != nil {
-		xoPkgID := xo.GetObjectID().PkgID
-		if xoPkgID.IsImmutablePkg() && xoPkgID != rlm.ID {
+		xoi := xo.GetObjectInfo()
+		xoPkgID := xoi.ID.PkgID
+		if xoPkgID.IsImmutablePkg() && !xoPkgID.eq(rlm.ID) {
 			// Skip — immutable package objects don't need refcount tracking.
 		} else {
-			xo.DecRefCount()
-			if xo.GetRefCount() == 0 {
-				if xo.GetIsReal() {
-					rlm.MarkNewDeleted(xo)
+			xoi.DecRefCount()
+			if xoi.GetRefCount() == 0 {
+				if xoi.GetIsReal() {
+					rlm.markNewDeleted(xo, xoi)
 				}
-			} else if xo.GetIsReal() {
-				rlm.MarkDirty(xo)
+			} else if xoi.GetIsReal() {
+				rlm.markDirty(xo, xoi)
 			}
 		}
 	}
@@ -397,7 +419,15 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 //----------------------------------------
 // mark*
 
+// The Mark* methods each have a devirtualized mark* body taking the
+// object's *ObjectInfo, so hot paths that already hold it (DidUpdate)
+// skip repeated interface dispatch; the exported wrappers just fetch it.
+
 func (rlm *Realm) MarkNewReal(oo Object) {
+	rlm.markNewReal(oo, oo.GetObjectInfo())
+}
+
+func (rlm *Realm) markNewReal(oo Object, oi *ObjectInfo) {
 	if debugAssert {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
@@ -409,18 +439,18 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 				panic("cannot mark non-singly referenced package as new real")
 			}
 		} else {
-			if oo.GetOwner() == nil {
+			if oi.GetOwner() == nil {
 				panic("cannot mark unowned object as new real")
 			}
-			if !oo.GetOwner().GetIsReal() {
+			if !oi.GetOwner().GetIsReal() {
 				panic("cannot mark object as new real if owner is not real")
 			}
 		}
 	}
-	if oo.GetIsNewReal() {
+	if oi.GetIsNewReal() {
 		return // already marked.
 	}
-	oo.SetIsNewReal(true)
+	oi.SetIsNewReal(true)
 	// append to .newCreated
 	if rlm.newCreated == nil {
 		rlm.newCreated = make([]Object, 0, 256)
@@ -429,18 +459,22 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
+	rlm.markDirty(oo, oo.GetObjectInfo())
+}
+
+func (rlm *Realm) markDirty(oo Object, oi *ObjectInfo) {
 	if debugAssert {
-		if !oo.GetIsReal() && !oo.GetIsNewReal() {
+		if !oi.GetIsReal() && !oi.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
 		}
 	}
-	if oo.GetIsDirty() {
+	if oi.GetIsDirty() {
 		return // already marked.
 	}
-	if oo.GetIsNewReal() {
+	if oi.GetIsNewReal() {
 		return // treat as new-real.
 	}
-	oo.SetIsDirty(true, rlm.Time)
+	oi.SetIsDirty(true, rlm.Time)
 	// append to .updated
 	if rlm.updated == nil {
 		rlm.updated = make([]Object, 0, 256)
@@ -449,18 +483,22 @@ func (rlm *Realm) MarkDirty(oo Object) {
 }
 
 func (rlm *Realm) MarkNewDeleted(oo Object) {
+	rlm.markNewDeleted(oo, oo.GetObjectInfo())
+}
+
+func (rlm *Realm) markNewDeleted(oo Object, oi *ObjectInfo) {
 	if debugAssert {
-		if !oo.GetIsNewReal() && !oo.GetIsReal() {
+		if !oi.GetIsNewReal() && !oi.GetIsReal() {
 			panic("cannot mark unreal object as new deleted")
 		}
-		if oo.GetIsDeleted() {
+		if oi.GetIsDeleted() {
 			panic("cannot mark deleted object as new deleted")
 		}
 	}
-	if oo.GetIsNewDeleted() {
+	if oi.GetIsNewDeleted() {
 		return // already marked.
 	}
-	oo.SetIsNewDeleted(true)
+	oi.SetIsNewDeleted(true)
 	// append to .newDeleted
 	if rlm.newDeleted == nil {
 		rlm.newDeleted = make([]Object, 0, 256)
@@ -469,21 +507,25 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
+	rlm.markNewEscaped(oo, oo.GetObjectInfo())
+}
+
+func (rlm *Realm) markNewEscaped(oo Object, oi *ObjectInfo) {
 	if debugAssert {
-		if !oo.GetIsNewReal() && !oo.GetIsReal() {
+		if !oi.GetIsNewReal() && !oi.GetIsReal() {
 			panic("cannot mark unreal object as new escaped")
 		}
-		if oo.GetIsDeleted() {
+		if oi.GetIsDeleted() {
 			panic("cannot mark deleted object as new escaped")
 		}
-		if oo.GetIsEscaped() {
+		if oi.GetIsEscaped() {
 			panic("cannot mark escaped object as new escaped")
 		}
 	}
-	if oo.GetIsNewEscaped() {
+	if oi.GetIsNewEscaped() {
 		return // already marked.
 	}
-	oo.SetIsNewEscaped(true)
+	oi.SetIsNewEscaped(true)
 	// append to .newEscaped.
 	if rlm.newEscaped == nil {
 		rlm.newEscaped = make([]Object, 0, 256)
