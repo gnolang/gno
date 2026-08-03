@@ -492,7 +492,11 @@ func (t *MutableTree) Load() (int64, error) {
 	if latest == 0 {
 		return 0, nil
 	}
-	v, err := t.LoadVersion(latest)
+	// loadVersion, not LoadVersion: the counters were just discovered above,
+	// and re-running discovery costs a second pair of edge seeks. On memdb
+	// each seek materialises and sorts the whole keyspace, so the duplicate
+	// doubles the cost of every tree open.
+	v, err := t.loadVersion(latest)
 	if err != nil {
 		return v, err
 	}
@@ -527,6 +531,12 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
+	return t.loadVersion(version)
+}
+
+// loadVersion is LoadVersion's body without the discovery, for callers that
+// have just run it. version must be > 0.
+func (t *MutableTree) loadVersion(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 
 	nkBytes, _, err := t.ndb.GetRoot(version)
