@@ -108,8 +108,8 @@ func TestValidateDenomLength(t *testing.T) {
 	t.Parallel()
 
 	// Self-referential on its own — it cannot see the .gno source it mirrors.
-	// It catches an edit to the Go copy alone; the txtar's over-long base
-	// denom case catches a widening on the Gno side. See maxBaseDenomLength.
+	// It catches an edit to the Go copy alone; the txtar's 16/17-byte pair
+	// catches an edit to the Gno side alone. See maxBaseDenomLength.
 	require.Equal(t, 16, maxBaseDenomLength,
 		"must match isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno")
 
@@ -138,6 +138,70 @@ func TestValidateDenomLength(t *testing.T) {
 	// every byte of it is in the allowed charset.
 	_, err := ParseCoin("100" + tooLong)
 	require.ErrorContains(t, err, "exceeds limit")
+}
+
+// TestValidateDenomAcceptsDeployablePaths pins the superset relation described
+// on reDnmString: every package path the chain will deploy must produce a denom
+// ValidateDenom accepts.
+func TestValidateDenomAcceptsDeployablePaths(t *testing.T) {
+	t.Parallel()
+
+	// Deployability is pinned end-to-end by realm_banker_issued_coin_denom.txtar,
+	// which deploys gno.land/r/test/my-org/token. Note the asymmetry: "-" is
+	// legal in the domain and in namespace segments but never in the final
+	// element, which must also be a valid Go package name, so
+	// "gno.land/r/demo/foo-bar" does not deploy.
+	paths := []string{
+		"gno.land/r/demo/foobar",
+		"gno.land/r/my-org/token",           // hyphen in the namespace
+		"gno.land/r/my-org/v2/token",        // hyphen plus extra depth
+		"my-chain.example/r/some-org/token", // hyphen in the domain
+		"gno.land/r/demo/foo_bar",           // underscore
+		"gno.land/r/demo/v0/foo123",         // digits
+	}
+	for _, p := range paths {
+		// tm2 cannot import gnovm, so this asserts only tm2's own package-path
+		// pre-check; the real gate lives in gnolang.ValidateMemPackageAny.
+		require.True(t, rePkgPathURL.MatchString(p),
+			"test path fails tm2's package-path check: %s", p)
+		require.NoError(t, ValidateDenom("/"+p+":example"),
+			"a deployable path must produce a valid denom: %s", p)
+	}
+
+	// The examples above are illustrative; this pins the relation itself, by
+	// probing every byte against each of rePkgPathURL's four character-class
+	// occurrences. The domain classes need two templates because the regex
+	// starts with a starred group: a byte placed after the star never lands
+	// inside a repetition, so widening only the repeated label would slip past.
+	//
+	// Only rePkgPathURL is swept. rePkgPathStd describes stdlib paths, which
+	// can never appear in a denom — AddPackage requires the chain-domain prefix
+	// (keeper.go), so every denom-bearing path is URL-form. Sweeping it too
+	// would assert a coincidence rather than a requirement, and on failure
+	// would direct the reader to widen reDnmString, which is exactly how "#"
+	// would get admitted and the sub-realm property above quietly lost.
+	for i := range 256 {
+		c := string([]byte{byte(i)}) // one raw byte; string(rune(i)) would UTF-8-encode i >= 0x80
+		for _, candidatePath := range []string{
+			"su" + c + "b.gno.land/r/demo/foobar", // repeated domain label
+			"gno" + c + ".land/r/demo/foobar",     // final domain label
+			"gno.la" + c + "nd/r/demo/foobar",     // TLD
+			"gno.land/r/de" + c + "mo/foobar",     // path segment (all segments share one class)
+		} {
+			if !rePkgPathURL.MatchString(candidatePath) {
+				continue
+			}
+			require.NoError(t, ValidateDenom("/"+candidatePath+":example"),
+				"byte %q is legal in a package path but not in a denom; widen "+
+					"reDnmString or narrow rePkgPathURL in memfile.go", c)
+		}
+	}
+
+	// "-" is allowed inside a denom but not at its start, so an amount can
+	// never run into the denom that follows it.
+	require.Error(t, ValidateDenom("-foo"))
+	_, err := ParseCoin("100-foo")
+	require.Error(t, err)
 }
 
 func TestCoinsValidate(t *testing.T) {
@@ -538,7 +602,12 @@ func TestParse(t *testing.T) {
 		{"98 bar , 1 foo  ", true, Coins{{"bar", int64(98)}, {"foo", one}}},
 		{"  55\t \t bling\n", true, Coins{{"bling", int64(55)}}},
 		{"2foo, 97 bar", true, Coins{{"bar", int64(97)}, {"foo", int64(2)}}},
-		{"5foo-bar", false, nil},
+		// Hyphens are valid inside a denom: package paths admit them, and a
+		// realm denom embeds its package path verbatim. A leading hyphen is
+		// still rejected — see ValidateDenom("-foo") in
+		// TestValidateDenomAcceptsDeployablePaths. ("-5foo" below fails on the
+		// amount pattern instead, so it does not exercise that rule.)
+		{"5foo-bar", true, Coins{{"foo-bar", int64(5)}}},
 		{"5 mycoin,", false, nil},             // no empty coins in a list
 		{"2 3foo, 97 bar", false, nil},        // 3foo is invalid coin name
 		{"11me coin, 12you coin", false, nil}, // no spaces in coin names

@@ -15,6 +15,9 @@ gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_12345
 ## add invalid realm_denom
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
 
+## add a realm whose path contains a hyphen
+gnokey maketx addpkg -pkgdir $WORK/hyphen -pkgpath gno.land/r/test/my-org/token -gas-fee 370001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test test1
+
 ## test2 spend all balance
 gnokey maketx send -send "995000000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test2
 
@@ -71,6 +74,15 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
+## mint from a hyphenated realm path, with an "a".."p" 16-byte base denom
+## Two pins: the hyphen is the end-to-end pin for reDnmString (tm2/pkg/std/coin.go);
+## the 16-byte name is the accepting half of the boundary the 17-byte case below rejects.
+gnokey maketx call -pkgpath gno.land/r/test/my-org/token -func Mint -args ${test2_user_addr} -args "abcdefghijklmnop" -args "42" -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+
+## check balance
+gnokey query bank/balances/${test2_user_addr}
+stdout '42/gno.land/r/test/my-org/token:abcdefghijklmnop'
+
 ## mint base denom one byte over the 16-byte limit
 ## Pins the banker's 16-byte base denom limit, mirrored as maxBaseDenomLength
 ## in tm2/pkg/std/coin.go (Go cannot import a constant from .gno source).
@@ -80,6 +92,22 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 ! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "abcdefghijklmnopq" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
 
+-- hyphen/gnomod.toml --
+module = "gno.land/r/test/my-org/token"
+gno = "0.9"
+
+-- hyphen/realm_banker.gno --
+package token
+
+import (
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+}
 -- short/gnomod.toml --
 module = "gno.land/r/test/realm_banker"
 gno = "0.9"

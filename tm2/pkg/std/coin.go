@@ -653,7 +653,24 @@ func (coins Coins) Sort() Coins {
 // Parsing
 
 var (
-	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
+	// A realm denom embeds a package path verbatim (chain.CoinDenom), so this
+	// charset has to stay a superset of rePkgPathURL's charset in memfile.go.
+	// "-" was the one character missing from it. Package paths admit "-" in the
+	// domain and in namespace segments, so a realm at gno.land/r/my-org/token
+	// deployed fine and then failed on its first IssueCoin — a silent, late
+	// failure. TestValidateDenomAcceptsDeployablePaths pins that relation for
+	// every character class in rePkgPathURL. The trailing "-" is escaped so
+	// that appending another character cannot silently turn it into a range.
+	//
+	// "-" is deliberately absent from the leading class: a realm denom always
+	// starts with "/" and a native denom with a letter, so nothing needs it
+	// there, and admitting it would let "5-foo" and "100-foo" quietly parse as
+	// a coin whose denom is "-foo". (Amounts are unsigned, so this is a denom
+	// nobody meant to write, not a parsing ambiguity.)
+	//
+	// Sub-realm "#" paths are absent here, which is safe only because the banker
+	// refuses BankerTypeRealmIssue for sub-realms (banker.gno).
+	reDnmString = `[a-z\/][a-z0-9_.:\/\-]{2,}`
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
 	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
@@ -663,9 +680,9 @@ var (
 // maxBaseDenomLength mirrors isValidBaseDenom in
 // gnovm/stdlibs/chain/banker/banker.gno. Go cannot import a constant out of
 // .gno source, so the two are kept in step by test: TestValidateDenomLength pins
-// this copy, and the over-long base denom case in
-// gno.land/pkg/integration/testdata/realm_banker_issued_coin_denom.txtar pins
-// the Gno side against a widening.
+// this copy, and the paired 16-byte and 17-byte base denom cases in
+// gno.land/pkg/integration/testdata/realm_banker_issued_coin_denom.txtar pin
+// the Gno side from both directions.
 const maxBaseDenomLength = 16
 
 // maxDenomLength is the longest a denom may be, in bytes — 274 today, being a
