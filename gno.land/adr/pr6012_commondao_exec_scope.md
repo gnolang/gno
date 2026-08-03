@@ -73,8 +73,27 @@ a definition field. An executor could
 therefore regain the realm's **primary** authority only by an
 *explicit* `cross(sub)` into one of the realm's crossing functions
 (crossing semantics mint a fresh primary cur for the callee's realm
-regardless of the `prev`). That is a visible, greppable call. The
-reference realm's executor set is closed and realm-authored
+regardless of the `prev`). That is a visible, greppable call.
+
+> **Superseded in part.** Two claims below were true when written and are
+> not now. First, the executor set is no longer closed: the realm since
+> gained an opt-in `execution` kind, and
+> `CreateExecutionProposal(cur, daoID, title, body, fn commondao.ExecFunc)`
+> is exactly the "exported entry accepting a user-supplied `ExecFunc`"
+> this paragraph relies on not existing. The reference realm is now the
+> "downstream realm that runs untrusted executors" the last sentence
+> excludes from the guarantee. Second, escalation does **not** require a
+> greppable `cross(sub)`: an executor can mint
+> `banker.NewBanker(BankerTypeRealmSend, sub)` and simply keep it. That
+> banker holds no realm reference, so it persists across transactions
+> while the `sub` itself cannot — the address bound holds, the time bound
+> does not. The result is a permanent, unrevocable capability over the
+> DAO's treasury that also bypasses the ancestor freeze; see
+> `pr6012_commondao_treasury_sub.md` §Known limitation. The
+> `TreasurySender` alternative rejected below is, in hindsight, the shape
+> that would have prevented it.
+
+The reference realm's executor set is closed and realm-authored
 (`mustPropose` is unexported; no exported entry accepts a user-supplied
 `ProposalDefinition`/`ExecFunc`), and none of its executors cross back —
 so for **this** realm the blast radius is one treasury. A downstream

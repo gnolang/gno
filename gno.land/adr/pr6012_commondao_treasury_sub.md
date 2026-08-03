@@ -70,15 +70,36 @@ ancestor's controls.
   proposal can unfreeze — the frozen council cannot free itself
   (z_14_b). The flag lives on the target, so any live proper ancestor
   can unfreeze after the freezing ancestor dissolves (z_14_e).
-  **Freeze = no self-initiated treasury movement, period.** The flag
-  blocks *every* way the target's own council can move its funds, not
+  **Freeze blocks every governed path out of the treasury.** The flag is
+  checked on *every* way the target's own council can move its funds, not
   just the treasury-spend kind: the realm's execution kind (arbitrary
   `ExecFunc` run as the DAO's own sub) is freeze-gated the same way, at
   proposal creation and again inside `Execute` (z_20_g rejects the
   create; z_20_h fails a standing passed execution proposal cleanly once
   the target is frozen, funds untouched). Without this, a frozen DAO
-  could drain its own treasury through an execution proposal, defeating
-  the ancestor's freeze. What freeze does **not** block is an ancestor's
+  could drain its own treasury through an execution proposal.
+
+  **Known limitation — freeze is not containment against a DAO that has
+  run an execution proposal.** Freeze is realm state consulted by realm
+  code. An execution closure receives the DAO's `sub` and can mint
+  `banker.NewBanker(BankerTypeRealmSend, sub)`; that banker is a plain
+  struct with no realm reference, so it persists across transactions
+  (intended chain behavior — see `chain/banker`'s package comment and
+  `banker_persistence.txtar`) and `SendCoins` re-checks only
+  `pkgAddr == from`. A closure that moves nothing but *retains* the
+  banker leaves behind a permanent, unrevocable bearer capability over
+  the treasury address, usable later with no proposal and no vote, and
+  reaching the bank keeper without re-entering realm code — so the
+  freeze flag never runs. It equally survives council replacement,
+  deregistering the execution kind, and dissolution. Setting it up costs
+  two supermajorities (register `execution`, then pass one proposal) and
+  reaches only that one DAO's address (`pkgAddr` is pinned), but that is
+  precisely the rogue-council case freeze exists for. Enabling the
+  execution kind should therefore be understood as waiving the freeze
+  guarantee for that DAO. Closing it needs a mechanism outside this
+  realm's reach (a non-persistable capability shape, address rotation,
+  or a bank-level account freeze); recorded here rather than papered
+  over. What freeze does **not** block is an ancestor's
   action *on* the frozen target: clawback and dissolution stay valid
   against a frozen descendant (freeze→clawback is the intended flow), so
   the freeze gate is applied only to the target's self-initiated

@@ -79,6 +79,18 @@ type (
 	// so their blast radius is one treasury — but a realm that runs
 	// untrusted or user-registered executors gets no such guarantee. See ADR
 	// pr6012_commondao_exec_scope.
+	//
+	// The sharper hazard for such a realm is not cross(sub) but the banker:
+	// an executor can mint banker.NewBanker(BankerTypeRealmSend, sub) and
+	// simply RETAIN it. Authorization happens at construction only, and the
+	// banker holds no realm reference, so it persists across transactions
+	// even though the sub itself cannot — a permanent, unrevocable
+	// capability over that DAO's address, spendable later with no proposal.
+	// It also bypasses any check the host performs before spending (a
+	// frozen flag, a pause switch), because it reaches the bank keeper
+	// without re-entering host code. Passing the sub to an executor whose
+	// code the DAO has not vetted is therefore an irrevocable grant of that
+	// DAO's treasury, not a scoped loan of it.
 	ExecFunc func(int, realm) error
 
 	// Proposal defines a DAO proposal.

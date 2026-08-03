@@ -320,7 +320,16 @@ func renderTreasury(res *mux.ResponseWriter, dao *commondao.CommonDAO) {
 		// balance bullet is a lazy continuation of that list item, so the
 		// warning would render inside the bullet instead of as its own
 		// block. Matches the dissolved-DAO banners.
-		res.Write(md.Blockquote("⚠ The treasury is frozen: no funds can leave until a proper ancestor DAO unfreezes it"))
+		frozen := "⚠ The treasury is frozen: no proposal can move funds until a proper ancestor DAO unfreezes it."
+		if dao.HasKind(kindExecution) {
+			// Freeze gates the realm's own spending paths. A closure from a
+			// past execution proposal may hold a retained banker, which
+			// reaches the bank keeper without passing through them.
+			frozen += " This DAO has the execution kind registered, so a" +
+				" capability retained by an earlier execution proposal could" +
+				" still move funds; freeze alone is not containment here."
+		}
+		res.Write(md.Blockquote(frozen))
 	}
 }
 

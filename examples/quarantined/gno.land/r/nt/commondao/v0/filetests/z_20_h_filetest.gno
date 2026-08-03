@@ -5,6 +5,8 @@ package z_20_h_filetest
 import (
 	"chain"
 	"chain/banker"
+	"strconv"
+	"strings"
 	"testing"
 
 	pdao "gno.land/p/nt/commondao/v0"
@@ -72,6 +74,13 @@ func main(cur realm) {
 	println("reason:", p.StatusReason())
 	println("frozen:", view.IsTreasuryFrozen())
 	println("treasury:", banker.NewReadonlyBanker().GetCoins(view.Address()).String())
+
+	// A frozen DAO that has the execution kind registered gets the extra
+	// warning: freeze stops the realm's own spending paths, but a banker
+	// retained by an earlier execution closure reaches the bank keeper
+	// without passing through them, so freeze alone is not containment.
+	out := commondao.Render(strconv.FormatUint(subID, 10))
+	println("capability warning shown:", strings.Contains(out, "freeze alone is not containment here"))
 }
 
 // Output:
@@ -79,3 +88,4 @@ func main(cur realm) {
 // reason: commondao: treasury is frozen
 // frozen: true
 // treasury: 500ugnot
+// capability warning shown: true
