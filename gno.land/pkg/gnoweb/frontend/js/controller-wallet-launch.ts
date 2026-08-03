@@ -24,9 +24,14 @@ interface LegacyWallet {
 	icon: string; // always empty: there is nothing to read it from
 }
 
-const LEGACY_PROVIDERS: { global: string; name: string }[] = [
-	{ global: "adena", name: "Adena" },
-	{ global: "gnoconnect", name: "GnoConnect" },
+// `rdns` is what the same wallet announces under once it speaks the protocol.
+// A wallet that does both — keeps its global for existing dapps *and* announces,
+// which is the additive way to adopt this — would otherwise be listed twice: once
+// with its icon, once as a legacy entry without one, indistinguishable to the
+// user and pointing at the same extension.
+const LEGACY_PROVIDERS: { global: string; name: string; rdns: string }[] = [
+	{ global: "adena", name: "Adena", rdns: "land.gno.adena" },
+	{ global: "gnoconnect", name: "GnoConnect", rdns: "land.gno.gnoconnect" },
 ];
 
 // The three kinds of candidate the chooser merges: a wallet that announced
@@ -163,10 +168,14 @@ export class WalletLaunchController extends BaseController {
 	}
 
 	// A legacy extension that owns the submit by intercepting it, without
-	// announcing itself.
-	private _legacyProvider(): Candidate | null {
+	// announcing itself. One that *has* announced is skipped: it is already in
+	// the list, reachable by being called rather than by being handed the event.
+	private _legacyProvider(announced: GnoWallet[]): Candidate | null {
 		const w = window as unknown as Record<string, unknown>;
-		const found = LEGACY_PROVIDERS.find(({ global }) => Boolean(w[global]));
+		const spoken = new Set(announced.map((a) => a.info?.rdns));
+		const found = LEGACY_PROVIDERS.find(
+			({ global, rdns }) => Boolean(w[global]) && !spoken.has(rdns),
+		);
 		return found
 			? { kind: "legacy", wallet: { name: found.name, icon: "" } }
 			: null;
@@ -254,9 +263,15 @@ export class WalletLaunchController extends BaseController {
 		try {
 			response = await sign.call(wallet.provider, this._txRequest());
 		} catch (err) {
-			// The wallet showed the user its own error; leave the form intact
-			// so they can retry or copy the command.
+			// The assumption here was that the wallet had already shown the user
+			// its own error, so the page owed them nothing. That is only true
+			// once the wallet has a window open: a request it refuses outright —
+			// an unestablished origin, a chain it does not have, a malformed
+			// intent — never reaches a screen, so the user clicked a wallet and
+			// watched nothing happen. Show the reason and reveal the copy-paste
+			// command, which works regardless of what the wallet decided.
 			this.warn(`wallet "${wallet.info.name}" failed to sign`, err);
+			this._reportWalletError(wallet.info.name, err);
 			return;
 		}
 		// Rejected is an answer, not a failure: the user declined, the page
@@ -271,6 +286,36 @@ export class WalletLaunchController extends BaseController {
 		window.location.href = url.toString();
 	}
 
+	// Reopen the chooser to say why the wallet did nothing.
+	//
+	// The dialog is closed before the wallet is called, so a request refused
+	// without ever reaching a wallet screen left the user staring at an
+	// unchanged page. `code` is the standard's enumerated reason and is rendered
+	// as text — like an announced name, nothing coming back from a wallet is
+	// trusted as markup.
+	private _reportWalletError(walletName: string, err: unknown): void {
+		const dialog = this.getGlobalTarget("chooser") as HTMLDialogElement | null;
+		const list = this.getGlobalTarget("chooser-list");
+		if (!dialog || !list) return;
+
+		const code = (err as { code?: unknown })?.code;
+		const reason = typeof code === "string" ? ` (${code})` : "";
+
+		list.textContent = "";
+		const li = document.createElement("li");
+		li.className = "b-wallet-chooser__error";
+		li.textContent = `${walletName} could not take this transaction${reason}. The gnokey command below works without a wallet.`;
+		list.appendChild(li);
+
+		if (dialog.open) return;
+		if (typeof dialog.showModal === "function") {
+			dialog.showModal();
+			this._centerInVisualViewport(dialog);
+		} else {
+			dialog.setAttribute("open", "");
+		}
+	}
+
 	// Candidates for this submit: wallets announced in the page (any device)
 	// plus, on mobile, the registry's external apps. Desktop external wallets
 	// need the cross-device QR, a deferred follow-up.
@@ -280,15 +325,17 @@ export class WalletLaunchController extends BaseController {
 	// and today's behaviour. It is appended last — it is the entry we know
 	// least about.
 	private _candidates(): Candidate[] {
-		const inPage: Candidate[] = this._discovery
-			.get()
-			.map((wallet) => ({ kind: "in-page", wallet }));
+		const announced = this._discovery.get();
+		const inPage: Candidate[] = announced.map((wallet) => ({
+			kind: "in-page",
+			wallet,
+		}));
 		const external: Candidate[] = this._isMobile()
 			? this._wallets().map((wallet) => ({ kind: "external", wallet }))
 			: [];
 		if (inPage.length === 0 && external.length === 0) return [];
 
-		const legacy = this._legacyProvider();
+		const legacy = this._legacyProvider(announced);
 		return legacy ? [...inPage, ...external, legacy] : [...inPage, ...external];
 	}
 
