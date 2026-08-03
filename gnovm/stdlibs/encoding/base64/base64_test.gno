@@ -530,3 +530,33 @@ func TestDecoderRaw(t *testing.T) {
 		t.Errorf("reading NewDecoder(URLEncoding, %q) = %x, %v, want %x, nil", source+"==", dec3, err, want)
 	}
 }
+
+func TestEncodeAppend(t *testing.T) {
+	for _, p := range pairs {
+		for _, tt := range encodingTests {
+			dst := tt.enc.AppendEncode([]byte("lead"), []byte(p.decoded))
+			testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded,
+				string(dst), "lead"+tt.conv(p.encoded))
+		}
+	}
+}
+
+func TestDecodeAppend(t *testing.T) {
+	for _, p := range pairs {
+		for _, tt := range encodingTests {
+			encoded := tt.conv(p.encoded)
+			dst, err := tt.enc.AppendDecode([]byte("lead"), []byte(encoded))
+			testEqual(t, "AppendDecode(%q) = error %v, want %v", encoded, err, error(nil))
+			testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, encoded,
+				string(dst), "lead"+p.decoded)
+
+			dst2, err := tt.enc.AppendDecode(dst[:0:len(p.decoded)], []byte(encoded))
+			testEqual(t, "AppendDecode(%q) = error %v, want %v", encoded, err, error(nil))
+			testEqual(t, `AppendDecode("", %q) = %q, want %q`, encoded,
+				string(dst2), p.decoded)
+			if len(dst) > 0 && len(dst2) > 0 && &dst[0] != &dst2[0] {
+				t.Errorf("unexpected capacity growth: got %d, want %d", cap(dst2), cap(dst))
+			}
+		}
+	}
+}

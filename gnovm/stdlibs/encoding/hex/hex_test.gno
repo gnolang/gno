@@ -275,3 +275,28 @@ func BenchmarkDump(b *testing.B) {
 		})
 	}
 }
+
+func TestAppendEncode(t *testing.T) {
+	for i, test := range encDecTests {
+		dst := []byte("lead")
+		dst = AppendEncode(dst, test.dec)
+		if string(dst) != "lead"+test.enc {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+test.enc)
+		}
+	}
+}
+
+func TestAppendDecode(t *testing.T) {
+	// Case for decoding uppercase hex characters, since
+	// Encode always uses lowercase.
+	decTests := append(encDecTests, encDecTest{"F8F9FAFBFCFDFEFF", []byte{0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff}})
+	for i, test := range decTests {
+		dst := []byte("lead")
+		dst, err := AppendDecode(dst, []byte(test.enc))
+		if err != nil {
+			t.Errorf("#%d: AppendDecode error: %v", i, err)
+		} else if string(dst) != "lead"+string(test.dec) {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+string(test.dec))
+		}
+	}
+}

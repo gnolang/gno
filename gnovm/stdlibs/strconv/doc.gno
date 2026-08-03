@@ -53,7 +53,4 @@
 // return quoted Go rune literals.
 //
 // [Unquote] and [UnquoteChar] unquote Go string and rune literals.
-//
-// XXX: Gno does not implement any of the functions from Go's strconv which
-// pertain to complex numbers, such as FormatComplex and ParseComplex.
 package strconv

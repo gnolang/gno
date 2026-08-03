@@ -928,7 +928,16 @@ func ParseQuery(query string) (Values, error) {
 	return m, err
 }
 
+// defaultMaxParams is the maximum number of query parameters returned
+// by [ParseQuery]. If the number of query parameters exceeds this,
+// [ParseQuery] returns an error. Upstream Go tunes this via
+// GODEBUG=urlmaxqueryparams=N; Gno has no GODEBUG so this is a hard limit.
+const defaultMaxParams = 10000
+
 func parseQuery(m Values, query string) (err error) {
+	if strings.Count(query, "&")+1 > defaultMaxParams {
+		return errors.New("number of URL query parameters exceeded limit")
+	}
 	for query != "" {
 		var key string
 		key, query, _ = strings.Cut(query, "&")

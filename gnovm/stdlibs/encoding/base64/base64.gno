@@ -175,6 +175,23 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 }
 
+// AppendEncode appends the base64 encoded src to dst
+// and returns the extended buffer.
+func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	dst = slicesGrow(dst, n)
+	enc.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
+}
+
+// XXX: non-generic slices.Grow
+func slicesGrow(s []byte, n int) []byte {
+	if n -= cap(s) - len(s); n > 0 {
+		s = append(s[:cap(s)], make([]byte, n)...)[:len(s)]
+	}
+	return s
+}
+
 // EncodeToString returns the base64 encoding of src.
 func (enc *Encoding) EncodeToString(src []byte) string {
 	buf := make([]byte, enc.EncodedLen(len(src)))
@@ -394,6 +411,22 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	}
 
 	return si, dlen - 1, err
+}
+
+// AppendDecode appends the base64 decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+	// Compute the output size without padding to avoid over allocating.
+	n := len(src)
+	for n > 0 && rune(src[n-1]) == enc.padChar {
+		n--
+	}
+	n = n * 6 / 8
+
+	dst = slicesGrow(dst, n)
+	n, err := enc.Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // DecodeString returns the bytes represented by the base64 string s.

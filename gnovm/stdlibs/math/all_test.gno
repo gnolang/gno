@@ -4025,3 +4025,335 @@ func BenchmarkFMA(b *testing.B) {
 	}
 	GlobalF = x
 }
+
+// -----------------------------------------------------------------------------
+// Tests ported from upstream go1.25.9 example_test.go and huge_test.go.
+//
+// Gno's test harness does not dispatch Example* funcs, so each upstream
+// ExampleX is rewritten as TestExampleX asserting formatted output matches
+// the upstream "// Output: ..." comment.
+//
+// Skipped upstream tests:
+//   - Test*Novec / TestLarge*Novec (s390x-only, use CosNoVec/SinNoVec/...,
+//     require HasVX, all missing API in Gno).
+// -----------------------------------------------------------------------------
+
+func checkExample(t *testing.T, name, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s output mismatch\n got: %q\nwant: %q", name, got, want)
+	}
+}
+
+// --------------------------------------------------------------------
+// Examples (upstream example_test.go), rewritten as Test wrappers.
+// --------------------------------------------------------------------
+
+func TestExampleAcos(t *testing.T) {
+	checkExample(t, "Acos", fmt.Sprintf("%.2f", math.Acos(1)), "0.00")
+}
+
+func TestExampleAcosh(t *testing.T) {
+	checkExample(t, "Acosh", fmt.Sprintf("%.2f", math.Acosh(1)), "0.00")
+}
+
+func TestExampleAsin(t *testing.T) {
+	checkExample(t, "Asin", fmt.Sprintf("%.2f", math.Asin(0)), "0.00")
+}
+
+func TestExampleAsinh(t *testing.T) {
+	checkExample(t, "Asinh", fmt.Sprintf("%.2f", math.Asinh(0)), "0.00")
+}
+
+func TestExampleAtan(t *testing.T) {
+	checkExample(t, "Atan", fmt.Sprintf("%.2f", math.Atan(0)), "0.00")
+}
+
+func TestExampleAtan2(t *testing.T) {
+	checkExample(t, "Atan2", fmt.Sprintf("%.2f", math.Atan2(0, 0)), "0.00")
+}
+
+func TestExampleAtanh(t *testing.T) {
+	checkExample(t, "Atanh", fmt.Sprintf("%.2f", math.Atanh(0)), "0.00")
+}
+
+func TestExampleCopysign(t *testing.T) {
+	checkExample(t, "Copysign", fmt.Sprintf("%.2f", math.Copysign(3.2, -1)), "-3.20")
+}
+
+func TestExampleCos(t *testing.T) {
+	checkExample(t, "Cos", fmt.Sprintf("%.2f", math.Cos(math.Pi/2)), "0.00")
+}
+
+func TestExampleCosh(t *testing.T) {
+	checkExample(t, "Cosh", fmt.Sprintf("%.2f", math.Cosh(0)), "1.00")
+}
+
+func TestExampleSin(t *testing.T) {
+	checkExample(t, "Sin", fmt.Sprintf("%.2f", math.Sin(math.Pi)), "0.00")
+}
+
+func TestExampleSincos(t *testing.T) {
+	sin, cos := math.Sincos(0)
+	checkExample(t, "Sincos", fmt.Sprintf("%.2f, %.2f", sin, cos), "0.00, 1.00")
+}
+
+func TestExampleSinh(t *testing.T) {
+	checkExample(t, "Sinh", fmt.Sprintf("%.2f", math.Sinh(0)), "0.00")
+}
+
+func TestExampleTan(t *testing.T) {
+	checkExample(t, "Tan", fmt.Sprintf("%.2f", math.Tan(0)), "0.00")
+}
+
+func TestExampleTanh(t *testing.T) {
+	checkExample(t, "Tanh", fmt.Sprintf("%.2f", math.Tanh(0)), "0.00")
+}
+
+func TestExampleSqrt(t *testing.T) {
+	const (
+		a = 3
+		b = 4
+	)
+	c := math.Sqrt(a*a + b*b)
+	checkExample(t, "Sqrt", fmt.Sprintf("%.1f", c), "5.0")
+}
+
+func TestExampleCeil(t *testing.T) {
+	c := math.Ceil(1.49)
+	checkExample(t, "Ceil", fmt.Sprintf("%.1f", c), "2.0")
+}
+
+func TestExampleFloor(t *testing.T) {
+	c := math.Floor(1.51)
+	checkExample(t, "Floor", fmt.Sprintf("%.1f", c), "1.0")
+}
+
+func TestExamplePow(t *testing.T) {
+	c := math.Pow(2, 3)
+	checkExample(t, "Pow", fmt.Sprintf("%.1f", c), "8.0")
+}
+
+func TestExamplePow10(t *testing.T) {
+	c := math.Pow10(2)
+	checkExample(t, "Pow10", fmt.Sprintf("%.1f", c), "100.0")
+}
+
+func TestExampleRound(t *testing.T) {
+	p := math.Round(10.5)
+	n := math.Round(-10.5)
+	got := fmt.Sprintf("%.1f\n%.1f\n", p, n)
+	checkExample(t, "Round", got, "11.0\n-11.0\n")
+}
+
+func TestExampleRoundToEven(t *testing.T) {
+	u := math.RoundToEven(11.5)
+	d := math.RoundToEven(12.5)
+	got := fmt.Sprintf("%.1f\n%.1f\n", u, d)
+	checkExample(t, "RoundToEven", got, "12.0\n12.0\n")
+}
+
+func TestExampleLog(t *testing.T) {
+	x := math.Log(1)
+	y := math.Log(2.7183)
+	got := fmt.Sprintf("%.1f\n%.1f\n", x, y)
+	checkExample(t, "Log", got, "0.0\n1.0\n")
+}
+
+func TestExampleLog2(t *testing.T) {
+	checkExample(t, "Log2", fmt.Sprintf("%.1f", math.Log2(256)), "8.0")
+}
+
+func TestExampleLog10(t *testing.T) {
+	checkExample(t, "Log10", fmt.Sprintf("%.1f", math.Log10(100)), "2.0")
+}
+
+func TestExampleRemainder(t *testing.T) {
+	checkExample(t, "Remainder", fmt.Sprintf("%.1f", math.Remainder(100, 30)), "10.0")
+}
+
+func TestExampleMod(t *testing.T) {
+	c := math.Mod(7, 4)
+	checkExample(t, "Mod", fmt.Sprintf("%.1f", c), "3.0")
+}
+
+func TestExampleAbs(t *testing.T) {
+	x := math.Abs(-2)
+	y := math.Abs(2)
+	got := fmt.Sprintf("%.1f\n%.1f\n", x, y)
+	checkExample(t, "Abs", got, "2.0\n2.0\n")
+}
+
+func TestExampleDim(t *testing.T) {
+	got := fmt.Sprintf("%.2f\n%.2f\n", math.Dim(4, -2), math.Dim(-4, 2))
+	checkExample(t, "Dim", got, "6.00\n0.00\n")
+}
+
+func TestExampleExp(t *testing.T) {
+	got := fmt.Sprintf("%.2f\n%.2f\n%.2f\n", math.Exp(1), math.Exp(2), math.Exp(-1))
+	checkExample(t, "Exp", got, "2.72\n7.39\n0.37\n")
+}
+
+func TestExampleExp2(t *testing.T) {
+	got := fmt.Sprintf("%.2f\n%.2f\n", math.Exp2(1), math.Exp2(-3))
+	checkExample(t, "Exp2", got, "2.00\n0.12\n")
+}
+
+func TestExampleExpm1(t *testing.T) {
+	got := fmt.Sprintf("%.6f\n%.6f\n", math.Expm1(0.01), math.Expm1(-1))
+	checkExample(t, "Expm1", got, "0.010050\n-0.632121\n")
+}
+
+func TestExampleTrunc(t *testing.T) {
+	got := fmt.Sprintf("%.2f\n%.2f\n", math.Trunc(math.Pi), math.Trunc(-1.2345))
+	checkExample(t, "Trunc", got, "3.00\n-1.00\n")
+}
+
+func TestExampleCbrt(t *testing.T) {
+	got := fmt.Sprintf("%.2f\n%.2f\n", math.Cbrt(8), math.Cbrt(27))
+	checkExample(t, "Cbrt", got, "2.00\n3.00\n")
+}
+
+func TestExampleModf(t *testing.T) {
+	i, frac := math.Modf(3.14)
+	i2, frac2 := math.Modf(-2.71)
+	got := fmt.Sprintf("%.2f, %.2f\n%.2f, %.2f\n", i, frac, i2, frac2)
+	checkExample(t, "Modf", got, "3.00, 0.14\n-2.00, -0.71\n")
+}
+
+// --------------------------------------------------------------------
+// Huge-angle trig tests (upstream huge_test.go).
+// Exercise the trig argument-reduction path on values where naive
+// reduction loses every bit of precision.
+// --------------------------------------------------------------------
+
+var trigHuge = []float64{
+	1 << 28,
+	1 << 29,
+	1 << 30,
+	1 << 35,
+	1 << 120,
+	1 << 240,
+	1 << 480,
+	1234567891234567 << 180,
+	1234567891234567 << 300,
+	math.MaxFloat64,
+}
+
+// Reference values from upstream Go 1.25.9, computed with ivy at
+// 4096-bit working precision.
+var cosHuge = []float64{
+	-0.16556897949057876,
+	-0.94517382606089662,
+	0.78670712294118812,
+	-0.76466301249635305,
+	-0.92587902285483787,
+	0.93601042593353793,
+	-0.28282777640193788,
+	-0.14616431394103619,
+	-0.79456058210671406,
+	-0.99998768942655994,
+}
+
+var sinHuge = []float64{
+	-0.98619821183697566,
+	0.32656766301856334,
+	-0.61732641504604217,
+	-0.64443035102329113,
+	0.37782010936075202,
+	-0.35197227524865778,
+	0.95917070894368716,
+	0.98926032637023618,
+	-0.60718488235646949,
+	0.00496195478918406,
+}
+
+var tanHuge = []float64{
+	5.95641897939639421,
+	-0.34551069233430392,
+	-0.78469661331920043,
+	0.84276385870875983,
+	-0.40806638884180424,
+	-0.37603456702698076,
+	-3.39135965054779932,
+	-6.76813854009065030,
+	0.76417695016604922,
+	-0.00496201587444489,
+}
+
+// closeHuge mirrors upstream "close": tolerance 1e-14, NaN-aware.
+func closeHuge(a, b float64) bool {
+	if math.IsNaN(a) && math.IsNaN(b) {
+		return true
+	}
+	if a == b {
+		return true
+	}
+	d := math.Abs(a - b)
+	if b != 0 {
+		return d/math.Abs(b) < 1e-14
+	}
+	return d < 1e-14
+}
+
+func TestHugeCos(t *testing.T) {
+	for i := 0; i < len(trigHuge); i++ {
+		f1 := cosHuge[i]
+		f2 := math.Cos(trigHuge[i])
+		if !closeHuge(f1, f2) {
+			t.Errorf("Cos(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				trigHuge[i], f2, math.Float64bits(f2), f1, math.Float64bits(f1))
+		}
+		f3 := math.Cos(-trigHuge[i])
+		if !closeHuge(f1, f3) {
+			t.Errorf("Cos(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				-trigHuge[i], f3, math.Float64bits(f3), f1, math.Float64bits(f1))
+		}
+	}
+}
+
+func TestHugeSin(t *testing.T) {
+	for i := 0; i < len(trigHuge); i++ {
+		f1 := sinHuge[i]
+		f2 := math.Sin(trigHuge[i])
+		if !closeHuge(f1, f2) {
+			t.Errorf("Sin(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				trigHuge[i], f2, math.Float64bits(f2), f1, math.Float64bits(f1))
+		}
+		f3 := math.Sin(-trigHuge[i])
+		if !closeHuge(-f1, f3) {
+			t.Errorf("Sin(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				-trigHuge[i], f3, math.Float64bits(f3), -f1, math.Float64bits(-f1))
+		}
+	}
+}
+
+func TestHugeSinCos(t *testing.T) {
+	for i := 0; i < len(trigHuge); i++ {
+		f1, g1 := sinHuge[i], cosHuge[i]
+		f2, g2 := math.Sincos(trigHuge[i])
+		if !closeHuge(f1, f2) || !closeHuge(g1, g2) {
+			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", trigHuge[i], f2, g2, f1, g1)
+		}
+		f3, g3 := math.Sincos(-trigHuge[i])
+		if !closeHuge(-f1, f3) || !closeHuge(g1, g3) {
+			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", -trigHuge[i], f3, g3, -f1, g1)
+		}
+	}
+}
+
+func TestHugeTan(t *testing.T) {
+	for i := 0; i < len(trigHuge); i++ {
+		f1 := tanHuge[i]
+		f2 := math.Tan(trigHuge[i])
+		if !closeHuge(f1, f2) {
+			t.Errorf("Tan(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				trigHuge[i], f2, math.Float64bits(f2), f1, math.Float64bits(f1))
+		}
+		f3 := math.Tan(-trigHuge[i])
+		if !closeHuge(-f1, f3) {
+			t.Errorf("Tan(%g) = %g (bits 0x%x), want %g (bits 0x%x)",
+				-trigHuge[i], f3, math.Float64bits(f3), -f1, math.Float64bits(-f1))
+		}
+	}
+}

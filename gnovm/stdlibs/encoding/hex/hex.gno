@@ -32,6 +32,15 @@ func Encode(dst, src []byte) int {
 	return len(src) * 2
 }
 
+// AppendEncode appends the hexadecimally encoded src to dst
+// and returns the extended buffer.
+func AppendEncode(dst, src []byte) []byte {
+	n := EncodedLen(len(src))
+	dst = slicesGrow(dst, n)
+	Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
+}
+
 // ErrLength reports an attempt to decode an odd-length input
 // using Decode or DecodeString.
 // The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
@@ -82,6 +91,16 @@ func Decode(dst, src []byte) (int, error) {
 	return i, nil
 }
 
+// AppendDecode appends the hexadecimally decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func AppendDecode(dst, src []byte) ([]byte, error) {
+	n := DecodedLen(len(src))
+	dst = slicesGrow(dst, n)
+	n, err := Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
+}
+
 // fromHexChar converts a hex character into its value and a success flag.
 func fromHexChar(c byte) (byte, bool) {
 	switch {
@@ -94,6 +113,14 @@ func fromHexChar(c byte) (byte, bool) {
 	}
 
 	return 0, false
+}
+
+// XXX: non-generic slices.Grow
+func slicesGrow(s []byte, n int) []byte {
+	if n -= cap(s) - len(s); n > 0 {
+		s = append(s[:cap(s)], make([]byte, n)...)[:len(s)]
+	}
+	return s
 }
 
 // EncodeToString returns the hexadecimal encoding of src.

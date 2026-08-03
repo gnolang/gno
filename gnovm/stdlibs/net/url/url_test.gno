@@ -1467,6 +1467,31 @@ func TestParseQuery(t *testing.T) {
 	}
 }
 
+func TestParseQueryTooManyParams(t *testing.T) {
+	// 10000 params: under the limit, must succeed.
+	const n = 10000
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			b.WriteByte('&')
+		}
+		b.WriteString("a=b")
+	}
+	if _, err := ParseQuery(b.String()); err != nil {
+		t.Errorf("ParseQuery with %d params: unexpected error %v", n, err)
+	}
+
+	// 10001 params: over the limit, must error.
+	b.WriteString("&a=b")
+	_, err := ParseQuery(b.String())
+	if err == nil {
+		t.Fatalf("ParseQuery with %d params: got nil error, want too-many-params error", n+1)
+	}
+	if got, want := err.Error(), "number of URL query parameters exceeded limit"; got != want {
+		t.Errorf("ParseQuery error = %q, want %q", got, want)
+	}
+}
+
 type RequestURITest struct {
 	url *URL
 	out string
