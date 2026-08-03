@@ -80,7 +80,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	// when possible, change back to assertGamesFinished(games)
 	for _, g := range games {
 		if !g.State.IsFinished() {
-			if err := resign(0, cur, g); err != nil {
+			if err := resign(g, cur); err != nil {
 				panic("internal error (could not resign game " + g.ID + "): " + err.Error())
 			}
 		}
@@ -93,7 +93,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 
 	now := time.Now()
 	lobby[tc] = append(lobby[tc], lobbyPlayer{joinedAt: now, seenAt: now, player: getPlayer(caller)})
-	refreshLobby(0, cur, tc)
+	refreshLobby(tc, cur)
 }
 
 func assertUserNotInLobby(caller address) {
@@ -108,7 +108,7 @@ func assertUserNotInLobby(caller address) {
 
 // refreshLobby serves to run through the lobby, kick timed out users, and see if any users
 // can be matched with the current user.
-func refreshLobby(_ int, rlm realm, tc tcLobby) {
+func refreshLobby(tc tcLobby, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}
@@ -219,8 +219,8 @@ var bracketSize = [...]float64{
 }
 
 func LobbyGameFound(cur realm) string {
-	refreshLobby(0, cur, tcLobby5p0)
-	refreshLobby(0, cur, tcLobby10p5)
+	refreshLobby(tcLobby5p0, cur)
+	refreshLobby(tcLobby10p5, cur)
 
 	val := lobbyPlayer2Game.Get(cur.Previous().Address().String())
 	if val == nil {

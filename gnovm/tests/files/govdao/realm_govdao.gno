@@ -32,34 +32,31 @@ func main(cur realm) {
 	// receive the mutated cur as rlm.
 	testing.SetRealm(testing.NewUserRealm(user1))
 	pid := CreateProposal(0, cur)
-	VoteProposal(0, cur, pid)
+	VoteProposal(pid, cur)
 	// switch to another user and vote again. SetRealm must run in
 	// main's crossing frame (not a non-crossing lambda) so the in-place
 	// HIV mutation lands on main's cur — see migration_guide.md §12.
 	testing.SetRealm(testing.NewUserRealm(user2))
-	VoteProposal(0, cur, pid)
-	accepted := ExecuteProposal(0, cur, pid)
+	VoteProposal(pid, cur)
+	accepted := ExecuteProposal(pid, cur)
 	println(accepted)
 	Render(0, cur)
 }
 
 func CreateProposal(_ int, rlm realm) dao.ProposalID {
-	e := dao.NewSimpleExecutor(0, rlm,
-		func(realm) error { return nil },
-		"",
-	)
+	e := dao.NewSimpleExecutor(func(realm) error { return nil }, "", rlm)
 	return dao.MustCreateProposal(cross(rlm),
 		dao.NewProposalRequest("Proposal Title: Dummy proposal", "Description: Do nothing", e),
 	)
 }
 
-func VoteProposal(_ int, rlm realm, pid dao.ProposalID) {
+func VoteProposal(pid dao.ProposalID, rlm realm) {
 	// VoteRequest is /r/gov/dao-declared; use the dao-side constructor
 	// to satisfy the construction-time check.
 	dao.MustVoteOnProposal(cross(rlm), dao.NewVoteRequest(dao.YesVote, pid))
 }
 
-func ExecuteProposal(_ int, rlm realm, pid dao.ProposalID) bool {
+func ExecuteProposal(pid dao.ProposalID, rlm realm) bool {
 	return dao.ExecuteProposal(cross(rlm), pid)
 }
 

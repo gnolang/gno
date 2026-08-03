@@ -75,7 +75,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, toMint address) []keyedToken {
+func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address, rlm realm) []keyedToken {
 	t.Helper()
 
 	var (
@@ -185,12 +185,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 	)
 
 	// Create 3 GRC20 tokens and register them.
-	keyedTokens := registerGRC20Tokens(
-		0, cur,
-		t,
-		[]string{"TestToken0", "TestToken1", "TestToken2"},
-		treasuryAddr,
-	)
+	keyedTokens := registerGRC20Tokens(t, []string{"TestToken0", "TestToken1", "TestToken2"}, treasuryAddr, cur)
 
 	const txAmount = 42
 

@@ -82,21 +82,21 @@ func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Transfer(0, cur, to, amount))
+	checkErr(teller.Transfer(to, amount, cur))
 }
 
 func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Approve(0, cur, spender, amount))
+	checkErr(teller.Approve(spender, amount, cur))
 }
 
 func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.TransferFrom(0, cur, from, to, amount))
+	checkErr(teller.TransferFrom(from, to, amount, cur))
 }
 
 // faucet.
@@ -131,7 +131,7 @@ func DropInstanceOwnership(cur realm, symbol string) {
 
 func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.TransferOwnership(0, cur, newOwner))
+	checkErr(inst.admin.TransferOwnership(newOwner, cur))
 }
 
 func ListTokens(pageNumber, pageSize int) []*grc20.Token {

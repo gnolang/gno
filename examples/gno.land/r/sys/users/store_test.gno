@@ -155,7 +155,7 @@ func TestUpdateName(cur realm, t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.NoError(t, data.UpdateName(0, cur, "alice1"))
+			uassert.NoError(t, data.UpdateName("alice1", cur))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -167,8 +167,8 @@ func TestUpdateName(cur realm, t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.NoError(t, data.UpdateName(0, cur, "alice2"))
-			uassert.NoError(t, data.UpdateName(0, cur, "alice3"))
+			uassert.NoError(t, data.UpdateName("alice2", cur))
+			uassert.NoError(t, data.UpdateName("alice3", cur))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 		uassert.Equal(t, ResolveAddress(aliceAddr).username, "alice3")
@@ -180,14 +180,14 @@ func TestUpdateName(cur realm, t *testing.T) {
 		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		data := ResolveAddress(aliceAddr)
-		uassert.Error(t, data.UpdateName(0, cur, alice), ErrNameTaken.Error())
+		uassert.Error(t, data.UpdateName(alice, cur), ErrNameTaken.Error())
 	})
 
 	t.Run("alias_before_name", func(t *testing.T) {
 		cleanStore(t)
 		data := ResolveAddress(aliceAddr) // not registered
 
-		uassert.ErrorContains(t, data.UpdateName(0, cur, alice), ErrUserNotExistOrDeleted.Error())
+		uassert.ErrorContains(t, data.UpdateName(alice, cur), ErrUserNotExistOrDeleted.Error())
 	})
 
 	t.Run("alias_after_delete", func(t *testing.T) {
@@ -202,7 +202,7 @@ func TestUpdateName(cur realm, t *testing.T) {
 
 		data = ResolveAddress(aliceAddr)
 		{
-			uassert.ErrorContains(t, data.UpdateName(0, cur, "newalice"), ErrUserNotExistOrDeleted.Error())
+			uassert.ErrorContains(t, data.UpdateName("newalice", cur), ErrUserNotExistOrDeleted.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -238,7 +238,7 @@ func TestUpdateName(cur realm, t *testing.T) {
 		// AND unregisterable.
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.ErrorContains(t, cached.UpdateName(0, cur, "squattedname"), ErrUserNotExistOrDeleted.Error())
+			uassert.ErrorContains(t, cached.UpdateName("squattedname", cur), ErrUserNotExistOrDeleted.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 
@@ -253,12 +253,12 @@ func TestUpdateName(cur realm, t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
-			uassert.ErrorContains(t, data.UpdateName(0, cur, ""), ErrEmptyUsername.Error())
-			uassert.ErrorContains(t, data.UpdateName(0, cur, "username with a space"), ErrInvalidUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName("", cur), ErrEmptyUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName("username with a space", cur), ErrInvalidUsername.Error())
 			uassert.ErrorContains(t,
-				data.UpdateName(0, cur, "verylongusernameverylongusernameverylongusernameverylongusername1"),
+				data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1", cur),
 				ErrInvalidUsername.Error())
-			uassert.ErrorContains(t, data.UpdateName(0, cur, "namewith^&()"), ErrInvalidUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName("namewith^&()", cur), ErrInvalidUsername.Error())
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -271,10 +271,10 @@ func TestUpdateName(cur realm, t *testing.T) {
 
 		{
 			// Address as username
-			uassert.ErrorContains(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), ErrNameLikeAddress.Error())
+			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", cur), ErrNameLikeAddress.Error())
 			// Beginning of address as username
-			uassert.ErrorContains(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
-			uassert.NoError(t, data.UpdateName(0, cur, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
+			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmu", cur), ErrNameLikeAddress.Error())
+			uassert.NoError(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", cur))
 			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
@@ -472,7 +472,7 @@ func TestUpdateName_CanonicalCollision(cur realm, t *testing.T) {
 		// non-bypass path.
 		testing.SetOriginCaller(whitelistedCallerAddr)
 		uassert.ErrorContains(t,
-			data.UpdateName(0, cur, "vitalik"),
+			data.UpdateName("vitalik", cur),
 			ErrCanonicalCollision.Error(),
 		)
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
@@ -487,7 +487,7 @@ func TestUpdateName_CanonicalCollision(cur realm, t *testing.T) {
 		data := ResolveAddress(bobAddr)
 		testing.SetOriginCaller(whitelistedCallerAddr)
 		uassert.ErrorContains(t,
-			data.UpdateName(0, cur, "vital1k"),
+			data.UpdateName("vital1k", cur),
 			ErrCanonicalCollision.Error(),
 		)
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
@@ -501,7 +501,7 @@ func TestUpdateName_CanonicalCollision(cur realm, t *testing.T) {
 
 		// Bypass path allows the rename (DAO grant scenario).
 		testing.SetOriginCaller(whitelistedCallerAddr)
-		urequire.NoError(t, data.UpdateNameIgnoreCanonical(0, cur, "vitalik"))
+		urequire.NoError(t, data.UpdateNameIgnoreCanonical("vitalik", cur))
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 
 		// Both names point to alice; latest is "vitalik".
@@ -545,7 +545,7 @@ func TestCanonicalEntry_Persists_After_UpdateName(cur realm, t *testing.T) {
 	urequire.NoError(t, RegisterUser(cross(cur), "alice", aliceAddr))
 	data := ResolveAddress(aliceAddr)
 	testing.SetOriginCaller(whitelistedCallerAddr)
-	urequire.NoError(t, data.UpdateName(0, cur, "alice2"))
+	urequire.NoError(t, data.UpdateName("alice2", cur))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 
 	// Both old and new canonical entries exist.

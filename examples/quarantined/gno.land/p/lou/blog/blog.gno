@@ -45,7 +45,7 @@ func (b Blog) Prefix() string {
 // the prefix used for txlink/markdown URLs. Same shape as
 // grc20.NewToken's identity binding: unforgeable because rlm comes from
 // a runtime-validated crossing frame.
-func NewBlog(_ int, rlm realm, title string, owner address, opts ...Options) (*Blog, error) {
+func NewBlog(title string, owner address, rlm realm, opts ...Options) (*Blog, error) {
 	if title == "" {
 		return nil, ErrEmptyTitle
 	}
@@ -112,7 +112,7 @@ func WithUserResolver(resolver UserResolver) Options {
 	}
 }
 
-func (b *Blog) AddPost(_ int, rlm realm, post *Post) error {
+func (b *Blog) AddPost(post *Post, rlm realm) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post.id = b.PostId.Next()
@@ -138,7 +138,7 @@ func (b *Blog) AddPost(_ int, rlm realm, post *Post) error {
 	return nil
 }
 
-func (b *Blog) UpdatePostById(_ int, rlm realm, id string, newPost *Post) error {
+func (b *Blog) UpdatePostById(id string, newPost *Post, rlm realm) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
@@ -153,7 +153,7 @@ func (b *Blog) UpdatePostById(_ int, rlm realm, id string, newPost *Post) error 
 	return nil
 }
 
-func (b *Blog) UpdatePostBySlug(_ int, rlm realm, slug string, newPost *Post) error {
+func (b *Blog) UpdatePostBySlug(slug string, newPost *Post, rlm realm) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
@@ -168,7 +168,7 @@ func (b *Blog) UpdatePostBySlug(_ int, rlm realm, slug string, newPost *Post) er
 	return nil
 }
 
-func (b *Blog) DeletePostById(_ int, rlm realm, id string) error {
+func (b *Blog) DeletePostById(id string, rlm realm) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
@@ -178,7 +178,7 @@ func (b *Blog) DeletePostById(_ int, rlm realm, id string) error {
 	return b.DeletePost(post)
 }
 
-func (b *Blog) DeletePostBySlug(_ int, rlm realm, slug string) error {
+func (b *Blog) DeletePostBySlug(slug string, rlm realm) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
@@ -198,7 +198,7 @@ func (b *Blog) DeletePost(post *Post) error {
 	return nil
 }
 
-func (b *Blog) LikePostById(_ int, rlm realm, id string) error { // toggles between like and unlike
+func (b *Blog) LikePostById(id string, rlm realm) error { // toggles between like and unlike
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
@@ -213,7 +213,7 @@ func (b *Blog) LikePostById(_ int, rlm realm, id string) error { // toggles betw
 
 }
 
-func (b *Blog) LikePostBySlug(_ int, rlm realm, slug string) error { // toggles between like and unlike
+func (b *Blog) LikePostBySlug(slug string, rlm realm) error { // toggles between like and unlike
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
@@ -243,7 +243,7 @@ func (b Blog) GetPostBySlug(slug string) (*Post, error) {
 	return post.(*Post), nil
 }
 
-func (b *Blog) SetDisablePostLikes(_ int, rlm realm, disable bool) {
+func (b *Blog) SetDisablePostLikes(disable bool, rlm realm) {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.setDisablePostLikes(disable)
 }
@@ -267,7 +267,7 @@ func (b *Blog) setDisablePostLikes(disable bool) {
 	})
 }
 
-func (b *Blog) SetDisableComments(_ int, rlm realm, disable bool) {
+func (b *Blog) SetDisableComments(disable bool, rlm realm) {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.setDisableComments(disable)
 }
@@ -291,12 +291,12 @@ func (b *Blog) setDisableComments(disable bool) {
 	})
 }
 
-func (b *Blog) SetUserResolver(_ int, rlm realm, resolver UserResolver) {
+func (b *Blog) SetUserResolver(resolver UserResolver, rlm realm) {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.UserResolver = resolver
 }
 
-func (b *Blog) SetCustomHeader(_ int, rlm realm, presets []HeaderPreset) {
+func (b *Blog) SetCustomHeader(presets []HeaderPreset, rlm realm) {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.CustomHeader = &presets
 }

@@ -90,7 +90,9 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 //
 // Non-crossing: rlm is threaded into the crossing getMembers(cross(rlm))
 // call. The proposalStatus methods that compose this (votePowerPercent,
-// YesPercent etc., String) all take `_ int, rlm realm` for the same reason.
+// YesPercent etc., String) all take rlm off the first position for the same
+// reason: trailing where there is another parameter to trail, and behind the
+// `_ int` sentinel where there is not.
 func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	members := getMembers(cross(rlm))
 	var tp float64
@@ -101,7 +103,7 @@ func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	return tp
 }
 
-func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes memberstore.MembersByTier) float64 {
+func (ps *proposalStatus) votePowerPercent(votes memberstore.MembersByTier, rlm realm) float64 {
 	members := getMembers(cross(rlm))
 	var vp float64
 	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
@@ -118,15 +120,15 @@ func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes memberstore.M
 }
 
 func (ps *proposalStatus) YesPercent(_ int, rlm realm) float64 {
-	return ps.votePowerPercent(0, rlm, ps.YesVotes)
+	return ps.votePowerPercent(ps.YesVotes, rlm)
 }
 
 func (ps *proposalStatus) NoPercent(_ int, rlm realm) float64 {
-	return ps.votePowerPercent(0, rlm, ps.NoVotes)
+	return ps.votePowerPercent(ps.NoVotes, rlm)
 }
 
 func (ps *proposalStatus) AbstainPercent(_ int, rlm realm) float64 {
-	return ps.votePowerPercent(0, rlm, ps.AbstainVotes)
+	return ps.votePowerPercent(ps.AbstainVotes, rlm)
 }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {
@@ -168,12 +170,12 @@ func (ps *proposalStatus) String(_ int, rlm realm) string {
 	return sb.String()
 }
 
-func StringifyVotes(_ int, rlm realm, ps *proposalStatus) string {
+func StringifyVotes(ps *proposalStatus, rlm realm) string {
 	var sb strings.Builder
 
-	writeVotes(0, rlm, &sb, ps.YesVotes, "YES")
-	writeVotes(0, rlm, &sb, ps.NoVotes, "NO")
-	writeVotes(0, rlm, &sb, ps.AbstainVotes, "ABSTAIN")
+	writeVotes(&sb, ps.YesVotes, "YES", rlm)
+	writeVotes(&sb, ps.NoVotes, "NO", rlm)
+	writeVotes(&sb, ps.AbstainVotes, "ABSTAIN", rlm)
 
 	if sb.String() == "" {
 		return "No one voted yet."
@@ -182,7 +184,7 @@ func StringifyVotes(_ int, rlm realm, ps *proposalStatus) string {
 	return sb.String()
 }
 
-func writeVotes(_ int, rlm realm, sb *strings.Builder, t memberstore.MembersByTier, title string) {
+func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string, rlm realm) {
 	if t.Size() == 0 {
 		return
 	}

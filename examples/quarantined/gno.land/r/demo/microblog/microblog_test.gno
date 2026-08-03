@@ -11,9 +11,9 @@ import (
 // postAs threads the SetRealm'd cur into m.NewPost via cross(rlm).
 // Callers SetRealm in the enclosing crossing frame so the cur HIV
 // mutation lands where rlm captures it.
-func postAs(_ int, rlm realm, text string) error {
+func postAs(text string, rlm realm) error {
 	var err error
-	func(cur realm) { err = m.NewPost(0, cur, text) }(cross(rlm))
+	func(cur realm) { err = m.NewPost(text, cur) }(cross(rlm))
 	return err
 }
 
@@ -26,7 +26,7 @@ func TestMicroblog(cur realm, t *testing.T) {
 	urequire.Equal(t, "404", Render("/wrongpath"), "rendering not giving 404")
 	urequire.NotEqual(t, "404", Render(""), "rendering / should not give 404")
 	testing.SetRealm(testing.NewUserRealm(author1))
-	urequire.NoError(t, postAs(0, cur, "goodbyte, web2"), "could not create post")
+	urequire.NoError(t, postAs("goodbyte, web2", cur), "could not create post")
 
 	_, err := m.GetPage(author1.String())
 	urequire.NoError(t, err, "silo should exist")
@@ -35,9 +35,9 @@ func TestMicroblog(cur realm, t *testing.T) {
 	urequire.Error(t, err, "silo should not exist")
 
 	testing.SetRealm(testing.NewUserRealm(author2))
-	urequire.NoError(t, postAs(0, cur, "hello, web3"), "could not create post")
-	urequire.NoError(t, postAs(0, cur, "hello again, web3"), "could not create post")
-	urequire.NoError(t, postAs(0, cur, "hi again,\n web4?"), "could not create post")
+	urequire.NoError(t, postAs("hello, web3", cur), "could not create post")
+	urequire.NoError(t, postAs("hello again, web3", cur), "could not create post")
+	urequire.NoError(t, postAs("hi again,\n web4?", cur), "could not create post")
 
 	println("--- MICROBLOG ---\n\n")
 

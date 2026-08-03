@@ -25,10 +25,10 @@
 //
 //	// Create functions that require authorization
 //	func UpdateConfig(cur realm, newValue string) error {
-//		return auth.DoByPrevious(0, cur, "update_config", func() error {
+//		return auth.DoByPrevious("update_config", func() error {
 //			config = newValue
 //			return nil
-//		})
+//		}, cur)
 //	}
 //
 // See example_test.gno for more usage examples.
@@ -164,7 +164,7 @@ func (a *Authorizer) Authority() Authority {
 //
 // `newAuthority` is also an open-interface input — see NewWithAuthority's
 // Class-3 caveat. Pass canonical impls.
-func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
+func (a *Authorizer) Transfer(newAuthority Authority, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}
@@ -180,12 +180,12 @@ func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
 // the authorized principal is `rlm.Address()`. To authorize as the
 // realm that called your function, use `DoByPrevious`.
 //
-//	auth.DoByCurrent(0, cur, "update_config", func() error { ... })    // current realm authorizes
-//	auth.DoByPrevious(0, cur, "update_config", func() error { ... })   // calling realm authorizes
+//	auth.DoByCurrent("update_config", func() error { ... }, cur)    // current realm authorizes
+//	auth.DoByPrevious("update_config", func() error { ... }, cur)   // calling realm authorizes
 //
-// The `_ int` first parameter is a deliberate sentinel that pushes
-// `rlm realm` past the first-arg position so DoByCurrent stays a
-// non-crossing method — otherwise it would be a crossing method and
+// `rlm realm` trails the other parameters deliberately: only a realm in
+// first position marks a crossing function, so keeping it last leaves
+// DoByCurrent non-crossing — otherwise it would be a crossing method and
 // rlm.Previous() inside would resolve one realm deeper than the caller
 // intended.
 //
@@ -197,7 +197,7 @@ func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
 // that realm called into it) and later pass the stored value here to
 // authorize actions as that realm. IsCurrent rejects stale captures by
 // requiring the value to match the topmost live crossing frame's cur.
-func (a *Authorizer) DoByCurrent(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+func (a *Authorizer) DoByCurrent(title string, action PrivilegedAction, rlm realm, args ...any) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}
@@ -210,7 +210,7 @@ func (a *Authorizer) DoByCurrent(_ int, rlm realm, title string, action Privileg
 // `rlm.Previous().Address()`. Mirrors the Transfer/AddMember pattern:
 // always take live cur, derive the caller-of-caller internally rather
 // than accepting a stored/forwarded realm value.
-func (a *Authorizer) DoByPrevious(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+func (a *Authorizer) DoByPrevious(title string, action PrivilegedAction, rlm realm, args ...any) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}
@@ -272,7 +272,7 @@ func (a *MemberAuthority) String() string {
 // own captured cur; the principal is rlm.Previous().Address() and must
 // already be a member. The IsCurrent guard closes the forgery where an
 // external realm passes Owner() as caller to bypass members.Has(caller).
-func (a *MemberAuthority) AddMember(_ int, rlm realm, addr address) error {
+func (a *MemberAuthority) AddMember(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}
@@ -300,7 +300,7 @@ func (a *MemberAuthority) AddMembers(_ int, rlm realm, addrs ...address) error {
 
 // RemoveMember removes a member from the authority. Same rlm contract
 // as AddMember.
-func (a *MemberAuthority) RemoveMember(_ int, rlm realm, addr address) error {
+func (a *MemberAuthority) RemoveMember(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}

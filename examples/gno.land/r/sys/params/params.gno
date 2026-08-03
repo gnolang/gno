@@ -131,7 +131,7 @@ func newPropRequest(cur realm, key string, fn func(), title string) dao.Proposal
 		title = "Set new sys/params key"
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, callback, "")
+	e := dao.NewSimpleExecutor(callback, "", cur)
 
 	return dao.NewProposalRequest(title, "This proposal wants to add a new key to sys/params: "+key, e)
 }

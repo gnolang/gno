@@ -35,7 +35,7 @@ func TestUpdateInstructions(cur realm, t *testing.T) {
 	newInstructions := "new instructions"
 
 	uassert.NotPanics(t, cur, func() {
-		updateInstructions(0, cur, newInstructions)
+		updateInstructions(newInstructions, cur)
 	})
 
 	uassert.Equal(t, newInstructions, instructions)

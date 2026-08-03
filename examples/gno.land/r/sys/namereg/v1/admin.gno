@@ -17,7 +17,7 @@ func setPaused(cur realm, newPausedValue bool) {
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
 	// UpdateName must be called from this realm.
-	return userData.UpdateName(0, cur, newName)
+	return userData.UpdateName(newName, cur)
 }
 
 func deleteUserdata(cur realm, userData *susers.UserData) error {
@@ -39,7 +39,7 @@ func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", cur)
 
 	if newPausedValue {
 		return dao.NewProposalRequest("User Registry V1: Pause", "", e)
@@ -70,7 +70,7 @@ func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", cur)
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName),
@@ -92,7 +92,7 @@ func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalReque
 		return deleteUserdata(cur, userData)
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", cur)
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()),
@@ -116,7 +116,7 @@ func ProposeNewRegisterPrice(cur realm, newPrice int64) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", cur)
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Update registration price to `%d`", newPrice),

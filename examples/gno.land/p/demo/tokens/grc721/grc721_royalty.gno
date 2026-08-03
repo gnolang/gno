@@ -17,9 +17,9 @@ type royaltyNFT struct {
 var _ IGRC2981 = (*royaltyNFT)(nil)
 
 // NewNFTWithRoyalty creates a new royalty NFT with the specified name, symbol, and royalty calculator.
-func NewNFTWithRoyalty(_ int, rlm realm, name, symbol string) *royaltyNFT {
+func NewNFTWithRoyalty(name, symbol string, rlm realm) *royaltyNFT {
 	return &royaltyNFT{
-		metadataNFT:          NewNFTWithMetadata(0, rlm, name, symbol),
+		metadataNFT:          NewNFTWithMetadata(name, symbol, rlm),
 		tokenRoyaltyInfo:     avl.NewTree(),
 		maxRoyaltyPercentage: 100,
 	}

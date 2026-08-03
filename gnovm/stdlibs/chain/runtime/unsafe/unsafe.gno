@@ -34,7 +34,7 @@ func PreviousRealm() runtime.Realm {
 // it returns the BORROWER's realm — using equality against an admin
 // address here ships a delegation bug. The idiomatic substitute, when
 // you have cur, is cur.PkgPath() / cur.Address(); when you don't,
-// accept `_ int, rlm realm` from the caller.
+// accept a trailing `rlm realm` from the caller.
 func CurrentRealm() runtime.Realm {
 	addr, path := getRealm(0)
 	return runtime.NewRealm(address(addr), path)

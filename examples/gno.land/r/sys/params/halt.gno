@@ -46,6 +46,6 @@ func NewSetHaltRequest(cur realm, height int64, minVersion string) dao.ProposalR
 		}
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, callback, "")
+	e := dao.NewSimpleExecutor(callback, "", cur)
 	return dao.NewProposalRequest("Set node halt height", desc, e)
 }

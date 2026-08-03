@@ -81,7 +81,7 @@ func (r *Router) Render(reqPath string) string {
 // routes registered via HandleFuncRlm with the supplied rlm; routes
 // registered via the legacy HandleFunc still work — rlm is ignored.
 // Use this when the router carries any rlm-aware handlers.
-func (r *Router) RenderRlm(_ int, rlm realm, reqPath string) string {
+func (r *Router) RenderRlm(reqPath string, rlm realm) string {
 	clearPath, rawQuery, _ := strings.Cut(reqPath, "?")
 	query, _ := url.ParseQuery(rawQuery)
 	reqParts := strings.Split(clearPath, "/")
@@ -124,7 +124,7 @@ func (r *Router) RenderRlm(_ int, rlm realm, reqPath string) string {
 			}
 			res := &ResponseWriter{}
 			if route.FnRlm != nil {
-				route.FnRlm(0, rlm, res, req)
+				route.FnRlm(res, req, rlm)
 			} else {
 				route.Fn(res, req)
 			}

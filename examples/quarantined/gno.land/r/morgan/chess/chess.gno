@@ -130,7 +130,7 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 		panic("negative increment invalid")
 	}
 
-	opponent := parsePlayer(0, cur, opponentRaw)
+	opponent := parsePlayer(opponentRaw, cur)
 	caller := cur.Previous().Address()
 	assertUserNotInLobby(caller)
 
@@ -386,14 +386,14 @@ func ClaimTimeout(cur realm, gameID string) string {
 func Abort(cur realm, gameID string) string {
 	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := abort(0, cur, g)
+	err := abort(g, cur)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func abort(_ int, rlm realm, g *Game) error {
+func abort(g *Game, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized: rlm is not the caller's live cur")
 	}
@@ -416,19 +416,19 @@ func abort(_ int, rlm realm, g *Game) error {
 func Resign(cur realm, gameID string) string {
 	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := resign(0, cur, g)
+	err := resign(g, cur)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func resign(_ int, rlm realm, g *Game) error {
+func resign(g *Game, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized: rlm is not the caller's live cur")
 	}
 	if len(g.Position.Moves) < 2 {
-		return abort(0, rlm, g)
+		return abort(g, rlm)
 	}
 	caller := rlm.Previous().Address()
 	switch caller {

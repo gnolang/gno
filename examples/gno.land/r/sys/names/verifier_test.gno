@@ -180,10 +180,10 @@ func TestSetPaused_internal(cur realm, t *testing.T) {
 	defer func() { paused = saved }()
 
 	paused = false
-	setPaused(0, cur, true)
+	setPaused(true, cur)
 	uassert.True(t, paused)
 
-	setPaused(0, cur, false)
+	setPaused(false, cur)
 	uassert.False(t, paused)
 }
 

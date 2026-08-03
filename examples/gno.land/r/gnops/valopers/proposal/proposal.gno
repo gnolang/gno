@@ -76,7 +76,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 	title := "/p/gnops/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", cur)
 
 	return dao.NewProposalRequest(title, description, e)
 }

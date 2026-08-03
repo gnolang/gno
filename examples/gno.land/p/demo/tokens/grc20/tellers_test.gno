@@ -134,15 +134,15 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	func(cur realm) { urequire.NoError(t, teller.Approve(0, cur, bob, 600)) }(cross(cur))
+	func(cur realm) { urequire.NoError(t, teller.Approve(bob, 600, cur)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-	func(cur realm) { urequire.Error(t, teller.TransferFrom(0, cur, alice, carl, 700)) }(cross(cur))
+	func(cur realm) { urequire.Error(t, teller.TransferFrom(alice, carl, 700, cur)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
+	func(cur realm) { urequire.NoError(t, teller.TransferFrom(alice, carl, 400, cur)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }

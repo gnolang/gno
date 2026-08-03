@@ -87,7 +87,7 @@ func TestTimelock(cur realm, t *testing.T) {
 		// (the owner set at NewTimeLock construction).
 		testing.SetRealm(testing.NewUserRealm(unsafe.OriginCaller()))
 		var err error
-		func(cur realm) { err = timelockUtil.UpdateDelay(0, cur, newDelay) }(cross(cur))
+		func(cur realm) { err = timelockUtil.UpdateDelay(newDelay, cur) }(cross(cur))
 		uassert.NoError(t, err, "UpdateDelay failed")
 
 		uassert.Equal(t, newDelay, timelockUtil.minDelay, "minDelay not updated")

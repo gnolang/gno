@@ -202,5 +202,5 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 		return nil
 	}
 
-	return dao.NewSimpleExecutor(0, cur, callback, "")
+	return dao.NewSimpleExecutor(callback, "", cur)
 }

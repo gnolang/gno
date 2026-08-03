@@ -76,12 +76,9 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	var pid ProposalID
 	testing.SetRealm(testing.NewUserRealm(alice))
 	urequire.NotPanics(t, cur, func() {
-		e := NewSimpleExecutor(0, cur,
-			func(realm) error {
-				return nil
-			},
-			"",
-		)
+		e := NewSimpleExecutor(func(realm) error {
+			return nil
+		}, "", cur)
 		pid = MustCreateProposal(cross(cur), NewProposalRequest("Proposal Title", "Description", e))
 	})
 
@@ -111,22 +108,22 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 type dummyDao struct{}
 
-func (dd *dummyDao) PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error) {
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest, rlm realm) (address, error) {
 	return unsafe.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID, rlm realm) {
 }
 
-func (dd *dummyDao) VoteOnProposal(_ int, rlm realm, r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(r VoteRequest, rlm realm) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(pid ProposalID, rlm realm) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error {
+func (dd *dummyDao) ExecuteProposal(pid ProposalID, e Executor, rlm realm) error {
 	return nil
 }
 

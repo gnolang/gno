@@ -40,7 +40,7 @@ func ProposeNewCLA(cur realm, newHash, newURL string) dao.ProposalRequest {
 	return dao.NewProposalRequest(
 		"Update CLA requirement",
 		desc,
-		dao.NewSimpleExecutor(0, cur, cb, helplink.Realm("gno.land/r/sys/cla").Home()),
+		dao.NewSimpleExecutor(cb, helplink.Realm("gno.land/r/sys/cla").Home(), cur),
 	)
 }
 

@@ -52,7 +52,7 @@ func NewRole(name string, admin address) (*Role, error) {
 // CreateRole create a new role within the realm. rlm must be the
 // caller's own captured cur; rlm.Previous().Address() must equal the
 // owner of the Roles container.
-func (rs *Roles) CreateRole(_ int, rlm realm, name string) (*Role, error) {
+func (rs *Roles) CreateRole(name string, rlm realm) (*Role, error) {
 	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
@@ -105,7 +105,7 @@ func (rs *Roles) FindRole(name string) (*Role, error) {
 // GrantRole grants a role to an account. rlm must be the caller's own
 // captured cur; rlm.Previous().Address() must equal the role's
 // admin/owner.
-func (rs *Roles) GrantRole(_ int, rlm realm, name string, account address) error {
+func (rs *Roles) GrantRole(name string, account address, rlm realm) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -142,7 +142,7 @@ func (rs *Roles) GrantRole(_ int, rlm realm, name string, account address) error
 // RevokeRole revokes a role from an account. rlm must be the caller's
 // own captured cur; rlm.Previous().Address() must equal the role's
 // admin/owner.
-func (rs *Roles) RevokeRole(_ int, rlm realm, name string, account address) error {
+func (rs *Roles) RevokeRole(name string, account address, rlm realm) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -185,7 +185,7 @@ func (rs *Roles) RevokeRole(_ int, rlm realm, name string, account address) erro
 // rlm.Previous().Address(). Closing the forgery here matters: without
 // it, any external realm could force a victim to renounce a role by
 // passing the victim's address as caller.
-func (rs *Roles) RenounceRole(_ int, rlm realm, name string) error {
+func (rs *Roles) RenounceRole(name string, rlm realm) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -215,8 +215,8 @@ func (rs *Roles) RenounceRole(_ int, rlm realm, name string) error {
 // administrator. rlm must be the caller's own captured cur and must be
 // the current admin (delegated to ownable.TransferOwnership which
 // re-checks via rlm.Previous().Address()).
-func (r *Role) SetRoleAdmin(_ int, rlm realm, admin address) error {
-	if err := r.Ownable.TransferOwnership(0, rlm, admin); err != nil {
+func (r *Role) SetRoleAdmin(admin address, rlm realm) error {
+	if err := r.Ownable.TransferOwnership(admin, rlm); err != nil {
 		return err
 	}
 

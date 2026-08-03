@@ -49,7 +49,7 @@ func New(ownerAddress address) *ManagedGroup {
 // AddBackupOwner adds a backup owner to the group by address. rlm must
 // be the caller's own captured cur (asserted via rlm.IsCurrent());
 // rlm.Previous().Address() must equal the owner.
-func (g *ManagedGroup) AddBackupOwner(_ int, rlm realm, addr address) error {
+func (g *ManagedGroup) AddBackupOwner(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ownable.ErrUnauthorized
 	}
@@ -70,7 +70,7 @@ func (g *ManagedGroup) addBackupOwner(addr address) error {
 // RemoveBackupOwner removes a backup owner from the group by address.
 // The owner cannot be removed. rlm must be the caller's own captured
 // cur; rlm.Previous().Address() must equal the owner.
-func (g *ManagedGroup) RemoveBackupOwner(_ int, rlm realm, addr address) error {
+func (g *ManagedGroup) RemoveBackupOwner(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ownable.ErrUnauthorized
 	}
@@ -110,7 +110,7 @@ func (g *ManagedGroup) ClaimOwnership(_ int, rlm realm) error {
 // AddMember adds a member to the group by address. rlm must be the
 // caller's own captured cur; rlm.Previous().Address() must equal the
 // owner.
-func (g *ManagedGroup) AddMember(_ int, rlm realm, addr address) error {
+func (g *ManagedGroup) AddMember(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ownable.ErrUnauthorized
 	}
@@ -131,7 +131,7 @@ func (g *ManagedGroup) addMember(addr address) error {
 // RemoveMember removes a member from the group by address. The owner
 // cannot be removed. rlm must be the caller's own captured cur;
 // rlm.Previous().Address() must equal the owner.
-func (g *ManagedGroup) RemoveMember(_ int, rlm realm, addr address) error {
+func (g *ManagedGroup) RemoveMember(addr address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ownable.ErrUnauthorized
 	}

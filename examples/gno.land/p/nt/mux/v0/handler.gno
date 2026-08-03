@@ -14,10 +14,11 @@ type Handler struct {
 
 type HandlerFunc func(*ResponseWriter, *Request)
 
-// HandlerFuncRlm is the rlm-aware handler shape — non-crossing
-// (`_ int, rlm realm` first params) so callers thread cur as data
-// for the handler to forward to downstream crossing functions.
-type HandlerFuncRlm func(_ int, rlm realm, res *ResponseWriter, req *Request)
+// HandlerFuncRlm is the rlm-aware handler shape — non-crossing, since the
+// realm trails the request parameters instead of leading them, so callers
+// thread cur as data for the handler to forward to downstream crossing
+// functions.
+type HandlerFuncRlm func(res *ResponseWriter, req *Request, rlm realm)
 
 type ErrHandlerFunc func(*ResponseWriter, *Request) error
 

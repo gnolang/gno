@@ -8,7 +8,7 @@ import (
 // captured cur; the Author is set to rlm.Previous().Address() —
 // unforgeable, vs. the prior runtime walk a non-crossing wrapper could
 // spoof.
-func (db *FormDB) SubmitForm(_ int, rlm realm, formID string, answers string) {
+func (db *FormDB) SubmitForm(formID string, answers string, rlm realm) {
 	// Check if form exists
 	form, err := db.GetForm(formID)
 	if err != nil {

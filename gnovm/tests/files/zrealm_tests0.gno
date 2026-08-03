@@ -7,12 +7,12 @@ import (
 )
 
 func init(cur realm) {
-	tests_foo.AddFooStringer(0, cur, "one")
-	tests_foo.AddFooStringer(0, cur, "two")
+	tests_foo.AddFooStringer("one", cur)
+	tests_foo.AddFooStringer("two", cur)
 }
 
 func main(cur realm) {
-	tests_foo.AddFooStringer(0, cur, "three")
+	tests_foo.AddFooStringer("three", cur)
 	println(tests.Render(""))
 	println("end")
 }

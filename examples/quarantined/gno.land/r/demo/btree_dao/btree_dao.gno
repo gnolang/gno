@@ -37,7 +37,7 @@ var (
 )
 
 func init(cur realm) {
-	dao = grc721.NewBasicNFT(0, cur, "BTree DAO", "BTDAO")
+	dao = grc721.NewBasicNFT("BTree DAO", "BTDAO", cur)
 }
 
 // PlantTree allows a user to plant their B-Tree in the DAO forest.

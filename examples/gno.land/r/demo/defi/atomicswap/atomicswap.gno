@@ -114,12 +114,12 @@ func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock 
 	require(allowance > 0, "no allowance")
 
 	userTeller := token.RealmTeller(0, cur)
-	err := userTeller.TransferFrom(0, cur, sender, curAddr, allowance)
+	err := userTeller.TransferFrom(sender, curAddr, allowance, cur)
 	require(err == nil, "cannot retrieve tokens from allowance")
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(cur realm, to address) {
-		err := userTeller.Transfer(0, cur, to, allowance)
+		err := userTeller.Transfer(to, allowance, cur)
 		require(err == nil, "cannot transfer tokens")
 	}
 
@@ -135,7 +135,7 @@ func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock 
 // Claim loads a registered swap and tries to claim it.
 func Claim(cur realm, id int, secret string) {
 	swap := mustGet(id)
-	swap.Claim(0, cur, secret)
+	swap.Claim(secret, cur)
 }
 
 // Refund loads a registered swap and tries to refund it.

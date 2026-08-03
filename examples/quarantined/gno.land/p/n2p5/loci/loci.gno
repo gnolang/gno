@@ -29,7 +29,7 @@ func New() *LociStore {
 // which is forgeable from non-crossing wrappers — an attacker realm
 // could overwrite another realm's slot. With IsCurrent + rlm.Previous(),
 // the slot key is unforgeable.
-func (s *LociStore) Set(_ int, rlm realm, value []byte) {
+func (s *LociStore) Set(value []byte, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("loci: rlm does not match the current crossing frame")
 	}

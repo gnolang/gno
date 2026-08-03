@@ -122,7 +122,7 @@ func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 			var formID string
 			var err error
 			func(cur realm) {
-				formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", tt.data)
+				formID, err = db.CreateForm("Test Form", "Test Description", "", "", tt.data, cur)
 			}(cross(cur))
 			if err != nil {
 				t.Error(err)
@@ -132,7 +132,7 @@ func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 			// panic from it becomes a cross-realm "abort". A plain
 			// defer-recover won't see it; use revive() instead.
 			r := revive(func() {
-				func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross(cur))
+				func(cur realm) { db.SubmitForm(formID, tt.answer, cur) }(cross(cur))
 			})
 			if r != nil && !tt.expectPanic {
 				t.Errorf("%s panic occurred when not expected: %v", tt.name, r)

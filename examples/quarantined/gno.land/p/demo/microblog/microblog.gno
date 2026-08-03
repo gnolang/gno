@@ -50,7 +50,7 @@ func (m *Microblog) GetPages() []*Page {
 // cur (asserted via rlm.IsCurrent()); the post's author is set to
 // rlm.Previous().Address() — an external realm cannot forge a post
 // under a different identity.
-func (m *Microblog) NewPost(_ int, rlm realm, text string) error {
+func (m *Microblog) NewPost(text string, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return errors.New("microblog: unauthorized")
 	}

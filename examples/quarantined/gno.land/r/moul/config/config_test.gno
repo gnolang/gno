@@ -260,11 +260,11 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	var contractActionExecuted bool
 	handlerExecuted = false         // Reset tracker
 	testing.SetRealm(contractRealm) // Call must originate from the contract now
-	err = Authorizer.DoByCurrent(0, cur, "some_contract_action", func() error {
+	err = Authorizer.DoByCurrent("some_contract_action", func() error {
 		contractActionExecuted = true
 		// Imagine contract logic here
 		return nil
-	})
+	}, cur)
 	uassert.NoError(t, err, "contract action via Authorizer.Do failed")
 	uassert.True(t, handlerExecuted, "handler should have been executed by contract call") // Verify handler ran
 	uassert.True(t, contractActionExecuted, "contract action should have been executed")
@@ -273,10 +273,10 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	var userActionExecuted bool
 	handlerExecuted = false // Reset tracker
 	testing.SetRealm(testing.NewUserRealm(nonManagerAddr))
-	err = Authorizer.DoByCurrent(0, cur, "some_user_action", func() error {
+	err = Authorizer.DoByCurrent("some_user_action", func() error {
 		userActionExecuted = true
 		return nil
-	})
+	}, cur)
 	// The ContractAuthority.Authorize method should return an error
 	// because the handler now returns an error if the caller isn't the contract.
 	uassert.Error(t, err, "user action via Authorizer.Do should fail when contract is authority")

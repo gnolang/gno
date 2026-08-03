@@ -75,7 +75,7 @@ func New(bankers []Banker, pkgPath string) (*Treasury, error) {
 
 // Send sends a payment using the corresponding banker. rlm is threaded
 // to the banker's Send for IsCurrent + owner validation.
-func (t *Treasury) Send(_ int, rlm realm, p Payment) error {
+func (t *Treasury) Send(p Payment, rlm realm) error {
 	// Get the banker record corresponding to this Payment.
 	br := t.bankers.Get(p.BankerID())
 	if br == nil {
@@ -84,7 +84,7 @@ func (t *Treasury) Send(_ int, rlm realm, p Payment) error {
 	record := br.(*bankerRecord)
 
 	// Send the payment using the corresponding banker.
-	if err := record.banker.Send(0, rlm, p); err != nil {
+	if err := record.banker.Send(p, rlm); err != nil {
 		return ufmt.Errorf("%v: %s", ErrSendPaymentFailed, err)
 	}
 

@@ -24,7 +24,7 @@ func TestTransferOwnership(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, bob)
+		err := o.TransferOwnership(bob, cur)
 		urequire.NoError(t, err)
 	}(cross(cur))
 
@@ -37,7 +37,7 @@ func TestTransferOwnershipUnauthorized(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	func(cur realm) {
-		uassert.ErrorContains(t, o.TransferOwnership(0, cur, bob), ErrUnauthorized.Error())
+		uassert.ErrorContains(t, o.TransferOwnership(bob, cur), ErrUnauthorized.Error())
 	}(cross(cur))
 }
 
@@ -83,10 +83,10 @@ func TestErrInvalidAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, "")
+		err := o.TransferOwnership("", cur)
 		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-		err = o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000")
+		err = o.TransferOwnership("10000000001000000000100000000010000000001000000000", cur)
 		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 	}(cross(cur))
 }

@@ -22,7 +22,7 @@ func Set(cur realm, value string) {
 	if err != nil {
 		panic(err)
 	}
-	store.Set(0, cur, b)
+	store.Set(b, cur)
 	chain.Emit("SetValue", "ForAddr", string(cur.Previous().Address()))
 }
 

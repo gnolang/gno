@@ -29,7 +29,7 @@ func init(cur realm) {
 
 	// Create an executor that always fails
 	cb := func(realm) error { return errors.New("Boom!") }
-	executor = dao.NewSimpleExecutor(0, cur, cb, "")
+	executor = dao.NewSimpleExecutor(cb, "", cur)
 
 	// Create a proposal request that fails on execution
 	request := dao.NewProposalRequest("Test", "This proposal always fails on execution", executor)
@@ -40,12 +40,12 @@ func init(cur realm) {
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
 	// Register proposal with the local GovDAO instance
-	govdao.PostCreateProposal(0, cur, request, proposalID)
+	govdao.PostCreateProposal(request, proposalID, cur)
 }
 
 func main(cur realm) {
 	// Execute proposal, status should be REJECTED
-	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
+	err := govdao.ExecuteProposal(proposalID, executor, cur)
 
 	println(err.Error())
 	println()

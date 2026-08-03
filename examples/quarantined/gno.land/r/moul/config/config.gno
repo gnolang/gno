@@ -23,7 +23,7 @@ func AddManager(cur realm, addr address) error {
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot add manager directly")
 	}
-	return memberAuth.AddMember(0, cur, addr)
+	return memberAuth.AddMember(addr, cur)
 }
 
 // RemoveManager removes an address from the list of authorized managers.
@@ -34,7 +34,7 @@ func RemoveManager(cur realm, addr address) error {
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot remove manager directly")
 	}
-	return memberAuth.RemoveMember(0, cur, addr)
+	return memberAuth.RemoveMember(addr, cur)
 }
 
 // SECURITY XXX: TransferManagement accepts any Authority impl as the
@@ -63,7 +63,7 @@ func TransferManagement(cur realm, newAuthority authz.Authority) error {
 	if newAuthority == nil {
 		return errors.New("new authority cannot be nil")
 	}
-	return Authorizer.Transfer(0, cur, newAuthority)
+	return Authorizer.Transfer(newAuthority, cur)
 }
 
 // ListManagers returns a slice of all managed keys.

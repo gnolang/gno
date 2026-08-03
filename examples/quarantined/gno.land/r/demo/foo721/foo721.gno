@@ -11,7 +11,7 @@ var (
 )
 
 func init(cur realm) {
-	foo = grc721.NewBasicNFT(0, cur, "FooNFT", "FNFT")
+	foo = grc721.NewBasicNFT("FooNFT", "FNFT", cur)
 	mintNNFT(admin, 10)                                     // @administrator (10)
 	mintNNFT("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", 5) // govdao t1 multisig (5)
 }

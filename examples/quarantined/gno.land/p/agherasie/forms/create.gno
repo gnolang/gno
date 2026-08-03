@@ -20,7 +20,7 @@ func CreateField(label string, fieldType string, required bool) Field {
 // cur (asserted via rlm.IsCurrent()); the form Owner is set to
 // rlm.Previous().Address() — unforgeable, vs. the prior runtime walk
 // which a non-crossing wrapper could spoof.
-func (db *FormDB) CreateForm(_ int, rlm realm, title string, description string, openAt string, closeAt string, data string) (string, error) {
+func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string, rlm realm) (string, error) {
 	if !rlm.IsCurrent() {
 		return "", errSpoofedRealm
 	}

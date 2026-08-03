@@ -27,7 +27,7 @@ func CreatePost(cur realm, slug, title, body, publicationDate, authors, tags str
 	}
 	actionLinks := md.Link("Like", txlink.Call("LikePostBySlug", "slug", post.Slug()))
 	post.SetPreviewFooter(actionLinks + "\n\n")
-	if err := myBlog.AddPost(0, cur, post); err != nil {
+	if err := myBlog.AddPost(post, cur); err != nil {
 		panic(err)
 	}
 }
@@ -54,7 +54,7 @@ func UpdatePost(cur realm, id, slug, title, body, publicationDate, authors, tags
 	if err != nil {
 		panic(err)
 	}
-	if err := myBlog.UpdatePostById(0, cur, id, post); err != nil {
+	if err := myBlog.UpdatePostById(id, post, cur); err != nil {
 		panic(err)
 	}
 }
@@ -81,19 +81,19 @@ func UpdatePostBySlug(cur realm, slug, title, body, publicationDate, authors, ta
 	if err != nil {
 		panic(err)
 	}
-	if err := myBlog.UpdatePostBySlug(0, cur, slug, post); err != nil {
+	if err := myBlog.UpdatePostBySlug(slug, post, cur); err != nil {
 		panic(err)
 	}
 }
 
 func DeletePost(cur realm, slug string) {
-	if err := myBlog.DeletePostBySlug(0, cur, slug); err != nil {
+	if err := myBlog.DeletePostBySlug(slug, cur); err != nil {
 		panic(err)
 	}
 }
 
 func ToggleLikePostBySlug(cur realm, slug string) {
-	if err := myBlog.LikePostBySlug(0, cur, slug); err != nil {
+	if err := myBlog.LikePostBySlug(slug, cur); err != nil {
 		panic(err)
 	}
 }

@@ -125,7 +125,7 @@ func NewUnassignRoleAction(payload *ActionUnassignRole) daokit.Action {
 //     DAOWrapper.Execute (the rlm-aware path).
 //   - DAOWrapper.Execute → DAOPrivate.executeWithRlm uses
 //     Core.ExecuteWithDispatch to intercept ActionEditProfileKind and
-//     dispatch through editProfileHandler.execute(0, rlm, action),
+//     dispatch through editProfileHandler.execute(action, rlm),
 //     enabling cross(rlm) instead of a bare cross.
 
 const ActionEditProfileKind = "gno.land/p/samcrew/basedao.EditProfile"
@@ -167,7 +167,7 @@ type editProfileHandler struct {
 // comment. The unexported method name binds the interface signature to
 // the basedao package, preventing any foreign type from being
 // substituted into basedao's rlm-bearing dispatch path.
-func (h *editProfileHandler) execute(_ int, rlm realm, action daokit.Action) {
+func (h *editProfileHandler) execute(action daokit.Action, rlm realm) {
 	a, ok := action.(*ActionEditProfile)
 	if !ok {
 		panic(errors.New("invalid action type"))

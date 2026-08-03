@@ -13,12 +13,7 @@ var (
 )
 
 func init(cur realm) {
-	myBlog, _ = blog.NewBlog(
-		0, cur,
-		"Lou's Blog",
-		admin,
-		blog.WithUserResolver(myResolver),
-	)
+	myBlog, _ = blog.NewBlog("Lou's Blog", admin, cur, blog.WithUserResolver(myResolver))
 	hor.Register(cross(cur), "Lou's blog realm", "")
 }
 

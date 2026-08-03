@@ -10,7 +10,7 @@ import (
 func newDummyRoyaltyNFT(_ int, rlm realm) *royaltyNFT {
 	var nft *royaltyNFT
 	func(cur realm) {
-		nft = NewNFTWithRoyalty(0, cur, dummyNFTName, dummyNFTSymbol)
+		nft = NewNFTWithRoyalty(dummyNFTName, dummyNFTSymbol, cur)
 	}(cross(rlm))
 	return nft
 }

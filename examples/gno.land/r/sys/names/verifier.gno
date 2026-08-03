@@ -167,7 +167,7 @@ func ProposeSetPaused(cur realm, v bool) dao.ProposalRequest {
 		panic("paused state already matches requested value; no-op proposal rejected")
 	}
 	cb := func(cur realm) error {
-		setPaused(0, cur, v)
+		setPaused(v, cur)
 		return nil
 	}
 	title := "Unpause Namespace Verifier"
@@ -179,7 +179,7 @@ func ProposeSetPaused(cur realm, v bool) dao.ProposalRequest {
 	return dao.NewProposalRequestWithFilter(
 		title,
 		desc,
-		dao.NewSimpleExecutor(0, cur, cb, ""),
+		dao.NewSimpleExecutor(cb, "", cur),
 		govimpl.NewFilterByTier(memberstore.T1),
 	)
 }
@@ -190,7 +190,7 @@ func ProposeSetPaused(cur realm, v bool) dao.ProposalRequest {
 //
 // Emits NamespaceEnforcement{Paused,Unpaused} with the executor's
 // realm path for off-chain audit trails.
-func setPaused(_ int, rlm realm, v bool) {
+func setPaused(v bool, rlm realm) {
 	paused = v
 	if v {
 		chain.Emit("NamespaceEnforcementPaused", "by", rlm.Previous().PkgPath())

@@ -76,7 +76,7 @@ import (
 )
 
 // DAOWrapper is the public, rlm-validating surface of a basedao DAO. All
-// mutating methods take (_ int, rlm realm, ...), validate via
+// mutating methods take a trailing rlm realm, validate via
 // rlm.IsCurrent(), and derive the principal from rlm.Previous().Address()
 // before invoking the private impl's address-typed methods. This is the
 // trusted boundary — the daokit.DAO interface itself is dispatch-only and
@@ -87,7 +87,7 @@ type DAOWrapper struct {
 	impl *DAOPrivate
 }
 
-func (w *DAOWrapper) Propose(_ int, rlm realm, req daokit.ProposalRequest) uint64 {
+func (w *DAOWrapper) Propose(req daokit.ProposalRequest, rlm realm) uint64 {
 	if !rlm.IsCurrent() {
 		panic(errors.New("caller is not a member"))
 	}
@@ -95,18 +95,18 @@ func (w *DAOWrapper) Propose(_ int, rlm realm, req daokit.ProposalRequest) uint6
 	return w.impl.Propose(proposer, req)
 }
 
-func (w *DAOWrapper) Execute(_ int, rlm realm, id uint64) {
+func (w *DAOWrapper) Execute(id uint64, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic(errors.New("caller is not a member"))
 	}
 	executor := rlm.Previous().Address()
 	// Route through the rlm-aware path: ActionEditProfileKind is dispatched
-	// via editProfileHandler.execute(0, rlm, ...) which uses cross(rlm).
+	// via editProfileHandler.execute(..., rlm) which uses cross(rlm).
 	// All other action kinds fall through to generic Core dispatch.
-	w.impl.executeWithRlm(0, rlm, executor, id)
+	w.impl.executeWithRlm(executor, id, rlm)
 }
 
-func (w *DAOWrapper) Vote(_ int, rlm realm, id uint64, vote daocond.Vote) {
+func (w *DAOWrapper) Vote(id uint64, vote daocond.Vote, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic(errors.New("caller is not a member"))
 	}
@@ -118,10 +118,10 @@ func (w *DAOWrapper) Vote(_ int, rlm realm, id uint64, vote daocond.Vote) {
 // goes through this wrapper's rlm-validated methods, so IsCurrent is
 // re-checked at every step (defense-in-depth against drift if the impl is
 // later changed to skip per-call validation).
-func (w *DAOWrapper) InstantExecute(_ int, rlm realm, req daokit.ProposalRequest) uint64 {
-	id := w.Propose(0, rlm, req)
-	w.Vote(0, rlm, id, daocond.VoteYes)
-	w.Execute(0, rlm, id)
+func (w *DAOWrapper) InstantExecute(req daokit.ProposalRequest, rlm realm) uint64 {
+	id := w.Propose(req, rlm)
+	w.Vote(id, daocond.VoteYes, rlm)
+	w.Execute(id, rlm)
 	return id
 }
 
@@ -331,11 +331,11 @@ func (d *DAOPrivate) Execute(caller address, proposalID uint64) {
 // with an override that routes ActionEditProfileKind into the
 // editProfile concrete handler. All other action types fall through to
 // generic Core dispatch unchanged.
-func (d *DAOPrivate) executeWithRlm(_ int, rlm realm, caller address, proposalID uint64) {
+func (d *DAOPrivate) executeWithRlm(caller address, proposalID uint64, rlm realm) {
 	_ = d.assertCallerIsMember(caller)
 	d.Core.ExecuteWithDispatch(proposalID, func(action daokit.Action) bool {
 		if action.Type() == ActionEditProfileKind && d.editProfile != nil {
-			d.editProfile.execute(0, rlm, action)
+			d.editProfile.execute(action, rlm)
 			return true
 		}
 		return false

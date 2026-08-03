@@ -7,7 +7,7 @@ import (
 
 func main(cur realm) {
 	user := address("g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n")
-	testBlog, err := blog.NewBlog(0, cur, "test blog", user)
+	testBlog, err := blog.NewBlog("test blog", user, cur)
 	if err != nil {
 		println(err.Error())
 	}

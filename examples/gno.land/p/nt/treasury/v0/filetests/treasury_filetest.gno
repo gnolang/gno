@@ -99,7 +99,7 @@ func main(cur realm) {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(0, cur, validCoinsPayment)
+		err = t.Send(validCoinsPayment, cur)
 		if err != nil {
 			panic("failed to send valid Coins payment: " + err.Error())
 		}
@@ -112,7 +112,7 @@ func main(cur realm) {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(0, cur, validGRC20Payment)
+		err = t.Send(validGRC20Payment, cur)
 		if err != nil {
 			panic("failed to send valid GRC20 payment: " + err.Error())
 		}

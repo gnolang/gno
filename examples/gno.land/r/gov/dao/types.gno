@@ -164,7 +164,7 @@ type Executor interface {
 // stale or stashed realm values so the captured value is the authentic
 // caller realm. creationRealm is display-only (rendered as "Executor
 // created in: ..." in proposal listings) — no auth gate downstream.
-func NewSimpleExecutor(_ int, rlm realm, callback func(realm) error, description string) *SimpleExecutor {
+func NewSimpleExecutor(callback func(realm) error, description string, rlm realm) *SimpleExecutor {
 	if !rlm.IsCurrent() {
 		panic("NewSimpleExecutor: rlm is not the caller's live cur (stale capture or sibling frame)")
 	}
@@ -234,8 +234,8 @@ func (e *SafeExecutor) CreationRealm() string {
 }
 
 // DAO is the govDAO implementation interface. All mutating/auth-gated
-// methods take rlm as their realm-typed parameter in the second position
-// (the `_ int, rlm realm` non-crossing form): callers thread the proxy's
+// methods take rlm as their last parameter (the non-crossing form, since
+// only a realm in first position marks a crossing function): callers thread the proxy's
 // cur as data without forcing a realm transition, so the impl's existing
 // unsafe.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
 // continue to see the proxy realm. Render stays unchanged.
@@ -244,25 +244,25 @@ type DAO interface {
 	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error)
+	PreCreateProposal(r ProposalRequest, rlm realm) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID)
+	PostCreateProposal(r ProposalRequest, pid ProposalID, rlm realm)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(_ int, rlm realm, r VoteRequest) error
+	VoteOnProposal(r VoteRequest, rlm realm) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
-	PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error)
+	PreExecuteProposal(pid ProposalID, rlm realm) (bool, error)
 
 	// ExecuteProposal executes the proposal executor and on error changes proposal
 	// status to denied with the error message being the denial reason.
 	// It returns the executor error when it fails.
-	ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error
+	ExecuteProposal(pid ProposalID, e Executor, rlm realm) error
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
