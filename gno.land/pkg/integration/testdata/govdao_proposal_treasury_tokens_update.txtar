@@ -17,7 +17,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # register the tokens and fund the treasury address
-gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
 
 # verify no balances are found even though the treasury address got tokens
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
