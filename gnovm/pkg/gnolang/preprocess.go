@@ -296,6 +296,12 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						if strings.HasSuffix(string(ln), ".loopvar") {
 							continue
 						}
+						// iota is a non-shadowable builtin. Reject it here,
+						// before it's renamed to "iota.loopvar" and slips
+						// past the Reserve() guard in initStaticBlocks2.
+						if ln == iotaIdentifier {
+							panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", ln))
+						}
 						nx.Name += ".loopvar"
 						f[ln] = true
 					}
