@@ -33,12 +33,19 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 }
 
 func (pk PubKeyMultisigThreshold) String() string {
-	pubKeys := make([]string, len(pk.PubKeys))
-	for i, key := range pk.PubKeys {
-		pubKeys[i] = key.String()
+	if len(pk.PubKeys) == 0 {
+		return "[]"
 	}
 
-	return "[" + strings.Join(pubKeys, ", ") + "]"
+	var b strings.Builder
+	b.WriteString("[\n")
+	for _, key := range pk.PubKeys {
+		b.WriteString("  ")
+		b.WriteString(key.String())
+		b.WriteString("\n")
+	}
+	b.WriteString("]")
+	return b.String()
 }
 
 // VerifyBytes expects sig to be an amino encoded version of a MultiSignature.
