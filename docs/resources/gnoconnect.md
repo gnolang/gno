@@ -255,6 +255,19 @@ Neither side can assume it loaded first, which is the whole difficulty:
   wallets load asynchronously, so the first answer is never known to be the
   last. A page that reads its list once, at load, will miss wallets.
 
+A wallet MUST NOT cancel or consume the page's own events. Scraping a page's
+markup and cancelling the submit or click that produced it makes the choice on
+the user's behalf, invisibly to the page, and binds the wallet to one site's
+DOM. Announcing is how a wallet becomes reachable; being called is how it acts.
+This is the second thing the announce protocol replaces, alongside the
+`window.<wallet>` global — with either one, a user who installed two wallets
+reaches whichever got to the event first, and the page cannot offer the
+choice.
+
+Observing is not intercepting: a wallet may listen to events a page dispatches,
+as long as it does not cancel them, stop their propagation, or act on them as
+though it had been called.
+
 ```ts
 // Wallet side
 const announce = () =>
@@ -288,44 +301,119 @@ what a page should persist when remembering a choice.
 
 ### `provider` — what the page calls
 
-The provider carries the wallet's methods. The one a transaction producer needs
-carries the same **transaction intent** as the `tx` launch link
-(path/func/args/send/network — built by one function, so the two cannot drift),
-but not the same **envelope**: a launch link adds out-of-band delivery
-(`callback`, `state`) and a mode selector (`broadcast`) that a direct call, which
-simply returns a `Promise`, does not need. A direct call is also not URL-bounded,
-so it carries large arguments a launch link cannot (see Payload size).
+The provider carries the wallet's methods. `sendTx` carries the same
+**transaction intent** as the `sendtx` launch link — the same verb, cased for the
+medium (a URL host is case-insensitive per RFC 3986, so it cannot be camelCase;
+a JavaScript method conventionally is). What a launch link adds is the
+**envelope**: out-of-band delivery (`callback`, `state`) that a direct call,
+which simply returns a `Promise`, does not need. A direct call is also not
+URL-bounded, so it carries large arguments a launch link cannot (see Payload
+size).
 
 ```ts
-signAndSubmitTransaction(tx: {
-  path: string;                             // full package path
-  func: string;                             // exported function name
-  args: { name: string; value: string }[];  // named, like arg.<name>
-  send?: string;                            // coins, gnokey syntax
-  rpc?: string;                             // from gnoconnect:rpc
-  chainid?: string;                         // from gnoconnect:chainid
-}): Promise<UserResponse<{ hash: string }>>;
+type GnoArg =
+  | { name: string; value: string }   // named — resolved via vm/qdoc
+  | { value: string };                // positional — order is the producer's
+
+interface GnoTxIntent {
+  path: string;    // full package path
+  func: string;    // exported function name
+  args: GnoArg[];  // one form per call; mixing is invalid_request
+  send?: string;   // coins, gnokey syntax
+  chainid?: string; // falls back to gnoconnect:chainid
+  rpc?: string;    // advisory only — see Network resolution
+  signer?: string; // bech32; MUST sign as this identity or decline
+}
 
 type UserResponse<T> =
   | { status: "Approved"; args: T }
-  | { status: "Rejected" };
+  | { status: "Rejected"; code?: ErrorCode };
+```
+
+`ErrorCode` is the launch links' enumerated `code` set, unchanged (see `sendtx`
+callback results). A rejection carries it rather than an untyped error, so a page
+handles failures identically whether it called the wallet directly or handed off
+a launch link:
+
+```ts
+type ErrorCode =
+  | "invalid_request"
+  | "network_declined"
+  | "signer_unavailable"
+  | "no_signer"
+  | "unsupported_host"
+  | "tx_failed";
+```
+
+`sendTx` is the core method: one call, signed and broadcast, returning the
+`hash`.
+
+```ts
+sendTx(tx: GnoTxIntent): Promise<UserResponse<{ hash: string }>>;
 ```
 
 A user declining is `Rejected`, not a thrown error: refusing to sign is an
-answer, and only a genuine failure (network, malformed request) rejects the
-promise. User review before signing is mandatory, as for `tx`.
+answer. Only a genuine failure rejects the promise, and it rejects with the same
+enumerated `code` a launch link would have returned (see `sendtx` callback results),
+so a page has one error vocabulary whatever transport it used. User review before
+signing is mandatory, as for `sendtx`.
 
-`signAndSubmitTransaction` is the core method: one call, signed and broadcast,
-returning the `hash`. A wallet MAY implement more of the in-page surface —
-`connect`, `getAccount`, `signMessage`, network switching, and the optional
-analogues of the launch-link extras: sign-only (return the signed tx instead of
-broadcasting), a signer pin, or a multi-message call. A page MUST feature-detect
-every method it calls rather than assume, and degrade — to another wallet, a
-launch link, or the copy-paste command — when it is absent. Announcing is not a
-claim to implement everything: the same additive forward-compatibility contract
-as launch links applies (see Forward compatibility) — capabilities are only ever
-added, never repurposed, and a page degrades on any method it does not
-recognise.
+`signer`, when present, pins the identity the producer expects to act as — the
+`address` from a prior `connect`. The wallet MUST sign as that identity and MUST
+NOT sign as another; one that cannot answers `signer_unavailable`. Without it a
+page that connected as one account and rendered its address will sign as whatever
+account the user has since switched to, and only find out from the chain.
+
+#### Optional methods
+
+A wallet MAY implement more of the surface. These are the defined shapes; a page
+MUST feature-detect every method it calls rather than assume, and degrade — to
+another wallet, a launch link, or the copy-paste command — when it is absent.
+
+```ts
+// Sign without broadcasting. The producer broadcasts; see signtx for the
+// obligations that moves. `signedtx` is base64 amino-binary, opaque.
+signTx(tx: GnoTxIntent): Promise<UserResponse<{ signedtx: string }>>;
+
+// Ask the user which identity to act as. Discloses nothing until they agree.
+connect(): Promise<UserResponse<GnoAccount>>;
+
+// The connected identity, without re-asking.
+getAccount(): Promise<UserResponse<GnoAccount>>;
+
+// The active network, after Network resolution.
+getNetwork(): Promise<UserResponse<GnoNetwork>>;
+
+// Ask the user to switch to a configured chain. A chain the user does not have
+// is network_declined, not a silent add.
+switchNetwork(chainid: string): Promise<UserResponse<{ chainid: string }>>;
+
+// Several messages, one signature, one broadcast. The launch-link analogue is
+// the multi_msg feature.
+sendTxs(txs: GnoTxIntent[]): Promise<UserResponse<{ hash: string }>>;
+
+interface GnoAccount {
+  address: string;         // bech32
+  chainid: string;
+  pubkey: string | null;   // gpub, when the wallet exposes one
+}
+
+interface GnoNetwork {
+  chainid: string;
+  rpc: string;             // the endpoint in effect, not one a page declared
+  name: string;
+}
+```
+
+Announcing is not a claim to implement everything: the same additive
+forward-compatibility contract as launch links applies (see Forward
+compatibility) — capabilities are only ever added, never repurposed, and a page
+degrades on any method it does not recognise.
+
+Message signing is deliberately absent. Everything signable in Gno today is a
+transaction — `gnokey sign` takes a tx document and nothing else — so a
+`signMessage` would have no defined meaning to agree on. When one exists it
+arrives as a new method, not as a re-reading of these.
 
 ### Announcements are untrusted
 
