@@ -2061,8 +2061,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// whether n.Func is a local realm function or external,
 								// so this check must also happen at runtime.
 								ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
-								if err == nil {
-									// This is fine; e.g. somefunc()(cur,...)
+								if err != nil {
+									// Couldn't resolve statically; e.g. somefunc()(cur,...) or a
+									// local variable. Defer to the runtime check.
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
 								} else if fv := ftv.GetUnboundFunc(); fv != nil {
@@ -4339,6 +4340,9 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		// cannot be resolved statically
 		defer func() {
 			r := recover()
+			if r == nil {
+				return // FIX: no panic -> eval succeeded -> leave err nil
+			}
 			if e, ok := r.(error); ok {
 				err = e
 			} else {
