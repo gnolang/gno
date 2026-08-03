@@ -193,6 +193,9 @@ UI - Help Function component
       data-action="toggle->run#refreshEditor"
       data-run-pkg-path-value="{{ $data.PkgPath }}"
       data-run-pkg-alias-value="{{ $data.PkgAlias }}"
+      data-run-func-name-value="{{ .Name }}"
+      data-run-func-params-value="{{ range $i, $p := .Params }}{{ if $i }},{{ end }}{{ $p.Name }}{{ end }}"
+      data-run-crossing-value="{{ .Crossing }}"
       data-run-remote-value="{{ $data.Remote }}"
       data-run-chain-id-value="{{ $data.ChainId }}">
 

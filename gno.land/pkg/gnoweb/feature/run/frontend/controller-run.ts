@@ -7,6 +7,12 @@ const HEREDOC_DELIMITER = "__GNO_EOF__";
 export class RunController extends BaseController {
 	private declare pkgPath: string;
 	private declare pkgAlias: string;
+	// Set when the block is embedded in a single function's card; empty on the
+	// standalone run page, which is not scoped to one function.
+	private declare funcName: string;
+	// Comma-separated, already excluding the leading `cur realm`.
+	private declare funcParams: string;
+	private declare crossing: boolean;
 	private declare remote: string;
 	private declare chainId: string;
 	private declare editorEl: HTMLElement;
@@ -27,6 +33,9 @@ export class RunController extends BaseController {
 	protected connect(): void {
 		this.pkgPath = this.getValue("pkg-path");
 		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
+		this.funcName = this.getValue("func-name");
+		this.funcParams = this.getValue("func-params");
+		this.crossing = this.getValue("crossing") === "true";
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
 		this.editorEl = this.getTarget("editor") as HTMLElement;
@@ -68,13 +77,26 @@ export class RunController extends BaseController {
 	}
 
 	private _buildTemplate(): string {
+		const args = this.funcParams ? this.funcParams.split(",") : [];
+		if (this.crossing) args.unshift("cross(cur)");
+
+		// Left commented out: these are the parameter names, not values, so the
+		// call does not compile until they are filled in.
+		const example = this.funcName
+			? `${this.pkgAlias}.${this.funcName}(${args.join(", ")})`
+			: `${this.pkgAlias}.Render("")`;
+
+		// cross(cur) needs a cur in scope. MsgRun accepts either signature
+		// (RunMainMaybeCrossing), so only ask for it when the example uses it.
+		const main = this.crossing ? "main(cur realm)" : "main()";
+
 		return `package main
 
 import "${this.pkgPath}"
 
-func main() {
+func ${main} {
 \t// Call ${this.pkgAlias} functions here, e.g.:
-\t// ${this.pkgAlias}.Render("")
+\t// ${example}
 }
 `;
 	}
