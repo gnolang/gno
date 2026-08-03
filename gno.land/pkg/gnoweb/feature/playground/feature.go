@@ -5,6 +5,9 @@ import (
 	"log/slog"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // ClientAdapter is the subset of the gnoweb chain-client interface that
@@ -25,6 +28,9 @@ type ClientAdapter interface {
 	// Eval evaluates a Gno expression via vm/qeval query.
 	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
 	Eval(ctx context.Context, data string) ([]byte, error)
+
+	// Simulate simulates running the transaction with the address.
+	Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error)
 }
 
 // Deps gathers the dependencies the playground Handler needs.

@@ -26,6 +26,9 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1131,6 +1134,10 @@ func (a *playgroundClientAdapter) Doc(ctx context.Context, p string) (*doc.JSOND
 
 func (a *playgroundClientAdapter) Eval(ctx context.Context, data string) ([]byte, error) {
 	return a.client.Eval(ctx, data)
+}
+
+func (a *playgroundClientAdapter) Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error) {
+	return a.client.Simulate(ctx, tx, address)
 }
 
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.

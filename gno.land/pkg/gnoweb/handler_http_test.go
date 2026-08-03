@@ -18,6 +18,9 @@ import (
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -78,6 +81,12 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 
 func (s *stubClient) Eval(_ context.Context, data string) ([]byte, error) {
 	return []byte("(stub eval: " + data + ")"), nil
+}
+
+func (s *stubClient) Simulate(_ context.Context, _ *std.Tx, _ crypto.Address) (*abci.ResponseDeliverTx, error) {
+	return &abci.ResponseDeliverTx{
+		ResponseBase: abci.ResponseBase{Data: []byte("(stub simulate)")},
+	}, nil
 }
 
 func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {

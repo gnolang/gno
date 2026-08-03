@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // MockPackage represents a mock package with files and function signatures for testing.
@@ -143,6 +146,11 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 // Eval evaluates a Gno expression (mock implementation).
 func (m *MockClient) Eval(_ context.Context, data string) ([]byte, error) {
 	return []byte("(mock eval: " + data + ")"), nil
+}
+
+// Simulate simulates running the transaction with the address (mock implementation).
+func (m *MockClient) Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error) {
+	return nil, nil
 }
 
 // StatePkg returns mock package state data for testing.
