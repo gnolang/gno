@@ -217,7 +217,7 @@ denom allowlist. Recorded as a known limitation.
   three treasury executors above, and any arbitrary-execution closure the
   realm's execution kind runs (itself freeze-gated).
 - The filetests run against the in-memory `TestBanker`, so
-  `gno.land/pkg/integration/testdata/commondao_treasury.txtar` proves
+  `examples/quarantined/gno.land/r/nt/commondao/v0/commondao_treasury.txtar` proves
   the production path end to end on a real node: a real bank send
   funds the derived dao/1 address, an overdrawn spend is rejected at
   creation, a passed spend debits the DAO account and credits the
