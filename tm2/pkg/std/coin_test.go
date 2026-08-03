@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -98,6 +99,45 @@ func TestValidate(t *testing.T) {
 			require.EqualError(t, err, tc.wantErr, "unexpected error message for validate, tc #%d", i)
 		}
 	}
+}
+
+// TestValidateDenomLength checks maxDenomLength against the limits it is
+// derived from rather than against a copy of the number, so that if
+// pkgPathLimit ever moves the test moves with it.
+func TestValidateDenomLength(t *testing.T) {
+	t.Parallel()
+
+	// Self-referential on its own — it cannot see the .gno source it mirrors.
+	// It catches an edit to the Go copy alone; the txtar's over-long base
+	// denom case catches a widening on the Gno side. See maxBaseDenomLength.
+	require.Equal(t, 16, maxBaseDenomLength,
+		"must match isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno")
+
+	// The longest denom that can exist on chain: a package path at the
+	// deployment limit plus a base name at the banker's limit.
+	const prefix = "gno.land/r/"
+	longestPath := prefix + strings.Repeat("a", pkgPathLimit-len(prefix))
+	require.Len(t, longestPath, pkgPathLimit)
+	require.True(t, rePkgPathURL.MatchString(longestPath),
+		"the filler must keep longestPath a legal package path, or this stops "+
+			"measuring anything the issuance path can actually build")
+
+	longestDenom := "/" + longestPath + ":" + strings.Repeat("b", maxBaseDenomLength)
+	require.Len(t, longestDenom, maxDenomLength,
+		"maxDenomLength must equal the longest denom the issuance path can build")
+	require.NoError(t, ValidateDenom(longestDenom))
+
+	// One byte over is rejected, and says so specifically.
+	tooLong := longestDenom + "b"
+	require.EqualError(t, ValidateDenom(tooLong),
+		fmt.Sprintf("denom length %d exceeds limit %d", len(tooLong), maxDenomLength))
+
+	// The limit also holds on the decode path, where untrusted input arrives:
+	// ParseCoins and Coin/Coins.UnmarshalAmino all funnel through ParseCoin.
+	// Without the length check the pattern alone would accept this denom, since
+	// every byte of it is in the allowed charset.
+	_, err := ParseCoin("100" + tooLong)
+	require.ErrorContains(t, err, "exceeds limit")
 }
 
 func TestCoinsValidate(t *testing.T) {

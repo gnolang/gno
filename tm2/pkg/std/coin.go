@@ -660,7 +660,43 @@ var (
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
+// maxBaseDenomLength mirrors isValidBaseDenom in
+// gnovm/stdlibs/chain/banker/banker.gno. Go cannot import a constant out of
+// .gno source, so the two are kept in step by test: TestValidateDenomLength pins
+// this copy, and the over-long base denom case in
+// gno.land/pkg/integration/testdata/realm_banker_issued_coin_denom.txtar pins
+// the Gno side against a widening.
+const maxBaseDenomLength = 16
+
+// maxDenomLength is the longest a denom may be, in bytes — 274 today, being a
+// 256-byte package path, a 16-byte base name, and the two separators. The
+// charset is ASCII-only, so bytes and characters are the same thing here.
+//
+// It is the longest denom the chain can actually produce. chain.CoinDenom in
+// the Gno standard library builds a realm-issued denom as
+//
+//	"/" + pkgPath + ":" + baseName    e.g. "/gno.land/r/demo/foo:example"
+//
+// where pkgPath is capped at pkgPathLimit when the package is deployed
+// (MemPackage.ValidateBasic, memfile.go) and baseName is capped at
+// maxBaseDenomLength by the banker stdlib. Taking the exact sum is deliberate:
+// any smaller value would let a realm deploy at a perfectly legal package path
+// and then silently fail to issue coins.
+//
+// Those two caps only cover realm issuance, whereas ValidateDenom is the gate
+// every denom passes through whatever its origin, so restating them here is
+// what extends the limit to denoms arriving from a decoded transaction, a
+// genesis file, or bank params. Denom bytes are not free: Coins serialize into
+// the account object as one comma-joined string, so every byte of every denom
+// is re-read and re-written on each balance change.
+const maxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
+
 func ValidateDenom(denom string) error {
+	// Length first: cheaper than the pattern, and it names the real problem
+	// instead of a generic "invalid denom".
+	if len(denom) > maxDenomLength {
+		return fmt.Errorf("denom length %d exceeds limit %d", len(denom), maxDenomLength)
+	}
 	if !reDnm.MatchString(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)
 	}

@@ -71,6 +71,15 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
+## mint base denom one byte over the 16-byte limit
+## Pins the banker's 16-byte base denom limit, mirrored as maxBaseDenomLength
+## in tm2/pkg/std/coin.go (Go cannot import a constant from .gno source).
+## Raising the limit here without raising it there would let a realm at a
+## maximum-length package path mint a denom that ValidateDenom then rejects,
+## so this case must keep failing.
+! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "abcdefghijklmnopq" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
+
 -- short/gnomod.toml --
 module = "gno.land/r/test/realm_banker"
 gno = "0.9"
