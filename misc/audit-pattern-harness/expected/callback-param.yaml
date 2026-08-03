@@ -1,0 +1,18 @@
+id: callback-param
+title: Caller-supplied callback accepted by a realm
+rule: callback_param
+repair:
+  from_fixture: vulnerable
+  to_fixture: fixed
+  goal: Replace caller-supplied function callbacks with explicit state updates.
+  allow_removed_exports:
+    - SetHook
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/callback-param/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/callback-param/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0
