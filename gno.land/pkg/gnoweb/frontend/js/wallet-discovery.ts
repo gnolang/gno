@@ -27,11 +27,19 @@ export interface GnoWalletInfo {
 
 // A rejection is a normal outcome, not an error: the user declining is an
 // answer, and only a real failure throws.
+export type ErrorCode =
+	| "invalid_request"
+	| "network_declined"
+	| "signer_unavailable"
+	| "no_signer"
+	| "unsupported_host"
+	| "tx_failed";
+
 export type UserResponse<T> =
 	| { status: "Approved"; args: T }
-	| { status: "Rejected" };
+	| { status: "Rejected"; code?: ErrorCode };
 
-// The transaction intent, field for field the `tx` launch link an external
+// The transaction intent, field for field the `sendtx` launch link an external
 // wallet receives — named args included, so the two transports carry the same
 // payload and a realm parameter cannot collide with a reserved key.
 export interface GnoTxRequest {
@@ -39,17 +47,17 @@ export interface GnoTxRequest {
 	func: string;
 	args: { name: string; value: string }[];
 	send?: string;
-	rpc?: string;
+	// Selects the network. `rpc` is advisory: the wallet signs through its own
+	// configured endpoint for this chain, never through one we named.
 	chainid?: string;
+	rpc?: string;
 }
 
 // Only the method gnoweb calls is declared. It is optional: a wallet may
-// announce itself while implementing more (or less) of the draft's surface,
+// announce itself while implementing more (or less) of the standard's surface,
 // and the caller must degrade instead of assuming.
 export interface GnoWalletProvider {
-	signAndSubmitTransaction?(
-		tx: GnoTxRequest,
-	): Promise<UserResponse<{ hash: string }>>;
+	sendTx?(tx: GnoTxRequest): Promise<UserResponse<{ hash: string }>>;
 }
 
 export interface GnoWallet {
