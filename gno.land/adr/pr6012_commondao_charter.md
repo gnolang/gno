@@ -43,7 +43,7 @@ change stays a mechanical, low-risk addition.
 
 ## Deferred to a follow-up PR (design recorded so it is not relitigated)
 
-> **Partially superseded by `prxxxx_commondao_bylaws.md`.** The follow-up
+> **Partially superseded by `pr6012_commondao_bylaws.md`.** The follow-up
 > shipped self-BYLAWS amendment only, as a standalone `p/nt/bylaws/v0`
 > package (not the package-side maps sketched below) with different caps
 > (content ≤ 64 KiB, path ≤ 200 B, and no per-store document cap — each

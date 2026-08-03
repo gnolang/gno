@@ -41,7 +41,7 @@ err := dao.Execute(proposalID, sub)        // package calls fn(0, sub)
 
 `Funded` is a new optional interface (`FundingDAOID() uint64` — since
 moved realm-side, where its only consumer lives; see
-`prxxxx_commondao_open_kinds_realm.md`) that a
+`pr6012_commondao_open_kinds_realm.md`) that a
 fund-moving definition implements to name the DAO whose address funds
 its executor: clawback names the **target**, sub-DAO dissolution names
 the **dissolved descendant**, ordinary spend and every non-fund

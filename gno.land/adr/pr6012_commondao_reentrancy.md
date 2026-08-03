@@ -1,6 +1,6 @@
 # ADR: commondao Execute re-entrancy latch
 
-> **Superseded in part by `prxxxx_commondao_open_kinds_pkg.md` (decision 3).**
+> **Superseded in part by `pr6012_commondao_open_kinds_pkg.md` (decision 3).**
 > This ADR concludes a package-level latch is *impossible* (a mutable `/p/`
 > global is forbidden by the borrow rule) and therefore lands ONLY a
 > realm-global latch. That "impossible" is about a package *global*: a later
@@ -11,7 +11,7 @@
 > below is NOT removed — it still enforces the one-executor-per-tx / cross-DAO
 > ancestor-dissolution straddle that a per-DAO latch cannot. The two are
 > complementary layers; see the realm's `reentrancy.gno` header and
-> `prxxxx_commondao_open_kinds_pkg.md` decision 3. The historical text below is
+> `pr6012_commondao_open_kinds_pkg.md` decision 3. The historical text below is
 > kept for the record.
 
 ## Context

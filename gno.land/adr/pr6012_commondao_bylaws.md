@@ -21,7 +21,7 @@ of introducing a second diff implementation.
 
 `gno.land/p/nt/bylaws/v0` stores one DAO's documents as a sorted tree of
 `path -> text` (a fanout-32 B+ tree since
-`prxxxx_commondao_bptree_storage.md`; originally `avl.Tree`) and amends
+`pr6012_commondao_bptree_storage.md`; originally `avl.Tree`) and amends
 them only through verifiable patches. It knows nothing about DAOs,
 councils or votes — the consuming realm decides *who* may amend; the
 package makes amendments *verifiable and deterministic*.

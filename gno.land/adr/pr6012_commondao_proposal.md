@@ -2,9 +2,9 @@
 
 > **Definition set superseded.** The "nine realm definition types" below
 > reflect this review's snapshot: `set-proposal-kind` was since unified
-> into `manage-kinds` (`prxxxx_commondao_unify_kinds.md`), and the realm
+> into `manage-kinds` (`pr6012_commondao_unify_kinds.md`), and the realm
 > now ships ten default kinds plus the opt-in `execution` and the
-> `amend-bylaws` kind (`prxxxx_commondao_bylaws.md`). Create* wrappers
+> `amend-bylaws` kind (`pr6012_commondao_bylaws.md`). Create* wrappers
 > live in `public_proposals.gno`. The invariants and tally math reviewed
 > below are unchanged.
 

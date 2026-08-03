@@ -4,7 +4,7 @@
 > kind and `CreateSetProposalKindProposal(daoID, kindName, enabled)`, including
 > the "`proposal-kinds` itself can never be disabled" self-brick — was later
 > unified into a single `manage-kinds` kind with symmetric register/deregister
-> wrappers; see `prxxxx_commondao_unify_kinds.md`. The core model this ADR
+> wrappers; see `pr6012_commondao_unify_kinds.md`. The core model this ADR
 > establishes (proposal types registered on the DAO, seeded at construction,
 > changed only by governance) is unchanged.
 

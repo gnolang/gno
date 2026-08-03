@@ -27,6 +27,6 @@ What it hosts:
   reserved for the (deferred) ancestor amendment power.
 - **Render** pages for DAOs, settings, bylaws, proposals and votes.
 
-Design records live in `gno.land/adr/pr6012_commondao_*.md` and
-`prxxxx_commondao_*.md`; the extension guide for building your own realm on
-the `/p/` package is in `gno.land/p/nt/commondao/v0`'s README.
+Design records live in `gno.land/adr/pr6012_commondao_*.md`; the extension
+guide for building your own realm on the `/p/` package is in
+`gno.land/p/nt/commondao/v0`'s README.

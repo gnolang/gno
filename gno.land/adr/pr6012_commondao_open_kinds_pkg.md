@@ -1,6 +1,6 @@
 # ADR: commondao open kind-registration + /p/ default kinds (package layer, M1)
 
-> **Superseded in part by `prxxxx_commondao_unify_kinds.md`.** That ADR reverses
+> **Superseded in part by `pr6012_commondao_unify_kinds.md`.** That ADR reverses
 > **R3** below: /p/ no longer ships a `register-kind` default kind
 > (`RegisterKindKind`/`RegisterKindArgs`), no longer ships `WithDefaultKinds`,
 > and `DeregisterKind` is now a plain primitive with **no** self-brick

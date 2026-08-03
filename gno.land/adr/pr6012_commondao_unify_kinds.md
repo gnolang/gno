@@ -22,7 +22,7 @@
 >   `HasProposalKind`; `assertKindEnabled` → `assertKindRegistered`; the error
 >   strings become "already registered" / "proposal kind is not registered:
 >   <name>". `Funded` also moved from `/p/` to the realm (host-consumed, not
->   package-dispatched; see `prxxxx_commondao_open_kinds_pkg.md`). Filetest
+>   package-dispatched; see `pr6012_commondao_open_kinds_pkg.md`). Filetest
 >   `z_20_d` (register-custom) is replaced by a by-name deregister/re-register
 >   round trip. The self-brick and the `CreateExecutionProposal` gate are
 >   unchanged and still mutation-verified (z_19_f, z_20_b). The body below is
@@ -30,7 +30,7 @@
 
 ## Context
 
-`prxxxx_commondao_open_kinds_pkg.md` (M1) and `prxxxx_commondao_open_kinds_realm.md`
+`pr6012_commondao_open_kinds_pkg.md` (M1) and `pr6012_commondao_open_kinds_realm.md`
 (M2) shipped, unreleased and quarantined, two overlapping governance kinds that
 both mutate a DAO's kind registry, split only by input encoding and asymmetric
 in their operations:

@@ -1,13 +1,13 @@
 # ADR: commondao open kind-registration — reference realm rewire (M2)
 
-> **Superseded in part by `prxxxx_commondao_unify_kinds.md`.** That ADR collapses
+> **Superseded in part by `pr6012_commondao_unify_kinds.md`.** That ADR collapses
 > the two governance kinds this ADR wired (`proposal-kinds` via
 > `CreateSetProposalKindProposal`, and `register-kind` via the by-value
 > `CreateRegisterKindProposal`) into ONE permanent `manage-kinds` kind with
 > symmetric register/deregister wrappers. Concretely: `optInProposalKinds`
 > becomes the one opt-in execution kind (decision 3; later refined to the
 > realm-side freeze-aware `executionKind{}` — see the refinement note in
-> `prxxxx_commondao_unify_kinds.md`); the two /p/-default propose
+> `pr6012_commondao_unify_kinds.md`); the two /p/-default propose
 > paths of decision 4 become `CreateRegisterKindProposal` (now **by name**),
 > `CreateDeregisterKindProposal`, and `CreateRegisterCustomKindProposal` (by
 > value), all going through `manage-kinds`; the self-brick moves from the /p/
@@ -25,12 +25,12 @@
 > from `/p/` to the realm (host-consumed, not package-dispatched);
 > `FundingDAOID` itself is unchanged. Terminology went "enabled" → "registered"
 > (`HasProposalKind`, `assertKindRegistered`). See
-> `prxxxx_commondao_unify_kinds.md` for the full cleanup. The historical text
+> `pr6012_commondao_unify_kinds.md` for the full cleanup. The historical text
 > below is kept for the record.
 
 ## Context
 
-`prxxxx_commondao_open_kinds_pkg.md` (M1) narrowed the `/p/` package:
+`pr6012_commondao_open_kinds_pkg.md` (M1) narrowed the `/p/` package:
 `ProposalKind.New` now takes a `ReadonlyCommonDAO` (was `*CommonDAO`), and
 `Funded.FundingDAO() *CommonDAO` became `FundingDAOID() uint64`. M1 shipped the
 `/p/` default kinds (`ExecutionKind` `"execution"`, `RegisterKindKind`
