@@ -32,6 +32,16 @@ const (
 	// against memory exhaustion from large or numerous on-chain package files.
 	maxForkCodeSize = 1 << 20 // 1 MiB
 
+	// maxEvalBodyBytes caps the eval request body to guard against memory
+	// exhaustion from oversized JSON payloads.
+	maxEvalBodyBytes = 1 << 20 // 1 MiB
+
+	// maxEvalPkgPathLen and maxEvalExpressionLen bound the eval request fields
+	// well below maxEvalBodyBytes, rejecting oversized requests before they are
+	// forwarded to the RPC node. Legitimate values are far smaller.
+	maxEvalPkgPathLen    = 1024
+	maxEvalExpressionLen = 64 * 1024
+
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
 
@@ -212,6 +222,8 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxEvalBodyBytes)
+
 	var req evalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "invalid request body"})
@@ -220,6 +232,11 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 
 	if req.PkgPath == "" || req.Expression == "" {
 		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "pkg_path and expression are required"})
+		return
+	}
+
+	if len(req.PkgPath) > maxEvalPkgPathLen || len(req.Expression) > maxEvalExpressionLen {
+		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "pkg_path or expression is too long"})
 		return
 	}
 
