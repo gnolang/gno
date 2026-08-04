@@ -149,7 +149,10 @@ every transfer rather than of issuance.
   realm-supplied string reaching a store key and nothing on the `.gno` side bounds
   it. `TestBanker.TotalCoin` is implemented too, and both filetests
   (`zrealm_banker_getcoin_denom.gno`, `zrealm_banker_totalcoin_denom.gno`) pin that a
-  malformed denom panics under `gno test` exactly as it does on chain.
+  malformed denom panics under `gno test` exactly as it does on chain. Only the chain
+  side needs an explicit check in both methods: `TestBanker` reads through
+  `Coins.AmountOf`, which validates first, so its `GetCoin` has none, and its
+  `TotalCoin` checks only because summing an *empty* table never reaches `AmountOf`.
 
   **Known limitation: `gno test` does not enforce the supply cap.** `TestBanker` keeps
   no counter — its `TotalCoin` sums the table — so `IssueCoin` will mint past

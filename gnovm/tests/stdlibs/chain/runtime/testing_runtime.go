@@ -215,12 +215,9 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 }
 
 func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
-	// Panics on a malformed denom, matching SDKBanker.GetCoin. Kept explicit
-	// rather than relying on Coins.AmountOf's own check so the two bankers fail
-	// the same way for the same reason.
-	if err := tm2std.ValidateDenom(denom); err != nil {
-		panic("invalid denom: " + err.Error())
-	}
+	// AmountOf validates the denom before reading anything, so a malformed one
+	// panics here as it does on chain, where SDKBanker.GetCoin checks explicitly
+	// because the keeper reaches a store key without going through Coins.
 	return tb.CoinTable[addr].AmountOf(denom)
 }
 
@@ -253,8 +250,12 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 	// mint/burn asymmetry, so the sum *is* the supply. Total, like the chain — a
 	// denom nobody holds has zero supply, and a malformed one panics as SDKBanker's
 	// does, so `gno test` and production agree.
+	//
+	// Checked up front rather than left to AmountOf below, which is only reached
+	// once per held denom: an empty table would skip the loop entirely and report
+	// a malformed denom as zero, where the chain panics.
 	if err := tm2std.ValidateDenom(denom); err != nil {
-		panic("invalid denom: " + err.Error())
+		panic(err)
 	}
 	// Overflow-checked, so this cannot report a wrapped negative where the chain
 	// would refuse the mint outright — the supply cap is exactly what the chain's

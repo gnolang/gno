@@ -40,7 +40,7 @@ func (bnk *SDKBanker) GetCoin(b32addr crypto.Bech32Address, denom string) int64 
 	// unbounded, unvalidated input reaching a store key. Panic rather than return
 	// zero, to match how a malformed denom is treated everywhere else.
 	if err := std.ValidateDenom(denom); err != nil {
-		panic("invalid denom: " + err.Error())
+		panic(err)
 	}
 	addr := crypto.MustAddressFromString(string(b32addr))
 	return bnk.vmk.bank.GetCoin(bnk.ctx, addr, denom)
@@ -59,7 +59,7 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 	// Validated for the reason GetCoin is: this is a realm-supplied string that
 	// reaches a store key, and nothing on the .gno side bounds it.
 	if err := std.ValidateDenom(denom); err != nil {
-		panic("invalid denom: " + err.Error())
+		panic(err)
 	}
 	return bnk.vmk.bank.TotalSupply(bnk.ctx, denom)
 }

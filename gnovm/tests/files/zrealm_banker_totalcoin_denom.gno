@@ -5,11 +5,15 @@ import (
 	"chain/banker"
 )
 
-// The TotalCoin half of zrealm_banker_getcoin_denom.gno. Both are needed: the two
-// bankers behind the natives validate the denom in separate functions, so removing
-// either validation leaves the other's filetest passing. This branch implements
-// TotalCoin — it was panic("not yet implemented") — and the supply ADR claims that
-// gno test and production agree on it, which is what this pins.
+// The TotalCoin half of zrealm_banker_getcoin_denom.gno, and separate from it
+// because this branch implements TotalCoin at all — it was
+// panic("not yet implemented") — so what is pinned here is that a realm can reach
+// a working, denom-rejecting supply read through the interpreter.
+//
+// The rejection is not attributable to TotalCoin's own check: the table is
+// non-empty, so AmountOf validates inside the sum. That check matters only for an
+// empty table, where the loop never runs, and is pinned in Go by
+// TestTotalCoinRejectsAMalformedDenomWithNothingHeld.
 func main(cur realm) {
 	bnk := banker.NewReadonlyBanker()
 
@@ -24,4 +28,4 @@ func main(cur realm) {
 // 0
 
 // Error:
-// invalid denom: invalid denom: UPPERCASE
+// invalid denom: UPPERCASE
