@@ -96,10 +96,6 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
 	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
 	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
-	// Conservative placeholder: same base as bankerGetCoins, which does strictly
-	// more work (it expands every denom into two slices), so overcharging is the
-	// safe direction meanwhile. BenchmarkNative_Banker_GetCoin and its NATIVE_SPECS
-	// row exist, so regenerating replaces this with a fitted value.
 	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 129, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 129.2ns
 	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 87, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 87.0ns
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 140.6ns

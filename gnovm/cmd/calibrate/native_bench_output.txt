@@ -2,643 +2,395 @@ goos: darwin
 goarch: arm64
 pkg: github.com/gnolang/gno/gnovm/cmd/calibrate
 cpu: Apple M2
-BenchmarkNative_Keccak256_Sum256_0-8                       	  404966	       618.5 ns/op
-BenchmarkNative_Keccak256_Sum256_0-8                       	  407966	       630.9 ns/op
-BenchmarkNative_Keccak256_Sum256_0-8                       	  404997	       648.1 ns/op
-BenchmarkNative_Keccak256_Sum256_64-8                      	  206270	      1200 ns/op	  53.33 MB/s
-BenchmarkNative_Keccak256_Sum256_64-8                      	  208119	      1172 ns/op	  54.60 MB/s
-BenchmarkNative_Keccak256_Sum256_64-8                      	  209859	      1187 ns/op	  53.92 MB/s
-BenchmarkNative_Keccak256_Sum256_256-8                     	   77662	      3298 ns/op	  77.62 MB/s
-BenchmarkNative_Keccak256_Sum256_256-8                     	   77545	      3167 ns/op	  80.84 MB/s
-BenchmarkNative_Keccak256_Sum256_256-8                     	   77720	      3377 ns/op	  75.80 MB/s
-BenchmarkNative_Keccak256_Sum256_1024-8                    	   19862	     11732 ns/op	  87.28 MB/s
-BenchmarkNative_Keccak256_Sum256_1024-8                    	   20085	     12250 ns/op	  83.59 MB/s
-BenchmarkNative_Keccak256_Sum256_1024-8                    	   20830	     11195 ns/op	  91.47 MB/s
-BenchmarkNative_Keccak256_Sum256_4096-8                    	    5517	     43644 ns/op	  93.85 MB/s
-BenchmarkNative_Keccak256_Sum256_4096-8                    	    5535	     43557 ns/op	  94.04 MB/s
-BenchmarkNative_Keccak256_Sum256_4096-8                    	    5485	     43493 ns/op	  94.18 MB/s
-BenchmarkNative_Keccak256_Sum256_16384-8                   	    1389	    171998 ns/op	  95.26 MB/s
-BenchmarkNative_Keccak256_Sum256_16384-8                   	    1394	    172091 ns/op	  95.21 MB/s
-BenchmarkNative_Keccak256_Sum256_16384-8                   	    1400	    171451 ns/op	  95.56 MB/s
-BenchmarkNative_ModExp_32-8                                	   10000	     22844 ns/op	   1.40 MB/s
-BenchmarkNative_ModExp_32-8                                	   10000	     22827 ns/op	   1.40 MB/s
-BenchmarkNative_ModExp_32-8                                	   10000	     22955 ns/op	   1.39 MB/s
-BenchmarkNative_ModExp_64-8                                	    3048	     78019 ns/op	   0.82 MB/s
-BenchmarkNative_ModExp_64-8                                	    3067	     78067 ns/op	   0.82 MB/s
-BenchmarkNative_ModExp_64-8                                	    3060	     78307 ns/op	   0.82 MB/s
-BenchmarkNative_ModExp_128-8                               	     562	    428346 ns/op	   0.30 MB/s
-BenchmarkNative_ModExp_128-8                               	     564	    426838 ns/op	   0.30 MB/s
-BenchmarkNative_ModExp_128-8                               	     562	    429592 ns/op	   0.30 MB/s
-BenchmarkNative_ModExp_256-8                               	      90	   2560848 ns/op	   0.10 MB/s
-BenchmarkNative_ModExp_256-8                               	      93	   2562204 ns/op	   0.10 MB/s
-BenchmarkNative_ModExp_256-8                               	      93	   2556436 ns/op	   0.10 MB/s
-BenchmarkNative_ModExp_512-8                               	      12	  19077215 ns/op	   0.03 MB/s
-BenchmarkNative_ModExp_512-8                               	      12	  19158667 ns/op	   0.03 MB/s
-BenchmarkNative_ModExp_512-8                               	      12	  19068865 ns/op	   0.03 MB/s
-BenchmarkNative_BN254_G1Add-8                              	   69187	      3438 ns/op
-BenchmarkNative_BN254_G1Add-8                              	   69458	      3423 ns/op
-BenchmarkNative_BN254_G1Add-8                              	   69686	      3444 ns/op
-BenchmarkNative_BN254_G1Mul-8                              	   72199	      3313 ns/op
-BenchmarkNative_BN254_G1Mul-8                              	   72439	      3303 ns/op
-BenchmarkNative_BN254_G1Mul-8                              	   72435	      3296 ns/op
-BenchmarkNative_BN254_PairingCheck_1-8                     	     390	    613560 ns/op	   0.31 MB/s
-BenchmarkNative_BN254_PairingCheck_1-8                     	     381	    612015 ns/op	   0.31 MB/s
-BenchmarkNative_BN254_PairingCheck_1-8                     	     388	    614042 ns/op	   0.31 MB/s
-BenchmarkNative_BN254_PairingCheck_2-8                     	     283	    843231 ns/op	   0.46 MB/s
-BenchmarkNative_BN254_PairingCheck_2-8                     	     284	    844047 ns/op	   0.45 MB/s
-BenchmarkNative_BN254_PairingCheck_2-8                     	     283	    846281 ns/op	   0.45 MB/s
-BenchmarkNative_BN254_PairingCheck_4-8                     	     186	   1276219 ns/op	   0.60 MB/s
-BenchmarkNative_BN254_PairingCheck_4-8                     	     187	   1273449 ns/op	   0.60 MB/s
-BenchmarkNative_BN254_PairingCheck_4-8                     	     187	   1276541 ns/op	   0.60 MB/s
-BenchmarkNative_Merkle_LeafHash_0-8                        	  395283	       584.1 ns/op
-BenchmarkNative_Merkle_LeafHash_0-8                        	  397315	       583.7 ns/op
-BenchmarkNative_Merkle_LeafHash_0-8                        	  421347	       581.3 ns/op
-BenchmarkNative_Merkle_LeafHash_64-8                       	  204661	      1148 ns/op	  55.77 MB/s
-BenchmarkNative_Merkle_LeafHash_64-8                       	  206958	      1142 ns/op	  56.06 MB/s
-BenchmarkNative_Merkle_LeafHash_64-8                       	  201409	      1142 ns/op	  56.02 MB/s
-BenchmarkNative_Merkle_LeafHash_256-8                      	   86065	      2770 ns/op	  92.41 MB/s
-BenchmarkNative_Merkle_LeafHash_256-8                      	   86761	      2757 ns/op	  92.85 MB/s
-BenchmarkNative_Merkle_LeafHash_256-8                      	   86779	      2780 ns/op	  92.10 MB/s
-BenchmarkNative_Merkle_LeafHash_1024-8                     	   25657	      9335 ns/op	 109.69 MB/s
-BenchmarkNative_Merkle_LeafHash_1024-8                     	   25624	      9338 ns/op	 109.66 MB/s
-BenchmarkNative_Merkle_LeafHash_1024-8                     	   25646	      9334 ns/op	 109.71 MB/s
-BenchmarkNative_Merkle_LeafHash_4096-8                     	    6661	     35887 ns/op	 114.14 MB/s
-BenchmarkNative_Merkle_LeafHash_4096-8                     	    6678	     35830 ns/op	 114.32 MB/s
-BenchmarkNative_Merkle_LeafHash_4096-8                     	    6748	     36093 ns/op	 113.48 MB/s
-BenchmarkNative_Merkle_InnerHash-8                         	  190910	      1246 ns/op
-BenchmarkNative_Merkle_InnerHash-8                         	  186243	      1243 ns/op
-BenchmarkNative_Merkle_InnerHash-8                         	  188659	      1244 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_1-8              	  311074	       753.7 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_1-8              	  309864	       755.3 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_1-8              	  313408	       754.9 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_8-8              	   88269	      2735 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_8-8              	   81867	      2978 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_8-8              	   78670	      3128 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_64-8             	   10000	     20547 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_64-8             	   12079	     21803 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_64-8             	   10000	     20027 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_512-8            	    1582	    160273 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_512-8            	    1640	    152019 ns/op
-BenchmarkNative_Merkle_HashFromByteSlices_512-8            	    1618	    153278 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_8-8               	  109075	      2291 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_8-8               	  108697	      2260 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_8-8               	  108208	      2269 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_64-8              	   68929	      3648 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_64-8              	   68702	      3498 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_64-8              	   69687	      3543 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_1024-8            	   40362	      5153 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_1024-8            	   40524	      5281 ns/op
-BenchmarkNative_Merkle_VerifySimpleProof_1024-8            	   40610	      5223 ns/op
-BenchmarkNative_CometBLS_VerifyZKP-8                       	     100	   2157926 ns/op
-BenchmarkNative_CometBLS_VerifyZKP-8                       	     100	   2152084 ns/op
-BenchmarkNative_CometBLS_VerifyZKP-8                       	     100	   2152565 ns/op
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1-8         	 3056119	        71.25 ns/op	  14.04 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1-8         	 3066350	        71.17 ns/op	  14.05 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1-8         	 3335380	        75.60 ns/op	  13.23 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10-8        	 2251340	       109.3 ns/op	  91.50 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10-8        	 2355300	       104.8 ns/op	  95.45 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10-8        	 2229676	       107.8 ns/op	  92.75 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100-8       	  801513	       308.9 ns/op	 323.77 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100-8       	  801090	       295.9 ns/op	 337.98 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100-8       	  820968	       301.1 ns/op	 332.07 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1000-8      	  112318	      2065 ns/op	 484.26 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1000-8      	  112884	      2101 ns/op	 475.97 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_1000-8      	  117638	      2037 ns/op	 490.99 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10000-8     	   12378	     20373 ns/op	 490.85 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10000-8     	   12499	     20900 ns/op	 478.46 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_10000-8     	   10000	     20224 ns/op	 494.46 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100000-8    	    1309	    196236 ns/op	 509.59 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100000-8    	    1309	    194358 ns/op	 514.51 MB/s
-BenchmarkNative_Markdown_StripBidiAndZeroWidth_100000-8    	    1306	    196812 ns/op	 508.10 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1-8               	 3473601	        73.09 ns/op	  13.68 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1-8               	 3479378	        71.28 ns/op	  14.03 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1-8               	 3087655	        73.57 ns/op	  13.59 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10-8              	 2777091	        83.96 ns/op	 119.11 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10-8              	 2674002	        88.15 ns/op	 113.44 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10-8              	 2929864	        87.08 ns/op	 114.83 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100-8             	 1557102	       158.4 ns/op	 631.39 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100-8             	 1563927	       157.7 ns/op	 634.13 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100-8             	 1506541	       156.7 ns/op	 637.97 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1000-8            	  336853	       740.2 ns/op	1351.02 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1000-8            	  328202	       743.7 ns/op	1344.66 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_1000-8            	  339554	       721.5 ns/op	1386.08 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10000-8           	   34750	      6495 ns/op	1539.58 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10000-8           	   40405	      6424 ns/op	1556.70 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_10000-8           	   40353	      6446 ns/op	1551.32 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100000-8          	    4168	     61349 ns/op	1630.01 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100000-8          	    4267	     59944 ns/op	1668.24 MB/s
-BenchmarkNative_Markdown_NormalizeBreaks_100000-8          	    4508	     59441 ns/op	1682.35 MB/s
-BenchmarkNative_Markdown_EscapeInline_1-8                  	 2831778	        77.35 ns/op	  12.93 MB/s
-BenchmarkNative_Markdown_EscapeInline_1-8                  	 2911362	        77.00 ns/op	  12.99 MB/s
-BenchmarkNative_Markdown_EscapeInline_1-8                  	 2699557	        80.52 ns/op	  12.42 MB/s
-BenchmarkNative_Markdown_EscapeInline_10-8                 	 1918659	       170.6 ns/op	  58.63 MB/s
-BenchmarkNative_Markdown_EscapeInline_10-8                 	 2040159	       112.6 ns/op	  88.83 MB/s
-BenchmarkNative_Markdown_EscapeInline_10-8                 	 2117119	       115.2 ns/op	  86.81 MB/s
-BenchmarkNative_Markdown_EscapeInline_100-8                	  725650	       313.0 ns/op	 319.47 MB/s
-BenchmarkNative_Markdown_EscapeInline_100-8                	  749764	       313.1 ns/op	 319.35 MB/s
-BenchmarkNative_Markdown_EscapeInline_100-8                	  729981	       308.4 ns/op	 324.25 MB/s
-BenchmarkNative_Markdown_EscapeInline_1000-8               	  106875	      2226 ns/op	 449.29 MB/s
-BenchmarkNative_Markdown_EscapeInline_1000-8               	  105409	      2275 ns/op	 439.51 MB/s
-BenchmarkNative_Markdown_EscapeInline_1000-8               	  106566	      2241 ns/op	 446.14 MB/s
-BenchmarkNative_Markdown_EscapeInline_10000-8              	   10000	     23268 ns/op	 429.78 MB/s
-BenchmarkNative_Markdown_EscapeInline_10000-8              	   10000	     23304 ns/op	 429.11 MB/s
-BenchmarkNative_Markdown_EscapeInline_10000-8              	   10000	     22909 ns/op	 436.51 MB/s
-BenchmarkNative_Markdown_EscapeInline_100000-8             	    1276	    196927 ns/op	 507.80 MB/s
-BenchmarkNative_Markdown_EscapeInline_100000-8             	    1184	    196538 ns/op	 508.81 MB/s
-BenchmarkNative_Markdown_EscapeInline_100000-8             	    1237	    208488 ns/op	 479.64 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1-8                   	 3009954	        83.85 ns/op	  11.93 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1-8                   	 3191302	        77.26 ns/op	  12.94 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1-8                   	 2849152	        74.39 ns/op	  13.44 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10-8                  	 1937064	       117.0 ns/op	  85.44 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10-8                  	 2161398	       117.6 ns/op	  85.02 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10-8                  	 2228365	       115.1 ns/op	  86.91 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100-8                 	  768460	       300.1 ns/op	 333.19 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100-8                 	  685942	       296.8 ns/op	 336.95 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100-8                 	  729085	       314.0 ns/op	 318.47 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1000-8                	  111553	      2219 ns/op	 450.67 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1000-8                	  104884	      2161 ns/op	 462.71 MB/s
-BenchmarkNative_Markdown_EscapeTitle_1000-8                	  112968	      2117 ns/op	 472.46 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10000-8               	   10000	     20631 ns/op	 484.71 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10000-8               	   10000	     20186 ns/op	 495.40 MB/s
-BenchmarkNative_Markdown_EscapeTitle_10000-8               	   10000	     20238 ns/op	 494.11 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100000-8              	    1239	    188883 ns/op	 529.43 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100000-8              	    1291	    190408 ns/op	 525.19 MB/s
-BenchmarkNative_Markdown_EscapeTitle_100000-8              	    1286	    189436 ns/op	 527.88 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1-8              	 3136828	        75.83 ns/op	  13.19 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1-8              	 3168087	        75.74 ns/op	  13.20 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1-8              	 3176319	        75.50 ns/op	  13.25 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10-8             	 2156662	       111.4 ns/op	  89.79 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10-8             	 2149190	       112.2 ns/op	  89.14 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10-8             	 2133451	       112.3 ns/op	  89.04 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100-8            	  454778	       518.5 ns/op	 192.85 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100-8            	  451803	       517.1 ns/op	 193.38 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100-8            	  444046	       516.7 ns/op	 193.53 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1000-8           	   55908	      4287 ns/op	 233.28 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1000-8           	   56158	      4254 ns/op	 235.10 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_1000-8           	   56215	      4273 ns/op	 234.03 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10000-8          	    5659	     41626 ns/op	 240.24 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10000-8          	    5794	     41999 ns/op	 238.10 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_10000-8          	    5774	     41876 ns/op	 238.80 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100000-8         	     594	    405240 ns/op	 246.77 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100000-8         	     590	    403078 ns/op	 248.09 MB/s
-BenchmarkNative_Markdown_PercentEncodeURL_100000-8         	     595	    403010 ns/op	 248.13 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1-8                 	 1455169	       164.4 ns/op	   6.08 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1-8                 	 1445535	       165.7 ns/op	   6.03 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1-8                 	 1448371	       166.0 ns/op	   6.02 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10-8                	 1401044	       171.3 ns/op	  58.36 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10-8                	 1401123	       170.5 ns/op	  58.65 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10-8                	 1406078	       170.0 ns/op	  58.83 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100-8               	 1000000	       237.8 ns/op	 420.46 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100-8               	 1000000	       238.7 ns/op	 418.85 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100-8               	  959679	       239.7 ns/op	 417.27 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1000-8              	  283486	       843.1 ns/op	1186.11 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1000-8              	  284110	       843.0 ns/op	1186.30 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_1000-8              	  287426	       838.5 ns/op	1192.55 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10000-8             	   35241	      6856 ns/op	1458.60 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10000-8             	   34886	      6954 ns/op	1437.93 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_10000-8             	   35025	      6877 ns/op	1454.15 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100000-8            	    3602	     66697 ns/op	1499.32 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100000-8            	    3613	     66872 ns/op	1495.39 MB/s
-BenchmarkNative_Markdown_MatchCharsetN_100000-8            	    3608	     67045 ns/op	1491.53 MB/s
-BenchmarkNative_Markdown_CodeFence_1-8                     	 2556190	        92.74 ns/op	  10.78 MB/s
-BenchmarkNative_Markdown_CodeFence_1-8                     	 2586644	        92.54 ns/op	  10.81 MB/s
-BenchmarkNative_Markdown_CodeFence_1-8                     	 2589097	        92.88 ns/op	  10.77 MB/s
-BenchmarkNative_Markdown_CodeFence_10-8                    	 2257485	       105.3 ns/op	  94.98 MB/s
-BenchmarkNative_Markdown_CodeFence_10-8                    	 2268603	       105.9 ns/op	  94.42 MB/s
-BenchmarkNative_Markdown_CodeFence_10-8                    	 2281513	       106.1 ns/op	  94.27 MB/s
-BenchmarkNative_Markdown_CodeFence_100-8                   	 1000000	       211.3 ns/op	 473.31 MB/s
-BenchmarkNative_Markdown_CodeFence_100-8                   	 1000000	       211.0 ns/op	 473.98 MB/s
-BenchmarkNative_Markdown_CodeFence_100-8                   	 1000000	       211.4 ns/op	 473.14 MB/s
-BenchmarkNative_Markdown_CodeFence_1000-8                  	  203274	      1170 ns/op	 854.94 MB/s
-BenchmarkNative_Markdown_CodeFence_1000-8                  	  201548	      1156 ns/op	 865.18 MB/s
-BenchmarkNative_Markdown_CodeFence_1000-8                  	  204843	      1152 ns/op	 867.77 MB/s
-BenchmarkNative_Markdown_CodeFence_10000-8                 	   23320	     10238 ns/op	 976.77 MB/s
-BenchmarkNative_Markdown_CodeFence_10000-8                 	   22400	     10298 ns/op	 971.03 MB/s
-BenchmarkNative_Markdown_CodeFence_10000-8                 	   23488	     10165 ns/op	 983.80 MB/s
-BenchmarkNative_Markdown_CodeFence_100000-8                	    2373	     98620 ns/op	1013.99 MB/s
-BenchmarkNative_Markdown_CodeFence_100000-8                	    2433	     98422 ns/op	1016.04 MB/s
-BenchmarkNative_Markdown_CodeFence_100000-8                	    2383	     98627 ns/op	1013.92 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1-8            	 1755612	       137.2 ns/op	   7.29 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1-8            	 1744872	       136.1 ns/op	   7.35 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1-8            	 1754661	       135.6 ns/op	   7.37 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10-8           	 1000000	       212.6 ns/op	  47.04 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10-8           	 1000000	       212.8 ns/op	  46.98 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10-8           	 1000000	       214.3 ns/op	  46.67 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100-8          	  118332	      2024 ns/op	  49.41 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100-8          	  118370	      2007 ns/op	  49.82 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100-8          	  116936	      2016 ns/op	  49.61 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1000-8         	    8720	     27734 ns/op	  36.06 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1000-8         	    8664	     27483 ns/op	  36.39 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_1000-8         	    8594	     27463 ns/op	  36.41 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10000-8        	     876	    273483 ns/op	  36.57 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10000-8        	     873	    276642 ns/op	  36.15 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_10000-8        	     860	    279378 ns/op	  35.79 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100000-8       	      88	   2751978 ns/op	  36.34 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100000-8       	      86	   2751129 ns/op	  36.35 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazards_100000-8       	      86	   2741459 ns/op	  36.48 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1-8        	 1750471	       135.9 ns/op	   7.36 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1-8        	 1763529	       136.4 ns/op	   7.33 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1-8        	 1769491	       136.3 ns/op	   7.34 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10-8       	 1000000	       214.1 ns/op	  46.71 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10-8       	 1000000	       214.1 ns/op	  46.70 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10-8       	 1000000	       215.4 ns/op	  46.43 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100-8      	  119935	      2005 ns/op	  49.87 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100-8      	  119406	      1984 ns/op	  50.40 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100-8      	  119654	      1990 ns/op	  50.24 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1000-8     	    8854	     27177 ns/op	  36.80 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1000-8     	    8685	     27543 ns/op	  36.31 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_1000-8     	    8646	     27851 ns/op	  35.91 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10000-8    	     870	    274071 ns/op	  36.49 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10000-8    	     873	    275431 ns/op	  36.31 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_10000-8    	     873	    274601 ns/op	  36.42 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100000-8   	      88	   2707899 ns/op	  36.93 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100000-8   	      88	   2694672 ns/op	  37.11 MB/s
-BenchmarkNative_Markdown_EscapeBlockHazardsRich_100000-8   	      88	   2706593 ns/op	  36.95 MB/s
-BenchmarkNative_SHA256_Sum256_0-8                          	 1000000	       223.8 ns/op
-BenchmarkNative_SHA256_Sum256_0-8                          	 1000000	       223.9 ns/op
-BenchmarkNative_SHA256_Sum256_0-8                          	 1000000	       224.2 ns/op
-BenchmarkNative_SHA256_Sum256_64-8                         	  310575	       762.7 ns/op	  83.91 MB/s
-BenchmarkNative_SHA256_Sum256_64-8                         	  313194	       764.9 ns/op	  83.67 MB/s
-BenchmarkNative_SHA256_Sum256_64-8                         	  314653	       756.2 ns/op	  84.64 MB/s
-BenchmarkNative_SHA256_Sum256_256-8                        	  100291	      2402 ns/op	 106.58 MB/s
-BenchmarkNative_SHA256_Sum256_256-8                        	   99688	      2401 ns/op	 106.63 MB/s
-BenchmarkNative_SHA256_Sum256_256-8                        	  100081	      2412 ns/op	 106.14 MB/s
-BenchmarkNative_SHA256_Sum256_1024-8                       	   26958	      8950 ns/op	 114.41 MB/s
-BenchmarkNative_SHA256_Sum256_1024-8                       	   26907	      8909 ns/op	 114.94 MB/s
-BenchmarkNative_SHA256_Sum256_1024-8                       	   26998	      8905 ns/op	 114.99 MB/s
-BenchmarkNative_SHA256_Sum256_4096-8                       	    6762	     34799 ns/op	 117.70 MB/s
-BenchmarkNative_SHA256_Sum256_4096-8                       	    6860	     34658 ns/op	 118.18 MB/s
-BenchmarkNative_SHA256_Sum256_4096-8                       	    6932	     34734 ns/op	 117.92 MB/s
-BenchmarkNative_SHA256_Sum256_16384-8                      	    1735	    137973 ns/op	 118.75 MB/s
-BenchmarkNative_SHA256_Sum256_16384-8                      	    1728	    137763 ns/op	 118.93 MB/s
-BenchmarkNative_SHA256_Sum256_16384-8                      	    1718	    137799 ns/op	 118.90 MB/s
-BenchmarkNative_SHA256_Sum256_65536-8                      	     438	    548855 ns/op	 119.40 MB/s
-BenchmarkNative_SHA256_Sum256_65536-8                      	     436	    548915 ns/op	 119.39 MB/s
-BenchmarkNative_SHA256_Sum256_65536-8                      	     438	    547387 ns/op	 119.73 MB/s
-BenchmarkNative_Ed25519_Verify_64-8                        	    5746	     41753 ns/op
-BenchmarkNative_Ed25519_Verify_64-8                        	    5701	     42209 ns/op
-BenchmarkNative_Ed25519_Verify_64-8                        	    5757	     42338 ns/op
-BenchmarkNative_Ed25519_Verify_256-8                       	    5496	     43786 ns/op
-BenchmarkNative_Ed25519_Verify_256-8                       	    5583	     43954 ns/op
-BenchmarkNative_Ed25519_Verify_256-8                       	    5296	     43818 ns/op
-BenchmarkNative_Ed25519_Verify_1024-8                      	    4818	     50299 ns/op
-BenchmarkNative_Ed25519_Verify_1024-8                      	    4806	     50347 ns/op
-BenchmarkNative_Ed25519_Verify_1024-8                      	    4766	     50023 ns/op
-BenchmarkNative_Ed25519_Verify_4096-8                      	    3126	     77219 ns/op
-BenchmarkNative_Ed25519_Verify_4096-8                      	    3045	     76980 ns/op
-BenchmarkNative_Ed25519_Verify_4096-8                      	    3092	     77339 ns/op
-BenchmarkNative_Ed25519_Verify_16384-8                     	    1309	    183816 ns/op
-BenchmarkNative_Ed25519_Verify_16384-8                     	    1302	    182984 ns/op
-BenchmarkNative_Ed25519_Verify_16384-8                     	    1305	    184239 ns/op
-BenchmarkNative_Math_Float32bits-8                         	 7661316	        31.08 ns/op
-BenchmarkNative_Math_Float32bits-8                         	 7600598	        31.18 ns/op
-BenchmarkNative_Math_Float32bits-8                         	 7648060	        31.61 ns/op
-BenchmarkNative_Math_Float32frombits-8                     	 7459284	        30.80 ns/op
-BenchmarkNative_Math_Float32frombits-8                     	 7661967	        30.80 ns/op
-BenchmarkNative_Math_Float32frombits-8                     	 7695966	        30.78 ns/op
-BenchmarkNative_Math_Float64bits-8                         	 8797102	        27.25 ns/op
-BenchmarkNative_Math_Float64bits-8                         	 8713132	        26.90 ns/op
-BenchmarkNative_Math_Float64bits-8                         	 8838326	        26.82 ns/op
-BenchmarkNative_Math_Float64frombits-8                     	 8702535	        27.48 ns/op
-BenchmarkNative_Math_Float64frombits-8                     	 8516690	        28.10 ns/op
-BenchmarkNative_Math_Float64frombits-8                     	 8335105	        27.89 ns/op
-BenchmarkNative_Chain_PackageAddress_1-8                   	  458451	       517.0 ns/op
-BenchmarkNative_Chain_PackageAddress_1-8                   	  467998	       512.3 ns/op
-BenchmarkNative_Chain_PackageAddress_1-8                   	  474108	       517.4 ns/op
-BenchmarkNative_Chain_PackageAddress_10-8                  	  320769	       745.2 ns/op
-BenchmarkNative_Chain_PackageAddress_10-8                  	  319857	       744.7 ns/op
-BenchmarkNative_Chain_PackageAddress_10-8                  	  320043	       742.5 ns/op
-BenchmarkNative_Chain_PackageAddress_100-8                 	  123993	      1932 ns/op
-BenchmarkNative_Chain_PackageAddress_100-8                 	  123271	      1929 ns/op
-BenchmarkNative_Chain_PackageAddress_100-8                 	  123556	      1933 ns/op
-BenchmarkNative_Chain_PackageAddress_1000-8                	   17342	     13745 ns/op
-BenchmarkNative_Chain_PackageAddress_1000-8                	   17396	     13812 ns/op
-BenchmarkNative_Chain_PackageAddress_1000-8                	   17397	     13774 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8         	  460747	       512.4 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8         	  468982	       515.3 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8         	  461785	       515.2 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8        	  450468	       523.1 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8        	  447273	       523.0 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8        	  447656	       524.0 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8       	  413558	       577.1 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8       	  417216	       572.8 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8       	  415269	       575.3 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8      	  236077	       990.5 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8      	  239508	       989.7 ns/op
-BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8      	  242367	       995.1 ns/op
-BenchmarkNative_Chain_PubKeyAddress-8                      	   93514	      2558 ns/op
-BenchmarkNative_Chain_PubKeyAddress-8                      	   93168	      2558 ns/op
-BenchmarkNative_Chain_PubKeyAddress-8                      	   93541	      2539 ns/op
-BenchmarkNative_Time_LoadTZData-8                          	   14766	     16182 ns/op
-BenchmarkNative_Time_LoadTZData-8                          	   14804	     16248 ns/op
-BenchmarkNative_Time_LoadTZData-8                          	   14799	     16233 ns/op
-BenchmarkNative_Banker_SendCoins_1-8                       	  749062	       324.8 ns/op
-BenchmarkNative_Banker_SendCoins_1-8                       	  722592	       325.2 ns/op
-BenchmarkNative_Banker_SendCoins_1-8                       	  743992	       319.7 ns/op
-BenchmarkNative_Banker_SendCoins_10-8                      	  346113	       652.5 ns/op
-BenchmarkNative_Banker_SendCoins_10-8                      	  355684	       652.1 ns/op
-BenchmarkNative_Banker_SendCoins_10-8                      	  349063	       653.6 ns/op
-BenchmarkNative_Banker_SendCoins_100-8                     	   63895	      3748 ns/op
-BenchmarkNative_Banker_SendCoins_100-8                     	   63822	      3763 ns/op
-BenchmarkNative_Banker_SendCoins_100-8                     	   64233	      3736 ns/op
-BenchmarkNative_Banker_SendCoins_1000-8                    	    7249	     33898 ns/op
-BenchmarkNative_Banker_SendCoins_1000-8                    	    7213	     33946 ns/op
-BenchmarkNative_Banker_SendCoins_1000-8                    	    7455	     33721 ns/op
-BenchmarkNative_Banker_GetCoins_1-8                        	  599575	       355.9 ns/op
-BenchmarkNative_Banker_GetCoins_1-8                        	  617468	       357.6 ns/op
-BenchmarkNative_Banker_GetCoins_1-8                        	  612042	       357.2 ns/op
-BenchmarkNative_Banker_GetCoins_10-8                       	  298395	       742.8 ns/op
-BenchmarkNative_Banker_GetCoins_10-8                       	  318216	       741.4 ns/op
-BenchmarkNative_Banker_GetCoins_10-8                       	  319987	       758.4 ns/op
-BenchmarkNative_Banker_GetCoins_100-8                      	   41409	      4938 ns/op
-BenchmarkNative_Banker_GetCoins_100-8                      	   60032	      4048 ns/op
-BenchmarkNative_Banker_GetCoins_100-8                      	   60910	      3997 ns/op
-BenchmarkNative_Banker_GetCoins_1000-8                     	    7165	     35855 ns/op
-BenchmarkNative_Banker_GetCoins_1000-8                     	    6913	     35814 ns/op
-BenchmarkNative_Banker_GetCoins_1000-8                     	    7064	     35956 ns/op
-BenchmarkNative_Banker_GetCoin-8                           	 1855010	       129.6 ns/op
-BenchmarkNative_Banker_GetCoin-8                           	 1867124	       128.7 ns/op
-BenchmarkNative_Banker_GetCoin-8                           	 1865786	       129.2 ns/op
-BenchmarkNative_Banker_TotalCoin-8                         	 2760823	        86.98 ns/op
-BenchmarkNative_Banker_TotalCoin-8                         	 2725286	        87.25 ns/op
-BenchmarkNative_Banker_TotalCoin-8                         	 2733650	        86.69 ns/op
-BenchmarkNative_Banker_IssueCoin-8                         	 1797535	       134.5 ns/op
-BenchmarkNative_Banker_IssueCoin-8                         	 1796697	       133.8 ns/op
-BenchmarkNative_Banker_IssueCoin-8                         	 1794670	       133.7 ns/op
-BenchmarkNative_Banker_RemoveCoin-8                        	 1787611	       134.1 ns/op
-BenchmarkNative_Banker_RemoveCoin-8                        	 1799349	       134.2 ns/op
-BenchmarkNative_Banker_RemoveCoin-8                        	 1799536	       133.7 ns/op
---- FAIL: BenchmarkNative_Banker_OriginSend
-    native_machine_bench_test.go:254: native chain/banker.originSend not found
-BenchmarkNative_Chain_Emit_2_1-8                           	 1000000	       281.6 ns/op
-BenchmarkNative_Chain_Emit_2_1-8                           	  971740	       290.2 ns/op
-BenchmarkNative_Chain_Emit_2_1-8                           	 1000000	       282.7 ns/op
-BenchmarkNative_Chain_Emit_10_1-8                          	  539876	       566.6 ns/op
-BenchmarkNative_Chain_Emit_10_1-8                          	  488827	       560.9 ns/op
-BenchmarkNative_Chain_Emit_10_1-8                          	  531865	       547.4 ns/op
-BenchmarkNative_Chain_Emit_100_1-8                         	   80544	      3217 ns/op
-BenchmarkNative_Chain_Emit_100_1-8                         	   79610	      3216 ns/op
-BenchmarkNative_Chain_Emit_100_1-8                         	   79405	      3236 ns/op
-BenchmarkNative_Chain_Emit_128_1-8                         	   61515	      4080 ns/op
-BenchmarkNative_Chain_Emit_128_1-8                         	   62186	      4015 ns/op
-BenchmarkNative_Chain_Emit_128_1-8                         	   61911	      4099 ns/op
-BenchmarkNative_Chain_Emit_2_50-8                          	 1000000	       288.5 ns/op
-BenchmarkNative_Chain_Emit_2_50-8                          	  946542	       291.2 ns/op
-BenchmarkNative_Chain_Emit_2_50-8                          	  986283	       293.7 ns/op
-BenchmarkNative_Chain_Emit_2_500-8                         	  976071	       293.0 ns/op
-BenchmarkNative_Chain_Emit_2_500-8                         	  949460	       292.8 ns/op
-BenchmarkNative_Chain_Emit_2_500-8                         	  990268	       289.8 ns/op
-BenchmarkNative_Chain_Emit_2_1024-8                        	  946371	       300.6 ns/op
-BenchmarkNative_Chain_Emit_2_1024-8                        	  998803	       299.4 ns/op
-BenchmarkNative_Chain_Emit_2_1024-8                        	  995953	       290.3 ns/op
-BenchmarkNative_Params_SetBytes_1-8                        	  211557	      1142 ns/op
-BenchmarkNative_Params_SetBytes_1-8                        	  210664	      1141 ns/op
-BenchmarkNative_Params_SetBytes_1-8                        	  209241	      1148 ns/op
-BenchmarkNative_Params_SetBytes_10-8                       	  194372	      1228 ns/op
-BenchmarkNative_Params_SetBytes_10-8                       	  191120	      1228 ns/op
-BenchmarkNative_Params_SetBytes_10-8                       	  194359	      1227 ns/op
-BenchmarkNative_Params_SetBytes_100-8                      	  121177	      1952 ns/op
-BenchmarkNative_Params_SetBytes_100-8                      	  121396	      1960 ns/op
-BenchmarkNative_Params_SetBytes_100-8                      	  120268	      1966 ns/op
-BenchmarkNative_Params_SetBytes_1000-8                     	   26066	      9237 ns/op
-BenchmarkNative_Params_SetBytes_1000-8                     	   25950	      9215 ns/op
-BenchmarkNative_Params_SetBytes_1000-8                     	   25908	      9196 ns/op
-BenchmarkNative_Params_SetString_1-8                       	  218620	      1093 ns/op
-BenchmarkNative_Params_SetString_1-8                       	  219715	      1091 ns/op
-BenchmarkNative_Params_SetString_1-8                       	  218755	      1095 ns/op
-BenchmarkNative_Params_SetString_10-8                      	  215469	      1090 ns/op
-BenchmarkNative_Params_SetString_10-8                      	  219882	      1092 ns/op
-BenchmarkNative_Params_SetString_10-8                      	  219948	      1093 ns/op
-BenchmarkNative_Params_SetString_100-8                     	  220548	      1090 ns/op
-BenchmarkNative_Params_SetString_100-8                     	  218887	      1094 ns/op
-BenchmarkNative_Params_SetString_100-8                     	  213489	      1087 ns/op
-BenchmarkNative_Params_SetString_1000-8                    	  218419	      1088 ns/op
-BenchmarkNative_Params_SetString_1000-8                    	  217165	      1081 ns/op
-BenchmarkNative_Params_SetString_1000-8                    	  220827	      1089 ns/op
-BenchmarkNative_Params_SetStrings_1_1-8                    	  202317	      1165 ns/op
-BenchmarkNative_Params_SetStrings_1_1-8                    	  206185	      1164 ns/op
-BenchmarkNative_Params_SetStrings_1_1-8                    	  204757	      1163 ns/op
-BenchmarkNative_Params_SetStrings_10_1-8                   	  168745	      1395 ns/op
-BenchmarkNative_Params_SetStrings_10_1-8                   	  169599	      1384 ns/op
-BenchmarkNative_Params_SetStrings_10_1-8                   	  167666	      1388 ns/op
-BenchmarkNative_Params_SetStrings_100_1-8                  	   69207	      3466 ns/op
-BenchmarkNative_Params_SetStrings_100_1-8                  	   68900	      3486 ns/op
-BenchmarkNative_Params_SetStrings_100_1-8                  	   69115	      3466 ns/op
-BenchmarkNative_Params_SetStrings_1000_1-8                 	   10000	     23847 ns/op
-BenchmarkNative_Params_SetStrings_1000_1-8                 	   10000	     23912 ns/op
-BenchmarkNative_Params_SetStrings_1000_1-8                 	    9804	     24011 ns/op
-BenchmarkNative_Params_SetStrings_2_50-8                   	  201972	      1185 ns/op
-BenchmarkNative_Params_SetStrings_2_50-8                   	  201422	      1191 ns/op
-BenchmarkNative_Params_SetStrings_2_50-8                   	  202506	      1182 ns/op
-BenchmarkNative_Params_SetStrings_2_500-8                  	  193641	      1185 ns/op
-BenchmarkNative_Params_SetStrings_2_500-8                  	  202062	      1186 ns/op
-BenchmarkNative_Params_SetStrings_2_500-8                  	  199669	      1190 ns/op
-BenchmarkNative_Params_SetStrings_2_5000-8                 	  199351	      1188 ns/op
-BenchmarkNative_Params_SetStrings_2_5000-8                 	  194215	      1225 ns/op
-BenchmarkNative_Params_SetStrings_2_5000-8                 	  192738	      1197 ns/op
-BenchmarkNative_Params_SetStrings_2_50000-8                	  201784	      1187 ns/op
-BenchmarkNative_Params_SetStrings_2_50000-8                	  202719	      1184 ns/op
-BenchmarkNative_Params_SetStrings_2_50000-8                	  201190	      1186 ns/op
-BenchmarkNative_Params_SetBool-8                           	  227094	      1051 ns/op
-BenchmarkNative_Params_SetBool-8                           	  226771	      1058 ns/op
-BenchmarkNative_Params_SetBool-8                           	  226285	      1052 ns/op
-BenchmarkNative_Params_SetInt64-8                          	  225002	      1064 ns/op
-BenchmarkNative_Params_SetInt64-8                          	  225170	      1061 ns/op
-BenchmarkNative_Params_SetInt64-8                          	  223149	      1061 ns/op
-BenchmarkNative_Params_SetUint64-8                         	  226363	      1059 ns/op
-BenchmarkNative_Params_SetUint64-8                         	  224455	      1064 ns/op
-BenchmarkNative_Params_SetUint64-8                         	  224763	      1065 ns/op
-BenchmarkNative_SysParams_SetBytes_1-8                     	  821436	       290.3 ns/op
-BenchmarkNative_SysParams_SetBytes_1-8                     	  810387	       289.9 ns/op
-BenchmarkNative_SysParams_SetBytes_1-8                     	  810661	       291.0 ns/op
-BenchmarkNative_SysParams_SetBytes_10-8                    	  648676	       368.2 ns/op
-BenchmarkNative_SysParams_SetBytes_10-8                    	  639864	       367.8 ns/op
-BenchmarkNative_SysParams_SetBytes_10-8                    	  640434	       366.1 ns/op
-BenchmarkNative_SysParams_SetBytes_100-8                   	  219624	      1091 ns/op
-BenchmarkNative_SysParams_SetBytes_100-8                   	  220242	      1089 ns/op
-BenchmarkNative_SysParams_SetBytes_100-8                   	  216588	      1094 ns/op
-BenchmarkNative_SysParams_SetBytes_1000-8                  	   28713	      8337 ns/op
-BenchmarkNative_SysParams_SetBytes_1000-8                  	   28645	      8498 ns/op
-BenchmarkNative_SysParams_SetBytes_1000-8                  	   28894	      8354 ns/op
-BenchmarkNative_SysParams_GetBytes_1-8                     	  685167	       327.9 ns/op
-BenchmarkNative_SysParams_GetBytes_1-8                     	  680440	       338.2 ns/op
-BenchmarkNative_SysParams_GetBytes_1-8                     	  698359	       329.4 ns/op
-BenchmarkNative_SysParams_GetBytes_10-8                    	  500017	       438.0 ns/op
-BenchmarkNative_SysParams_GetBytes_10-8                    	  521511	       435.2 ns/op
-BenchmarkNative_SysParams_GetBytes_10-8                    	  520381	       438.6 ns/op
-BenchmarkNative_SysParams_GetBytes_100-8                   	  175912	      1322 ns/op
-BenchmarkNative_SysParams_GetBytes_100-8                   	  177543	      1331 ns/op
-BenchmarkNative_SysParams_GetBytes_100-8                   	  182433	      1327 ns/op
-BenchmarkNative_SysParams_GetBytes_1000-8                  	   24745	      9748 ns/op
-BenchmarkNative_SysParams_GetBytes_1000-8                  	   24823	      9749 ns/op
-BenchmarkNative_SysParams_GetBytes_1000-8                  	   24777	      9712 ns/op
-BenchmarkNative_SysParams_SetString_1-8                    	 1000000	       230.9 ns/op
-BenchmarkNative_SysParams_SetString_1-8                    	 1000000	       230.9 ns/op
-BenchmarkNative_SysParams_SetString_1-8                    	 1000000	       230.6 ns/op
-BenchmarkNative_SysParams_SetString_10-8                   	 1000000	       230.3 ns/op
-BenchmarkNative_SysParams_SetString_10-8                   	 1000000	       229.8 ns/op
-BenchmarkNative_SysParams_SetString_10-8                   	 1000000	       229.6 ns/op
-BenchmarkNative_SysParams_SetString_100-8                  	 1000000	       230.0 ns/op
-BenchmarkNative_SysParams_SetString_100-8                  	 1000000	       230.5 ns/op
-BenchmarkNative_SysParams_SetString_100-8                  	 1000000	       230.6 ns/op
-BenchmarkNative_SysParams_SetString_1000-8                 	 1000000	       230.8 ns/op
-BenchmarkNative_SysParams_SetString_1000-8                 	 1000000	       230.0 ns/op
-BenchmarkNative_SysParams_SetString_1000-8                 	 1000000	       230.9 ns/op
-BenchmarkNative_SysParams_SetStrings_1_1-8                 	  745167	       308.6 ns/op
-BenchmarkNative_SysParams_SetStrings_1_1-8                 	  734346	       370.1 ns/op
-BenchmarkNative_SysParams_SetStrings_1_1-8                 	  754459	       309.2 ns/op
-BenchmarkNative_SysParams_SetStrings_10_1-8                	  452008	       526.9 ns/op
-BenchmarkNative_SysParams_SetStrings_10_1-8                	  451084	       524.5 ns/op
-BenchmarkNative_SysParams_SetStrings_10_1-8                	  459037	       531.1 ns/op
-BenchmarkNative_SysParams_SetStrings_100_1-8               	   90748	      2598 ns/op
-BenchmarkNative_SysParams_SetStrings_100_1-8               	   92181	      2601 ns/op
-BenchmarkNative_SysParams_SetStrings_100_1-8               	   91956	      2595 ns/op
-BenchmarkNative_SysParams_SetStrings_1000_1-8              	   10000	     22693 ns/op
-BenchmarkNative_SysParams_SetStrings_1000_1-8              	   10000	     22813 ns/op
-BenchmarkNative_SysParams_SetStrings_1000_1-8              	   10000	     22664 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50-8                	  712791	       336.3 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50-8                	  708321	       337.1 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50-8                	  679629	       336.4 ns/op
-BenchmarkNative_SysParams_SetStrings_2_500-8               	  704276	       335.9 ns/op
-BenchmarkNative_SysParams_SetStrings_2_500-8               	  704500	       335.0 ns/op
-BenchmarkNative_SysParams_SetStrings_2_500-8               	  704629	       335.2 ns/op
-BenchmarkNative_SysParams_SetStrings_2_5000-8              	  710058	       334.5 ns/op
-BenchmarkNative_SysParams_SetStrings_2_5000-8              	  724281	       335.7 ns/op
-BenchmarkNative_SysParams_SetStrings_2_5000-8              	  701455	       335.8 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50000-8             	  693282	       337.3 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50000-8             	  703639	       335.9 ns/op
-BenchmarkNative_SysParams_SetStrings_2_50000-8             	  704776	       337.7 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1_1-8              	  713480	       327.1 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1_1-8              	  719936	       328.2 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1_1-8              	  728136	       326.6 ns/op
-BenchmarkNative_SysParams_UpdateStrings_10_1-8             	  420268	       548.6 ns/op
-BenchmarkNative_SysParams_UpdateStrings_10_1-8             	  430096	       551.7 ns/op
-BenchmarkNative_SysParams_UpdateStrings_10_1-8             	  439017	       550.4 ns/op
-BenchmarkNative_SysParams_UpdateStrings_100_1-8            	   90398	      2616 ns/op
-BenchmarkNative_SysParams_UpdateStrings_100_1-8            	   91364	      2621 ns/op
-BenchmarkNative_SysParams_UpdateStrings_100_1-8            	   91198	      2616 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1000_1-8           	   10000	     22733 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1000_1-8           	   10000	     22612 ns/op
-BenchmarkNative_SysParams_UpdateStrings_1000_1-8           	   10000	     22687 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50-8             	  680432	       354.2 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50-8             	  664658	       354.9 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50-8             	  661194	       353.5 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_500-8            	  677558	       349.7 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_500-8            	  689424	       351.2 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_500-8            	  673770	       352.5 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_5000-8           	  670921	       354.9 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_5000-8           	  682544	       357.5 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_5000-8           	  686620	       355.4 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50000-8          	  654447	       360.2 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50000-8          	  670671	       360.8 ns/op
-BenchmarkNative_SysParams_UpdateStrings_2_50000-8          	  653268	       356.4 ns/op
-BenchmarkNative_SysParams_SetBool-8                        	 1000000	       200.2 ns/op
-BenchmarkNative_SysParams_SetBool-8                        	 1203405	       199.7 ns/op
-BenchmarkNative_SysParams_SetBool-8                        	 1201908	       199.6 ns/op
-BenchmarkNative_SysParams_SetInt64-8                       	 1000000	       208.2 ns/op
-BenchmarkNative_SysParams_SetInt64-8                       	 1000000	       208.4 ns/op
-BenchmarkNative_SysParams_SetInt64-8                       	 1000000	       208.4 ns/op
-BenchmarkNative_SysParams_SetUint64-8                      	 1000000	       206.5 ns/op
-BenchmarkNative_SysParams_SetUint64-8                      	 1000000	       206.7 ns/op
-BenchmarkNative_SysParams_SetUint64-8                      	 1000000	       206.1 ns/op
-BenchmarkNative_SysParams_GetBool-8                        	 1000000	       202.2 ns/op
-BenchmarkNative_SysParams_GetBool-8                        	 1000000	       200.9 ns/op
-BenchmarkNative_SysParams_GetBool-8                        	 1000000	       201.4 ns/op
-BenchmarkNative_SysParams_GetInt64-8                       	 1000000	       201.5 ns/op
-BenchmarkNative_SysParams_GetInt64-8                       	 1000000	       201.3 ns/op
-BenchmarkNative_SysParams_GetInt64-8                       	 1000000	       202.1 ns/op
-BenchmarkNative_SysParams_GetUint64-8                      	 1000000	       201.6 ns/op
-BenchmarkNative_SysParams_GetUint64-8                      	 1000000	       202.0 ns/op
-BenchmarkNative_SysParams_GetUint64-8                      	 1000000	       201.6 ns/op
-BenchmarkNative_SysParams_GetString_1-8                    	 1000000	       221.0 ns/op
-BenchmarkNative_SysParams_GetString_1-8                    	 1000000	       218.7 ns/op
-BenchmarkNative_SysParams_GetString_1-8                    	 1000000	       218.8 ns/op
-BenchmarkNative_SysParams_GetString_10-8                   	 1000000	       220.0 ns/op
-BenchmarkNative_SysParams_GetString_10-8                   	 1000000	       218.6 ns/op
-BenchmarkNative_SysParams_GetString_10-8                   	 1000000	       219.9 ns/op
-BenchmarkNative_SysParams_GetString_100-8                  	 1000000	       221.2 ns/op
-BenchmarkNative_SysParams_GetString_100-8                  	 1000000	       220.8 ns/op
-BenchmarkNative_SysParams_GetString_100-8                  	 1000000	       218.7 ns/op
-BenchmarkNative_SysParams_GetString_1000-8                 	 1000000	       219.4 ns/op
-BenchmarkNative_SysParams_GetString_1000-8                 	 1000000	       218.7 ns/op
-BenchmarkNative_SysParams_GetString_1000-8                 	 1000000	       218.8 ns/op
-BenchmarkNative_SysParams_GetStrings_1_1-8                 	  695878	       342.4 ns/op
-BenchmarkNative_SysParams_GetStrings_1_1-8                 	  692340	       342.4 ns/op
-BenchmarkNative_SysParams_GetStrings_1_1-8                 	  688657	       345.1 ns/op
-BenchmarkNative_SysParams_GetStrings_10_1-8                	  403756	       574.1 ns/op
-BenchmarkNative_SysParams_GetStrings_10_1-8                	  411354	       587.0 ns/op
-BenchmarkNative_SysParams_GetStrings_10_1-8                	  408724	       578.5 ns/op
-BenchmarkNative_SysParams_GetStrings_100_1-8               	   88555	      2672 ns/op
-BenchmarkNative_SysParams_GetStrings_100_1-8               	   89210	      2712 ns/op
-BenchmarkNative_SysParams_GetStrings_100_1-8               	   86942	      2724 ns/op
-BenchmarkNative_SysParams_GetStrings_1000_1-8              	   10000	     23482 ns/op
-BenchmarkNative_SysParams_GetStrings_1000_1-8              	   10000	     23558 ns/op
-BenchmarkNative_SysParams_GetStrings_1000_1-8              	   10000	     23380 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50-8                	  642885	       370.4 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50-8                	  652358	       372.6 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50-8                	  597051	       372.8 ns/op
-BenchmarkNative_SysParams_GetStrings_2_500-8               	  644107	       370.0 ns/op
-BenchmarkNative_SysParams_GetStrings_2_500-8               	  649621	       370.4 ns/op
-BenchmarkNative_SysParams_GetStrings_2_500-8               	  644936	       369.5 ns/op
-BenchmarkNative_SysParams_GetStrings_2_5000-8              	  645891	       371.8 ns/op
-BenchmarkNative_SysParams_GetStrings_2_5000-8              	  587551	       371.7 ns/op
-BenchmarkNative_SysParams_GetStrings_2_5000-8              	  569743	       377.0 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50000-8             	  630583	       406.2 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50000-8             	  653564	       370.5 ns/op
-BenchmarkNative_SysParams_GetStrings_2_50000-8             	  650883	       369.3 ns/op
-BenchmarkNative_Params_UpdateStrings_1_1-8                 	  199788	      1197 ns/op
-BenchmarkNative_Params_UpdateStrings_1_1-8                 	  196192	      1187 ns/op
-BenchmarkNative_Params_UpdateStrings_1_1-8                 	  201837	      1197 ns/op
-BenchmarkNative_Params_UpdateStrings_10_1-8                	  162160	      1420 ns/op
-BenchmarkNative_Params_UpdateStrings_10_1-8                	  168338	      1420 ns/op
-BenchmarkNative_Params_UpdateStrings_10_1-8                	  168447	      1403 ns/op
-BenchmarkNative_Params_UpdateStrings_100_1-8               	   68438	      3510 ns/op
-BenchmarkNative_Params_UpdateStrings_100_1-8               	   67978	      3507 ns/op
-BenchmarkNative_Params_UpdateStrings_100_1-8               	   68103	      3532 ns/op
-BenchmarkNative_Params_UpdateStrings_1000_1-8              	   10000	     23811 ns/op
-BenchmarkNative_Params_UpdateStrings_1000_1-8              	   10000	     24011 ns/op
-BenchmarkNative_Params_UpdateStrings_1000_1-8              	   10000	     23971 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50-8                	  195978	      1215 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50-8                	  197709	      1212 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50-8                	  194007	      1211 ns/op
-BenchmarkNative_Params_UpdateStrings_2_500-8               	  197508	      1209 ns/op
-BenchmarkNative_Params_UpdateStrings_2_500-8               	  196113	      1212 ns/op
-BenchmarkNative_Params_UpdateStrings_2_500-8               	  196177	      1216 ns/op
-BenchmarkNative_Params_UpdateStrings_2_5000-8              	  189204	      1221 ns/op
-BenchmarkNative_Params_UpdateStrings_2_5000-8              	  191955	      1219 ns/op
-BenchmarkNative_Params_UpdateStrings_2_5000-8              	  194290	      1218 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50000-8             	  196068	      1216 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50000-8             	  191578	      1222 ns/op
-BenchmarkNative_Params_UpdateStrings_2_50000-8             	  196862	      1219 ns/op
-BenchmarkNative_Runtime_ChainID-8                          	 5619423	        42.47 ns/op
-BenchmarkNative_Runtime_ChainID-8                          	 5605636	        42.73 ns/op
-BenchmarkNative_Runtime_ChainID-8                          	 5619380	        42.64 ns/op
-BenchmarkNative_Runtime_ChainDomain-8                      	 5623587	        42.55 ns/op
-BenchmarkNative_Runtime_ChainDomain-8                      	 5604224	        42.56 ns/op
-BenchmarkNative_Runtime_ChainDomain-8                      	 5625652	        42.26 ns/op
-BenchmarkNative_Runtime_ChainHeight-8                      	 8119845	        29.53 ns/op
-BenchmarkNative_Runtime_ChainHeight-8                      	 8070493	        29.45 ns/op
-BenchmarkNative_Runtime_ChainHeight-8                      	 8139444	        29.46 ns/op
---- FAIL: BenchmarkNative_Runtime_OriginCaller
-    native_machine_bench_test.go:758: native chain/runtime.originCaller not found
-BenchmarkNative_Runtime_GetSessionInfo-8                   	 1612518	       148.8 ns/op
-BenchmarkNative_Runtime_GetSessionInfo-8                   	 1614068	       147.9 ns/op
-BenchmarkNative_Runtime_GetSessionInfo-8                   	 1623021	       148.8 ns/op
-BenchmarkNative_Runtime_AssertOriginCall-8                 	47748128	         5.016 ns/op
-BenchmarkNative_Runtime_AssertOriginCall-8                 	48040035	         5.009 ns/op
-BenchmarkNative_Runtime_AssertOriginCall-8                 	47962425	         5.007 ns/op
---- FAIL: BenchmarkNative_Runtime_GetRealm_1
-    native_machine_bench_test.go:805: native chain/runtime.getRealm not found
---- FAIL: BenchmarkNative_Runtime_GetRealm_10
-    native_machine_bench_test.go:806: native chain/runtime.getRealm not found
---- FAIL: BenchmarkNative_Runtime_GetRealm_100
-    native_machine_bench_test.go:807: native chain/runtime.getRealm not found
---- FAIL: BenchmarkNative_Runtime_GetRealm_1000
-    native_machine_bench_test.go:808: native chain/runtime.getRealm not found
-BenchmarkNative_Time_Now-8                                 	 5336697	        45.14 ns/op
-BenchmarkNative_Time_Now-8                                 	 5315937	        45.07 ns/op
-BenchmarkNative_Time_Now-8                                 	 5329429	        45.12 ns/op
-FAIL
-exit status 1
-FAIL	github.com/gnolang/gno/gnovm/cmd/calibrate	169.652s
-FAIL
+BenchmarkNative_SHA256_Sum256_0-8                       	 1045141	       215.7 ns/op
+BenchmarkNative_SHA256_Sum256_0-8                       	 1000000	       241.7 ns/op
+BenchmarkNative_SHA256_Sum256_0-8                       	 1000000	       226.2 ns/op
+BenchmarkNative_SHA256_Sum256_64-8                      	  310501	       780.0 ns/op	  82.05 MB/s
+BenchmarkNative_SHA256_Sum256_64-8                      	  304936	       782.4 ns/op	  81.79 MB/s
+BenchmarkNative_SHA256_Sum256_64-8                      	  310210	       782.1 ns/op	  81.83 MB/s
+BenchmarkNative_SHA256_Sum256_256-8                     	   96919	      2472 ns/op	 103.54 MB/s
+BenchmarkNative_SHA256_Sum256_256-8                     	   97646	      2482 ns/op	 103.13 MB/s
+BenchmarkNative_SHA256_Sum256_256-8                     	   97375	      2477 ns/op	 103.33 MB/s
+BenchmarkNative_SHA256_Sum256_1024-8                    	   26307	      9134 ns/op	 112.10 MB/s
+BenchmarkNative_SHA256_Sum256_1024-8                    	   26299	      9133 ns/op	 112.13 MB/s
+BenchmarkNative_SHA256_Sum256_1024-8                    	   26089	      9097 ns/op	 112.57 MB/s
+BenchmarkNative_SHA256_Sum256_4096-8                    	    6758	     35843 ns/op	 114.28 MB/s
+BenchmarkNative_SHA256_Sum256_4096-8                    	    6756	     35717 ns/op	 114.68 MB/s
+BenchmarkNative_SHA256_Sum256_4096-8                    	    6595	     36017 ns/op	 113.72 MB/s
+BenchmarkNative_SHA256_Sum256_16384-8                   	    1695	    141744 ns/op	 115.59 MB/s
+BenchmarkNative_SHA256_Sum256_16384-8                   	    1696	    142362 ns/op	 115.09 MB/s
+BenchmarkNative_SHA256_Sum256_16384-8                   	    1688	    142142 ns/op	 115.26 MB/s
+BenchmarkNative_SHA256_Sum256_65536-8                   	     422	    567940 ns/op	 115.39 MB/s
+BenchmarkNative_SHA256_Sum256_65536-8                   	     423	    566982 ns/op	 115.59 MB/s
+BenchmarkNative_SHA256_Sum256_65536-8                   	     424	    568803 ns/op	 115.22 MB/s
+BenchmarkNative_Ed25519_Verify_64-8                     	    4339	     63089 ns/op
+BenchmarkNative_Ed25519_Verify_64-8                     	    4467	     56534 ns/op
+BenchmarkNative_Ed25519_Verify_64-8                     	    4752	     50300 ns/op
+BenchmarkNative_Ed25519_Verify_256-8                    	    4538	     51517 ns/op
+BenchmarkNative_Ed25519_Verify_256-8                    	    4632	     51666 ns/op
+BenchmarkNative_Ed25519_Verify_256-8                    	    4064	     51308 ns/op
+BenchmarkNative_Ed25519_Verify_1024-8                   	    4104	     58547 ns/op
+BenchmarkNative_Ed25519_Verify_1024-8                   	    4146	     58728 ns/op
+BenchmarkNative_Ed25519_Verify_1024-8                   	    4148	     58700 ns/op
+BenchmarkNative_Ed25519_Verify_4096-8                   	    2746	     87105 ns/op
+BenchmarkNative_Ed25519_Verify_4096-8                   	    2809	     86281 ns/op
+BenchmarkNative_Ed25519_Verify_4096-8                   	    2800	     86065 ns/op
+BenchmarkNative_Ed25519_Verify_16384-8                  	    1231	    196377 ns/op
+BenchmarkNative_Ed25519_Verify_16384-8                  	    1162	    198048 ns/op
+BenchmarkNative_Ed25519_Verify_16384-8                  	    1154	    202160 ns/op
+BenchmarkNative_Math_Float32bits-8                      	 7464765	        32.62 ns/op
+BenchmarkNative_Math_Float32bits-8                      	 7502685	        32.43 ns/op
+BenchmarkNative_Math_Float32bits-8                      	 7465384	        32.47 ns/op
+BenchmarkNative_Math_Float32frombits-8                  	 7356668	        32.43 ns/op
+BenchmarkNative_Math_Float32frombits-8                  	 7546309	        32.63 ns/op
+BenchmarkNative_Math_Float32frombits-8                  	 7496124	        31.76 ns/op
+BenchmarkNative_Math_Float64bits-8                      	 8415109	        29.17 ns/op
+BenchmarkNative_Math_Float64bits-8                      	 8480115	        28.73 ns/op
+BenchmarkNative_Math_Float64bits-8                      	 7710554	        28.72 ns/op
+BenchmarkNative_Math_Float64frombits-8                  	 8397799	        28.93 ns/op
+BenchmarkNative_Math_Float64frombits-8                  	 8330524	        28.50 ns/op
+BenchmarkNative_Math_Float64frombits-8                  	 8440747	        28.83 ns/op
+BenchmarkNative_Chain_PackageAddress_1-8                	  464804	       526.9 ns/op
+BenchmarkNative_Chain_PackageAddress_1-8                	  461511	       527.9 ns/op
+BenchmarkNative_Chain_PackageAddress_1-8                	  447141	       526.7 ns/op
+BenchmarkNative_Chain_PackageAddress_10-8               	  310382	       786.1 ns/op
+BenchmarkNative_Chain_PackageAddress_10-8               	  311496	       785.4 ns/op
+BenchmarkNative_Chain_PackageAddress_10-8               	  309073	       785.8 ns/op
+BenchmarkNative_Chain_PackageAddress_100-8              	  117280	      2072 ns/op
+BenchmarkNative_Chain_PackageAddress_100-8              	  112532	      2095 ns/op
+BenchmarkNative_Chain_PackageAddress_100-8              	  117064	      2062 ns/op
+BenchmarkNative_Chain_PackageAddress_1000-8             	   15874	     14937 ns/op
+BenchmarkNative_Chain_PackageAddress_1000-8             	   16032	     14918 ns/op
+BenchmarkNative_Chain_PackageAddress_1000-8             	   15912	     15017 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8      	  455054	       540.9 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8      	  405487	       601.9 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1-8      	  431502	       528.4 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8     	  460104	       524.3 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8     	  458937	       516.7 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_10-8     	  462237	       520.9 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8    	  418142	       573.4 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8    	  411572	       575.2 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_100-8    	  419420	       570.8 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8   	  241857	       990.8 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8   	  245682	       987.8 ns/op
+BenchmarkNative_Chain_DeriveStorageDepositAddr_1000-8   	  239710	       988.5 ns/op
+BenchmarkNative_Chain_PubKeyAddress-8                   	   92352	      2781 ns/op
+BenchmarkNative_Chain_PubKeyAddress-8                   	   86528	      2623 ns/op
+BenchmarkNative_Chain_PubKeyAddress-8                   	   92085	      2631 ns/op
+BenchmarkNative_Time_LoadTZData-8                       	   15270	     16817 ns/op
+BenchmarkNative_Time_LoadTZData-8                       	   14958	     16068 ns/op
+BenchmarkNative_Time_LoadTZData-8                       	   15169	     16023 ns/op
+BenchmarkNative_Banker_SendCoins_1-8                    	  748411	       321.9 ns/op
+BenchmarkNative_Banker_SendCoins_1-8                    	  765519	       322.1 ns/op
+BenchmarkNative_Banker_SendCoins_1-8                    	  746916	       319.3 ns/op
+BenchmarkNative_Banker_SendCoins_10-8                   	  355645	       666.8 ns/op
+BenchmarkNative_Banker_SendCoins_10-8                   	  365370	       663.6 ns/op
+BenchmarkNative_Banker_SendCoins_10-8                   	  363670	       667.0 ns/op
+BenchmarkNative_Banker_SendCoins_100-8                  	   63598	      3764 ns/op
+BenchmarkNative_Banker_SendCoins_100-8                  	   61808	      3764 ns/op
+BenchmarkNative_Banker_SendCoins_100-8                  	   62857	      3824 ns/op
+BenchmarkNative_Banker_SendCoins_1000-8                 	    7303	     33761 ns/op
+BenchmarkNative_Banker_SendCoins_1000-8                 	    7484	     34130 ns/op
+BenchmarkNative_Banker_SendCoins_1000-8                 	    7478	     33962 ns/op
+BenchmarkNative_Banker_GetCoins_1-8                     	  656978	       351.6 ns/op
+BenchmarkNative_Banker_GetCoins_1-8                     	  671265	       344.2 ns/op
+BenchmarkNative_Banker_GetCoins_1-8                     	  667585	       349.1 ns/op
+BenchmarkNative_Banker_GetCoins_10-8                    	  334284	       711.8 ns/op
+BenchmarkNative_Banker_GetCoins_10-8                    	  337266	       722.9 ns/op
+BenchmarkNative_Banker_GetCoins_10-8                    	  345358	       709.3 ns/op
+BenchmarkNative_Banker_GetCoins_100-8                   	   61978	      3922 ns/op
+BenchmarkNative_Banker_GetCoins_100-8                   	   61038	      3877 ns/op
+BenchmarkNative_Banker_GetCoins_100-8                   	   60796	      3919 ns/op
+BenchmarkNative_Banker_GetCoins_1000-8                  	    7190	     34410 ns/op
+BenchmarkNative_Banker_GetCoins_1000-8                  	    7219	     34666 ns/op
+BenchmarkNative_Banker_GetCoins_1000-8                  	    7303	     34465 ns/op
+BenchmarkNative_Banker_TotalCoin-8                      	 2712918	        88.90 ns/op
+BenchmarkNative_Banker_TotalCoin-8                      	 2700867	        88.41 ns/op
+BenchmarkNative_Banker_TotalCoin-8                      	 2731879	        88.60 ns/op
+BenchmarkNative_Banker_IssueCoin-8                      	 1767505	       134.9 ns/op
+BenchmarkNative_Banker_IssueCoin-8                      	 1759960	       140.6 ns/op
+BenchmarkNative_Banker_IssueCoin-8                      	 1403024	       147.0 ns/op
+BenchmarkNative_Banker_RemoveCoin-8                     	 1763629	       135.3 ns/op
+BenchmarkNative_Banker_RemoveCoin-8                     	 1710020	       195.9 ns/op
+BenchmarkNative_Banker_RemoveCoin-8                     	 1000000	       212.7 ns/op
+BenchmarkNative_Banker_OriginSend-8                     	 1000000	       289.0 ns/op
+BenchmarkNative_Banker_OriginSend-8                     	 1000000	       251.3 ns/op
+BenchmarkNative_Banker_OriginSend-8                     	 1000000	       280.4 ns/op
+BenchmarkNative_Banker_AssertCallerIsRealm-8            	  482092	       591.8 ns/op
+BenchmarkNative_Banker_AssertCallerIsRealm-8            	  485649	       700.8 ns/op
+BenchmarkNative_Banker_AssertCallerIsRealm-8            	  491304	       750.2 ns/op
+BenchmarkNative_Chain_Emit_2_1-8                        	  925212	       422.3 ns/op
+BenchmarkNative_Chain_Emit_2_1-8                        	  926475	       432.3 ns/op
+BenchmarkNative_Chain_Emit_2_1-8                        	  938875	       454.0 ns/op
+BenchmarkNative_Chain_Emit_10_1-8                       	  538146	       838.5 ns/op
+BenchmarkNative_Chain_Emit_10_1-8                       	  531012	       886.2 ns/op
+BenchmarkNative_Chain_Emit_10_1-8                       	  498088	       979.1 ns/op
+BenchmarkNative_Chain_Emit_100_1-8                      	   71194	      5201 ns/op
+BenchmarkNative_Chain_Emit_100_1-8                      	   45087	      5023 ns/op
+BenchmarkNative_Chain_Emit_100_1-8                      	   72722	      5095 ns/op
+BenchmarkNative_Chain_Emit_128_1-8                      	   54562	      6192 ns/op
+BenchmarkNative_Chain_Emit_128_1-8                      	   57578	      4636 ns/op
+BenchmarkNative_Chain_Emit_128_1-8                      	   56204	      4640 ns/op
+BenchmarkNative_Chain_Emit_2_50-8                       	  961554	       355.9 ns/op
+BenchmarkNative_Chain_Emit_2_50-8                       	  949038	       416.3 ns/op
+BenchmarkNative_Chain_Emit_2_50-8                       	  738915	       434.8 ns/op
+BenchmarkNative_Chain_Emit_2_500-8                      	  941238	       439.5 ns/op
+BenchmarkNative_Chain_Emit_2_500-8                      	  932566	       447.8 ns/op
+BenchmarkNative_Chain_Emit_2_500-8                      	  933186	       443.2 ns/op
+BenchmarkNative_Chain_Emit_2_1024-8                     	  818449	       475.6 ns/op
+BenchmarkNative_Chain_Emit_2_1024-8                     	  539724	       436.6 ns/op
+BenchmarkNative_Chain_Emit_2_1024-8                     	  555849	       426.0 ns/op
+BenchmarkNative_Params_SetBytes_1-8                     	  182347	      1912 ns/op
+BenchmarkNative_Params_SetBytes_1-8                     	  178329	      1683 ns/op
+BenchmarkNative_Params_SetBytes_1-8                     	  186426	      2010 ns/op
+BenchmarkNative_Params_SetBytes_10-8                    	  157728	      1936 ns/op
+BenchmarkNative_Params_SetBytes_10-8                    	  169740	      2123 ns/op
+BenchmarkNative_Params_SetBytes_10-8                    	  166063	      2026 ns/op
+BenchmarkNative_Params_SetBytes_100-8                   	  100416	      3237 ns/op
+BenchmarkNative_Params_SetBytes_100-8                   	  105684	      3072 ns/op
+BenchmarkNative_Params_SetBytes_100-8                   	  103063	      3343 ns/op
+BenchmarkNative_Params_SetBytes_1000-8                  	   18172	     14668 ns/op
+BenchmarkNative_Params_SetBytes_1000-8                  	   18496	     14727 ns/op
+BenchmarkNative_Params_SetBytes_1000-8                  	   18561	     20879 ns/op
+BenchmarkNative_Params_SetString_1-8                    	  199352	      1772 ns/op
+BenchmarkNative_Params_SetString_1-8                    	  142640	      1755 ns/op
+BenchmarkNative_Params_SetString_1-8                    	  139275	      1673 ns/op
+BenchmarkNative_Params_SetString_10-8                   	  181674	      1807 ns/op
+BenchmarkNative_Params_SetString_10-8                   	  190527	      1771 ns/op
+BenchmarkNative_Params_SetString_10-8                   	  148520	      1624 ns/op
+BenchmarkNative_Params_SetString_100-8                  	  144109	      1897 ns/op
+BenchmarkNative_Params_SetString_100-8                  	  153175	      1738 ns/op
+BenchmarkNative_Params_SetString_100-8                  	  146718	      1809 ns/op
+BenchmarkNative_Params_SetString_1000-8                 	  203862	      1902 ns/op
+BenchmarkNative_Params_SetString_1000-8                 	  203474	      1959 ns/op
+BenchmarkNative_Params_SetString_1000-8                 	  145088	      1632 ns/op
+BenchmarkNative_Params_SetStrings_1_1-8                 	  177817	      1969 ns/op
+BenchmarkNative_Params_SetStrings_1_1-8                 	  116373	      1880 ns/op
+BenchmarkNative_Params_SetStrings_1_1-8                 	  182414	      1968 ns/op
+BenchmarkNative_Params_SetStrings_10_1-8                	  115770	      2339 ns/op
+BenchmarkNative_Params_SetStrings_10_1-8                	  141001	      2430 ns/op
+BenchmarkNative_Params_SetStrings_10_1-8                	  129093	      2367 ns/op
+BenchmarkNative_Params_SetStrings_100_1-8               	   59986	      5575 ns/op
+BenchmarkNative_Params_SetStrings_100_1-8               	   37200	      6199 ns/op
+BenchmarkNative_Params_SetStrings_100_1-8               	   56695	      5996 ns/op
+BenchmarkNative_Params_SetStrings_1000_1-8              	    8934	     37885 ns/op
+BenchmarkNative_Params_SetStrings_1000_1-8              	    8737	     41729 ns/op
+BenchmarkNative_Params_SetStrings_1000_1-8              	    9640	     27365 ns/op
+BenchmarkNative_Params_SetStrings_2_50-8                	  169542	      1366 ns/op
+BenchmarkNative_Params_SetStrings_2_50-8                	  178159	      1396 ns/op
+BenchmarkNative_Params_SetStrings_2_50-8                	  171147	      1910 ns/op
+BenchmarkNative_Params_SetStrings_2_500-8               	  164760	      2039 ns/op
+BenchmarkNative_Params_SetStrings_2_500-8               	  179028	      1959 ns/op
+BenchmarkNative_Params_SetStrings_2_500-8               	  187082	      1344 ns/op
+BenchmarkNative_Params_SetStrings_2_5000-8              	  186418	      1337 ns/op
+BenchmarkNative_Params_SetStrings_2_5000-8              	  186072	      1485 ns/op
+BenchmarkNative_Params_SetStrings_2_5000-8              	  181582	      1955 ns/op
+BenchmarkNative_Params_SetStrings_2_50000-8             	  131283	      1995 ns/op
+BenchmarkNative_Params_SetStrings_2_50000-8             	  137454	      1980 ns/op
+BenchmarkNative_Params_SetStrings_2_50000-8             	  170175	      1997 ns/op
+BenchmarkNative_Params_SetBool-8                        	  211314	      1838 ns/op
+BenchmarkNative_Params_SetBool-8                        	  205833	      1643 ns/op
+BenchmarkNative_Params_SetBool-8                        	  200102	      1205 ns/op
+BenchmarkNative_Params_SetInt64-8                       	  205150	      1198 ns/op
+BenchmarkNative_Params_SetInt64-8                       	  195961	      1220 ns/op
+BenchmarkNative_Params_SetInt64-8                       	  198273	      1201 ns/op
+BenchmarkNative_Params_SetUint64-8                      	  193608	      1203 ns/op
+BenchmarkNative_Params_SetUint64-8                      	  194025	      1219 ns/op
+BenchmarkNative_Params_SetUint64-8                      	  186073	      1356 ns/op
+BenchmarkNative_SysParams_SetBytes_1-8                  	  725110	       366.9 ns/op
+BenchmarkNative_SysParams_SetBytes_1-8                  	  756898	       323.3 ns/op
+BenchmarkNative_SysParams_SetBytes_1-8                  	  787293	       319.4 ns/op
+BenchmarkNative_SysParams_SetBytes_10-8                 	  622816	       405.4 ns/op
+BenchmarkNative_SysParams_SetBytes_10-8                 	  627566	       401.9 ns/op
+BenchmarkNative_SysParams_SetBytes_10-8                 	  538618	       406.9 ns/op
+BenchmarkNative_SysParams_SetBytes_100-8                	  197664	      1206 ns/op
+BenchmarkNative_SysParams_SetBytes_100-8                	  201224	      1391 ns/op
+BenchmarkNative_SysParams_SetBytes_100-8                	  206466	      1491 ns/op
+BenchmarkNative_SysParams_SetBytes_1000-8               	   25458	      9261 ns/op
+BenchmarkNative_SysParams_SetBytes_1000-8               	   25845	      9224 ns/op
+BenchmarkNative_SysParams_SetBytes_1000-8               	   20070	     11887 ns/op
+BenchmarkNative_SysParams_GetBytes_1-8                  	  637498	       470.9 ns/op
+BenchmarkNative_SysParams_GetBytes_1-8                  	  694845	       380.1 ns/op
+BenchmarkNative_SysParams_GetBytes_1-8                  	  647685	       415.7 ns/op
+BenchmarkNative_SysParams_GetBytes_10-8                 	  517710	       537.0 ns/op
+BenchmarkNative_SysParams_GetBytes_10-8                 	  523516	       477.2 ns/op
+BenchmarkNative_SysParams_GetBytes_10-8                 	  444468	       475.5 ns/op
+BenchmarkNative_SysParams_GetBytes_100-8                	  173178	      1452 ns/op
+BenchmarkNative_SysParams_GetBytes_100-8                	  172476	      1918 ns/op
+BenchmarkNative_SysParams_GetBytes_100-8                	  151022	      1475 ns/op
+BenchmarkNative_SysParams_GetBytes_1000-8               	   23000	     10575 ns/op
+BenchmarkNative_SysParams_GetBytes_1000-8               	   23180	     10445 ns/op
+BenchmarkNative_SysParams_GetBytes_1000-8               	   22881	     12779 ns/op
+BenchmarkNative_SysParams_SetString_1-8                 	 1000000	       253.0 ns/op
+BenchmarkNative_SysParams_SetString_1-8                 	  995385	       248.9 ns/op
+BenchmarkNative_SysParams_SetString_1-8                 	  989877	       363.9 ns/op
+BenchmarkNative_SysParams_SetString_10-8                	  967594	       303.8 ns/op
+BenchmarkNative_SysParams_SetString_10-8                	  978692	       308.5 ns/op
+BenchmarkNative_SysParams_SetString_10-8                	 1000000	       256.3 ns/op
+BenchmarkNative_SysParams_SetString_100-8               	  988670	       254.5 ns/op
+BenchmarkNative_SysParams_SetString_100-8               	 1000000	       308.4 ns/op
+BenchmarkNative_SysParams_SetString_100-8               	  952411	       258.5 ns/op
+BenchmarkNative_SysParams_SetString_1000-8              	  999530	       259.4 ns/op
+BenchmarkNative_SysParams_SetString_1000-8              	 1000000	       252.3 ns/op
+BenchmarkNative_SysParams_SetString_1000-8              	  991222	       253.6 ns/op
+BenchmarkNative_SysParams_SetStrings_1_1-8              	  709053	       340.6 ns/op
+BenchmarkNative_SysParams_SetStrings_1_1-8              	  662692	       341.6 ns/op
+BenchmarkNative_SysParams_SetStrings_1_1-8              	  715305	       376.9 ns/op
+BenchmarkNative_SysParams_SetStrings_10_1-8             	  419390	       722.4 ns/op
+BenchmarkNative_SysParams_SetStrings_10_1-8             	  312576	       800.7 ns/op
+BenchmarkNative_SysParams_SetStrings_10_1-8             	  378114	       594.5 ns/op
+BenchmarkNative_SysParams_SetStrings_100_1-8            	   82041	      2982 ns/op
+BenchmarkNative_SysParams_SetStrings_100_1-8            	   82242	      2935 ns/op
+BenchmarkNative_SysParams_SetStrings_100_1-8            	   69343	      3009 ns/op
+BenchmarkNative_SysParams_SetStrings_1000_1-8           	   10000	     25428 ns/op
+BenchmarkNative_SysParams_SetStrings_1000_1-8           	    8988	     25250 ns/op
+BenchmarkNative_SysParams_SetStrings_1000_1-8           	   10000	     28129 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50-8             	  678069	       459.9 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50-8             	  690547	       535.5 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50-8             	  612492	       418.1 ns/op
+BenchmarkNative_SysParams_SetStrings_2_500-8            	  702824	       348.6 ns/op
+BenchmarkNative_SysParams_SetStrings_2_500-8            	  732013	       337.7 ns/op
+BenchmarkNative_SysParams_SetStrings_2_500-8            	  736816	       336.3 ns/op
+BenchmarkNative_SysParams_SetStrings_2_5000-8           	  735218	       444.5 ns/op
+BenchmarkNative_SysParams_SetStrings_2_5000-8           	  689596	       409.2 ns/op
+BenchmarkNative_SysParams_SetStrings_2_5000-8           	  681890	       526.3 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50000-8          	  605079	       462.2 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50000-8          	  658142	       494.5 ns/op
+BenchmarkNative_SysParams_SetStrings_2_50000-8          	  690489	       505.8 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1_1-8           	  685950	       482.9 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1_1-8           	  590326	       497.4 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1_1-8           	  664160	       450.5 ns/op
+BenchmarkNative_SysParams_UpdateStrings_10_1-8          	  397503	       878.6 ns/op
+BenchmarkNative_SysParams_UpdateStrings_10_1-8          	  310532	       873.1 ns/op
+BenchmarkNative_SysParams_UpdateStrings_10_1-8          	  407786	       822.9 ns/op
+BenchmarkNative_SysParams_UpdateStrings_100_1-8         	   77397	      2973 ns/op
+BenchmarkNative_SysParams_UpdateStrings_100_1-8         	   79201	      3040 ns/op
+BenchmarkNative_SysParams_UpdateStrings_100_1-8         	   83528	      3007 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1000_1-8        	    9793	     25616 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1000_1-8        	   10000	     26038 ns/op
+BenchmarkNative_SysParams_UpdateStrings_1000_1-8        	   10000	     25596 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50-8          	  564926	       441.4 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50-8          	  640803	       485.7 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50-8          	  644612	       551.9 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_500-8         	  601836	       504.0 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_500-8         	  649496	       536.7 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_500-8         	  622729	       499.3 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_5000-8        	  589933	       389.1 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_5000-8        	  661665	       366.0 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_5000-8        	  643179	       364.7 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50000-8       	  648510	       405.5 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50000-8       	  442737	       529.1 ns/op
+BenchmarkNative_SysParams_UpdateStrings_2_50000-8       	  653408	       485.0 ns/op
+BenchmarkNative_SysParams_SetBool-8                     	 1000000	       217.4 ns/op
+BenchmarkNative_SysParams_SetBool-8                     	 1000000	       215.4 ns/op
+BenchmarkNative_SysParams_SetBool-8                     	 1000000	       218.3 ns/op
+BenchmarkNative_SysParams_SetInt64-8                    	 1000000	       225.5 ns/op
+BenchmarkNative_SysParams_SetInt64-8                    	 1000000	       228.2 ns/op
+BenchmarkNative_SysParams_SetInt64-8                    	 1000000	       227.8 ns/op
+BenchmarkNative_SysParams_SetUint64-8                   	 1000000	       230.6 ns/op
+BenchmarkNative_SysParams_SetUint64-8                   	 1000000	       298.9 ns/op
+BenchmarkNative_SysParams_SetUint64-8                   	 1000000	       367.6 ns/op
+BenchmarkNative_SysParams_GetBool-8                     	 1000000	       209.3 ns/op
+BenchmarkNative_SysParams_GetBool-8                     	 1000000	       236.5 ns/op
+BenchmarkNative_SysParams_GetBool-8                     	 1000000	       267.2 ns/op
+BenchmarkNative_SysParams_GetInt64-8                    	 1028874	       301.1 ns/op
+BenchmarkNative_SysParams_GetInt64-8                    	 1000000	       322.9 ns/op
+BenchmarkNative_SysParams_GetInt64-8                    	 1000000	       441.4 ns/op
+BenchmarkNative_SysParams_GetUint64-8                   	 1000000	       309.5 ns/op
+BenchmarkNative_SysParams_GetUint64-8                   	 1000000	       294.4 ns/op
+BenchmarkNative_SysParams_GetUint64-8                   	 1000000	       308.7 ns/op
+BenchmarkNative_SysParams_GetString_1-8                 	  974916	       362.8 ns/op
+BenchmarkNative_SysParams_GetString_1-8                 	  915418	       332.4 ns/op
+BenchmarkNative_SysParams_GetString_1-8                 	  939824	       366.1 ns/op
+BenchmarkNative_SysParams_GetString_10-8                	  951939	       360.2 ns/op
+BenchmarkNative_SysParams_GetString_10-8                	  934382	       277.7 ns/op
+BenchmarkNative_SysParams_GetString_10-8                	  964484	       248.1 ns/op
+BenchmarkNative_SysParams_GetString_100-8               	 1000000	       249.6 ns/op
+BenchmarkNative_SysParams_GetString_100-8               	 1000000	       275.3 ns/op
+BenchmarkNative_SysParams_GetString_100-8               	  994801	       337.4 ns/op
+BenchmarkNative_SysParams_GetString_1000-8              	  726057	       366.1 ns/op
+BenchmarkNative_SysParams_GetString_1000-8              	  982816	       323.1 ns/op
+BenchmarkNative_SysParams_GetString_1000-8              	 1000000	       234.6 ns/op
+BenchmarkNative_SysParams_GetStrings_1_1-8              	  682941	       356.7 ns/op
+BenchmarkNative_SysParams_GetStrings_1_1-8              	  728716	       348.7 ns/op
+BenchmarkNative_SysParams_GetStrings_1_1-8              	  725934	       350.8 ns/op
+BenchmarkNative_SysParams_GetStrings_10_1-8             	  414003	       573.7 ns/op
+BenchmarkNative_SysParams_GetStrings_10_1-8             	  421822	       570.6 ns/op
+BenchmarkNative_SysParams_GetStrings_10_1-8             	  402175	       567.8 ns/op
+BenchmarkNative_SysParams_GetStrings_100_1-8            	   90486	      2678 ns/op
+BenchmarkNative_SysParams_GetStrings_100_1-8            	   89541	      2617 ns/op
+BenchmarkNative_SysParams_GetStrings_100_1-8            	   90541	      2688 ns/op
+BenchmarkNative_SysParams_GetStrings_1000_1-8           	   10000	     22565 ns/op
+BenchmarkNative_SysParams_GetStrings_1000_1-8           	   10000	     22704 ns/op
+BenchmarkNative_SysParams_GetStrings_1000_1-8           	   10000	     22492 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50-8             	  677144	       542.1 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50-8             	  577443	       382.1 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50-8             	  682366	       500.0 ns/op
+BenchmarkNative_SysParams_GetStrings_2_500-8            	  581676	       418.6 ns/op
+BenchmarkNative_SysParams_GetStrings_2_500-8            	  642454	       376.5 ns/op
+BenchmarkNative_SysParams_GetStrings_2_500-8            	  673951	       373.1 ns/op
+BenchmarkNative_SysParams_GetStrings_2_5000-8           	  604641	       367.4 ns/op
+BenchmarkNative_SysParams_GetStrings_2_5000-8           	  685771	       377.3 ns/op
+BenchmarkNative_SysParams_GetStrings_2_5000-8           	  628964	       376.9 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50000-8          	  678460	       366.2 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50000-8          	  673794	       502.5 ns/op
+BenchmarkNative_SysParams_GetStrings_2_50000-8          	  612583	       414.7 ns/op
+BenchmarkNative_Params_UpdateStrings_1_1-8              	  165092	      1363 ns/op
+BenchmarkNative_Params_UpdateStrings_1_1-8              	  187317	      1368 ns/op
+BenchmarkNative_Params_UpdateStrings_1_1-8              	  171214	      1486 ns/op
+BenchmarkNative_Params_UpdateStrings_10_1-8             	  149916	      1587 ns/op
+BenchmarkNative_Params_UpdateStrings_10_1-8             	  156489	      1696 ns/op
+BenchmarkNative_Params_UpdateStrings_10_1-8             	  150631	      1517 ns/op
+BenchmarkNative_Params_UpdateStrings_100_1-8            	   65023	      3598 ns/op
+BenchmarkNative_Params_UpdateStrings_100_1-8            	   67698	      3684 ns/op
+BenchmarkNative_Params_UpdateStrings_100_1-8            	   65086	      3977 ns/op
+BenchmarkNative_Params_UpdateStrings_1000_1-8           	    9590	     25777 ns/op
+BenchmarkNative_Params_UpdateStrings_1000_1-8           	   10000	     23986 ns/op
+BenchmarkNative_Params_UpdateStrings_1000_1-8           	   10000	     24569 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50-8             	  189753	      1280 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50-8             	  192554	      1314 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50-8             	  184593	      1420 ns/op
+BenchmarkNative_Params_UpdateStrings_2_500-8            	  173624	      1346 ns/op
+BenchmarkNative_Params_UpdateStrings_2_500-8            	  190401	      1890 ns/op
+BenchmarkNative_Params_UpdateStrings_2_500-8            	  179511	      1317 ns/op
+BenchmarkNative_Params_UpdateStrings_2_5000-8           	  164496	      1293 ns/op
+BenchmarkNative_Params_UpdateStrings_2_5000-8           	  193460	      1258 ns/op
+BenchmarkNative_Params_UpdateStrings_2_5000-8           	  193251	      1280 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50000-8          	  190191	      1254 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50000-8          	  169327	      1276 ns/op
+BenchmarkNative_Params_UpdateStrings_2_50000-8          	  190642	      1271 ns/op
+BenchmarkNative_Runtime_ChainID-8                       	 5123191	        44.56 ns/op
+BenchmarkNative_Runtime_ChainID-8                       	 5413624	        44.76 ns/op
+BenchmarkNative_Runtime_ChainID-8                       	 5402150	        45.00 ns/op
+BenchmarkNative_Runtime_ChainDomain-8                   	 5439144	        44.51 ns/op
+BenchmarkNative_Runtime_ChainDomain-8                   	 5396906	        44.09 ns/op
+BenchmarkNative_Runtime_ChainDomain-8                   	 5428902	        44.51 ns/op
+BenchmarkNative_Runtime_ChainHeight-8                   	 8004969	        30.13 ns/op
+BenchmarkNative_Runtime_ChainHeight-8                   	 7867057	        30.62 ns/op
+BenchmarkNative_Runtime_ChainHeight-8                   	 7791100	        30.17 ns/op
+BenchmarkNative_Runtime_OriginCaller-8                  	 5094873	        45.84 ns/op
+BenchmarkNative_Runtime_OriginCaller-8                  	 5415375	        44.90 ns/op
+BenchmarkNative_Runtime_OriginCaller-8                  	 5450828	        44.42 ns/op
+BenchmarkNative_Runtime_GetSessionInfo-8                	 1502176	       147.6 ns/op
+BenchmarkNative_Runtime_GetSessionInfo-8                	 1653732	       149.3 ns/op
+BenchmarkNative_Runtime_GetSessionInfo-8                	 1635062	       148.4 ns/op
+BenchmarkNative_Runtime_AssertOriginCall-8              	47690412	         5.025 ns/op
+BenchmarkNative_Runtime_AssertOriginCall-8              	48053262	         5.056 ns/op
+BenchmarkNative_Runtime_AssertOriginCall-8              	48054454	         5.037 ns/op
+BenchmarkNative_Runtime_GetRealm_1-8                    	  238162	      1012 ns/op
+BenchmarkNative_Runtime_GetRealm_1-8                    	  242978	       997.6 ns/op
+BenchmarkNative_Runtime_GetRealm_1-8                    	  245365	      1003 ns/op
+BenchmarkNative_Runtime_GetRealm_10-8                   	  241915	       990.9 ns/op
+BenchmarkNative_Runtime_GetRealm_10-8                   	  244284	       994.7 ns/op
+BenchmarkNative_Runtime_GetRealm_10-8                   	  244230	       989.6 ns/op
+BenchmarkNative_Runtime_GetRealm_100-8                  	  232306	      1058 ns/op
+BenchmarkNative_Runtime_GetRealm_100-8                  	  233943	      1040 ns/op
+BenchmarkNative_Runtime_GetRealm_100-8                  	  233218	      1064 ns/op
+BenchmarkNative_Runtime_GetRealm_1000-8                 	  106154	      2280 ns/op
+BenchmarkNative_Runtime_GetRealm_1000-8                 	  105117	      2293 ns/op
+BenchmarkNative_Runtime_GetRealm_1000-8                 	  104918	      2270 ns/op
+BenchmarkNative_Time_Now-8                              	 5100770	        47.15 ns/op
+BenchmarkNative_Time_Now-8                              	 5115765	        46.77 ns/op
+BenchmarkNative_Time_Now-8                              	 5072408	        46.93 ns/op
+PASS
+ok  	github.com/gnolang/gno/gnovm/cmd/calibrate	117.193s
