@@ -681,6 +681,13 @@ func TestBankKeeperSendCoinsZero(t *testing.T) {
 
 	// Seed `from` with a restricted denom so we can prove the restriction
 	// check is bypassed for zero-amount sends.
+	//
+	// "rstr" is load-bearing beyond being a placeholder: it is not in the account-tier
+	// allowlist, so it is a split-tier denom, and this is the only test that restricts
+	// one. That makes it the thing standing between a tier-blind restriction check and
+	// a silent bypass — restricting a realm-issued token would stop working, since
+	// canSendCoins matches on the denom name and must not consult either tier.
+	// Replacing it with a gas denom would drop that coverage without failing anything.
 	bankk.SetCoins(ctx, from, std.NewCoins(std.NewCoin("rstr", 100)))
 	env.prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"rstr"})
 	require.Contains(t, bankk.GetParams(ctx).RestrictedDenoms, "rstr")
