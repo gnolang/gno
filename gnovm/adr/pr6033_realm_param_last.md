@@ -134,11 +134,21 @@ on `ddb752cac` with no diff applied, so that red predates this change. The
 gno2go job was not reproduced locally; it needs a full Go build of the
 transpiled tree.
 
-`gno lint` is worth one warning for whoever revisits this: it exits 0 while
-printing type errors, so its exit status cannot gate anything. Both signature
-desynchronisations this change caused mid-flight, an interface method left
-behind by its implementations and a realm pushed to index 0 by a variadic,
-surfaced only in that output.
+`gno lint` is what caught both signature desynchronisations this change made
+mid-flight, an interface method left behind by its implementations and a realm
+pushed to index 0 by a variadic. It reports them and exits non-zero, so the
+`gno-checks / lint` job gates on them. Measured on three deliberate breaks
+under the job's own command, `gno lint -C examples -v ./...`:
+
+```
+gno.land/r/demo/defi/foo20/foo20.gno:50:53: too many arguments in call to userTeller.TransferFrom
+	have (number, realm, address, address, int64)
+	want (grc20.address, grc20.address, int64, grc20.realm) (code=gnoTypeCheckError)
+exit status 1
+```
+
+A stale call site inside a `.txtar` archive is the one shape it cannot see,
+because the archive is not Gno source until the integration test unpacks it.
 
 [issue]: https://github.com/gnolang/gno/issues/5786
 [ca]: https://github.com/gnolang/gno/blob/ddb752cac/gnovm/pkg/gnolang/preprocess.go#L4555-L4570
