@@ -12,8 +12,9 @@ point-of-use assertions added with that change fire only on paths that execute: 
 catch a violation when someone happens to read the affected account, not when it is
 introduced.
 
-`bank/invariants.go` existed on master; that change removed its contents (an unreachable
-check with no caller) and this one re-creates the file with the checks below. Two reasons, and
+`bank/invariants.go` existed on master; that change removed its contents — the exported
+`NonnegativeBalanceInvariant` and `RegisterInvariants`, an unreachable check with no caller —
+and this one re-creates the file with the checks below. Two reasons, and
 the second is the stronger: it walked accounts checking `acc.GetCoins()` for negative
 amounts, which post-split is only the gas denom — but it could never have fired on any
 chain, before or after, because a negative amount in an account object **fails amino
