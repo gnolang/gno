@@ -210,6 +210,22 @@ Reserve `GetCoins` for cases that genuinely need every balance, and treat it as
 unbounded when the address is caller-supplied. Note repeated `GetCoins` calls are each
 charged in full, so hoisting the call out of a loop is not enough.
 
+Two cases where the swap is **wrong**, both found by making it:
+
+- **The denom is caller-supplied.** `GetCoin` panics on a malformed denom where
+  `AmountOf` returns zero. In `Render`, the denom is often a path segment or query
+  parameter, so the swap hands any visitor a way to break the page.
+
+  ```go
+  // WRONG in Render: denom comes from the URL, and a malformed one now panics
+  denom := req.Query.Get("coin")
+  amount := bnk.GetCoin(addr, denom)
+  ```
+
+- **You already hold the full set.** If `GetCoins` was already called for another
+  reason, `AmountOf` on the result is free and `GetCoin` is a second store read. Read
+  the surrounding function before swapping a call in it.
+
 ---
 
 ## Review Checklist
@@ -226,7 +242,7 @@ charged in full, so hoisting the call out of a loop is not enough.
 - [ ] `/p/`-type fields with callback iterators are unexported
 - [ ] Data types holding sensitive state are declared in this realm (`/r/`), not in shared `/p/`
 - [ ] `Render` sanitizes path segments, keys, and user-supplied values before writing to output
-- [ ] Single-denom balance checks use `GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)`
+- [ ] Single-denom balance checks use `GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)` — unless the denom is unvalidated caller input or the full set is already read (case 11)
 
 ---
 
