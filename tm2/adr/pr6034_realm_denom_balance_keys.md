@@ -318,6 +318,15 @@ alone.
   out-of-gas.
 - Denom **count** remains unbounded, and denom bytes move from a metered value
   into an **unmetered key**.
+- **The denom grammar moves in both directions, and both are consensus-visible.**
+  It was `[a-z/][a-z0-9_.:/]{2,}` with no length limit; it is now the same class
+  plus `-`, bounded at `MaxDenomLength` (274). Rejecting: a denom longer than 274
+  bytes no longer validates, which matters because store keys are unmetered, so an
+  unbounded denom is unbounded free key. Accepting: `-` was excluded, so a realm at
+  a path as ordinary as `gno.land/r/my-org/token` could deploy and then fail to
+  issue its own coin. Two nodes disagreeing on either half fork, so both must land
+  in the same upgrade — and a chain that has already admitted an over-long denom
+  cannot adopt the bound without replay.
 - `AddCoins`/`SubtractCoins` signatures changed (dropped the returned `Coins`), which is
   a breaking change to `bank.BankKeeperI`. They were later **removed from
   `vm.BankKeeperI`** entirely in favour of `MintCoins`/`BurnCoins`/`TotalSupply`, so a
