@@ -1468,6 +1468,14 @@ func TestSplitKeyForAnAccountTierDenomFailsLoudly(t *testing.T) {
 		`denom "`+testAccountDenom+`" has a split-tier key but is in the account tier: `+
 			`the allowlist changed without migrating existing balances`,
 		func() { env.bankk.GetCoins(ctx, addr) })
+
+	// And GetCoin reports zero rather than the stranded amount, which is what the
+	// invariants ADR states the pair does: "GetCoin reports zero while GetCoins
+	// reports it". Pinned because a reader who "fixes" the disagreement by having
+	// GetCoin consult both homes gets a balance that reads as spendable while
+	// subtract still refuses it — and nothing else in the suite notices.
+	require.Zero(t, env.bankk.GetCoin(ctx, addr, testAccountDenom),
+		"a stranded balance must not read as present")
 }
 
 // The operator-visible half of the same mis-migration: before anything calls
