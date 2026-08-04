@@ -83,8 +83,8 @@ func (p *ProposalsStore) newProposal(proposer string, req ProposalRequest, condi
 }
 
 func (p *ProposalsStore) GetProposal(id uint64) *Proposal {
-	value, ok := p.Tree.Get(seqid.ID(id).String())
-	if !ok {
+	value := p.Tree.Get(seqid.ID(id).String())
+	if value == nil {
 		return nil
 	}
 	proposal := value.(*Proposal)

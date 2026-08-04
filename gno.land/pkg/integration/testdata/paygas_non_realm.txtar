@@ -9,11 +9,11 @@ gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/p/test/mypkg -gas-fee
 stdout OK!
 
 ## deploy a realm that calls the package
-gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/pkgcaller -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## call — package calls PayGas, should panic
-! gnokey maketx call -pkgpath gno.land/r/test/pkgcaller -func CallPkg -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func CallPkg -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stderr 'function creator realm does not match paying realm'
 
 -- mypkg/gnomod.toml --

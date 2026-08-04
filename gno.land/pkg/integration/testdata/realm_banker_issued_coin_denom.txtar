@@ -10,7 +10,7 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 370001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test test1
 
 ## add realm_banker with long package_name
-gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 370001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 450001ugnot -gas-wanted 4_500_000 -chainid=tendermint_test test1
 
 ## add invalid realm_denom
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1

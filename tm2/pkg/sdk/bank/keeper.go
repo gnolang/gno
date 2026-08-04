@@ -167,8 +167,14 @@ func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAdd
 }
 
 // SendCoinsUnrestricted is used for paying gas.
+// It bypasses vesting and session-spend checks.
 func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
-	return bank.sendCoins(ctx, fromAddr, toAddr, amt)
+	_, err := bank.subtractCoinsUnrestricted(ctx, fromAddr, amt)
+	if err != nil {
+		return err
+	}
+	_, err = bank.AddCoins(ctx, toAddr, amt)
+	return err
 }
 
 func (bank BankKeeper) sendCoins(
@@ -204,9 +210,31 @@ func (bank BankKeeper) sendCoins(
 	return nil
 }
 
+// upgradeVestingAccount replaces a fully-vested VestingAccount with a plain
+// BaseAccount. Returns the replacement account, or the original if not ready.
+func (bank BankKeeper) upgradeVestingAccount(ctx sdk.Context, acc std.Account) std.Account {
+	va, ok := acc.(std.VestingAccount)
+	if !ok {
+		return acc
+	}
+	if !va.GetVestingCoins(ctx.BlockTime()).IsZero() {
+		return acc
+	}
+	baseAcc := &std.BaseAccount{
+		Address:       va.GetAddress(),
+		Coins:         va.GetCoins(),
+		PubKey:        va.GetPubKey(),
+		AccountNumber: va.GetAccountNumber(),
+		Sequence:      va.GetSequence(),
+	}
+	bank.acck.SetAccount(ctx, baseAcc)
+	return baseAcc
+}
+
 // SubtractCoins subtracts amt from the coins at the addr.
 //
-// CONTRACT: If the account is a vesting account, the amount has to be spendable.
+// Enforces vesting: if the account is a VestingAccount, the amount must
+// not exceed the spendable (unlocked) coins at the current block time.
 func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
 	if !amt.IsValid() {
 		return nil, std.ErrInvalidCoins(amt.String())
@@ -217,6 +245,51 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 	if acc != nil {
 		oldCoins = acc.GetCoins()
 	}
+
+	// Vesting enforcement: the amount subtracted must be spendable.
+	// Once the vesting schedule completes, the account is upgraded to a
+	// plain BaseAccount so future transfers skip vesting checks entirely.
+	acc = bank.upgradeVestingAccount(ctx, acc)
+	if va, ok := acc.(std.VestingAccount); ok {
+		spendable := std.SpendableCoins(va, ctx.BlockTime())
+		if !spendable.IsAllGTE(amt) {
+			return nil, std.ErrVestingLockedCoins(fmt.Sprintf(
+				"insufficient spendable coins; %s < %s (locked=%s)",
+				spendable, amt, va.LockedCoins(ctx.BlockTime()),
+			))
+		}
+	}
+
+	newCoins := oldCoins.SubUnsafe(amt)
+	if !newCoins.IsValid() {
+		err := std.ErrInsufficientCoins(
+			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
+		)
+		return nil, err
+	}
+	err := bank.SetCoins(ctx, addr, newCoins)
+
+	return newCoins, err
+}
+
+// subtractCoinsUnrestricted performs raw coin subtraction without vesting or
+// session-spend enforcement. Used for gas payments, storage deposit refunds,
+// and other system-level transfers.
+//
+// Still upgrades fully-vested accounts to BaseAccount when the schedule ends.
+func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
+	if !amt.IsValid() {
+		return nil, std.ErrInvalidCoins(amt.String())
+	}
+
+	oldCoins := std.NewCoins()
+	acc := bank.acck.GetAccount(ctx, addr)
+	if acc != nil {
+		oldCoins = acc.GetCoins()
+	}
+
+	// Upgrade fully-vested accounts even on unrestricted transfers.
+	bank.upgradeVestingAccount(ctx, acc)
 
 	newCoins := oldCoins.SubUnsafe(amt)
 	if !newCoins.IsValid() {

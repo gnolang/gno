@@ -153,11 +153,11 @@ type CommitMultiStore interface {
 	// Panics on a nil key.
 	GetCommitStore(key StoreKey) CommitStore
 
-	// MultiImmutableCacheWrapWithVersion is analogous to MultiCacheWrap
-	// except that it attempts to load immutable stores at a given version
-	// (height). An error is returned if any store cannot be loaded. This
-	// should only be used for querying and iterating at past heights.
-	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, error)
+	// MultiImmutableCacheWrapWithVersion returns an immutable MultiStore pinned
+	// to version, backed by a DB snapshot so both IAVL and non-IAVL sub-stores
+	// reflect the same committed block. The caller must call the returned
+	// release func when done to free the snapshot reference.
+	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, func(), error)
 }
 
 // CommitID contains the tree version number and its merkle root.

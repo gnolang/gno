@@ -111,11 +111,14 @@ func (fr *Frame) SetIsRevive() {
 // Defer
 
 type Defer struct {
-	Func          *FuncValue   // function value
-	IsBoundMethod bool         // if true, args[0] is receiver
-	Args          []TypedValue // arguments
-	Source        *DeferStmt   // source
-	Parent        *Block
+	// Callable is the deferred callable, captured at the defer statement: a
+	// *FuncValue, a *BoundMethodValue (possibly a lazy interface bind, resolved
+	// at the call), or nil for a deferred nil func. doOpReturnCallDefers
+	// type-switches on it, mirroring doOpPrecall.
+	Callable Value
+	Args     []TypedValue // arguments (Args[0] is the receiver for a bound method)
+	Source   *DeferStmt   // source
+	Parent   *Block
 }
 
 type StacktraceCall struct {

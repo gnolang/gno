@@ -29,7 +29,7 @@ func TestStore_PendingVals_ConcurrentQueryProve_NoRace(t *testing.T) {
 	st := StoreConstructor(db, types.StoreOptions{}).(*Store)
 
 	const n = 1_500
-	for i := 0; i < n; i++ {
+	for i := range n {
 		st.Set(nil, k2b(i), k2b(i))
 	}
 	cid := st.Commit() // version 1 is now committed
@@ -44,9 +44,7 @@ func TestStore_PendingVals_ConcurrentQueryProve_NoRace(t *testing.T) {
 	stop := make(chan struct{})
 
 	// Writer: stage new keys (pendingVals churns) without committing.
-	writerWg.Add(1)
-	go func() {
-		defer writerWg.Done()
+	writerWg.Go(func() {
 		k := n
 		for {
 			select {
@@ -57,24 +55,20 @@ func TestStore_PendingVals_ConcurrentQueryProve_NoRace(t *testing.T) {
 			st.Set(nil, k2b(k), k2b(k))
 			k++
 		}
-	}()
+	})
 
 	// Reader A: committed-snapshot Get via the immutable store.
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 200; round++ {
-			for i := 0; i < n; i++ {
+	readerWg.Go(func() {
+		for range 200 {
+			for i := range n {
 				_ = imm.Get(nil, k2b(i))
 			}
 		}
-	}()
+	})
 
 	// Reader B: committed Query with proof (membership) on the writer store.
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 300; round++ {
+	readerWg.Go(func() {
+		for range 300 {
 			for i := 0; i < n; i += 25 {
 				res := st.Query(abci.RequestQuery{
 					Path:   "/key",
@@ -88,7 +82,7 @@ func TestStore_PendingVals_ConcurrentQueryProve_NoRace(t *testing.T) {
 				}
 			}
 		}
-	}()
+	})
 
 	readerWg.Wait()
 	close(stop)
