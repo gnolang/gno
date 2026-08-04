@@ -822,9 +822,10 @@ banker.IssueCoin(addr, denom, amount)
 :::warning Issuing needs no consent from the recipient
 
 `addr` is arbitrary. A realm can issue its coins to any address without that
-address agreeing, and the recipient cannot refuse or dispose of them — only the
-issuing realm may [RemoveCoin](#removecoin), and there is no burn. Do not treat
-"this address holds our coin" as evidence that its owner opted in to anything.
+address agreeing, and the recipient cannot refuse or dispose of them: destroying
+a realm coin is [RemoveCoin](#removecoin), which only the issuing realm may call,
+and a holder has no burn of its own. Do not treat "this address holds our coin"
+as evidence that its owner opted in to anything.
 
 Because of this, realm-issued balances are stored per denomination, outside the
 account object, so that coins an address was sent unsolicited cannot make that
