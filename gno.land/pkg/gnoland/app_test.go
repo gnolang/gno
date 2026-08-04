@@ -3,6 +3,7 @@ package gnoland
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -1755,6 +1756,12 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	// Make sure loading a past version doesn't fail
 	assert.NoError(t, cms.LoadVersion(1))
+
+	// Release the multistore (its query snapshot) before closing the DB —
+	// PebbleDB reports open snapshots as a leak at Close time.
+	if closer, ok := cms.(io.Closer); ok {
+		require.NoError(t, closer.Close())
+	}
 
 	err = db.Close()
 	require.NoError(t, err)
