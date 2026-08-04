@@ -268,6 +268,10 @@ func (bank BankKeeper) RecomputeSupply(ctx sdk.Context) {
 	for ; iter.Valid(); iter.Next() {
 		stale = append(stale, append([]byte(nil), iter.Key()...))
 	}
+	// Read the error before closing, and close before deleting. Both orders matter:
+	// the bptree store panics from Close if the iteration error was never read, and
+	// the deletions below must not run under a live iterator over the same prefix,
+	// which is why this is not a defer.
 	iterErr := iter.Error()
 	iter.Close()
 	if iterErr != nil {
