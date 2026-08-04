@@ -64,17 +64,13 @@ argument, and a closure that no longer closes the call reads worse than the
 sentinel it removes.
 
 ```go
-rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
-	// ...
-})                      // crossing, realm first, closure last
-
 rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
 	// ...
-})                      // sentinel kept, closure last
+})                      // kept
 
 rtests.ExecRlm(func(_ int, rlm realm) {
 	// ...
-}, cur)                 // trailing realm, closure evicted
+}, cur)                 // rejected
 ```
 
 189 signatures fall in this group.

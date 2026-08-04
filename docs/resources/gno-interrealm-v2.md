@@ -441,19 +441,14 @@ reserved: no real package path can contain it (rejected at package
 validation), so the synthesized form can never collide with a deployed
 package, and exact-match pkgpath auth is never silently broadened.
 
-The token is a first-class `realm` value. Cross with it, which takes a bare
-identifier, or pass it to any API that declares a realm parameter:
+The token is a first-class `realm` value. Cross with it (two-step —
+`cross(...)` takes a bare identifier) or hand it to an API taking a realm,
+which cannot be its first parameter:
 
 ```go
 sub := cur.Sub("dao/42")
-
-// func Foo(cur realm, ...)
-target.Foo(cross(sub), ...)            // callee: cur.Previous() = sub identity
-
-// func (ft *fnTeller) Transfer(to address, amount int64, rlm realm) error
+target.Foo(cross(sub), ...)   // callee: cur.Previous() = sub identity
 teller.Transfer(to, amount, sub)
-
-// func NewBanker(bt BankerType, rlm realm) Banker
 b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 b.SendCoins(sub.Address(), to, coins)  // spend the sub-treasury
 ```
