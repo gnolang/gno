@@ -126,10 +126,14 @@ every transfer rather than of issuance.
   supply-blind. It *would* have moved under the rejected delta design.
 - `bank.BankKeeperI` and `bank.ViewKeeperI` gained methods; `vm.BankKeeperI` traded
   `AddCoins`/`SubtractCoins` for `MintCoins`/`BurnCoins`/`TotalSupply`.
-- `bankerTotalCoin`'s native gas base went from 89 to 349, matching `bankerGetCoin`'s
-  conservative placeholder. The 89 was calibrated against a mock returning `0`, so it
-  cannot see the real path's `ValidateDenom` regexp or store read. Wants
-  re-derivation on the bench box.
+- `bankerTotalCoin`'s native gas base went from 89 to 87, and the new `bankerGetCoin`
+  is 129 — both measured on the reference box, not placeholders. Both benchmarks drive
+  a mock (`TotalCoin` returns `0`), which is correct rather than a gap: the store read
+  is metered by the store layer at `59,000 + 17/byte`, so putting it in the native
+  base would double-charge it. The one thing the mock genuinely omits is the real
+  path's `ValidateDenom`, and that is bounded and immaterial — `ValidateDenom` checks
+  length before scanning, so the worst case is a 274-byte scan at ~174ns against a
+  59,000-gas read.
 - **`TotalCoin` validates its denom**, for the reason `GetCoin` does: it is a
   realm-supplied string reaching a store key and nothing on the `.gno` side bounds
   it. `TestBanker.TotalCoin` is implemented too, so `gno test` and the chain agree.
