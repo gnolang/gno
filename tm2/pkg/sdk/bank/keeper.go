@@ -352,8 +352,10 @@ func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Ad
 // and it does not hold for a caller that logs and continues.
 func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins, upgraded bool) error {
 	// A non-positive amount turns this debit into a credit, on either tier, so
-	// reject it before splitting. Every caller validates amt, so this cannot fire
-	// today; it is here because neither tier defends itself otherwise:
+	// reject it before splitting, along with a repeated denom: two entries would
+	// each be computed from the same starting balance, so only one debit would
+	// land. Every caller validates amt, so this cannot fire today; it is here
+	// because neither tier defends itself otherwise:
 	//
 	//   - split tier: the check is `old < coin.Amount`, which a negative passes
 	//     since old is never negative. The subtraction then credits, or overflows
@@ -364,7 +366,7 @@ func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Ad
 	//
 	// With every amount positive, and each checked against the balance below, no
 	// subtraction here can overflow.
-	if err := assertPositiveAmounts(amt); err != nil {
+	if err := amt.Validate(); err != nil {
 		return err
 	}
 	// acc must be addr's account: it is threaded in to save a read, and nothing in
@@ -601,27 +603,6 @@ func (view ViewKeeper) accountTierCoins(acc std.Account) std.Coins {
 		}
 	}
 	return coins
-}
-
-// assertPositiveAmounts rejects any non-positive amount.
-//
-// Only subtract needs this. AddCoins validates its own amt via Coins.IsValid, so
-// it is defended already; subtract is internal and inherits nothing, and its
-// arithmetic inverts on a negative — see the call site.
-func assertPositiveAmounts(amt std.Coins) error {
-	for i, coin := range amt {
-		if coin.Amount <= 0 {
-			return std.ErrInvalidCoins(fmt.Sprintf("non-positive debit: %s", coin))
-		}
-		// Strict ascending order, which also rules out duplicates. A denom appearing
-		// twice would have both entries computed from the same starting balance, so
-		// the second write would overwrite the first and only one debit would land.
-		if i > 0 && amt[i-1].Denom >= coin.Denom {
-			return fmt.Errorf("denoms out of order or duplicated: %q then %q",
-				amt[i-1].Denom, coin.Denom)
-		}
-	}
-	return nil
 }
 
 // Logger returns a module-specific logger.

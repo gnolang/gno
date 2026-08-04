@@ -238,6 +238,12 @@ func (coins Coins) IsValid() bool {
 	return coins.validate() == nil
 }
 
+// Validate is IsValid with the reason. Callers rejecting a caller-supplied set
+// want to say why.
+func (coins Coins) Validate() error {
+	return coins.validate()
+}
+
 // validate checks that the Coins are sorted, have positive amounts,
 // and valid denoms. Returns an error describing the issue if invalid.
 func (coins Coins) validate() error {

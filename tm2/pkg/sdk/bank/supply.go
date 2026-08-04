@@ -92,16 +92,15 @@ func (bank BankKeeper) setSupply(ctx sdk.Context, denom string, amount int64) {
 // reachable by an ordinary realm minting too much, which is a caller's mistake
 // rather than a broken node.
 func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (std.Coins, error) {
+	// Two entries for one denom would each compute from the same old value and the
+	// last write would lose an increment, so the arithmetic below needs uniqueness.
+	// Callers validate, so this cannot fire today; it is checked here rather than
+	// inherited because that is what the loop depends on.
+	if err := amt.Validate(); err != nil {
+		return nil, err
+	}
 	next := make(std.Coins, len(amt))
 	for i, coin := range amt {
-		if i > 0 && amt[i-1].Denom >= coin.Denom {
-			// Two entries for one denom would each compute from the same old value
-			// and the last write would lose an increment. Callers validate, so this
-			// cannot fire today; the arithmetic below depends on it, so it is checked
-			// here rather than inherited.
-			return nil, fmt.Errorf("denoms out of order or duplicated: %q then %q",
-				amt[i-1].Denom, coin.Denom)
-		}
 		old := bank.TotalSupply(ctx, coin.Denom)
 		sum, ok := overflow.Add(old, sign*coin.Amount)
 		if !ok || sum < 0 {

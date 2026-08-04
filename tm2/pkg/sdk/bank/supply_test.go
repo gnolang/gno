@@ -283,13 +283,13 @@ func TestInternalHelpersRejectDuplicateDenoms(t *testing.T) {
 	// write would lose an increment and the counter would under-count the mint.
 	_, err := env.bankk.nextSupply(ctx, dup, 1)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "out of order or duplicated")
+	require.Contains(t, err.Error(), "duplicate denom")
 
 	// subtract: both entries would compute from the same starting balance, so only
 	// one debit would land while the caller believes two did.
 	err = env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, dup, false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "out of order or duplicated")
+	require.Contains(t, err.Error(), "duplicate denom")
 	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, testRealmDenom),
 		"a rejected debit must not have moved the balance")
 }
