@@ -6,7 +6,9 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -76,6 +78,47 @@ func TestAMisfiledAccountRedirectsCreditsAndBreaksSupply(t *testing.T) {
 	msg, broken = auth.AccountKeyspaceInvariant(env.acck)(ctx)
 	require.True(t, broken)
 	require.Contains(t, msg, "would be filed under")
+}
+
+// The invariants ADR fixes a rule: no invariant may be breakable by an unprivileged
+// actor, because a periodic check that halts the local node is otherwise a remote
+// DoS. It names the state that got a proposed check dropped — a session address that
+// is also a regular account, which anyone induces by sending coins there, since
+// AddCoins creates the recipient's account object.
+//
+// This pins that the shipped set tolerates it. The transfer is the reachable path:
+// a bare AddCoins would create coins from nothing and break the supply invariant,
+// but no external caller has one — it is absent from vm.BankKeeperI and no message
+// handler exposes it.
+func TestCreditingASessionAddressBreaksNoInvariant(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	master := crypto.AddressFromPreimage([]byte("dos-master"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, master))
+	_, sessPub, _ := tu.KeyTestPubAddr()
+	sess := env.acck.NewSessionAccount(ctx, master, sessPub)
+	env.acck.SetSessionAccount(ctx, master, sess)
+	sessAddr := sess.GetAddress()
+
+	payer := crypto.AddressFromPreimage([]byte("dos-payer"))
+	require.NoError(t, env.bankk.MintCoins(ctx, payer, std.Coins{{Denom: testAccountDenom, Amount: 100}}))
+	env.bankk.RecomputeSupply(ctx)
+
+	require.NoError(t, env.bankk.SendCoins(ctx, payer, sessAddr,
+		std.Coins{{Denom: testAccountDenom, Amount: 1}}))
+	require.NotNil(t, env.acck.GetAccount(ctx, sessAddr),
+		"precondition: the credit must have created a regular account at the session address")
+
+	for name, inv := range map[string]sdk.Invariant{
+		"auth": auth.AllInvariants(env.acck),
+		"bank": AllInvariants(env.bankk.ViewKeeper),
+	} {
+		msg, broken := inv(ctx)
+		require.False(t, broken, "%s invariants must tolerate a state anyone can induce:\n%s", name, msg)
+	}
 }
 
 func TestInvariantsHealthyOnKeeperState(t *testing.T) {
