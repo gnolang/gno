@@ -300,6 +300,20 @@ alone.
   operations, including the entire fee path, are unchanged. This is the trade:
   the cost lands on the party using a realm denom instead of on every account
   that has ever been sent one.
+  Measured end to end, by running the same transaction against both binaries
+  (`realm_banker_issued_coin_denom.txtar`, identical tx lines, gas-wanted raised
+  only because the true cost now exceeds the old ceiling):
+
+  | transaction | master | this branch | delta |
+  |---|---|---|---|
+  | send `1330/gno.land/r/test/realm_banker:ugnot` | 1,240,231 | 1,851,884 | **+611,653 (+49%)** |
+  | mint a realm denom from a maximum-length package path | 2,648,993 | 3,221,477 | +572,484 (+22%) |
+
+  The transfer touches two addresses, so it pays for two new keys: 2 × 306,600 =
+  613,200, within 0.3% of the measured delta. That is the per-key figure above,
+  confirmed through the whole stack rather than derived from the gas constants. The
+  mint is lower than two keys' worth because the account object it writes also got
+  smaller by the length of the denom it no longer carries.
 - **Bulk denom spam becomes ~76× dearer per denom** (a fresh key at ~306,600 vs
   ~4,030 amortised inside one blob rewrite) and imposes **zero** ongoing cost on
   the recipient.
