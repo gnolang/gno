@@ -1659,6 +1659,39 @@ func TestQueryBalanceAndSupply(t *testing.T) {
 		require.Equal(t, int64(42), supply)
 	})
 
+	// A node error response must not be read as data. The same defect was fixed on
+	// the handler side in this change — queryBalance was missing a return, so an
+	// error response also carried a balance — and QuerySupply is the worse case
+	// here: swallowing the error means returning 0, which a caller reads as
+	// "this denom has no supply".
+	t.Run("a node error is not mistaken for an answer", func(t *testing.T) {
+		t.Parallel()
+		// Data is deliberately well-formed as well. With an empty body, skipping the
+		// error check still fails on the amino decode, so the assertion would hold
+		// either way; a decodable body is what makes this discriminating.
+		errClient := func(data string) *Client {
+			return &Client{RPCClient: &mockRPCClient{
+				abciQuery: func(_ context.Context, _ string, _ []byte) (*ctypes.ResultABCIQuery, error) {
+					return &ctypes.ResultABCIQuery{Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{
+							Error: abci.StringError("boom"),
+							Data:  []byte(data),
+						},
+					}}, nil
+				},
+			}}
+		}
+
+		_, _, err := errClient(`"100ugnot"`).QueryBalance(addr)
+		require.Error(t, err, "an error response must not be read as a balance")
+		require.ErrorContains(t, err, "boom", "the node's error must be the one returned")
+
+		supply, _, err := errClient(`"42"`).QuerySupply(realmDenom)
+		require.Error(t, err, "an error response must not be read as a supply")
+		require.ErrorContains(t, err, "boom", "the node's error must be the one returned")
+		require.Zero(t, supply, "and no plausible-looking number alongside it")
+	})
+
 	t.Run("a malformed denom is rejected before the round trip", func(t *testing.T) {
 		t.Parallel()
 		var path string
