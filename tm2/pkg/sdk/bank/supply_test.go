@@ -223,6 +223,47 @@ func TestComputeSupplyRefusesToAllocatePastItsCap(t *testing.T) {
 // which an attacker influences — denom count is unbounded — so if the record sweep ran
 // second behind an early return, inflating the denom count would also hide a malformed
 // or corrupt supply record.
+// Why the counter exists, as a test rather than an assertion. The supply ADR argues it
+// is the only redundancy check in the set — two numbers maintained by different code
+// that must agree — and so the only one that can catch a bypassed mint, because a
+// forged balance is structurally perfect: valid key, valid denom, an address that has
+// an account object. Nothing about its shape is wrong.
+//
+// If this ever fails because a structural invariant also fires, the forgery below is no
+// longer structurally perfect and the test has stopped demonstrating its point.
+func TestOnlyTheSupplyInvariantCatchesAForgedBalance(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	holder := crypto.AddressFromPreimage([]byte("forge-holder"))
+	forger := crypto.AddressFromPreimage([]byte("forge-forger"))
+
+	require.NoError(t, env.bankk.MintCoins(ctx, holder, std.Coins{{Denom: testRealmDenom, Amount: 100}}))
+	env.bankk.RecomputeSupply(ctx)
+
+	// The forger gets an account object through an accounted mint, so the baseline is
+	// clean — AddCoins here would itself leave an unrecorded balance and the assertion
+	// below could then pass on that instead of on the forgery.
+	require.NoError(t, env.bankk.MintCoins(ctx, forger, std.Coins{{Denom: testAccountDenom, Amount: 1}}))
+	env.bankk.RecomputeSupply(ctx)
+	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "precondition: the baseline must be healthy:\n%s", msg)
+
+	// Now the forgery: a balance written past the keeper, value from nothing.
+	env.bankk.setSplitBalance(ctx, forger, testRealmDenom, 5000)
+
+	msg, broken = SupplyInvariant(env.bankk.ViewKeeper)(ctx)
+	require.True(t, broken, "the counter must notice value that nothing minted")
+	require.Contains(t, msg, "recorded as 100 but 5100 is held",
+		"and must name the exact discrepancy, not merely report something")
+
+	_, broken = BalanceKeysInvariant(env.bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "a forged balance is well-formed, so key checks cannot see it")
+	_, broken = AccountTierInvariant(env.bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "nor can the tier check")
+}
+
 func TestSupplyInvariantChecksRecordsEvenWhenItCannotTotal(t *testing.T) {
 	t.Parallel()
 
