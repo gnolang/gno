@@ -391,7 +391,24 @@ func TestBalanceRoundTripsMultiDenomVesting(t *testing.T) {
 	require.Equal(t, int64(1000), single.Vesting.StartTime)
 	require.Equal(t, "200ugnot", single.Vesting.OriginalVesting.String())
 
-	// And a genuinely malformed schedule is still rejected.
-	var bad Balance
-	require.Error(t, bad.Parse(addr.String()+"=200ugnot;vesting=200ugnot,1000"))
+	// And a genuinely malformed schedule is rejected rather than panicking. Taking
+	// the times from the right means slicing off the last two fields, so fewer than
+	// two is a negative bound — the field-count check is what stands between a
+	// hand-edited genesis line and a node that cannot report why it will not boot.
+	for _, bad := range []string{
+		"vesting=200ugnot,1000", // two fields: no end time
+		"vesting=1000",          // one field: fields[:-1] without the check
+		"vesting=",              // none at all
+	} {
+		var b Balance
+		require.NotPanics(t, func() {
+			err := b.Parse(addr.String() + "=200ugnot;" + bad)
+			require.Error(t, err, "%q must be rejected", bad)
+			// The field count must be what rejects it. Downstream ParseInt happens to
+			// reject the two-field case too, so asserting only that an error came back
+			// cannot tell whether the check is still there.
+			require.Contains(t, err.Error(), "malformed vesting schedule",
+				"%q must be rejected by the field-count check", bad)
+		}, "%q must not panic", bad)
+	}
 }
