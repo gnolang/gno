@@ -614,6 +614,59 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 	require.Equal(t, int64(50), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 }
 
+// A vesting schedule can lock a SPLIT-tier denom, and the spendable calculation must
+// read the denom from wherever it lives. Every other vesting test locks the gas denom,
+// so the whole suite passes with that calculation reading acc.GetCoins() instead of
+// bank.GetCoin — which is what master did, and what std.SpendableCoins still does.
+//
+// The failure mode is over-strictness, not a bypass: an account-tier read reports zero
+// held, so spendable clamps to zero and every spend is refused while anything is
+// locked. That only shows up mid-schedule, which is why the partial-vesting spend
+// below is the assertion that matters — a fully-locked case is refused either way.
+//
+// The state is reachable exactly as genesis builds it: applyBalance writes the
+// account object with the full pre-split amount so the vesting constructor can
+// validate OriginalVesting against it, then SetCoins routes the denom to its own key.
+func TestVestingBindsOnASplitTierDenom(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-vester"))
+	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
+
+	cva, err := std.NewContinuousVestingAccount(
+		std.NewBaseAccount(addr, locked, nil, 0, 0),
+		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
+	)
+	require.NoError(t, err)
+	env.acck.SetAccount(env.ctx, cva)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
+
+	// The whole point: the locked balance is not in the account object.
+	require.True(t, env.acck.GetAccount(env.ctx, addr).GetCoins().IsZero(),
+		"the locked denom must live in its own key, or this tests nothing")
+	require.Equal(t, int64(1000), env.bankk.getSplitBalance(env.ctx, addr, testRealmDenom))
+
+	// Nothing vested yet, so nothing is spendable.
+	ctx := atTime(env, 100)
+	require.Error(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 1}}),
+		"a fully locked split-tier denom must not be spendable")
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, testRealmDenom))
+
+	// Half way through the schedule, half has vested. Spending within that must be
+	// allowed — this is what an account-tier read gets wrong, reporting zero held and
+	// so zero spendable.
+	require.NoError(t, env.bankk.SubtractCoins(atTime(env, 150), addr,
+		std.Coins{{Denom: testRealmDenom, Amount: 400}}),
+		"a partially vested split-tier denom must be spendable up to the unlocked part")
+	require.Equal(t, int64(600), env.bankk.GetCoin(env.ctx, addr, testRealmDenom))
+
+	// And the still-locked remainder is not.
+	require.Error(t, env.bankk.SubtractCoins(atTime(env, 150), addr,
+		std.Coins{{Denom: testRealmDenom, Amount: 300}}),
+		"the locked half must remain locked")
+}
+
 // TestTierFollowsAllowlistNotDenomShape pins that storage tier is decided by the
 // allowlist alone, never by what the denom looks like.
 //
