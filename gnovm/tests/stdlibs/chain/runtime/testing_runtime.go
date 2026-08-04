@@ -214,6 +214,7 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 	return tb.CoinTable[addr]
 }
 
+// GetCoin implements the Banker interface.
 func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
 	// AmountOf validates the denom before reading anything, so a malformed one
 	// panics here as it does on chain, where SDKBanker.GetCoin checks explicitly
