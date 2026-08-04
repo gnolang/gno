@@ -251,28 +251,64 @@ func TestAccountIterationExcludesBalances(t *testing.T) {
 }
 
 // TestBalancePrefixDoesNotCollide guards the keyspace split at the byte level.
+// mainStoreNeighbours are the foreign keyspaces sharing the main store, as real
+// keys. One list so that a new keyspace cannot be checked against one bank prefix
+// and forgotten for the other — the two collision tests below had drifted apart.
+func mainStoreNeighbours(addr crypto.Address) [][]byte {
+	return [][]byte{
+		auth.AddressStoreKey(addr),  // /a/<addr>
+		auth.SessionPrefixKey(addr), // /a/<addr>/s/
+		[]byte("/pv/bank:x"),        // params
+		[]byte(auth.GasPriceKey),
+		[]byte(auth.GlobalAccountNumberKey),
+		[]byte("consensus_params"),
+		[]byte("last_header"),
+		[]byte("pkg:gno.land/r/x"), // GnoVM mempackages
+		[]byte("oid:x"),            // GnoVM object ids
+	}
+}
+
+// assertKeyspaceIsDisjoint checks both that no neighbour key and sample share a
+// prefix relation, and that a live sweep of prefix sees only sample. The prefix
+// relation alone is not enough: bleed is a property of iteration, and that is what
+// splitCoins and the invariants depend on.
+func assertKeyspaceIsDisjoint(t *testing.T, prefix string, sample []byte, neighbours [][]byte) {
+	t.Helper()
+
+	for _, n := range neighbours {
+		require.False(t, hasPrefixBytes(sample, n), "%X must not be prefixed by %X", sample, n)
+		require.False(t, hasPrefixBytes(n, []byte(prefix)), "%X must not fall under %q", n, prefix)
+	}
+
+	env := setupTestEnv()
+	stor := env.ctx.Store(env.key)
+	for _, n := range neighbours {
+		stor.Set(nil, n, []byte{1})
+	}
+	stor.Set(nil, sample, encodeBalance(5))
+
+	iter := store.PrefixIterator(nil, stor, []byte(prefix))
+	defer iter.Close()
+	var seen int
+	for ; iter.Valid(); iter.Next() {
+		seen++
+		require.Equal(t, sample, iter.Key(), "a sweep of %q saw a foreign key", prefix)
+	}
+	require.Equal(t, 1, seen)
+}
+
+// "/b/" must not be a prefix of, or prefixed by, any neighbouring keyspace,
+// including the unprefixed keys: the shared store holds bare names as well as
+// "/..." prefixes, so checking only the latter would be incomplete.
 func TestBalancePrefixDoesNotCollide(t *testing.T) {
 	t.Parallel()
 
-	// "/b/" must not be a prefix of, or prefixed by, any neighbouring keyspace.
-	// Includes the unprefixed keys: the shared store holds bare names as well as
-	// "/..." prefixes, so checking only the latter would be incomplete.
-	for _, other := range []string{
-		auth.AddressStoreKeyPrefix,
-		"/pv/",
-		auth.GasPriceKey,
-		auth.GlobalAccountNumberKey,
-		"consensus_params",
-		"pkg:",
-		"oid:",
-	} {
-		require.False(t, bytes.HasPrefix([]byte(BalancePrefix), []byte(other)))
-		require.False(t, bytes.HasPrefix([]byte(other), []byte(BalancePrefix)))
-	}
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	neighbours := append(mainStoreNeighbours(addr), SupplyKey(testRealmDenom))
+	assertKeyspaceIsDisjoint(t, BalancePrefix, BalanceKey(addr, testRealmDenom), neighbours)
 
 	// A balance key must sort strictly above the whole "/a/" iteration range,
 	// whose upper bound is PrefixEndBytes("/a/").
-	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	end := storetypes.PrefixEndBytes([]byte(auth.AddressStoreKeyPrefix))
 	require.Positive(t, bytes.Compare(BalanceKey(addr, testRealmDenom), end),
 		"balance keys must sort outside the account iteration range")

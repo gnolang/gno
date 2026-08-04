@@ -33,40 +33,8 @@ func TestSupplyPrefixDoesNotCollide(t *testing.T) {
 	t.Parallel()
 
 	addr := crypto.AddressFromPreimage([]byte("a"))
-	neighbours := [][]byte{
-		[]byte("/a/" + string(addr[:])),         // auth accounts
-		[]byte("/a/" + string(addr[:]) + "/s/"), // auth sessions
-		BalanceKey(addr, "atom"),                // bank balances
-		[]byte("/pv/bank:x"),                    // params
-		[]byte("gasPrice"),
-		[]byte("globalAccountNumber"),
-		[]byte("consensus_params"),
-		[]byte("pkg:gno.land/r/x"), // GnoVM mempackages
-		[]byte("last_header"),
-	}
-	sup := SupplyKey(testRealmDenom)
-	for _, n := range neighbours {
-		require.False(t, hasPrefixBytes(sup, n), "%q must not be prefixed by %q", sup, n)
-		require.False(t, hasPrefixBytes(n, []byte(SupplyPrefix)),
-			"%q must not fall under %q", n, SupplyPrefix)
-	}
-	// And the range really is disjoint in a live store.
-	env := setupTestEnv()
-	stor := env.ctx.Store(env.key)
-	for _, n := range neighbours {
-		stor.Set(nil, n, []byte{1})
-	}
-	env.bankk.setSupply(env.ctx, testRealmDenom, 5)
-
-	iter := store.PrefixIterator(nil, stor, []byte(SupplyPrefix))
-	defer iter.Close()
-	var seen int
-	for ; iter.Valid(); iter.Next() {
-		seen++
-		_, err := denomFromSupplyKey(iter.Key())
-		require.NoError(t, err, "a supply sweep saw a foreign key: %X", iter.Key())
-	}
-	require.Equal(t, 1, seen)
+	neighbours := append(mainStoreNeighbours(addr), BalanceKey(addr, "atom"))
+	assertKeyspaceIsDisjoint(t, SupplyPrefix, SupplyKey(testRealmDenom), neighbours)
 }
 
 func hasPrefixBytes(b, prefix []byte) bool {
