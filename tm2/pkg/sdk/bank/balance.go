@@ -65,9 +65,9 @@ func BalanceKey(addr crypto.Address, denom string) []byte {
 	return key
 }
 
-// AccountBalancePrefix returns the prefix covering every split-tier balance held
-// by addr. Iterating it yields denoms in ascending order.
-func AccountBalancePrefix(addr crypto.Address) []byte {
+// BalancePrefixKey returns the prefix covering every balance held by addr, the
+// analogue of auth.SessionPrefixKey. Iterating it yields denoms in ascending order.
+func BalancePrefixKey(addr crypto.Address) []byte {
 	key := make([]byte, 0, len(BalancePrefix)+crypto.AddressSize)
 	key = append(key, BalancePrefix...)
 	key = append(key, addr[:]...)
@@ -181,7 +181,7 @@ func (bank BankKeeper) setSplitBalance(ctx sdk.Context, addr crypto.Address, den
 // which enumerates to find the stale keys it must delete.
 func (view ViewKeeper) splitCoins(ctx sdk.Context, addr crypto.Address) std.Coins {
 	var coins std.Coins
-	iter := store.PrefixIterator(ctx.GasContext(), ctx.Store(view.key), AccountBalancePrefix(addr))
+	iter := store.PrefixIterator(ctx.GasContext(), ctx.Store(view.key), BalancePrefixKey(addr))
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		denom, err := denomFromBalanceKey(iter.Key())

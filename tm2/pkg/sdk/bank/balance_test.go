@@ -36,10 +36,10 @@ func TestBalanceKeyFormat(t *testing.T) {
 	require.Len(t, key, len("/b/")+crypto.AddressSize+len(testRealmDenom))
 
 	// The prefix must cover the key, so iterating it reaches this balance...
-	require.True(t, bytes.HasPrefix(key, AccountBalancePrefix(addr)))
+	require.True(t, bytes.HasPrefix(key, BalancePrefixKey(addr)))
 	// ...and must be no broader than that, or one account's iteration would
 	// return another's balances. HasPrefix alone is only a lower bound.
-	require.Len(t, AccountBalancePrefix(addr), len("/b/")+crypto.AddressSize)
+	require.Len(t, BalancePrefixKey(addr), len("/b/")+crypto.AddressSize)
 }
 
 // TestDenomFromBalanceKey checks the address/denom split. It works only because
@@ -60,7 +60,7 @@ func TestDenomFromBalanceKey(t *testing.T) {
 	}
 
 	// A key with no denom is malformed, not an empty denom.
-	_, err := denomFromBalanceKey(AccountBalancePrefix(addr))
+	_, err := denomFromBalanceKey(BalancePrefixKey(addr))
 	require.Error(t, err)
 }
 

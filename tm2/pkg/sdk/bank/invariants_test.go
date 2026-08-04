@@ -102,7 +102,7 @@ func TestBalanceKeysInvariantReportsCorruption(t *testing.T) {
 			"key with no denom", "malformed balance key",
 			func(t *testing.T, env testEnv) {
 				t.Helper()
-				rawSet(t, env, AccountBalancePrefix(addr), enc)
+				rawSet(t, env, BalancePrefixKey(addr), enc)
 			},
 		},
 		{
