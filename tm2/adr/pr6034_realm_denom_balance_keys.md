@@ -81,12 +81,18 @@ conflated.
 Consequence for `GetCoins`: the tiers are no longer separable by first byte (a
 split-tier `atom` sorts before an account-tier `ugnot`, a split-tier `zeta` after
 it), so the two must be **merged**, not concatenated. The merge is
-`Coins.AddUnsafe`, not `Add`: `Add` re-runs `ValidateDenom` — a regexp — over
-every denom in the result, which measured 74% of a `GetCoins` call at 128 denoms
-and is reachable through `bank/balances` with no gas limit. Both inputs already
-passed `ValidateDenom` on the way in and the tiers are disjoint, so there is
-nothing for the revalidation to find; `splitCoins` asserts its own ordering,
-which is the one invariant iteration could break.
+`Coins.AddUnsafe`, not `Add`. `Add` revalidates every denom in the result and
+panics if it dislikes one, and there is nothing for it to find: both inputs
+already passed `ValidateDenom` on the way in and the tiers are disjoint, so the
+one property iteration could break is ordering, which `splitCoins` asserts
+itself. `bank/balances` reaches this unauthenticated, so corrupt state belongs in
+the answer where the invariants can report it, not in a panic.
+
+An earlier draft justified this by cost — the revalidation measured 74% of a
+`GetCoins` call at 128 denoms. That figure no longer applies: `ValidateDenom` was a
+regexp when it was taken, and this same change replaced it with a byte scan
+(4,446ns → 174ns on a maximal denom). The choice stands on the redundancy and the
+panic, which do not depend on how fast validation is.
 
 `chain/banker` gains `GetCoin(addr, denom) int64`, the Gno-visible form of the
 O(1) read. Without it a realm wanting one balance had to call `GetCoins` and pay

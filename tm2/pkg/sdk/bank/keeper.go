@@ -639,12 +639,12 @@ func (view ViewKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins 
 	case len(account) == 0:
 		return split
 	}
-	// AddUnsafe, not Add: Add re-runs ValidateDenom — a regexp — over every
-	// denom in the result, which at a few dozen denoms costs more than the
-	// iteration that produced them, and bank/balances reaches this with no gas
-	// limit at all. Both inputs are already valid (each denom passed
-	// ValidateDenom on the way in) and the tiers are disjoint, so there is
-	// nothing for the revalidation to find. splitCoins asserts its own ordering.
+	// AddUnsafe, not Add. Add revalidates every denom in the result, and there is
+	// nothing for that to find: each denom passed ValidateDenom on the way in and
+	// the tiers are disjoint, so the only property iteration could break is
+	// ordering, which splitCoins asserts itself. Add would also panic rather than
+	// return, and bank/balances reaches this unauthenticated — corrupt state
+	// belongs in the answer, where the invariants can report it, not in a panic.
 	return split.AddUnsafe(account)
 }
 
