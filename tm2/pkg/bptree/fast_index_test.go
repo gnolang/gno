@@ -3,8 +3,8 @@ package bptree
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"testing"
 
@@ -93,6 +93,9 @@ func TestFastIndex_Encoding(t *testing.T) {
 // Prune stream against two trees (index ON vs OFF) on separate DBs, and assert
 // every GetVersioned agrees — for present AND absent keys — across every
 // retained version, plus that the app hash is identical (merkle invariance).
+// Working-tree Get/Has are compared too: on the touched key after every
+// mutation (dirty tree → walk) and over the full keyspace after every save
+// (clean tree → tA serves from the fast index).
 func TestFastIndex_Differential(t *testing.T) {
 	rng := rand.New(rand.NewSource(0x5eed))
 	dbA, dbB := memdb.NewMemDB(), memdb.NewMemDB()
@@ -100,17 +103,43 @@ func TestFastIndex_Differential(t *testing.T) {
 	tB := NewMutableTreeWithDB(dbB, 64, NewNopLogger())
 
 	const keyspace = 160
-	key := func(i int) []byte { return []byte(fmt.Sprintf("k%05d", i)) }
+	key := func(i int) []byte { return fmt.Appendf(nil, "k%05d", i) }
 
 	model := map[string][]byte{}
 	snaps := map[int64]map[string][]byte{}
 	var firstRetained, latest int64
 	saves := 0
 
-	for op := 0; op < 4000; op++ {
+	// checkGet asserts working-tree Get/Has agree between the two trees and
+	// match the model, for present and absent keys alike.
+	checkGet := func(ctx string, k []byte) {
+		t.Helper()
+		gA, errA := tA.Get(k)
+		gB, errB := tB.Get(k)
+		if errA != nil || errB != nil {
+			t.Fatalf("%s Get(%q): errA=%v errB=%v", ctx, k, errA, errB)
+		}
+		if !bytes.Equal(gA, gB) {
+			t.Fatalf("%s Get(%q): index-on=%q index-off=%q", ctx, k, gA, gB)
+		}
+		want, present := model[string(k)]
+		if present != (gA != nil) || (present && !bytes.Equal(gA, want)) {
+			t.Fatalf("%s Get(%q) = %q; model = (%q, %v)", ctx, k, gA, want, present)
+		}
+		hasA, errA := tA.Has(k)
+		hasB, errB := tB.Has(k)
+		if errA != nil || errB != nil || hasA != hasB || hasA != present {
+			t.Fatalf("%s Has(%q): on=%v off=%v present=%v errs=%v/%v",
+				ctx, k, hasA, hasB, present, errA, errB)
+		}
+	}
+
+	for op := range 4000 {
+		var touched []byte
 		if rng.Intn(3) == 0 && len(model) > 0 {
 			i := rng.Intn(keyspace)
 			k := key(i)
+			touched = k
 			if _, ok := model[string(k)]; ok {
 				if _, _, err := tA.Remove(k); err != nil {
 					t.Fatalf("tA.Remove: %v", err)
@@ -123,11 +152,16 @@ func TestFastIndex_Differential(t *testing.T) {
 		} else {
 			i := rng.Intn(keyspace)
 			k := key(i)
-			v := []byte(fmt.Sprintf("v%d.%d", i, op))
+			touched = k
+			v := fmt.Appendf(nil, "v%d.%d", i, op)
 			mustSet(t, tA, k, v)
 			mustSet(t, tB, k, v)
 			model[string(k)] = v
 		}
+
+		// Working-tree differential on the touched key (typically a dirty
+		// tree → authoritative walk; clean when the mutation was a no-op).
+		checkGet(fmt.Sprintf("op %d", op), touched)
 
 		if op%17 == 16 {
 			hA, vA, err := tA.SaveVersion()
@@ -149,11 +183,17 @@ func TestFastIndex_Differential(t *testing.T) {
 				firstRetained = vA
 			}
 			snap := make(map[string][]byte, len(model))
-			for k, v := range model {
-				snap[k] = v
-			}
+			maps.Copy(snap, model)
 			snaps[vA] = snap
 			saves++
+
+			// Clean working-tree differential: right after a save the tree is
+			// clean, so tA serves Get from the fast index while tB walks.
+			ctx := fmt.Sprintf("v%d clean", vA)
+			for i := range keyspace {
+				checkGet(ctx, key(i))
+			}
+			checkGet(ctx, []byte("absent-key"))
 
 			if rng.Intn(4) == 0 && latest-firstRetained > 3 {
 				to := firstRetained + 1
@@ -187,8 +227,8 @@ func TestFastIndex_Differential(t *testing.T) {
 			}
 			checks++
 		}
-		for i := 0; i < 40; i++ {
-			ak := []byte(fmt.Sprintf("absent-%d", i))
+		for i := range 40 {
+			ak := fmt.Appendf(nil, "absent-%d", i)
 			gotA, _ := tA.GetVersioned(ak, v)
 			gotB, _ := tB.GetVersioned(ak, v)
 			if gotA != nil || gotB != nil {
@@ -334,8 +374,8 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	// Build a source tree and export it.
 	srcDB := memdb.NewMemDB()
 	src := NewMutableTreeWithDB(srcDB, 256, NewNopLogger())
-	for i := 0; i < 40; i++ {
-		mustSet(t, src, []byte(fmt.Sprintf("k%03d", i)), []byte(fmt.Sprintf("v%d", i)))
+	for i := range 40 {
+		mustSet(t, src, fmt.Appendf(nil, "k%03d", i), fmt.Appendf(nil, "v%d", i))
 	}
 	ver := mustSave(t, src)
 	imm, err := src.GetImmutable(ver)
@@ -356,21 +396,7 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Import: %v", err)
 	}
-	for {
-		node, nerr := exp.Next()
-		if errors.Is(nerr, ErrExportDone) {
-			break
-		}
-		if nerr != nil {
-			t.Fatalf("Export.Next: %v", nerr)
-		}
-		if aerr := imp.Add(node); aerr != nil {
-			t.Fatalf("Import.Add: %v", aerr)
-		}
-	}
-	if cerr := imp.Commit(); cerr != nil {
-		t.Fatalf("Import.Commit: %v", cerr)
-	}
+	pumpExportImport(t, exp, imp)
 
 	// Empty and unstamped right after import.
 	if n := countFastEntries(t, dstDB); n != 0 {
@@ -388,8 +414,8 @@ func TestFastIndex_ImportRebuildsOnLoad(t *testing.T) {
 	if n := countFastEntries(t, dstDB); n != 40 {
 		t.Fatalf("Load did not rebuild after import: %d 'F' entries (want 40)", n)
 	}
-	for i := 0; i < 40; i++ {
-		got, _ := dst2.GetVersioned([]byte(fmt.Sprintf("k%03d", i)), ver)
+	for i := range 40 {
+		got, _ := dst2.GetVersioned(fmt.Appendf(nil, "k%03d", i), ver)
 		if want := fmt.Sprintf("v%d", i); string(got) != want {
 			t.Fatalf("k%03d = %q; want %q", i, got, want)
 		}
@@ -405,11 +431,9 @@ func TestFastIndex_RebuildClearsStale(t *testing.T) {
 	mustSet(t, tr, []byte("real"), []byte("v"))
 	latest := mustSave(t, tr)
 
-	// Inject a stale ghost entry, as if from a prior index incarnation.
-	ghostVK := (&NodeKey{Version: latest, Nonce: 999}).GetKey()
-	if err := db.Set(fastDBKey([]byte("ghost")), stampChecksum(ghostVK)); err != nil {
-		t.Fatalf("inject: %v", err)
-	}
+	// Inject a stale entry for a key not in the tree, as if from a prior
+	// index incarnation (self-verifying probe, see doctorFastEntry).
+	doctorFastEntry(t, tr, db, []byte("ghost"), latest, []byte("stale"))
 
 	tr2 := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
 	if _, err := tr2.Load(); err != nil {
@@ -428,12 +452,12 @@ func TestFastIndex_RebuildClearsStale(t *testing.T) {
 func TestFastIndex_Prune(t *testing.T) {
 	db := memdb.NewMemDB()
 	tr := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
-	key := func(i int) []byte { return []byte(fmt.Sprintf("k%03d", i)) }
+	key := func(i int) []byte { return fmt.Appendf(nil, "k%03d", i) }
 
 	var latest int64
 	for v := 1; v <= 5; v++ {
-		for i := 0; i < 25; i++ {
-			mustSet(t, tr, key(i), []byte(fmt.Sprintf("v%d-k%d", v, i)))
+		for i := range 25 {
+			mustSet(t, tr, key(i), fmt.Appendf(nil, "v%d-k%d", v, i))
 		}
 		latest = mustSave(t, tr)
 	}
@@ -441,7 +465,7 @@ func TestFastIndex_Prune(t *testing.T) {
 		t.Fatalf("Prune: %v", err)
 	}
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		want := fmt.Sprintf("v5-k%d", i)
 		if got, _ := tr.GetVersioned(key(i), latest); string(got) != want {
 			t.Fatalf("after prune key %d = %q; want %q", i, got, want)
@@ -455,12 +479,13 @@ func TestFastIndex_Prune(t *testing.T) {
 // tree's authoritative value for that key — the inline replacement for the
 // pointer no-dangling check.
 //
-// It resolves the expected value via MutableTree.Get (the tree walk, which never
-// consults the fast index), NOT via GetVersioned / the committed ImmutableTree
-// (whose fast path would read the very same 'F' entry, making the check
-// circular). So a wrong inline value written by setFastIndex is genuinely caught.
-// tr must be at the latest committed version (the version the index reflects),
-// which all callers are.
+// It resolves the expected value via a raw treeLookup + committed value read,
+// NOT via MutableTree.Get / GetVersioned / the committed ImmutableTree: all of
+// those consult the fast index on a clean tree, so they would read the very
+// same 'F' entry under audit, making the check circular. An entry whose key is
+// absent from the tree is a stale index and fails outright. tr must be at the
+// latest committed version (the version the index reflects), which all callers
+// are.
 func fastValueEqualitySweep(t *testing.T, db dbm.DB, tr *MutableTree) {
 	t.Helper()
 	itr, err := db.Iterator([]byte{PrefixFast}, []byte{PrefixFast + 1})
@@ -474,9 +499,19 @@ func fastValueEqualitySweep(t *testing.T, db dbm.DB, tr *MutableTree) {
 			t.Fatalf("corrupt 'F' entry %x: %v", itr.Key(), err)
 		}
 		userKey := append([]byte(nil), itr.Key()[1:]...) // strip PrefixFast
-		want, err := tr.Get(userKey)                     // index-free tree walk → non-circular
+		if tr.root == nil {
+			t.Fatalf("'F'%q exists but the tree is empty (stale entry)", userKey)
+		}
+		_, _, vk, found, err := treeLookup(tr.root, userKey)
 		if err != nil {
-			t.Fatalf("tr.Get(%q): %v", userKey, err)
+			t.Fatalf("treeLookup(%q): %v", userKey, err)
+		}
+		if !found {
+			t.Fatalf("'F'%q has no corresponding key in the tree (stale entry)", userKey)
+		}
+		want, err := tr.ndb.getCommittedValue(vk)
+		if err != nil {
+			t.Fatalf("getCommittedValue(%q): %v", userKey, err)
 		}
 		if got := payload[8:]; !bytes.Equal(got, want) {
 			t.Fatalf("'F'%q inline value %q != tree value %q", userKey, got, want)

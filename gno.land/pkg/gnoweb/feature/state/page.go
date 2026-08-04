@@ -100,7 +100,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r
 	peekEnd := min(realmTotal, maxSidebarTOC)
 	allKinds := make([]string, peekEnd)
 	allTypes := make([]string, peekEnd)
-	for i := 0; i < peekEnd; i++ {
+	for i := range peekEnd {
 		allKinds[i], allTypes[i] = peekTopLevelKind(resp.Values[i])
 	}
 	pageLimit := limit

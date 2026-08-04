@@ -25,7 +25,7 @@ func TestVersionedRandomTree(t *testing.T) {
 
 	r := rand.New(rand.NewSource(0))
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			k := make([]byte, 8)
 			v := make([]byte, 8)
 			r.Read(k)
@@ -70,8 +70,8 @@ func TestTreeHash(t *testing.T) {
 	keys := make([][]byte, 0, versionOps)
 	hashes := make([][]byte, versions)
 
-	for i := 0; i < versions; i++ {
-		for j := 0; j < versionOps; j++ {
+	for i := range versions {
+		for range versionOps {
 			key := make([]byte, keySize)
 			value := make([]byte, valueSize)
 
@@ -111,8 +111,8 @@ func TestTreeHash(t *testing.T) {
 	tree2 := NewMutableTreeWithDB(memdb.NewMemDB(), 0, NewNopLogger())
 	keys2 := make([][]byte, 0, versionOps)
 
-	for i := 0; i < versions; i++ {
-		for j := 0; j < versionOps; j++ {
+	for i := range versions {
+		for range versionOps {
 			key := make([]byte, keySize)
 			value := make([]byte, valueSize)
 
@@ -149,8 +149,8 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 	versions := 20
 	r := rand.New(rand.NewSource(0))
 
-	for i := 0; i < versions; i++ {
-		for j := 0; j < singleVersionRecords; j++ {
+	for range versions {
+		for range singleVersionRecords {
 			// small 1-byte keys cause lots of collisions
 			nKey := r.Intn(256)
 			bKey := []byte{byte(nKey)}
@@ -311,8 +311,8 @@ func TestLoadVersion(t *testing.T) {
 	tree := getTestTree(0)
 	maxVersions := 10
 
-	for i := 0; i < maxVersions; i++ {
-		tree.Set([]byte(fmt.Sprintf("key_%d", i+1)), []byte(fmt.Sprintf("value_%d", i+1)))
+	for i := range maxVersions {
+		tree.Set(fmt.Appendf(nil, "key_%d", i+1), fmt.Appendf(nil, "value_%d", i+1))
 		_, _, err := tree.SaveVersion()
 		require.NoError(t, err, "SaveVersion should not fail")
 	}
@@ -322,17 +322,17 @@ func TestLoadVersion(t *testing.T) {
 	require.NoError(t, err, "unexpected error when loading version")
 	require.Equal(t, int64(maxVersions), version)
 
-	value, err := tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions)))
+	value, err := tree.Get(fmt.Appendf(nil, "key_%d", maxVersions))
 	require.NoError(t, err)
-	require.Equal(t, []byte(fmt.Sprintf("value_%d", maxVersions)), value)
+	require.Equal(t, fmt.Appendf(nil, "value_%d", maxVersions), value)
 
 	// require the ability to load an older version
 	version, err = tree.LoadVersion(int64(maxVersions - 1))
 	require.NoError(t, err, "unexpected error when loading version")
 
-	value, err = tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions-1)))
+	value, err = tree.Get(fmt.Appendf(nil, "key_%d", maxVersions-1))
 	require.NoError(t, err)
-	require.Equal(t, []byte(fmt.Sprintf("value_%d", maxVersions-1)), value)
+	require.Equal(t, fmt.Appendf(nil, "value_%d", maxVersions-1), value)
 }
 
 func TestOverwrite(t *testing.T) {
@@ -376,7 +376,7 @@ func TestIterate_ImmutableTree_Version1(t *testing.T) {
 
 	// Insert random keys
 	r := rand.New(rand.NewSource(42))
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		k := fmt.Sprintf("key_%d", r.Intn(1000))
 		v := fmt.Sprintf("val_%d", i)
 		tree.Set([]byte(k), []byte(v))
@@ -401,7 +401,7 @@ func TestIterate_ImmutableTree_Version2(t *testing.T) {
 	mirror := make(map[string]string)
 
 	r := rand.New(rand.NewSource(42))
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		k := fmt.Sprintf("key_%d", r.Intn(1000))
 		v := fmt.Sprintf("val_%d", i)
 		tree.Set([]byte(k), []byte(v))
@@ -434,7 +434,7 @@ func TestGetByIndex_ImmutableTree(t *testing.T) {
 	mirror := make(map[string]string)
 
 	r := rand.New(rand.NewSource(99))
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		k := fmt.Sprintf("idx_%03d", r.Intn(200))
 		v := fmt.Sprintf("val_%d", i)
 		tree.Set([]byte(k), []byte(v))
@@ -463,7 +463,7 @@ func TestGetWithIndex_ImmutableTree(t *testing.T) {
 	mirror := make(map[string]string)
 
 	r := rand.New(rand.NewSource(99))
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		k := fmt.Sprintf("widx_%03d", r.Intn(200))
 		v := fmt.Sprintf("val_%d", i)
 		tree.Set([]byte(k), []byte(v))
@@ -495,7 +495,7 @@ func TestEmptyVersionDelete(t *testing.T) {
 	tree.Set([]byte("key1"), []byte("value1"))
 
 	toVersion := 10
-	for i := 0; i < toVersion; i++ {
+	for range toVersion {
 		_, _, err := tree.SaveVersion()
 		require.NoError(t, err)
 	}
@@ -545,8 +545,8 @@ func TestVersionedTreeSaveAndLoad(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
 
 	// Create multiple versions
-	for i := 0; i < 5; i++ {
-		tree.Set([]byte(fmt.Sprintf("key_%d", i)), []byte(fmt.Sprintf("value_%d", i)))
+	for i := range 5 {
+		tree.Set(fmt.Appendf(nil, "key_%d", i), fmt.Appendf(nil, "value_%d", i))
 		_, _, err := tree.SaveVersion()
 		require.NoError(err)
 	}
@@ -558,10 +558,10 @@ func TestVersionedTreeSaveAndLoad(t *testing.T) {
 	require.Equal(int64(5), v)
 
 	// All keys should be present
-	for i := 0; i < 5; i++ {
-		val, err := tree2.Get([]byte(fmt.Sprintf("key_%d", i)))
+	for i := range 5 {
+		val, err := tree2.Get(fmt.Appendf(nil, "key_%d", i))
 		require.NoError(err)
-		require.Equal([]byte(fmt.Sprintf("value_%d", i)), val)
+		require.Equal(fmt.Appendf(nil, "value_%d", i), val)
 	}
 }
 
@@ -732,8 +732,8 @@ func TestRandomOperations(t *testing.T) {
 			versions := 32
 			opsPerVersion := 50
 
-			for v := 0; v < versions; v++ {
-				for op := 0; op < opsPerVersion; op++ {
+			for v := range versions {
+				for op := range opsPerVersion {
 					switch r.Intn(3) {
 					case 0: // Set
 						k := fmt.Sprintf("k%d", r.Intn(200))

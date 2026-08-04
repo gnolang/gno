@@ -242,7 +242,7 @@ func TestBalances_List(t *testing.T) {
 	generateBalances := func(count int) Balances {
 		balances := NewBalances()
 
-		for i := 0; i < count; i++ {
+		for range count {
 			// Generate a random address
 			var addr bft.Address
 			_, err := crand.Read(addr[:])

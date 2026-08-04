@@ -192,6 +192,19 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
 			}
+			// Hardfork genesis replay: historical and patched txs carry a
+			// BlockHeight > 0 overridden for faithful re-execution, so the
+			// isGenesis check above misses them. When the operator opted
+			// into --skip-genesis-sig-verification, skip their signature
+			// check too — the whole replayed genesis is vouched for by its
+			// agreed sha256, and a rewritten (patched) body can no longer
+			// verify by design. isGenesis is left untouched so the
+			// accNum/accSeq sign-bytes logic below still uses source values.
+			if !opts.VerifyGenesisSignatures {
+				if replay, _ := ctx.Value(GenesisReplayKey{}).(bool); replay {
+					continue
+				}
+			}
 
 			da, isSession := sessionAccounts[signerAddrs[i]]
 
@@ -481,6 +494,20 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 // Used by gnoland's GasReplayMode="source" during genesis replay to
 // preserve source-chain outcomes when gas requirements have changed.
 type SkipGasMeteringKey struct{}
+
+// GenesisReplayKey is a context key marking a tx delivery as part of an
+// InitChain genesis replay. During a hardfork replay, historical and
+// patched txs carry a BlockHeight > 0 (overridden for faithful
+// re-execution), so the ctx.BlockHeight()==0 genesis check under-reports
+// them; this key covers those txs.
+//
+// It never bypasses signature verification on its own: the ante skips
+// verification for a replay tx only when the node was also started with
+// --skip-genesis-sig-verification (VerifyGenesisSignatures=false). In a
+// normally-configured node that flag is unset, so this key has no effect
+// on signature verification. Set only by gnoland's InitChainer per-tx
+// delivery wrapper.
+type GenesisReplayKey struct{}
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {

@@ -77,8 +77,8 @@ func New(bankers []Banker, pkgPath string) (*Treasury, error) {
 // to the banker's Send for IsCurrent + owner validation.
 func (t *Treasury) Send(_ int, rlm realm, p Payment) error {
 	// Get the banker record corresponding to this Payment.
-	br, ok := t.bankers.Get(p.BankerID())
-	if !ok {
+	br := t.bankers.Get(p.BankerID())
+	if br == nil {
 		return ufmt.Errorf("%v: %s", ErrBankerNotFound, p.BankerID())
 	}
 	record := br.(*bankerRecord)
@@ -102,8 +102,8 @@ func (t *Treasury) History(
 	pageSize int,
 ) ([]Payment, error) {
 	// Get the banker record corresponding to this ID.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
+	br := t.bankers.Get(bankerID)
+	if br == nil {
 		return nil, ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 	history := br.(*bankerRecord).history
@@ -124,8 +124,8 @@ func (t *Treasury) History(
 // Balances returns the balances of the banker with the given ID.
 func (t *Treasury) Balances(bankerID string) ([]Balance, error) {
 	// Get the banker record corresponding to this ID.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
+	br := t.bankers.Get(bankerID)
+	if br == nil {
 		return nil, ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 
@@ -136,8 +136,8 @@ func (t *Treasury) Balances(bankerID string) ([]Balance, error) {
 // Address returns the address of the banker with the given ID.
 func (t *Treasury) Address(bankerID string) (string, error) {
 	// Get the banker record corresponding to this ID.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
+	br := t.bankers.Get(bankerID)
+	if br == nil {
 		return "", ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 

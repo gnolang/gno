@@ -219,7 +219,7 @@ func TestStore_ExpectedDepth100(t *testing.T) {
 		t.Fatalf("empty depth100 = %d, want 100 (one op floor)", d)
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		st.Set(nil, []byte{byte(i)}, []byte("v"))
 	}
 	// 100 keys: bits.Len64(100)=7 -> 140 (1.4 node reads), and all three
@@ -345,7 +345,7 @@ func TestStore_SetInitialVersion(t *testing.T) {
 	// Commit through 106: prunes cross the initial-version boundary
 	// (toRelease < 100 must no-op, then real prunes follow).
 	for v := int64(101); v <= 106; v++ {
-		st.Set(nil, []byte("k"), []byte(fmt.Sprintf("v%d", v)))
+		st.Set(nil, []byte("k"), fmt.Appendf(nil, "v%d", v))
 		if id = st.Commit(); id.Version != v {
 			t.Fatalf("commit at v%d, want %d", id.Version, v)
 		}

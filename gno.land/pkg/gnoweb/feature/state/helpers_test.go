@@ -31,7 +31,6 @@ func TestSliceLines(t *testing.T) {
 		{"end < start — treat as start..eof", 4, 1, "d\ne\n"},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			got := sliceLines(src, c.start, c.end)

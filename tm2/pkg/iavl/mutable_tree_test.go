@@ -44,12 +44,12 @@ func TestIterateConcurrency(t *testing.T) {
 	}
 	tree := setupMutableTree(true)
 	wg := new(sync.WaitGroup)
-	for i := 0; i < 100; i++ {
-		for j := 0; j < maxIterator; j++ {
+	for i := range 100 {
+		for j := range maxIterator {
 			wg.Add(1)
 			go func(i, j int) {
 				defer wg.Done()
-				_, err := tree.Set([]byte(fmt.Sprintf("%d%d", i, j)), iavlrand.RandBytes(1))
+				_, err := tree.Set(fmt.Appendf(nil, "%d%d", i, j), iavlrand.RandBytes(1))
 				require.NoError(t, err)
 			}(i, j)
 		}
@@ -71,12 +71,12 @@ func TestIteratorConcurrency(t *testing.T) {
 	require.NoError(t, err)
 	// So much slower
 	wg := new(sync.WaitGroup)
-	for i := 0; i < 100; i++ {
-		for j := 0; j < maxIterator; j++ {
+	for i := range 100 {
+		for j := range maxIterator {
 			wg.Add(1)
 			go func(i, j int) {
 				defer wg.Done()
-				_, err := tree.Set([]byte(fmt.Sprintf("%d%d", i, j)), iavlrand.RandBytes(1))
+				_, err := tree.Set(fmt.Appendf(nil, "%d%d", i, j), iavlrand.RandBytes(1))
 				require.NoError(t, err)
 			}(i, j)
 		}
@@ -93,14 +93,14 @@ func TestNewIteratorConcurrency(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 	tree := setupMutableTree(true)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg := new(sync.WaitGroup)
 		it := NewIterator(nil, nil, true, tree.ImmutableTree)
-		for j := 0; j < maxIterator; j++ {
+		for j := range maxIterator {
 			wg.Add(1)
 			go func(i, j int) {
 				defer wg.Done()
-				_, err := tree.Set([]byte(fmt.Sprintf("%d%d", i, j)), iavlrand.RandBytes(1))
+				_, err := tree.Set(fmt.Appendf(nil, "%d%d", i, j), iavlrand.RandBytes(1))
 				require.NoError(t, err)
 			}(i, j)
 		}
@@ -202,8 +202,8 @@ func TestGetRemove(t *testing.T) {
 func TestTraverse(t *testing.T) {
 	tree := setupMutableTree(false)
 
-	for i := 0; i < 6; i++ {
-		_, err := tree.set([]byte(fmt.Sprintf("k%d", i)), []byte(fmt.Sprintf("v%d", i)))
+	for i := range 6 {
+		_, err := tree.set(fmt.Appendf(nil, "k%d", i), fmt.Appendf(nil, "v%d", i))
 		require.NoError(t, err)
 	}
 
@@ -221,10 +221,10 @@ func TestMutableTree_DeleteVersionsTo(t *testing.T) {
 	versionEntries := make(map[int64][]entry)
 
 	// create 10 tree versions, each with 1000 random key/value entries
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		entries := make([]entry, 1000)
 
-		for j := 0; j < 1000; j++ {
+		for j := range 1000 {
 			k := iavlrand.RandBytes(10)
 			v := iavlrand.RandBytes(10)
 
@@ -334,7 +334,7 @@ func TestMutableTree_SetInitialVersion(t *testing.T) {
 func BenchmarkMutableTree_Set(b *testing.B) {
 	db := memdb.NewMemDB()
 	t := NewMutableTree(db, 100000, false, NewNopLogger())
-	for i := 0; i < 1000000; i++ {
+	for range 1000000 {
 		_, err := t.Set(iavlrand.RandBytes(10), []byte{})
 		require.NoError(b, err)
 	}
@@ -352,14 +352,14 @@ func BenchmarkMutableTree_Set(b *testing.B) {
 func prepareTree(t *testing.T) *MutableTree { //nolint: thelper
 	mdb := memdb.NewMemDB()
 	tree := NewMutableTree(mdb, 1000, false, NewNopLogger())
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_, err := tree.Set([]byte{byte(i)}, []byte("a"))
 		require.NoError(t, err)
 	}
 	_, ver, err := tree.SaveVersion()
 	require.True(t, ver == 1)
 	require.NoError(t, err)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_, err = tree.Set([]byte{byte(i)}, []byte("b"))
 		require.NoError(t, err)
 	}
@@ -1197,7 +1197,7 @@ func TestUpgradeStorageToFast_Delete_Stale_Success(t *testing.T) {
 	addStaleKey := func(ndb *nodeDB, staleCount int) {
 		keyPrefix := "key_prefix"
 		b := ndb.db.NewBatch()
-		for i := 0; i < staleCount; i++ {
+		for i := range staleCount {
 			key := fmt.Sprintf("%s_%d", keyPrefix, i)
 
 			node := fastnode.NewNode([]byte(key), []byte(valStale), 100)
@@ -1253,7 +1253,7 @@ func setupTreeAndMirror(t *testing.T, numEntries int, skipFastStorageUpgrade boo
 	keyPrefix, valPrefix := "key", "val"
 
 	mirror := make([][]string, 0, numEntries)
-	for i := 0; i < numEntries; i++ {
+	for i := range numEntries {
 		key := fmt.Sprintf("%s_%d", keyPrefix, i)
 		val := fmt.Sprintf("%s_%d", valPrefix, i)
 		mirror = append(mirror, []string{key, val})
@@ -1263,7 +1263,7 @@ func setupTreeAndMirror(t *testing.T, numEntries int, skipFastStorageUpgrade boo
 	}
 
 	// Delete fast nodes from database to mimic a version with no upgrade
-	for i := 0; i < numEntries; i++ {
+	for i := range numEntries {
 		key := fmt.Sprintf("%s_%d", keyPrefix, i)
 		require.NoError(t, db.Delete(fastKeyFormat.Key([]byte(key))))
 	}

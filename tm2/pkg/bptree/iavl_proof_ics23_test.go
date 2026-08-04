@@ -24,7 +24,7 @@ func buildTree(size int, seed int64) (*MutableTree, [][]byte, error) {
 	r := rand.New(rand.NewSource(seed))
 
 	keys := make([][]byte, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := make([]byte, 20)
 		r.Read(key)
 		val := make([]byte, 20)
@@ -111,7 +111,6 @@ func TestGetMembership(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			tree, allkeys, err := buildTree(tc.size, 0)
 			require.NoError(t, err)
@@ -143,7 +142,6 @@ func TestGetNonMembership(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			tree, allkeys, err := buildTree(tc.size, 0)
 			require.NoError(t, err)

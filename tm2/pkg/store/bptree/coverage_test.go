@@ -21,7 +21,7 @@ func TestCoverage_StorePruningKeepRecent(t *testing.T) {
 	st := StoreConstructor(db, opts).(*Store)
 
 	// Commit 10 versions
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		st.Set(nil, []byte("k"), []byte{byte(i)})
 		st.Commit()
 	}
@@ -42,7 +42,7 @@ func TestCoverage_StorePruneEverythingDeletesOld(t *testing.T) {
 	opts := types.StoreOptions{} // KeepRecent=0, KeepEvery=0
 	st := StoreConstructor(db, opts).(*Store)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		st.Set(nil, []byte("k"), []byte{byte(i)})
 		st.Commit()
 	}
