@@ -22,8 +22,8 @@ inviteMembers(0, cur, boardID, invites...)
 ```
 
 The `0` carries no information. It exists only to occupy the position that
-would otherwise make the function crossing. It appears in 123 signatures
-and 421 call sites, and readers have to know the convention before the
+would otherwise make the function crossing. It appears in 116 signatures
+and 422 call sites, and readers have to know the convention before the
 signature parses as anything but a mistake.
 
 [#5786][issue] reports the same mechanism from the other end. A `/p/` package
@@ -73,7 +73,16 @@ rtests.ExecRlm(func(_ int, rlm realm) {
 }, cur)                 // rejected
 ```
 
-189 signatures fall in this group.
+68 signatures fall in this group.
+
+Every figure above is a difference between two revisions, re-derivable with:
+
+```bash
+for rev in ddb752cac HEAD; do
+  git grep -hE '^(func (\([^)]*\) )?[A-Za-z0-9_]+|\t[A-Za-z0-9_]+)\(_ int, (rlm|cur) realm' $rev -- '*.gno' | wc -l
+  git grep -hoE '\(0, (cur|rlm|sub|crossed|callerRlm|r)[,)]|\(0, [a-zA-Z_]+\.Previous\(\)' $rev -- '*.gno' | wc -l
+done
+```
 
 So this decision narrows [#5786][issue] rather than answering it. The
 sole-realm helper the issue opens with is still unwritable, and the junk
