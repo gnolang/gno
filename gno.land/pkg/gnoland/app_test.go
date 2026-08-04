@@ -3480,11 +3480,46 @@ func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState
 	return dst
 }
 
-// The genesis path must call RecomputeSupply. Pinned through the mock rather than by
-// calling RecomputeSupply directly: a test that invokes it itself proves the function
-// works, not that InitChainer uses it, and would pass with both call sites deleted.
+// Both genesis paths must call RecomputeSupply. Pinned through the mock rather than
+// by calling RecomputeSupply directly: a test that invokes it itself proves the
+// function works, not that InitChainer uses it, and would pass with every call site
+// deleted. Table-driven over both AppState shapes because the streaming path is a
+// separate call site, and covering only the in-memory one left it free to be dropped.
 func TestInitChainerSeedsSupply(t *testing.T) {
 	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		appState func(t *testing.T) any
+	}{
+		{"in-memory", func(*testing.T) any { return DefaultGenState() }},
+		{"streaming", func(t *testing.T) any {
+			t.Helper()
+			// Marshalled from the same defaults the in-memory case uses, so the two
+			// cases differ only in how genesis is delivered.
+			def := DefaultGenState()
+			small := map[string]string{}
+			for k, v := range map[string]any{"auth": def.Auth, "bank": def.Bank, "vm": def.VM} {
+				bz, err := amino.MarshalJSON(v)
+				require.NoError(t, err)
+				small[k] = string(bz)
+			}
+			holder := crypto.AddressFromPreimage([]byte("streamed-holder"))
+			bal := fmt.Sprintf("%q", holder.String()+"=10ugnot")
+			ref, err := OpenGenesisStateRef(writeTestCache(t, []string{bal}, nil, small))
+			require.NoError(t, err)
+			return ref
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			seedsSupply(t, tc.appState(t))
+		})
+	}
+}
+
+func seedsSupply(t *testing.T, appState any) {
+	t.Helper()
 
 	db := memdb.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
@@ -3504,16 +3539,15 @@ func TestInitChainerSeedsSupply(t *testing.T) {
 		prmk:  &mockParamsKeeper{},
 		gpk:   &mockGasPriceKeeper{},
 	}
-	res := cfg.InitChainer(ctx, abci.RequestInitChain{AppState: DefaultGenState()})
+	res := cfg.InitChainer(ctx, abci.RequestInitChain{AppState: appState})
 	require.Nil(t, res.Error, "InitChainer must succeed for this to mean anything")
 	require.Equal(t, 1, bankk.recomputeSupplyCalls,
 		"InitChainer must seed the supply counter from the genesis balances")
 }
 
-// Genesis must seed the supply counter. Removing the RecomputeSupply call from either
-// InitChainer path leaves every other test in this package green, so without this a
-// chain could boot with no supply records at all — and SupplyInvariant would then flag
-// every genesis denom as held-but-unrecorded.
+// The values RecomputeSupply seeds, and that an unseeded chain is actually reported.
+// Whether InitChainer calls it at all is TestInitChainerSeedsSupply's job: this one
+// calls it directly, so it has no opinion on the call sites.
 func TestGenesisSeedsTheSupplyCounter(t *testing.T) {
 	t.Parallel()
 
