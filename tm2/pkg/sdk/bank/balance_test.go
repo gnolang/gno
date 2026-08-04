@@ -35,6 +35,17 @@ func TestBalanceKeyFormat(t *testing.T) {
 		"balance key layout changed: got %X want %X", key, want)
 	require.Len(t, key, len("/b/")+crypto.AddressSize+len(testRealmDenom))
 
+	// And the bytes themselves, because everything above is expressed in terms that
+	// move with the layout: `want` rebuilds the key the same way BalanceKey does, and
+	// the length is relative to crypto.AddressSize. Neither notices if the address
+	// width or its derivation changes — which would silently misparse every stored
+	// key, since parseBalanceKey splits at a constant offset. This literal is where
+	// that fails, next to the reason it matters.
+	require.Equal(t,
+		"2F622FAE2F402B5BB9A32B5306F9CEB578F30E46AD57192F676E6F2E6C616E642F722F64656D6F2F666F6F3A676F6C64",
+		fmt.Sprintf("%X", key),
+		"the on-disk balance key format is consensus state; a change here breaks every existing chain")
+
 	// The prefix must cover the key, so iterating it reaches this balance...
 	require.True(t, bytes.HasPrefix(key, BalancePrefixKey(addr)))
 	// ...and must be no broader than that, or one account's iteration would
