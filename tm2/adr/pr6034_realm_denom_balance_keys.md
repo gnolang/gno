@@ -132,12 +132,15 @@ Layout choices, and why:
   balance's magnitude.
 - **Zero balances are deleted**, never stored. Required, not stylistic: a zero
   would make the reconstructed `Coins` invalid.
-- **No reverse denom→address index and no supply tracking.** (**Superseded** for supply:
-  `pr6034_coin_supply.md` adds a per-denom counter and implements `TotalCoin`. The
-  reverse index is still deliberately absent.) cosmos needs the
-  index only for `DenomOwners`, which tm2 does not have, and `TotalCoin` is
-  `panic("not yet implemented")`. Omitting the index halves the write cost of a
-  balance update.
+- **No reverse denom→address index and no supply tracking.** cosmos needs the index
+  only for `DenomOwners`, which tm2 does not have, and `TotalCoin` was
+  `panic("not yet implemented")` when this was decided. Omitting the index halves the
+  write cost of a balance update.
+
+  **Superseded for supply:** `pr6034_coin_supply.md` adds a per-denom counter and
+  implements `TotalCoin` on top of it — without a reverse index, which is still
+  deliberately absent, because a per-denom total needs one number and not a list of
+  holders.
 - **Same store as accounts** (`mainKey`). A separately mounted store would add a
   commit root for no benefit, since gno.land pins depth gas so tree size does not
   affect cost.
