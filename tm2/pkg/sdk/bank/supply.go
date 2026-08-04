@@ -113,6 +113,13 @@ func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (s
 			// panic is rendered with %v and re-typed as ErrInternal. std.Err* keeps
 			// its detail under %+v only, so wrapping this message that way would
 			// leave a realm author with nothing but "invalid coins error".
+			//
+			// That those callers panic is what keeps the choice safe, so a mint or
+			// burn reachable from a message handler must not return this verbatim.
+			// A std.Err* contributes only its type name to the hashed
+			// ABCIResult.Error, but a plain error becomes an abci.StringError that
+			// carries its text — measured — so the wording of a plain error returned
+			// from a handler is consensus state, while a typed one's is not.
 			return nil, fmt.Errorf(
 				"supply of %s would go from %d to %d%+d, which is out of range",
 				coin.Denom, old, old, sign*coin.Amount)
