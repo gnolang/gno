@@ -135,7 +135,11 @@ func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (s
 // one denom, since AddCoins bounds each balance and nothing bounded the total.
 func (bank BankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
-		return std.ErrInvalidCoins(amt.String())
+		// fmt.Errorf for the reason nextSupply's range error uses it: the only
+		// production callers panic on this, and a recovered panic is rendered with
+		// %v, which hides a std.Err* message. "invalid coins error" alone does not
+		// tell a realm author that the amount was the problem.
+		return fmt.Errorf("cannot mint: amounts must be positive, denoms valid, sorted and unique (got %q)", amt)
 	}
 	// Everything that can fail happens before anything is written, so a rejected
 	// mint leaves neither the balance nor the counter changed.
@@ -155,7 +159,11 @@ func (bank BankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.C
 // BurnCoins destroys amt held by addr, lowering the supply counter.
 func (bank BankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
-		return std.ErrInvalidCoins(amt.String())
+		// fmt.Errorf for the reason nextSupply's range error uses it: the only
+		// production callers panic on this, and a recovered panic is rendered with
+		// %v, which hides a std.Err* message. "invalid coins error" alone does not
+		// tell a realm author that the amount was the problem.
+		return fmt.Errorf("cannot burn: amounts must be positive, denoms valid, sorted and unique (got %q)", amt)
 	}
 	// Checked before the debit, so a burn of more than was ever minted — which
 	// means the counter already disagreed with the balances — cannot make it worse.
