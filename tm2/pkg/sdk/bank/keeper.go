@@ -495,6 +495,12 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	}
 	split, account := bank.splitByTier(amt)
 
+	// The account tier goes first, as in subtract and AddCoins: it is the only step
+	// that can fail, and with it last a failure would return an error having already
+	// replaced the split tier.
+	if err := bank.setAccountTierCoins(ctx, nil, addr, account); err != nil {
+		return err
+	}
 	// splitCoins fully drains and closes its iterator before returning, so there
 	// is no live iteration to invalidate by deleting here.
 	for _, coin := range bank.splitCoins(ctx, addr) {
@@ -503,8 +509,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	for _, coin := range split {
 		bank.setSplitBalance(ctx, addr, coin.Denom, coin.Amount)
 	}
-
-	return bank.setAccountTierCoins(ctx, nil, addr, account)
+	return nil
 }
 
 // ----------------------------------------

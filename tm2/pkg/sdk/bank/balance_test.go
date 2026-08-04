@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -1269,6 +1270,36 @@ func TestSubtractWritesNothingWhenTheAccountWriteFails(t *testing.T) {
 	require.Error(t, err, "the account write must fail")
 	require.Equal(t, int64(100), env.bankk.getSplitBalance(ctx, addr, testRealmDenom),
 		"a failed subtract must not have debited the split tier")
+}
+
+// SetCoins replaces the account tier before touching the split keys, for the same
+// reason subtract does. It cannot use refusingAccount, which SetCoins never sees —
+// it reads the account itself — so this uses the only shipped type that refuses
+// coins. A session account filed at a regular address path is itself a fault the
+// auth keyspace invariant reports, and that is the point: a call that returns an
+// error must not have moved money, even out of a state that should not exist.
+func TestSetCoinsWritesNothingWhenTheAccountWriteFails(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	master := crypto.AddressFromPreimage([]byte("session-master"))
+	_, sessPub, _ := tu.KeyTestPubAddr()
+	sess := env.acck.NewSessionAccount(ctx, master, sessPub)
+	addr := sess.GetAddress()
+
+	// A split-only credit does not touch the account object's coins, so it cannot
+	// fail here and leaves a balance for SetCoins to destroy.
+	require.NoError(t, env.bankk.AddCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 100}}))
+	env.acck.SetAccount(ctx, sess)
+
+	err := env.bankk.SetCoins(ctx, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 50},
+		{Denom: testAccountDenom, Amount: 10},
+	})
+	require.Error(t, err, "a session account must refuse to hold the account-tier coins")
+	require.Equal(t, int64(100), env.bankk.getSplitBalance(ctx, addr, testRealmDenom),
+		"a failed SetCoins must not have replaced the split tier")
 }
 
 // The mirror of TestAccountObjectHoldingASplitDenomFailsLoudly: a split key for a
