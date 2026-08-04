@@ -108,8 +108,16 @@ wallet that does not implement adding, answers `network_declined`.
 **4. Switch if needed.** If the resolved network is not the active one, the
 wallet asks the user; declining answers `network_declined`. Every query — `vm/qdoc`,
 account number, sequence, gas — and the broadcast then use that network's
-selected endpoint. The review screen MUST show the network name, the chain id,
-and the endpoint in effect.
+selected endpoint.
+
+The review screen MUST show **the chain id and the endpoint in effect**, and
+SHOULD show the network's name where the wallet has one. Those two identify the
+network; a name is a label, and not every wallet has one to show. A wallet may
+model a network as nothing more than a chain id and an endpoint — which is what
+the resolution above actually needs — and a chain added from a request under step
+3 arrives with no name at all, since a request has no field to propose one. A
+MUST that some wallets structurally cannot meet, on the part that identifies
+nothing, would only teach implementers to invent a placeholder.
 
 What this guarantees, stated exactly, because it is narrower than "the producer's
 value is never used":
@@ -529,7 +537,7 @@ interface GnoAccount {
 interface GnoNetwork {
   chainid: string;
   rpc: string;             // the endpoint in effect, not one a page declared
-  name: string;
+  name?: string;           // the wallet's label, when it has one — not an id
 }
 ```
 
@@ -761,6 +769,7 @@ and rewriting it would break the correlation check it exists for.
   transports: the wallet MUST produce a transaction authorised by that identity
   or decline with `status=error&code=signer_unavailable`, and MAY sign it with a
   delegated key of that identity.
+
 The `sendtx` host always signs **and broadcasts**; the callback returns `hash`. User
 review before signing is mandatory. A producer that needs the signed transaction
 *without* broadcasting uses the `signtx` host below.
