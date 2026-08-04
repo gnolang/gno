@@ -106,10 +106,14 @@ panic, which do not depend on how fast validation is.
 `chain/banker` gains `GetCoin(addr, denom) int64`, the Gno-visible form of the
 O(1) read. Without it a realm wanting one balance had to call `GetCoins` and pay
 for every denom the address holds — the same O(n) cost this change removes from
-the money path, left in place for contracts. Note this widens the Gno `Banker`
-**interface**, so it breaks any implementor or mock, not just callers. A sweep
-found the practical impact small — two implementors in this repo (the stdlib and
-one test mock), none at all in gnoswap — because the concrete type is unexported
+the money path, left in place for contracts. Note this widens **two** interfaces, so it breaks
+implementors and mocks, not just callers. The Gno `Banker` has two implementors in
+this repo (the stdlib's own type and one test mock) and none at all in gnoswap. The
+Go-side `chain/banker.BankerInterface` also gains the method, and that one matters
+to a different audience: it is exported from a non-internal package and is what a
+chain embedding the GnoVM implements — gno.land's `SDKBanker` satisfies it — so an
+out-of-tree chain with a custom banker gets a compile error. Three in-tree
+implementors, all updated here (`SDKBanker`, `TestBanker`, the calibration mock) — because the concrete type is unexported
 and the APIs accepting a `Banker` reject non-canonical ones, so a custom implementor
 cannot be plugged into either of the interfaces that accept one today.
 
