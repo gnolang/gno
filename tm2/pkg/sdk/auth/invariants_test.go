@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -132,5 +133,87 @@ func TestInvariantReportsWhatIterateAccountsPanicsOn(t *testing.T) {
 	require.NotPanics(t, func() {
 		_, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
 		require.True(t, broken)
+	})
+}
+
+// The session checks each get their own test, and each asserts its own message.
+// They all live in one sweep, so require.True(t, broken) alone would pass whenever any
+// sibling fired — which is how a check gets deleted without its test noticing.
+//
+// All three states are reachable through the public API: SetSessionAccount writes to
+// SessionStoreKey(master, acc.GetAddress()) and validates neither the master's
+// existence, nor that the account agrees about its master, nor that it is delegated
+// at all.
+func TestAccountKeyspaceInvariantReportsSessionFaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("master has no account object", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		_, sessPub, _ := tu.KeyTestPubAddr()
+		ghost := crypto.AddressFromPreimage([]byte("ghost-master"))
+		// Deliberately no SetAccount for ghost.
+		sess := env.acck.NewSessionAccount(env.ctx, ghost, sessPub)
+		env.acck.SetSessionAccount(env.ctx, ghost, sess)
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "which has no account object")
+	})
+
+	t.Run("session claims a different master than it is filed under", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		_, sessPub, _ := tu.KeyTestPubAddr()
+		filedUnder := crypto.AddressFromPreimage([]byte("m1"))
+		claims := crypto.AddressFromPreimage([]byte("m2"))
+		for _, m := range []crypto.Address{filedUnder, claims} {
+			env.acck.SetAccount(env.ctx, env.acck.NewAccountWithAddress(env.ctx, m))
+		}
+
+		// NewSessionAccount sets the master *field*; SetSessionAccount decides the
+		// master in the *key*. Neither consults the other, so building the session for
+		// one master and filing it under another needs no struct literal and no raw
+		// write — the mismatch is reachable through the public API alone. (The setter
+		// cannot be used for this: SetMasterAddress is write-once.)
+		sess := env.acck.NewSessionAccount(env.ctx, claims, sessPub)
+		require.Equal(t, claims, sess.(std.DelegatedAccount).GetMasterAddress())
+		env.acck.SetSessionAccount(env.ctx, filedUnder, sess)
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "but claims master")
+	})
+
+	t.Run("session path holds a non-delegated account", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		master := crypto.AddressFromPreimage([]byte("master"))
+		env.acck.SetAccount(env.ctx, env.acck.NewAccountWithAddress(env.ctx, master))
+		sessAddr := crypto.AddressFromPreimage([]byte("session"))
+
+		// SetSessionAccount takes any std.Account, so a plain one lands at a session
+		// path, where every reader expects to find a master to attribute it to.
+		env.acck.SetSessionAccount(env.ctx, master,
+			std.NewBaseAccount(sessAddr, nil, nil, env.acck.GetNextAccountNumber(env.ctx), 0))
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "does not hold a delegated account")
+	})
+
+	// And a well-formed session must be reported healthy, or the checks above are
+	// firing on legitimate state rather than on the fault they name.
+	t.Run("a well-formed session is healthy", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		_, sessPub, _ := tu.KeyTestPubAddr()
+		master := crypto.AddressFromPreimage([]byte("master"))
+		env.acck.SetAccount(env.ctx, env.acck.NewAccountWithAddress(env.ctx, master))
+		sess := env.acck.NewSessionAccount(env.ctx, master, sessPub)
+		env.acck.SetSessionAccount(env.ctx, master, sess)
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.False(t, broken, "a well-formed session must not be reported:\n%s", msg)
 	})
 }

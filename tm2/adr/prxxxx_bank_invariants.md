@@ -150,16 +150,24 @@ compared them against themselves. **Since superseded** — see
 
 ## Tests
 
-Every check has a healthy-state test and a violating-state test asserting the specific
-finding, and each check that has a violating test was mutation-verified: deleting it fails that
-test. Six do **not** have one, and are known-unpinned rather than believed-covered: the
-key-ordering and iterator-error reports in `BalanceKeysInvariant`, the iteration-error
-report in `AccountTierInvariant`, and all three session checks in
-`AccountKeyspaceInvariant`. The first three fire only on a store-level fault, which no
-state can produce; the session ones are a genuine gap. Violating states are built by raw store writes where the keeper's guards make them
-otherwise unreachable, and through the public API where possible — the stranded-denom case
-uses a keeper whose allowlist shrank, which is the ADR's documented
-upgrade-without-replay scenario rather than a synthetic corruption.
+Each check with a violating-state test asserts its specific finding and was
+mutation-verified: deleting the check fails that test, and only that test. Asserting the
+message rather than merely that the invariant broke is the point — the checks share a
+sweep, so a bare "broken" assertion passes whenever any sibling fires.
+
+Three checks have **no** violating test and are known-unpinned rather than
+believed-covered: the key-ordering and iterator-error reports in `BalanceKeysInvariant`,
+and the iteration-error report in `AccountTierInvariant`. All three fire only on a
+store-level fault that no stored state can produce, so pinning them would need a fake
+store.
+
+Violating states are built through the public API wherever possible and by raw store
+write only where the keeper's guards make a state otherwise unreachable. Two worth
+calling out because they are reachable without any raw write: the stranded-denom case
+uses a keeper whose allowlist shrank, which is the balance-split ADR's documented
+upgrade-without-replay scenario; and the session master-mismatch case exploits the fact
+that `NewSessionAccount` sets the master *field* while `SetSessionAccount` decides the
+master in the *key*, and neither consults the other.
 
 `TestInvariantReportsWhatIterateAccountsPanicsOn` asserts both halves of the design: the
 keeper accessor panics on a poisoned account, and the invariant reports it instead.

@@ -730,10 +730,18 @@ Six invariant checks have no violating test and are known-unpinned: the key-orde
 iterator-error reports in `BalanceKeysInvariant`, the iteration-error report in
 `AccountTierInvariant`, and the three session checks in `AccountKeyspaceInvariant`. The
 first three fire only on a store-level fault that no state can produce, so they are
-untestable without a fake store. **The three session ones are a real gap** — a session
-whose master has no account object, a session claiming a different master, and a
-delegated account filed at a regular path all survive deletion with the suites green.
-Worth closing.
+untestable without a fake store. **The three session ones were a real gap and are now
+closed** — `TestAccountKeyspaceInvariantReportsSessionFaults` covers a session whose
+master has no account object, a session claiming a different master than it is filed
+under, and a non-delegated account at a session path, plus a well-formed session that
+must stay quiet. Each was mutation-verified to fail its own subtest and no other.
+
+Worth noting how those states are built: entirely through the public API. `SetSessionAccount`
+validates neither the master's existence nor that the account agrees about its master,
+and `NewSessionAccount` sets the master *field* while `SetSessionAccount` decides the
+master in the *key* — so creating a session for one master and filing it under another
+needs no raw write. That the two APIs do not cross-check each other is the underlying
+looseness these checks now detect.
 
 Also unpinned: `sdk.Guard`'s recover and `InvariantReport`'s ten-finding cap (nothing
 references either in a test), `std.ParseRealmDenom`'s charset and pkgPathLimit branches,
