@@ -26,7 +26,11 @@ import (
 // would make a search for one return the other.
 const SupplyPrefix = "/supply/"
 
-// maxSupplyDenoms bounds the accumulator used to total balances.
+// maxSupplyDenoms bounds the accumulator the *invariant* uses to total balances.
+// Genesis seeding is deliberately unbounded; see computeSupply.
+//
+// At a maximal 274-byte denom this is roughly 80 MB, not the 8 MB the account-number
+// bitset costs at its own bound — the shapes differ, only the reasoning is shared.
 //
 // Distinct denoms are attacker-driven and unbounded — every IssueCoin to a fresh
 // realm denom creates one — and an out-of-memory abort is fatal, so no guard could
@@ -90,6 +94,14 @@ func (bank BankKeeper) setSupply(ctx sdk.Context, denom string, amount int64) {
 func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (std.Coins, error) {
 	next := make(std.Coins, len(amt))
 	for i, coin := range amt {
+		if i > 0 && amt[i-1].Denom >= coin.Denom {
+			// Two entries for one denom would each compute from the same old value
+			// and the last write would lose an increment. Callers validate, so this
+			// cannot fire today; the arithmetic below depends on it, so it is checked
+			// here rather than inherited.
+			return nil, fmt.Errorf("denoms out of order or duplicated: %q then %q",
+				amt[i-1].Denom, coin.Denom)
+		}
 		old := bank.TotalSupply(ctx, coin.Denom)
 		sum, ok := overflow.Add(old, sign*coin.Amount)
 		if !ok || sum < 0 {
@@ -157,12 +169,16 @@ func (bank BankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.C
 // Shared by RecomputeSupply and the supply invariant so that the recorded number
 // and the checked number are produced by one piece of code. Reads raw: the typed
 // accessors panic on states this must report or survive.
-func computeSupply(ctx sdk.Context, view ViewKeeper) (map[string]int64, error) {
+// maxDenoms of 0 means unlimited. The invariant passes a bound because it must not
+// risk an unrecoverable allocation on a node; genesis passes none, because a fork of a
+// chain that legitimately holds many denoms has to be able to re-seed, and refusing to
+// start would be worse than the memory.
+func computeSupply(ctx sdk.Context, view ViewKeeper, maxDenoms int) (map[string]int64, error) {
 	totals := make(map[string]int64)
 	capped := false
 	add := func(denom string, amount int64) error {
 		if _, ok := totals[denom]; !ok {
-			if len(totals) >= maxSupplyDenoms {
+			if maxDenoms > 0 && len(totals) >= maxDenoms {
 				capped = true
 				return nil
 			}
@@ -197,12 +213,18 @@ func computeSupply(ctx sdk.Context, view ViewKeeper) (map[string]int64, error) {
 	// The account tier is summed raw and unfiltered. A denom stranded there by an
 	// allowlist change is still stored value that the numbers must account for, and
 	// accountTierCoins would panic on exactly that state.
+	// addErr is carried out of the callback deliberately. IterateAccountEntries
+	// returns the *iterator's* error, so returning true from the callback only stops
+	// the walk — the error would be lost and computeSupply would return truncated
+	// totals with err == nil, which RecomputeSupply would seed and SupplyInvariant
+	// would then agree with.
+	var addErr error
 	err := view.acck.IterateAccountEntries(ctx, func(e auth.AccountEntry) bool {
 		if e.Kind != auth.AccountKeyRegular || e.DecodeErr != nil || e.Account == nil {
 			return false
 		}
 		for _, coin := range e.Account.GetCoins() {
-			if err := add(coin.Denom, coin.Amount); err != nil {
+			if addErr = add(coin.Denom, coin.Amount); addErr != nil {
 				return true
 			}
 		}
@@ -211,8 +233,11 @@ func computeSupply(ctx sdk.Context, view ViewKeeper) (map[string]int64, error) {
 	if err != nil {
 		return nil, fmt.Errorf("iteration over accounts failed: %w", err)
 	}
+	if addErr != nil {
+		return nil, addErr
+	}
 	if capped {
-		return nil, fmt.Errorf("more than %d distinct denoms", maxSupplyDenoms)
+		return nil, fmt.Errorf("more than %d distinct denoms", maxDenoms)
 	}
 	return totals, nil
 }
@@ -229,7 +254,7 @@ func computeSupply(ctx sdk.Context, view ViewKeeper) (map[string]int64, error) {
 // delta would be zero for every vesting account — and that pre-write cannot be
 // removed, since the vesting constructors validate OriginalVesting against it.
 func (bank BankKeeper) RecomputeSupply(ctx sdk.Context) {
-	totals, err := computeSupply(ctx, bank.ViewKeeper)
+	totals, err := computeSupply(ctx, bank.ViewKeeper, 0)
 	if err != nil {
 		panic(fmt.Sprintf("cannot compute supply: %v", err))
 	}
@@ -248,6 +273,9 @@ func (bank BankKeeper) RecomputeSupply(ctx sdk.Context) {
 	for _, key := range stale {
 		stor.Delete(nil, key)
 	}
+	// Ranging a map to write is safe here only because the cache store sorts its keys
+	// before flushing to the committed tree, so the tree's shape does not depend on
+	// Go's map order. Verified: 25 identical genesis runs produce one app hash.
 	for denom, amount := range totals {
 		if amount != 0 {
 			stor.Set(nil, SupplyKey(denom), encodeBalance(amount))

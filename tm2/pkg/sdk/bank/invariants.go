@@ -2,6 +2,8 @@ package bank
 
 import (
 	"bytes"
+	"maps"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -155,7 +157,7 @@ func vestingScheduleOf(acc std.Account) (std.VestingSchedule, bool) {
 // credit produces; a record with nothing held is what a lost balance write produces.
 func SupplyInvariant(view ViewKeeper) sdk.Invariant {
 	return sdk.Guard(ModuleName, "total-supply", func(ctx sdk.Context, rep *sdk.InvariantReport) {
-		held, err := computeSupply(ctx, view)
+		held, err := computeSupply(ctx, view, maxSupplyDenoms)
 		if err != nil {
 			rep.Addf("cannot total the balances, so supply was NOT verified: %v", err)
 			return
@@ -187,8 +189,10 @@ func SupplyInvariant(view ViewKeeper) sdk.Invariant {
 			rep.Addf("iteration over %q failed, so the sweep is incomplete: %v", SupplyPrefix, err)
 		}
 		// Whatever is left was never recorded: value exists that nothing minted.
-		for denom, sum := range held {
-			rep.Addf("%d%s is held but there is no supply record for it", sum, denom)
+		// Sorted, because the report is truncated: ranging the map directly made two
+		// operators inspecting identical state see different findings.
+		for _, denom := range slices.Sorted(maps.Keys(held)) {
+			rep.Addf("%d%s is held but there is no supply record for it", held[denom], denom)
 		}
 	})
 }

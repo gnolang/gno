@@ -3526,4 +3526,31 @@ func TestApplyBalanceReusesAnExistingAccount(t *testing.T) {
 	cfg.applyBalance(ctx, Balance{Address: other, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 1}}})
 	require.Equal(t, firstNum+1, acck.GetAccount(ctx, other).GetAccountNumber(),
 		"a duplicate entry must not consume an account number")
+
+	// The account's *kind* is replace-all too. Reusing a vesting account for a
+	// later plain entry would leave the schedule in place and the funds locked
+	// until EndTime, which is worse than the renumbering this fix is about.
+	vester := crypto.AddressFromPreimage([]byte("vester"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+	cfg.applyBalance(ctx, Balance{
+		Address: vester,
+		Amount:  amount,
+		Vesting: &std.VestingSchedule{
+			// Fixed positive times: the test context's block time is the zero time,
+			// whose Unix() is negative, which VestingSchedule.Validate rejects.
+			OriginalVesting: amount,
+			StartTime:       100,
+			EndTime:         1_000_000,
+		},
+	})
+	vestingNum := acck.GetAccount(ctx, vester).GetAccountNumber()
+	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
+
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
+	replaced := acck.GetAccount(ctx, vester)
+	require.IsType(t, &GnoAccount{}, replaced,
+		"a plain entry must clear an earlier vesting schedule, not inherit it")
+	require.Equal(t, vestingNum, replaced.GetAccountNumber(), "the number must survive")
+	// The funds must actually be spendable.
+	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}))
 }

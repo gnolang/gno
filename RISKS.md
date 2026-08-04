@@ -631,6 +631,76 @@ rule in `AGENTS.md` — whose "(10 cases)" count was stale as a result.
   not actually under test. Verified: it now fails both when the merge is replaced by a
   concatenation and when the tier rule is hardcoded to `ugnot`.
 
+## 3i. Audit of the finished branch (four agents, own worktrees)
+
+Findings acted on. Every fix below is mutation-verified — deleting it fails its own test.
+
+- **`computeSupply` swallowed the account-tier overflow error.** `IterateAccountEntries`
+  returns the *iterator's* error, so returning true from the callback only stopped the
+  walk: `computeSupply` returned **truncated totals with `err == nil`**. That meant
+  `RecomputeSupply` seeded a wrong genesis counter instead of refusing to start, and
+  `SupplyInvariant` re-derived the same wrong total and reported healthy — the one
+  redundancy check in the set, self-consistently wrong. The auditor reproduced it, and
+  it was **untested after I fixed it**, which is why the audit mattered twice over.
+  Now carried out explicitly and pinned by
+  `TestComputeSupplyReportsAnUntotallableSum`.
+- **The `applyBalance` fix I had just made was itself a regression.** Reusing the
+  account meant a plain genesis entry after a vesting entry for the same address no
+  longer cleared the schedule, so the funds stayed locked until `EndTime` — on master
+  the plain entry replaced the account and they were spendable. The account's *kind*
+  is now replace-all too, with the number carried over. This also restores the
+  `*GnoAccount` concrete type, which `applyUnrestrictedAddrs` asserts unchecked.
+- **`ValidateDenom`'s regexp was ~40× under-metered on a path `GetCoin` put it on.**
+  Measured 4,446ns for a maximal 274-byte denom against a 349-gas native charge.
+  Replaced with an equivalent byte scan: **174ns**, a 25× improvement that turns the
+  under-charge into an over-charge, and speeds the invariants (which validate every
+  denom in state) by roughly the same factor. Equivalence is gated by
+  `TestValidDenomMatchesRegexp`, which compares against the regexp over every byte
+  value in each of the first three positions.
+- **`ParseCoin` ran its regexp before any length check.** `Coins` amino-encode as a
+  string, so every transaction decode reaches it — and decode happens *before* the
+  ante handler installs a gas meter, so a ~1 MB coin expression bought ~270ms of
+  validator CPU for zero gas, spammable through CheckTx. The 274-byte denom cap is
+  documented as bounding key size; it did not bound this. One length guard, moved
+  above the pattern.
+- **`RecomputeSupply` could brick a fork.** It panicked above `maxSupplyDenoms`
+  (262,144 distinct denoms, reachable for ~160B gas), so a chain past that bound could
+  never be re-genesised from an export. The bound now applies only to the invariant,
+  which must not risk an unrecoverable allocation on a node; genesis is trusted,
+  one-time, and must not refuse to start. The comment claiming parity with
+  `auth.maxUniquenessBits`' memory was also wrong — 80 MB, not 8 MB — and is corrected.
+- **`SupplyInvariant`'s report was nondeterministic.** It ranged a Go map and the
+  report is truncated at ten, so two operators inspecting identical state saw
+  different findings (measured: 20 distinct messages over 20 runs). Sorted.
+  `RecomputeSupply` also ranges a map, but for *writes*, and that is safe only because
+  the cache store sorts keys before flushing — verified as one app hash over 25
+  identical genesis runs, and now stated at the site, since nothing else says it.
+- **`subtract` and `nextSupply` trusted their callers on two more preconditions**: that
+  the account passed in belongs to the address, and that denoms are strictly ascending.
+  A mismatched pair debited two different addresses; a duplicated denom debited or
+  minted once while the caller believed twice. Both now checked, both internal-only.
+- **`std.ErrInvalidCoins` discards its message** (`%v` renders only "invalid coins
+  error"), so these internal guards used plain errors instead — a caller bug needs to
+  say which precondition failed. The wart itself is pre-existing and worth its own fix.
+- **`TestBanker.TotalCoin` summed without an overflow check**, so `gno test` would
+  report a wrapped negative where the chain refuses the mint. Overflow-checked.
+
+Reported, pre-existing, and **not** fixed here:
+
+- `DeliverTx` has no fee-denom gate, so a self-minted realm denom can pay gas
+  (`EnsureSufficientMempoolFees` is CheckTx-only by design, since `minGasPrices` is
+  node-local). Unchanged in kind from master, and the split *improves* the
+  consequence — the collector's junk now lands in its own keys rather than bloating
+  the account blob every fee-paying transaction rewrites. Worth a decision against the
+  threat model.
+- `bank/balances` runs under an infinite gas meter with no fee: at 20,000 denoms of 274
+  bytes, ~160ms and 5.6MB of response from a ~60-byte request. Master was worse
+  (~2.5×), and the victim no longer pays — node operators do.
+- Exposing the invariants as a query or in `BeginBlock` would be an unmetered DoS
+  (~29µs/key before the `ValidateDenom` fix), and a nil-gas-context read warms the
+  cache store so a later metered read on the same key is free. No production caller
+  exists today; the mitigation is a nested `CacheContext` around the sweep.
+
 ## 4. Things to review even after this looks done
 
 - **The `/b/` key prefix inventory.** Three reviewers independently enumerated

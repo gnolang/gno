@@ -986,3 +986,44 @@ func TestIsRealmDenom(t *testing.T) {
 			"IsRealmDenom must key on the first byte alone: %q", denom)
 	}
 }
+
+// validDenom replaces reDnm on hot paths and must accept exactly the same strings.
+// A divergence would either reject a legal denom (breaking consensus) or admit an
+// illegal one (defeating the grammar), so this is the gate on that refactor.
+func TestValidDenomMatchesRegexp(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"", "a", "ab", "abc", "ugnot", "/", "//", "/a", "/ab", "/abc",
+		"a-b", "-ab", "a_b", "a.b", "a:b", "a/b", "0ab", "Abc", "aBc", "abC",
+		"a b", "a\tb", "a\nb", "ab!", "ab~", "ab\x00", "ábc", "a€b",
+		"/gno.land/r/demo/foo:gold", "ibc/" + strings.Repeat("a1b2c3d4", 8),
+		strings.Repeat("z", MaxDenomLength), strings.Repeat("z", MaxDenomLength+1),
+	}
+	// Every byte in each position, which is where a hand-rolled charset drifts.
+	for b := range 256 {
+		cases = append(cases, string([]byte{byte(b), 'a', 'a'}))
+		cases = append(cases, string([]byte{'a', byte(b), 'a'}))
+		cases = append(cases, string([]byte{'a', 'a', byte(b)}))
+	}
+	for _, denom := range cases {
+		require.Equal(t, reDnm.MatchString(denom), validDenom(denom),
+			"validDenom disagrees with reDnm on %q", denom)
+	}
+}
+
+// ParseCoin must bound its input before running the pattern: Coins amino-encode as a
+// string, and transaction decode happens before any gas meter exists.
+func TestParseCoinRejectsAnOverlongExpressionCheaply(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseCoin("1" + strings.Repeat("z", MaxDenomLength+64))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the limit")
+
+	// The longest legal expression still parses.
+	longest := "9223372036854775807" + strings.Repeat("z", MaxDenomLength)
+	c, err := ParseCoin(longest)
+	require.NoError(t, err, "a maximal legal coin expression must still parse")
+	require.Equal(t, int64(9223372036854775807), c.Amount)
+}

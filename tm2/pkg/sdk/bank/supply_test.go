@@ -229,3 +229,90 @@ func TestSupplyInvariantReportsBothDirections(t *testing.T) {
 		require.Contains(t, msg, "expected 8 bytes, got 3")
 	})
 }
+
+// If the balances cannot be totalled, that must be an error, not truncated totals.
+// The account-tier walk reports through a callback whose return value only stops the
+// iteration, so an error raised inside it has to be carried out explicitly —
+// otherwise computeSupply returns a partial sum with err == nil, RecomputeSupply
+// seeds that as the genesis supply, and SupplyInvariant then agrees with it. The one
+// redundancy check in the set would be self-consistently wrong.
+func TestComputeSupplyReportsAnUntotallableSum(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	a := crypto.AddressFromPreimage([]byte("a"))
+	b := crypto.AddressFromPreimage([]byte("b"))
+
+	// Two account-tier balances that together exceed int64. Each is individually
+	// legal, because AddCoins bounds each balance and nothing bounds the sum.
+	require.NoError(t, env.bankk.SetCoins(ctx, a,
+		std.Coins{{Denom: testAccountDenom, Amount: math.MaxInt64}}))
+	require.NoError(t, env.bankk.SetCoins(ctx, b,
+		std.Coins{{Denom: testAccountDenom, Amount: 1000}}))
+
+	_, err := computeSupply(ctx, env.bankk.ViewKeeper, 0)
+	require.Error(t, err, "an untotallable sum must be reported, not truncated")
+	require.Contains(t, err.Error(), "sum past int64")
+
+	// And it must refuse to seed rather than write the truncated number.
+	require.Panics(t, func() { env.bankk.RecomputeSupply(ctx) },
+		"RecomputeSupply must refuse to seed a supply it cannot compute")
+
+	// The invariant must say it could not verify, rather than reporting healthy.
+	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
+	require.True(t, broken, "the invariant must not report healthy here")
+	require.Contains(t, msg, "supply was NOT verified")
+}
+
+// Both money-path helpers depend on their amount being strictly ascending, and both
+// are internal, so the guards are driven directly. Every public entry point validates
+// first, which is exactly what these must not rely on.
+func TestInternalHelpersRejectDuplicateDenoms(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("holder"))
+	require.NoError(t, env.bankk.SetCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 100}}))
+	env.bankk.RecomputeSupply(ctx)
+
+	dup := std.Coins{{Denom: testRealmDenom, Amount: 5}, {Denom: testRealmDenom, Amount: 5}}
+
+	// nextSupply: both entries would compute from the same old value, so the second
+	// write would lose an increment and the counter would under-count the mint.
+	_, err := env.bankk.nextSupply(ctx, dup, 1)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "out of order or duplicated")
+
+	// subtract: both entries would compute from the same starting balance, so only
+	// one debit would land while the caller believes two did.
+	err = env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, dup)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "out of order or duplicated")
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, testRealmDenom),
+		"a rejected debit must not have moved the balance")
+}
+
+// subtract takes the account as a parameter to save a read, and nothing in the types
+// ties it to the address, so a mismatched pair would debit one address's account tier
+// and another's split tier.
+func TestSubtractRejectsAnAccountForTheWrongAddress(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	victim := crypto.AddressFromPreimage([]byte("victim"))
+	attacker := crypto.AddressFromPreimage([]byte("attacker"))
+	require.NoError(t, env.bankk.SetCoins(ctx, victim,
+		std.Coins{{Denom: testAccountDenom, Amount: 500}}))
+	require.NoError(t, env.bankk.SetCoins(ctx, attacker,
+		std.Coins{{Denom: testRealmDenom, Amount: 10}}))
+
+	err := env.bankk.subtract(ctx, env.acck.GetAccount(ctx, victim), attacker,
+		std.Coins{{Denom: testAccountDenom, Amount: 500}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "was passed for address")
+	require.Equal(t, int64(500), env.bankk.GetCoin(ctx, victim, testAccountDenom),
+		"the victim's balance must be untouched")
+}

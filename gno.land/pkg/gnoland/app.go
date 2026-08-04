@@ -730,6 +730,18 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		}
 		return cfg.acck.GetNextAccountNumber(ctx)
 	}
+	// newPlainAccount builds a fresh account of the chain's normal type, carrying an
+	// existing number rather than drawing a new one.
+	newPlainAccount := func() std.Account {
+		acc := ProtoGnoAccount()
+		if err := acc.SetAddress(bal.Address); err != nil {
+			panic(fmt.Errorf("invalid genesis balance address %s: %w", bal.Address, err))
+		}
+		if err := acc.SetAccountNumber(accountNumber()); err != nil {
+			panic(fmt.Errorf("cannot set account number for %s: %w", bal.Address, err))
+		}
+		return acc
+	}
 
 	if bal.IsVesting() {
 		baseAcc := std.BaseAccount{
@@ -749,9 +761,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
 		}
 		cfg.acck.SetAccount(ctx, acc)
-	} else if existing == nil {
-		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acck.SetAccount(ctx, acc)
+	} else {
+		// Replace the account even when one exists, so a plain entry after a vesting
+		// entry for the same address clears the schedule. Reusing the vesting account
+		// would leave the funds locked until EndTime — the amount is replace-all, so
+		// the account's *kind* has to be too. The number is carried over.
+		cfg.acck.SetAccount(ctx, newPlainAccount())
 	}
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		panic(err)

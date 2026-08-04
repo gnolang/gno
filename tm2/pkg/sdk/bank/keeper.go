@@ -365,6 +365,12 @@ func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Ad
 	if err := assertPositiveAmounts(amt); err != nil {
 		return err
 	}
+	// acc must be addr's account: it is threaded in to save a read, and nothing in
+	// the types connects the two, so a mismatched pair would debit the account tier
+	// of one address and the split tier of another.
+	if acc != nil && acc.GetAddress() != addr {
+		return fmt.Errorf("account %s was passed for address %s", acc.GetAddress(), addr)
+	}
 
 	split, account := bank.splitByTier(amt)
 
@@ -587,9 +593,16 @@ func (view ViewKeeper) accountTierCoins(acc std.Account) std.Coins {
 // it is defended already; subtract is internal and inherits nothing, and its
 // arithmetic inverts on a negative — see the call site.
 func assertPositiveAmounts(amt std.Coins) error {
-	for _, coin := range amt {
+	for i, coin := range amt {
 		if coin.Amount <= 0 {
 			return std.ErrInvalidCoins(fmt.Sprintf("non-positive debit: %s", coin))
+		}
+		// Strict ascending order, which also rules out duplicates. A denom appearing
+		// twice would have both entries computed from the same starting balance, so
+		// the second write would overwrite the first and only one debit would land.
+		if i > 0 && amt[i-1].Denom >= coin.Denom {
+			return fmt.Errorf("denoms out of order or duplicated: %q then %q",
+				amt[i-1].Denom, coin.Denom)
 		}
 	}
 	return nil

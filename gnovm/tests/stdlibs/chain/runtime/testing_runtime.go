@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -255,9 +256,16 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 	if err := tm2std.ValidateDenom(denom); err != nil {
 		panic("invalid denom: " + err.Error())
 	}
+	// Overflow-checked, so this cannot report a wrapped negative where the chain
+	// would refuse the mint outright — the supply cap is exactly what the chain's
+	// counter enforces, and `gno test` must not disagree with it.
 	var total int64
 	for _, coins := range tb.CoinTable {
-		total += coins.AmountOf(denom)
+		sum, ok := overflow.Add(total, coins.AmountOf(denom))
+		if !ok {
+			panic("total supply of " + denom + " overflows int64")
+		}
+		total = sum
 	}
 	return total
 }
