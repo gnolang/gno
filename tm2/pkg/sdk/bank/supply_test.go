@@ -90,10 +90,37 @@ func TestSupplyIsCappedAtMaxInt64(t *testing.T) {
 
 	err := env.bankk.MintCoins(ctx, b, std.Coins{{Denom: testRealmDenom, Amount: 1}})
 	require.Error(t, err, "a mint past MaxInt64 must be refused")
+	// The reason must survive %v. IssueCoin panics on this error and a recovered
+	// panic is rendered with %v, which discards a std.Err* message — so wrapping it
+	// that way would leave a realm author with only "invalid coins error".
+	require.Contains(t, err.Error(), testRealmDenom,
+		"the refusal must name the denom where the caller can see it")
 	require.Equal(t, int64(math.MaxInt64), env.bankk.TotalSupply(ctx, testRealmDenom),
 		"a refused mint must leave supply untouched")
 	require.Zero(t, env.bankk.GetCoin(ctx, b, testRealmDenom),
 		"a refused mint must credit nothing")
+}
+
+// Mint and burn reject a non-positive amount, which the .gno layer does not guard —
+// IssueCoin passes the caller's int64 straight through. The reason has to survive %v
+// for the same reason as the range error above.
+func TestMintAndBurnSayWhyANonPositiveAmountIsRefused(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	a := crypto.AddressFromPreimage([]byte("nonpositive"))
+	bad := std.Coins{{Denom: testRealmDenom, Amount: -5}}
+
+	for name, err := range map[string]error{
+		"mint": env.bankk.MintCoins(env.ctx, a, bad),
+		"burn": env.bankk.BurnCoins(env.ctx, a, bad),
+	} {
+		require.Error(t, err, "%s of a negative amount must be refused", name)
+		require.Contains(t, err.Error(), "positive",
+			"%s must say what the rule is, not just that something was invalid", name)
+		require.Contains(t, err.Error(), testRealmDenom,
+			"%s must name the denom where the caller can see it", name)
+	}
 }
 
 // A burn of more than was ever minted means the counter already disagreed with the

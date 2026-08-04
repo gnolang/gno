@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -3598,6 +3599,42 @@ func TestGenesisSeedsTheSupplyCounter(t *testing.T) {
 // sources, and the integration harness appends to a loaded default set. Pins what that
 // actually does, since it is easy to assume it either accumulates or errors: one
 // account survives, the last entry's amount wins, and supply seeding agrees.
+// A rejected genesis balance aborts InitChain, and the causes include a denom past
+// the length bound. The panic has to name the entry: std.ErrInvalidCoins carries its
+// detail only under %+v and a panic renders its value with %v, so a bare panic(err)
+// would say nothing but "invalid coins error" out of a genesis holding thousands.
+func TestGenesisBalanceRejectionNamesTheEntry(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("bad-genesis-entry"))
+	overlong := "/gno.land/r/x/" + strings.Repeat("z", 300) + ":c"
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: overlong, Amount: 5}}})
+	}()
+	require.NotNil(t, recovered, "a denom past the length bound must abort genesis")
+	msg := fmt.Sprintf("%v", recovered)
+	require.Contains(t, msg, addr.String(), "the panic must name the address to fix")
+	require.Contains(t, msg, overlong, "and the amount that was rejected")
+}
+
 func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	t.Parallel()
 
