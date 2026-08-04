@@ -163,3 +163,50 @@ func TestFailedSubtractDoesNotRewriteAFullyVestedAccount(t *testing.T) {
 	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"), "untouched")
 }
+
+// TestBurnIsBlockedByAVestingLock records that a realm cannot always remove its own
+// coin. BurnCoins debits through SubtractCoins, whose vesting check is deliberately
+// tier-agnostic, so a genesis schedule naming a realm denom locks it against the
+// issuer too. That is reachable: applyBalance builds the account object with the
+// full pre-split amount to satisfy the schedule, then SetCoins moves the non-gas
+// denoms to their own keys, leaving OriginalVesting naming a split-tier denom.
+//
+// Whether an issuer should be able to burn past a lock is a policy question and is
+// left alone; this pins what the code does, and that a refused burn moves nothing.
+func TestBurnIsBlockedByAVestingLock(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-vester-burn"))
+	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
+
+	cva, err := std.NewContinuousVestingAccount(
+		std.NewBaseAccount(addr, locked, nil, 0, 0),
+		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
+	)
+	require.NoError(t, err)
+	env.acck.SetAccount(env.ctx, cva)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
+	// Seeded, so the refusal below cannot come from nextSupply finding no counter.
+	env.bankk.RecomputeSupply(env.ctx)
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(env.ctx, testRealmDenom),
+		"precondition: the supply must be recorded, or the burn is refused for the wrong reason")
+
+	ctx := atTime(env, 100) // nothing vested yet
+	err = env.bankk.BurnCoins(ctx, addr, locked)
+	// Which refusal, not merely that it failed. std.Err* renders its detail only
+	// under %+v, so Error() is the bare type name — which is exactly what
+	// discriminates here: an unaffordable debit would say "insufficient coins error".
+	require.EqualError(t, err, "vesting locked coins error",
+		"a burn of a fully locked denom must be refused as locked, not as unaffordable")
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(ctx, testRealmDenom),
+		"a refused burn must not move the counter")
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, testRealmDenom),
+		"a refused burn must not move the balance")
+
+	// Once vested the same burn succeeds, so this cannot pass against a BurnCoins
+	// that refuses everything.
+	vested := atTime(env, 300)
+	require.NoError(t, env.bankk.BurnCoins(vested, addr, locked))
+	require.Zero(t, env.bankk.TotalSupply(vested, testRealmDenom))
+}

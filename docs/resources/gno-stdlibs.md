@@ -849,8 +849,10 @@ actually has, qualified or not.
 ### RemoveCoin
 Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
 
-Only the realm that issued a denomination may remove it, and it may do so from
-any holder without their consent.
+Only the realm that issued a denomination may remove it, and it needs no consent
+from the holder — with one exception: if the holder's account carries a vesting
+schedule naming that denomination, the still-locked part cannot be removed, and
+`RemoveCoin` fails until it vests.
 
 ##### Parameters
 - `addr` **address** to remove coins from
