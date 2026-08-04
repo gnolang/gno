@@ -51,9 +51,12 @@ load-bearing.
    Gno in the txtar. Two consequences worth knowing: this is new Gno stdlib
    surface, and editing stdlib `.gno` source moved the app-hash pin — which is the
    *only* reason this branch moves it, since the balance split alone does not.
-   The native gas entry for `bankerGetCoin` is a conservative placeholder (the
-   same base as `bankerGetCoins`, which does strictly more work) and wants
-   calibration on the bench box.
+   `bankerGetCoin` and `bankerTotalCoin` are now calibrated on the reference Xeon —
+   129 and 87, replacing a 349 placeholder. Note both fits come from `mockBanker`,
+   which performs neither the store read (charged separately by the store layer) nor
+   `std.ValidateDenom`. The latter is genuinely unpriced, but it is a byte scan at
+   ~174ns worst case against a ~59,000-gas store read, so it is ~0.3% of the call.
+   A denom-length slope would price it exactly and needs a length-varying benchmark.
 
    **The cost you should know about:** adding a method to the Gno `Banker`
    *interface* breaks every implementor of it, not just callers. `NewBanker` and
