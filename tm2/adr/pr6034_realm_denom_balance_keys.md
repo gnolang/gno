@@ -113,7 +113,14 @@ Go-side `chain/banker.BankerInterface` also gains the method, and that one matte
 to a different audience: it is exported from a non-internal package and is what a
 chain embedding the GnoVM implements — gno.land's `SDKBanker` satisfies it — so an
 out-of-tree chain with a custom banker gets a compile error. Three in-tree
-implementors, all updated here (`SDKBanker`, `TestBanker`, the calibration mock) — because the concrete type is unexported
+implementors, all updated here (`SDKBanker`, `TestBanker`, the calibration mock).
+
+`GetCoin` reaches six interfaces in all, because every layer on the read path
+declares its own narrow view: the two above, plus `auth.BankKeeperI` (the ante
+handler needs it — a fee denom's balance may not be in the account object),
+`bank.ViewKeeperI`, `vm.BankKeeperI`, and `execctx.BankerInterface`. Five are
+exported and so externally implementable; `execctx` is confined to
+`gnovm/stdlibs/...` by Go's internal rule — because the concrete type is unexported
 and the APIs accepting a `Banker` reject non-canonical ones, so a custom implementor
 cannot be plugged into either of the interfaces that accept one today.
 
