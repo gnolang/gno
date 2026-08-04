@@ -27,6 +27,15 @@ and the victim then pays for it on every transaction they send, forever:
 | 128 | ~35 KB | ~+1,095,000 |
 | 1,000 | ~276 KB | **~+8,556,000** |
 
+Measured with **maximal-length denoms** — ~283 bytes each including the amount and
+separator, the worst case an attacker can choose freely — which is why the object
+grows so fast. The gas follows from gno.land's pinned constants: the victim's own
+transaction reads and rewrites the object at `17 + 14` gas per byte, so the extra
+cost is ~31× the bytes added. Scale it for a shorter denom: a typical
+`/gno.land/r/demo/foo:gold` costs about 31 bytes, so 1,000 of those is ~+960,000
+per victim transaction rather than ~+8.5M. Still a permanent unilateral tax on
+someone else's account.
+
 The victim cannot cheaply undo it. There is no burn message anywhere in the tree
 and `RemoveCoin` is issuer-only, so the only disposal is to transfer the junk to
 another address — one transaction per cleanup, against an attacker who can re-mint
