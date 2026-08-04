@@ -121,8 +121,8 @@ func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (s
 			// carries its text — measured — so the wording of a plain error returned
 			// from a handler is consensus state, while a typed one's is not.
 			return nil, fmt.Errorf(
-				"supply of %s would go from %d to %d%+d, which is out of range",
-				coin.Denom, old, old, sign*coin.Amount)
+				"supply of %s would move from %d by %+d, which is out of range",
+				coin.Denom, old, sign*coin.Amount)
 		}
 		next[i] = std.Coin{Denom: coin.Denom, Amount: sum}
 	}
