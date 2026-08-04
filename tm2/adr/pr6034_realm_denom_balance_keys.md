@@ -344,6 +344,17 @@ alone.
   such balance — but the pin *does* move on this change, because adding
   `banker.GetCoin` adds bytes to `banker.gno`, and stdlib source is itself chain
   state. That is the only reason it moves.
+- **A chain already holding a realm-denom balance cannot take this binary in
+  place.** Those balances live in the account object, where master put every denom,
+  and the new keeper expects them in `/b/`. The migration is the replay in the
+  section above, and it is not optional. Measured on an account object holding
+  `7/gno.land/r/demo/foo:gold` alongside `100ugnot`: `GetCoins`, `GetCoin` of the
+  *gas* denom, and a `SendCoins` of the *gas* denom all panic on
+  `accountTierCoins`' exclusivity assertion, because each sweeps the whole object;
+  only `GetCoin` of the realm denom returns quietly, reporting zero. So the account
+  is not left with a frozen realm balance — it cannot move its `ugnot` either, and
+  since fee deduction reads the account, it cannot transact at all. A panic in
+  `DeliverTx` is a node-level event, not a failed transaction.
 - **Split-tier operations cost one more key** than before, since they no longer
   ride along in the account object. That is ~+306,600 for an address whose account
   object is written anyway — the signer, or a recipient being created — and less
