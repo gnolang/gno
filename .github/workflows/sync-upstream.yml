@@ -26,22 +26,27 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (for the origin push credentials)
-        uses: actions/checkout@v4
+      # Check out the fork (its master history makes the upstream fetch below
+      # incremental). persist-credentials: false — we push with an explicit
+      # token URL instead of relying on the persisted credential.
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fast-forward master from gnolang/gno
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git config user.name "gno-fixes-bot"
-          git config user.email "gno-fixes-bot@users.noreply.github.com"
           git remote add upstream https://github.com/gnolang/gno.git
           git fetch --no-tags upstream master
 
-          # Fast-forward-only push: fails loudly if `master` has diverged,
-          # which means someone committed to the mirror by mistake.
-          if ! git push origin "refs/remotes/upstream/master:refs/heads/master"; then
+          # Fast-forward-only push (no --force): fails loudly if `master` has
+          # diverged, which means someone committed to the mirror by mistake.
+          if ! git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+              "refs/remotes/upstream/master:refs/heads/master"; then
             echo "::error::Could not fast-forward master from upstream — it has diverged. See .github/README.md."
             exit 1
           fi

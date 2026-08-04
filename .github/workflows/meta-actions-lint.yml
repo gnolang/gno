@@ -36,7 +36,6 @@ jobs:
     name: zizmor
     runs-on: ubuntu-latest
     permissions:
-      security-events: write # to upload SARIF results to the Security tab
       contents: read
       actions: read # to read workflow files for analysis
     steps:
@@ -46,3 +45,10 @@ jobs:
           persist-credentials: false
       - name: Run zizmor
         uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        with:
+          # This is a private fork without GitHub Advanced Security, so the
+          # SARIF upload to Code Scanning is unavailable. Disable it and surface
+          # findings as inline annotations instead; zizmor still runs and its
+          # exit code still gates the job. (Fork-only: do not port upstream.)
+          advanced-security: false
+          annotations: true
