@@ -320,7 +320,7 @@ A natural-looking pattern in test code:
 t.Run(name, func(cur realm, t *testing.T) {
     run := func() {
         testing.SetRealm(testing.NewUserRealm(voter))
-        tdao.vote(0, cur, ...) // expects rlm.Previous() == voter
+        tdao.vote(..., cur) // expects rlm.Previous() == voter
     }
     uassert.AbortsWithMessage(t, cur, "...", run)
 })
@@ -348,7 +348,7 @@ enclosing crossing scope:
 t.Run(name, func(cur realm, t *testing.T) {
     testing.SetRealm(testing.NewUserRealm(voter))  // mutates THIS frame's cur
     run := func() {
-        tdao.vote(0, cur, ...)  // captured `cur` now points to mutated HIV
+        tdao.vote(..., cur)  // captured `cur` now points to mutated HIV
     }
     uassert.AbortsWithMessage(t, cur, "...", run)
 })
