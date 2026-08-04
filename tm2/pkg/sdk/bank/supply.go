@@ -108,9 +108,14 @@ func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (s
 		// can leave the range and it wraps negative. Both are kept so this does not
 		// depend on what overflow.Add leaves in sum when it reports failure.
 		if !ok || sum < 0 {
-			return nil, std.ErrInvalidCoins(fmt.Sprintf(
+			// fmt.Errorf, not std.ErrInvalidCoins: the only production callers are
+			// SDKBanker.IssueCoin/RemoveCoin, which panic on this, and a recovered
+			// panic is rendered with %v and re-typed as ErrInternal. std.Err* keeps
+			// its detail under %+v only, so wrapping this message that way would
+			// leave a realm author with nothing but "invalid coins error".
+			return nil, fmt.Errorf(
 				"supply of %s would go from %d to %d%+d, which is out of range",
-				coin.Denom, old, old, sign*coin.Amount))
+				coin.Denom, old, old, sign*coin.Amount)
 		}
 		next[i] = std.Coin{Denom: coin.Denom, Amount: sum}
 	}
