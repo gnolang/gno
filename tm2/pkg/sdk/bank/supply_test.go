@@ -193,6 +193,11 @@ func TestTotalSupplyRejectsAnOverlongDenomBeforeTheStore(t *testing.T) {
 	require.Zero(t, env.bankk.TotalSupply(cctx, huge))
 	require.Zero(t, meter.GasConsumed(),
 		"a denom that cannot have a supply record must not reach the store")
+
+	// A well-formed denom in the same context must charge, or the assertion above
+	// holds for a meter that was never wired up rather than for the length bound.
+	env.bankk.TotalSupply(cctx, testAccountDenom)
+	require.Positive(t, meter.GasConsumed(), "the measurement harness must actually charge gas")
 }
 
 // computeSupply builds a map keyed by denom while sweeping the whole balance

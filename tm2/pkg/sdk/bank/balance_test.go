@@ -1372,6 +1372,11 @@ func TestOverlongDenomNeverReachesTheStore(t *testing.T) {
 	require.Zero(t, env.bankk.GetCoin(cctx, addr, huge))
 	require.Zero(t, meter.GasConsumed(),
 		"an impossible denom must not reach the store at all")
+
+	// A well-formed denom in the same context must charge, or the assertion above
+	// holds for a meter that was never wired up rather than for the guard.
+	env.bankk.GetCoin(cctx, addr, testAccountDenom)
+	require.Positive(t, meter.GasConsumed(), "the measurement harness must actually charge gas")
 }
 
 // parseBalanceKey checks the prefix where denomFromBalanceKey does not, because the
