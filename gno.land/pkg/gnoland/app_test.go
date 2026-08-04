@@ -3493,7 +3493,14 @@ func TestInitChainerSeedsSupply(t *testing.T) {
 		name     string
 		appState func(t *testing.T) any
 	}{
-		{"in-memory", func(*testing.T) any { return DefaultGenState() }},
+		{"in-memory", func(*testing.T) any {
+			def := DefaultGenState()
+			def.Balances = []Balance{{
+				Address: crypto.AddressFromPreimage([]byte("streamed-holder")),
+				Amount:  std.Coins{{Denom: ugnot.Denom, Amount: 10}},
+			}}
+			return def
+		}},
 		{"streaming", func(t *testing.T) any {
 			t.Helper()
 			// Marshalled from the same defaults the in-memory case uses, so the two
@@ -3544,6 +3551,9 @@ func seedsSupply(t *testing.T, appState any) {
 	require.Nil(t, res.Error, "InitChainer must succeed for this to mean anything")
 	require.Equal(t, 1, bankk.recomputeSupplyCalls,
 		"InitChainer must seed the supply counter from the genesis balances")
+	require.Equal(t, 1, bankk.setCoinsAtRecompute,
+		"the counter must be recomputed after every balance is applied: SetCoins does "+
+			"not maintain it, so recomputing first leaves balances with no supply record")
 }
 
 // The values RecomputeSupply seeds, and that an unseeded chain is actually reported.
