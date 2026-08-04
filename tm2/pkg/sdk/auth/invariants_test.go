@@ -131,8 +131,13 @@ func TestInvariantReportsWhatIterateAccountsPanicsOn(t *testing.T) {
 	}, "precondition: the keeper accessor panics on this state")
 
 	require.NotPanics(t, func() {
-		_, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
 		require.True(t, broken)
+		// Named, per this file's own rule: the checks share one sweep, so a bare
+		// broken assertion would keep passing if this state ever started producing
+		// some other finding, and the test would no longer show that the decode path
+		// is the one being handled.
+		require.Contains(t, msg, "does not decode")
 	})
 }
 
