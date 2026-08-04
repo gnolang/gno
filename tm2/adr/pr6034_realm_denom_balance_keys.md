@@ -174,12 +174,16 @@ account object like `ugnot`.
    object: transfers would fail as insufficient funds, a later credit would create
    a second home for the same denom, and the first `GetCoins` would panic on the
    exclusivity assertion. Nothing is lost, but the balance is frozen.
-3. Regenerate state instead, with `gnogenesis fork`. It copies the source genesis
-   and replays history through the new binary, and since a balance can only be
-   produced by a transaction or a genesis entry, replay rewrites every balance
-   under the new routing. Both tiers come out consistent with no migration code.
+3. Regenerate state instead. `gnogenesis fork generate` assembles a new genesis
+   from the source chain's state *and* its transaction history — note the
+   subcommand; bare `gnogenesis fork` only prints help. Smoke-test it first with
+   `gnogenesis fork test`, which runs the replay in memory, so a bad migration
+   surfaces before any validator is asked to start on it.
 4. Start the new chain from that genesis, with every validator on the new binary.
-   The app hash changes; that is expected and unavoidable.
+   The replay happens here, not in step 3: since a balance can only be produced by
+   a transaction or a genesis entry, replaying both rewrites every balance under
+   the new routing, and both tiers come out consistent with no migration code. The
+   app hash changes; that is expected and unavoidable.
 5. Tell integrators: `auth/accounts` will now include the new denom in `coins` for
    holders. Anything treating that field as "the balance" sees a different set.
    `bank/balances` is unaffected.
@@ -368,9 +372,10 @@ alone.
   otherwise be visible and permanently unspendable. Account creation allocates
   from a global counter, so *when* it happens is consensus state.
 - Moving to full ADR-004 later means emptying the allowlist. No in-place
-  migration code is needed *if the move is done by replay*: `gnogenesis fork`
-  copies the source genesis and replays history under the new binary, which
-  regenerates every balance in whatever layout that binary implements. It is not
+  migration code is needed *if the move is done by replay*: `gnogenesis fork
+  generate` assembles a genesis from the source chain's state and transaction
+  history, and starting the new binary on it regenerates every balance in whatever
+  layout that binary implements. It is not
   free, though, and calling it "a one-line change" would be wrong: a plain binary
   upgrade on an existing database is **not** a replay and would strand every gas
   balance in the account object — the `accountTierCoins` assertion exists to halt
