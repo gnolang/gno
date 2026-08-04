@@ -229,6 +229,28 @@ Mixing has no coherent meaning: a named argument among positional ones has a
 position knowable only through `vm/qdoc`, at which point the call needs the
 network anyway and the positional form has bought nothing.
 
+**No arguments at all** — `args` absent, empty, or no `args=`/`arg.<name>=` on a
+link — is **neither form**, and the rules above do not apply to it. The forms
+exist to answer one question, "in what order do these values go", and with no
+values there is no order to settle. So:
+
+- The mixing rule is vacuous, and a wallet MUST NOT answer `invalid_request`
+  merely because a request supplied no arguments.
+- The wallet SHOULD still resolve the realm document, to label the review screen
+  and to show the user any declared parameter left unsupplied — that is what
+  makes a partly-filled call reviewable.
+- **A failed lookup MUST NOT prevent signing**, exactly as for the positional
+  form. Nothing about the binding depends on it: there is nothing to order and
+  nothing to misplace. Requiring it would put the one call shape that needs no
+  network information — a function that declares no parameters, `Increment()` and
+  its kind — behind a network round trip, and so out of reach of offline signing,
+  which is the opposite of what the forms are for.
+
+The wallet cannot tell a complete zero-argument call from an unfilled one without
+the lookup, and that is the honest position to present: with the document, it
+shows the parameters and what is missing; without it, it shows a call supplying
+no arguments and lets the user judge. Neither is a reason to refuse outright.
+
 **A name that matches no declared parameter** MUST NOT be bound positionally and
 MUST NOT be silently ignored. The wallet answers `invalid_request`, or surfaces
 the argument to the user as unmapped for explicit confirmation. Dropping it
