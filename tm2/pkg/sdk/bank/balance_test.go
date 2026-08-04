@@ -1404,6 +1404,38 @@ func TestAMisMigratedBalanceIsFrozenNotSpendable(t *testing.T) {
 	require.Equal(t, int64(500), env.bankk.getSplitBalance(ctx, holder, testAccountDenom))
 }
 
+// An empty allowlist is full cosmos ADR-004, and the ADR names it as the route there:
+// "moving to full ADR-004 later means emptying the allowlist". It is the one
+// configuration in which the account tier is never used, so it is the one that would
+// catch code assuming at least one denom lives there. Nothing else runs the money
+// path under it — the other nil-allowlist test only calls invariants.
+func TestAnEmptyAllowlistSplitsEveryDenom(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	k := NewBankKeeper(env.acck, env.prmk.ForModule(ModuleName), env.key, nil)
+	ctx := env.ctx
+	from := crypto.AddressFromPreimage([]byte("adr004-from"))
+	to := crypto.AddressFromPreimage([]byte("adr004-to"))
+
+	require.NoError(t, k.MintCoins(ctx, from, std.Coins{{Denom: testAccountDenom, Amount: 100}}))
+	require.NoError(t, k.SendCoins(ctx, from, to, std.Coins{{Denom: testAccountDenom, Amount: 30}}))
+
+	require.Equal(t, int64(70), k.GetCoin(ctx, from, testAccountDenom))
+	require.Equal(t, int64(30), k.GetCoin(ctx, to, testAccountDenom))
+	require.Equal(t, int64(100), k.TotalSupply(ctx, testAccountDenom))
+	require.Equal(t, "70"+testAccountDenom, k.GetCoins(ctx, from).String())
+
+	// The gas denom now lives in its own key like any other, so the account object
+	// carries no balance at all. This is the assertion that fails if an empty
+	// allowlist is ever read as "allow everything".
+	require.True(t, env.acck.GetAccount(ctx, from).GetCoins().IsZero(),
+		"with no allowlist, nothing belongs in the account object")
+
+	msg, broken := AllInvariants(k.ViewKeeper)(ctx)
+	require.False(t, broken, "full ADR-004 state must be healthy:\n%s", msg)
+}
+
 // The allowlist holds one denom today, so nothing otherwise exercises a second.
 // A second gas denom is the expected way it grows — a chain accepting fees in an
 // IBC voucher, for instance — and such a denom sorts *before* "ugnot", which makes
