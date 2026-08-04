@@ -86,6 +86,13 @@ func (app *BaseApp) SetAnteHandler(ah AnteHandler) {
 	app.anteHandler = ah
 }
 
+func (app *BaseApp) SetTxProfiler(fn TxProfiler) {
+	if app.sealed {
+		panic("SetTxProfiler() on sealed BaseApp")
+	}
+	app.txProfiler = fn
+}
+
 func (app *BaseApp) SetBeginTxHook(beginTx BeginTxHook) {
 	if app.sealed {
 		panic("SetBeginTxHook() on sealed BaseApp")

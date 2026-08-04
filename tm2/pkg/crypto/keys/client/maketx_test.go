@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -183,4 +184,22 @@ func TestOutOfGasLogNoConsensusMaxGas(t *testing.T) {
 func TestOutOfGasLogNoSimulateHintWhenDisabled(t *testing.T) {
 	log := store.OutOfGasLog(120, 100, 200, "simulation", false)
 	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation", log)
+}
+
+func TestMakeTxCfgGasProfileAcceptsDocumentedInvocation(t *testing.T) {
+	t.Parallel()
+
+	// Parse through RegisterFlags rather than a struct literal: -broadcast
+	// defaults to true, so a struct-literal config represents a state the CLI
+	// never produces. A guard rejecting "-gasprofile with -broadcast" would
+	// look fine against a literal while rejecting every documented command.
+	cfg := &MakeTxCfg{RootCfg: &BaseCfg{}}
+	fs := flag.NewFlagSet("maketx", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse([]string{"-gasprofile", "gas.pprof"}))
+
+	require.True(t, cfg.Broadcast, "-broadcast defaults to true")
+	require.Equal(t, "gas.pprof", cfg.GasProfile)
+	require.True(t, cfg.ShouldSign(), "-gasprofile must sign the tx")
+	require.NoError(t, cfg.Validate(), "the documented -gasprofile invocation must be accepted")
 }

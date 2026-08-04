@@ -165,6 +165,10 @@ To minimize gas costs, consider these optimization strategies:
    submitting to the blockchain.
 5. **Test locally first**: Use `gnodev` to test and optimize your code before
    deploying to a network.
+6. **Profile where the gas goes**: Don't guess — profile. `gno test -gasprofile`
+   produces a pprof breakdown of gas per function (cpu, alloc, and storage), so
+   you can see exactly which calls dominate. See
+   [Gas profiling](./gno-testing.md#gas-profiling).
 
 ## Common Errors
 

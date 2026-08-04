@@ -27,6 +27,9 @@ type InMemoryNodeConfig struct {
 	DB                         db.DB     // will be initialized if nil
 	VMOutput                   io.Writer // optional
 	SkipGenesisSigVerification bool
+	// EnableGasProfiler exposes the dev-only .app/profiletx gas-profiler query.
+	// Local dev nodes only (e.g. gnodev); never validators.
+	EnableGasProfiler bool
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -113,6 +116,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		InitChainerConfig:          cfg.InitChainerConfig,
 		VMOutput:                   cfg.VMOutput,
 		SkipGenesisSigVerification: cfg.SkipGenesisSigVerification,
+		EnableGasProfiler:          cfg.EnableGasProfiler,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)

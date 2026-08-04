@@ -83,7 +83,7 @@ func execSessionRevokeAll(cfg *SessionRevokeAllCfg, args []string, io commands.I
 		Memo:       cfg.RootCfg.RootCfg.Memo,
 	}
 
-	if cfg.RootCfg.RootCfg.Broadcast {
+	if cfg.RootCfg.RootCfg.ShouldSign() {
 		err := ExecSignAndBroadcast(cfg.RootCfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err

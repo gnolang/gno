@@ -511,8 +511,9 @@ type GenesisReplayKey struct{}
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
-	// In various cases such as simulation and during the genesis block, we do not
-	// meter any gas utilization.
+	// During the genesis block we do not meter gas. Note that simulation is
+	// still metered (bounded by gasLimit) — only genesis and the source-gas
+	// replay mode below use an infinite meter.
 	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}

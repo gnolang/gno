@@ -157,6 +157,42 @@ func Incr(cur realm) {
 		}
 	})
 
+	// .app/profiletx carries the same tx bytes as .app/simulate and must be
+	// intercepted the same way, so gnodev lazy-loads the packages it touches.
+	// This node has no gas profiler enabled, so the query itself answers with
+	// an error — irrelevant here, since interception happens before the
+	// request is forwarded.
+	t.Run("profiletx_tx_paths", func(t *testing.T) {
+		var tx std.Tx
+		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
+		tx.Fee = std.Fee{GasWanted: 5e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{vm.NewMsgCall(creator, send, targetPath, "Incr", nil)}
+
+		// Do not consume a sequence number: a query never executes the tx, so
+		// incrementing here would desync the signer and break later subtests.
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
+		require.NoError(t, err)
+		signature, err := privKey.Sign(bytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: privKey.PubKey(), Signature: signature}}
+
+		bz, err := amino.Marshal(tx)
+		require.NoError(t, err)
+
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+
+		_, _ = cli.ABCIQuery(context.Background(), ".app/profiletx", bz)
+
+		select {
+		case paths := <-pathChan:
+			require.Len(t, paths, 1)
+			assert.Equal(t, []string{targetPath}, paths)
+		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
 	t.Run("add_pkg", func(t *testing.T) {
 		const barPath = "gno.land/r/target/bar"
 		files := []*std.MemFile{

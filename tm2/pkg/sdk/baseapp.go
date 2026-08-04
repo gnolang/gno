@@ -45,6 +45,7 @@ type BaseApp struct {
 
 	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
 	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
+	txProfiler  TxProfiler  // optional dev-only handler for the .app/profiletx query; nil disables it.
 
 	// --------------------
 	// Volatile state
@@ -467,6 +468,26 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 				res.Value = bytes
 			}
 
+			return res
+		case "profiletx":
+			// Dev-only: run the tx through Simulate with gas profiling and
+			// return a pprof profile. Disabled (unknown request) unless the
+			// application registered a TxProfiler via SetTxProfiler.
+			if app.txProfiler == nil {
+				const msg = "tx gas profiling is not enabled on this node"
+				res.Error = ABCIError(std.ErrUnknownRequest(msg))
+				res.Log = msg // descriptive text for clients (Error stringifies generically)
+				return res
+			}
+			res.Height = req.Height
+			profile, log, err := app.txProfiler(req.Data)
+			if err != nil {
+				res.Error = ABCIError(std.ErrInternal(err.Error()))
+				res.Log = err.Error() // descriptive text (Error stringifies generically)
+				return res
+			}
+			res.Value = profile
+			res.Log = log
 			return res
 		case "version":
 			res.Height = req.Height

@@ -255,3 +255,25 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 		DeliverTx: result,
 	}, nil
 }
+
+// ProfileTx queries the node's .app/profiletx endpoint and returns a pprof gas
+// profile of tx along with a status log ("ok", or a note when the tx did not
+// complete and the profile is partial). The endpoint is off by default on real
+// nodes and enabled on dev nodes (e.g. gnodev); a node without it returns a
+// clear "not enabled" error.
+func ProfileTx(cli client.ABCIClient, tx []byte) (profile []byte, log string, err error) {
+	qres, err := cli.ABCIQuery(context.Background(), ".app/profiletx", tx)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "querying .app/profiletx")
+	}
+	if qres.Response.Error != nil {
+		// The descriptive message lives in Response.Log; the typed ABCI error
+		// stringifies to a generic category (e.g. "unknown request error").
+		detail := qres.Response.Log
+		if detail == "" {
+			detail = qres.Response.Error.Error()
+		}
+		return nil, "", errors.New("%s", detail)
+	}
+	return qres.Response.Value, qres.Response.Log, nil
+}

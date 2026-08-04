@@ -22,6 +22,14 @@ type EndBlocker func(ctx Context, req abci.RequestEndBlock) abci.ResponseEndBloc
 // transaction.
 type BeginTxHook func(ctx Context) Context
 
+// TxProfiler runs a tx through Simulate with gas profiling enabled and returns a
+// pprof profile of its gas usage plus a status log (e.g. whether the tx
+// completed or the profile is partial because the tx failed/ran out of gas).
+// A non-nil err means no profile could be produced. Optional and dev-only: nil
+// disables the .app/profiletx query. Registered by the application, not tm2, so
+// tm2 stays free of any profiler dependency.
+type TxProfiler func(txBytes []byte) (profile []byte, log string, err error)
+
 // EndTxHook is a BaseApp-specific hook, called after all the messages in a
 // transaction have terminated.
 type EndTxHook func(ctx Context, result Result)

@@ -126,6 +126,14 @@ transaction](../users/interact-with-gnokey.md#making-an-airgapped-transaction):
 `gnodev` watches the working directory and reloads the node on every `.gno`
 save, replaying prior transactions to preserve state across reloads.
 
+### Gas profiling
+
+The built-in node exposes the `.app/profiletx` gas-profiler query, so you can
+profile any transaction's gas usage against your dev node and view it with
+`go tool pprof`. See
+[Profiling a transaction](./gno-testing.md#profiling-a-transaction). (This query
+is a local-development feature and is off by default on real nodes.)
+
 ### Genesis and node tuning
 
 `gnodev` can also load a genesis file with `-genesis <file>` to seed the

@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -51,6 +52,17 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+	// gasProfiler, when non-nil, receives per-charge gas attributed to the
+	// current gno call stack (see gnovm/pkg/gasprof). Off by default; the
+	// nil check is the only cost when profiling is disabled.
+	// See gnovm/adr/pr5967_gas_profiler.md.
+	gasProfiler *gasprof.Profiler
+	// gasMeterWrapped records that AttachGasProfiler wrapped this machine's
+	// meter, so DisableGasProfiler only unwinds what it installed.
+	gasMeterWrapped bool
+	// savedAllocMeter holds m.Alloc's meter before profiling wrapped it, so
+	// DisableGasProfiler can restore it exactly.
+	savedAllocMeter store.GasMeter
 	// BoundedPanicRender gates makeUnhandledPanicError to use the
 	// bounded printer (see bounded_strings.go). True on validator-
 	// side Machines; false for filetests, REPL, etc.
@@ -86,6 +98,12 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
+	// GasProfiler, when set, drives the call-tree cursor for this (top-level)
+	// machine. The meter must already be the profiling wrapper (installed once
+	// at the tx boundary). Do NOT set it on mid-execution preprocess
+	// sub-machines — their gas attributes to the parent's cursor. See
+	// gnovm/adr/pr5967_gas_profiler.md.
+	GasProfiler   *gasprof.Profiler
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
 	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
@@ -202,6 +220,12 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
 	mm.BoundedPanicRender = opts.BoundedPanicRender
+	if opts.GasProfiler != nil {
+		// Top-level (tx) machine: drive the cursor. The meter is already the
+		// profiling wrapper (installed at the tx boundary), so this only enables
+		// the cursor, it does not touch the meter.
+		mm.SetGasProfilerCursor(opts.GasProfiler)
+	}
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -226,6 +250,12 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 // and m should not be used after this call. Only Machines initialized with this
 // package's constructors should be released.
 func (m *Machine) Release() {
+	// The frame stack is discarded wholesale below (no per-frame pops), so
+	// reset the profiler cursor to root while it is still reachable.
+	if m.gasProfiler != nil {
+		m.gasProfiler.Reset()
+	}
+
 	// here we zero in the values for the next user
 	ops := m.Ops[:0:startingOpsCap]
 	values := m.Values[:0:startingValuesCap]
@@ -1420,6 +1450,129 @@ func (m *Machine) incrCPU(cycles int64) {
 	m.Cycles += cycles
 }
 
+// EnableGasProfiler turns on source-level gas profiling with a fresh profiler:
+// it installs a GasMeter decorator that attributes every charge (CPU, alloc,
+// and — once a surface charges it — store gas) to the current gno call frame,
+// and enables the frame-lifecycle cursor. Requires a GasMeter, and declines on a
+// machine whose meter is already profiled. Returns the profiler actually driving
+// this machine, or nil when none was installed.
+// See gnovm/adr/pr5967_gas_profiler.md.
+func (m *Machine) EnableGasProfiler() *gasprof.Profiler {
+	if m.GasMeter == nil {
+		return nil
+	}
+	m.AttachGasProfiler(gasprof.New())
+	return m.gasProfiler
+}
+
+// SetGasProfilerCursor enables cursor tracking with a profiler whose meter
+// decorator is ALREADY installed upstream (the on-chain path wraps
+// ctx.GasMeter() once at the tx boundary, so this machine's meter, alloc meter,
+// store, and amino meter are all the wrapper already). Unlike AttachGasProfiler
+// it does not touch the meter — it only drives the call-tree cursor. The cursor
+// resets to root so this machine's frames form a clean subtree.
+func (m *Machine) SetGasProfilerCursor(p *gasprof.Profiler) {
+	// Declining on an already-profiled machine keeps the meter and the cursor
+	// pointed at the same profiler: pointing them at different ones records
+	// gas into one while frame events drive the other, which silently strands
+	// every charge on that profiler's root.
+	if p == nil || m.gasProfiler != nil {
+		return
+	}
+	p.Reset()
+	m.gasProfiler = p
+}
+
+// AttachGasProfiler installs profiling on this machine using the given (possibly
+// shared) profiler, so several machines can accumulate into one profile. The
+// cursor resets to root for this machine's execution. No-op without a meter.
+func (m *Machine) AttachGasProfiler(p *gasprof.Profiler) {
+	if m.GasMeter == nil {
+		return
+	}
+	// Decline when this meter is already a profiling wrapper: wrapping a wrapper
+	// records every charge twice. Checking the meter rather than m.gasProfiler
+	// also covers a sub-machine that inherited an already-wrapped meter from a
+	// profiled tx (NewMachine picks up the preprocess allocator's meter), where
+	// m.gasProfiler is nil yet the meter is wrapped. Sharing one profiler across
+	// several machines is unaffected: that is one attach per machine, each with
+	// its own meter.
+	if _, wrapped := m.GasMeter.(interface{ Unwrap() store.GasMeter }); wrapped {
+		return
+	}
+	p.Reset() // fresh cursor for this machine's execution context
+	m.gasProfiler = p
+	w := gasprof.WrapMeter(m.GasMeter, p)
+	m.GasMeter = w
+	m.gasMeterWrapped = true
+	if m.Alloc != nil {
+		// Route allocation gas through the wrapper too. The allocator holds its
+		// own meter reference (which may be nil, e.g. the gno-test allocator);
+		// save it so DisableGasProfiler can restore it exactly. When it was nil,
+		// this also begins charging alloc gas to the shared meter — deliberate:
+		// the profile can only reconcile if alloc gas lands in the same meter.
+		m.savedAllocMeter = m.Alloc.GetGasMeter()
+		m.Alloc.SetGasMeter(w)
+	}
+}
+
+// DisableGasProfiler restores the original meters and stops cursor tracking,
+// leaving gas accounting identical to a never-profiled machine.
+func (m *Machine) DisableGasProfiler() {
+	if m.gasProfiler == nil {
+		return
+	}
+	m.gasProfiler = nil
+	// Only unwind what this machine installed. A cursor-only machine (the
+	// on-chain path) shares a meter wrapped upstream: unwrapping it here would
+	// drop the rest of the tx from the profile, and restoring a nil
+	// savedAllocMeter would stop alloc gas being charged altogether.
+	if !m.gasMeterWrapped {
+		return
+	}
+	m.gasMeterWrapped = false
+	if w, ok := m.GasMeter.(interface{ Unwrap() store.GasMeter }); ok {
+		m.GasMeter = w.Unwrap()
+		if m.Alloc != nil {
+			m.Alloc.SetGasMeter(m.savedAllocMeter)
+			m.savedAllocMeter = nil
+		}
+	}
+}
+
+// gasFrameEnter descends the profiler cursor into a just-pushed call frame.
+// Called from PushFrameCall; guarded by the nil check at the call site.
+func (m *Machine) gasFrameEnter(fr *Frame) {
+	// Fully-qualified display name. stacktraceFuncName already qualifies
+	// methods with their receiver's pkgpath; only plain funcs need the package
+	// prepended, and anonymous funcs get a package-qualified placeholder.
+	name := stacktraceFuncName(fr)
+	switch {
+	case name == "":
+		name = fr.Func.PkgPath + ".(anonymous)"
+	case !fr.Func.IsMethod:
+		name = fr.Func.PkgPath + "." + name
+	}
+	f := gasprof.Frame{Func: name, File: fr.Func.FileName}
+	if fr.Func.Source != nil {
+		f.Line = fr.Func.Source.GetLocation().GetLine()
+	}
+	m.gasProfiler.Enter(f)
+}
+
+// numGasCallFrames counts frames the cursor tracks: every call frame
+// (IsCall, i.e. Func != nil — closures included, matching PushFrameCall).
+// Distinct from NumCallFrames, which excludes closures.
+func (m *Machine) numGasCallFrames() int {
+	n := 0
+	for i := range m.Frames {
+		if m.Frames[i].IsCall() {
+			n++
+		}
+	}
+	return n
+}
+
 const (
 	// CPU gas costs: 1 gas = 1 nanosecond of wall time on reference hardware.
 	// Reference: Intel Xeon Platinum 8168 @ 2.70GHz (DigitalOcean Dedicated).
@@ -2327,6 +2480,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
+	// Descend the profiler cursor into the pushed call frame. The IsCall guard
+	// mirrors PopFrame's, keeping Enter/Pop/numGasCallFrames on the same set
+	// (a PushFrameCall frame always has Func != nil, so it holds today).
+	if m.gasProfiler != nil && m.Frames[len(m.Frames)-1].IsCall() {
+		m.gasFrameEnter(&m.Frames[len(m.Frames)-1])
+	}
+
 	// Set the package.
 	// .Package always refers to the code being run,
 	// and may differ from .Realm.
@@ -2477,6 +2637,13 @@ func (m *Machine) PopFrame() Frame {
 	}
 	m.Frames = m.Frames[:numFrames-1]
 
+	// PopFrame removes exactly one frame; ascend the profiler cursor O(1) if it
+	// was a call frame. Bulk truncations (PopUntilLastReviveFrame) use the
+	// absolute SyncDepth instead. Together with Enter these are the only
+	// call-frame count changes, so the cursor stays exact.
+	if m.gasProfiler != nil && f.IsCall() {
+		m.gasProfiler.Pop()
+	}
 	return f
 }
 
@@ -2488,6 +2655,11 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 	}
 	// pop frames if with depth not zero
 	if depthFrames != 0 {
+		// No gas-profiler cursor resync here: goto/break/continue cannot cross a
+		// function boundary, so depthFrames counts only loop/block frames
+		// (findGotoLabel increments it only for for/range/switch-clause). The
+		// cursor tracks call frames (IsCall) exclusively, so these pops leave it
+		// correct. If this ever truncates a call frame, add a SyncDepth call.
 		// the last popped frame
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
@@ -2651,6 +2823,10 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
+			// No gas-profiler cursor resync: this only drops the non-call (loop)
+			// frames above the last call frame, which the cursor does not track;
+			// the call frame itself is left on the stack and removed later by
+			// PopFrame (which does resync the cursor).
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -2664,6 +2840,11 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 		fr := &m.Frames[i]
 		if fr.IsRevive {
 			m.Frames = m.Frames[:i+1]
+			// This truncates several call frames at once; the depth-based
+			// cursor resync ascends past all of them.
+			if m.gasProfiler != nil {
+				m.gasProfiler.SyncDepth(m.numGasCallFrames())
+			}
 			return fr
 		}
 	}

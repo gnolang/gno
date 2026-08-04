@@ -53,14 +53,27 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 	return app.runTx(ctx, txBytes)
 }
 
-func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
+func (app *BaseApp) Simulate(txBytes []byte, ctxFns ...ContextFn) (result Result) {
+	// applyCtxFns decorates ctx with the optional context builders (skipping
+	// nil), so both the pre-first-commit fallback and the snapshot path below
+	// honor them (e.g. the .app/profiletx gas profiler installs its meter here).
+	applyCtxFns := func(ctx Context) Context {
+		for _, ctxFn := range ctxFns {
+			if ctxFn == nil {
+				continue
+			}
+			ctx = ctxFn(ctx)
+		}
+		return ctx
+	}
+
 	// Read header from the atomic snapshot — safe for concurrent access.
 	header := app.getLastBlockHeader()
 	if header == nil || header.GetHeight() < 1 {
 		// Before first commit (e.g., during InitChain or tests),
 		// fall back to checkState which is safe in single-threaded context.
 		ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
-		return app.runTx(ctx, txBytes)
+		return app.runTx(applyCtxFns(ctx), txBytes)
 	}
 
 	height := header.GetHeight()
@@ -81,7 +94,7 @@ func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 		WithMinGasPrices(app.minGasPrices).
 		WithConsensusParams(app.consensusParams)
 
-	return app.runTx(ctx, txBytes)
+	return app.runTx(applyCtxFns(ctx), txBytes)
 }
 
 func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {

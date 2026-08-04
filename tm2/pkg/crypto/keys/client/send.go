@@ -108,7 +108,7 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.RootCfg.Broadcast {
+	if cfg.RootCfg.ShouldSign() {
 		err := ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
